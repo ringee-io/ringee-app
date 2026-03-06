@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset 
+  xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+  xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+  <url>
+    <loc>https://www.ringee.io/</loc>
+    <lastmod>2026-02-26</lastmod>
+    <priority>1.0</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ringee.io/auth/sign-in</loc>
+    <lastmod>2026-02-26</lastmod>
+    <priority>0.95</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ringee.io/auth/sign-up</loc>
+    <lastmod>2026-02-26</lastmod>
+    <priority>0.95</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ringee.io/dashboard/overview</loc>
+    <lastmod>2026-02-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+
+  <!-- OPEN SOURCE -->
+
+  <url>
+    <loc>https://github.com/ringee-co/ringee</loc>
+    <lastmod>2026-02-26</lastmod>
+    <priority>0.9</priority>
+  </url>
+
+  <!-- BLOG -->
+
+  <url>
+    <loc>https://www.ringee.io/blog/</loc>
+    <lastmod>2026-02-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ringee.io/about</loc>
+    <lastmod>2026-02-26</lastmod>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ringee.io/authors</loc>
+    <lastmod>2026-02-26</lastmod>
+    <priority>0.5</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ringee.io/authors/moises</loc>
+    <lastmod>2026-02-26</lastmod>
+    <priority>0.5</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ringee.io/blog</loc>
+    <lastmod>2026-02-26</lastmod>
+    <priority>0.8</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ringee.io/blog/call-automation-for-freelancers</loc>
+    <lastmod>2026-02-26</lastmod>
+    <priority>0.7</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ringee.io/tags</loc>
+    <lastmod>2026-02-26</lastmod>
+    <priority>0.4</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ringee.io/tags/apps</loc>
+    <lastmod>2026-02-26</lastmod>
+    <priority>0.4</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ringee.io/tags/communication</loc>
+    <lastmod>2026-02-26</lastmod>
+    <priority>0.4</priority>
+  </url>
+
+  <url>
+    <loc>https://www.ringee.io/tags/freelancer%20calls</loc>
+    <lastmod>2026-02-26</lastmod>
+    <priority>0.4</priority>
+  </url>
+
+</urlset>

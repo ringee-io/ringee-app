@@ -1,0 +1,46 @@
+{
+  "name": "ringee",
+  "description": "An open-source global communication infrastructure to make international calls seamlessly",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "docs": "doctoc --title '**Table of content**' README.md",
+    "clean": "pnpm run -r clean",
+    "build": "pnpm run -r build",
+    "test": "pnpm run -r test",
+    "lint": "eslint .",
+    "dev:frontend": "rm -rf apps/frontend/dist && pnpm --filter ./apps/frontend run dev",
+    "dev:backend": "rm -rf apps/backend/dist && pnpm --filter ./apps/backend run dev",
+    "dev:worker": "rm -rf apps/worker/dist && pnpm --filter ./apps/worker run dev",
+    "dev:frontend-b2c": "rm -rf apps/frontend-b2c/.next && pnpm --filter ./apps/frontend-b2c run dev",
+    "dev": "pnpm run --filter ./apps/backend --filter ./apps/frontend --parallel dev",
+    "build:frontend": "rm -rf apps/frontend/dist && pnpm --filter ./apps/frontend run build",
+    "build:database": "rm -rf packages/database/dist && pnpm --filter ./packages/database run build",
+    "build:backend": "rm -rf apps/backend/dist && pnpm --filter ./apps/backend run build",
+    "build:worker": "rm -rf apps/worker/dist && pnpm --filter ./apps/worker run build",
+    "start:backend": "node apps/backend/dist/apps/backend/src/main",
+    "start:worker": "node apps/worker/dist/apps/worker/src/main",
+    "start:frontend": "pnpm run --filter ./apps/frontend run start",
+    "prisma:generate": "pnpm run --filter ./packages/database prisma:generate",
+    "prisma:migrate": "pnpm run --filter ./packages/database prisma:migrate",
+    "prisma:format": "pnpm run --filter ./packages/database prisma-format"
+  },
+  "devDependencies": {
+    "@eslint/js": "~9.35.0",
+    "doctoc": "~2.2.0",
+    "dotenv-cli": "^11.0.0",
+    "eslint": "~9.35.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "~5.5.0",
+    "eslint-plugin-react": "~7.37.4",
+    "globals": "~16.4.0",
+    "prettier": "~3.6.0",
+    "prettier-plugin-tailwindcss": "^0.6.11",
+    "typescript": "~5.9.0",
+    "typescript-eslint": "~8.44.0"
+  },
+  "packageManager": "pnpm@10.16.1"
+}

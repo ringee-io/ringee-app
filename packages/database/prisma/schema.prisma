@@ -1,0 +1,528 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum EmailStatus {
+  pending
+  verified
+  unverified
+}
+
+enum CallStatus {
+  pending
+  ringing
+  answered
+  recording
+  completed
+  failed
+}
+
+enum SubscriptionStatus {
+  active
+  past_due
+  canceled
+  incomplete
+}
+
+model User {
+  id               String   @id @default(uuid()) @db.Uuid
+  clerkId          String?  @unique
+  firstName        String?
+  lastName         String?
+  imageUrl         String?
+  profileImageUrl  String?
+  passwordEnabled  Boolean? @default(false)
+  twoFactorEnabled Boolean? @default(false)
+  publicMetadata   Json?
+  privateMetadata  Json?
+  unsafeMetadata   Json?
+  clientIp         String?
+  userAgent        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  customerId       String?
+  freeCallTrial    Boolean? @default(true)
+  encryptionKey    String?  @db.Text
+
+  // Onboarding state
+  onboardingCompletedSteps String[]  @default([])
+  onboardingDismissedAt    DateTime?
+
+  emails                  UserEmail[]
+  chatAuths               ChatAuth[]
+  calls                   Call[]
+  numbersOwned            NumberPurchased[]
+  userNumbers             UserNumber[]
+  Contact                 Contact[]
+  ContactNote             ContactNote[]
+  CallerId                CallerId[]
+  Credit                  Credit[]
+  devices                 UserDevice[]
+  organizationMemberships OrganizationMembership[]
+  subscriptions           Subscription[]
+  campaigns               Campaign[]
+  campaignLeads           CampaignLead[]
+  tags                    Tag[]
+
+  @@index([clerkId])
+}
+
+model Organization {
+  id            String   @id @default(uuid()) @db.Uuid
+  clerkId       String   @unique
+  name          String
+  slug          String?  @unique
+  imageUrl      String?
+  customerId    String? // Stripe customer ID for B2B billing
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  createdBy     String?
+  encryptionKey String?  @db.Text
+
+  members          OrganizationMembership[]
+  chatAuths        ChatAuth[]
+  calls            Call[]
+  userNumbers      UserNumber[]
+  numbersPurchased NumberPurchased[]
+  contacts         Contact[]
+  callerIds        CallerId[]
+  credits          Credit[]
+  subscriptions    Subscription[]
+  campaigns        Campaign[]
+  tags             Tag[]
+
+  @@index([clerkId])
+}
+
+model OrganizationMembership {
+  id             String   @id @default(uuid()) @db.Uuid
+  organizationId String   @db.Uuid
+  userId         String?  @db.Uuid
+  clerkUserId    String? // Clerk user ID for pending invitations
+  role           String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User?        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@unique([organizationId, clerkUserId])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([clerkUserId])
+}
+
+model UserEmail {
+  id        String      @id @default(uuid()) @db.Uuid
+  userId    String      @db.Uuid
+  email     String      @unique
+  isPrimary Boolean     @default(false)
+  status    EmailStatus @default(pending)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([email])
+}
+
+model ChatAuth {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Uuid
+  organizationId String?   @db.Uuid
+  phoneNumber    String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([phoneNumber])
+  @@index([organizationId])
+}
+
+model DeletedUser {
+  id               String    @id @default(uuid()) @db.Uuid
+  originalUserId   String?   @db.Uuid
+  clerkId          String?
+  firstName        String?
+  lastName         String?
+  imageUrl         String?
+  profileImageUrl  String?
+  passwordEnabled  Boolean?
+  twoFactorEnabled Boolean?
+  publicMetadata   Json?
+  privateMetadata  Json?
+  unsafeMetadata   Json?
+  clientIp         String?
+  userAgent        String?
+  deletionReason   String?
+  deletedBy        String?
+  deletedAt        DateTime  @default(now())
+  createdAt        DateTime?
+  updatedAt        DateTime?
+
+  emails    Json?
+  chatAuths Json?
+
+  notes String?
+
+  @@index([originalUserId])
+  @@index([clerkId])
+}
+
+model Call {
+  id              String     @id @default(uuid()) @db.Uuid
+  userId          String?    @db.Uuid
+  organizationId  String?    @db.Uuid
+  providerCallId  String?    @unique
+  connectionId    String?
+  callControlId   String?    @unique
+  callSessionId   String?
+  callLegId       String?
+  fromNumber      String
+  toNumber        String
+  direction       String?
+  status          CallStatus @default(pending)
+  durationSeconds Int?
+  startedAt       DateTime?
+  answeredAt      DateTime?
+  endedAt         DateTime?
+  totalCost       Float?
+  costMeta        Json?
+  contactId       String?    @db.Uuid
+  contact         Contact?   @relation(fields: [contactId], references: [id])
+
+  callerIdId String?   @db.Uuid
+  callerId   CallerId? @relation(fields: [callerIdId], references: [id])
+
+  clientState   String?
+  lastCommandId String?
+  lastEventType String?
+  errorMessage  String?
+  directionMeta Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user          User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization  Organization?              @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  transcription CallTranscriptionSegment[]
+  recordings    Recording[]
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([callControlId])
+  @@index([callSessionId])
+  @@index([fromNumber])
+  @@index([toNumber])
+}
+
+model CallTranscriptionSegment {
+  id        String   @id @default(uuid())
+  callId    String   @db.Uuid
+  text      String
+  speaker   Int?
+  track     String?
+  isFinal   Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  call Call @relation(fields: [callId], references: [id])
+}
+
+model TelnyxRatePerMinute {
+  id                  String   @id @default(uuid()) @db.Uuid
+  iso                 String   @db.VarChar(10)
+  country             String
+  originationPrefixes String?  @db.Text
+  destinationPrefixes String?  @db.Text
+  description         String?  @db.Text
+  interval1           Int?     @map("interval_1")
+  intervalN           Int?     @map("interval_n")
+  rate                Float
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([iso])
+  @@index([country])
+}
+
+model UserNumber {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  organizationId String?  @db.Uuid
+  numberId       String   @db.Uuid
+  isPrimary      Boolean  @default(false)
+  canCall        Boolean  @default(true)
+  canReceive     Boolean  @default(true)
+  canRecord      Boolean  @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  enabled        Boolean  @default(false)
+
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization    Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  numberPurchased NumberPurchased @relation(fields: [numberId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, numberId, enabled])
+  @@index([numberId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model NumberPurchased {
+  id                     String    @id @default(uuid()) @db.Uuid
+  phoneNumber            String    @unique
+  isoCountry             String    @db.VarChar(5)
+  phoneNumberType        String?   @db.VarChar(20)
+  status                 String?   @default("active")
+  provider               String    @default("telnyx")
+  providerNumberId       String?
+  providerOrderId        String?
+  providerConnectionId   String?
+  providerConnectionName String?
+  purchaseDate           DateTime?
+  assignedDate           DateTime?
+  billingGroupId         String?
+  monthlyCost            Float?
+  currency               String?
+  upfrontCost            Float?
+  features               Json?
+  userId                 String?   @db.Uuid
+  organizationId         String?   @db.Uuid
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  userNumbers  UserNumber[]
+
+  @@index([isoCountry])
+  @@index([provider])
+  @@index([providerConnectionId])
+  @@index([organizationId])
+}
+
+model Contact {
+  id             String    @id @default(uuid()) @db.Uuid
+  name           String?
+  userId         String    @db.Uuid
+  organizationId String?   @db.Uuid
+  phoneNumber    String    @db.VarChar(20)
+  email          String?   @db.VarChar(100)
+  company        String?
+  lastCallAt     DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization  Organization?  @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  calls         Call[]
+  notes         ContactNote[]
+  campaignLeads CampaignLead[]
+  tags          ContactTag[]
+
+  @@unique([userId, phoneNumber, deletedAt])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([phoneNumber])
+  @@index([deletedAt])
+}
+
+model ContactNote {
+  id        String    @id @default(uuid()) @db.Uuid
+  contactId String    @db.Uuid
+  userId    String    @db.Uuid
+  content   String    @db.Text
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([contactId])
+  @@index([userId])
+}
+
+model CallerId {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Uuid
+  organizationId String?   @db.Uuid
+  phoneNumber    String    @db.VarChar(20)
+  provider       String    @default("telnyx")
+  providerId     String?
+  verified       Boolean   @default(false)
+  verifiedAt     DateTime?
+  status         String    @default("pending")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  calls        Call[]
+
+  @@unique([userId, phoneNumber, deletedAt])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model Credit {
+  id                 String    @id @default(uuid()) @db.Uuid
+  userId             String?   @db.Uuid
+  organizationId     String?   @db.Uuid
+  amount             Float
+  lastPurchaseAmount Float?
+  lastPurchaseDate   DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model UserDevice {
+  id       String @id @default(uuid()) @db.Uuid
+  userId   String @db.Uuid
+  fcmToken String @db.Text
+
+  lastActive DateTime  @default(now())
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  revokedAt  DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([fcmToken])
+}
+
+model Recording {
+  id     String  @id @default(uuid()) @db.Uuid
+  callId String  @db.Uuid
+  url    String?
+  format String? @default("mp3")
+  status String? @default("started")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([callId])
+}
+
+model Subscription {
+  id                   String             @id @default(uuid()) @db.Uuid
+  stripeSubscriptionId String             @unique
+  stripeCustomerId     String
+  status               SubscriptionStatus @default(incomplete)
+  currentPeriodEnd     DateTime?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+
+  userId         String        @db.Uuid
+  organizationId String?       @db.Uuid
+  user           User          @relation(fields: [userId], references: [id])
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([stripeSubscriptionId])
+}
+
+model Campaign {
+  id          String  @id @default(uuid()) @db.Uuid
+  name        String
+  description String?
+  status      String  @default("draft") // draft | active | paused | completed
+
+  userId         String  @db.Uuid
+  organizationId String? @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization?  @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  leads        CampaignLead[]
+
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model CampaignLead {
+  id         String @id @default(uuid()) @db.Uuid
+  campaignId String @db.Uuid
+  contactId  String @db.Uuid
+
+  userId String? @db.Uuid // assigned agent (optional)
+
+  attempts   Int       @default(0)
+  lastCallAt DateTime?
+  nextCallAt DateTime?
+  deadAt     DateTime?
+
+  metadata Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact  Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([campaignId, contactId])
+  @@index([campaignId])
+  @@index([contactId])
+  @@index([userId])
+  @@index([nextCallAt])
+}
+
+model Tag {
+  id             String  @id @default(uuid()) @db.Uuid
+  name           String
+  color          String? @db.VarChar(7)
+  userId         String  @db.Uuid
+  organizationId String? @db.Uuid
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  contacts     ContactTag[]
+
+  @@unique([userId, name, deletedAt])
+  @@unique([organizationId, name, deletedAt])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model ContactTag {
+  id        String   @id @default(uuid()) @db.Uuid
+  contactId String   @db.Uuid
+  tagId     String   @db.Uuid
+  createdAt DateTime @default(now())
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, tagId])
+  @@index([contactId])
+  @@index([tagId])
+}

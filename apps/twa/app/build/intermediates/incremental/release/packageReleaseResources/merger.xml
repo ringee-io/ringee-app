@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<merger version="3"><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="main" generated-set="main$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res"><file name="ic_launcher" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/mipmap-mdpi/ic_launcher.png" qualifiers="mdpi-v4" type="mipmap"/><file name="ic_maskable" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/mipmap-mdpi/ic_maskable.png" qualifiers="mdpi-v4" type="mipmap"/><file name="ic_launcher" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/mipmap-hdpi/ic_launcher.png" qualifiers="hdpi-v4" type="mipmap"/><file name="ic_maskable" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/mipmap-hdpi/ic_maskable.png" qualifiers="hdpi-v4" type="mipmap"/><file name="ic_launcher" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png" qualifiers="xxxhdpi-v4" type="mipmap"/><file name="ic_maskable" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/mipmap-xxxhdpi/ic_maskable.png" qualifiers="xxxhdpi-v4" type="mipmap"/><file name="ic_launcher" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/mipmap-xxhdpi/ic_launcher.png" qualifiers="xxhdpi-v4" type="mipmap"/><file name="ic_maskable" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/mipmap-xxhdpi/ic_maskable.png" qualifiers="xxhdpi-v4" type="mipmap"/><file path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/values/colors.xml" qualifiers=""><color name="shortcut_background">#F5F5F5</color></file><file path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/values/strings.xml" qualifiers=""><string-array name="additional_trusted_origins">
+    
+      <item>https://https://accounts.google.com</item>
+    
+      <item>https://https://checkout.stripe.com</item>
+    
+      <item>https://https://api.stripe.com</item>
+    
+      <item>https://https://checkout.stripe.com</item>
+    
+      <item>https://https://api.clerk.com</item>
+    
+      <item>https://https://clerk.com</item>
+    
+      <item>https://https://accounts.clerk.com</item>
+    
+    </string-array><string-array name="display_override">
+    
+      
+        <item>immersive</item>
+      
+    
+    </string-array><string name="assetStatements">
+    [{
+        \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+        \"target\": {
+            \"namespace\": \"web\",
+            \"site\": \"https://www.ringee.io\"
+        }
+    }]
+    
+      ,[{
+          \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+          \"target\": {
+              \"namespace\": \"web\",
+              \"site\": \"https://https://accounts.google.com\"
+          }
+      }]        
+    
+      ,[{
+          \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+          \"target\": {
+              \"namespace\": \"web\",
+              \"site\": \"https://https://checkout.stripe.com\"
+          }
+      }]        
+    
+      ,[{
+          \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+          \"target\": {
+              \"namespace\": \"web\",
+              \"site\": \"https://https://api.stripe.com\"
+          }
+      }]        
+    
+      ,[{
+          \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+          \"target\": {
+              \"namespace\": \"web\",
+              \"site\": \"https://https://checkout.stripe.com\"
+          }
+      }]        
+    
+      ,[{
+          \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+          \"target\": {
+              \"namespace\": \"web\",
+              \"site\": \"https://https://api.clerk.com\"
+          }
+      }]        
+    
+      ,[{
+          \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+          \"target\": {
+              \"namespace\": \"web\",
+              \"site\": \"https://https://clerk.com\"
+          }
+      }]        
+    
+      ,[{
+          \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+          \"target\": {
+              \"namespace\": \"web\",
+              \"site\": \"https://https://accounts.clerk.com\"
+          }
+      }]        
+    
+  </string></file><file name="ic_notification_icon" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/drawable-xhdpi/ic_notification_icon.png" qualifiers="xhdpi-v4" type="drawable"/><file name="splash" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/drawable-xhdpi/splash.png" qualifiers="xhdpi-v4" type="drawable"/><file name="ic_notification_icon" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/drawable-xxhdpi/ic_notification_icon.png" qualifiers="xxhdpi-v4" type="drawable"/><file name="splash" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/drawable-xxhdpi/splash.png" qualifiers="xxhdpi-v4" type="drawable"/><file name="filepaths" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/xml/filepaths.xml" qualifiers="" type="xml"/><file name="shortcuts" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/xml/shortcuts.xml" qualifiers="" type="xml"/><file name="ic_notification_icon" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/drawable-hdpi/ic_notification_icon.png" qualifiers="hdpi-v4" type="drawable"/><file name="splash" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/drawable-hdpi/splash.png" qualifiers="hdpi-v4" type="drawable"/><file name="ic_notification_icon" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/drawable-mdpi/ic_notification_icon.png" qualifiers="mdpi-v4" type="drawable"/><file name="splash" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/drawable-mdpi/splash.png" qualifiers="mdpi-v4" type="drawable"/><file name="ic_launcher" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/mipmap-xhdpi/ic_launcher.png" qualifiers="xhdpi-v4" type="mipmap"/><file name="ic_maskable" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/mipmap-xhdpi/ic_maskable.png" qualifiers="xhdpi-v4" type="mipmap"/><file name="ic_notification_icon" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/drawable-xxxhdpi/ic_notification_icon.png" qualifiers="xxxhdpi-v4" type="drawable"/><file name="splash" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/drawable-xxxhdpi/splash.png" qualifiers="xxxhdpi-v4" type="drawable"/><file name="shortcut_legacy_background" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/drawable-anydpi/shortcut_legacy_background.xml" qualifiers="anydpi-v4" type="drawable"/><file name="web_app_manifest" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/raw/web_app_manifest.json" qualifiers="" type="raw"/><file name="ic_launcher" path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml" qualifiers="anydpi-v26" type="mipmap"/></source></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="release$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/release/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="release" generated-set="release$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/release/res"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated$Generated" generated="true" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/build/generated/res/resValues/release"/></dataSet><dataSet aapt-namespace="http://schemas.android.com/apk/res-auto" config="generated" generated-set="generated$Generated" ignore_pattern="!.svn:!.git:!.ds_store:!*.scc:.*:&lt;dir>_*:!CVS:!thumbs.db:!picasa.ini:!*~"><source path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/build/generated/res/resValues/release"><file path="/Users/edison/Desktop/ringee/ringee/apps/twa/app/build/generated/res/resValues/release/values/gradleResValues.xml" qualifiers=""><bool name="enableNotification">true</bool><bool name="enableSiteSettingsShortcut">false</bool><color name="backgroundColor">#000000</color><color name="colorPrimary">#000000</color><color name="colorPrimaryDark">#000000</color><color name="navigationColor">#000000</color><color name="navigationColorDark">#000000</color><color name="navigationDividerColor">#000000</color><color name="navigationDividerColorDark">#000000</color><integer name="splashScreenFadeOutDuration">300</integer><string name="appName" translatable="false">Ringee</string><string name="fallbackType" translatable="false">webview</string><string name="fullScopeUrl" translatable="false">https://www.ringee.io/</string><string name="generatorApp" translatable="false">bubblewrap-cli</string><string name="hostName" translatable="false">www.ringee.io</string><string name="launchHandlerClientMode" translatable="false">focus-existing</string><string name="launchUrl" translatable="false">https://www.ringee.io/</string><string name="launcherName" translatable="false">Ringee</string><string name="orientation" translatable="false">portrait</string><string name="providerAuthority" translatable="false">io.ringee.twa.fileprovider</string><string name="webManifestUrl" translatable="false">https://www.ringee.io/manifest.webmanifest</string></file></source></dataSet><mergedItems/></merger>

@@ -1,0 +1,35 @@
+{
+  "name": "@ringee/database",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "clean": "rimraf dist",
+    "prebuild": "pnpm run clean",
+    "build": "nest build",
+    "dev": "nest start --watch",
+    "prisma-db-push": "prisma db push",
+    "prisma-format": "prisma format",
+    "db:deploy": "prisma migrate deploy",
+    "postinstall": "prisma generate",
+    "prisma:generate": "prisma generate"
+  },
+  "dependencies": {
+    "@nestjs/common": "~11.1.0",
+    "@nestjs/core": "~11.1.0",
+    "@prisma/client": "^6.16.3",
+    "csv-parser": "^3.2.0",
+    "date-fns": "4.1.0",
+    "pg": "^8.16.3",
+    "reflect-metadata": "~0.2.2",
+    "rimraf": "~6.0.0",
+    "rxjs": "~7.8.0"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "~11.0.0",
+    "@types/node": "~22.16.0",
+    "prisma": "^6.16.3",
+    "ts-node": "~10.9.0",
+    "tsconfig-paths": "~4.2.0",
+    "typescript": "~5.9.0"
+  }
+}

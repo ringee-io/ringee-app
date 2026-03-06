@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string-array name="additional_trusted_origins">
+    
+      <item>https://https://accounts.google.com</item>
+    
+      <item>https://https://checkout.stripe.com</item>
+    
+      <item>https://https://api.stripe.com</item>
+    
+      <item>https://https://checkout.stripe.com</item>
+    
+      <item>https://https://api.clerk.com</item>
+    
+      <item>https://https://clerk.com</item>
+    
+      <item>https://https://accounts.clerk.com</item>
+    
+    </string-array>
+    <string-array name="display_override">
+    
+      
+        <item>immersive</item>
+      
+    
+    </string-array>
+    <bool name="enableNotification">true</bool>
+    <bool name="enableSiteSettingsShortcut">false</bool>
+    <color name="backgroundColor">#000000</color>
+    <color name="colorPrimary">#000000</color>
+    <color name="colorPrimaryDark">#000000</color>
+    <color name="navigationColor">#000000</color>
+    <color name="navigationColorDark">#000000</color>
+    <color name="navigationDividerColor">#000000</color>
+    <color name="navigationDividerColorDark">#000000</color>
+    <color name="shortcut_background">#F5F5F5</color>
+    <integer name="splashScreenFadeOutDuration">300</integer>
+    <string name="appName" translatable="false">Ringee</string>
+    <string name="assetStatements">
+    [{
+        \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+        \"target\": {
+            \"namespace\": \"web\",
+            \"site\": \"https://www.ringee.io\"
+        }
+    }]
+    
+      ,[{
+          \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+          \"target\": {
+              \"namespace\": \"web\",
+              \"site\": \"https://https://accounts.google.com\"
+          }
+      }]        
+    
+      ,[{
+          \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+          \"target\": {
+              \"namespace\": \"web\",
+              \"site\": \"https://https://checkout.stripe.com\"
+          }
+      }]        
+    
+      ,[{
+          \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+          \"target\": {
+              \"namespace\": \"web\",
+              \"site\": \"https://https://api.stripe.com\"
+          }
+      }]        
+    
+      ,[{
+          \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+          \"target\": {
+              \"namespace\": \"web\",
+              \"site\": \"https://https://checkout.stripe.com\"
+          }
+      }]        
+    
+      ,[{
+          \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+          \"target\": {
+              \"namespace\": \"web\",
+              \"site\": \"https://https://api.clerk.com\"
+          }
+      }]        
+    
+      ,[{
+          \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+          \"target\": {
+              \"namespace\": \"web\",
+              \"site\": \"https://https://clerk.com\"
+          }
+      }]        
+    
+      ,[{
+          \"relation\": [\"delegate_permission/common.handle_all_urls\"],
+          \"target\": {
+              \"namespace\": \"web\",
+              \"site\": \"https://https://accounts.clerk.com\"
+          }
+      }]        
+    
+  </string>
+    <string name="fallbackType" translatable="false">webview</string>
+    <string name="fullScopeUrl" translatable="false">https://www.ringee.io/</string>
+    <string name="generatorApp" translatable="false">bubblewrap-cli</string>
+    <string name="hostName" translatable="false">www.ringee.io</string>
+    <string name="launchHandlerClientMode" translatable="false">focus-existing</string>
+    <string name="launchUrl" translatable="false">https://www.ringee.io/</string>
+    <string name="launcherName" translatable="false">Ringee</string>
+    <string name="orientation" translatable="false">portrait</string>
+    <string name="providerAuthority" translatable="false">io.ringee.twa.fileprovider</string>
+    <string name="webManifestUrl" translatable="false">https://www.ringee.io/manifest.webmanifest</string>
+</resources>

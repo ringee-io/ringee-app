@@ -1,0 +1,17 @@
+{
+  "name": "@ringee/configuration",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "clean": "rimraf dist",
+    "prebuild": "pnpm run clean",
+    "build": "swc src -d dist"
+  },
+  "devDependencies": {
+    "@swc/cli": "^0.7.8",
+    "@swc/core": "^1.13.5",
+    "@types/node": "~22.16.5",
+    "rimraf": "~6.0.0",
+    "typescript": "~5.9.0"
+  }
+}

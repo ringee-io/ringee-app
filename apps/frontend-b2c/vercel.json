@@ -1,0 +1,58 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "headers": [
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        { "key": "Content-Type", "value": "application/manifest+json" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    },
+    {
+      "source": "/service-worker.js",
+      "headers": [
+        { "key": "Service-Worker-Allowed", "value": "/" },
+        { "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }
+      ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/_astro/:path*",
+      "destination": "https://blog.ringee.io/_astro/:path*"
+    },
+    {
+      "source": "/assets/:path*",
+      "destination": "https://blog.ringee.io/assets/:path*"
+    },
+    {
+      "source": "/blog-home",
+      "destination": "https://blog.ringee.io"
+    },
+    {
+      "source": "/blog",
+      "destination": "https://blog.ringee.io/blog"
+    },
+    {
+      "source": "/blog/:path*",
+      "destination": "https://blog.ringee.io/blog/:path*"
+    },
+    {
+      "source": "/about",
+      "destination": "https://blog.ringee.io/about"
+    },
+    {
+      "source": "/authors",
+      "destination": "https://blog.ringee.io/authors"
+    },
+    {
+      "source": "/authors/:path*",
+      "destination": "https://blog.ringee.io/authors/:path*"
+    },
+    {
+      "source": "/tags/:path*",
+      "destination": "https://blog.ringee.io/tags/:path*"
+    }
+  ]
+}

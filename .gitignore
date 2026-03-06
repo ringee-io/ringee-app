@@ -1,0 +1,14 @@
+node_modules
+**/dist
+results
+.nyc_output
+*.tsbuildinfo
+.env
+.env*.local
+
+# Firebase credentials
+ringee-io-firebase-adminsdk-*.json
+
+apps/frontend/public/sw.js
+
+packages/database/prisma/migrations

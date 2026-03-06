@@ -1,0 +1,12 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "io.ringee.twa",
+      "sha256_cert_fingerprints": [
+        "26:27:2E:CC:3F:F5:A1:48:86:CA:E7:60:59:E3:74:5E:45:2A:01:2C:2F:A6:E2:2D:A4:F1:39:F0:A5:05:D2:D7"
+      ]
+    }
+  }
+]

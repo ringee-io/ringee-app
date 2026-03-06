@@ -1,0 +1,146 @@
+name: ringee-app-stack
+
+include:
+  - docker-compose.yml
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: apps/backend/Dockerfile
+    container_name: ringee-backend
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      # Override to use Docker internal hostnames
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-ringee-user}:${POSTGRES_PASSWORD:-ringee-password}@ringee-postgres:5432/${POSTGRES_DB:-ringee-db-local}?schema=public"
+      REDIS_HOST: ringee-redis
+      REDIS_PORT: "6379"
+      REDIS_URL: "redis://ringee-redis:6379"
+    depends_on:
+      ringee-postgres:
+        condition: service_healthy
+      ringee-redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - ringee-network
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/worker/Dockerfile
+    container_name: ringee-worker
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "postgresql://${POSTGRES_USER:-ringee-user}:${POSTGRES_PASSWORD:-ringee-password}@ringee-postgres:5432/${POSTGRES_DB:-ringee-db-local}?schema=public"
+      REDIS_HOST: ringee-redis
+      REDIS_PORT: "6379"
+      REDIS_URL: "redis://ringee-redis:6379"
+    depends_on:
+      ringee-postgres:
+        condition: service_healthy
+      ringee-redis:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ringee-network
+
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        - NEXT_PUBLIC_APP_ENV=${NEXT_PUBLIC_APP_ENV:-development}
+        - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3000}
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000/api}
+        - NEXT_PUBLIC_SITE_URL=${NEXT_PUBLIC_SITE_URL:-http://localhost:4200}
+        - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+        - NEXT_PUBLIC_CLERK_SIGN_IN_URL=${NEXT_PUBLIC_CLERK_SIGN_IN_URL:-/auth/sign-in}
+        - NEXT_PUBLIC_CLERK_SIGN_UP_URL=${NEXT_PUBLIC_CLERK_SIGN_UP_URL:-/auth/sign-up}
+        - NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=${NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL:-/dashboard/overview}
+        - NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=${NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL:-/dashboard/overview}
+        - NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN:-}
+        - NEXT_PUBLIC_SENTRY_ORG=${NEXT_PUBLIC_SENTRY_ORG:-}
+        - NEXT_PUBLIC_SENTRY_PROJECT=${NEXT_PUBLIC_SENTRY_PROJECT:-}
+        - NEXT_PUBLIC_SENTRY_DISABLED=${NEXT_PUBLIC_SENTRY_DISABLED:-true}
+        - NEXT_PUBLIC_TELNYX_LOGIN=${NEXT_PUBLIC_TELNYX_LOGIN:-}
+        - NEXT_PUBLIC_TELNYX_PASSWORD=${NEXT_PUBLIC_TELNYX_PASSWORD:-}
+        - NEXT_PUBLIC_GA_MEASUREMENT_ID=${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+        - NEXT_PUBLIC_AHREFS_KEY=${NEXT_PUBLIC_AHREFS_KEY:-}
+        - NEXT_PUBLIC_CRISP_WEBSITE_ID=${NEXT_PUBLIC_CRISP_WEBSITE_ID:-}
+        - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY:-}
+        - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:-}
+        - NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID:-}
+        - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:-}
+        - NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:-}
+        - NEXT_PUBLIC_FIREBASE_APP_ID=${NEXT_PUBLIC_FIREBASE_APP_ID:-}
+        - NEXT_PUBLIC_FIREBASE_VAPID_KEY=${NEXT_PUBLIC_FIREBASE_VAPID_KEY:-}
+    container_name: ringee-frontend
+    ports:
+      - "4200:4200"
+    env_file:
+      - .env
+    environment:
+      # Override API URL so Next.js Server Components reach the backend via Docker's
+      # internal network instead of trying localhost (which doesn't work container-to-container)
+      API_INTERNAL_URL: "http://ringee-backend:3000/api"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ringee-network
+
+  frontend-b2c:
+    build:
+      context: .
+      dockerfile: apps/frontend-b2c/Dockerfile
+      args:
+        - NEXT_PUBLIC_APP_ENV=${NEXT_PUBLIC_APP_ENV:-development}
+        - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3000}
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:3000/api}
+        - NEXT_PUBLIC_SITE_URL_B2C=${NEXT_PUBLIC_SITE_URL_B2C:-http://localhost:4201}
+        - NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=${NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY}
+        - NEXT_PUBLIC_CLERK_SIGN_IN_URL=${NEXT_PUBLIC_CLERK_SIGN_IN_URL:-/auth/sign-in}
+        - NEXT_PUBLIC_CLERK_SIGN_UP_URL=${NEXT_PUBLIC_CLERK_SIGN_UP_URL:-/auth/sign-up}
+        - NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL_B2C=${NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL_B2C:-/}
+        - NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL_B2C=${NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL_B2C:-/}
+        - NEXT_PUBLIC_SENTRY_DSN=${NEXT_PUBLIC_SENTRY_DSN:-}
+        - NEXT_PUBLIC_SENTRY_ORG=${NEXT_PUBLIC_SENTRY_ORG:-}
+        - NEXT_PUBLIC_SENTRY_PROJECT=${NEXT_PUBLIC_SENTRY_PROJECT:-}
+        - NEXT_PUBLIC_SENTRY_DISABLED=${NEXT_PUBLIC_SENTRY_DISABLED:-true}
+        - NEXT_PUBLIC_TELNYX_LOGIN=${NEXT_PUBLIC_TELNYX_LOGIN:-}
+        - NEXT_PUBLIC_TELNYX_PASSWORD=${NEXT_PUBLIC_TELNYX_PASSWORD:-}
+        - NEXT_PUBLIC_GA_MEASUREMENT_ID=${NEXT_PUBLIC_GA_MEASUREMENT_ID:-}
+        - NEXT_PUBLIC_AHREFS_KEY=${NEXT_PUBLIC_AHREFS_KEY:-}
+        - NEXT_PUBLIC_CRISP_WEBSITE_ID=${NEXT_PUBLIC_CRISP_WEBSITE_ID:-}
+        - NEXT_PUBLIC_FIREBASE_API_KEY=${NEXT_PUBLIC_FIREBASE_API_KEY:-}
+        - NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=${NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN:-}
+        - NEXT_PUBLIC_FIREBASE_PROJECT_ID=${NEXT_PUBLIC_FIREBASE_PROJECT_ID:-}
+        - NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=${NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET:-}
+        - NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=${NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID:-}
+        - NEXT_PUBLIC_FIREBASE_APP_ID=${NEXT_PUBLIC_FIREBASE_APP_ID:-}
+        - NEXT_PUBLIC_FIREBASE_VAPID_KEY=${NEXT_PUBLIC_FIREBASE_VAPID_KEY:-}
+    container_name: ringee-frontend-b2c
+    ports:
+      - "4201:4201"
+    env_file:
+      - .env
+    environment:
+      API_INTERNAL_URL: "http://ringee-backend:3000/api"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - ringee-network

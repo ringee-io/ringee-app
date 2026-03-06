@@ -1,0 +1,523 @@
+1<?xml version="1.0" encoding="utf-8"?>
+2<!--
+3    Copyright 2019 Google Inc. All Rights Reserved.
+4
+5     Licensed under the Apache License, Version 2.0 (the "License");
+6     you may not use this file except in compliance with the License.
+7     You may obtain a copy of the License at
+8
+9         http://www.apache.org/licenses/LICENSE-2.0
+10
+11     Unless required by applicable law or agreed to in writing, software
+12     distributed under the License is distributed on an "AS IS" BASIS,
+13     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+14     See the License for the specific language governing permissions and
+15     limitations under the License.
+16-->
+17<!--
+18 The "package" attribute is rewritten by the Gradle build with the value of applicationId.
+19     It is still required here, as it is used to derive paths, for instance when referring
+20     to an Activity by ".MyActivity" instead of the full name. If more Activities are added to the
+21     application, the package attribute will need to reflect the correct path in order to use
+22     the abbreviated format.
+23-->
+24<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+25    package="io.ringee.twa"
+26    android:versionCode="14"
+27    android:versionName="14" >
+28
+29    <uses-sdk
+30        android:minSdkVersion="21"
+31        android:targetSdkVersion="35" />
+32
+33    <uses-permission android:name="android.permission.INTERNET" />
+33-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:26:9-70
+33-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:26:26-68
+34    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+34-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:28:9-80
+34-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:28:26-78
+35
+36    <queries>
+36-->[com.google.androidbrowserhelper:androidbrowserhelper:2.6.2] /Users/edison/.gradle/caches/8.11.1/transforms/5053e02be90783e54992393be394bb70/transformed/androidbrowserhelper-2.6.2/AndroidManifest.xml:22:5-30:15
+37        <intent>
+37-->[com.google.androidbrowserhelper:androidbrowserhelper:2.6.2] /Users/edison/.gradle/caches/8.11.1/transforms/5053e02be90783e54992393be394bb70/transformed/androidbrowserhelper-2.6.2/AndroidManifest.xml:23:9-29:18
+38            <action android:name="android.intent.action.VIEW" />
+38-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:17-68
+38-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:25-66
+39
+40            <category android:name="android.intent.category.BROWSABLE" />
+40-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:17-77
+40-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:27-75
+41
+42            <data android:scheme="https" />
+42-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:17-153:19
+42-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:23-45
+43        </intent>
+44    </queries>
+45
+46    <permission
+46-->[androidx.core:core:1.13.0] /Users/edison/.gradle/caches/8.11.1/transforms/a5429f7b20c607b890f08b5283ad4ec0/transformed/core-1.13.0/AndroidManifest.xml:22:5-24:47
+47        android:name="io.ringee.twa.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"
+47-->[androidx.core:core:1.13.0] /Users/edison/.gradle/caches/8.11.1/transforms/a5429f7b20c607b890f08b5283ad4ec0/transformed/core-1.13.0/AndroidManifest.xml:23:9-81
+48        android:protectionLevel="signature" />
+48-->[androidx.core:core:1.13.0] /Users/edison/.gradle/caches/8.11.1/transforms/a5429f7b20c607b890f08b5283ad4ec0/transformed/core-1.13.0/AndroidManifest.xml:24:9-44
+49
+50    <uses-permission android:name="io.ringee.twa.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION" />
+50-->[androidx.core:core:1.13.0] /Users/edison/.gradle/caches/8.11.1/transforms/a5429f7b20c607b890f08b5283ad4ec0/transformed/core-1.13.0/AndroidManifest.xml:26:5-97
+50-->[androidx.core:core:1.13.0] /Users/edison/.gradle/caches/8.11.1/transforms/a5429f7b20c607b890f08b5283ad4ec0/transformed/core-1.13.0/AndroidManifest.xml:26:22-94
+51
+52    <application
+52-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:37:5-254:19
+53        android:name="io.ringee.twa.Application"
+53-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:38:9-35
+54        android:allowBackup="true"
+54-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:39:9-35
+55        android:appComponentFactory="androidx.core.app.CoreComponentFactory"
+55-->[androidx.core:core:1.13.0] /Users/edison/.gradle/caches/8.11.1/transforms/a5429f7b20c607b890f08b5283ad4ec0/transformed/core-1.13.0/AndroidManifest.xml:28:18-86
+56        android:extractNativeLibs="true"
+57        android:icon="@mipmap/ic_launcher"
+57-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:40:9-43
+58        android:label="@string/appName"
+58-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:41:9-40
+59        android:supportsRtl="true"
+59-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:43:9-35
+60        android:theme="@android:style/Theme.Translucent.NoTitleBar" >
+60-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:44:9-68
+61        <meta-data
+61-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:46:9-48:58
+62            android:name="asset_statements"
+62-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:47:13-44
+63            android:resource="@string/assetStatements" />
+63-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:48:13-55
+64        <meta-data
+64-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:51:13-53:58
+65            android:name="web_manifest_url"
+65-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:52:17-48
+66            android:value="@string/webManifestUrl" />
+66-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:53:17-55
+67        <meta-data
+67-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:56:9-58:52
+68            android:name="twa_generator"
+68-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:57:13-41
+69            android:value="@string/generatorApp" />
+69-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:58:13-49
+70
+71        <activity
+71-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:66:9-215:20
+72            android:name="io.ringee.twa.LauncherActivity"
+72-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:66:19-50
+73            android:alwaysRetainTaskState="true"
+73-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:67:13-49
+74            android:exported="true"
+74-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:69:13-36
+75            android:label="@string/launcherName" >
+75-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:68:13-49
+76            <meta-data
+76-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:70:13-71:53
+77                android:name="android.support.customtabs.trusted.DEFAULT_URL"
+77-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:70:24-85
+78                android:value="@string/launchUrl" />
+78-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:71:17-50
+79            <meta-data
+79-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:73:13-75:58
+80                android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR"
+80-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:74:17-83
+81                android:resource="@color/colorPrimary" />
+81-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:75:17-55
+82            <meta-data
+82-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:78:17-80:71
+83                android:name="android.support.customtabs.trusted.LAUNCH_HANDLER_CLIENT_MODE"
+83-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:79:21-97
+84                android:value="@string/launchHandlerClientMode" />
+84-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:80:21-68
+85            <meta-data
+85-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:83:13-85:62
+86                android:name="android.support.customtabs.trusted.STATUS_BAR_COLOR_DARK"
+86-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:84:17-88
+87                android:resource="@color/colorPrimaryDark" />
+87-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:85:17-59
+88            <meta-data
+88-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:87:13-89:61
+89                android:name="android.support.customtabs.trusted.NAVIGATION_BAR_COLOR"
+89-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:88:17-87
+90                android:resource="@color/navigationColor" />
+90-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:89:17-58
+91            <meta-data
+91-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:91:13-93:65
+92                android:name="android.support.customtabs.trusted.NAVIGATION_BAR_COLOR_DARK"
+92-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:92:17-92
+93                android:resource="@color/navigationColorDark" />
+93-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:93:17-62
+94            <meta-data
+94-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:95:13-97:68
+95                android:name="androix.browser.trusted.NAVIGATION_BAR_DIVIDER_COLOR"
+95-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:96:17-84
+96                android:resource="@color/navigationDividerColor" />
+96-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:97:17-65
+97            <meta-data
+97-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:99:13-101:72
+98                android:name="androix.browser.trusted.NAVIGATION_BAR_DIVIDER_COLOR_DARK"
+98-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:100:17-89
+99                android:resource="@color/navigationDividerColorDark" />
+99-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:101:17-69
+100            <meta-data
+100-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:103:13-104:54
+101                android:name="android.support.customtabs.trusted.SPLASH_IMAGE_DRAWABLE"
+101-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:103:24-95
+102                android:resource="@drawable/splash" />
+102-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:104:17-52
+103            <meta-data
+103-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:106:13-107:60
+104                android:name="android.support.customtabs.trusted.SPLASH_SCREEN_BACKGROUND_COLOR"
+104-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:106:24-104
+105                android:resource="@color/backgroundColor" />
+105-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:107:17-58
+106            <meta-data
+106-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:109:13-110:71
+107                android:name="android.support.customtabs.trusted.SPLASH_SCREEN_FADE_OUT_DURATION"
+107-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:109:24-105
+108                android:value="@integer/splashScreenFadeOutDuration" />
+108-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:110:17-69
+109            <meta-data
+109-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:112:13-113:60
+110                android:name="android.support.customtabs.trusted.FILE_PROVIDER_AUTHORITY"
+110-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:112:24-97
+111                android:value="@string/providerAuthority" />
+111-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:113:17-58
+112            <meta-data
+112-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:115:13-97
+113                android:name="android.app.shortcuts"
+113-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:115:24-60
+114                android:resource="@xml/shortcuts" />
+114-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:115:61-94
+115            <meta-data
+115-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:117:13-118:56
+116                android:name="android.support.customtabs.trusted.FALLBACK_STRATEGY"
+116-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:117:24-91
+117                android:value="@string/fallbackType" />
+117-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:118:17-53
+118            <meta-data
+118-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:124:13-125:54
+119                android:name="android.support.customtabs.trusted.SCREEN_ORIENTATION"
+119-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:124:24-92
+120                android:value="@string/orientation" />
+120-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:125:17-52
+121            <meta-data
+121-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:128:17-130:76
+122                android:name="android.support.customtabs.trusted.ADDITIONAL_TRUSTED_ORIGINS"
+122-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:129:21-97
+123                android:resource="@array/additional_trusted_origins" />
+123-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:130:21-73
+124            <meta-data
+124-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:134:17-136:66
+125                android:name="android.support.customtabs.trusted.DISPLAY_OVERRIDE"
+125-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:135:21-87
+126                android:resource="@array/display_override" />
+126-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:136:21-63
+127
+128            <intent-filter>
+128-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:141:13-144:29
+129                <action android:name="android.intent.action.MAIN" />
+129-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:142:17-69
+129-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:142:25-66
+130
+131                <category android:name="android.intent.category.LAUNCHER" />
+131-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:143:17-77
+131-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:143:27-74
+132            </intent-filter>
+133            <intent-filter android:autoVerify="true" >
+133-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:146:13-154:29
+133-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:146:28-53
+134                <action android:name="android.intent.action.VIEW" />
+134-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:17-68
+134-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:25-66
+135
+136                <category android:name="android.intent.category.DEFAULT" />
+136-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:17-76
+136-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:27-73
+137                <category android:name="android.intent.category.BROWSABLE" />
+137-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:17-77
+137-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:27-75
+138
+139                <data
+139-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:17-153:19
+140                    android:host="@string/hostName"
+140-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:151:21-52
+141                    android:scheme="https" />
+141-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:23-45
+142            </intent-filter>
+143            <intent-filter android:autoVerify="true" >
+143-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:157:17-163:33
+143-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:157:32-57
+144                <action android:name="android.intent.action.VIEW" />
+144-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:17-68
+144-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:25-66
+145
+146                <category android:name="android.intent.category.DEFAULT" />
+146-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:17-76
+146-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:27-73
+147                <category android:name="android.intent.category.BROWSABLE" />
+147-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:17-77
+147-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:27-75
+148
+149                <data
+149-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:17-153:19
+150                    android:host="https://accounts.google.com"
+150-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:151:21-52
+151                    android:scheme="https" />
+151-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:23-45
+152            </intent-filter>
+153            <intent-filter android:autoVerify="true" >
+153-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:165:17-171:33
+153-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:165:32-57
+154                <action android:name="android.intent.action.VIEW" />
+154-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:17-68
+154-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:25-66
+155
+156                <category android:name="android.intent.category.DEFAULT" />
+156-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:17-76
+156-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:27-73
+157                <category android:name="android.intent.category.BROWSABLE" />
+157-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:17-77
+157-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:27-75
+158
+159                <data
+159-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:17-153:19
+160                    android:host="https://checkout.stripe.com"
+160-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:151:21-52
+161                    android:scheme="https" />
+161-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:23-45
+162            </intent-filter>
+163            <intent-filter android:autoVerify="true" >
+163-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:173:17-179:33
+163-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:173:32-57
+164                <action android:name="android.intent.action.VIEW" />
+164-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:17-68
+164-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:25-66
+165
+166                <category android:name="android.intent.category.DEFAULT" />
+166-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:17-76
+166-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:27-73
+167                <category android:name="android.intent.category.BROWSABLE" />
+167-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:17-77
+167-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:27-75
+168
+169                <data
+169-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:17-153:19
+170                    android:host="https://api.stripe.com"
+170-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:151:21-52
+171                    android:scheme="https" />
+171-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:23-45
+172            </intent-filter>
+173            <intent-filter android:autoVerify="true" >
+173-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:165:17-171:33
+173-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:165:32-57
+174                <action android:name="android.intent.action.VIEW" />
+174-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:17-68
+174-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:25-66
+175
+176                <category android:name="android.intent.category.DEFAULT" />
+176-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:17-76
+176-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:27-73
+177                <category android:name="android.intent.category.BROWSABLE" />
+177-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:17-77
+177-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:27-75
+178
+179                <data
+179-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:17-153:19
+180                    android:host="https://checkout.stripe.com"
+180-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:151:21-52
+181                    android:scheme="https" />
+181-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:23-45
+182            </intent-filter>
+183            <intent-filter android:autoVerify="true" >
+183-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:189:17-195:33
+183-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:189:32-57
+184                <action android:name="android.intent.action.VIEW" />
+184-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:17-68
+184-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:25-66
+185
+186                <category android:name="android.intent.category.DEFAULT" />
+186-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:17-76
+186-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:27-73
+187                <category android:name="android.intent.category.BROWSABLE" />
+187-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:17-77
+187-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:27-75
+188
+189                <data
+189-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:17-153:19
+190                    android:host="https://api.clerk.com"
+190-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:151:21-52
+191                    android:scheme="https" />
+191-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:23-45
+192            </intent-filter>
+193            <intent-filter android:autoVerify="true" >
+193-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:197:17-203:33
+193-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:197:32-57
+194                <action android:name="android.intent.action.VIEW" />
+194-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:17-68
+194-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:25-66
+195
+196                <category android:name="android.intent.category.DEFAULT" />
+196-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:17-76
+196-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:27-73
+197                <category android:name="android.intent.category.BROWSABLE" />
+197-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:17-77
+197-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:27-75
+198
+199                <data
+199-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:17-153:19
+200                    android:host="https://clerk.com"
+200-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:151:21-52
+201                    android:scheme="https" />
+201-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:23-45
+202            </intent-filter>
+203            <intent-filter android:autoVerify="true" >
+203-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:205:17-211:33
+203-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:205:32-57
+204                <action android:name="android.intent.action.VIEW" />
+204-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:17-68
+204-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:147:25-66
+205
+206                <category android:name="android.intent.category.DEFAULT" />
+206-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:17-76
+206-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:27-73
+207                <category android:name="android.intent.category.BROWSABLE" />
+207-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:17-77
+207-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:149:27-75
+208
+209                <data
+209-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:17-153:19
+210                    android:host="https://accounts.clerk.com"
+210-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:151:21-52
+211                    android:scheme="https" />
+211-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:150:23-45
+212            </intent-filter>
+213        </activity>
+214        <activity android:name="com.google.androidbrowserhelper.trusted.FocusActivity" />
+214-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:217:9-90
+214-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:217:19-87
+215        <activity
+215-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:219:9-220:62
+216            android:name="com.google.androidbrowserhelper.trusted.WebViewFallbackActivity"
+216-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:219:19-97
+217            android:configChanges="orientation|screenSize" />
+217-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:220:13-59
+218
+219        <provider
+219-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:222:9-230:20
+220            android:name="androidx.core.content.FileProvider"
+220-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:223:13-62
+221            android:authorities="@string/providerAuthority"
+221-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:224:13-60
+222            android:exported="false"
+222-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:226:13-37
+223            android:grantUriPermissions="true" >
+223-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:225:13-47
+224            <meta-data
+224-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:227:13-229:53
+225                android:name="android.support.FILE_PROVIDER_PATHS"
+225-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:228:17-67
+226                android:resource="@xml/filepaths" />
+226-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:229:17-50
+227        </provider>
+228
+229        <service
+229-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:232:9-247:19
+230            android:name="io.ringee.twa.DelegationService"
+230-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:233:13-46
+231            android:enabled="@bool/enableNotification"
+231-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:234:13-55
+232            android:exported="@bool/enableNotification" >
+232-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:235:13-56
+233            <meta-data
+233-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:238:17-240:73
+234                android:name="android.support.customtabs.trusted.SMALL_ICON"
+234-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:239:21-81
+235                android:resource="@drawable/ic_notification_icon" />
+235-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:240:21-70
+236
+237            <intent-filter>
+237-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:243:13-246:29
+238                <action android:name="android.support.customtabs.trusted.TRUSTED_WEB_ACTIVITY_SERVICE" />
+238-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:244:17-105
+238-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:244:25-103
+239
+240                <category android:name="android.intent.category.DEFAULT" />
+240-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:17-76
+240-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:148:27-73
+241            </intent-filter>
+242        </service>
+243
+244        <activity android:name="com.google.androidbrowserhelper.trusted.NotificationPermissionRequestActivity" />
+244-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:250:13-118
+244-->/Users/edison/Desktop/ringee/ringee/apps/twa/app/src/main/AndroidManifest.xml:250:23-115
+245
+246        <provider
+246-->[androidx.emoji2:emoji2:1.3.0] /Users/edison/.gradle/caches/8.11.1/transforms/5cb7738f5242d8c4e38c8ffa2b265b31/transformed/emoji2-1.3.0/AndroidManifest.xml:24:9-32:20
+247            android:name="androidx.startup.InitializationProvider"
+247-->[androidx.emoji2:emoji2:1.3.0] /Users/edison/.gradle/caches/8.11.1/transforms/5cb7738f5242d8c4e38c8ffa2b265b31/transformed/emoji2-1.3.0/AndroidManifest.xml:25:13-67
+248            android:authorities="io.ringee.twa.androidx-startup"
+248-->[androidx.emoji2:emoji2:1.3.0] /Users/edison/.gradle/caches/8.11.1/transforms/5cb7738f5242d8c4e38c8ffa2b265b31/transformed/emoji2-1.3.0/AndroidManifest.xml:26:13-68
+249            android:exported="false" >
+249-->[androidx.emoji2:emoji2:1.3.0] /Users/edison/.gradle/caches/8.11.1/transforms/5cb7738f5242d8c4e38c8ffa2b265b31/transformed/emoji2-1.3.0/AndroidManifest.xml:27:13-37
+250            <meta-data
+250-->[androidx.emoji2:emoji2:1.3.0] /Users/edison/.gradle/caches/8.11.1/transforms/5cb7738f5242d8c4e38c8ffa2b265b31/transformed/emoji2-1.3.0/AndroidManifest.xml:29:13-31:52
+251                android:name="androidx.emoji2.text.EmojiCompatInitializer"
+251-->[androidx.emoji2:emoji2:1.3.0] /Users/edison/.gradle/caches/8.11.1/transforms/5cb7738f5242d8c4e38c8ffa2b265b31/transformed/emoji2-1.3.0/AndroidManifest.xml:30:17-75
+252                android:value="androidx.startup" />
+252-->[androidx.emoji2:emoji2:1.3.0] /Users/edison/.gradle/caches/8.11.1/transforms/5cb7738f5242d8c4e38c8ffa2b265b31/transformed/emoji2-1.3.0/AndroidManifest.xml:31:17-49
+253            <meta-data
+253-->[androidx.lifecycle:lifecycle-process:2.6.2] /Users/edison/.gradle/caches/8.11.1/transforms/4bc52031417e9743197e36b704fe409f/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:29:13-31:52
+254                android:name="androidx.lifecycle.ProcessLifecycleInitializer"
+254-->[androidx.lifecycle:lifecycle-process:2.6.2] /Users/edison/.gradle/caches/8.11.1/transforms/4bc52031417e9743197e36b704fe409f/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:30:17-78
+255                android:value="androidx.startup" />
+255-->[androidx.lifecycle:lifecycle-process:2.6.2] /Users/edison/.gradle/caches/8.11.1/transforms/4bc52031417e9743197e36b704fe409f/transformed/lifecycle-process-2.6.2/AndroidManifest.xml:31:17-49
+256            <meta-data
+256-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:29:13-31:52
+257                android:name="androidx.profileinstaller.ProfileInstallerInitializer"
+257-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:30:17-85
+258                android:value="androidx.startup" />
+258-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:31:17-49
+259        </provider>
+260
+261        <receiver
+261-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:34:9-52:20
+262            android:name="androidx.profileinstaller.ProfileInstallReceiver"
+262-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:35:13-76
+263            android:directBootAware="false"
+263-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:36:13-44
+264            android:enabled="true"
+264-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:37:13-35
+265            android:exported="true"
+265-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:38:13-36
+266            android:permission="android.permission.DUMP" >
+266-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:39:13-57
+267            <intent-filter>
+267-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:40:13-42:29
+268                <action android:name="androidx.profileinstaller.action.INSTALL_PROFILE" />
+268-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:17-91
+268-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:41:25-88
+269            </intent-filter>
+270            <intent-filter>
+270-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:43:13-45:29
+271                <action android:name="androidx.profileinstaller.action.SKIP_FILE" />
+271-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:17-85
+271-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:44:25-82
+272            </intent-filter>
+273            <intent-filter>
+273-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:46:13-48:29
+274                <action android:name="androidx.profileinstaller.action.SAVE_PROFILE" />
+274-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:17-88
+274-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:47:25-85
+275            </intent-filter>
+276            <intent-filter>
+276-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:49:13-51:29
+277                <action android:name="androidx.profileinstaller.action.BENCHMARK_OPERATION" />
+277-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:17-95
+277-->[androidx.profileinstaller:profileinstaller:1.3.1] /Users/edison/.gradle/caches/8.11.1/transforms/bb4a0d32d1b17a1dcea0cf71d2bde5e0/transformed/profileinstaller-1.3.1/AndroidManifest.xml:50:25-92
+278            </intent-filter>
+279        </receiver>
+280    </application>
+281
+282</manifest>

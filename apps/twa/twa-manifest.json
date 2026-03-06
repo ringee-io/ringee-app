@@ -1,0 +1,57 @@
+{
+  "packageId": "io.ringee.twa",
+  "host": "www.ringee.io",
+  "name": "Ringee",
+  "launcherName": "Ringee",
+  "display": "standalone",
+  "themeColor": "#000000",
+  "themeColorDark": "#000000",
+  "navigationColor": "#000000",
+  "navigationColorDark": "#000000",
+  "navigationDividerColor": "#000000",
+  "navigationDividerColorDark": "#000000",
+  "backgroundColor": "#000000",
+  "enableNotifications": true,
+  "startUrl": "/",
+  "iconUrl": "https://www.ringee.io/android-chrome-512x512.png",
+  "maskableIconUrl": "https://www.ringee.io/android-chrome-512x512.png",
+  "splashScreenFadeOutDuration": 300,
+  "signingKey": {
+    "path": "/Users/edison/Desktop/ringee/ringee/apps/twa/android.keystore",
+    "alias": "android"
+  },
+  "appVersionName": "14",
+  "appVersionCode": 14,
+  "shortcuts": [],
+  "generatorApp": "bubblewrap-cli",
+  "webManifestUrl": "https://www.ringee.io/manifest.webmanifest",
+  "fallbackType": "webview",
+  "features": {},
+  "alphaDependencies": {
+    "enabled": false
+  },
+  "enableSiteSettingsShortcut": false,
+  "isChromeOSOnly": false,
+  "isMetaQuest": false,
+  "fullScopeUrl": "https://www.ringee.io/",
+  "minSdkVersion": 21,
+  "orientation": "portrait",
+  "fingerprints": [],
+  "additionalTrustedOrigins": [
+    "https://accounts.google.com",
+    "https://checkout.stripe.com",
+    "https://api.stripe.com",
+    "https://checkout.stripe.com",
+    "https://api.clerk.com",
+    "https://clerk.com",
+    "https://accounts.clerk.com"
+  ],
+  "retainedBundles": [],
+  "protocolHandlers": [],
+  "fileHandlers": [],
+  "launchHandlerClientMode": "focus-existing",
+  "displayOverride": [
+    "fullscreen"
+  ],
+  "appVersion": "14"
+}

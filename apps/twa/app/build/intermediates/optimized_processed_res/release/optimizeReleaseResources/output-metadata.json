@@ -1,0 +1,20 @@
+{
+  "version": 3,
+  "artifactType": {
+    "type": "OPTIMIZED_PROCESSED_RES",
+    "kind": "Directory"
+  },
+  "applicationId": "io.ringee.twa",
+  "variantName": "release",
+  "elements": [
+    {
+      "type": "SINGLE",
+      "filters": [],
+      "attributes": [],
+      "versionCode": 14,
+      "versionName": "14",
+      "outputFile": "resources-release-optimize.ap_"
+    }
+  ],
+  "elementType": "File"
+}

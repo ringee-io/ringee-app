@@ -1,0 +1,50 @@
+name: ringee-stack
+
+services:
+  ringee-postgres:
+    image: postgres:17-alpine
+    container_name: ringee-postgres
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-ringee-user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ringee-password}
+      POSTGRES_DB: ${POSTGRES_DB:-ringee-db-local}
+      LANG: C.UTF-8
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    volumes:
+      - ringee_pg_data:/var/lib/postgresql/data
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ringee-user} -d ${POSTGRES_DB:-ringee-db-local} -h 127.0.0.1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+    networks:
+      - ringee-network
+
+  ringee-redis:
+    image: redis:7.4-alpine
+    container_name: ringee-redis
+    command: ["redis-server", "--save", "60", "1", "--loglevel", "warning"]
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - ringee_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - ringee-network
+
+volumes:
+  ringee_pg_data:
+  ringee_redis_data:
+
+networks:
+  ringee-network:
+    driver: bridge

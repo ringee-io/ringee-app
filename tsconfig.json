@@ -1,0 +1,12 @@
+{
+  "extends": "./tsconfig.build.json",
+
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@ringee/components/*": ["packages/components/src/*"],
+      "@ringee/*": ["packages/*/src"]
+    },
+    "noEmit": true
+  }
+}

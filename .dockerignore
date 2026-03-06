@@ -1,0 +1,25 @@
+# Ignore everything by default
+*
+
+# Allow source code and config files needed for build
+!apps/
+!packages/
+!package.json
+!pnpm-lock.yaml
+!pnpm-workspace.yaml
+!tsconfig.json
+!tsconfig.build.json
+!.npmrc
+
+# Exclude build artifacts and dev files within allowed dirs
+**/node_modules
+**/.next
+**/dist
+**/.turbo
+**/.env*
+**/.DS_Store
+**/README.md
+**/CHANGELOG.md
+**/LICENSE
+**/*.md
+**/twa
