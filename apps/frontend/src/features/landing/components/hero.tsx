@@ -26,7 +26,7 @@ const Hero = () => {
             No contracts, no setup — just pay as you go.
           </p>
           
-          <div className="mt-10 flex w-full flex-col sm:flex-row flex-wrap justify-center gap-4 sm:gap-6">
+          <div className="mt-10 flex w-full justify-center gap-4 sm:gap-6">
             <Link
               href="/auth/sign-in"
               className="group relative inline-flex h-12 sm:h-14 w-full max-w-[220px] sm:max-w-[260px] items-center justify-center overflow-hidden rounded-lg bg-neutral-900/70 px-6 font-medium text-primary-foreground shadow-[0_0_30px_-8px_rgba(0,0,0,0.2)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_35px_-5px_rgba(0,0,0,0.4)] dark:shadow-[0_0_30px_-8px_rgba(255,255,255,0.1)] dark:hover:shadow-[0_0_35px_-5px_rgba(255,255,255,0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-95"
