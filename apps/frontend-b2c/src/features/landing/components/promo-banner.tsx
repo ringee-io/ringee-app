@@ -45,7 +45,7 @@ export default function PromoBanner() {
                     <span className='hidden sm:inline'> for </span>
                     <span className='font-bold text-yellow-300'>35% OFF</span>
                     <span className='hidden sm:inline'> your first purchase!</span>
-                    <span className='ml-1 text-white/90'>• Ends Dec 31st</span>
+                    <span className='ml-1 text-white/90'>• Ends March 31</span>
                 </p>
 
                 <button
