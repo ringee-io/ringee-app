@@ -27,7 +27,7 @@ const Navbar = () => {
 
           <ThemeSelector />
 
-          <Link href='https://github.com/ringee-co/ringee-io' target='_blank' rel='noreferrer noopener'>
+          <Link href='https://github.com/ringee-io/ringee-app' target='_blank' rel='noreferrer noopener'>
             <Button
               variant='outline'
               size='icon'

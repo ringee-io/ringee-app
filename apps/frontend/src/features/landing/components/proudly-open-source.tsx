@@ -12,7 +12,7 @@ interface ProudlyOpenSourceProps {
 
 export const ProudlyOpenSource = ({
   className,
-  repoUrl = 'https://github.com/ringee-co/ringee-io',
+  repoUrl = 'https://github.com/ringee-io/ringee-app',
 }: ProudlyOpenSourceProps) => {
   const [stars, setStars] = useState<number | null>(null);
 
