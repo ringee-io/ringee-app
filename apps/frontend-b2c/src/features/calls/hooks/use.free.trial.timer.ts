@@ -20,6 +20,7 @@ export function useFreeTrialTimer(
   const { freeCallTrial, setFreeCallTrial } = useCreditStore();
   const api = useApi();
   const [remainingSeconds, setRemainingSeconds] = useState(FREE_TRIAL_DURATION);
+  const remainingSecondsRef = useRef(FREE_TRIAL_DURATION);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const hasHungUpRef = useRef(false);
   const timerStartedRef = useRef(false);
@@ -59,7 +60,10 @@ export function useFreeTrialTimer(
 
       intervalRef.current = setInterval(() => {
         setRemainingSeconds((prev) => {
-          if (prev <= 1) {
+          const next = prev - 1;
+          remainingSecondsRef.current = Math.max(0, next);
+
+          if (next <= 0) {
             clearTimer();
             if (!hasHungUpRef.current) {
               hasHungUpRef.current = true;
@@ -71,7 +75,7 @@ export function useFreeTrialTimer(
             }
             return 0;
           }
-          return prev - 1;
+          return next;
         });
       }, 1000);
     }
@@ -84,13 +88,24 @@ export function useFreeTrialTimer(
 
   // Reset everything when the call ends or disappears
   useEffect(() => {
-    if (!activeCall) {
+    const isCallEnded = !activeCall || activeCall.state === 'destroying' || activeCall.state === 'destroyed';
+
+    if (isCallEnded) {
+      if (timerStartedRef.current && !hasHungUpRef.current) {
+        const elapsed = FREE_TRIAL_DURATION - remainingSecondsRef.current;
+        if (elapsed >= 3) {
+          hasHungUpRef.current = true;
+          consumeFreeTrial();
+        }
+      }
+
       clearTimer();
       timerStartedRef.current = false;
       setRemainingSeconds(FREE_TRIAL_DURATION);
+      remainingSecondsRef.current = FREE_TRIAL_DURATION;
       hasHungUpRef.current = false;
     }
-  }, [activeCall, clearTimer]);
+  }, [activeCall, activeCall?.state, clearTimer, consumeFreeTrial]);
 
   return {
     isFreeTrialCall,
