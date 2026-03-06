@@ -55,7 +55,7 @@ export default function OpenSourceSection() {
   };
 
   return (
-    <section className="relative py-16 sm:py-16 overflow-hidden border-t border-border/40">
+    <section id="open-source" className="relative py-16 sm:py-16 overflow-hidden border-t border-border/40">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-16">
         
         {/* Header Section */}
