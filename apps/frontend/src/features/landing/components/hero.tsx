@@ -12,7 +12,7 @@ const Hero = () => {
     <div className="flex flex-col items-center px-6 pt-16">
       <div className="flex items-center justify-center md:mt-6">
         <div className="max-w-2xl text-center flex flex-col items-center">
-          <ProudlyOpenSource repoUrl="https://github.com/ringee-co/ringee" className="mb-6" />
+          <ProudlyOpenSource repoUrl="https://github.com/ringee-co/ringee-io" className="mb-6" />
 
           <Badge className="bg-primary mx-auto flex items-center gap-2 rounded-full border-none py-1">
             <span className="h-2 w-2 animate-pulse rounded-full bg-green-300" />

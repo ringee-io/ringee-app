@@ -10,7 +10,7 @@ export default function OpenSourceSection() {
   const [stars, setStars] = useState<number | null>(null);
 
   useEffect(() => {
-    fetch('https://api.github.com/repos/ringee-co/ringee')
+    fetch('https://api.github.com/repos/ringee-co/ringee-io')
       .then((res) => res.json())
       .then((data) => {
         if (typeof data.stargazers_count === 'number') {
@@ -71,7 +71,7 @@ export default function OpenSourceSection() {
             <div className="mb-12">
               <div className="inline-block relative group">
                 <div className="absolute -inset-0.5 rounded-lg bg-gradient-to-r from-amber-500 to-indigo-500 opacity-20 group-hover:opacity-40 blur transition duration-500"></div>
-                <Link href="https://github.com/ringee-co/ringee" target="_blank" rel="noopener noreferrer">
+                <Link href="https://github.com/ringee-co/ringee-io" target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" className="relative gap-2 rounded-lg pl-3 pr-4 shadow-sm h-10 text-sm font-medium transition-transform group-hover:scale-[1.02]">
                     <Github className="h-4 w-4" />
                     Find us on GitHub
