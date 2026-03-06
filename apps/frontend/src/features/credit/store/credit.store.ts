@@ -13,12 +13,14 @@ interface CreditState {
   error: string | null;
   fetchBalance: (api: ApiClient, useMock?: boolean) => Promise<void>;
   setBalance: (balance: number) => void;
+  setFreeCallTrial: (v: boolean) => void;
   reset: () => void;
 }
 
 export const useCreditStore = create<CreditState>()(
   devtools((set) => ({
     balance: 0,
+    freeCallTrial: false,
     status: 'idle',
     error: null,
 
@@ -40,6 +42,7 @@ export const useCreditStore = create<CreditState>()(
       }
     },
     setBalance: (balance) => set({ balance }),
-    reset: () => set({ balance: 0, status: 'idle', error: null })
+    reset: () => set({ balance: 0, status: 'idle', error: null }),
+    setFreeCallTrial: (v) => set({ freeCallTrial: v })
   }))
 );

@@ -1,6 +1,7 @@
 import { useCall } from '../hooks/use.call';
 import { ActiveCallModal } from './active.call.modal';
 import { useTelnyxStore } from '../store/telnyx.store';
+import { useFreeTrialTimer } from '../hooks/use.free.trial.timer';
 
 export function ShowActiveCall() {
   const { activeCall } = useTelnyxStore();
@@ -16,6 +17,12 @@ export function ShowActiveCall() {
     handleSendDTMF
   } = useCall(activeCall);
 
+  const {
+    isFreeTrialCall,
+    remainingSeconds,
+    totalSeconds
+  } = useFreeTrialTimer(activeCall, handleHangup);
+
   const statusText = isRecording
     ? 'Recording...'
     : activeCall?.state === 'active'
@@ -29,8 +36,11 @@ export function ShowActiveCall() {
       isOnHold={isOnHold}
       isRecording={isRecording}
       isRecordingLoading={isRecordingLoading}
+      isFreeTrialCall={isFreeTrialCall}
+      freeTrialRemainingSeconds={remainingSeconds}
+      freeTrialTotalSeconds={totalSeconds}
       onClose={handleHangup}
-      number={'+CALL'}
+      number={activeCall?.options?.destinationNumber || '+CALL'}
       statusText={statusText}
       onHangup={handleHangup}
       onToggleHold={handleHold}

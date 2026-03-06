@@ -4,7 +4,7 @@ import 'react-phone-number-input/style.css';
 import { useEffect } from 'react';
 import { Card, CardHeader, CardContent } from '@ringee/frontend-shared/components/ui/card';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
-import { Circle } from 'lucide-react';
+import { Circle, Clock } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
 import { useSearchParams } from 'next/navigation';
 import { useCreditStore } from '@/features/credit/store/credit.store';
@@ -69,9 +69,17 @@ export function Dialer({
           {canAccessAdminFeatures && balanceStatus === 'success' ? (
             <div className='flex items-center gap-2'>
               {freeCallTrial ? (
-                <p className='text-muted-foreground text-sm font-semibold'>
-                  A free call trial is available!
-                </p>
+                <div className='flex items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2'>
+                  <Clock className='h-4 w-4 shrink-0 text-amber-500' />
+                  <div>
+                    <p className='text-sm font-semibold text-amber-600 dark:text-amber-400'>
+                      🎉 Free trial call available
+                    </p>
+                    <p className='text-muted-foreground text-xs'>
+                      Limited to 1 minute — call ends automatically
+                    </p>
+                  </div>
+                </div>
               ) : (
                 <>
                   <p className='text-muted-foreground text-sm'>Balance</p>

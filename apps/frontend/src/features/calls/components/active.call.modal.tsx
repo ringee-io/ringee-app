@@ -27,7 +27,8 @@ import {
   Circle,
   Disc as RecordIcon,
   Disc3 as RecordingPulse,
-  Loader2
+  Loader2,
+  Clock
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
@@ -51,6 +52,11 @@ type ActiveCallModalProps = {
   isOnHold?: boolean;
   isRecording?: boolean;
   isRecordingLoading?: boolean;
+
+  /** free trial */
+  isFreeTrialCall?: boolean;
+  freeTrialRemainingSeconds?: number;
+  freeTrialTotalSeconds?: number;
 
   /** actions wired to Telnyx call */
   onHangup: () => void;
@@ -79,6 +85,11 @@ export function ActiveCallModal({
   onToggleMute,
   onToggleHold,
   onToggleRecording,
+
+  isFreeTrialCall = false,
+  freeTrialRemainingSeconds = 60,
+  freeTrialTotalSeconds = 60,
+
   remoteStream,
   onSendDTMF
 }: ActiveCallModalProps) {
@@ -145,6 +156,17 @@ export function ActiveCallModal({
     return `${m}:${s.toString().padStart(2, '0')}`;
   }, [elapsed]);
 
+
+  const trialLabel = useMemo(() => {
+    const m = Math.floor(freeTrialRemainingSeconds / 60);
+    const s = freeTrialRemainingSeconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  }, [freeTrialRemainingSeconds]);
+
+  const trialProgress = freeTrialTotalSeconds > 0
+    ? ((freeTrialTotalSeconds - freeTrialRemainingSeconds) / freeTrialTotalSeconds) * 100
+    : 0;
+
   return (
     <Dialog modal={false} open={open} onOpenChange={onClose}>
       <DialogContent
@@ -159,6 +181,42 @@ export function ActiveCallModal({
           'backdrop-blur-md'
         )}
       >
+
+        {/* Free trial banner */}
+        {isFreeTrialCall && (
+          <div className='mb-2 rounded-xl border border-amber-500/30 bg-amber-500/10 px-4 py-3'>
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center gap-2'>
+                <Clock className='h-4 w-4 text-amber-500' />
+                <span className='text-sm font-medium text-amber-500'>
+                  Free trial — 1 min limit
+                </span>
+              </div>
+              <span
+                className={cn(
+                  'font-mono text-sm font-bold tabular-nums',
+                  freeTrialRemainingSeconds <= 10
+                    ? 'animate-pulse text-red-500'
+                    : 'text-amber-500'
+                )}
+              >
+                {trialLabel}
+              </span>
+            </div>
+            <div className='mt-2 h-1.5 w-full overflow-hidden rounded-full bg-amber-500/20'>
+              <div
+                className={cn(
+                  'h-full rounded-full transition-all duration-1000 ease-linear',
+                  freeTrialRemainingSeconds <= 10
+                    ? 'bg-red-500'
+                    : 'bg-amber-500'
+                )}
+                style={{ width: `${trialProgress}%` }}
+              />
+            </div>
+          </div>
+        )}
+
         <DialogHeader>
           <DialogTitle className='flex flex-col items-center gap-3 text-center'>
             <Avatar className='h-20 w-20'>
