@@ -12,7 +12,7 @@ Make and receive calls worldwide, manage contacts, record conversations, and mon
 - Docs: https://docs.ringee.io  
 - Tutorials: https://www.youtube.com/watch?v=WiHE9RFmECc  
 - Register: https://app.ringee.io/auth/sign-up  
-- Issues: https://github.com/ringee-co/ringee/issues  
+- Issues: https://github.com/ringee-io/ringee/issues  
 
 ---
 
@@ -88,7 +88,7 @@ Start here: **[Quick Start](CONTRIBUTING.md)**
 Or run with Docker:
 
 ```bash
-git clone https://github.com/ringee-co/ringee.git
+git clone https://github.com/ringee-io/ringee.git
 cd ringee
 cp .env.example .env
 docker-compose -f docker-compose.app.yml up --build -d
@@ -121,7 +121,7 @@ Contributions and sponsorships are appreciated.
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/svg?repos=ringee-co/ringee&type=date&legend=top-left)](https://www.star-history.com/#ringee-co/ringee&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=ringee-io/ringee-app&type=date&legend=top-left)](https://www.star-history.com/#ringee-io/ringee-app&type=date&legend=top-left)
 
 ---
 
