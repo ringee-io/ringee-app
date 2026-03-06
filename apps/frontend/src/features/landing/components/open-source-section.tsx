@@ -8,14 +8,35 @@ import { motion, Variants } from 'framer-motion';
 
 export default function OpenSourceSection() {
   const [stars, setStars] = useState<number | null>(null);
+  const [contributors, setContributors] = useState<number | null>(null);
 
   useEffect(() => {
+    // Fetch stars
     fetch('https://api.github.com/repos/ringee-io/ringee-app')
       .then((res) => res.json())
       .then((data) => {
         if (typeof data.stargazers_count === 'number') {
           setStars(data.stargazers_count);
         }
+      })
+      .catch(console.error);
+
+    // Fetch contributors count
+    fetch('https://api.github.com/repos/ringee-io/ringee-app/contributors?per_page=1')
+      .then((res) => {
+        const linkHeader = res.headers.get('link');
+        if (linkHeader) {
+          const match = linkHeader.match(/page=(\d+)>; rel="last"/);
+          if (match) {
+            setContributors(parseInt(match[1], 10));
+            return;
+          }
+        }
+        return res.json().then(data => {
+          if (Array.isArray(data)) {
+            setContributors(data.length);
+          }
+        });
       })
       .catch(console.error);
   }, []);
@@ -87,7 +108,7 @@ export default function OpenSourceSection() {
                   <span className="text-xs font-medium uppercase tracking-wider">Stars on Github</span>
                 </div>
                 <div className="text-3xl font-bold tracking-tight group-hover:scale-105 origin-left transition-transform">
-                  {stars !== null ? `${(stars / 1000).toFixed(1)}k` : '1.2k'}
+                  {stars !== null ? Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(stars) : '...'}
                 </div>
               </div>
               
@@ -97,7 +118,7 @@ export default function OpenSourceSection() {
                   <span className="text-xs font-medium uppercase tracking-wider">Contributors</span>
                 </div>
                 <div className="text-3xl font-bold tracking-tight group-hover:scale-105 origin-left transition-transform">
-                  45+
+                  {contributors !== null ? Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(contributors) : '...'}
                 </div>
               </div>
             </div>
