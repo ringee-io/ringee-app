@@ -121,7 +121,7 @@ Contributions and sponsorships are appreciated.
 
 ## Star History
 
-[![Star History Chart](https://api.star-history.com/image?repos=ringee-io/ringee-app&type=date&legend=top-left)](https://www.star-history.com/?repos=ringee-io%2Fringee-app&type=date&legend=top-left)
+[![Star History Chart](https://api.star-history.com/svg?repos=ringee-io/ringee-app&type=date&legend=top-left)](https://www.star-history.com/#ringee-io/ringee-app&type=date&legend=top-left)
 
 ---
 
