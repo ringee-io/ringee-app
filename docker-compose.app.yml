@@ -7,7 +7,7 @@ services:
   backend:
     build:
       context: .
-      dockerfile: apps/backend/Dockerfile
+      dockerfile: apps/backend/Dockerfile.compose
     container_name: ringee-backend
     ports:
       - "3000:3000"
@@ -37,7 +37,7 @@ services:
   worker:
     build:
       context: .
-      dockerfile: apps/worker/Dockerfile
+      dockerfile: apps/worker/Dockerfile.compose
     container_name: ringee-worker
     env_file:
       - .env
@@ -58,7 +58,7 @@ services:
   frontend:
     build:
       context: .
-      dockerfile: apps/frontend/Dockerfile
+      dockerfile: apps/frontend/Dockerfile.compose
       args:
         - NEXT_PUBLIC_APP_ENV=${NEXT_PUBLIC_APP_ENV:-development}
         - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3000}
@@ -104,7 +104,7 @@ services:
   frontend-b2c:
     build:
       context: .
-      dockerfile: apps/frontend-b2c/Dockerfile
+      dockerfile: apps/frontend-b2c/Dockerfile.compose
       args:
         - NEXT_PUBLIC_APP_ENV=${NEXT_PUBLIC_APP_ENV:-development}
         - NEXT_PUBLIC_API_BASE_URL=${NEXT_PUBLIC_API_BASE_URL:-http://localhost:3000}
