@@ -191,9 +191,11 @@ export default function OpenSourceSection() {
                 <p className="text-sm text-muted-foreground leading-relaxed mb-6 max-w-sm">
                   With strict protocols in place, you can trust us to protect your information with confidence.
                 </p>
-                <Button variant="ghost" className="group -ml-3 rounded-lg h-9 px-3 text-sm font-medium hover:bg-muted/50">
-                  Read more
-                  <ChevronRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                <Button asChild variant="ghost" className="group -ml-3 rounded-lg h-9 px-3 text-sm font-medium hover:bg-muted/50">
+                  <Link href="/blog/ringee-open-source-self-hosted-security">
+                    Read more
+                    <ChevronRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
+                  </Link>
                 </Button>
               </motion.div>
 
