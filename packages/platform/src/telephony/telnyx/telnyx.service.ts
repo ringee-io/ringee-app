@@ -97,7 +97,8 @@ export class TelnyxService implements TelephonyService {
   }
 
   addProfitsToCosts(costs: number): number {
-    return costs * 1.99;
+    const profitMargin = process.env.NUMBER_PROFIT_MARGIN ? parseFloat(process.env.NUMBER_PROFIT_MARGIN) : 0;
+    return costs + (costs * profitMargin);
   }
 
   async searchAvailableNumbers(

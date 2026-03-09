@@ -301,7 +301,8 @@ export class CallService {
           }
 
           const rawTotalCost = parseFloat(costPayload.total_cost);
-          const totalCost = rawTotalCost * 1.5;
+          const profitMargin = process.env.CALL_PROFIT_MARGIN ? parseFloat(process.env.CALL_PROFIT_MARGIN) : 0;
+          const totalCost = rawTotalCost + (rawTotalCost * profitMargin);
 
           // Build context from call's ownership
           const callCtx: OwnershipContext = {

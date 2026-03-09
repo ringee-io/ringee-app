@@ -48,7 +48,9 @@ export class TelnyxRatePerMinuteRepository {
     const calcStats = (arr: number[]) => {
       if (!arr.length) return { min: 0, max: 0, avg: 0 };
 
-      const adjusted = arr.map((v) => (v === 0 ? 0.02 : v * 1.5));
+      const profitMargin = process.env.CALL_PROFIT_MARGIN ? parseFloat(process.env.CALL_PROFIT_MARGIN) : 0;
+      const multiplier = 1 + profitMargin;
+      const adjusted = arr.map((v) => (v === 0 ? 0.02 : v * multiplier));
 
       const min = Math.min(...adjusted);
       const max = Math.max(...adjusted);
