@@ -17,11 +17,24 @@ const telnyx = new Telnyx({
   apiKey: apiConfiguration.TELNYX_API_KEY,
 });
 
+process.env.NUMBER_PROFIT_MARGIN = '1.0'
+
 @Injectable()
 export class TelnyxService implements TelephonyService {
   private readonly logger = new Logger(TelnyxService.name);
 
-  constructor(private readonly telnyxClient: TelnyxClient) { }
+  constructor(private readonly telnyxClient: TelnyxClient) {}
+
+  private applyNumberProfitMargin(cost: number): number {
+    const rawMargin = process.env.NUMBER_PROFIT_MARGIN;
+    const profitMargin = rawMargin ? parseFloat(rawMargin) : 0;
+
+    if (!Number.isFinite(cost)) return 0;
+    if (!Number.isFinite(profitMargin)) return parseFloat(cost.toFixed(4));
+
+    const finalCost = cost * (1 + profitMargin);
+    return parseFloat(finalCost.toFixed(4));
+  }
 
   async requestCallIdVerification(
     phoneNumber: string,
@@ -41,7 +54,7 @@ export class TelnyxService implements TelephonyService {
       );
 
       if (errors?.length) {
-        this.logger.error(`Telnyx verification failed`, errors);
+        this.logger.error("Telnyx verification failed", errors);
         throw new HttpException(
           errors[0].detail || "Telnyx verification error",
           422,
@@ -55,9 +68,10 @@ export class TelnyxService implements TelephonyService {
       this.logger.error(
         `Error requesting Caller ID verification: ${err.message}`,
       );
+
       throw new HttpException(
-        err.response?.data?.message || "Failed to request verification",
-        err.status || 500,
+        err?.response?.data?.message || "Failed to request verification",
+        err?.status || 500,
       );
     }
   }
@@ -82,23 +96,16 @@ export class TelnyxService implements TelephonyService {
       const isVerified =
         data?.record_type === "verified_number" && !!data?.verified_at;
 
-      return {
-        isVerified,
-      };
+      return { isVerified };
     } catch (error: any) {
       this.logger.error(`Verification failed for ${phoneNumber}`, error);
 
       throw new HttpException(
         error?.response?.data?.message ||
-        "Invalid or expired verification code",
+          "Invalid or expired verification code",
         error?.status || 400,
       );
     }
-  }
-
-  addProfitsToCosts(costs: number): number {
-    const profitMargin = process.env.NUMBER_PROFIT_MARGIN ? parseFloat(process.env.NUMBER_PROFIT_MARGIN) : 0;
-    return costs + (costs * profitMargin);
   }
 
   async searchAvailableNumbers(
@@ -110,39 +117,45 @@ export class TelnyxService implements TelephonyService {
         limit: params.limit,
       } as AvailablePhoneNumberListParams.Filter;
 
-      if (params.numberType) filters.phone_number_type = params.numberType;
-      if (params.areaCode) filters.national_destination_code = params.areaCode;
+      if (params.numberType) {
+        filters.phone_number_type = params.numberType;
+      }
+
+      if (params.areaCode) {
+        filters.national_destination_code = params.areaCode;
+      }
 
       const { data: numbersList } = await telnyx.availablePhoneNumbers.list({
         filter: filters,
       });
 
       return (numbersList || []).map((item: any) => {
-        const features = item.features.map((feature: any) => feature.name);
+        const features = Array.isArray(item.features)
+          ? item.features.map((feature: any) => feature.name)
+          : [];
+
+        const regionInformation = Array.isArray(item.region_information)
+          ? item.region_information
+          : [];
+
+        const getRegionName = (regionType: string): string =>
+          regionInformation.find(
+            (region: any) => region.region_type === regionType,
+          )?.region_name || "";
+
+        const monthlyCost = Number(item?.cost_information?.monthly_cost || 0);
+        const upfrontCost = Number(item?.cost_information?.upfront_cost || 0);
 
         return {
           phoneNumber: item.phone_number,
-          countryCode:
-            item.region_information.find(
-              (region: any) => region.region_type === "country_code",
-            )?.region_name || "",
-          locality:
-            item.region_information.find(
-              (region: any) => region.region_type === "location",
-            )?.region_name || "",
-          region:
-            item.region_information.find(
-              (region: any) => region.region_type === "state",
-            )?.region_name || "",
+          countryCode: getRegionName("country_code"),
+          locality: getRegionName("location"),
+          region: getRegionName("state"),
           numberType: item.phone_number_type,
           costInformation: {
-            currency: item.cost_information.currency,
-            monthlyCost: this.addProfitsToCosts(
-              item.cost_information.monthly_cost,
-            ),
-            upfrontCost: this.addProfitsToCosts(
-              item.cost_information.upfront_cost,
-            ),
+            currency: item?.cost_information?.currency || "USD",
+            monthlyCost: this.applyNumberProfitMargin(monthlyCost),
+            upfrontCost: this.applyNumberProfitMargin(upfrontCost),
           },
           capabilities: {
             sms: features.includes("sms"),
@@ -156,7 +169,7 @@ export class TelnyxService implements TelephonyService {
         };
       });
     } catch (error: any) {
-      this.logger.error(`Error searching available numbers`, error);
+      this.logger.error("Error searching available numbers", error);
       return [];
     }
   }
@@ -176,26 +189,25 @@ export class TelnyxService implements TelephonyService {
       phoneNumbersCount: data.phone_numbers_count,
       status: data.status,
       provider: "telnyx",
-      phoneNumbers: data.phone_numbers.map((number: any) => {
-        return {
-          id: number.id,
-          status: number.status,
-          phoneNumber: number.phone_number,
-          phoneNumberType: number.phone_number_type,
-          countryCode: number.country_code,
-          requirementsStatus: number.requirements_status,
-          requirementsMet: number.requirements_met,
-          connectionId: "",
-          connectionName: "",
-          billingGroupId: data.billing_group_id,
-        };
-      }),
+      phoneNumbers: data.phone_numbers.map((number: any) => ({
+        id: number.id,
+        status: number.status,
+        phoneNumber: number.phone_number,
+        phoneNumberType: number.phone_number_type,
+        countryCode: number.country_code,
+        requirementsStatus: number.requirements_status,
+        requirementsMet: number.requirements_met,
+        connectionId: "",
+        connectionName: "",
+        billingGroupId: data.billing_group_id,
+      })),
     };
 
     for (const phoneNumber of response.phoneNumbers) {
       const assignedNumber = await this.assignNumberToConnection(
         phoneNumber.phoneNumber,
       );
+
       phoneNumber.connectionId = assignedNumber.connectionId;
       phoneNumber.connectionName = assignedNumber.connectionName;
     }
@@ -235,6 +247,7 @@ export class TelnyxService implements TelephonyService {
   async getRateByCountry(
     codeOrName: string,
   ): Promise<TelephonyCountryRate | null> {
+    void codeOrName;
     throw new Error("Not implemented");
   }
 
@@ -252,7 +265,7 @@ export class TelnyxService implements TelephonyService {
         connection_id: apiConfiguration.TELNYX_CONNECTION_ID,
         name: `frontend-${userId}`,
         tag,
-        expires_at: new Date(Date.now() + 60 * 60 * 10000).toISOString(), // +1h
+        expires_at: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
       };
 
       const { data } = await this.telnyxClient.post(
@@ -269,10 +282,11 @@ export class TelnyxService implements TelephonyService {
         connectionId: cred.resource_id?.replace("connection:", "") || "",
       };
     } catch (error: any) {
-      this.logger.error("❌ Error creating Telnyx credential", error);
+      this.logger.error("Error creating Telnyx credential", error);
+
       throw new HttpException(
         error?.response?.data?.errors?.[0]?.detail ||
-        "Failed to create Telnyx credential",
+          "Failed to create Telnyx credential",
         error?.response?.status || 500,
       );
     }
@@ -302,7 +316,7 @@ export class TelnyxService implements TelephonyService {
       });
 
       this.logger.log(
-        `📞 Llamada ${callControlId} transferida a ${destination} para userId=${userId}`,
+        `Call ${callControlId} transferred to ${destination} for userId=${userId}`,
       );
 
       return {
@@ -310,15 +324,14 @@ export class TelnyxService implements TelephonyService {
         sipPassword: creds.sipPassword,
       };
     } catch (error: any) {
-      console.error(JSON.stringify(error?.response?.errors, null, 2));
       this.logger.error(
-        `❌ Error al transferir la llamada ${callControlId} → ${userId}`,
-        error.response?.data || error.message,
+        `Error transferring call ${callControlId} to user ${userId}`,
+        error?.response?.data || error?.message,
       );
 
       throw new HttpException(
         error?.response?.data?.errors?.[0]?.detail ||
-        "Error al transferir llamada a WebRTC",
+          "Error transferring call to WebRTC",
         error?.response?.status || 500,
       );
     }
@@ -339,10 +352,7 @@ export class TelnyxService implements TelephonyService {
   }
 
   async stopRecording(callControlId: string): Promise<void> {
-    await telnyx.calls.actions.stopRecording(
-      callControlId,
-      {},
-    );
+    await telnyx.calls.actions.stopRecording(callControlId, {});
   }
 
   async downloadRecording(url: string): Promise<ArrayBuffer> {
