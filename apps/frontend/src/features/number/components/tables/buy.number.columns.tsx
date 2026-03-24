@@ -55,7 +55,7 @@ export const columns: ColumnDef<AvailableNumber>[] = [
         // { label: '🇬🇧 United Kingdom', value: 'GB' },
         // { label: '🇩🇴 Dominican Republic', value: 'DO' },
         // { label: '🇲🇽 Mexico', value: 'MX' },
-        // { label: '🇪🇸 Spain', value: 'ES' },
+        { label: '🇪🇸 Spain', value: 'ES' },
         // { label: '🇬🇧 United Kingdom', value: 'GB' }
       ]
     },
