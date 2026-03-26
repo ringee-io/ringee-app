@@ -27,6 +27,8 @@ interface NumbersState {
   reset: () => void;
 }
 
+const STORAGE_KEY = 'ringee:selected-number-id';
+
 const publicNumber = {
   id: 'public',
   phoneNumber: '+17869460882',
@@ -44,16 +46,48 @@ export const useNumbersStore = create<NumbersState>()(
       try {
         const data = await api.get('/telephony/phone-numbers');
         const list = Array.isArray(data) ? data : [];
+
+        const savedId =
+          typeof window !== 'undefined'
+            ? localStorage.getItem(STORAGE_KEY)
+            : null;
+
+        let restored: NumberPurchased | null = null;
+
+        if (savedId && savedId !== 'public') {
+          restored = list.find((n: NumberPurchased) => n.id === savedId) ?? null;
+        }
+
         set({
           numbers: list,
+          selectedNumber: restored ?? publicNumber,
           status: 'success'
         });
+
+        if (savedId && savedId !== 'public' && !restored) {
+          localStorage.removeItem(STORAGE_KEY);
+        }
       } catch (err) {
         set({ status: 'error', numbers: [] });
       }
     },
 
-    selectNumber: (num) => set({ selectedNumber: num }),
-    reset: () => set({ numbers: [], selectedNumber: null, status: 'idle' })
+    selectNumber: (num) => {
+      if (typeof window !== 'undefined') {
+        if (num) {
+          localStorage.setItem(STORAGE_KEY, num.id);
+        } else {
+          localStorage.removeItem(STORAGE_KEY);
+        }
+      }
+      set({ selectedNumber: num });
+    },
+
+    reset: () => {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+      set({ numbers: [], selectedNumber: null, status: 'idle' });
+    }
   }))
 );
