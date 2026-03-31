@@ -163,12 +163,8 @@ export function useCall(call?: Call | null) {
       debugOutput: 'socket'
     });
 
-    // TODO: Fix this
-    // analytics.trackNewCall(`${callerId}-${number}`);
-
-    // TODO: Fix this
-    // Complete first call step when making a call
-    // completeOnboardingStep('first_call');
+    analytics.trackNewCall(`${callerId}-${number}`);
+    completeOnboardingStep('first_call');
   };
 
   return {

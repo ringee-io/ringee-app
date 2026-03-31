@@ -10,10 +10,15 @@ import { useOnboardingDataStore } from '../store/onboarding.store';
 export function useOnboardingComplete() {
   const api = useApi();
   const completedRef = useRef<Set<OnboardingStep>>(new Set());
-  const { setStatus } = useOnboardingDataStore();
+  const { setStatus, status } = useOnboardingDataStore();
 
   const completeStep = useCallback(
     async (step: OnboardingStep) => {
+      // Skip if already completed in global state
+      if (status?.completedSteps?.includes(step)) {
+        return;
+      }
+
       // Prevent duplicate calls for the same step in this session
       if (completedRef.current.has(step)) {
         return;
