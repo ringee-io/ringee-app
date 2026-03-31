@@ -125,9 +125,9 @@ export function CalendarIntegrations() {
     return (
       <div className='grid gap-4 md:grid-cols-2'>
         {[0, 1].map((i) => (
-          <div key={i} className='rounded border border-border/20 bg-card p-6'>
+          <div key={i} className='rounded-xl border border-border/20 bg-card p-6'>
             <div className='flex items-center gap-4'>
-              <Skeleton className='h-12 w-12 rounded' />
+              <Skeleton className='h-12 w-12 rounded-xl' />
               <div className='space-y-2 flex-1'>
                 <Skeleton className='h-5 w-32' />
                 <Skeleton className='h-3 w-48' />
@@ -141,8 +141,28 @@ export function CalendarIntegrations() {
   }
 
   return (
-    <div className='space-y-6'>
-      {/* Header */}
+    <div className='relative'>
+      {/* Coming Soon Overlay */}
+      <div className='absolute inset-0 z-20 flex flex-col items-center justify-center rounded-xl bg-background/10 backdrop-blur-[1px] transition-all duration-500'>
+        <div className='flex flex-col items-center justify-center space-y-5 rounded-xl border border-primary/10 bg-card/95 p-8 text-center shadow-[0_0_40px_-10px_rgba(0,0,0,0.1)] backdrop-blur-md max-w-[480px] mx-auto animate-in fade-in zoom-in-95 duration-500'>
+          <span className='text-primary border-primary/20 text-xs px-3 py-1 tracking-widest uppercase font-semibold'>
+            ✨ Coming Soon
+          </span>
+          <div className='space-y-3'>
+            <h4 className='text-xl font-bold tracking-tight'>Awaiting Official Verification</h4>
+            <p className='text-muted-foreground text-sm leading-relaxed max-w-[420px] mx-auto'>
+              We've fully built the <strong className="text-foreground font-medium">Google Calendar</strong> and <strong className="text-foreground font-medium">Microsoft Outlook</strong> integrations! We are currently waiting for standard app compliance verification from their security teams.
+            </p>
+            <p className='text-muted-foreground/80 text-xs max-w-[360px] mx-auto pt-1'>
+              Once approved, you'll be able to seamlessly sync meetings and auto-generate Meet/Teams video links with one click.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Content Wrapper */}
+      <div className='space-y-6 pointer-events-none select-none opacity-50 grayscale-[10%] blur-[1px]'>
+        {/* Header */}
       <div>
         <h3 className='text-base font-semibold'>Calendar Integrations</h3>
         <p className='text-muted-foreground text-sm mt-1'>
@@ -160,7 +180,7 @@ export function CalendarIntegrations() {
             <div
               key={provider.id}
               className={cn(
-                'group relative rounded border bg-card p-6 transition-all',
+                'group relative rounded-xl border bg-card p-6 transition-all',
                 connected
                   ? `${provider.color} ${provider.activeGlow}`
                   : 'border-border/20 hover:border-border/40'
@@ -179,7 +199,7 @@ export function CalendarIntegrations() {
               {/* Icon + info */}
               <div className='flex items-start gap-4'>
                 <div className={cn(
-                  'flex h-12 w-12 shrink-0 items-center justify-center rounded bg-muted/30 transition-colors',
+                  'flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-muted/30 transition-colors',
                   connected && 'bg-muted/50'
                 )}>
                   {provider.icon}
@@ -231,7 +251,7 @@ export function CalendarIntegrations() {
       </div>
 
       {/* Sync info */}
-      <div className='rounded border border-border/10 bg-muted/5 p-4'>
+      <div className='rounded-xl border border-border/10 bg-muted/5 p-4'>
         <div className='flex items-start gap-3'>
           <CalendarDays className='h-5 w-5 text-muted-foreground shrink-0 mt-0.5' />
           <div>
@@ -244,6 +264,7 @@ export function CalendarIntegrations() {
             </p>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );
