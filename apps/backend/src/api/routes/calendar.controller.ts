@@ -28,11 +28,8 @@ export class CalendarController {
   @Get("oauth/google")
   async googleOAuthRedirect(
     @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
     @Res() res: Response,
   ) {
-    const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-    const host = req.headers["x-forwarded-host"] || req.get("host");
     const redirectUri = `${process.env.BACKEND_URL}/api/calendar/oauth/google/callback`;
     const state = Buffer.from(JSON.stringify({ userId: user.id, orgId: user.activeOrgId })).toString("base64");
     const url = this.calendarService.getGoogleOAuthUrl(redirectUri, state);
@@ -44,12 +41,9 @@ export class CalendarController {
   async googleOAuthCallback(
     @Query("code") code: string,
     @Query("state") state: string,
-    @Req() req: Request,
     @Res() res: Response,
   ) {
     try {
-      const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-      const host = req.headers["x-forwarded-host"] || req.get("host");
       const redirectUri = `${process.env.BACKEND_URL}/api/calendar/oauth/google/callback`;
       
       const stateData = JSON.parse(Buffer.from(state, "base64").toString());
@@ -79,12 +73,9 @@ export class CalendarController {
   @Get("oauth/microsoft")
   async microsoftOAuthRedirect(
     @CurrentUser() user: CurrentUserData,
-    @Req() req: Request,
     @Res() res: Response,
   ) {
-    const protocol = req.headers["x-forwarded-proto"] || req.protocol;
-    const host = req.headers["x-forwarded-host"] || req.get("host");
-    const redirectUri = `${protocol}://${host}/api/calendar/oauth/microsoft/callback`;
+    const redirectUri = `${process.env.BACKEND_URL}/api/calendar/oauth/microsoft/callback`;
     const state = Buffer.from(JSON.stringify({ userId: user.id, orgId: user.activeOrgId })).toString("base64");
     const url = this.calendarService.getMicrosoftOAuthUrl(redirectUri, state);
     res.redirect(url);
