@@ -99,6 +99,7 @@ export function MeetingsList() {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [tab, setTab] = useState('upcoming');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
@@ -107,12 +108,19 @@ export function MeetingsList() {
     Date | undefined
   >(undefined);
 
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [search]);
+
   const fetchMeetings = useCallback(async () => {
     setIsLoading(true);
     try {
       const params = new URLSearchParams();
       if (tab === 'upcoming') params.set('upcoming', 'true');
-      if (search) params.set('search', search);
+      if (debouncedSearch) params.set('search', debouncedSearch);
       params.set('limit', '100');
 
       const data = await api.get<MeetingsResponse>(
@@ -124,7 +132,7 @@ export function MeetingsList() {
     } finally {
       setIsLoading(false);
     }
-  }, [api, tab, search]);
+  }, [api, tab, debouncedSearch]);
 
   useEffect(() => {
     fetchMeetings();
