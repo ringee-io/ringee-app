@@ -18,6 +18,8 @@ import { SubscriptionRepository } from "./repositories/subscription.repository";
 import { CampaignRepository } from "./repositories/campaign.repository";
 import { CampaignLeadRepository } from "./repositories/campaign-lead.repository";
 import { TagRepository } from "./repositories/tag.repository";
+import { MeetingRepository } from "./repositories/meeting.repository";
+import { CalendarIntegrationRepository } from "./repositories/calendar-integration.repository";
 
 const databaseProviders = [
   PrismaService,
@@ -39,6 +41,8 @@ const databaseProviders = [
   CampaignRepository,
   CampaignLeadRepository,
   TagRepository,
+  MeetingRepository,
+  CalendarIntegrationRepository,
 ];
 
 @Global()

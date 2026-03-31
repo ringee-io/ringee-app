@@ -1,0 +1,144 @@
+import {
+  Injectable,
+  ForbiddenException,
+  NotFoundException,
+} from "@nestjs/common";
+import {
+  MeetingRepository,
+  CallRepository,
+  Meeting,
+  MeetingStatus,
+  CallOutcome,
+  Call,
+} from "@ringee/database";
+import { OwnershipContext } from "@ringee/platform";
+
+@Injectable()
+export class MeetingService {
+  constructor(
+    private readonly meetingRepo: MeetingRepository,
+    private readonly callRepo: CallRepository,
+  ) {}
+
+  private ensureOrganization(ctx: OwnershipContext): void {
+    if (!ctx.organizationId) {
+      throw new ForbiddenException("Meetings require an organization");
+    }
+  }
+
+  async createMeeting(
+    ctx: OwnershipContext,
+    dto: {
+      contactId: string;
+      callId?: string;
+      title?: string;
+      scheduledAt: string;
+      duration?: number;
+      location?: string;
+      notes?: string;
+    },
+  ): Promise<Meeting> {
+    const meeting = await this.meetingRepo.create(ctx, {
+      contactId: dto.contactId,
+      callId: dto.callId,
+      title: dto.title,
+      scheduledAt: new Date(dto.scheduledAt),
+      duration: dto.duration,
+      location: dto.location,
+      notes: dto.notes,
+    });
+
+    // Auto-set call outcome to meeting_booked if linked to a call
+    if (dto.callId) {
+      const call = await this.callRepo.findById(dto.callId);
+      if (call) {
+        await this.callRepo.updateOutcome(call.id, CallOutcome.meeting_booked);
+      }
+    }
+
+    return meeting;
+  }
+
+  async getMeetingById(ctx: OwnershipContext, id: string): Promise<Meeting> {
+    const meeting = await this.meetingRepo.findById(id);
+    if (!meeting) throw new NotFoundException("Meeting not found");
+
+    if (ctx.organizationId && meeting.organizationId !== ctx.organizationId) {
+      throw new ForbiddenException("Access denied");
+    }
+    if (!ctx.organizationId && meeting.userId !== ctx.userId) {
+      throw new ForbiddenException("Access denied");
+    }
+
+    return meeting;
+  }
+
+  async listMeetings(
+    ctx: OwnershipContext,
+    options?: {
+      status?: MeetingStatus;
+      upcoming?: boolean;
+      search?: string;
+      page?: number;
+      limit?: number;
+    },
+  ) {
+    return this.meetingRepo.listByOwner(ctx, options);
+  }
+
+  async upcomingThisWeek(ctx: OwnershipContext) {
+    return this.meetingRepo.upcomingThisWeek(ctx);
+  }
+
+  async updateMeeting(
+    ctx: OwnershipContext,
+    id: string,
+    dto: {
+      title?: string;
+      scheduledAt?: string;
+      duration?: number;
+      location?: string;
+      notes?: string;
+    },
+  ): Promise<Meeting> {
+    const meeting = await this.getMeetingById(ctx, id);
+
+    return this.meetingRepo.update(meeting.id, {
+      title: dto.title,
+      scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
+      duration: dto.duration,
+      location: dto.location,
+      notes: dto.notes,
+    });
+  }
+
+  async cancelMeeting(ctx: OwnershipContext, id: string): Promise<Meeting> {
+    const meeting = await this.getMeetingById(ctx, id);
+
+    return this.meetingRepo.update(meeting.id, {
+      status: MeetingStatus.cancelled,
+      cancelledAt: new Date(),
+    });
+  }
+
+  async updateCallOutcome(
+    ctx: OwnershipContext,
+    callId: string,
+    dto: {
+      outcome: CallOutcome;
+      outcomeNote?: string;
+    },
+  ) : Promise<Call> {
+    const call = await this.callRepo.findById(callId);
+    if (!call) throw new NotFoundException("Call not found");
+
+    if (ctx.organizationId && call.organizationId !== ctx.organizationId) {
+      throw new ForbiddenException("Access denied");
+    }
+    if (!ctx.organizationId && call.userId !== ctx.userId) {
+      throw new ForbiddenException("Access denied");
+    }
+
+    return this.callRepo.updateOutcome(callId, dto.outcome, dto.outcomeNote);
+  }
+}

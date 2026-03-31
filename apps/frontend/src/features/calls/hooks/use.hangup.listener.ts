@@ -1,11 +1,31 @@
 'use client';
 
 import { useTelnyxStore } from '../store/telnyx.store';
-import { useEffect } from 'react';
+import { useCallStore } from '../store/call.store';
+import { useEffect, useRef } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
 
 export function useHangupListener() {
-  const { notification, setActiveCall, dequeue } = useTelnyxStore();
+  const { notification, activeCall, setActiveCall, dequeue } =
+    useTelnyxStore();
+  const { postCallPhase, enterPostCallPhase } = useCallStore();
+  const callStartTimeRef = useRef<number | null>(null);
+
+  // Track when call becomes active to calculate duration
+  useEffect(() => {
+    if (
+      activeCall?.state === 'active' ||
+      activeCall?.state === 'connected' ||
+      activeCall?.state === 'recording'
+    ) {
+      if (!callStartTimeRef.current) {
+        callStartTimeRef.current = Date.now();
+      }
+    }
+    if (!activeCall) {
+      callStartTimeRef.current = null;
+    }
+  }, [activeCall?.state, activeCall]);
 
   useEffect(() => {
     if (!notification) return;
@@ -15,8 +35,28 @@ export function useHangupListener() {
     const { state } = call;
 
     if (['hangup', 'destroy', 'done', 'failed'].includes(state)) {
-      setActiveCall(null);
       dequeue(call.id);
+
+      // Calculate call duration
+      const duration = callStartTimeRef.current
+        ? Math.floor((Date.now() - callStartTimeRef.current) / 1000)
+        : 0;
+
+      // Short calls (< 5s) or failed calls: skip post-call, close immediately
+      if (duration < 5 || state === 'failed') {
+        setActiveCall(null);
+        return;
+      }
+
+      // Transition to post-call phase instead of closing
+      // contactName and contactId are resolved by ShowActiveCall and will be
+      // available via the call store's existing state set by show.active.call
+      enterPostCallPhase({
+        duration,
+        contactName: null,
+        contactId: null,
+        callId: null
+      });
     }
   }, [notification]);
 }

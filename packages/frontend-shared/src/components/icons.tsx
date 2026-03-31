@@ -35,7 +35,8 @@ import {
   IconWallet,
   IconStar,
   IconHistory,
-  IconMicrophone
+  IconMicrophone,
+  IconCalendarCheck
 } from '@tabler/icons-react';
 import { MoreHorizontal } from 'lucide-react';
 
@@ -78,6 +79,7 @@ export const Icons = {
   wallet: IconWallet,
   moreHorizontal: MoreHorizontal,
   history: IconHistory,
-  mic: IconMicrophone
+  mic: IconMicrophone,
+  calendarCheck: IconCalendarCheck
 };
 

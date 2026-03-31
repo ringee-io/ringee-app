@@ -15,3 +15,5 @@ export * from "./subscription.service";
 export * from "./campaign.service";
 export * from "./tag.service";
 export * from "./onboarding.service";
+export * from "./meeting.service";
+export * from "./calendar.service";
