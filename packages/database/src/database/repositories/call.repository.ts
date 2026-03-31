@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { Prisma, Call, CallStatus } from "@prisma/client";
+import { Prisma, Call, CallStatus, CallOutcome } from "@prisma/client";
 import { PrismaService } from "../prisma.service";
 import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
 
@@ -119,6 +119,20 @@ export class CallRepository {
           details && Object.keys(details).length > 0
             ? { ...details, timestamp: new Date().toISOString() }
             : Prisma.JsonNull,
+      },
+    });
+  }
+
+  async updateOutcome(
+    callId: string,
+    outcome: CallOutcome,
+    outcomeNote?: string,
+  ): Promise<Call> {
+    return this.prisma.call.update({
+      where: { id: callId },
+      data: {
+        outcome,
+        ...(outcomeNote !== undefined ? { outcomeNote } : {}),
       },
     });
   }

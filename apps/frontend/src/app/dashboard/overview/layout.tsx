@@ -14,12 +14,14 @@ export default async function OverViewLayout({
   bar_stats,
   area_stats,
   ovcards,
+  meetings,
 }: {
   sales: React.ReactNode;
   pie_stats: React.ReactNode;
   bar_stats: React.ReactNode;
   area_stats: React.ReactNode;
   ovcards: React.ReactNode;
+  meetings: React.ReactNode;
 }) {
   return (
     <PageContainer>
@@ -30,7 +32,8 @@ export default async function OverViewLayout({
 
         <div className='mb-20 grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-7'>
           <div className='col-span-4'>{bar_stats}</div>
-          <div className='col-span-4 md:col-span-3'>
+          <div className='col-span-4 space-y-4 md:col-span-3'>
+            {meetings}
             {sales}
           </div>
           <div className='col-span-4'>{area_stats}</div>

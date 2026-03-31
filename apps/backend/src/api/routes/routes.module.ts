@@ -24,6 +24,8 @@ import { EncryptionController } from "./encryption.controller";
 import { CampaignController } from "./campaign.controller";
 import { TagController, ContactTagController } from "./tag.controller";
 import { OnboardingController } from "./onboarding.controller";
+import { MeetingController } from "./meeting.controller";
+import { CalendarController } from "./calendar.controller";
 
 @Module({
   controllers: [
@@ -45,6 +47,8 @@ import { OnboardingController } from "./onboarding.controller";
     TagController,
     ContactTagController,
     OnboardingController,
+    MeetingController,
+    CalendarController,
   ],
   imports: [
     McpModule,

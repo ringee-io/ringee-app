@@ -16,3 +16,5 @@ export * from "./subscription.repository";
 export * from "./campaign.repository";
 export * from "./campaign-lead.repository";
 export * from "./tag.repository";
+export * from "./meeting.repository";
+export * from "./calendar-integration.repository";

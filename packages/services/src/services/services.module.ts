@@ -21,6 +21,8 @@ import { SubscriptionService } from "./subscription.service";
 import { CampaignService } from "./campaign.service";
 import { TagService } from "./tag.service";
 import { OnboardingService } from "./onboarding.service";
+import { MeetingService } from "./meeting.service";
+import { CalendarService } from "./calendar.service";
 
 const servicesProviders = [
   UserService,
@@ -39,6 +41,8 @@ const servicesProviders = [
   CampaignService,
   TagService,
   OnboardingService,
+  MeetingService,
+  CalendarService,
 ];
 
 @Global()

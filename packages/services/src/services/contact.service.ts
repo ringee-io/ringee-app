@@ -117,8 +117,34 @@ export class ContactService {
     return this.repo.deleteNote(noteId);
   }
 
+  /**
+   * Get a contact's recent activities: calls, notes, meetings, and tags.
+   */
+  async getContactActivities(contactId: string) {
+    const contact = await this.repo.findById(contactId);
+    if (!contact) throw new NotFoundException("Contact not found");
+    // findById already includes notes, calls, and tags
+    return contact;
+  }
+
   async findByPhone(ctx: OwnershipContext, phoneNumber: string) {
     return this.repo.findByPhone(ctx, phoneNumber);
+  }
+
+  /**
+   * Find a contact by phone number, or create one with name "Unknown" if not found.
+   */
+  async findOrCreateByPhone(
+    ctx: OwnershipContext,
+    phoneNumber: string,
+  ): Promise<Contact> {
+    const existing = await this.repo.findByPhone(ctx, phoneNumber);
+    if (existing) return existing;
+
+    return this.repo.create(ctx, {
+      name: "Unknown",
+      phoneNumber,
+    });
   }
 
   /**

@@ -22,6 +22,30 @@ enum CallStatus {
   failed
 }
 
+enum CallOutcome {
+  meeting_booked
+  sale
+  interested
+  follow_up
+  not_interested
+  no_answer
+  voicemail
+  wrong_number
+  gatekeeper
+}
+
+enum CalendarProvider {
+  google
+  microsoft
+}
+
+enum MeetingStatus {
+  scheduled
+  completed
+  cancelled
+  rescheduled
+}
+
 enum SubscriptionStatus {
   active
   past_due
@@ -68,6 +92,8 @@ model User {
   campaigns               Campaign[]
   campaignLeads           CampaignLead[]
   tags                    Tag[]
+  meetings                Meeting[]
+  calendarIntegrations    CalendarIntegration[]
 
   @@index([clerkId])
 }
@@ -84,17 +110,19 @@ model Organization {
   createdBy     String?
   encryptionKey String?  @db.Text
 
-  members          OrganizationMembership[]
-  chatAuths        ChatAuth[]
-  calls            Call[]
-  userNumbers      UserNumber[]
-  numbersPurchased NumberPurchased[]
-  contacts         Contact[]
-  callerIds        CallerId[]
-  credits          Credit[]
-  subscriptions    Subscription[]
-  campaigns        Campaign[]
-  tags             Tag[]
+  members              OrganizationMembership[]
+  chatAuths            ChatAuth[]
+  calls                Call[]
+  userNumbers          UserNumber[]
+  numbersPurchased     NumberPurchased[]
+  contacts             Contact[]
+  callerIds            CallerId[]
+  credits              Credit[]
+  subscriptions        Subscription[]
+  campaigns            Campaign[]
+  tags                 Tag[]
+  meetings             Meeting[]
+  calendarIntegrations CalendarIntegration[]
 
   @@index([clerkId])
 }
@@ -209,6 +237,9 @@ model Call {
   errorMessage  String?
   directionMeta Json?
 
+  outcome     CallOutcome?
+  outcomeNote String?      @db.Text
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -216,6 +247,7 @@ model Call {
   organization  Organization?              @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   transcription CallTranscriptionSegment[]
   recordings    Recording[]
+  meetings      Meeting[]
 
   @@index([userId])
   @@index([organizationId])
@@ -329,6 +361,7 @@ model Contact {
   notes         ContactNote[]
   campaignLeads CampaignLead[]
   tags          ContactTag[]
+  meetings      Meeting[]
 
   @@unique([userId, phoneNumber, deletedAt])
   @@index([userId])
@@ -525,4 +558,56 @@ model ContactTag {
   @@unique([contactId, tagId])
   @@index([contactId])
   @@index([tagId])
+}
+
+model Meeting {
+  id              String        @id @default(uuid()) @db.Uuid
+  userId          String        @db.Uuid
+  organizationId  String?       @db.Uuid
+  contactId       String        @db.Uuid
+  callId          String?       @db.Uuid
+  title           String?
+  scheduledAt     DateTime
+  duration        Int           @default(30)
+  location        String?
+  notes           String?       @db.Text
+  status          MeetingStatus @default(scheduled)
+  externalEventId String?
+  cancelledAt     DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  contact      Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  call         Call?         @relation(fields: [callId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([contactId])
+  @@index([callId])
+  @@index([scheduledAt])
+  @@index([status])
+}
+
+model CalendarIntegration {
+  id             String           @id @default(uuid()) @db.Uuid
+  userId         String           @db.Uuid
+  organizationId String?          @db.Uuid
+  provider       CalendarProvider
+  accessToken    String           @db.Text
+  refreshToken   String?          @db.Text
+  expiresAt      DateTime?
+  calendarId     String?
+  email          String?
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, provider])
+  @@index([organizationId])
+  @@index([userId])
 }

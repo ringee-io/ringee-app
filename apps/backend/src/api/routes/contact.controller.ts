@@ -78,9 +78,23 @@ export class ContactController {
     return this.contactService.importContacts(ctx, csvContent, tagIds);
   }
 
+  @Post("find-or-create")
+  async findOrCreate(
+    @Body() body: { phoneNumber: string },
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    const ctx = createOwnershipContext(user);
+    return this.contactService.findOrCreateByPhone(ctx, body.phoneNumber);
+  }
+
   @Get(":id")
   async getContact(@Param("id") id: string) {
     return this.contactService.getContactById(id);
+  }
+
+  @Get(":id/activities")
+  async getContactActivities(@Param("id") id: string) {
+    return this.contactService.getContactActivities(id);
   }
 
   @Get()
