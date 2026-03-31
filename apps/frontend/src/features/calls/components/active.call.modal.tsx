@@ -204,7 +204,7 @@ export function ActiveCallModal({
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
         className={cn(
-          'p-0 w-[95vw] shadow-2xl rounded overflow-hidden border-border/30 bg-background flex flex-col',
+          'p-0 w-[95vw] shadow-2xl rounded-xl overflow-hidden border border-border/20 bg-[#0A0A0A] flex flex-col',
           (contactId || bookingPanelOpen) ? '!max-w-5xl h-[90vh] md:h-[85vh] min-h-[600px]' : '!max-w-md min-h-[500px]',
           'transition-all duration-500 ease-in-out'
         )}
@@ -258,9 +258,9 @@ export function ActiveCallModal({
             <div className='flex flex-col items-center z-10 w-full px-6 md:px-8 shrink-0'>
               <div className='relative'>
                 <Avatar className={cn(
-                  'border-4 border-background shadow-xl transition-all duration-700',
+                  'border-4 border-[#0A0A0A] shadow-xl transition-all duration-700',
                   (contactId || bookingPanelOpen) ? 'h-20 w-20 md:h-24 md:w-24' : 'h-28 w-28 md:h-32 md:w-32',
-                  isConnected ? 'ring-4 ring-emerald-500/20 shadow-emerald-500/20' : 'ring-4 ring-border/50'
+                  isConnected ? 'ring-4 ring-emerald-500/20 shadow-emerald-500/20' : 'ring-4 ring-border/20'
                 )}>
                   <AvatarFallback className='text-3xl md:text-4xl font-light bg-gradient-to-br from-primary/20 to-primary/5 text-primary'>
                     {contactName?.charAt(0) ?? number?.replace('+', '').charAt(0) ?? 'R'}
@@ -394,9 +394,9 @@ export function ActiveCallModal({
               </div>
 
               <Button 
-                size='lg' 
+                size='sm' 
                 onClick={onHangup} 
-                className='h-14 md:h-16 w-full max-w-[280px] md:max-w-[320px] rounded bg-rose-500 hover:bg-rose-600 text-white shadow-xl shadow-rose-500/20 text-base md:text-lg font-bold gap-2 md:gap-3 transition-all hover:scale-[1.02] active:scale-95'
+                className='h-14 md:h-16 w-full max-w-[280px] md:max-w-[320px] rounded-xl bg-rose-500 hover:bg-rose-600 text-white shadow-xl shadow-rose-500/20 text-base md:text-lg font-bold gap-2 md:gap-3 transition-all hover:scale-[1.02] active:scale-95'
               >
                 <PhoneOff className='h-5 w-5 md:h-6 md:w-6' />
                 END CALL
@@ -406,22 +406,32 @@ export function ActiveCallModal({
 
           {/* RIGHT PANEL: Intelligence */}
           {(contactId || bookingPanelOpen) && (
-            <div className='w-full md:w-[55%] h-[500px] md:h-full flex flex-col bg-background shrink-0 md:shadow-[-10px_0_30px_rgba(0,0,0,0.02)] z-20'>
+            <div className='w-full md:w-[55%] h-[500px] md:h-full flex flex-col bg-[#0A0A0A] shrink-0 border-l border-border/10 z-20'>
               {/* Header area */}
-              <div className='px-4 md:px-6 py-3 md:py-4 flex items-center justify-between border-b bg-card shrink-0'>
+              <div className='px-4 md:px-6 py-3 md:py-4 flex items-center justify-between border-b border-border/10 shrink-0'>
                 {contactId ? (
                   <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className='w-full'>
-                    <TabsList className='grid w-full sm:w-[300px] grid-cols-2 p-1 bg-muted/50 rounded h-10 md:h-12'>
-                      <TabsTrigger value='activities' className='rounded text-xs md:text-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm'>History</TabsTrigger>
-                      <TabsTrigger value='booking' className='rounded text-xs md:text-sm font-semibold transition-all data-[state=active]:bg-background data-[state=active]:shadow-sm'>Book Meeting</TabsTrigger>
+                    <TabsList className='flex items-center gap-1.5 bg-transparent p-0 h-auto justify-start border-none'>
+                      <TabsTrigger 
+                        value='activities' 
+                        className='rounded-xl border border-transparent data-[state=active]:border-border/30 data-[state=active]:bg-white/5 shadow-none bg-transparent px-3 py-1.5 text-xs md:text-sm font-normal text-muted-foreground data-[state=active]:text-foreground transition-all'
+                      >
+                        History
+                      </TabsTrigger>
+                      <TabsTrigger 
+                        value='booking' 
+                        className='rounded-xl border border-transparent data-[state=active]:border-border/30 data-[state=active]:bg-white/5 shadow-none bg-transparent px-3 py-1.5 text-xs md:text-sm font-normal text-muted-foreground data-[state=active]:text-foreground transition-all'
+                      >
+                        Book Meeting
+                      </TabsTrigger>
                     </TabsList>
                   </Tabs>
                 ) : (
-                  <h3 className='text-base md:text-lg font-bold'>Book Meeting</h3>
+                  <h3 className='text-base md:text-lg font-bold text-foreground'>Book Meeting</h3>
                 )}
                 
                 {bookingPanelOpen && !contactId && (
-                  <Button variant='ghost' size='icon' onClick={() => setBookingPanelOpen(false)} className='rounded h-8 w-8 md:h-10 md:w-10 bg-muted/50 hover:bg-muted'>
+                  <Button variant='ghost' size='icon' onClick={() => setBookingPanelOpen(false)} className='rounded-xl h-8 w-8 md:h-10 md:w-10 bg-transparent hover:bg-white/5 border border-transparent hover:border-border/20 text-muted-foreground hover:text-foreground'>
                     <X className='h-4 w-4 md:h-5 md:w-5' />
                   </Button>
                 )}
@@ -452,7 +462,7 @@ export function ActiveCallModal({
                   </Tabs>
                 ) : (
                   <div className='flex flex-col h-full items-center justify-center p-6 md:p-8 text-center bg-muted/10'>
-                    <div className='bg-background p-3 md:p-4 rounded shadow-sm border border-border/50 mb-3 md:mb-4'>
+                    <div className='bg-background p-3 md:p-4 rounded-xl shadow-sm border border-border/50 mb-3 md:mb-4'>
                       <CalendarPlus className='h-6 w-6 md:h-8 md:w-8 text-emerald-500/80' />
                     </div>
                     <h4 className='text-base md:text-lg font-bold mb-1 md:mb-2'>No contact linked</h4>

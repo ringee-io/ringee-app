@@ -2,6 +2,7 @@ import {
   Injectable,
   ForbiddenException,
   NotFoundException,
+  Logger,
 } from "@nestjs/common";
 import {
   MeetingRepository,
@@ -12,12 +13,16 @@ import {
   Call,
 } from "@ringee/database";
 import { OwnershipContext } from "@ringee/platform";
+import { CalendarService } from "./calendar.service";
 
 @Injectable()
 export class MeetingService {
+  private readonly logger = new Logger(MeetingService.name);
+
   constructor(
     private readonly meetingRepo: MeetingRepository,
     private readonly callRepo: CallRepository,
+    private readonly calendarService: CalendarService,
   ) {}
 
   private ensureOrganization(ctx: OwnershipContext): void {
@@ -36,6 +41,8 @@ export class MeetingService {
       duration?: number;
       location?: string;
       notes?: string;
+      attendeeEmail?: string;
+      calendarProvider?: "google" | "microsoft";
     },
   ): Promise<Meeting> {
     const meeting = await this.meetingRepo.create(ctx, {
@@ -54,6 +61,26 @@ export class MeetingService {
       if (call) {
         await this.callRepo.updateOutcome(call.id, CallOutcome.meeting_booked);
       }
+    }
+
+    // Best-effort: push to external calendar (Google/Microsoft)
+    try {
+      const result = await this.calendarService.createCalendarEvent(ctx, {
+        meetingId: meeting.id,
+        title: dto.title || "Meeting via Ringee",
+        scheduledAt: dto.scheduledAt,
+        duration: dto.duration || 30,
+        attendeeEmail: dto.attendeeEmail,
+        provider: dto.calendarProvider as any,
+      });
+      this.logger.log(
+        `Synced meeting ${meeting.id} to external calendar: ${result.externalEventId}`,
+      );
+    } catch (err) {
+      // No calendar connected or API error — don't block meeting creation
+      this.logger.debug(
+        `Skipped calendar sync for meeting ${meeting.id}: ${(err as Error).message}`,
+      );
     }
 
     return meeting;

@@ -8,6 +8,7 @@ import { addDays, format, isSameDay, isToday, startOfToday } from 'date-fns';
 import { ChevronLeft, ChevronRight, Loader2, CalendarPlus } from 'lucide-react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { toast } from 'sonner';
+import { Input } from '@ringee/frontend-shared/components/ui/input';
 
 interface AvailabilitySlot {
   time: string;
@@ -44,15 +45,55 @@ export function BookMeetingForm({
   const [isLoadingSlots, setIsLoadingSlots] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // New state
+  const [contactEmail, setContactEmail] = useState('');
+  const [isEmailMissing, setIsEmailMissing] = useState(false);
+  const [integrations, setIntegrations] = useState<any[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<string>('');
+  const [isInitializing, setIsInitializing] = useState(true);
+
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
-  const fetchAvailability = useCallback(async (date: Date) => {
+  useEffect(() => {
+    let mounted = true;
+    async function init() {
+      setIsInitializing(true);
+      try {
+        const [contact, calendarIntegrations] = await Promise.all([
+          api.get(`/contacts/${contactId}`),
+          api.get('/calendar/integrations')
+        ]);
+        
+        if (!mounted) return;
+
+        if (contact.email) {
+          setContactEmail(contact.email);
+        } else {
+          setIsEmailMissing(true);
+        }
+
+        setIntegrations(calendarIntegrations);
+        if (calendarIntegrations.length > 0) {
+          setSelectedProvider(calendarIntegrations[0].provider);
+        }
+      } catch (err) {
+        console.error(err);
+      } finally {
+        if (mounted) setIsInitializing(false);
+      }
+    }
+    init();
+    return () => { mounted = false; };
+  }, [contactId, api]);
+
+  const fetchAvailability = useCallback(async (date: Date, providerStr?: string) => {
     setIsLoadingSlots(true);
     try {
       const dateStr = format(date, 'yyyy-MM-dd');
-      const data = await api.get<AvailabilitySlot[]>(
-        `/calendar/availability?date=${dateStr}`
-      );
+      const url = providerStr 
+        ? `/calendar/availability?date=${dateStr}&provider=${providerStr}` 
+        : `/calendar/availability?date=${dateStr}`;
+      const data = await api.get<AvailabilitySlot[]>(url);
       setSlots(data);
     } catch {
       // No calendar connected - generate all available slots client-side
@@ -79,12 +120,20 @@ export function BookMeetingForm({
   }, [api]);
 
   useEffect(() => {
-    fetchAvailability(selectedDate);
-    setSelectedTime(null);
-  }, [selectedDate, fetchAvailability]);
+    if (!isInitializing) {
+      fetchAvailability(selectedDate, selectedProvider);
+      setSelectedTime(null);
+    }
+  }, [selectedDate, selectedProvider, isInitializing, fetchAvailability]);
 
   const handleSubmit = async () => {
     if (!selectedTime) return;
+    
+    if (isEmailMissing && !contactEmail) {
+      toast.error('Please provide an email for the contact');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {
@@ -96,7 +145,9 @@ export function BookMeetingForm({
         contactId,
         callId: callId || undefined,
         scheduledAt: scheduledAt.toISOString(),
-        duration
+        duration,
+        attendeeEmail: contactEmail || undefined,
+        provider: selectedProvider || undefined
       });
 
       toast.success(
@@ -169,7 +220,7 @@ export function BookMeetingForm({
 
       {/* Time slots */}
       <ScrollArea className='h-[180px]'>
-        {isLoadingSlots ? (
+        {isLoadingSlots || isInitializing ? (
           <div className='flex flex-col gap-1.5'>
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className='bg-muted/40 h-9 animate-pulse rounded-md' />
@@ -228,8 +279,52 @@ export function BookMeetingForm({
         </div>
       </div>
 
+      {/* Dynamic Inputs */}
+      {!isInitializing && (
+        <div className="flex flex-col gap-3">
+          {isEmailMissing && (
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground block">
+                Contact Email
+              </label>
+              <Input 
+                type="email"
+                placeholder="Required for calendar invite" 
+                value={contactEmail} 
+                onChange={(e) => setContactEmail(e.target.value)}
+                className="h-8 text-xs placeholder:text-muted-foreground/50 border-border/80"
+              />
+            </div>
+          )}
+
+          {integrations.length > 1 && (
+            <div className="space-y-1.5">
+              <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground block">
+                Select Calendar
+              </label>
+              <div className="flex gap-2">
+                {integrations.map((i) => (
+                  <button
+                    key={i.id}
+                    onClick={() => setSelectedProvider(i.provider)}
+                    className={cn(
+                      "flex flex-1 items-center justify-center gap-2 rounded-md border text-xs font-medium transition-all h-8",
+                      selectedProvider === i.provider 
+                        ? 'bg-primary text-primary-foreground border-transparent'
+                        : 'bg-card border-border hover:bg-muted/50 text-muted-foreground'
+                    )}
+                  >
+                    {i.provider === 'google' ? 'Google' : 'Microsoft'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Confirm bar */}
-      <div className='flex gap-2'>
+      <div className='mt-1 flex gap-2'>
         <Button variant='ghost' size='sm' onClick={onCancel} className='flex-1'>
           Cancel
         </Button>

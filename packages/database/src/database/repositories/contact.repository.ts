@@ -31,6 +31,7 @@ export class ContactRepository {
       include: {
         notes: { where: { deletedAt: null } },
         calls: true,
+        meetings: { orderBy: { scheduledAt: 'desc' } },
         tags: { include: { tag: true } },
       },
     });

@@ -38,6 +38,138 @@ export class CalendarService {
     private readonly meetingRepo: MeetingRepository,
   ) {}
 
+  // --- OAuth Flow Methods ---
+
+  getGoogleOAuthUrl(redirectUri: string, state: string): string {
+    const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
+    if (!clientId) throw new BadRequestException("Google Calendar not configured");
+
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope: "https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events",
+      access_type: "offline",
+      prompt: "consent",
+      state,
+    });
+
+    return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+  }
+
+  getMicrosoftOAuthUrl(redirectUri: string, state: string): string {
+    const clientId = process.env.MICROSOFT_CALENDAR_CLIENT_ID;
+    if (!clientId) throw new BadRequestException("Microsoft Calendar not configured");
+
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: "code",
+      scope: "offline_access Calendars.ReadWrite OnlineMeetings.ReadWrite User.Read",
+      state,
+    });
+
+    return `https://login.microsoftonline.com/common/oauth2/v2.0/authorize?${params.toString()}`;
+  }
+
+  async exchangeGoogleCode(
+    code: string,
+    redirectUri: string,
+  ): Promise<{ accessToken: string; refreshToken?: string; expiresAt?: Date; email?: string }> {
+    const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
+    if (!clientId || !clientSecret) throw new BadRequestException("Google Calendar not configured");
+
+    const res = await fetch("https://oauth2.googleapis.com/token", {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body: new URLSearchParams({
+        code,
+        client_id: clientId,
+        client_secret: clientSecret,
+        redirect_uri: redirectUri,
+        grant_type: "authorization_code",
+      }),
+    });
+
+    if (!res.ok) {
+      const errorBody = await res.text();
+      throw new BadRequestException(`Google token exchange failed: ${errorBody}`);
+    }
+
+    const data = await res.json();
+
+    // Fetch user email
+    let email: string | undefined;
+    try {
+      const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+        headers: { Authorization: `Bearer ${data.access_token}` },
+      });
+      if (userRes.ok) {
+        const userData = await userRes.json();
+        email = userData.email;
+      }
+    } catch { /* ignore */ }
+
+    return {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : undefined,
+      email,
+    };
+  }
+
+  async exchangeMicrosoftCode(
+    code: string,
+    redirectUri: string,
+  ): Promise<{ accessToken: string; refreshToken?: string; expiresAt?: Date; email?: string }> {
+    const clientId = process.env.MICROSOFT_CALENDAR_CLIENT_ID;
+    const clientSecret = process.env.MICROSOFT_CALENDAR_CLIENT_SECRET;
+    if (!clientId || !clientSecret) throw new BadRequestException("Microsoft Calendar not configured");
+
+    const res = await fetch(
+      "https://login.microsoftonline.com/common/oauth2/v2.0/token",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          code,
+          client_id: clientId,
+          client_secret: clientSecret,
+          redirect_uri: redirectUri,
+          grant_type: "authorization_code",
+          scope: "offline_access Calendars.ReadWrite OnlineMeetings.ReadWrite User.Read",
+        }),
+      },
+    );
+
+    if (!res.ok) {
+      const errorBody = await res.text();
+      throw new BadRequestException(`Microsoft token exchange failed: ${errorBody}`);
+    }
+
+    const data = await res.json();
+
+    // Fetch user email
+    let email: string | undefined;
+    try {
+      const userRes = await fetch("https://graph.microsoft.com/v1.0/me", {
+        headers: { Authorization: `Bearer ${data.access_token}` },
+      });
+      if (userRes.ok) {
+        const userData = await userRes.json();
+        email = userData.mail || userData.userPrincipalName;
+      }
+    } catch { /* ignore */ }
+
+    return {
+      accessToken: data.access_token,
+      refreshToken: data.refresh_token,
+      expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : undefined,
+      email,
+    };
+  }
+
   async connectCalendar(
     ctx: OwnershipContext,
     dto: {
@@ -49,35 +181,26 @@ export class CalendarService {
       email?: string;
     },
   ): Promise<CalendarIntegration> {
-    if (!ctx.organizationId) {
-      throw new ForbiddenException(
-        "Calendar integrations require an organization",
-      );
-    }
-
-    return this.calendarRepo.upsert(ctx.organizationId, dto.provider, {
+    return this.calendarRepo.upsert(ctx.userId, dto.provider, {
       accessToken: dto.accessToken,
       refreshToken: dto.refreshToken,
       expiresAt: dto.expiresAt ? new Date(dto.expiresAt) : undefined,
       calendarId: dto.calendarId,
       email: dto.email,
+      organizationId: ctx.organizationId,
     });
   }
 
   async getIntegrations(
     ctx: OwnershipContext,
   ): Promise<CalendarIntegration[]> {
-    if (!ctx.organizationId) return [];
-    return this.calendarRepo.findByOrganization(ctx.organizationId);
+    return this.calendarRepo.findByUserOrOrg(ctx.userId, ctx.organizationId);
   }
 
   async disconnectCalendar(
     ctx: OwnershipContext,
     integrationId: string,
   ): Promise<void> {
-    if (!ctx.organizationId) {
-      throw new ForbiddenException("Organization required");
-    }
     await this.calendarRepo.deactivate(integrationId);
   }
 
@@ -93,11 +216,8 @@ export class CalendarService {
       provider?: CalendarProvider;
     },
   ): Promise<AvailabilitySlot[]> {
-    if (!ctx.organizationId) {
-      throw new ForbiddenException("Organization required");
-    }
-
-    const integrations = await this.calendarRepo.findByOrganization(
+    const integrations = await this.calendarRepo.findByUserOrOrg(
+      ctx.userId,
       ctx.organizationId,
     );
     const integration = dto.provider
@@ -129,16 +249,16 @@ export class CalendarService {
       scheduledAt: string;
       duration: number;
       attendeeEmail?: string;
+      provider?: CalendarProvider;
     },
   ): Promise<{ externalEventId: string; meetLink?: string }> {
-    if (!ctx.organizationId) {
-      throw new ForbiddenException("Organization required");
-    }
-
-    const integrations = await this.calendarRepo.findByOrganization(
+    const integrations = await this.calendarRepo.findByUserOrOrg(
+      ctx.userId,
       ctx.organizationId,
     );
-    const integration = integrations[0];
+    const integration = dto.provider
+      ? integrations.find((i) => i.provider === dto.provider)
+      : integrations[0];
 
     if (!integration) {
       throw new BadRequestException("No calendar connected");
@@ -298,7 +418,7 @@ export class CalendarService {
     }
 
     const res = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?conferenceDataVersion=1`,
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?conferenceDataVersion=1&sendUpdates=all`,
       {
         method: "POST",
         headers: {

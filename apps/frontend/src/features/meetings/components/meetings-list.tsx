@@ -18,15 +18,10 @@ import {
   TabsList,
   TabsTrigger
 } from '@ringee/frontend-shared/components/ui/tabs';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@ringee/frontend-shared/components/ui/table';
+import { DataTable } from '@ringee/frontend-shared/components/ui/table/data-table';
+import { DataTableSkeleton } from '@ringee/frontend-shared/components/ui/table/data-table-skeleton';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
+import { useReactTable, getCoreRowModel, ColumnDef } from '@tanstack/react-table';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import {
   format,
@@ -60,9 +55,11 @@ import {
   CalendarDays,
   List,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Link2
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { CalendarIntegrations } from './calendar-integrations';
 
 interface Meeting {
   id: string;
@@ -193,12 +190,16 @@ export function MeetingsList() {
             <CalendarDays className='h-3.5 w-3.5' />
             Calendar
           </TabsTrigger>
+          <TabsTrigger value='integrations' className='gap-1.5'>
+            <Link2 className='h-3.5 w-3.5' />
+            Integrations
+          </TabsTrigger>
         </TabsList>
 
         {/* Upcoming tab */}
         <TabsContent value='upcoming' className='mt-4'>
           {isLoading ? (
-            <MeetingsSkeletons />
+            <DataTableSkeleton columnCount={5} rowCount={5} withPagination={false} />
           ) : upcoming.length === 0 ? (
             <EmptyState />
           ) : (
@@ -209,7 +210,7 @@ export function MeetingsList() {
         {/* All tab */}
         <TabsContent value='all' className='mt-4'>
           {isLoading ? (
-            <MeetingsSkeletons />
+            <DataTableSkeleton columnCount={5} rowCount={7} withPagination={false} />
           ) : meetings.length === 0 ? (
             <EmptyState />
           ) : (
@@ -245,6 +246,11 @@ export function MeetingsList() {
             meetings={meetings}
             onSelectMeeting={setSelectedMeeting}
           />
+        </TabsContent>
+
+        {/* Integrations tab */}
+        <TabsContent value='integrations' className='mt-4'>
+          <CalendarIntegrations />
         </TabsContent>
       </Tabs>
 
@@ -409,6 +415,105 @@ function MeetingDetail({
   );
 }
 
+// --- DataTable Configuration --- //
+
+function getColumns(onSelect: (m: Meeting) => void): ColumnDef<Meeting>[] {
+  return [
+    {
+      accessorKey: 'statusDot',
+      header: '',
+      cell: ({ row }) => {
+        const m = row.original;
+        return (
+          <span
+            className={cn(
+              'block h-2 w-2 shrink-0 rounded-full',
+              m.status === 'scheduled'
+                ? 'bg-emerald-500'
+                : m.status === 'cancelled'
+                  ? 'bg-red-400'
+                  : m.status === 'completed'
+                    ? 'bg-blue-400'
+                    : 'bg-amber-400'
+            )}
+          />
+        );
+      },
+      meta: { className: 'w-[40px]' }
+    },
+    {
+      accessorKey: 'datetime',
+      header: 'Date & Time',
+      cell: ({ row }) => {
+        const m = row.original;
+        return (
+          <div>
+            <p className='text-sm font-medium'>
+              {format(new Date(m.scheduledAt), 'EEE, MMM d')} at{' '}
+              {format(new Date(m.scheduledAt), 'h:mm a')}
+            </p>
+            {m.title && (
+              <p className='text-muted-foreground truncate text-xs'>
+                {m.title}
+              </p>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      accessorKey: 'contact',
+      header: 'Contact',
+      cell: ({ row }) => {
+        const m = row.original;
+        return (
+          <div>
+            <p className='text-sm'>{m.contact.name || m.contact.phoneNumber}</p>
+            {m.contact.company && (
+              <p className='text-muted-foreground text-xs'>
+                {m.contact.company}
+              </p>
+            )}
+          </div>
+        );
+      }
+    },
+    {
+      accessorKey: 'duration',
+      header: 'Duration',
+      cell: ({ row }) => {
+        const m = row.original;
+        return (
+          <div className='text-muted-foreground flex items-center gap-1 text-xs'>
+            <Clock className='h-3 w-3' />
+            {m.duration}m
+          </div>
+        );
+      }
+    },
+    {
+      accessorKey: 'status',
+      header: () => <div className='text-right'>Status</div>,
+      cell: ({ row }) => (
+        <div className='text-right'>
+          <StatusBadge status={row.original.status} />
+        </div>
+      )
+    },
+    {
+      id: 'actions',
+      cell: ({ row }) => (
+        <div className='flex justify-end'>
+          <Button variant='ghost' size='sm' onClick={() => onSelect(row.original)}>
+            View Details
+          </Button>
+        </div>
+      ),
+      meta: { className: 'w-[100px]' }
+    }
+  ];
+}
+
 function MeetingRows({
   meetings,
   onSelect
@@ -416,73 +521,13 @@ function MeetingRows({
   meetings: Meeting[];
   onSelect: (m: Meeting) => void;
 }) {
-  return (
-    <div className='rounded-md border'>
-      <Table className='bg-card'>
-        <TableHeader>
-          <TableRow>
-            <TableHead className='w-[10px]'></TableHead>
-            <TableHead>Date & Time</TableHead>
-            <TableHead>Contact</TableHead>
-            <TableHead>Duration</TableHead>
-            <TableHead className='text-right'>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {meetings.map((m) => (
-            <TableRow
-              key={m.id}
-              onClick={() => onSelect(m)}
-              className='cursor-pointer'
-            >
-              <TableCell>
-                <span
-                  className={cn(
-                    'block h-2 w-2 shrink-0 rounded-full',
-                    m.status === 'scheduled'
-                      ? 'bg-emerald-500'
-                      : m.status === 'cancelled'
-                        ? 'bg-red-400'
-                        : m.status === 'completed'
-                          ? 'bg-blue-400'
-                          : 'bg-amber-400'
-                  )}
-                />
-              </TableCell>
-              <TableCell>
-                <p className='text-sm font-medium'>
-                  {format(new Date(m.scheduledAt), 'EEE, MMM d')} at{' '}
-                  {format(new Date(m.scheduledAt), 'h:mm a')}
-                </p>
-                {m.title && (
-                  <p className='text-muted-foreground truncate text-xs'>
-                    {m.title}
-                  </p>
-                )}
-              </TableCell>
-              <TableCell>
-                <p className='text-sm'>{m.contact.name || m.contact.phoneNumber}</p>
-                {m.contact.company && (
-                  <p className='text-muted-foreground text-xs'>
-                    {m.contact.company}
-                  </p>
-                )}
-              </TableCell>
-              <TableCell>
-                <div className='text-muted-foreground flex items-center gap-1 text-xs'>
-                  <Clock className='h-3 w-3' />
-                  {m.duration}m
-                </div>
-              </TableCell>
-              <TableCell className='text-right'>
-                <StatusBadge status={m.status} />
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
-  );
+  const table = useReactTable({
+    data: meetings,
+    columns: getColumns(onSelect),
+    getCoreRowModel: getCoreRowModel()
+  });
+
+  return <DataTable table={table} />;
 }
 
 function StatusBadge({
@@ -501,8 +546,8 @@ function StatusBadge({
 
 function EmptyState() {
   return (
-    <div className='flex flex-col items-center justify-center py-20 text-center'>
-      <div className='bg-muted/50 mb-4 flex h-16 w-16 items-center justify-center rounded-full'>
+    <div className='flex flex-col items-center justify-center py-20 text-center border rounded-md bg-card shadow-sm'>
+      <div className='bg-muted mb-4 flex h-16 w-16 items-center justify-center rounded-full'>
         <CalendarCheck className='text-muted-foreground/50 h-8 w-8' />
       </div>
       <h3 className='text-base font-semibold'>No meetings yet</h3>
@@ -510,45 +555,6 @@ function EmptyState() {
         Book your first meeting during a call. Every booked meeting shows up
         here.
       </p>
-    </div>
-  );
-}
-
-function MeetingsSkeletons() {
-  return (
-    <div className='rounded-md border'>
-      <Table className='bg-card'>
-        <TableHeader>
-          <TableRow>
-            <TableHead className='w-[10px]'></TableHead>
-            <TableHead>Date & Time</TableHead>
-            <TableHead>Contact</TableHead>
-            <TableHead>Duration</TableHead>
-            <TableHead className='text-right'>Status</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {Array.from({ length: 5 }).map((_, i) => (
-            <TableRow key={i}>
-              <TableCell><Skeleton className='h-2 w-2 rounded-full' /></TableCell>
-              <TableCell>
-                <div className='space-y-1.5'>
-                  <Skeleton className='h-4 w-32' />
-                  <Skeleton className='h-3 w-24' />
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className='space-y-1.5'>
-                  <Skeleton className='h-4 w-28' />
-                  <Skeleton className='h-3 w-20' />
-                </div>
-              </TableCell>
-              <TableCell><Skeleton className='h-4 w-12' /></TableCell>
-              <TableCell className='text-right flex justify-end'><Skeleton className='h-5 w-16 rounded-full' /></TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
     </div>
   );
 }
@@ -667,11 +673,11 @@ function FullCalendarView({
                         key={m.id}
                         onClick={() => onSelectMeeting(m)}
                         className={cn(
-                          'flex flex-col items-start gap-0.5 truncate rounded px-2 py-1.5 text-left transition-all hover:opacity-80 hover:shadow-sm focus:ring-1 focus:outline-none w-full',
-                          m.status === 'scheduled' ? 'bg-emerald-500/10 text-emerald-700 font-medium border border-emerald-500/20' : 
-                          m.status === 'completed' ? 'bg-blue-500/10 text-blue-700 border border-blue-500/20' :
-                          m.status === 'cancelled' ? 'bg-red-500/10 text-red-700 border border-red-500/20 line-through opacity-70' :
-                          'bg-amber-500/10 text-amber-700 border border-amber-500/20'
+                          'flex flex-col items-start gap-0.5 truncate rounded px-2 py-1.5 text-left transition-all hover:opacity-80 hover:shadow-sm focus:ring-1 focus:outline-none w-full bg-zinc-950',
+                          m.status === 'scheduled' ? 'text-emerald-400 font-medium border border-emerald-500/30 shadow-[inset_0_0_10px_rgba(16,185,129,0.05)]' : 
+                          m.status === 'completed' ? 'text-blue-400 border border-blue-500/30 shadow-[inset_0_0_10px_rgba(59,130,246,0.05)]' :
+                          m.status === 'cancelled' ? 'text-red-400 border border-red-500/30 line-through opacity-70 shadow-[inset_0_0_10px_rgba(239,68,68,0.05)]' :
+                          'text-amber-400 border border-amber-500/30 shadow-[inset_0_0_10px_rgba(245,158,11,0.05)]'
                         )}
                       >
                         <span className='text-[10px] font-bold uppercase tracking-wider opacity-80'>
@@ -726,11 +732,11 @@ function FullCalendarView({
                         key={m.id}
                         onClick={() => onSelectMeeting(m)}
                         className={cn(
-                          'absolute left-1 right-1 rounded border p-1 sm:p-1.5 text-left transition-shadow hover:shadow-md overflow-hidden flex flex-col',
-                          m.status === 'scheduled' ? 'bg-emerald-500/15 text-emerald-800 border-emerald-500/40 shadow-[0_4px_12px_rgba(16,185,129,0.1)]' : 
-                          m.status === 'completed' ? 'bg-blue-500/10 text-blue-700 border-blue-500/30' :
-                          m.status === 'cancelled' ? 'bg-red-500/10 text-red-700 border-red-500/30 line-through opacity-70' :
-                          'bg-amber-500/10 text-amber-700 border-amber-500/30'
+                          'absolute left-1 right-1 rounded border p-1 sm:p-1.5 text-left transition-all hover:shadow-md overflow-hidden flex flex-col hover:z-10 bg-zinc-950',
+                          m.status === 'scheduled' ? 'text-emerald-400 border-emerald-500/40 shadow-[inset_0_0_12px_rgba(16,185,129,0.1)] shadow-[0_4px_12px_rgba(16,185,129,0.05)]' : 
+                          m.status === 'completed' ? 'text-blue-400 border-blue-500/30 shadow-[inset_0_0_12px_rgba(59,130,246,0.1)]' :
+                          m.status === 'cancelled' ? 'text-red-400 border-red-500/30 line-through opacity-90 shadow-[inset_0_0_12px_rgba(239,68,68,0.05)]' :
+                          'text-amber-400 border-amber-500/30 shadow-[inset_0_0_12px_rgba(245,158,11,0.1)]'
                         )}
                         style={{
                           top: `${startHour * 4}rem`,
@@ -779,11 +785,11 @@ function FullCalendarView({
                       key={m.id}
                       onClick={() => onSelectMeeting(m)}
                       className={cn(
-                        'absolute left-2 right-4 rounded-md border p-2 text-left transition-shadow hover:shadow-md overflow-hidden flex flex-col',
-                        m.status === 'scheduled' ? 'bg-emerald-500/15 text-emerald-800 border-emerald-500/40 shadow-[0_4px_12px_rgba(16,185,129,0.1)]' : 
-                        m.status === 'completed' ? 'bg-blue-500/10 text-blue-700 border-blue-500/30' :
-                        m.status === 'cancelled' ? 'bg-red-500/10 text-red-700 border-red-500/30 line-through opacity-70' :
-                        'bg-amber-500/10 text-amber-700 border-amber-500/30'
+                        'absolute left-2 right-4 rounded-md border p-2 text-left transition-all hover:shadow-md overflow-hidden flex flex-col hover:z-10 bg-zinc-950',
+                        m.status === 'scheduled' ? 'text-emerald-400 border-emerald-500/40 shadow-[inset_0_0_15px_rgba(16,185,129,0.15)] shadow-[0_4px_12px_rgba(16,185,129,0.05)]' : 
+                        m.status === 'completed' ? 'text-blue-400 border-blue-500/30 shadow-[inset_0_0_15px_rgba(59,130,246,0.1)]' :
+                        m.status === 'cancelled' ? 'text-red-400 border-red-500/30 line-through opacity-90 shadow-[inset_0_0_15px_rgba(239,68,68,0.05)]' :
+                        'text-amber-400 border-amber-500/30 shadow-[inset_0_0_15px_rgba(245,158,11,0.1)]'
                       )}
                       style={{
                         top: `${startHour * 4}rem`,

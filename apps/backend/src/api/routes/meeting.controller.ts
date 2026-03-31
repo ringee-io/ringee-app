@@ -31,11 +31,16 @@ export class MeetingController {
       duration?: number;
       location?: string;
       notes?: string;
+      attendeeEmail?: string;
+      provider?: string;
     },
     @CurrentUser() user: CurrentUserData,
   ) {
     const ctx = createOwnershipContext(user);
-    return this.meetingService.createMeeting(ctx, dto);
+    return this.meetingService.createMeeting(ctx, {
+      ...dto,
+      calendarProvider: dto.provider as any,
+    });
   }
 
   @Get()

@@ -93,6 +93,7 @@ model User {
   campaignLeads           CampaignLead[]
   tags                    Tag[]
   meetings                Meeting[]
+  calendarIntegrations    CalendarIntegration[]
 
   @@index([clerkId])
 }
@@ -591,7 +592,8 @@ model Meeting {
 
 model CalendarIntegration {
   id             String           @id @default(uuid()) @db.Uuid
-  organizationId String           @db.Uuid
+  userId         String           @db.Uuid
+  organizationId String?          @db.Uuid
   provider       CalendarProvider
   accessToken    String           @db.Text
   refreshToken   String?          @db.Text
@@ -602,8 +604,10 @@ model CalendarIntegration {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  @@unique([organizationId, provider])
+  @@unique([userId, provider])
   @@index([organizationId])
+  @@index([userId])
 }

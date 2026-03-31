@@ -7,7 +7,7 @@ export class CalendarIntegrationRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async upsert(
-    organizationId: string,
+    userId: string,
     provider: CalendarProvider,
     data: {
       accessToken: string;
@@ -15,19 +15,35 @@ export class CalendarIntegrationRepository {
       expiresAt?: Date;
       calendarId?: string;
       email?: string;
+      organizationId?: string | null;
     },
   ): Promise<CalendarIntegration> {
     return this.prisma.calendarIntegration.upsert({
-      where: { organizationId_provider: { organizationId, provider } },
+      where: { userId_provider: { userId, provider } },
       create: {
-        organizationId,
+        userId,
         provider,
-        ...data,
+        organizationId: data.organizationId ?? null,
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        expiresAt: data.expiresAt,
+        calendarId: data.calendarId,
+        email: data.email,
       },
       update: {
-        ...data,
+        accessToken: data.accessToken,
+        refreshToken: data.refreshToken,
+        expiresAt: data.expiresAt,
+        calendarId: data.calendarId,
+        email: data.email,
         isActive: true,
       },
+    });
+  }
+
+  async findByUser(userId: string): Promise<CalendarIntegration[]> {
+    return this.prisma.calendarIntegration.findMany({
+      where: { userId, isActive: true },
     });
   }
 
@@ -39,12 +55,27 @@ export class CalendarIntegrationRepository {
     });
   }
 
+  async findByUserOrOrg(
+    userId: string,
+    organizationId?: string | null,
+  ): Promise<CalendarIntegration[]> {
+    return this.prisma.calendarIntegration.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { userId },
+          ...(organizationId ? [{ organizationId }] : []),
+        ],
+      },
+    });
+  }
+
   async findByOrgAndProvider(
     organizationId: string,
     provider: CalendarProvider,
   ): Promise<CalendarIntegration | null> {
-    return this.prisma.calendarIntegration.findUnique({
-      where: { organizationId_provider: { organizationId, provider } },
+    return this.prisma.calendarIntegration.findFirst({
+      where: { organizationId, provider, isActive: true },
     });
   }
 

@@ -12,12 +12,13 @@ import {
   Tag,
   Clock,
   PhoneIncoming,
-  PhoneOutgoing
+  PhoneOutgoing,
+  CalendarDays
 } from 'lucide-react';
 
 interface ContactActivity {
   id: string;
-  type: 'call' | 'note' | 'tag';
+  type: 'call' | 'note' | 'tag' | 'meeting';
   date: string;
   data: Record<string, any>;
 }
@@ -47,6 +48,14 @@ interface ContactData {
       name: string;
       color?: string;
     };
+  }[];
+  meetings?: {
+    id: string;
+    title?: string;
+    scheduledAt: string;
+    duration: number;
+    status: string;
+    createdAt: string;
   }[];
 }
 
@@ -106,6 +115,15 @@ export function ContactActivities({ contactId }: ContactActivitiesProps) {
       type: 'note',
       date: note.createdAt,
       data: note
+    });
+  });
+
+  contact.meetings?.forEach((meeting) => {
+    activities.push({
+      id: meeting.id,
+      type: 'meeting',
+      date: meeting.scheduledAt,
+      data: meeting
     });
   });
 
@@ -199,6 +217,44 @@ function ActivityRow({ activity }: { activity: ContactActivity }) {
           <p className='line-clamp-2 text-xs'>{activity.data.content}</p>
         </div>
         <span className='text-muted-foreground shrink-0'>
+          {format(new Date(activity.date), 'MMM d')}
+        </span>
+      </div>
+    );
+  }
+
+  if (activity.type === 'meeting') {
+    const meeting = activity.data;
+    return (
+      <div className='flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs hover:bg-muted/30'>
+        <div className={cn(
+          'flex h-6 w-6 shrink-0 items-center justify-center rounded-md',
+          meeting.status === 'scheduled' ? 'bg-emerald-500/10' : 
+          meeting.status === 'completed' ? 'bg-blue-500/10' : 
+          meeting.status === 'cancelled' ? 'bg-red-500/10' :
+          'bg-amber-500/10'
+        )}>
+          <CalendarDays className={cn(
+            'h-3 w-3',
+            meeting.status === 'scheduled' ? 'text-emerald-500' : 
+            meeting.status === 'completed' ? 'text-blue-500' : 
+            meeting.status === 'cancelled' ? 'text-red-500' :
+            'text-amber-500'
+          )} />
+        </div>
+        <div className='min-w-0 flex-1'>
+          <span className='font-medium capitalize'>Meeting {meeting.status}</span>
+          {meeting.title && (
+            <span className='text-muted-foreground ml-1.5 truncate'>
+              &middot; {meeting.title}
+            </span>
+          )}
+        </div>
+        <div className='text-muted-foreground flex shrink-0 items-center gap-1'>
+          <Clock className='h-3 w-3' />
+          {meeting.duration}m
+        </div>
+        <span className='text-muted-foreground shrink-0 w-12 text-right'>
           {format(new Date(activity.date), 'MMM d')}
         </span>
       </div>
