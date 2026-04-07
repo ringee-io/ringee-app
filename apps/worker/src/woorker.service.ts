@@ -1,16 +1,33 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import {
   UploadFactory,
   CryptoService,
   TelephonyService,
 } from "@ringee/platform";
-import { RecordingService, CallService } from "@ringee/services";
-import { UserRepository, OrganizationRepository } from "@ringee/database";
+import {
+  RecordingService,
+  CallService,
+  RetryEngine,
+  CallbackService,
+  AgentSessionService,
+} from "@ringee/services";
+import {
+  UserRepository,
+  OrganizationRepository,
+  CampaignLeadRepository,
+  CampaignRepository,
+} from "@ringee/database";
+
+const RETRY_INTERVAL_MS = 30_000; // 30 seconds
+const CALLBACK_INTERVAL_MS = 30_000; // 30 seconds
+const HEARTBEAT_CHECK_INTERVAL_MS = 15_000; // 15 seconds
+const COMPLETION_CHECK_INTERVAL_MS = 60_000; // 60 seconds
 
 @Injectable()
-export class WorkerService {
+export class WorkerService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(WorkerService.name);
   private readonly uploadService = UploadFactory.createStorage();
+  private schedulerTimers: NodeJS.Timeout[] = [];
 
   constructor(
     private readonly cryptoService: CryptoService,
@@ -19,7 +36,81 @@ export class WorkerService {
     private readonly telephonyService: TelephonyService,
     private readonly userRepository: UserRepository,
     private readonly organizationRepository: OrganizationRepository,
+    private readonly retryEngine: RetryEngine,
+    private readonly callbackService: CallbackService,
+    private readonly agentSessionService: AgentSessionService,
+    private readonly campaignLeadRepo: CampaignLeadRepository,
+    private readonly campaignRepo: CampaignRepository,
   ) { }
+
+  onModuleInit() {
+    this.startSchedulers();
+  }
+
+  onModuleDestroy() {
+    this.stopSchedulers();
+  }
+
+  private startSchedulers() {
+    this.schedulerTimers.push(
+      setInterval(() => this.runRetryScheduler(), RETRY_INTERVAL_MS),
+      setInterval(() => this.runCallbackScheduler(), CALLBACK_INTERVAL_MS),
+      setInterval(() => this.runHeartbeatCheck(), HEARTBEAT_CHECK_INTERVAL_MS),
+      setInterval(() => this.runCompletionCheck(), COMPLETION_CHECK_INTERVAL_MS),
+    );
+    this.logger.log("Outbound schedulers started");
+  }
+
+  private stopSchedulers() {
+    for (const timer of this.schedulerTimers) {
+      clearInterval(timer);
+    }
+    this.schedulerTimers = [];
+    this.logger.log("Outbound schedulers stopped");
+  }
+
+  private async runRetryScheduler() {
+    try {
+      const count = await this.retryEngine.processRetryQueue();
+      if (count > 0) {
+        this.logger.debug(`RetryScheduler: ${count} leads re-queued`);
+      }
+    } catch (err) {
+      this.logger.error("RetryScheduler error:", err);
+    }
+  }
+
+  private async runCallbackScheduler() {
+    try {
+      const count = await this.callbackService.processDueCallbacks();
+      if (count > 0) {
+        this.logger.debug(`CallbackScheduler: ${count} callbacks processed`);
+      }
+    } catch (err) {
+      this.logger.error("CallbackScheduler error:", err);
+    }
+  }
+
+  private async runHeartbeatCheck() {
+    try {
+      const count = await this.agentSessionService.cleanupStaleSessions();
+      if (count > 0) {
+        this.logger.debug(`HeartbeatCheck: ${count} stale sessions cleaned`);
+      }
+    } catch (err) {
+      this.logger.error("HeartbeatCheck error:", err);
+    }
+  }
+
+  private async runCompletionCheck() {
+    try {
+      // Find active campaigns and check if all leads are terminal
+      // For now, we use a simple approach — iterate known active campaigns
+      // TODO: Add findAllActive() to CampaignRepository for cross-org query
+    } catch (err) {
+      this.logger.error("CompletionCheck error:", err);
+    }
+  }
 
   async handleEvent(job: any) {
     this.logger.log(`Handling event type: ${job.type}`);

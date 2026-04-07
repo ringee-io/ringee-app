@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Post,
+  Delete,
   Body,
   Param,
   Query,
@@ -20,7 +21,13 @@ import {
   createOwnershipContext,
   CSV_IMPORT_CONFIG,
 } from "@ringee/platform";
-import { CampaignService } from "@ringee/services";
+import {
+  CampaignService,
+  CampaignConfigService,
+  DispositionService,
+  RetryEngine,
+} from "@ringee/services";
+import { DispositionCategory } from "@ringee/database";
 
 interface CurrentUserData {
   id: string;
@@ -29,7 +36,12 @@ interface CurrentUserData {
 
 @Controller("campaigns")
 export class CampaignController {
-  constructor(private readonly campaignService: CampaignService) {}
+  constructor(
+    private readonly campaignService: CampaignService,
+    private readonly campaignConfig: CampaignConfigService,
+    private readonly dispositionService: DispositionService,
+    private readonly retryEngine: RetryEngine
+  ) {}
 
   @Post()
   async createCampaign(
@@ -75,6 +87,19 @@ export class CampaignController {
     return this.campaignService.getCampaignById(ctx, id);
   }
 
+  @Patch(":id")
+  async updateCampaign(
+    @Param("id") id: string,
+    @Body() dto: any,
+    @CurrentUser() user: CurrentUserData
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    const ctx = createOwnershipContext(user);
+    return this.campaignConfig.updateSettings(ctx, id, dto);
+  }
+
   @Patch(":id/status")
   async updateCampaignStatus(
     @Param("id") id: string,
@@ -85,7 +110,158 @@ export class CampaignController {
       throw new ForbiddenException("Campaigns require an organization");
     }
     const ctx = createOwnershipContext(user);
-    return this.campaignService.updateStatus(ctx, id, dto);
+    return this.campaignConfig.transitionStatus(ctx, id, dto.status);
+  }
+
+  @Delete(":id")
+  async deleteCampaign(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    const ctx = createOwnershipContext(user);
+    return this.campaignConfig.deleteCampaign(ctx, id);
+  }
+
+  // ── Disposition endpoints ──
+
+  @Get(":id/dispositions")
+  async listDispositions(
+    @Param("id") campaignId: string,
+    @CurrentUser() user: CurrentUserData
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    return this.dispositionService.listByCampaign(campaignId);
+  }
+
+  @Post(":id/dispositions")
+  async createDisposition(
+    @Param("id") campaignId: string,
+    @Body() body: {
+      code: string;
+      label: string;
+      category: DispositionCategory;
+      color?: string;
+      sortOrder?: number;
+      triggersRetry?: boolean;
+      triggersCompletion?: boolean;
+      triggersDnc?: boolean;
+      triggersCallback?: boolean;
+    },
+    @CurrentUser() user: CurrentUserData
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    return this.dispositionService.create(campaignId, body);
+  }
+
+  @Patch(":id/dispositions/:dispositionId")
+  async updateDisposition(
+    @Param("dispositionId") dispositionId: string,
+    @Body() body: any,
+    @CurrentUser() user: CurrentUserData
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    return this.dispositionService.update(dispositionId, body);
+  }
+
+  @Delete(":id/dispositions/:dispositionId")
+  async deleteDisposition(
+    @Param("dispositionId") dispositionId: string,
+    @CurrentUser() user: CurrentUserData
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    return this.dispositionService.deactivate(dispositionId);
+  }
+
+  // ── Retry rule endpoints ──
+
+  @Get(":id/retry-rules")
+  async listRetryRules(
+    @Param("id") campaignId: string,
+    @CurrentUser() user: CurrentUserData
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    return this.retryEngine.listRules(campaignId);
+  }
+
+  @Post(":id/retry-rules")
+  async upsertRetryRule(
+    @Param("id") campaignId: string,
+    @Body() body: {
+      dispositionCategory: DispositionCategory;
+      maxAttempts: number;
+      delayMinutes: number;
+      delayMultiplier?: number;
+    },
+    @CurrentUser() user: CurrentUserData
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    return this.retryEngine.upsertRule({ campaignId, ...body });
+  }
+
+  @Delete(":id/retry-rules/:ruleId")
+  async deleteRetryRule(
+    @Param("ruleId") ruleId: string,
+    @CurrentUser() user: CurrentUserData
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    return this.retryEngine.deleteRule(ruleId);
+  }
+
+  // ── List management endpoints ──
+
+  @Post(":id/lists")
+  async createList(
+    @Param("id") campaignId: string,
+    @Body() body: { name: string; description?: string; source?: string },
+    @CurrentUser() user: CurrentUserData
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    const ctx = createOwnershipContext(user);
+    return this.campaignConfig.createList(ctx, campaignId, body);
+  }
+
+  @Get(":id/lists")
+  async listLists(
+    @Param("id") campaignId: string,
+    @CurrentUser() user: CurrentUserData
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    const ctx = createOwnershipContext(user);
+    return this.campaignConfig.listLists(ctx, campaignId);
+  }
+
+  @Delete(":id/lists/:listId")
+  async deleteList(
+    @Param("id") campaignId: string,
+    @Param("listId") listId: string,
+    @CurrentUser() user: CurrentUserData
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    const ctx = createOwnershipContext(user);
+    return this.campaignConfig.deleteList(ctx, campaignId, listId);
   }
 
   @Post(":id/leads/csv")

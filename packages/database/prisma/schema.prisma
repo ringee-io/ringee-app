@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = "postgresql://ringee-user:ringee-password@localhost:5432/ringee-db-local?schema=public"
 }
 
 enum EmailStatus {
@@ -51,6 +51,63 @@ enum SubscriptionStatus {
   past_due
   canceled
   incomplete
+}
+
+// ── Outbound System Enums ──
+
+enum DialerMode {
+  progressive
+  preview
+}
+
+enum CampaignLeadStatus {
+  pending
+  queued
+  locked
+  dialing
+  in_call
+  wrap_up
+  dispositioned
+  scheduled
+  completed
+  exhausted
+  dnc
+}
+
+enum AgentSessionStatus {
+  ready
+  reserved
+  dialing
+  in_call
+  wrap_up
+  paused
+  offline
+}
+
+enum CallAttemptStatus {
+  created
+  dialing
+  ringing
+  answered
+  in_call
+  ended
+  dispositioned
+}
+
+enum DispositionCategory {
+  positive
+  neutral
+  negative
+  no_contact
+}
+
+enum CallbackStatus {
+  scheduled
+  due
+  in_progress
+  completed
+  missed
+  cancelled
 }
 
 model User {
@@ -248,6 +305,7 @@ model Call {
   transcription CallTranscriptionSegment[]
   recordings    Recording[]
   meetings      Meeting[]
+  callAttempts  CallAttempt[]
 
   @@index([userId])
   @@index([organizationId])
@@ -403,6 +461,7 @@ model CallerId {
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   calls        Call[]
+  campaigns    Campaign[]    @relation("campaignCallerId")
 
   @@unique([userId, phoneNumber, deletedAt])
   @@index([userId])
@@ -483,6 +542,21 @@ model Campaign {
   description String?
   status      String  @default("draft") // draft | active | paused | completed
 
+  // Dialer configuration
+  dialerMode    DialerMode @default(progressive)
+  callerIdId    String?    @db.Uuid
+  maxAttempts   Int        @default(3)
+
+  // Working hours (minutes from midnight in campaign timezone)
+  timezone     String @default("America/New_York")
+  workStartMin Int    @default(540) // 09:00
+  workEndMin   Int    @default(1020) // 17:00
+  workDays     Int[]  @default([1, 2, 3, 4, 5]) // 0=Sun..6=Sat
+
+  // Timing configuration
+  wrapUpTimeSec Int @default(30)
+  retryDelayMin Int @default(60)
+
   userId         String  @db.Uuid
   organizationId String? @db.Uuid
 
@@ -491,38 +565,59 @@ model Campaign {
 
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization?  @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  callerId     CallerId?      @relation("campaignCallerId", fields: [callerIdId], references: [id])
   leads        CampaignLead[]
+  lists        CampaignList[]
+  dispositions Disposition[]
+  retryRules   RetryRule[]
+  callAttempts CallAttempt[]
+  agentSessions AgentSession[]
 
   @@index([userId])
   @@index([organizationId])
+  @@index([status])
 }
 
 model CampaignLead {
   id         String @id @default(uuid()) @db.Uuid
   campaignId String @db.Uuid
   contactId  String @db.Uuid
+  listId     String? @db.Uuid
 
   userId String? @db.Uuid // assigned agent (optional)
+
+  status   CampaignLeadStatus @default(pending)
+  priority Int                @default(0)
 
   attempts   Int       @default(0)
   lastCallAt DateTime?
   nextCallAt DateTime?
   deadAt     DateTime?
 
+  // Dialer locking
+  lockedBy String?   @db.Uuid // AgentSession ID
+  lockedAt DateTime?
+
   metadata Json?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
-  contact  Contact  @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  user     User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  campaign     Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  contact      Contact        @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  user         User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  list         CampaignList?  @relation(fields: [listId], references: [id], onDelete: SetNull)
+  callAttempts CallAttempt[]
+  callbacks    CallbackTask[]
 
   @@unique([campaignId, contactId])
   @@index([campaignId])
   @@index([contactId])
   @@index([userId])
   @@index([nextCallAt])
+  @@index([status])
+  @@index([campaignId, status, priority, nextCallAt])
+  @@index([lockedBy])
 }
 
 model Tag {
@@ -610,4 +705,186 @@ model CalendarIntegration {
   @@unique([userId, provider])
   @@index([organizationId])
   @@index([userId])
+}
+
+// ── Outbound System Models ──
+
+model CampaignList {
+  id          String  @id @default(uuid()) @db.Uuid
+  campaignId  String  @db.Uuid
+  name        String
+  description String?
+  source      String? // "csv", "manual", "api"
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaign Campaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  leads    CampaignLead[]
+
+  @@index([campaignId])
+}
+
+model CallAttempt {
+  id             String            @id @default(uuid()) @db.Uuid
+  campaignId     String            @db.Uuid
+  campaignLeadId String            @db.Uuid
+  callId         String?           @db.Uuid
+  agentSessionId String?           @db.Uuid
+  agentUserId    String            @db.Uuid
+
+  status        CallAttemptStatus @default(created)
+  attemptNumber Int
+
+  initiatedAt     DateTime  @default(now())
+  ringStartedAt   DateTime?
+  answeredAt      DateTime?
+  endedAt         DateTime?
+  dispositionedAt DateTime?
+
+  hangupCause String?
+  durationSec Int?
+
+  dispositionId   String? @db.Uuid
+  dispositionCode String?
+  dispositionNote String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaign     Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  campaignLead CampaignLead  @relation(fields: [campaignLeadId], references: [id], onDelete: Cascade)
+  call         Call?         @relation(fields: [callId], references: [id], onDelete: SetNull)
+  disposition  Disposition?  @relation(fields: [dispositionId], references: [id], onDelete: SetNull)
+  agentSession AgentSession? @relation(fields: [agentSessionId], references: [id], onDelete: SetNull)
+
+  @@index([campaignId])
+  @@index([campaignLeadId])
+  @@index([callId])
+  @@index([agentSessionId])
+  @@index([campaignId, status])
+  @@index([campaignId, dispositionCode])
+  @@index([agentUserId, initiatedAt])
+}
+
+model Disposition {
+  id         String              @id @default(uuid()) @db.Uuid
+  campaignId String              @db.Uuid
+  code       String
+  label      String
+  category   DispositionCategory
+  color      String?             @db.VarChar(7)
+  sortOrder  Int                 @default(0)
+
+  triggersRetry      Boolean @default(false)
+  triggersCompletion Boolean @default(false)
+  triggersDnc        Boolean @default(false)
+  triggersCallback   Boolean @default(false)
+
+  isActive Boolean @default(true)
+  isSystem Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaign     Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  callAttempts CallAttempt[]
+
+  @@unique([campaignId, code])
+  @@index([campaignId])
+}
+
+model RetryRule {
+  id                  String              @id @default(uuid()) @db.Uuid
+  campaignId          String              @db.Uuid
+  dispositionCategory DispositionCategory
+  maxAttempts         Int                 @default(3)
+  delayMinutes        Int                 @default(60)
+  delayMultiplier     Float               @default(1.0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, dispositionCategory])
+  @@index([campaignId])
+}
+
+model CallbackTask {
+  id             String         @id @default(uuid()) @db.Uuid
+  campaignLeadId String         @db.Uuid
+  agentUserId    String         @db.Uuid
+  scheduledAt    DateTime
+  note           String?        @db.Text
+  status         CallbackStatus @default(scheduled)
+  completedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaignLead CampaignLead @relation(fields: [campaignLeadId], references: [id], onDelete: Cascade)
+
+  @@index([agentUserId])
+  @@index([status, scheduledAt])
+  @@index([campaignLeadId])
+}
+
+model DNCEntry {
+  id             String  @id @default(uuid()) @db.Uuid
+  phoneNumber    String  @db.VarChar(20)
+  organizationId String  @db.Uuid
+  reason         String?
+  source         String? // "manual", "disposition", "import"
+  addedByUserId  String? @db.Uuid
+
+  createdAt DateTime @default(now())
+
+  @@unique([organizationId, phoneNumber])
+  @@index([phoneNumber])
+  @@index([organizationId])
+}
+
+model VoicemailDropAsset {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String  @db.Uuid
+  userId         String  @db.Uuid
+  name           String
+  fileUrl        String
+  durationSec    Int?
+  isDefault      Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([userId])
+}
+
+model AgentSession {
+  id             String             @id @default(uuid()) @db.Uuid
+  campaignId     String             @db.Uuid
+  userId         String             @db.Uuid
+  organizationId String             @db.Uuid
+  status         AgentSessionStatus @default(offline)
+  currentLeadId  String?            @db.Uuid
+
+  lastHeartbeat DateTime @default(now())
+  startedAt     DateTime @default(now())
+  endedAt       DateTime?
+
+  callsAttempted Int @default(0)
+  callsConnected Int @default(0)
+  totalTalkSec   Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaign     Campaign      @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  callAttempts CallAttempt[]
+
+  @@unique([campaignId, userId])
+  @@index([campaignId, status])
+  @@index([userId])
+  @@index([lastHeartbeat])
 }

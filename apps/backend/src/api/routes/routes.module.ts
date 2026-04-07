@@ -22,6 +22,11 @@ import { RecordingsController } from "./recordings.controller";
 import { SubscriptionController } from "./subscription.controller";
 import { EncryptionController } from "./encryption.controller";
 import { CampaignController } from "./campaign.controller";
+import { DialerController } from "./dialer.controller";
+import { DNCController } from "./dnc.controller";
+import { CallbackController } from "./callback.controller";
+import { VoicemailAssetController } from "./voicemail-asset.controller";
+import { OutboundAnalyticsController } from "./outbound-analytics.controller";
 import { TagController, ContactTagController } from "./tag.controller";
 import { OnboardingController } from "./onboarding.controller";
 import { MeetingController } from "./meeting.controller";
@@ -44,6 +49,11 @@ import { CalendarController } from "./calendar.controller";
     SubscriptionController,
     EncryptionController,
     CampaignController,
+    DialerController,
+    DNCController,
+    CallbackController,
+    VoicemailAssetController,
+    OutboundAnalyticsController,
     TagController,
     ContactTagController,
     OnboardingController,

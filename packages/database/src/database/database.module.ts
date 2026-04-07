@@ -17,6 +17,15 @@ import { OrganizationRepository } from "./repositories/organization.repository";
 import { SubscriptionRepository } from "./repositories/subscription.repository";
 import { CampaignRepository } from "./repositories/campaign.repository";
 import { CampaignLeadRepository } from "./repositories/campaign-lead.repository";
+import { CampaignListRepository } from "./repositories/campaign-list.repository";
+import { CallAttemptRepository } from "./repositories/call-attempt.repository";
+import { DispositionRepository } from "./repositories/disposition.repository";
+import { RetryRuleRepository } from "./repositories/retry-rule.repository";
+import { CallbackTaskRepository } from "./repositories/callback-task.repository";
+import { DNCEntryRepository } from "./repositories/dnc-entry.repository";
+import { VoicemailDropAssetRepository } from "./repositories/voicemail-drop-asset.repository";
+import { AgentSessionRepository } from "./repositories/agent-session.repository";
+import { OutboundAnalyticsRepository } from "./repositories/outbound-analytics.repository";
 import { TagRepository } from "./repositories/tag.repository";
 import { MeetingRepository } from "./repositories/meeting.repository";
 import { CalendarIntegrationRepository } from "./repositories/calendar-integration.repository";
@@ -40,6 +49,15 @@ const databaseProviders = [
   SubscriptionRepository,
   CampaignRepository,
   CampaignLeadRepository,
+  CampaignListRepository,
+  CallAttemptRepository,
+  DispositionRepository,
+  RetryRuleRepository,
+  CallbackTaskRepository,
+  DNCEntryRepository,
+  VoicemailDropAssetRepository,
+  AgentSessionRepository,
+  OutboundAnalyticsRepository,
   TagRepository,
   MeetingRepository,
   CalendarIntegrationRepository,

@@ -1,0 +1,289 @@
+'use client';
+
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { Button } from '@ringee/frontend-shared/components/ui/button';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@ringee/frontend-shared/components/ui/card';
+import { Input } from '@ringee/frontend-shared/components/ui/input';
+import { Label } from '@ringee/frontend-shared/components/ui/label';
+import { Textarea } from '@ringee/frontend-shared/components/ui/textarea';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@ringee/frontend-shared/components/ui/select';
+import { Loader2 } from 'lucide-react';
+import type { CreateCampaignDto, DialerMode } from '../types/campaign.types';
+
+const TIMEZONES = [
+  'America/New_York',
+  'America/Chicago',
+  'America/Denver',
+  'America/Los_Angeles',
+  'America/Phoenix',
+  'America/Anchorage',
+  'Pacific/Honolulu',
+  'Europe/London',
+  'Europe/Berlin',
+  'Asia/Tokyo',
+  'Asia/Kolkata',
+  'Australia/Sydney',
+];
+
+const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+
+function minutesToTime(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+}
+
+function timeToMinutes(time: string): number {
+  const [h, m] = time.split(':').map(Number);
+  return h * 60 + m;
+}
+
+export function CampaignCreateForm() {
+  const api = useApi();
+  const router = useRouter();
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const [form, setForm] = useState<CreateCampaignDto>({
+    name: '',
+    description: '',
+    dialerMode: 'progressive',
+    maxAttempts: 3,
+    timezone: 'America/New_York',
+    workStartMin: 540,
+    workEndMin: 1020,
+    workDays: [1, 2, 3, 4, 5],
+    wrapUpTimeSec: 30,
+    retryDelayMin: 60,
+  });
+
+  function updateForm(patch: Partial<CreateCampaignDto>) {
+    setForm((prev) => ({ ...prev, ...patch }));
+  }
+
+  function toggleDay(day: number) {
+    const days = form.workDays ?? [1, 2, 3, 4, 5];
+    updateForm({
+      workDays: days.includes(day)
+        ? days.filter((d) => d !== day)
+        : [...days, day].sort(),
+    });
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!form.name.trim()) {
+      setError('Campaign name is required');
+      return;
+    }
+    setError(null);
+    setSaving(true);
+    try {
+      const campaign = await api.post('/campaigns', form);
+      router.push(`/dashboard/campaigns/${campaign.id}`);
+    } catch (err: any) {
+      setError(err?.message || 'Failed to create campaign');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      {error && (
+        <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {error}
+        </div>
+      )}
+
+      {/* Basic Info */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Campaign Details</CardTitle>
+          <CardDescription>Name and describe your outbound campaign.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="name">Campaign Name *</Label>
+            <Input
+              id="name"
+              placeholder="e.g. Q2 Outreach"
+              value={form.name}
+              onChange={(e) => updateForm({ name: e.target.value })}
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="description">Description</Label>
+            <Textarea
+              id="description"
+              placeholder="Brief description of this campaign..."
+              value={form.description || ''}
+              onChange={(e) => updateForm({ description: e.target.value })}
+              rows={3}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Dialer Config */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Dialer Settings</CardTitle>
+          <CardDescription>Configure how calls are placed.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Dialer Mode</Label>
+              <Select
+                value={form.dialerMode}
+                onValueChange={(v) => updateForm({ dialerMode: v as DialerMode })}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="progressive">
+                    Progressive — auto-dials next lead
+                  </SelectItem>
+                  <SelectItem value="preview">
+                    Preview — agent reviews before dialing
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="maxAttempts">Max Attempts per Lead</Label>
+              <Input
+                id="maxAttempts"
+                type="number"
+                min={1}
+                max={20}
+                value={form.maxAttempts}
+                onChange={(e) => updateForm({ maxAttempts: Number(e.target.value) })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="wrapUp">Wrap-up Time (seconds)</Label>
+              <Input
+                id="wrapUp"
+                type="number"
+                min={0}
+                max={300}
+                value={form.wrapUpTimeSec}
+                onChange={(e) => updateForm({ wrapUpTimeSec: Number(e.target.value) })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="retryDelay">Default Retry Delay (minutes)</Label>
+              <Input
+                id="retryDelay"
+                type="number"
+                min={1}
+                max={10080}
+                value={form.retryDelayMin}
+                onChange={(e) => updateForm({ retryDelayMin: Number(e.target.value) })}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Schedule */}
+      <Card>
+        <CardHeader>
+          <CardTitle>Calling Schedule</CardTitle>
+          <CardDescription>Set when agents can make calls.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Timezone</Label>
+            <Select
+              value={form.timezone}
+              onValueChange={(v) => updateForm({ timezone: v })}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TIMEZONES.map((tz) => (
+                  <SelectItem key={tz} value={tz}>
+                    {tz.replace(/_/g, ' ')}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label htmlFor="workStart">Start Time</Label>
+              <Input
+                id="workStart"
+                type="time"
+                value={minutesToTime(form.workStartMin ?? 540)}
+                onChange={(e) => updateForm({ workStartMin: timeToMinutes(e.target.value) })}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="workEnd">End Time</Label>
+              <Input
+                id="workEnd"
+                type="time"
+                value={minutesToTime(form.workEndMin ?? 1020)}
+                onChange={(e) => updateForm({ workEndMin: timeToMinutes(e.target.value) })}
+              />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Working Days</Label>
+            <div className="flex flex-wrap gap-2">
+              {DAY_LABELS.map((label, idx) => {
+                const selected = (form.workDays ?? []).includes(idx);
+                return (
+                  <Button
+                    key={idx}
+                    type="button"
+                    variant={selected ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => toggleDay(idx)}
+                  >
+                    {label}
+                  </Button>
+                );
+              })}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Submit */}
+      <div className="flex items-center justify-end gap-3">
+        <Button
+          type="button"
+          variant="outline"
+          onClick={() => router.push('/dashboard/campaigns')}
+        >
+          Cancel
+        </Button>
+        <Button type="submit" disabled={saving}>
+          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          Create Campaign
+        </Button>
+      </div>
+    </form>
+  );
+}

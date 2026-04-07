@@ -358,4 +358,20 @@ export class TelnyxService implements TelephonyService {
   async downloadRecording(url: string): Promise<ArrayBuffer> {
     return this.telnyxClient.download(url);
   }
+
+  async playbackStart(
+    callControlId: string,
+    audioUrl: string
+  ): Promise<void> {
+    await this.telnyxClient.post(
+      `/calls/${callControlId}/actions/playback_start`,
+      {
+        audio_url: audioUrl,
+        client_state: Buffer.from(
+          JSON.stringify({ action: "voicemail_drop" })
+        ).toString("base64"),
+        command_id: crypto.randomUUID(),
+      }
+    );
+  }
 }
