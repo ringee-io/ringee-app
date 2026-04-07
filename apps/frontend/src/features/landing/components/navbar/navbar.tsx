@@ -47,6 +47,15 @@ const Navbar = () => {
             </Button>
           </Link>
 
+          {/* <Link href='https://cal.com/ringee' target='_blank' rel='noreferrer noopener'>
+            <Button
+              variant='outline'
+              className='hidden cursor-pointer sm:inline-flex'
+            >
+              Book a Demo
+            </Button>
+          </Link> */}
+
           <Link href='/auth/sign-up'>
             <Button className='hidden cursor-pointer sm:inline-flex'>
               Get Started

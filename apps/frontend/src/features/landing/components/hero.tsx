@@ -26,7 +26,7 @@ const Hero = () => {
             No contracts, no setup — just pay as you go.
           </p>
           
-          <div className="mt-10 flex w-full justify-center gap-4 sm:gap-6">
+          <div className="mt-10 flex w-full flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
             <Link
               href="/auth/sign-in"
               className="group relative inline-flex h-12 sm:h-14 w-full max-w-[220px] sm:max-w-[260px] items-center justify-center overflow-hidden rounded-lg bg-neutral-900/70 px-6 font-medium text-primary-foreground shadow-[0_0_30px_-8px_rgba(0,0,0,0.2)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_35px_-5px_rgba(0,0,0,0.4)] dark:shadow-[0_0_30px_-8px_rgba(255,255,255,0.1)] dark:hover:shadow-[0_0_35px_-5px_rgba(255,255,255,0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-95"
@@ -39,6 +39,15 @@ const Hero = () => {
                 Try a Free Call
                 <ArrowUpRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1" aria-hidden="true" />
               </span>
+            </Link>
+
+            <Link
+              href="https://cal.com/ringee"
+              target="_blank"
+              rel="noreferrer noopener"
+              className="inline-flex h-12 sm:h-14 w-full max-w-[220px] sm:max-w-[260px] items-center justify-center rounded-lg border-2 border-neutral-200 bg-transparent px-6 font-medium text-neutral-900 transition-colors hover:bg-neutral-100 dark:border-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
+            >
+              Book a Demo
             </Link>
           </div>
 
