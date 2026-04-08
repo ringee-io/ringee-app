@@ -161,6 +161,28 @@ export class CallAttemptService {
       data.dispositionId
     );
 
+    // WebRTC calls are placed from the frontend, so the backend never receives
+    // Telnyx webhooks that would transition the attempt through its lifecycle.
+    // Ensure the attempt is in 'ended' state before applying the disposition.
+    const current = await this.attemptRepo.findById(data.callAttemptId);
+    if (!current) {
+      throw new NotFoundException("Call attempt not found");
+    }
+    if (current.status !== CallAttemptStatus.ended && current.status !== CallAttemptStatus.dispositioned) {
+      await this.attemptRepo.updateStatus(
+        data.callAttemptId,
+        CallAttemptStatus.ended,
+        { endedAt: new Date() }
+      );
+      // Also ensure the lead is in wrap_up
+      await this.campaignLeadRepo.updateStatus(
+        current.campaignLeadId,
+        CampaignLeadStatus.wrap_up
+      );
+      // Increment lead attempts if not yet done
+      await this.campaignLeadRepo.incrementAttempt(current.campaignLeadId);
+    }
+
     const attempt = await this.attemptRepo.setDisposition(
       data.callAttemptId,
       {

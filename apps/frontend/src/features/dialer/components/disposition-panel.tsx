@@ -59,13 +59,26 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
     }
   }
 
-  // Show disposition panel when:
-  // - Dispositions are available AND (call ended or wrap_up or disposition required)
+  // Show disposition panel when we have dispositions AND:
+  // - call has ended, OR
+  // - we're in wrap_up, OR
+  // - dispositions were explicitly required by the backend, OR
+  // - we have an attempt but no active call (fallback for WebRTC state misses)
+  const callActive =
+    callStatus === 'dialing' ||
+    callStatus === 'ringing' ||
+    callStatus === 'answered' ||
+    callStatus === 'in_call';
+
   const showPanel =
     availableDispositions.length > 0 &&
+    attemptId != null &&
     (dispositionRequired ||
       callStatus === 'ended' ||
-      status === 'wrap_up');
+      status === 'wrap_up' ||
+      // Fallback: if we have an attempt + dispositions but no active call status,
+      // the call likely ended without the state propagating
+      (!callActive && callStatus !== null && callStatus !== 'created'));
 
   if (!showPanel) {
     return (
@@ -73,9 +86,11 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
         <ClipboardList className="mb-3 h-10 w-10 text-muted-foreground" />
         <h3 className="font-semibold">Disposition</h3>
         <p className="mt-1 text-sm text-muted-foreground">
-          {callStatus === 'in_call' || callStatus === 'answered'
+          {callActive
             ? 'Disposition will be available after the call ends.'
-            : 'Select a call outcome after each call.'}
+            : attemptId
+              ? 'Waiting for call to complete...'
+              : 'Select a call outcome after each call.'}
         </p>
       </div>
     );

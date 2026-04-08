@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Call } from '@telnyx/webrtc';
 import { useTelnyxStore } from '@/features/calls/store/telnyx.store';
-import { useDialerAttemptStore } from '../store/dialer-attempt.store';
+import { useDialerAttemptStore, type CallAttemptStatus } from '../store/dialer-attempt.store';
 import { useDialerSessionStore } from '../store/dialer-session.store';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useAuth } from '@clerk/nextjs';
@@ -25,22 +25,33 @@ export function useDialerCall() {
   const [recordingId, setRecordingId] = useState<string | null>(null);
   const [isRecordingLoading, setIsRecordingLoading] = useState(false);
 
-  // Track call notifications to update our local call reference
+  const setCallStatus = useDialerAttemptStore((s) => s.setCallStatus);
+
+  // Track call notifications to update our local call reference and attempt store
   useEffect(() => {
     if (!notification || notification.type !== 'callUpdate' || !notification.call) return;
     const call = notification.call as unknown as Call;
     const state = (call as any).state;
     const direction = (call as any).direction;
 
-    // Only track outbound calls that we initiated
-    if (direction !== 'outbound') return;
+    // Only track outbound calls when a dialer session is active
+    const hasSession = useDialerSessionStore.getState().sessionId;
+    if (direction !== 'outbound' || !hasSession) return;
 
     if (['new', 'trying', 'requesting', 'recovering', 'active', 'answering', 'early'].includes(state)) {
       callRef.current = call;
       setActiveCall(call);
     }
 
-    if (state === 'hangup' || state === 'destroy' || state === 'purge') {
+    // Map Telnyx call states to attempt store statuses
+    if (state === 'trying' || state === 'requesting' || state === 'new') {
+      setCallStatus('dialing');
+    } else if (state === 'early' || state === 'answering') {
+      setCallStatus('ringing');
+    } else if (state === 'active') {
+      setCallStatus('in_call');
+    } else if (state === 'hangup' || state === 'destroy' || state === 'purge') {
+      setCallStatus('ended');
       callRef.current = null;
       setActiveCall(null);
       setIsMuted(false);
@@ -48,7 +59,7 @@ export function useDialerCall() {
       setIsRecording(false);
       setRecordingId(null);
     }
-  }, [notification]);
+  }, [notification, setCallStatus]);
 
   const dial = useCallback(
     (phoneNumber: string, callerIdNumber: string | null) => {
@@ -160,13 +171,15 @@ export function useDialerCall() {
     } catch (err) {
       console.error('Hangup error:', err);
     }
+    // Immediately mark call as ended so disposition panel shows
+    setCallStatus('ended');
     callRef.current = null;
     setActiveCall(null);
     setIsMuted(false);
     setIsOnHold(false);
     setIsRecording(false);
     setRecordingId(null);
-  }, []);
+  }, [setCallStatus]);
 
   // Reset state when dialer attempt clears
   const attemptId = useDialerAttemptStore((s) => s.attemptId);

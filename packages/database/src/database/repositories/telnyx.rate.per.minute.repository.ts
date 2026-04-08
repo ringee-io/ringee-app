@@ -66,7 +66,7 @@ export class TelnyxRatePerMinuteRepository {
   }
 
   private applyRateAdjustments(rate: number, multiplier: number): number {
-    if (!Number.isFinite(rate)) return 0;
+    if (!Number.isFinite(rate)) return 0.02;
     if (rate === 0) return 0.02;
 
     return rate * multiplier;
