@@ -142,50 +142,43 @@ export function CalendarIntegrations() {
 
   return (
     <div className='relative'>
-      {/* Coming Soon Overlay */}
-      <div className='absolute inset-0 z-20 flex flex-col items-center justify-center rounded-xl bg-background/10 backdrop-blur-[1px] transition-all duration-500'>
-        <div className='flex flex-col items-center justify-center space-y-5 rounded-xl border border-primary/10 bg-card/95 p-8 text-center shadow-[0_0_40px_-10px_rgba(0,0,0,0.1)] backdrop-blur-md max-w-[480px] mx-auto animate-in fade-in zoom-in-95 duration-500'>
-          <span className='text-primary border-primary/20 text-xs px-3 py-1 tracking-widest uppercase font-semibold'>
-            ✨ Coming Soon
-          </span>
-          <div className='space-y-3'>
-            <h4 className='text-xl font-bold tracking-tight'>Awaiting Official Verification</h4>
-            <p className='text-muted-foreground text-sm leading-relaxed max-w-[420px] mx-auto'>
-              We've fully built the <strong className="text-foreground font-medium">Google Calendar</strong> and <strong className="text-foreground font-medium">Microsoft Outlook</strong> integrations! We are currently waiting for standard app compliance verification from their security teams.
-            </p>
-            <p className='text-muted-foreground/80 text-xs max-w-[360px] mx-auto pt-1'>
-              Once approved, you'll be able to seamlessly sync meetings and auto-generate Meet/Teams video links with one click.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* Content Wrapper */}
-      <div className='space-y-6 pointer-events-none select-none opacity-50 grayscale-[10%] blur-[1px]'>
+      <div className='space-y-6'>
         {/* Header */}
-      <div>
-        <h3 className='text-base font-semibold'>Calendar Integrations</h3>
-        <p className='text-muted-foreground text-sm mt-1'>
-          Connect your calendar to auto-sync meetings booked during cold calls and check availability in real-time.
-        </p>
-      </div>
+        <div>
+          <h3 className='text-base font-semibold'>Calendar Integrations</h3>
+          <p className='text-muted-foreground text-sm mt-1'>
+            Connect your calendar to auto-sync meetings booked during cold calls and check availability in real-time.
+          </p>
+        </div>
 
-      {/* Provider cards */}
-      <div className='grid gap-4 md:grid-cols-2'>
-        {PROVIDERS.map((provider) => {
-          const connected = integrations.find((i) => i.provider === provider.id && i.isActive);
-          const isDisconnecting = disconnectingId === connected?.id;
+        {/* Provider cards */}
+        <div className='grid gap-4 md:grid-cols-2'>
+          {PROVIDERS.map((provider) => {
+            const connected = integrations.find((i) => i.provider === provider.id && i.isActive);
+            const isDisconnecting = disconnectingId === connected?.id;
+            const isComingSoon = provider.id === 'microsoft';
 
-          return (
-            <div
-              key={provider.id}
-              className={cn(
-                'group relative rounded-xl border bg-card p-6 transition-all',
-                connected
-                  ? `${provider.color} ${provider.activeGlow}`
-                  : 'border-border/20 hover:border-border/40'
-              )}
-            >
+            return (
+              <div
+                key={provider.id}
+                className={cn(
+                  'group relative overflow-hidden rounded-xl border bg-card p-6 transition-all',
+                  connected
+                    ? `${provider.color} ${provider.activeGlow}`
+                    : 'border-border/20 hover:border-border/40',
+                  isComingSoon && 'pointer-events-none select-none opacity-80 grayscale-[30%]'
+                )}
+              >
+                {/* Coming Soon Overlay */}
+                {isComingSoon && (
+                  <div className='absolute inset-0 z-20 flex flex-col items-center justify-center bg-background/50 backdrop-blur-[1.5px]'>
+                    <div className='rounded-full border border-primary/20 bg-card/95 px-3 py-1 shadow-sm'>
+                      <span className='text-primary text-[10px] font-bold tracking-widest uppercase'>
+                        ✨ Coming Soon
+                      </span>
+                    </div>
+                  </div>
+                )}
               {/* Connected badge */}
               {connected && (
                 <div className='absolute top-4 right-4'>
