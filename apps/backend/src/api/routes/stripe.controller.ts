@@ -24,6 +24,8 @@ import { apiConfiguration } from "@ringee/configuration";
 import {
   CreateCreditCheckoutDto,
   CreatePhoneCheckoutDto,
+  CreateMonthlyCreditSubscriptionDto,
+  CreateAutoReloadSetupDto,
 } from "@ringee/platform";
 
 interface CurrentUserData {
@@ -129,6 +131,54 @@ export class StripeController {
     );
   }
 
+  @Post("checkout/credit-subscription")
+  async createCreditSubscription(
+    @Body() body: CreateMonthlyCreditSubscriptionDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    const customerId = await this.getOrCreateCustomer(user);
+
+    return this.stripeService.createMonthlyCreditSubscriptionSession(
+      customerId,
+      user.id,
+      body.amount,
+      user.activeOrgId,
+      body.frontendOrigin,
+    );
+  }
+
+  @Post("checkout/auto-reload-setup")
+  async createAutoReloadSetup(
+    @Body() body: CreateAutoReloadSetupDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    const customerId = await this.getOrCreateCustomer(user);
+
+    // Save auto-reload settings
+    const ctx = createOwnershipContext(user);
+    await this.creditService.updateAutoReloadSettings(ctx, {
+      autoReloadEnabled: true,
+      autoReloadThreshold: body.threshold,
+      autoReloadAmount: body.reloadAmount,
+    });
+
+    return this.stripeService.createAutoReloadSetupSession(
+      customerId,
+      user.id,
+      body.reloadAmount,
+      user.activeOrgId,
+      body.frontendOrigin,
+    );
+  }
+
   @Post("checkout/organization")
   async createOrganizationCheckout(
     @CurrentUser() user: CurrentUserData,
@@ -183,7 +233,7 @@ export class StripeController {
           const fn = session.metadata?.fn;
 
           if (
-            fn === "createOneTimePaymentSession" &&
+            (fn === "createOneTimePaymentSession" || fn === "autoReloadSetup") &&
             session.mode === "payment" &&
             userId &&
             amountUsd > 0
@@ -193,6 +243,38 @@ export class StripeController {
               activeOrgId: organizationId,
             });
             await this.creditService.addCredits(ctx, amountUsd);
+          } else if (
+            fn === "creditSubscription" &&
+            session.mode === "subscription" &&
+            userId
+          ) {
+            // Save the subscription ID for recurring credit charges
+            const subscriptionId =
+              typeof session.subscription === "string"
+                ? session.subscription
+                : (session.subscription as any)?.id;
+
+            if (subscriptionId) {
+              const ctx = createOwnershipContext({
+                id: userId,
+                activeOrgId: organizationId,
+              });
+              const subAmountUsd = Number(
+                session.metadata?.amountUsd || amountUsd,
+              );
+              await this.creditService.updateMonthlyFundSettings(ctx, {
+                monthlyFundEnabled: true,
+                monthlyFundAmount: subAmountUsd,
+                stripeSubscriptionId: subscriptionId,
+              });
+              // Add credits for the first month
+              if (subAmountUsd > 0) {
+                await this.creditService.addCredits(ctx, subAmountUsd);
+              }
+              console.log(
+                `📅 Monthly credit fund activated for user ${userId}: $${subAmountUsd}/month`,
+              );
+            }
           } else {
             console.log(
               `❌ Could not add credits to user ${userId} +${amountUsd}`,
@@ -242,6 +324,58 @@ export class StripeController {
           break;
         }
 
+        case "invoice.payment_succeeded": {
+          const invoice = event.data.object as Stripe.Invoice;
+          const sub = invoice.parent?.subscription_details?.subscription;
+          const subscriptionId =
+            typeof sub === "string" ? sub : sub?.id ?? null;
+
+          if (subscriptionId) {
+            // Check if this is a monthly credit fund subscription
+            const settings =
+              await this.creditService.findSettingsByStripeSubscription(
+                subscriptionId,
+              );
+            if (settings && settings.monthlyFundEnabled && settings.monthlyFundAmount) {
+              // Skip if this is the first invoice (already credited in checkout.session.completed)
+              const billingReason = (invoice as any).billing_reason;
+              if (billingReason === "subscription_cycle") {
+                const ctx = createOwnershipContext({
+                  id: settings.userId!,
+                  activeOrgId: settings.organizationId,
+                });
+                await this.creditService.addCredits(
+                  ctx,
+                  settings.monthlyFundAmount,
+                );
+                console.log(
+                  `📅 Monthly credit fund charged: $${settings.monthlyFundAmount} for user ${settings.userId}`,
+                );
+              }
+            }
+          }
+          break;
+        }
+
+        case "payment_intent.succeeded": {
+          const paymentIntent = event.data
+            .object as Stripe.PaymentIntent;
+          const metadata = paymentIntent.metadata || {};
+
+          if (metadata.fn === "autoReloadCharge" && metadata.userId) {
+            const amountUsd = paymentIntent.amount / 100;
+            const ctx = createOwnershipContext({
+              id: metadata.userId,
+              activeOrgId: metadata.organizationId || null,
+            });
+            await this.creditService.addCredits(ctx, amountUsd);
+            console.log(
+              `🔄 Auto-reload credited: $${amountUsd} for user ${metadata.userId}`,
+            );
+          }
+          break;
+        }
+
         case "customer.subscription.deleted": {
           const subscription = event.data.object as Stripe.Subscription;
           const metadata = subscription.metadata || {};
@@ -250,6 +384,28 @@ export class StripeController {
           if (numberId) {
             console.log(`📴 Suscripción cancelada para ${numberId}`);
             await this.numberPurchasedService.release(numberId);
+          }
+
+          // Handle credit subscription cancellation
+          if (metadata.fn === "creditSubscription") {
+            const settings =
+              await this.creditService.findSettingsByStripeSubscription(
+                subscription.id,
+              );
+            if (settings) {
+              const ctx = createOwnershipContext({
+                id: settings.userId!,
+                activeOrgId: settings.organizationId,
+              });
+              await this.creditService.updateMonthlyFundSettings(ctx, {
+                monthlyFundEnabled: false,
+                monthlyFundAmount: 0,
+                stripeSubscriptionId: "",
+              });
+              console.log(
+                `📴 Monthly credit fund cancelled for user ${settings.userId}`,
+              );
+            }
           }
           break;
         }

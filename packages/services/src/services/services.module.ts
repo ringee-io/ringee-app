@@ -5,6 +5,7 @@ import {
   NotificationModule,
   TelephonyModule,
   RedisModule,
+  StripeModule,
 } from "@ringee/platform";
 import { ChatAuthService } from "./chat.auth.service";
 import { CallTranscriptionService } from "./call.transcription.service";
@@ -47,7 +48,7 @@ const servicesProviders = [
 
 @Global()
 @Module({
-  imports: [AuthModule, NotificationModule, TelephonyModule],
+  imports: [AuthModule, NotificationModule, TelephonyModule, StripeModule],
   providers: servicesProviders,
   exports: servicesProviders,
 })

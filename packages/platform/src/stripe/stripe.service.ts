@@ -202,6 +202,162 @@ export class StripeService {
     };
   }
 
+  async createMonthlyCreditSubscriptionSession(
+    customerId: string,
+    userId: string,
+    amountUsd: number,
+    organizationId?: string | null,
+    frontendOrigin?: string,
+  ): Promise<{
+    url: string;
+    sessionId: string;
+  }> {
+    const msg = `Monthly credit fund of $${amountUsd} activated successfully.`;
+    const baseUrl = frontendOrigin || process.env.FRONTEND_URL!;
+    const callbackUrl = frontendOrigin
+      ? baseUrl + "/call?"
+      : baseUrl + "/dashboard/overview?";
+    const cancelUrl = callbackUrl + "payment=cancel";
+    const successUrl =
+      callbackUrl +
+      `payment=success&msg=${encodeURIComponent(msg)}&amount=${amountUsd}`;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      customer: customerId,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      metadata: {
+        userId,
+        organizationId: organizationId ?? "",
+        fn: "creditSubscription",
+        amountUsd: String(amountUsd),
+      },
+      subscription_data: {
+        metadata: {
+          userId,
+          organizationId: organizationId ?? "",
+          fn: "creditSubscription",
+          amountUsd: String(amountUsd),
+        },
+      },
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "Ringee Monthly Credit Fund",
+              description: `$${amountUsd} in credits added to your account every month`,
+            },
+            unit_amount: Math.round(amountUsd * 100),
+            recurring: { interval: "month" },
+          },
+          quantity: 1,
+        },
+      ],
+      allow_promotion_codes: true,
+    });
+
+    return {
+      url: session.url!,
+      sessionId: session.id,
+    };
+  }
+
+  async createAutoReloadSetupSession(
+    customerId: string,
+    userId: string,
+    reloadAmount: number,
+    organizationId?: string | null,
+    frontendOrigin?: string,
+  ): Promise<{
+    url: string;
+    sessionId: string;
+  }> {
+    const msg = `Auto-reload enabled. $${reloadAmount} will be added when your balance is low.`;
+    const baseUrl = frontendOrigin || process.env.FRONTEND_URL!;
+    const callbackUrl = frontendOrigin
+      ? baseUrl + "/call?"
+      : baseUrl + "/dashboard/overview?";
+    const cancelUrl = callbackUrl + "payment=cancel";
+    const successUrl =
+      callbackUrl +
+      `payment=success&msg=${encodeURIComponent(msg)}&amount=${reloadAmount}&autoReload=true`;
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      customer: customerId,
+      success_url: successUrl,
+      cancel_url: cancelUrl,
+      payment_intent_data: {
+        setup_future_usage: "off_session",
+        metadata: {
+          userId,
+          organizationId: organizationId ?? "",
+          fn: "autoReloadSetup",
+        },
+      },
+      metadata: {
+        userId,
+        organizationId: organizationId ?? "",
+        fn: "autoReloadSetup",
+      },
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "Ringee Credit Auto-Reload",
+              description:
+                "Initial reload. Your card will be saved for future automatic reloads.",
+            },
+            unit_amount: Math.round(reloadAmount * 100),
+          },
+          quantity: 1,
+        },
+      ],
+      allow_promotion_codes: true,
+    });
+
+    return {
+      url: session.url!,
+      sessionId: session.id,
+    };
+  }
+
+  async chargeOffSession(
+    userId: string,
+    amountUsd: number,
+    organizationId?: string,
+  ): Promise<{ paymentIntentId: string }> {
+    // Find the customer ID from Stripe by searching for the user
+    const customers = await stripe.customers.search({
+      query: `metadata["userId"]:"${userId}"`,
+      limit: 1,
+    });
+
+    if (!customers.data.length) {
+      throw new Error(`No Stripe customer found for user ${userId}`);
+    }
+
+    const customer = customers.data[0];
+
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round(amountUsd * 100),
+      currency: "usd",
+      customer: customer.id,
+      off_session: true,
+      confirm: true,
+      metadata: {
+        userId,
+        organizationId: organizationId ?? "",
+        fn: "autoReloadCharge",
+      },
+    });
+
+    return { paymentIntentId: paymentIntent.id };
+  }
+
   async cancelSubscription(
     subscriptionId: string,
   ): Promise<{ subscriptionId: string; canceledAt: Date | null }> {
