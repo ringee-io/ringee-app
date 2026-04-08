@@ -81,6 +81,12 @@ export class TelephonyController {
     });
   }
 
+  @Get("caller-ids")
+  async getCallerIds(@CurrentUser() user: CurrentUserData) {
+    const ctx = createOwnershipContext(user);
+    return this.callerIdService.getCallerIds(ctx);
+  }
+
   @Post("caller-id")
   async requestVerification(
     @Body() body: RequestCallerIdVerificationDto,

@@ -25,7 +25,7 @@ export default function Header({ useMock }: { useMock?: boolean }) {
         <div className='hidden items-center gap-2 px-4 sm:flex'>
           <SidebarTrigger className='-ml-1' />
           <Separator orientation='vertical' className='mr-2 h-4' />
-          <Breadcrumbs />
+          {/* <Breadcrumbs /> */}
         </div>
       )}
 

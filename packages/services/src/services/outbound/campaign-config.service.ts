@@ -94,9 +94,8 @@ export class CampaignConfigService {
       dto.wrapUpTimeSec !== undefined ||
       dto.retryDelayMin !== undefined
     ) {
-      await this.campaignRepo.update(campaign.id, {
-        ...(dto as any),
-      });
+      const { name: _n, description: _d, ...settings } = dto;
+      await this.campaignRepo.update(campaign.id, settings);
     }
 
     // Seed default dispositions
@@ -115,7 +114,18 @@ export class CampaignConfigService {
 
     if (campaign.status !== "draft" && campaign.status !== "paused") {
       // Only allow limited changes on active campaigns
-      const allowedWhileActive = ["wrapUpTimeSec"];
+      const allowedWhileActive = [
+        "name",
+        "description",
+        "callerIdId",
+        "wrapUpTimeSec",
+        "maxAttempts",
+        "timezone",
+        "workStartMin",
+        "workEndMin",
+        "workDays",
+        "retryDelayMin",
+      ];
       const attemptedChanges = Object.keys(dto);
       const disallowed = attemptedChanges.filter(
         (k) => !allowedWhileActive.includes(k) && (dto as any)[k] !== undefined
@@ -127,7 +137,7 @@ export class CampaignConfigService {
       }
     }
 
-    return this.campaignRepo.update(campaignId, dto as any);
+    return this.campaignRepo.update(campaignId, dto);
   }
 
   /**

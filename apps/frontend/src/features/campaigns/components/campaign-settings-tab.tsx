@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
@@ -32,8 +32,15 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@ringee/frontend-shared/components/ui/alert-dialog';
-import { Loader2, Trash2 } from 'lucide-react';
+import { Loader2, Phone, Trash2 } from 'lucide-react';
 import type { Campaign, DialerMode } from '../types/campaign.types';
+
+interface CallerId {
+  id: string;
+  phoneNumber: string;
+  verified: boolean;
+  status: string;
+}
 
 const TIMEZONES = [
   'America/New_York',
@@ -74,11 +81,13 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [callerIds, setCallerIds] = useState<CallerId[]>([]);
 
   const [form, setForm] = useState({
     name: campaign.name,
     description: campaign.description || '',
     dialerMode: campaign.dialerMode,
+    callerIdId: campaign.callerIdId || '',
     maxAttempts: campaign.maxAttempts,
     timezone: campaign.timezone,
     workStartMin: campaign.workStartMin,
@@ -87,6 +96,10 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
     wrapUpTimeSec: campaign.wrapUpTimeSec,
     retryDelayMin: campaign.retryDelayMin,
   });
+
+  useEffect(() => {
+    api.get<CallerId[]>('/telephony/caller-ids').then(setCallerIds).catch(() => {});
+  }, [api]);
 
   function updateForm(patch: Partial<typeof form>) {
     setForm((prev) => ({ ...prev, ...patch }));
@@ -168,6 +181,35 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Caller ID</Label>
+            <Select
+              value={form.callerIdId}
+              onValueChange={(v) => updateForm({ callerIdId: v })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a caller ID..." />
+              </SelectTrigger>
+              <SelectContent>
+                {callerIds.filter(c => c.verified).map((cid) => (
+                  <SelectItem key={cid.id} value={cid.id}>
+                    <span className="flex items-center gap-2">
+                      <Phone className="h-3 w-3" />
+                      {cid.phoneNumber}
+                    </span>
+                  </SelectItem>
+                ))}
+                {callerIds.filter(c => c.verified).length === 0 && (
+                  <SelectItem value="__none" disabled>
+                    No verified caller IDs
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              The phone number displayed to leads when calling.
+            </p>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Dialer Mode</Label>

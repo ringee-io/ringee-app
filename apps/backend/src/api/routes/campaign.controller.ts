@@ -52,7 +52,7 @@ export class CampaignController {
       throw new ForbiddenException("Campaigns require an organization");
     }
     const ctx = createOwnershipContext(user);
-    return this.campaignService.createCampaign(ctx, dto);
+    return this.campaignConfig.createCampaign(ctx, dto);
   }
 
   @Get()

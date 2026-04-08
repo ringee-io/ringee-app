@@ -18,8 +18,17 @@ export interface CreateDispositionDto {
 }
 
 /** Default dispositions seeded when a campaign is created. */
-const DEFAULT_DISPOSITIONS: (Omit<CreateDispositionDto, "color" | "sortOrder"> &
-  { sortOrder: number; isSystem: boolean })[] = [
+const DEFAULT_DISPOSITIONS: Array<{
+  code: string;
+  label: string;
+  category: DispositionCategory;
+  sortOrder: number;
+  isSystem: boolean;
+  triggersRetry?: boolean;
+  triggersCompletion?: boolean;
+  triggersDnc?: boolean;
+  triggersCallback?: boolean;
+}> = [
   {
     code: "meeting_booked",
     label: "Meeting Booked",

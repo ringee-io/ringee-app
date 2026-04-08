@@ -187,15 +187,15 @@ export function CampaignAnalytics({ campaignId }: Props) {
               <p className="text-sm text-muted-foreground">No data yet</p>
             ) : (
               <div className="space-y-3">
-                {agents.map((a) => (
+                {agents.map((a, i) => (
                   <div
-                    key={a.userId}
+                    key={i}
                     className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
                   >
                     <div>
                       <span className="font-medium">Agent</span>
                       <span className="ml-1 text-xs text-muted-foreground">
-                        {a.userId.slice(0, 8)}...
+                        {a.userId?.slice(0, 8)}...
                       </span>
                     </div>
                     <div className="flex gap-4 text-xs text-muted-foreground">

@@ -549,9 +549,9 @@ model Campaign {
 
   // Working hours (minutes from midnight in campaign timezone)
   timezone     String @default("America/New_York")
-  workStartMin Int    @default(540) // 09:00
-  workEndMin   Int    @default(1020) // 17:00
-  workDays     Int[]  @default([1, 2, 3, 4, 5]) // 0=Sun..6=Sat
+  workStartMin Int    @default(480) // 08:00
+  workEndMin   Int    @default(1260) // 21:00
+  workDays     Int[]  @default([0, 1, 2, 3, 4, 5, 6]) // 0=Sun..6=Sat
 
   // Timing configuration
   wrapUpTimeSec Int @default(30)

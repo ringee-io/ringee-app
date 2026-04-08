@@ -10,8 +10,6 @@ import {
   AgentSessionStatus,
   CampaignLeadStatus,
 } from "@ringee/database";
-import { WorkerService } from "@ringee/platform";
-
 const HEARTBEAT_STALE_MS = 30_000; // 30 seconds
 
 @Injectable()
@@ -21,7 +19,6 @@ export class AgentSessionService {
   constructor(
     private readonly sessionRepo: AgentSessionRepository,
     private readonly campaignLeadRepo: CampaignLeadRepository,
-    private readonly workerService: WorkerService
   ) {}
 
   async startSession(data: {
@@ -30,13 +27,6 @@ export class AgentSessionService {
     organizationId: string;
   }) {
     const session = await this.sessionRepo.upsert(data);
-
-    // Signal the dialer that an agent is ready
-    await this.workerService.emit("ringee:dialer:" + data.campaignId, {
-      event: "agent.ready",
-      sessionId: session.id,
-      userId: data.userId,
-    });
 
     this.logger.log(
       `Agent ${data.userId} started session ${session.id} for campaign ${data.campaignId}`
@@ -77,19 +67,10 @@ export class AgentSessionService {
       throw new ConflictException("Session is not paused");
     }
 
-    const updated = await this.sessionRepo.updateStatus(
+    return this.sessionRepo.updateStatus(
       sessionId,
       AgentSessionStatus.ready
     );
-
-    // Signal dialer
-    await this.workerService.emit("ringee:dialer:" + session.campaignId, {
-      event: "agent.ready",
-      sessionId,
-      userId: session.userId,
-    });
-
-    return updated;
   }
 
   async heartbeat(sessionId: string) {

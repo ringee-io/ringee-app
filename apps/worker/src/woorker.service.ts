@@ -104,9 +104,21 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
 
   private async runCompletionCheck() {
     try {
-      // Find active campaigns and check if all leads are terminal
-      // For now, we use a simple approach — iterate known active campaigns
-      // TODO: Add findAllActive() to CampaignRepository for cross-org query
+      const activeCampaigns = await this.campaignRepo.findAllActive();
+      let count = 0;
+
+      for (const campaign of activeCampaigns) {
+        const allTerminal = await this.campaignLeadRepo.allLeadsTerminal(campaign.id);
+        if (allTerminal && campaign._count.leads > 0) {
+          await this.campaignRepo.updateStatus(campaign.id, "completed");
+          count++;
+          this.logger.log(`Campaign ${campaign.id} auto-completed — all leads terminal`);
+        }
+      }
+
+      if (count > 0) {
+        this.logger.debug(`CompletionCheck: ${count} campaigns completed`);
+      }
     } catch (err) {
       this.logger.error("CompletionCheck error:", err);
     }

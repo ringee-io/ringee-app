@@ -10,6 +10,7 @@ import { DispositionService } from "./disposition.service";
 import { RetryEngine } from "./retry-engine.service";
 import { CallbackService } from "./callback.service";
 import { ComplianceService } from "./compliance.service";
+import { SSEBridgeService } from "./sse-bridge.service";
 import { AgentSessionStatus } from "@ringee/database";
 
 @Injectable()
@@ -23,7 +24,8 @@ export class CallAttemptService {
     private readonly dispositionService: DispositionService,
     private readonly retryEngine: RetryEngine,
     private readonly callbackService: CallbackService,
-    private readonly complianceService: ComplianceService
+    private readonly complianceService: ComplianceService,
+    private readonly sseBridge: SSEBridgeService,
   ) {}
 
   async createAttempt(data: {
@@ -81,6 +83,10 @@ export class CallAttemptService {
             attempt.agentSessionId,
             { callsConnected: 1 }
           );
+          this.sseBridge.emit(`agent:${attempt.agentSessionId}`, "call.state", {
+            status: "in_call",
+            attemptId: callAttemptId,
+          });
         }
         break;
 
@@ -107,6 +113,33 @@ export class CallAttemptService {
             attempt.agentSessionId,
             { callsAttempted: 1 }
           );
+
+          // Load dispositions and emit disposition.required via SSE
+          const dispositions = await this.dispositionService.listByCampaign(
+            attempt.campaignId
+          );
+          this.sseBridge.emit(`agent:${attempt.agentSessionId}`, "call.state", {
+            status: "ended",
+            attemptId: callAttemptId,
+          });
+          this.sseBridge.emit(
+            `agent:${attempt.agentSessionId}`,
+            "disposition.required",
+            {
+              callAttemptId,
+              dispositions: dispositions.map((d) => ({
+                id: d.id,
+                code: d.code,
+                label: d.label,
+                category: d.category,
+                color: d.color,
+                triggersCallback: d.triggersCallback,
+              })),
+            }
+          );
+          this.sseBridge.emit(`agent:${attempt.agentSessionId}`, "session.state", {
+            status: "wrap_up",
+          });
         }
         break;
     }
@@ -223,6 +256,10 @@ export class CallAttemptService {
     );
 
     return { action };
+  }
+
+  async getAttemptById(attemptId: string) {
+    return this.attemptRepo.findById(attemptId);
   }
 
   async getAttemptHistory(campaignLeadId: string) {

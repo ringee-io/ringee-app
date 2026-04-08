@@ -59,8 +59,15 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
     }
   }
 
-  // Not in wrap-up or no dispositions needed
-  if (!dispositionRequired || status !== 'wrap_up') {
+  // Show disposition panel when:
+  // - Dispositions are available AND (call ended or wrap_up or disposition required)
+  const showPanel =
+    availableDispositions.length > 0 &&
+    (dispositionRequired ||
+      callStatus === 'ended' ||
+      status === 'wrap_up');
+
+  if (!showPanel) {
     return (
       <div className="flex h-full flex-col items-center justify-center p-6 text-center">
         <ClipboardList className="mb-3 h-10 w-10 text-muted-foreground" />

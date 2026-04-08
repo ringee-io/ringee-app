@@ -20,9 +20,12 @@ export function useDialerSession(campaignId: string) {
   const clearLead = useDialerLeadStore((s) => s.clear);
   const clearAttempt = useDialerAttemptStore((s) => s.clear);
 
-  // Heartbeat
+  // Heartbeat — keeps session alive so the backend doesn't mark it stale
   useEffect(() => {
     if (!sessionId) return;
+
+    // Send an immediate heartbeat on session start
+    api.post(`/dialer/sessions/${sessionId}/heartbeat`).catch(() => {});
 
     heartbeatRef.current = setInterval(async () => {
       try {
@@ -38,16 +41,35 @@ export function useDialerSession(campaignId: string) {
         heartbeatRef.current = null;
       }
     };
-  }, [sessionId]);
+  }, [sessionId, api]);
+
+  // Cleanup on unmount — end session if still active
+  useEffect(() => {
+    return () => {
+      const sid = useDialerSessionStore.getState().sessionId;
+      if (sid) {
+        // Fire-and-forget end session
+        api.delete(`/dialer/sessions/${sid}`).catch(() => {});
+        clearLead();
+        clearAttempt();
+        clearSession();
+      }
+    };
+  }, []);
 
   const startSession = useCallback(async () => {
     try {
-      const res = await api.post<{ id: string }>('/dialer/sessions', { campaignId });
+      const res = await api.post<{ id: string; status: string }>(
+        '/dialer/sessions',
+        { campaignId }
+      );
       setSession(res.id, campaignId);
-    } catch {
-      // handled by api client
+      return res;
+    } catch (err) {
+      console.error('Failed to start session:', err);
+      throw err;
     }
-  }, [campaignId]);
+  }, [api, campaignId, setSession]);
 
   const endSession = useCallback(async () => {
     if (!sessionId) return;
@@ -59,7 +81,7 @@ export function useDialerSession(campaignId: string) {
     clearLead();
     clearAttempt();
     clearSession();
-  }, [sessionId]);
+  }, [api, sessionId, clearLead, clearAttempt, clearSession]);
 
   const pauseSession = useCallback(async () => {
     if (!sessionId) return;
@@ -69,7 +91,7 @@ export function useDialerSession(campaignId: string) {
     } catch {
       // handled
     }
-  }, [sessionId]);
+  }, [api, sessionId, setStatus]);
 
   const resumeSession = useCallback(async () => {
     if (!sessionId) return;
@@ -79,7 +101,7 @@ export function useDialerSession(campaignId: string) {
     } catch {
       // handled
     }
-  }, [sessionId]);
+  }, [api, sessionId, setStatus]);
 
   return {
     sessionId,

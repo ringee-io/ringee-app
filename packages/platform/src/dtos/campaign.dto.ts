@@ -8,6 +8,10 @@ import {
   IsIn,
   IsEmail,
   IsObject,
+  IsNumber,
+  IsInt,
+  Min,
+  Max,
 } from "class-validator";
 import { Type } from "class-transformer";
 
@@ -21,6 +25,52 @@ export class CreateCampaignDto {
   @IsString()
   @MaxLength(500)
   description?: string;
+
+  @IsOptional()
+  @IsIn(["progressive", "preview"])
+  dialerMode?: "progressive" | "preview";
+
+  @IsOptional()
+  @IsString()
+  callerIdId?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(20)
+  maxAttempts?: number;
+
+  @IsOptional()
+  @IsString()
+  timezone?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1439)
+  workStartMin?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(1439)
+  workEndMin?: number;
+
+  @IsOptional()
+  @IsArray()
+  workDays?: number[];
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(300)
+  wrapUpTimeSec?: number;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10080)
+  retryDelayMin?: number;
 }
 
 export class UpdateCampaignDto {

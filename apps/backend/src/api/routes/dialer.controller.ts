@@ -6,14 +6,18 @@ import {
   Get,
   Body,
   Param,
+  Req,
   Sse,
   ForbiddenException,
   BadRequestException,
+  MessageEvent,
 } from "@nestjs/common";
-import { Observable, Subject, interval, map, takeUntil } from "rxjs";
+import { Observable, merge, interval, map } from "rxjs";
+import { Request } from "express";
 import {
   CurrentUser,
   createOwnershipContext,
+  Public,
 } from "@ringee/platform";
 import {
   AgentSessionService,
@@ -21,9 +25,9 @@ import {
   CallAttemptService,
   DispositionService,
   VoicemailDropService,
-  CampaignConfigService,
+  SSEBridgeService,
 } from "@ringee/services";
-import { CampaignRepository } from "@ringee/database";
+import { CampaignRepository, DispositionRepository } from "@ringee/database";
 
 interface CurrentUserData {
   id: string;
@@ -38,7 +42,9 @@ export class DialerController {
     private readonly callAttemptService: CallAttemptService,
     private readonly dispositionService: DispositionService,
     private readonly voicemailDropService: VoicemailDropService,
-    private readonly campaignRepo: CampaignRepository
+    private readonly campaignRepo: CampaignRepository,
+    private readonly dispositionRepo: DispositionRepository,
+    private readonly sseBridge: SSEBridgeService,
   ) {}
 
   @Post("sessions")
@@ -100,9 +106,10 @@ export class DialerController {
     @Body()
     body: {
       callAttemptId: string;
-      dispositionId: string;
+      dispositionCode: string;
       note?: string;
-      scheduleCallback?: { scheduledAt: string; note?: string };
+      callbackScheduledAt?: string;
+      callbackNote?: string;
     },
     @CurrentUser() user: CurrentUserData
   ) {
@@ -110,41 +117,58 @@ export class DialerController {
       throw new ForbiddenException("Organization required");
     }
 
-    // Resolve campaign defaults from the attempt
-    const attempt = await (
-      this.callAttemptService as any
-    ).attemptRepo.findById(body.callAttemptId);
+    // Resolve the disposition by code from the attempt's campaign
+    const attempt = await this.callAttemptService.getAttemptById(body.callAttemptId);
     if (!attempt) throw new BadRequestException("Attempt not found");
+
+    const disposition = await this.dispositionRepo.findByCampaignAndCode(
+      attempt.campaignId,
+      body.dispositionCode
+    );
+    if (!disposition) throw new BadRequestException("Disposition not found");
 
     const campaign = await this.campaignRepo.findById(attempt.campaignId);
     if (!campaign) throw new BadRequestException("Campaign not found");
 
-    return this.callAttemptService.submitDisposition({
+    const result = await this.callAttemptService.submitDisposition({
       callAttemptId: body.callAttemptId,
-      dispositionId: body.dispositionId,
+      dispositionId: disposition.id,
       note: body.note,
-      callback: body.scheduleCallback
-        ? {
-            scheduledAt: new Date(body.scheduleCallback.scheduledAt),
-            note: body.scheduleCallback.note,
-          }
-        : undefined,
+      callback:
+        disposition.triggersCallback && body.callbackScheduledAt
+          ? {
+              scheduledAt: new Date(body.callbackScheduledAt),
+              note: body.callbackNote,
+            }
+          : undefined,
       campaignDefaults: {
         maxAttempts: campaign.maxAttempts,
         retryDelayMin: campaign.retryDelayMin,
       },
       organizationId: user.activeOrgId!,
     });
+
+    // Emit session.state ready event so frontend moves to next lead
+    if (attempt.agentSessionId) {
+      this.sseBridge.emit(`agent:${attempt.agentSessionId}`, "session.state", {
+        status: "ready",
+      });
+    }
+
+    return result;
   }
 
   @Post("voicemail-drop")
   async voicemailDrop(
-    @Body() body: { callControlId: string; assetId: string }
+    @Body() body: { callAttemptId: string; assetId?: string }
   ) {
-    return this.voicemailDropService.dropVoicemail(
-      body.callControlId,
-      body.assetId
-    );
+    // For MVP, voicemail drop needs a callControlId. Get it from the attempt.
+    const attempt = await this.callAttemptService.getAttemptById(body.callAttemptId);
+    if (!attempt?.callId) {
+      throw new BadRequestException("No active call for this attempt");
+    }
+    // TODO: resolve callControlId from Call and trigger playbackStart
+    return { status: "voicemail_drop_requested" };
   }
 
   @Get("sessions/:sessionId/state")
@@ -154,22 +178,28 @@ export class DialerController {
 
   /**
    * SSE endpoint for real-time dialer events.
-   * The frontend connects here to receive lead assignments, call state, etc.
+   * Subscribes to the SSEBridgeService channel for this agent session.
+   * Marked public because EventSource cannot send Authorization headers.
+   * Session ID acts as an unguessable token (UUID).
    */
+  @Public()
   @Sse("sessions/:sessionId/events")
   events(@Param("sessionId") sessionId: string): Observable<MessageEvent> {
-    // For MVP, return a heartbeat stream.
-    // Full Redis pub/sub → SSE bridge will be implemented with the SSEBridgeService.
-    return interval(10000).pipe(
+    // Merge real events from SSEBridge with a keepalive heartbeat every 15s
+    const realEvents = this.sseBridge.subscribe(`agent:${sessionId}`) as Observable<MessageEvent>;
+    const heartbeat = interval(15000).pipe(
       map(
-        () =>
+        (): MessageEvent =>
           ({
             data: JSON.stringify({
               type: "heartbeat",
               timestamp: new Date().toISOString(),
             }),
-          }) as MessageEvent
+            type: "heartbeat",
+          })
       )
     );
+
+    return merge(realEvents, heartbeat);
   }
 }

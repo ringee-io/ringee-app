@@ -1,8 +1,10 @@
 'use client';
 
+import { useCallback } from 'react';
 import { useDialerSessionStore } from '../store/dialer-session.store';
 import { useDialerSession } from '../hooks/use-dialer-session';
 import { useDialerEvents } from '../hooks/use-dialer-events';
+import { useDialerCall } from '../hooks/use-dialer-call';
 import { DialerStatusBar } from './dialer-status-bar';
 import { LeadPanel } from './lead-panel';
 import { SoftphonePanel } from './softphone-panel';
@@ -24,8 +26,18 @@ export function AgentWorkspace({ campaignId }: Props) {
   const { sessionId, status, startSession, endSession, pauseSession, resumeSession } =
     useDialerSession(campaignId);
 
-  // Connect SSE for real-time events
-  useDialerEvents(sessionId);
+  const { dial } = useDialerCall();
+
+  // When backend sends call.initiate via SSE, place the actual WebRTC call
+  const handleCallInitiate = useCallback(
+    (data: { attemptId: string; phoneNumber: string; callerIdNumber: string | null }) => {
+      dial(data.phoneNumber, data.callerIdNumber);
+    },
+    [dial]
+  );
+
+  // Connect SSE for real-time events, with call initiate callback
+  useDialerEvents(sessionId, handleCallInitiate);
 
   // Not connected — show start screen
   if (!sessionId) {

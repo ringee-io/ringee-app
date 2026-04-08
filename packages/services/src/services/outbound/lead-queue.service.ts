@@ -36,6 +36,13 @@ export class LeadQueueService {
   }
 
   /**
+   * Get a lead by ID with contact info.
+   */
+  async getLeadById(id: string) {
+    return this.campaignLeadRepo.findByIdWithContact(id);
+  }
+
+  /**
    * Release a locked lead back to the queue.
    */
   async releaseLead(leadId: string): Promise<void> {

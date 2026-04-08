@@ -47,6 +47,24 @@ export class CampaignLeadRepository {
     return result.count;
   }
 
+  async findByIdWithContact(id: string): Promise<CampaignLeadWithContact | null> {
+    const lead = await this.prisma.campaignLead.findUnique({
+      where: { id },
+      include: {
+        contact: {
+          select: {
+            id: true,
+            name: true,
+            phoneNumber: true,
+            email: true,
+            company: true,
+          },
+        },
+      },
+    });
+    return lead as CampaignLeadWithContact | null;
+  }
+
   async findByCampaign(
     campaignId: string,
     options?: {

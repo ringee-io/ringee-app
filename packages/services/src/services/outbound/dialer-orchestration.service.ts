@@ -1,38 +1,46 @@
-import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
+import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
 import {
   CampaignRepository,
+  CallerIdRepository,
   AgentSessionStatus,
   CampaignLeadStatus,
-  CallAttemptStatus,
 } from "@ringee/database";
-import { TelephonyService, WorkerService } from "@ringee/platform";
+import { TelephonyService } from "@ringee/platform";
 import { LeadQueueService } from "./lead-queue.service";
 import { AgentSessionService } from "./agent-session.service";
 import { CallAttemptService } from "./call-attempt.service";
 import { ComplianceService } from "./compliance.service";
-import { CreditService } from "../credit.service";
+import { SSEBridgeService } from "./sse-bridge.service";
+import { DispositionService } from "./disposition.service";
 
 const DIALER_POLL_INTERVAL_MS = 500;
 
 @Injectable()
-export class DialerOrchestrationService implements OnModuleDestroy {
+export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DialerOrchestrationService.name);
   private pollingTimer: NodeJS.Timeout | null = null;
+  private lastWindowLog: number | null = null;
 
   constructor(
     private readonly campaignRepo: CampaignRepository,
+    private readonly callerIdRepo: CallerIdRepository,
     private readonly leadQueueService: LeadQueueService,
     private readonly agentSessionService: AgentSessionService,
     private readonly callAttemptService: CallAttemptService,
     private readonly complianceService: ComplianceService,
-    private readonly creditService: CreditService,
     private readonly telephonyService: TelephonyService,
-    private readonly workerService: WorkerService
+    private readonly sseBridge: SSEBridgeService,
+    private readonly dispositionService: DispositionService,
   ) {}
 
-  /**
-   * Start the dialer polling loop. Called when the backend module initializes.
-   */
+  onModuleInit(): void {
+    this.startPolling();
+  }
+
+  onModuleDestroy(): void {
+    this.stopPolling();
+  }
+
   startPolling(): void {
     if (this.pollingTimer) return;
     this.pollingTimer = setInterval(
@@ -40,10 +48,6 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       DIALER_POLL_INTERVAL_MS
     );
     this.logger.log("Dialer orchestration polling started");
-  }
-
-  onModuleDestroy(): void {
-    this.stopPolling();
   }
 
   stopPolling(): void {
@@ -59,20 +63,14 @@ export class DialerOrchestrationService implements OnModuleDestroy {
    * and assign them the next eligible lead.
    */
   async tick(): Promise<void> {
-    // Find all active campaigns
-    // Note: For efficiency, this could be cached. For MVP, query each tick.
-    const activeCampaigns = await this.campaignRepo.listByOrganization("", {
-      status: "active",
-      limit: 100,
-    });
+    const activeCampaigns = await this.campaignRepo.findAllActive();
 
-    // Actually we need to find all active campaigns across all orgs.
-    // The existing repo only lists by organization. We need a new method.
-    // For now, we'll work with what's available via a direct prisma call.
-    // TODO: Add findAllActive() to CampaignRepository.
-
-    for (const campaign of activeCampaigns.data) {
-      await this.processCampaign(campaign);
+    for (const campaign of activeCampaigns) {
+      try {
+        await this.processCampaign(campaign);
+      } catch (err) {
+        this.logger.error(`Error processing campaign ${campaign.id}:`, err);
+      }
     }
   }
 
@@ -90,9 +88,9 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     workDays: number[];
     dialerMode: string;
   }): Promise<void> {
-    if (!campaign.organizationId || !campaign.callerIdId) return;
+    if (!campaign.organizationId) return;
 
-    // Check calling window
+    // Check calling window — log but don't silently skip
     if (
       !this.complianceService.isWithinCallingWindow({
         timezone: campaign.timezone,
@@ -101,6 +99,14 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         workDays: campaign.workDays,
       })
     ) {
+      // Only log once per minute to avoid spam (use a simple throttle)
+      const now = Date.now();
+      if (!this.lastWindowLog || now - this.lastWindowLog > 60_000) {
+        this.lastWindowLog = now;
+        this.logger.warn(
+          `Campaign ${campaign.id} outside calling window (${campaign.timezone} ${campaign.workStartMin}-${campaign.workEndMin})`
+        );
+      }
       return;
     }
 
@@ -141,7 +147,14 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       agent.organizationId
     );
 
-    if (!lead) return; // No eligible leads
+    if (!lead) {
+      this.logger.debug(`No eligible leads for agent ${agent.userId} in campaign ${campaign.id}`);
+      return;
+    }
+
+    this.logger.log(
+      `Assigning lead ${lead.id} (${lead.contact?.phoneNumber}) to agent ${agent.userId}`
+    );
 
     // Reserve the agent
     await this.agentSessionService.transitionTo(
@@ -159,23 +172,50 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       attemptNumber: lead.attempts + 1,
     });
 
-    // Emit lead.assigned event for SSE
-    await this.workerService.emit("ringee:agent:" + agent.id, {
-      event: "lead.assigned",
-      lead,
+    // Get attempt history for this lead
+    const history = await this.callAttemptService.getAttemptHistory(lead.id);
+
+    // Load dispositions for the campaign (for the disposition panel)
+    const dispositions = await this.dispositionService.listByCampaign(campaign.id);
+
+    // Emit lead.assigned event via SSE bridge
+    this.sseBridge.emit(`agent:${agent.id}`, "lead.assigned", {
+      id: lead.id,
+      campaignLeadId: lead.id,
+      contact: lead.contact,
+      attempts: lead.attempts,
+      priority: lead.priority,
       attemptId: attempt.id,
+      history: history.map((h: any) => ({
+        attemptNumber: h.attemptNumber,
+        dispositionCode: h.dispositionCode,
+        endedAt: h.endedAt,
+        durationSec: h.durationSec,
+      })),
+      dispositions: dispositions.map((d: any) => ({
+        id: d.id,
+        code: d.code,
+        label: d.label,
+        category: d.category,
+        color: d.color,
+        triggersCallback: d.triggersCallback,
+      })),
     });
 
     // In progressive mode, auto-dial immediately
     if (campaign.dialerMode === "progressive") {
       await this.initiateCall(campaign, agent, lead, attempt.id);
+    } else {
+      // Preview mode — emit session state so frontend shows the lead + Dial button
+      this.sseBridge.emit(`agent:${agent.id}`, "session.state", {
+        status: "reserved",
+      });
     }
-    // In preview mode, agent must click "Dial" manually
   }
 
   /**
-   * Initiate a call via Telnyx. Called automatically in progressive mode
-   * or manually in preview mode.
+   * Initiate a call via Telnyx WebRTC.
+   * Resolves the campaign caller ID and tells the frontend to place the call.
    */
   async initiateCall(
     campaign: {
@@ -186,16 +226,12 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     lead: { id: string; contact: { phoneNumber: string } },
     attemptId: string
   ): Promise<void> {
-    // Build client state with callAttemptId for webhook correlation
-    const clientState = Buffer.from(
-      JSON.stringify({ callAttemptId: attemptId })
-    ).toString("base64");
-
-    // TODO: Resolve callerIdId to actual phone number
-    // For now, the call initiation goes through the existing Telnyx WebRTC flow
-    // where the frontend initiates the call with custom headers.
-    // The backend creates the CallAttempt, and when the webhook arrives,
-    // it correlates via callAttemptId in clientState.
+    // Resolve caller ID phone number
+    let callerIdNumber: string | null = null;
+    if (campaign.callerIdId) {
+      const callerId = await this.callerIdRepo.findById(campaign.callerIdId);
+      callerIdNumber = callerId?.phoneNumber ?? null;
+    }
 
     // Transition states
     await this.agentSessionService.transitionTo(
@@ -203,22 +239,20 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       AgentSessionStatus.dialing
     );
 
-    // Emit call state event
-    await this.workerService.emit("ringee:agent:" + agent.id, {
-      event: "call.state",
-      status: "dialing",
+    // Emit call.initiate event — frontend uses this to place the WebRTC call
+    this.sseBridge.emit(`agent:${agent.id}`, "call.initiate", {
       attemptId,
       phoneNumber: lead.contact.phoneNumber,
+      callerIdNumber,
     });
 
     this.logger.log(
-      `Call initiated for lead ${lead.id} → ${lead.contact.phoneNumber} (attempt: ${attemptId})`
+      `Call initiated for lead ${lead.id} → ${lead.contact.phoneNumber} (attempt: ${attemptId}, callerId: ${callerIdNumber})`
     );
   }
 
   /**
    * Manual dial trigger for preview mode.
-   * Called when agent clicks "Dial" after reviewing the lead.
    */
   async manualDial(
     sessionId: string,
@@ -234,18 +268,33 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       throw new Error("No lead assigned to session");
     }
 
-    // Find the pending attempt for this session
-    // (created during lead assignment)
     const campaign = await this.campaignRepo.findById(campaignId);
     if (!campaign) throw new Error("Campaign not found");
 
-    // The call will be initiated by the frontend via WebRTC
-    // with the callAttemptId in the client state.
-    // Transition agent to dialing state.
+    // Resolve caller ID
+    let callerIdNumber: string | null = null;
+    if (campaign.callerIdId) {
+      const callerId = await this.callerIdRepo.findById(campaign.callerIdId);
+      callerIdNumber = callerId?.phoneNumber ?? null;
+    }
+
+    // Get the lead's phone number
+    const lead = await this.leadQueueService.getLeadById(session.currentLeadId);
+
+    // Find the current attempt for this lead
+    const attempts = await this.callAttemptService.getAttemptHistory(session.currentLeadId);
+    const latestAttempt = attempts[0];
+
     await this.agentSessionService.transitionTo(
       sessionId,
       AgentSessionStatus.dialing
     );
+
+    this.sseBridge.emit(`agent:${sessionId}`, "call.initiate", {
+      attemptId: latestAttempt?.id,
+      phoneNumber: lead?.contact?.phoneNumber,
+      callerIdNumber,
+    });
   }
 
   /**
@@ -270,5 +319,9 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       AgentSessionStatus.ready,
       undefined
     );
+
+    this.sseBridge.emit(`agent:${sessionId}`, "session.state", {
+      status: "ready",
+    });
   }
 }

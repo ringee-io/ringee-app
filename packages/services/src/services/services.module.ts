@@ -35,6 +35,7 @@ import {
   VoicemailDropService,
   OutboundAnalyticsService,
   CampaignConfigService,
+  SSEBridgeService,
 } from "./outbound";
 
 const servicesProviders = [
@@ -68,6 +69,7 @@ const servicesProviders = [
   VoicemailDropService,
   OutboundAnalyticsService,
   CampaignConfigService,
+  SSEBridgeService,
 ];
 
 @Global()

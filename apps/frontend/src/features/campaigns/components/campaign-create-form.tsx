@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
@@ -21,8 +21,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@ringee/frontend-shared/components/ui/select';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Phone } from 'lucide-react';
 import type { CreateCampaignDto, DialerMode } from '../types/campaign.types';
+
+interface CallerId {
+  id: string;
+  phoneNumber: string;
+  verified: boolean;
+  status: string;
+}
 
 const TIMEZONES = [
   'America/New_York',
@@ -57,6 +64,7 @@ export function CampaignCreateForm() {
   const router = useRouter();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [callerIds, setCallerIds] = useState<CallerId[]>([]);
 
   const [form, setForm] = useState<CreateCampaignDto>({
     name: '',
@@ -64,12 +72,17 @@ export function CampaignCreateForm() {
     dialerMode: 'progressive',
     maxAttempts: 3,
     timezone: 'America/New_York',
-    workStartMin: 540,
-    workEndMin: 1020,
-    workDays: [1, 2, 3, 4, 5],
+    workStartMin: 480,
+    workEndMin: 1260,
+    workDays: [0, 1, 2, 3, 4, 5, 6],
     wrapUpTimeSec: 30,
     retryDelayMin: 60,
   });
+
+  // Load caller IDs on mount
+  useEffect(() => {
+    api.get<CallerId[]>('/telephony/caller-ids').then(setCallerIds).catch(() => {});
+  }, [api]);
 
   function updateForm(patch: Partial<CreateCampaignDto>) {
     setForm((prev) => ({ ...prev, ...patch }));
@@ -146,6 +159,35 @@ export function CampaignCreateForm() {
           <CardDescription>Configure how calls are placed.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label>Caller ID</Label>
+            <Select
+              value={form.callerIdId || ''}
+              onValueChange={(v) => updateForm({ callerIdId: v || undefined })}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Select a caller ID..." />
+              </SelectTrigger>
+              <SelectContent>
+                {callerIds.filter(c => c.verified).map((cid) => (
+                  <SelectItem key={cid.id} value={cid.id}>
+                    <span className="flex items-center gap-2">
+                      <Phone className="h-3 w-3" />
+                      {cid.phoneNumber}
+                    </span>
+                  </SelectItem>
+                ))}
+                {callerIds.filter(c => c.verified).length === 0 && (
+                  <SelectItem value="__none" disabled>
+                    No verified caller IDs
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              The phone number displayed to leads when calling.
+            </p>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
               <Label>Dialer Mode</Label>
@@ -234,7 +276,7 @@ export function CampaignCreateForm() {
               <Input
                 id="workStart"
                 type="time"
-                value={minutesToTime(form.workStartMin ?? 540)}
+                value={minutesToTime(form.workStartMin ?? 480)}
                 onChange={(e) => updateForm({ workStartMin: timeToMinutes(e.target.value) })}
               />
             </div>
@@ -243,7 +285,7 @@ export function CampaignCreateForm() {
               <Input
                 id="workEnd"
                 type="time"
-                value={minutesToTime(form.workEndMin ?? 1020)}
+                value={minutesToTime(form.workEndMin ?? 1260)}
                 onChange={(e) => updateForm({ workEndMin: timeToMinutes(e.target.value) })}
               />
             </div>
