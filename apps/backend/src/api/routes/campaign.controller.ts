@@ -26,6 +26,7 @@ import {
   CampaignConfigService,
   DispositionService,
   RetryEngine,
+  CampaignMemberService,
 } from "@ringee/services";
 import { DispositionCategory } from "@ringee/database";
 
@@ -40,7 +41,8 @@ export class CampaignController {
     private readonly campaignService: CampaignService,
     private readonly campaignConfig: CampaignConfigService,
     private readonly dispositionService: DispositionService,
-    private readonly retryEngine: RetryEngine
+    private readonly retryEngine: RetryEngine,
+    private readonly memberService: CampaignMemberService
   ) {}
 
   @Post()
@@ -222,6 +224,46 @@ export class CampaignController {
       throw new ForbiddenException("Campaigns require an organization");
     }
     return this.retryEngine.deleteRule(ruleId);
+  }
+
+  // ── Member management endpoints ──
+
+  @Get(":id/members")
+  async listMembers(
+    @Param("id") campaignId: string,
+    @CurrentUser() user: CurrentUserData
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    const ctx = createOwnershipContext(user);
+    return this.memberService.listMembers(ctx, campaignId);
+  }
+
+  @Post(":id/members")
+  async addMember(
+    @Param("id") campaignId: string,
+    @Body() body: { userId: string; role?: string },
+    @CurrentUser() user: CurrentUserData
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    const ctx = createOwnershipContext(user);
+    return this.memberService.addMember(ctx, campaignId, body.userId, body.role);
+  }
+
+  @Delete(":id/members/:userId")
+  async removeMember(
+    @Param("id") campaignId: string,
+    @Param("userId") userId: string,
+    @CurrentUser() user: CurrentUserData
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    const ctx = createOwnershipContext(user);
+    return this.memberService.removeMember(ctx, campaignId, userId);
   }
 
   // ── List management endpoints ──

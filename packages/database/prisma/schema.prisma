@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = "postgresql://ringee-user:ringee-password@localhost:5432/ringee-db-local?schema=public"
 }
 
 enum EmailStatus {
@@ -148,6 +148,7 @@ model User {
   organizationMemberships OrganizationMembership[]
   subscriptions           Subscription[]
   campaigns               Campaign[]
+  campaignMembers         CampaignMember[]
   campaignLeads           CampaignLead[]
   tags                    Tag[]
   meetings                Meeting[]
@@ -593,6 +594,7 @@ model Campaign {
   user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization?  @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   callerId     CallerId?      @relation("campaignCallerId", fields: [callerIdId], references: [id])
+  members      CampaignMember[]
   leads        CampaignLead[]
   lists        CampaignList[]
   dispositions Disposition[]
@@ -914,4 +916,20 @@ model AgentSession {
   @@index([campaignId, status])
   @@index([userId])
   @@index([lastHeartbeat])
+}
+
+model CampaignMember {
+  id         String @id @default(uuid()) @db.Uuid
+  campaignId String @db.Uuid
+  userId     String @db.Uuid
+  role       String @default("agent") // admin | agent
+
+  assignedAt DateTime @default(now())
+
+  campaign Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([campaignId, userId])
+  @@index([campaignId])
+  @@index([userId])
 }

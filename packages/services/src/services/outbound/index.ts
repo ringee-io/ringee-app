@@ -9,4 +9,5 @@ export * from "./dialer-orchestration.service";
 export * from "./voicemail-drop.service";
 export * from "./outbound-analytics.service";
 export * from "./campaign-config.service";
+export * from "./campaign-member.service";
 export * from "./sse-bridge.service";

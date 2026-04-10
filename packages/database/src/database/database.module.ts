@@ -17,6 +17,7 @@ import { RecordingRepository } from "./repositories/recording.repository";
 import { OrganizationRepository } from "./repositories/organization.repository";
 import { SubscriptionRepository } from "./repositories/subscription.repository";
 import { CampaignRepository } from "./repositories/campaign.repository";
+import { CampaignMemberRepository } from "./repositories/campaign-member.repository";
 import { CampaignLeadRepository } from "./repositories/campaign-lead.repository";
 import { CampaignListRepository } from "./repositories/campaign-list.repository";
 import { CallAttemptRepository } from "./repositories/call-attempt.repository";
@@ -50,6 +51,7 @@ const databaseProviders = [
   OrganizationRepository,
   SubscriptionRepository,
   CampaignRepository,
+  CampaignMemberRepository,
   CampaignLeadRepository,
   CampaignListRepository,
   CallAttemptRepository,
