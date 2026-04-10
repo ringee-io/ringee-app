@@ -21,11 +21,23 @@ import {
   TabsTrigger,
 } from '@ringee/frontend-shared/components/ui/tabs';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@ringee/frontend-shared/components/ui/alert-dialog';
+import {
   ArrowLeft,
   Play,
   Pause,
   CheckCircle2,
   Users,
+  UserPlus,
   Phone,
   BarChart3,
   ListChecks,
@@ -37,6 +49,7 @@ import { CampaignLeadsTab } from './campaign-leads-tab';
 import { CampaignDispositionsTab } from './campaign-dispositions-tab';
 import { CampaignSettingsTab } from './campaign-settings-tab';
 import { CampaignAnalytics } from './campaign-analytics';
+import { CampaignMembersTab } from './campaign-members-tab';
 
 const STATUS_COLORS: Record<CampaignStatus, string> = {
   draft: 'bg-gray-100 text-gray-700 border-gray-300',
@@ -166,28 +179,72 @@ export function CampaignDetail({ campaignId }: Props) {
                 )}
                 Pause
               </Button>
-              <Button
-                variant="outline"
-                onClick={() => transitionStatus('completed')}
-                disabled={transitioning}
-              >
-                <CheckCircle2 className="mr-2 h-4 w-4" />
-                Complete
-              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" disabled={transitioning}>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Complete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Complete Campaign?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Once this campaign is marked as completed, it cannot be reactivated,
+                      edited, or have new leads added. All active agent sessions will end
+                      and no further calls will be made. This action is irreversible.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => transitionStatus('completed')}>
+                      {transitioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Yes, Complete Campaign
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </>
           )}
           {campaign.status === 'paused' && (
-            <Button
-              onClick={() => transitionStatus('active')}
-              disabled={transitioning}
-            >
-              {transitioning ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Play className="mr-2 h-4 w-4" />
-              )}
-              Resume
-            </Button>
+            <>
+              <Button
+                onClick={() => transitionStatus('active')}
+                disabled={transitioning}
+              >
+                {transitioning ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Play className="mr-2 h-4 w-4" />
+                )}
+                Resume
+              </Button>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" disabled={transitioning}>
+                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                    Complete
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Complete Campaign?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Once this campaign is marked as completed, it cannot be reactivated,
+                      edited, or have new leads added. All active agent sessions will end
+                      and no further calls will be made. This action is irreversible.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={() => transitionStatus('completed')}>
+                      {transitioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                      Yes, Complete Campaign
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </>
           )}
           {(campaign.status === 'active' || campaign.status === 'paused') && (
             <Button
@@ -246,6 +303,10 @@ export function CampaignDetail({ campaignId }: Props) {
             <Users className="mr-2 h-4 w-4" />
             Leads
           </TabsTrigger>
+          <TabsTrigger value="members">
+            <UserPlus className="mr-2 h-4 w-4" />
+            Members
+          </TabsTrigger>
           <TabsTrigger value="dispositions">
             <ListChecks className="mr-2 h-4 w-4" />
             Dispositions
@@ -262,6 +323,10 @@ export function CampaignDetail({ campaignId }: Props) {
 
         <TabsContent value="leads" className="mt-4">
           <CampaignLeadsTab campaignId={campaignId} campaignStatus={campaign.status} />
+        </TabsContent>
+
+        <TabsContent value="members" className="mt-4">
+          <CampaignMembersTab campaignId={campaignId} campaignStatus={campaign.status} />
         </TabsContent>
 
         <TabsContent value="dispositions" className="mt-4">

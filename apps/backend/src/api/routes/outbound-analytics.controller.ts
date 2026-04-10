@@ -70,6 +70,18 @@ export class OutboundAnalyticsController {
     );
   }
 
+  @Get("dispositions-by-agent")
+  async dispositionsByAgent(
+    @Param("campaignId") campaignId: string,
+    @CurrentUser() user: CurrentUserData,
+    @Query("agentUserId") agentUserId?: string
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Organization required");
+    }
+    return this.analyticsService.getDispositionsByAgent(campaignId, agentUserId);
+  }
+
   @Get("hourly")
   async hourly(
     @Param("campaignId") campaignId: string,

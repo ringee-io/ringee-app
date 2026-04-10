@@ -38,6 +38,14 @@ export const navGroups: NavGroup[] = [
         items: []
       },
       {
+        title: 'Activities',
+        url: '/dashboard/activities',
+        icon: 'activity',
+        shortcut: ['a', 'c'],
+        isActive: false,
+        items: []
+      },
+      {
         title: 'Meetings',
         url: '/dashboard/meetings',
         icon: 'calendarCheck',

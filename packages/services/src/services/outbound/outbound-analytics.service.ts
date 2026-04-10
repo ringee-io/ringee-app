@@ -48,6 +48,10 @@ export class OutboundAnalyticsService {
     );
   }
 
+  async getDispositionsByAgent(campaignId: string, agentUserId?: string) {
+    return this.analyticsRepo.getDispositionsByAgent(campaignId, agentUserId);
+  }
+
   async getHourlyCallVolume(
     campaignId: string,
     startDate?: Date,

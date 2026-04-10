@@ -20,8 +20,7 @@ export function useCall(call?: Call | null) {
     setIsOnHold,
     setIsRecording,
     recordingId,
-    setRecordingId,
-    reset
+    setRecordingId
   } = useCallStore();
   const { userId, orgId } = useAuth();
   const { client } = useTelnyxStore();
@@ -110,11 +109,14 @@ export function useCall(call?: Call | null) {
   const handleHangup = useCallback(async () => {
     try {
       await call?.hangup?.();
-      reset();
+      // Don't reset() here — the hangup notification will trigger
+      // enterPostCallPhase which needs callId/contactId from the store.
+      // The full reset happens in handlePostCallClose after the user
+      // finishes the post-call flow.
     } catch (err) {
       console.error('❌ Hangup error:', err);
     }
-  }, [call, reset]);
+  }, [call]);
 
   const handleSendDTMF = useCallback(
     (digit: string) => {

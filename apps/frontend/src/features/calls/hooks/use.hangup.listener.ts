@@ -55,11 +55,13 @@ export function useHangupListener() {
       // Transition to post-call phase instead of closing
       // contactName and contactId are resolved by ShowActiveCall and will be
       // available via the call store's existing state set by show.active.call
+      const sessionId = (notification.call as any)?.telnyxIDs?.telnyxSessionId ?? null;
       enterPostCallPhase({
         duration,
         contactName: null,
         contactId: null,
-        callId: null
+        callId: null,
+        callSessionId: sessionId
       });
     }
   }, [notification]);

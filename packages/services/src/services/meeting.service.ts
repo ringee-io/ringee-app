@@ -148,6 +148,10 @@ export class MeetingService {
     });
   }
 
+  async findCallBySessionId(sessionId: string): Promise<Call | null> {
+    return this.callRepo.findOneBySessionId(sessionId);
+  }
+
   async updateCallOutcome(
     ctx: OwnershipContext,
     callId: string,

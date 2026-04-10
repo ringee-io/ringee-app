@@ -37,6 +37,7 @@ import {
   OutboundAnalyticsService,
   CampaignConfigService,
   SSEBridgeService,
+  CampaignMemberService,
 } from "./outbound";
 
 const servicesProviders = [
@@ -70,6 +71,7 @@ const servicesProviders = [
   VoicemailDropService,
   OutboundAnalyticsService,
   CampaignConfigService,
+  CampaignMemberService,
   SSEBridgeService,
 ];
 

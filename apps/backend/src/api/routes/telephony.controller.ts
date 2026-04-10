@@ -25,6 +25,7 @@ import {
 import {
   Call,
   CallStatus,
+  CallOutcome,
   NumberPurchased,
   TelnyxRatePerMinuteRepository,
 } from "@ringee/database";
@@ -125,6 +126,11 @@ export class TelephonyController {
       page?: number;
       limit?: number;
       status?: CallStatus[];
+      outcome?: CallOutcome | CallOutcome[];
+      dateFrom?: string;
+      dateTo?: string;
+      excludeCampaignCalls?: string;
+      includeMeetings?: string;
       orderBy?: "createdAt" | "startedAt" | "endedAt";
       sortDirection?: "asc" | "desc";
     } = {},
@@ -135,7 +141,22 @@ export class TelephonyController {
     totalPages: number;
   }> {
     const ctx = createOwnershipContext(user);
-    return this.callService.listByOwnerPaginated(ctx, query);
+    const outcome = query.outcome
+      ? Array.isArray(query.outcome) ? query.outcome : [query.outcome]
+      : undefined;
+    return this.callService.listByOwnerPaginated(ctx, {
+      ...query,
+      outcome,
+      excludeCampaignCalls: query.excludeCampaignCalls === "true",
+      includeMeetings: query.includeMeetings === "true",
+    });
+  }
+
+  @Get("calls/by-session/:sessionId")
+  async getCallBySession(
+    @Param("sessionId") sessionId: string,
+  ): Promise<Call | null> {
+    return this.callService.findOneBySessionId(sessionId);
   }
 
   @Post("recordings/start")

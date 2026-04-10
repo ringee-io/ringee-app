@@ -214,6 +214,50 @@ export class OutboundAnalyticsRepository {
     }));
   }
 
+  async getDispositionsByAgent(
+    campaignId: string,
+    agentUserId?: string
+  ): Promise<
+    {
+      agentUserId: string;
+      dispositionCode: string;
+      count: number;
+    }[]
+  > {
+    const agentFilter = agentUserId
+      ? `AND "agentUserId" = $2::uuid`
+      : "";
+    const params: any[] = [campaignId];
+    if (agentUserId) params.push(agentUserId);
+
+    const results = await this.prisma.$queryRawUnsafe<
+      {
+        agent_user_id: string;
+        disposition_code: string;
+        count: bigint;
+      }[]
+    >(
+      `SELECT
+        "agentUserId" as agent_user_id,
+        "dispositionCode" as disposition_code,
+        COUNT(*) as count
+      FROM "CallAttempt"
+      WHERE "campaignId" = $1::uuid
+        AND "dispositionCode" IS NOT NULL
+        AND "agentUserId" IS NOT NULL
+        ${agentFilter}
+      GROUP BY "agentUserId", "dispositionCode"
+      ORDER BY "agentUserId", count DESC`,
+      ...params
+    );
+
+    return results.map((r) => ({
+      agentUserId: r.agent_user_id,
+      dispositionCode: r.disposition_code,
+      count: Number(r.count),
+    }));
+  }
+
   async getLeadStatusCounts(
     campaignId: string
   ): Promise<{ status: string; count: number }[]> {

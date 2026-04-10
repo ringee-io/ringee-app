@@ -29,6 +29,7 @@ interface CallState {
   callContactName: string | null;
   callContactId: string | null;
   callId: string | null;
+  callSessionId: string | null;
 
   // In-call booking panel
   bookingPanelOpen: boolean;
@@ -39,7 +40,8 @@ interface CallState {
   setIsRecording: (v: boolean) => void;
   setRecordingId: (id: string | null) => void;
 
-  // Sync contact from ShowActiveCall
+  // Sync contact & call ID from ShowActiveCall
+  setCallId: (id: string | null) => void;
   setCallContact: (contactId: string | null, contactName: string | null) => void;
 
   // Post-call actions
@@ -48,6 +50,7 @@ interface CallState {
     contactName: string | null;
     contactId: string | null;
     callId: string | null;
+    callSessionId: string | null;
   }) => void;
   setOutcome: (outcome: CallOutcome | null) => void;
   setOutcomeNote: (note: string) => void;
@@ -69,6 +72,7 @@ const initialState = {
   callContactName: null,
   callContactId: null,
   callId: null,
+  callSessionId: null,
   bookingPanelOpen: false
 };
 
@@ -80,6 +84,7 @@ export const useCallStore = create<CallState>((set) => ({
   setIsRecording: (v) => set({ isRecording: v }),
   setRecordingId: (id) => set({ recordingId: id }),
 
+  setCallId: (id) => set({ callId: id }),
   setCallContact: (contactId, contactName) =>
     set({ callContactId: contactId, callContactName: contactName }),
 
@@ -91,6 +96,7 @@ export const useCallStore = create<CallState>((set) => ({
       callContactName: data.contactName ?? state.callContactName,
       callContactId: data.contactId ?? state.callContactId,
       callId: data.callId ?? state.callId,
+      callSessionId: data.callSessionId ?? state.callSessionId,
       bookingPanelOpen: false
     })),
   setOutcome: (outcome) => set({ outcome }),

@@ -15,6 +15,7 @@ export * from "./recording.repository";
 export * from "./organization.repository";
 export * from "./subscription.repository";
 export * from "./campaign.repository";
+export * from "./campaign-member.repository";
 export * from "./campaign-lead.repository";
 export * from "./campaign-list.repository";
 export * from "./call-attempt.repository";
