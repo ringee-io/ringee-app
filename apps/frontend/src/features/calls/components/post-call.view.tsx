@@ -107,6 +107,7 @@ export function PostCallView({ onClose }: PostCallViewProps) {
     callContactName,
     callContactId,
     callId,
+    callSessionId,
     setOutcome,
     setOutcomeNote,
     setMeetingBooked
@@ -121,9 +122,10 @@ export function PostCallView({ onClose }: PostCallViewProps) {
     if (!outcome) return;
     setIsSaving(true);
     try {
-      if (callId) {
+      if (callId || callSessionId) {
         await api.post('/meetings/call-outcome', {
-          callId,
+          callId: callId || undefined,
+          callSessionId: callSessionId || undefined,
           outcome,
           outcomeNote: outcomeNote || undefined
         });

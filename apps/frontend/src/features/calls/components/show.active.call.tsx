@@ -12,7 +12,7 @@ import { useDialerSessionStore } from '@/features/dialer/store/dialer-session.st
 export function ShowActiveCall() {
   const dialerSessionId = useDialerSessionStore((s) => s.sessionId);
   const { activeCall, setActiveCall } = useTelnyxStore();
-  const { postCallPhase, reset, setCallContact, setCallId } = useCallStore();
+  const { postCallPhase, reset, setCallContact } = useCallStore();
   const api = useApi();
   const {
     isMuted,
@@ -66,32 +66,10 @@ export function ShowActiveCall() {
     }
   }, [contactId, contactName, setCallContact]);
 
-  // Resolve backend call ID from Telnyx session ID once the call is active
-  const resolvedSessionRef = useRef<string | null>(null);
-  useEffect(() => {
-    const state = activeCall?.state;
-    if (state !== 'active' && state !== 'connected' && state !== 'recording') return;
-
-    const sessionId = (activeCall as any)?.telnyxIDs?.telnyxSessionId;
-    if (!sessionId || resolvedSessionRef.current === sessionId) return;
-
-    resolvedSessionRef.current = sessionId;
-
-    api
-      .get<{ id: string }>(`/telephony/calls/by-session/${sessionId}`)
-      .then((call) => {
-        if (call?.id) {
-          setCallId(call.id);
-        }
-      })
-      .catch(() => {});
-  }, [activeCall, api, setCallId]);
-
   // Reset resolved number when call ends
   useEffect(() => {
     if (!activeCall && !postCallPhase) {
       resolvedNumberRef.current = null;
-      resolvedSessionRef.current = null;
       setContactId(null);
       setContactName(undefined);
     }

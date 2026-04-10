@@ -8,6 +8,7 @@ import {
   Param,
   Query,
   ForbiddenException,
+  BadRequestException,
 } from "@nestjs/common";
 import {
   CurrentUser,
@@ -105,11 +106,24 @@ export class MeetingController {
 
   @Post("call-outcome")
   async updateCallOutcome(
-    @Body() dto: { callId: string; outcome: string; outcomeNote?: string },
+    @Body() dto: { callId?: string; callSessionId?: string; outcome: string; outcomeNote?: string },
     @CurrentUser() user: CurrentUserData,
   ) {
     const ctx = createOwnershipContext(user);
-    return this.meetingService.updateCallOutcome(ctx, dto.callId, {
+
+    let callId = dto.callId;
+
+    // Resolve callId from Telnyx session ID if callId was not provided
+    if (!callId && dto.callSessionId) {
+      const call = await this.meetingService.findCallBySessionId(dto.callSessionId);
+      callId = call?.id;
+    }
+
+    if (!callId) {
+      throw new BadRequestException("callId or callSessionId is required");
+    }
+
+    return this.meetingService.updateCallOutcome(ctx, callId, {
       outcome: dto.outcome as any,
       outcomeNote: dto.outcomeNote,
     });
