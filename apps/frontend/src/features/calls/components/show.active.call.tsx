@@ -7,8 +7,10 @@ import { useCallStore } from '../store/call.store';
 import { useFreeTrialTimer } from '../hooks/use.free.trial.timer';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { useDialerSessionStore } from '@/features/dialer/store/dialer-session.store';
 
 export function ShowActiveCall() {
+  const dialerSessionId = useDialerSessionStore((s) => s.sessionId);
   const { activeCall, setActiveCall } = useTelnyxStore();
   const { postCallPhase, reset, setCallContact } = useCallStore();
   const api = useApi();
@@ -83,6 +85,10 @@ export function ShowActiveCall() {
     : activeCall?.state === 'active'
       ? 'Connected'
       : 'Connecting...';
+
+  // Don't show the global call modal when a dialer session is active —
+  // the campaign agent workspace handles the call UI.
+  if (dialerSessionId) return null;
 
   const isOpen = !!activeCall || postCallPhase;
 

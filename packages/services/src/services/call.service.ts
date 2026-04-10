@@ -15,6 +15,7 @@ import { ContactService } from "./contact.service";
 import { NumberPurchasedService } from "./number.purchased.service";
 import { UserDeviceService } from "./user.device.service";
 import { OrganizationService } from "./organization.service";
+import { CallAttemptService } from "./outbound/call-attempt.service";
 
 @Injectable()
 export class CallService {
@@ -31,7 +32,23 @@ export class CallService {
     private readonly userDeviceService: UserDeviceService,
     private readonly workerService: WorkerService,
     private readonly organizationService: OrganizationService,
+    private readonly callAttemptService: CallAttemptService,
   ) { }
+
+  /**
+   * Extract callAttemptId from Telnyx client_state if present.
+   * Returns null if the call is not a campaign call.
+   */
+  private extractCallAttemptId(payload: any): string | null {
+    try {
+      if (!payload.client_state) return null;
+      const decoded = Buffer.from(payload.client_state, "base64").toString("utf-8");
+      const parsed = JSON.parse(decoded);
+      return parsed.callAttemptId ?? null;
+    } catch {
+      return null;
+    }
+  }
 
   async findOneBySessionId(callSessionId: string): Promise<Call | null> {
     return this.callRepository.findOneBySessionId(callSessionId);
@@ -203,7 +220,7 @@ export class CallService {
           payload.to!,
         );
 
-        await this.callRepository.createCall(outboundCtx, {
+        const outboundCall = await this.callRepository.createCall(outboundCtx, {
           contact: contact ? { connect: { id: contact.id } } : undefined,
           fromNumber: payload.from!,
           toNumber: payload.to!,
@@ -216,15 +233,38 @@ export class CallService {
           startedAt: payload.start_time!,
           clientState: Buffer.from("initiate_call").toString("base64"),
         });
+
+        // Link to campaign call attempt if present
+        const initiatedAttemptId = this.extractCallAttemptId(payload);
+        if (initiatedAttemptId && outboundCall) {
+          await this.callAttemptService.handleWebhookEvent(
+            initiatedAttemptId,
+            event_type,
+            outboundCall.id,
+          );
+        }
+
         this.logger.log(`📞 Llamada ${callControlId} iniciada`);
         break;
 
-      case "call.answered":
+      case "call.answered": {
         await this.callRepository.updateStatus(
           callControlId,
           CallStatus.answered,
         );
+        const answeredAttemptId = this.extractCallAttemptId(payload);
+        const answeredCall = answeredAttemptId
+          ? await this.callRepository.findByControlId(callControlId)
+          : null;
+        if (answeredAttemptId && answeredCall) {
+          await this.callAttemptService.handleWebhookEvent(
+            answeredAttemptId,
+            event_type,
+            answeredCall.id,
+          );
+        }
         break;
+      }
 
       case "call.hangup": {
         const hangupPayload = payload as CallHangupPayload;
@@ -234,6 +274,18 @@ export class CallService {
           hangupPayload.start_time!,
           hangupPayload.end_time!,
         );
+
+        const hangupAttemptId = this.extractCallAttemptId(payload);
+        const hangupCall = hangupAttemptId
+          ? await this.callRepository.findByControlId(callControlId)
+          : null;
+        if (hangupAttemptId && hangupCall) {
+          await this.callAttemptService.handleWebhookEvent(
+            hangupAttemptId,
+            event_type,
+            hangupCall.id,
+          );
+        }
         break;
       }
 

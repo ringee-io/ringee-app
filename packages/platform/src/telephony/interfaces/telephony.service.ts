@@ -26,6 +26,7 @@ export type TelephonyService = {
   startRecording(callControlId: string): Promise<void>;
   stopRecording(callControlId: string): Promise<void>;
   downloadRecording(url: string): Promise<ArrayBuffer>;
+  playbackStart(callControlId: string, audioUrl: string): Promise<void>;
 } & TelephonyRateService &
   TelephonyNumbersService &
   TelephonyCallerIdService;

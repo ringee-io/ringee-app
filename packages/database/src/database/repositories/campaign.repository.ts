@@ -142,6 +142,13 @@ export class CampaignRepository {
     };
   }
 
+  async findAllActive(): Promise<CampaignWithLeadsCount[]> {
+    return this.prisma.campaign.findMany({
+      where: { status: "active" },
+      include: { _count: { select: { leads: true } } },
+    });
+  }
+
   async updateStatus(id: string, status: string): Promise<Campaign> {
     return this.prisma.campaign.update({
       where: { id },
@@ -151,7 +158,22 @@ export class CampaignRepository {
 
   async update(
     id: string,
-    data: { name?: string; description?: string }
+    data: Partial<
+      Pick<
+        Campaign,
+        | "name"
+        | "description"
+        | "dialerMode"
+        | "callerIdId"
+        | "maxAttempts"
+        | "timezone"
+        | "workStartMin"
+        | "workEndMin"
+        | "workDays"
+        | "wrapUpTimeSec"
+        | "retryDelayMin"
+      >
+    >
   ): Promise<Campaign> {
     return this.prisma.campaign.update({
       where: { id },

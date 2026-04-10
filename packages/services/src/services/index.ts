@@ -13,6 +13,7 @@ export * from "./recording.service";
 export * from "./organization.service";
 export * from "./subscription.service";
 export * from "./campaign.service";
+export * from "./outbound";
 export * from "./tag.service";
 export * from "./onboarding.service";
 export * from "./meeting.service";

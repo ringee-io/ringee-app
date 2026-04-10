@@ -114,4 +114,8 @@ export class TelephonyService implements TelephonyServiceInterface {
   downloadRecording(url: string): Promise<ArrayBuffer> {
     return this.getServiceProvider().downloadRecording(url);
   }
+
+  playbackStart(callControlId: string, audioUrl: string): Promise<void> {
+    return this.getServiceProvider().playbackStart(callControlId, audioUrl);
+  }
 }

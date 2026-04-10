@@ -24,6 +24,20 @@ import { TagService } from "./tag.service";
 import { OnboardingService } from "./onboarding.service";
 import { MeetingService } from "./meeting.service";
 import { CalendarService } from "./calendar.service";
+import {
+  ComplianceService,
+  DispositionService,
+  RetryEngine,
+  CallbackService,
+  AgentSessionService,
+  LeadQueueService,
+  CallAttemptService,
+  DialerOrchestrationService,
+  VoicemailDropService,
+  OutboundAnalyticsService,
+  CampaignConfigService,
+  SSEBridgeService,
+} from "./outbound";
 
 const servicesProviders = [
   UserService,
@@ -44,6 +58,19 @@ const servicesProviders = [
   OnboardingService,
   MeetingService,
   CalendarService,
+  // Outbound system services
+  ComplianceService,
+  DispositionService,
+  RetryEngine,
+  CallbackService,
+  AgentSessionService,
+  LeadQueueService,
+  CallAttemptService,
+  DialerOrchestrationService,
+  VoicemailDropService,
+  OutboundAnalyticsService,
+  CampaignConfigService,
+  SSEBridgeService,
 ];
 
 @Global()

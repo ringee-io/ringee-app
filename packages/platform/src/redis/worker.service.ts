@@ -7,6 +7,10 @@ import { lastValueFrom } from "rxjs";
  */
 export enum JobType {
   PROCESS_CALL_RECORDING = "process_call_recording",
+  RETRY_SCHEDULER = "retry_scheduler",
+  CALLBACK_SCHEDULER = "callback_scheduler",
+  AGENT_HEARTBEAT_CHECK = "agent_heartbeat_check",
+  CAMPAIGN_COMPLETION_CHECK = "campaign_completion_check",
 }
 
 /**
