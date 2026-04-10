@@ -42,7 +42,7 @@ export function HeaderOnboardingButton() {
             variant="outline"
             size="sm"
             className={cn(
-              "h-8 rounded-full gap-2 pl-2 pr-3",
+              "h-8 rounded-xl gap-2 pl-2 pr-3",
               "border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/30",
               "text-primary hover:text-primary",
               "transition-all duration-300 shadow-sm cursor-pointer"
