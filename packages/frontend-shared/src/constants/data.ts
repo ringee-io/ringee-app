@@ -53,6 +53,22 @@ export const navItems: NavItem[] = [
     isActive: false,
     items: [] // No child items
   },
+  {
+    title: 'DNC',
+    url: '/dashboard/dnc',
+    icon: 'shieldOff',
+    shortcut: ['d', 'n'],
+    isActive: false,
+    items: []
+  },
+  {
+    title: 'Callbacks',
+    url: '/dashboard/callbacks',
+    icon: 'phoneIncoming',
+    shortcut: ['c', 'b'],
+    isActive: false,
+    items: []
+  },
   // {
   //   title: 'Board',
   //   url: '/dashboard/kanban',
