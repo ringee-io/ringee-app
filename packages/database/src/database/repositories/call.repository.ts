@@ -147,6 +147,11 @@ export class CallRepository {
       page?: number;
       limit?: number;
       status?: CallStatus[];
+      outcome?: CallOutcome[];
+      dateFrom?: string;
+      dateTo?: string;
+      excludeCampaignCalls?: boolean;
+      includeMeetings?: boolean;
       orderBy?: "createdAt" | "startedAt" | "endedAt";
       sortDirection?: "asc" | "desc";
     } = {},
@@ -160,6 +165,11 @@ export class CallRepository {
       page = 1,
       limit = 20,
       status,
+      outcome,
+      dateFrom,
+      dateTo,
+      excludeCampaignCalls,
+      includeMeetings,
       orderBy = "createdAt",
       sortDirection = "desc",
     } = options;
@@ -170,18 +180,31 @@ export class CallRepository {
     const where: Prisma.CallWhereInput = {
       ...ownershipFilter,
       ...(status ? { status: { in: status } } : {}),
+      ...(outcome ? { outcome: { in: outcome } } : {}),
+      ...(dateFrom || dateTo
+        ? {
+            createdAt: {
+              ...(dateFrom ? { gte: new Date(dateFrom) } : {}),
+              ...(dateTo ? { lte: new Date(dateTo) } : {}),
+            },
+          }
+        : {}),
+      ...(excludeCampaignCalls ? { callAttempts: { none: {} } } : {}),
     };
 
     const [data, total] = await Promise.all([
       this.prisma.call.findMany({
         where,
         skip,
-        take: limit,
+        take: +limit,
         orderBy: { [orderBy]: sortDirection },
         include: {
-          contact: true,
+          contact: includeMeetings
+            ? { include: { meetings: { orderBy: { scheduledAt: "desc" }, take: 1 } } }
+            : true,
           user: true,
           recordings: true,
+          ...(includeMeetings ? { meetings: { orderBy: { scheduledAt: "desc" }, take: 1 } } : {}),
         },
       }),
       this.prisma.call.count({ where }),

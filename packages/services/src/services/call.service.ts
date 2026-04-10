@@ -1,5 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { CallRepository, CallStatus, Call } from "@ringee/database";
+import { CallRepository, CallStatus, CallOutcome, Call } from "@ringee/database";
 import { NotificationService, WorkerService, OwnershipContext } from "@ringee/platform";
 import type {
   TelnyxWebhookEvent,
@@ -64,6 +64,11 @@ export class CallService {
       page?: number;
       limit?: number;
       status?: CallStatus[];
+      outcome?: CallOutcome[];
+      dateFrom?: string;
+      dateTo?: string;
+      excludeCampaignCalls?: boolean;
+      includeMeetings?: boolean;
       orderBy?: "createdAt" | "startedAt" | "endedAt";
       sortDirection?: "asc" | "desc";
     } = {},

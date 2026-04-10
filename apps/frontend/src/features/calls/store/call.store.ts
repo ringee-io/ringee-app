@@ -39,7 +39,8 @@ interface CallState {
   setIsRecording: (v: boolean) => void;
   setRecordingId: (id: string | null) => void;
 
-  // Sync contact from ShowActiveCall
+  // Sync contact & call ID from ShowActiveCall
+  setCallId: (id: string | null) => void;
   setCallContact: (contactId: string | null, contactName: string | null) => void;
 
   // Post-call actions
@@ -80,6 +81,7 @@ export const useCallStore = create<CallState>((set) => ({
   setIsRecording: (v) => set({ isRecording: v }),
   setRecordingId: (id) => set({ recordingId: id }),
 
+  setCallId: (id) => set({ callId: id }),
   setCallContact: (contactId, contactName) =>
     set({ callContactId: contactId, callContactName: contactName }),
 
