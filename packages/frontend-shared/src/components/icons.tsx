@@ -39,7 +39,8 @@ import {
   IconCalendarCheck,
   IconTarget,
   IconShieldOff,
-  IconPhoneIncoming
+  IconPhoneIncoming,
+  IconInbox
 } from '@tabler/icons-react';
 import { MoreHorizontal } from 'lucide-react';
 
@@ -86,6 +87,7 @@ export const Icons = {
   calendarCheck: IconCalendarCheck,
   target: IconTarget,
   shieldOff: IconShieldOff,
-  phoneIncoming: IconPhoneIncoming
+  phoneIncoming: IconPhoneIncoming,
+  inbox: IconInbox
 };
 

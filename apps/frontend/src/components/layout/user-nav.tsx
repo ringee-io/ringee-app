@@ -13,6 +13,7 @@ import { UserAvatarProfile } from '@ringee/frontend-shared/components/user-avata
 import { SignOutButton, useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import { Icons } from '@ringee/frontend-shared/components/icons';
+import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 
 export function UserNav({ useMock }: { useMock?: boolean }) {
   const { user } = useMock
@@ -25,6 +26,11 @@ export function UserNav({ useMock }: { useMock?: boolean }) {
       }
     : useUser();
   const router = useRouter();
+
+  const { canAccessAdminFeatures } = useMock
+    ? { canAccessAdminFeatures: true }
+    : useOrgRole();
+
   if (user) {
     return (
       <DropdownMenu>
@@ -50,30 +56,45 @@ export function UserNav({ useMock }: { useMock?: boolean }) {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
+          
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
               {/* @ts-ignore */}
               <Icons.user className='mr-2 h-4 w-4' />
               Profile
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push('/dashboard/rate')}>
-              {/* @ts-ignore */}
-              <Icons.star className='mr-2 h-4 w-4' />
-              Rate
-            </DropdownMenuItem>
-            <DropdownMenuItem
-              onClick={() => router.push('/dashboard/buy-number')}
-            >
-              {/* @ts-ignore */}
-              <Icons.phoneCall className='mr-2 h-4 w-4' />
-              Buy Number
-            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => router.push('/dashboard/history')}>
               {/* @ts-ignore */}
               <Icons.history className='mr-2 h-4 w-4' />
               History
             </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => router.push('/dashboard/recordings')}>
+              {/* @ts-ignore */}
+              <Icons.mic className='mr-2 h-4 w-4' />
+              Recordings
+            </DropdownMenuItem>
           </DropdownMenuGroup>
+
+          {canAccessAdminFeatures && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuGroup>
+                <DropdownMenuItem onClick={() => router.push('/dashboard/rate')}>
+                  {/* @ts-ignore */}
+                  <Icons.star className='mr-2 h-4 w-4' />
+                  Rate
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => router.push('/dashboard/buy-number')}
+                >
+                  {/* @ts-ignore */}
+                  <Icons.phoneCall className='mr-2 h-4 w-4' />
+                  Buy Number
+                </DropdownMenuItem>
+              </DropdownMenuGroup>
+            </>
+          )}
+
           <DropdownMenuSeparator />
           <DropdownMenuItem>
             <SignOutButton redirectUrl='/auth/sign-in' />

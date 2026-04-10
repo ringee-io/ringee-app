@@ -11,121 +11,98 @@ export type Product = {
   updated_at: string;
 };
 
+export interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
 //Info: The following data is used for the sidebar navigation and Cmd K bar.
-export const navItems: NavItem[] = [
+export const navGroups: NavGroup[] = [
   {
-    title: 'Dashboard',
-    url: '/dashboard/overview',
-    icon: 'dashboard',
-    isActive: false,
-    shortcut: ['d', 'd'],
-    items: [] // Empty array as there are no child items for Dashboard
-  },
-  {
-    title: 'Call',
-    url: '/dashboard/call',
-    icon: 'phoneCall',
-    shortcut: ['c', 'c'],
-    isActive: false,
-    items: [] // No child items
-  },
-  {
-    title: 'Meetings',
-    url: '/dashboard/meetings',
-    icon: 'calendarCheck',
-    shortcut: ['m', 'm'],
-    isActive: false,
-    items: [] // No child items
-  },
-  {
-    title: 'Contacts',
-    url: '/dashboard/contact',
-    icon: 'user',
-    shortcut: ['c', 't'],
-    isActive: false,
-    items: [] // No child items
-  },
-  {
-    title: 'Campaigns',
-    url: '/dashboard/campaigns',
-    icon: 'target',
-    shortcut: ['c', 'a'],
-    isActive: false,
-    items: [] // No child items
-  },
-  {
-    title: 'DNC',
-    url: '/dashboard/dnc',
-    icon: 'shieldOff',
-    shortcut: ['d', 'n'],
-    isActive: false,
-    items: []
-  },
-  {
-    title: 'Callbacks',
-    url: '/dashboard/callbacks',
-    icon: 'phoneIncoming',
-    shortcut: ['c', 'b'],
-    isActive: false,
-    items: []
-  },
-  // {
-  //   title: 'Board',
-  //   url: '/dashboard/kanban',
-  //   icon: 'kanban',
-  //   shortcut: ['k', 'k'],
-  //   isActive: false,
-  //   items: [] // No child items
-  // },
-  {
-    title: 'More',
-    url: '#',
-    icon: 'moreHorizontal',
-    isActive: true,
+    label: 'General',
     items: [
       {
-        title: 'Profile',
-        url: '/dashboard/profile',
-        icon: 'userPen',
-        shortcut: ['p', 'p'],
+        title: 'Dashboard',
+        url: '/dashboard/overview',
+        icon: 'dashboard',
         isActive: false,
-        items: [] // No child items
+        shortcut: ['d', 'd'],
+        items: []
       },
       {
-        title: 'Rate',
-        url: '/dashboard/rate',
-        icon: 'star',
-        shortcut: ['r', 'r'],
+        title: 'Contacts',
+        url: '/dashboard/contact',
+        icon: 'user',
+        shortcut: ['c', 't'],
         isActive: false,
-        items: [] // No child items
+        items: []
       },
       {
-        title: 'Buy Number',
-        url: '/dashboard/buy-number',
+        title: 'Meetings',
+        url: '/dashboard/meetings',
+        icon: 'calendarCheck',
+        shortcut: ['m', 'm'],
+        isActive: false,
+        items: []
+      }
+    ]
+  },
+  {
+    label: 'Communication',
+    items: [
+      {
+        title: 'Call',
+        url: '/dashboard/call',
         icon: 'phoneCall',
-        shortcut: ['b', 'n'],
+        shortcut: ['c', 'c'],
         isActive: false,
-        items: [] // No child items
+        items: []
       },
       {
-        title: 'Recordings',
-        url: '/dashboard/recordings',
-        icon: 'mic',
-        shortcut: ['r', 'c'],
+        title: 'Inbox',
+        url: '/dashboard/inbox',
+        icon: 'inbox',
+        shortcut: ['i', 'b'],
         isActive: false,
-        items: [] // No child items
+        disabled: true,
+        label: 'Coming soon',
+        items: []
+      }
+    ]
+  },
+  {
+    label: 'Outreach',
+    items: [
+      {
+        title: 'Campaigns',
+        url: '/dashboard/campaigns',
+        icon: 'target',
+        shortcut: ['c', 'a'],
+        isActive: false,
+        items: []
       },
       {
-        title: 'History',
-        url: '/dashboard/history',
-        icon: 'history',
-        shortcut: ['c', 'h'],
+        title: 'Callbacks',
+        url: '/dashboard/callbacks',
+        icon: 'phoneIncoming',
+        shortcut: ['c', 'b'],
+        isActive: false,
+        items: []
+      },
+      {
+        title: 'DNC',
+        url: '/dashboard/dnc',
+        icon: 'shieldOff',
+        shortcut: ['d', 'n'],
         isActive: false,
         items: []
       }
     ]
   }
 ];
+
+// Legacy flat list derived from groups (for backward compatibility)
+export const navItems: NavItem[] = navGroups.flatMap((g) => g.items);
 
 export interface SaleUser {
   id: number;
