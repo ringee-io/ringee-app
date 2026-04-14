@@ -8,12 +8,16 @@ import {
 } from "@nestjs/common";
 import { Public, TelnyxWebhookEvent } from "@ringee/platform";
 import { CallService } from "@ringee/services";
+import { TriggerLoopActivityService } from "../../triggerloop/services/triggerloop-activity.service";
 
 @Controller("call")
 export class CallController {
   private readonly logger = new Logger(CallController.name);
 
-  constructor(private readonly callService: CallService) { }
+  constructor(
+    private readonly callService: CallService,
+    private readonly activity: TriggerLoopActivityService,
+  ) {}
 
   @Public()
   @Post("webhook")
@@ -24,7 +28,21 @@ export class CallController {
       new Date().getTime(),
     );
 
-    await this.callService.handleTelnyxEvent(dto.data as TelnyxWebhookEvent);
+    const event = dto.data as TelnyxWebhookEvent;
+    await this.callService.handleTelnyxEvent(event);
+
+    // After a hangup, record activity and fire transition events. We fetch
+    // the call here (in the controller layer) to avoid coupling
+    // @ringee/services to the TriggerLoop module.
+    if (event.event_type === "call.hangup" && event.payload?.call_control_id) {
+      const call = await this.callService.findByControlId(
+        event.payload.call_control_id,
+      );
+      if (call?.userId) {
+        await this.activity.onCallCompleted(call.userId, call.id);
+      }
+    }
+
     return { received: true };
   }
 

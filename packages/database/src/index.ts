@@ -1,6 +1,7 @@
 import { User } from "@prisma/client";
 
 export * from "./database/database.module";
+export * from "./database/prisma.service";
 export * from "./database/repositories";
 export * from "@prisma/client";
 

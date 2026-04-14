@@ -5,6 +5,7 @@ import { ClerkUserRepository, ClerkOrganizationRepository, Public } from "@ringe
 import { UserRepository, OrganizationRepository } from "@ringee/database";
 import { SubscriptionService } from "@ringee/services";
 import { apiConfiguration } from "@ringee/configuration";
+import { TriggerLoopEventPublisher } from "../../triggerloop/services/triggerloop-event-publisher.service";
 
 @Public()
 @Controller("webhooks")
@@ -13,6 +14,7 @@ export class ClerkController {
     private readonly userRepository: UserRepository,
     private readonly organizationRepository: OrganizationRepository,
     private readonly subscriptionService: SubscriptionService,
+    private readonly triggerLoop: TriggerLoopEventPublisher,
   ) { }
 
   @Post("clerk")
@@ -64,6 +66,18 @@ export class ClerkController {
               userId: user.id,
             },
           });
+
+          const primaryEmail = clerkUser.emailAddresses?.find(
+            (e) => e.id === clerkUser.primaryEmailAddressId,
+          )?.emailAddress;
+          await this.triggerLoop.userRegistered(user.id, {
+            email: primaryEmail,
+            plan: "trial",
+          });
+          await this.triggerLoop.startWorkflow("signupFollowup", {
+            type: "user",
+            id: user.id,
+          });
           break;
         }
 
@@ -73,10 +87,17 @@ export class ClerkController {
           const userId = (evt.data as any).id;
 
           const clerkUser = await ClerkUserRepository.findById(userId);
-          await this.userRepository.updateFromClerkUser(clerkUser, {
+          const user = await this.userRepository.updateFromClerkUser(clerkUser, {
             clientIp: ip,
             userAgent: userAgent,
           });
+
+          const primary = clerkUser.emailAddresses?.find(
+            (e) => e.id === clerkUser.primaryEmailAddressId,
+          );
+          if (primary?.verification?.status === "verified" && user?.id) {
+            await this.triggerLoop.emailVerified(user.id, primary.emailAddress);
+          }
           break;
         }
 
@@ -98,6 +119,7 @@ export class ClerkController {
             const user = await this.userRepository.findByClerkId(createdBy);
             if (user) {
               await this.subscriptionService.assignToOrganization(user.id, org.id);
+              await this.triggerLoop.workspaceCreated(user.id, org.id);
             }
           }
           break;

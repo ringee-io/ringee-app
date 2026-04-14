@@ -27,6 +27,7 @@ import {
   CreateMonthlyCreditSubscriptionDto,
   CreateAutoReloadSetupDto,
 } from "@ringee/platform";
+import { TriggerLoopEventPublisher } from "../../triggerloop/services/triggerloop-event-publisher.service";
 
 interface CurrentUserData {
   id: string;
@@ -45,6 +46,7 @@ export class StripeController {
     private readonly userService: UserService,
     private readonly organizationService: OrganizationService,
     private readonly subscriptionService: SubscriptionService,
+    private readonly triggerLoop: TriggerLoopEventPublisher,
   ) { }
 
   private async getOrCreateCustomer(user: CurrentUserData): Promise<string> {
@@ -243,6 +245,11 @@ export class StripeController {
               activeOrgId: organizationId,
             });
             await this.creditService.addCredits(ctx, amountUsd);
+            await this.triggerLoop.creditsAdded(
+              userId,
+              amountUsd,
+              organizationId ?? undefined,
+            );
           } else if (
             fn === "creditSubscription" &&
             session.mode === "subscription" &&
@@ -270,6 +277,11 @@ export class StripeController {
               // Add credits for the first month
               if (subAmountUsd > 0) {
                 await this.creditService.addCredits(ctx, subAmountUsd);
+                await this.triggerLoop.creditsAdded(
+                  userId,
+                  subAmountUsd,
+                  organizationId ?? undefined,
+                );
               }
               console.log(
                 `📅 Monthly credit fund activated for user ${userId}: $${subAmountUsd}/month`,
@@ -304,11 +316,19 @@ export class StripeController {
               activeOrgId: organizationId,
             });
 
-            await this.numberPurchasedService.buyNumber(ctx, numberId, {
-              currency: "USD",
-              monthlyCost: monthlyPriceUsd,
-              upfrontCost: upfrontCostUsd,
-            });
+            const purchased = await this.numberPurchasedService.buyNumber(
+              ctx,
+              numberId,
+              {
+                currency: "USD",
+                monthlyCost: monthlyPriceUsd,
+                upfrontCost: upfrontCostUsd,
+              },
+            );
+            await this.triggerLoop.phoneNumberAssigned(
+              userId,
+              purchased.phoneNumber,
+            );
           } else if (metadata.type === "organization" && userId) {
             // Organization subscription
             console.log(`🏢 Organization subscription created for user ${userId}`);
@@ -348,6 +368,11 @@ export class StripeController {
                   ctx,
                   settings.monthlyFundAmount,
                 );
+                await this.triggerLoop.creditsAdded(
+                  settings.userId!,
+                  settings.monthlyFundAmount,
+                  settings.organizationId ?? undefined,
+                );
                 console.log(
                   `📅 Monthly credit fund charged: $${settings.monthlyFundAmount} for user ${settings.userId}`,
                 );
@@ -369,6 +394,11 @@ export class StripeController {
               activeOrgId: metadata.organizationId || null,
             });
             await this.creditService.addCredits(ctx, amountUsd);
+            await this.triggerLoop.creditsAdded(
+              metadata.userId,
+              amountUsd,
+              metadata.organizationId || undefined,
+            );
             console.log(
               `🔄 Auto-reload credited: $${amountUsd} for user ${metadata.userId}`,
             );
