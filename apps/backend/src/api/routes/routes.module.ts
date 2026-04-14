@@ -31,6 +31,7 @@ import { TagController, ContactTagController } from "./tag.controller";
 import { OnboardingController } from "./onboarding.controller";
 import { MeetingController } from "./meeting.controller";
 import { CalendarController } from "./calendar.controller";
+import { TriggerLoopModule } from "../../triggerloop/triggerloop.module";
 
 @Module({
   controllers: [
@@ -67,6 +68,7 @@ import { CalendarController } from "./calendar.controller";
     TelephonyModule,
     StripeModule,
     NotificationModule,
+    TriggerLoopModule,
   ],
 })
 export class RoutesModule { }

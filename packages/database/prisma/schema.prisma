@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = "postgresql://ringee-user:ringee-password@localhost:5432/ringee-db-local?schema=public"
 }
 
 enum EmailStatus {
@@ -153,6 +153,7 @@ model User {
   tags                    Tag[]
   meetings                Meeting[]
   calendarIntegrations    CalendarIntegration[]
+  activitySnapshot        UserActivitySnapshot?
 
   @@index([clerkId])
 }
@@ -932,4 +933,73 @@ model CampaignMember {
   @@unique([campaignId, userId])
   @@index([campaignId])
   @@index([userId])
+}
+
+// ── TriggerLoop integration ──
+// Ringee is the action executor for TriggerLoop workflows. These three tables
+// make the integration safe under retries, partial failures, and temporary
+// unavailability of the TriggerLoop engine.
+
+// One row per (workflowInstanceId, actionKey). Consulted on executeAction to
+// return a cached result instead of re-running the handler. `allowRepeat=true`
+// actions bypass this check at the service layer (key is suffixed per call).
+model TriggerLoopActionExecution {
+  id                 String   @id @default(uuid()) @db.Uuid
+  workflowInstanceId String
+  actionKey          String
+  actionType         String
+  workflowKey        String
+  subjectType        String
+  subjectId          String
+  success            Boolean  @default(false)
+  externalReference  String?
+  errorMessage       String?  @db.Text
+  attemptCount       Int      @default(1)
+  payload            Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@unique([workflowInstanceId, actionKey])
+  @@index([subjectId])
+  @@index([workflowKey])
+}
+
+// Durable outbox for outbound TriggerLoop calls. `TriggerLoopEventPublisher`
+// attempts immediate send; on failure the payload lands here and the worker
+// drains it with exponential backoff.
+model TriggerLoopOutboxEvent {
+  id            String    @id @default(uuid()) @db.Uuid
+  kind          String // "event" | "startWorkflow" | "cancelWorkflow"
+  endpoint      String // HTTP path used by the client
+  payload       Json // full request body
+  status        String    @default("pending") // "pending" | "sent" | "failed"
+  attemptCount  Int       @default(0)
+  lastError     String?   @db.Text
+  nextAttemptAt DateTime  @default(now())
+  sentAt        DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([createdAt])
+}
+
+// Per-user derived activity state. Source of truth for "has the user ever
+// had a first call", "when did they last do something", and "did we already
+// tell TriggerLoop about the current inactive phase". Transition-emission
+// events (call.firstCompleted, user.becameActive, user.inactive) all read
+// and update this table to stay idempotent.
+model UserActivitySnapshot {
+  userId                String    @id @db.Uuid
+  firstCallCompletedAt  DateTime?
+  firstCallEmittedAt    DateTime?
+  lastActiveAt          DateTime?
+  lastActiveEmittedAt   DateTime?
+  lastInactiveEmittedAt DateTime?
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([lastActiveAt])
+  @@index([lastInactiveEmittedAt])
 }

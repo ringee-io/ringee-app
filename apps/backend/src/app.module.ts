@@ -8,9 +8,17 @@ import { McpModule } from "./mcp/mcp.module";
 import { RedisModule } from "@ringee/platform";
 import { APP_GUARD } from "@nestjs/core";
 import { ClerkAuthGuard } from "./clerk.auth.guard";
+import { TriggerLoopModule } from "./triggerloop/triggerloop.module";
 
 @Module({
-  imports: [DatabaseModule, ApiModule, ServicesModule, McpModule, RedisModule],
+  imports: [
+    DatabaseModule,
+    ApiModule,
+    ServicesModule,
+    McpModule,
+    RedisModule,
+    TriggerLoopModule,
+  ],
   controllers: [AppController],
   providers: [
     AppService,

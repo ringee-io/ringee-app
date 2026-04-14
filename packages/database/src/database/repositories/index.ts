@@ -29,3 +29,6 @@ export * from "./outbound-analytics.repository";
 export * from "./tag.repository";
 export * from "./meeting.repository";
 export * from "./calendar-integration.repository";
+export * from "./triggerloop-action-execution.repository";
+export * from "./triggerloop-outbox.repository";
+export * from "./user-activity-snapshot.repository";

@@ -31,6 +31,9 @@ import { OutboundAnalyticsRepository } from "./repositories/outbound-analytics.r
 import { TagRepository } from "./repositories/tag.repository";
 import { MeetingRepository } from "./repositories/meeting.repository";
 import { CalendarIntegrationRepository } from "./repositories/calendar-integration.repository";
+import { TriggerLoopActionExecutionRepository } from "./repositories/triggerloop-action-execution.repository";
+import { TriggerLoopOutboxRepository } from "./repositories/triggerloop-outbox.repository";
+import { UserActivitySnapshotRepository } from "./repositories/user-activity-snapshot.repository";
 
 const databaseProviders = [
   PrismaService,
@@ -65,6 +68,9 @@ const databaseProviders = [
   TagRepository,
   MeetingRepository,
   CalendarIntegrationRepository,
+  TriggerLoopActionExecutionRepository,
+  TriggerLoopOutboxRepository,
+  UserActivitySnapshotRepository,
 ];
 
 @Global()

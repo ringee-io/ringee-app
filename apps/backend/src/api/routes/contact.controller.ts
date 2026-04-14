@@ -21,6 +21,7 @@ import {
   CSV_IMPORT_CONFIG,
 } from "@ringee/platform";
 import { ContactService } from "@ringee/services";
+import { TriggerLoopEventPublisher } from "../../triggerloop/services/triggerloop-event-publisher.service";
 
 interface CurrentUserData {
   id: string;
@@ -29,7 +30,10 @@ interface CurrentUserData {
 
 @Controller("contacts")
 export class ContactController {
-  constructor(private readonly contactService: ContactService) { }
+  constructor(
+    private readonly contactService: ContactService,
+    private readonly triggerLoop: TriggerLoopEventPublisher,
+  ) { }
 
   @Post()
   async createContact(
@@ -75,7 +79,19 @@ export class ContactController {
       }
     }
     
-    return this.contactService.importContacts(ctx, csvContent, tagIds);
+    const result = await this.contactService.importContacts(
+      ctx,
+      csvContent,
+      tagIds,
+    );
+
+    // Only emit once the import actually produced rows — a failed or empty
+    // import shouldn't trigger the follow-up workflow.
+    if (result.success && result.summary.inserted > 0) {
+      await this.triggerLoop.contactsImported(user.id, result.summary.inserted);
+    }
+
+    return result;
   }
 
   @Post("find-or-create")
