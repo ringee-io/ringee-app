@@ -1,0 +1,10 @@
+query GetCompanyLocationById($recordId: String!) {
+  company(id: $recordId) {
+    primary_location {
+      latitude
+      longitude
+      country
+      locality
+    }
+  }
+}

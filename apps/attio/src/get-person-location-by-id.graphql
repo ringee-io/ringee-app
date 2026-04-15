@@ -1,0 +1,19 @@
+query GetPersonLocationById($recordId: String!) {
+  person(id: $recordId) {
+    primary_location {
+      latitude
+      longitude
+      country
+      locality
+    }
+    company {
+      name
+      primary_location {
+        latitude
+        longitude
+        country
+        locality
+      }
+    }
+  }
+}
