@@ -183,7 +183,8 @@ export function mapAttioCompanyToSyncResult(record: AttioCompanyRecord): CrmComp
     company: { externalId: record.id.record_id, externalType: "company" },
     name,
     domain: domains[0] ?? null,
-    industry: record.values.categories?.[0]?.option ?? null,
+
+    industry: record.values.categories?.[0]?.option?.title ?? null,
     size: record.values.team_size?.[0]?.value ?? null,
     phone,
     website: domains[0] ? `https://${domains[0]}` : null,

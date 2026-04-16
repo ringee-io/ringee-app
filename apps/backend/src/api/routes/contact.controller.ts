@@ -152,8 +152,12 @@ export class ContactController {
     return this.contactService.updateContact(id, {
       organization: dto.organization,
       name: dto.name,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
       email: dto.email,
       phoneNumber: dto.phoneNumber,
+      jobTitle: dto.jobTitle,
+      source: dto.source,
       tagIds: dto.tagIds,
     });
   }

@@ -105,7 +105,17 @@ export type AttioCompanyRecord = {
       phone_number?: string;
       original_phone_number?: string;
     }>;
-    categories?: Array<{ option?: string }>;
+    categories?: Array<{ option?: {
+      id: {
+
+        workspace_id: string;
+        object_id: string
+        attribute_id: string;
+        option_id: string
+      }
+      title: string
+      is_archived: boolean;
+    } }>;
     team_size?: Array<{ value?: string }>;
   };
 };

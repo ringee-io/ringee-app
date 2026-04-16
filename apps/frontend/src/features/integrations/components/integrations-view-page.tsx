@@ -9,24 +9,21 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useCrmConnections } from '../hooks/use-crm-connections';
-import type { CrmProviderType } from '../types/crm';
+import type { CrmConnectionSummary, CrmProviderType } from '../types/crm';
 import { PROVIDER_META } from '../types/crm';
 import { CrmConnectionCard } from './crm-connection-card';
 import { ProviderCatalog } from './provider-catalog';
-import { SyncHistorySheet } from './sync-history-sheet';
+import { ConnectionManagementSheet } from './connection-management-sheet';
 
 export default function IntegrationsViewPage() {
   const api = useApi();
   const router = useRouter();
   const searchParams = useSearchParams();
   const { connections, loading, error, reload } = useCrmConnections();
-  const [historyConnectionId, setHistoryConnectionId] = useState<string | null>(
-    null,
-  );
+  const [manageConnection, setManageConnection] = useState<CrmConnectionSummary | null>(null);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
   const notifiedRef = useRef<string | null>(null);
 
-  // OAuth callback banner handling
   useEffect(() => {
     const crm = searchParams.get('crm');
     const provider = searchParams.get('provider');
@@ -43,7 +40,6 @@ export default function IntegrationsViewPage() {
         `Connection failed${reason ? `: ${reason}` : ''}. Please try again.`,
       );
     }
-    // Clean URL
     const url = new URL(window.location.href);
     url.searchParams.delete('crm');
     url.searchParams.delete('provider');
@@ -101,6 +97,11 @@ export default function IntegrationsViewPage() {
     }
   };
 
+  const handleManage = (id: string) => {
+    const conn = connections.find((c) => c.id === id) ?? null;
+    setManageConnection(conn);
+  };
+
   const connectedProviders = useMemo(
     () =>
       Array.from(
@@ -119,7 +120,6 @@ export default function IntegrationsViewPage() {
 
   return (
     <div className="flex flex-col gap-8">
-      {/* Alert banner if any connection needs attention */}
       {needsAttention.length > 0 && (
         <Alert className="border-amber-500/30 bg-amber-500/5">
           <AlertCircle className="h-4 w-4 text-amber-500" />
@@ -134,7 +134,6 @@ export default function IntegrationsViewPage() {
         </Alert>
       )}
 
-      {/* Active connections */}
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <div>
@@ -179,7 +178,8 @@ export default function IntegrationsViewPage() {
                 onDisconnect={handleDisconnect}
                 onForget={handleForget}
                 onReconnect={handleConnect}
-                onViewHistory={(id) => setHistoryConnectionId(id)}
+                onViewHistory={(id) => handleManage(id)}
+                onManage={handleManage}
                 disconnecting={disconnectingId === c.id}
               />
             ))}
@@ -187,7 +187,6 @@ export default function IntegrationsViewPage() {
         )}
       </section>
 
-      {/* Catalog */}
       <section className="flex flex-col gap-4">
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
@@ -204,10 +203,10 @@ export default function IntegrationsViewPage() {
         />
       </section>
 
-      <SyncHistorySheet
-        connectionId={historyConnectionId}
-        open={!!historyConnectionId}
-        onOpenChange={(open) => !open && setHistoryConnectionId(null)}
+      <ConnectionManagementSheet
+        connection={manageConnection}
+        open={!!manageConnection}
+        onOpenChange={(open) => !open && setManageConnection(null)}
       />
     </div>
   );

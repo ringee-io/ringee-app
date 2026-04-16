@@ -29,10 +29,16 @@ export class ContactRepository {
     return this.prisma.contact.findFirst({
       where: { id, deletedAt: null },
       include: {
-        notes: { where: { deletedAt: null } },
-        calls: true,
+        notes: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' } },
+        calls: { orderBy: { createdAt: 'desc' }, take: 20 },
         meetings: { orderBy: { scheduledAt: 'desc' } },
         tags: { include: { tag: true } },
+        phones: { orderBy: { isPrimary: 'desc' } },
+        emails: { orderBy: { isPrimary: 'desc' } },
+        affiliations: {
+          include: { company: true },
+          orderBy: { isPrimary: 'desc' },
+        },
       },
     });
   }

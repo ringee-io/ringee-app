@@ -11,6 +11,7 @@ import {
   CallbackService,
   AgentSessionService,
   CrmSyncService,
+  CrmBulkSyncService,
 } from "@ringee/services";
 import {
   UserRepository,
@@ -25,6 +26,7 @@ const HEARTBEAT_CHECK_INTERVAL_MS = 15_000; // 15 seconds
 const COMPLETION_CHECK_INTERVAL_MS = 60_000; // 60 seconds
 const CRM_DRAIN_INTERVAL_MS = 5_000; // 5 seconds
 const CRM_DRAIN_BATCH_SIZE = 25;
+const CRM_BULK_SYNC_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 
 @Injectable()
 export class WorkerService implements OnModuleInit, OnModuleDestroy {

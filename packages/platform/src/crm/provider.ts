@@ -12,6 +12,7 @@ import {
   CrmListRef,
   CrmNoteInput,
   CrmOwnerRef,
+  CrmPagedResult,
   CrmPersonInput,
   CrmRecordMatch,
   CrmRecordRef,
@@ -63,6 +64,10 @@ export interface CrmProvider {
   // Record fetch (inbound sync)
   fetchPerson?(creds: CrmCredentials, externalId: string): Promise<CrmContactSyncResult>;
   fetchCompany?(creds: CrmCredentials, externalId: string): Promise<CrmCompanySyncResult>;
+
+  // Bulk listing (paginated)
+  listPersons?(creds: CrmCredentials, pageToken?: string | null, limit?: number): Promise<CrmPagedResult<CrmContactSyncResult>>;
+  listCompanies?(creds: CrmCredentials, pageToken?: string | null, limit?: number): Promise<CrmPagedResult<CrmCompanySyncResult>>;
 
   // Lists/segments
   listLists?(creds: CrmCredentials): Promise<CrmListRef[]>;

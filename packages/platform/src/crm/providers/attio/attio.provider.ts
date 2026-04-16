@@ -15,6 +15,7 @@ import type {
   CrmListRef,
   CrmNoteInput,
   CrmOwnerRef,
+  CrmPagedResult,
   CrmPersonInput,
   CrmRecordMatch,
   CrmRecordRef,
@@ -62,6 +63,7 @@ export class AttioProvider extends AbstractCrmProvider {
 
   constructor(private readonly config: AttioProviderConfig) {
     super();
+    
   }
 
   // ── OAuth ─────────────────────────────────────────────────────────────
@@ -385,6 +387,60 @@ export class AttioProvider extends AbstractCrmProvider {
       headers: this.authHeaders(creds.accessToken),
     });
     return mapAttioCompanyToSyncResult(res.data);
+  }
+
+  // ── Bulk listing (paginated) ─────────────────────────────────────────
+
+  async listPersons(
+    creds: CrmCredentials,
+    pageToken?: string | null,
+    limit = 50,
+  ): Promise<CrmPagedResult<CrmContactSyncResult>> {
+    const body: Record<string, unknown> = { limit };
+    if (pageToken) body.offset = Number(pageToken);
+
+    const res = await this.request<AttioQueryResponse<AttioPersonRecord>>({
+      method: "POST",
+      url: `${this.config.apiBaseUrl}/v2/objects/people/records/query`,
+      headers: this.authHeaders(creds.accessToken),
+      body,
+    });
+
+    const data = (res.data ?? []).map(mapAttioPersonToSyncResult);
+    const offset = pageToken ? Number(pageToken) : 0;
+    const nextOffset = offset + data.length;
+    const hasMore = data.length >= limit;
+
+    return {
+      data,
+      nextPageToken: hasMore ? String(nextOffset) : null,
+    };
+  }
+
+  async listCompanies(
+    creds: CrmCredentials,
+    pageToken?: string | null,
+    limit = 50,
+  ): Promise<CrmPagedResult<CrmCompanySyncResult>> {
+    const body: Record<string, unknown> = { limit };
+    if (pageToken) body.offset = Number(pageToken);
+
+    const res = await this.request<AttioQueryResponse<AttioCompanyRecord>>({
+      method: "POST",
+      url: `${this.config.apiBaseUrl}/v2/objects/companies/records/query`,
+      headers: this.authHeaders(creds.accessToken),
+      body,
+    });
+
+    const data = (res.data ?? []).map(mapAttioCompanyToSyncResult);
+    const offset = pageToken ? Number(pageToken) : 0;
+    const nextOffset = offset + data.length;
+    const hasMore = data.length >= limit;
+
+    return {
+      data,
+      nextPageToken: hasMore ? String(nextOffset) : null,
+    };
   }
 
   // ── Lists ───────────────────────────────────────────────────────────

@@ -174,6 +174,13 @@ export class CrmConnectionRepository {
     });
   }
 
+  listAllActive(): Promise<CrmConnection[]> {
+    return this.prisma.crmConnection.findMany({
+      where: { status: "active" },
+      orderBy: { lastSyncAt: "asc" },
+    });
+  }
+
   remove(id: string): Promise<CrmConnection> {
     return this.prisma.crmConnection.delete({ where: { id } });
   }

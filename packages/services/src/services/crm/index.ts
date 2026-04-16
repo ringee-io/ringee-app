@@ -9,3 +9,4 @@ export * from "./crm-contact-sync.service";
 export * from "./crm-company-sync.service";
 export * from "./crm-note-sync.service";
 export * from "./crm-task-sync.service";
+export * from "./crm-bulk-sync.service";

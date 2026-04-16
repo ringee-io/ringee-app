@@ -160,6 +160,11 @@ export type CrmListRef = {
   memberCount?: number;
 };
 
+export type CrmPagedResult<T> = {
+  data: T[];
+  nextPageToken: string | null;
+};
+
 export type CrmAuthorizeParams = {
   state: string;
   redirectUri: string;

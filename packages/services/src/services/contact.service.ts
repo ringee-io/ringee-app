@@ -37,9 +37,13 @@ export class ContactService {
 
     return this.repo.create(ctx, {
       name: dto.name,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
       phoneNumber: dto.phoneNumber,
       email: dto.email,
       company: dto.organization,
+      jobTitle: dto.jobTitle,
+      source: dto.source,
       notes: dto.note
         ? { create: { content: dto.note, user: { connect: { id: ctx.userId } } } }
         : undefined,
@@ -91,9 +95,13 @@ export class ContactService {
 
     return this.repo.update(id, {
       name: dto.name,
+      firstName: dto.firstName,
+      lastName: dto.lastName,
       phoneNumber: dto.phoneNumber,
       email: dto.email,
       company: dto.organization,
+      jobTitle: dto.jobTitle,
+      source: dto.source,
     });
   }
 

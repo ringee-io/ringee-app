@@ -53,6 +53,7 @@ import {
   CrmCompanySyncService,
   CrmNoteSyncService,
   CrmTaskSyncService,
+  CrmBulkSyncService,
 } from "./crm";
 
 const servicesProviders = [
@@ -100,6 +101,7 @@ const servicesProviders = [
   CrmCompanySyncService,
   CrmNoteSyncService,
   CrmTaskSyncService,
+  CrmBulkSyncService,
 ];
 
 @Global()

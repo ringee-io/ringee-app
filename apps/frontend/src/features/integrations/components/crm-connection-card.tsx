@@ -46,6 +46,7 @@ interface Props {
     scope: 'personal' | 'organization',
   ) => void | Promise<void>;
   onViewHistory: (id: string) => void;
+  onManage: (id: string) => void;
   disconnecting?: boolean;
 }
 
@@ -110,6 +111,7 @@ export function CrmConnectionCard({
   onForget,
   onReconnect,
   onViewHistory,
+  onManage,
   disconnecting,
 }: Props) {
   const meta = PROVIDER_META[connection.provider];
@@ -256,6 +258,16 @@ export function CrmConnectionCard({
           tone="warning"
         />
       </div>
+
+      {/* Manage button */}
+      <Button
+        variant="outline"
+        size="sm"
+        className="w-full"
+        onClick={() => onManage(connection.id)}
+      >
+        Manage Connection
+      </Button>
 
       {/* Error hint */}
       {needsReconnect && (

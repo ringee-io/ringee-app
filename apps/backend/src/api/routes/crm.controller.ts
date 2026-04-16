@@ -21,6 +21,7 @@ import {
   CrmTaskSyncService,
   CrmMatchingService,
   CrmFieldMappingService,
+  CrmBulkSyncService,
 } from "@ringee/services";
 import {
   createOwnershipContext,
@@ -51,6 +52,7 @@ export class CrmController {
     private readonly taskSync: CrmTaskSyncService,
     private readonly matching: CrmMatchingService,
     private readonly fieldMappings: CrmFieldMappingService,
+    private readonly bulkSync: CrmBulkSyncService,
     private readonly providerRegistry: CrmProviderRegistry,
   ) {}
 
@@ -133,6 +135,13 @@ export class CrmController {
         code,
         state,
       );
+
+      // Fire-and-forget initial bulk sync
+      const conn = await this.connections.findById(result.connectionId);
+      if (conn) {
+        this.bulkSync.syncConnection(conn).catch(() => {});
+      }
+
       const target = result.redirectFrontendUrl
         ? `${result.redirectFrontendUrl}`
         : `${base}/dashboard/settings/integrations`;
@@ -352,11 +361,15 @@ export class CrmController {
     if (!provider.listMembers) return [];
 
     const decrypted = await this.connections.decrypt(conn);
-    return provider.listMembers({
-      accessToken: decrypted.accessToken,
-      refreshToken: decrypted.refreshToken,
-      accountId: conn.externalAccountId,
-      connectionId: conn.id,
-    });
+    try {
+      return await provider.listMembers({
+        accessToken: decrypted.accessToken,
+        refreshToken: decrypted.refreshToken,
+        accountId: conn.externalAccountId,
+        connectionId: conn.id,
+      });
+    } catch {
+      return [];
+    }
   }
 }

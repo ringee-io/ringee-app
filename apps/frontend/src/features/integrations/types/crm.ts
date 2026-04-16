@@ -43,6 +43,43 @@ export interface CrmCallSyncRow {
   updatedAt: string;
 }
 
+export interface CrmFieldMapping {
+  id: string;
+  connectionId: string;
+  provider: CrmProviderType;
+  ringeeEntity: string;
+  ringeeField: string;
+  externalEntity: string;
+  externalField: string;
+  transform: Record<string, unknown> | null;
+  direction: 'push' | 'pull' | 'bidirectional';
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CrmListRef {
+  externalId: string;
+  name: string;
+  type?: string;
+}
+
+export interface CrmOwnerRef {
+  externalId: string;
+  email: string;
+  name: string;
+}
+
+export interface CrmContactSyncResult {
+  contactId: string;
+  created: boolean;
+}
+
+export interface CrmCompanySyncResult {
+  companyId: string;
+  created: boolean;
+}
+
 export const PROVIDER_META: Record<
   CrmProviderType,
   { name: string; description: string; color: string; available: boolean }
