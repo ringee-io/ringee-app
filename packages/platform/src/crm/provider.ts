@@ -4,9 +4,14 @@ import {
   CrmCallLogInput,
   CrmCapabilities,
   CrmCompanyInput,
+  CrmCompanyMatch,
+  CrmCompanySyncResult,
+  CrmContactSyncResult,
   CrmCredentials,
   CrmExchangeParams,
+  CrmListRef,
   CrmNoteInput,
+  CrmOwnerRef,
   CrmPersonInput,
   CrmRecordMatch,
   CrmRecordRef,
@@ -34,8 +39,17 @@ export interface CrmProvider {
     phoneE164: string,
     opts?: { limit?: number },
   ): Promise<CrmRecordMatch[]>;
+  searchByEmail?(
+    creds: CrmCredentials,
+    email: string,
+    opts?: { limit?: number },
+  ): Promise<CrmRecordMatch[]>;
+  searchCompanyByDomain?(
+    creds: CrmCredentials,
+    domain: string,
+  ): Promise<CrmCompanyMatch[]>;
 
-  // Upsert (Fase 2 for automation; stub-ready now)
+  // Upsert
   upsertPerson(creds: CrmCredentials, input: CrmPersonInput): Promise<CrmRecordRef>;
   upsertCompany?(creds: CrmCredentials, input: CrmCompanyInput): Promise<CrmRecordRef>;
 
@@ -45,4 +59,14 @@ export interface CrmProvider {
 
   // Tasks (optional)
   createTask?(creds: CrmCredentials, input: CrmTaskInput): Promise<CrmRecordRef>;
+
+  // Record fetch (inbound sync)
+  fetchPerson?(creds: CrmCredentials, externalId: string): Promise<CrmContactSyncResult>;
+  fetchCompany?(creds: CrmCredentials, externalId: string): Promise<CrmCompanySyncResult>;
+
+  // Lists/segments
+  listLists?(creds: CrmCredentials): Promise<CrmListRef[]>;
+
+  // Owners/members
+  listMembers?(creds: CrmCredentials): Promise<CrmOwnerRef[]>;
 }

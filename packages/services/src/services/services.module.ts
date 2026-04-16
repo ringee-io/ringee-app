@@ -48,6 +48,11 @@ import {
   CrmCallLogService,
   CrmSyncService,
   CrmStatusService,
+  CrmFieldMappingService,
+  CrmContactSyncService,
+  CrmCompanySyncService,
+  CrmNoteSyncService,
+  CrmTaskSyncService,
 } from "./crm";
 
 const servicesProviders = [
@@ -90,6 +95,11 @@ const servicesProviders = [
   CrmCallLogService,
   CrmSyncService,
   CrmStatusService,
+  CrmFieldMappingService,
+  CrmContactSyncService,
+  CrmCompanySyncService,
+  CrmNoteSyncService,
+  CrmTaskSyncService,
 ];
 
 @Global()

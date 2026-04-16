@@ -4,3 +4,8 @@ export * from "./crm-matching.service";
 export * from "./crm-call-log.service";
 export * from "./crm-sync.service";
 export * from "./crm-status.service";
+export * from "./crm-field-mapping.service";
+export * from "./crm-contact-sync.service";
+export * from "./crm-company-sync.service";
+export * from "./crm-note-sync.service";
+export * from "./crm-task-sync.service";

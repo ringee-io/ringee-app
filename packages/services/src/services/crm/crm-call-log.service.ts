@@ -31,13 +31,17 @@ export class CrmCallLogService {
     private readonly outbox: CrmOutboxRepository,
   ) {}
 
-  /**
-   * Call this after a Call transitions to a terminal state (hangup).
-   * Fire-and-forget — never throws to the caller.
-   */
   async handleCallCompleted(
     call: Call,
-    opts: { recordingUrl?: string | null; notes?: string | null; agentName?: string | null } = {},
+    opts: {
+      recordingUrl?: string | null;
+      notes?: string | null;
+      agentName?: string | null;
+      transcript?: string | null;
+      transcriptUrl?: string | null;
+      summary?: string | null;
+      insights?: Record<string, unknown> | null;
+    } = {},
   ): Promise<void> {
     try {
       await this.enqueueCallLog(call, opts);
@@ -52,7 +56,15 @@ export class CrmCallLogService {
 
   async enqueueCallLog(
     call: Call,
-    opts: { recordingUrl?: string | null; notes?: string | null; agentName?: string | null } = {},
+    opts: {
+      recordingUrl?: string | null;
+      notes?: string | null;
+      agentName?: string | null;
+      transcript?: string | null;
+      transcriptUrl?: string | null;
+      summary?: string | null;
+      insights?: Record<string, unknown> | null;
+    } = {},
   ): Promise<void> {
     if (!call.userId) return;
     if ((call.durationSeconds ?? 0) < MIN_DURATION_SECONDS) return;
@@ -108,7 +120,10 @@ export class CrmCallLogService {
       outcomeLabel: outcomeLabel(call.outcome),
       notes: opts.notes ?? call.outcomeNote ?? null,
       recordingUrl: opts.recordingUrl ?? null,
-      transcriptUrl: null,
+      transcript: opts.transcript ?? null,
+      transcriptUrl: opts.transcriptUrl ?? null,
+      summary: opts.summary ?? null,
+      insights: opts.insights ?? null,
       agentName: opts.agentName ?? null,
       agentEmail: null,
       linkedRecords,
@@ -155,5 +170,42 @@ export class CrmCallLogService {
       dedupeKey: `call.log:${sync.connectionId}:${sync.callId}:v1`,
       nextAttemptAt: new Date(),
     });
+  }
+
+  async enqueueRecordingNote(callId: string, recordingUrl: string): Promise<void> {
+    const syncs = await this.syncRepo.listByCall(callId);
+    if (!syncs || syncs.length === 0) return;
+
+    for (const sync of syncs) {
+      if (sync.status === "pending" || sync.status === "needs_resolution" || sync.status === "failed") {
+        const currentPayload = sync.payloadSnapshot as any;
+        currentPayload.recordingUrl = recordingUrl;
+        await this.syncRepo.upsertPending({
+          connectionId: sync.connectionId,
+          provider: sync.provider,
+          callId: sync.callId,
+          idempotencyKey: sync.idempotencyKey,
+          payload: currentPayload,
+        });
+        continue;
+      }
+
+      if (!sync.externalRecordId) continue; // If an active operation is midway or lacks it
+
+      // We enqueue a note.sync for the given record
+      await this.outbox.enqueue({
+        connectionId: sync.connectionId,
+        provider: sync.provider,
+        kind: "note.sync",
+        subjectId: sync.id,
+        payload: {
+          recordId: sync.externalRecordId,
+          recordType: sync.externalRecordType,
+          title: "Call Recording Link",
+          body: `Recording link for call: ${recordingUrl}`,
+        } as Record<string, unknown>,
+        dedupeKey: `note.sync:${sync.connectionId}:${callId}:recording:v1`,
+      });
+    }
   }
 }

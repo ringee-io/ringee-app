@@ -7,9 +7,14 @@ import type {
   CrmCallLogInput,
   CrmCapabilities,
   CrmCompanyInput,
+  CrmCompanyMatch,
+  CrmCompanySyncResult,
+  CrmContactSyncResult,
   CrmCredentials,
   CrmExchangeParams,
+  CrmListRef,
   CrmNoteInput,
+  CrmOwnerRef,
   CrmPersonInput,
   CrmRecordMatch,
   CrmRecordRef,
@@ -18,8 +23,18 @@ import type {
   CrmWorkspaceInfo,
 } from "../../types";
 import { ATTIO_CAPABILITIES } from "./attio.capabilities";
-import { attioIdempotencyTag, buildCallLogNote, mapAttioPersonToMatch } from "./attio.mapper";
+import {
+  attioIdempotencyTag,
+  buildCallLogNote,
+  mapAttioCompanyToMatch,
+  mapAttioCompanyToSyncResult,
+  mapAttioMemberToOwnerRef,
+  mapAttioPersonToMatch,
+  mapAttioPersonToSyncResult,
+} from "./attio.mapper";
 import type {
+  AttioCompanyRecord,
+  AttioListResponse,
   AttioNoteRequest,
   AttioNoteResponse,
   AttioOAuthTokenResponse,
@@ -28,6 +43,7 @@ import type {
   AttioRecordResponse,
   AttioTaskRequest,
   AttioTaskResponse,
+  AttioWorkspaceMembersResponse,
   AttioWorkspaceResponse,
 } from "./attio.types";
 
@@ -77,6 +93,8 @@ export class AttioProvider extends AbstractCrmProvider {
   }
 
   private async tokenRequest(body: Record<string, string>): Promise<CrmTokenSet> {
+
+    console.log(body, "config");
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       client_secret: this.config.clientSecret,
@@ -92,6 +110,7 @@ export class AttioProvider extends AbstractCrmProvider {
     });
     if (!res.ok) {
       const text = await res.text().catch(() => undefined);
+      console.log(text, "text");
       throw CrmError.fromHttp(res.status, text);
     }
     const data = (await res.json()) as AttioOAuthTokenResponse;
@@ -155,20 +174,48 @@ export class AttioProvider extends AbstractCrmProvider {
       ];
     }
 
-    const res = await this.request<AttioRecordResponse<AttioPersonRecord>>({
-      method: "PUT",
-      url: `${this.config.apiBaseUrl}/v2/objects/people/records`,
-      headers: this.authHeaders(creds.accessToken),
-      query: {
-        matching_attribute: input.email ? "email_addresses" : "phone_numbers",
-      },
-      body: { data: { values } },
-    });
+    if (input.email) {
+      const res = await this.request<AttioRecordResponse<AttioPersonRecord>>({
+        method: "PUT",
+        url: `${this.config.apiBaseUrl}/v2/objects/people/records`,
+        headers: this.authHeaders(creds.accessToken),
+        query: {
+          matching_attribute: "email_addresses",
+        },
+        body: { data: { values } },
+      });
 
-    return {
-      externalId: res.data.id.record_id,
-      externalType: "person",
-    };
+      return {
+        externalId: res.data.id.record_id,
+        externalType: "person",
+      };
+    } else {
+      const matches = await this.searchByPhone(creds, input.phoneE164, { limit: 1 });
+      if (matches.length > 0) {
+        const recordId = matches[0].externalId;
+        const res = await this.request<AttioRecordResponse<AttioPersonRecord>>({
+          method: "PATCH",
+          url: `${this.config.apiBaseUrl}/v2/objects/people/records/${recordId}`,
+          headers: this.authHeaders(creds.accessToken),
+          body: { data: { values } },
+        });
+        return {
+          externalId: res.data.id.record_id,
+          externalType: "person",
+        };
+      } else {
+        const res = await this.request<AttioRecordResponse<AttioPersonRecord>>({
+          method: "POST",
+          url: `${this.config.apiBaseUrl}/v2/objects/people/records`,
+          headers: this.authHeaders(creds.accessToken),
+          body: { data: { values } },
+        });
+        return {
+          externalId: res.data.id.record_id,
+          externalType: "person",
+        };
+      }
+    }
   }
 
   async upsertCompany(creds: CrmCredentials, input: CrmCompanyInput): Promise<CrmRecordRef> {
@@ -271,5 +318,97 @@ export class AttioProvider extends AbstractCrmProvider {
       body,
     });
     return { externalId: res.data.id.task_id, externalType: "person" };
+  }
+
+  // ── Search by email ─────────────────────────────────────────────────
+
+  async searchByEmail(
+    creds: CrmCredentials,
+    email: string,
+    opts: { limit?: number } = {},
+  ): Promise<CrmRecordMatch[]> {
+    const res = await this.request<AttioQueryResponse<AttioPersonRecord>>({
+      method: "POST",
+      url: `${this.config.apiBaseUrl}/v2/objects/people/records/query`,
+      headers: this.authHeaders(creds.accessToken),
+      body: {
+        filter: {
+          email_addresses: { $contains: email },
+        },
+        limit: opts.limit ?? 10,
+      },
+    });
+    return (res.data ?? []).map((r) => mapAttioPersonToMatch(r, ""));
+  }
+
+  // ── Company search ──────────────────────────────────────────────────
+
+  async searchCompanyByDomain(
+    creds: CrmCredentials,
+    domain: string,
+  ): Promise<CrmCompanyMatch[]> {
+    const res = await this.request<AttioQueryResponse<AttioCompanyRecord>>({
+      method: "POST",
+      url: `${this.config.apiBaseUrl}/v2/objects/companies/records/query`,
+      headers: this.authHeaders(creds.accessToken),
+      body: {
+        filter: {
+          domains: { $contains: domain },
+        },
+        limit: 10,
+      },
+    });
+    return (res.data ?? []).map((r) => mapAttioCompanyToMatch(r, domain));
+  }
+
+  // ── Fetch single record ─────────────────────────────────────────────
+
+  async fetchPerson(
+    creds: CrmCredentials,
+    externalId: string,
+  ): Promise<CrmContactSyncResult> {
+    const res = await this.request<AttioRecordResponse<AttioPersonRecord>>({
+      method: "GET",
+      url: `${this.config.apiBaseUrl}/v2/objects/people/records/${externalId}`,
+      headers: this.authHeaders(creds.accessToken),
+    });
+    return mapAttioPersonToSyncResult(res.data);
+  }
+
+  async fetchCompany(
+    creds: CrmCredentials,
+    externalId: string,
+  ): Promise<CrmCompanySyncResult> {
+    const res = await this.request<AttioRecordResponse<AttioCompanyRecord>>({
+      method: "GET",
+      url: `${this.config.apiBaseUrl}/v2/objects/companies/records/${externalId}`,
+      headers: this.authHeaders(creds.accessToken),
+    });
+    return mapAttioCompanyToSyncResult(res.data);
+  }
+
+  // ── Lists ───────────────────────────────────────────────────────────
+
+  async listLists(creds: CrmCredentials): Promise<CrmListRef[]> {
+    const res = await this.request<AttioListResponse>({
+      method: "GET",
+      url: `${this.config.apiBaseUrl}/v2/lists`,
+      headers: this.authHeaders(creds.accessToken),
+    });
+    return (res.data ?? []).map((l) => ({
+      externalId: l.id.list_id,
+      name: l.name,
+    }));
+  }
+
+  // ── Workspace members ───────────────────────────────────────────────
+
+  async listMembers(creds: CrmCredentials): Promise<CrmOwnerRef[]> {
+    const res = await this.request<AttioWorkspaceMembersResponse>({
+      method: "GET",
+      url: `${this.config.apiBaseUrl}/v2/workspace_members`,
+      headers: this.authHeaders(creds.accessToken),
+    });
+    return (res.data ?? []).map(mapAttioMemberToOwnerRef);
   }
 }

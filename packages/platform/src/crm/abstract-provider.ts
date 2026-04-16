@@ -7,9 +7,14 @@ import type {
   CrmCallLogInput,
   CrmCapabilities,
   CrmCompanyInput,
+  CrmCompanyMatch,
+  CrmCompanySyncResult,
+  CrmContactSyncResult,
   CrmCredentials,
   CrmExchangeParams,
+  CrmListRef,
   CrmNoteInput,
+  CrmOwnerRef,
   CrmPersonInput,
   CrmRecordMatch,
   CrmRecordRef,
@@ -53,6 +58,12 @@ export abstract class AbstractCrmProvider implements CrmProvider {
   upsertCompany?(creds: CrmCredentials, input: CrmCompanyInput): Promise<CrmRecordRef>;
   createTask?(creds: CrmCredentials, input: CrmTaskInput): Promise<CrmRecordRef>;
   revoke?(token: string): Promise<void>;
+  searchByEmail?(creds: CrmCredentials, email: string, opts?: { limit?: number }): Promise<CrmRecordMatch[]>;
+  searchCompanyByDomain?(creds: CrmCredentials, domain: string): Promise<CrmCompanyMatch[]>;
+  fetchPerson?(creds: CrmCredentials, externalId: string): Promise<CrmContactSyncResult>;
+  fetchCompany?(creds: CrmCredentials, externalId: string): Promise<CrmCompanySyncResult>;
+  listLists?(creds: CrmCredentials): Promise<CrmListRef[]>;
+  listMembers?(creds: CrmCredentials): Promise<CrmOwnerRef[]>;
 
   protected async request<T>(req: CrmHttpRequest): Promise<T> {
     const timeoutMs = req.timeoutMs ?? 15_000;
@@ -92,6 +103,7 @@ export abstract class AbstractCrmProvider implements CrmProvider {
       } catch {
         parsed = await res.text().catch(() => undefined);
       }
+      console.log(req.url, req.query, req.body, "parsed");
       throw CrmError.fromHttp(res.status, parsed, res.headers.get("retry-after"));
     }
 

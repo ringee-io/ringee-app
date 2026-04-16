@@ -6,7 +6,12 @@ import {
   CrmOutboxEvent,
   CrmOutboxRepository,
 } from "@ringee/database";
-import type { CrmCallLogInput } from "@ringee/platform";
+import type {
+  CrmCallLogInput,
+  CrmNoteInput,
+  CrmRecordRef,
+  CrmTaskInput,
+} from "@ringee/platform";
 import {
   CrmError,
   CrmProviderRegistry,
@@ -41,6 +46,12 @@ export class CrmSyncService {
       switch (event.kind) {
         case "call.log":
           await this.processCallLog(event);
+          break;
+        case "note.sync":
+          await this.processNoteSync(event);
+          break;
+        case "task.sync":
+          await this.processTaskSync(event);
           break;
         default:
           this.logger.warn(`unknown outbox kind: ${event.kind}`);
@@ -110,6 +121,105 @@ export class CrmSyncService {
     } catch (err) {
       await this.handleCallLogError(event, sync, connection, err);
     }
+  }
+
+  private async processNoteSync(event: CrmOutboxEvent): Promise<void> {
+    const payload = event.payload as {
+      recordId?: string;
+      recordType?: string;
+      title?: string;
+      body?: string;
+    } | null;
+    if (!payload?.recordId || !payload?.body) {
+      await this.outbox.markFailed(event.id, "missing recordId or body");
+      return;
+    }
+    if (!event.connectionId) {
+      await this.outbox.markFailed(event.id, "missing connectionId");
+      return;
+    }
+
+    const connection = await this.connections.findById(event.connectionId);
+    if (!connection || connection.status !== "active") {
+      await this.outbox.markFailed(event.id, "connection not active");
+      return;
+    }
+
+    const provider = this.registry.get(connection.provider);
+    const decrypted = await this.connections.decrypt(connection);
+
+    const noteInput: CrmNoteInput = {
+      recordId: payload.recordId,
+      recordType: (payload.recordType as "person" | "company") ?? "person",
+      title: payload.title ?? "Note from Ringee",
+      body: payload.body,
+    };
+
+    await provider.addNote(
+      {
+        accessToken: decrypted.accessToken,
+        refreshToken: decrypted.refreshToken,
+        accountId: connection.externalAccountId,
+        connectionId: connection.id,
+      },
+      noteInput,
+    );
+
+    await this.connections.touchLastSync(connection.id);
+    await this.outbox.markSent(event.id);
+  }
+
+  private async processTaskSync(event: CrmOutboxEvent): Promise<void> {
+    const payload = event.payload as {
+      title?: string;
+      body?: string | null;
+      dueAt?: string | null;
+      assigneeEmail?: string | null;
+      linkedRecords?: CrmRecordRef[];
+    } | null;
+    if (!payload?.title) {
+      await this.outbox.markFailed(event.id, "missing task title");
+      return;
+    }
+    if (!event.connectionId) {
+      await this.outbox.markFailed(event.id, "missing connectionId");
+      return;
+    }
+
+    const connection = await this.connections.findById(event.connectionId);
+    if (!connection || connection.status !== "active") {
+      await this.outbox.markFailed(event.id, "connection not active");
+      return;
+    }
+
+    const provider = this.registry.get(connection.provider);
+    if (!provider.createTask) {
+      await this.outbox.markFailed(event.id, `${connection.provider} does not support tasks`);
+      return;
+    }
+
+    const decrypted = await this.connections.decrypt(connection);
+
+    const taskInput: CrmTaskInput = {
+      title: payload.title,
+      body: payload.body ?? null,
+      dueAt: payload.dueAt ? new Date(payload.dueAt) : null,
+      assigneeEmail: payload.assigneeEmail ?? null,
+      linkedRecords: payload.linkedRecords ?? [],
+    };
+
+    await provider.createTask(
+      {
+        accessToken: decrypted.accessToken,
+        refreshToken: decrypted.refreshToken,
+        accountId: connection.externalAccountId,
+        connectionId: connection.id,
+      },
+      taskInput,
+    );
+
+    await this.connections.touchLastSync(connection.id);
+    await this.outbox.markSent(event.id);
   }
 
   private async handleCallLogError(

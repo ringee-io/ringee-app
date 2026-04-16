@@ -1,14 +1,14 @@
 import { Injectable } from "@nestjs/common";
-import { CrmContactLink, CrmProviderType, CrmRecordType, Prisma } from "@prisma/client";
+import { CrmCompanyLink, CrmProviderType, CrmRecordType, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma.service";
 
 @Injectable()
-export class CrmContactLinkRepository {
+export class CrmCompanyLinkRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findByPhone(connectionId: string, phoneE164: string): Promise<CrmContactLink | null> {
-    return this.prisma.crmContactLink.findUnique({
-      where: { connectionId_phoneNumberE164: { connectionId, phoneNumberE164: phoneE164 } },
+  findByDomain(connectionId: string, domain: string): Promise<CrmCompanyLink | null> {
+    return this.prisma.crmCompanyLink.findFirst({
+      where: { connectionId, domain: { equals: domain, mode: "insensitive" } },
     });
   }
 
@@ -16,8 +16,8 @@ export class CrmContactLinkRepository {
     connectionId: string,
     externalType: CrmRecordType,
     externalId: string,
-  ): Promise<CrmContactLink | null> {
-    return this.prisma.crmContactLink.findUnique({
+  ): Promise<CrmCompanyLink | null> {
+    return this.prisma.crmCompanyLink.findUnique({
       where: {
         connectionId_externalType_externalId: { connectionId, externalType, externalId },
       },
@@ -29,12 +29,12 @@ export class CrmContactLinkRepository {
     provider: CrmProviderType;
     externalId: string;
     externalType: CrmRecordType;
-    phoneNumberE164: string;
-    contactId?: string | null;
+    companyId?: string | null;
+    domain?: string | null;
     matchConfidence?: string;
     rawSnapshot?: Record<string, unknown> | null;
-  }): Promise<CrmContactLink> {
-    return this.prisma.crmContactLink.upsert({
+  }): Promise<CrmCompanyLink> {
+    return this.prisma.crmCompanyLink.upsert({
       where: {
         connectionId_externalType_externalId: {
           connectionId: input.connectionId,
@@ -47,14 +47,14 @@ export class CrmContactLinkRepository {
         provider: input.provider,
         externalId: input.externalId,
         externalType: input.externalType,
-        phoneNumberE164: input.phoneNumberE164,
-        contactId: input.contactId ?? null,
-        matchConfidence: input.matchConfidence ?? "phone_exact",
+        companyId: input.companyId ?? null,
+        domain: input.domain ?? null,
+        matchConfidence: input.matchConfidence ?? "domain_exact",
         rawSnapshot: (input.rawSnapshot ?? undefined) as Prisma.InputJsonValue | undefined,
       },
       update: {
-        phoneNumberE164: input.phoneNumberE164,
-        contactId: input.contactId ?? undefined,
+        companyId: input.companyId ?? undefined,
+        domain: input.domain ?? undefined,
         matchConfidence: input.matchConfidence ?? undefined,
         rawSnapshot: (input.rawSnapshot ?? undefined) as Prisma.InputJsonValue | undefined,
         lastSyncedAt: new Date(),
@@ -62,11 +62,18 @@ export class CrmContactLinkRepository {
     });
   }
 
-  listByContact(contactId: string): Promise<CrmContactLink[]> {
-    return this.prisma.crmContactLink.findMany({ where: { contactId } });
+  listByCompany(companyId: string): Promise<CrmCompanyLink[]> {
+    return this.prisma.crmCompanyLink.findMany({ where: { companyId } });
   }
 
-  remove(id: string): Promise<CrmContactLink> {
-    return this.prisma.crmContactLink.delete({ where: { id } });
+  listByConnection(connectionId: string): Promise<CrmCompanyLink[]> {
+    return this.prisma.crmCompanyLink.findMany({
+      where: { connectionId },
+      orderBy: { lastSyncedAt: "desc" },
+    });
+  }
+
+  remove(id: string): Promise<CrmCompanyLink> {
+    return this.prisma.crmCompanyLink.delete({ where: { id } });
   }
 }

@@ -28,7 +28,10 @@ export class CrmError extends Error {
     if (status === 403) return new CrmError("AUTH_REVOKED", false, "forbidden", undefined, body);
     if (status === 404) return new CrmError("NOT_FOUND", false, "not found", undefined, body);
     if (status === 409) return new CrmError("CONFLICT", false, "conflict", undefined, body);
-    if (status === 422 || status === 400) return new CrmError("VALIDATION", false, "validation error", undefined, body);
+    if (status === 422 || status === 400) {
+      console.log(body, "bodyyyyyy");
+      return new CrmError("VALIDATION", false, "validation error", undefined, body);
+    }
     if (status === 429) return new CrmError("RATE_LIMITED", true, "rate limited", retryAfterMs, body);
     if (status >= 500 && status < 600) return new CrmError("TRANSIENT", true, `server ${status}`, undefined, body);
     return new CrmError("UNKNOWN", false, `http ${status}`, undefined, body);

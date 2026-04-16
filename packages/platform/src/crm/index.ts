@@ -8,3 +8,4 @@ export * from "./crm.module";
 export * from "./providers/attio/attio.provider";
 export * from "./providers/attio/attio.capabilities";
 export * from "./providers/attio/attio.mapper";
+export * from "./providers/attio/attio.types";

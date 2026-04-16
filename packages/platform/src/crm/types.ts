@@ -63,6 +63,9 @@ export type CrmCallLogInput = {
   notes?: string | null;
   recordingUrl?: string | null;
   transcriptUrl?: string | null;
+  transcript?: string | null;
+  summary?: string | null;
+  insights?: Record<string, unknown> | null;
   agentName?: string | null;
   agentEmail?: string | null;
   linkedRecords: CrmRecordRef[];
@@ -106,7 +109,55 @@ export type CrmCompanyInput = {
   name: string;
   domain?: string | null;
   phoneE164?: string | null;
+  industry?: string | null;
+  size?: string | null;
+  website?: string | null;
   idempotencyKey?: string;
+};
+
+export type CrmCompanyMatch = CrmRecordRef & {
+  name: string;
+  domain: string | null;
+  matchedOn: "domain_exact" | "name_exact" | "phone_suffix";
+  raw?: unknown;
+};
+
+export type CrmOwnerRef = {
+  externalId: string;
+  email: string | null;
+  name: string | null;
+};
+
+export type CrmContactSyncResult = {
+  contact: CrmRecordRef;
+  phones: string[];
+  emails: string[];
+  firstName: string | null;
+  lastName: string | null;
+  displayName: string | null;
+  jobTitle: string | null;
+  owner: CrmOwnerRef | null;
+  company: CrmRecordRef | null;
+  customFields: Record<string, unknown>;
+  raw: unknown;
+};
+
+export type CrmCompanySyncResult = {
+  company: CrmRecordRef;
+  name: string;
+  domain: string | null;
+  industry: string | null;
+  size: string | null;
+  phone: string | null;
+  website: string | null;
+  customFields: Record<string, unknown>;
+  raw: unknown;
+};
+
+export type CrmListRef = {
+  externalId: string;
+  name: string;
+  memberCount?: number;
 };
 
 export type CrmAuthorizeParams = {

@@ -93,3 +93,44 @@ export type AttioTaskResponse = {
     id: { task_id: string };
   };
 };
+
+export type AttioCompanyRecord = {
+  id: { workspace_id: string; object_id: string; record_id: string };
+  values: {
+    name?: Array<{ value?: string }>;
+    domains?: Array<{ domain?: string }>;
+    description?: Array<{ value?: string }>;
+    primary_location?: Array<{ locality?: string }>;
+    phone_numbers?: Array<{
+      phone_number?: string;
+      original_phone_number?: string;
+    }>;
+    categories?: Array<{ option?: string }>;
+    team_size?: Array<{ value?: string }>;
+  };
+};
+
+export type AttioListEntry = {
+  id: { list_id: string };
+  api_slug: string;
+  name: string;
+  parent_object: string[];
+  workspace_access: string;
+};
+
+export type AttioListResponse = {
+  data: AttioListEntry[];
+};
+
+export type AttioWorkspaceMember = {
+  id: { workspace_id: string; workspace_member_id: string };
+  first_name: string | null;
+  last_name: string | null;
+  avatar_url: string | null;
+  email_address: string;
+  access_level: string;
+};
+
+export type AttioWorkspaceMembersResponse = {
+  data: AttioWorkspaceMember[];
+};

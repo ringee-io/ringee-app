@@ -15,9 +15,16 @@ import {
   CrmOAuthService,
   CrmStatusService,
   CrmConnectionService,
+  CrmContactSyncService,
+  CrmCompanySyncService,
+  CrmNoteSyncService,
+  CrmTaskSyncService,
+  CrmMatchingService,
+  CrmFieldMappingService,
 } from "@ringee/services";
 import {
   createOwnershipContext,
+  CrmProviderRegistry,
   CurrentUser,
   CurrentUserData,
   Public,
@@ -38,6 +45,13 @@ export class CrmController {
     private readonly connections: CrmConnectionService,
     private readonly status: CrmStatusService,
     private readonly callLog: CrmCallLogService,
+    private readonly contactSync: CrmContactSyncService,
+    private readonly companySync: CrmCompanySyncService,
+    private readonly noteSync: CrmNoteSyncService,
+    private readonly taskSync: CrmTaskSyncService,
+    private readonly matching: CrmMatchingService,
+    private readonly fieldMappings: CrmFieldMappingService,
+    private readonly providerRegistry: CrmProviderRegistry,
   ) {}
 
   // ── Connections ──────────────────────────────────────────────────────
@@ -101,11 +115,6 @@ export class CrmController {
   ) {
     const base = frontendUrl().replace(/\/$/, "");
 
-    console.log("providerError", providerError);
-    console.log("code", code);
-    console.log("state", state);
-    console.log("provider", provider);
-
     if (providerError) {
       return res.redirect(
         `${base}/dashboard/settings/integrations?crm=error&provider=${provider}&reason=${encodeURIComponent(
@@ -133,8 +142,6 @@ export class CrmController {
       );
     } catch (err) {
       const reason = err instanceof Error ? err.message : "oauth_failed";
-      
-      console.error("CRM OAuth Error", err);
 
       return res.redirect(
         `${base}/dashboard/settings/integrations?crm=error&provider=${provider}&reason=${encodeURIComponent(
@@ -176,5 +183,180 @@ export class CrmController {
   async retrySync(@Param("id") id: string) {
     await this.callLog.manualRetry(id);
     return { ok: true };
+  }
+
+  // ── Match resolution ────────────────────────────────────────────────
+
+  @Post("syncs/:id/resolve")
+  async resolveMatch(
+    @Param("id") id: string,
+    @Body()
+    body: {
+      externalId: string;
+      externalType: "person" | "company";
+    },
+  ) {
+    if (!body.externalId || !body.externalType) {
+      throw new BadRequestException("externalId and externalType required");
+    }
+    await this.matching.resolveAmbiguousMatch(
+      id,
+      body.externalId,
+      body.externalType,
+    );
+    return { ok: true };
+  }
+
+  // ── Contact sync (inbound) ─────────────────────────────────────────
+
+  @Post("connections/:id/sync-contact")
+  async syncContact(
+    @Param("id") connectionId: string,
+    @Body() body: { externalId: string },
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (!body.externalId) {
+      throw new BadRequestException("externalId required");
+    }
+    const ctx = createOwnershipContext(user);
+    const conn = await this.connections.findById(connectionId);
+    if (!conn) throw new BadRequestException("connection not found");
+    await this.connections.assertAccess(ctx, conn);
+    return this.contactSync.syncFromCrm(conn, body.externalId, ctx);
+  }
+
+  // ── Company sync (inbound) ─────────────────────────────────────────
+
+  @Post("connections/:id/sync-company")
+  async syncCompany(
+    @Param("id") connectionId: string,
+    @Body() body: { externalId: string },
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (!body.externalId) {
+      throw new BadRequestException("externalId required");
+    }
+    const ctx = createOwnershipContext(user);
+    const conn = await this.connections.findById(connectionId);
+    if (!conn) throw new BadRequestException("connection not found");
+    await this.connections.assertAccess(ctx, conn);
+    return this.companySync.syncFromCrm(conn, body.externalId, ctx);
+  }
+
+  // ── Note sync (outbound) ───────────────────────────────────────────
+
+  @Post("contacts/:contactId/sync-note")
+  async syncNote(
+    @Param("contactId") contactId: string,
+    @Body() body: { title?: string; body: string },
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (!body.body) throw new BadRequestException("body required");
+    const ctx = createOwnershipContext(user);
+    await this.noteSync.enqueueNote(ctx, {
+      contactId,
+      title: body.title,
+      body: body.body,
+    });
+    return { ok: true };
+  }
+
+  // ── Task sync (outbound) ───────────────────────────────────────────
+
+  @Post("contacts/:contactId/sync-task")
+  async syncTask(
+    @Param("contactId") contactId: string,
+    @Body()
+    body: {
+      title: string;
+      body?: string;
+      dueAt?: string;
+      assigneeEmail?: string;
+    },
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (!body.title) throw new BadRequestException("title required");
+    const ctx = createOwnershipContext(user);
+    await this.taskSync.enqueueTask(ctx, {
+      contactId,
+      title: body.title,
+      body: body.body,
+      dueAt: body.dueAt ? new Date(body.dueAt) : undefined,
+      assigneeEmail: body.assigneeEmail,
+    });
+    return { ok: true };
+  }
+
+  // ── Field mappings ─────────────────────────────────────────────────
+
+  @Get("connections/:id/field-mappings")
+  async listFieldMappings(
+    @Param("id") connectionId: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    const ctx = createOwnershipContext(user);
+    const conn = await this.connections.findById(connectionId);
+    if (!conn) throw new BadRequestException("connection not found");
+    await this.connections.assertAccess(ctx, conn);
+    return this.fieldMappings.getMappings(connectionId, "contact", "bidirectional");
+  }
+
+  @Post("connections/:id/field-mappings/seed")
+  async seedFieldMappings(
+    @Param("id") connectionId: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    const ctx = createOwnershipContext(user);
+    const conn = await this.connections.findById(connectionId);
+    if (!conn) throw new BadRequestException("connection not found");
+    await this.connections.assertAccess(ctx, conn);
+    await this.fieldMappings.seedDefaultMappings(connectionId, conn.provider);
+    return { ok: true };
+  }
+
+  // ── Provider metadata ──────────────────────────────────────────────
+
+  @Get("connections/:id/lists")
+  async listCrmLists(
+    @Param("id") connectionId: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    const ctx = createOwnershipContext(user);
+    const conn = await this.connections.findById(connectionId);
+    if (!conn) throw new BadRequestException("connection not found");
+    await this.connections.assertAccess(ctx, conn);
+
+    const provider = this.providerRegistry.get(conn.provider);
+    if (!provider.listLists) return [];
+
+    const decrypted = await this.connections.decrypt(conn);
+    return provider.listLists({
+      accessToken: decrypted.accessToken,
+      refreshToken: decrypted.refreshToken,
+      accountId: conn.externalAccountId,
+      connectionId: conn.id,
+    });
+  }
+
+  @Get("connections/:id/members")
+  async listCrmMembers(
+    @Param("id") connectionId: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    const ctx = createOwnershipContext(user);
+    const conn = await this.connections.findById(connectionId);
+    if (!conn) throw new BadRequestException("connection not found");
+    await this.connections.assertAccess(ctx, conn);
+
+    const provider = this.providerRegistry.get(conn.provider);
+    if (!provider.listMembers) return [];
+
+    const decrypted = await this.connections.decrypt(conn);
+    return provider.listMembers({
+      accessToken: decrypted.accessToken,
+      refreshToken: decrypted.refreshToken,
+      accountId: conn.externalAccountId,
+      connectionId: conn.id,
+    });
   }
 }

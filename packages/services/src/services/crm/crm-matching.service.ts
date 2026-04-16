@@ -1,8 +1,10 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import {
+  CrmCallSyncRepository,
   CrmConnection,
   CrmContactLink,
   CrmContactLinkRepository,
+  CrmOutboxRepository,
 } from "@ringee/database";
 import {
   CrmError,
@@ -30,6 +32,8 @@ export class CrmMatchingService {
     private readonly linkRepo: CrmContactLinkRepository,
     private readonly connections: CrmConnectionService,
     private readonly redis: RedisService,
+    private readonly syncRepo: CrmCallSyncRepository,
+    private readonly outbox: CrmOutboxRepository,
   ) {}
 
   async resolveByPhone(
@@ -107,5 +111,46 @@ export class CrmMatchingService {
 
   async invalidate(connectionId: string, phoneE164: string): Promise<void> {
     await this.redis.del(`crm-match-${connectionId}-${phoneE164}`);
+  }
+
+  async resolveAmbiguousMatch(
+    syncId: string,
+    chosenExternalId: string,
+    chosenExternalType: "person" | "company",
+  ): Promise<void> {
+    const sync = await this.syncRepo.findById(syncId);
+    if (!sync) throw new NotFoundException("sync not found");
+    if (sync.status !== "needs_resolution") {
+      throw new Error("sync is not in needs_resolution status");
+    }
+
+    const payload = sync.payloadSnapshot as Record<string, unknown>;
+    const phoneE164 = (payload.to as string) ?? (payload.from as string);
+
+    await this.linkRepo.upsertLink({
+      connectionId: sync.connectionId,
+      provider: sync.provider,
+      externalId: chosenExternalId,
+      externalType: chosenExternalType,
+      phoneNumberE164: normalizePhoneE164(phoneE164) ?? phoneE164,
+      matchConfidence: "user_resolved",
+    });
+
+    (payload as Record<string, unknown>).linkedRecords = [
+      { externalId: chosenExternalId, externalType: chosenExternalType },
+    ];
+    (payload as Record<string, unknown>).needsPersonCreation = null;
+
+    await this.syncRepo.markStatus(sync.id, "pending", null);
+
+    await this.outbox.enqueue({
+      connectionId: sync.connectionId,
+      provider: sync.provider,
+      kind: "call.log",
+      subjectId: sync.id,
+      payload: { syncId: sync.id } as Record<string, unknown>,
+      dedupeKey: `call.log:${sync.connectionId}:${sync.callId}:resolved`,
+      nextAttemptAt: new Date(),
+    });
   }
 }

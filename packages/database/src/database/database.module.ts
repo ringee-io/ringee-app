@@ -34,8 +34,13 @@ import { CalendarIntegrationRepository } from "./repositories/calendar-integrati
 import { TriggerLoopActionExecutionRepository } from "./repositories/triggerloop-action-execution.repository";
 import { TriggerLoopOutboxRepository } from "./repositories/triggerloop-outbox.repository";
 import { UserActivitySnapshotRepository } from "./repositories/user-activity-snapshot.repository";
+import { ContactPhoneRepository } from "./repositories/contact-phone.repository";
+import { ContactEmailRepository } from "./repositories/contact-email.repository";
+import { CompanyRepository } from "./repositories/company.repository";
+import { ContactAffiliationRepository } from "./repositories/contact-affiliation.repository";
 import { CrmConnectionRepository } from "./repositories/crm-connection.repository";
 import { CrmContactLinkRepository } from "./repositories/crm-contact-link.repository";
+import { CrmCompanyLinkRepository } from "./repositories/crm-company-link.repository";
 import { CrmCallSyncRepository } from "./repositories/crm-call-sync.repository";
 import { CrmOutboxRepository } from "./repositories/crm-outbox.repository";
 import { CrmFieldMappingRepository } from "./repositories/crm-field-mapping.repository";
@@ -76,8 +81,13 @@ const databaseProviders = [
   TriggerLoopActionExecutionRepository,
   TriggerLoopOutboxRepository,
   UserActivitySnapshotRepository,
+  ContactPhoneRepository,
+  ContactEmailRepository,
+  CompanyRepository,
+  ContactAffiliationRepository,
   CrmConnectionRepository,
   CrmContactLinkRepository,
+  CrmCompanyLinkRepository,
   CrmCallSyncRepository,
   CrmOutboxRepository,
   CrmFieldMappingRepository,

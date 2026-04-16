@@ -102,12 +102,12 @@ export class ContactService {
     return this.repo.addNote(contactId, userId, dto.content);
   }
 
-  async updateLastCall(contactId: string, date: Date) {
+  async updateLastCall(contactId: string, date: Date): Promise<Contact> {
     await this.ensureExists(contactId);
     return this.repo.updateLastCall(contactId, date);
   }
 
-  async deleteContact(contactId: string) {
+  async deleteContact(contactId: string): Promise<Contact> {
     await this.ensureExists(contactId);
     return this.repo.deleteContact(contactId);
   }
@@ -120,14 +120,13 @@ export class ContactService {
   /**
    * Get a contact's recent activities: calls, notes, meetings, and tags.
    */
-  async getContactActivities(contactId: string) {
+  async getContactActivities(contactId: string): Promise<Contact> {
     const contact = await this.repo.findById(contactId);
     if (!contact) throw new NotFoundException("Contact not found");
-    // findById already includes notes, calls, and tags
     return contact;
   }
 
-  async findByPhone(ctx: OwnershipContext, phoneNumber: string) {
+  async findByPhone(ctx: OwnershipContext, phoneNumber: string): Promise<Contact | null> {
     return this.repo.findByPhone(ctx, phoneNumber);
   }
 
