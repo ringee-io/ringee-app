@@ -58,10 +58,7 @@ export class TriggerLoopSignalService {
     ] = await Promise.all([
       this.prisma.userNumber.findFirst({
         where: {
-          OR: [
-            { userId },
-            organizationId ? { organizationId } : { id: "__never__" },
-          ],
+          OR: organizationId ? [{ userId }, { organizationId }] : [{ userId }],
           enabled: true,
         },
         select: { id: true },
@@ -75,10 +72,7 @@ export class TriggerLoopSignalService {
       this.prisma.contact.count({
         where: {
           deletedAt: null,
-          OR: [
-            { userId },
-            organizationId ? { organizationId } : { id: "__never__" },
-          ],
+          OR: organizationId ? [{ userId }, { organizationId }] : [{ userId }],
         },
       }),
       this.prisma.call.findFirst({
@@ -102,10 +96,7 @@ export class TriggerLoopSignalService {
       this.prisma.campaign.count({
         where: {
           status: { in: ["active", "paused"] },
-          OR: [
-            { userId },
-            organizationId ? { organizationId } : { id: "__never__" },
-          ],
+          OR: organizationId ? [{ userId }, { organizationId }] : [{ userId }],
         },
       }),
       // hasCallbacks: only pending/in-flight callbacks (scheduled, due,
