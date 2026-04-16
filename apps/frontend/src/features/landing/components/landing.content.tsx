@@ -8,12 +8,12 @@ import Footer from './footer';
 import { Navbar } from './navbar';
 import VideoDemo from './video-demo';
 import OpenSourceSection from './open-source-section';
-import PromoBanner from './promo-banner';
+// import PromoBanner from './promo-banner';
 
 export default function LandingContent() {
   return (
     <div id='landing'>
-      <PromoBanner />
+      {/* <PromoBanner /> */}
       <Navbar />
       <main>
         <Hero />
