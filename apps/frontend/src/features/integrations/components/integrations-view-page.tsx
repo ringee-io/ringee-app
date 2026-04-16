@@ -1,0 +1,229 @@
+'use client';
+
+import { Alert, AlertDescription, AlertTitle } from '@ringee/frontend-shared/components/ui/alert';
+import { Button } from '@ringee/frontend-shared/components/ui/button';
+import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
+import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { AlertCircle, Plug, RefreshCw } from 'lucide-react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
+import { useCrmConnections } from '../hooks/use-crm-connections';
+import type { CrmProviderType } from '../types/crm';
+import { PROVIDER_META } from '../types/crm';
+import { CrmConnectionCard } from './crm-connection-card';
+import { ProviderCatalog } from './provider-catalog';
+import { SyncHistorySheet } from './sync-history-sheet';
+
+export default function IntegrationsViewPage() {
+  const api = useApi();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const { connections, loading, error, reload } = useCrmConnections();
+  const [historyConnectionId, setHistoryConnectionId] = useState<string | null>(
+    null,
+  );
+  const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
+  const notifiedRef = useRef<string | null>(null);
+
+  // OAuth callback banner handling
+  useEffect(() => {
+    const crm = searchParams.get('crm');
+    const provider = searchParams.get('provider');
+    const reason = searchParams.get('reason');
+    if (!crm) return;
+    const key = `${crm}:${provider}:${reason}`;
+    if (notifiedRef.current === key) return;
+    notifiedRef.current = key;
+    if (crm === 'connected' && provider) {
+      toast.success(`${PROVIDER_META[provider as CrmProviderType]?.name ?? provider} connected`);
+      reload();
+    } else if (crm === 'error') {
+      toast.error(
+        `Connection failed${reason ? `: ${reason}` : ''}. Please try again.`,
+      );
+    }
+    // Clean URL
+    const url = new URL(window.location.href);
+    url.searchParams.delete('crm');
+    url.searchParams.delete('provider');
+    url.searchParams.delete('reason');
+    url.searchParams.delete('connectionId');
+    router.replace(url.pathname + (url.search ? url.search : ''));
+  }, [searchParams, router, reload]);
+
+  const handleConnect = async (
+    provider: CrmProviderType,
+    scope: 'personal' | 'organization',
+  ) => {
+    try {
+      const current =
+        typeof window !== 'undefined'
+          ? window.location.href.split('?')[0]
+          : undefined;
+      const res = await api.get<{ url: string }>(
+        `/crm/${provider}/oauth/start`,
+        { scope, ...(current ? { redirect: current } : {}) },
+      );
+      if (res?.url) {
+        window.location.href = res.url;
+      } else {
+        toast.error('Could not start authorization');
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to start auth');
+    }
+  };
+
+  const handleDisconnect = async (id: string) => {
+    setDisconnectingId(id);
+    try {
+      await api.delete(`/crm/connections/${id}`);
+      toast.success('Connection disconnected');
+      await reload();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to disconnect');
+    } finally {
+      setDisconnectingId(null);
+    }
+  };
+
+  const handleForget = async (id: string) => {
+    setDisconnectingId(id);
+    try {
+      await api.post(`/crm/connections/${id}/forget`);
+      toast.success('Connection forgotten');
+      await reload();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to forget');
+    } finally {
+      setDisconnectingId(null);
+    }
+  };
+
+  const connectedProviders = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          connections
+            .filter((c) => c.status === 'active')
+            .map((c) => c.provider),
+        ),
+      ),
+    [connections],
+  );
+
+  const needsAttention = connections.filter(
+    (c) => c.status === 'error' || c.status === 'revoked',
+  );
+
+  return (
+    <div className="flex flex-col gap-8">
+      {/* Alert banner if any connection needs attention */}
+      {needsAttention.length > 0 && (
+        <Alert className="border-amber-500/30 bg-amber-500/5">
+          <AlertCircle className="h-4 w-4 text-amber-500" />
+          <AlertTitle>
+            {needsAttention.length} connection
+            {needsAttention.length > 1 ? 's need' : ' needs'} attention
+          </AlertTitle>
+          <AlertDescription>
+            Reconnect to resume call logging. Pending calls will retry
+            automatically once the connection is healthy again.
+          </AlertDescription>
+        </Alert>
+      )}
+
+      {/* Active connections */}
+      <section className="flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Your connections
+            </h2>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => reload()}
+            disabled={loading}
+            className="h-8"
+          >
+            <RefreshCw
+              className={`mr-1.5 h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`}
+            />
+            Refresh
+          </Button>
+        </div>
+
+        {loading ? (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {Array.from({ length: 2 }).map((_, i) => (
+              <Skeleton key={i} className="h-52 w-full rounded-xl" />
+            ))}
+          </div>
+        ) : error ? (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Couldn't load connections</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        ) : connections.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            {connections.map((c) => (
+              <CrmConnectionCard
+                key={c.id}
+                connection={c}
+                onDisconnect={handleDisconnect}
+                onForget={handleForget}
+                onReconnect={handleConnect}
+                onViewHistory={(id) => setHistoryConnectionId(id)}
+                disconnecting={disconnectingId === c.id}
+              />
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Catalog */}
+      <section className="flex flex-col gap-4">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            Available integrations
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Choose a CRM to push calls, dispositions, recordings and notes to
+            the right person or company record.
+          </p>
+        </div>
+        <ProviderCatalog
+          onConnect={handleConnect}
+          connectedProviders={connectedProviders}
+        />
+      </section>
+
+      <SyncHistorySheet
+        connectionId={historyConnectionId}
+        open={!!historyConnectionId}
+        onOpenChange={(open) => !open && setHistoryConnectionId(null)}
+      />
+    </div>
+  );
+}
+
+function EmptyState() {
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed bg-muted/20 px-6 py-12 text-center">
+      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+        <Plug className="h-5 w-5 text-muted-foreground" />
+      </div>
+      <h3 className="mt-2 text-sm font-semibold">No integrations yet</h3>
+      <p className="max-w-sm text-xs text-muted-foreground">
+        Connect a CRM below and every call you make will appear on the right
+        contact — with disposition, duration, recording and notes — in seconds.
+      </p>
+    </div>
+  );
+}

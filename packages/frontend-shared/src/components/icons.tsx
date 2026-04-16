@@ -41,7 +41,8 @@ import {
   IconShieldOff,
   IconPhoneIncoming,
   IconInbox,
-  IconActivity
+  IconActivity,
+  IconPlug
 } from '@tabler/icons-react';
 import { MoreHorizontal } from 'lucide-react';
 
@@ -90,6 +91,7 @@ export const Icons = {
   shieldOff: IconShieldOff,
   phoneIncoming: IconPhoneIncoming,
   inbox: IconInbox,
-  activity: IconActivity
+  activity: IconActivity,
+  plug: IconPlug
 };
 

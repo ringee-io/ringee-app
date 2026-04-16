@@ -11,4 +11,6 @@ export * from "./newsletter";
 export * from "./stripe/stripe.service";
 export * from "./stripe/stripe.module";
 export * from "./crypto/crypto.service";
+export * from "./crypto/crypto.module";
 export * from "./upload";
+export * from "./crm";

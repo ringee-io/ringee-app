@@ -34,6 +34,11 @@ import { CalendarIntegrationRepository } from "./repositories/calendar-integrati
 import { TriggerLoopActionExecutionRepository } from "./repositories/triggerloop-action-execution.repository";
 import { TriggerLoopOutboxRepository } from "./repositories/triggerloop-outbox.repository";
 import { UserActivitySnapshotRepository } from "./repositories/user-activity-snapshot.repository";
+import { CrmConnectionRepository } from "./repositories/crm-connection.repository";
+import { CrmContactLinkRepository } from "./repositories/crm-contact-link.repository";
+import { CrmCallSyncRepository } from "./repositories/crm-call-sync.repository";
+import { CrmOutboxRepository } from "./repositories/crm-outbox.repository";
+import { CrmFieldMappingRepository } from "./repositories/crm-field-mapping.repository";
 
 const databaseProviders = [
   PrismaService,
@@ -71,6 +76,11 @@ const databaseProviders = [
   TriggerLoopActionExecutionRepository,
   TriggerLoopOutboxRepository,
   UserActivitySnapshotRepository,
+  CrmConnectionRepository,
+  CrmContactLinkRepository,
+  CrmCallSyncRepository,
+  CrmOutboxRepository,
+  CrmFieldMappingRepository,
 ];
 
 @Global()

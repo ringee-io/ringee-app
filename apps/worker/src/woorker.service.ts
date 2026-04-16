@@ -10,6 +10,7 @@ import {
   RetryEngine,
   CallbackService,
   AgentSessionService,
+  CrmSyncService,
 } from "@ringee/services";
 import {
   UserRepository,
@@ -22,6 +23,8 @@ const RETRY_INTERVAL_MS = 30_000; // 30 seconds
 const CALLBACK_INTERVAL_MS = 30_000; // 30 seconds
 const HEARTBEAT_CHECK_INTERVAL_MS = 15_000; // 15 seconds
 const COMPLETION_CHECK_INTERVAL_MS = 60_000; // 60 seconds
+const CRM_DRAIN_INTERVAL_MS = 5_000; // 5 seconds
+const CRM_DRAIN_BATCH_SIZE = 25;
 
 @Injectable()
 export class WorkerService implements OnModuleInit, OnModuleDestroy {
@@ -41,6 +44,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly agentSessionService: AgentSessionService,
     private readonly campaignLeadRepo: CampaignLeadRepository,
     private readonly campaignRepo: CampaignRepository,
+    private readonly crmSyncService: CrmSyncService,
   ) { }
 
   onModuleInit() {
@@ -57,6 +61,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
       setInterval(() => this.runCallbackScheduler(), CALLBACK_INTERVAL_MS),
       setInterval(() => this.runHeartbeatCheck(), HEARTBEAT_CHECK_INTERVAL_MS),
       setInterval(() => this.runCompletionCheck(), COMPLETION_CHECK_INTERVAL_MS),
+      setInterval(() => this.runCrmDrain(), CRM_DRAIN_INTERVAL_MS),
     );
     this.logger.log("Outbound schedulers started");
   }
@@ -99,6 +104,23 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
       }
     } catch (err) {
       this.logger.error("HeartbeatCheck error:", err);
+    }
+  }
+
+  private crmDrainInFlight = false;
+
+  private async runCrmDrain() {
+    if (this.crmDrainInFlight) return;
+    this.crmDrainInFlight = true;
+    try {
+      const count = await this.crmSyncService.drain(CRM_DRAIN_BATCH_SIZE);
+      if (count > 0) {
+        this.logger.debug(`CrmDrain: ${count} outbox events processed`);
+      }
+    } catch (err) {
+      this.logger.error("CrmDrain error:", err);
+    } finally {
+      this.crmDrainInFlight = false;
     }
   }
 

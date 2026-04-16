@@ -16,6 +16,7 @@ import { NumberPurchasedService } from "./number.purchased.service";
 import { UserDeviceService } from "./user.device.service";
 import { OrganizationService } from "./organization.service";
 import { CallAttemptService } from "./outbound/call-attempt.service";
+import { CrmCallLogService } from "./crm/crm-call-log.service";
 
 @Injectable()
 export class CallService {
@@ -33,6 +34,7 @@ export class CallService {
     private readonly workerService: WorkerService,
     private readonly organizationService: OrganizationService,
     private readonly callAttemptService: CallAttemptService,
+    private readonly crmCallLogService: CrmCallLogService,
   ) { }
 
   /**
@@ -280,16 +282,17 @@ export class CallService {
           hangupPayload.end_time!,
         );
 
+        const hangupCall = await this.callRepository.findByControlId(callControlId);
         const hangupAttemptId = this.extractCallAttemptId(payload);
-        const hangupCall = hangupAttemptId
-          ? await this.callRepository.findByControlId(callControlId)
-          : null;
         if (hangupAttemptId && hangupCall) {
           await this.callAttemptService.handleWebhookEvent(
             hangupAttemptId,
             event_type,
             hangupCall.id,
           );
+        }
+        if (hangupCall) {
+          void this.crmCallLogService.handleCallCompleted(hangupCall);
         }
         break;
       }

@@ -32,3 +32,8 @@ export * from "./calendar-integration.repository";
 export * from "./triggerloop-action-execution.repository";
 export * from "./triggerloop-outbox.repository";
 export * from "./user-activity-snapshot.repository";
+export * from "./crm-connection.repository";
+export * from "./crm-contact-link.repository";
+export * from "./crm-call-sync.repository";
+export * from "./crm-outbox.repository";
+export * from "./crm-field-mapping.repository";
