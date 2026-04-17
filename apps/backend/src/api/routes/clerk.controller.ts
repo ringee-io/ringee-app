@@ -67,13 +67,6 @@ export class ClerkController {
             },
           });
 
-          const primaryEmail = clerkUser.emailAddresses?.find(
-            (e) => e.id === clerkUser.primaryEmailAddressId,
-          )?.emailAddress;
-          await this.triggerLoop.userRegistered(user.id, {
-            email: primaryEmail,
-            plan: "trial",
-          });
           await this.triggerLoop.startWorkflow("signupFollowup", {
             type: "user",
             id: user.id,
