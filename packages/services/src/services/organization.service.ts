@@ -14,22 +14,16 @@ export class OrganizationService {
     }
 
     async getByClerkId(clerkId: string): Promise<Organization | null> {
-        const cachedOrg = await this.redisService.get<string>(`organization:${clerkId}`);
+        const cachedOrg = await this.redisService.get<Organization>(`organization:${clerkId}`);
 
         if (cachedOrg) {
-            const val = JSON.parse(cachedOrg);
-
-            if (val?.value) {
-                return JSON.parse(val.value);
-            } else if (val) {
-                return val;
-            }
+            return cachedOrg;
         }
 
         const org = await this.organizationRepository.findByClerkId(clerkId);
 
         if (org) {
-            await this.redisService.set<string>(`organization:${clerkId}`, JSON.stringify(org));
+            await this.redisService.set(`organization:${clerkId}`, org);
         }
 
         return org;

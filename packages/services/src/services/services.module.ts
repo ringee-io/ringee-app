@@ -6,6 +6,8 @@ import {
   TelephonyModule,
   RedisModule,
   StripeModule,
+  CrmModule,
+  CryptoModule,
 } from "@ringee/platform";
 import { ChatAuthService } from "./chat.auth.service";
 import { CallTranscriptionService } from "./call.transcription.service";
@@ -39,6 +41,21 @@ import {
   SSEBridgeService,
   CampaignMemberService,
 } from "./outbound";
+import { AttioAppService } from "./attio-app.service";
+import {
+  CrmConnectionService,
+  CrmOAuthService,
+  CrmMatchingService,
+  CrmCallLogService,
+  CrmSyncService,
+  CrmStatusService,
+  CrmFieldMappingService,
+  CrmContactSyncService,
+  CrmCompanySyncService,
+  CrmNoteSyncService,
+  CrmTaskSyncService,
+  CrmBulkSyncService,
+} from "./crm";
 
 const servicesProviders = [
   UserService,
@@ -73,11 +90,26 @@ const servicesProviders = [
   CampaignConfigService,
   CampaignMemberService,
   SSEBridgeService,
+  // CRM services
+  CrmConnectionService,
+  CrmOAuthService,
+  CrmMatchingService,
+  CrmCallLogService,
+  CrmSyncService,
+  CrmStatusService,
+  CrmFieldMappingService,
+  CrmContactSyncService,
+  CrmCompanySyncService,
+  CrmNoteSyncService,
+  CrmTaskSyncService,
+  CrmBulkSyncService,
+  // Attio App SDK integration
+  AttioAppService,
 ];
 
 @Global()
 @Module({
-  imports: [AuthModule, NotificationModule, TelephonyModule, StripeModule],
+  imports: [AuthModule, NotificationModule, TelephonyModule, StripeModule, CrmModule, RedisModule, CryptoModule],
   providers: servicesProviders,
   exports: servicesProviders,
 })

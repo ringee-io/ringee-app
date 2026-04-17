@@ -1,0 +1,9 @@
+{
+  "$schema": "https://unpkg.com/graphql-config@5.1.5/config-schema.json",
+  "projects": {
+    "attio": {
+      "schema": "./node_modules/attio/schema.graphql",
+      "documents": ["./src/**/*.{graphql,gql}"]
+    }
+  }
+}

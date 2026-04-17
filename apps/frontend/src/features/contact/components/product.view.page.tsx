@@ -20,7 +20,7 @@ export default async function ContactViewPage({
       notFound();
     }
 
-    pageTitle = `Edit Contact`;
+    pageTitle = 'Edit Contact';
   }
 
   return <ContactForm initialData={contact} pageTitle={pageTitle} />;

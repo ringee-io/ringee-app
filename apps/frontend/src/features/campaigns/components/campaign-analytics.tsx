@@ -355,7 +355,7 @@ export function CampaignAnalytics({ campaignId }: Props) {
             {dispositions.length > 0 && (
               <div className="mt-4 grid grid-cols-2 gap-2">
                 {dispositions.map((d, i) => (
-                  <div key={d.code} className="flex items-center gap-2 text-sm">
+                  <div key={i} className="flex items-center gap-2 text-sm">
                     <div
                       className="h-3 w-3 rounded-full"
                       style={{ backgroundColor: DISPOSITION_COLORS[i % DISPOSITION_COLORS.length] }}

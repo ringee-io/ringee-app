@@ -12,6 +12,16 @@ export class CreateContactDto {
   @MaxLength(100)
   name?: string;
 
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  firstName?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  lastName?: string;
+
   @IsString()
   @IsNotEmpty()
   @MaxLength(20)
@@ -20,6 +30,16 @@ export class CreateContactDto {
   @IsOptional()
   @IsEmail()
   email?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  jobTitle?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(50)
+  source?: string;
 
   @IsOptional()
   @IsString()

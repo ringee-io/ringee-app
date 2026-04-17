@@ -1,0 +1,36 @@
+{
+  "name": "ringee-io",
+  "description": "Ringee.io",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "attio": "attio",
+    "dev": "attio dev",
+    "build": "attio build",
+    "format": "biome format --write src/",
+    "format:check": "biome format src/",
+    "clean": "rm -rf lib && rm -rf dist",
+    "lint": "npm run lint:biome && npm run lint:attio",
+    "lint:biome": "biome lint src/",
+    "lint:biome:fix": "biome lint --write src/",
+    "lint:attio": "eslint \"src/**/*.{ts,tsx}\" --config eslint.attio.config.js",
+    "lint:attio:fix": "eslint \"src/**/*.{ts,tsx}\" --config eslint.attio.config.js --fix",
+    "lint:fix": "npm run lint:biome:fix && npm run lint:attio:fix",
+    "check": "biome check src/",
+    "check:fix": "biome check --write src/",
+    "test": ""
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.0.0",
+    "@types/node": "^24.0.4",
+    "@types/react": "19.1.8",
+    "eslint": "^9.29.0",
+    "node-fetch": "3.3.2",
+    "@typescript-eslint/parser": "^8.34.1"
+  },
+  "dependencies": {
+    "attio": "latest",
+    "react": "19.1.0",
+    "zod": "3.25.67"
+  }
+}

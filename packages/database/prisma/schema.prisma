@@ -110,6 +110,49 @@ enum CallbackStatus {
   cancelled
 }
 
+// ── CRM Integration Enums ──
+
+enum CrmProviderType {
+  attio
+  hubspot
+  salesforce
+}
+
+enum CrmConnectionScope {
+  personal
+  organization
+}
+
+enum CrmConnectionStatus {
+  active
+  expired
+  revoked
+  error
+  disconnected
+}
+
+enum CrmRecordType {
+  person
+  company
+  list
+}
+
+enum CrmSyncStatus {
+  pending
+  in_progress
+  done
+  failed
+  skipped
+  needs_resolution
+}
+
+enum CrmOutboxStatus {
+  pending
+  in_progress
+  sent
+  failed
+}
+
 model User {
   id               String   @id @default(uuid()) @db.Uuid
   clerkId          String?  @unique
@@ -154,6 +197,8 @@ model User {
   meetings                Meeting[]
   calendarIntegrations    CalendarIntegration[]
   activitySnapshot        UserActivitySnapshot?
+  crmConnections          CrmConnection[]
+  companies               Company[]
 
   @@index([clerkId])
 }
@@ -184,6 +229,8 @@ model Organization {
   tags                 Tag[]
   meetings             Meeting[]
   calendarIntegrations CalendarIntegration[]
+  crmConnections       CrmConnection[]
+  companies            Company[]
 
   @@index([clerkId])
 }
@@ -310,6 +357,7 @@ model Call {
   recordings    Recording[]
   meetings      Meeting[]
   callAttempts  CallAttempt[]
+  crmSyncs      CrmCallSync[]
 
   @@index([userId])
   @@index([organizationId])
@@ -407,29 +455,42 @@ model NumberPurchased {
 model Contact {
   id             String    @id @default(uuid()) @db.Uuid
   name           String?
+  firstName      String?
+  lastName       String?
   userId         String    @db.Uuid
   organizationId String?   @db.Uuid
   phoneNumber    String    @db.VarChar(20)
   email          String?   @db.VarChar(100)
   company        String?
+  jobTitle       String?
+  source         String?
+  ownerId        String?   @db.Uuid
   lastCallAt     DateTime?
+  crmMetadata    Json?
+  customFields   Json?
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
 
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization  Organization?  @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization  Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   calls         Call[]
   notes         ContactNote[]
   campaignLeads CampaignLead[]
   tags          ContactTag[]
   meetings      Meeting[]
+  crmLinks      CrmContactLink[]
+  phones        ContactPhone[]
+  emails        ContactEmail[]
+  affiliations  ContactAffiliation[]
 
   @@unique([userId, phoneNumber, deletedAt])
   @@index([userId])
   @@index([organizationId])
   @@index([phoneNumber])
   @@index([deletedAt])
+  @@index([ownerId])
+  @@index([source])
 }
 
 model ContactNote {
@@ -446,6 +507,110 @@ model ContactNote {
 
   @@index([contactId])
   @@index([userId])
+}
+
+model ContactPhone {
+  id        String   @id @default(uuid()) @db.Uuid
+  contactId String   @db.Uuid
+  phone     String   @db.VarChar(30)
+  phoneE164 String?  @db.VarChar(20)
+  type      String?
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, phone])
+  @@index([contactId])
+  @@index([phoneE164])
+}
+
+model ContactEmail {
+  id        String   @id @default(uuid()) @db.Uuid
+  contactId String   @db.Uuid
+  email     String   @db.VarChar(255)
+  type      String?
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, email])
+  @@index([contactId])
+  @@index([email])
+}
+
+model Company {
+  id             String    @id @default(uuid()) @db.Uuid
+  name           String
+  domain         String?
+  industry       String?
+  size           String?
+  phone          String?   @db.VarChar(30)
+  website        String?
+  userId         String    @db.Uuid
+  organizationId String?   @db.Uuid
+  source         String?
+  crmMetadata    Json?
+  customFields   Json?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  deletedAt      DateTime?
+
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  affiliations ContactAffiliation[]
+  crmLinks     CrmCompanyLink[]
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([domain])
+  @@index([name])
+  @@index([deletedAt])
+}
+
+model ContactAffiliation {
+  id          String    @id @default(uuid()) @db.Uuid
+  contactId   String    @db.Uuid
+  companyId   String    @db.Uuid
+  role        String?
+  isPrimary   Boolean   @default(false)
+  startDate   DateTime?
+  endDate     DateTime?
+  crmMetadata Json?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, companyId])
+  @@index([contactId])
+  @@index([companyId])
+}
+
+model CrmCompanyLink {
+  id              String          @id @default(uuid()) @db.Uuid
+  connectionId    String          @db.Uuid
+  companyId       String?         @db.Uuid
+  provider        CrmProviderType
+  externalId      String
+  externalType    CrmRecordType
+  domain          String?
+  matchConfidence String          @default("domain_exact")
+  lastSyncedAt    DateTime        @default(now())
+  rawSnapshot     Json?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  connection CrmConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  company    Company?      @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@unique([connectionId, externalType, externalId])
+  @@index([companyId])
+  @@index([connectionId, domain])
 }
 
 model CallerId {
@@ -501,9 +666,9 @@ model CreditAutoReload {
   autoReloadAmount    Float   @default(25)
 
   // Monthly recurring fund (Stripe subscription)
-  monthlyFundEnabled       Boolean @default(false)
-  monthlyFundAmount        Float?
-  stripeSubscriptionId     String?
+  monthlyFundEnabled   Boolean @default(false)
+  monthlyFundAmount    Float?
+  stripeSubscriptionId String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -572,9 +737,9 @@ model Campaign {
   status      String  @default("draft") // draft | active | paused | completed
 
   // Dialer configuration
-  dialerMode    DialerMode @default(progressive)
-  callerIdId    String?    @db.Uuid
-  maxAttempts   Int        @default(3)
+  dialerMode  DialerMode @default(progressive)
+  callerIdId  String?    @db.Uuid
+  maxAttempts Int        @default(3)
 
   // Working hours (minutes from midnight in campaign timezone)
   timezone     String @default("America/New_York")
@@ -592,15 +757,15 @@ model Campaign {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization?  @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  callerId     CallerId?      @relation("campaignCallerId", fields: [callerIdId], references: [id])
-  members      CampaignMember[]
-  leads        CampaignLead[]
-  lists        CampaignList[]
-  dispositions Disposition[]
-  retryRules   RetryRule[]
-  callAttempts CallAttempt[]
+  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization  Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  callerId      CallerId?        @relation("campaignCallerId", fields: [callerIdId], references: [id])
+  members       CampaignMember[]
+  leads         CampaignLead[]
+  lists         CampaignList[]
+  dispositions  Disposition[]
+  retryRules    RetryRule[]
+  callAttempts  CallAttempt[]
   agentSessions AgentSession[]
 
   @@index([userId])
@@ -609,9 +774,9 @@ model Campaign {
 }
 
 model CampaignLead {
-  id         String @id @default(uuid()) @db.Uuid
-  campaignId String @db.Uuid
-  contactId  String @db.Uuid
+  id         String  @id @default(uuid()) @db.Uuid
+  campaignId String  @db.Uuid
+  contactId  String  @db.Uuid
   listId     String? @db.Uuid
 
   userId String? @db.Uuid // assigned agent (optional)
@@ -756,12 +921,12 @@ model CampaignList {
 }
 
 model CallAttempt {
-  id             String            @id @default(uuid()) @db.Uuid
-  campaignId     String            @db.Uuid
-  campaignLeadId String            @db.Uuid
-  callId         String?           @db.Uuid
-  agentSessionId String?           @db.Uuid
-  agentUserId    String            @db.Uuid
+  id             String  @id @default(uuid()) @db.Uuid
+  campaignId     String  @db.Uuid
+  campaignLeadId String  @db.Uuid
+  callId         String? @db.Uuid
+  agentSessionId String? @db.Uuid
+  agentUserId    String  @db.Uuid
 
   status        CallAttemptStatus @default(created)
   attemptNumber Int
@@ -899,8 +1064,8 @@ model AgentSession {
   status         AgentSessionStatus @default(offline)
   currentLeadId  String?            @db.Uuid
 
-  lastHeartbeat DateTime @default(now())
-  startedAt     DateTime @default(now())
+  lastHeartbeat DateTime  @default(now())
+  startedAt     DateTime  @default(now())
   endedAt       DateTime?
 
   callsAttempted Int @default(0)
@@ -1002,4 +1167,151 @@ model UserActivitySnapshot {
 
   @@index([lastActiveAt])
   @@index([lastInactiveEmittedAt])
+}
+
+// ── CRM Integration Models ──
+// Provider-agnostic tables. Attio is the first provider; HubSpot/Salesforce
+// slot in without schema changes. Visibility & ownership mirror the rest of
+// Ringee (personal = organizationId null, organization = organizationId set).
+
+model CrmConnection {
+  id             String             @id @default(uuid()) @db.Uuid
+  provider       CrmProviderType
+  scope          CrmConnectionScope
+  userId         String             @db.Uuid
+  organizationId String?            @db.Uuid
+
+  externalAccountId   String
+  externalAccountName String?
+
+  accessTokenCiphertext  String    @db.Text
+  refreshTokenCiphertext String?   @db.Text
+  tokenExpiresAt         DateTime?
+  scopes                 String[]
+
+  status        CrmConnectionStatus @default(active)
+  lastErrorCode String?
+  lastErrorAt   DateTime?
+  lastSyncAt    DateTime?
+
+  providerMetadata Json?
+  capabilities     Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  callSyncs     CrmCallSync[]
+  contactLinks  CrmContactLink[]
+  companyLinks  CrmCompanyLink[]
+  fieldMappings CrmFieldMapping[]
+
+  @@unique([scope, organizationId, provider])
+  @@unique([scope, userId, provider, organizationId])
+  @@index([provider, status])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model CrmContactLink {
+  id              String          @id @default(uuid()) @db.Uuid
+  connectionId    String          @db.Uuid
+  contactId       String?         @db.Uuid
+  provider        CrmProviderType
+  externalId      String
+  externalType    CrmRecordType
+  phoneNumberE164 String
+
+  matchConfidence String   @default("phone_exact")
+  lastSyncedAt    DateTime @default(now())
+  rawSnapshot     Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  connection CrmConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  contact    Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@unique([connectionId, externalType, externalId])
+  @@unique([connectionId, phoneNumberE164])
+  @@index([contactId])
+  @@index([phoneNumberE164])
+}
+
+model CrmCallSync {
+  id           String          @id @default(uuid()) @db.Uuid
+  connectionId String          @db.Uuid
+  provider     CrmProviderType
+  callId       String          @db.Uuid
+
+  externalActivityId String?
+  externalRecordId   String?
+  externalRecordType CrmRecordType?
+
+  status        CrmSyncStatus @default(pending)
+  attemptCount  Int           @default(0)
+  lastError     String?       @db.Text
+  nextAttemptAt DateTime?
+
+  idempotencyKey  String
+  payloadSnapshot Json
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  connection CrmConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  call       Call          @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, callId])
+  @@unique([idempotencyKey])
+  @@index([status, nextAttemptAt])
+  @@index([callId])
+  @@index([connectionId])
+}
+
+model CrmOutboxEvent {
+  id           String          @id @default(uuid()) @db.Uuid
+  connectionId String?         @db.Uuid
+  provider     CrmProviderType
+  kind         String
+  subjectId    String?
+  payload      Json
+
+  status        CrmOutboxStatus @default(pending)
+  attemptCount  Int             @default(0)
+  lastError     String?         @db.Text
+  nextAttemptAt DateTime        @default(now())
+  processedAt   DateTime?
+
+  dedupeKey String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, nextAttemptAt])
+  @@index([provider])
+  @@index([connectionId])
+}
+
+model CrmFieldMapping {
+  id             String          @id @default(uuid()) @db.Uuid
+  connectionId   String          @db.Uuid
+  provider       CrmProviderType
+  ringeeEntity   String
+  ringeeField    String
+  externalEntity String
+  externalField  String
+  transform      Json?
+  direction      String          @default("push")
+  enabled        Boolean         @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  connection CrmConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@unique([connectionId, ringeeEntity, ringeeField])
+  @@index([connectionId])
 }

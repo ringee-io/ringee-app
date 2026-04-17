@@ -12,7 +12,7 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@ringee/frontend-shared/components/ui/card';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@ringee/frontend-shared/components/ui/form';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
-import { Trash, Plus } from 'lucide-react';
+import { Trash, Plus, ArrowLeft } from 'lucide-react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import {
   AlertDialog,
@@ -33,21 +33,51 @@ import { toast } from 'sonner';
 import { ApiError } from '@ringee/frontend-shared/lib/api';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 
+const SOURCE_OPTIONS = [
+  'manual',
+  'csv_import',
+  'crm_sync',
+  'web_form',
+  'referral',
+  'cold_outreach',
+  'inbound_call',
+  'other'
+];
+
 const formSchema = z.object({
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
+  name: z.string().optional(),
+  email: z.union([z.literal(''), z.string().email('Invalid email format')]).optional(),
+  phoneNumber: z.string().min(5, 'Phone number is required'),
   organization: z
     .string()
     .min(2, { message: 'Organization name must be at least 2 characters.' })
-    .optional(),
-  name: z
-    .string()
-    .min(2, { message: 'Contact name must be at least 2 characters.' }),
-  email: z.email('Invalid email format').optional(),
-  phoneNumber: z.string().min(5, 'Phone number is required'),
+    .optional()
+    .or(z.literal('')),
+  jobTitle: z.string().optional(),
+  source: z.string().optional(),
   note: z.string().optional(),
   tagIds: z.array(z.string()).optional()
 });
 
 type ContactFormValues = z.infer<typeof formSchema>;
+
+export interface ContactFormData {
+  id: string;
+  name: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  company?: string | null;
+  organization?: string;
+  email: string;
+  phoneNumber: string;
+  jobTitle?: string | null;
+  source?: string | null;
+  lastCallAt: string | null;
+  notes: { id: string; content: string; createdAt: string }[];
+  tags: { tag: { id: string; name: string; color?: string | null } }[];
+}
 
 export default function ContactForm({
   initialData,
@@ -55,17 +85,7 @@ export default function ContactForm({
   className = '',
   onSaved
 }: {
-  initialData: {
-    id: string;
-    name: string;
-    company?: string | null;
-    organization?: string;
-    email: string;
-    phoneNumber: string;
-    lastCallAt: string | null;
-    notes: { id: string; content: string; createdAt: string }[];
-    tags: { tag: { id: string; name: string; color?: string | null } }[];
-  } | null;
+  initialData: ContactFormData | null;
   pageTitle: string;
   className?: string;
   onSaved?: () => void;
@@ -86,29 +106,30 @@ export default function ContactForm({
   const form = useForm<ContactFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      firstName: initialData?.firstName || '',
+      lastName: initialData?.lastName || '',
       name: initialData?.name || '',
-      organization: initialData?.company || initialData?.organization || undefined,
-      email: initialData?.email || undefined,
+      organization: initialData?.company || initialData?.organization || '',
+      email: initialData?.email || '',
       phoneNumber: initialData?.phoneNumber || '',
+      jobTitle: initialData?.jobTitle || '',
+      source: initialData?.source || '',
       note: undefined,
       tagIds: initialData?.tags?.map((t) => t.tag.id) || []
     }
   });
-  
-  // Set initial tags for the selector if editing
+
   const [tags, setTags] = useState<Tag[]>([]);
-  
-  // Fetch available tags
+
   useEffect(() => {
     api.get<Tag[]>('/tags').then(setTags).catch(() => setTags([]));
   }, [api]);
-  
-  // Create tag handler
+
   const handleCreateTag = useCallback(async (name: string, color?: string): Promise<Tag> => {
     try {
       const colors = ['#ef4444', '#f97316', '#f59e0b', '#22c55e', '#3b82f6', '#6366f1', '#a855f7', '#ec4899'];
       const randomColor = color || colors[Math.floor(Math.random() * colors.length)];
-      
+
       const newTag = await api.post<Tag>('/tags', { name, color: randomColor });
       setTags(prev => [...prev.sort((a, b) => a.name.localeCompare(b.name)), newTag]);
       return newTag;
@@ -121,8 +142,12 @@ export default function ContactForm({
   async function onSubmit(values: ContactFormValues) {
     try {
       setLoading(true);
-      if (!isEdit) await api.post('/contacts', values);
-      else await api.put(`/contacts/${initialData?.id}`, values);
+      const payload = {
+        ...values,
+        name: values.name || [values.firstName, values.lastName].filter(Boolean).join(' ') || undefined,
+      };
+      if (!isEdit) await api.post('/contacts', payload);
+      else await api.put(`/contacts/${initialData?.id}`, payload);
       if (!onSaved) router.push('/dashboard/contact');
 
       onSaved?.();
@@ -158,12 +183,20 @@ export default function ContactForm({
         className
       )}
     >
-      {/* 🔹 LEFT: Contact Form */}
       <Card>
         <CardHeader>
-          <CardTitle className='text-left text-2xl font-bold'>
-            {pageTitle}
-          </CardTitle>
+          <div className='flex items-center gap-3'>
+            <Button
+              variant='ghost'
+              size='icon'
+              onClick={() => router.back()}
+            >
+              <ArrowLeft className='h-4 w-4' />
+            </Button>
+            <CardTitle className='text-left text-2xl font-bold'>
+              {pageTitle}
+            </CardTitle>
+          </div>
         </CardHeader>
         <CardContent>
           <Form
@@ -173,18 +206,31 @@ export default function ContactForm({
             className='space-y-8'
           >
             <div className='grid grid-cols-1 gap-6'>
+              <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+                <FormInput
+                  control={form.control}
+                  name='firstName'
+                  label='First Name'
+                  placeholder='John'
+                />
+                <FormInput
+                  control={form.control}
+                  name='lastName'
+                  label='Last Name'
+                  placeholder='Doe'
+                />
+              </div>
+
               <FormInput
                 control={form.control}
                 name='name'
-                label='Name'
-                placeholder='Enter contact name'
-                required
+                label='Display Name'
+                placeholder='Auto-generated from first/last name if empty'
               />
 
-              {/* ✅ Custom Phone Input */}
               <div className='space-y-2'>
                 <label className='text-sm font-medium'>
-                  Phone Number <span className='text-red-500'> * </span>{' '}
+                  Phone Number <span className='text-red-500'> * </span>
                 </label>
                 <Controller
                   name='phoneNumber'
@@ -209,18 +255,53 @@ export default function ContactForm({
 
               <FormInput
                 control={form.control}
-                name='organization'
-                label='Organization'
-                placeholder='Enter organization'
-              />
-              <FormInput
-                control={form.control}
                 name='email'
                 label='Email'
-                placeholder='Enter email'
+                placeholder='john@example.com'
               />
 
-              {/* Tags Input */}
+              <Separator />
+
+              <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+                <FormInput
+                  control={form.control}
+                  name='organization'
+                  label='Company / Organization'
+                  placeholder='Acme Inc.'
+                />
+                <FormInput
+                  control={form.control}
+                  name='jobTitle'
+                  label='Job Title'
+                  placeholder='Sales Manager'
+                />
+              </div>
+
+              <FormField
+                control={form.control}
+                name='source'
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Source</FormLabel>
+                    <FormControl>
+                      <select
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        className='border-input bg-background ring-offset-background focus:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50'
+                      >
+                        <option value=''>Select source...</option>
+                        {SOURCE_OPTIONS.map((src) => (
+                          <option key={src} value={src}>
+                            {src.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </option>
+                        ))}
+                      </select>
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
               <FormField
                 control={form.control}
                 name="tagIds"
@@ -269,7 +350,6 @@ export default function ContactForm({
         </CardContent>
       </Card>
 
-      {/* 🔹 RIGHT: Notes Section */}
       {isEdit && (
         <Card>
           <CardHeader>
@@ -320,7 +400,6 @@ export default function ContactForm({
         </Card>
       )}
 
-      {/* 📝 Modal para crear nota */}
       <CreateNoteModal
         open={noteModalOpen}
         onOpenChange={setNoteModalOpen}
@@ -331,7 +410,6 @@ export default function ContactForm({
         }}
       />
 
-      {/* 🗑️ Modal eliminar nota */}
       <AlertDialog
         open={deleteModal.open}
         onOpenChange={(open) => setDeleteModal({ open })}

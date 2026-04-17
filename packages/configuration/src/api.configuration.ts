@@ -25,6 +25,15 @@ const apiConfiguration = {
   TRIGGERLOOP_API_KEY: process.env.TRIGGERLOOP_API_KEY!,
   TRIGGERLOOP_WEBHOOK_SECRET: process.env.TRIGGERLOOP_WEBHOOK_SECRET!,
   TRIGGERLOOP_PROJECT_KEY: process.env.TRIGGERLOOP_PROJECT_KEY || "ringee",
+  // ── CRM Integrations ──
+  ATTIO_OAUTH_CLIENT_ID: process.env.ATTIO_OAUTH_CLIENT_ID,
+  ATTIO_OAUTH_CLIENT_SECRET: process.env.ATTIO_OAUTH_CLIENT_SECRET,
+  ATTIO_OAUTH_AUTHORIZE_URL:
+    process.env.ATTIO_OAUTH_AUTHORIZE_URL || "https://app.attio.com/authorize",
+  ATTIO_OAUTH_TOKEN_URL:
+    process.env.ATTIO_OAUTH_TOKEN_URL || "https://app.attio.com/oauth/token",
+  ATTIO_API_BASE_URL: process.env.ATTIO_API_BASE_URL || "https://api.attio.com",
+  CRM_DRY_RUN: process.env.CRM_DRY_RUN === "true",
 };
 
 const errors = [];

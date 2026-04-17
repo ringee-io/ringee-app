@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "attio-docs": {
+      "type": "http",
+      "url": "https://docs.attio.com/mcp"
+    }
+  }
+}

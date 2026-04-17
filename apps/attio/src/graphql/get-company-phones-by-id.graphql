@@ -1,0 +1,12 @@
+query GetCompanyPhonesById($recordId: String!) {
+  company(id: $recordId) {
+    name
+    domains
+    team {
+      name {
+        full_name
+      }
+      phone_numbers
+    }
+  }
+}

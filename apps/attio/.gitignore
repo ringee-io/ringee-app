@@ -1,0 +1,5 @@
+node_modules
+graphql.d.ts
+*.graphql.d.ts
+.attio
+.DS_Store
