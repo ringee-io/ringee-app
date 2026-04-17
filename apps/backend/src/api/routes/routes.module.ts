@@ -33,6 +33,7 @@ import { MeetingController } from "./meeting.controller";
 import { CalendarController } from "./calendar.controller";
 import { TriggerLoopModule } from "../../triggerloop/triggerloop.module";
 import { CrmController } from "./crm.controller";
+import { AttioAppController } from "./attio-app.controller";
 
 @Module({
   controllers: [
@@ -62,6 +63,7 @@ import { CrmController } from "./crm.controller";
     MeetingController,
     CalendarController,
     CrmController,
+    AttioAppController,
   ],
   imports: [
     McpModule,

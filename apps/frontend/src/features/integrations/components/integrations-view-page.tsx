@@ -11,6 +11,7 @@ import { toast } from 'sonner';
 import { useCrmConnections } from '../hooks/use-crm-connections';
 import type { CrmConnectionSummary, CrmProviderType } from '../types/crm';
 import { PROVIDER_META } from '../types/crm';
+import { AttioAppTokenSection } from './attio-app-token-section';
 import { CrmConnectionCard } from './crm-connection-card';
 import { ProviderCatalog } from './provider-catalog';
 import { ConnectionManagementSheet } from './connection-management-sheet';
@@ -186,6 +187,8 @@ export default function IntegrationsViewPage() {
           </div>
         )}
       </section>
+
+      <AttioAppTokenSection />
 
       <section className="flex flex-col gap-4">
         <div>

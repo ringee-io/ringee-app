@@ -1,30 +1,27 @@
 import type {App} from "attio"
-import {showWeatherForecast} from "./weather-forecast-action"
+import {callWithRingee} from "./record/actions/call-with-ringee"
+import {ringeeActivityWidget} from "./record/widgets/ringee-activity"
+import {workspaceSettings} from "./components/workspace-settings"
 import "./app.settings"
 
 export const app: App = {
     record: {
-        /** @see https://docs.attio.com/sdk/entry-points/record-action  */
-        actions: [showWeatherForecast],
-        /** @see https://docs.attio.com/sdk/entry-points/bulk-record-action */
+        actions: [callWithRingee],
         bulkActions: [],
-        /** @see https://docs.attio.com/sdk/entry-points/record-widget */
-        widgets: [],
+        widgets: [ringeeActivityWidget],
     },
     callRecording: {
-        /** @see https://docs.attio.com/sdk/entry-points/call-recording-insight-text-selection-action */
         insight: {
             textActions: [],
         },
-        /** @see https://docs.attio.com/sdk/entry-points/call-recording-summary-text-selection-action */
         summary: {
             textActions: [],
         },
-        /** @see https://docs.attio.com/sdk/entry-points/call-recording-transcript-text-selection-action */
         transcript: {
             textActions: [],
         },
     },
-    /** @see https://docs.attio.com/sdk/entry-points/workspace-settings */
-    settings: {},
+    settings: {
+        workspace: workspaceSettings,
+    },
 }

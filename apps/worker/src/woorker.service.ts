@@ -12,6 +12,7 @@ import {
   AgentSessionService,
   CrmSyncService,
   CrmBulkSyncService,
+  CrmCallLogService,
 } from "@ringee/services";
 import {
   UserRepository,
@@ -47,6 +48,8 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly campaignLeadRepo: CampaignLeadRepository,
     private readonly campaignRepo: CampaignRepository,
     private readonly crmSyncService: CrmSyncService,
+    private readonly crmLogService: CrmCallLogService,
+    private readonly crmBulkSyncService: CrmBulkSyncService,
   ) { }
 
   onModuleInit() {
@@ -64,6 +67,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
       setInterval(() => this.runHeartbeatCheck(), HEARTBEAT_CHECK_INTERVAL_MS),
       setInterval(() => this.runCompletionCheck(), COMPLETION_CHECK_INTERVAL_MS),
       setInterval(() => this.runCrmDrain(), CRM_DRAIN_INTERVAL_MS),
+      setInterval(() => this.crmBulkSyncService.syncAllActiveConnections(), CRM_BULK_SYNC_INTERVAL_MS),
     );
     this.logger.log("Outbound schedulers started");
   }
@@ -154,6 +158,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     switch (job.type) {
       case "process_call_recording":
         await this.processCallRecording(job.data)
+        // await this. 
         break;
       default:
         this.logger.warn(`Unknown job type: ${job.type}`);
@@ -210,6 +215,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
+      const recordingUrl = data.recording.publicUrl || data.recording.privateUrl;
       const arrayBuffer = await this.telephonyService.downloadRecording(
         data.recording.publicUrl || data.recording.privateUrl,
       );
@@ -218,6 +224,8 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
         this.logger.error("Failed to download recording");
         return;
       }
+
+      await this.crmLogService.enqueueRecordingNote(call.id, recordingUrl)
 
       // Get the appropriate encryption key
       const encryptionKey = await this.getEncryptionKey({

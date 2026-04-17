@@ -19,3 +19,4 @@ export * from "./onboarding.service";
 export * from "./meeting.service";
 export * from "./calendar.service";
 export * from "./crm";
+export * from "./attio-app.service";

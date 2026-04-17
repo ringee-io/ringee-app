@@ -1,10 +1,10 @@
-import type {SettingsSchema} from "attio"
+import {Settings, type SettingsSchema} from "attio"
 
-/**
- * @see https://docs.attio.com/sdk/settings/app-settings
- */
-export const settingsSchema = {
-    workspace: {},
+const settingsSchema = {
+    workspace: {
+        ringee_token: Settings.string(),
+        ringee_api_url: Settings.string(),
+    },
 } satisfies SettingsSchema
 
 export default settingsSchema

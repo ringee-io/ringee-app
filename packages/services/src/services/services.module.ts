@@ -41,6 +41,7 @@ import {
   SSEBridgeService,
   CampaignMemberService,
 } from "./outbound";
+import { AttioAppService } from "./attio-app.service";
 import {
   CrmConnectionService,
   CrmOAuthService,
@@ -102,6 +103,8 @@ const servicesProviders = [
   CrmNoteSyncService,
   CrmTaskSyncService,
   CrmBulkSyncService,
+  // Attio App SDK integration
+  AttioAppService,
 ];
 
 @Global()
