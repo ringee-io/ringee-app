@@ -34,6 +34,7 @@ import {
   Users,
   User,
 } from 'lucide-react';
+import Image from 'next/image';
 import type { CrmConnectionSummary, CrmProviderType } from '../types/crm';
 import { PROVIDER_META } from '../types/crm';
 
@@ -125,11 +126,20 @@ export function CrmConnectionCard({
         <div className="flex items-start gap-3">
           <div
             className={cn(
-              'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border font-semibold',
+              'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border p-2',
               meta.color,
             )}
           >
-            {meta.name.slice(0, 1)}
+            <Image
+              src={meta.logo}
+              alt={`${meta.name} logo`}
+              width={28}
+              height={28}
+              className={cn(
+                'h-6 w-6 object-contain',
+                meta.logoDarkInvert && 'dark:invert',
+              )}
+            />
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">

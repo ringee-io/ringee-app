@@ -19,6 +19,7 @@ import { Label } from '@ringee/frontend-shared/components/ui/label';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useOrganization } from '@clerk/nextjs';
 import { Plus, Sparkles, Users, User } from 'lucide-react';
+import Image from 'next/image';
 import { useState } from 'react';
 import type { CrmProviderType } from '../types/crm';
 import { PROVIDER_META } from '../types/crm';
@@ -49,11 +50,20 @@ export function ProviderCatalog({ onConnect, connectedProviders }: Props) {
             <div className="flex items-center gap-3">
               <div
                 className={cn(
-                  'flex h-10 w-10 items-center justify-center rounded-lg border font-semibold',
+                  'flex h-10 w-10 items-center justify-center rounded-lg border p-2',
                   meta.color,
                 )}
               >
-                {meta.name.slice(0, 1)}
+                <Image
+                  src={meta.logo}
+                  alt={`${meta.name} logo`}
+                  width={24}
+                  height={24}
+                  className={cn(
+                    'h-5 w-5 object-contain',
+                    meta.logoDarkInvert && 'dark:invert',
+                  )}
+                />
               </div>
               <div className="flex-1">
                 <div className="flex items-center gap-2">

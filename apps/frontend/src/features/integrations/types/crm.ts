@@ -82,7 +82,14 @@ export interface CrmCompanySyncResult {
 
 export const PROVIDER_META: Record<
   CrmProviderType,
-  { name: string; description: string; color: string; available: boolean }
+  {
+    name: string;
+    description: string;
+    color: string;
+    available: boolean;
+    logo: string;
+    logoDarkInvert: boolean;
+  }
 > = {
   attio: {
     name: 'Attio',
@@ -90,17 +97,23 @@ export const PROVIDER_META: Record<
       'Sync call activity, dispositions, recordings and notes to your Attio workspace.',
     color: 'bg-violet-500/15 text-violet-500 border-violet-500/20',
     available: true,
+    logo: '/companies/attio.svg',
+    logoDarkInvert: true,
   },
   hubspot: {
     name: 'HubSpot',
     description: 'Coming soon — same playbook, different pipeline.',
     color: 'bg-orange-500/15 text-orange-500 border-orange-500/20',
     available: false,
+    logo: '/companies/hubspot.svg',
+    logoDarkInvert: false,
   },
   salesforce: {
     name: 'Salesforce',
     description: 'Coming soon — enterprise-grade sync with SFDC objects.',
     color: 'bg-sky-500/15 text-sky-500 border-sky-500/20',
     available: false,
+    logo: '/companies/salesforce.svg',
+    logoDarkInvert: false,
   },
 };
