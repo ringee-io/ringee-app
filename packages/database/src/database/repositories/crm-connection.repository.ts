@@ -57,7 +57,7 @@ export class CrmConnectionRepository {
     return this.listForUser(ctx.userId);
   }
 
-  upsertConnection(input: {
+  async upsertConnection(input: {
     ctx: CrmConnectionContext;
     externalAccountId: string;
     externalAccountName?: string | null;
@@ -80,27 +80,34 @@ export class CrmConnectionRepository {
       capabilities,
     } = input;
 
-    const uniqueWhere =
+    const findWhere: Prisma.CrmConnectionWhereInput =
       ctx.scope === "organization"
-        ? {
-            scope_organizationId_provider: {
-              scope: ctx.scope,
-              organizationId: ctx.organizationId ?? null,
-              provider: ctx.provider,
-            },
-          }
-        : {
-            scope_userId_provider_organizationId: {
-              scope: ctx.scope,
-              userId: ctx.userId,
-              provider: ctx.provider,
-              organizationId: null,
-            },
-          };
+        ? { scope: ctx.scope, organizationId: ctx.organizationId, provider: ctx.provider }
+        : { scope: ctx.scope, userId: ctx.userId, provider: ctx.provider, organizationId: null };
 
-    return this.prisma.crmConnection.upsert({
-      where: uniqueWhere as Prisma.CrmConnectionWhereUniqueInput,
-      create: {
+    const existing = await this.prisma.crmConnection.findFirst({ where: findWhere });
+
+    if (existing) {
+      return this.prisma.crmConnection.update({
+        where: { id: existing.id },
+        data: {
+          externalAccountId,
+          externalAccountName: externalAccountName ?? null,
+          accessTokenCiphertext,
+          refreshTokenCiphertext: refreshTokenCiphertext ?? null,
+          tokenExpiresAt: tokenExpiresAt ?? null,
+          scopes: scopes ?? [],
+          providerMetadata: (providerMetadata ?? undefined) as Prisma.InputJsonValue | undefined,
+          capabilities: (capabilities ?? undefined) as Prisma.InputJsonValue | undefined,
+          status: "active",
+          lastErrorCode: null,
+          lastErrorAt: null,
+        },
+      });
+    }
+
+    return this.prisma.crmConnection.create({
+      data: {
         provider: ctx.provider,
         scope: ctx.scope,
         userId: ctx.userId,
@@ -114,19 +121,6 @@ export class CrmConnectionRepository {
         providerMetadata: (providerMetadata ?? undefined) as Prisma.InputJsonValue | undefined,
         capabilities: (capabilities ?? undefined) as Prisma.InputJsonValue | undefined,
         status: "active",
-      },
-      update: {
-        externalAccountId,
-        externalAccountName: externalAccountName ?? null,
-        accessTokenCiphertext,
-        refreshTokenCiphertext: refreshTokenCiphertext ?? null,
-        tokenExpiresAt: tokenExpiresAt ?? null,
-        scopes: scopes ?? [],
-        providerMetadata: (providerMetadata ?? undefined) as Prisma.InputJsonValue | undefined,
-        capabilities: (capabilities ?? undefined) as Prisma.InputJsonValue | undefined,
-        status: "active",
-        lastErrorCode: null,
-        lastErrorAt: null,
       },
     });
   }
