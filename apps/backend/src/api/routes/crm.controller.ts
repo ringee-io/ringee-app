@@ -125,13 +125,15 @@ export class CrmController {
     @CurrentUser() user: CurrentUserData,
   ) {
     const ctx = this.buildScopedCtx(user, body.scope);
-    return this.odooConnections.connect(ctx, {
+    const result = await this.odooConnections.connect(ctx, {
       provider: "odoo_14_18",
       baseUrl: body.baseUrl ?? "",
       database: body.database ?? "",
       login: body.login ?? "",
       apiKey: body.apiKey ?? "",
     });
+    if (result.ok) await this.triggerInitialBulkSync(result.connection.id);
+    return result;
   }
 
   @Post("odoo_19_plus/connect")
@@ -147,13 +149,27 @@ export class CrmController {
     @CurrentUser() user: CurrentUserData,
   ) {
     const ctx = this.buildScopedCtx(user, body.scope);
-    return this.odooConnections.connect(ctx, {
+    const result = await this.odooConnections.connect(ctx, {
       provider: "odoo_19_plus",
       baseUrl: body.baseUrl ?? "",
       database: body.database ?? "",
       login: body.login?.trim() ? body.login : undefined,
       apiKey: body.apiKey ?? "",
     });
+    if (result.ok) await this.triggerInitialBulkSync(result.connection.id);
+    return result;
+  }
+
+  /**
+   * Fire-and-forget bulk sync trigger used by every connect endpoint.
+   * We look up the freshly-persisted connection and hand it to the
+   * bulk sync service; any failure is logged but never bubbled up to
+   * the user (the connection is still valid — they can retry manually).
+   */
+  private async triggerInitialBulkSync(connectionId: string): Promise<void> {
+    const conn = await this.connections.findById(connectionId);
+    if (!conn) return;
+    this.bulkSync.syncConnection(conn).catch(() => {});
   }
 
   /**
@@ -214,11 +230,7 @@ export class CrmController {
         state,
       );
 
-      // Fire-and-forget initial bulk sync
-      const conn = await this.connections.findById(result.connectionId);
-      if (conn) {
-        this.bulkSync.syncConnection(conn).catch(() => {});
-      }
+      await this.triggerInitialBulkSync(result.connectionId);
 
       const target = result.redirectFrontendUrl
         ? `${result.redirectFrontendUrl}`
