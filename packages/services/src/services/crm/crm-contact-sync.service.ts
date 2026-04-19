@@ -38,7 +38,7 @@ export class CrmContactSyncService {
       throw new Error(`${connection.provider} does not support fetchPerson`);
     }
 
-    const decrypted = await this.connections.decrypt(connection);
+    const decrypted = await this.connections.getValidCredentials(connection);
     const creds = {
       accessToken: decrypted.accessToken,
       refreshToken: decrypted.refreshToken,

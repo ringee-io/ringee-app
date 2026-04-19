@@ -34,7 +34,7 @@ export class CrmCompanySyncService {
       throw new Error(`${connection.provider} does not support fetchCompany`);
     }
 
-    const decrypted = await this.connections.decrypt(connection);
+    const decrypted = await this.connections.getValidCredentials(connection);
     const creds = {
       accessToken: decrypted.accessToken,
       refreshToken: decrypted.refreshToken,

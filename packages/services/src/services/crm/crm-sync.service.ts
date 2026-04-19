@@ -98,7 +98,7 @@ export class CrmSyncService {
     logInput.startedAt = new Date(logInput.startedAt);
     if (logInput.endedAt) logInput.endedAt = new Date(logInput.endedAt);
 
-    const decrypted = await this.connections.decrypt(connection);
+    const decrypted = await this.connections.getValidCredentials(connection);
 
     try {
       const result = await provider.logCall(
@@ -146,7 +146,7 @@ export class CrmSyncService {
     }
 
     const provider = this.registry.get(connection.provider);
-    const decrypted = await this.connections.decrypt(connection);
+    const decrypted = await this.connections.getValidCredentials(connection);
 
     const noteInput: CrmNoteInput = {
       recordId: payload.recordId,
@@ -198,7 +198,7 @@ export class CrmSyncService {
       return;
     }
 
-    const decrypted = await this.connections.decrypt(connection);
+    const decrypted = await this.connections.getValidCredentials(connection);
 
     const taskInput: CrmTaskInput = {
       title: payload.title,

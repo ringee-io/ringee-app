@@ -1,4 +1,5 @@
 import { CrmProviderType } from "@ringee/database";
+import { CrmError } from "./errors";
 import {
   CrmAuthorizeParams,
   CrmCallLogInput,
@@ -30,6 +31,12 @@ export interface CrmProvider {
   exchangeCode(params: CrmExchangeParams): Promise<CrmTokenSet>;
   refreshToken(refreshToken: string): Promise<CrmTokenSet>;
   revoke?(token: string): Promise<void>;
+
+  // Decides whether an error raised by `refreshToken()` means the refresh
+  // token is no longer accepted (→ mark connection revoked) vs a transient
+  // failure that should be retried later. Implemented on AbstractCrmProvider
+  // with a sensible default; providers can override.
+  isRefreshFailureTerminal(err: CrmError): boolean;
 
   // Identity
   getWorkspaceInfo(creds: CrmCredentials): Promise<CrmWorkspaceInfo>;

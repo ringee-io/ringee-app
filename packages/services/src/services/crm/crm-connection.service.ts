@@ -11,13 +11,20 @@ import {
   CrmConnectionStatus,
   CrmProviderType,
 } from "@ringee/database";
-import { CryptoService, OwnershipContext } from "@ringee/platform";
+import {
+  CrmError,
+  CrmProviderRegistry,
+  CryptoService,
+  OwnershipContext,
+} from "@ringee/platform";
 
 export type DecryptedCrmCredentials = {
   connection: CrmConnection;
   accessToken: string;
   refreshToken: string | null;
 };
+
+const REFRESH_SKEW_MS = 60_000;
 
 @Injectable()
 export class CrmConnectionService {
@@ -26,6 +33,7 @@ export class CrmConnectionService {
   constructor(
     private readonly repo: CrmConnectionRepository,
     private readonly crypto: CryptoService,
+    private readonly registry: CrmProviderRegistry,
   ) {}
 
   resolveScope(ctx: OwnershipContext): {
@@ -136,6 +144,61 @@ export class CrmConnectionService {
       refreshToken = (refreshPayload as { t?: string }).t ?? null;
     }
     return { connection, accessToken, refreshToken };
+  }
+
+  /**
+   * Returns credentials with a non-expired access token, refreshing
+   * via OAuth if the current one is expired (or within REFRESH_SKEW_MS of expiry).
+   */
+  async getValidCredentials(connection: CrmConnection): Promise<DecryptedCrmCredentials> {
+    const decrypted = await this.decrypt(connection);
+    if (!this.isTokenExpired(connection)) return decrypted;
+    return this.refreshTokens(connection, decrypted);
+  }
+
+  /**
+   * Forces a token refresh regardless of expiry — used as the reactive path
+   * when a provider call returns AUTH_EXPIRED.
+   */
+  async forceRefresh(connection: CrmConnection): Promise<DecryptedCrmCredentials> {
+    const decrypted = await this.decrypt(connection);
+    return this.refreshTokens(connection, decrypted);
+  }
+
+  private isTokenExpired(connection: CrmConnection): boolean {
+    if (!connection.tokenExpiresAt) return false;
+    return connection.tokenExpiresAt.getTime() - Date.now() <= REFRESH_SKEW_MS;
+  }
+
+  private async refreshTokens(
+    connection: CrmConnection,
+    current: DecryptedCrmCredentials,
+  ): Promise<DecryptedCrmCredentials> {
+    if (!current.refreshToken) {
+      await this.markStatus(connection.id, "revoked", "NO_REFRESH_TOKEN");
+      throw new CrmError("AUTH_REVOKED", false, "no refresh token available");
+    }
+
+    const provider = this.registry.get(connection.provider);
+    try {
+      const tokens = await provider.refreshToken(current.refreshToken);
+      const updated = await this.updateTokens(connection.id, {
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken ?? current.refreshToken,
+        expiresAt: tokens.expiresAt ?? null,
+      });
+      this.logger.log(`refreshed tokens for connection ${connection.id}`);
+      return {
+        connection: updated,
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken ?? current.refreshToken,
+      };
+    } catch (err) {
+      if (err instanceof CrmError && provider.isRefreshFailureTerminal(err)) {
+        await this.markStatus(connection.id, "revoked", err.code);
+      }
+      throw err;
+    }
   }
 
   async assertAccess(ctx: OwnershipContext, connection: CrmConnection): Promise<void> {

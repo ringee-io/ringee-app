@@ -55,7 +55,7 @@ export class CrmMatchingService {
     }
 
     const provider = this.registry.get(connection.provider);
-    const decrypted = await this.connections.decrypt(connection);
+    const decrypted = await this.connections.getValidCredentials(connection);
 
     let candidates: CrmRecordMatch[];
     try {

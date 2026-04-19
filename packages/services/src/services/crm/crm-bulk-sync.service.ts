@@ -53,12 +53,30 @@ export class CrmBulkSyncService {
     const provider = this.registry.get(connection.provider);
     const ctx = this.buildOwnershipContext(connection);
 
-    const decrypted = await this.connectionService.decrypt(connection);
-    const creds = {
+    let decrypted = await this.connectionService.getValidCredentials(connection);
+    let creds = {
       accessToken: decrypted.accessToken,
       refreshToken: decrypted.refreshToken,
       accountId: connection.externalAccountId,
       connectionId: connection.id,
+    };
+
+    const withAuthRetry = async <T>(fn: () => Promise<T>): Promise<T> => {
+      try {
+        return await fn();
+      } catch (err) {
+        if (err instanceof CrmError && err.code === "AUTH_EXPIRED") {
+          decrypted = await this.connectionService.forceRefresh(decrypted.connection);
+          creds = {
+            accessToken: decrypted.accessToken,
+            refreshToken: decrypted.refreshToken,
+            accountId: decrypted.connection.externalAccountId,
+            connectionId: decrypted.connection.id,
+          };
+          return fn();
+        }
+        throw err;
+      }
     };
 
     const result = {
@@ -73,7 +91,9 @@ export class CrmBulkSyncService {
 
       do {
         try {
-          const page = await provider.listCompanies(creds, pageToken, PAGE_SIZE);
+          const page = await withAuthRetry(() =>
+            provider.listCompanies!(creds, pageToken, PAGE_SIZE),
+          );
           for (const companyResult of page.data) {
             try {
               const r = await this.companySync.upsertCompany(connection, companyResult, ctx);
@@ -103,7 +123,9 @@ export class CrmBulkSyncService {
 
       do {
         try {
-          const page = await provider.listPersons(creds, pageToken, PAGE_SIZE);
+          const page = await withAuthRetry(() =>
+            provider.listPersons!(creds, pageToken, PAGE_SIZE),
+          );
           for (const contactResult of page.data) {
             try {
               const r = await this.contactSync.upsertContact(connection, contactResult, ctx);
@@ -147,9 +169,12 @@ export class CrmBulkSyncService {
     connection: CrmConnection,
     err: unknown,
   ): Promise<void> {
-    if (err instanceof CrmError && err.code === "AUTH_REVOKED") {
+    if (
+      err instanceof CrmError &&
+      (err.code === "AUTH_REVOKED" || err.code === "AUTH_EXPIRED")
+    ) {
       await this.connectionService.markStatus(connection.id, "revoked", err.code);
-      this.logger.error(`BulkSync: connection ${connection.id} revoked`);
+      this.logger.error(`BulkSync: connection ${connection.id} revoked (${err.code})`);
     } else {
       this.logger.error(
         `BulkSync page error for ${connection.id}: ${err instanceof Error ? err.message : err}`,

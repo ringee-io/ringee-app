@@ -56,6 +56,13 @@ export type AttioProviderConfig = {
   tokenUrl: string;
 };
 
+type AttioErrorBody = {
+  status_code?: number;
+  type?: string;
+  code?: string;
+  message?: string;
+};
+
 @Injectable()
 export class AttioProvider extends AbstractCrmProvider {
   readonly type: CrmProviderType = "attio";
@@ -63,7 +70,27 @@ export class AttioProvider extends AbstractCrmProvider {
 
   constructor(private readonly config: AttioProviderConfig) {
     super();
-    
+  }
+
+  /**
+   * Attio error body shape: `{ status_code, type, code, message }`.
+   * - `type: "authentication_error"` on both 401 and at times 400 with the
+   *   OAuth token endpoint when the refresh token is invalid.
+   * - `type: "not_found_error"` → NOT_FOUND regardless of status.
+   * Keeping default HTTP-status mapping, but promoting 400 with
+   * `type: "authentication_error"` to AUTH_REVOKED so the refresh path
+   * correctly marks the connection as revoked.
+   */
+  protected classifyHttpError(
+    status: number,
+    body?: unknown,
+    retryAfter?: string | null,
+  ): CrmError {
+    const b = (body ?? {}) as AttioErrorBody;
+    if (status === 400 && b.type === "authentication_error") {
+      return new CrmError("AUTH_REVOKED", false, b.message ?? "authentication error", undefined, body);
+    }
+    return super.classifyHttpError(status, body, retryAfter);
   }
 
   // ── OAuth ─────────────────────────────────────────────────────────────
@@ -109,8 +136,13 @@ export class AttioProvider extends AbstractCrmProvider {
       body: params.toString(),
     });
     if (!res.ok) {
-      const text = await res.text().catch(() => undefined);
-      throw CrmError.fromHttp(res.status, text);
+      let parsed: unknown = undefined;
+      try {
+        parsed = await res.json();
+      } catch {
+        parsed = await res.text().catch(() => undefined);
+      }
+      throw this.classifyHttpError(res.status, parsed, res.headers.get("retry-after"));
     }
     const data = (await res.json()) as AttioOAuthTokenResponse;
     return {

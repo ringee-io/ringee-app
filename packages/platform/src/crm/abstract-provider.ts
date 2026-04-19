@@ -103,11 +103,50 @@ export abstract class AbstractCrmProvider implements CrmProvider {
       } catch {
         parsed = await res.text().catch(() => undefined);
       }
-      throw CrmError.fromHttp(res.status, parsed, res.headers.get("retry-after"));
+      throw this.classifyHttpError(res.status, parsed, res.headers.get("retry-after"));
     }
 
     if (res.status === 204) return undefined as unknown as T;
     return (await res.json()) as T;
+  }
+
+  /**
+   * Maps an HTTP error response to a `CrmError` with the correct code and
+   * retryability. The default implementation uses generic HTTP status rules
+   * (401 → AUTH_EXPIRED, 403 → AUTH_REVOKED, 4xx → VALIDATION, 5xx → TRANSIENT).
+   *
+   * Subclasses should override this when the provider's error semantics
+   * differ from pure HTTP status codes — for example, HubSpot signals
+   * revocation with `category: "EXPIRED_AUTHENTICATION"` in the body of a
+   * 401, and Salesforce uses `errorCode: "INVALID_SESSION_ID"` in its own
+   * shape. Inspecting `body` lets each provider distinguish "token expired
+   * (refresh will fix it)" from "app revoked (give up)".
+   */
+  protected classifyHttpError(
+    status: number,
+    body?: unknown,
+    retryAfter?: string | null,
+  ): CrmError {
+    return CrmError.fromHttp(status, body, retryAfter);
+  }
+
+  /**
+   * Whether a failure during `refreshToken()` should be treated as a terminal
+   * revocation (connection marked `revoked`, no more retries) rather than a
+   * transient error. Default: any AUTH_* or VALIDATION error from the refresh
+   * endpoint means the refresh token itself is no longer accepted.
+   *
+   * Override for providers whose refresh endpoint returns ambiguous errors —
+   * e.g., HubSpot returns 400 with `error: "invalid_grant"` on revoked refresh
+   * tokens but also on transient issues; Salesforce returns 400 with
+   * `error: "invalid_grant" / "expired access/refresh token"`.
+   */
+  isRefreshFailureTerminal(err: CrmError): boolean {
+    return (
+      err.code === "AUTH_REVOKED" ||
+      err.code === "AUTH_EXPIRED" ||
+      err.code === "VALIDATION"
+    );
   }
 
   protected buildUrl(
