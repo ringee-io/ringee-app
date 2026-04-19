@@ -1,6 +1,6 @@
 import {getWorkspaceSetting} from "attio/server"
 
-const DEFAULT_RINGEE_API_URL = "https://ringee.publica-ai.com/api"
+const DEFAULT_RINGEE_API_URL = "https://api.ringee.io/api"
 
 export async function getRingeeApiUrl(): Promise<string> {
     const url = await getWorkspaceSetting("ringee_api_url")

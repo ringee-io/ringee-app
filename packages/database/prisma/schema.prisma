@@ -353,11 +353,12 @@ model Call {
 
   user          User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
   organization  Organization?              @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  transcription CallTranscriptionSegment[]
-  recordings    Recording[]
-  meetings      Meeting[]
-  callAttempts  CallAttempt[]
-  crmSyncs      CrmCallSync[]
+  transcription     CallTranscriptionSegment[]
+  recordings        Recording[]
+  publicRecordings  PublicRecording[]
+  meetings          Meeting[]
+  callAttempts      CallAttempt[]
+  crmSyncs          CrmCallSync[]
 
   @@index([userId])
   @@index([organizationId])
@@ -705,6 +706,17 @@ model Recording {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
+
+  @@index([callId])
+}
+
+model PublicRecording {
+  id        String   @id @default(uuid()) @db.Uuid
+  callId    String   @db.Uuid
+  url       String
+  createdAt DateTime @default(now())
 
   call Call @relation(fields: [callId], references: [id], onDelete: Cascade)
 

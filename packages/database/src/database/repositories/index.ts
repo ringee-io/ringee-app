@@ -12,6 +12,7 @@ export * from "./credit-auto-reload.repository";
 export * from "./dashboard.repository";
 export * from "./user.device.repository";
 export * from "./recording.repository";
+export * from "./public-recording.repository";
 export * from "./organization.repository";
 export * from "./subscription.repository";
 export * from "./campaign.repository";

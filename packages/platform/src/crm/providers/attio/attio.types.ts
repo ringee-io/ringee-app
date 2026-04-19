@@ -84,7 +84,7 @@ export type AttioTaskRequest = {
       target_object: "people" | "companies";
       target_record_id: string;
     }>;
-    assignees?: Array<{ referenced_actor_type: "workspace-member"; referenced_actor_id: string }>;
+    assignees: Array<{ referenced_actor_type: "workspace-member"; referenced_actor_id: string }>;
   };
 };
 

@@ -103,7 +103,6 @@ export abstract class AbstractCrmProvider implements CrmProvider {
       } catch {
         parsed = await res.text().catch(() => undefined);
       }
-      console.log(req.url, req.query, req.body, "parsed");
       throw CrmError.fromHttp(res.status, parsed, res.headers.get("retry-after"));
     }
 

@@ -14,6 +14,7 @@ import { CreditAutoReloadRepository } from "./repositories/credit-auto-reload.re
 import { DashboardRepository } from "./repositories/dashboard.repository";
 import { UserDeviceRepository } from "./repositories/user.device.repository";
 import { RecordingRepository } from "./repositories/recording.repository";
+import { PublicRecordingRepository } from "./repositories/public-recording.repository";
 import { OrganizationRepository } from "./repositories/organization.repository";
 import { SubscriptionRepository } from "./repositories/subscription.repository";
 import { CampaignRepository } from "./repositories/campaign.repository";
@@ -61,6 +62,7 @@ const databaseProviders = [
   DashboardRepository,
   UserDeviceRepository,
   RecordingRepository,
+  PublicRecordingRepository,
   OrganizationRepository,
   SubscriptionRepository,
   CampaignRepository,

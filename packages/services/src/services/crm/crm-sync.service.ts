@@ -266,10 +266,18 @@ export class CrmSyncService {
   private async handleFailure(event: CrmOutboxEvent, err: unknown): Promise<void> {
     const message = err instanceof Error ? err.message : String(err);
     this.logger.error(`outbox event ${event.id} failed: ${message}`);
+
+    if (err instanceof CrmError && !err.retryable) {
+      await this.outbox.markFailed(event.id, `${err.code}: ${err.message}`);
+      return;
+    }
+
     if (event.attemptCount + 1 < MAX_OUTBOX_ATTEMPTS) {
+      const retryAfterMs =
+        err instanceof CrmError ? err.retryAfterMs : undefined;
       await this.outbox.scheduleRetry(
         event.id,
-        this.computeBackoff(event.attemptCount + 1),
+        this.computeBackoff(event.attemptCount + 1, retryAfterMs),
         message,
       );
     } else {

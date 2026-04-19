@@ -95,8 +95,6 @@ export class AttioProvider extends AbstractCrmProvider {
   }
 
   private async tokenRequest(body: Record<string, string>): Promise<CrmTokenSet> {
-
-    console.log(body, "config");
     const params = new URLSearchParams({
       client_id: this.config.clientId,
       client_secret: this.config.clientSecret,
@@ -112,7 +110,6 @@ export class AttioProvider extends AbstractCrmProvider {
     });
     if (!res.ok) {
       const text = await res.text().catch(() => undefined);
-      console.log(text, "text");
       throw CrmError.fromHttp(res.status, text);
     }
     const data = (await res.json()) as AttioOAuthTokenResponse;
@@ -301,6 +298,27 @@ export class AttioProvider extends AbstractCrmProvider {
   // ── Task ─────────────────────────────────────────────────────────────
 
   async createTask(creds: CrmCredentials, input: CrmTaskInput): Promise<CrmRecordRef> {
+    const assignees: Array<{
+      referenced_actor_type: "workspace-member";
+      referenced_actor_id: string;
+    }> = [];
+    if (input.assigneeEmail) {
+      try {
+        const members = await this.listMembers(creds);
+        const match = members.find(
+          (m) => m.email?.toLowerCase() === input.assigneeEmail!.toLowerCase(),
+        );
+        if (match) {
+          assignees.push({
+            referenced_actor_type: "workspace-member",
+            referenced_actor_id: match.externalId,
+          });
+        }
+      } catch {
+        // non-fatal: create the task without assignee if member lookup fails
+      }
+    }
+
     const body: AttioTaskRequest = {
       data: {
         content: [input.title, input.body].filter(Boolean).join("\n\n"),
@@ -311,6 +329,7 @@ export class AttioProvider extends AbstractCrmProvider {
           target_object: r.externalType === "company" ? "companies" : "people",
           target_record_id: r.externalId,
         })),
+        assignees,
       },
     };
     const res = await this.request<AttioTaskResponse>({

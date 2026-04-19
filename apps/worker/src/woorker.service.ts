@@ -19,6 +19,7 @@ import {
   OrganizationRepository,
   CampaignLeadRepository,
   CampaignRepository,
+  PublicRecordingRepository,
 } from "@ringee/database";
 
 const RETRY_INTERVAL_MS = 30_000; // 30 seconds
@@ -50,6 +51,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly crmSyncService: CrmSyncService,
     private readonly crmLogService: CrmCallLogService,
     private readonly crmBulkSyncService: CrmBulkSyncService,
+    private readonly publicRecordingRepo: PublicRecordingRepository,
   ) { }
 
   onModuleInit() {
@@ -215,7 +217,6 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
-      const recordingUrl = data.recording.publicUrl || data.recording.privateUrl;
       const arrayBuffer = await this.telephonyService.downloadRecording(
         data.recording.publicUrl || data.recording.privateUrl,
       );
@@ -225,22 +226,32 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
         return;
       }
 
-      await this.crmLogService.enqueueRecordingNote(call.id, recordingUrl)
-
-      // Get the appropriate encryption key
-      const encryptionKey = await this.getEncryptionKey({
-        userId: call.userId,
-        organizationId: call.organizationId,
-      });
-
       const buffer = Buffer.from(arrayBuffer);
-      const encryptedBuffer = this.cryptoService.encryptBuffer(buffer, encryptionKey);
 
       // Store recordings in organization or user folder based on ownership
       const ownerFolder = call.organizationId
         ? `organizations/${call.organizationId}`
         : `users/${call.userId}`;
-      const filename = `${ownerFolder}/recordings/${call.id}/${Date.now()}.bin`;
+      const timestamp = Date.now();
+
+      const publicUrl = await this.uploadService.uploadBuffer(
+        `${ownerFolder}/recordings/${call.id}/public-${timestamp}.mp3`,
+        buffer,
+        "audio/mpeg",
+        "mp3",
+      );
+
+      await this.publicRecordingRepo.create({ callId: call.id, url: publicUrl });
+
+      await this.crmLogService.enqueueRecordingNote(call.id, publicUrl);
+
+      const encryptionKey = await this.getEncryptionKey({
+        userId: call.userId,
+        organizationId: call.organizationId,
+      });
+      const encryptedBuffer = this.cryptoService.encryptBuffer(buffer, encryptionKey);
+
+      const filename = `${ownerFolder}/recordings/${call.id}/${timestamp}.bin`;
 
       const newUrl = await this.uploadService.uploadBuffer(
         filename,
