@@ -165,6 +165,40 @@ export class CrmConnectionService {
     return this.refreshTokens(connection, decrypted);
   }
 
+  /**
+   * Runs a provider call with auto-refresh: gets valid credentials
+   * (proactive refresh if expiry is near), and if the call still throws
+   * AUTH_EXPIRED (e.g. the stored `tokenExpiresAt` was null but the
+   * access token was actually expired), force-refreshes once and retries.
+   */
+  async runWithFreshCredentials<T>(
+    connection: CrmConnection,
+    fn: (creds: {
+      accessToken: string;
+      refreshToken: string | null;
+      accountId: string;
+      connectionId: string;
+    }) => Promise<T>,
+  ): Promise<T> {
+    let decrypted = await this.getValidCredentials(connection);
+    const makeCreds = (d: DecryptedCrmCredentials) => ({
+      accessToken: d.accessToken,
+      refreshToken: d.refreshToken,
+      accountId: d.connection.externalAccountId,
+      connectionId: d.connection.id,
+    });
+
+    try {
+      return await fn(makeCreds(decrypted));
+    } catch (err) {
+      if (err instanceof CrmError && err.code === "AUTH_EXPIRED") {
+        decrypted = await this.forceRefresh(decrypted.connection);
+        return fn(makeCreds(decrypted));
+      }
+      throw err;
+    }
+  }
+
   private isTokenExpired(connection: CrmConnection): boolean {
     if (!connection.tokenExpiresAt) return false;
     return connection.tokenExpiresAt.getTime() - Date.now() <= REFRESH_SKEW_MS;

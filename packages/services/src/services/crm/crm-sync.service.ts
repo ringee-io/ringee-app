@@ -98,17 +98,10 @@ export class CrmSyncService {
     logInput.startedAt = new Date(logInput.startedAt);
     if (logInput.endedAt) logInput.endedAt = new Date(logInput.endedAt);
 
-    const decrypted = await this.connections.getValidCredentials(connection);
-
     try {
-      const result = await provider.logCall(
-        {
-          accessToken: decrypted.accessToken,
-          refreshToken: decrypted.refreshToken,
-          accountId: connection.externalAccountId,
-          connectionId: connection.id,
-        },
-        logInput,
+      const result = await this.connections.runWithFreshCredentials(
+        connection,
+        (creds) => provider.logCall(creds, logInput),
       );
 
       await this.syncRepo.markDone(sync.id, {
@@ -146,7 +139,6 @@ export class CrmSyncService {
     }
 
     const provider = this.registry.get(connection.provider);
-    const decrypted = await this.connections.getValidCredentials(connection);
 
     const noteInput: CrmNoteInput = {
       recordId: payload.recordId,
@@ -155,14 +147,8 @@ export class CrmSyncService {
       body: payload.body,
     };
 
-    await provider.addNote(
-      {
-        accessToken: decrypted.accessToken,
-        refreshToken: decrypted.refreshToken,
-        accountId: connection.externalAccountId,
-        connectionId: connection.id,
-      },
-      noteInput,
+    await this.connections.runWithFreshCredentials(connection, (creds) =>
+      provider.addNote(creds, noteInput),
     );
 
     await this.connections.touchLastSync(connection.id);
@@ -198,8 +184,6 @@ export class CrmSyncService {
       return;
     }
 
-    const decrypted = await this.connections.getValidCredentials(connection);
-
     const taskInput: CrmTaskInput = {
       title: payload.title,
       body: payload.body ?? null,
@@ -208,14 +192,9 @@ export class CrmSyncService {
       linkedRecords: payload.linkedRecords ?? [],
     };
 
-    await provider.createTask(
-      {
-        accessToken: decrypted.accessToken,
-        refreshToken: decrypted.refreshToken,
-        accountId: connection.externalAccountId,
-        connectionId: connection.id,
-      },
-      taskInput,
+    const createTask = provider.createTask.bind(provider);
+    await this.connections.runWithFreshCredentials(connection, (creds) =>
+      createTask(creds, taskInput),
     );
 
     await this.connections.touchLastSync(connection.id);
@@ -230,7 +209,9 @@ export class CrmSyncService {
   ): Promise<void> {
     if (err instanceof CrmError) {
       const message = `${err.code}: ${err.message}`;
-      if (err.code === "AUTH_REVOKED") {
+      if (err.code === "AUTH_REVOKED" || err.code === "AUTH_EXPIRED") {
+        // AUTH_EXPIRED reaching here means runWithFreshCredentials already tried
+        // a reactive refresh and it also failed — treat as terminal.
         await this.connections.markStatus(connection.id, "revoked", err.code);
         await this.syncRepo.markStatus(sync.id, "failed", message);
         await this.outbox.markFailed(event.id, message);
