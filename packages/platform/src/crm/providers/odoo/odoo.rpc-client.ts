@@ -34,19 +34,39 @@ export class OdooRpcClient {
         "login is required for Odoo 14–18",
       );
     }
+
+    // Odoo 14+ recommends `common.authenticate` over the older
+    // `common.login` — it's the only method guaranteed to work with
+    // API keys across all supported versions, and it doesn't break
+    // for users with 2FA enabled on the web session. Signature:
+    //   authenticate(db, login, password, user_agent_env)
     const uid = await this.jsonRpc<number | false>(creds.baseUrl, {
+      service: "common",
+      method: "authenticate",
+      args: [creds.database, creds.login, creds.apiKey, {}],
+    }).catch((err) => {
+      // If `authenticate` isn't implemented (very old server), fall back
+      // to the legacy `login` method. Any other error propagates.
+      if (err instanceof CrmError && err.code === "NOT_FOUND") return undefined;
+      throw err;
+    });
+
+    if (uid !== undefined && uid) return uid as number;
+
+    // Legacy fallback for setups where `common.authenticate` is unavailable.
+    const legacyUid = await this.jsonRpc<number | false>(creds.baseUrl, {
       service: "common",
       method: "login",
       args: [creds.database, creds.login, creds.apiKey],
     });
-    if (!uid) {
+    if (!legacyUid) {
       throw new CrmError(
         "AUTH_REVOKED",
         false,
         "invalid Odoo credentials (login failed)",
       );
     }
-    return uid;
+    return legacyUid;
   }
 
   async version(baseUrl: string): Promise<{ server_version?: string; server_serie?: string } | null> {
