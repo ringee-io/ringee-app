@@ -13,6 +13,7 @@ import { CrmProviderType, CrmSyncStatus } from "@ringee/database";
 import {
   CrmCallLogService,
   CrmOAuthService,
+  CrmOdooConnectionService,
   CrmStatusService,
   CrmConnectionService,
   CrmContactSyncService,
@@ -43,6 +44,7 @@ function frontendUrl(): string {
 export class CrmController {
   constructor(
     private readonly oauth: CrmOAuthService,
+    private readonly odooConnections: CrmOdooConnectionService,
     private readonly connections: CrmConnectionService,
     private readonly status: CrmStatusService,
     private readonly callLog: CrmCallLogService,
@@ -95,7 +97,9 @@ export class CrmController {
   ): Promise<{ url: string }> {
     const validProviders: CrmProviderType[] = ["attio", "hubspot", "salesforce"];
     if (!validProviders.includes(provider as CrmProviderType)) {
-      throw new BadRequestException(`unknown provider: ${provider}`);
+      throw new BadRequestException(
+        `unknown or non-oauth provider: ${provider}`,
+      );
     }
     const ctx = createOwnershipContext(user);
     const url = await this.oauth.createAuthorizationUrl(ctx, {
@@ -104,6 +108,80 @@ export class CrmController {
       redirectFrontendUrl: redirect,
     });
     return { url };
+  }
+
+  // ── Odoo credential connect (both 14–18 and 19+) ─────────────────────
+
+  @Post("odoo_14_18/connect")
+  async connectOdooLegacy(
+    @Body()
+    body: {
+      baseUrl?: string;
+      database?: string;
+      login?: string;
+      apiKey?: string;
+      scope?: "personal" | "organization";
+    },
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    const ctx = this.buildScopedCtx(user, body.scope);
+    return this.odooConnections.connect(ctx, {
+      provider: "odoo_14_18",
+      baseUrl: body.baseUrl ?? "",
+      database: body.database ?? "",
+      login: body.login ?? "",
+      apiKey: body.apiKey ?? "",
+    });
+  }
+
+  @Post("odoo_19_plus/connect")
+  async connectOdooJson2(
+    @Body()
+    body: {
+      baseUrl?: string;
+      database?: string;
+      login?: string;
+      apiKey?: string;
+      scope?: "personal" | "organization";
+    },
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    const ctx = this.buildScopedCtx(user, body.scope);
+    return this.odooConnections.connect(ctx, {
+      provider: "odoo_19_plus",
+      baseUrl: body.baseUrl ?? "",
+      database: body.database ?? "",
+      login: body.login?.trim() ? body.login : undefined,
+      apiKey: body.apiKey ?? "",
+    });
+  }
+
+  /**
+   * Builds an OwnershipContext that honors the user-selected scope:
+   *  - scope="personal" always strips organizationId so the connection
+   *    is created as personal, even when the user is browsing inside
+   *    an org.
+   *  - scope="organization" requires the user to be in an org.
+   *  - omitted falls back to the default (org if present, personal
+   *    otherwise).
+   */
+  private buildScopedCtx(
+    user: CurrentUserData,
+    scope: "personal" | "organization" | undefined,
+  ) {
+    const ctx = createOwnershipContext(user);
+    if (scope === "organization") {
+      if (!ctx.organizationId) {
+        throw new BadRequestException(
+          "cannot create organization-scoped connection without an active organization",
+        );
+      }
+      return ctx;
+    }
+    if (scope === "personal") {
+      return { ...ctx, organizationId: null };
+    }
+    return ctx;
   }
 
   @Public()

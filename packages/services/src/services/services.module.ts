@@ -44,6 +44,7 @@ import {
 import { AttioAppService } from "./attio-app.service";
 import {
   CrmConnectionService,
+  CrmOdooConnectionService,
   CrmOAuthService,
   CrmMatchingService,
   CrmCallLogService,
@@ -92,6 +93,7 @@ const servicesProviders = [
   SSEBridgeService,
   // CRM services
   CrmConnectionService,
+  CrmOdooConnectionService,
   CrmOAuthService,
   CrmMatchingService,
   CrmCallLogService,

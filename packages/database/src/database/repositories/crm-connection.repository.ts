@@ -175,6 +175,22 @@ export class CrmConnectionRepository {
     });
   }
 
+  /**
+   * All active connections visible to a given ownership context, across
+   * every provider. Used by outbound sync services so every connected CRM
+   * (Attio, Odoo, …) receives the event, not only the first provider that
+   * happened to be checked.
+   */
+  listActiveForContext(ctx: {
+    userId: string;
+    organizationId?: string | null;
+  }): Promise<CrmConnection[]> {
+    const where: Prisma.CrmConnectionWhereInput = ctx.organizationId
+      ? { status: "active", scope: "organization", organizationId: ctx.organizationId }
+      : { status: "active", scope: "personal", userId: ctx.userId, organizationId: null };
+    return this.prisma.crmConnection.findMany({ where, orderBy: { createdAt: "asc" } });
+  }
+
   remove(id: string): Promise<CrmConnection> {
     return this.prisma.crmConnection.delete({ where: { id } });
   }

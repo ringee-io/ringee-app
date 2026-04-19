@@ -53,6 +53,14 @@ export default function IntegrationsViewPage() {
     provider: CrmProviderType,
     scope: 'personal' | 'organization',
   ) => {
+    // Odoo uses credential-based auth (not OAuth) — we show a hint and let
+    // the user re-enter credentials via the dialog in the catalog below.
+    if (provider === 'odoo_14_18' || provider === 'odoo_19_plus') {
+      toast.info(
+        'Use the Odoo card below to re-enter your credentials and reconnect.',
+      );
+      return;
+    }
     try {
       const current =
         typeof window !== 'undefined'
@@ -203,6 +211,7 @@ export default function IntegrationsViewPage() {
         <ProviderCatalog
           onConnect={handleConnect}
           connectedProviders={connectedProviders}
+          onReload={reload}
         />
       </section>
 

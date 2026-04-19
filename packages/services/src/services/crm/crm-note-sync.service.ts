@@ -29,34 +29,40 @@ export class CrmNoteSyncService {
     input: NoteSyncInput,
   ): Promise<void> {
     try {
-      const connection = await this.connections.findActive(ctx, "attio");
-      if (!connection) return;
+      const connections = await this.connections.listActive(ctx);
+      if (connections.length === 0) return;
 
       const links = await this.linkRepo.listByContact(input.contactId);
-      const link = links.find((l) => l.connectionId === connection.id);
-      if (!link) {
-        this.logger.debug(`no CRM link for contact=${input.contactId}, skipping note sync`);
-        return;
+      const now = Date.now();
+
+      for (const connection of connections) {
+        const link = links.find((l) => l.connectionId === connection.id);
+        if (!link) {
+          this.logger.debug(
+            `no CRM link for contact=${input.contactId} on connection=${connection.id}, skipping`,
+          );
+          continue;
+        }
+
+        const idempotencyKey = createHash("sha1")
+          .update(`${connection.id}|note|${input.contactId}|${now}`)
+          .digest("hex");
+
+        await this.outbox.enqueue({
+          connectionId: connection.id,
+          provider: connection.provider,
+          kind: "note.sync",
+          subjectId: input.contactId,
+          payload: {
+            recordId: link.externalId,
+            recordType: link.externalType,
+            title: input.title ?? "Note from Ringee",
+            body: input.body,
+            idempotencyKey,
+          },
+          dedupeKey: `note.sync:${idempotencyKey}`,
+        });
       }
-
-      const idempotencyKey = createHash("sha1")
-        .update(`${connection.id}|note|${input.contactId}|${Date.now()}`)
-        .digest("hex");
-
-      await this.outbox.enqueue({
-        connectionId: connection.id,
-        provider: connection.provider,
-        kind: "note.sync",
-        subjectId: input.contactId,
-        payload: {
-          recordId: link.externalId,
-          recordType: link.externalType,
-          title: input.title ?? "Note from Ringee",
-          body: input.body,
-          idempotencyKey,
-        },
-        dedupeKey: `note.sync:${idempotencyKey}`,
-      });
     } catch (err) {
       this.logger.error(
         `note sync enqueue failed for contact=${input.contactId}: ${

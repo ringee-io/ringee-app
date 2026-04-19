@@ -67,6 +67,57 @@ export class CrmConnectionService {
     });
   }
 
+  /**
+   * All active connections visible to this ownership context, regardless
+   * of provider. Outbound services (call logs, notes, tasks) fan out to
+   * every one so users with multiple CRMs connected get synced to all.
+   */
+  async listActive(ctx: OwnershipContext): Promise<CrmConnection[]> {
+    return this.repo.listActiveForContext({
+      userId: ctx.userId,
+      organizationId: ctx.organizationId ?? null,
+    });
+  }
+
+  /**
+   * Credential-based upsert for providers that don't use OAuth
+   * (e.g. Odoo 14–18 and Odoo 19+). The caller passes an already-encrypted
+   * credential blob that the provider can decode later; there is no
+   * refresh token because the API key is long-lived.
+   */
+  async upsertFromCredentials(
+    ctx: OwnershipContext,
+    provider: CrmProviderType,
+    input: {
+      credentialBlob: string;
+      externalAccountId: string;
+      externalAccountName: string | null;
+      providerMetadata?: Record<string, unknown> | null;
+      capabilities?: Record<string, unknown> | null;
+      scopes?: string[];
+    },
+  ): Promise<CrmConnection> {
+    const { scope, organizationId } = this.resolveScope(ctx);
+    const accessTokenCiphertext = this.crypto.encrypt({ t: input.credentialBlob });
+
+    return this.repo.upsertConnection({
+      ctx: {
+        provider,
+        scope,
+        userId: ctx.userId,
+        organizationId,
+      },
+      externalAccountId: input.externalAccountId,
+      externalAccountName: input.externalAccountName,
+      accessTokenCiphertext,
+      refreshTokenCiphertext: null,
+      tokenExpiresAt: null,
+      scopes: input.scopes ?? [],
+      providerMetadata: input.providerMetadata ?? undefined,
+      capabilities: input.capabilities ?? undefined,
+    });
+  }
+
   async upsertFromOAuth(
     ctx: OwnershipContext,
     provider: CrmProviderType,

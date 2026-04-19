@@ -23,6 +23,7 @@ import Image from 'next/image';
 import { useState } from 'react';
 import type { CrmProviderType } from '../types/crm';
 import { PROVIDER_META } from '../types/crm';
+import { OdooConnectDialog } from './odoo-connect-dialog';
 
 interface Props {
   onConnect: (
@@ -30,12 +31,21 @@ interface Props {
     scope: 'personal' | 'organization',
   ) => void;
   connectedProviders: CrmProviderType[];
+  onReload?: () => void;
 }
 
-export function ProviderCatalog({ onConnect, connectedProviders }: Props) {
+const PROVIDER_ORDER: CrmProviderType[] = [
+  'attio',
+  'odoo_14_18',
+  'odoo_19_plus',
+  'hubspot',
+  'salesforce',
+];
+
+export function ProviderCatalog({ onConnect, connectedProviders, onReload }: Props) {
   return (
     <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-      {(Object.keys(PROVIDER_META) as CrmProviderType[]).map((provider) => {
+      {PROVIDER_ORDER.map((provider) => {
         const meta = PROVIDER_META[provider];
         const alreadyConnected = connectedProviders.includes(provider);
         return (
@@ -68,6 +78,11 @@ export function ProviderCatalog({ onConnect, connectedProviders }: Props) {
               <div className="flex-1">
                 <div className="flex items-center gap-2">
                   <h4 className="text-sm font-semibold">{meta.name}</h4>
+                  {meta.subtitle && (
+                    <Badge variant="outline" className="text-[10px]">
+                      {meta.subtitle}
+                    </Badge>
+                  )}
                   {!meta.available && (
                     <Badge variant="outline" className="text-[10px]">
                       <Sparkles className="mr-0.5 h-2.5 w-2.5" /> Soon
@@ -81,11 +96,19 @@ export function ProviderCatalog({ onConnect, connectedProviders }: Props) {
             </p>
             <div className="mt-auto pt-2">
               {meta.available ? (
-                <ConnectButton
-                  provider={provider}
-                  onConnect={onConnect}
-                  alreadyConnected={alreadyConnected}
-                />
+                meta.authKind === 'odoo_credentials' ? (
+                  <OdooConnectDialog
+                    provider={provider as 'odoo_14_18' | 'odoo_19_plus'}
+                    alreadyConnected={alreadyConnected}
+                    onConnected={() => onReload?.()}
+                  />
+                ) : (
+                  <ConnectButton
+                    provider={provider}
+                    onConnect={onConnect}
+                    alreadyConnected={alreadyConnected}
+                  />
+                )
               ) : (
                 <Button variant="outline" size="sm" disabled className="w-full">
                   Notify me

@@ -116,6 +116,8 @@ enum CrmProviderType {
   attio
   hubspot
   salesforce
+  odoo_14_18
+  odoo_19_plus
 }
 
 enum CrmConnectionScope {

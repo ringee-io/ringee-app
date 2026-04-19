@@ -1,4 +1,5 @@
 export * from "./crm-connection.service";
+export * from "./crm-odoo-connection.service";
 export * from "./crm-oauth.service";
 export * from "./crm-matching.service";
 export * from "./crm-call-log.service";
