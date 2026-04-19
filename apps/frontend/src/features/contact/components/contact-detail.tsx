@@ -38,6 +38,7 @@ import {
   ArrowUpRight,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQuickDialerCall } from '@/features/calls/hooks/use.quick.dialer.call';
 
 interface ContactPhone {
   id: string;
@@ -139,6 +140,7 @@ export default function ContactDetail({ contact }: { contact: ContactDetailData 
   const [deleteModal, setDeleteModal] = useState<{ open: boolean; noteId?: string }>({ open: false });
   const [deleteContactModal, setDeleteContactModal] = useState(false);
   const [loading, setLoading] = useState(false);
+  const quickDialerCall = useQuickDialerCall()
 
   const displayName = contact.name || [contact.firstName, contact.lastName].filter(Boolean).join(' ') || 'Unknown';
   const initial = displayName.charAt(0)?.toUpperCase() || '?';
@@ -192,7 +194,7 @@ export default function ContactDetail({ contact }: { contact: ContactDetailData 
           <Button
             variant='outline'
             size='sm'
-            onClick={() => router.push(`/dashboard/call?phoneNumber=${contact.phoneNumber}`)}
+            onClick={() => quickDialerCall.handleRecall(contact.phoneNumber)}
           >
             <PhoneCall className='mr-2 h-4 w-4' />
             Call
