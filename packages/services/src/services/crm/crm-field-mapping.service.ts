@@ -105,6 +105,21 @@ export class CrmFieldMappingService {
         { ringeeEntity: "company", ringeeField: "industry", externalEntity: "companies", externalField: "categories", direction: "pull" },
       ];
     }
+    if (provider === "odoo_14_18" || provider === "odoo_19_plus") {
+      return [
+        { ringeeEntity: "contact", ringeeField: "displayName", externalEntity: "res.partner", externalField: "name", direction: "bidirectional" },
+        { ringeeEntity: "contact", ringeeField: "phoneNumber", externalEntity: "res.partner", externalField: "phone", direction: "bidirectional" },
+        { ringeeEntity: "contact", ringeeField: "mobile", externalEntity: "res.partner", externalField: "mobile", direction: "bidirectional" },
+        { ringeeEntity: "contact", ringeeField: "email", externalEntity: "res.partner", externalField: "email", direction: "bidirectional" },
+        { ringeeEntity: "contact", ringeeField: "jobTitle", externalEntity: "res.partner", externalField: "function", direction: "bidirectional" },
+        { ringeeEntity: "company", ringeeField: "name", externalEntity: "res.partner", externalField: "name", direction: "bidirectional" },
+        { ringeeEntity: "company", ringeeField: "domain", externalEntity: "res.partner", externalField: "website", direction: "bidirectional" },
+        { ringeeEntity: "company", ringeeField: "industry", externalEntity: "res.partner", externalField: "industry_id", direction: "pull" },
+        { ringeeEntity: "call", ringeeField: "disposition", externalEntity: "mail.activity", externalField: "summary", direction: "push" },
+        { ringeeEntity: "call", ringeeField: "recordingUrl", externalEntity: "mail.message", externalField: "body", direction: "push" },
+        { ringeeEntity: "call", ringeeField: "transcript", externalEntity: "mail.message", externalField: "body", direction: "push" },
+      ];
+    }
     return [];
   }
 
