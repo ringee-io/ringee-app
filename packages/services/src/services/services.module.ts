@@ -8,6 +8,7 @@ import {
   StripeModule,
   CrmModule,
   CryptoModule,
+  EnrichmentModule,
 } from "@ringee/platform";
 import { ChatAuthService } from "./chat.auth.service";
 import { CallTranscriptionService } from "./call.transcription.service";
@@ -57,6 +58,14 @@ import {
   CrmTaskSyncService,
   CrmBulkSyncService,
 } from "./crm";
+import {
+  EnrichmentConnectionService,
+  EnrichmentMergeService,
+  EnrichmentService,
+  EnrichmentDrainService,
+  LeadSearchService,
+  CustomFieldsService,
+} from "./enrichment";
 
 const servicesProviders = [
   UserService,
@@ -107,11 +116,18 @@ const servicesProviders = [
   CrmBulkSyncService,
   // Attio App SDK integration
   AttioAppService,
+  // Data Enrichment & Lead Search
+  EnrichmentConnectionService,
+  EnrichmentMergeService,
+  EnrichmentService,
+  EnrichmentDrainService,
+  LeadSearchService,
+  CustomFieldsService,
 ];
 
 @Global()
 @Module({
-  imports: [AuthModule, NotificationModule, TelephonyModule, StripeModule, CrmModule, RedisModule, CryptoModule],
+  imports: [AuthModule, NotificationModule, TelephonyModule, StripeModule, CrmModule, EnrichmentModule, RedisModule, CryptoModule],
   providers: servicesProviders,
   exports: servicesProviders,
 })

@@ -13,6 +13,7 @@ import {
   CrmSyncService,
   CrmBulkSyncService,
   CrmCallLogService,
+  EnrichmentDrainService,
 } from "@ringee/services";
 import {
   UserRepository,
@@ -29,6 +30,8 @@ const COMPLETION_CHECK_INTERVAL_MS = 60_000; // 60 seconds
 const CRM_DRAIN_INTERVAL_MS = 5_000; // 5 seconds
 const CRM_DRAIN_BATCH_SIZE = 25;
 const CRM_BULK_SYNC_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
+const ENRICHMENT_DRAIN_INTERVAL_MS = 5_000; // 5 seconds
+const ENRICHMENT_DRAIN_BATCH_SIZE = 25;
 
 @Injectable()
 export class WorkerService implements OnModuleInit, OnModuleDestroy {
@@ -52,6 +55,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly crmLogService: CrmCallLogService,
     private readonly crmBulkSyncService: CrmBulkSyncService,
     private readonly publicRecordingRepo: PublicRecordingRepository,
+    private readonly enrichmentDrainService: EnrichmentDrainService,
   ) { }
 
   onModuleInit() {
@@ -70,6 +74,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
       setInterval(() => this.runCompletionCheck(), COMPLETION_CHECK_INTERVAL_MS),
       setInterval(() => this.runCrmDrain(), CRM_DRAIN_INTERVAL_MS),
       setInterval(() => this.crmBulkSyncService.syncAllActiveConnections(), CRM_BULK_SYNC_INTERVAL_MS),
+      setInterval(() => this.runEnrichmentDrain(), ENRICHMENT_DRAIN_INTERVAL_MS),
     );
     this.logger.log("Outbound schedulers started");
   }
@@ -129,6 +134,23 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
       this.logger.error("CrmDrain error:", err);
     } finally {
       this.crmDrainInFlight = false;
+    }
+  }
+
+  private enrichmentDrainInFlight = false;
+
+  private async runEnrichmentDrain() {
+    if (this.enrichmentDrainInFlight) return;
+    this.enrichmentDrainInFlight = true;
+    try {
+      const count = await this.enrichmentDrainService.drain(ENRICHMENT_DRAIN_BATCH_SIZE);
+      if (count > 0) {
+        this.logger.debug(`EnrichmentDrain: ${count} jobs processed`);
+      }
+    } catch (err) {
+      this.logger.error("EnrichmentDrain error:", err);
+    } finally {
+      this.enrichmentDrainInFlight = false;
     }
   }
 

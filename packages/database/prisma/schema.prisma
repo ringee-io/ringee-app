@@ -155,6 +155,94 @@ enum CrmOutboxStatus {
   failed
 }
 
+// ── Data Enrichment & Lead Search Enums ──
+
+enum EnrichmentProviderType {
+  prospeo
+  apollo
+}
+
+enum EnrichmentConnectionStatus {
+  active
+  error
+  disconnected
+}
+
+enum EnrichmentJobStatus {
+  pending
+  in_progress
+  done
+  failed
+  skipped
+  not_found
+}
+
+enum EnrichmentQueryKind {
+  email
+  domain
+  linkedin
+  name_company
+  phone
+}
+
+enum LeadSearchJobStatus {
+  pending
+  in_progress
+  done
+  failed
+}
+
+// ── Custom Fields Enums ──
+
+enum CustomFieldEntity {
+  contact
+  company
+}
+
+enum CustomFieldType {
+  text
+  number
+  boolean
+  date
+  url
+  email
+  phone
+  select
+  multi_select
+  json
+}
+
+// ── Social Link Platforms ──
+
+enum SocialPlatform {
+  linkedin
+  twitter
+  github
+  facebook
+  instagram
+  youtube
+  tiktok
+  pinterest
+  reddit
+  medium
+  dribbble
+  behance
+  stackoverflow
+  angellist
+  crunchbase
+  producthunt
+  website
+  blog
+  calendly
+  skype
+  telegram
+  whatsapp
+  signal
+  discord
+  slack
+  other
+}
+
 model User {
   id               String   @id @default(uuid()) @db.Uuid
   clerkId          String?  @unique
@@ -201,6 +289,9 @@ model User {
   activitySnapshot        UserActivitySnapshot?
   crmConnections          CrmConnection[]
   companies               Company[]
+  enrichmentConnections   EnrichmentConnection[]
+  enrichmentJobs          EnrichmentJob[]
+  leadSearchJobs          LeadSearchJob[]
 
   @@index([clerkId])
 }
@@ -233,6 +324,10 @@ model Organization {
   calendarIntegrations CalendarIntegration[]
   crmConnections       CrmConnection[]
   companies            Company[]
+  enrichmentConnections EnrichmentConnection[]
+  enrichmentJobs       EnrichmentJob[]
+  leadSearchJobs       LeadSearchJob[]
+  customFieldDefinitions CustomFieldDefinition[]
 
   @@index([clerkId])
 }
@@ -460,6 +555,8 @@ model Contact {
   name           String?
   firstName      String?
   lastName       String?
+  middleName     String?
+  fullName       String?
   userId         String    @db.Uuid
   organizationId String?   @db.Uuid
   phoneNumber    String    @db.VarChar(20)
@@ -471,6 +568,63 @@ model Contact {
   lastCallAt     DateTime?
   crmMetadata    Json?
   customFields   Json?
+
+  // ── Extended professional/social fields ──
+  headline       String?   @db.Text
+  summary        String?   @db.Text
+  seniority      String?
+  department     String?
+  yearsExperience Int?
+
+  // Social profiles (typed for fast queries)
+  linkedinUrl    String?   @db.VarChar(255)
+  twitterUrl     String?   @db.VarChar(255)
+  githubUrl      String?   @db.VarChar(255)
+  facebookUrl    String?   @db.VarChar(255)
+  instagramUrl   String?   @db.VarChar(255)
+  youtubeUrl     String?   @db.VarChar(255)
+  tiktokUrl      String?   @db.VarChar(255)
+  websiteUrl     String?   @db.VarChar(255)
+  blogUrl        String?   @db.VarChar(255)
+  calendlyUrl    String?   @db.VarChar(255)
+
+  // Location
+  locationCity    String?
+  locationRegion  String?
+  locationCountry String?
+  locationCountryCode String? @db.VarChar(3)
+  locationPostalCode  String?
+  timezone        String?
+
+  // Languages, skills, education stored as arrays/JSON for flexibility
+  languages      String[]
+  skills         String[]
+  interests      String[]
+  education      Json?      // [{ school, degree, field, startYear, endYear }]
+  workHistory    Json?      // [{ company, title, startDate, endDate, current }]
+
+  // Demographic & marketing data
+  birthday       DateTime?
+  gender         String?
+  maritalStatus  String?
+
+  // Engagement / scoring
+  score          Int?       // engagement / quality score
+  status         String?    // lead status: new | contacted | qualified | customer | lost | ...
+  lifecycleStage String?    // subscriber | lead | mql | sql | opportunity | customer | evangelist
+
+  // Verification
+  emailVerified  Boolean    @default(false)
+  phoneVerified  Boolean    @default(false)
+
+  // Enrichment metadata
+  enrichmentMetadata Json?  // last enrichment summary { provider, at, confidence, source }
+  lastEnrichedAt     DateTime?
+
+  // Marketing preferences
+  unsubscribed   Boolean   @default(false)
+  doNotCall      Boolean   @default(false)
+
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
@@ -486,6 +640,9 @@ model Contact {
   phones        ContactPhone[]
   emails        ContactEmail[]
   affiliations  ContactAffiliation[]
+  socialLinks   ContactSocialLink[]
+  customFieldValues ContactCustomFieldValue[]
+  enrichmentJobs EnrichmentJob[]
 
   @@unique([userId, phoneNumber, deletedAt])
   @@index([userId])
@@ -494,6 +651,11 @@ model Contact {
   @@index([deletedAt])
   @@index([ownerId])
   @@index([source])
+  @@index([linkedinUrl])
+  @@index([locationCountryCode])
+  @@index([status])
+  @@index([lifecycleStage])
+  @@index([lastEnrichedAt])
 }
 
 model ContactNote {
@@ -548,9 +710,12 @@ model ContactEmail {
 model Company {
   id             String    @id @default(uuid()) @db.Uuid
   name           String
+  legalName      String?
   domain         String?
+  secondaryDomains String[]
   industry       String?
-  size           String?
+  subIndustry    String?
+  size           String?    // human-readable like "11-50", kept for compatibility
   phone          String?   @db.VarChar(30)
   website        String?
   userId         String    @db.Uuid
@@ -558,6 +723,64 @@ model Company {
   source         String?
   crmMetadata    Json?
   customFields   Json?
+
+  // ── Extended company fields ──
+  description    String?   @db.Text
+  shortDescription String? @db.VarChar(500)
+  foundedYear    Int?
+  employeeCount  Int?
+  employeeCountRange String?    // "1-10", "11-50", "51-200", ...
+  annualRevenue  BigInt?         // USD cents
+  revenueRange   String?         // "$1M-$10M"
+  fundingTotal   BigInt?         // USD cents
+  fundingStage   String?         // seed | series_a | series_b | ...
+  companyType    String?         // public | private | nonprofit | government | educational
+  ownership      String?         // founder-led, family, ...
+  ticker         String?         // Stock ticker if public
+  exchange       String?         // NYSE, NASDAQ, ...
+  locale         String?
+  timezone       String?
+
+  // Tech stack & keywords
+  technologies   String[]        // ["React","Stripe","AWS"]
+  keywords       String[]
+  tags           String[]
+
+  // Social
+  linkedinUrl    String?   @db.VarChar(255)
+  twitterUrl     String?   @db.VarChar(255)
+  facebookUrl    String?   @db.VarChar(255)
+  instagramUrl   String?   @db.VarChar(255)
+  youtubeUrl     String?   @db.VarChar(255)
+  githubUrl      String?   @db.VarChar(255)
+  crunchbaseUrl  String?   @db.VarChar(255)
+  angellistUrl   String?   @db.VarChar(255)
+  blogUrl        String?   @db.VarChar(255)
+
+  // Branding
+  logoUrl        String?   @db.VarChar(500)
+  faviconUrl     String?   @db.VarChar(500)
+  primaryColor   String?   @db.VarChar(20)
+
+  // Address (primary HQ; additional addresses in Json)
+  hqStreet       String?
+  hqCity         String?
+  hqRegion       String?
+  hqPostalCode   String?
+  hqCountry      String?
+  hqCountryCode  String?   @db.VarChar(3)
+  hqLatitude     Float?
+  hqLongitude    Float?
+  addresses      Json?      // [{ type, street, city, region, postalCode, country }]
+
+  // Contact info
+  emailDomain    String?
+  contactEmail   String?   @db.VarChar(255)
+
+  // Enrichment metadata
+  enrichmentMetadata Json?
+  lastEnrichedAt     DateTime?
+
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
   deletedAt      DateTime?
@@ -566,12 +789,19 @@ model Company {
   organization Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   affiliations ContactAffiliation[]
   crmLinks     CrmCompanyLink[]
+  socialLinks  CompanySocialLink[]
+  customFieldValues CompanyCustomFieldValue[]
 
   @@index([userId])
   @@index([organizationId])
   @@index([domain])
   @@index([name])
   @@index([deletedAt])
+  @@index([linkedinUrl])
+  @@index([hqCountryCode])
+  @@index([industry])
+  @@index([employeeCountRange])
+  @@index([lastEnrichedAt])
 }
 
 model ContactAffiliation {
@@ -1328,4 +1558,242 @@ model CrmFieldMapping {
 
   @@unique([connectionId, ringeeEntity, ringeeField])
   @@index([connectionId])
+}
+
+// ── Social Links ──
+
+model ContactSocialLink {
+  id        String         @id @default(uuid()) @db.Uuid
+  contactId String         @db.Uuid
+  platform  SocialPlatform
+  label     String?
+  url       String         @db.VarChar(500)
+  handle    String?
+  verified  Boolean        @default(false)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  contact Contact @relation(fields: [contactId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, platform, url])
+  @@index([contactId])
+  @@index([platform])
+}
+
+model CompanySocialLink {
+  id        String         @id @default(uuid()) @db.Uuid
+  companyId String         @db.Uuid
+  platform  SocialPlatform
+  label     String?
+  url       String         @db.VarChar(500)
+  handle    String?
+  verified  Boolean        @default(false)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, platform, url])
+  @@index([companyId])
+  @@index([platform])
+}
+
+// ── Custom Fields (key-value definitions + values) ──
+
+model CustomFieldDefinition {
+  id             String            @id @default(uuid()) @db.Uuid
+  organizationId String?           @db.Uuid
+  userId         String?           @db.Uuid           // for personal-scope definitions
+  entity         CustomFieldEntity
+  key            String                                // machine-name, e.g. "linkedin_industry"
+  label          String                                // human label, e.g. "LinkedIn Industry"
+  description    String?           @db.Text
+  fieldType      CustomFieldType
+  options        Json?                                  // for select/multi_select: [{ value, label }]
+  defaultValue   Json?
+  required       Boolean           @default(false)
+  unique         Boolean           @default(false)
+  showInList     Boolean           @default(true)
+  position       Int               @default(0)
+  enabled        Boolean           @default(true)
+  metadata       Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  contactValues ContactCustomFieldValue[]
+  companyValues CompanyCustomFieldValue[]
+
+  @@unique([organizationId, entity, key])
+  @@unique([userId, entity, key])
+  @@index([organizationId, entity])
+  @@index([userId, entity])
+}
+
+model ContactCustomFieldValue {
+  id           String  @id @default(uuid()) @db.Uuid
+  contactId    String  @db.Uuid
+  definitionId String  @db.Uuid
+
+  // Typed columns to allow filtering by the most common types without parsing JSON.
+  // Exactly one is set based on the definition's fieldType; valueJson is the canonical representation.
+  valueText    String?  @db.Text
+  valueNumber  Float?
+  valueBool    Boolean?
+  valueDate    DateTime?
+  valueJson    Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  contact    Contact               @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  definition CustomFieldDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, definitionId])
+  @@index([contactId])
+  @@index([definitionId])
+  @@index([definitionId, valueText])
+  @@index([definitionId, valueNumber])
+}
+
+model CompanyCustomFieldValue {
+  id           String  @id @default(uuid()) @db.Uuid
+  companyId    String  @db.Uuid
+  definitionId String  @db.Uuid
+
+  valueText    String?  @db.Text
+  valueNumber  Float?
+  valueBool    Boolean?
+  valueDate    DateTime?
+  valueJson    Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  company    Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  definition CustomFieldDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, definitionId])
+  @@index([companyId])
+  @@index([definitionId])
+  @@index([definitionId, valueText])
+  @@index([definitionId, valueNumber])
+}
+
+// ── Enrichment & Lead Search ──
+
+model EnrichmentConnection {
+  id             String                     @id @default(uuid()) @db.Uuid
+  provider       EnrichmentProviderType
+  scope          CrmConnectionScope         // reuse existing scope enum
+  userId         String                     @db.Uuid
+  organizationId String?                    @db.Uuid
+
+  externalAccountId   String
+  externalAccountName String?
+
+  // JSON {apiKey, ...metadata} encrypted via CryptoService
+  accessTokenCiphertext String                     @db.Text
+
+  status        EnrichmentConnectionStatus  @default(active)
+  lastErrorCode String?
+  lastErrorAt   DateTime?
+  lastUsedAt    DateTime?
+
+  providerMetadata Json?
+  capabilities     Json?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  jobs         EnrichmentJob[]
+  leadSearches LeadSearchJob[]
+
+  @@unique([scope, organizationId, provider])
+  @@unique([scope, userId, provider, organizationId])
+  @@index([provider, status])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model EnrichmentJob {
+  id             String                 @id @default(uuid()) @db.Uuid
+  connectionId   String                 @db.Uuid
+  provider       EnrichmentProviderType
+  contactId      String?                @db.Uuid
+  userId         String                 @db.Uuid
+  organizationId String?                @db.Uuid
+
+  queryKind  EnrichmentQueryKind
+  queryHash  String
+
+  status        EnrichmentJobStatus     @default(pending)
+  attemptCount  Int                     @default(0)
+  lastError     String?                 @db.Text
+  nextAttemptAt DateTime                @default(now())
+
+  resultSnapshot Json?
+
+  costCredits     Int?
+  providerCredits Int?
+  refundedAt      DateTime?
+
+  dedupeKey      String  @unique
+  idempotencyKey String? @unique
+
+  triggeredBy String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  processedAt DateTime?
+
+  connection   EnrichmentConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  contact      Contact?             @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization?        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttemptAt])
+  @@index([contactId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([connectionId])
+  @@index([provider, queryHash])
+}
+
+model LeadSearchJob {
+  id             String              @id @default(uuid()) @db.Uuid
+  connectionId   String              @db.Uuid
+  provider       EnrichmentProviderType
+  userId         String              @db.Uuid
+  organizationId String?             @db.Uuid
+
+  filters        Json                                    // normalized filter payload
+  filtersHash    String                                  // sha256 of normalized filters
+  page           Int                 @default(1)
+  perPage        Int                 @default(25)
+
+  status         LeadSearchJobStatus @default(pending)
+  totalResults   Int?
+  resultSnapshot Json?                                   // candidate list returned by the provider
+  lastError      String?             @db.Text
+
+  costCredits      Int?
+  providerCredits  Int?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  connection   EnrichmentConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization?        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([connectionId])
+  @@index([provider, filtersHash])
+  @@index([status])
 }
