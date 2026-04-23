@@ -8,6 +8,8 @@ import Footer from './footer';
 import { Navbar } from './navbar';
 import VideoDemo from './video-demo';
 import OpenSourceSection from './open-source-section';
+import Campaigns from './campaigns';
+import CrmIntegrations from './crm-integrations';
 // import PromoBanner from './promo-banner';
 
 export default function LandingContent() {
@@ -19,6 +21,8 @@ export default function LandingContent() {
         <Hero />
         <VideoDemo />
         <Features />
+        <Campaigns />
+        <CrmIntegrations />
         <Pricing />
         <Comparison />
         <FAQ />
@@ -29,4 +33,3 @@ export default function LandingContent() {
     </div>
   );
 }
-

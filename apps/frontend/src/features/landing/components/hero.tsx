@@ -1,61 +1,220 @@
-import { Badge } from '@ringee/frontend-shared/components/ui/badge';
+'use client';
+
 import React from 'react';
+import Link from 'next/link';
+import { motion, Variants } from 'framer-motion';
+import {
+  ArrowUpRight,
+  ShieldCheck,
+  Globe2,
+  CreditCard,
+  Zap
+} from 'lucide-react';
+import {
+  IconDialpad,
+  IconEye,
+  IconBolt,
+  IconPlugConnected,
+  IconPlayerRecord,
+  IconDeviceMobile
+} from '@tabler/icons-react';
 import LogoCloud from './logo-cloud';
 import { ProudlyOpenSource } from './proudly-open-source';
-import { ArrowUpRight, Sparkles } from 'lucide-react';
-import Link from 'next/link';
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.08, delayChildren: 0.05 }
+  }
+};
+
+const itemVariants: Variants = {
+  hidden: { opacity: 0, y: 14 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { type: 'spring', stiffness: 280, damping: 28 }
+  }
+};
+
+const capabilityPills = [
+  { icon: IconDialpad, label: 'Manual dialer', color: 'text-cyan-500' },
+  { icon: IconEye, label: 'Preview dialer', color: 'text-violet-500' },
+  { icon: IconBolt, label: 'Progressive dialer', color: 'text-amber-500' },
+  {
+    icon: IconPlugConnected,
+    label: 'Attio & Odoo sync',
+    color: 'text-emerald-500'
+  },
+  {
+    icon: IconPlayerRecord,
+    label: 'Recordings & transcripts',
+    color: 'text-rose-500'
+  },
+  { icon: IconDeviceMobile, label: 'Browser & mobile', color: 'text-sky-500' }
+];
+
+const trustItems = [
+  { icon: CreditCard, label: 'No credit card to start' },
+  { icon: Globe2, label: '180+ countries' },
+  { icon: Zap, label: 'First call in 60s' },
+  { icon: ShieldCheck, label: 'SOC 2-aligned' }
+];
 
 const Hero = () => {
   return (
-    <div className="flex flex-col items-center px-6 pt-16">
-      <div className="flex items-center justify-center md:mt-6">
-        <div className="max-w-2xl text-center flex flex-col items-center">
-          <ProudlyOpenSource repoUrl="https://github.com/ringee-io/ringee-app" className="mb-6" />
+    <section className='relative isolate flex flex-col items-center overflow-hidden px-6 pt-16 pb-6'>
+      {/* Background layers */}
+      <BackgroundFx />
 
-          <Badge className="bg-primary mx-auto flex items-center gap-2 rounded-full border-none py-1">
-            <span className="h-2 w-2 animate-pulse rounded-full bg-green-300" />
-            Outbound calling · Pay as you go 💰
-          </Badge>
+      <motion.div
+        variants={containerVariants}
+        initial='hidden'
+        animate='visible'
+        className='relative z-10 flex max-w-3xl flex-col items-center text-center'
+      >
+        {/* Open source badge */}
+        <motion.div variants={itemVariants}>
+          <ProudlyOpenSource
+            repoUrl='https://github.com/ringee-io/ringee-app'
+            className='mb-5'
+          />
+        </motion.div>
 
-          <h1 className="xs:text-4xl mt-6 max-w-[24ch] text-3xl !leading-[1.15] font-bold tracking-tight sm:text-5xl md:text-6xl">
-            Simple outbound calling for freelancers and teams
-          </h1>
-
-          <p className="mt-6 max-w-[62ch]">
-            Call worldwide from your browser or mobile.
-            No contracts, no setup — just pay as you go.
-          </p>
-          
-          <div className="mt-10 flex w-full flex-col items-center justify-center gap-4 sm:flex-row sm:gap-6">
-            <Link
-              href="/auth/sign-in"
-              className="group relative inline-flex h-12 sm:h-14 w-full max-w-[220px] sm:max-w-[260px] items-center justify-center overflow-hidden rounded-lg bg-neutral-900/70 px-6 font-medium text-primary-foreground shadow-[0_0_30px_-8px_rgba(0,0,0,0.2)] transition-all duration-300 hover:scale-[1.02] hover:shadow-[0_0_35px_-5px_rgba(0,0,0,0.4)] dark:shadow-[0_0_30px_-8px_rgba(255,255,255,0.1)] dark:hover:shadow-[0_0_35px_-5px_rgba(255,255,255,0.2)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:ring-offset-background active:scale-95"
-              aria-label="Start a free call now"
+        {/* Headline */}
+        <motion.h1
+          variants={itemVariants}
+          className='xs:text-5xl mt-7 max-w-[19ch] text-4xl !leading-[1.05] font-bold tracking-tight sm:text-6xl md:text-7xl'
+        >
+          Calls, campaigns &amp; your{' '}
+          <span className='relative inline-block'>
+            <span className='bg-gradient-to-br from-amber-500 via-violet-500 to-cyan-500 bg-clip-text text-transparent'>
+              CRM
+            </span>
+            <svg
+              className='absolute -bottom-1 left-0 w-full'
+              viewBox='0 0 100 8'
+              preserveAspectRatio='none'
+              aria-hidden
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent animate-[shimmer_3s_infinite] -translate-x-full" />
-              
-              <span className="relative flex items-center gap-2 text-base sm:text-lg font-bold">
-                <span className="h-4 w-4 animate-[pulse_8s_cubic-bezier(0.4,0,0.6,1)_infinite] text-yellow-300" aria-hidden="true" />
-                Try a Free Call
-                <ArrowUpRight className="h-5 w-5 transition-transform duration-300 group-hover:translate-x-1 group-hover:-translate-y-1" aria-hidden="true" />
-              </span>
-            </Link>
+              <path
+                d='M0 4 Q 25 0, 50 4 T 100 4'
+                fill='none'
+                stroke='url(#hero-underline)'
+                strokeWidth='2'
+                strokeLinecap='round'
+              />
+              <defs>
+                <linearGradient
+                  id='hero-underline'
+                  x1='0'
+                  y1='0'
+                  x2='100'
+                  y2='0'
+                  gradientUnits='userSpaceOnUse'
+                >
+                  <stop offset='0%' stopColor='#f59e0b' />
+                  <stop offset='50%' stopColor='#8b5cf6' />
+                  <stop offset='100%' stopColor='#06b6d4' />
+                </linearGradient>
+              </defs>
+            </svg>
+          </span>
+          <br className='hidden sm:block' /> in one browser tab
+        </motion.h1>
 
-            <Link
-              href="https://cal.com/ringee"
-              target="_blank"
-              rel="noreferrer noopener"
-              className="inline-flex h-12 sm:h-14 w-full max-w-[220px] sm:max-w-[260px] items-center justify-center rounded-lg border-2 border-neutral-200 bg-transparent px-6 font-medium text-neutral-900 transition-colors hover:bg-neutral-100 dark:border-neutral-800 dark:text-neutral-100 dark:hover:bg-neutral-800 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95"
-            >
-              Book a Demo
-            </Link>
-          </div>
+        {/* Subcopy */}
+        <motion.p
+          variants={itemVariants}
+          className='text-muted-foreground mt-6 max-w-[58ch] text-base sm:text-lg'
+        >
+          The open-source outbound platform. Run preview and progressive
+          dialers, auto-sync every call to{' '}
+          <span className='text-foreground font-medium'>Attio</span> or{' '}
+          <span className='text-foreground font-medium'>Odoo</span>, and pay
+          only for the minutes you use.
+        </motion.p>
 
-        </div>
-      </div>
-      <LogoCloud className="mx-auto mt-14 max-w-3xl" />
-    </div>
+        {/* CTAs */}
+        <motion.div
+          variants={itemVariants}
+          className='mt-10 flex w-full flex-col items-center justify-center gap-3 sm:flex-row sm:gap-4'
+        >
+          <Link
+            href='/auth/sign-in'
+            aria-label='Start a free call now'
+            className='group focus-visible:ring-primary focus-visible:ring-offset-background relative inline-flex h-12 w-full max-w-[240px] items-center justify-center overflow-hidden rounded-xl bg-neutral-900 px-6 font-semibold text-white shadow-lg shadow-neutral-900/20 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:shadow-neutral-900/30 focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.98] sm:h-14 sm:max-w-[220px] dark:bg-white dark:text-neutral-900 dark:shadow-white/10 dark:hover:shadow-white/20'
+          >
+            <span className='absolute inset-0 -translate-x-full animate-[shimmer_3s_infinite] bg-gradient-to-r from-transparent via-white/25 to-transparent dark:via-white/40' />
+            <span className='relative flex items-center gap-2 text-sm sm:text-base'>
+              Try a free call
+              <ArrowUpRight
+                className='h-4 w-4 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5'
+                aria-hidden
+              />
+            </span>
+          </Link>
+
+          <Link
+            href='https://cal.com/ringee'
+            target='_blank'
+            rel='noreferrer noopener'
+            className='border-border/80 hover:bg-muted/60 focus-visible:ring-primary inline-flex h-12 w-full max-w-[240px] items-center justify-center rounded-xl border bg-transparent px-6 text-sm font-semibold transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.98] sm:h-14 sm:max-w-[220px] sm:text-base'
+          >
+            Book a demo
+          </Link>
+        </motion.div>
+
+        {/* Trust microbar */}
+        <motion.ul
+          variants={itemVariants}
+          className='text-muted-foreground mt-6 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs font-medium'
+        >
+          {trustItems.map((t) => (
+            <li key={t.label} className='inline-flex items-center gap-1.5'>
+              <t.icon className='h-3.5 w-3.5' strokeWidth={2} />
+              {t.label}
+            </li>
+          ))}
+        </motion.ul>
+
+        {/* Capability pills */}
+        <motion.ul
+          variants={itemVariants}
+          className='mt-10 flex flex-wrap items-center justify-center gap-2 sm:gap-2.5'
+        >
+          {capabilityPills.map((pill) => (
+            <li key={pill.label}>
+              <div className='group border-border/60 bg-background/60 hover:border-foreground/20 inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm backdrop-blur-sm transition-colors sm:text-sm'>
+                <pill.icon
+                  className={`h-3.5 w-3.5 ${pill.color}`}
+                  strokeWidth={2}
+                />
+                <span>{pill.label}</span>
+              </div>
+            </li>
+          ))}
+        </motion.ul>
+      </motion.div>
+
+      {/* <LogoCloud className='relative z-10 mx-auto mt-16 max-w-3xl' /> */}
+    </section>
   );
 };
+
+function BackgroundFx() {
+  return (
+    <>
+      {/* Dotted grid */}
+      <div
+        aria-hidden
+        className='pointer-events-none absolute inset-0 -z-10 [mask-image:radial-gradient(ellipse_at_center,black_40%,transparent_75%)]'
+      >
+        <div className='absolute inset-0 bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.12)_1px,transparent_0)] [background-size:22px_22px] dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.08)_1px,transparent_0)]' />
+      </div>
+    </>
+  );
+}
 
 export default Hero;
