@@ -34,7 +34,16 @@ export type SearchLeadsOpts = {
   provider?: EnrichmentProviderType;
   page?: number;
   perPage?: number;
+  useCache?: boolean;
 };
+
+export type SearchLeadsResponse = {
+  job: LeadSearchJob;
+  result: LeadSearchResult;
+  cached: boolean;
+};
+
+const LEAD_SEARCH_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 export type ImportLeadsResult = {
   importedContactIds: string[];
@@ -51,6 +60,18 @@ export type RevealLeadResult = {
   contactId: string | null;
   emailRevealed: boolean;
   phoneRevealed: boolean;
+};
+
+export type RevealContactOpts = {
+  revealPhone?: boolean;
+  revealEmail?: boolean;
+};
+
+export type RevealContactResult = {
+  contactId: string;
+  emailRevealed: boolean;
+  phoneRevealed: boolean;
+  provider: EnrichmentProviderType;
 };
 
 @Injectable()
@@ -71,7 +92,7 @@ export class LeadSearchService {
     ctx: OwnershipContext,
     filters: LeadSearchFilters,
     opts: SearchLeadsOpts = {},
-  ): Promise<{ job: LeadSearchJob; result: LeadSearchResult }> {
+  ): Promise<SearchLeadsResponse> {
     const connection = await this.pickConnection(ctx, opts.provider);
     const provider = this.registry.get(connection.provider);
     if (!provider.searchLeads || !provider.capabilities.leadSearch) {
@@ -88,6 +109,27 @@ export class LeadSearchService {
     const filtersHash = createHash("sha256")
       .update(JSON.stringify(filters, Object.keys(filters).sort()))
       .digest("hex");
+
+    // Cache lookup: return a previous completed search for the same filters
+    // hash + provider + pagination if requested. Saves provider credits.
+    if (opts.useCache !== false) {
+      const cached = await this.leadJobs.findRecentByHash({
+        userId: ctx.userId,
+        organizationId: ctx.organizationId ?? null,
+        provider: connection.provider,
+        filtersHash,
+        page,
+        perPage,
+        olderThan: new Date(Date.now() - LEAD_SEARCH_CACHE_TTL_MS),
+      });
+      if (cached && cached.resultSnapshot) {
+        return {
+          job: cached,
+          result: cached.resultSnapshot as unknown as LeadSearchResult,
+          cached: true,
+        };
+      }
+    }
 
     const job = await this.leadJobs.create({
       connectionId: connection.id,
@@ -139,7 +181,148 @@ export class LeadSearchService {
       }
     }
 
-    return { job: updated, result };
+    return { job: updated, result, cached: false };
+  }
+
+  /**
+   * Look up a single lead by LinkedIn profile URL. Wraps the response as a
+   * single-result LeadSearchJob so reveal/import flows can be reused.
+   * Debits the same cost as a lead search when a result is returned.
+   */
+  async searchByLinkedInUrl(
+    ctx: OwnershipContext,
+    linkedInUrl: string,
+    opts: SearchLeadsOpts = {},
+  ): Promise<SearchLeadsResponse> {
+    const url = linkedInUrl.trim();
+    if (!/linkedin\.com\//i.test(url)) {
+      throw new BadRequestException("Not a valid LinkedIn profile URL");
+    }
+
+    const connection = await this.pickConnection(ctx, opts.provider);
+    const provider = this.registry.get(connection.provider);
+    if (!provider.enrichByLinkedIn || !provider.capabilities.byLinkedIn) {
+      throw new BadRequestException(
+        `${connection.provider} does not support LinkedIn URL lookup.`,
+      );
+    }
+
+    const filters = { extra: { linkedinUrl: url.toLowerCase() } };
+    const filtersHash = createHash("sha256")
+      .update(JSON.stringify(filters, Object.keys(filters).sort()))
+      .digest("hex");
+    const page = 1;
+    const perPage = 1;
+
+    if (opts.useCache !== false) {
+      const cached = await this.leadJobs.findRecentByHash({
+        userId: ctx.userId,
+        organizationId: ctx.organizationId ?? null,
+        provider: connection.provider,
+        filtersHash,
+        page,
+        perPage,
+        olderThan: new Date(Date.now() - LEAD_SEARCH_CACHE_TTL_MS),
+      });
+      if (cached && cached.resultSnapshot) {
+        return {
+          job: cached,
+          result: cached.resultSnapshot as unknown as LeadSearchResult,
+          cached: true,
+        };
+      }
+    }
+
+    const job = await this.leadJobs.create({
+      connectionId: connection.id,
+      provider: connection.provider,
+      userId: ctx.userId,
+      organizationId: ctx.organizationId ?? null,
+      filters: filters as unknown as Record<string, unknown>,
+      filtersHash,
+      page,
+      perPage,
+    });
+
+    const decrypted = await this.connections.decrypt(connection);
+    const creds = {
+      apiKey: decrypted.apiKey,
+      accountId: connection.externalAccountId,
+      connectionId: connection.id,
+      metadata: decrypted.metadata,
+    };
+
+    let enrichResult: EnrichmentResult;
+    try {
+      await this.leadJobs.markInProgress(job.id);
+      enrichResult = await provider.enrichByLinkedIn(creds, url);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      await this.leadJobs.markFailed(job.id, msg);
+      if (err instanceof EnrichmentError) {
+        await this.connections.reportProviderError(connection, err);
+      }
+      throw err;
+    }
+
+    const candidate: LeadCandidate | null =
+      enrichResult.found && enrichResult.person
+        ? {
+            externalId: this.extractLinkedInExternalId(
+              url,
+              enrichResult,
+              connection.provider,
+            ),
+            provider: connection.provider,
+            person: enrichResult.person,
+            company: enrichResult.company,
+            confidence: enrichResult.confidence ?? null,
+            raw: enrichResult.raw,
+          }
+        : null;
+
+    const result: LeadSearchResult = {
+      total: candidate ? 1 : 0,
+      page,
+      perPage,
+      hasMore: false,
+      results: candidate ? [candidate] : [],
+    };
+
+    const cost = apiConfiguration.ENRICHMENT_COST_LEAD_SEARCH;
+    const updated = await this.leadJobs.markDone(job.id, {
+      totalResults: result.total,
+      resultSnapshot: result as unknown,
+      costCredits: candidate ? cost : 0,
+    });
+    await this.connections.touchLastUsed(connection.id);
+
+    if (cost > 0 && candidate) {
+      try {
+        await this.credits.consumeCredits(ctx, cost);
+      } catch (err) {
+        this.logger.warn(
+          `credit debit failed for linkedin search ${updated.id}: ${
+            (err as Error).message
+          }`,
+        );
+      }
+    }
+
+    return { job: updated, result, cached: false };
+  }
+
+  private extractLinkedInExternalId(
+    url: string,
+    result: EnrichmentResult,
+    provider: EnrichmentProviderType,
+  ): string {
+    const raw = result.raw as Record<string, unknown> | undefined;
+    const personId =
+      raw && typeof raw["id"] === "string" ? (raw["id"] as string) : null;
+    if (personId) return personId;
+    const slugMatch = url.match(/linkedin\.com\/in\/([^/?#]+)/i);
+    return `${provider}:${slugMatch ? slugMatch[1] : url}`;
   }
 
   async getJob(id: string, ctx: OwnershipContext): Promise<LeadSearchJob> {
@@ -411,6 +594,152 @@ export class LeadSearchService {
       emailRevealed: (result.person.emails?.length ?? 0) > 0,
       phoneRevealed: (result.person.phones?.length ?? 0) > 0,
     };
+  }
+
+  /**
+   * Reveal email and/or phone for a contact that was previously imported from
+   * a lead search. Uses `contact.enrichmentMetadata.{provider,externalId}` to
+   * call the provider's person-id enrichment endpoint, then merges the result
+   * into the contact (also replacing placeholder phone numbers if any).
+   */
+  async revealContact(
+    ctx: OwnershipContext,
+    contactId: string,
+    opts: RevealContactOpts = {},
+  ): Promise<RevealContactResult> {
+    const contact = await this.contactRepo.findById(contactId);
+    if (!contact) throw new NotFoundException("Contact not found");
+    this.assertContactAccess(ctx, contact);
+
+    const meta =
+      (contact.enrichmentMetadata as Record<string, unknown> | null) ?? null;
+    const externalId =
+      meta && typeof meta.externalId === "string"
+        ? (meta.externalId as string)
+        : null;
+    const providerName =
+      meta && typeof meta.provider === "string"
+        ? (meta.provider as EnrichmentProviderType)
+        : null;
+    if (!externalId || !providerName) {
+      throw new BadRequestException(
+        "This contact was not imported from a lead search provider — nothing to reveal.",
+      );
+    }
+
+    const active = await this.connections.listActive(ctx);
+    const connection = active.find((c) => c.provider === providerName);
+    if (!connection) {
+      throw new BadRequestException(
+        `No active ${providerName} connection to reveal contact info.`,
+      );
+    }
+
+    const provider = this.registry.get(connection.provider);
+    if (!provider.enrichByPersonId) {
+      throw new BadRequestException(
+        `${connection.provider} cannot reveal contact info.`,
+      );
+    }
+
+    const decrypted = await this.connections.decrypt(connection);
+    const creds = {
+      apiKey: decrypted.apiKey,
+      accountId: connection.externalAccountId,
+      connectionId: connection.id,
+      metadata: decrypted.metadata,
+    };
+
+    let result: EnrichmentResult;
+    try {
+      result = await provider.enrichByPersonId(creds, externalId, {
+        revealPhone: opts.revealPhone ?? false,
+        revealEmail: opts.revealEmail ?? true,
+      });
+    } catch (err) {
+      if (err instanceof EnrichmentError) {
+        await this.connections.reportProviderError(connection, err);
+        if (err.code === "NOT_FOUND") {
+          return {
+            contactId: contact.id,
+            emailRevealed: false,
+            phoneRevealed: false,
+            provider: connection.provider,
+          };
+        }
+      }
+      throw err;
+    }
+    await this.connections.touchLastUsed(connection.id);
+
+    if (!result.found || !result.person) {
+      return {
+        contactId: contact.id,
+        emailRevealed: false,
+        phoneRevealed: false,
+        provider: connection.provider,
+      };
+    }
+
+    // If the contact was imported with a placeholder phone (noPhone:* or
+    // <provider>:<externalId>) and the reveal returned a real phone, promote it
+    // to the primary phoneNumber so the UI stops showing the placeholder.
+    const revealedPhone = result.person.phones?.[0]?.value ?? null;
+    const hasPlaceholderPhone = /^(noPhone:|prospeo:|apollo:)/i.test(
+      contact.phoneNumber,
+    );
+    if (revealedPhone && hasPlaceholderPhone) {
+      try {
+        await this.contactRepo.update(contact.id, {
+          phoneNumber: revealedPhone,
+        });
+      } catch (err) {
+        this.logger.warn(
+          `could not promote revealed phone for contact ${contact.id}: ${
+            (err as Error).message
+          }`,
+        );
+      }
+    }
+
+    await this.merge.mergeIntoContact(
+      ctx,
+      contact,
+      result,
+      `${connection.provider}:contact-reveal`,
+    );
+
+    const cost = apiConfiguration.ENRICHMENT_COST_LEAD_IMPORT;
+    if (cost > 0) {
+      try {
+        await this.credits.consumeCredits(ctx, cost);
+      } catch (err) {
+        this.logger.warn(
+          `credit debit failed for contact reveal ${contact.id}: ${
+            (err as Error).message
+          }`,
+        );
+      }
+    }
+
+    return {
+      contactId: contact.id,
+      emailRevealed: (result.person.emails?.length ?? 0) > 0,
+      phoneRevealed: (result.person.phones?.length ?? 0) > 0,
+      provider: connection.provider,
+    };
+  }
+
+  private assertContactAccess(ctx: OwnershipContext, contact: Contact): void {
+    if (ctx.organizationId) {
+      if (contact.organizationId !== ctx.organizationId) {
+        throw new ForbiddenException("Cannot access this contact");
+      }
+      return;
+    }
+    if (contact.userId !== ctx.userId) {
+      throw new ForbiddenException("Cannot access this contact");
+    }
   }
 
   /**

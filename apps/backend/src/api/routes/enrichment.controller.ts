@@ -208,6 +208,20 @@ export class EnrichmentController {
     );
   }
 
+  @Post("contacts/:id/reveal")
+  async revealContact(
+    @Param("id") contactId: string,
+    @Body()
+    body: { revealPhone?: boolean; revealEmail?: boolean } | undefined,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    const ctx = createOwnershipContext(user);
+    return this.leadSearch.revealContact(ctx, contactId, {
+      revealPhone: body?.revealPhone,
+      revealEmail: body?.revealEmail,
+    });
+  }
+
   // ── Lead Search ────────────────────────────────────────────────────
 
   @Post("leads/search")
@@ -218,6 +232,7 @@ export class EnrichmentController {
       provider?: EnrichmentProviderType;
       page?: number;
       perPage?: number;
+      useCache?: boolean;
     },
     @CurrentUser() user: CurrentUserData,
   ) {
@@ -227,6 +242,27 @@ export class EnrichmentController {
       provider: body.provider,
       page: body.page,
       perPage: body.perPage,
+      useCache: body.useCache,
+    });
+  }
+
+  @Post("leads/search-by-linkedin")
+  async searchByLinkedIn(
+    @Body()
+    body: {
+      linkedinUrl: string;
+      provider?: EnrichmentProviderType;
+      useCache?: boolean;
+    },
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (!body?.linkedinUrl?.trim()) {
+      throw new BadRequestException("linkedinUrl required");
+    }
+    const ctx = createOwnershipContext(user);
+    return this.leadSearch.searchByLinkedInUrl(ctx, body.linkedinUrl, {
+      provider: body.provider,
+      useCache: body.useCache,
     });
   }
 

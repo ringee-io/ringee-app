@@ -27,11 +27,12 @@ export class EnrichmentError extends Error {
     retryAfter?: string | null,
   ): EnrichmentError {
     const retryAfterMs = retryAfter ? Number(retryAfter) * 1000 : undefined;
+    const detail = summarizeBody(body);
     if (status === 401)
       return new EnrichmentError(
         "INVALID_CREDENTIALS",
         false,
-        "unauthorized",
+        detail ? `unauthorized — ${detail}` : "unauthorized",
         undefined,
         body,
       );
@@ -39,7 +40,9 @@ export class EnrichmentError extends Error {
       return new EnrichmentError(
         "QUOTA_EXCEEDED",
         false,
-        "payment required / quota exceeded",
+        detail
+          ? `payment required / quota exceeded — ${detail}`
+          : "payment required / quota exceeded",
         undefined,
         body,
       );
@@ -47,7 +50,7 @@ export class EnrichmentError extends Error {
       return new EnrichmentError(
         "INVALID_CREDENTIALS",
         false,
-        "forbidden",
+        detail ? `forbidden — ${detail}` : "forbidden",
         undefined,
         body,
       );
@@ -55,7 +58,7 @@ export class EnrichmentError extends Error {
       return new EnrichmentError(
         "NOT_FOUND",
         false,
-        "not found",
+        detail ? `not found — ${detail}` : "not found",
         undefined,
         body,
       );
@@ -63,7 +66,7 @@ export class EnrichmentError extends Error {
       return new EnrichmentError(
         "VALIDATION",
         false,
-        "validation error",
+        detail ? `validation error — ${detail}` : "validation error",
         undefined,
         body,
       );
@@ -86,9 +89,37 @@ export class EnrichmentError extends Error {
     return new EnrichmentError(
       "UNKNOWN",
       false,
-      `http ${status}`,
+      detail ? `http ${status} — ${detail}` : `http ${status}`,
       undefined,
       body,
     );
   }
+}
+
+function summarizeBody(body: unknown): string | null {
+  if (body == null) return null;
+  try {
+    if (typeof body === "string") {
+      const trimmed = body.trim();
+      return trimmed ? truncate(trimmed, 240) : null;
+    }
+    if (typeof body === "object") {
+      const b = body as Record<string, unknown>;
+      const msg =
+        (typeof b.message === "string" && b.message) ||
+        (typeof b.error === "string" && b.error) ||
+        (typeof b.error_message === "string" && b.error_message) ||
+        (typeof b.detail === "string" && b.detail) ||
+        (typeof b.filter_error === "string" && b.filter_error);
+      if (msg) return truncate(msg, 240);
+      return truncate(JSON.stringify(body), 240);
+    }
+    return truncate(String(body), 240);
+  } catch {
+    return null;
+  }
+}
+
+function truncate(s: string, max: number): string {
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
 }

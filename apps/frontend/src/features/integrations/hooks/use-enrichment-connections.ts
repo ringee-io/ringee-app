@@ -7,12 +7,14 @@ import type {
   EnrichmentJobRow,
   EnrichmentProviderType,
   LeadSearchFilters,
-  LeadSearchJobDto,
+  LeadSearchJobDto
 } from '../types/enrichment';
 
 export function useEnrichmentConnections() {
   const api = useApi();
-  const [connections, setConnections] = useState<EnrichmentConnectionSummary[]>([]);
+  const [connections, setConnections] = useState<EnrichmentConnectionSummary[]>(
+    []
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -20,7 +22,9 @@ export function useEnrichmentConnections() {
     setLoading(true);
     setError(null);
     try {
-      const res = await api.get<EnrichmentConnectionSummary[]>('/enrichment/connections');
+      const res = await api.get<EnrichmentConnectionSummary[]>(
+        '/enrichment/connections'
+      );
       setConnections(res ?? []);
     } catch (err) {
       // 404 means feature flag is off — treat as no connections, no error
@@ -29,7 +33,11 @@ export function useEnrichmentConnections() {
         setConnections([]);
         return;
       }
-      setError(err instanceof Error ? err.message : 'Failed to load enrichment connections');
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'Failed to load enrichment connections'
+      );
     } finally {
       setLoading(false);
     }
@@ -54,7 +62,9 @@ export function useContactEnrichmentJobs(contactId: string | null) {
     }
     setLoading(true);
     try {
-      const res = await api.get<EnrichmentJobRow[]>(`/enrichment/contacts/${contactId}/jobs`);
+      const res = await api.get<EnrichmentJobRow[]>(
+        `/enrichment/contacts/${contactId}/jobs`
+      );
       setJobs(res ?? []);
     } catch {
       setJobs([]);
@@ -77,70 +87,112 @@ export function useEnrichmentMutations() {
     async (provider: EnrichmentProviderType, apiKey: string) => {
       return api.post<{ accountId: string; accountName: string | null }>(
         `/enrichment/${provider}/validate`,
-        { apiKey },
+        { apiKey }
       );
     },
-    [api],
+    [api]
   );
 
   const connect = useCallback(
     async (provider: EnrichmentProviderType, apiKey: string) => {
-      return api.post<{ id: string; status: string }>(`/enrichment/${provider}/connect`, {
-        apiKey,
-      });
+      return api.post<{ id: string; status: string }>(
+        `/enrichment/${provider}/connect`,
+        {
+          apiKey
+        }
+      );
     },
-    [api],
+    [api]
   );
 
   const disconnect = useCallback(
-    async (id: string) => api.delete<{ ok: true }>(`/enrichment/connections/${id}`),
-    [api],
+    async (id: string) =>
+      api.delete<{ ok: true }>(`/enrichment/connections/${id}`),
+    [api]
   );
 
   const enrichContact = useCallback(
-    async (contactId: string, opts?: { provider?: EnrichmentProviderType; waterfall?: boolean }) =>
-      api.post<EnrichmentJobRow>(`/enrichment/contacts/${contactId}/enrich`, opts ?? {}),
-    [api],
+    async (
+      contactId: string,
+      opts?: { provider?: EnrichmentProviderType; waterfall?: boolean }
+    ) =>
+      api.post<EnrichmentJobRow>(
+        `/enrichment/contacts/${contactId}/enrich`,
+        opts ?? {}
+      ),
+    [api]
   );
 
   const enrichBulk = useCallback(
     async (
       contactIds: string[],
-      opts?: { provider?: EnrichmentProviderType; waterfall?: boolean },
+      opts?: { provider?: EnrichmentProviderType; waterfall?: boolean }
     ) =>
       api.post<{ jobIds: string[] }>('/enrichment/contacts/enrich-bulk', {
         contactIds,
-        ...(opts ?? {}),
+        ...(opts ?? {})
       }),
-    [api],
+    [api]
   );
 
   const searchLeads = useCallback(
     async (
       filters: LeadSearchFilters,
-      opts?: { provider?: EnrichmentProviderType; page?: number; perPage?: number },
+      opts?: {
+        provider?: EnrichmentProviderType;
+        page?: number;
+        perPage?: number;
+        useCache?: boolean;
+      }
     ) =>
       api.post<LeadSearchJobDto>('/enrichment/leads/search', {
         filters,
-        ...(opts ?? {}),
+        ...(opts ?? {})
       }),
-    [api],
+    [api]
+  );
+
+  const searchLeadsByLinkedin = useCallback(
+    async (
+      linkedinUrl: string,
+      opts?: { provider?: EnrichmentProviderType; useCache?: boolean }
+    ) =>
+      api.post<LeadSearchJobDto>('/enrichment/leads/search-by-linkedin', {
+        linkedinUrl,
+        ...(opts ?? {})
+      }),
+    [api]
   );
 
   const importLeads = useCallback(
     async (candidates: unknown[], tagIds?: string[]) =>
-      api.post<{ importedContactIds: string[]; duplicates: number; errors: number }>(
-        '/enrichment/leads/import',
-        { candidates, tagIds },
-      ),
-    [api],
+      api.post<{
+        importedContactIds: string[];
+        duplicates: number;
+        errors: number;
+      }>('/enrichment/leads/import', { candidates, tagIds }),
+    [api]
+  );
+
+  const revealContact = useCallback(
+    async (
+      contactId: string,
+      opts?: { revealPhone?: boolean; revealEmail?: boolean }
+    ) =>
+      api.post<{
+        contactId: string;
+        emailRevealed: boolean;
+        phoneRevealed: boolean;
+        provider: EnrichmentProviderType;
+      }>(`/enrichment/contacts/${contactId}/reveal`, opts ?? {}),
+    [api]
   );
 
   const revealLeadContact = useCallback(
     async (
       jobId: string,
       externalId: string,
-      opts?: { revealPhone?: boolean },
+      opts?: { revealPhone?: boolean }
     ) =>
       api.post<{
         candidate: import('../types/enrichment').LeadCandidate;
@@ -149,9 +201,9 @@ export function useEnrichmentMutations() {
         phoneRevealed: boolean;
       }>(
         `/enrichment/leads/jobs/${jobId}/candidates/${encodeURIComponent(externalId)}/reveal`,
-        { revealPhone: opts?.revealPhone ?? false },
+        { revealPhone: opts?.revealPhone ?? false }
       ),
-    [api],
+    [api]
   );
 
   return {
@@ -161,7 +213,9 @@ export function useEnrichmentMutations() {
     enrichContact,
     enrichBulk,
     searchLeads,
+    searchLeadsByLinkedin,
     importLeads,
     revealLeadContact,
+    revealContact
   };
 }

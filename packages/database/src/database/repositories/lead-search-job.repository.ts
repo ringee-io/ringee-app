@@ -70,10 +70,7 @@ export class LeadSearchJobRepository {
     });
   }
 
-  updateSnapshot(
-    id: string,
-    snapshot: unknown,
-  ): Promise<LeadSearchJob> {
+  updateSnapshot(id: string, snapshot: unknown): Promise<LeadSearchJob> {
     return this.prisma.leadSearchJob.update({
       where: { id },
       data: {
@@ -98,6 +95,31 @@ export class LeadSearchJobRepository {
       where: { userId },
       orderBy: { createdAt: "desc" },
       take: limit,
+    });
+  }
+
+  findRecentByHash(input: {
+    userId: string;
+    organizationId?: string | null;
+    provider: EnrichmentProviderType;
+    filtersHash: string;
+    page: number;
+    perPage: number;
+    olderThan?: Date;
+  }): Promise<LeadSearchJob | null> {
+    return this.prisma.leadSearchJob.findFirst({
+      where: {
+        provider: input.provider,
+        filtersHash: input.filtersHash,
+        page: input.page,
+        perPage: input.perPage,
+        status: "done",
+        ...(input.organizationId
+          ? { organizationId: input.organizationId }
+          : { userId: input.userId, organizationId: null }),
+        ...(input.olderThan ? { completedAt: { gte: input.olderThan } } : {}),
+      },
+      orderBy: { completedAt: "desc" },
     });
   }
 

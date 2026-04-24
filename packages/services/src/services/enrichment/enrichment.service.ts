@@ -424,11 +424,7 @@ export class EnrichmentService {
     if (contact.email && caps?.byEmail) {
       return this.buildQuery("email", { email: contact.email.toLowerCase() });
     }
-    if (
-      caps?.byNameCompany &&
-      (contact.firstName || contact.fullName) &&
-      contact.company
-    ) {
+    if (caps?.byNameCompany && contact.company && hasUsableName(contact)) {
       return this.buildQuery("name_company", {
         firstName: contact.firstName,
         lastName: contact.lastName,
@@ -505,4 +501,12 @@ function extractDomain(email: string | null | undefined): string | undefined {
   if (!email) return undefined;
   const parts = email.split("@");
   return parts[1]?.toLowerCase();
+}
+
+function hasUsableName(contact: Contact): boolean {
+  if (contact.firstName && contact.lastName) return true;
+  const combined = contact.fullName ?? contact.name;
+  if (!combined) return false;
+  // Need at least two whitespace-separated parts so we can split into first/last.
+  return combined.trim().split(/\s+/).length >= 2;
 }

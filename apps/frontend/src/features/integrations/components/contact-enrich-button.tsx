@@ -20,7 +20,7 @@ export function ContactEnrichButton({
   variant = 'default',
   size = 'sm',
   onEnriched,
-  waterfall = true,
+  waterfall = true
 }: Props) {
   const { enrichContact } = useEnrichmentMutations();
   const [busy, setBusy] = useState(false);
@@ -35,17 +35,27 @@ export function ContactEnrichButton({
           break;
         case 'not_found':
           toast.message('No match found for this contact', {
-            description: 'Provider had no data — try adding more info to the contact.',
+            description:
+              'Provider had no data — try adding more info to the contact.'
           });
           break;
         case 'skipped':
           toast.message('Recently enriched (cached)', {
-            description: 'Used cached result from last 30 days.',
+            description: 'Used cached result from last 30 days.'
           });
           break;
-        case 'failed':
-          toast.error(job.lastError ?? 'Enrichment failed');
+        case 'failed': {
+          const err = job.lastError ?? 'Enrichment failed';
+          if (/^VALIDATION/i.test(err)) {
+            toast.error('Provider rejected this lookup', {
+              description:
+                'The contact may lack enough info (name, email, LinkedIn) for the provider to match. Try editing the contact and adding more data.'
+            });
+          } else {
+            toast.error(err);
+          }
           break;
+        }
         default:
           toast.message(`Enrichment ${job.status}`);
       }
@@ -60,9 +70,9 @@ export function ContactEnrichButton({
   return (
     <Button onClick={handleClick} disabled={busy} variant={variant} size={size}>
       {busy ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        <Loader2 className='mr-2 h-4 w-4 animate-spin' />
       ) : (
-        <Sparkles className="mr-2 h-4 w-4" />
+        <Sparkles className='mr-2 h-4 w-4' />
       )}
       Enrich
     </Button>

@@ -74,9 +74,21 @@ export interface LeadCandidate {
     twitterUrl?: string | null;
     githubUrl?: string | null;
     facebookUrl?: string | null;
-    location?: { city?: string | null; region?: string | null; country?: string | null } | null;
-    emails: { value: string; type?: string | null; verified?: boolean | null }[];
-    phones: { value: string; type?: string | null; verified?: boolean | null }[];
+    location?: {
+      city?: string | null;
+      region?: string | null;
+      country?: string | null;
+    } | null;
+    emails: {
+      value: string;
+      type?: string | null;
+      verified?: boolean | null;
+    }[];
+    phones: {
+      value: string;
+      type?: string | null;
+      verified?: boolean | null;
+    }[];
     socialProfiles: { platform: string; url: string; handle?: string | null }[];
   };
   company: {
@@ -111,6 +123,7 @@ export interface LeadSearchJobDto {
     completedAt: string | null;
   };
   result: LeadSearchResultDto;
+  cached: boolean;
 }
 
 export interface LeadSearchFilters {
@@ -159,7 +172,7 @@ export const ENRICHMENT_PROVIDER_META: Record<
     docsUrl: 'https://prospeo.io/api-docs/search-person',
     color: '#3B82F6',
     available: true,
-    leadSearch: true,
+    leadSearch: true
   },
   apollo: {
     name: 'Apollo.io',
@@ -168,6 +181,6 @@ export const ENRICHMENT_PROVIDER_META: Record<
     docsUrl: 'https://docs.apollo.io',
     color: '#7C3AED',
     available: true,
-    leadSearch: true,
-  },
+    leadSearch: true
+  }
 };
