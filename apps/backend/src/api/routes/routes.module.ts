@@ -34,6 +34,9 @@ import { CalendarController } from "./calendar.controller";
 import { TriggerLoopModule } from "../../triggerloop/triggerloop.module";
 import { CrmController } from "./crm.controller";
 import { AttioAppController } from "./attio-app.controller";
+import { EnrichmentController } from "./enrichment.controller";
+import { CustomFieldsController } from "./custom-fields.controller";
+import { EnrichmentFeatureGuard } from "../guards/enrichment-feature.guard";
 
 @Module({
   controllers: [
@@ -64,7 +67,10 @@ import { AttioAppController } from "./attio-app.controller";
     CalendarController,
     CrmController,
     AttioAppController,
+    EnrichmentController,
+    CustomFieldsController,
   ],
+  providers: [EnrichmentFeatureGuard],
   imports: [
     McpModule,
     ChatModule,

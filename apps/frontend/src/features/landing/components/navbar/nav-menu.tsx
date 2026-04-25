@@ -83,6 +83,9 @@ export const NavMenu = ({
                 <ListItem href='#campaigns' title='Campaigns'>
                   Preview and progressive dialers for outbound teams.
                 </ListItem>
+                <ListItem href='#find-leads' title='Find leads & enrich'>
+                  Apollo.io and Prospeo.io — prospecting, built in.
+                </ListItem>
                 <ListItem href='#integrations' title='CRM Integrations'>
                   Attio, Odoo — and more on the way.
                 </ListItem>
@@ -106,6 +109,9 @@ export const NavMenu = ({
               </Link>
               <Link href='#campaigns' className='py-1 text-base font-medium'>
                 Campaigns
+              </Link>
+              <Link href='#find-leads' className='py-1 text-base font-medium'>
+                Find leads &amp; enrich
               </Link>
               <Link href='#integrations' className='py-1 text-base font-medium'>
                 CRM Integrations

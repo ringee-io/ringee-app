@@ -9,6 +9,7 @@ import { Navbar } from './navbar';
 import VideoDemo from './video-demo';
 import OpenSourceSection from './open-source-section';
 import Campaigns from './campaigns';
+import FindLeadsEnrichment from './find-leads-enrichment';
 import CrmIntegrations from './crm-integrations';
 // import PromoBanner from './promo-banner';
 
@@ -22,6 +23,7 @@ export default function LandingContent() {
         <VideoDemo />
         <Features />
         <Campaigns />
+        <FindLeadsEnrichment />
         <CrmIntegrations />
         <Pricing />
         <Comparison />

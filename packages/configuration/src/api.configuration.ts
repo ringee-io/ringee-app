@@ -34,6 +34,16 @@ const apiConfiguration = {
     process.env.ATTIO_OAUTH_TOKEN_URL || "https://app.attio.com/oauth/token",
   ATTIO_API_BASE_URL: process.env.ATTIO_API_BASE_URL || "https://api.attio.com",
   CRM_DRY_RUN: process.env.CRM_DRY_RUN === "true",
+  // ── Data Enrichment & Lead Search ──
+  ENRICHMENT_FEATURE_ENABLED: process.env.ENRICHMENT_FEATURE_ENABLED !== "false",
+  ENRICHMENT_DRY_RUN: process.env.ENRICHMENT_DRY_RUN === "true",
+  ENRICHMENT_DEDUP_TTL_DAYS: Number(process.env.ENRICHMENT_DEDUP_TTL_DAYS ?? 30),
+  ENRICHMENT_COST_PROSPEO: Number(process.env.ENRICHMENT_COST_PROSPEO ?? 5),
+  ENRICHMENT_COST_APOLLO: Number(process.env.ENRICHMENT_COST_APOLLO ?? 3),
+  ENRICHMENT_COST_LEAD_SEARCH: Number(process.env.ENRICHMENT_COST_LEAD_SEARCH ?? 1),
+  ENRICHMENT_COST_LEAD_IMPORT: Number(process.env.ENRICHMENT_COST_LEAD_IMPORT ?? 5),
+  PROSPEO_API_BASE_URL: process.env.PROSPEO_API_BASE_URL || "https://api.prospeo.io",
+  APOLLO_API_BASE_URL: process.env.APOLLO_API_BASE_URL || "https://api.apollo.io",
 };
 
 const errors = [];

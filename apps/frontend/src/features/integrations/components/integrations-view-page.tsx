@@ -3,8 +3,14 @@
 import { Alert, AlertDescription, AlertTitle } from '@ringee/frontend-shared/components/ui/alert';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@ringee/frontend-shared/components/ui/tabs';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
-import { AlertCircle, Plug, RefreshCw } from 'lucide-react';
+import { AlertCircle, Plug, RefreshCw, Sparkles, Users } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
@@ -15,6 +21,8 @@ import { AttioAppTokenSection } from './attio-app-token-section';
 import { CrmConnectionCard } from './crm-connection-card';
 import { ProviderCatalog } from './provider-catalog';
 import { ConnectionManagementSheet } from './connection-management-sheet';
+import { EnrichmentTab } from './tabs/enrichment-tab';
+import { LeadSearchPanel } from './lead-search-panel';
 
 export default function IntegrationsViewPage() {
   const api = useApi();
@@ -128,6 +136,78 @@ export default function IntegrationsViewPage() {
   );
 
   return (
+    <Tabs defaultValue="crm" className="w-full">
+      <TabsList>
+        <TabsTrigger value="crm">CRM</TabsTrigger>
+        <TabsTrigger value="enrichment" className="gap-1.5">
+          <Sparkles className="h-3.5 w-3.5" /> Data Enrichment
+        </TabsTrigger>
+        <TabsTrigger value="leads" className="gap-1.5">
+          <Users className="h-3.5 w-3.5" /> Find Leads
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="enrichment" className="mt-6">
+        <EnrichmentTab />
+      </TabsContent>
+
+      <TabsContent value="leads" className="mt-6">
+        <LeadSearchPanel />
+      </TabsContent>
+
+      <TabsContent value="crm" className="mt-6">
+        <CrmTabContent
+          loading={loading}
+          error={error}
+          connections={connections}
+          needsAttention={needsAttention}
+          connectedProviders={connectedProviders}
+          disconnectingId={disconnectingId}
+          onReload={reload}
+          onConnect={handleConnect}
+          onDisconnect={handleDisconnect}
+          onForget={handleForget}
+          onManage={handleManage}
+        />
+      </TabsContent>
+
+      <ConnectionManagementSheet
+        connection={manageConnection}
+        open={!!manageConnection}
+        onOpenChange={(open) => !open && setManageConnection(null)}
+      />
+    </Tabs>
+  );
+}
+
+interface CrmTabContentProps {
+  loading: boolean;
+  error: string | null;
+  connections: CrmConnectionSummary[];
+  needsAttention: CrmConnectionSummary[];
+  connectedProviders: CrmProviderType[];
+  disconnectingId: string | null;
+  onReload: () => void;
+  onConnect: (provider: CrmProviderType, scope: 'personal' | 'organization') => Promise<void>;
+  onDisconnect: (id: string) => Promise<void>;
+  onForget: (id: string) => Promise<void>;
+  onManage: (id: string) => void;
+}
+
+function CrmTabContent({
+  loading,
+  error,
+  connections,
+  needsAttention,
+  connectedProviders,
+  disconnectingId,
+  onReload,
+  onConnect,
+  onDisconnect,
+  onForget,
+  onManage,
+}: CrmTabContentProps) {
+  return (
     <div className="flex flex-col gap-8">
       {needsAttention.length > 0 && (
         <Alert className="border-amber-500/30 bg-amber-500/5">
@@ -153,7 +233,7 @@ export default function IntegrationsViewPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => reload()}
+            onClick={() => onReload()}
             disabled={loading}
             className="h-8"
           >
@@ -173,7 +253,7 @@ export default function IntegrationsViewPage() {
         ) : error ? (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Couldn't load connections</AlertTitle>
+            <AlertTitle>Couldn&apos;t load connections</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : connections.length === 0 ? (
@@ -184,11 +264,11 @@ export default function IntegrationsViewPage() {
               <CrmConnectionCard
                 key={c.id}
                 connection={c}
-                onDisconnect={handleDisconnect}
-                onForget={handleForget}
-                onReconnect={handleConnect}
-                onViewHistory={(id) => handleManage(id)}
-                onManage={handleManage}
+                onDisconnect={onDisconnect}
+                onForget={onForget}
+                onReconnect={onConnect}
+                onViewHistory={(id) => onManage(id)}
+                onManage={onManage}
                 disconnecting={disconnectingId === c.id}
               />
             ))}
@@ -209,17 +289,11 @@ export default function IntegrationsViewPage() {
           </p>
         </div>
         <ProviderCatalog
-          onConnect={handleConnect}
+          onConnect={onConnect}
           connectedProviders={connectedProviders}
-          onReload={reload}
+          onReload={onReload}
         />
       </section>
-
-      <ConnectionManagementSheet
-        connection={manageConnection}
-        open={!!manageConnection}
-        onOpenChange={(open) => !open && setManageConnection(null)}
-      />
     </div>
   );
 }
