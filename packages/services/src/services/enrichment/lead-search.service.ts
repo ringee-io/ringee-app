@@ -317,10 +317,13 @@ export class LeadSearchService {
     result: EnrichmentResult,
     provider: EnrichmentProviderType,
   ): string {
-    const raw = result.raw as Record<string, unknown> | undefined;
-    const personId =
-      raw && typeof raw["id"] === "string" ? (raw["id"] as string) : null;
-    if (personId) return personId;
+    const raw = (result.raw ?? {}) as Record<string, unknown>;
+    // Prospeo /enrich-person → { person: { person_id } }
+    const personObj = (raw["person"] ?? {}) as Record<string, unknown>;
+    const candidates = [personObj["person_id"], raw["person_id"], raw["id"]];
+    for (const c of candidates) {
+      if (typeof c === "string" && c) return c;
+    }
     const slugMatch = url.match(/linkedin\.com\/in\/([^/?#]+)/i);
     return `${provider}:${slugMatch ? slugMatch[1] : url}`;
   }

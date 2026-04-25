@@ -73,26 +73,55 @@ export class EnrichmentMergeService {
       ? this.computeContactScalarUpdates(contact, result.person)
       : {};
 
+    // Preserve existing fields like provider/externalId set at import time —
+    // the reveal-contact flow needs them to call the provider's person-id endpoint.
+    const previousMetadata =
+      (contact.enrichmentMetadata as Record<string, unknown> | null) ?? {};
+    const externalId =
+      extractExternalId(result) ??
+      (typeof previousMetadata.externalId === "string"
+        ? (previousMetadata.externalId as string)
+        : undefined);
+    const providerName = providerLabel.split(":")[0];
+    const mergedMetadata = {
+      ...previousMetadata,
+      provider: previousMetadata.provider ?? (providerName || providerLabel),
+      providerLabel,
+      at: new Date().toISOString(),
+      confidence: result.confidence,
+      ...(externalId ? { externalId } : {}),
+    } as Prisma.InputJsonValue;
+
     if (Object.keys(scalarUpdates).length > 0) {
       outcome.changedScalarFields = Object.keys(scalarUpdates);
-      outcome.contact = await this.contactRepo.update(contact.id, {
-        ...scalarUpdates,
-        enrichmentMetadata: {
-          provider: providerLabel,
-          at: new Date().toISOString(),
-          confidence: result.confidence,
-        } as Prisma.InputJsonValue,
-        lastEnrichedAt: new Date(),
-      });
+      try {
+        outcome.contact = await this.contactRepo.update(contact.id, {
+          ...scalarUpdates,
+          enrichmentMetadata: mergedMetadata,
+          lastEnrichedAt: new Date(),
+        });
+      } catch (err) {
+        // Unique (userId, phoneNumber) collision can happen when another
+        // contact already owns the enriched number — drop it and retry.
+        if (scalarUpdates.phoneNumber) {
+          const { phoneNumber: _drop, ...rest } = scalarUpdates;
+          this.logger.debug(
+            `phoneNumber update for ${contact.id} skipped: ${(err as Error).message}`,
+          );
+          outcome.changedScalarFields = Object.keys(rest);
+          outcome.contact = await this.contactRepo.update(contact.id, {
+            ...rest,
+            enrichmentMetadata: mergedMetadata,
+            lastEnrichedAt: new Date(),
+          });
+        } else {
+          throw err;
+        }
+      }
     } else {
       // even when nothing scalar changed, record that we tried
       outcome.contact = await this.contactRepo.update(contact.id, {
-        enrichmentMetadata: {
-          provider: providerLabel,
-          at: new Date().toISOString(),
-          confidence: result.confidence,
-          note: "no scalar fields changed",
-        } as Prisma.InputJsonValue,
+        enrichmentMetadata: mergedMetadata,
         lastEnrichedAt: new Date(),
       });
     }
@@ -180,6 +209,12 @@ export class EnrichmentMergeService {
     const primaryEmail = p.emails?.[0]?.value;
     if (!contact.email && primaryEmail) {
       updates.email = primaryEmail;
+    }
+    // Replace primary phoneNumber with the first valid, non-masked phone
+    // returned by the provider (skip values containing "**" — masked previews).
+    const enrichedPhone = pickValidPhone(p.phones);
+    if (enrichedPhone && enrichedPhone !== contact.phoneNumber) {
+      updates.phoneNumber = enrichedPhone;
     }
     // Mark email verified if provider marked it so AND we just set/match it
     const matchedEmail = p.emails?.find(
@@ -428,4 +463,48 @@ function mapPlatform(name: string): SocialPlatform {
     slack: SocialPlatform.slack,
   };
   return map[k] ?? SocialPlatform.other;
+}
+
+/**
+ * Picks the first phone we can safely use as the contact's primary number:
+ * - rejects masked previews (contain "**")
+ * - requires at least 7 digits
+ * - fits in the schema's VarChar(20)
+ */
+function pickValidPhone(
+  phones: { value: string; type?: string | null }[] | undefined,
+): string | null {
+  if (!phones?.length) return null;
+  for (const p of phones) {
+    const trimmed = p.value?.trim();
+    if (!trimmed) continue;
+    if (trimmed.includes("**")) continue;
+    if (trimmed.length > 20) continue;
+    const digits = trimmed.replace(/\D/g, "");
+    if (digits.length < 7) continue;
+    return trimmed;
+  }
+  return null;
+}
+
+/**
+ * Best-effort extraction of a provider-side person id from a raw enrichment
+ * response. Used to persist `enrichmentMetadata.externalId` so the
+ * "reveal email/phone" flow on contact details can call
+ * provider.enrichByPersonId later without another lead search.
+ */
+function extractExternalId(result: EnrichmentResult): string | undefined {
+  const raw = (result.raw ?? {}) as Record<string, unknown>;
+  // Prospeo /enrich-person → { person: { person_id } }
+  const personObj = (raw["person"] ?? {}) as Record<string, unknown>;
+  const candidates: unknown[] = [
+    personObj["person_id"],
+    personObj["id"],
+    raw["person_id"],
+    raw["id"],
+  ];
+  for (const c of candidates) {
+    if (typeof c === "string" && c) return c;
+  }
+  return undefined;
 }

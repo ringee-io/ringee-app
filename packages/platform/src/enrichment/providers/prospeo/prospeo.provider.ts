@@ -25,8 +25,6 @@ import type {
   ProspeoEnrichPersonRequest,
   ProspeoEnrichPersonResponse,
   ProspeoEnvelope,
-  ProspeoLinkedInResponse,
-  ProspeoMobileResponse,
   ProspeoSearchPersonRequest,
   ProspeoSearchPersonResponse,
   ProspeoSearchPersonResult,
@@ -44,7 +42,7 @@ export class ProspeoProvider extends AbstractEnrichmentProvider {
   readonly type = EnrichmentProviderType.prospeo;
 
   readonly capabilities: EnrichmentCapabilities = {
-    byEmail: false,
+    byEmail: true,
     byDomain: true,
     byLinkedIn: true,
     byNameCompany: true,
@@ -123,25 +121,28 @@ export class ProspeoProvider extends AbstractEnrichmentProvider {
     return this.mapPersonResult(env);
   }
 
+  async enrichByEmail(
+    creds: EnrichmentCredentials,
+    email: string,
+    opts?: EnrichOpts,
+  ): Promise<EnrichmentResult> {
+    return this.enrichPerson(
+      creds,
+      { email },
+      { revealPhone: opts?.revealPhone, timeoutMs: opts?.timeoutMs },
+    );
+  }
+
   async enrichByLinkedIn(
     creds: EnrichmentCredentials,
     linkedInUrl: string,
     opts?: EnrichOpts,
   ): Promise<EnrichmentResult> {
-    await this.acquireToken(creds.accountId);
-    const env = await this.callEnvelope<ProspeoLinkedInResponse>(
+    return this.enrichPerson(
       creds,
-      "POST",
-      "/linkedin-email-finder",
-      { url: linkedInUrl },
-      opts?.timeoutMs,
+      { linkedin_url: linkedInUrl },
+      { revealPhone: opts?.revealPhone, timeoutMs: opts?.timeoutMs },
     );
-    const result = this.mapPersonResult(env);
-    if (result.found && opts?.revealPhone && env.response?.linkedin_url) {
-      const mobile = await this.tryEnrichMobile(creds, linkedInUrl);
-      if (mobile && result.person) result.person.phones.push(mobile);
-    }
-    return result;
   }
 
   async enrichByNameCompany(
@@ -149,26 +150,23 @@ export class ProspeoProvider extends AbstractEnrichmentProvider {
     input: NameCompanyInput,
     opts?: EnrichOpts,
   ): Promise<EnrichmentResult> {
-    await this.acquireToken(creds.accountId);
-    const body: Record<string, string> = {};
-    if (input.firstName) body.first_name = input.firstName;
-    if (input.lastName) body.last_name = input.lastName;
+    const data: ProspeoEnrichPersonRequest["data"] = {};
+    if (input.firstName) data.first_name = input.firstName;
+    if (input.lastName) data.last_name = input.lastName;
+    if (input.fullName) data.full_name = input.fullName;
     if (input.fullName && !input.firstName && !input.lastName) {
       const parts = input.fullName.trim().split(/\s+/);
-      body.first_name = parts[0] ?? "";
-      body.last_name = parts.slice(1).join(" ") ?? "";
+      if (parts.length >= 2) {
+        data.first_name = parts[0];
+        data.last_name = parts.slice(1).join(" ");
+      }
     }
-    if (input.company) body.company = input.company;
-    if (input.domain) body.domain = input.domain;
-
-    const env = await this.callEnvelope<ProspeoEmailFinderResponse>(
-      creds,
-      "POST",
-      "/email-finder",
-      body,
-      opts?.timeoutMs,
-    );
-    return this.mapPersonResult(env);
+    if (input.company) data.company_name = input.company;
+    if (input.domain) data.company_website = input.domain;
+    return this.enrichPerson(creds, data, {
+      revealPhone: opts?.revealPhone,
+      timeoutMs: opts?.timeoutMs,
+    });
   }
 
   async verifyEmail(
@@ -286,17 +284,42 @@ export class ProspeoProvider extends AbstractEnrichmentProvider {
         "personId required for Prospeo enrich-person",
       );
     }
+    return this.enrichPerson(
+      creds,
+      { person_id: personId },
+      { revealPhone: opts?.revealPhone, timeoutMs: opts?.timeoutMs },
+    );
+  }
+
+  // ── Internals ──
+
+  /**
+   * Unified call to Prospeo /enrich-person — supports lookup by person_id,
+   * linkedin_url, email, or name+company. Returns NOT_FOUND for empty results.
+   */
+  private async enrichPerson(
+    creds: EnrichmentCredentials,
+    data: ProspeoEnrichPersonRequest["data"],
+    opts: { revealPhone?: boolean; timeoutMs?: number } = {},
+  ): Promise<EnrichmentResult> {
+    if (!data || Object.keys(data).length === 0) {
+      throw new EnrichmentError(
+        "VALIDATION",
+        false,
+        "Prospeo /enrich-person requires person_id, linkedin_url, email, or name + company.",
+      );
+    }
     await this.acquireToken(creds.accountId);
     const body: ProspeoEnrichPersonRequest = {
-      data: { person_id: personId },
-      enrich_mobile: !!opts?.revealPhone,
+      data,
+      enrich_mobile: !!opts.revealPhone,
     };
     const res = await this.requestRaw<ProspeoEnrichPersonResponse>(
       creds,
       "POST",
       "/enrich-person",
-      body,
-      opts?.timeoutMs,
+      body as unknown as Record<string, unknown>,
+      opts.timeoutMs,
     );
 
     if (res.error) {
@@ -308,30 +331,6 @@ export class ProspeoProvider extends AbstractEnrichmentProvider {
     }
 
     return this.mapEnrichPersonResult(res);
-  }
-
-  // ── Internals ──
-
-  private async tryEnrichMobile(
-    creds: EnrichmentCredentials,
-    linkedInUrl: string,
-  ): Promise<{ value: string; type: string } | null> {
-    try {
-      const env = await this.callEnvelope<ProspeoMobileResponse>(
-        creds,
-        "POST",
-        "/mobile-finder",
-        { url: linkedInUrl },
-      );
-      const r = env.response ?? {};
-      const value = r.international_format ?? r.raw_format ?? null;
-      if (!value) return null;
-      return { value, type: "mobile" };
-    } catch (err) {
-      if (err instanceof EnrichmentError && err.code === "NOT_FOUND")
-        return null;
-      throw err;
-    }
   }
 
   private mapPersonResult(
@@ -599,7 +598,13 @@ export class ProspeoProvider extends AbstractEnrichmentProvider {
   ): EnrichmentError {
     const code = (errorCode ?? "").toUpperCase();
     if (code === "INSUFFICIENT_CREDITS")
-      return new EnrichmentError("QUOTA_EXCEEDED", false, message, undefined, raw);
+      return new EnrichmentError(
+        "QUOTA_EXCEEDED",
+        false,
+        message,
+        undefined,
+        raw,
+      );
     if (code === "INVALID_API_KEY")
       return new EnrichmentError(
         "INVALID_CREDENTIALS",
@@ -612,10 +617,20 @@ export class ProspeoProvider extends AbstractEnrichmentProvider {
       return new EnrichmentError("RATE_LIMITED", true, message, undefined, raw);
     if (code === "NO_MATCH" || code === "NO_RESULTS")
       return new EnrichmentError("NOT_FOUND", false, message, undefined, raw);
-    if (code === "INVALID_FILTERS" || code === "INVALID_DATAPOINTS" || code === "INVALID_REQUEST")
+    if (
+      code === "INVALID_FILTERS" ||
+      code === "INVALID_DATAPOINTS" ||
+      code === "INVALID_REQUEST"
+    )
       return new EnrichmentError("VALIDATION", false, message, undefined, raw);
     if (/credit|quota|limit/i.test(message))
-      return new EnrichmentError("QUOTA_EXCEEDED", false, message, undefined, raw);
+      return new EnrichmentError(
+        "QUOTA_EXCEEDED",
+        false,
+        message,
+        undefined,
+        raw,
+      );
     if (/not found|no result|no match/i.test(message))
       return new EnrichmentError("NOT_FOUND", false, message, undefined, raw);
     return new EnrichmentError("VALIDATION", false, message, undefined, raw);
