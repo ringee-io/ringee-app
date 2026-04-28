@@ -354,8 +354,8 @@ export class LeadSearchService {
     for (const cand of candidates) {
       try {
         const phone =
-          cand.person.phones?.[0]?.value ??
-          `noPhone:${cand.externalId || cryptoRandom()}`;
+          fitColumn(cand.person.phones?.[0]?.value, PHONE_NUMBER_MAX) ??
+          placeholderPhone(cand.externalId);
         const existing = await this.contactRepo.findByPhone(ctx, phone);
         if (existing) {
           out.duplicates += 1;
@@ -368,7 +368,7 @@ export class LeadSearchService {
           lastName: cand.person.lastName ?? null,
           fullName: cand.person.fullName ?? null,
           phoneNumber: phone,
-          email: cand.person.emails?.[0]?.value ?? null,
+          email: fitColumn(cand.person.emails?.[0]?.value, EMAIL_MAX),
           company: cand.company?.name ?? null,
           jobTitle: cand.person.jobTitle ?? null,
           source: `lead-search:${cand.provider}`,
@@ -376,10 +376,10 @@ export class LeadSearchService {
           summary: cand.person.summary ?? null,
           seniority: cand.person.seniority ?? null,
           department: cand.person.department ?? null,
-          linkedinUrl: cand.person.linkedinUrl ?? null,
-          twitterUrl: cand.person.twitterUrl ?? null,
-          githubUrl: cand.person.githubUrl ?? null,
-          facebookUrl: cand.person.facebookUrl ?? null,
+          linkedinUrl: fitColumn(cand.person.linkedinUrl, URL_MAX),
+          twitterUrl: fitColumn(cand.person.twitterUrl, URL_MAX),
+          githubUrl: fitColumn(cand.person.githubUrl, URL_MAX),
+          facebookUrl: fitColumn(cand.person.facebookUrl, URL_MAX),
           locationCity: cand.person.location?.city ?? null,
           locationRegion: cand.person.location?.region ?? null,
           locationCountry: cand.person.location?.country ?? null,
@@ -680,11 +680,15 @@ export class LeadSearchService {
       };
     }
 
-    // If the contact was imported with a placeholder phone (noPhone:* or
-    // <provider>:<externalId>) and the reveal returned a real phone, promote it
-    // to the primary phoneNumber so the UI stops showing the placeholder.
-    const revealedPhone = result.person.phones?.[0]?.value ?? null;
-    const hasPlaceholderPhone = /^(noPhone:|prospeo:|apollo:)/i.test(
+    // If the contact was imported with a placeholder phone (lead:* legacy
+    // noPhone:* or <provider>:<externalId>) and the reveal returned a real
+    // phone that fits the column, promote it to the primary phoneNumber so
+    // the UI stops showing the placeholder.
+    const revealedPhone = fitColumn(
+      result.person.phones?.[0]?.value,
+      PHONE_NUMBER_MAX,
+    );
+    const hasPlaceholderPhone = /^(lead:|noPhone:|prospeo:|apollo:)/i.test(
       contact.phoneNumber,
     );
     if (revealedPhone && hasPlaceholderPhone) {
@@ -750,8 +754,7 @@ export class LeadSearchService {
     ctx: OwnershipContext,
     cand: LeadCandidate,
   ): Promise<Contact | null> {
-    const phone = cand.person.phones?.[0]?.value;
-    const email = cand.person.emails?.[0]?.value ?? null;
+    const phone = fitColumn(cand.person.phones?.[0]?.value, PHONE_NUMBER_MAX);
 
     if (phone) {
       const byPhone = await this.contactRepo.findByPhone(ctx, phone);
@@ -763,12 +766,12 @@ export class LeadSearchService {
       firstName: cand.person.firstName ?? null,
       lastName: cand.person.lastName ?? null,
       fullName: cand.person.fullName ?? null,
-      phoneNumber: phone ?? `prospeo:${cand.externalId}`,
-      email,
+      phoneNumber: phone ?? placeholderPhone(cand.externalId),
+      email: fitColumn(cand.person.emails?.[0]?.value, EMAIL_MAX),
       company: cand.company?.name ?? null,
       jobTitle: cand.person.jobTitle ?? null,
       headline: cand.person.headline ?? null,
-      linkedinUrl: cand.person.linkedinUrl ?? null,
+      linkedinUrl: fitColumn(cand.person.linkedinUrl, URL_MAX),
       locationCity: cand.person.location?.city ?? null,
       locationRegion: cand.person.location?.region ?? null,
       locationCountry: cand.person.location?.country ?? null,
@@ -827,6 +830,31 @@ export class LeadSearchService {
 
 function cryptoRandom(): string {
   return Math.random().toString(36).slice(2, 10);
+}
+
+// Contact column length limits (see schema.prisma `model Contact`).
+const PHONE_NUMBER_MAX = 20;
+const EMAIL_MAX = 100;
+const URL_MAX = 255;
+
+// Returns the value if it fits the column, otherwise null. Multivalued data
+// (emails, phones, social links) gets re-attached by the merge step on
+// wider-typed tables, so dropping an oversized scalar here is non-destructive.
+function fitColumn(
+  value: string | null | undefined,
+  max: number,
+): string | null {
+  if (!value) return null;
+  return value.length <= max ? value : null;
+}
+
+// Deterministic placeholder phone that fits in VarChar(20) when no real phone
+// is available. The same externalId always maps to the same placeholder so
+// re-imports still dedupe via findByPhone.
+function placeholderPhone(externalId: string | null | undefined): string {
+  const id = externalId || cryptoRandom();
+  // "lead:" (5) + 15 hex chars = 20.
+  return `lead:${createHash("sha1").update(id).digest("hex").slice(0, 15)}`;
 }
 
 // Deterministic JSON serializer: recursively sorts object keys so semantically
