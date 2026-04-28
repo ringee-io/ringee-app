@@ -28,6 +28,7 @@ export * from "./voicemail-drop-asset.repository";
 export * from "./agent-session.repository";
 export * from "./outbound-analytics.repository";
 export * from "./tag.repository";
+export * from "./call-script.repository";
 export * from "./meeting.repository";
 export * from "./calendar-integration.repository";
 export * from "./triggerloop-action-execution.repository";

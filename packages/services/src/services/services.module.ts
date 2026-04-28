@@ -24,6 +24,7 @@ import { OrganizationService } from "./organization.service";
 import { SubscriptionService } from "./subscription.service";
 import { CampaignService } from "./campaign.service";
 import { TagService } from "./tag.service";
+import { CallScriptService } from "./call-script.service";
 import { OnboardingService } from "./onboarding.service";
 import { MeetingService } from "./meeting.service";
 import { CalendarService } from "./calendar.service";
@@ -83,6 +84,7 @@ const servicesProviders = [
   SubscriptionService,
   CampaignService,
   TagService,
+  CallScriptService,
   OnboardingService,
   MeetingService,
   CalendarService,

@@ -49,6 +49,8 @@ import {
 } from '@ringee/frontend-shared/components/ui/tabs';
 import { IconKeyboard } from '@tabler/icons-react';
 import { ContactActivities } from './contact-activities';
+import { InCallScript } from './in-call-script';
+import { InCallContactInfo } from './in-call-contact-info';
 
 type ActiveCallModalProps = {
   open: boolean;
@@ -110,7 +112,9 @@ export function ActiveCallModal({
   const [dtmfDigits, setDtmfDigits] = useState<string[]>([]);
   const { bookingPanelOpen, setBookingPanelOpen, meetingBooked, setMeetingBooked } =
     useCallStore();
-  const [activeTab, setActiveTab] = useState<'activities' | 'booking'>('activities');
+  const [activeTab, setActiveTab] = useState<
+    'activities' | 'booking' | 'script' | 'contact'
+  >('activities');
 
   useEffect(() => {
     if (bookingPanelOpen) setActiveTab('booking');
@@ -411,15 +415,27 @@ export function ActiveCallModal({
               <div className='px-4 md:px-6 py-3 md:py-4 flex items-center justify-between border-b border-border/10 shrink-0'>
                 {contactId ? (
                   <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className='w-full'>
-                    <TabsList className='flex items-center gap-1.5 bg-transparent p-0 h-auto justify-start border-none'>
-                      <TabsTrigger 
-                        value='activities' 
+                    <TabsList className='flex items-center gap-1.5 bg-transparent p-0 h-auto justify-start border-none flex-wrap'>
+                      <TabsTrigger
+                        value='activities'
                         className='rounded-xl border border-transparent data-[state=active]:border-border/30 data-[state=active]:bg-white/5 shadow-none bg-transparent px-3 py-1.5 text-xs md:text-sm font-normal text-muted-foreground data-[state=active]:text-foreground transition-all'
                       >
                         History
                       </TabsTrigger>
-                      <TabsTrigger 
-                        value='booking' 
+                      <TabsTrigger
+                        value='contact'
+                        className='rounded-xl border border-transparent data-[state=active]:border-border/30 data-[state=active]:bg-white/5 shadow-none bg-transparent px-3 py-1.5 text-xs md:text-sm font-normal text-muted-foreground data-[state=active]:text-foreground transition-all'
+                      >
+                        Contact Info
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value='script'
+                        className='rounded-xl border border-transparent data-[state=active]:border-border/30 data-[state=active]:bg-white/5 shadow-none bg-transparent px-3 py-1.5 text-xs md:text-sm font-normal text-muted-foreground data-[state=active]:text-foreground transition-all'
+                      >
+                        Guion
+                      </TabsTrigger>
+                      <TabsTrigger
+                        value='booking'
                         className='rounded-xl border border-transparent data-[state=active]:border-border/30 data-[state=active]:bg-white/5 shadow-none bg-transparent px-3 py-1.5 text-xs md:text-sm font-normal text-muted-foreground data-[state=active]:text-foreground transition-all'
                       >
                         Book Meeting
@@ -438,13 +454,19 @@ export function ActiveCallModal({
               </div>
               
               {/* Content area */}
-              <div className='flex-1 overflow-y-auto w-full'>
+              <div className='flex-1 overflow-hidden w-full'>
                 {contactId ? (
                   <Tabs value={activeTab} className='h-full w-full flex flex-col'>
-                    <TabsContent value='activities' className='m-0 h-full flex-1 data-[state=inactive]:hidden focus:outline-none p-4 md:p-6'>
+                    <TabsContent value='activities' className='m-0 h-full flex-1 data-[state=inactive]:hidden focus:outline-none p-4 md:p-6 overflow-y-auto'>
                       <ContactActivities contactId={contactId} />
                     </TabsContent>
-                    <TabsContent value='booking' className='m-0 h-full flex-1 data-[state=inactive]:hidden focus:outline-none p-4 md:p-6'>
+                    <TabsContent value='contact' className='m-0 h-full flex-1 data-[state=inactive]:hidden focus:outline-none'>
+                      <InCallContactInfo contactId={contactId} />
+                    </TabsContent>
+                    <TabsContent value='script' className='m-0 h-full flex-1 data-[state=inactive]:hidden focus:outline-none'>
+                      <InCallScript />
+                    </TabsContent>
+                    <TabsContent value='booking' className='m-0 h-full flex-1 data-[state=inactive]:hidden focus:outline-none p-4 md:p-6 overflow-y-auto'>
                       <BookMeetingForm
                         contactId={contactId}
                         callId={callId}
