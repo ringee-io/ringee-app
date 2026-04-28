@@ -30,6 +30,7 @@ import { VoicemailDropAssetRepository } from "./repositories/voicemail-drop-asse
 import { AgentSessionRepository } from "./repositories/agent-session.repository";
 import { OutboundAnalyticsRepository } from "./repositories/outbound-analytics.repository";
 import { TagRepository } from "./repositories/tag.repository";
+import { CallScriptRepository } from "./repositories/call-script.repository";
 import { MeetingRepository } from "./repositories/meeting.repository";
 import { CalendarIntegrationRepository } from "./repositories/calendar-integration.repository";
 import { TriggerLoopActionExecutionRepository } from "./repositories/triggerloop-action-execution.repository";
@@ -103,6 +104,7 @@ const databaseProviders = [
   LeadSearchJobRepository,
   CustomFieldRepository,
   SocialLinkRepository,
+  CallScriptRepository,
 ];
 
 @Global()

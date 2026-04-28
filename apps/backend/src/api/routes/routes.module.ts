@@ -28,6 +28,7 @@ import { CallbackController } from "./callback.controller";
 import { VoicemailAssetController } from "./voicemail-asset.controller";
 import { OutboundAnalyticsController } from "./outbound-analytics.controller";
 import { TagController, ContactTagController } from "./tag.controller";
+import { CallScriptController } from "./call-script.controller";
 import { OnboardingController } from "./onboarding.controller";
 import { MeetingController } from "./meeting.controller";
 import { CalendarController } from "./calendar.controller";
@@ -62,6 +63,7 @@ import { EnrichmentFeatureGuard } from "../guards/enrichment-feature.guard";
     OutboundAnalyticsController,
     TagController,
     ContactTagController,
+    CallScriptController,
     OnboardingController,
     MeetingController,
     CalendarController,

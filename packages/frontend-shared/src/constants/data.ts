@@ -111,6 +111,14 @@ export const navGroups: NavGroup[] = [
     label: 'Settings',
     items: [
       {
+        title: 'Overview',
+        url: '/dashboard/settings/overview',
+        icon: 'settings',
+        shortcut: ['s', 'o'],
+        isActive: false,
+        items: []
+      },
+      {
         title: 'Integrations',
         url: '/dashboard/settings/integrations',
         icon: 'plug',

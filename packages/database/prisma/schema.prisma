@@ -292,6 +292,7 @@ model User {
   enrichmentConnections   EnrichmentConnection[]
   enrichmentJobs          EnrichmentJob[]
   leadSearchJobs          LeadSearchJob[]
+  callScripts             CallScript[]
 
   @@index([clerkId])
 }
@@ -327,6 +328,7 @@ model Organization {
   enrichmentConnections EnrichmentConnection[]
   enrichmentJobs       EnrichmentJob[]
   leadSearchJobs       LeadSearchJob[]
+  callScripts          CallScript[]
   customFieldDefinitions CustomFieldDefinition[]
 
   @@index([clerkId])
@@ -1796,4 +1798,37 @@ model LeadSearchJob {
   @@index([connectionId])
   @@index([provider, filtersHash])
   @@index([status])
+}
+
+model CallScript {
+  id             String  @id @default(uuid()) @db.Uuid
+  userId         String  @db.Uuid
+  organizationId String? @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization?        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  sections     CallScriptSection[]
+
+  @@unique([userId, organizationId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model CallScriptSection {
+  id       String @id @default(uuid()) @db.Uuid
+  scriptId String @db.Uuid
+  title    String
+  body     String @db.Text
+  position Int
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  script CallScript @relation(fields: [scriptId], references: [id], onDelete: Cascade)
+
+  @@index([scriptId])
+  @@index([scriptId, position])
 }
