@@ -106,9 +106,7 @@ export class LeadSearchService {
       provider.capabilities.leadSearchMaxPerPage || 25,
       Math.max(1, opts.perPage ?? 25),
     );
-    const filtersHash = createHash("sha256")
-      .update(JSON.stringify(filters, Object.keys(filters).sort()))
-      .digest("hex");
+    const filtersHash = hashFilters(filters);
 
     // Cache lookup: return a previous completed search for the same filters
     // hash + provider + pagination if requested. Saves provider credits.
@@ -208,9 +206,7 @@ export class LeadSearchService {
     }
 
     const filters = { extra: { linkedinUrl: url.toLowerCase() } };
-    const filtersHash = createHash("sha256")
-      .update(JSON.stringify(filters, Object.keys(filters).sort()))
-      .digest("hex");
+    const filtersHash = hashFilters(filters);
     const page = 1;
     const perPage = 1;
 
@@ -831,6 +827,32 @@ export class LeadSearchService {
 
 function cryptoRandom(): string {
   return Math.random().toString(36).slice(2, 10);
+}
+
+// Deterministic JSON serializer: recursively sorts object keys so semantically
+// equal filter objects produce identical strings regardless of insertion order.
+// Array element order is preserved (it can be meaningful for the provider).
+// Note: passing an array as JSON.stringify's replacer filters keys at every
+// depth — that drops nested object values and silently collides hashes, which
+// is why we don't use it here.
+function stableStringify(value: unknown): string {
+  if (value === null || typeof value !== "object") {
+    return JSON.stringify(value);
+  }
+  if (Array.isArray(value)) {
+    return `[${value.map((v) => stableStringify(v)).join(",")}]`;
+  }
+  const obj = value as Record<string, unknown>;
+  const keys = Object.keys(obj)
+    .filter((k) => obj[k] !== undefined)
+    .sort();
+  return `{${keys
+    .map((k) => `${JSON.stringify(k)}:${stableStringify(obj[k])}`)
+    .join(",")}}`;
+}
+
+function hashFilters(filters: unknown): string {
+  return createHash("sha256").update(stableStringify(filters)).digest("hex");
 }
 
 function dedupeEmails<T extends { value: string }>(items: T[]): T[] {
