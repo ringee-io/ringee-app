@@ -7,7 +7,7 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { IconAdjustments, IconLock, IconPencil } from '@tabler/icons-react';
 import { DashboardFiltersProvider } from '../lib/filters-context';
 import { DashboardFilters } from './dashboard-filters';
-import { WidgetGrid } from './widget-grid';
+import { WidgetGrid } from './widget-grid-loader';
 import { AddWidgetMenu } from './add-widget-menu';
 import type {
   DashboardLayoutResponse,
