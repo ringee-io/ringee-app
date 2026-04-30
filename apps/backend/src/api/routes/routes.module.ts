@@ -17,6 +17,7 @@ import { ContactController } from "./contact.controller";
 import { StripeController } from "./stripe.controller";
 import { CreditController } from "./credit.controller";
 import { DashboardController } from "./dashboard.controller";
+import { DashboardLayoutController } from "./dashboard-layout.controller";
 import { UserController } from "./user.controller";
 import { RecordingsController } from "./recordings.controller";
 import { SubscriptionController } from "./subscription.controller";
@@ -51,6 +52,7 @@ import { EnrichmentFeatureGuard } from "../guards/enrichment-feature.guard";
     StripeController,
     CreditController,
     DashboardController,
+    DashboardLayoutController,
     UserController,
     RecordingsController,
     SubscriptionController,

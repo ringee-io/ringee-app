@@ -26,7 +26,17 @@ const baseConfig: NextConfig = {
       }
     ]
   },
-  transpilePackages: ['geist', '@ringee/frontend-shared']
+  transpilePackages: [
+    'geist',
+    '@ringee/frontend-shared',
+    // react-grid-layout v2 ships ESM-only with subpath exports and pulls
+    // react-resizable/react-draggable; route them through SWC so their
+    // chunks land in the same module graph as our app and don't break the
+    // /_not-found prerender.
+    'react-grid-layout',
+    'react-resizable',
+    'react-draggable'
+  ]
 };
 
 let configWithPlugins = baseConfig;
