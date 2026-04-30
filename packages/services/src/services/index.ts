@@ -8,6 +8,7 @@ export * from "./caller.id.service";
 export * from "./number.purchased.service";
 export * from "./credit.service";
 export * from "./dashboard.service";
+export * from "./dashboard-layout.service";
 export * from "./user.device.service";
 export * from "./recording.service";
 export * from "./organization.service";

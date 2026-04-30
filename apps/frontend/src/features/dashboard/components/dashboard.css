@@ -1,0 +1,37 @@
+.dashboard-grid .react-grid-item.react-grid-placeholder {
+  background: var(--primary);
+  opacity: 0.15;
+  border-radius: var(--radius);
+  transition-duration: 100ms;
+}
+
+.dashboard-grid .react-grid-item > .react-resizable-handle {
+  background-image: none;
+}
+
+.dashboard-grid .react-grid-item > .react-resizable-handle::after {
+  content: '';
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  width: 8px;
+  height: 8px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  color: var(--muted-foreground);
+  opacity: 0.6;
+}
+
+.dashboard-grid .react-grid-item:hover > .react-resizable-handle::after {
+  opacity: 1;
+}
+
+.dashboard-grid .dashboard-widget {
+  display: flex;
+  flex-direction: column;
+}
+
+.dashboard-grid .dashboard-widget > * {
+  flex: 1 1 auto;
+  min-height: 0;
+}

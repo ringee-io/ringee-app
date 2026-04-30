@@ -10,6 +10,7 @@ export * from "./caller.id.repository";
 export * from "./credit.repository";
 export * from "./credit-auto-reload.repository";
 export * from "./dashboard.repository";
+export * from "./dashboard-layout.repository";
 export * from "./user.device.repository";
 export * from "./recording.repository";
 export * from "./public-recording.repository";

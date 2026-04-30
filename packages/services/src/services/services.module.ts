@@ -18,6 +18,7 @@ import { ContactService } from "./contact.service";
 import { CallerIdService } from "./caller.id.service";
 import { CreditService } from "./credit.service";
 import { DashboardService } from "./dashboard.service";
+import { DashboardLayoutService } from "./dashboard-layout.service";
 import { UserDeviceService } from "./user.device.service";
 import { RecordingService } from "./recording.service";
 import { OrganizationService } from "./organization.service";
@@ -78,6 +79,7 @@ const servicesProviders = [
   CallerIdService,
   CreditService,
   DashboardService,
+  DashboardLayoutService,
   UserDeviceService,
   RecordingService,
   OrganizationService,

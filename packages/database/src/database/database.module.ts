@@ -12,6 +12,7 @@ import { CallerIdRepository } from "./repositories/caller.id.repository";
 import { CreditRepository } from "./repositories/credit.repository";
 import { CreditAutoReloadRepository } from "./repositories/credit-auto-reload.repository";
 import { DashboardRepository } from "./repositories/dashboard.repository";
+import { DashboardLayoutRepository } from "./repositories/dashboard-layout.repository";
 import { UserDeviceRepository } from "./repositories/user.device.repository";
 import { RecordingRepository } from "./repositories/recording.repository";
 import { PublicRecordingRepository } from "./repositories/public-recording.repository";
@@ -66,6 +67,7 @@ const databaseProviders = [
   CreditRepository,
   CreditAutoReloadRepository,
   DashboardRepository,
+  DashboardLayoutRepository,
   UserDeviceRepository,
   RecordingRepository,
   PublicRecordingRepository,
