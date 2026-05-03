@@ -159,4 +159,25 @@ export class NumberPurchasedRepository {
       where: payload,
     });
   }
+
+  async findById(id: string): Promise<NumberPurchased | null> {
+    return this.prisma.numberPurchased.findUnique({ where: { id } });
+  }
+
+  async update(
+    id: string,
+    data: Prisma.NumberPurchasedUpdateInput,
+  ): Promise<NumberPurchased> {
+    return this.prisma.numberPurchased.update({ where: { id }, data });
+  }
+
+  async updateMessagingForUserNumbers(
+    numberId: string,
+    data: { canSendSms?: boolean; canReceiveSms?: boolean; canSendMms?: boolean; canReceiveMms?: boolean },
+  ): Promise<void> {
+    await this.prisma.userNumber.updateMany({
+      where: { numberId },
+      data,
+    });
+  }
 }

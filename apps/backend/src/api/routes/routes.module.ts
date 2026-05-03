@@ -39,6 +39,8 @@ import { AttioAppController } from "./attio-app.controller";
 import { EnrichmentController } from "./enrichment.controller";
 import { CustomFieldsController } from "./custom-fields.controller";
 import { EnrichmentFeatureGuard } from "../guards/enrichment-feature.guard";
+import { InboxController } from "./inbox.controller";
+import { MessagingWebhookController } from "./messaging.webhook.controller";
 
 @Module({
   controllers: [
@@ -73,6 +75,8 @@ import { EnrichmentFeatureGuard } from "../guards/enrichment-feature.guard";
     AttioAppController,
     EnrichmentController,
     CustomFieldsController,
+    InboxController,
+    MessagingWebhookController,
   ],
   providers: [EnrichmentFeatureGuard],
   imports: [

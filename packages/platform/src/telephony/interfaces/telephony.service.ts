@@ -27,6 +27,22 @@ export type TelephonyService = {
   stopRecording(callControlId: string): Promise<void>;
   downloadRecording(url: string): Promise<ArrayBuffer>;
   playbackStart(callControlId: string, audioUrl: string): Promise<void>;
+  sendMessage(params: {
+    from: string;
+    to: string;
+    text?: string;
+    mediaUrls?: string[];
+    messagingProfileId?: string;
+    type?: "SMS" | "MMS";
+    webhookUrl?: string;
+    webhookFailoverUrl?: string;
+  }): Promise<{ id: string; messagingProfileId?: string; raw: any }>;
+  getPhoneNumberFeatures(phoneNumber: string): Promise<{
+    sms?: boolean;
+    mms?: boolean;
+    voice?: boolean;
+    raw?: any;
+  }>;
 } & TelephonyRateService &
   TelephonyNumbersService &
   TelephonyCallerIdService;

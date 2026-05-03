@@ -52,6 +52,10 @@ import { EnrichmentJobRepository } from "./repositories/enrichment-job.repositor
 import { LeadSearchJobRepository } from "./repositories/lead-search-job.repository";
 import { CustomFieldRepository } from "./repositories/custom-field.repository";
 import { SocialLinkRepository } from "./repositories/social-link.repository";
+import { InboxThreadRepository } from "./repositories/inbox-thread.repository";
+import { InboxEventRepository } from "./repositories/inbox-event.repository";
+import { MessageRepository } from "./repositories/message.repository";
+import { MessageEventRepository } from "./repositories/message-event.repository";
 
 const databaseProviders = [
   PrismaService,
@@ -107,6 +111,10 @@ const databaseProviders = [
   CustomFieldRepository,
   SocialLinkRepository,
   CallScriptRepository,
+  InboxThreadRepository,
+  InboxEventRepository,
+  MessageRepository,
+  MessageEventRepository,
 ];
 
 @Global()

@@ -374,4 +374,73 @@ export class TelnyxService implements TelephonyService {
       }
     );
   }
+
+  // ────────────────────────────────────────────────────────────
+  // Messaging (SMS / MMS)
+  // ────────────────────────────────────────────────────────────
+
+  async sendMessage(params: {
+    from: string;
+    to: string;
+    text?: string;
+    mediaUrls?: string[];
+    messagingProfileId?: string;
+    type?: "SMS" | "MMS";
+    webhookUrl?: string;
+    webhookFailoverUrl?: string;
+  }): Promise<{
+    id: string;
+    messagingProfileId?: string;
+    raw: any;
+  }> {
+    const body: Record<string, any> = {
+      from: params.from,
+      to: params.to,
+      type: params.type ?? (params.mediaUrls?.length ? "MMS" : "SMS"),
+      use_profile_webhooks: true,
+    };
+
+    if (params.text) body.text = params.text;
+    if (params.mediaUrls?.length) body.media_urls = params.mediaUrls;
+    if (params.messagingProfileId) {
+      body.messaging_profile_id = params.messagingProfileId;
+    }
+    if (params.webhookUrl) body.webhook_url = params.webhookUrl;
+    if (params.webhookFailoverUrl) {
+      body.webhook_failover_url = params.webhookFailoverUrl;
+    }
+
+    const { data } = await this.telnyxClient.post("/messages", body);
+    return {
+      id: data?.id,
+      messagingProfileId: data?.messaging_profile_id,
+      raw: data,
+    };
+  }
+
+  async getPhoneNumberFeatures(phoneNumber: string): Promise<{
+    sms?: boolean;
+    mms?: boolean;
+    voice?: boolean;
+    raw?: any;
+  }> {
+    try {
+      const encoded = encodeURIComponent(phoneNumber);
+      const { data } = await this.telnyxClient.get(`/phone_numbers/${encoded}`);
+      const features: string[] = Array.isArray(data?.features)
+        ? data.features.map((f: any) => (typeof f === "string" ? f : f?.name))
+        : [];
+      return {
+        sms: features.includes("sms"),
+        mms: features.includes("mms"),
+        voice: features.includes("voice"),
+        raw: data,
+      };
+    } catch (error: any) {
+      this.logger.warn(
+        `Failed to read Telnyx features for ${phoneNumber}: ${error?.message}`,
+      );
+      return {};
+    }
+  }
 }

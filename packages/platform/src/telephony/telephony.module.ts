@@ -4,7 +4,9 @@ import { TelephonyService } from "./telephony.service";
 
 @Module({
   imports: [TelnyxModule],
-  exports: [TelephonyService],
+  // Re-exporting TelnyxModule makes TelnyxService and TelnyxWebhookVerifier
+  // available to importers of TelephonyModule (e.g. ServicesModule).
+  exports: [TelephonyService, TelnyxModule],
   providers: [TelephonyService],
 })
 export class TelephonyModule {}

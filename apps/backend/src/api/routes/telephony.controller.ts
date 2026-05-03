@@ -118,6 +118,11 @@ export class TelephonyController {
     return this.numberPurchasedService.findByOwner(ctx);
   }
 
+  @Post("phone-numbers/:id/refresh-messaging")
+  async refreshMessaging(@Param("id") id: string) {
+    return this.numberPurchasedService.refreshMessagingCapabilities(id);
+  }
+
   @Get("calls")
   async getCalls(
     @CurrentUser() user: CurrentUserData,

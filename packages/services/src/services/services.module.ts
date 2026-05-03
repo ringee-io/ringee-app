@@ -68,6 +68,7 @@ import {
   LeadSearchService,
   CustomFieldsService,
 } from "./enrichment";
+import { InboxTimelineService, MessageService } from "./inbox";
 
 const servicesProviders = [
   UserService,
@@ -127,6 +128,9 @@ const servicesProviders = [
   EnrichmentDrainService,
   LeadSearchService,
   CustomFieldsService,
+  // Inbox / messaging
+  InboxTimelineService,
+  MessageService,
 ];
 
 @Global()
