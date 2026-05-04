@@ -10,7 +10,7 @@ export const metadata = {
 export default function InboxPage() {
   return (
     <PageContainer scrollable={false}>
-      <div className='flex h-[calc(100dvh-52px)] w-full'>
+      <div className='flex h-[calc(100dvh-52px-2rem)] w-full min-h-0'>
         <InboxView />
       </div>
     </PageContainer>

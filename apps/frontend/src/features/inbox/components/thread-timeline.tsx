@@ -140,7 +140,7 @@ export function ThreadTimeline({ thread, onChanged }: Props) {
         </div>
       </div>
 
-      <ScrollArea className='flex-1'>
+      <ScrollArea className='min-h-0 flex-1'>
         <div ref={scrollerRef} className='h-full'>
           <div className='space-y-3 p-4'>
             {loading && events.length === 0 ? (
