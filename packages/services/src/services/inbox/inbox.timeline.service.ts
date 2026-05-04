@@ -268,13 +268,14 @@ export class InboxTimelineService {
     const ctx = InboxTimelineService.buildOwnershipFromCall(call);
     if (!ctx) return null;
     const direction =
-      call.direction === "outbound"
+    ['outgoing', "outbound"].includes(call.direction || '')
         ? InboxEventDirection.outbound
         : InboxEventDirection.inbound;
     const ringeeNumber =
       direction === InboxEventDirection.outbound ? call.fromNumber : call.toNumber;
     const participantNumber =
       direction === InboxEventDirection.outbound ? call.toNumber : call.fromNumber;
+
     return this.findOrCreateThread({
       ctx,
       ringeeNumber,
@@ -292,10 +293,8 @@ export class InboxTimelineService {
     call: Call & { contact?: Contact | null };
   }): Promise<InboxEvent | null> {
     const { call, ctx } = params;
-    const direction =
-      call.direction === "outbound"
-        ? InboxEventDirection.outbound
-        : InboxEventDirection.inbound;
+
+    const direction = this.markDirection(call.direction || "");
 
     // Decide which side is the participant vs the Ringee number.
     const ringeeNumber =
@@ -630,5 +629,15 @@ export class InboxTimelineService {
       eventsCreated,
       processed: calls.length,
     };
+  }
+
+  private markDirection (direction: string) {
+    const outbound = ["outgoing", "outbound"]; 
+
+    if(outbound.includes(direction)){
+      return InboxEventDirection.outbound;
+    }
+
+    return InboxEventDirection.inbound;
   }
 }

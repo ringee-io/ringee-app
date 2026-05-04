@@ -44,8 +44,14 @@ export function Composer({ thread, onAfterAction }: Props) {
         await actions.addNote(thread.id, text.trim());
       } else {
         if (!fromNumber) return;
-        const target =
-          thread.participantNumberE164 ?? thread.participantNumber;
+
+        const target = thread.ringeeNumber ?? 
+        thread.participantNumberE164 ?? thread.participantNumber;
+        
+        console.log(thread, "anjaa")
+
+        if(fromNumber ===  target) return;
+        
         await actions.sendSms({
           fromNumber,
           toNumber: target,

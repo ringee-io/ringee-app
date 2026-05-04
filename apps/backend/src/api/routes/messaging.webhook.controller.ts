@@ -44,6 +44,8 @@ export class MessagingWebhookController {
     const raw =
       req.rawBody ?? Buffer.from(JSON.stringify(body ?? {}), "utf-8");
 
+    console.log({ raw: JSON.stringify(raw, null, 2) })
+
     const ok = this.verifier.verify(signature, timestamp, raw);
     if (!ok) {
       this.logger.warn("Rejected Telnyx messaging webhook (invalid signature)");

@@ -125,6 +125,11 @@ export class TelnyxService implements TelephonyService {
         filters.national_destination_code = params.areaCode;
       }
 
+      if (params.features && params.features.length > 0) {
+        filters.features =
+          params.features as AvailablePhoneNumberListParams.Filter["features"];
+      }
+
       const { data: numbersList } = await telnyx.availablePhoneNumbers.list({
         filter: filters,
       });
