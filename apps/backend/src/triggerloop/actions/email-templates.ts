@@ -5,6 +5,7 @@ export interface EmailContent {
 
 export interface EmailTemplateVars {
   firstName?: string | null;
+  organizationName?: string | null;
   firingIndex?: number;
 }
 
@@ -13,243 +14,344 @@ type Variant = { subject: string; body: string[] };
 const namePrefix = (firstName?: string | null) =>
   firstName?.trim() ? `Hi ${firstName.trim()},` : "Hi,";
 
+/**
+ * One-line workspace context inserted right under the greeting when the user
+ * belongs to an organization. Stays empty for solo accounts so the email does
+ * not invent a workspace that does not exist.
+ */
+const workspaceLine = (organizationName?: string | null) =>
+  organizationName?.trim()
+    ? `Quick note about your ${organizationName.trim()} workspace on Ringee.`
+    : null;
+
 const join = (lines: string[]) => lines.join("\n");
 
 /**
- * Plain-text email content only.
- * Keep the copy operational, short, and low-friction.
- * Do not use promotional wording or visual markup.
+ * Plain-text-style email content.
+ * The handler converts \n to <br> before sending, so paragraph breaks survive.
  *
- * Each template exposes three variants keyed by `firingIndex`:
- *   0 → first nudge (neutral, informative)
- *   1 → follow-up  (acknowledges they haven't acted yet)
- *   2 → last touch (offers help, explicit that we'll stop)
+ * Each template carries one variant per scheduled firing in
+ * `workflows/timing.ts` — first nudge is informative, middle ones get more
+ * specific and empathetic, the final one is a clean wrap-up so people don't
+ * feel hounded. If the schedule is extended past the variants list,
+ * `pickVariant` clamps to the last one.
  *
- * If an unknown firing index is requested we clamp to the last variant so
- * the schedule can be extended without a template crash.
+ * Engagement principles applied:
+ *  - Specific failure modes / numbers beat generic prose ("most accounts...
+ *    in 24h" beats "soon").
+ *  - Each email has exactly one ask.
+ *  - The final variant always offers an exit ("reply and I'll mute these")
+ *    so we collect signal instead of just stopping.
  */
 const VARIANTS: Record<string, Variant[]> = {
+  // Schedule: 10min, 6h, 24h, 3d, 7d → 5 variants.
   "ringee.firstCallFollowup": [
-    { 
-      subject: "Your Ringee account is ready",
+    {
+      subject: "You're one call away from seeing how Ringee works",
       body: [
-        "Your Ringee account is already set up.",
+        "Your account is set up — the fastest way to know if Ringee fits is one test call.",
         "",
-        "The next step is simple: make your first call.",
+        "Open the dialer, type any number you trust, hang up after 10 seconds. That is the whole loop.",
         "",
-        "Open the dialer, enter a number, and test the flow.",
-        "",
-        "If something is blocking you, reply to this email and tell us what happened.",
+        "If a permission prompt or a number format trips you up, reply with what you are seeing and I will point you to the fix.",
       ],
     },
     {
-      subject: "You can make your first call now",
+      subject: "Anything blocking your first call?",
       body: [
-        "We noticed you have not placed a call yet.",
+        "Six hours in and no first call yet. Usually it is one of three things:",
         "",
-        "Most accounts that make a first call within the first few days stick around — so it is worth a quick try.",
+        "• Microphone permission was dismissed → check your browser address bar.",
+        "• The number format was not accepted → try +<country><number>.",
+        "• You opened the app but got pulled into something else → totally normal.",
         "",
-        "You do not need to commit to anything. One test call is enough to see how the flow works.",
-        "",
-        "If you hit something unexpected, reply and we will help you sort it out.",
+        "Reply with whichever applies and I will unblock it directly.",
       ],
     },
     {
-      subject: "Need help making your first call?",
+      subject: "Most new accounts place their first call within 24h",
       body: [
-        "This is the last reminder about placing your first call on Ringee.",
+        "Soft check-in — you are in the small group that signed up but has not placed a call yet.",
         "",
-        "If there is something specific stopping you — a permissions prompt, a number format, an integration — tell us and we will help directly.",
+        "Not pushing. I would rather know if something tripped you up than keep guessing.",
         "",
-        "If you decided Ringee is not the right fit right now, that is fine too. We will not keep nudging.",
+        "If Ringee turned out not to be what you expected, that is useful too. Tell me what you were hoping it would do and I will tell you straight whether it does it.",
+      ],
+    },
+    {
+      subject: "What changed?",
+      body: [
+        "Three days ago you signed up for Ringee, and the account is still untouched.",
+        "",
+        "I would rather hear what got in the way than keep sending reminders. A one-line reply is enough — \"too busy\", \"wrong tool\", \"pricing\", whatever it is.",
+        "",
+        "If the answer is \"I will get to it next week\", say that and I will mute these until then.",
+      ],
+    },
+    {
+      subject: "Closing the loop on your Ringee account",
+      body: [
+        "Last note from me about getting started.",
+        "",
+        "Your account stays open and your settings are preserved — no deletion, no expiry. If you come back next month or next quarter, the dialer will be where you left it.",
+        "",
+        "If you would rather close the account now, reply and I will handle it the same day.",
       ],
     },
   ],
 
+  // Schedule: 1h, 24h, 4d, 7d → 4 variants.
   "ringee.creditsFollowup": [
     {
-      subject: "Your Ringee balance needs attention",
+      subject: "Heads up — your Ringee balance is getting thin",
       body: [
-        "Your Ringee balance is running low.",
+        "Your balance is low enough that a long call or a busy day will start failing.",
         "",
-        "To keep calling without interruptions, add credits from the billing page.",
+        "Topping up from the billing page takes about 30 seconds. Turning on auto-reload on the same page means this email never shows up again.",
         "",
-        "If the balance looks wrong to you, reply and we will take a look.",
+        "Numbers, campaigns, and call history are not affected by a low balance — only outbound calls are.",
       ],
     },
     {
-      subject: "Add credits to continue calling",
+      subject: "Calls are about to start failing",
       body: [
-        "Your balance is still low and that will start blocking new calls soon.",
+        "Quick reminder: your balance is now below what most accounts burn in a single afternoon.",
         "",
-        "Adding credits takes about a minute and keeps your current numbers and campaigns running as they are.",
+        "Once it hits zero, outbound calls return a busy tone until credits are added. Inbound still works.",
         "",
-        "If you prefer auto-reload, you can turn that on from the billing page so this does not come up again.",
+        "If you want to pause the account intentionally instead of topping up, reply and I will mute the reminders.",
       ],
     },
     {
-      subject: "Still need to add credits?",
+      subject: "Auto-reload would have skipped this email",
       body: [
-        "This is the last reminder about your low balance.",
+        "Your balance is still low and outbound calls are at risk.",
         "",
-        "If you are holding off on purpose — pausing the account, comparing options, waiting for a budget — just reply and let us know.",
+        "If running out of credits at random moments is not useful for you (it never is), turn on auto-reload — pick a threshold and a top-up amount once and you are done.",
         "",
-        "Otherwise, your calls will start failing until credits are added.",
+        "Holding off on purpose? Reply and tell me what is going on; I will mute these.",
+      ],
+    },
+    {
+      subject: "Outbound calls are now blocked",
+      body: [
+        "Your balance hit zero and new outbound calls are returning a busy tone.",
+        "",
+        "A top-up restores them immediately — nothing else to configure.",
+        "",
+        "If the plan is to pause the account, reply and I will close out these reminders cleanly.",
       ],
     },
   ],
 
+  // Schedule: 1d, 3d, 7d, 10d → 4 variants.
   "ringee.numberPurchaseFollowup": [
     {
-      subject: "Set up your Ringee number",
+      subject: "Pick a number — it unlocks inbound and proper caller ID",
       body: [
-        "Adding a number to your Ringee account is the next useful step.",
+        "You can place outbound calls without a Ringee number, but the people you call see a generic caller ID and they cannot call you back.",
         "",
-        "It unlocks inbound calls, proper caller ID, and call-backs — which is what most teams actually want.",
+        "Adding a number takes a couple of clicks and unlocks inbound, voicemail, and a caller ID prospects actually recognize.",
         "",
-        "You can pick one from the dashboard in a couple of clicks.",
+        "Local for trust, toll-free for inbound at scale, international for cross-border — pick whichever matches who you call.",
       ],
     },
     {
-      subject: "You still have not added a number",
+      subject: "You are missing inbound calls without a number",
       body: [
-        "You can still place outbound calls without a number, but you will be missing inbound and call-back flows until one is added.",
+        "Three days in without a number on the account.",
         "",
-        "If you are unsure whether you want a local, toll-free, or international number, reply with your use case and we will recommend one.",
+        "Most people do not notice how often prospects call back — until they do not, because the caller ID was unfamiliar.",
+        "",
+        "If you already run telephony elsewhere and do not need a number here, reply and I will mute these reminders.",
       ],
     },
     {
-      subject: "Do you want help choosing a number?",
+      subject: "Want a recommendation on which number to pick?",
       body: [
-        "Last nudge about picking a Ringee number.",
+        "If choosing between local, toll-free, and international is what is holding you back, I can shortcut it.",
         "",
-        "If you already have telephony elsewhere and do not need one here, reply and tell us — we will stop the reminders.",
+        "Reply with: which countries you call into, whether you need inbound, and roughly how many calls per day. I will suggest the cheapest setup that fits.",
         "",
-        "If you want help picking the right one, we are happy to suggest based on where your calls are going.",
+        "Picking wrong is also fine — numbers can be released and replaced anytime.",
+      ],
+    },
+    {
+      subject: "Last reminder about adding a number",
+      body: [
+        "Final note about Ringee numbers from me.",
+        "",
+        "If your workflow is outbound-only and the unknown caller ID is not a problem, ignore this and I will stop sending it.",
+        "",
+        "If you want help thinking through the choice, reply with your use case and I will recommend the right one.",
       ],
     },
   ],
 
+  // Schedule: 1d, 3d, 5d, 7d → 4 variants.
   "ringee.contactsImportFollowup": [
     {
-      subject: "Import your contacts into Ringee",
+      subject: "Calls are easier when contacts have names",
       body: [
-        "If you plan to use Ringee regularly, importing your contacts is the next useful step.",
+        "Right now every call you make shows up in history as a phone number.",
         "",
-        "It keeps calls, notes, and follow-up tied to the right person.",
+        "Importing your contacts (one CSV upload) attaches names, notes, and history to each conversation. Small thing that compounds quickly.",
         "",
-        "You can upload a CSV from the contacts page.",
+        "If you do not have a clean CSV yet, an export from your CRM, Google Contacts, or even a spreadsheet works.",
       ],
     },
     {
-      subject: "Your contact list is still missing",
+      subject: "Your call history is still all phone numbers",
       body: [
-        "Without contacts imported, most of Ringee's follow-up and history features will not do much for you.",
+        "Three days in and the contact list is still empty.",
         "",
-        "If your file has an odd format or the fields do not match, send us a sample and we will help you get it in.",
+        "Without contacts, follow-up reminders, search by name, and call notes all get a lot less useful.",
+        "",
+        "If your CSV has odd columns or you are not sure which fields map where, send a sample (5 rows is enough) and I will tell you exactly what to change.",
       ],
     },
     {
-      subject: "Need help importing contacts?",
+      subject: "Stuck on the CSV format?",
       body: [
-        "Last reminder about getting your contacts into Ringee.",
+        "Most contact-import problems are one of:",
         "",
-        "If you do not plan to use Ringee for structured follow-up — just occasional calling — you can ignore this and we will stop sending it.",
+        "• Phone numbers without country code → add +1, +44, etc.",
+        "• Column headers in another language → rename to name/phone/email.",
+        "• Excel saved with semicolons → re-export as comma-separated.",
+        "",
+        "If none of these match what you are seeing, send the file and I will look at it.",
+      ],
+    },
+    {
+      subject: "Last note about importing contacts",
+      body: [
+        "Final reminder about contacts.",
+        "",
+        "If you are using Ringee for occasional one-off calling and do not need a structured list, ignore this — I will stop sending it.",
+        "",
+        "If you do want them in but kept putting it off, reply with what is blocking you and I will handle it.",
       ],
     },
   ],
 
+  // Schedule: 5d, 8d, 12d, 14d → 4 variants.
   "ringee.campaignsCallbacksAdoptionFollowup": [
     {
-      subject: "You can organize follow-up inside Ringee",
+      subject: "You are past the basics — time to stop dialing one by one",
       body: [
-        "You are past the basic calling flow, which is the right moment to organize follow-up.",
+        "You have made enough calls to know how Ringee works. The next leverage is structure.",
         "",
-        "Callbacks, campaigns, and DNC handling give you a structured way to stop losing track of conversations.",
+        "• Campaigns: feed in a list, Ringee dials and retries. You spend the time talking, not picking the next row.",
+        "• Callbacks: \"call me back at 3pm\" becomes a scheduled task instead of a sticky note.",
+        "• DNC: once someone says do not call, they are never accidentally dialed again.",
         "",
-        "Try one of them on a small list first to see how it fits.",
+        "Pick the one that matches the friction you feel today.",
       ],
     },
     {
-      subject: "Try callbacks or campaigns next",
+      subject: "Try a campaign on a 10-lead list",
       body: [
-        "You are still making calls one by one, which works — until it does not.",
+        "Easiest way to know if campaigns help: take 10 leads you would call manually anyway and run them through one.",
         "",
-        "Campaigns handle the list and the retries for you. Callbacks keep promised call-backs from slipping. DNC keeps the wrong people off your lists.",
+        "You will know within an hour whether it saves you time at scale.",
         "",
-        "Pick the one that matches the pain you are feeling and start there.",
+        "If nothing about the current setup feels broken, ignore this — these features exist for when manual stops scaling.",
       ],
     },
     {
-      subject: "Ready to go beyond one-off calls?",
+      subject: "Stop forgetting promised follow-ups",
       body: [
-        "Last note on this. If manual dialing is still working for you, ignore this email.",
+        "If you have ever ended a call with \"I will call you back tomorrow\" and then did not — callbacks fix exactly that.",
         "",
-        "If it is not, reply and describe how you are working today — we will suggest the minimum setup that would help, nothing bigger than that.",
+        "Set the time during the call. Ringee surfaces it back to you (or a teammate) when it is due.",
+        "",
+        "Five minutes to try, no setup beyond turning it on.",
+      ],
+    },
+    {
+      subject: "Last note on campaigns and callbacks",
+      body: [
+        "Final reminder. If manual dialing still works for your volume, ignore this.",
+        "",
+        "If something feels heavy and you cannot tell whether the fix is a campaign, callbacks, or a different tool altogether — describe how you are working today and I will suggest the smallest change that would help.",
       ],
     },
   ],
 
+  // Schedule: 7d, 10d, 14d → 3 variants.
   "ringee.teamSetupFollowup": [
     {
-      subject: "Invite another member to your workspace",
+      subject: "Bring your team into the workspace",
       body: [
-        "If this account will be used by more than one person, now is a good moment to invite the rest of the team.",
+        "Your workspace is set up but you are still the only seat in it.",
         "",
-        "Shared calling, notes, and analytics only make sense once the workspace reflects who is actually working in it.",
+        "Sharing call history, notes, and analytics only starts to pay off once the workspace reflects who is actually doing the work.",
         "",
-        "You can invite them from workspace settings.",
+        "Inviting is free — billing only kicks in once a teammate accepts and starts using the account.",
       ],
     },
     {
-      subject: "Your workspace still has one member",
+      subject: "Inviting is free until they accept",
       body: [
-        "Your workspace is still a single-seat workspace.",
+        "Quick reminder that pending invites do not cost anything — you can send them now and clean up the unaccepted ones later.",
         "",
-        "If you are planning to stay solo, this reminder does not apply. If not, adding teammates now avoids moving data later.",
+        "If you are still deciding who needs access, sending an invite to yourself on a second email also works for testing the team flow.",
         "",
-        "Billing follows seats, not invitations — inviting is free until they accept.",
+        "If this account will stay solo, ignore this — I will stop sending it.",
       ],
     },
     {
-      subject: "Need help setting up the team workspace?",
+      subject: "Last note about your team setup",
       body: [
-        "Last reminder about inviting your team.",
+        "Final reminder about inviting teammates.",
         "",
-        "If you are not going to use Ringee as a team, ignore this — we will stop sending it.",
+        "If permissions, roles, or SSO setup is what is holding you back, reply with where you are stuck and I will walk through it.",
         "",
-        "If you are stuck on roles, permissions, or SSO, reply and we will walk you through it.",
+        "Otherwise, if Ringee turns out to be a single-seat tool for you, no problem — these reminders end here.",
       ],
     },
   ],
 
+  // Schedule: 7d, 14d, 21d, 30d → 4 variants.
   "ringee.reactivationFollowup": [
     {
-      subject: "Checking in about your Ringee account",
+      subject: "Checking in — anything we can unblock?",
       body: [
-        "Your Ringee account has been quiet for a while.",
+        "Your account has been quiet for about a week.",
         "",
-        "If something blocked you, reply and tell us what happened — we would rather know than guess.",
+        "More often than not, the silence is something small: a teammate did not respond, a port took longer than expected, the project paused.",
         "",
-        "Your data is still there either way.",
+        "If any of that maps to your situation, reply and I will keep the account ready without bothering you.",
       ],
     },
     {
       subject: "Still planning to use Ringee?",
       body: [
-        "We still have not seen activity on your account.",
+        "Two weeks of inactivity on the account.",
         "",
-        "If you are waiting on something — a teammate, a number port, a client decision — reply and we will keep the account ready without bothering you again.",
+        "Honest question: is Ringee still in your plan, or did the project shift?",
+        "",
+        "Either answer is useful — \"yes, just delayed\" means I mute these for a while; \"no, moved on\" means I can close the loop properly.",
       ],
     },
     {
-      subject: "Do you want to resume where you left off?",
+      subject: "Your account is paused, not expired",
       body: [
-        "This is the last check-in from us.",
+        "Three weeks since the last activity.",
         "",
-        "Your account, history, and settings are preserved whether you come back next week or next quarter.",
+        "Just a heads-up that none of your data is going anywhere — numbers, contacts, history, and settings are preserved exactly as you left them.",
         "",
-        "If you want to close the account instead, reply and we will take care of it cleanly.",
+        "When you are ready to come back, the workspace will be in the same state. No reactivation needed.",
+      ],
+    },
+    {
+      subject: "Last check-in from us",
+      body: [
+        "Final email from this thread.",
+        "",
+        "If you want to resume, just sign in — everything is where you left it.",
+        "",
+        "If you would rather close the account, reply and I will do it cleanly the same day. Either way, no more emails after this one.",
       ],
     },
   ],
@@ -268,8 +370,16 @@ export function renderEmailTemplate(
 ): EmailContent | null {
   const variant = pickVariant(template, vars.firingIndex ?? 0);
   if (!variant) return null;
+
+  const greeting = namePrefix(vars.firstName);
+  const workspace = workspaceLine(vars.organizationName);
+
+  const lines: string[] = [greeting, ""];
+  if (workspace) lines.push(workspace, "");
+  lines.push(...variant.body, "", "— Ringee");
+
   return {
     subject: variant.subject,
-    body: join([namePrefix(vars.firstName), "", ...variant.body, "", "— Ringee"]),
+    body: join(lines),
   };
 }

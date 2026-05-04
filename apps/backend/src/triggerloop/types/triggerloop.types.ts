@@ -58,7 +58,9 @@ export interface TriggerLoopExecuteActionResult {
 
 export interface UserBusinessSignals {
   userId: string;
+  firstName: string | null;
   organizationId: string | null;
+  organizationName: string | null;
   email: string | null;
   isTeamAccount: boolean;
   registered: boolean;

@@ -46,6 +46,8 @@ export class SignupFollowupEvaluator implements WorkflowEvaluator {
           template: `ringee.${stepKey}`,
           userId: signals.userId,
           email: signals.email,
+          firstName: signals.firstName,
+          organizationName: signals.organizationName,
           firingIndex,
         },
       },

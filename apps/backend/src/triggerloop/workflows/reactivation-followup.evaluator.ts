@@ -46,6 +46,8 @@ export class ReactivationFollowupEvaluator implements WorkflowEvaluator {
             template: `ringee.${STEP_KEY}`,
             userId: signals.userId,
             email: signals.email,
+            firstName: signals.firstName,
+            organizationName: signals.organizationName,
             firingIndex,
             inactiveSince: signals.lastActivityAt?.toISOString() ?? null,
           },

@@ -15,6 +15,8 @@ interface EmailActionPayload {
   template: string;
   userId?: string;
   email?: string | null;
+  firstName?: string | null;
+  organizationName?: string | null;
   firingIndex?: number;
 }
 
@@ -42,6 +44,8 @@ export class SendEmailActionHandler implements ActionHandler {
 
     const content = renderEmailTemplate(payload.template, {
       firingIndex: payload.firingIndex,
+      firstName: payload.firstName,
+      organizationName: payload.organizationName,
     });
     if (!content) {
       return {

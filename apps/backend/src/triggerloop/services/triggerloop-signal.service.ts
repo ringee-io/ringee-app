@@ -20,6 +20,7 @@ export class TriggerLoopSignalService {
       where: { id: userId },
       select: {
         id: true,
+        firstName: true,
         createdAt: true,
         emails: {
           where: { isPrimary: true },
@@ -27,7 +28,11 @@ export class TriggerLoopSignalService {
           take: 1,
         },
         organizationMemberships: {
-          select: { organizationId: true, role: true },
+          select: {
+            organizationId: true,
+            role: true,
+            organization: { select: { name: true } },
+          },
           orderBy: { createdAt: "asc" as const },
         },
       },
@@ -40,6 +45,7 @@ export class TriggerLoopSignalService {
     const primaryEmail = user.emails[0];
     const primaryMembership = user.organizationMemberships[0] ?? null;
     const organizationId = primaryMembership?.organizationId ?? null;
+    const organizationName = primaryMembership?.organization?.name ?? null;
 
     const activeSince = new Date(
       Date.now() - ACTIVE_WINDOW_DAYS * 24 * 60 * 60 * 1000,
@@ -134,7 +140,9 @@ export class TriggerLoopSignalService {
 
     return {
       userId: user.id,
+      firstName: user.firstName ?? null,
       organizationId,
+      organizationName,
       email: primaryEmail?.email ?? null,
       isTeamAccount: !!organizationId,
       registered: true,
