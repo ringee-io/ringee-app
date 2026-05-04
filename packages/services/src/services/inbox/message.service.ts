@@ -375,7 +375,7 @@ export class MessageService {
 
     const profitMargin = process.env.MESSAGE_PROFIT_MARGIN
       ? parseFloat(process.env.MESSAGE_PROFIT_MARGIN)
-      : 0;
+      : 1;
     const totalCost = rawAmount * profitMargin;
 
     const ctx: OwnershipContext = {
