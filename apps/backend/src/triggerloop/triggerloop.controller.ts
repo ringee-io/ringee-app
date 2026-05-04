@@ -30,7 +30,6 @@ export class TriggerLoopController {
   async handle(
     @Body() dto: TriggerLoopWebhookDto,
   ): Promise<TriggerLoopEvaluateResult | TriggerLoopExecuteActionResult> {
-    console.log("TriggerLoopWebhookDto", dto);
     switch (dto.operation) {
       case "evaluate": {
         if (!dto.state) {

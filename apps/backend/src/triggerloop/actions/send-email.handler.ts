@@ -50,13 +50,15 @@ export class SendEmailActionHandler implements ActionHandler {
       };
     }
 
+    // Resend's `html` slot renders HTML — our templates are plain text with
+    // newline-separated paragraphs, so convert \n to <br> or the message
+    // arrives as a single squashed line.
+    const html = content.body.replace(/\n/g, "<br>");
+
     const result = await this.provider.sendEmail(
       recipient,
       content.subject,
-      content.body,
-      undefined,
-      undefined,
-      'edisonpadilla.dev@gmail.com'
+      html,
     );
 
     const externalReference =

@@ -90,13 +90,11 @@ export class TriggerLoopInactivityScheduler
         await this.snapshots.upsert(snap.userId, {
           lastInactiveEmittedAt: new Date(),
         });
+        // Publishing user.inactive is sufficient: the seed wires
+        // reactivationFollowup as triggerEvent='user.inactive', so TriggerLoop
+        // starts the workflow on the events endpoint. A second startWorkflow
+        // call would always 409 against allowMultipleActiveInstances=false.
         await this.publisher.userInactive(snap.userId, snap.lastActiveAt!);
-        // Also start the reactivation workflow so TriggerLoop enters the
-        // drip sequence automatically.
-        await this.publisher.startWorkflow("reactivationFollowup", {
-          type: "user",
-          id: snap.userId,
-        });
       } catch (err) {
         this.logger.warn(
           `Failed to emit inactivity for user ${snap.userId}: ${
