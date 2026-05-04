@@ -81,7 +81,10 @@ export const columns: ColumnDef<AvailableNumber>[] = [
         { label: '🇺🇸 United States', value: 'US' },
         { label: '🇨🇦 Canada', value: 'CA' },
         { label: '🇪🇸 Spain', value: 'ES' },
-        { label: '🇬🇧 United Kingdom', value: 'GB' }
+        { label: '🇬🇧 United Kingdom', value: 'GB' },
+        { label: '🇦🇷 Argentina', value: 'AR' },
+        { label: '🇵🇦 Panama', value: 'PA' },
+        { label: '🇲🇽 Mexico', value: 'MX' },
       ]
     },
     enableColumnFilter: true
