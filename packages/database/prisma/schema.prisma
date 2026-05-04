@@ -2047,6 +2047,9 @@ model Message {
   deliveredAt DateTime?
   failedAt    DateTime?
 
+  totalCost Float?
+  costMeta  Json?
+
   rawPayload     Json?
   idempotencyKey String? @unique
 

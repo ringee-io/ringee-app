@@ -26,6 +26,7 @@ import {
   UploadFactory,
 } from "@ringee/platform";
 import { InboxTimelineService } from "./inbox.timeline.service";
+import { CreditService } from "../credit.service";
 
 const REUPLOAD_TIMEOUT_MS = 7000;
 
@@ -51,6 +52,7 @@ export class MessageService {
     private readonly contactRepo: ContactRepository,
     private readonly telephonyService: TelephonyService,
     private readonly inboxService: InboxTimelineService,
+    private readonly creditService: CreditService,
   ) {}
 
   /**
@@ -311,6 +313,9 @@ export class MessageService {
                     : new Date(),
                 },
               );
+              if (messageRow.direction === MessageDirection.outbound) {
+                await this.chargeMessageCost(messageRow, payload);
+              }
             }
           }
           break;
@@ -344,6 +349,54 @@ export class MessageService {
         `Error processing message event ${eventId}: ${(err as Error).message}`,
       );
       throw err;
+    }
+  }
+
+  /**
+   * Charge the user/organization for an outbound message using the cost
+   * Telnyx reports in the `message.finalized` payload. The amount is
+   * multiplied by `MESSAGE_PROFIT_MARGIN` (default 0) before being deducted,
+   * mirroring how call costs are handled.
+   */
+  private async chargeMessageCost(
+    messageRow: Message,
+    payload: TelnyxMessagePayload,
+  ): Promise<void> {
+    const rawAmount = payload.cost?.amount ? parseFloat(payload.cost.amount) : 0;
+    if (!Number.isFinite(rawAmount) || rawAmount <= 0) {
+      return;
+    }
+    if (!messageRow.userId) {
+      this.logger.warn(
+        `Message ${messageRow.id} has no userId; skipping credit charge`,
+      );
+      return;
+    }
+
+    const profitMargin = process.env.MESSAGE_PROFIT_MARGIN
+      ? parseFloat(process.env.MESSAGE_PROFIT_MARGIN)
+      : 0;
+    const totalCost = rawAmount * profitMargin;
+
+    const ctx: OwnershipContext = {
+      userId: messageRow.userId,
+      organizationId: messageRow.organizationId,
+    };
+
+    try {
+      if (totalCost > 0) {
+        await this.creditService.consumeCredits(ctx, totalCost);
+      }
+      await this.messageRepo.updateCost(messageRow.id, totalCost, {
+        rawAmount,
+        currency: payload.cost?.currency ?? null,
+        profitMargin,
+        parts: payload.parts ?? null,
+      });
+    } catch (err) {
+      this.logger.error(
+        `Failed to charge message ${messageRow.id}: ${(err as Error).message}`,
+      );
     }
   }
 

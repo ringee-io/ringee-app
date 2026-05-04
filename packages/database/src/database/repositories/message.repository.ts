@@ -43,4 +43,15 @@ export class MessageRepository {
       data: { status, ...extra },
     });
   }
+
+  async updateCost(
+    id: string,
+    totalCost: number,
+    costMeta: Prisma.InputJsonValue,
+  ): Promise<Message> {
+    return this.prisma.message.update({
+      where: { id },
+      data: { totalCost, costMeta },
+    });
+  }
 }
