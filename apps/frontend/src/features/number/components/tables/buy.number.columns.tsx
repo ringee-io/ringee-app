@@ -9,7 +9,18 @@ export interface AvailableNumber {
   phoneNumber: string;
   countryCode: string;
   numberType?: string;
+  capabilities?: Capabilities;
   costInformation: CostInformation;
+}
+
+export interface Capabilities {
+  sms: boolean;
+  mms: boolean;
+  voice: boolean;
+  fax: boolean;
+  hdVoice: boolean;
+  internationalSms: boolean;
+  emergency: boolean;
 }
 
 export interface CostInformation {
@@ -17,6 +28,24 @@ export interface CostInformation {
   monthlyCost: number;
   upfrontCost: number;
 }
+
+const FEATURE_OPTIONS: {
+  value: string;
+  label: string;
+  capabilityKey: keyof Capabilities;
+}[] = [
+  { value: 'voice', label: 'Voice', capabilityKey: 'voice' },
+  { value: 'sms', label: 'SMS', capabilityKey: 'sms' },
+  { value: 'mms', label: 'MMS', capabilityKey: 'mms' },
+  { value: 'hd_voice', label: 'HD Voice', capabilityKey: 'hdVoice' },
+  {
+    value: 'international_sms',
+    label: 'Intl. SMS',
+    capabilityKey: 'internationalSms'
+  },
+  { value: 'emergency', label: 'Emergency', capabilityKey: 'emergency' },
+  { value: 'fax', label: 'Fax', capabilityKey: 'fax' }
+];
 
 export const columns: ColumnDef<AvailableNumber>[] = [
   {
@@ -34,7 +63,6 @@ export const columns: ColumnDef<AvailableNumber>[] = [
       placeholder: 'Search number...',
       variant: 'text'
     }
-    // enableColumnFilter: true,
   },
   {
     id: 'countryCode',
@@ -52,11 +80,8 @@ export const columns: ColumnDef<AvailableNumber>[] = [
       options: [
         { label: '🇺🇸 United States', value: 'US' },
         { label: '🇨🇦 Canada', value: 'CA' },
-        // { label: '🇬🇧 United Kingdom', value: 'GB' },
-        // { label: '🇩🇴 Dominican Republic', value: 'DO' },
-        // { label: '🇲🇽 Mexico', value: 'MX' },
         { label: '🇪🇸 Spain', value: 'ES' },
-        { label: '🇬🇧 United Kingdom', value: 'GB' },
+        { label: '🇬🇧 United Kingdom', value: 'GB' }
       ]
     },
     enableColumnFilter: true
@@ -97,6 +122,39 @@ export const columns: ColumnDef<AvailableNumber>[] = [
       label: 'Area Code',
       placeholder: 'Area Code',
       variant: 'number'
+    },
+    enableColumnFilter: true
+  },
+  {
+    id: 'features',
+    accessorKey: 'capabilities',
+    header: 'Features',
+    cell: ({ row }) => {
+      const capabilities = row.original.capabilities;
+      if (!capabilities) {
+        return <span className='text-muted-foreground text-xs'>—</span>;
+      }
+      const enabled = FEATURE_OPTIONS.filter(
+        (option) => capabilities[option.capabilityKey]
+      );
+      if (enabled.length === 0) {
+        return <span className='text-muted-foreground text-xs'>—</span>;
+      }
+      return (
+        <div className='flex flex-wrap gap-1'>
+          {enabled.map((option) => (
+            <Badge key={option.value} variant='secondary' className='text-xs'>
+              {option.label}
+            </Badge>
+          ))}
+        </div>
+      );
+    },
+    meta: {
+      label: 'Features',
+      placeholder: 'Select features',
+      variant: 'multiSelect',
+      options: FEATURE_OPTIONS.map(({ value, label }) => ({ value, label }))
     },
     enableColumnFilter: true
   },

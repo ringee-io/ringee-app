@@ -12,6 +12,7 @@ import {
 import {
   AvailableNumber,
   CurrentUser,
+  NumberFeature,
   Public,
   TelephonyService,
   createOwnershipContext,
@@ -68,6 +69,7 @@ export class TelephonyController {
     @Param("country") country: string,
     @Query("areaCode") areaCode?: string,
     @Query("numberType") numberType?: "local" | "toll_free",
+    @Query("features") features?: string | string[],
     @Query("limit", ParseIntPipe) limit?: number,
   ): Promise<AvailableNumber[] | null> {
     if (!country) {
@@ -78,6 +80,7 @@ export class TelephonyController {
       countryCode: country,
       areaCode,
       numberType,
+      features: parseFeatures(features),
       limit,
     });
   }
@@ -116,6 +119,11 @@ export class TelephonyController {
   ): Promise<NumberPurchased[]> {
     const ctx = createOwnershipContext(user);
     return this.numberPurchasedService.findByOwner(ctx);
+  }
+
+  @Post("phone-numbers/:id/refresh-messaging")
+  async refreshMessaging(@Param("id") id: string) {
+    return this.numberPurchasedService.refreshMessagingCapabilities(id);
   }
 
   @Get("calls")
@@ -207,4 +215,28 @@ export class TelephonyController {
 
     return recording;
   }
+}
+
+const ALLOWED_FEATURES: ReadonlySet<NumberFeature> = new Set([
+  "sms",
+  "mms",
+  "voice",
+  "fax",
+  "emergency",
+  "hd_voice",
+  "international_sms",
+  "local_calling",
+]);
+
+function parseFeatures(
+  raw: string | string[] | undefined,
+): NumberFeature[] | undefined {
+  if (!raw) return undefined;
+  const parts = (Array.isArray(raw) ? raw : raw.split(","))
+    .map((part) => part.trim().toLowerCase())
+    .filter(Boolean);
+  const valid = parts.filter((part): part is NumberFeature =>
+    ALLOWED_FEATURES.has(part as NumberFeature),
+  );
+  return valid.length > 0 ? Array.from(new Set(valid)) : undefined;
 }

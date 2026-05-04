@@ -118,4 +118,26 @@ export class TelephonyService implements TelephonyServiceInterface {
   playbackStart(callControlId: string, audioUrl: string): Promise<void> {
     return this.getServiceProvider().playbackStart(callControlId, audioUrl);
   }
+
+  sendMessage(params: {
+    from: string;
+    to: string;
+    text?: string;
+    mediaUrls?: string[];
+    messagingProfileId?: string;
+    type?: "SMS" | "MMS";
+    webhookUrl?: string;
+    webhookFailoverUrl?: string;
+  }): Promise<{ id: string; messagingProfileId?: string; raw: any }> {
+    return this.getServiceProvider().sendMessage(params);
+  }
+
+  getPhoneNumberFeatures(phoneNumber: string): Promise<{
+    sms?: boolean;
+    mms?: boolean;
+    voice?: boolean;
+    raw?: any;
+  }> {
+    return this.getServiceProvider().getPhoneNumberFeatures(phoneNumber);
+  }
 }

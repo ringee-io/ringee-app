@@ -50,3 +50,7 @@ export * from "./enrichment-job.repository";
 export * from "./lead-search-job.repository";
 export * from "./custom-field.repository";
 export * from "./social-link.repository";
+export * from "./inbox-thread.repository";
+export * from "./inbox-event.repository";
+export * from "./message.repository";
+export * from "./message-event.repository";

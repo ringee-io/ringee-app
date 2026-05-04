@@ -1,5 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { CallRepository, CallStatus, CallOutcome, Call } from "@ringee/database";
+import {
+  CallRepository,
+  CallStatus,
+  CallOutcome,
+  Call,
+  RecordingRepository,
+} from "@ringee/database";
 import { NotificationService, WorkerService, OwnershipContext } from "@ringee/platform";
 import type {
   TelnyxWebhookEvent,
@@ -17,6 +23,7 @@ import { UserDeviceService } from "./user.device.service";
 import { OrganizationService } from "./organization.service";
 import { CallAttemptService } from "./outbound/call-attempt.service";
 import { CrmCallLogService } from "./crm/crm-call-log.service";
+import { InboxTimelineService } from "./inbox/inbox.timeline.service";
 
 @Injectable()
 export class CallService {
@@ -35,6 +42,8 @@ export class CallService {
     private readonly organizationService: OrganizationService,
     private readonly callAttemptService: CallAttemptService,
     private readonly crmCallLogService: CrmCallLogService,
+    private readonly inboxTimelineService: InboxTimelineService,
+    private readonly recordingRepository: RecordingRepository,
   ) { }
 
   /**
@@ -162,19 +171,30 @@ export class CallService {
             payload.from!,
           );
 
-          await this.callRepository.createCall(ctx, {
+          const inboundCall = await this.callRepository.createCall(ctx, {
             contact: contact ? { connect: { id: contact.id } } : undefined,
             fromNumber: payload.from!,
             toNumber: payload.to!,
             connectionId: process.env.TELNYX_CONNECTION_ID!,
             callControlId,
-            direction: payload.direction || "outbound",
+            direction: payload.direction || "inbound",
             callSessionId: payload.call_session_id!,
             callLegId: payload.call_leg_id!,
             status: CallStatus.ringing,
             startedAt: payload.start_time!,
             clientState: Buffer.from("initiate_call").toString("base64"),
           });
+
+          if (inboundCall) {
+            void this.inboxTimelineService
+              .ensureThreadForCall(inboundCall)
+              .catch((err) =>
+                this.logger.error(
+                  `Inbox ensureThreadForCall failed (inbound, call=${inboundCall.id}): ${err.message}`,
+                  err.stack,
+                ),
+              );
+          }
 
           const devices = await this.userDeviceService.findActiveByUser(
             user.id,
@@ -241,6 +261,19 @@ export class CallService {
           clientState: Buffer.from("initiate_call").toString("base64"),
         });
 
+        // Inbox thread materialises now so the conversation appears
+        // immediately in the inbox while the call is still in progress.
+        if (outboundCall) {
+          void this.inboxTimelineService
+            .ensureThreadForCall(outboundCall)
+            .catch((err) =>
+              this.logger.error(
+                `Inbox ensureThreadForCall failed (outbound, call=${outboundCall.id}): ${err.message}`,
+                err.stack,
+              ),
+            );
+        }
+
         // Link to campaign call attempt if present
         const initiatedAttemptId = this.extractCallAttemptId(payload);
         if (initiatedAttemptId && outboundCall) {
@@ -293,6 +326,26 @@ export class CallService {
         }
         if (hangupCall) {
           void this.crmCallLogService.handleCallCompleted(hangupCall);
+          // Inbox timeline hook (best-effort, never block hangup processing)
+          const ctx = InboxTimelineService.buildOwnershipFromCall(hangupCall);
+          if (ctx) {
+            void this.inboxTimelineService
+              .appendCallEvent({ ctx, call: hangupCall })
+              .then((event) => {
+                if (event) {
+                  this.logger.log(
+                    `Inbox event ${event.id} (${event.kind}) appended for call ${hangupCall.id}`,
+                  );
+                }
+              })
+              .catch((err) =>
+                this.logger.error(
+                  `Inbox appendCallEvent failed for call=${hangupCall.id} ` +
+                    `userId=${hangupCall.userId} orgId=${hangupCall.organizationId}: ${err.message}`,
+                  err.stack,
+                ),
+              );
+          }
         }
         break;
       }
@@ -309,6 +362,25 @@ export class CallService {
               recordingEndedAt: payload.recording_ended_at,
             },
           });
+
+          // Inbox timeline hook: surface a voicemail when the call outcome
+          // marks the recording as a voicemail. We avoid duplicating
+          // call_completed by being explicit about voicemail-only.
+          const recordingCall = await this.callRepository.findByControlId(callControlId);
+          if (recordingCall && recordingCall.outcome === CallOutcome.voicemail) {
+            const recordings = await this.recordingRepository.findByCallId(recordingCall.id);
+            const latest = recordings[recordings.length - 1];
+            const ctx = InboxTimelineService.buildOwnershipFromCall(recordingCall);
+            if (latest && ctx) {
+              void this.inboxTimelineService
+                .appendVoicemailEvent({ ctx, call: recordingCall, recording: latest })
+                .catch((err) =>
+                  this.logger.warn(
+                    `Inbox appendVoicemailEvent failed: ${err.message}`,
+                  ),
+                );
+            }
+          }
         } catch (error) {
           this.logger.error(`❌ Error processing call recording: ${JSON.stringify(error, null, 2)}`);
         }

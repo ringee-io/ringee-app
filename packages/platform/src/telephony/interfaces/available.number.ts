@@ -57,9 +57,20 @@ export interface PurchaseNumbers {
   }[];
 }
 
+export type NumberFeature =
+  | "sms"
+  | "mms"
+  | "voice"
+  | "fax"
+  | "emergency"
+  | "hd_voice"
+  | "international_sms"
+  | "local_calling";
+
 export interface SearchAvailableParams {
   countryCode: string; // ISO (eg. "US")
   areaCode?: string; // ejemplo: "415"
   numberType?: "local" | "toll_free" | "mobile";
+  features?: NumberFeature[];
   limit?: number;
 }

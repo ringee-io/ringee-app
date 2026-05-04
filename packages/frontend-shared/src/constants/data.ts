@@ -72,8 +72,6 @@ export const navGroups: NavGroup[] = [
         icon: 'inbox',
         shortcut: ['i', 'b'],
         isActive: false,
-        disabled: true,
-        label: 'Coming soon',
         items: []
       }
     ]

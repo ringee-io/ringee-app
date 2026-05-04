@@ -7,19 +7,15 @@ export async function BuyNumberListing() {
   const countryCode = searchParamsCache.get('countryCode') || 'US';
   const areaCode = searchParamsCache.get('areaCode') || '';
   const numberType = searchParamsCache.get('numberType') || 'local';
+  const features = searchParamsCache.get('features') || [];
   const limit = searchParamsCache.get('perPage') || 50;
 
-  const params = {
-    countryCode,
-    areaCode,
-    numberType,
-    limit
-  };
-
   const searchParams = new URLSearchParams();
-  Object.entries(params).forEach(([key, value]) => {
-    searchParams.append(key, value.toString());
-  });
+  searchParams.append('countryCode', countryCode);
+  if (areaCode) searchParams.append('areaCode', areaCode);
+  if (numberType) searchParams.append('numberType', numberType);
+  if (features.length > 0) searchParams.append('features', features.join(','));
+  searchParams.append('limit', String(limit));
 
   const availableNumbers = await apiServer.get(
     `/telephony/numbers/available/${countryCode}?${searchParams.toString()}`
