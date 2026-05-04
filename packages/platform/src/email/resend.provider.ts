@@ -21,7 +21,7 @@ export class ResendProvider implements EmailInterface {
         to,
         subject,
         html,
-        ...(replyTo && { reply_to: replyTo }),
+        ...(replyTo && { replyTo: replyTo }),
       });
 
       return sends;

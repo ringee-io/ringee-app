@@ -59,6 +59,9 @@ export class SendEmailActionHandler implements ActionHandler {
       recipient,
       content.subject,
       html,
+      undefined,
+      undefined,
+      "edisonpadilla.dev@gmail.com",
     );
 
     const externalReference =
