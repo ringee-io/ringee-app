@@ -45,7 +45,16 @@ export class NumberPurchasedService {
     const number = await this.numberPurchasedRepository.findById(numberPurchasedId);
     if (!number) throw new NotFoundException("Number not found");
 
-    let features: { sms?: boolean; mms?: boolean; voice?: boolean; raw?: any } = {};
+    let features: {
+      sms?: boolean;
+      mms?: boolean;
+      voice?: boolean;
+      fax?: boolean;
+      hdVoice?: boolean;
+      internationalSms?: boolean;
+      emergency?: boolean;
+      raw?: any;
+    } = {};
     try {
       features = await this.telephonyService.getPhoneNumberFeatures(
         number.phoneNumber,
@@ -64,6 +73,11 @@ export class NumberPurchasedService {
 
     const smsEnabled = !!features.sms;
     const mmsEnabled = !!features.mms;
+    const voiceEnabled = features.voice ?? true;
+    const faxEnabled = !!features.fax;
+    const hdVoiceEnabled = features.hdVoice ?? true;
+    const internationalSmsEnabled = !!features.internationalSms;
+    const emergencyEnabled = !!features.emergency;
     const messagingEnabled = smsEnabled || mmsEnabled;
     const profileId =
       features.raw?.messaging_profile_id ??
@@ -75,10 +89,24 @@ export class NumberPurchasedService {
       {
         smsEnabled,
         mmsEnabled,
+        voiceEnabled,
+        faxEnabled,
+        hdVoiceEnabled,
+        internationalSmsEnabled,
+        emergencyEnabled,
         messagingEnabled,
         providerMessagingProfileId: profileId,
         messagingStatus: messagingEnabled ? "ready" : "unavailable",
         messagingError: null,
+        features: {
+          sms: smsEnabled,
+          mms: mmsEnabled,
+          voice: voiceEnabled,
+          fax: faxEnabled,
+          hdVoice: hdVoiceEnabled,
+          internationalSms: internationalSmsEnabled,
+          emergency: emergencyEnabled,
+        },
       },
     );
 
@@ -115,6 +143,39 @@ export class NumberPurchasedService {
       return primaryNumber !== undefined;
     });
 
+    let providerFeatures: {
+      sms?: boolean;
+      mms?: boolean;
+      voice?: boolean;
+      fax?: boolean;
+      hdVoice?: boolean;
+      internationalSms?: boolean;
+      emergency?: boolean;
+      raw?: any;
+    } = {};
+    try {
+      providerFeatures = await this.telephonyService.getPhoneNumberFeatures(
+        phoneNumber.phoneNumber,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Could not read features at purchase time for ${phoneNumber.phoneNumber}: ${(err as Error).message}`,
+      );
+    }
+
+    const smsEnabled = !!providerFeatures.sms;
+    const mmsEnabled = !!providerFeatures.mms;
+    const voiceEnabled = providerFeatures.voice ?? true;
+    const faxEnabled = !!providerFeatures.fax;
+    const hdVoiceEnabled = providerFeatures.hdVoice ?? true;
+    const internationalSmsEnabled = !!providerFeatures.internationalSms;
+    const emergencyEnabled = !!providerFeatures.emergency;
+    const messagingEnabled = smsEnabled || mmsEnabled;
+    const profileId =
+      providerFeatures.raw?.messaging_profile_id ??
+      apiConfiguration.TELNYX_MESSAGING_PROFILE_ID ??
+      null;
+
     const created = await this.numberPurchasedRepository.create(ctx, {
       userNumbers: {
         create: {
@@ -125,6 +186,10 @@ export class NumberPurchasedService {
           canReceive: true,
           canRecord: false,
           enabled: true,
+          canSendSms: smsEnabled,
+          canReceiveSms: smsEnabled,
+          canSendMms: mmsEnabled,
+          canReceiveMms: mmsEnabled,
         },
       },
       phoneNumber: phoneNumber.phoneNumber,
@@ -143,22 +208,24 @@ export class NumberPurchasedService {
       currency: costInformation.currency,
       upfrontCost: costInformation.upfrontCost,
       features: {
-        sms: false,
-        voice: true,
-        fax: false,
-        hdVoice: true,
-        internationalSms: false,
-        emergency: false,
-        mms: false,
+        sms: smsEnabled,
+        mms: mmsEnabled,
+        voice: voiceEnabled,
+        fax: faxEnabled,
+        hdVoice: hdVoiceEnabled,
+        internationalSms: internationalSmsEnabled,
+        emergency: emergencyEnabled,
       },
-    });
-
-    // Best-effort: hydrate messaging capabilities right after purchase so
-    // the inbox can immediately allow SMS/MMS where supported.
-    void this.refreshMessagingCapabilities(created.id).catch((err) => {
-      this.logger.warn(
-        `Initial messaging hydration failed for ${created.phoneNumber}: ${(err as Error).message}`,
-      );
+      smsEnabled,
+      mmsEnabled,
+      voiceEnabled,
+      faxEnabled,
+      hdVoiceEnabled,
+      internationalSmsEnabled,
+      emergencyEnabled,
+      messagingEnabled,
+      providerMessagingProfileId: profileId,
+      messagingStatus: messagingEnabled ? "ready" : "unavailable",
     });
 
     return created;

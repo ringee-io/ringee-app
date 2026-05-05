@@ -550,6 +550,11 @@ model NumberPurchased {
   messagingEnabled           Boolean @default(false)
   smsEnabled                 Boolean @default(false)
   mmsEnabled                 Boolean @default(false)
+  voiceEnabled               Boolean @default(false)
+  faxEnabled                 Boolean @default(false)
+  hdVoiceEnabled             Boolean @default(false)
+  internationalSmsEnabled    Boolean @default(false)
+  emergencyEnabled           Boolean @default(false)
   messagingStatus            String?
   messagingError             String? @db.Text
 

@@ -427,6 +427,10 @@ export class TelnyxService implements TelephonyService {
     sms?: boolean;
     mms?: boolean;
     voice?: boolean;
+    fax?: boolean;
+    hdVoice?: boolean;
+    internationalSms?: boolean;
+    emergency?: boolean;
     raw?: any;
   }> {
     try {
@@ -439,6 +443,10 @@ export class TelnyxService implements TelephonyService {
         sms: features.includes("sms"),
         mms: features.includes("mms"),
         voice: features.includes("voice"),
+        fax: features.includes("fax"),
+        hdVoice: features.includes("hd_voice"),
+        internationalSms: features.includes("international_sms"),
+        emergency: features.includes("emergency"),
         raw: data,
       };
     } catch (error: any) {

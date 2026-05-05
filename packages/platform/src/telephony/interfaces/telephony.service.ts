@@ -41,6 +41,10 @@ export type TelephonyService = {
     sms?: boolean;
     mms?: boolean;
     voice?: boolean;
+    fax?: boolean;
+    hdVoice?: boolean;
+    internationalSms?: boolean;
+    emergency?: boolean;
     raw?: any;
   }>;
 } & TelephonyRateService &
