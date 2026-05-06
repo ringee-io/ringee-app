@@ -1,0 +1,37 @@
+{
+  "title": "Facturación",
+  "description": "Gestiona tu plan, créditos y facturas.",
+  "credits": {
+    "title": "Créditos",
+    "available": "Créditos disponibles",
+    "lowBalance": "Tu saldo se está agotando.",
+    "topUp": "Recargar",
+    "topUpAction": "Añadir créditos",
+    "history": "Historial de créditos"
+  },
+  "subscription": {
+    "title": "Suscripción",
+    "plan": "Plan",
+    "renews": "Se renueva el {date}",
+    "cancelAt": "Se cancela el {date}",
+    "manage": "Gestionar suscripción",
+    "upgrade": "Mejorar plan",
+    "downgrade": "Bajar plan",
+    "cancel": "Cancelar suscripción"
+  },
+  "invoices": {
+    "title": "Facturas",
+    "number": "Factura",
+    "date": "Fecha",
+    "amount": "Importe",
+    "status": "Estado",
+    "download": "Descargar",
+    "empty": "Aún no hay facturas."
+  },
+  "paymentMethod": {
+    "title": "Método de pago",
+    "addCard": "Añadir tarjeta",
+    "expiresOn": "Caduca el {date}",
+    "default": "Predeterminada"
+  }
+}

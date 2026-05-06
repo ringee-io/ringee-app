@@ -1,0 +1,45 @@
+{
+  "title": "Panel",
+  "description": "Una vista general de tus llamadas, contactos y prospección.",
+  "greeting": {
+    "morning": "Buenos días, {name}",
+    "afternoon": "Buenas tardes, {name}",
+    "evening": "Buenas noches, {name}"
+  },
+  "stats": {
+    "totalCalls": {
+      "title": "Llamadas totales",
+      "description": "Todas las llamadas realizadas y recibidas."
+    },
+    "talkTime": {
+      "title": "Tiempo en llamada",
+      "description": "Tiempo total que pasaste hablando."
+    },
+    "answerRate": {
+      "title": "Tasa de respuesta",
+      "description": "Porcentaje de llamadas salientes contestadas."
+    },
+    "contactsReached": {
+      "title": "Contactos alcanzados",
+      "description": "Contactos únicos con los que conectaste."
+    },
+    "creditsUsed": {
+      "title": "Créditos usados",
+      "description": "Gasto en el período seleccionado."
+    }
+  },
+  "charts": {
+    "callsOverTime": "Llamadas en el tiempo",
+    "callOutcomes": "Resultado de las llamadas",
+    "topCountries": "Principales países"
+  },
+  "ranges": {
+    "today": "Hoy",
+    "last7Days": "Últimos 7 días",
+    "last30Days": "Últimos 30 días",
+    "last90Days": "Últimos 90 días",
+    "thisMonth": "Este mes",
+    "lastMonth": "Mes pasado",
+    "custom": "Rango personalizado"
+  }
+}

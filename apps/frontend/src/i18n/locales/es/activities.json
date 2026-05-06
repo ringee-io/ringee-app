@@ -1,0 +1,18 @@
+{
+  "title": "Actividades",
+  "description": "Tu actividad de llamadas general fuera de las campañas",
+  "metaTitle": "Actividades — Registro de llamadas | Ringee",
+  "metaDescription": "Consulta tus llamadas generales, filtra por resultado y fecha, programa reuniones para llamadas completadas y haz seguimiento de las reuniones existentes.",
+  "newActivity": "Nueva actividad",
+  "types": {
+    "call": "Llamada",
+    "note": "Nota",
+    "task": "Tarea",
+    "meeting": "Reunión",
+    "email": "Email"
+  },
+  "empty": {
+    "title": "Aún no hay actividad",
+    "description": "Registra tu primera actividad para empezar a construir tu historial."
+  }
+}

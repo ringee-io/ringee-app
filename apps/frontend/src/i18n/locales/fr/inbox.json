@@ -1,0 +1,14 @@
+{
+  "title": "Boîte de réception",
+  "description": "Vos appels entrants, messages et messages vocaux au même endroit.",
+  "filters": {
+    "all": "Tous",
+    "unread": "Non lus",
+    "missed": "Manqués",
+    "voicemail": "Messagerie vocale"
+  },
+  "empty": {
+    "title": "Boîte vide",
+    "description": "Vous êtes à jour. Les nouveaux messages apparaîtront ici."
+  }
+}

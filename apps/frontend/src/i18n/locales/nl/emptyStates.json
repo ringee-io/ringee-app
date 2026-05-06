@@ -1,0 +1,14 @@
+{
+  "generic": {
+    "title": "Hier is nog niets",
+    "description": "Je gegevens verschijnen hier zodra ze er zijn."
+  },
+  "noResults": {
+    "title": "Geen resultaten",
+    "description": "Pas je filters of zoekopdracht aan."
+  },
+  "search": {
+    "title": "Begin te typen om te zoeken",
+    "description": "We tonen overeenkomsten terwijl je typt."
+  }
+}

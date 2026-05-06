@@ -1,0 +1,48 @@
+{
+  "title": "Kampagnen",
+  "description": "Verwalten Sie Outbound-Anrufkampagnen",
+  "metaTitle": "Kampagnen — Outbound-Anrufe | Ringee",
+  "metaDescription": "Verwalten Sie Ihre Outbound-Anrufkampagnen. Erstellen Sie Kampagnen, importieren Sie Leads, konfigurieren Sie Dialer und verfolgen Sie die Performance.",
+  "newCampaign": "Neue Kampagne",
+  "create": {
+    "title": "Neue Kampagne",
+    "description": "Erstellen und konfigurieren Sie eine Outbound-Anrufkampagne",
+    "metaTitle": "Neue Kampagne | Ringee",
+    "metaDescription": "Erstellen Sie eine neue Outbound-Anrufkampagne.",
+    "namePlaceholder": "Q1 Outbound — US Enterprise",
+    "submit": "Kampagne erstellen"
+  },
+  "edit": {
+    "title": "Kampagne bearbeiten"
+  },
+  "detail": {
+    "metaTitle": "Kampagnendetails | Ringee",
+    "metaDescription": "Sehen Sie Ihre Outbound-Anrufkampagne ein und verwalten Sie sie."
+  },
+  "fields": {
+    "name": "Name",
+    "list": "Kontaktliste",
+    "mode": "Dialer-Modus",
+    "callerId": "Anrufer-ID",
+    "script": "Skript"
+  },
+  "status": {
+    "draft": "Entwurf",
+    "scheduled": "Geplant",
+    "running": "Aktiv",
+    "paused": "Pausiert",
+    "completed": "Abgeschlossen"
+  },
+  "actions": {
+    "start": "Starten",
+    "pause": "Pausieren",
+    "resume": "Fortsetzen",
+    "stop": "Stoppen",
+    "duplicate": "Duplizieren"
+  },
+  "empty": {
+    "title": "Noch keine Kampagnen",
+    "description": "Erstellen Sie Ihre erste Kampagne, um in größerem Maßstab zu kommunizieren.",
+    "action": "Kampagne erstellen"
+  }
+}

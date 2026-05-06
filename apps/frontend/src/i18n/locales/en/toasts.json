@@ -1,0 +1,16 @@
+{
+  "saved": "Saved",
+  "updated": "Updated",
+  "created": "Created",
+  "deleted": "Deleted",
+  "imported": "Imported {count} {count, plural, one {item} other {items}}",
+  "exported": "Export ready",
+  "copied": "Copied to clipboard",
+  "linkCopied": "Link copied",
+  "languageUpdated": "Language updated",
+  "errors": {
+    "saveFailed": "Couldn't save your changes.",
+    "loadFailed": "Couldn't load this page.",
+    "deleteFailed": "Couldn't delete the item."
+  }
+}

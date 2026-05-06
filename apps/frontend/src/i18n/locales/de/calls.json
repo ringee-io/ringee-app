@@ -1,0 +1,64 @@
+{
+  "title": "Anrufe",
+  "description": "Tätigen und empfangen Sie kristallklare Anrufe in über 180 Länder direkt aus Ihrem Browser.",
+  "metaTitle": "Anrufe — Weltweit telefonieren | Ringee",
+  "metaDescription": "Tätigen und empfangen Sie kristallklare Anrufe in über 180 Länder direkt im Browser. Mit Telnyx und Ringee WebRTC für Vertriebsteams und globale Kommunikation.",
+  "newCall": "Neuer Anruf",
+  "incomingCall": "Eingehender Anruf",
+  "outgoingCall": "Ausgehender Anruf",
+  "missedCall": "Verpasster Anruf",
+  "answered": "Angenommen",
+  "noAnswer": "Keine Antwort",
+  "busy": "Besetzt",
+  "failed": "Fehlgeschlagen",
+  "voicemail": "Voicemail",
+  "callDuration": "Dauer",
+  "callCost": "Kosten",
+  "from": "Von",
+  "to": "An",
+  "actions": {
+    "answer": "Annehmen",
+    "decline": "Ablehnen",
+    "hangUp": "Auflegen",
+    "mute": "Stummschalten",
+    "unmute": "Stummschaltung aufheben",
+    "hold": "Halten",
+    "resume": "Fortsetzen",
+    "transfer": "Weiterleiten",
+    "addNote": "Notiz hinzufügen",
+    "viewContact": "Kontakt anzeigen"
+  },
+  "history": {
+    "title": "Anrufverlauf",
+    "shortTitle": "Verlauf",
+    "description": "Sehen Sie Ihren Anrufverlauf ein",
+    "metaTitle": "Anrufverlauf — Anrufe prüfen und nachverfolgen | Ringee",
+    "metaDescription": "Greifen Sie auf Ihren vollständigen Anrufverlauf zu. Sehen Sie vergangene Anrufe ein, prüfen Sie die Performance und verwalten Sie Ihre Anruf-Datensätze klar und effizient.",
+    "empty": {
+      "title": "Noch keine Anrufe",
+      "description": "Ihr Anrufverlauf erscheint hier, sobald Sie Anrufe tätigen oder empfangen."
+    }
+  },
+  "recordings": {
+    "title": "Anrufaufzeichnungen",
+    "description": "Hören Sie Ihre verschlüsselten Aufzeichnungen an und laden Sie sie herunter",
+    "metaTitle": "Aufzeichnungen — Anhören und herunterladen | Ringee",
+    "metaDescription": "Greifen Sie auf Ihre verschlüsselten Anrufaufzeichnungen zu. Spielen Sie Audiodateien sicher ab, laden Sie sie herunter und verwalten Sie sie über Ihr Ringee-Dashboard."
+  },
+  "callbacks": {
+    "title": "Rückrufe",
+    "description": "Geplante Rückrufe aus Dialer-Sitzungen einsehen und verwalten",
+    "metaTitle": "Rückrufe | Ringee",
+    "metaDescription": "Geplante Rückrufaufgaben einsehen und verwalten."
+  },
+  "dnc": {
+    "title": "Nicht anrufen",
+    "description": "Verwalten Sie Nummern, die niemals gewählt werden sollen",
+    "metaTitle": "Sperrliste | Ringee",
+    "metaDescription": "Verwalten Sie Ihre Sperrliste, um die Compliance einzuhalten."
+  },
+  "rates": {
+    "metaTitle": "Tarife — Kosten ansehen und vergleichen | Ringee",
+    "metaDescription": "Greifen Sie auf aktuelle Tarife in Ihrem Ringee-Dashboard zu. Vergleichen Sie Preise zwischen über 180 Ländern und behalten Sie Ihre Kommunikationskosten in Echtzeit im Blick."
+  }
+}

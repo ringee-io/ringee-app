@@ -1,0 +1,37 @@
+{
+  "title": "Facturatie",
+  "description": "Beheer je abonnement, tegoeden en facturen.",
+  "credits": {
+    "title": "Tegoeden",
+    "available": "Beschikbare tegoeden",
+    "lowBalance": "Je saldo raakt op.",
+    "topUp": "Opwaarderen",
+    "topUpAction": "Tegoed toevoegen",
+    "history": "Tegoedgeschiedenis"
+  },
+  "subscription": {
+    "title": "Abonnement",
+    "plan": "Abonnement",
+    "renews": "Verlengt op {date}",
+    "cancelAt": "Stopt op {date}",
+    "manage": "Abonnement beheren",
+    "upgrade": "Upgraden",
+    "downgrade": "Downgraden",
+    "cancel": "Abonnement opzeggen"
+  },
+  "invoices": {
+    "title": "Facturen",
+    "number": "Factuur",
+    "date": "Datum",
+    "amount": "Bedrag",
+    "status": "Status",
+    "download": "Downloaden",
+    "empty": "Nog geen facturen."
+  },
+  "paymentMethod": {
+    "title": "Betaalmethode",
+    "addCard": "Kaart toevoegen",
+    "expiresOn": "Vervalt op {date}",
+    "default": "Standaard"
+  }
+}

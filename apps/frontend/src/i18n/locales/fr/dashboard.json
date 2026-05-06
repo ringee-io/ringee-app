@@ -1,0 +1,45 @@
+{
+  "title": "Tableau de bord",
+  "description": "Vue d'ensemble de vos appels, contacts et performances de prospection.",
+  "greeting": {
+    "morning": "Bonjour {name}",
+    "afternoon": "Bon après-midi {name}",
+    "evening": "Bonsoir {name}"
+  },
+  "stats": {
+    "totalCalls": {
+      "title": "Total d'appels",
+      "description": "Tous les appels passés et reçus."
+    },
+    "talkTime": {
+      "title": "Temps de conversation",
+      "description": "Temps total passé en appel."
+    },
+    "answerRate": {
+      "title": "Taux de réponse",
+      "description": "Pourcentage d'appels sortants ayant abouti."
+    },
+    "contactsReached": {
+      "title": "Contacts joints",
+      "description": "Contacts uniques avec lesquels vous avez échangé."
+    },
+    "creditsUsed": {
+      "title": "Crédits utilisés",
+      "description": "Dépense sur la période sélectionnée."
+    }
+  },
+  "charts": {
+    "callsOverTime": "Appels dans le temps",
+    "callOutcomes": "Résultats des appels",
+    "topCountries": "Principaux pays"
+  },
+  "ranges": {
+    "today": "Aujourd'hui",
+    "last7Days": "7 derniers jours",
+    "last30Days": "30 derniers jours",
+    "last90Days": "90 derniers jours",
+    "thisMonth": "Ce mois-ci",
+    "lastMonth": "Mois dernier",
+    "custom": "Période personnalisée"
+  }
+}

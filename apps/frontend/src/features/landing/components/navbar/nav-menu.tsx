@@ -9,6 +9,7 @@ import {
 } from '@ringee/frontend-shared/components/ui/navigation-menu';
 import { NavigationMenuProps } from '@radix-ui/react-navigation-menu';
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 
 const ListItem = React.forwardRef<
@@ -41,7 +42,9 @@ ListItem.displayName = 'ListItem';
 export const NavMenu = ({
   orientation = 'horizontal',
   ...props
-}: NavigationMenuProps) => (
+}: NavigationMenuProps) => {
+  const t = useTranslations('marketing.nav');
+  return (
   <NavigationMenu orientation={orientation} {...props}>
     <NavigationMenuList
       className={cn(
@@ -57,7 +60,7 @@ export const NavMenu = ({
         {orientation === 'horizontal' ? (
           <>
             <NavigationMenuTrigger className='bg-transparent px-2 sm:px-4'>
-              Product
+              {t('product')}
             </NavigationMenuTrigger>
             <NavigationMenuContent>
               <ul className='grid w-[280px] gap-3 p-4 sm:w-[400px] md:w-[500px] md:grid-cols-2 lg:w-[600px]'>
@@ -101,7 +104,7 @@ export const NavMenu = ({
         ) : (
           <div className='mt-2 flex w-full flex-col gap-2'>
             <span className='text-muted-foreground px-2 text-sm font-semibold'>
-              Product
+              {t('product')}
             </span>
             <div className='border-border/40 mt-1 ml-2 flex flex-col gap-2 border-l pl-4'>
               <Link href='#features' className='py-1 text-base font-medium'>
@@ -140,7 +143,7 @@ export const NavMenu = ({
                 : 'px-2 py-2 sm:px-4'
             )}
           >
-            Blog
+            {t('blog')}
           </Link>
         </NavigationMenuLink>
       </NavigationMenuItem>
@@ -159,10 +162,11 @@ export const NavMenu = ({
                 : 'px-2 py-2 sm:px-4'
             )}
           >
-            Docs for Developers
+            {t('docsForDevelopers')}
           </Link>
         </NavigationMenuLink>
       </NavigationMenuItem>
     </NavigationMenuList>
   </NavigationMenu>
-);
+  );
+};

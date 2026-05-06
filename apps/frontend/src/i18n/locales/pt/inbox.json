@@ -1,0 +1,14 @@
+{
+  "title": "Caixa de entrada",
+  "description": "As suas chamadas recebidas, mensagens e mensagens de voz num só local.",
+  "filters": {
+    "all": "Todos",
+    "unread": "Não lidos",
+    "missed": "Perdidos",
+    "voicemail": "Correio de voz"
+  },
+  "empty": {
+    "title": "Caixa vazia",
+    "description": "Está em dia. As novas mensagens aparecem aqui."
+  }
+}

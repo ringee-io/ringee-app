@@ -1,0 +1,17 @@
+{
+  "title": "CRM",
+  "description": "Sincronize contactos e atividade com o seu CRM.",
+  "connected": "Ligado",
+  "notConnected": "Não ligado",
+  "connect": "Ligar",
+  "disconnect": "Desligar",
+  "lastSync": "Última sincronização: {time}",
+  "neverSynced": "Nunca sincronizado",
+  "syncNow": "Sincronizar agora",
+  "providers": {
+    "attio": "Attio",
+    "odoo": "Odoo",
+    "apollo": "Apollo",
+    "prospeo": "Prospeo"
+  }
+}

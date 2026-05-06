@@ -1,0 +1,20 @@
+{
+  "welcome": {
+    "title": "Welcome to Ringee",
+    "description": "Let's set up your workspace in a couple of minutes."
+  },
+  "steps": {
+    "profile": "Tell us about yourself",
+    "organization": "Create your organization",
+    "number": "Pick a phone number",
+    "credits": "Add credits",
+    "done": "You're all set"
+  },
+  "actions": {
+    "skip": "Skip for now",
+    "finish": "Finish setup",
+    "letsGo": "Let's go"
+  },
+  "headerButton": "Setup",
+  "progress": "{current} of {total}"
+}

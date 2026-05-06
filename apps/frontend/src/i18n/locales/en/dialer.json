@@ -1,0 +1,26 @@
+{
+  "title": "Dialer",
+  "quickCall": "Quick call",
+  "enterNumber": "Enter a number",
+  "country": "Country",
+  "callerId": "Caller ID",
+  "selectCallerId": "Select caller ID",
+  "previewDialer": "Preview Dialer",
+  "progressiveDialer": "Progressive Dialer",
+  "modes": {
+    "preview": "Preview",
+    "progressive": "Progressive"
+  },
+  "buttons": {
+    "call": "Call",
+    "skip": "Skip",
+    "next": "Next contact",
+    "previous": "Previous contact",
+    "endSession": "End session"
+  },
+  "session": {
+    "title": "Dialer session",
+    "remaining": "{count} remaining",
+    "completed": "{count} completed"
+  }
+}

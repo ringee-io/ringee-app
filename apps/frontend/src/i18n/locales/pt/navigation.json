@@ -1,0 +1,45 @@
+{
+  "groups": {
+    "general": "Geral",
+    "communication": "Comunicação",
+    "outreach": "Prospeção",
+    "settings": "Definições"
+  },
+  "items": {
+    "dashboard": "Painel",
+    "contacts": "Contactos",
+    "activities": "Atividades",
+    "meetings": "Reuniões",
+    "call": "Chamadas",
+    "inbox": "Caixa de entrada",
+    "campaigns": "Campanhas",
+    "callbacks": "Retornos",
+    "dnc": "DNC",
+    "overview": "Resumo",
+    "integrations": "Integrações",
+    "profile": "Perfil",
+    "history": "Histórico",
+    "recordings": "Gravações",
+    "rate": "Tarifas",
+    "buyNumber": "Comprar número"
+  },
+  "userMenu": {
+    "profile": "Perfil",
+    "history": "Histórico",
+    "recordings": "Gravações",
+    "rate": "Tarifas",
+    "buyNumber": "Comprar número",
+    "signOut": "Terminar sessão"
+  },
+  "sidebar": {
+    "openQuickCall": "Chamada rápida",
+    "outreachLocked": "Disponível para organizações",
+    "outreachLockedDescription": "Faça upgrade para desbloquear as ferramentas de prospeção.",
+    "upgradeNow": "Fazer upgrade",
+    "redirecting": "A redirecionar…"
+  },
+  "inboxTooltip": {
+    "title": "Caixa de entrada — em breve",
+    "description": "Gerencie todas as suas mensagens, chamadas perdidas e correios de voz numa só caixa."
+  }
+}

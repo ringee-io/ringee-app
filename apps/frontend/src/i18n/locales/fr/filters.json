@@ -1,0 +1,25 @@
+{
+  "label": "Filtres",
+  "addFilter": "Ajouter un filtre",
+  "clearAll": "Effacer les filtres",
+  "operators": {
+    "equals": "Égal à",
+    "notEquals": "Différent de",
+    "contains": "Contient",
+    "notContains": "Ne contient pas",
+    "startsWith": "Commence par",
+    "endsWith": "Se termine par",
+    "greaterThan": "Supérieur à",
+    "lessThan": "Inférieur à",
+    "between": "Entre",
+    "isEmpty": "Est vide",
+    "isNotEmpty": "N'est pas vide"
+  },
+  "common": {
+    "country": "Pays",
+    "status": "Statut",
+    "tags": "Tags",
+    "owner": "Propriétaire",
+    "dateRange": "Plage de dates"
+  }
+}

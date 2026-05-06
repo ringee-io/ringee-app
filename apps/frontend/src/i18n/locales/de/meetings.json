@@ -1,0 +1,18 @@
+{
+  "title": "Meetings",
+  "description": "Alle aus Cold Calls gebuchten Meetings",
+  "metaTitle": "Meetings — Aus Cold Calls gebucht | Ringee",
+  "metaDescription": "Sehen und verwalten Sie alle Meetings, die während Cold Calls gebucht wurden. Behalten Sie kommende Termine im Blick und prüfen Sie vergangene Buchungen.",
+  "newMeeting": "Neues Meeting",
+  "fields": {
+    "title": "Titel",
+    "with": "Mit",
+    "when": "Wann",
+    "duration": "Dauer",
+    "notes": "Notizen"
+  },
+  "empty": {
+    "title": "Keine Meetings geplant",
+    "description": "Sobald Sie ein Meeting buchen, erscheint es hier."
+  }
+}

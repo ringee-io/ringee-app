@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, Variants } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import {
   IconRefresh,
@@ -131,6 +132,7 @@ const itemVariants: Variants = {
 };
 
 export default function CrmIntegrations() {
+  const tCRM = useTranslations('marketing.crmIntegrations');
   return (
     <section
       id='integrations'
@@ -145,7 +147,7 @@ export default function CrmIntegrations() {
           className='mx-auto inline-flex items-center gap-2 rounded-lg border border-violet-500/20 bg-violet-500/10 px-3 py-1 text-xs font-medium text-violet-600 dark:text-violet-400'
         >
           <Plug className='h-3.5 w-3.5' strokeWidth={2} />
-          <span>CRM integrations</span>
+          <span>{tCRM('kicker')}</span>
         </motion.div>
 
         <motion.h2
@@ -155,7 +157,7 @@ export default function CrmIntegrations() {
           transition={{ delay: 0.1 }}
           className='xs:text-4xl mt-5 text-3xl font-bold tracking-tight sm:text-5xl'
         >
-          Your CRM, in sync with every call
+          {tCRM('title')}
         </motion.h2>
         <motion.p
           initial={{ opacity: 0, y: 15 }}
@@ -164,8 +166,7 @@ export default function CrmIntegrations() {
           transition={{ delay: 0.15 }}
           className='text-muted-foreground mx-auto mt-4 max-w-2xl text-base'
         >
-          Connect the CRM your team already uses. Ringee logs call activity,
-          recordings and notes automatically — and syncs contacts both ways.
+          {tCRM('subtitle')}
         </motion.p>
       </div>
 

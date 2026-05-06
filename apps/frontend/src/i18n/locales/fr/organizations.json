@@ -1,0 +1,25 @@
+{
+  "title": "Organisation",
+  "switcher": {
+    "select": "Sélectionnez une organisation",
+    "personal": "Compte personnel",
+    "create": "Créer une organisation"
+  },
+  "create": {
+    "title": "Créer une organisation",
+    "description": "Mettez en place un espace pour votre équipe.",
+    "namePlaceholder": "Acme, SAS"
+  },
+  "members": {
+    "title": "Membres",
+    "invite": "Inviter un membre",
+    "role": "Rôle",
+    "status": "Statut",
+    "remove": "Retirer de l'organisation"
+  },
+  "roles": {
+    "owner": "Propriétaire",
+    "admin": "Administrateur",
+    "member": "Membre"
+  }
+}

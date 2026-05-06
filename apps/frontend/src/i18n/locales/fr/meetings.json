@@ -1,0 +1,18 @@
+{
+  "title": "Réunions",
+  "description": "Toutes les réunions prises lors d'appels à froid",
+  "metaTitle": "Réunions — Issues d'appels à froid | Ringee",
+  "metaDescription": "Consultez et gérez toutes les réunions planifiées lors d'appels à froid. Suivez les rendez-vous à venir, revoyez les précédents et gardez la maîtrise de votre pipeline.",
+  "newMeeting": "Nouvelle réunion",
+  "fields": {
+    "title": "Titre",
+    "with": "Avec",
+    "when": "Quand",
+    "duration": "Durée",
+    "notes": "Notes"
+  },
+  "empty": {
+    "title": "Aucune réunion planifiée",
+    "description": "Dès que vous planifiez une réunion, elle apparaît ici."
+  }
+}

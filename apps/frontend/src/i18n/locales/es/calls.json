@@ -1,0 +1,64 @@
+{
+  "title": "Llamadas",
+  "description": "Realiza y recibe llamadas de máxima nitidez a más de 180 países directamente desde tu navegador.",
+  "metaTitle": "Llamadas — Realiza y recibe llamadas en todo el mundo | Ringee",
+  "metaDescription": "Realiza y recibe llamadas con calidad excepcional a más de 180 países directamente desde tu navegador. Con la tecnología de Telnyx y Ringee WebRTC para equipos comerciales y comunicación global.",
+  "newCall": "Nueva llamada",
+  "incomingCall": "Llamada entrante",
+  "outgoingCall": "Llamada saliente",
+  "missedCall": "Llamada perdida",
+  "answered": "Contestada",
+  "noAnswer": "Sin respuesta",
+  "busy": "Ocupado",
+  "failed": "Fallida",
+  "voicemail": "Buzón de voz",
+  "callDuration": "Duración",
+  "callCost": "Coste",
+  "from": "De",
+  "to": "Para",
+  "actions": {
+    "answer": "Contestar",
+    "decline": "Rechazar",
+    "hangUp": "Colgar",
+    "mute": "Silenciar",
+    "unmute": "Activar audio",
+    "hold": "En espera",
+    "resume": "Reanudar",
+    "transfer": "Transferir",
+    "addNote": "Añadir nota",
+    "viewContact": "Ver contacto"
+  },
+  "history": {
+    "title": "Historial de llamadas",
+    "shortTitle": "Historial",
+    "description": "Consulta tu historial de llamadas",
+    "metaTitle": "Historial de llamadas — Revisa y haz seguimiento | Ringee",
+    "metaDescription": "Accede a tu historial completo de llamadas en Ringee. Revisa llamadas pasadas, monitoriza el rendimiento y gestiona tus registros con claridad — pensado para equipos comerciales y profesionales.",
+    "empty": {
+      "title": "Aún no hay llamadas",
+      "description": "Tu historial aparecerá aquí en cuanto empieces a hacer o recibir llamadas."
+    }
+  },
+  "recordings": {
+    "title": "Grabaciones de llamadas",
+    "description": "Escucha y descarga tus grabaciones cifradas",
+    "metaTitle": "Grabaciones — Escuchar y descargar | Ringee",
+    "metaDescription": "Accede a tus grabaciones de llamadas cifradas. Reproduce, descarga y gestiona los archivos de audio de forma segura desde tu panel de Ringee."
+  },
+  "callbacks": {
+    "title": "Devoluciones de llamada",
+    "description": "Consulta y gestiona las devoluciones programadas desde el marcador",
+    "metaTitle": "Devoluciones | Ringee",
+    "metaDescription": "Consulta y gestiona las tareas de devolución de llamada programadas."
+  },
+  "dnc": {
+    "title": "No llamar",
+    "description": "Gestiona los números que nunca deben marcarse",
+    "metaTitle": "Lista de no llamar | Ringee",
+    "metaDescription": "Gestiona tu lista de no llamar para garantizar el cumplimiento."
+  },
+  "rates": {
+    "metaTitle": "Tarifas — Consulta y compara costes | Ringee",
+    "metaDescription": "Accede a las tarifas de llamadas actualizadas en tu panel de Ringee. Compara precios entre más de 180 países y controla tus costes de comunicación en tiempo real."
+  }
+}

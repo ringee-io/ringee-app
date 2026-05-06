@@ -1,0 +1,26 @@
+{
+  "title": "Composeur",
+  "quickCall": "Appel rapide",
+  "enterNumber": "Saisissez un numéro",
+  "country": "Pays",
+  "callerId": "Identifiant d'appelant",
+  "selectCallerId": "Choisissez un identifiant d'appelant",
+  "previewDialer": "Composeur en preview",
+  "progressiveDialer": "Composeur progressif",
+  "modes": {
+    "preview": "Preview",
+    "progressive": "Progressif"
+  },
+  "buttons": {
+    "call": "Appeler",
+    "skip": "Passer",
+    "next": "Contact suivant",
+    "previous": "Contact précédent",
+    "endSession": "Terminer la session"
+  },
+  "session": {
+    "title": "Session du composeur",
+    "remaining": "{count} restants",
+    "completed": "{count} terminés"
+  }
+}

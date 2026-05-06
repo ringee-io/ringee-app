@@ -1,0 +1,18 @@
+{
+  "title": "Activities",
+  "description": "Your general call activity outside of campaigns",
+  "metaTitle": "Activities — Call Activity Log | Ringee",
+  "metaDescription": "View your general calls, filter by disposition and date, schedule meetings for completed calls, and track existing scheduled meetings.",
+  "newActivity": "New activity",
+  "types": {
+    "call": "Call",
+    "note": "Note",
+    "task": "Task",
+    "meeting": "Meeting",
+    "email": "Email"
+  },
+  "empty": {
+    "title": "No activity yet",
+    "description": "Log your first activity to start building a paper trail."
+  }
+}

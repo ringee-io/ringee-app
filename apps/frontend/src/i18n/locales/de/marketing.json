@@ -1,0 +1,86 @@
+{
+  "nav": {
+    "product": "Produkt",
+    "features": "Funktionen",
+    "pricing": "Preise",
+    "docs": "Dokumentation",
+    "docsForDevelopers": "Entwicklerdokumentation",
+    "blog": "Blog",
+    "contact": "Kontakt",
+    "signIn": "Anmelden",
+    "getStarted": "Loslegen"
+  },
+  "hero": {
+    "headlinePrefix": "Anrufe, Kampagnen &",
+    "headlineHighlight": "CRM",
+    "headlineSuffix": "in einem Browser-Tab",
+    "subcopy": "Die Open-Source-Outbound-Plattform. Starten Sie Preview- und Progressive-Dialer, synchronisieren Sie jeden Anruf mit <attio>Attio</attio> oder <odoo>Odoo</odoo> und zahlen Sie nur für die Minuten, die Sie nutzen.",
+    "tryFreeCall": "Kostenlos testen",
+    "tryFreeCallAria": "Jetzt einen kostenlosen Anruf starten",
+    "bookDemo": "Demo buchen",
+    "trust": {
+      "noCard": "Keine Kreditkarte nötig",
+      "countries": "180+ Länder",
+      "firstCall": "Erster Anruf in 60s",
+      "soc2": "SOC-2-konform"
+    },
+    "capabilities": {
+      "manualDialer": "Manueller Dialer",
+      "previewDialer": "Preview Dialer",
+      "progressiveDialer": "Progressive Dialer",
+      "crmSync": "Attio- & Odoo-Sync",
+      "recordings": "Aufnahmen & Transkripte",
+      "browserMobile": "Browser & Mobil"
+    }
+  },
+  "features": {
+    "title": "Bringen Sie Ihre Anrufe mit Ringee.io aufs nächste Level"
+  },
+  "faq": {
+    "title": "Häufige Fragen",
+    "subtitle": "Alles, was Sie über Ringee.io, Preise und Anrufqualität wissen müssen."
+  },
+  "pricing": {
+    "title": "Preise für Einzelpersonen und Teams",
+    "perMonth": "pro Monat"
+  },
+  "comparison": {
+    "title": "Ringee.io im Vergleich",
+    "subtitle": "Wie Ringee sich gegen Adversus und Genesys schlägt, wenn Sie flexible browserbasierte Outbound-Anrufe ohne teure Per-Seat-Verträge wollen."
+  },
+  "ctaBanner": {
+    "title": "Bereit, Ihre Stimme mit Ringee.io zu stärken?",
+    "subtitle": "Telefonieren Sie smarter — kaufen Sie Nummern, verwalten Sie Anrufe und nehmen Sie Gespräche auf, alles in einer Plattform.",
+    "getStarted": "Loslegen",
+    "discoverMore": "Mehr erfahren"
+  },
+  "footer": {
+    "tagline": "Globale Open-Source-Telefonie.",
+    "rights": "Alle Rechte vorbehalten.",
+    "featuredOn": "Vorgestellt auf:",
+    "links": {
+      "features": "Funktionen",
+      "pricing": "Preise",
+      "faq": "FAQ",
+      "comparison": "Vergleich",
+      "blog": "Blog",
+      "privacy": "Datenschutz",
+      "terms": "AGB"
+    }
+  },
+  "campaigns": {
+    "kicker": "Outbound-Kampagnen",
+    "title": "Dialer, die auf jeden Playbook passen",
+    "subtitle": "Starten Sie Cold Calls, Follow-ups und Reaktivierungen mit dem passenden Dialer-Modus — von agentengesteuert bis vollautomatisch."
+  },
+  "findLeads": {
+    "kicker": "Leads finden & anreichern",
+    "title": "Leads finden und anreichern — ohne Ringee zu verlassen",
+    "subtitle": "Apollo und Prospeo sind integriert. Suchen, anreichern und in Sekunden wählen."
+  },
+  "crmIntegrations": {
+    "kicker": "CRM-Integrationen",
+    "title": "Jeder Anruf automatisch im CRM",
+    "subtitle": "Heute Attio und Odoo, weitere folgen. Notizen, Aufzeichnungen und Ergebnisse synchronisieren sich automatisch."
+  }
+}

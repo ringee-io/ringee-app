@@ -1,0 +1,26 @@
+{
+  "controls": {
+    "next": "Next",
+    "back": "Back",
+    "skip": "Skip tour",
+    "finish": "Got it"
+  },
+  "steps": {
+    "sidebar": {
+      "title": "Your navigation",
+      "description": "Jump between dashboard, contacts, and campaigns from here."
+    },
+    "dialer": {
+      "title": "Quick call",
+      "description": "Open the dialer at any time to place a call."
+    },
+    "credits": {
+      "title": "Your credits",
+      "description": "Keep an eye on your balance — calls draw from here."
+    },
+    "settings": {
+      "title": "Settings",
+      "description": "Manage your script, integrations, and preferences."
+    }
+  }
+}

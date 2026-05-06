@@ -1,0 +1,26 @@
+{
+  "controls": {
+    "next": "Avanti",
+    "back": "Indietro",
+    "skip": "Salta tour",
+    "finish": "Ho capito"
+  },
+  "steps": {
+    "sidebar": {
+      "title": "La tua navigazione",
+      "description": "Passa da dashboard, contatti e campagne da qui."
+    },
+    "dialer": {
+      "title": "Chiamata rapida",
+      "description": "Apri il dialer in qualsiasi momento per effettuare una chiamata."
+    },
+    "credits": {
+      "title": "I tuoi crediti",
+      "description": "Tieni d'occhio il saldo: le chiamate vengono scalate da qui."
+    },
+    "settings": {
+      "title": "Impostazioni",
+      "description": "Gestisci script, integrazioni e preferenze."
+    }
+  }
+}

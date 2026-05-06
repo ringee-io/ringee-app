@@ -1,0 +1,15 @@
+{
+  "title": "Team",
+  "description": "Sehen Sie, wie Ihr Team performt.",
+  "leaderboard": {
+    "title": "Bestenliste",
+    "agent": "Agent",
+    "calls": "Anrufe",
+    "talkTime": "Gesprächszeit",
+    "answerRate": "Antwortrate"
+  },
+  "empty": {
+    "title": "Noch keine Teamkollegen",
+    "description": "Laden Sie Ihr Team ein, um die Performance gemeinsam zu verfolgen."
+  }
+}

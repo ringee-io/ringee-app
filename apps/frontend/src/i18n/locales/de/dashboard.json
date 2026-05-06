@@ -1,0 +1,45 @@
+{
+  "title": "Dashboard",
+  "description": "Überblick über Ihre Anrufe, Kontakte und Outreach-Performance.",
+  "greeting": {
+    "morning": "Guten Morgen, {name}",
+    "afternoon": "Guten Tag, {name}",
+    "evening": "Guten Abend, {name}"
+  },
+  "stats": {
+    "totalCalls": {
+      "title": "Anrufe gesamt",
+      "description": "Alle getätigten und empfangenen Anrufe."
+    },
+    "talkTime": {
+      "title": "Gesprächszeit",
+      "description": "Gesamte Zeit in Anrufen."
+    },
+    "answerRate": {
+      "title": "Antwortrate",
+      "description": "Anteil der angenommenen ausgehenden Anrufe."
+    },
+    "contactsReached": {
+      "title": "Erreichte Kontakte",
+      "description": "Eindeutige Kontakte, die Sie erreicht haben."
+    },
+    "creditsUsed": {
+      "title": "Verbrauchte Credits",
+      "description": "Ausgaben im gewählten Zeitraum."
+    }
+  },
+  "charts": {
+    "callsOverTime": "Anrufe im Zeitverlauf",
+    "callOutcomes": "Anrufergebnisse",
+    "topCountries": "Top-Länder"
+  },
+  "ranges": {
+    "today": "Heute",
+    "last7Days": "Letzte 7 Tage",
+    "last30Days": "Letzte 30 Tage",
+    "last90Days": "Letzte 90 Tage",
+    "thisMonth": "Dieser Monat",
+    "lastMonth": "Letzter Monat",
+    "custom": "Benutzerdefinierter Zeitraum"
+  }
+}

@@ -2,6 +2,7 @@
 
 import { CheckCircle2, XCircle, AlertTriangle } from 'lucide-react';
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import { useTranslations } from 'next-intl';
 
 const comparisonData = [
   {
@@ -79,14 +80,14 @@ const comparisonData = [
 ];
 
 export default function Comparison() {
+  const t = useTranslations('marketing.comparison');
   return (
     <div id="comparison" className="xs:py-20 w-full px-6 py-12">
       <h2 className="xs:text-4xl text-center text-3xl font-bold tracking-tight sm:text-5xl">
-        Compare <span className="text-primary">Ringee.io</span>
+        {t('title')}
       </h2>
       <p className="text-muted-foreground mt-3 text-center text-sm md:text-base">
-        How Ringee compares to Adversus and Genesys if you want flexible, browser-based outbound calling
-        without expensive per-seat contracts.
+        {t('subtitle')}
       </p>
 
       {/* Scrollable wrapper */}

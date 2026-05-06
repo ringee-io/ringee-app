@@ -1,0 +1,37 @@
+{
+  "title": "Fatturazione",
+  "description": "Gestisci il tuo piano, i crediti e le fatture.",
+  "credits": {
+    "title": "Crediti",
+    "available": "Crediti disponibili",
+    "lowBalance": "Il tuo saldo si sta esaurendo.",
+    "topUp": "Ricarica",
+    "topUpAction": "Aggiungi crediti",
+    "history": "Cronologia crediti"
+  },
+  "subscription": {
+    "title": "Abbonamento",
+    "plan": "Piano",
+    "renews": "Rinnovo il {date}",
+    "cancelAt": "Annullamento il {date}",
+    "manage": "Gestisci abbonamento",
+    "upgrade": "Passa a un piano superiore",
+    "downgrade": "Passa a un piano inferiore",
+    "cancel": "Annulla abbonamento"
+  },
+  "invoices": {
+    "title": "Fatture",
+    "number": "Fattura",
+    "date": "Data",
+    "amount": "Importo",
+    "status": "Stato",
+    "download": "Scarica",
+    "empty": "Nessuna fattura."
+  },
+  "paymentMethod": {
+    "title": "Metodo di pagamento",
+    "addCard": "Aggiungi carta",
+    "expiresOn": "Scade il {date}",
+    "default": "Predefinito"
+  }
+}

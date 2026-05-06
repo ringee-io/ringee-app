@@ -1,0 +1,37 @@
+{
+  "title": "Abrechnung",
+  "description": "Verwalten Sie Ihren Tarif, Ihre Credits und Rechnungen.",
+  "credits": {
+    "title": "Credits",
+    "available": "Verfügbare Credits",
+    "lowBalance": "Ihr Guthaben wird knapp.",
+    "topUp": "Aufladen",
+    "topUpAction": "Credits hinzufügen",
+    "history": "Credit-Verlauf"
+  },
+  "subscription": {
+    "title": "Abonnement",
+    "plan": "Tarif",
+    "renews": "Verlängert sich am {date}",
+    "cancelAt": "Wird am {date} gekündigt",
+    "manage": "Abonnement verwalten",
+    "upgrade": "Upgrade",
+    "downgrade": "Downgrade",
+    "cancel": "Abonnement kündigen"
+  },
+  "invoices": {
+    "title": "Rechnungen",
+    "number": "Rechnung",
+    "date": "Datum",
+    "amount": "Betrag",
+    "status": "Status",
+    "download": "Herunterladen",
+    "empty": "Noch keine Rechnungen."
+  },
+  "paymentMethod": {
+    "title": "Zahlungsmethode",
+    "addCard": "Karte hinzufügen",
+    "expiresOn": "Läuft ab am {date}",
+    "default": "Standard"
+  }
+}

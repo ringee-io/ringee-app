@@ -1,0 +1,25 @@
+{
+  "label": "Filters",
+  "addFilter": "Filter toevoegen",
+  "clearAll": "Filters wissen",
+  "operators": {
+    "equals": "Is gelijk aan",
+    "notEquals": "Is niet gelijk aan",
+    "contains": "Bevat",
+    "notContains": "Bevat niet",
+    "startsWith": "Begint met",
+    "endsWith": "Eindigt op",
+    "greaterThan": "Groter dan",
+    "lessThan": "Kleiner dan",
+    "between": "Tussen",
+    "isEmpty": "Is leeg",
+    "isNotEmpty": "Is niet leeg"
+  },
+  "common": {
+    "country": "Land",
+    "status": "Status",
+    "tags": "Tags",
+    "owner": "Eigenaar",
+    "dateRange": "Datumbereik"
+  }
+}

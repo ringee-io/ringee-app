@@ -1,0 +1,45 @@
+{
+  "title": "Dashboard",
+  "description": "Een overzicht van je gesprekken, contacten en outreach-prestaties.",
+  "greeting": {
+    "morning": "Goedemorgen, {name}",
+    "afternoon": "Goedemiddag, {name}",
+    "evening": "Goedenavond, {name}"
+  },
+  "stats": {
+    "totalCalls": {
+      "title": "Totaal aantal gesprekken",
+      "description": "Alle gevoerde en ontvangen gesprekken."
+    },
+    "talkTime": {
+      "title": "Gesprekstijd",
+      "description": "Totale tijd in gesprekken."
+    },
+    "answerRate": {
+      "title": "Beantwoordingspercentage",
+      "description": "Percentage uitgaande gesprekken dat is beantwoord."
+    },
+    "contactsReached": {
+      "title": "Bereikte contacten",
+      "description": "Unieke contacten waarmee je hebt gesproken."
+    },
+    "creditsUsed": {
+      "title": "Gebruikte tegoeden",
+      "description": "Uitgaven over de geselecteerde periode."
+    }
+  },
+  "charts": {
+    "callsOverTime": "Gesprekken in de tijd",
+    "callOutcomes": "Gespreksresultaten",
+    "topCountries": "Top-landen"
+  },
+  "ranges": {
+    "today": "Vandaag",
+    "last7Days": "Laatste 7 dagen",
+    "last30Days": "Laatste 30 dagen",
+    "last90Days": "Laatste 90 dagen",
+    "thisMonth": "Deze maand",
+    "lastMonth": "Vorige maand",
+    "custom": "Aangepaste periode"
+  }
+}

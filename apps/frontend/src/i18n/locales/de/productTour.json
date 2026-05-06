@@ -1,0 +1,26 @@
+{
+  "controls": {
+    "next": "Weiter",
+    "back": "Zurück",
+    "skip": "Tour überspringen",
+    "finish": "Verstanden"
+  },
+  "steps": {
+    "sidebar": {
+      "title": "Ihre Navigation",
+      "description": "Wechseln Sie zwischen Dashboard, Kontakten und Kampagnen."
+    },
+    "dialer": {
+      "title": "Schnellanruf",
+      "description": "Öffnen Sie den Dialer jederzeit, um einen Anruf zu starten."
+    },
+    "credits": {
+      "title": "Ihre Credits",
+      "description": "Behalten Sie Ihr Guthaben im Blick — Anrufe werden hiervon abgebucht."
+    },
+    "settings": {
+      "title": "Einstellungen",
+      "description": "Verwalten Sie Skript, Integrationen und Präferenzen."
+    }
+  }
+}

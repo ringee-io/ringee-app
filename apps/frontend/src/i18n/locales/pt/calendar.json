@@ -1,0 +1,23 @@
+{
+  "title": "Calendário",
+  "today": "Hoje",
+  "weekdays": {
+    "mon": "Seg",
+    "tue": "Ter",
+    "wed": "Qua",
+    "thu": "Qui",
+    "fri": "Sex",
+    "sat": "Sáb",
+    "sun": "Dom"
+  },
+  "views": {
+    "day": "Dia",
+    "week": "Semana",
+    "month": "Mês",
+    "agenda": "Agenda"
+  },
+  "empty": {
+    "title": "Nada agendado",
+    "description": "O seu calendário está livre neste período."
+  }
+}

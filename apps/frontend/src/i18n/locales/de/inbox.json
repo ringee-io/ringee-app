@@ -1,0 +1,14 @@
+{
+  "title": "Posteingang",
+  "description": "Eingehende Anrufe, Nachrichten und Voicemails an einem Ort.",
+  "filters": {
+    "all": "Alle",
+    "unread": "Ungelesen",
+    "missed": "Verpasst",
+    "voicemail": "Voicemail"
+  },
+  "empty": {
+    "title": "Inbox Zero",
+    "description": "Alles erledigt. Neue Nachrichten erscheinen hier."
+  }
+}

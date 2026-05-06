@@ -12,6 +12,7 @@ import {
   IconPhoneCall
 } from '@tabler/icons-react';
 import { ArrowRight, Sparkles } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 const modes = [
   {
@@ -105,6 +106,7 @@ const itemVariants: Variants = {
 };
 
 export default function Campaigns() {
+  const tCampaigns = useTranslations('marketing.campaigns');
   return (
     <section
       id='campaigns'
@@ -124,7 +126,7 @@ export default function Campaigns() {
           className='mx-auto inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-600 dark:text-amber-500'
         >
           <Sparkles className='h-3.5 w-3.5' strokeWidth={2} />
-          <span>Outbound campaigns</span>
+          <span>{tCampaigns('kicker')}</span>
         </motion.div>
 
         <motion.h2
@@ -134,7 +136,7 @@ export default function Campaigns() {
           transition={{ delay: 0.1 }}
           className='xs:text-4xl mt-5 text-3xl font-bold tracking-tight sm:text-5xl'
         >
-          Purpose-built dialers for every playbook
+          {tCampaigns('title')}
         </motion.h2>
         <motion.p
           initial={{ opacity: 0, y: 15 }}
@@ -143,9 +145,7 @@ export default function Campaigns() {
           transition={{ delay: 0.15 }}
           className='text-muted-foreground mx-auto mt-4 max-w-2xl text-base'
         >
-          Run cold outreach, follow-ups, and re-engagement with the dialer mode
-          that matches your team&apos;s flow — from agent-reviewed calls to
-          hands-off auto-dialing.
+          {tCampaigns('subtitle')}
         </motion.p>
       </div>
 

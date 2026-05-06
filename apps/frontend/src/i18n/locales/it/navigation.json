@@ -1,0 +1,45 @@
+{
+  "groups": {
+    "general": "Generale",
+    "communication": "Comunicazione",
+    "outreach": "Prospecting",
+    "settings": "Impostazioni"
+  },
+  "items": {
+    "dashboard": "Dashboard",
+    "contacts": "Contatti",
+    "activities": "Attività",
+    "meetings": "Riunioni",
+    "call": "Chiamate",
+    "inbox": "Posta in arrivo",
+    "campaigns": "Campagne",
+    "callbacks": "Richiami",
+    "dnc": "DNC",
+    "overview": "Panoramica",
+    "integrations": "Integrazioni",
+    "profile": "Profilo",
+    "history": "Cronologia",
+    "recordings": "Registrazioni",
+    "rate": "Tariffe",
+    "buyNumber": "Acquista numero"
+  },
+  "userMenu": {
+    "profile": "Profilo",
+    "history": "Cronologia",
+    "recordings": "Registrazioni",
+    "rate": "Tariffe",
+    "buyNumber": "Acquista numero",
+    "signOut": "Esci"
+  },
+  "sidebar": {
+    "openQuickCall": "Chiamata rapida",
+    "outreachLocked": "Disponibile per le organizzazioni",
+    "outreachLockedDescription": "Effettua l'upgrade per sbloccare gli strumenti di prospecting.",
+    "upgradeNow": "Esegui l'upgrade",
+    "redirecting": "Reindirizzamento…"
+  },
+  "inboxTooltip": {
+    "title": "Posta in arrivo — in arrivo",
+    "description": "Gestisci tutti i messaggi in arrivo, le chiamate perse e le segreterie in un'unica casella."
+  }
+}

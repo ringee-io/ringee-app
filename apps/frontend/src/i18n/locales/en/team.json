@@ -1,0 +1,15 @@
+{
+  "title": "Team",
+  "description": "See how your team is performing.",
+  "leaderboard": {
+    "title": "Leaderboard",
+    "agent": "Agent",
+    "calls": "Calls",
+    "talkTime": "Talk time",
+    "answerRate": "Answer rate"
+  },
+  "empty": {
+    "title": "No teammates yet",
+    "description": "Invite your team to start tracking performance together."
+  }
+}

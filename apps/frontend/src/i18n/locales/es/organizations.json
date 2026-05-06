@@ -1,0 +1,25 @@
+{
+  "title": "Organización",
+  "switcher": {
+    "select": "Selecciona una organización",
+    "personal": "Cuenta personal",
+    "create": "Crear organización"
+  },
+  "create": {
+    "title": "Crear organización",
+    "description": "Crea un espacio de trabajo para tu equipo.",
+    "namePlaceholder": "Acme, S. L."
+  },
+  "members": {
+    "title": "Miembros",
+    "invite": "Invitar miembro",
+    "role": "Rol",
+    "status": "Estado",
+    "remove": "Eliminar de la organización"
+  },
+  "roles": {
+    "owner": "Propietario",
+    "admin": "Administrador",
+    "member": "Miembro"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "title": "Organisatie",
+  "switcher": {
+    "select": "Selecteer een organisatie",
+    "personal": "Persoonlijk account",
+    "create": "Organisatie aanmaken"
+  },
+  "create": {
+    "title": "Organisatie aanmaken",
+    "description": "Stel een werkruimte in voor je team.",
+    "namePlaceholder": "Acme B.V."
+  },
+  "members": {
+    "title": "Leden",
+    "invite": "Lid uitnodigen",
+    "role": "Rol",
+    "status": "Status",
+    "remove": "Uit organisatie verwijderen"
+  },
+  "roles": {
+    "owner": "Eigenaar",
+    "admin": "Beheerder",
+    "member": "Lid"
+  }
+}

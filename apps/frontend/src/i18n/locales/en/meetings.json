@@ -1,0 +1,18 @@
+{
+  "title": "Meetings",
+  "description": "All meetings booked from cold calls",
+  "metaTitle": "Meetings — Booked from Cold Calls | Ringee",
+  "metaDescription": "View and manage all meetings booked during cold calls. Track upcoming meetings, review past bookings, and stay on top of your pipeline.",
+  "newMeeting": "New meeting",
+  "fields": {
+    "title": "Title",
+    "with": "With",
+    "when": "When",
+    "duration": "Duration",
+    "notes": "Notes"
+  },
+  "empty": {
+    "title": "No meetings scheduled",
+    "description": "Once you book a meeting it will show up here."
+  }
+}

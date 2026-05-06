@@ -1,0 +1,28 @@
+{
+  "headers": {
+    "actions": "Actions",
+    "createdAt": "Created",
+    "updatedAt": "Updated"
+  },
+  "pagination": {
+    "rowsPerPage": "Rows per page",
+    "of": "of",
+    "page": "Page {page} of {total}",
+    "first": "First page",
+    "previous": "Previous page",
+    "next": "Next page",
+    "last": "Last page",
+    "showing": "Showing {from}–{to} of {total}"
+  },
+  "selection": {
+    "selected": "{count} selected",
+    "selectAll": "Select all",
+    "clearSelection": "Clear selection"
+  },
+  "sort": {
+    "asc": "Ascending",
+    "desc": "Descending",
+    "clear": "Clear sort"
+  },
+  "noResults": "No results found."
+}

@@ -1,0 +1,66 @@
+{
+  "nav": {
+    "product": "Produto",
+    "features": "Funcionalidades",
+    "pricing": "Preços",
+    "docs": "Documentação",
+    "docsForDevelopers": "Documentação para developers",
+    "blog": "Blog",
+    "contact": "Contacto",
+    "signIn": "Iniciar sessão",
+    "getStarted": "Começar"
+  },
+  "hero": {
+    "headlinePrefix": "Chamadas, campanhas e o teu",
+    "headlineHighlight": "CRM",
+    "headlineSuffix": "num só separador",
+    "subcopy": "A plataforma outbound open-source. Faz preview e progressive dialing, sincroniza cada chamada com <attio>Attio</attio> ou <odoo>Odoo</odoo> e paga só os minutos que usas.",
+    "tryFreeCall": "Faz uma chamada grátis",
+    "tryFreeCallAria": "Começar uma chamada grátis",
+    "bookDemo": "Marcar demo",
+    "trust": {
+      "noCard": "Sem cartão de crédito",
+      "countries": "180+ países",
+      "firstCall": "Primeira chamada em 60s",
+      "soc2": "Alinhado com SOC 2"
+    },
+    "capabilities": {
+      "manualDialer": "Marcador manual",
+      "previewDialer": "Preview Dialer",
+      "progressiveDialer": "Progressive Dialer",
+      "crmSync": "Sync Attio & Odoo",
+      "recordings": "Gravações & transcrições",
+      "browserMobile": "Browser & móvel"
+    }
+  },
+  "features": { "title": "Eleva as tuas chamadas com o Ringee.io" },
+  "faq": {
+    "title": "Perguntas frequentes",
+    "subtitle": "Tudo o que precisas de saber sobre o Ringee.io, preços e qualidade de chamada."
+  },
+  "pricing": { "title": "Preços para indivíduos e equipas", "perMonth": "por mês" },
+  "comparison": {
+    "title": "Compara o Ringee.io",
+    "subtitle": "Como o Ringee se compara ao Adversus e Genesys quando queres chamadas outbound flexíveis no browser, sem contratos caros por agente."
+  },
+  "ctaBanner": {
+    "title": "Pronto para potenciar a tua voz com o Ringee.io?",
+    "subtitle": "Telefona de forma mais inteligente — compra números, gere chamadas e grava conversas numa única plataforma.",
+    "getStarted": "Começar",
+    "discoverMore": "Saber mais"
+  },
+  "footer": {
+    "tagline": "Chamadas globais open-source.",
+    "rights": "Todos os direitos reservados.",
+    "featuredOn": "Em destaque em:",
+    "links": {
+      "features": "Funcionalidades",
+      "pricing": "Preços",
+      "faq": "FAQ",
+      "comparison": "Comparativo",
+      "blog": "Blog",
+      "privacy": "Privacidade",
+      "terms": "Termos"
+    }
+  }
+}

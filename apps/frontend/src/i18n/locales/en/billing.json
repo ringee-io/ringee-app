@@ -1,0 +1,37 @@
+{
+  "title": "Billing",
+  "description": "Manage your plan, credits, and invoices.",
+  "credits": {
+    "title": "Credits",
+    "available": "Available credits",
+    "lowBalance": "Your balance is running low.",
+    "topUp": "Top up",
+    "topUpAction": "Add credits",
+    "history": "Credit history"
+  },
+  "subscription": {
+    "title": "Subscription",
+    "plan": "Plan",
+    "renews": "Renews on {date}",
+    "cancelAt": "Cancels on {date}",
+    "manage": "Manage subscription",
+    "upgrade": "Upgrade plan",
+    "downgrade": "Downgrade",
+    "cancel": "Cancel subscription"
+  },
+  "invoices": {
+    "title": "Invoices",
+    "number": "Invoice",
+    "date": "Date",
+    "amount": "Amount",
+    "status": "Status",
+    "download": "Download",
+    "empty": "No invoices yet."
+  },
+  "paymentMethod": {
+    "title": "Payment method",
+    "addCard": "Add card",
+    "expiresOn": "Expires {date}",
+    "default": "Default"
+  }
+}

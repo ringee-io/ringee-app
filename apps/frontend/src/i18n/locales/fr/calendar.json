@@ -1,0 +1,23 @@
+{
+  "title": "Calendrier",
+  "today": "Aujourd'hui",
+  "weekdays": {
+    "mon": "Lun",
+    "tue": "Mar",
+    "wed": "Mer",
+    "thu": "Jeu",
+    "fri": "Ven",
+    "sat": "Sam",
+    "sun": "Dim"
+  },
+  "views": {
+    "day": "Jour",
+    "week": "Semaine",
+    "month": "Mois",
+    "agenda": "Agenda"
+  },
+  "empty": {
+    "title": "Rien de prévu",
+    "description": "Votre calendrier est libre sur cette période."
+  }
+}

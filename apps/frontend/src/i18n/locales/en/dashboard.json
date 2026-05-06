@@ -1,0 +1,45 @@
+{
+  "title": "Dashboard",
+  "description": "An overview of your calls, contacts, and outreach performance.",
+  "greeting": {
+    "morning": "Good morning, {name}",
+    "afternoon": "Good afternoon, {name}",
+    "evening": "Good evening, {name}"
+  },
+  "stats": {
+    "totalCalls": {
+      "title": "Total calls",
+      "description": "All calls placed and received."
+    },
+    "talkTime": {
+      "title": "Talk time",
+      "description": "Total time spent on calls."
+    },
+    "answerRate": {
+      "title": "Answer rate",
+      "description": "Percentage of outbound calls answered."
+    },
+    "contactsReached": {
+      "title": "Contacts reached",
+      "description": "Unique contacts you've connected with."
+    },
+    "creditsUsed": {
+      "title": "Credits used",
+      "description": "Spend across the selected period."
+    }
+  },
+  "charts": {
+    "callsOverTime": "Calls over time",
+    "callOutcomes": "Call outcomes",
+    "topCountries": "Top countries"
+  },
+  "ranges": {
+    "today": "Today",
+    "last7Days": "Last 7 days",
+    "last30Days": "Last 30 days",
+    "last90Days": "Last 90 days",
+    "thisMonth": "This month",
+    "lastMonth": "Last month",
+    "custom": "Custom range"
+  }
+}

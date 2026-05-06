@@ -1,0 +1,28 @@
+{
+  "generic": {
+    "title": "Something went wrong",
+    "description": "An unexpected error occurred. Please try again."
+  },
+  "network": {
+    "title": "Network error",
+    "description": "Check your connection and try again."
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "The page you're looking for doesn't exist or has moved.",
+    "action": "Go to dashboard"
+  },
+  "forbidden": {
+    "title": "You don't have access",
+    "description": "Ask an admin to grant you the right permissions."
+  },
+  "session": {
+    "expired": "Your session has expired. Please sign in again."
+  },
+  "calls": {
+    "permissionDenied": "Microphone permission was denied.",
+    "deviceNotFound": "We couldn't find your audio device.",
+    "callFailed": "Call failed. Please try again.",
+    "insufficientCredits": "You don't have enough credits to make this call."
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "generic": {
+    "title": "Qualcosa è andato storto",
+    "description": "Si è verificato un errore imprevisto. Riprova."
+  },
+  "network": {
+    "title": "Errore di rete",
+    "description": "Controlla la connessione e riprova."
+  },
+  "notFound": {
+    "title": "Pagina non trovata",
+    "description": "La pagina che stai cercando non esiste o è stata spostata.",
+    "action": "Vai alla dashboard"
+  },
+  "forbidden": {
+    "title": "Non hai accesso",
+    "description": "Chiedi a un amministratore di concederti i permessi necessari."
+  },
+  "session": {
+    "expired": "La tua sessione è scaduta. Effettua di nuovo l'accesso."
+  },
+  "calls": {
+    "permissionDenied": "L'accesso al microfono è stato negato.",
+    "deviceNotFound": "Impossibile trovare il dispositivo audio.",
+    "callFailed": "Chiamata non riuscita. Riprova.",
+    "insufficientCredits": "Non hai crediti sufficienti per effettuare questa chiamata."
+  }
+}

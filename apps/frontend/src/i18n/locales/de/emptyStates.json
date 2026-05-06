@@ -1,0 +1,14 @@
+{
+  "generic": {
+    "title": "Hier ist noch nichts",
+    "description": "Ihre Daten erscheinen hier, sobald sie vorhanden sind."
+  },
+  "noResults": {
+    "title": "Keine Ergebnisse",
+    "description": "Passen Sie Filter oder Suche an."
+  },
+  "search": {
+    "title": "Tippen Sie, um zu suchen",
+    "description": "Wir zeigen Treffer an, während Sie tippen."
+  }
+}

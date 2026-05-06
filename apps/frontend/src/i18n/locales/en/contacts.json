@@ -1,0 +1,61 @@
+{
+  "title": "Contacts",
+  "description": "Your address book of leads, customers, and prospects.",
+  "metaTitle": "Contacts | Ringee",
+  "metaDescription": "Your address book of leads, customers, and prospects.",
+  "newContact": "New contact",
+  "addContact": "Add contact",
+  "fields": {
+    "firstName": "First name",
+    "lastName": "Last name",
+    "email": "Email",
+    "phone": "Phone",
+    "phoneLabel": "Phone number",
+    "company": "Company",
+    "title": "Job title",
+    "tags": "Tags",
+    "notes": "Notes"
+  },
+  "table": {
+    "name": "Name",
+    "phone": "Phone",
+    "email": "Email",
+    "company": "Company",
+    "lastCall": "Last call",
+    "tags": "Tags"
+  },
+  "empty": {
+    "title": "No contacts yet",
+    "description": "Add your first contact or import a CSV to get started.",
+    "action": "Add contact"
+  },
+  "delete": {
+    "title": "Delete contact?",
+    "description": "This will permanently remove {name} from your contacts.",
+    "confirm": "Delete contact"
+  },
+  "import": {
+    "title": "Import contacts",
+    "description": "Upload a CSV file with your contacts.",
+    "dropzone": "Drag and drop your CSV here, or click to browse",
+    "submit": "Import",
+    "action": "Import"
+  },
+  "export": {
+    "action": "Export"
+  },
+  "detail": {
+    "metaTitle": "Contact — Details | Ringee",
+    "metaDescription": "View full contact details including call history, notes, tags, and more."
+  },
+  "editPage": {
+    "metaTitle": "Contact — Edit | Ringee",
+    "metaDescription": "Edit contact details to keep your sales and calling workflow organized and efficient."
+  },
+  "kanban": {
+    "title": "Sales Pipeline",
+    "description": "Manage your leads visually",
+    "metaTitle": "Sales Pipeline — Visualize and Organize Leads | Ringee",
+    "metaDescription": "Manage your sales pipeline visually with Ringee. Organize leads, track calls, and move deals through every stage with clarity and efficiency."
+  }
+}

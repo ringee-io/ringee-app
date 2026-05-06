@@ -1,0 +1,49 @@
+{
+  "title": "Einstellungen",
+  "description": "Verwalten Sie Ihr Konto und Ihre Einstellungen.",
+  "tabs": {
+    "general": "Allgemein",
+    "language": "Sprache",
+    "notifications": "Benachrichtigungen",
+    "security": "Sicherheit",
+    "appearance": "Darstellung",
+    "script": "Gesprächsleitfaden"
+  },
+  "overview": {
+    "title": "Übersicht",
+    "description": "Personalisieren Sie Ihr Konto und Ihren Gesprächsleitfaden."
+  },
+  "language": {
+    "title": "Sprache",
+    "description": "Wählen Sie die Sprache, die in der Ringee-App verwendet wird.",
+    "label": "App-Sprache",
+    "saved": "Sprache aktualisiert",
+    "error": "Sprache konnte nicht geändert werden. Bitte erneut versuchen."
+  },
+  "notifications": {
+    "title": "Benachrichtigungen",
+    "description": "Wählen Sie, was wir Ihnen per E-Mail oder Push senden.",
+    "email": "E-Mail-Benachrichtigungen",
+    "push": "Push-Benachrichtigungen",
+    "missedCall": "Verpasste Anrufe",
+    "voicemail": "Voicemails",
+    "campaignUpdates": "Kampagnen-Updates"
+  },
+  "appearance": {
+    "title": "Darstellung",
+    "description": "Wählen Sie, wie Ringee auf Ihrem Bildschirm aussieht.",
+    "theme": "Theme",
+    "themes": {
+      "light": "Hell",
+      "dark": "Dunkel",
+      "system": "System"
+    }
+  },
+  "script": {
+    "title": "Gesprächsleitfaden",
+    "description": "Personalisieren Sie den Leitfaden, den Ihr Dialer während des Anrufs vorliest.",
+    "tab": "Leitfaden",
+    "addSection": "Abschnitt hinzufügen",
+    "saveScript": "Leitfaden speichern"
+  }
+}

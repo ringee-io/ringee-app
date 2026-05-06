@@ -1,0 +1,25 @@
+{
+  "title": "Organisation",
+  "switcher": {
+    "select": "Organisation auswählen",
+    "personal": "Privates Konto",
+    "create": "Organisation erstellen"
+  },
+  "create": {
+    "title": "Organisation erstellen",
+    "description": "Richten Sie einen Workspace für Ihr Team ein.",
+    "namePlaceholder": "Acme GmbH"
+  },
+  "members": {
+    "title": "Mitglieder",
+    "invite": "Mitglied einladen",
+    "role": "Rolle",
+    "status": "Status",
+    "remove": "Aus Organisation entfernen"
+  },
+  "roles": {
+    "owner": "Inhaber",
+    "admin": "Administrator",
+    "member": "Mitglied"
+  }
+}

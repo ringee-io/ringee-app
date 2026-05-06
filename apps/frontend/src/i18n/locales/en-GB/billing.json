@@ -1,0 +1,19 @@
+{
+  "subscription": {
+    "title": "Subscription",
+    "manage": "Manage subscription",
+    "cancel": "Cancel subscription"
+  },
+  "credits": {
+    "title": "Credits",
+    "available": "Available credits",
+    "lowBalance": "Your balance is running low.",
+    "topUp": "Top up",
+    "topUpAction": "Add credits"
+  },
+  "paymentMethod": {
+    "title": "Payment method",
+    "addCard": "Add card",
+    "default": "Default"
+  }
+}

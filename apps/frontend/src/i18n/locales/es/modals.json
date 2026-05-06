@@ -1,0 +1,18 @@
+{
+  "confirmDelete": {
+    "title": "¿Estás seguro?",
+    "description": "Esta acción no se puede deshacer.",
+    "confirm": "Sí, eliminar",
+    "cancel": "Cancelar"
+  },
+  "confirmLeave": {
+    "title": "¿Salir sin guardar?",
+    "description": "Perderás los cambios sin guardar.",
+    "confirm": "Salir",
+    "cancel": "Quedarme"
+  },
+  "unsavedChanges": {
+    "title": "Tienes cambios sin guardar",
+    "description": "Guárdalos antes de continuar."
+  }
+}

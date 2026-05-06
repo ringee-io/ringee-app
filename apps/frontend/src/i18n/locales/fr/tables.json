@@ -1,0 +1,28 @@
+{
+  "headers": {
+    "actions": "Actions",
+    "createdAt": "Créé le",
+    "updatedAt": "Mis à jour le"
+  },
+  "pagination": {
+    "rowsPerPage": "Lignes par page",
+    "of": "sur",
+    "page": "Page {page} sur {total}",
+    "first": "Première page",
+    "previous": "Page précédente",
+    "next": "Page suivante",
+    "last": "Dernière page",
+    "showing": "Affichage de {from}–{to} sur {total}"
+  },
+  "selection": {
+    "selected": "{count} sélectionnés",
+    "selectAll": "Tout sélectionner",
+    "clearSelection": "Effacer la sélection"
+  },
+  "sort": {
+    "asc": "Croissant",
+    "desc": "Décroissant",
+    "clear": "Effacer le tri"
+  },
+  "noResults": "Aucun résultat."
+}

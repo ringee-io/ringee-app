@@ -1,0 +1,28 @@
+{
+  "generic": {
+    "title": "Ocorreu um erro",
+    "description": "Ocorreu um erro inesperado. Tente novamente."
+  },
+  "network": {
+    "title": "Erro de rede",
+    "description": "Verifique a sua ligação e tente novamente."
+  },
+  "notFound": {
+    "title": "Página não encontrada",
+    "description": "A página que procura não existe ou foi movida.",
+    "action": "Ir para o painel"
+  },
+  "forbidden": {
+    "title": "Sem acesso",
+    "description": "Peça a um administrador para lhe atribuir as permissões necessárias."
+  },
+  "session": {
+    "expired": "A sua sessão expirou. Inicie sessão novamente."
+  },
+  "calls": {
+    "permissionDenied": "Acesso ao microfone negado.",
+    "deviceNotFound": "Não foi possível encontrar o seu dispositivo de áudio.",
+    "callFailed": "A chamada falhou. Tente novamente.",
+    "insufficientCredits": "Não tem créditos suficientes para fazer esta chamada."
+  }
+}

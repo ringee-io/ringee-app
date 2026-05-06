@@ -1,0 +1,66 @@
+{
+  "nav": {
+    "product": "Product",
+    "features": "Features",
+    "pricing": "Prijzen",
+    "docs": "Documentatie",
+    "docsForDevelopers": "Documentatie voor developers",
+    "blog": "Blog",
+    "contact": "Contact",
+    "signIn": "Inloggen",
+    "getStarted": "Aan de slag"
+  },
+  "hero": {
+    "headlinePrefix": "Gesprekken, campagnes &",
+    "headlineHighlight": "CRM",
+    "headlineSuffix": "in één browsertab",
+    "subcopy": "Het open-source outbound-platform. Draai preview- en progressive-dialers, synchroniseer elk gesprek met <attio>Attio</attio> of <odoo>Odoo</odoo>, en betaal alleen voor de minuten die je gebruikt.",
+    "tryFreeCall": "Probeer gratis bellen",
+    "tryFreeCallAria": "Start nu een gratis gesprek",
+    "bookDemo": "Demo plannen",
+    "trust": {
+      "noCard": "Geen creditcard nodig",
+      "countries": "180+ landen",
+      "firstCall": "Eerste gesprek in 60s",
+      "soc2": "SOC 2-aligned"
+    },
+    "capabilities": {
+      "manualDialer": "Handmatige dialer",
+      "previewDialer": "Preview Dialer",
+      "progressiveDialer": "Progressive Dialer",
+      "crmSync": "Attio- & Odoo-sync",
+      "recordings": "Opnames & transcripties",
+      "browserMobile": "Browser & mobiel"
+    }
+  },
+  "features": { "title": "Versterk je gesprekken met Ringee.io" },
+  "faq": {
+    "title": "Veelgestelde vragen",
+    "subtitle": "Alles wat je moet weten over Ringee.io, prijzen en gesprekskwaliteit."
+  },
+  "pricing": { "title": "Prijzen voor individuen en teams", "perMonth": "per maand" },
+  "comparison": {
+    "title": "Vergelijk Ringee.io",
+    "subtitle": "Hoe Ringee zich verhoudt tot Adversus en Genesys als je flexibele outbound-gesprekken in de browser wilt, zonder dure per-seat-contracten."
+  },
+  "ctaBanner": {
+    "title": "Klaar om je stem te versterken met Ringee.io?",
+    "subtitle": "Bel slimmer — koop nummers, beheer gesprekken en neem ze op in één platform.",
+    "getStarted": "Aan de slag",
+    "discoverMore": "Meer ontdekken"
+  },
+  "footer": {
+    "tagline": "Open-source wereldwijd bellen.",
+    "rights": "Alle rechten voorbehouden.",
+    "featuredOn": "Te zien op:",
+    "links": {
+      "features": "Features",
+      "pricing": "Prijzen",
+      "faq": "FAQ",
+      "comparison": "Vergelijking",
+      "blog": "Blog",
+      "privacy": "Privacy",
+      "terms": "Voorwaarden"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "title": "Team",
+  "description": "Scopri come sta performando il tuo team.",
+  "leaderboard": {
+    "title": "Classifica",
+    "agent": "Agente",
+    "calls": "Chiamate",
+    "talkTime": "Tempo di conversazione",
+    "answerRate": "Tasso di risposta"
+  },
+  "empty": {
+    "title": "Nessun compagno di team",
+    "description": "Invita il tuo team per iniziare a monitorare le performance insieme."
+  }
+}

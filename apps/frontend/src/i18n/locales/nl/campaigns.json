@@ -1,0 +1,48 @@
+{
+  "title": "Campagnes",
+  "description": "Beheer uitgaande belcampagnes",
+  "metaTitle": "Campagnes — Uitgaand bellen | Ringee",
+  "metaDescription": "Beheer je uitgaande belcampagnes. Maak campagnes, importeer leads, configureer dialers en volg de prestaties.",
+  "newCampaign": "Nieuwe campagne",
+  "create": {
+    "title": "Nieuwe campagne",
+    "description": "Maak en configureer een uitgaande belcampagne",
+    "metaTitle": "Nieuwe campagne | Ringee",
+    "metaDescription": "Maak een nieuwe uitgaande belcampagne aan.",
+    "namePlaceholder": "Q1 outbound — VS enterprise",
+    "submit": "Campagne aanmaken"
+  },
+  "edit": {
+    "title": "Campagne bewerken"
+  },
+  "detail": {
+    "metaTitle": "Campagnedetails | Ringee",
+    "metaDescription": "Bekijk en beheer je uitgaande belcampagne."
+  },
+  "fields": {
+    "name": "Naam",
+    "list": "Contactlijst",
+    "mode": "Dialer-modus",
+    "callerId": "Beller-ID",
+    "script": "Script"
+  },
+  "status": {
+    "draft": "Concept",
+    "scheduled": "Gepland",
+    "running": "Actief",
+    "paused": "Gepauzeerd",
+    "completed": "Voltooid"
+  },
+  "actions": {
+    "start": "Starten",
+    "pause": "Pauzeren",
+    "resume": "Hervatten",
+    "stop": "Stoppen",
+    "duplicate": "Dupliceren"
+  },
+  "empty": {
+    "title": "Nog geen campagnes",
+    "description": "Maak je eerste campagne om op grote schaal te beginnen.",
+    "action": "Campagne aanmaken"
+  }
+}

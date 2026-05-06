@@ -1,0 +1,61 @@
+{
+  "title": "Contactos",
+  "description": "Tu agenda de leads, clientes y prospectos.",
+  "metaTitle": "Contactos | Ringee",
+  "metaDescription": "Tu agenda de leads, clientes y prospectos.",
+  "newContact": "Nuevo contacto",
+  "addContact": "Añadir contacto",
+  "fields": {
+    "firstName": "Nombre",
+    "lastName": "Apellidos",
+    "email": "Email",
+    "phone": "Teléfono",
+    "phoneLabel": "Número de teléfono",
+    "company": "Empresa",
+    "title": "Cargo",
+    "tags": "Etiquetas",
+    "notes": "Notas"
+  },
+  "table": {
+    "name": "Nombre",
+    "phone": "Teléfono",
+    "email": "Email",
+    "company": "Empresa",
+    "lastCall": "Última llamada",
+    "tags": "Etiquetas"
+  },
+  "empty": {
+    "title": "Aún no hay contactos",
+    "description": "Añade tu primer contacto o importa un CSV para empezar.",
+    "action": "Añadir contacto"
+  },
+  "delete": {
+    "title": "¿Eliminar contacto?",
+    "description": "Esto eliminará permanentemente a {name} de tus contactos.",
+    "confirm": "Eliminar contacto"
+  },
+  "import": {
+    "title": "Importar contactos",
+    "description": "Sube un archivo CSV con tus contactos.",
+    "dropzone": "Arrastra y suelta tu CSV aquí, o haz clic para buscar",
+    "submit": "Importar",
+    "action": "Importar"
+  },
+  "export": {
+    "action": "Exportar"
+  },
+  "detail": {
+    "metaTitle": "Contacto — Detalles | Ringee",
+    "metaDescription": "Consulta los detalles completos del contacto, incluyendo historial de llamadas, notas, etiquetas y más."
+  },
+  "editPage": {
+    "metaTitle": "Contacto — Editar | Ringee",
+    "metaDescription": "Edita los datos del contacto para mantener tu flujo de ventas y llamadas organizado y eficiente."
+  },
+  "kanban": {
+    "title": "Pipeline de ventas",
+    "description": "Gestiona tus leads de forma visual",
+    "metaTitle": "Pipeline de ventas — Visualiza y organiza tus leads | Ringee",
+    "metaDescription": "Gestiona tu pipeline de ventas de forma visual con Ringee. Organiza leads, registra llamadas y mueve oportunidades por cada etapa con claridad y eficiencia."
+  }
+}

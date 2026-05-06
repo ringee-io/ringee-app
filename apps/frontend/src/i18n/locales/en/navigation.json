@@ -1,0 +1,45 @@
+{
+  "groups": {
+    "general": "General",
+    "communication": "Communication",
+    "outreach": "Outreach",
+    "settings": "Settings"
+  },
+  "items": {
+    "dashboard": "Dashboard",
+    "contacts": "Contacts",
+    "activities": "Activities",
+    "meetings": "Meetings",
+    "call": "Call",
+    "inbox": "Inbox",
+    "campaigns": "Campaigns",
+    "callbacks": "Callbacks",
+    "dnc": "DNC",
+    "overview": "Overview",
+    "integrations": "Integrations",
+    "profile": "Profile",
+    "history": "History",
+    "recordings": "Recordings",
+    "rate": "Rate",
+    "buyNumber": "Buy Number"
+  },
+  "userMenu": {
+    "profile": "Profile",
+    "history": "History",
+    "recordings": "Recordings",
+    "rate": "Rate",
+    "buyNumber": "Buy Number",
+    "signOut": "Sign out"
+  },
+  "sidebar": {
+    "openQuickCall": "Open Quick call",
+    "outreachLocked": "Available for organization level",
+    "outreachLockedDescription": "Upgrade to unlock outreach tools.",
+    "upgradeNow": "Upgrade now",
+    "redirecting": "Redirecting…"
+  },
+  "inboxTooltip": {
+    "title": "Inbox — coming soon",
+    "description": "Manage all your inbound messages, missed calls, and voicemails in one unified inbox."
+  }
+}

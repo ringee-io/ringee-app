@@ -1,0 +1,45 @@
+{
+  "groups": {
+    "general": "Allgemein",
+    "communication": "Kommunikation",
+    "outreach": "Outreach",
+    "settings": "Einstellungen"
+  },
+  "items": {
+    "dashboard": "Dashboard",
+    "contacts": "Kontakte",
+    "activities": "Aktivitäten",
+    "meetings": "Meetings",
+    "call": "Anrufe",
+    "inbox": "Posteingang",
+    "campaigns": "Kampagnen",
+    "callbacks": "Rückrufe",
+    "dnc": "DNC",
+    "overview": "Übersicht",
+    "integrations": "Integrationen",
+    "profile": "Profil",
+    "history": "Verlauf",
+    "recordings": "Aufzeichnungen",
+    "rate": "Tarife",
+    "buyNumber": "Nummer kaufen"
+  },
+  "userMenu": {
+    "profile": "Profil",
+    "history": "Verlauf",
+    "recordings": "Aufzeichnungen",
+    "rate": "Tarife",
+    "buyNumber": "Nummer kaufen",
+    "signOut": "Abmelden"
+  },
+  "sidebar": {
+    "openQuickCall": "Schnellanruf",
+    "outreachLocked": "Für Organisationen verfügbar",
+    "outreachLockedDescription": "Upgrade, um Outreach-Tools freizuschalten.",
+    "upgradeNow": "Jetzt upgraden",
+    "redirecting": "Weiterleitung…"
+  },
+  "inboxTooltip": {
+    "title": "Posteingang — demnächst verfügbar",
+    "description": "Verwalten Sie eingehende Nachrichten, verpasste Anrufe und Voicemails an einem Ort."
+  }
+}

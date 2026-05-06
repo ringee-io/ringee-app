@@ -1,0 +1,14 @@
+{
+  "generic": {
+    "title": "Ainda nada por aqui",
+    "description": "Os seus dados aparecem aqui assim que existirem."
+  },
+  "noResults": {
+    "title": "Sem resultados",
+    "description": "Tente ajustar os filtros ou a pesquisa."
+  },
+  "search": {
+    "title": "Comece a escrever para pesquisar",
+    "description": "Mostramos correspondências enquanto escreve."
+  }
+}

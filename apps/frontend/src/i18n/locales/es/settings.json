@@ -1,0 +1,49 @@
+{
+  "title": "Ajustes",
+  "description": "Configura tu cuenta y tus preferencias.",
+  "tabs": {
+    "general": "General",
+    "language": "Idioma",
+    "notifications": "Notificaciones",
+    "security": "Seguridad",
+    "appearance": "Apariencia",
+    "script": "Guion"
+  },
+  "overview": {
+    "title": "Resumen",
+    "description": "Personaliza tu cuenta y tu guion de llamadas."
+  },
+  "language": {
+    "title": "Idioma",
+    "description": "Elige el idioma que usaremos en toda la aplicación.",
+    "label": "Idioma de la app",
+    "saved": "Idioma actualizado",
+    "error": "No se pudo cambiar el idioma. Inténtalo de nuevo."
+  },
+  "notifications": {
+    "title": "Notificaciones",
+    "description": "Decide qué te enviamos por email o notificación push.",
+    "email": "Notificaciones por email",
+    "push": "Notificaciones push",
+    "missedCall": "Llamadas perdidas",
+    "voicemail": "Mensajes de voz",
+    "campaignUpdates": "Avances de campañas"
+  },
+  "appearance": {
+    "title": "Apariencia",
+    "description": "Elige cómo se ve Ringee en tu pantalla.",
+    "theme": "Tema",
+    "themes": {
+      "light": "Claro",
+      "dark": "Oscuro",
+      "system": "Sistema"
+    }
+  },
+  "script": {
+    "title": "Guion de llamada",
+    "description": "Personaliza el guion que tu marcador lee en las llamadas.",
+    "tab": "Guion",
+    "addSection": "Añadir sección",
+    "saveScript": "Guardar guion"
+  }
+}

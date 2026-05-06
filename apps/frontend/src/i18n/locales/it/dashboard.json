@@ -1,0 +1,45 @@
+{
+  "title": "Dashboard",
+  "description": "Una panoramica delle tue chiamate, contatti e performance di outreach.",
+  "greeting": {
+    "morning": "Buongiorno {name}",
+    "afternoon": "Buon pomeriggio {name}",
+    "evening": "Buonasera {name}"
+  },
+  "stats": {
+    "totalCalls": {
+      "title": "Chiamate totali",
+      "description": "Tutte le chiamate effettuate e ricevute."
+    },
+    "talkTime": {
+      "title": "Tempo di conversazione",
+      "description": "Tempo totale trascorso in chiamata."
+    },
+    "answerRate": {
+      "title": "Tasso di risposta",
+      "description": "Percentuale di chiamate in uscita a cui è stato risposto."
+    },
+    "contactsReached": {
+      "title": "Contatti raggiunti",
+      "description": "Contatti unici con cui hai parlato."
+    },
+    "creditsUsed": {
+      "title": "Crediti utilizzati",
+      "description": "Spesa nel periodo selezionato."
+    }
+  },
+  "charts": {
+    "callsOverTime": "Chiamate nel tempo",
+    "callOutcomes": "Esiti delle chiamate",
+    "topCountries": "Paesi principali"
+  },
+  "ranges": {
+    "today": "Oggi",
+    "last7Days": "Ultimi 7 giorni",
+    "last30Days": "Ultimi 30 giorni",
+    "last90Days": "Ultimi 90 giorni",
+    "thisMonth": "Questo mese",
+    "lastMonth": "Mese scorso",
+    "custom": "Intervallo personalizzato"
+  }
+}

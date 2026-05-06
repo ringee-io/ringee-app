@@ -1,0 +1,64 @@
+{
+  "title": "Gesprekken",
+  "description": "Voer en ontvang glasheldere gesprekken naar 180+ landen rechtstreeks vanuit je browser.",
+  "metaTitle": "Gesprekken — Bel wereldwijd | Ringee",
+  "metaDescription": "Voer en ontvang glasheldere gesprekken naar 180+ landen rechtstreeks vanuit je browser. Met Telnyx en Ringee WebRTC voor sales-teams en wereldwijde communicatie.",
+  "newCall": "Nieuw gesprek",
+  "incomingCall": "Inkomend gesprek",
+  "outgoingCall": "Uitgaand gesprek",
+  "missedCall": "Gemist gesprek",
+  "answered": "Beantwoord",
+  "noAnswer": "Geen antwoord",
+  "busy": "Bezet",
+  "failed": "Mislukt",
+  "voicemail": "Voicemail",
+  "callDuration": "Duur",
+  "callCost": "Kosten",
+  "from": "Van",
+  "to": "Naar",
+  "actions": {
+    "answer": "Opnemen",
+    "decline": "Weigeren",
+    "hangUp": "Ophangen",
+    "mute": "Microfoon uit",
+    "unmute": "Microfoon aan",
+    "hold": "In de wacht",
+    "resume": "Hervatten",
+    "transfer": "Doorverbinden",
+    "addNote": "Notitie toevoegen",
+    "viewContact": "Contact bekijken"
+  },
+  "history": {
+    "title": "Gesprekgeschiedenis",
+    "shortTitle": "Geschiedenis",
+    "description": "Bekijk je gespreksgeschiedenis",
+    "metaTitle": "Gespreksgeschiedenis — Bekijken en bijhouden | Ringee",
+    "metaDescription": "Bekijk je volledige gespreksgeschiedenis op Ringee. Bekijk eerdere gesprekken, monitor prestaties en beheer je gesprekken duidelijk — gemaakt voor sales-teams en professionals.",
+    "empty": {
+      "title": "Nog geen gesprekken",
+      "description": "Je gespreksgeschiedenis verschijnt hier zodra je gaat bellen of gesprekken ontvangt."
+    }
+  },
+  "recordings": {
+    "title": "Gespreksopnames",
+    "description": "Beluister en download je versleutelde opnames",
+    "metaTitle": "Opnames — Beluisteren en downloaden | Ringee",
+    "metaDescription": "Toegang tot je versleutelde gespreksopnames. Speel af, download en beheer alle audiobestanden veilig vanuit je Ringee-dashboard."
+  },
+  "callbacks": {
+    "title": "Terugbelverzoeken",
+    "description": "Bekijk en beheer geplande terugbelverzoeken vanuit dialer-sessies",
+    "metaTitle": "Terugbelverzoeken | Ringee",
+    "metaDescription": "Bekijk en beheer geplande terugbeltaken."
+  },
+  "dnc": {
+    "title": "Niet bellen",
+    "description": "Beheer nummers die nooit gebeld mogen worden",
+    "metaTitle": "Niet bellen-lijst | Ringee",
+    "metaDescription": "Beheer je Niet bellen-lijst voor naleving."
+  },
+  "rates": {
+    "metaTitle": "Tarieven — Kosten bekijken en vergelijken | Ringee",
+    "metaDescription": "Bekijk actuele tarieven in je Ringee-dashboard. Vergelijk prijzen tussen 180+ landen en houd je communicatiekosten realtime in de gaten."
+  }
+}

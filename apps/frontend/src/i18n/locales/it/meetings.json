@@ -1,0 +1,18 @@
+{
+  "title": "Riunioni",
+  "description": "Tutte le riunioni fissate dalle chiamate a freddo",
+  "metaTitle": "Riunioni — Fissate dalle chiamate a freddo | Ringee",
+  "metaDescription": "Visualizza e gestisci tutte le riunioni fissate durante le chiamate a freddo. Tieni traccia degli appuntamenti futuri, rivedi quelli passati e mantieni la pipeline sotto controllo.",
+  "newMeeting": "Nuova riunione",
+  "fields": {
+    "title": "Titolo",
+    "with": "Con",
+    "when": "Quando",
+    "duration": "Durata",
+    "notes": "Note"
+  },
+  "empty": {
+    "title": "Nessuna riunione in programma",
+    "description": "Una volta fissata una riunione, comparirà qui."
+  }
+}

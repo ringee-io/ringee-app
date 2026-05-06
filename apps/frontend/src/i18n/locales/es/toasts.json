@@ -1,0 +1,16 @@
+{
+  "saved": "Guardado",
+  "updated": "Actualizado",
+  "created": "Creado",
+  "deleted": "Eliminado",
+  "imported": "Se importaron {count} {count, plural, one {elemento} other {elementos}}",
+  "exported": "Exportación lista",
+  "copied": "Copiado al portapapeles",
+  "linkCopied": "Enlace copiado",
+  "languageUpdated": "Idioma actualizado",
+  "errors": {
+    "saveFailed": "No se pudieron guardar los cambios.",
+    "loadFailed": "No se pudo cargar la página.",
+    "deleteFailed": "No se pudo eliminar el elemento."
+  }
+}

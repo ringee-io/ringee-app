@@ -1,0 +1,26 @@
+{
+  "title": "Dialer",
+  "quickCall": "Schnellanruf",
+  "enterNumber": "Nummer eingeben",
+  "country": "Land",
+  "callerId": "Anrufer-ID",
+  "selectCallerId": "Anrufer-ID wählen",
+  "previewDialer": "Preview Dialer",
+  "progressiveDialer": "Progressive Dialer",
+  "modes": {
+    "preview": "Preview",
+    "progressive": "Progressive"
+  },
+  "buttons": {
+    "call": "Anrufen",
+    "skip": "Überspringen",
+    "next": "Nächster Kontakt",
+    "previous": "Vorheriger Kontakt",
+    "endSession": "Sitzung beenden"
+  },
+  "session": {
+    "title": "Dialer-Sitzung",
+    "remaining": "{count} verbleibend",
+    "completed": "{count} abgeschlossen"
+  }
+}

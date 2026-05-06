@@ -1,0 +1,18 @@
+{
+  "confirmDelete": {
+    "title": "Weet je het zeker?",
+    "description": "Deze actie kan niet ongedaan worden gemaakt.",
+    "confirm": "Ja, verwijderen",
+    "cancel": "Annuleren"
+  },
+  "confirmLeave": {
+    "title": "Weggaan zonder opslaan?",
+    "description": "Je niet-opgeslagen wijzigingen gaan verloren.",
+    "confirm": "Verlaten",
+    "cancel": "Blijven"
+  },
+  "unsavedChanges": {
+    "title": "Niet-opgeslagen wijzigingen",
+    "description": "Sla ze op voordat je verder gaat."
+  }
+}

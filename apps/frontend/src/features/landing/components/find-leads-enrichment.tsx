@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, Variants } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import {
   IconSearch,
@@ -130,6 +131,7 @@ const itemVariants: Variants = {
 };
 
 export default function FindLeadsEnrichment() {
+  const tFL = useTranslations('marketing.findLeads');
   return (
     <section
       id='find-leads'
@@ -149,7 +151,7 @@ export default function FindLeadsEnrichment() {
           className='mx-auto inline-flex items-center gap-2 rounded-lg border border-sky-500/20 bg-sky-500/10 px-3 py-1 text-xs font-medium text-sky-600 dark:text-sky-400'
         >
           <Wand2 className='h-3.5 w-3.5' strokeWidth={2} />
-          <span>Find leads &amp; enrich data</span>
+          <span>{tFL('kicker')}</span>
         </motion.div>
 
         <motion.h2
@@ -159,7 +161,7 @@ export default function FindLeadsEnrichment() {
           transition={{ delay: 0.1 }}
           className='xs:text-4xl mt-5 text-3xl font-bold tracking-tight sm:text-5xl'
         >
-          Source your next conversation, without leaving Ringee
+          {tFL('title')}
         </motion.h2>
         <motion.p
           initial={{ opacity: 0, y: 15 }}
@@ -168,9 +170,7 @@ export default function FindLeadsEnrichment() {
           transition={{ delay: 0.15 }}
           className='text-muted-foreground mx-auto mt-4 max-w-2xl text-base'
         >
-          Connect Apollo.io or Prospeo.io and go from empty pipeline to
-          ready-to-dial list in minutes. Search, reveal and enrich — all metered
-          against a single Ringee credit balance.
+          {tFL('subtitle')}
         </motion.p>
       </div>
 

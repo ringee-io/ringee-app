@@ -1,0 +1,48 @@
+{
+  "title": "Campagne",
+  "description": "Gestisci le campagne di chiamate in uscita",
+  "metaTitle": "Campagne — Chiamate in uscita | Ringee",
+  "metaDescription": "Gestisci le tue campagne di chiamate in uscita. Crea campagne, importa lead, configura i dialer e monitora le performance.",
+  "newCampaign": "Nuova campagna",
+  "create": {
+    "title": "Nuova campagna",
+    "description": "Crea e configura una campagna di chiamate in uscita",
+    "metaTitle": "Nuova campagna | Ringee",
+    "metaDescription": "Crea una nuova campagna di chiamate in uscita.",
+    "namePlaceholder": "Q1 outbound — Enterprise USA",
+    "submit": "Crea campagna"
+  },
+  "edit": {
+    "title": "Modifica campagna"
+  },
+  "detail": {
+    "metaTitle": "Dettagli campagna | Ringee",
+    "metaDescription": "Visualizza e gestisci la tua campagna di chiamate in uscita."
+  },
+  "fields": {
+    "name": "Nome",
+    "list": "Lista contatti",
+    "mode": "Modalità dialer",
+    "callerId": "ID chiamante",
+    "script": "Script"
+  },
+  "status": {
+    "draft": "Bozza",
+    "scheduled": "Programmata",
+    "running": "In corso",
+    "paused": "In pausa",
+    "completed": "Completata"
+  },
+  "actions": {
+    "start": "Avvia",
+    "pause": "Metti in pausa",
+    "resume": "Riprendi",
+    "stop": "Ferma",
+    "duplicate": "Duplica"
+  },
+  "empty": {
+    "title": "Nessuna campagna",
+    "description": "Crea la tua prima campagna per iniziare a contattare clienti su larga scala.",
+    "action": "Crea campagna"
+  }
+}

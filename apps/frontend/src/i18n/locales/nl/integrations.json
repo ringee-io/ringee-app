@@ -1,0 +1,30 @@
+{
+  "title": "Integraties",
+  "description": "Synchroniseer Ringee-gespreksactiviteit met de tools die je team al gebruikt.",
+  "metaTitle": "Integraties | Ringee",
+  "metaDescription": "Verbind je CRM en andere tools met Ringee.",
+  "attioDialer": {
+    "metaTitle": "Attio-gesprek | Ringee",
+    "metaDescription": "Voer een gesprek vanuit je Attio CRM-integratie."
+  },
+  "categories": {
+    "crm": "CRM",
+    "calendar": "Agenda",
+    "communication": "Communicatie",
+    "data": "Dataverrijking"
+  },
+  "actions": {
+    "connect": "Verbinden",
+    "configure": "Configureren",
+    "disconnect": "Verbinding verbreken"
+  },
+  "status": {
+    "connected": "Verbonden",
+    "disconnected": "Niet verbonden",
+    "error": "Verbindingsfout"
+  },
+  "empty": {
+    "title": "Geen integraties verbonden",
+    "description": "Bekijk de catalogus en verbind je eerste tool."
+  }
+}

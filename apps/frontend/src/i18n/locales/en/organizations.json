@@ -1,0 +1,25 @@
+{
+  "title": "Organization",
+  "switcher": {
+    "select": "Select an organization",
+    "personal": "Personal account",
+    "create": "Create organization"
+  },
+  "create": {
+    "title": "Create organization",
+    "description": "Set up a workspace for your team.",
+    "namePlaceholder": "Acme, Inc."
+  },
+  "members": {
+    "title": "Members",
+    "invite": "Invite member",
+    "role": "Role",
+    "status": "Status",
+    "remove": "Remove from organization"
+  },
+  "roles": {
+    "owner": "Owner",
+    "admin": "Admin",
+    "member": "Member"
+  }
+}

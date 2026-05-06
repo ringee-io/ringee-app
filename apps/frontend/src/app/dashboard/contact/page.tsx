@@ -7,12 +7,15 @@ import { ContactPageActions } from '@/features/contact/components/contact-page-a
 import { searchParamsCache } from '@ringee/frontend-shared/lib/searchparams';
 import { SearchParams } from 'nuqs/server';
 import { Suspense } from 'react';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata = {
-  title: 'Contacts — Manage and Organize | Ringee',
-  description:
-    'View, search, and manage all your Ringee contacts in one place. Perfect for sales teams, cold callers, and businesses making calls worldwide.'
-};
+export async function generateMetadata() {
+  const t = await getTranslations('contacts');
+  return {
+    title: `${t('title')} | Ringee`,
+    description: t('description')
+  };
+}
 
 type pageProps = {
   searchParams: Promise<SearchParams>;
@@ -23,11 +26,13 @@ export default async function Page(props: pageProps) {
   // Allow nested RSCs to access the search params (in a type-safe way)
   searchParamsCache.parse(searchParams);
 
+  const t = await getTranslations('contacts');
+
   return (
     <PageContainer scrollable>
       <div className='flex flex-1 flex-col space-y-4'>
         <div className='flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between'>
-          <Heading title='Contacts' description='Manage contacts' />
+          <Heading title={t('title')} description={t('description')} />
           <ContactPageActions />
         </div>
         <Separator />
@@ -42,5 +47,3 @@ export default async function Page(props: pageProps) {
     </PageContainer>
   );
 }
-
-

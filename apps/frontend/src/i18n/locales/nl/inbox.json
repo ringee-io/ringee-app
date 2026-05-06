@@ -1,0 +1,14 @@
+{
+  "title": "Inbox",
+  "description": "Je inkomende gesprekken, berichten en voicemails op één plek.",
+  "filters": {
+    "all": "Alle",
+    "unread": "Ongelezen",
+    "missed": "Gemist",
+    "voicemail": "Voicemail"
+  },
+  "empty": {
+    "title": "Inbox leeg",
+    "description": "Je bent helemaal bij. Nieuwe berichten verschijnen hier."
+  }
+}

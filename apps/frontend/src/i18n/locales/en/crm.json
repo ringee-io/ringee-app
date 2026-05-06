@@ -1,0 +1,17 @@
+{
+  "title": "CRM",
+  "description": "Sync contacts and activity with your CRM.",
+  "connected": "Connected",
+  "notConnected": "Not connected",
+  "connect": "Connect",
+  "disconnect": "Disconnect",
+  "lastSync": "Last sync: {time}",
+  "neverSynced": "Never synced",
+  "syncNow": "Sync now",
+  "providers": {
+    "attio": "Attio",
+    "odoo": "Odoo",
+    "apollo": "Apollo",
+    "prospeo": "Prospeo"
+  }
+}

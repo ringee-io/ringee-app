@@ -1,0 +1,18 @@
+{
+  "title": "Aktivitäten",
+  "description": "Ihre allgemeinen Anrufaktivitäten außerhalb von Kampagnen",
+  "metaTitle": "Aktivitäten — Anrufprotokoll | Ringee",
+  "metaDescription": "Sehen Sie sich Ihre allgemeinen Anrufe an, filtern Sie nach Ergebnis und Datum, planen Sie Meetings für abgeschlossene Anrufe und behalten Sie geplante Termine im Blick.",
+  "newActivity": "Neue Aktivität",
+  "types": {
+    "call": "Anruf",
+    "note": "Notiz",
+    "task": "Aufgabe",
+    "meeting": "Meeting",
+    "email": "E-Mail"
+  },
+  "empty": {
+    "title": "Noch keine Aktivität",
+    "description": "Erfassen Sie Ihre erste Aktivität, um Ihren Verlauf aufzubauen."
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "title": "Chiamate",
+  "description": "Effettua e ricevi chiamate cristalline verso oltre 180 paesi direttamente dal browser.",
+  "metaTitle": "Chiamate — Effettua e ricevi chiamate nel mondo | Ringee",
+  "metaDescription": "Effettua e ricevi chiamate cristalline verso oltre 180 paesi direttamente dal browser. Tecnologia Telnyx e WebRTC di Ringee per team commerciali e comunicazione globale.",
+  "newCall": "Nuova chiamata",
+  "incomingCall": "Chiamata in arrivo",
+  "outgoingCall": "Chiamata in uscita",
+  "missedCall": "Chiamata persa",
+  "answered": "Risposta",
+  "noAnswer": "Nessuna risposta",
+  "busy": "Occupato",
+  "failed": "Fallita",
+  "voicemail": "Segreteria",
+  "callDuration": "Durata",
+  "callCost": "Costo",
+  "from": "Da",
+  "to": "A",
+  "actions": {
+    "answer": "Rispondi",
+    "decline": "Rifiuta",
+    "hangUp": "Riaggancia",
+    "mute": "Disattiva audio",
+    "unmute": "Attiva audio",
+    "hold": "Metti in attesa",
+    "resume": "Riprendi",
+    "transfer": "Trasferisci",
+    "addNote": "Aggiungi nota",
+    "viewContact": "Mostra contatto"
+  },
+  "history": {
+    "title": "Cronologia chiamate",
+    "shortTitle": "Cronologia",
+    "description": "Visualizza la cronologia delle chiamate",
+    "metaTitle": "Cronologia chiamate — Rivedi e analizza | Ringee",
+    "metaDescription": "Accedi alla cronologia completa delle chiamate su Ringee. Rivedi le chiamate passate, monitora le performance e gestisci i record con chiarezza — pensato per team commerciali e professionisti.",
+    "empty": {
+      "title": "Nessuna chiamata",
+      "description": "La tua cronologia comparirà qui non appena inizierai a chiamare o a ricevere chiamate."
+    }
+  },
+  "recordings": {
+    "title": "Registrazioni delle chiamate",
+    "description": "Ascolta e scarica le tue registrazioni cifrate",
+    "metaTitle": "Registrazioni — Ascolta e scarica | Ringee",
+    "metaDescription": "Accedi alle tue registrazioni cifrate. Riproduci, scarica e gestisci tutti i file audio in modo sicuro dalla dashboard Ringee."
+  },
+  "callbacks": {
+    "title": "Richiami",
+    "description": "Visualizza e gestisci i richiami pianificati dal dialer",
+    "metaTitle": "Richiami | Ringee",
+    "metaDescription": "Visualizza e gestisci le attività di richiamo pianificate."
+  },
+  "dnc": {
+    "title": "Non chiamare",
+    "description": "Gestisci i numeri da non chiamare mai",
+    "metaTitle": "Lista Non chiamare | Ringee",
+    "metaDescription": "Gestisci la tua lista Non chiamare per garantire la conformità."
+  },
+  "rates": {
+    "metaTitle": "Tariffe — Visualizza e confronta i costi | Ringee",
+    "metaDescription": "Consulta le tariffe aggiornate dalla dashboard Ringee. Confronta i prezzi tra oltre 180 paesi e tieni sotto controllo i costi in tempo reale."
+  }
+}

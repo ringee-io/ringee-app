@@ -1,0 +1,37 @@
+{
+  "title": "Facturation",
+  "description": "Gérez votre abonnement, vos crédits et vos factures.",
+  "credits": {
+    "title": "Crédits",
+    "available": "Crédits disponibles",
+    "lowBalance": "Votre solde est faible.",
+    "topUp": "Recharger",
+    "topUpAction": "Ajouter des crédits",
+    "history": "Historique des crédits"
+  },
+  "subscription": {
+    "title": "Abonnement",
+    "plan": "Forfait",
+    "renews": "Renouvellement le {date}",
+    "cancelAt": "Annulation le {date}",
+    "manage": "Gérer l'abonnement",
+    "upgrade": "Passer à un forfait supérieur",
+    "downgrade": "Rétrograder",
+    "cancel": "Annuler l'abonnement"
+  },
+  "invoices": {
+    "title": "Factures",
+    "number": "Facture",
+    "date": "Date",
+    "amount": "Montant",
+    "status": "Statut",
+    "download": "Télécharger",
+    "empty": "Aucune facture pour l'instant."
+  },
+  "paymentMethod": {
+    "title": "Mode de paiement",
+    "addCard": "Ajouter une carte",
+    "expiresOn": "Expire le {date}",
+    "default": "Par défaut"
+  }
+}

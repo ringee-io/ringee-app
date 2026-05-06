@@ -1,0 +1,18 @@
+{
+  "title": "Activiteiten",
+  "description": "Je algemene gespreksactiviteit buiten campagnes",
+  "metaTitle": "Activiteiten — Gesprekslogboek | Ringee",
+  "metaDescription": "Bekijk je algemene gesprekken, filter op uitkomst en datum, plan vergaderingen vanuit afgeronde gesprekken en houd geplande afspraken bij.",
+  "newActivity": "Nieuwe activiteit",
+  "types": {
+    "call": "Gesprek",
+    "note": "Notitie",
+    "task": "Taak",
+    "meeting": "Vergadering",
+    "email": "E-mail"
+  },
+  "empty": {
+    "title": "Nog geen activiteit",
+    "description": "Leg je eerste activiteit vast om je geschiedenis op te bouwen."
+  }
+}

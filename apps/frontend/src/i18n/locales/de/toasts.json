@@ -1,0 +1,16 @@
+{
+  "saved": "Gespeichert",
+  "updated": "Aktualisiert",
+  "created": "Erstellt",
+  "deleted": "Gelöscht",
+  "imported": "{count} {count, plural, one {Eintrag} other {Einträge}} importiert",
+  "exported": "Export bereit",
+  "copied": "In die Zwischenablage kopiert",
+  "linkCopied": "Link kopiert",
+  "languageUpdated": "Sprache aktualisiert",
+  "errors": {
+    "saveFailed": "Änderungen konnten nicht gespeichert werden.",
+    "loadFailed": "Seite konnte nicht geladen werden.",
+    "deleteFailed": "Eintrag konnte nicht gelöscht werden."
+  }
+}

@@ -1,0 +1,64 @@
+{
+  "title": "Chamadas",
+  "description": "Faça e receba chamadas com qualidade cristalina para mais de 180 países diretamente do seu navegador.",
+  "metaTitle": "Chamadas — Faça e receba chamadas em todo o mundo | Ringee",
+  "metaDescription": "Faça e receba chamadas com qualidade cristalina para mais de 180 países diretamente do navegador. Tecnologia Telnyx e Ringee WebRTC para equipas comerciais e comunicação global.",
+  "newCall": "Nova chamada",
+  "incomingCall": "Chamada recebida",
+  "outgoingCall": "Chamada efetuada",
+  "missedCall": "Chamada perdida",
+  "answered": "Atendida",
+  "noAnswer": "Sem resposta",
+  "busy": "Ocupado",
+  "failed": "Falhou",
+  "voicemail": "Correio de voz",
+  "callDuration": "Duração",
+  "callCost": "Custo",
+  "from": "De",
+  "to": "Para",
+  "actions": {
+    "answer": "Atender",
+    "decline": "Recusar",
+    "hangUp": "Desligar",
+    "mute": "Silenciar",
+    "unmute": "Ativar áudio",
+    "hold": "Em espera",
+    "resume": "Retomar",
+    "transfer": "Transferir",
+    "addNote": "Adicionar nota",
+    "viewContact": "Ver contacto"
+  },
+  "history": {
+    "title": "Histórico de chamadas",
+    "shortTitle": "Histórico",
+    "description": "Consulte o seu histórico de chamadas",
+    "metaTitle": "Histórico de chamadas — Reveja e acompanhe | Ringee",
+    "metaDescription": "Aceda ao histórico completo de chamadas na Ringee. Reveja chamadas anteriores, monitorize o desempenho e gira os registos com clareza — pensado para equipas comerciais e profissionais.",
+    "empty": {
+      "title": "Ainda sem chamadas",
+      "description": "O seu histórico aparece aqui assim que começar a fazer ou receber chamadas."
+    }
+  },
+  "recordings": {
+    "title": "Gravações de chamadas",
+    "description": "Ouça e transfira as suas gravações cifradas",
+    "metaTitle": "Gravações — Ouvir e transferir | Ringee",
+    "metaDescription": "Aceda às suas gravações de chamadas cifradas. Reproduza, transfira e gira todos os ficheiros áudio em segurança a partir do painel da Ringee."
+  },
+  "callbacks": {
+    "title": "Retornos de chamada",
+    "description": "Consulte e gira retornos agendados a partir das sessões do marcador",
+    "metaTitle": "Retornos de chamada | Ringee",
+    "metaDescription": "Consulte e gira tarefas de retorno de chamada agendadas."
+  },
+  "dnc": {
+    "title": "Não ligar",
+    "description": "Gira números que nunca devem ser marcados",
+    "metaTitle": "Lista Não ligar | Ringee",
+    "metaDescription": "Gira a sua lista Não ligar para garantir conformidade."
+  },
+  "rates": {
+    "metaTitle": "Tarifas — Veja e compare custos | Ringee",
+    "metaDescription": "Aceda às tarifas atualizadas no painel da Ringee. Compare preços entre mais de 180 países e acompanhe os seus custos de comunicação em tempo real."
+  }
+}

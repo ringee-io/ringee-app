@@ -1,0 +1,66 @@
+{
+  "nav": {
+    "product": "Prodotto",
+    "features": "Funzioni",
+    "pricing": "Prezzi",
+    "docs": "Documentazione",
+    "docsForDevelopers": "Documentazione per sviluppatori",
+    "blog": "Blog",
+    "contact": "Contatti",
+    "signIn": "Accedi",
+    "getStarted": "Inizia"
+  },
+  "hero": {
+    "headlinePrefix": "Chiamate, campagne e il tuo",
+    "headlineHighlight": "CRM",
+    "headlineSuffix": "in una sola scheda",
+    "subcopy": "La piattaforma outbound open-source. Lancia preview e progressive dialer, sincronizza ogni chiamata con <attio>Attio</attio> o <odoo>Odoo</odoo>, e paga solo i minuti che usi.",
+    "tryFreeCall": "Prova una chiamata gratis",
+    "tryFreeCallAria": "Inizia una chiamata gratuita",
+    "bookDemo": "Prenota una demo",
+    "trust": {
+      "noCard": "Nessuna carta richiesta",
+      "countries": "180+ paesi",
+      "firstCall": "Prima chiamata in 60s",
+      "soc2": "Conforme SOC 2"
+    },
+    "capabilities": {
+      "manualDialer": "Dialer manuale",
+      "previewDialer": "Preview Dialer",
+      "progressiveDialer": "Progressive Dialer",
+      "crmSync": "Sync Attio & Odoo",
+      "recordings": "Registrazioni & trascrizioni",
+      "browserMobile": "Browser & mobile"
+    }
+  },
+  "features": { "title": "Potenzia le tue chiamate con Ringee.io" },
+  "faq": {
+    "title": "Domande frequenti",
+    "subtitle": "Tutto quello che devi sapere su Ringee.io, prezzi e qualità delle chiamate."
+  },
+  "pricing": { "title": "Prezzi per persone e team", "perMonth": "al mese" },
+  "comparison": {
+    "title": "Confronta Ringee.io",
+    "subtitle": "Come Ringee si confronta con Adversus e Genesys per chi vuole chiamate outbound flessibili dal browser, senza costosi contratti per agente."
+  },
+  "ctaBanner": {
+    "title": "Pronto a potenziare la tua voce con Ringee.io?",
+    "subtitle": "Chiama in modo più intelligente: acquista numeri, gestisci chiamate e registra le conversazioni su un'unica piattaforma.",
+    "getStarted": "Inizia",
+    "discoverMore": "Scopri di più"
+  },
+  "footer": {
+    "tagline": "Chiamate globali open-source.",
+    "rights": "Tutti i diritti riservati.",
+    "featuredOn": "In evidenza su:",
+    "links": {
+      "features": "Funzioni",
+      "pricing": "Prezzi",
+      "faq": "FAQ",
+      "comparison": "Confronto",
+      "blog": "Blog",
+      "privacy": "Privacy",
+      "terms": "Termini"
+    }
+  }
+}

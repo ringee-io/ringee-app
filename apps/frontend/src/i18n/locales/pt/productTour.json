@@ -1,0 +1,26 @@
+{
+  "controls": {
+    "next": "Seguinte",
+    "back": "Voltar",
+    "skip": "Saltar tour",
+    "finish": "Entendi"
+  },
+  "steps": {
+    "sidebar": {
+      "title": "A sua navegação",
+      "description": "Mude entre painel, contactos e campanhas a partir daqui."
+    },
+    "dialer": {
+      "title": "Chamada rápida",
+      "description": "Abra o marcador a qualquer momento para fazer uma chamada."
+    },
+    "credits": {
+      "title": "Os seus créditos",
+      "description": "Fique de olho no saldo — as chamadas são descontadas daqui."
+    },
+    "settings": {
+      "title": "Definições",
+      "description": "Faça a gestão do seu script, integrações e preferências."
+    }
+  }
+}

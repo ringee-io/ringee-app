@@ -1,0 +1,18 @@
+{
+  "title": "Vergaderingen",
+  "description": "Alle vergaderingen geboekt vanuit cold calls",
+  "metaTitle": "Vergaderingen — Geboekt vanuit cold calls | Ringee",
+  "metaDescription": "Bekijk en beheer alle vergaderingen die zijn geboekt tijdens cold calls. Volg aankomende afspraken, bekijk eerdere boekingen en houd je pipeline op orde.",
+  "newMeeting": "Nieuwe vergadering",
+  "fields": {
+    "title": "Titel",
+    "with": "Met",
+    "when": "Wanneer",
+    "duration": "Duur",
+    "notes": "Notities"
+  },
+  "empty": {
+    "title": "Geen vergaderingen gepland",
+    "description": "Zodra je een vergadering boekt, verschijnt deze hier."
+  }
+}

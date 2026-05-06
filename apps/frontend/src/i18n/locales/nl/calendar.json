@@ -1,0 +1,23 @@
+{
+  "title": "Agenda",
+  "today": "Vandaag",
+  "weekdays": {
+    "mon": "Ma",
+    "tue": "Di",
+    "wed": "Wo",
+    "thu": "Do",
+    "fri": "Vr",
+    "sat": "Za",
+    "sun": "Zo"
+  },
+  "views": {
+    "day": "Dag",
+    "week": "Week",
+    "month": "Maand",
+    "agenda": "Agenda"
+  },
+  "empty": {
+    "title": "Niets gepland",
+    "description": "Je agenda is leeg in deze periode."
+  }
+}

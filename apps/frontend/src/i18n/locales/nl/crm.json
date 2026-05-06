@@ -1,0 +1,17 @@
+{
+  "title": "CRM",
+  "description": "Synchroniseer contacten en activiteit met je CRM.",
+  "connected": "Verbonden",
+  "notConnected": "Niet verbonden",
+  "connect": "Verbinden",
+  "disconnect": "Verbinding verbreken",
+  "lastSync": "Laatste synchronisatie: {time}",
+  "neverSynced": "Nog nooit gesynchroniseerd",
+  "syncNow": "Nu synchroniseren",
+  "providers": {
+    "attio": "Attio",
+    "odoo": "Odoo",
+    "apollo": "Apollo",
+    "prospeo": "Prospeo"
+  }
+}

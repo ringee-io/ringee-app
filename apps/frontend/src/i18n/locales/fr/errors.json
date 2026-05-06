@@ -1,0 +1,28 @@
+{
+  "generic": {
+    "title": "Une erreur est survenue",
+    "description": "Une erreur inattendue s'est produite. Veuillez réessayer."
+  },
+  "network": {
+    "title": "Erreur réseau",
+    "description": "Vérifiez votre connexion et réessayez."
+  },
+  "notFound": {
+    "title": "Page introuvable",
+    "description": "La page que vous cherchez n'existe pas ou a été déplacée.",
+    "action": "Aller au tableau de bord"
+  },
+  "forbidden": {
+    "title": "Accès refusé",
+    "description": "Demandez à un administrateur de vous accorder les permissions nécessaires."
+  },
+  "session": {
+    "expired": "Votre session a expiré. Veuillez vous reconnecter."
+  },
+  "calls": {
+    "permissionDenied": "L'accès au microphone a été refusé.",
+    "deviceNotFound": "Aucun périphérique audio détecté.",
+    "callFailed": "L'appel a échoué. Veuillez réessayer.",
+    "insufficientCredits": "Vous n'avez pas assez de crédits pour passer cet appel."
+  }
+}

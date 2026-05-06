@@ -1,0 +1,18 @@
+{
+  "title": "Activités",
+  "description": "Votre activité d'appels générale en dehors des campagnes",
+  "metaTitle": "Activités — Journal d'appels | Ringee",
+  "metaDescription": "Consultez vos appels généraux, filtrez par résultat et date, planifiez des réunions à partir d'appels terminés et suivez les réunions déjà programmées.",
+  "newActivity": "Nouvelle activité",
+  "types": {
+    "call": "Appel",
+    "note": "Note",
+    "task": "Tâche",
+    "meeting": "Réunion",
+    "email": "Email"
+  },
+  "empty": {
+    "title": "Aucune activité",
+    "description": "Enregistrez votre première activité pour commencer à constituer votre historique."
+  }
+}

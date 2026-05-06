@@ -1,0 +1,14 @@
+{
+  "title": "Bandeja",
+  "description": "Tus llamadas entrantes, mensajes y mensajes de voz en un solo lugar.",
+  "filters": {
+    "all": "Todos",
+    "unread": "No leídos",
+    "missed": "Perdidos",
+    "voicemail": "Mensaje de voz"
+  },
+  "empty": {
+    "title": "Bandeja vacía",
+    "description": "Estás al día. Los mensajes nuevos aparecerán aquí."
+  }
+}

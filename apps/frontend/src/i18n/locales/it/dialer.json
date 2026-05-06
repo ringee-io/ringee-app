@@ -1,0 +1,26 @@
+{
+  "title": "Dialer",
+  "quickCall": "Chiamata rapida",
+  "enterNumber": "Inserisci un numero",
+  "country": "Paese",
+  "callerId": "ID chiamante",
+  "selectCallerId": "Seleziona l'ID chiamante",
+  "previewDialer": "Preview Dialer",
+  "progressiveDialer": "Progressive Dialer",
+  "modes": {
+    "preview": "Preview",
+    "progressive": "Progressive"
+  },
+  "buttons": {
+    "call": "Chiama",
+    "skip": "Salta",
+    "next": "Contatto successivo",
+    "previous": "Contatto precedente",
+    "endSession": "Termina sessione"
+  },
+  "session": {
+    "title": "Sessione dialer",
+    "remaining": "{count} rimanenti",
+    "completed": "{count} completati"
+  }
+}

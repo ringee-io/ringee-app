@@ -1,0 +1,49 @@
+{
+  "title": "Impostazioni",
+  "description": "Configura il tuo account e le tue preferenze.",
+  "tabs": {
+    "general": "Generale",
+    "language": "Lingua",
+    "notifications": "Notifiche",
+    "security": "Sicurezza",
+    "appearance": "Aspetto",
+    "script": "Script"
+  },
+  "overview": {
+    "title": "Panoramica",
+    "description": "Personalizza il tuo account e il tuo script di chiamata."
+  },
+  "language": {
+    "title": "Lingua",
+    "description": "Scegli la lingua usata in tutta l'app Ringee.",
+    "label": "Lingua dell'app",
+    "saved": "Lingua aggiornata",
+    "error": "Impossibile aggiornare la lingua. Riprova."
+  },
+  "notifications": {
+    "title": "Notifiche",
+    "description": "Scegli cosa inviarti via email o push.",
+    "email": "Notifiche email",
+    "push": "Notifiche push",
+    "missedCall": "Chiamate perse",
+    "voicemail": "Segreterie",
+    "campaignUpdates": "Aggiornamenti campagne"
+  },
+  "appearance": {
+    "title": "Aspetto",
+    "description": "Scegli come Ringee appare sul tuo schermo.",
+    "theme": "Tema",
+    "themes": {
+      "light": "Chiaro",
+      "dark": "Scuro",
+      "system": "Sistema"
+    }
+  },
+  "script": {
+    "title": "Script di chiamata",
+    "description": "Personalizza lo script che il tuo dialer legge durante le chiamate.",
+    "tab": "Script",
+    "addSection": "Aggiungi sezione",
+    "saveScript": "Salva script"
+  }
+}

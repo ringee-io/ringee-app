@@ -1,0 +1,26 @@
+{
+  "controls": {
+    "next": "Suivant",
+    "back": "Retour",
+    "skip": "Passer la visite",
+    "finish": "Compris"
+  },
+  "steps": {
+    "sidebar": {
+      "title": "Votre navigation",
+      "description": "Passez du tableau de bord aux contacts et aux campagnes depuis ici."
+    },
+    "dialer": {
+      "title": "Appel rapide",
+      "description": "Ouvrez le composeur à tout moment pour passer un appel."
+    },
+    "credits": {
+      "title": "Vos crédits",
+      "description": "Gardez un œil sur votre solde — vos appels y sont décomptés."
+    },
+    "settings": {
+      "title": "Paramètres",
+      "description": "Gérez votre script, vos intégrations et vos préférences."
+    }
+  }
+}

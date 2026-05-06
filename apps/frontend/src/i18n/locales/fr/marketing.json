@@ -1,0 +1,96 @@
+{
+  "nav": {
+    "product": "Produit",
+    "features": "Fonctionnalités",
+    "pricing": "Tarifs",
+    "docs": "Documentation",
+    "docsForDevelopers": "Documentation développeurs",
+    "blog": "Blog",
+    "contact": "Contact",
+    "signIn": "Se connecter",
+    "getStarted": "Commencer"
+  },
+  "hero": {
+    "headlinePrefix": "Appels, campagnes &",
+    "headlineHighlight": "CRM",
+    "headlineSuffix": "dans un seul onglet",
+    "subcopy": "La plateforme outbound open-source. Lancez des dialers preview et progressifs, synchronisez chaque appel à <attio>Attio</attio> ou <odoo>Odoo</odoo>, et ne payez que les minutes utilisées.",
+    "tryFreeCall": "Essayer un appel gratuit",
+    "tryFreeCallAria": "Démarrer un appel gratuit",
+    "bookDemo": "Réserver une démo",
+    "trust": {
+      "noCard": "Sans carte bancaire",
+      "countries": "180+ pays",
+      "firstCall": "Premier appel en 60s",
+      "soc2": "Conforme SOC 2"
+    },
+    "capabilities": {
+      "manualDialer": "Dialer manuel",
+      "previewDialer": "Preview Dialer",
+      "progressiveDialer": "Progressive Dialer",
+      "crmSync": "Sync Attio & Odoo",
+      "recordings": "Enregistrements & transcriptions",
+      "browserMobile": "Navigateur & mobile"
+    }
+  },
+  "features": {
+    "title": "Boostez vos appels avec Ringee.io"
+  },
+  "faq": {
+    "title": "Questions fréquentes",
+    "subtitle": "Tout ce qu'il faut savoir sur Ringee.io, les tarifs et la qualité d'appel."
+  },
+  "pricing": {
+    "title": "Tarifs pour individus et équipes",
+    "perMonth": "par mois"
+  },
+  "comparison": {
+    "title": "Comparez Ringee.io",
+    "subtitle": "Comment Ringee se compare à Adversus et Genesys quand on veut un dialer outbound flexible, dans le navigateur, sans contrats par siège."
+  },
+  "ctaBanner": {
+    "title": "Prêt à booster votre voix avec Ringee.io ?",
+    "subtitle": "Appelez plus intelligemment — achetez des numéros, gérez vos appels et enregistrez vos conversations sur une seule plateforme.",
+    "getStarted": "Commencer",
+    "discoverMore": "En savoir plus"
+  },
+  "footer": {
+    "tagline": "Appels mondiaux open-source.",
+    "rights": "Tous droits réservés.",
+    "featuredOn": "Présenté sur :",
+    "links": {
+      "features": "Fonctionnalités",
+      "pricing": "Tarifs",
+      "faq": "FAQ",
+      "comparison": "Comparatif",
+      "blog": "Blog",
+      "privacy": "Confidentialité",
+      "terms": "Conditions"
+    }
+  },
+  "videoDemo": {
+    "title": "Ringee en action",
+    "subtitle": "Inscrivez-vous et passez votre premier appel en moins d'une minute.",
+    "cards": {
+      "quickSetup": { "title": "Setup rapide", "description": "Premier appel en moins de 60s" },
+      "recordCalls": { "title": "Enregistrez", "description": "Ne perdez aucun détail important" },
+      "countries": { "title": "180+ pays", "description": "Couverture mondiale, tarifs locaux" },
+      "cheaper": { "title": "50× moins cher", "description": "Tarification à l'usage" }
+    }
+  },
+  "campaigns": {
+    "kicker": "Campagnes outbound",
+    "title": "Des dialers pensés pour chaque playbook",
+    "subtitle": "Lancez du cold-calling, des relances et de la réactivation avec le mode de dialer adapté à votre équipe : appels revus par l'agent ou auto-dial sans intervention."
+  },
+  "findLeads": {
+    "kicker": "Trouvez et enrichissez vos leads",
+    "title": "Trouvez et enrichissez vos leads — sans quitter Ringee",
+    "subtitle": "Apollo et Prospeo sont intégrés. Recherchez, enrichissez et appelez en quelques secondes."
+  },
+  "crmIntegrations": {
+    "kicker": "Intégrations CRM",
+    "title": "Chaque appel synchronisé automatiquement avec votre CRM",
+    "subtitle": "Attio et Odoo aujourd'hui, d'autres bientôt. Notes, enregistrements et résultats se synchronisent automatiquement."
+  }
+}

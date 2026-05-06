@@ -1,0 +1,15 @@
+{
+  "title": "Team",
+  "description": "Bekijk hoe je team presteert.",
+  "leaderboard": {
+    "title": "Ranglijst",
+    "agent": "Agent",
+    "calls": "Gesprekken",
+    "talkTime": "Gesprekstijd",
+    "answerRate": "Beantwoordingspercentage"
+  },
+  "empty": {
+    "title": "Nog geen teamgenoten",
+    "description": "Nodig je team uit om samen prestaties te volgen."
+  }
+}

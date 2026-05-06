@@ -1,0 +1,26 @@
+{
+  "title": "Marcador",
+  "quickCall": "Llamada rápida",
+  "enterNumber": "Introduce un número",
+  "country": "País",
+  "callerId": "ID de llamante",
+  "selectCallerId": "Selecciona el ID de llamante",
+  "previewDialer": "Marcador previo",
+  "progressiveDialer": "Marcador progresivo",
+  "modes": {
+    "preview": "Previo",
+    "progressive": "Progresivo"
+  },
+  "buttons": {
+    "call": "Llamar",
+    "skip": "Saltar",
+    "next": "Siguiente contacto",
+    "previous": "Contacto anterior",
+    "endSession": "Finalizar sesión"
+  },
+  "session": {
+    "title": "Sesión del marcador",
+    "remaining": "{count} pendientes",
+    "completed": "{count} completados"
+  }
+}

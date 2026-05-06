@@ -1,0 +1,14 @@
+{
+  "title": "Posta in arrivo",
+  "description": "Le chiamate in arrivo, i messaggi e le segreterie in un unico posto.",
+  "filters": {
+    "all": "Tutti",
+    "unread": "Non letti",
+    "missed": "Persi",
+    "voicemail": "Segreteria"
+  },
+  "empty": {
+    "title": "Posta in arrivo vuota",
+    "description": "Sei in pari. I nuovi messaggi appariranno qui."
+  }
+}

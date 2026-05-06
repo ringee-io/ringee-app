@@ -1,0 +1,45 @@
+{
+  "title": "Painel",
+  "description": "Uma visão geral das suas chamadas, contactos e desempenho de prospeção.",
+  "greeting": {
+    "morning": "Bom dia, {name}",
+    "afternoon": "Boa tarde, {name}",
+    "evening": "Boa noite, {name}"
+  },
+  "stats": {
+    "totalCalls": {
+      "title": "Total de chamadas",
+      "description": "Todas as chamadas efetuadas e recebidas."
+    },
+    "talkTime": {
+      "title": "Tempo de conversação",
+      "description": "Tempo total em chamadas."
+    },
+    "answerRate": {
+      "title": "Taxa de resposta",
+      "description": "Percentagem de chamadas de saída atendidas."
+    },
+    "contactsReached": {
+      "title": "Contactos alcançados",
+      "description": "Contactos únicos com quem falou."
+    },
+    "creditsUsed": {
+      "title": "Créditos usados",
+      "description": "Despesas no período selecionado."
+    }
+  },
+  "charts": {
+    "callsOverTime": "Chamadas ao longo do tempo",
+    "callOutcomes": "Resultados das chamadas",
+    "topCountries": "Principais países"
+  },
+  "ranges": {
+    "today": "Hoje",
+    "last7Days": "Últimos 7 dias",
+    "last30Days": "Últimos 30 dias",
+    "last90Days": "Últimos 90 dias",
+    "thisMonth": "Este mês",
+    "lastMonth": "Mês passado",
+    "custom": "Período personalizado"
+  }
+}

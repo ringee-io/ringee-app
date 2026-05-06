@@ -1,0 +1,14 @@
+{
+  "generic": {
+    "title": "Nothing here yet",
+    "description": "Your data will show up here once it exists."
+  },
+  "noResults": {
+    "title": "No results",
+    "description": "Try adjusting your filters or search."
+  },
+  "search": {
+    "title": "Start typing to search",
+    "description": "We'll surface matches as you type."
+  }
+}

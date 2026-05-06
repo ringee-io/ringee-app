@@ -1,0 +1,26 @@
+{
+  "title": "Dialer",
+  "quickCall": "Snel bellen",
+  "enterNumber": "Voer een nummer in",
+  "country": "Land",
+  "callerId": "Beller-ID",
+  "selectCallerId": "Selecteer een beller-ID",
+  "previewDialer": "Preview Dialer",
+  "progressiveDialer": "Progressive Dialer",
+  "modes": {
+    "preview": "Preview",
+    "progressive": "Progressive"
+  },
+  "buttons": {
+    "call": "Bellen",
+    "skip": "Overslaan",
+    "next": "Volgend contact",
+    "previous": "Vorig contact",
+    "endSession": "Sessie beëindigen"
+  },
+  "session": {
+    "title": "Dialer-sessie",
+    "remaining": "{count} resterend",
+    "completed": "{count} voltooid"
+  }
+}

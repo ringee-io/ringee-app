@@ -1,0 +1,16 @@
+{
+  "saved": "Opgeslagen",
+  "updated": "Bijgewerkt",
+  "created": "Aangemaakt",
+  "deleted": "Verwijderd",
+  "imported": "{count} {count, plural, one {item} other {items}} geïmporteerd",
+  "exported": "Export klaar",
+  "copied": "Gekopieerd naar klembord",
+  "linkCopied": "Link gekopieerd",
+  "languageUpdated": "Taal bijgewerkt",
+  "errors": {
+    "saveFailed": "Wijzigingen konden niet worden opgeslagen.",
+    "loadFailed": "Pagina kon niet worden geladen.",
+    "deleteFailed": "Item kon niet worden verwijderd."
+  }
+}

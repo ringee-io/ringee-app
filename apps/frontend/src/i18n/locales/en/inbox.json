@@ -1,0 +1,14 @@
+{
+  "title": "Inbox",
+  "description": "Your inbound calls, messages, and voicemails in one place.",
+  "filters": {
+    "all": "All",
+    "unread": "Unread",
+    "missed": "Missed",
+    "voicemail": "Voicemail"
+  },
+  "empty": {
+    "title": "Inbox zero",
+    "description": "You're all caught up. New messages will show up here."
+  }
+}

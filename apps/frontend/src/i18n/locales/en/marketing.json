@@ -1,0 +1,209 @@
+{
+  "nav": {
+    "product": "Product",
+    "features": "Features",
+    "pricing": "Pricing",
+    "docs": "Docs",
+    "docsForDevelopers": "Docs for Developers",
+    "blog": "Blog",
+    "contact": "Contact",
+    "signIn": "Sign in",
+    "getStarted": "Get started",
+    "navItems": {
+      "features": "Features",
+      "campaigns": "Campaigns",
+      "findLeads": "Find leads & enrich",
+      "integrations": "CRM Integrations",
+      "comparison": "Comparison",
+      "pricing": "Pricing"
+    }
+  },
+  "hero": {
+    "headlinePrefix": "Calls, campaigns &",
+    "headlineHighlight": "CRM",
+    "headlineSuffix": "in one browser tab",
+    "subcopy": "The open-source outbound platform. Run preview and progressive dialers, auto-sync every call to <attio>Attio</attio> or <odoo>Odoo</odoo>, and pay only for the minutes you use.",
+    "tryFreeCall": "Try a free call",
+    "tryFreeCallAria": "Start a free call now",
+    "bookDemo": "Book a demo",
+    "trust": {
+      "noCard": "No credit card to start",
+      "countries": "180+ countries",
+      "firstCall": "First call in 60s",
+      "soc2": "SOC 2-aligned"
+    },
+    "capabilities": {
+      "manualDialer": "Manual dialer",
+      "previewDialer": "Preview dialer",
+      "progressiveDialer": "Progressive dialer",
+      "crmSync": "Attio & Odoo sync",
+      "recordings": "Recordings & transcripts",
+      "browserMobile": "Browser & mobile"
+    }
+  },
+  "features": {
+    "title": "Power Your Calls with Ringee.io",
+    "items": {
+      "smartDialer": {
+        "title": "Smart Dialer",
+        "description": "Make calls worldwide in seconds with HD quality and real-time call analytics."
+      },
+      "buyNumbers": {
+        "title": "Buy Local & International Numbers",
+        "description": "Get verified numbers from multiple countries to expand your reach and manage different brands."
+      },
+      "publicNumbers": {
+        "title": "Public Numbers Ready to Use",
+        "description": "Start calling instantly from a shared Ringee public number—no setup required."
+      },
+      "encryptedRecording": {
+        "title": "Encrypted Call Recording",
+        "description": "Record your calls with full encryption. Each recording is stored securely and only accessible from your Ringee account by you and your authorized team members."
+      },
+      "webMobile": {
+        "title": "Web & Mobile Access",
+        "description": "Use Ringee directly from your browser or Android app with full sync across devices."
+      },
+      "billing": {
+        "title": "Credit & Billing Control",
+        "description": "Track your balance, costs, and top-ups with transparent per-minute pricing."
+      }
+    }
+  },
+  "videoDemo": {
+    "title": "See Ringee in Action",
+    "subtitle": "Watch how you can sign up and start making calls in less than a minute.",
+    "cards": {
+      "quickSetup": { "title": "Quick Setup", "description": "Start calling in under 60 seconds" },
+      "recordCalls": { "title": "Record Calls", "description": "Never miss important details" },
+      "countries": { "title": "180+ Countries", "description": "Global coverage, local rates" },
+      "cheaper": { "title": "50× Cheaper", "description": "Pay as you go pricing" }
+    }
+  },
+  "campaigns": {
+    "kicker": "Outbound campaigns",
+    "title": "Purpose-built dialers for every playbook",
+    "subtitle": "Run cold outreach, follow-ups, and re-engagement with the dialer mode that matches your team's flow — from agent-reviewed calls to hands-off auto-dialing."
+  },
+  "findLeads": {
+    "kicker": "Find leads & enrich",
+    "title": "Find and enrich leads — without leaving Ringee",
+    "subtitle": "Apollo and Prospeo are built in. Search, enrich, and dial in seconds."
+  },
+  "crmIntegrations": {
+    "kicker": "CRM integrations",
+    "title": "Every call auto-logged to your CRM",
+    "subtitle": "Attio and Odoo today, more on the way. Notes, recordings, and outcomes sync automatically."
+  },
+  "pricing": {
+    "title": "Pricing for Individuals & Teams",
+    "subtitle": "Start as an individual with pay-as-you-go, or upgrade to a business plan for collaboration and better volume pricing. Make and receive calls to <strong>180+ countries</strong> and rent numbers in <strong>50+</strong> — instant setup, full control.",
+    "perMonth": "per month",
+    "ctaStart": "Start free",
+    "individual": {
+      "title": "For Individuals (Pay as You Go)",
+      "price": "$0.020",
+      "priceCaption": "per minute (starting rate) — numbers from $1.90/month",
+      "features": {
+        "outbound": "Outbound calling worldwide",
+        "billingPerSecond": "Real-time billing by second",
+        "recording": "Optional call recording",
+        "rentNumbers": "Rent local or toll-free numbers",
+        "instantActivation": "Instant activation and verification",
+        "manageNumbers": "Manage multiple numbers easily"
+      },
+      "cta": "Make a Free 1-Minute Call"
+    },
+    "business": {
+      "title": "For Teams & Companies",
+      "price": "$20.00",
+      "priceCaption": "per month — business features on top of pay-as-you-go usage",
+      "features": {
+        "everythingIndividual": "Everything in the Individual plan",
+        "teamCollab": "Team collaboration and shared dashboards",
+        "unlimitedMembers": "Unlimited members in your team",
+        "volumeRates": "Cheaper per-minute rates with volume",
+        "prioritySupport": "Priority support and onboarding"
+      },
+      "cta": "Go to Sign Up"
+    },
+    "footnote": "* Rates may vary slightly by country. Taxes and carrier fees not included.",
+    "tooltips": {
+      "calls": "Pay only for what you use. Outbound calls start at $0.020/min and vary by destination.",
+      "numbers": "Rent local or international phone numbers starting at $1.90/month in over 50 countries.",
+      "recording": "Record and download your calls for quality assurance and compliance.",
+      "coverage": "Ringee lets you call and receive calls in more than 180 countries with high-quality VoIP routes.",
+      "business": "Designed for teams and sales operations — includes everything in the individual plan plus team features, better rates and priority support."
+    }
+  },
+  "comparison": {
+    "title": "Compare Ringee.io",
+    "subtitle": "How Ringee compares to Adversus and Genesys if you want flexible, browser-based outbound calling without expensive per-seat contracts."
+  },
+  "faq": {
+    "title": "Frequently Asked Questions",
+    "subtitle": "Everything you need to know about using Ringee.io, pricing, and call quality.",
+    "items": {
+      "browserCalling": {
+        "question": "How does browser-based calling work?",
+        "answer": "Ringee.io uses WebRTC technology to connect calls directly from your browser — no downloads or extensions required. When you dial, your browser connects securely to the global phone network in real time."
+      },
+      "incomingCalls": {
+        "question": "Can I receive incoming calls?",
+        "answer": "Yes! You can rent a number from Ringee or use your own verified number to receive calls in your browser. You can even forward calls to your mobile if you prefer."
+      },
+      "sms": {
+        "question": "Do you support SMS messaging?",
+        "answer": "Not yet — our focus is 100% on delivering the best calling quality at the lowest possible rates. SMS support is already on our roadmap for upcoming releases."
+      },
+      "pricing": {
+        "question": "Why are your prices so competitive?",
+        "answer": "Our infrastructure runs on the same Tier-1 networks used by major carriers, but without the middlemen. That means faster connections, transparent pricing, and global reach in over 180 countries."
+      },
+      "vsApps": {
+        "question": "Why not just use apps like WhatsApp or Google Voice?",
+        "answer": "Those apps only allow calls within their own platform. Ringee lets you call any landline or mobile number — worldwide — directly from your browser, no apps or accounts required on the other side."
+      },
+      "privacy": {
+        "question": "Is my call data private?",
+        "answer": "Absolutely. All audio streams are encrypted end-to-end, and we store only minimal metadata for your call history. Your privacy and security are core to our platform."
+      },
+      "subscription": {
+        "question": "Do I need a subscription?",
+        "answer": "No subscriptions here — Ringee.io works on a pay-as-you-go model. Add credit whenever you need, and pay only for the minutes and numbers you actually use."
+      },
+      "addCredit": {
+        "question": "How do I add credit to my account?",
+        "answer": "You can top up instantly with any major credit card or PayPal through our secure Stripe integration. All payments are encrypted and PCI-compliant."
+      },
+      "callQuality": {
+        "question": "What if I experience call quality issues?",
+        "answer": "Quality depends on your internet connection. For the best results, use a stable broadband or Wi-Fi network. If issues persist, our support team can help you troubleshoot in real time."
+      }
+    }
+  },
+  "openSource": {
+    "title": "Proudly open-source",
+    "subtitle": "Self-host Ringee, audit the code, and contribute back. MIT-licensed."
+  },
+  "ctaBanner": {
+    "title": "Ready to Power Your Voice with Ringee.io?",
+    "subtitle": "Start calling smarter — buy numbers, manage calls, and record conversations all in one platform.",
+    "getStarted": "Get Started",
+    "discoverMore": "Discover More"
+  },
+  "footer": {
+    "tagline": "Open-source global calling.",
+    "rights": "All rights reserved.",
+    "featuredOn": "Featured on:",
+    "links": {
+      "features": "Features",
+      "pricing": "Pricing",
+      "faq": "FAQ",
+      "comparison": "Comparison",
+      "blog": "Blog",
+      "privacy": "Privacy",
+      "terms": "Terms"
+    }
+  }
+}

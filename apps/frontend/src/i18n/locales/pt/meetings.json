@@ -1,0 +1,18 @@
+{
+  "title": "Reuniões",
+  "description": "Todas as reuniões agendadas a partir de chamadas a frio",
+  "metaTitle": "Reuniões — Agendadas a partir de chamadas a frio | Ringee",
+  "metaDescription": "Consulte e faça a gestão de todas as reuniões agendadas durante chamadas a frio. Acompanhe os próximos compromissos, reveja os anteriores e mantenha o pipeline em dia.",
+  "newMeeting": "Nova reunião",
+  "fields": {
+    "title": "Título",
+    "with": "Com",
+    "when": "Quando",
+    "duration": "Duração",
+    "notes": "Notas"
+  },
+  "empty": {
+    "title": "Sem reuniões agendadas",
+    "description": "Quando agendar uma reunião, ela aparecerá aqui."
+  }
+}

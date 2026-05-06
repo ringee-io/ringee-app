@@ -1,0 +1,30 @@
+{
+  "validation": {
+    "required": "Dieses Feld ist erforderlich.",
+    "email": "Bitte geben Sie eine gültige E-Mail-Adresse ein.",
+    "phone": "Bitte geben Sie eine gültige Telefonnummer ein.",
+    "minLength": "Muss mindestens {count} Zeichen enthalten.",
+    "maxLength": "Darf höchstens {count} Zeichen enthalten.",
+    "min": "Muss mindestens {min} sein.",
+    "max": "Darf höchstens {max} sein.",
+    "url": "Bitte geben Sie eine gültige URL ein.",
+    "passwordsMatch": "Die Passwörter stimmen nicht überein.",
+    "alreadyExists": "Existiert bereits.",
+    "invalid": "Ungültiger Wert."
+  },
+  "placeholders": {
+    "search": "Suchen…",
+    "selectOption": "Option auswählen",
+    "typeHere": "Hier tippen…"
+  },
+  "fileUpload": {
+    "drop": "Datei hier ablegen",
+    "or": "oder",
+    "browse": "durchsuchen",
+    "uploading": "Wird hochgeladen…",
+    "uploaded": "Hochgeladen",
+    "removeFile": "Datei entfernen",
+    "tooLarge": "Datei ist zu groß. Maximal {size}.",
+    "wrongType": "Dateityp wird nicht unterstützt."
+  }
+}

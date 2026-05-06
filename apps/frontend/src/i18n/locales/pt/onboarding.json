@@ -1,0 +1,20 @@
+{
+  "welcome": {
+    "title": "Bem-vindo à Ringee",
+    "description": "Vamos configurar o seu espaço de trabalho em poucos minutos."
+  },
+  "steps": {
+    "profile": "Fale-nos sobre si",
+    "organization": "Crie a sua organização",
+    "number": "Escolha um número de telefone",
+    "credits": "Adicione créditos",
+    "done": "Tudo pronto"
+  },
+  "actions": {
+    "skip": "Saltar por agora",
+    "finish": "Concluir configuração",
+    "letsGo": "Vamos lá"
+  },
+  "headerButton": "Configuração",
+  "progress": "{current} de {total}"
+}

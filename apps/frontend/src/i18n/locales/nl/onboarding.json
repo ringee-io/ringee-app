@@ -1,0 +1,20 @@
+{
+  "welcome": {
+    "title": "Welkom bij Ringee",
+    "description": "Laten we je werkruimte in een paar minuten instellen."
+  },
+  "steps": {
+    "profile": "Vertel ons over jezelf",
+    "organization": "Maak je organisatie aan",
+    "number": "Kies een telefoonnummer",
+    "credits": "Tegoed toevoegen",
+    "done": "Helemaal klaar"
+  },
+  "actions": {
+    "skip": "Voor nu overslaan",
+    "finish": "Setup voltooien",
+    "letsGo": "Aan de slag"
+  },
+  "headerButton": "Setup",
+  "progress": "{current} van {total}"
+}
