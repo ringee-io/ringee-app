@@ -4,7 +4,7 @@ import { AttioIntegrationDocs } from '@/features/integrations/components/attio-i
 export const metadata: Metadata = {
   title: 'Attio Integration — Call from your CRM',
   description:
-    'Connect Ringee to Attio and start calls directly from Person and Company records. Call activity, recordings, and notes sync back automatically.',
+    'Connect Ringee to Attio and start calls directly from person and company records. Call activity, recordings, and notes sync back automatically.',
   keywords: [
     'Ringee Attio integration',
     'Attio CRM calling',

@@ -132,7 +132,7 @@ function HeroSection() {
           </h1>
 
           <p className="mx-auto mt-6 max-w-2xl text-lg text-muted-foreground">
-            Launch Ringee directly from any Person or Company record in Attio.
+            Launch Ringee directly from any person or company record in Attio.
             Call context flows in, call activity flows back. No tab-switching, no
             copy-pasting numbers.
           </p>
@@ -204,7 +204,7 @@ function FeaturesGrid() {
       icon: Phone,
       title: 'Call with Ringee from Attio records',
       description:
-        'A Record Action on Person and Company records lets you launch a call in one click. The integration passes the right phone number and record context to Ringee.',
+        'A Record Action on person and company records lets you launch a call in one click. The integration passes the right phone number and record context to Ringee.',
     },
     {
       icon: MonitorSmartphone,
@@ -291,7 +291,7 @@ function HowItWorks() {
     },
     {
       step: '03',
-      title: 'Open a Person or Company record',
+      title: 'Open a person or company record',
       description:
         'Navigate to any record in Attio that has a phone number. The Ringee Record Action appears in the actions bar.',
     },
@@ -362,7 +362,7 @@ function InsideAttio() {
     {
       title: 'Record Action',
       description:
-        'Appears in the actions bar on Person and Company records. One click opens the pre-call dialog.',
+        'Appears in the actions bar on person and company records. One click opens the pre-call dialog.',
     },
     {
       title: 'Call Dialog',
@@ -520,7 +520,7 @@ function UseCases() {
     {
       title: 'Operations teams',
       description:
-        'Coordinate with vendors, partners, and suppliers. Call history lives on the Company record for the whole team to see.',
+        'Coordinate with vendors, partners, and suppliers. Call history lives on the company record for the whole team to see.',
     },
   ];
 
@@ -597,7 +597,7 @@ function FAQSection() {
     {
       question: 'What Attio record types are supported?',
       answer:
-        'The integration works with Person and Company records. Any record that has a phone number field can trigger the "Call with Ringee" action.',
+        'The integration works with person and company records. Any record that has a phone number field can trigger the "Call with Ringee" action.',
     },
   ];
 
