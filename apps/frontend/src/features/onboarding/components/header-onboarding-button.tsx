@@ -9,12 +9,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@ringee/frontend-shared/components/ui/tooltip';
+import { useTranslations } from 'next-intl';
 
 /**
  * Header button that appears when user dismissed onboarding but hasn't completed all steps.
  * Clicking it brings the onboarding guide back.
  */
 export function HeaderOnboardingButton() {
+  const t = useTranslations('onboarding.headerProgress');
   const { showHeaderButton, undismiss, completedCount, totalSteps, isLoading } = useOnboarding();
 
   if (isLoading || !showHeaderButton) {
@@ -80,12 +82,12 @@ export function HeaderOnboardingButton() {
             </div>
             
             <span className="text-xs font-semibold">
-              Setup guide <span className="opacity-75 font-normal ml-0.5">• {Math.round(progressPercent)}%</span>
+              {t('label')} <span className="opacity-75 font-normal ml-0.5">• {Math.round(progressPercent)}%</span>
             </span>
           </Button>
         </TooltipTrigger>
         <TooltipContent side="bottom" className="text-xs font-medium">
-          Resume onboarding progress
+          {t('tooltip')}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>

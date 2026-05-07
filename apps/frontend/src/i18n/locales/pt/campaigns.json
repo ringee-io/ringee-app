@@ -1,0 +1,48 @@
+{
+  "title": "Campanhas",
+  "description": "Faça a gestão de campanhas de chamadas de saída",
+  "metaTitle": "Campanhas — Chamadas de saída | Ringee",
+  "metaDescription": "Faça a gestão das suas campanhas de chamadas de saída. Crie campanhas, importe leads, configure marcadores e acompanhe o desempenho.",
+  "newCampaign": "Nova campanha",
+  "create": {
+    "title": "Nova campanha",
+    "description": "Crie e configure uma campanha de chamadas de saída",
+    "metaTitle": "Nova campanha | Ringee",
+    "metaDescription": "Crie uma nova campanha de chamadas de saída.",
+    "namePlaceholder": "Q1 outbound — EUA Enterprise",
+    "submit": "Criar campanha"
+  },
+  "edit": {
+    "title": "Editar campanha"
+  },
+  "detail": {
+    "metaTitle": "Detalhe da campanha | Ringee",
+    "metaDescription": "Consulte e faça a gestão da sua campanha de chamadas de saída."
+  },
+  "fields": {
+    "name": "Nome",
+    "list": "Lista de contactos",
+    "mode": "Modo do marcador",
+    "callerId": "ID do chamador",
+    "script": "Script"
+  },
+  "status": {
+    "draft": "Rascunho",
+    "scheduled": "Agendada",
+    "running": "A decorrer",
+    "paused": "Em pausa",
+    "completed": "Concluída"
+  },
+  "actions": {
+    "start": "Iniciar",
+    "pause": "Pausar",
+    "resume": "Retomar",
+    "stop": "Parar",
+    "duplicate": "Duplicar"
+  },
+  "empty": {
+    "title": "Ainda sem campanhas",
+    "description": "Crie a sua primeira campanha para começar a contactar em larga escala.",
+    "action": "Criar campanha"
+  }
+}

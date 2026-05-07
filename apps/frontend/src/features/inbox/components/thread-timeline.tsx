@@ -25,6 +25,7 @@ import {
 } from '../hooks/use-inbox';
 import { EventBubble } from './event-bubble';
 import { Composer } from './composer';
+import { useTranslations } from 'next-intl';
 
 interface Props {
   thread: InboxThread | null;
@@ -41,6 +42,7 @@ function dateHeader(iso: string) {
 }
 
 export function ThreadTimeline({ thread, onChanged }: Props) {
+  const t = useTranslations('inbox');
   const { events, loading, reload } = useThreadEvents(thread?.id ?? null);
   const actions = useThreadActions(() => {
     onChanged();
@@ -67,7 +69,7 @@ export function ThreadTimeline({ thread, onChanged }: Props) {
       <div className='flex flex-1 items-center justify-center text-muted-foreground'>
         <div className='text-center'>
           <InboxIcon className='mx-auto mb-3 h-10 w-10' />
-          <p className='text-sm'>Select a conversation to start</p>
+          <p className='text-sm'>{t('timeline.selectConversation')}</p>
         </div>
       </div>
     );
@@ -91,13 +93,15 @@ export function ThreadTimeline({ thread, onChanged }: Props) {
           </h2>
           <p className='truncate text-xs text-muted-foreground'>
             {thread.participantNumberE164 ?? thread.participantNumber}
-            {thread.ringeeNumber ? ` · via ${thread.ringeeNumber}` : ''}
+            {thread.ringeeNumber
+              ? ` · ${t('timeline.viaNumber', { number: thread.ringeeNumber })}`
+              : ''}
           </p>
         </div>
         <div className='flex items-center gap-2'>
           {thread.contactId ? null : (
             <Button variant='outline' size='sm' disabled>
-              Link contact
+              {t('timeline.linkContact')}
             </Button>
           )}
           <Button
@@ -112,7 +116,7 @@ export function ThreadTimeline({ thread, onChanged }: Props) {
             }}
           >
             <Phone className='mr-1 h-4 w-4' />
-            Call
+            {t('timeline.call')}
           </Button>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -123,16 +127,17 @@ export function ThreadTimeline({ thread, onChanged }: Props) {
             <DropdownMenuContent align='end'>
               {thread.status !== 'resolved' && (
                 <DropdownMenuItem onClick={() => actions.resolve(thread.id)}>
-                  <CheckCircle2 className='mr-2 h-4 w-4' /> Mark resolved
+                  <CheckCircle2 className='mr-2 h-4 w-4' />{' '}
+                  {t('timeline.markResolved')}
                 </DropdownMenuItem>
               )}
               {thread.status !== 'archived' ? (
                 <DropdownMenuItem onClick={() => actions.archive(thread.id)}>
-                  <Archive className='mr-2 h-4 w-4' /> Archive
+                  <Archive className='mr-2 h-4 w-4' /> {t('timeline.archive')}
                 </DropdownMenuItem>
               ) : (
                 <DropdownMenuItem onClick={() => actions.reopen(thread.id)}>
-                  <RotateCcw className='mr-2 h-4 w-4' /> Reopen
+                  <RotateCcw className='mr-2 h-4 w-4' /> {t('timeline.reopen')}
                 </DropdownMenuItem>
               )}
             </DropdownMenuContent>
@@ -145,11 +150,11 @@ export function ThreadTimeline({ thread, onChanged }: Props) {
           <div className='space-y-3 p-4'>
             {loading && events.length === 0 ? (
               <p className='text-center text-xs text-muted-foreground'>
-                Loading…
+                {t('timeline.loading')}
               </p>
             ) : events.length === 0 ? (
               <p className='text-center text-xs text-muted-foreground'>
-                No activity yet — send a message or place a call to start.
+                {t('timeline.noActivity')}
               </p>
             ) : (
               groups.map((g) => (

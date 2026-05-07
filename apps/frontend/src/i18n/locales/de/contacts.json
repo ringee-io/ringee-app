@@ -1,0 +1,61 @@
+{
+  "title": "Kontakte",
+  "description": "Ihr Adressbuch mit Leads, Kunden und Interessenten.",
+  "metaTitle": "Kontakte | Ringee",
+  "metaDescription": "Ihr Adressbuch mit Leads, Kunden und Interessenten.",
+  "newContact": "Neuer Kontakt",
+  "addContact": "Kontakt hinzufügen",
+  "fields": {
+    "firstName": "Vorname",
+    "lastName": "Nachname",
+    "email": "E-Mail",
+    "phone": "Telefon",
+    "phoneLabel": "Telefonnummer",
+    "company": "Unternehmen",
+    "title": "Position",
+    "tags": "Tags",
+    "notes": "Notizen"
+  },
+  "table": {
+    "name": "Name",
+    "phone": "Telefon",
+    "email": "E-Mail",
+    "company": "Unternehmen",
+    "lastCall": "Letzter Anruf",
+    "tags": "Tags"
+  },
+  "empty": {
+    "title": "Noch keine Kontakte",
+    "description": "Fügen Sie Ihren ersten Kontakt hinzu oder importieren Sie eine CSV-Datei.",
+    "action": "Kontakt hinzufügen"
+  },
+  "delete": {
+    "title": "Kontakt löschen?",
+    "description": "{name} wird dauerhaft aus Ihren Kontakten entfernt.",
+    "confirm": "Kontakt löschen"
+  },
+  "import": {
+    "title": "Kontakte importieren",
+    "description": "Laden Sie eine CSV-Datei mit Ihren Kontakten hoch.",
+    "dropzone": "CSV hierher ziehen oder zum Durchsuchen klicken",
+    "submit": "Importieren",
+    "action": "Importieren"
+  },
+  "export": {
+    "action": "Exportieren"
+  },
+  "detail": {
+    "metaTitle": "Kontakt — Details | Ringee",
+    "metaDescription": "Sehen Sie alle Kontaktdaten ein, einschließlich Anrufverlauf, Notizen, Tags und mehr."
+  },
+  "editPage": {
+    "metaTitle": "Kontakt — Bearbeiten | Ringee",
+    "metaDescription": "Bearbeiten Sie die Kontaktdaten, um Ihren Vertriebs- und Anrufprozess organisiert und effizient zu halten."
+  },
+  "kanban": {
+    "title": "Sales-Pipeline",
+    "description": "Verwalten Sie Ihre Leads visuell",
+    "metaTitle": "Sales-Pipeline — Leads visualisieren und organisieren | Ringee",
+    "metaDescription": "Verwalten Sie Ihre Sales-Pipeline visuell mit Ringee. Organisieren Sie Leads, erfassen Sie Anrufe und führen Sie Deals durch jede Phase."
+  }
+}

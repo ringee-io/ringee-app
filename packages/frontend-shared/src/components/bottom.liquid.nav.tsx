@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { GlassCard } from '@developer-hub/liquid-glass';
+import { useTranslations } from 'next-intl';
 
 // @ts-ignore
 import { motion } from 'framer-motion';
@@ -16,8 +17,27 @@ import {
 import { navItems } from '../constants/data';
 import { Icons } from './icons';
 
+const ITEM_TITLE_KEYS: Record<string, string> = {
+  Dashboard: 'items.dashboard',
+  Contacts: 'items.contacts',
+  Activities: 'items.activities',
+  Meetings: 'items.meetings',
+  Call: 'items.call',
+  Inbox: 'items.inbox',
+  Campaigns: 'items.campaigns',
+  Callbacks: 'items.callbacks',
+  DNC: 'items.dnc',
+  Overview: 'items.overview',
+  Integrations: 'items.integrations'
+};
+
 export function BottomLiquidNav() {
   const pathname = usePathname();
+  const tNav = useTranslations('navigation');
+  const localizeTitle = (title: string) => {
+    const key = ITEM_TITLE_KEYS[title];
+    return key ? tNav(key) : title;
+  };
 
   return (
     <div className='pointer-events-none fixed inset-x-0 bottom-0 z-50 flex w-full justify-center'>
@@ -32,9 +52,10 @@ export function BottomLiquidNav() {
           aria-label='Bottom navigation'
           className='flex items-center justify-center gap-5 px-2'
         >
-          {navItems.map(({ url, title: label, icon, items }) => {
+          {navItems.map(({ url, title, icon, items }) => {
             // @ts-ignore
             const Icon = Icons[icon];
+            const label = localizeTitle(title);
 
             const active =
               pathname === url || (url !== '/' && pathname?.startsWith(url));
@@ -79,9 +100,10 @@ export function BottomLiquidNav() {
                       padding='10px 16px'
                       className='bg-sidebar text-sidebar-foreground min-w-[160px] space-y-1'
                     >
-                      {items.map(({ url, title: label, icon }) => {
+                      {items.map(({ url, title, icon }) => {
                         // @ts-ignore
                         const SubIcon = Icons[icon];
+                        const label = localizeTitle(title);
                         const active =
                           pathname === url ||
                           (url !== '/' && pathname?.startsWith(url));

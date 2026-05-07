@@ -1,0 +1,14 @@
+{
+  "generic": {
+    "title": "Ancora nulla qui",
+    "description": "I tuoi dati appariranno qui non appena saranno disponibili."
+  },
+  "noResults": {
+    "title": "Nessun risultato",
+    "description": "Prova a modificare i filtri o la ricerca."
+  },
+  "search": {
+    "title": "Inizia a digitare per cercare",
+    "description": "Mostreremo le corrispondenze mentre digiti."
+  }
+}

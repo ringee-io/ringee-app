@@ -16,6 +16,7 @@ import {
   Settings2,
   Users,
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import type { CrmConnectionSummary } from '../types/crm';
 import { PROVIDER_META } from '../types/crm';
 import { SyncHistoryTab } from './tabs/sync-history-tab';
@@ -30,6 +31,7 @@ interface Props {
 }
 
 export function ConnectionManagementSheet({ connection, open, onOpenChange }: Props) {
+  const t = useTranslations('crm');
   if (!connection) return null;
 
   const meta = PROVIDER_META[connection.provider];
@@ -46,7 +48,7 @@ export function ConnectionManagementSheet({ connection, open, onOpenChange }: Pr
               <SheetTitle className="flex items-center gap-2 text-base">
                 {meta.name}
                 <Badge variant="outline" className="text-[10px] font-normal">
-                  {connection.scope === 'organization' ? 'Organization' : 'Personal'}
+                  {connection.scope === 'organization' ? t('scope.organization') : t('scope.personal')}
                 </Badge>
               </SheetTitle>
               <SheetDescription className="truncate text-xs">
@@ -64,7 +66,7 @@ export function ConnectionManagementSheet({ connection, open, onOpenChange }: Pr
                 className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none gap-1.5"
               >
                 <Clock className="h-3.5 w-3.5" />
-                Sync History
+                {t('managementSheet.syncHistory')}
                 {(connection.failed > 0 || connection.needsResolution > 0) && (
                   <Badge variant="destructive" className="ml-1 h-4 min-w-4 px-1 text-[10px]">
                     {connection.failed + connection.needsResolution}
@@ -76,21 +78,21 @@ export function ConnectionManagementSheet({ connection, open, onOpenChange }: Pr
                 className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none gap-1.5"
               >
                 <ArrowDownToLine className="h-3.5 w-3.5" />
-                Import
+                {t('managementSheet.import')}
               </TabsTrigger>
               <TabsTrigger
                 value="mappings"
                 className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none gap-1.5"
               >
                 <Settings2 className="h-3.5 w-3.5" />
-                Field Mappings
+                {t('managementSheet.fieldMappings')}
               </TabsTrigger>
               <TabsTrigger
                 value="team"
                 className="relative rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent data-[state=active]:shadow-none gap-1.5"
               >
                 <Users className="h-3.5 w-3.5" />
-                Team
+                {t('managementSheet.team')}
               </TabsTrigger>
             </TabsList>
           </div>

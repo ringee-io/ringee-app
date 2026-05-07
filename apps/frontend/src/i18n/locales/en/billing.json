@@ -1,0 +1,89 @@
+{
+  "title": "Billing",
+  "description": "Manage your plan, credits, and invoices.",
+  "credits": {
+    "title": "Credits",
+    "available": "Available credits",
+    "lowBalance": "Your balance is running low.",
+    "topUp": "Top up",
+    "topUpAction": "Add credits",
+    "history": "Credit history",
+    "popover": {
+      "freeCallButton": "Call for free",
+      "freeCallSubtitle": "1 minute on us",
+      "availableCredit": "Available credit",
+      "header": "Add Credits",
+      "subheader": "Recharge instantly or set up automatic funding.",
+      "tabs": {
+        "oneTime": "One-time",
+        "monthly": "Monthly",
+        "autoReload": "Auto-reload"
+      },
+      "common": {
+        "redirecting": "Redirecting...",
+        "chooseAmount": "Choose amount",
+        "customAmountLabel": "Or enter custom amount"
+      },
+      "oneTime": {
+        "customPlaceholder": "e.g. 40",
+        "newBalance": "New balance",
+        "estimatedTime": "Estimated calling time: {minutes} minutes",
+        "checkout": "Secure Checkout"
+      },
+      "monthly": {
+        "activeTitle": "Monthly fund active",
+        "activeDescription": "<b>${amount}</b> will be added to your balance every month automatically.",
+        "cancelling": "Cancelling...",
+        "cancel": "Cancel Monthly Fund",
+        "intro": "Set a fixed monthly amount that will be automatically added to your balance every month. No more manual recharges.",
+        "amountLabel": "Monthly amount",
+        "customPlaceholder": "e.g. 75",
+        "perMonthSuffix": "/mo",
+        "monthlyCharge": "Monthly charge",
+        "monthlyChargeValue": "${amount}/month",
+        "estimatedTime": "~{minutes} minutes of calling per month",
+        "subscribe": "Subscribe Monthly Fund"
+      },
+      "autoReload": {
+        "activeTitle": "Auto-reload active",
+        "activeDescription": "When your balance drops below <b>${threshold}</b>, <b>${amount}</b> will be charged and added automatically.",
+        "toggleLabel": "Auto-reload enabled",
+        "intro": "Never run out of credit. Set a minimum balance threshold and we'll automatically reload your account.",
+        "thresholdLabel": "Reload when balance drops below",
+        "amountLabel": "Reload amount",
+        "customPlaceholder": "Custom amount",
+        "summary": "Your card will be charged <b>${amount}</b> now and saved for future automatic reloads when your balance drops below <b>${threshold}</b>.",
+        "enable": "Enable Auto-Reload"
+      },
+      "footer": {
+        "secureByStripe": "Secure by Stripe",
+        "refundGuarantee": "100% Refund Guarantee"
+      }
+    }
+  },
+  "subscription": {
+    "title": "Subscription",
+    "plan": "Plan",
+    "renews": "Renews on {date}",
+    "cancelAt": "Cancels on {date}",
+    "manage": "Manage subscription",
+    "upgrade": "Upgrade plan",
+    "downgrade": "Downgrade",
+    "cancel": "Cancel subscription"
+  },
+  "invoices": {
+    "title": "Invoices",
+    "number": "Invoice",
+    "date": "Date",
+    "amount": "Amount",
+    "status": "Status",
+    "download": "Download",
+    "empty": "No invoices yet."
+  },
+  "paymentMethod": {
+    "title": "Payment method",
+    "addCard": "Add card",
+    "expiresOn": "Expires {date}",
+    "default": "Default"
+  }
+}

@@ -1,6 +1,9 @@
 import type { NextConfig } from 'next';
 import { withSentryConfig } from '@sentry/nextjs';
+import createNextIntlPlugin from 'next-intl/plugin';
 import withPWA from 'next-pwa' with { type: 'macro' };
+
+const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
 // Define the base Next.js configuration
 const baseConfig: NextConfig = {
@@ -77,7 +80,7 @@ if (!process.env.NEXT_PUBLIC_SENTRY_DISABLED) {
   });
 }
 
-const nextConfig = configWithPlugins;
+const nextConfig = withNextIntl(configWithPlugins);
 
 export default withPWA({
   dest: 'public',

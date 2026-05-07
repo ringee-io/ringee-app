@@ -1,0 +1,263 @@
+{
+  "title": "Dashboard",
+  "description": "Een overzicht van je gesprekken, contacten en outreach-prestaties.",
+  "greeting": {
+    "morning": "Goedemorgen, {name}",
+    "afternoon": "Goedemiddag, {name}",
+    "evening": "Goedenavond, {name}"
+  },
+  "stats": {
+    "totalCalls": {
+      "title": "Totaal aantal gesprekken",
+      "description": "Alle gevoerde en ontvangen gesprekken."
+    },
+    "talkTime": {
+      "title": "Gesprekstijd",
+      "description": "Totale tijd in gesprekken."
+    },
+    "answerRate": {
+      "title": "Beantwoordingspercentage",
+      "description": "Percentage uitgaande gesprekken dat is beantwoord."
+    },
+    "contactsReached": {
+      "title": "Bereikte contacten",
+      "description": "Unieke contacten waarmee je hebt gesproken."
+    },
+    "creditsUsed": {
+      "title": "Gebruikte tegoeden",
+      "description": "Uitgaven over de geselecteerde periode."
+    }
+  },
+  "charts": {
+    "callsOverTime": "Gesprekken in de tijd",
+    "callOutcomes": "Gespreksresultaten",
+    "topCountries": "Top-landen"
+  },
+  "ranges": {
+    "today": "Vandaag",
+    "last7Days": "Laatste 7 dagen",
+    "last30Days": "Laatste 30 dagen",
+    "last90Days": "Laatste 90 dagen",
+    "thisMonth": "Deze maand",
+    "lastMonth": "Vorige maand",
+    "custom": "Aangepaste periode",
+    "yesterday": "Gisteren"
+  },
+  "filters": {
+    "scope": {
+      "organization": "Organisatie",
+      "personal": "Persoonlijk"
+    },
+    "allOutcomes": "Alle resultaten",
+    "allMembers": "Alle leden",
+    "allCampaigns": "Alle campagnes",
+    "searchMembers": "Leden zoeken…",
+    "noMembers": "Geen leden",
+    "memberFallback": "Lid",
+    "customRange": {
+      "title": "Kies een aangepaste periode",
+      "from": "Van",
+      "to": "Tot",
+      "aria": "Aangepaste periode"
+    }
+  },
+  "outcomes": {
+    "meeting_booked": "Afspraak ingepland",
+    "sale": "Verkoop",
+    "interested": "Geïnteresseerd",
+    "follow_up": "Opvolging",
+    "not_interested": "Niet geïnteresseerd",
+    "no_answer": "Geen antwoord",
+    "voicemail": "Voicemail",
+    "wrong_number": "Verkeerd nummer",
+    "gatekeeper": "Gatekeeper"
+  },
+  "widgets": {
+    "shell": {
+      "loading": "Laden…",
+      "failedToLoad": "Laden mislukt",
+      "empty": "Nog niets om te tonen",
+      "dragAria": "Widget verplaatsen",
+      "removeAria": "Widget verwijderen",
+      "unknownKpi": "Onbekende KPI: {type}"
+    },
+    "addWidget": "Widget toevoegen",
+    "categoryLabel": {
+      "KPI": "KPI-widgets",
+      "Chart": "Grafiek-widgets",
+      "Table": "Tabel-widgets"
+    },
+    "catalog": {
+      "kpi_total_calls": { "title": "Totaal aantal gesprekken", "description": "Gesprekken in de geselecteerde periode." },
+      "kpi_answered_calls": { "title": "Beantwoorde gesprekken", "description": "Gesprekken die door een persoon beantwoord zijn." },
+      "kpi_meetings_booked": { "title": "Afspraken ingepland", "description": "Afspraken in de agenda voor deze periode." },
+      "kpi_sales": { "title": "Verkoop", "description": "Gesprekken met resultaat \"Verkoop\"." },
+      "kpi_interested": { "title": "Geïnteresseerde leads", "description": "Gesprekken met resultaat \"Geïnteresseerd\"." },
+      "kpi_follow_ups": { "title": "Opvolgingen", "description": "Gesprekken gemarkeerd voor opvolging." },
+      "kpi_no_answer": { "title": "Geen antwoord", "description": "Gesprekken die niet werden beantwoord." },
+      "kpi_voicemail": { "title": "Voicemail", "description": "Gesprekken die in de voicemail eindigden." },
+      "kpi_wrong_number": { "title": "Verkeerd nummer", "description": "Gesprekken gemarkeerd als verkeerd nummer." },
+      "kpi_conversion_rate": { "title": "Conversiepercentage", "description": "Verkopen / beantwoorde gesprekken." },
+      "kpi_meeting_rate": { "title": "Afspraakpercentage", "description": "Geboekte afspraken / beantwoorde gesprekken." },
+      "kpi_positive_outcome_rate": { "title": "Percentage positief resultaat", "description": "(Verkoop + Afspraken + Geïnteresseerd) / beantwoord." },
+      "chart_outcome_funnel": { "title": "Resultatenfunnel", "description": "Totaal → Beantwoord → Geïnteresseerd → Afspraken → Verkoop." },
+      "chart_outcomes_over_time": { "title": "Resultaten in de tijd", "description": "Gestapelde resultaten per dag/week/maand." },
+      "chart_best_time_of_day": { "title": "Beste beluren", "description": "Uren met de meeste resultaten." },
+      "chart_calls_by_outcome": { "title": "Gesprekken per resultaat", "description": "Verdeling van resultaten." },
+      "table_recent_high_value_calls": { "title": "Hoog-waardige gesprekken", "description": "Recente verkopen, afspraken, geïnteresseerden, opvolgingen." },
+      "table_upcoming_meetings": { "title": "Aankomende afspraken", "description": "Afspraken in de agenda." },
+      "table_agent_performance": { "title": "Agentprestaties", "description": "Per-agent overzicht (alleen org-admins)." }
+    },
+    "kpi": {
+      "totalCalls": {
+        "label": "Totaal aantal gesprekken",
+        "hint": "{rate}% beantwoord",
+        "emptyHint": "Gesprekken in deze periode verschijnen hier."
+      },
+      "answeredCalls": {
+        "label": "Beantwoorde gesprekken",
+        "hint": "{rate}% beantwoord",
+        "emptyHint": "Gesprekken die een persoon hebben bereikt verschijnen hier."
+      },
+      "meetingsBooked": {
+        "label": "Afspraken ingepland",
+        "hintExtra": "+{count} gemarkeerd zonder agenda-event",
+        "hintFromScheduled": "Uit geplande afspraken",
+        "emptyHint": "Geplande afspraken verschijnen hier nadat een gesprek als afspraak is gemarkeerd of via Google/Microsoft Calendar is gepland."
+      },
+      "sales": {
+        "label": "Verkoop",
+        "hint": "{rate}% conversie",
+        "emptyHint": "Gesprekken met resultaat \"Verkoop\" verschijnen hier."
+      },
+      "interested": {
+        "label": "Geïnteresseerde leads",
+        "emptyHint": "Gesprekken gemarkeerd als \"Geïnteresseerd\" verschijnen hier."
+      },
+      "followUps": {
+        "label": "Opvolgingen",
+        "emptyHint": "Gesprekken gemarkeerd als \"Opvolging\" verschijnen hier."
+      },
+      "noAnswer": {
+        "label": "Geen antwoord",
+        "emptyHint": "Gesprekken zonder antwoord verschijnen hier."
+      },
+      "voicemail": {
+        "label": "Voicemail",
+        "emptyHint": "Gesprekken in de voicemail verschijnen hier."
+      },
+      "wrongNumber": {
+        "label": "Verkeerd nummer",
+        "emptyHint": "Gesprekken gemarkeerd als \"Verkeerd nummer\" verschijnen hier."
+      },
+      "conversionRate": {
+        "label": "Conversiepercentage",
+        "hint": "{sales} verkopen / {answered} beantwoord",
+        "emptyHint": "Conversiepercentage = verkopen ÷ beantwoorde gesprekken. Markeer gesprekken als \"Verkoop\" om data te zien."
+      },
+      "meetingRate": {
+        "label": "Afspraakpercentage",
+        "hint": "{meetings} afspraken / {answered} beantwoord",
+        "emptyHint": "Afspraakpercentage = geboekte afspraken ÷ beantwoorde gesprekken. Plan een afspraak vanuit een gesprek om data te zien."
+      },
+      "positiveOutcomeRate": {
+        "label": "Percentage positief resultaat",
+        "hint": "(Verkoop + Afspraken + Geïnteresseerd) / Beantwoord",
+        "emptyHint": "Telt verkopen, geboekte afspraken en geïnteresseerden als aandeel van beantwoorde gesprekken."
+      }
+    },
+    "outcomeFunnel": {
+      "emptyHint": "Zodra je gespreksresultaten registreert, verschijnt hier de funnel van totale gesprekken naar verkopen.",
+      "labels": {
+        "totalCalls": "Totale gesprekken",
+        "answered": "Beantwoord",
+        "interested": "Geïnteresseerd",
+        "meetingsBooked": "Geboekte afspraken",
+        "sales": "Verkopen"
+      }
+    },
+    "outcomesOverTime": {
+      "emptyHint": "Registreer resultaten op je gesprekken om te zien hoe verkopen, afspraken en geïnteresseerden zich in de tijd ontwikkelen.",
+      "series": {
+        "sales": "Verkoop",
+        "meetings": "Afspraken",
+        "interested": "Geïnteresseerd",
+        "followUps": "Opvolgingen",
+        "noAnswer": "Geen antwoord"
+      }
+    },
+    "bestTime": {
+      "emptyHint": "Zodra er resultaten binnenkomen, laat deze grafiek zien op welke uren van de dag de meeste resultaten ontstaan.",
+      "metrics": {
+        "sales": "Verkoop",
+        "meetings": "Afspraken ingepland",
+        "interested": "Geïnteresseerde leads"
+      },
+      "tooltip": "{count} om {hour}"
+    },
+    "byOutcome": {
+      "emptyHint": "Kies een resultaat per gesprek (Verkoop, Geïnteresseerd, Voicemail, enz.) om te zien hoe je resultaten zich verdelen."
+    },
+    "recentHighValue": {
+      "emptyHint": "Gesprekken gemarkeerd als Verkoop, Afspraak ingepland, Geïnteresseerd of Opvolging verschijnen hier zodat je weet wat je moet opvolgen."
+    },
+    "upcomingMeetings": {
+      "emptyHint": "Plan een afspraak vanuit een gesprek (of synchroniseer je Google/Microsoft Calendar) en hij verschijnt hier.",
+      "fromCall": "Vanuit gesprek"
+    },
+    "agentPerformance": {
+      "emptyHint": "Agentprestaties zijn beschikbaar voor org-admins. Zodra je team gesprekken voert, verschijnt hier het overzicht.",
+      "headers": {
+        "agent": "Agent",
+        "calls": "Gesprekken",
+        "answered": "Beantwoord",
+        "meetings": "Afspraken",
+        "sales": "Verkoop",
+        "interested": "Geïnteresseerd",
+        "conversion": "Conv %",
+        "meetRate": "Afspr %"
+      }
+    }
+  },
+  "page": {
+    "headerOrg": "Outbound-prestaties",
+    "headerSolo": "Jouw belprestaties",
+    "subtitle": "Resultaten, conversie en de beste beluren — over de gekozen periode.",
+    "savingLayout": "Layout opslaan…",
+    "doneEditing": "Klaar met bewerken",
+    "customize": "Aanpassen"
+  },
+  "overview": {
+    "welcome": "Hé, welkom terug 👋",
+    "tabs": {
+      "overview": "Overzicht",
+      "analytics": "Analytics"
+    },
+    "cards": {
+      "totalCalls": {
+        "title": "Totaal aantal gesprekken",
+        "trend": "Stijgende trend deze maand",
+        "subtitle": "Verbindingspercentage van de laatste 6 maanden",
+        "answered": "{rate}% beantwoord",
+        "missed": "{rate}% gemist"
+      },
+      "averageDuration": {
+        "title": "Gemiddelde duur",
+        "up": "+{rate}% deze periode",
+        "down": "-{rate}% deze periode",
+        "subtitleUp": "Gebruikers blijven langer in gesprek",
+        "subtitleDown": "Gemiddelde gespreksduur is gedaald"
+      },
+      "weeklyGrowth": {
+        "title": "Wekelijkse groei",
+        "trend": "Sterke retentie van gebruikers",
+        "subtitle": "Engagement overtreft de doelen"
+      },
+      "growthRate": {
+        "title": "Groeipercentage",
+        "trend": "Gestage prestatieverbetering",
+        "subtitle": "Voldoet aan de groeiprognoses"
+      }
+    }
+  }
+}

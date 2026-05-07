@@ -1,0 +1,61 @@
+{
+  "title": "Contacten",
+  "description": "Je adresboek met leads, klanten en prospects.",
+  "metaTitle": "Contacten | Ringee",
+  "metaDescription": "Je adresboek met leads, klanten en prospects.",
+  "newContact": "Nieuw contact",
+  "addContact": "Contact toevoegen",
+  "fields": {
+    "firstName": "Voornaam",
+    "lastName": "Achternaam",
+    "email": "E-mail",
+    "phone": "Telefoon",
+    "phoneLabel": "Telefoonnummer",
+    "company": "Bedrijf",
+    "title": "Functie",
+    "tags": "Tags",
+    "notes": "Notities"
+  },
+  "table": {
+    "name": "Naam",
+    "phone": "Telefoon",
+    "email": "E-mail",
+    "company": "Bedrijf",
+    "lastCall": "Laatste gesprek",
+    "tags": "Tags"
+  },
+  "empty": {
+    "title": "Nog geen contacten",
+    "description": "Voeg je eerste contact toe of importeer een CSV om te beginnen.",
+    "action": "Contact toevoegen"
+  },
+  "delete": {
+    "title": "Contact verwijderen?",
+    "description": "{name} wordt definitief uit je contacten verwijderd.",
+    "confirm": "Contact verwijderen"
+  },
+  "import": {
+    "title": "Contacten importeren",
+    "description": "Upload een CSV-bestand met je contacten.",
+    "dropzone": "Sleep je CSV hierheen of klik om te bladeren",
+    "submit": "Importeren",
+    "action": "Importeren"
+  },
+  "export": {
+    "action": "Exporteren"
+  },
+  "detail": {
+    "metaTitle": "Contact — Details | Ringee",
+    "metaDescription": "Bekijk alle contactgegevens, inclusief gespreksgeschiedenis, notities, tags en meer."
+  },
+  "editPage": {
+    "metaTitle": "Contact — Bewerken | Ringee",
+    "metaDescription": "Bewerk de contactgegevens om je sales- en gespreksflow georganiseerd en efficiënt te houden."
+  },
+  "kanban": {
+    "title": "Sales-pipeline",
+    "description": "Beheer je leads visueel",
+    "metaTitle": "Sales-pipeline — Leads visualiseren en organiseren | Ringee",
+    "metaDescription": "Beheer je sales-pipeline visueel met Ringee. Organiseer leads, volg gesprekken en verplaats deals door elke fase met duidelijkheid en efficiëntie."
+  }
+}

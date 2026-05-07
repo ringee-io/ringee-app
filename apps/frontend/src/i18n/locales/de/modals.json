@@ -1,0 +1,18 @@
+{
+  "confirmDelete": {
+    "title": "Sind Sie sicher?",
+    "description": "Diese Aktion kann nicht rückgängig gemacht werden.",
+    "confirm": "Ja, löschen",
+    "cancel": "Abbrechen"
+  },
+  "confirmLeave": {
+    "title": "Ohne Speichern verlassen?",
+    "description": "Ihre nicht gespeicherten Änderungen gehen verloren.",
+    "confirm": "Verlassen",
+    "cancel": "Bleiben"
+  },
+  "unsavedChanges": {
+    "title": "Sie haben ungespeicherte Änderungen",
+    "description": "Speichern Sie sie, bevor Sie fortfahren."
+  }
+}

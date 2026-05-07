@@ -1,0 +1,54 @@
+{
+  "groups": {
+    "general": "Général",
+    "communication": "Communication",
+    "outreach": "Prospection",
+    "settings": "Paramètres"
+  },
+  "items": {
+    "dashboard": "Tableau de bord",
+    "contacts": "Contacts",
+    "activities": "Activités",
+    "meetings": "Réunions",
+    "call": "Appels",
+    "inbox": "Boîte de réception",
+    "campaigns": "Campagnes",
+    "callbacks": "Rappels",
+    "dnc": "DNC",
+    "overview": "Aperçu",
+    "integrations": "Intégrations",
+    "profile": "Profil",
+    "history": "Historique",
+    "recordings": "Enregistrements",
+    "rate": "Tarifs",
+    "buyNumber": "Acheter un numéro"
+  },
+  "userMenu": {
+    "profile": "Profil",
+    "history": "Historique",
+    "recordings": "Enregistrements",
+    "rate": "Tarifs",
+    "buyNumber": "Acheter un numéro",
+    "signOut": "Se déconnecter",
+    "upgradeToPro": "Passer à Pro",
+    "account": "Compte",
+    "billing": "Facturation",
+    "notifications": "Notifications",
+    "logOut": "Se déconnecter"
+  },
+  "sidebar": {
+    "openQuickCall": "Appel rapide",
+    "outreachLocked": "Disponible pour les organisations",
+    "outreachLockedDescription": "Mettez à niveau pour débloquer les outils de prospection.",
+    "upgradeNow": "Mettre à niveau",
+    "redirecting": "Redirection…"
+  },
+  "inboxTooltip": {
+    "title": "Boîte de réception — bientôt disponible",
+    "description": "Gérez tous vos messages entrants, appels manqués et messages vocaux dans une seule boîte unifiée."
+  },
+  "kbar": {
+    "navigation": "Navigation",
+    "goTo": "Aller à {page}"
+  }
+}

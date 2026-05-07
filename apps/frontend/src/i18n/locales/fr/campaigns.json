@@ -1,0 +1,48 @@
+{
+  "title": "Campagnes",
+  "description": "Gérez vos campagnes d'appels sortants",
+  "metaTitle": "Campagnes — Appels sortants | Ringee",
+  "metaDescription": "Gérez vos campagnes d'appels sortants. Créez des campagnes, importez des contacts, configurez les composeurs et suivez les performances.",
+  "newCampaign": "Nouvelle campagne",
+  "create": {
+    "title": "Nouvelle campagne",
+    "description": "Créez et configurez une campagne d'appels sortants",
+    "metaTitle": "Nouvelle campagne | Ringee",
+    "metaDescription": "Créez une nouvelle campagne d'appels sortants.",
+    "namePlaceholder": "T1 outbound — Entreprises US",
+    "submit": "Créer la campagne"
+  },
+  "edit": {
+    "title": "Modifier la campagne"
+  },
+  "detail": {
+    "metaTitle": "Détail de la campagne | Ringee",
+    "metaDescription": "Consultez et gérez votre campagne d'appels sortants."
+  },
+  "fields": {
+    "name": "Nom",
+    "list": "Liste de contacts",
+    "mode": "Mode du composeur",
+    "callerId": "Identifiant d'appelant",
+    "script": "Script"
+  },
+  "status": {
+    "draft": "Brouillon",
+    "scheduled": "Planifiée",
+    "running": "En cours",
+    "paused": "En pause",
+    "completed": "Terminée"
+  },
+  "actions": {
+    "start": "Démarrer",
+    "pause": "Mettre en pause",
+    "resume": "Reprendre",
+    "stop": "Arrêter",
+    "duplicate": "Dupliquer"
+  },
+  "empty": {
+    "title": "Aucune campagne",
+    "description": "Créez votre première campagne pour passer à l'action à grande échelle.",
+    "action": "Créer une campagne"
+  }
+}

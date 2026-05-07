@@ -1,0 +1,122 @@
+{
+  "title": "Definições",
+  "description": "Configura a tua conta e preferências.",
+  "profile": {
+    "metaTitle": "Perfil | Ringee"
+  },
+  "numbers": {
+    "title": "Comprar números",
+    "description": "Gerir números",
+    "metaTitle": "Compra números virtuais para chamadas globais | Ringee",
+    "metaDescription": "Compra de imediato números locais ou internacionais para fazer e receber chamadas com a Ringee. Ideal para equipas de vendas, call centers e empresas globais.",
+    "tabs": {
+      "buy": "Comprar número",
+      "myNumbers": "Os meus números"
+    },
+    "buy": {
+      "table": {
+        "phoneNumber": "Número de telefone",
+        "phoneNumberPlaceholder": "Pesquisar número…",
+        "country": "País",
+        "countryPlaceholder": "Selecionar país",
+        "type": "Tipo",
+        "typePlaceholder": "Selecionar tipo",
+        "areaCode": "Indicativo",
+        "areaCodePlaceholder": "Indicativo",
+        "region": "Região",
+        "features": "Funcionalidades",
+        "featuresPlaceholder": "Selecionar funcionalidades",
+        "cost": "Custo",
+        "actions": "Ações",
+        "buy": "Comprar",
+        "noNumbers": "Sem números disponíveis",
+        "errorLoading": "Não foi possível carregar os números. Tente novamente."
+      },
+      "types": {
+        "local": "Local",
+        "tollFree": "Gratuito"
+      },
+      "features": {
+        "voice": "Voz",
+        "sms": "SMS",
+        "mms": "MMS",
+        "hdVoice": "Voz HD",
+        "internationalSms": "SMS intl.",
+        "emergency": "Emergência",
+        "fax": "Fax"
+      },
+      "purchase": {
+        "confirmTitle": "Comprar este número?",
+        "confirmDescription": "{phone} — {currency} {monthly}/mês",
+        "confirm": "Comprar",
+        "cancel": "Cancelar",
+        "success": "Número comprado",
+        "error": "Não foi possível comprar o número"
+      }
+    },
+    "my": {
+      "table": {
+        "phoneNumber": "Número de telefone",
+        "country": "País",
+        "type": "Tipo",
+        "status": "Estado",
+        "connection": "Ligação",
+        "purchaseDate": "Data de compra",
+        "monthlyCost": "Custo mensal",
+        "upfrontCost": "Custo inicial",
+        "unknown": "Desconhecido",
+        "na": "N/D"
+      },
+      "status": {
+        "assigned": "atribuído",
+        "inactive": "inativo",
+        "pending": "pendente"
+      }
+    }
+  },
+  "tabs": {
+    "general": "Geral",
+    "language": "Idioma",
+    "notifications": "Notificações",
+    "security": "Segurança",
+    "appearance": "Aparência",
+    "script": "Script"
+  },
+  "overview": {
+    "title": "Resumo",
+    "description": "Personaliza a tua conta e o teu script de chamada."
+  },
+  "language": {
+    "title": "Idioma",
+    "description": "Escolhe o idioma usado em toda a app Ringee.",
+    "label": "Idioma da app",
+    "saved": "Idioma atualizado",
+    "error": "Não foi possível atualizar o idioma. Tenta de novo."
+  },
+  "notifications": {
+    "title": "Notificações",
+    "description": "Escolhe o que enviamos por email ou push.",
+    "email": "Notificações por email",
+    "push": "Notificações push",
+    "missedCall": "Chamadas perdidas",
+    "voicemail": "Mensagens de voz",
+    "campaignUpdates": "Atualizações de campanhas"
+  },
+  "appearance": {
+    "title": "Aparência",
+    "description": "Escolhe como o Ringee aparece no teu ecrã.",
+    "theme": "Tema",
+    "themes": {
+      "light": "Claro",
+      "dark": "Escuro",
+      "system": "Sistema"
+    }
+  },
+  "script": {
+    "title": "Script de chamada",
+    "description": "Personaliza o script lido pelo teu marcador durante as chamadas.",
+    "tab": "Script",
+    "addSection": "Adicionar secção",
+    "saveScript": "Guardar script"
+  }
+}

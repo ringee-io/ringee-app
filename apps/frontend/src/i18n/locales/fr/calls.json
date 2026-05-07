@@ -1,0 +1,133 @@
+{
+  "title": "Appels",
+  "description": "Passez et recevez des appels d'une qualité exceptionnelle vers plus de 180 pays directement depuis votre navigateur.",
+  "metaTitle": "Appels — Passer et recevoir des appels dans le monde entier | Ringee",
+  "metaDescription": "Passez et recevez des appels d'une qualité exceptionnelle vers plus de 180 pays directement depuis votre navigateur. Propulsé par Telnyx et la technologie WebRTC de Ringee, pour les équipes commerciales et la communication mondiale.",
+  "newCall": "Nouvel appel",
+  "incomingCall": "Appel entrant",
+  "outgoingCall": "Appel sortant",
+  "missedCall": "Appel manqué",
+  "answered": "Répondu",
+  "noAnswer": "Pas de réponse",
+  "busy": "Occupé",
+  "failed": "Échoué",
+  "voicemail": "Messagerie vocale",
+  "callDuration": "Durée",
+  "callCost": "Coût",
+  "from": "De",
+  "to": "À",
+  "actions": {
+    "answer": "Répondre",
+    "decline": "Refuser",
+    "hangUp": "Raccrocher",
+    "mute": "Couper le micro",
+    "unmute": "Activer le micro",
+    "hold": "Mettre en attente",
+    "resume": "Reprendre",
+    "transfer": "Transférer",
+    "addNote": "Ajouter une note",
+    "viewContact": "Voir le contact"
+  },
+  "history": {
+    "title": "Historique des appels",
+    "shortTitle": "Historique",
+    "description": "Consultez votre historique d'appels",
+    "metaTitle": "Historique d'appels — Suivre et analyser | Ringee",
+    "metaDescription": "Accédez à votre historique d'appels complet sur Ringee. Revoyez les appels passés, suivez vos performances et gérez vos enregistrements en toute clarté — pensé pour les équipes commerciales et les professionnels.",
+    "empty": {
+      "title": "Aucun appel pour l'instant",
+      "description": "Votre historique apparaîtra ici dès que vous passerez ou recevrez des appels."
+    },
+    "table": {
+      "type": "Type",
+      "contact": "Contact",
+      "from": "De",
+      "to": "À",
+      "status": "Statut",
+      "duration": "Durée",
+      "date": "Date",
+      "recording": "Enregistrement",
+      "unknown": "Inconnu",
+      "callAgain": "Rappeler",
+      "noRecording": "Aucun enregistrement",
+      "downloadRecording": "Télécharger l'enregistrement"
+    }
+  },
+  "recordings": {
+    "title": "Enregistrements d'appels",
+    "description": "Écoutez et téléchargez vos enregistrements chiffrés",
+    "metaTitle": "Enregistrements — Écouter et télécharger | Ringee",
+    "metaDescription": "Accédez à vos enregistrements d'appels chiffrés. Lisez, téléchargez et gérez tous vos fichiers audio en toute sécurité depuis votre tableau de bord Ringee.",
+    "table": {
+      "type": "Type",
+      "contact": "Contact",
+      "from": "De",
+      "to": "À",
+      "duration": "Durée",
+      "date": "Date",
+      "status": "Statut",
+      "recording": "Enregistrement",
+      "unknown": "Inconnu",
+      "noRecording": "Aucun enregistrement",
+      "processingShort": "En cours…",
+      "unavailable": "Indisponible",
+      "play": "Lire",
+      "playRecording": "Lire l'enregistrement",
+      "downloadRecording": "Télécharger l'enregistrement"
+    },
+    "statusBadge": {
+      "started": "En cours",
+      "processing": "En cours",
+      "completed": "Prêt",
+      "failed": "Échec"
+    },
+    "player": {
+      "defaultTitle": "Enregistrement d'appel",
+      "callTitle": "Appel : {from} → {to}",
+      "decrypting": "Déchiffrement en cours…",
+      "errorLoad": "Impossible de charger l'enregistrement. Veuillez réessayer."
+    },
+    "dateFilter": {
+      "filterByDate": "Filtrer par date",
+      "from": "À partir du {date}",
+      "to": "Jusqu'au {date}",
+      "clear": "Effacer le filtre de date"
+    }
+  },
+  "callbacks": {
+    "title": "Rappels",
+    "description": "Consultez et gérez les rappels planifiés depuis le composeur",
+    "metaTitle": "Rappels | Ringee",
+    "metaDescription": "Consultez et gérez les tâches de rappel planifiées."
+  },
+  "dnc": {
+    "title": "Ne pas appeler",
+    "description": "Gérez les numéros à ne jamais composer",
+    "metaTitle": "Liste Ne pas appeler | Ringee",
+    "metaDescription": "Gérez votre liste Ne pas appeler pour rester en conformité."
+  },
+  "rates": {
+    "metaTitle": "Tarifs d'appel — Voir et comparer les coûts | Ringee",
+    "metaDescription": "Consultez les tarifs d'appel à jour dans votre tableau de bord Ringee. Comparez les prix entre plus de 180 pays et suivez vos coûts de communication en temps réel.",
+    "calculator": {
+      "title": "Calculateur de tarifs",
+      "subtitle": "Consultez vos tarifs d'appel en temps réel avec Ringee.",
+      "callingTo": "J'appelle",
+      "to": "Vers un",
+      "mobile": "Mobile",
+      "landline": "Fixe",
+      "willCost": "Votre appel coûtera",
+      "perMinute": "par minute"
+    }
+  },
+  "statusValues": {
+    "pending": "En attente",
+    "ringing": "Sonne",
+    "answered": "Répondu",
+    "recording": "Enregistrement",
+    "completed": "Terminé",
+    "failed": "Échec",
+    "processing": "En cours",
+    "ready": "Prêt"
+  }
+}

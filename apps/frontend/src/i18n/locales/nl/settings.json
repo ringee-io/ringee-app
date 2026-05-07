@@ -1,0 +1,122 @@
+{
+  "title": "Instellingen",
+  "description": "Beheer je account en voorkeuren.",
+  "profile": {
+    "metaTitle": "Profiel | Ringee"
+  },
+  "numbers": {
+    "title": "Nummers kopen",
+    "description": "Nummers beheren",
+    "metaTitle": "Koop virtuele nummers voor wereldwijd bellen | Ringee",
+    "metaDescription": "Koop direct lokale of internationale telefoonnummers om met Ringee te bellen en gebeld te worden. Perfect voor salesteams, callcenters en wereldwijde bedrijven.",
+    "tabs": {
+      "buy": "Nummer kopen",
+      "myNumbers": "Mijn nummers"
+    },
+    "buy": {
+      "table": {
+        "phoneNumber": "Telefoonnummer",
+        "phoneNumberPlaceholder": "Nummer zoeken…",
+        "country": "Land",
+        "countryPlaceholder": "Land selecteren",
+        "type": "Type",
+        "typePlaceholder": "Type selecteren",
+        "areaCode": "Netnummer",
+        "areaCodePlaceholder": "Netnummer",
+        "region": "Regio",
+        "features": "Functies",
+        "featuresPlaceholder": "Functies selecteren",
+        "cost": "Kosten",
+        "actions": "Acties",
+        "buy": "Kopen",
+        "noNumbers": "Geen nummers beschikbaar",
+        "errorLoading": "Nummers konden niet worden geladen. Probeer het opnieuw."
+      },
+      "types": {
+        "local": "Lokaal",
+        "tollFree": "Gratis nummer"
+      },
+      "features": {
+        "voice": "Spraak",
+        "sms": "SMS",
+        "mms": "MMS",
+        "hdVoice": "HD-spraak",
+        "internationalSms": "Intl. SMS",
+        "emergency": "Noodoproep",
+        "fax": "Fax"
+      },
+      "purchase": {
+        "confirmTitle": "Dit nummer kopen?",
+        "confirmDescription": "{phone} — {currency} {monthly}/maand",
+        "confirm": "Kopen",
+        "cancel": "Annuleren",
+        "success": "Nummer gekocht",
+        "error": "Kon het nummer niet kopen"
+      }
+    },
+    "my": {
+      "table": {
+        "phoneNumber": "Telefoonnummer",
+        "country": "Land",
+        "type": "Type",
+        "status": "Status",
+        "connection": "Verbinding",
+        "purchaseDate": "Aankoopdatum",
+        "monthlyCost": "Maandelijkse kosten",
+        "upfrontCost": "Eenmalige kosten",
+        "unknown": "Onbekend",
+        "na": "N.v.t."
+      },
+      "status": {
+        "assigned": "toegewezen",
+        "inactive": "inactief",
+        "pending": "in afwachting"
+      }
+    }
+  },
+  "tabs": {
+    "general": "Algemeen",
+    "language": "Taal",
+    "notifications": "Meldingen",
+    "security": "Beveiliging",
+    "appearance": "Weergave",
+    "script": "Belscript"
+  },
+  "overview": {
+    "title": "Overzicht",
+    "description": "Personaliseer je account en je belscript."
+  },
+  "language": {
+    "title": "Taal",
+    "description": "Kies de taal die in de hele Ringee-app wordt gebruikt.",
+    "label": "Taal van de app",
+    "saved": "Taal bijgewerkt",
+    "error": "Taal kon niet worden bijgewerkt. Probeer het opnieuw."
+  },
+  "notifications": {
+    "title": "Meldingen",
+    "description": "Kies wat we per e-mail of push sturen.",
+    "email": "E-mailmeldingen",
+    "push": "Pushmeldingen",
+    "missedCall": "Gemiste gesprekken",
+    "voicemail": "Voicemails",
+    "campaignUpdates": "Campagne-updates"
+  },
+  "appearance": {
+    "title": "Weergave",
+    "description": "Kies hoe Ringee eruitziet op je scherm.",
+    "theme": "Thema",
+    "themes": {
+      "light": "Licht",
+      "dark": "Donker",
+      "system": "Systeem"
+    }
+  },
+  "script": {
+    "title": "Belscript",
+    "description": "Personaliseer het script dat je dialer voorleest tijdens gesprekken.",
+    "tab": "Script",
+    "addSection": "Sectie toevoegen",
+    "saveScript": "Script opslaan"
+  }
+}

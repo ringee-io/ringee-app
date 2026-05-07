@@ -1,0 +1,48 @@
+{
+  "title": "Activities",
+  "description": "Your general call activity outside of campaigns",
+  "metaTitle": "Activities — Call Activity Log | Ringee",
+  "metaDescription": "View your general calls, filter by disposition and date, schedule meetings for completed calls, and track existing scheduled meetings.",
+  "newActivity": "New activity",
+  "types": {
+    "call": "Call",
+    "note": "Note",
+    "task": "Task",
+    "meeting": "Meeting",
+    "email": "Email"
+  },
+  "outcomes": {
+    "meetingBooked": "Meeting Booked",
+    "sale": "Sale",
+    "interested": "Interested",
+    "followUp": "Follow Up",
+    "notInterested": "Not Interested",
+    "noAnswer": "No Answer",
+    "voicemail": "Voicemail",
+    "wrongNumber": "Wrong Number",
+    "gatekeeper": "Gatekeeper"
+  },
+  "filters": {
+    "disposition": "Disposition",
+    "clearFilters": "Clear filters"
+  },
+  "noCallsFound": "No calls found",
+  "noCallsDescription": "No general calls for {date}.",
+  "noCallsWithFilters": "No general calls for {date} with the selected filters.",
+  "scheduledMeeting": "Scheduled Meeting",
+  "scheduleMeeting": "Schedule Meeting",
+  "callCount": "{count, plural, one {# call} other {# calls}}",
+  "pagination": {
+    "previous": "Previous",
+    "next": "Next",
+    "page": "Page {page} of {totalPages}"
+  },
+  "toasts": {
+    "failedToLoad": "Failed to load activities",
+    "meetingBooked": "Meeting booked successfully"
+  },
+  "empty": {
+    "title": "No activity yet",
+    "description": "Log your first activity to start building a paper trail."
+  }
+}

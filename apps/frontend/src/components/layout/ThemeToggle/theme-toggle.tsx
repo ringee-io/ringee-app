@@ -5,8 +5,10 @@ import { useTheme } from 'next-themes';
 import * as React from 'react';
 
 import { Button } from '@ringee/frontend-shared/components/ui/button';
+import { useTranslations } from 'next-intl';
 
 export function ModeToggle() {
+  const t = useTranslations('common');
   const { setTheme, resolvedTheme } = useTheme();
 
   const handleThemeToggle = React.useCallback(
@@ -40,7 +42,7 @@ export function ModeToggle() {
       onClick={handleThemeToggle}
     >
       <IconBrightness />
-      <span className='sr-only'>Toggle theme</span>
+      <span className='sr-only'>{t('toggleTheme')}</span>
     </Button>
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Card,
   CardContent,
@@ -43,6 +44,7 @@ export function WidgetShell({
   contentClassName,
   children
 }: WidgetShellProps) {
+  const t = useTranslations('dashboard.widgets.shell');
   return (
     <Card className={['flex h-full flex-col overflow-hidden', className].filter(Boolean).join(' ')}>
       <CardHeader className='flex flex-row items-center justify-between space-y-0 px-4 py-3'>
@@ -50,7 +52,7 @@ export function WidgetShell({
           {draggable && (
             <span
               className='widget-drag-handle text-muted-foreground hover:text-foreground cursor-move'
-              aria-label='Drag widget'
+              aria-label={t('dragAria')}
             >
               <IconGripVertical size={16} />
             </span>
@@ -63,7 +65,7 @@ export function WidgetShell({
             size='icon'
             className='h-7 w-7'
             onClick={onRemove}
-            aria-label='Remove widget'
+            aria-label={t('removeAria')}
           >
             <IconX size={14} />
           </Button>
@@ -80,16 +82,16 @@ export function WidgetShell({
         {loading ? (
           <div className='text-muted-foreground flex h-full items-center justify-center gap-2 text-sm'>
             <IconLoader2 className='animate-spin' size={16} />
-            Loading…
+            {t('loading')}
           </div>
         ) : error ? (
           <div className='flex h-full items-center justify-center gap-2 text-sm text-red-600'>
             <IconAlertCircle size={16} />
-            {error.message || 'Failed to load'}
+            {error.message || t('failedToLoad')}
           </div>
         ) : empty ? (
           <div className='text-muted-foreground flex h-full flex-col items-center justify-center text-center text-sm'>
-            <p className='font-medium'>Nothing to show yet</p>
+            <p className='font-medium'>{t('empty')}</p>
             {emptyHint && <p className='mt-1 max-w-sm text-xs'>{emptyHint}</p>}
           </div>
         ) : (

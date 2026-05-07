@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { WidgetShell } from '../components/widget-shell';
 import { useWidgetData } from '../hooks/use-widget-data';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
@@ -16,15 +17,24 @@ interface RecentCall {
   user?: { firstName: string | null; lastName: string | null } | null;
 }
 
-const OUTCOME_VARIANT: Record<
-  string,
-  { label: string; className: string }
-> = {
-  sale: { label: 'Sale', className: 'bg-emerald-100 text-emerald-700' },
-  meeting_booked: { label: 'Meeting Booked', className: 'bg-blue-100 text-blue-700' },
-  interested: { label: 'Interested', className: 'bg-amber-100 text-amber-700' },
-  follow_up: { label: 'Follow-up', className: 'bg-violet-100 text-violet-700' }
+const OUTCOME_VARIANT: Record<string, string> = {
+  sale: 'bg-emerald-100 text-emerald-700',
+  meeting_booked: 'bg-blue-100 text-blue-700',
+  interested: 'bg-amber-100 text-amber-700',
+  follow_up: 'bg-violet-100 text-violet-700'
 };
+
+const KNOWN_OUTCOMES = new Set([
+  'meeting_booked',
+  'sale',
+  'interested',
+  'follow_up',
+  'not_interested',
+  'no_answer',
+  'voicemail',
+  'wrong_number',
+  'gatekeeper'
+]);
 
 function fullName(p?: { firstName: string | null; lastName: string | null } | null) {
   if (!p) return '';
@@ -57,6 +67,8 @@ export function RecentHighValueWidget({
   title: string;
   onRemove?: () => void;
 }) {
+  const t = useTranslations('dashboard.widgets.recentHighValue');
+  const tOutcomes = useTranslations('dashboard.outcomes');
   const { data, loading, error } = useWidgetData<RecentCall[]>('/dashboard/recent-high-value');
   const empty = !data || data.length === 0;
 
@@ -66,16 +78,16 @@ export function RecentHighValueWidget({
       loading={loading}
       error={error}
       empty={empty}
-      emptyHint='Calls marked as Sale, Meeting Booked, Interested, or Follow-up will show up here so you know what to follow up on.'
+      emptyHint={t('emptyHint')}
       onRemove={onRemove}
       contentClassName='p-0'
     >
       <div className='divide-border divide-y'>
         {data?.map((call) => {
-          const variant = OUTCOME_VARIANT[call.outcome] ?? {
-            label: call.outcome,
-            className: 'bg-muted text-foreground'
-          };
+          const className = OUTCOME_VARIANT[call.outcome] ?? 'bg-muted text-foreground';
+          const label = KNOWN_OUTCOMES.has(call.outcome)
+            ? tOutcomes(call.outcome as never)
+            : call.outcome;
           const contact = fullName(call.contact) || call.toNumber;
           const agent = fullName(call.user);
           return (
@@ -83,7 +95,7 @@ export function RecentHighValueWidget({
               <div className='min-w-0 flex-1'>
                 <div className='flex items-center gap-2'>
                   <span className='truncate text-sm font-medium'>{contact}</span>
-                  <Badge className={variant.className}>{variant.label}</Badge>
+                  <Badge className={className}>{label}</Badge>
                 </div>
                 <div className='text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs'>
                   <span>{call.toNumber}</span>

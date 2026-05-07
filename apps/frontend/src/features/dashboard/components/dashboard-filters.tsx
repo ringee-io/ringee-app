@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import {
   Select,
@@ -27,29 +28,30 @@ import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { Check, ChevronsUpDown, Calendar as CalendarIcon } from 'lucide-react';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 
-const RANGE_LABEL: Record<DashboardRangeKey, string> = {
-  today: 'Today',
-  yesterday: 'Yesterday',
-  '7d': 'Last 7 days',
-  '30d': 'Last 30 days',
-  this_month: 'This month',
-  last_month: 'Last month',
-  custom: 'Custom range'
+const RANGE_KEYS: Record<DashboardRangeKey, string> = {
+  today: 'today',
+  yesterday: 'yesterday',
+  '7d': 'last7Days',
+  '30d': 'last30Days',
+  this_month: 'thisMonth',
+  last_month: 'lastMonth',
+  custom: 'custom'
 };
 
-const OUTCOMES = [
-  { value: 'meeting_booked', label: 'Meeting Booked' },
-  { value: 'sale', label: 'Sale' },
-  { value: 'interested', label: 'Interested' },
-  { value: 'follow_up', label: 'Follow-up' },
-  { value: 'not_interested', label: 'Not Interested' },
-  { value: 'no_answer', label: 'No Answer' },
-  { value: 'voicemail', label: 'Voicemail' },
-  { value: 'wrong_number', label: 'Wrong Number' },
-  { value: 'gatekeeper', label: 'Gatekeeper' }
-];
+const OUTCOME_VALUES = [
+  'meeting_booked',
+  'sale',
+  'interested',
+  'follow_up',
+  'not_interested',
+  'no_answer',
+  'voicemail',
+  'wrong_number',
+  'gatekeeper'
+] as const;
 
 export function DashboardFilters() {
+  const t = useTranslations('dashboard');
   const { filters, setRange, setScope, setMemberId, setCampaignId, setOutcome } =
     useDashboardFilters();
   const { hasOrg, isOrgAdmin } = useOrgRole();
@@ -63,8 +65,8 @@ export function DashboardFilters() {
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value='organization'>Organization</SelectItem>
-            <SelectItem value='personal'>Personal</SelectItem>
+            <SelectItem value='organization'>{t('filters.scope.organization')}</SelectItem>
+            <SelectItem value='personal'>{t('filters.scope.personal')}</SelectItem>
           </SelectContent>
         </Select>
       )}
@@ -80,13 +82,13 @@ export function DashboardFilters() {
         onValueChange={(v) => setOutcome(v === 'all' ? null : v)}
       >
         <SelectTrigger className='h-9 w-[180px]'>
-          <SelectValue placeholder='All outcomes' />
+          <SelectValue placeholder={t('filters.allOutcomes')} />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value='all'>All outcomes</SelectItem>
-          {OUTCOMES.map((o) => (
-            <SelectItem key={o.value} value={o.value}>
-              {o.label}
+          <SelectItem value='all'>{t('filters.allOutcomes')}</SelectItem>
+          {OUTCOME_VALUES.map((value) => (
+            <SelectItem key={value} value={value}>
+              {t(`outcomes.${value}`)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -96,6 +98,8 @@ export function DashboardFilters() {
 }
 
 function RangeSelector() {
+  const t = useTranslations('dashboard');
+  const tCommon = useTranslations('common');
   const { filters, setRange } = useDashboardFilters();
   const [open, setOpen] = React.useState(false);
   const [tempFrom, setTempFrom] = React.useState<Date | undefined>(
@@ -110,7 +114,7 @@ function RangeSelector() {
       ? `${new Date(filters.from).toLocaleDateString()} – ${new Date(
           filters.to
         ).toLocaleDateString()}`
-      : RANGE_LABEL[filters.range];
+      : t(`ranges.${RANGE_KEYS[filters.range]}`);
 
   return (
     <div className='flex items-center gap-1'>
@@ -125,11 +129,11 @@ function RangeSelector() {
           <SelectValue>{label}</SelectValue>
         </SelectTrigger>
         <SelectContent>
-          {(Object.keys(RANGE_LABEL) as DashboardRangeKey[])
+          {(Object.keys(RANGE_KEYS) as DashboardRangeKey[])
             .filter((k) => k !== 'custom')
             .map((k) => (
               <SelectItem key={k} value={k}>
-                {RANGE_LABEL[k]}
+                {t(`ranges.${RANGE_KEYS[k]}`)}
               </SelectItem>
             ))}
         </SelectContent>
@@ -140,27 +144,27 @@ function RangeSelector() {
             variant={filters.range === 'custom' ? 'default' : 'outline'}
             size='icon'
             className='h-9 w-9'
-            aria-label='Custom range'
+            aria-label={t('filters.customRange.aria')}
           >
             <CalendarIcon className='h-4 w-4' />
           </Button>
         </PopoverTrigger>
         <PopoverContent className='w-auto p-0' align='start'>
           <div className='p-3'>
-            <p className='text-muted-foreground mb-2 text-xs'>Pick a custom range</p>
+            <p className='text-muted-foreground mb-2 text-xs'>{t('filters.customRange.title')}</p>
             <div className='flex gap-3'>
               <div>
-                <p className='text-xs font-medium'>From</p>
+                <p className='text-xs font-medium'>{t('filters.customRange.from')}</p>
                 <Calendar mode='single' selected={tempFrom} onSelect={setTempFrom} />
               </div>
               <div>
-                <p className='text-xs font-medium'>To</p>
+                <p className='text-xs font-medium'>{t('filters.customRange.to')}</p>
                 <Calendar mode='single' selected={tempTo} onSelect={setTempTo} />
               </div>
             </div>
             <div className='mt-2 flex justify-end gap-2'>
               <Button variant='outline' size='sm' onClick={() => setOpen(false)}>
-                Cancel
+                {tCommon('cancel')}
               </Button>
               <Button
                 size='sm'
@@ -174,7 +178,7 @@ function RangeSelector() {
                   setOpen(false);
                 }}
               >
-                Apply
+                {tCommon('apply')}
               </Button>
             </div>
           </div>
@@ -191,6 +195,7 @@ function MemberSelectorCompact({
   value: string | null;
   onChange: (id: string | null) => void;
 }) {
+  const t = useTranslations('dashboard.filters');
   const { organization } = useOrganization();
   const api = useApi();
   const [open, setOpen] = React.useState(false);
@@ -218,7 +223,7 @@ function MemberSelectorCompact({
           const name =
             `${m.publicUserData?.firstName || ''} ${m.publicUserData?.lastName || ''}`.trim() ||
             m.publicUserData?.identifier ||
-            'Member';
+            t('memberFallback');
           return { id: lookup.get(clerkId) || '', name };
         })
       );
@@ -226,7 +231,7 @@ function MemberSelectorCompact({
     return () => {
       active = false;
     };
-  }, [organization]);
+  }, [organization, api, t]);
 
   const selected = members.find((m) => m.id === value);
 
@@ -234,15 +239,15 @@ function MemberSelectorCompact({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant='outline' className='h-9 w-[200px] justify-between'>
-          <span className='truncate'>{selected?.name ?? 'All members'}</span>
+          <span className='truncate'>{selected?.name ?? t('allMembers')}</span>
           <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
         </Button>
       </PopoverTrigger>
       <PopoverContent className='w-[220px] p-0'>
         <Command>
-          <CommandInput placeholder='Search members…' />
+          <CommandInput placeholder={t('searchMembers')} />
           <CommandList>
-            <CommandEmpty>No members</CommandEmpty>
+            <CommandEmpty>{t('noMembers')}</CommandEmpty>
             <CommandGroup>
               <CommandItem
                 value='__all__'
@@ -252,7 +257,7 @@ function MemberSelectorCompact({
                 }}
               >
                 <Check className={cn('mr-2 h-4 w-4', value === null ? 'opacity-100' : 'opacity-0')} />
-                All members
+                {t('allMembers')}
               </CommandItem>
               {members.map((m) => (
                 <CommandItem
@@ -287,6 +292,7 @@ function CampaignSelector({
   value: string | null;
   onChange: (id: string | null) => void;
 }) {
+  const t = useTranslations('dashboard.filters');
   const api = useApi();
   const [campaigns, setCampaigns] = React.useState<{ id: string; name: string }[] | null>(null);
 
@@ -311,10 +317,10 @@ function CampaignSelector({
   return (
     <Select value={value ?? 'all'} onValueChange={(v) => onChange(v === 'all' ? null : v)}>
       <SelectTrigger className='h-9 w-[200px]'>
-        <SelectValue placeholder='All campaigns' />
+        <SelectValue placeholder={t('allCampaigns')} />
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value='all'>All campaigns</SelectItem>
+        <SelectItem value='all'>{t('allCampaigns')}</SelectItem>
         {campaigns.map((c) => (
           <SelectItem key={c.id} value={c.id}>
             {c.name}

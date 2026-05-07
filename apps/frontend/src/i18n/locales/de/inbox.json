@@ -1,0 +1,60 @@
+{
+  "title": "Posteingang",
+  "description": "Eingehende Anrufe, Nachrichten und Voicemails an einem Ort.",
+  "filters": {
+    "all": "Alle",
+    "unread": "Ungelesen",
+    "missed": "Verpasst",
+    "missedCalls": "Verpasste Anrufe",
+    "voicemail": "Voicemail",
+    "voicemails": "Voicemails",
+    "sms": "SMS",
+    "resolved": "Erledigt",
+    "archived": "Archiviert"
+  },
+  "empty": {
+    "title": "Inbox Zero",
+    "description": "Alles erledigt. Neue Nachrichten erscheinen hier."
+  },
+  "threadList": {
+    "searchPlaceholder": "Nach Name oder Nummer suchen",
+    "noConversations": "Noch keine Unterhaltungen",
+    "newWillAppear": "Neue Anrufe und SMS erscheinen hier automatisch.",
+    "importing": "Importiere…",
+    "importFromPastCalls": "Aus vergangenen Anrufen importieren"
+  },
+  "timeline": {
+    "selectConversation": "Wähle eine Unterhaltung, um zu beginnen",
+    "viaNumber": "via {number}",
+    "linkContact": "Kontakt verknüpfen",
+    "call": "Anrufen",
+    "markResolved": "Als erledigt markieren",
+    "archive": "Archivieren",
+    "reopen": "Wieder öffnen",
+    "loading": "Lädt…",
+    "noActivity": "Noch keine Aktivität — sende eine Nachricht oder rufe an, um zu beginnen."
+  },
+  "composer": {
+    "sms": "SMS",
+    "internalNote": "Interne Notiz",
+    "selectNumber": "Nummer auswählen",
+    "noSmsSuffix": " (kein SMS)",
+    "notePlaceholder": "Interne Notiz hinzufügen (nur für dein Team sichtbar)…",
+    "messagePlaceholder": "Nachricht eingeben — ⌘/Strg + Enter zum Senden",
+    "saveNote": "Notiz speichern",
+    "send": "Senden",
+    "smsDisabledWarning": "Für diese Nummer ist SMS in Telnyx nicht aktiviert. Wähle eine andere oder aktiviere Messaging für die Nummer."
+  },
+  "events": {
+    "missedCall": "Verpasster Anruf",
+    "inboundCall": "Eingehender Anruf",
+    "outboundCall": "Ausgehender Anruf",
+    "callBack": "Zurückrufen",
+    "voicemailReceived": "Voicemail empfangen",
+    "voicedropSent": "Voicedrop gesendet",
+    "internalNote": "Interne Notiz",
+    "meetingBooked": "Meeting gebucht",
+    "callbackCompleted": "Rückruf erledigt",
+    "callbackScheduled": "Rückruf geplant"
+  }
+}

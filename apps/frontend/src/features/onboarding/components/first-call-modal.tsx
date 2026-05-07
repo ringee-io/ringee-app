@@ -14,12 +14,14 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Phone, Mic, Sparkles, X, ArrowRight } from 'lucide-react';
 import { useOnboarding } from '../hooks/use.onboarding';
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import { useTranslations } from 'next-intl';
 
 /**
  * Modal that appears when the user hasn't made their first call yet.
  * Encourages them to make a call and shows them the recording button.
  */
 export function FirstCallModal() {
+  const t = useTranslations('onboarding.firstCallModal');
   const router = useRouter();
   const { status, isLoading, isStepComplete } = useOnboarding();
   const [isOpen, setIsOpen] = useState(false);
@@ -66,9 +68,9 @@ export function FirstCallModal() {
                   <Sparkles className="h-6 w-6 text-primary" />
                 </div>
                 <div>
-                  <DialogTitle className="text-2xl font-bold tracking-tight">Your first call is on us</DialogTitle>
+                  <DialogTitle className="text-2xl font-bold tracking-tight">{t('title')}</DialogTitle>
                   <p className="text-sm text-muted-foreground font-medium">
-                    Make and record your first free call!
+                    {t('subtitle')}
                   </p>
                 </div>
               </div>
@@ -96,9 +98,9 @@ export function FirstCallModal() {
                   <Phone className="h-5 w-5" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-sm mb-1">Step 1: Enter a phone number</h4>
+                  <h4 className="font-semibold text-sm mb-1">{t('step1Title')}</h4>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                    Use the dial pad to enter any phone number you want to call. It works just like a normal phone.
+                    {t('step1Description')}
                   </p>
                 </div>
               </motion.div>
@@ -113,9 +115,9 @@ export function FirstCallModal() {
                   <Mic className="h-5 w-5" />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-sm mb-1">Step 2: Start recording</h4>
+                  <h4 className="font-semibold text-sm mb-1">{t('step2Title')}</h4>
                   <p className="text-xs text-muted-foreground leading-relaxed">
-                     Don't forget to click the record button once your call connects to save the conversation.
+                    {t('step2Description')}
                   </p>
                 </div>
               </motion.div>
@@ -134,7 +136,7 @@ export function FirstCallModal() {
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
                 </span>
                 <p className="text-[10px] font-semibold text-foreground/80 uppercase tracking-wider">
-                  Recording Button
+                  {t('recordingButton')}
                 </p>
               </div>
               
@@ -143,7 +145,7 @@ export function FirstCallModal() {
               
               <Image
                 src="/start-recording-cap.png"
-                alt="How to start recording"
+                alt={t('recordingAlt')}
                 width={550}
                 height={300}
                 className="w-full h-auto object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out"
@@ -158,13 +160,13 @@ export function FirstCallModal() {
                 className="flex-1 text-muted-foreground hover:text-foreground"
                 onClick={handleDismiss}
               >
-                Maybe later
+                {t('maybeLater')}
               </Button>
               <Button
                 className="cursor-pointer flex-[2] gap-2 h-11 text-base shadow-primary/25 hover:shadow-primary/40 shadow-lg transition-all hover:scale-[1.02]"
                 onClick={handleStartCall}
               >
-                Start calling now
+                {t('startCalling')}
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </div>

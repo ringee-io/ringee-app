@@ -1,0 +1,59 @@
+{
+  "title": "Meetings",
+  "description": "All meetings booked from cold calls",
+  "metaTitle": "Meetings — Booked from Cold Calls | Ringee",
+  "metaDescription": "View and manage all meetings booked during cold calls. Track upcoming meetings, review past bookings, and stay on top of your pipeline.",
+  "newMeeting": "New meeting",
+  "searchPlaceholder": "Search by contact name...",
+  "tabs": {
+    "upcoming": "Upcoming",
+    "all": "All",
+    "calendar": "Calendar",
+    "integrations": "Integrations"
+  },
+  "sections": {
+    "upcoming": "Upcoming",
+    "past": "Past"
+  },
+  "fields": {
+    "title": "Title",
+    "with": "With",
+    "when": "When",
+    "duration": "Duration",
+    "notes": "Notes"
+  },
+  "columns": {
+    "dateTime": "Date & Time",
+    "contact": "Contact",
+    "duration": "Duration",
+    "status": "Status"
+  },
+  "viewDetails": "View Details",
+  "location": "Location",
+  "fromCall": "From call on {date}",
+  "min": "min",
+  "cancelMeeting": "Cancel Meeting",
+  "defaultTitle": "Meeting",
+  "status": {
+    "scheduled": "Scheduled",
+    "completed": "Completed",
+    "cancelled": "Cancelled",
+    "rescheduled": "Rescheduled"
+  },
+  "calendar": {
+    "month": "month",
+    "week": "week",
+    "day": "day"
+  },
+  "empty": {
+    "title": "No meetings scheduled",
+    "description": "Once you book a meeting it will show up here.",
+    "noMeetings": "No meetings yet",
+    "noMeetingsDescription": "Book your first meeting during a call. Every booked meeting shows up here."
+  },
+  "toasts": {
+    "failedToLoad": "Failed to load meetings",
+    "cancelled": "Meeting cancelled",
+    "failedToCancel": "Failed to cancel meeting"
+  }
+}

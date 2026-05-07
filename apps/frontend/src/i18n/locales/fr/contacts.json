@@ -1,0 +1,61 @@
+{
+  "title": "Contacts",
+  "description": "Votre carnet d'adresses de leads, clients et prospects.",
+  "metaTitle": "Contacts | Ringee",
+  "metaDescription": "Votre carnet d'adresses de leads, clients et prospects.",
+  "newContact": "Nouveau contact",
+  "addContact": "Ajouter un contact",
+  "fields": {
+    "firstName": "Prénom",
+    "lastName": "Nom",
+    "email": "Email",
+    "phone": "Téléphone",
+    "phoneLabel": "Numéro de téléphone",
+    "company": "Entreprise",
+    "title": "Poste",
+    "tags": "Tags",
+    "notes": "Notes"
+  },
+  "table": {
+    "name": "Nom",
+    "phone": "Téléphone",
+    "email": "Email",
+    "company": "Entreprise",
+    "lastCall": "Dernier appel",
+    "tags": "Tags"
+  },
+  "empty": {
+    "title": "Aucun contact",
+    "description": "Ajoutez votre premier contact ou importez un CSV pour commencer.",
+    "action": "Ajouter un contact"
+  },
+  "delete": {
+    "title": "Supprimer le contact ?",
+    "description": "{name} sera supprimé définitivement de vos contacts.",
+    "confirm": "Supprimer le contact"
+  },
+  "import": {
+    "title": "Importer des contacts",
+    "description": "Téléversez un fichier CSV avec vos contacts.",
+    "dropzone": "Glissez-déposez votre CSV ici, ou cliquez pour parcourir",
+    "submit": "Importer",
+    "action": "Importer"
+  },
+  "export": {
+    "action": "Exporter"
+  },
+  "detail": {
+    "metaTitle": "Contact — Détails | Ringee",
+    "metaDescription": "Consultez tous les détails du contact : historique d'appels, notes, tags et plus encore."
+  },
+  "editPage": {
+    "metaTitle": "Contact — Modifier | Ringee",
+    "metaDescription": "Modifiez les informations du contact pour garder votre flux commercial organisé et efficace."
+  },
+  "kanban": {
+    "title": "Pipeline commercial",
+    "description": "Gérez vos leads visuellement",
+    "metaTitle": "Pipeline commercial — Visualisez et organisez vos leads | Ringee",
+    "metaDescription": "Gérez votre pipeline commercial visuellement avec Ringee. Organisez vos leads, suivez les appels et faites avancer vos opportunités à chaque étape avec clarté et efficacité."
+  }
+}

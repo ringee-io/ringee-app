@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import type { ComponentType } from 'react';
+import { useTranslations } from 'next-intl';
 import type { DashboardWidget } from '../lib/types';
 
 interface WidgetGridProps {
@@ -9,6 +10,13 @@ interface WidgetGridProps {
   onLayoutChange: (widgets: DashboardWidget[]) => void;
   onRemoveWidget?: (id: string) => void;
   editable?: boolean;
+}
+
+function GridLoader() {
+  const t = useTranslations('dashboard.widgets.shell');
+  return (
+    <div className='text-muted-foreground py-8 text-center text-sm'>{t('loading')}</div>
+  );
 }
 
 /**
@@ -25,8 +33,6 @@ export const WidgetGrid = dynamic<WidgetGridProps>(
   () => import('./widget-grid').then((m) => m.WidgetGrid as ComponentType<WidgetGridProps>),
   {
     ssr: false,
-    loading: () => (
-      <div className='text-muted-foreground py-8 text-center text-sm'>Loading dashboard…</div>
-    )
+    loading: () => <GridLoader />
   }
 );

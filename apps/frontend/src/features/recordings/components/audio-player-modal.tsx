@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import { decryptRecordingToBlob } from '@ringee/frontend-shared/lib/crypto';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Loader2, AlertCircle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface AudioPlayerModalProps {
     isOpen: boolean;
@@ -24,12 +25,14 @@ export function AudioPlayerModal({
     isOpen,
     onClose,
     audioUrl,
-    title = 'Call Recording'
+    title
 }: AudioPlayerModalProps) {
+    const t = useTranslations('calls.recordings.player');
     const api = useApi();
     const [decryptedUrl, setDecryptedUrl] = useState<string | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const dialogTitle = title ?? t('defaultTitle');
 
     useEffect(() => {
         if (!isOpen || !audioUrl) {
@@ -48,7 +51,7 @@ export function AudioPlayerModal({
                 setDecryptedUrl(blobUrl);
             } catch (err) {
                 console.error('Failed to decrypt recording:', err);
-                setError('Failed to load recording. Please try again.');
+                setError(t('errorLoad'));
             } finally {
                 setIsLoading(false);
             }
@@ -78,14 +81,14 @@ export function AudioPlayerModal({
         <Dialog open={isOpen} onOpenChange={(open) => !open && handleClose()}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>{title}</DialogTitle>
+                    <DialogTitle>{dialogTitle}</DialogTitle>
                 </DialogHeader>
                 <div className="mt-4">
                     {isLoading && (
                         <div className="flex flex-col items-center justify-center py-8">
                             <Loader2 className="h-8 w-8 animate-spin text-emerald-500" />
                             <p className="mt-2 text-sm text-muted-foreground">
-                                Decrypting recording...
+                                {t('decrypting')}
                             </p>
                         </div>
                     )}

@@ -5,6 +5,7 @@ import { DataTableColumnHeader } from '@ringee/frontend-shared/components/ui/tab
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { format } from 'date-fns';
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import { useTranslations } from 'next-intl';
 
 export type NumberPurchased = {
   id: string;
@@ -21,21 +22,22 @@ export type NumberPurchased = {
 export const columns: ColumnDef<NumberPurchased>[] = [
   {
     accessorKey: 'phoneNumber',
-    header: ({ column }: { column: Column<NumberPurchased, unknown> }) => (
-      <DataTableColumnHeader column={column} title='Phone Number' />
-    ),
+    header: ({ column }: { column: Column<NumberPurchased, unknown> }) => {
+      const t = useTranslations('settings.numbers.my.table');
+      return <DataTableColumnHeader column={column} title={t('phoneNumber')} />;
+    },
     cell: ({ cell }) => (
       <span className='text-foreground font-medium'>
         {cell.getValue<string>()}
       </span>
     )
-    // enableColumnFilter: true
   },
   {
     accessorKey: 'isoCountry',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Country' />
-    ),
+    header: ({ column }) => {
+      const t = useTranslations('settings.numbers.my.table');
+      return <DataTableColumnHeader column={column} title={t('country')} />;
+    },
     cell: ({ cell }) => (
       <span className='text-muted-foreground uppercase'>
         {cell.getValue<string>()}
@@ -44,11 +46,13 @@ export const columns: ColumnDef<NumberPurchased>[] = [
   },
   {
     accessorKey: 'phoneNumberType',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Type' />
-    ),
+    header: ({ column }) => {
+      const t = useTranslations('settings.numbers.my.table');
+      return <DataTableColumnHeader column={column} title={t('type')} />;
+    },
     cell: ({ cell }) => {
-      const val = cell.getValue<string>() || 'N/A';
+      const t = useTranslations('settings.numbers.my.table');
+      const val = cell.getValue<string>() || t('na');
       return (
         <Badge variant='outline' className='capitalize'>
           {val}
@@ -58,33 +62,53 @@ export const columns: ColumnDef<NumberPurchased>[] = [
   },
   {
     accessorKey: 'status',
-    header: ({ column }) => (
-      <DataTableColumnHeader column={column} title='Status' />
-    ),
+    header: ({ column }) => {
+      const t = useTranslations('settings.numbers.my.table');
+      return <DataTableColumnHeader column={column} title={t('status')} />;
+    },
     cell: ({ cell }) => {
+      const tTable = useTranslations('settings.numbers.my.table');
+      const tStatus = useTranslations('settings.numbers.my.status');
       const status = (cell.getValue<string>() || '').toLowerCase()!;
 
-      const values = {
-        'assigned': 'default',
-        'inactive': 'secondary',
-        'pending': 'default'
-      } as Record<string, string>
+      const variants: Record<string, string> = {
+        assigned: 'default',
+        inactive: 'secondary',
+        pending: 'default'
+      };
 
-      const variant = values[status] as any
+      const variant = variants[status] as any;
+      const knownStatuses = ['assigned', 'inactive', 'pending'];
+      const label = status
+        ? knownStatuses.includes(status)
+          ? tStatus(status as any)
+          : status
+        : tTable('unknown');
 
-      return <Badge className={cn(
-        status == 'pending' && 'bg-orange-500 text-white'
-      )} variant={variant}>{status || 'unknown'}</Badge>;
+      return (
+        <Badge
+          className={cn(status == 'pending' && 'bg-orange-500 text-white')}
+          variant={variant}
+        >
+          {label}
+        </Badge>
+      );
     }
   },
   {
     accessorKey: 'providerConnectionName',
-    header: 'Connection',
+    header: () => {
+      const t = useTranslations('settings.numbers.my.table');
+      return <>{t('connection')}</>;
+    },
     cell: ({ cell }) => cell.getValue<string>() || '-'
   },
   {
     accessorKey: 'purchaseDate',
-    header: 'Purchase Date',
+    header: () => {
+      const t = useTranslations('settings.numbers.my.table');
+      return <>{t('purchaseDate')}</>;
+    },
     cell: ({ cell }) => {
       const date = cell.getValue<string | null>();
       return date ? format(new Date(date), 'dd MMM yyyy') : '-';
@@ -92,7 +116,10 @@ export const columns: ColumnDef<NumberPurchased>[] = [
   },
   {
     accessorKey: 'monthlyCost',
-    header: 'Monthly Cost',
+    header: () => {
+      const t = useTranslations('settings.numbers.my.table');
+      return <>{t('monthlyCost')}</>;
+    },
     cell: ({ cell }) => {
       const val = cell.getValue<number | null>();
       return val ? `$${val.toFixed(2)}` : '-';
@@ -100,7 +127,10 @@ export const columns: ColumnDef<NumberPurchased>[] = [
   },
   {
     accessorKey: 'upfrontCost',
-    header: 'Upfront Cost',
+    header: () => {
+      const t = useTranslations('settings.numbers.my.table');
+      return <>{t('upfrontCost')}</>;
+    },
     cell: ({ cell }) => {
       const val = cell.getValue<number | null>();
       return val ? `$${val.toFixed(2)}` : '-';

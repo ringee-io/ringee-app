@@ -3,16 +3,19 @@ import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import { searchParamsCache } from '@ringee/frontend-shared/lib/searchparams';
 import { SearchParams } from 'nuqs';
 import CallPageView from '@/features/calls/components/call.page.view';
+import { getTranslations } from 'next-intl/server';
 
 type pageProps = {
   searchParams: Promise<SearchParams>;
 };
 
-export const metadata = {
-  title: 'Calls — Make and Receive Calls Worldwide | Ringee',
-  description:
-    'Place and receive crystal-clear calls to 180+ countries directly from your browser. Powered by Telnyx and Ringee WebRTC technology for sales teams and global communication.'
-};
+export async function generateMetadata() {
+  const t = await getTranslations('calls');
+  return {
+    title: t('metaTitle'),
+    description: t('metaDescription')
+  };
+}
 
 export default async function Page(props: pageProps) {
   const searchParams = await props.searchParams;

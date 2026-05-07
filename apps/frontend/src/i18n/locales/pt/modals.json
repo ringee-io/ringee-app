@@ -1,0 +1,18 @@
+{
+  "confirmDelete": {
+    "title": "Tem a certeza?",
+    "description": "Esta ação não pode ser anulada.",
+    "confirm": "Sim, eliminar",
+    "cancel": "Cancelar"
+  },
+  "confirmLeave": {
+    "title": "Sair sem guardar?",
+    "description": "As alterações por guardar serão perdidas.",
+    "confirm": "Sair",
+    "cancel": "Ficar"
+  },
+  "unsavedChanges": {
+    "title": "Tem alterações por guardar",
+    "description": "Guarde-as antes de continuar."
+  }
+}

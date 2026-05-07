@@ -1,0 +1,60 @@
+{
+  "title": "Boîte de réception",
+  "description": "Vos appels entrants, messages et messages vocaux au même endroit.",
+  "filters": {
+    "all": "Tous",
+    "unread": "Non lus",
+    "missed": "Manqués",
+    "missedCalls": "Appels manqués",
+    "voicemail": "Messagerie vocale",
+    "voicemails": "Messages vocaux",
+    "sms": "SMS",
+    "resolved": "Résolus",
+    "archived": "Archivés"
+  },
+  "empty": {
+    "title": "Boîte vide",
+    "description": "Vous êtes à jour. Les nouveaux messages apparaîtront ici."
+  },
+  "threadList": {
+    "searchPlaceholder": "Rechercher par nom ou numéro",
+    "noConversations": "Aucune conversation pour le moment",
+    "newWillAppear": "Les nouveaux appels et SMS apparaîtront ici automatiquement.",
+    "importing": "Importation…",
+    "importFromPastCalls": "Importer depuis les appels passés"
+  },
+  "timeline": {
+    "selectConversation": "Sélectionnez une conversation pour commencer",
+    "viaNumber": "via {number}",
+    "linkContact": "Associer un contact",
+    "call": "Appeler",
+    "markResolved": "Marquer comme résolu",
+    "archive": "Archiver",
+    "reopen": "Rouvrir",
+    "loading": "Chargement…",
+    "noActivity": "Aucune activité — envoyez un message ou passez un appel pour commencer."
+  },
+  "composer": {
+    "sms": "SMS",
+    "internalNote": "Note interne",
+    "selectNumber": "Sélectionner un numéro",
+    "noSmsSuffix": " (sans SMS)",
+    "notePlaceholder": "Ajouter une note interne (visible uniquement par votre équipe)…",
+    "messagePlaceholder": "Tapez un message — ⌘/Ctrl + Entrée pour envoyer",
+    "saveNote": "Enregistrer la note",
+    "send": "Envoyer",
+    "smsDisabledWarning": "Ce numéro n'a pas les SMS activés dans Telnyx. Choisissez-en un autre ou activez la messagerie sur le numéro."
+  },
+  "events": {
+    "missedCall": "Appel manqué",
+    "inboundCall": "Appel entrant",
+    "outboundCall": "Appel sortant",
+    "callBack": "Rappeler",
+    "voicemailReceived": "Message vocal reçu",
+    "voicedropSent": "Voicedrop envoyé",
+    "internalNote": "Note interne",
+    "meetingBooked": "Réunion planifiée",
+    "callbackCompleted": "Rappel effectué",
+    "callbackScheduled": "Rappel programmé"
+  }
+}

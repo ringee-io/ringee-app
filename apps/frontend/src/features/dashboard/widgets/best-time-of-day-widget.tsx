@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { WidgetShell } from '../components/widget-shell';
 import { useWidgetData } from '../hooks/use-widget-data';
 
@@ -14,11 +15,7 @@ interface HourBucket {
 
 type Metric = 'sales' | 'meetings' | 'interested';
 
-const METRIC_LABEL: Record<Metric, string> = {
-  sales: 'Sales',
-  meetings: 'Meetings Booked',
-  interested: 'Interested Leads'
-};
+const METRICS: Metric[] = ['sales', 'meetings', 'interested'];
 
 function formatHour(hour: number) {
   const h = hour % 12 === 0 ? 12 : hour % 12;
@@ -27,6 +24,7 @@ function formatHour(hour: number) {
 }
 
 export function BestTimeOfDayWidget({ title, onRemove }: { title: string; onRemove?: () => void }) {
+  const t = useTranslations('dashboard.widgets.bestTime');
   const [metric, setMetric] = React.useState<Metric>('meetings');
   const { data, loading, error } = useWidgetData<HourBucket[]>('/dashboard/best-time-of-day');
   const max = Math.max(...((data ?? []).map((d) => d[metric])), 1);
@@ -38,12 +36,12 @@ export function BestTimeOfDayWidget({ title, onRemove }: { title: string; onRemo
       loading={loading}
       error={error}
       empty={empty}
-      emptyHint='Once outcomes start showing up, this chart will reveal the hours of the day that produce the most results.'
+      emptyHint={t('emptyHint')}
       onRemove={onRemove}
     >
       <div className='flex h-full flex-col gap-3'>
         <div className='flex flex-wrap gap-1 text-xs'>
-          {(Object.keys(METRIC_LABEL) as Metric[]).map((m) => (
+          {METRICS.map((m) => (
             <button
               key={m}
               type='button'
@@ -55,7 +53,7 @@ export function BestTimeOfDayWidget({ title, onRemove }: { title: string; onRemo
                   : 'border-border text-muted-foreground hover:bg-muted'
               ].join(' ')}
             >
-              {METRIC_LABEL[m]}
+              {t(`metrics.${m}`)}
             </button>
           ))}
         </div>
@@ -68,7 +66,7 @@ export function BestTimeOfDayWidget({ title, onRemove }: { title: string; onRemo
                   <div
                     className='bg-primary absolute right-0 bottom-0 left-0'
                     style={{ height: `${Math.max(pct, b[metric] > 0 ? 6 : 0)}%` }}
-                    title={`${b[metric]} at ${formatHour(b.hour)}`}
+                    title={t('tooltip', { count: b[metric], hour: formatHour(b.hour) })}
                   />
                 </div>
                 <span className='text-muted-foreground text-[10px] tabular-nums'>

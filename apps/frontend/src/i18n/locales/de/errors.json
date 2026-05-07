@@ -1,0 +1,28 @@
+{
+  "generic": {
+    "title": "Etwas ist schiefgelaufen",
+    "description": "Ein unerwarteter Fehler ist aufgetreten. Bitte versuchen Sie es erneut."
+  },
+  "network": {
+    "title": "Netzwerkfehler",
+    "description": "Prüfen Sie Ihre Verbindung und versuchen Sie es erneut."
+  },
+  "notFound": {
+    "title": "Seite nicht gefunden",
+    "description": "Die gesuchte Seite existiert nicht oder wurde verschoben.",
+    "action": "Zum Dashboard"
+  },
+  "forbidden": {
+    "title": "Kein Zugriff",
+    "description": "Bitten Sie eine Administratorin oder einen Administrator um die nötigen Berechtigungen."
+  },
+  "session": {
+    "expired": "Ihre Sitzung ist abgelaufen. Bitte melden Sie sich erneut an."
+  },
+  "calls": {
+    "permissionDenied": "Mikrofonzugriff wurde verweigert.",
+    "deviceNotFound": "Audiogerät konnte nicht gefunden werden.",
+    "callFailed": "Anruf fehlgeschlagen. Bitte erneut versuchen.",
+    "insufficientCredits": "Sie haben nicht genug Credits für diesen Anruf."
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "title": "Contatti",
+  "description": "La tua rubrica di lead, clienti e prospect.",
+  "metaTitle": "Contatti | Ringee",
+  "metaDescription": "La tua rubrica di lead, clienti e prospect.",
+  "newContact": "Nuovo contatto",
+  "addContact": "Aggiungi contatto",
+  "fields": {
+    "firstName": "Nome",
+    "lastName": "Cognome",
+    "email": "Email",
+    "phone": "Telefono",
+    "phoneLabel": "Numero di telefono",
+    "company": "Azienda",
+    "title": "Ruolo",
+    "tags": "Tag",
+    "notes": "Note"
+  },
+  "table": {
+    "name": "Nome",
+    "phone": "Telefono",
+    "email": "Email",
+    "company": "Azienda",
+    "lastCall": "Ultima chiamata",
+    "tags": "Tag"
+  },
+  "empty": {
+    "title": "Nessun contatto",
+    "description": "Aggiungi il primo contatto o importa un CSV per iniziare.",
+    "action": "Aggiungi contatto"
+  },
+  "delete": {
+    "title": "Eliminare il contatto?",
+    "description": "{name} verrà rimosso definitivamente dai tuoi contatti.",
+    "confirm": "Elimina contatto"
+  },
+  "import": {
+    "title": "Importa contatti",
+    "description": "Carica un file CSV con i tuoi contatti.",
+    "dropzone": "Trascina qui il CSV o clicca per sfogliare",
+    "submit": "Importa",
+    "action": "Importa"
+  },
+  "export": {
+    "action": "Esporta"
+  },
+  "detail": {
+    "metaTitle": "Contatto — Dettagli | Ringee",
+    "metaDescription": "Visualizza tutti i dettagli del contatto, inclusi cronologia chiamate, note, tag e altro."
+  },
+  "editPage": {
+    "metaTitle": "Contatto — Modifica | Ringee",
+    "metaDescription": "Modifica i dati del contatto per mantenere il flusso commerciale organizzato ed efficiente."
+  },
+  "kanban": {
+    "title": "Pipeline commerciale",
+    "description": "Gestisci i lead in modo visuale",
+    "metaTitle": "Pipeline commerciale — Visualizza e organizza i lead | Ringee",
+    "metaDescription": "Gestisci la pipeline commerciale in modo visuale con Ringee. Organizza i lead, monitora le chiamate e fai avanzare le opportunità in ogni fase con chiarezza ed efficienza."
+  }
+}

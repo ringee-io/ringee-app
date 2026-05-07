@@ -4,6 +4,7 @@ import { Check, ChevronsUpDown, GalleryVerticalEnd, Plus, Settings, Sparkles, Ch
 import * as React from 'react';
 import { useOrganization, useOrganizationList } from '@clerk/nextjs';
 import { CreateOrganization, OrganizationProfile } from '@clerk/nextjs';
+import { useTranslations } from 'next-intl';
 
 import {
   DropdownMenu,
@@ -62,6 +63,11 @@ const mockMemberships = [
 ];
 
 export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
+  const t = useTranslations('organizations');
+  const tUpgrade = useTranslations('organizations.upgrade');
+  const tSub = useTranslations('organizations.subscription');
+  const tSwitcher = useTranslations('organizations.switcher');
+
   // Use real Clerk hooks only when not in mock mode
   const clerkOrg = useOrganization();
   const clerkOrgList = useOrganizationList({
@@ -132,6 +138,13 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
   const isAdmin = membership?.role === 'org:admin';
   const hasOrgs = userMemberships.data && userMemberships.data.length > 0;
 
+  const UPGRADE_FEATURES = [
+    tUpgrade('features.unlimitedMembers'),
+    tUpgrade('features.cheaperRates'),
+    tUpgrade('features.virtualNumbers'),
+    tUpgrade('features.advancedAnalytics')
+  ];
+
   const handleProceedToUpgrade = async () => {
     setIsProceedingToUpgrade(true);
     try {
@@ -155,15 +168,6 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
     setIsSwitchingOrg(true);
     try {
       await setActive?.({ organization: org });
-      // const url = new URL(window.location.href);
-      // url.searchParams.delete('memberId');
-      // url.searchParams.delete('memberName');
-      // const cleanUrl = url.searchParams.toString()
-      //   ? `${url.pathname}?${url.searchParams.toString()}`
-      //   : url.pathname;
-      // router.replace(cleanUrl);
-      // router.refresh();
-
       window.location.reload();
     } finally {
       setIsSwitchingOrg(false);
@@ -195,15 +199,15 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
               <Plus className='size-4' />
             </div>
             <div className='flex flex-col gap-0.5 leading-none'>
-              <span className='font-semibold'>Create new Organization</span>
-              <span className='text-xs opacity-80'>Subscription Ready</span>
+              <span className='font-semibold'>{tSwitcher('createNewOrganization')}</span>
+              <span className='text-xs opacity-80'>{tSwitcher('subscriptionReady')}</span>
             </div>
           </SidebarMenuButton>
 
           <Dialog open={isUpgradeCreateOpen} onOpenChange={setIsUpgradeCreateOpen}>
             <DialogContent className='sm:max-w-[425px] p-0 border-none bg-transparent shadow-none'>
               <DialogHeader className='sr-only'>
-                <DialogTitle>Create Organization</DialogTitle>
+                <DialogTitle>{tSwitcher('createOrganization')}</DialogTitle>
               </DialogHeader>
               <CreateOrganization afterCreateOrganizationUrl='/' />
             </DialogContent>
@@ -240,8 +244,8 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
                   <Sparkles className='size-4' />
                 </div>
                 <div className='flex flex-col gap-0.5 leading-none'>
-                  <span className='font-semibold'>Upgrade to Organization</span>
-                  <span className='text-xs opacity-80'>Unlock Pro Features</span>
+                  <span className='font-semibold'>{tUpgrade('title')}</span>
+                  <span className='text-xs opacity-80'>{tUpgrade('unlockProFeatures')}</span>
                 </div>
               </SidebarMenuButton>
             </PopoverTrigger>
@@ -255,21 +259,16 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
                 <div>
                   <h3 className='flex items-center gap-2 text-base font-semibold'>
                     <Sparkles className='h-4 w-4 text-emerald-500' />
-                    Upgrade to Organization
+                    {tUpgrade('title')}
                   </h3>
                   <p className='text-muted-foreground text-sm mt-1'>
-                    Unlock professional power for your team with advanced features.
+                    {tUpgrade('description')}
                   </p>
                 </div>
 
                 {/* Features */}
                 <div className="space-y-2.5">
-                  {[
-                    "Unlimited team members",
-                    "Cheaper rates per minute",
-                    "Virtual numbers included",
-                    "Advanced analytics"
-                  ].map((feature, i) => (
+                  {UPGRADE_FEATURES.map((feature, i) => (
                     <div key={i} className="flex items-center gap-2.5 text-sm">
                       <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
                         <CheckCircle2 className="h-3 w-3" />
@@ -282,15 +281,15 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
                 {/* Pricing Highlight */}
                 <div className="rounded-lg bg-muted/50 p-3 flex items-center justify-between border border-border/50">
                   <div className="flex flex-col">
-                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pricing</span>
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{tUpgrade('pricing')}</span>
                     <div className="flex items-baseline gap-1">
                       <span className="text-2xl font-bold text-foreground">$20</span>
-                      <span className="text-xs text-muted-foreground">/month</span>
+                      <span className="text-xs text-muted-foreground">{tUpgrade('perMonth')}</span>
                     </div>
                   </div>
                   <div className="text-right">
                     <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/20 px-2 py-1 rounded-full">
-                      Pro Plan
+                      {tUpgrade('proPlan')}
                     </span>
                   </div>
                 </div>
@@ -307,18 +306,18 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
                   )}
                 >
                   <Zap className="mr-2 h-4 w-4 fill-white" />
-                  Proceed to upgrade
+                  {tUpgrade('proceedToUpgrade')}
                 </Button>
 
                 {/* Footer */}
                 <div className='text-muted-foreground flex items-center justify-between border-t pt-3 text-[10px]'>
                   <div className='flex items-center gap-1'>
                     <ShieldCheck className='h-3 w-3 text-emerald-500' />
-                    Secure by Stripe
+                    {tUpgrade('secureByStripe')}
                   </div>
                   <div className='flex items-center gap-1'>
                     <CheckCircle2 className='h-3 w-3 text-emerald-500' />
-                    Cancel anytime
+                    {tUpgrade('cancelAnytime')}
                   </div>
                 </div>
               </div>
@@ -354,10 +353,10 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
               </div>
               <div className='flex flex-col gap-0.5 leading-none'>
                 <span className='font-semibold'>
-                  {isSwitchingOrg ? 'Switching...' : activeOrganization?.name || 'My Personal'}
+                  {isSwitchingOrg ? tSwitcher('switching') : activeOrganization?.name || tSwitcher('myPersonal')}
                 </span>
                 <span className='text-xs text-muted-foreground'>
-                  Organization
+                  {tSwitcher('organization')}
                 </span>
               </div>
               <ChevronsUpDown className='ml-auto' />
@@ -374,14 +373,14 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
               <div className='flex size-6 items-center justify-center rounded-sm border'>
                 <User className='size-4 shrink-0' />
               </div>
-              My Personal
+              {tSwitcher('myPersonal')}
               {!activeOrganization && (
                 <Check className='ml-auto' />
               )}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuLabel className='text-xs text-muted-foreground'>
-              Organizations
+              {tSwitcher('organizations')}
             </DropdownMenuLabel>
             {userMemberships.data?.map((mem) => (
               <DropdownMenuItem
@@ -422,13 +421,13 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
                         <Settings className='size-4' />
                       </div>
                       <div className='font-medium text-muted-foreground'>
-                        Manage Organization
+                        {tSwitcher('manageOrganization')}
                       </div>
                     </DropdownMenuItem>
                   </DialogTrigger>
                   <DialogContent className='sm:max-w-[900px] p-0 border-none bg-transparent shadow-none max-h-[85vh] overflow-y-auto'>
                     <DialogHeader className='sr-only'>
-                      <DialogTitle>Manage Organization</DialogTitle>
+                      <DialogTitle>{tSwitcher('manageOrganization')}</DialogTitle>
                     </DialogHeader>
                     <OrganizationProfile />
                   </DialogContent>
@@ -450,13 +449,13 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
                       <Plus className='size-4' />
                     </div>
                     <div className='font-medium text-muted-foreground'>
-                      Create Organization
+                      {tSwitcher('createOrganization')}
                     </div>
                   </DropdownMenuItem>
                 </DialogTrigger>
                 <DialogContent className='sm:max-w-[425px] p-0 border-none bg-transparent shadow-none'>
                   <DialogHeader className='sr-only'>
-                    <DialogTitle>Create Organization</DialogTitle>
+                    <DialogTitle>{tSwitcher('createOrganization')}</DialogTitle>
                   </DialogHeader>
                   <CreateOrganization afterCreateOrganizationUrl='/' />
                 </DialogContent>
@@ -474,32 +473,27 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
                     <Plus className='size-4' />
                   </div>
                   <div className='font-medium text-muted-foreground'>
-                    Create Organization
+                    {tSwitcher('createOrganization')}
                   </div>
                 </DropdownMenuItem>
                 <Dialog open={isUpgradePopoverOpen} onOpenChange={setIsUpgradePopoverOpen}>
                   <DialogContent className='sm:max-w-[400px] p-6'>
                     <DialogHeader className='sr-only'>
-                      <DialogTitle>Subscription Required</DialogTitle>
+                      <DialogTitle>{tSub('required')}</DialogTitle>
                     </DialogHeader>
                     <div className='space-y-5'>
                       <div>
                         <h3 className='flex items-center gap-2 text-base font-semibold'>
                           <Sparkles className='h-4 w-4 text-emerald-500' />
-                          Subscription Required
+                          {tSub('required')}
                         </h3>
                         <p className='text-muted-foreground text-sm mt-1'>
-                          You need an active subscription to create another organization.
+                          {tSub('requiredDescription')}
                         </p>
                       </div>
 
                       <div className="space-y-2.5">
-                        {[
-                          "Unlimited team members",
-                          "Cheaper rates per minute",
-                          "Virtual numbers included",
-                          "Advanced analytics"
-                        ].map((feature, i) => (
+                        {UPGRADE_FEATURES.map((feature, i) => (
                           <div key={i} className="flex items-center gap-2.5 text-sm">
                             <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-100 dark:bg-emerald-500/20 text-emerald-600 dark:text-emerald-400">
                               <CheckCircle2 className="h-3 w-3" />
@@ -511,15 +505,15 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
 
                       <div className="rounded-lg bg-muted/50 p-3 flex items-center justify-between border border-border/50">
                         <div className="flex flex-col">
-                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Pricing</span>
+                          <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{tUpgrade('pricing')}</span>
                           <div className="flex items-baseline gap-1">
                             <span className="text-2xl font-bold text-foreground">$20</span>
-                            <span className="text-xs text-muted-foreground">/month per org</span>
+                            <span className="text-xs text-muted-foreground">{tUpgrade('perMonthPerOrg')}</span>
                           </div>
                         </div>
                         <div className="text-right">
                           <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400 bg-emerald-100 dark:bg-emerald-500/20 px-2 py-1 rounded-full">
-                            Pro Plan
+                            {tUpgrade('proPlan')}
                           </span>
                         </div>
                       </div>
@@ -535,17 +529,17 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
                         )}
                       >
                         <Zap className="mr-2 h-4 w-4 fill-white" />
-                        Subscribe Now
+                        {tSub('subscribeNow')}
                       </Button>
 
                       <div className='text-muted-foreground flex items-center justify-between border-t pt-3 text-[10px]'>
                         <div className='flex items-center gap-1'>
                           <ShieldCheck className='h-3 w-3 text-emerald-500' />
-                          Secure by Stripe
+                          {tUpgrade('secureByStripe')}
                         </div>
                         <div className='flex items-center gap-1'>
                           <CheckCircle2 className='h-3 w-3 text-emerald-500' />
-                          Cancel anytime
+                          {tUpgrade('cancelAnytime')}
                         </div>
                       </div>
                     </div>

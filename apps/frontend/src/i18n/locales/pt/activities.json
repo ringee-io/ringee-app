@@ -1,0 +1,48 @@
+{
+  "title": "Atividades",
+  "description": "A sua atividade de chamadas geral fora das campanhas",
+  "metaTitle": "Atividades — Registo de chamadas | Ringee",
+  "metaDescription": "Consulte as suas chamadas gerais, filtre por resultado e data, agende reuniões a partir de chamadas concluídas e acompanhe as reuniões agendadas.",
+  "newActivity": "Nova atividade",
+  "types": {
+    "call": "Chamada",
+    "note": "Nota",
+    "task": "Tarefa",
+    "meeting": "Reunião",
+    "email": "Email"
+  },
+  "outcomes": {
+    "meetingBooked": "Reunião agendada",
+    "sale": "Venda",
+    "interested": "Interessado",
+    "followUp": "Acompanhamento",
+    "notInterested": "Não interessado",
+    "noAnswer": "Sem resposta",
+    "voicemail": "Correio de voz",
+    "wrongNumber": "Número errado",
+    "gatekeeper": "Filtro"
+  },
+  "filters": {
+    "disposition": "Resultado",
+    "clearFilters": "Limpar filtros"
+  },
+  "noCallsFound": "Nenhuma chamada encontrada",
+  "noCallsDescription": "Sem chamadas gerais para {date}.",
+  "noCallsWithFilters": "Sem chamadas gerais para {date} com os filtros selecionados.",
+  "scheduledMeeting": "Reunião agendada",
+  "scheduleMeeting": "Agendar reunião",
+  "callCount": "{count, plural, one {# chamada} other {# chamadas}}",
+  "pagination": {
+    "previous": "Anterior",
+    "next": "Seguinte",
+    "page": "Página {page} de {totalPages}"
+  },
+  "toasts": {
+    "failedToLoad": "Falha ao carregar atividades",
+    "meetingBooked": "Reunião agendada com sucesso"
+  },
+  "empty": {
+    "title": "Ainda sem atividade",
+    "description": "Registe a sua primeira atividade para começar a construir o seu histórico."
+  }
+}

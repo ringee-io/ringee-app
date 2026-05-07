@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -52,8 +53,31 @@ import { cn } from '@ringee/frontend-shared/lib/utils';
 /** Groups that require an active organization session */
 const ORG_ONLY_GROUPS = ['Outreach'];
 
+/** Maps the English labels in the shared `navGroups` constant to translation keys. */
+const GROUP_LABEL_KEYS: Record<string, string> = {
+  General: 'groups.general',
+  Communication: 'groups.communication',
+  Outreach: 'groups.outreach',
+  Settings: 'groups.settings'
+};
+
+const ITEM_TITLE_KEYS: Record<string, string> = {
+  Dashboard: 'items.dashboard',
+  Contacts: 'items.contacts',
+  Activities: 'items.activities',
+  Meetings: 'items.meetings',
+  Call: 'items.call',
+  Inbox: 'items.inbox',
+  Campaigns: 'items.campaigns',
+  Callbacks: 'items.callbacks',
+  DNC: 'items.dnc',
+  Overview: 'items.overview',
+  Integrations: 'items.integrations'
+};
+
 function OutreachLockOverlay({ collapsed }: { collapsed: boolean }) {
   const api = useApi();
+  const t = useTranslations('navigation.sidebar');
   const [loading, setLoading] = React.useState(false);
 
   const handleUpgrade = async () => {
@@ -74,14 +98,14 @@ function OutreachLockOverlay({ collapsed }: { collapsed: boolean }) {
   return (
     <div className='absolute inset-0 z-10 flex flex-col items-center justify-center backdrop-blur-[0.5px]'>
       <p className='text-[11px] font-semibold text-foreground'>
-        Available for organization level
+        {t('outreachLocked')}
       </p>
       <button
         onClick={handleUpgrade}
         disabled={loading}
         className='mt-0.5 text-xs text-emerald-500 hover:text-emerald-400 hover:underline transition-colors disabled:opacity-60'
       >
-        {loading ? 'Redirecting...' : 'Upgrade now'}
+        {loading ? t('redirecting') : t('upgradeNow')}
       </button>
     </div>
   );
@@ -90,6 +114,8 @@ function OutreachLockOverlay({ collapsed }: { collapsed: boolean }) {
 export default function AppSidebar({ useMock }: { useMock?: boolean }) {
   const pathname = usePathname();
   const dialer = useDialerStore();
+  const tNav = useTranslations('navigation');
+  const tCommon = useTranslations('common');
 
   const { user } = useMock
     ? {
@@ -126,7 +152,7 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
           onClick={() => dialer.setQuickDial(!dialer.quickDial)}
         >
           <IconPhoneCalling className='size-4' />
-          <span>Open Quick call</span>
+          <span>{tNav('sidebar.openQuickCall')}</span>
         </SidebarMenuButton>
       </SidebarHeader>
 
@@ -134,6 +160,8 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
         {navGroups.map((group) => {
           const isOrgOnly = ORG_ONLY_GROUPS.includes(group.label);
           const isLocked = isOrgOnly && !hasActiveOrg;
+          const groupKey = GROUP_LABEL_KEYS[group.label];
+          const groupLabel = groupKey ? tNav(groupKey) : group.label;
 
           return (
             <SidebarGroup key={group.label} className='relative'>
@@ -141,15 +169,15 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
               {isLocked && isCollapsed ? (
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                    <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>
                   </TooltipTrigger>
                   <TooltipContent side='right' className='text-xs'>
-                    <p className='font-semibold'>Available for organization level</p>
-                    <p className='text-[11px] text-muted-foreground mt-0.5'>Upgrade to unlock outreach tools.</p>
+                    <p className='font-semibold'>{tNav('sidebar.outreachLocked')}</p>
+                    <p className='text-[11px] text-muted-foreground mt-0.5'>{tNav('sidebar.outreachLockedDescription')}</p>
                   </TooltipContent>
                 </Tooltip>
               ) : (
-                <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+                <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>
               )}
 
               {!useMock && isLocked && <OutreachLockOverlay collapsed={isCollapsed} />}
@@ -160,6 +188,8 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                 {group.items.map((item: NavItem) => {
                   // @ts-ignore
                   const Icon = item.icon ? Icons[item.icon] : Icons.logo;
+                  const itemKey = ITEM_TITLE_KEYS[item.title];
+                  const itemTitle = itemKey ? tNav(itemKey) : item.title;
 
                   if (item.disabled) {
                     return (
@@ -174,17 +204,17 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                               >
                                 {/* @ts-ignore */}
                                 <Icon />
-                                <span>{item.title}</span>
+                                <span>{itemTitle}</span>
                                 <span className='ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground'>
-                                  Soon
+                                  {tCommon('comingSoon')}
                                 </span>
                               </SidebarMenuButton>
                             </span>
                           </TooltipTrigger>
                           <TooltipContent side='right' className='max-w-52'>
-                            <p className='font-semibold text-xs'>Inbox — coming soon 🚀</p>
+                            <p className='font-semibold text-xs'>{tNav('inboxTooltip.title')}</p>
                             <p className='mt-0.5 text-[11px] text-muted-foreground'>
-                              Manage all your inbound messages, missed calls, and voicemails in one unified inbox.
+                              {tNav('inboxTooltip.description')}
                             </p>
                           </TooltipContent>
                         </Tooltip>
@@ -196,14 +226,14 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                     <SidebarMenuItem key={item.title}>
                       <SidebarMenuButton
                         asChild
-                        tooltip={item.title}
+                        tooltip={itemTitle}
                         isActive={pathname === item.url}
                       >
                         {/* @ts-ignore */}
                         <Link href={item.url}>
                           {/* @ts-ignore */}
                           <Icon />
-                          <span>{item.title}</span>
+                          <span>{itemTitle}</span>
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -260,17 +290,17 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                   <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
                     {/* @ts-ignore */}
                     <Icons.user className='mr-2 h-4 w-4' />
-                    Profile
+                    {tNav('userMenu.profile')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => router.push('/dashboard/history')}>
                     {/* @ts-ignore */}
                     <Icons.history className='mr-2 h-4 w-4' />
-                    History
+                    {tNav('userMenu.history')}
                   </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => router.push('/dashboard/recordings')}>
                     {/* @ts-ignore */}
                     <Icons.mic className='mr-2 h-4 w-4' />
-                    Recordings
+                    {tNav('userMenu.recordings')}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
 
@@ -282,12 +312,12 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                       <DropdownMenuItem onClick={() => router.push('/dashboard/rate')}>
                         {/* @ts-ignore */}
                         <Icons.star className='mr-2 h-4 w-4' />
-                        Rate
+                        {tNav('userMenu.rate')}
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => router.push('/dashboard/buy-number')}>
                         {/* @ts-ignore */}
                         <Icons.phoneCall className='mr-2 h-4 w-4' />
-                        Buy Number
+                        {tNav('userMenu.buyNumber')}
                       </DropdownMenuItem>
                     </DropdownMenuGroup>
                   </>

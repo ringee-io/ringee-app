@@ -1,40 +1,20 @@
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import { IconBrandReddit, IconBrandTwitter } from '@tabler/icons-react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { Logo } from './navbar/logo';
 
-const footerLinks = [
-  {
-    title: 'Features',
-    href: '#features'
-  },
-  {
-    title: 'Pricing',
-    href: '#pricing'
-  },
-  {
-    title: 'FAQ',
-    href: '#faq'
-  },
-  {
-    title: 'Comparison',
-    href: '#comparison'
-  },
-  {
-    title: 'Blog',
-    href: '/blog'
-  },
-  {
-    title: 'Privacy',
-    href: '/privacy'
-  },
-  {
-    title: 'Terms',
-    href: '/terms'
-  }
-];
-
 const Footer = () => {
+  const t = useTranslations('marketing.footer');
+  const footerLinks = [
+    { titleKey: 'features', href: '#features' },
+    { titleKey: 'pricing', href: '#pricing' },
+    { titleKey: 'faq', href: '#faq' },
+    { titleKey: 'comparison', href: '#comparison' },
+    { titleKey: 'blog', href: '/blog' },
+    { titleKey: 'privacy', href: '/privacy' },
+    { titleKey: 'terms', href: '/terms' }
+  ] as const;
   return (
     <footer className='dark bg-background text-foreground mt-40 mb-10 dark:border-t'>
       <div className='mx-auto max-w-screen-xl px-0 sm:px-6'>
@@ -43,13 +23,13 @@ const Footer = () => {
             <Logo />
 
             <ul className='mt-6 flex flex-wrap items-center gap-4'>
-              {footerLinks.map(({ title, href }) => (
-                <li key={title}>
+              {footerLinks.map(({ titleKey, href }) => (
+                <li key={titleKey}>
                   <Link
                     href={href}
                     className='text-muted-foreground hover:text-foreground'
                   >
-                    {title}
+                    {t(`links.${titleKey}`)}
                   </Link>
                 </li>
               ))}
@@ -58,7 +38,7 @@ const Footer = () => {
           </div>
 
           <div>
-            <h6 className='font-semibold mb-2'>Featured on: </h6>
+            <h6 className='font-semibold mb-2'>{t('featuredOn')}</h6>
             <div className='flex items-center gap-3'>
               <a
                 href='https://www.producthunt.com/products/ringee-io?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-ringee-io'
@@ -110,7 +90,7 @@ const Footer = () => {
             <Link href='/' target='_blank'>
               Ringee
             </Link>
-            . All rights reserved.
+            . {t('rights')}
           </span>
 
           <div className='text-muted-foreground flex items-center gap-5'>

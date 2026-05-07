@@ -1,0 +1,28 @@
+{
+  "generic": {
+    "title": "Er is iets misgegaan",
+    "description": "Er is een onverwachte fout opgetreden. Probeer het opnieuw."
+  },
+  "network": {
+    "title": "Netwerkfout",
+    "description": "Controleer je verbinding en probeer het opnieuw."
+  },
+  "notFound": {
+    "title": "Pagina niet gevonden",
+    "description": "De pagina die je zoekt bestaat niet of is verplaatst.",
+    "action": "Naar dashboard"
+  },
+  "forbidden": {
+    "title": "Geen toegang",
+    "description": "Vraag een beheerder om je de juiste rechten te geven."
+  },
+  "session": {
+    "expired": "Je sessie is verlopen. Log opnieuw in."
+  },
+  "calls": {
+    "permissionDenied": "Toegang tot de microfoon is geweigerd.",
+    "deviceNotFound": "We konden je audioapparaat niet vinden.",
+    "callFailed": "Gesprek mislukt. Probeer het opnieuw.",
+    "insufficientCredits": "Je hebt onvoldoende tegoed om dit gesprek te voeren."
+  }
+}

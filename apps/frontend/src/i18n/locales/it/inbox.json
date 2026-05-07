@@ -1,0 +1,60 @@
+{
+  "title": "Posta in arrivo",
+  "description": "Le chiamate in arrivo, i messaggi e le segreterie in un unico posto.",
+  "filters": {
+    "all": "Tutti",
+    "unread": "Non letti",
+    "missed": "Persi",
+    "missedCalls": "Chiamate perse",
+    "voicemail": "Segreteria",
+    "voicemails": "Segreterie",
+    "sms": "SMS",
+    "resolved": "Risolti",
+    "archived": "Archiviati"
+  },
+  "empty": {
+    "title": "Posta in arrivo vuota",
+    "description": "Sei in pari. I nuovi messaggi appariranno qui."
+  },
+  "threadList": {
+    "searchPlaceholder": "Cerca per nome o numero",
+    "noConversations": "Nessuna conversazione ancora",
+    "newWillAppear": "Le nuove chiamate e gli SMS appariranno qui automaticamente.",
+    "importing": "Importazione…",
+    "importFromPastCalls": "Importa dalle chiamate passate"
+  },
+  "timeline": {
+    "selectConversation": "Seleziona una conversazione per iniziare",
+    "viaNumber": "tramite {number}",
+    "linkContact": "Collega contatto",
+    "call": "Chiama",
+    "markResolved": "Segna come risolto",
+    "archive": "Archivia",
+    "reopen": "Riapri",
+    "loading": "Caricamento…",
+    "noActivity": "Nessuna attività ancora — invia un messaggio o effettua una chiamata per iniziare."
+  },
+  "composer": {
+    "sms": "SMS",
+    "internalNote": "Nota interna",
+    "selectNumber": "Seleziona numero",
+    "noSmsSuffix": " (senza SMS)",
+    "notePlaceholder": "Aggiungi una nota interna (visibile solo al tuo team)…",
+    "messagePlaceholder": "Scrivi un messaggio — ⌘/Ctrl + Invio per inviare",
+    "saveNote": "Salva nota",
+    "send": "Invia",
+    "smsDisabledWarning": "Questo numero non ha gli SMS abilitati in Telnyx. Scegline un altro o abilita la messaggistica sul numero."
+  },
+  "events": {
+    "missedCall": "Chiamata persa",
+    "inboundCall": "Chiamata in entrata",
+    "outboundCall": "Chiamata in uscita",
+    "callBack": "Richiama",
+    "voicemailReceived": "Segreteria ricevuta",
+    "voicedropSent": "Voicedrop inviato",
+    "internalNote": "Nota interna",
+    "meetingBooked": "Riunione fissata",
+    "callbackCompleted": "Richiamata completata",
+    "callbackScheduled": "Richiamata programmata"
+  }
+}

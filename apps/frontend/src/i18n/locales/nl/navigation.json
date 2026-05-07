@@ -1,0 +1,54 @@
+{
+  "groups": {
+    "general": "Algemeen",
+    "communication": "Communicatie",
+    "outreach": "Outreach",
+    "settings": "Instellingen"
+  },
+  "items": {
+    "dashboard": "Dashboard",
+    "contacts": "Contacten",
+    "activities": "Activiteiten",
+    "meetings": "Meetings",
+    "call": "Gesprekken",
+    "inbox": "Inbox",
+    "campaigns": "Campagnes",
+    "callbacks": "Terugbellen",
+    "dnc": "DNC",
+    "overview": "Overzicht",
+    "integrations": "Integraties",
+    "profile": "Profiel",
+    "history": "Geschiedenis",
+    "recordings": "Opnames",
+    "rate": "Tarieven",
+    "buyNumber": "Nummer kopen"
+  },
+  "userMenu": {
+    "profile": "Profiel",
+    "history": "Geschiedenis",
+    "recordings": "Opnames",
+    "rate": "Tarieven",
+    "buyNumber": "Nummer kopen",
+    "signOut": "Uitloggen",
+    "upgradeToPro": "Upgraden naar Pro",
+    "account": "Account",
+    "billing": "Facturering",
+    "notifications": "Meldingen",
+    "logOut": "Uitloggen"
+  },
+  "sidebar": {
+    "openQuickCall": "Snel bellen",
+    "outreachLocked": "Beschikbaar voor organisaties",
+    "outreachLockedDescription": "Upgrade om outreach-tools te ontgrendelen.",
+    "upgradeNow": "Upgraden",
+    "redirecting": "Bezig met doorverwijzen…"
+  },
+  "inboxTooltip": {
+    "title": "Inbox — binnenkort beschikbaar",
+    "description": "Beheer al je inkomende berichten, gemiste gesprekken en voicemails op één plek."
+  },
+  "kbar": {
+    "navigation": "Navigatie",
+    "goTo": "Ga naar {page}"
+  }
+}

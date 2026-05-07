@@ -1,0 +1,30 @@
+{
+  "validation": {
+    "required": "Ce champ est obligatoire.",
+    "email": "Saisissez une adresse email valide.",
+    "phone": "Saisissez un numéro de téléphone valide.",
+    "minLength": "Doit contenir au moins {count} caractères.",
+    "maxLength": "Doit contenir au maximum {count} caractères.",
+    "min": "Doit être au moins {min}.",
+    "max": "Doit être au maximum {max}.",
+    "url": "Saisissez une URL valide.",
+    "passwordsMatch": "Les mots de passe ne correspondent pas.",
+    "alreadyExists": "Existe déjà.",
+    "invalid": "Valeur non valide."
+  },
+  "placeholders": {
+    "search": "Rechercher…",
+    "selectOption": "Sélectionnez une option",
+    "typeHere": "Tapez ici…"
+  },
+  "fileUpload": {
+    "drop": "Déposez votre fichier ici",
+    "or": "ou",
+    "browse": "parcourir",
+    "uploading": "Envoi…",
+    "uploaded": "Envoyé",
+    "removeFile": "Supprimer le fichier",
+    "tooLarge": "Le fichier est trop volumineux. Maximum {size}.",
+    "wrongType": "Type de fichier non pris en charge."
+  }
+}

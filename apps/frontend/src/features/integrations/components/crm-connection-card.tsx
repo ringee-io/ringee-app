@@ -35,6 +35,7 @@ import {
   User,
 } from 'lucide-react';
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import type { CrmConnectionSummary, CrmProviderType } from '../types/crm';
 import { PROVIDER_META } from '../types/crm';
 
@@ -51,7 +52,7 @@ interface Props {
   disconnecting?: boolean;
 }
 
-function statusBadge(status: CrmConnectionSummary['status']) {
+function statusBadge(status: CrmConnectionSummary['status'], t: (key: string) => string) {
   switch (status) {
     case 'active':
       return (
@@ -59,7 +60,7 @@ function statusBadge(status: CrmConnectionSummary['status']) {
           variant="outline"
           className="border-emerald-500/30 bg-emerald-500/10 text-emerald-500"
         >
-          <CheckCircle2 className="mr-1 h-3 w-3" /> Connected
+          <CheckCircle2 className="mr-1 h-3 w-3" /> {t('status.active')}
         </Badge>
       );
     case 'error':
@@ -68,7 +69,7 @@ function statusBadge(status: CrmConnectionSummary['status']) {
           variant="outline"
           className="border-amber-500/30 bg-amber-500/10 text-amber-500"
         >
-          <AlertCircle className="mr-1 h-3 w-3" /> Needs attention
+          <AlertCircle className="mr-1 h-3 w-3" /> {t('status.error')}
         </Badge>
       );
     case 'revoked':
@@ -77,7 +78,7 @@ function statusBadge(status: CrmConnectionSummary['status']) {
           variant="outline"
           className="border-red-500/30 bg-red-500/10 text-red-500"
         >
-          <ShieldAlert className="mr-1 h-3 w-3" /> Revoked
+          <ShieldAlert className="mr-1 h-3 w-3" /> {t('status.revoked')}
         </Badge>
       );
     case 'disconnected':
@@ -86,23 +87,23 @@ function statusBadge(status: CrmConnectionSummary['status']) {
           variant="outline"
           className="border-muted-foreground/30 bg-muted text-muted-foreground"
         >
-          Disconnected
+          {t('status.disconnected')}
         </Badge>
       );
   }
 }
 
-function formatRelative(date: string | null): string {
-  if (!date) return 'Never';
+function formatRelative(date: string | null, t: (key: string, values?: Record<string, unknown>) => string): string {
+  if (!date) return t('lastSyncNever');
   const d = new Date(date);
   const diff = Date.now() - d.getTime();
   const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return 'just now';
-  if (mins < 60) return `${mins}m ago`;
+  if (mins < 1) return t('lastSyncJustNow');
+  if (mins < 60) return t('lastSyncMinutesAgo', { n: mins });
   const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
+  if (hrs < 24) return t('lastSyncHoursAgo', { n: hrs });
   const days = Math.floor(hrs / 24);
-  if (days < 30) return `${days}d ago`;
+  if (days < 30) return t('lastSyncDaysAgo', { n: days });
   return d.toLocaleDateString();
 }
 
@@ -115,6 +116,7 @@ export function CrmConnectionCard({
   onManage,
   disconnecting,
 }: Props) {
+  const t = useTranslations('crm');
   const meta = PROVIDER_META[connection.provider];
   const needsReconnect =
     connection.status === 'error' || connection.status === 'revoked';
@@ -144,7 +146,7 @@ export function CrmConnectionCard({
           <div className="min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="truncate text-sm font-semibold">{meta.name}</h3>
-              {statusBadge(connection.status)}
+              {statusBadge(connection.status, t)}
             </div>
             <p className="mt-0.5 truncate text-xs text-muted-foreground">
               {connection.accountName ?? connection.accountId}
@@ -161,7 +163,7 @@ export function CrmConnectionCard({
           <DropdownMenuContent align="end" className="w-48">
             <DropdownMenuItem onClick={() => onViewHistory(connection.id)}>
               <Clock className="mr-2 h-4 w-4" />
-              View sync history
+              {t('actions.viewSyncHistory')}
             </DropdownMenuItem>
             {needsReconnect && (
               <DropdownMenuItem
@@ -170,7 +172,7 @@ export function CrmConnectionCard({
                 }
               >
                 <RefreshCw className="mr-2 h-4 w-4" />
-                Reconnect
+                {t('actions.reconnect')}
               </DropdownMenuItem>
             )}
             <DropdownMenuSeparator />
@@ -182,23 +184,22 @@ export function CrmConnectionCard({
                     className="text-amber-600 focus:text-amber-600"
                   >
                     <PlugZap className="mr-2 h-4 w-4" />
-                    Disconnect
+                    {t('disconnect')}
                   </DropdownMenuItem>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Disconnect {meta.name}?</AlertDialogTitle>
+                    <AlertDialogTitle>{t('dialogs.disconnectTitle', { provider: meta.name })}</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Call syncing will pause. Your existing sync history and
-                      CRM records will be preserved. You can reconnect anytime.
+                      {t('dialogs.disconnectDescription')}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>{t('actions.cancel')}</AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => onDisconnect(connection.id)}
                     >
-                      Disconnect
+                      {t('disconnect')}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -211,25 +212,23 @@ export function CrmConnectionCard({
                   className="text-destructive focus:text-destructive"
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
-                  Forget connection
+                  {t('actions.forgetConnection')}
                 </DropdownMenuItem>
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Forget this connection?</AlertDialogTitle>
+                  <AlertDialogTitle>{t('dialogs.forgetTitle')}</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This removes tokens, contact links and sync history from
-                    Ringee permanently. Records already pushed to {meta.name}{' '}
-                    remain untouched.
+                    {t('dialogs.forgetDescription', { provider: meta.name })}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogCancel>{t('actions.cancel')}</AlertDialogCancel>
                   <AlertDialogAction
                     onClick={() => onForget(connection.id)}
                     className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
                   >
-                    Forget
+                    {t('actions.forget')}
                   </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
@@ -243,27 +242,27 @@ export function CrmConnectionCard({
         <span className="inline-flex items-center gap-1 rounded-md border bg-muted/40 px-2 py-0.5">
           {connection.scope === 'organization' ? (
             <>
-              <Users className="h-3 w-3" /> Organization
+              <Users className="h-3 w-3" /> {t('scope.organization')}
             </>
           ) : (
             <>
-              <User className="h-3 w-3" /> Personal
+              <User className="h-3 w-3" /> {t('scope.personal')}
             </>
           )}
         </span>
         <span className="inline-flex items-center gap-1">
           <Clock className="h-3 w-3" />
-          Last sync {formatRelative(connection.lastSyncAt)}
+          {t('lastSyncAt', { time: formatRelative(connection.lastSyncAt, t) })}
         </span>
       </div>
 
       {/* Stat grid */}
       <div className="grid grid-cols-4 gap-2">
-        <Stat label="Synced" value={connection.done} tone="success" />
-        <Stat label="Pending" value={connection.pending} tone="muted" />
-        <Stat label="Failed" value={connection.failed} tone="danger" />
+        <Stat label={t('stats.synced')} value={connection.done} tone="success" />
+        <Stat label={t('stats.pending')} value={connection.pending} tone="muted" />
+        <Stat label={t('stats.failed')} value={connection.failed} tone="danger" />
         <Stat
-          label="Review"
+          label={t('stats.review')}
           value={connection.needsResolution}
           tone="warning"
         />
@@ -276,7 +275,7 @@ export function CrmConnectionCard({
         className="w-full"
         onClick={() => onManage(connection.id)}
       >
-        Manage Connection
+        {t('connections.manageConnection')}
       </Button>
 
       {/* Error hint */}
@@ -286,12 +285,12 @@ export function CrmConnectionCard({
           <div className="flex-1">
             <p className="font-medium text-foreground">
               {connection.status === 'revoked'
-                ? 'Access was revoked in the CRM.'
-                : 'We hit an error contacting the CRM.'}
+                ? t('errors.revokedError')
+                : t('errors.connectionError')}
             </p>
             {connection.lastErrorCode && (
               <p className="mt-0.5 text-muted-foreground">
-                Code: <span className="font-mono">{connection.lastErrorCode}</span>
+                {t('errors.errorCode', { code: connection.lastErrorCode })}
               </p>
             )}
           </div>
@@ -309,7 +308,7 @@ export function CrmConnectionCard({
             ) : (
               <RefreshCw className="mr-1 h-3 w-3" />
             )}
-            Reconnect
+            {t('actions.reconnect')}
           </Button>
         </div>
       )}

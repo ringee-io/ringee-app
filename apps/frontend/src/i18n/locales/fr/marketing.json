@@ -1,0 +1,464 @@
+{
+  "nav": {
+    "product": "Produit",
+    "features": "Fonctionnalités",
+    "pricing": "Tarifs",
+    "docs": "Documentation",
+    "docsForDevelopers": "Documentation développeurs",
+    "blog": "Blog",
+    "contact": "Contact",
+    "signIn": "Se connecter",
+    "getStarted": "Commencer",
+    "productDescription": "La plateforme de communication open-source moderne conçue pour la croissance.",
+    "navDescriptions": {
+      "features": "Découvrez nos fonctionnalités et capacités principales.",
+      "campaigns": "Dialers preview et progressifs pour les équipes outbound.",
+      "findLeads": "Apollo.io et Prospeo.io — prospection intégrée.",
+      "integrations": "Attio, Odoo — et d'autres en chemin.",
+      "comparison": "Voyez comment nous nous comparons à la concurrence.",
+      "pricing": "Tarifs flexibles pour les équipes de toutes tailles."
+    },
+    "navItems": {
+      "features": "Fonctionnalités",
+      "campaigns": "Campagnes",
+      "findLeads": "Trouver et enrichir des leads",
+      "integrations": "Intégrations CRM",
+      "comparison": "Comparatif",
+      "pricing": "Tarifs"
+    }
+  },
+  "hero": {
+    "headlinePrefix": "Appels, campagnes &",
+    "headlineHighlight": "CRM",
+    "headlineSuffix": "dans un seul onglet",
+    "subcopy": "La plateforme outbound open-source. Lancez des dialers preview et progressifs, synchronisez chaque appel à <attio>Attio</attio> ou <odoo>Odoo</odoo>, et ne payez que les minutes utilisées.",
+    "tryFreeCall": "Essayer un appel gratuit",
+    "tryFreeCallAria": "Démarrer un appel gratuit",
+    "bookDemo": "Réserver une démo",
+    "trust": {
+      "noCard": "Sans carte bancaire",
+      "countries": "180+ pays",
+      "firstCall": "Premier appel en 60s",
+      "soc2": "Conforme SOC 2"
+    },
+    "capabilities": {
+      "manualDialer": "Dialer manuel",
+      "previewDialer": "Preview Dialer",
+      "progressiveDialer": "Progressive Dialer",
+      "crmSync": "Sync Attio & Odoo",
+      "recordings": "Enregistrements & transcriptions",
+      "browserMobile": "Navigateur & mobile"
+    }
+  },
+  "features": {
+    "title": "Boostez vos appels avec Ringee.io",
+    "items": {
+      "smartDialer": {
+        "title": "Dialer intelligent",
+        "description": "Passez des appels dans le monde entier en quelques secondes, en qualité HD, avec des analytics en temps réel."
+      },
+      "buyNumbers": {
+        "title": "Achetez des numéros locaux et internationaux",
+        "description": "Obtenez des numéros vérifiés dans plusieurs pays pour étendre votre portée et gérer différentes marques."
+      },
+      "publicNumbers": {
+        "title": "Numéros publics prêts à l'emploi",
+        "description": "Commencez à appeler immédiatement depuis un numéro public Ringee partagé — aucune configuration requise."
+      },
+      "encryptedRecording": {
+        "title": "Enregistrement d'appels chiffré",
+        "description": "Enregistrez vos appels avec un chiffrement complet. Chaque enregistrement est stocké en toute sécurité et n'est accessible que depuis votre compte Ringee, par vous et les membres autorisés de votre équipe."
+      },
+      "webMobile": {
+        "title": "Accès web & mobile",
+        "description": "Utilisez Ringee directement depuis votre navigateur ou l'app Android, avec une synchronisation complète entre vos appareils."
+      },
+      "billing": {
+        "title": "Crédit & facturation maîtrisés",
+        "description": "Suivez votre solde, vos coûts et vos rechargements avec une tarification transparente à la minute."
+      }
+    }
+  },
+  "videoDemo": {
+    "title": "Ringee en action",
+    "subtitle": "Inscrivez-vous et passez votre premier appel en moins d'une minute.",
+    "cards": {
+      "quickSetup": { "title": "Setup rapide", "description": "Premier appel en moins de 60s" },
+      "recordCalls": { "title": "Enregistrez", "description": "Ne perdez aucun détail important" },
+      "countries": { "title": "180+ pays", "description": "Couverture mondiale, tarifs locaux" },
+      "cheaper": { "title": "50× moins cher", "description": "Tarification à l'usage" }
+    }
+  },
+  "campaigns": {
+    "kicker": "Campagnes outbound",
+    "title": "Des dialers pensés pour chaque playbook",
+    "subtitle": "Lancez du cold-calling, des relances et de la réactivation avec le mode de dialer adapté à votre équipe : appels revus par l'agent ou auto-dial sans intervention.",
+    "featuresTitle": "Tout ce dont vous avez besoin pour mener une campagne",
+    "featuresSubtitle": "De l'importation de leads aux analyses en direct — tout inclus.",
+    "modes": {
+      "preview": {
+        "tag": "Numéroteur de prévisualisation automatique",
+        "tagline": "L'agent décide. Ringee compose.",
+        "description": "Extrayez le prochain lead qualifié de la file d'attente, examinez le contact, les notes et la dernière disposition, puis lancez l'appel en un clic. Parfait pour les actions de haute valeur où le contexte compte.",
+        "label": "Humain dans la boucle",
+        "bullets": {
+          "0": "Carte de prévisualisation du lead avec contact, dernière tentative et disposition",
+          "1": "Composition en un clic avec votre ID d'appelant vérifié",
+          "2": "Rythme de l'agent — idéal pour la qualité plutôt que la quantité"
+        }
+      },
+      "progressive": {
+        "tag": "Numéroteur progressif",
+        "tagline": "Prêt ? Ringee prend le suivant.",
+        "description": "L'orchestrateur du numéroteur affecte automatiquement le prochain lead dès qu'un agent est prêt. Temps d'inactivité minimal, débit constant — sans le bruit du sur-numérotage prédictif.",
+        "label": "Affectation automatique",
+        "bullets": {
+          "0": "L'orchestrateur en direct associe les agents disponibles aux leads éligibles",
+          "1": "Conforme aux règles : respecte les fuseaux horaires et les plages horaires",
+          "2": "Pas d'appels abandonnés — ratio 1:1 agent-à-appel"
+        }
+      }
+    },
+    "features": {
+      "csvImport": {
+        "title": "Importation de leads CSV et manuelle",
+        "description": "Importez des milliers de leads en même temps. Déduplication intégrée par rapport aux contacts et leads existants."
+      },
+      "dispositions": {
+        "title": "Dispositions et résultats",
+        "description": "Catégorisez chaque appel — positif, neutre, négatif, sans contact — avec des dispositions personnalisées par campagne."
+      },
+      "callingWindow": {
+        "title": "Conformité des plages d'appel",
+        "description": "Planifications tenant compte des fuseaux horaires avec horaires et jours ouvrables. Les leads ne sont appelés que lorsque c'est légal et approprié."
+      },
+      "retries": {
+        "title": "Réessais et tentatives maximales",
+        "description": "Tentatives maximales par lead et délais de réessai configurables — le moteur de réessai s'occupe du reste."
+      },
+      "callbacks": {
+        "title": "Rappels et temps de clôture",
+        "description": "Planifiez des rappels, définissez le temps de clôture par campagne et déposez des messages vocaux en cas de non-réponse."
+      },
+      "analytics": {
+        "title": "Analyses outbound en direct",
+        "description": "Sessions d'agents, tentatives d'appel, taux de connexion et dispositions — diffusés en direct sur votre tableau de bord."
+      }
+    }
+  },
+  "findLeads": {
+    "kicker": "Trouvez et enrichissez vos leads",
+    "title": "Trouvez et enrichissez vos leads — sans quitter Ringee",
+    "subtitle": "Apollo et Prospeo sont intégrés. Recherchez, enrichissez et appelez en quelques secondes.",
+    "availableNow": "Disponible maintenant",
+    "bringOwnKey": "Apportez votre propre clé API",
+    "workflow": {
+      "title": "Conçu pour un cycle serré prospect-à-appel",
+      "subtitle": "Chaque recherche, révélation et enrichissement atterrit dans votre workspace Ringee — prêt pour un dialer, une sync CRM ou un workflow."
+    },
+    "workflowFeatures": {
+      "granularFilters": {
+        "title": "Filtres de recherche granulaires",
+        "description": "Séniorité du titre, secteur, effectif, localisation, technologies — composez la requête ICP exacte dont votre mouvement GTM a besoin."
+      },
+      "emailReveal": {
+        "title": "Révélation e-mail & téléphone à la demande",
+        "description": "Ne payez que pour les contacts que vous souhaitez vraiment contacter. Les révélations sont mises en cache et attachées définitivement au lead."
+      },
+      "unifiedCredits": {
+        "title": "Crédits unifiés",
+        "description": "Un seul ledger de crédits couvre la recherche, les révélations et l'enrichissement. Tarification transparente par action, sans surprises."
+      },
+      "autoDedup": {
+        "title": "Déduplication automatique à l'import",
+        "description": "Les leads importés sont dédupliqués par rapport à vos contacts existants (téléphone et e-mail) avant d'intégrer votre pipeline."
+      },
+      "onClickCampaign": {
+        "title": "En un clic vers la campagne",
+        "description": "Poussez un résultat de recherche directement dans une campagne dialer Progressive ou Preview — prête à appeler en quelques secondes."
+      },
+      "enrichContacts": {
+        "title": "Enrichissez vos contacts existants",
+        "description": "Complétez les e-mails, téléphones, titres et données entreprise manquants sur les contacts déjà dans Ringee — sans manipulation de CSV."
+      }
+    },
+    "badges": {
+      "payPerAction": "Crédits à l'action",
+      "encryptedCreds": "Identifiants chiffrés au repos",
+      "dedupeContacts": "Déduplication par rapport aux contacts existants",
+      "moreProviders": "D'autres fournisseurs arrivent"
+    },
+    "providers": {
+      "apollo": {
+        "tagline": "Prospectez, enrichissez et appelez — en un seul flux.",
+        "description": "Recherchez parmi 275M+ contacts et 70M+ entreprises. Filtrez par titre, secteur, géographie, effectif et tech stack, puis révélez e-mails vérifiés et numéros mobiles à la demande.",
+        "badge": "Recherche de leads + enrichissement",
+        "capabilities": {
+          "search": "Recherche de personnes & entreprises",
+          "emailReveal": "Révélation d'e-mail vérifié",
+          "phoneReveal": "Révélation de numéro mobile",
+          "firmographics": "Firmographie & tech stack"
+        }
+      },
+      "prospeo": {
+        "tagline": "Trouveur d'e-mails haute précision, à la demande.",
+        "description": "Résolvez des e-mails à partir d'URLs LinkedIn ou de paires nom + entreprise avec des taux de validité leader du marché. Parfait pour enrichir vos contacts avant d'appeler.",
+        "badge": "Enrichissement de contacts",
+        "capabilities": {
+          "emailFinder": "Trouveur d'e-mail depuis LinkedIn",
+          "domainLookup": "Recherche par domaine & nom",
+          "bulkEnrichment": "Enrichissement en masse",
+          "deliverability": "Délivrabilité validée"
+        }
+      }
+    }
+  },
+  "crmIntegrations": {
+    "kicker": "Intégrations CRM",
+    "title": "Chaque appel synchronisé automatiquement avec votre CRM",
+    "subtitle": "Attio et Odoo aujourd'hui, d'autres bientôt. Notes, enregistrements et résultats se synchronisent automatiquement.",
+    "availableNow": "Disponible maintenant",
+    "comingSoon": "Bientôt disponible",
+    "moreOnTheWay": {
+      "title": "D'autres arrivent",
+      "description": "Pipedrive, Zoho, Close et d'autres sont sur la feuille de route. Ouvrez une issue ou votez sur GitHub pour nous aider à prioriser.",
+      "cta": "Demander une intégration"
+    },
+    "capabilities": {
+      "title": "Un moteur, chaque intégration",
+      "subtitle": "Construit sur une primitive de sync partagée — pour que chaque CRM bénéficie des mêmes garanties fiables."
+    },
+    "syncFeatures": {
+      "contactSync": {
+        "title": "Sync de contacts bidirectionnelle",
+        "description": "Récupérez contacts et entreprises à la connexion. Les nouveaux contacts Ringee sont poussés automatiquement vers la source."
+      },
+      "callLogs": {
+        "title": "Journaux d'activité d'appels",
+        "description": "Chaque appel terminé devient une activité structurée avec durée, disposition et résultat."
+      },
+      "notesTranscripts": {
+        "title": "Notes, transcriptions & enregistrements",
+        "description": "Attachez notes d'appel, résumés IA, transcriptions et URLs d'enregistrements sécurisés au bon enregistrement."
+      },
+      "fieldMappings": {
+        "title": "Mappings de champs personnalisés",
+        "description": "Mappez les champs Ringee sur votre schéma CRM. Push, pull ou bidirectionnel — par champ, par connexion."
+      },
+      "retryOutbox": {
+        "title": "Réessais fiables & boîte d'envoi",
+        "description": "Une boîte d'envoi durable réessaie les syncs échoués avec backoff, pour qu'aucun problème CRM transitoire ne fasse perdre de données."
+      },
+      "orgScope": {
+        "title": "Portée personnelle & organisation",
+        "description": "Connectez un CRM pour vous seul, ou partagez une connexion avec toute votre équipe."
+      }
+    },
+    "badges": {
+      "oauthAuth": "Auth OAuth & clé API",
+      "encryptedCreds": "Identifiants chiffrés au repos",
+      "idempotentWrites": "Écritures idempotentes et sûres aux réessais"
+    },
+    "providers": {
+      "attio": {
+        "description": "Synchronisez contacts, entreprises, activité d'appels, enregistrements et transcriptions vers votre workspace Attio."
+      },
+      "odoo19": {
+        "description": "Intégration JSON-2 moderne pour les dernières instances Odoo. Journalisez les appels comme activités sur res.partner."
+      },
+      "odoo14": {
+        "description": "Compatibilité XML-RPC classique pour les déploiements Odoo existants de la version 14 à 18."
+      },
+      "hubspot": {
+        "description": "Sync de contacts bidirectionnelle et activités d'appels natives sur les enregistrements HubSpot."
+      },
+      "salesforce": {
+        "description": "Sync de niveau enterprise avec Leads, Contacts et Comptes sur SFDC."
+      }
+    }
+  },
+  "pricing": {
+    "title": "Tarifs pour individus et équipes",
+    "subtitle": "Démarrez en individuel avec le pay-as-you-go ou passez à un plan business pour la collaboration et de meilleurs tarifs au volume. Appelez et recevez des appels dans <strong>plus de 180 pays</strong> et louez des numéros dans <strong>plus de 50</strong> — installation instantanée, contrôle total.",
+    "perMonth": "par mois",
+    "ctaStart": "Commencer gratuitement",
+    "individual": {
+      "title": "Pour les individus (pay as you go)",
+      "price": "0,020 $",
+      "priceCaption": "par minute (tarif de base) — numéros à partir de 1,90 $/mois",
+      "features": {
+        "outbound": "Appels sortants dans le monde entier",
+        "billingPerSecond": "Facturation à la seconde en temps réel",
+        "recording": "Enregistrement d'appels en option",
+        "rentNumbers": "Louez des numéros locaux ou gratuits",
+        "instantActivation": "Activation et vérification instantanées",
+        "manageNumbers": "Gérez plusieurs numéros facilement"
+      },
+      "cta": "Passer un appel gratuit d'1 minute"
+    },
+    "business": {
+      "title": "Pour les équipes et entreprises",
+      "price": "20,00 $",
+      "priceCaption": "par mois — fonctionnalités business en plus du pay-as-you-go",
+      "features": {
+        "everythingIndividual": "Tout le plan individuel",
+        "teamCollab": "Collaboration d'équipe et dashboards partagés",
+        "unlimitedMembers": "Membres illimités dans votre équipe",
+        "volumeRates": "Tarifs à la minute plus avantageux au volume",
+        "prioritySupport": "Support prioritaire et onboarding"
+      },
+      "cta": "Aller à l'inscription"
+    },
+    "footnote": "* Les tarifs peuvent varier légèrement selon le pays. Taxes et frais opérateur non inclus.",
+    "tooltips": {
+      "calls": "Ne payez que ce que vous utilisez. Les appels sortants commencent à 0,020 $/min et varient selon la destination.",
+      "numbers": "Louez des numéros locaux ou internationaux à partir de 1,90 $/mois dans plus de 50 pays.",
+      "recording": "Enregistrez et téléchargez vos appels pour la qualité et la conformité.",
+      "coverage": "Ringee permet d'appeler et de recevoir des appels dans plus de 180 pays via des routes VoIP haute qualité.",
+      "business": "Conçu pour les équipes et les opérations de vente — inclut tout le plan individuel plus les fonctionnalités d'équipe, de meilleurs tarifs et un support prioritaire."
+    }
+  },
+  "comparison": {
+    "title": "Comparez Ringee.io",
+    "subtitle": "Comment Ringee se compare à Adversus et Genesys quand on veut un dialer outbound flexible, dans le navigateur, sans contrats par siège.",
+    "table": {
+      "featuresHeader": "Fonctionnalités",
+      "footerNote": "* Adversus et Genesys facturent généralement par siège avec des engagements mensuels fixes plus élevés, tandis que Ringee applique un forfait de 20 $/mois par organisation avec des membres illimités."
+    },
+    "rows": {
+      "browserBased": {
+        "feature": "Basé sur navigateur (sans installation)",
+        "ringee": "Passez et recevez des appels directement depuis votre navigateur — aucun softphone à installer.",
+        "adversus": "Plateforme web axée sur les campagnes outbound et les workflows call center.",
+        "genesys": "Suite de contact center cloud ; les agents utilisent généralement des apps web ou bureau dédiées."
+      },
+      "singleUser": {
+        "feature": "Démarrez avec 1 utilisateur",
+        "ringee": "Pas de minimum — commencez seul et ajoutez des membres au fur et à mesure."
+      },
+      "pricingModel": {
+        "feature": "Modèle de tarification",
+        "ringee": "Pay-as-you-go pour les minutes & numéros + plan business optionnel à 20 $/mois par organisation (membres illimités).",
+        "adversus": "Abonnement par siège avec facturation mensuelle/annuelle et un nombre minimum d'agents.",
+        "genesys": "Tarification enterprise par siège / contrat, généralement pour des déploiements plus importants."
+      },
+      "perSeat": {
+        "feature": "Abonnement par siège",
+        "ringee": "PAS DE TARIFICATION PAR SIÈGE — forfait 20 $/mois par organisation avec membres d'équipe illimités."
+      },
+      "monthlyMin": {
+        "feature": "Minimum mensuel typique",
+        "ringee": "Commencez avec 0 $ de frais fixes — rechargez simplement des crédits. Ajoutez le plan business à 20 $/mois uniquement pour les fonctions d'équipe.",
+        "adversus": "À partir de 122 €/mois par agent, minimum 3 agents (366 €/mois) pour des appels illimités EU + US + Canada, hors TVA.",
+        "genesys": "Devis enterprise personnalisé, généralement ACV plus élevé et contrats pluriannuels."
+      },
+      "globalCoverage": {
+        "feature": "Couverture mondiale",
+        "ringee": "Appelez et recevez dans 180+ pays avec des tarifs mondiaux transparents.",
+        "adversus": "Focus principal sur les appels illimités EU + US + Canada. Les autres destinations dépendent de votre plan et de votre opérateur."
+      },
+      "outboundDialer": {
+        "feature": "Dialer de vente outbound",
+        "ringee": "Idéal pour l'outbound manuel et semi-structuré et la prospection depuis navigateur ou mobile."
+      },
+      "smallTeams": {
+        "feature": "Idéal pour les petites équipes & startups",
+        "ringee": "Conçu pour que les fondateurs solo et les petites équipes démarrent petit, puis scalent sans frais par siège supplémentaires.",
+        "adversus": "Mieux adapté quand vous disposez déjà d'une équipe outbound dédiée et d'un volume d'appels stable."
+      },
+      "setupTime": {
+        "feature": "Temps de mise en place",
+        "ringee": "Inscrivez-vous et commencez à appeler en quelques minutes — aucun projet d'implémentation nécessaire.",
+        "adversus": "Nécessite la configuration de campagnes, dispositions, flux de leads et configuration des agents.",
+        "genesys": "Onboarding enterprise, intégrations et configuration avec implication IT."
+      }
+    }
+  },
+  "faq": {
+    "title": "Questions fréquentes",
+    "subtitle": "Tout ce qu'il faut savoir sur Ringee.io, les tarifs et la qualité d'appel.",
+    "items": {
+      "browserCalling": {
+        "question": "Comment fonctionne l'appel depuis le navigateur ?",
+        "answer": "Ringee.io utilise la technologie WebRTC pour connecter les appels directement depuis votre navigateur — aucun téléchargement ni extension. Quand vous composez, votre navigateur se connecte en temps réel et de manière sécurisée au réseau téléphonique mondial."
+      },
+      "incomingCalls": {
+        "question": "Puis-je recevoir des appels entrants ?",
+        "answer": "Oui ! Vous pouvez louer un numéro chez Ringee ou utiliser votre propre numéro vérifié pour recevoir des appels dans le navigateur. Vous pouvez même les transférer vers votre mobile."
+      },
+      "sms": {
+        "question": "Supportez-vous les SMS ?",
+        "answer": "Pas encore — nous sommes 100 % concentrés sur la meilleure qualité d'appel au tarif le plus bas. Le SMS est déjà sur la roadmap pour les prochaines versions."
+      },
+      "pricing": {
+        "question": "Pourquoi vos tarifs sont-ils si compétitifs ?",
+        "answer": "Notre infrastructure utilise les mêmes réseaux Tier-1 que les grands opérateurs, mais sans intermédiaires. Résultat : connexions plus rapides, tarifs transparents et couverture mondiale dans plus de 180 pays."
+      },
+      "vsApps": {
+        "question": "Pourquoi pas WhatsApp ou Google Voice ?",
+        "answer": "Ces apps n'autorisent les appels qu'au sein de leur propre plateforme. Ringee permet d'appeler n'importe quel fixe ou mobile dans le monde, directement depuis votre navigateur — l'autre personne n'a besoin ni d'app ni de compte."
+      },
+      "privacy": {
+        "question": "Mes données d'appel sont-elles privées ?",
+        "answer": "Absolument. Tous les flux audio sont chiffrés de bout en bout et nous ne stockons que le minimum de métadonnées pour votre historique. La confidentialité et la sécurité sont au cœur de la plateforme."
+      },
+      "subscription": {
+        "question": "Faut-il un abonnement ?",
+        "answer": "Pas d'abonnement — Ringee.io fonctionne en pay-as-you-go. Ajoutez du crédit quand vous en avez besoin et ne payez que les minutes et les numéros que vous utilisez."
+      },
+      "addCredit": {
+        "question": "Comment ajouter du crédit à mon compte ?",
+        "answer": "Rechargez instantanément avec n'importe quelle carte bancaire principale ou PayPal via notre intégration sécurisée Stripe. Tous les paiements sont chiffrés et conformes PCI."
+      },
+      "callQuality": {
+        "question": "Et en cas de souci de qualité d'appel ?",
+        "answer": "La qualité dépend de votre connexion internet. Pour de meilleurs résultats, utilisez un réseau haut débit ou Wi-Fi stable. Si le problème persiste, notre support peut vous aider à diagnostiquer en temps réel."
+      }
+    }
+  },
+  "openSource": {
+    "title": "Fièrement open-source",
+    "subtitle": "Auto-hébergez Ringee, auditez le code et contribuez. Licence MIT.",
+    "badge": "Sécurisé et open source",
+    "sectionTitle": "Fièrement open source — hébergez sur votre propre infrastructure et maîtrisez vos données",
+    "subheadline": "Open source, auto-hébergé",
+    "description": "Hébergez Ringee sur votre propre serveur. Maîtrisez vos données clients et restez pleinement conforme aux normes réglementaires.",
+    "githubCta": "Retrouvez-nous sur GitHub",
+    "starsLabel": "Étoiles sur GitHub",
+    "starUs": "Étoilez-nous sur GitHub",
+    "starsCount": "{count} étoiles",
+    "contributorsLabel": "Contributeurs",
+    "features": {
+      "securePersonnel": "Personnel sécurisé",
+      "secureDevelopment": "Développement sécurisé",
+      "secureTesting": "Tests sécurisés",
+      "cloudSecurity": "Sécurité cloud"
+    },
+    "soc2Title": "Sécurité conforme aux normes SOC 2",
+    "soc2Description": "Avec des protocoles stricts en place, vous pouvez nous faire confiance pour protéger vos informations en toute sérénité.",
+    "readMore": "Lire la suite"
+  },
+  "testimonials": {
+    "title": "Témoignages"
+  },
+  "ctaBanner": {
+    "title": "Prêt à booster votre voix avec Ringee.io ?",
+    "subtitle": "Appelez plus intelligemment — achetez des numéros, gérez vos appels et enregistrez vos conversations sur une seule plateforme.",
+    "getStarted": "Commencer",
+    "discoverMore": "En savoir plus"
+  },
+  "footer": {
+    "tagline": "Appels mondiaux open-source.",
+    "rights": "Tous droits réservés.",
+    "featuredOn": "Présenté sur :",
+    "links": {
+      "features": "Fonctionnalités",
+      "pricing": "Tarifs",
+      "faq": "FAQ",
+      "comparison": "Comparatif",
+      "blog": "Blog",
+      "privacy": "Confidentialité",
+      "terms": "Conditions"
+    }
+  }
+}

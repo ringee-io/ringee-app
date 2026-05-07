@@ -1,0 +1,56 @@
+{
+  "title": "Organisation",
+  "switcher": {
+    "select": "Organisation auswählen",
+    "personal": "Privates Konto",
+    "create": "Organisation erstellen",
+    "switching": "Wechseln…",
+    "myPersonal": "Mein persönliches Konto",
+    "organization": "Organisation",
+    "organizations": "Organisationen",
+    "manageOrganization": "Organisation verwalten",
+    "createOrganization": "Organisation erstellen",
+    "createNewOrganization": "Neue Organisation erstellen",
+    "subscriptionReady": "Abonnement bereit"
+  },
+  "create": {
+    "title": "Organisation erstellen",
+    "description": "Richten Sie einen Workspace für Ihr Team ein.",
+    "namePlaceholder": "Acme GmbH"
+  },
+  "members": {
+    "title": "Mitglieder",
+    "invite": "Mitglied einladen",
+    "role": "Rolle",
+    "status": "Status",
+    "remove": "Aus Organisation entfernen"
+  },
+  "roles": {
+    "owner": "Inhaber",
+    "admin": "Administrator",
+    "member": "Mitglied"
+  },
+  "upgrade": {
+    "title": "Auf Organisation upgraden",
+    "description": "Schalten Sie professionelle Funktionen für Ihr Team frei.",
+    "features": {
+      "unlimitedMembers": "Unbegrenzte Teammitglieder",
+      "cheaperRates": "Günstigere Minutentarife",
+      "virtualNumbers": "Virtuelle Nummern inklusive",
+      "advancedAnalytics": "Erweiterte Analysen"
+    },
+    "unlockProFeatures": "Pro-Funktionen freischalten",
+    "pricing": "Preise",
+    "perMonth": "/Monat",
+    "perMonthPerOrg": "/Monat pro Org",
+    "proPlan": "Pro-Plan",
+    "proceedToUpgrade": "Mit Upgrade fortfahren",
+    "secureByStripe": "Sicher durch Stripe",
+    "cancelAnytime": "Jederzeit kündbar"
+  },
+  "subscription": {
+    "required": "Abonnement erforderlich",
+    "requiredDescription": "Sie benötigen ein aktives Abonnement, um eine weitere Organisation zu erstellen.",
+    "subscribeNow": "Jetzt abonnieren"
+  }
+}

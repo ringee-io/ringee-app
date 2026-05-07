@@ -13,6 +13,7 @@ import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { AlertCircle, Plug, RefreshCw, Sparkles, Users } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { useCrmConnections } from '../hooks/use-crm-connections';
 import type { CrmConnectionSummary, CrmProviderType } from '../types/crm';
@@ -25,6 +26,7 @@ import { EnrichmentTab } from './tabs/enrichment-tab';
 import { LeadSearchPanel } from './lead-search-panel';
 
 export default function IntegrationsViewPage() {
+  const t = useTranslations('crm');
   const api = useApi();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -138,12 +140,12 @@ export default function IntegrationsViewPage() {
   return (
     <Tabs defaultValue="crm" className="w-full">
       <TabsList>
-        <TabsTrigger value="crm">CRM</TabsTrigger>
+        <TabsTrigger value="crm">{t('tabs.crm')}</TabsTrigger>
         <TabsTrigger value="enrichment" className="gap-1.5">
-          <Sparkles className="h-3.5 w-3.5" /> Data Enrichment
+          <Sparkles className="h-3.5 w-3.5" /> {t('tabs.enrichment')}
         </TabsTrigger>
         <TabsTrigger value="leads" className="gap-1.5">
-          <Users className="h-3.5 w-3.5" /> Find Leads
+          <Users className="h-3.5 w-3.5" /> {t('tabs.leads')}
         </TabsTrigger>
       </TabsList>
 
@@ -168,6 +170,7 @@ export default function IntegrationsViewPage() {
           onDisconnect={handleDisconnect}
           onForget={handleForget}
           onManage={handleManage}
+          t={t}
         />
       </TabsContent>
 
@@ -179,6 +182,8 @@ export default function IntegrationsViewPage() {
     </Tabs>
   );
 }
+
+type TFunc = (key: string, values?: Record<string, unknown>) => string;
 
 interface CrmTabContentProps {
   loading: boolean;
@@ -192,6 +197,7 @@ interface CrmTabContentProps {
   onDisconnect: (id: string) => Promise<void>;
   onForget: (id: string) => Promise<void>;
   onManage: (id: string) => void;
+  t: TFunc;
 }
 
 function CrmTabContent({
@@ -206,6 +212,7 @@ function CrmTabContent({
   onDisconnect,
   onForget,
   onManage,
+  t,
 }: CrmTabContentProps) {
   return (
     <div className="flex flex-col gap-8">
@@ -213,12 +220,10 @@ function CrmTabContent({
         <Alert className="border-amber-500/30 bg-amber-500/5">
           <AlertCircle className="h-4 w-4 text-amber-500" />
           <AlertTitle>
-            {needsAttention.length} connection
-            {needsAttention.length > 1 ? 's need' : ' needs'} attention
+            {t('connections.needsAttention', { count: needsAttention.length })}
           </AlertTitle>
           <AlertDescription>
-            Reconnect to resume call logging. Pending calls will retry
-            automatically once the connection is healthy again.
+            {t('connections.needsAttentionDescription')}
           </AlertDescription>
         </Alert>
       )}
@@ -227,7 +232,7 @@ function CrmTabContent({
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-              Your connections
+              {t('connections.yourConnections')}
             </h2>
           </div>
           <Button
@@ -240,7 +245,7 @@ function CrmTabContent({
             <RefreshCw
               className={`mr-1.5 h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`}
             />
-            Refresh
+            {t('connections.refresh')}
           </Button>
         </div>
 
@@ -253,11 +258,11 @@ function CrmTabContent({
         ) : error ? (
           <Alert variant="destructive">
             <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Couldn&apos;t load connections</AlertTitle>
+            <AlertTitle>{t('connections.loadError')}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : connections.length === 0 ? (
-          <EmptyState />
+          <EmptyState t={t} />
         ) : (
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             {connections.map((c) => (
@@ -281,11 +286,10 @@ function CrmTabContent({
       <section className="flex flex-col gap-4">
         <div>
           <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
-            Available integrations
+            {t('connections.available')}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
-            Choose a CRM to push calls, dispositions, recordings and notes to
-            the right person or company record.
+            {t('connections.availableDescription')}
           </p>
         </div>
         <ProviderCatalog
@@ -298,16 +302,15 @@ function CrmTabContent({
   );
 }
 
-function EmptyState() {
+function EmptyState({ t }: { t: TFunc }) {
   return (
     <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed bg-muted/20 px-6 py-12 text-center">
       <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
         <Plug className="h-5 w-5 text-muted-foreground" />
       </div>
-      <h3 className="mt-2 text-sm font-semibold">No integrations yet</h3>
+      <h3 className="mt-2 text-sm font-semibold">{t('connections.noConnections')}</h3>
       <p className="max-w-sm text-xs text-muted-foreground">
-        Connect a CRM below and every call you make will appear on the right
-        contact — with disposition, duration, recording and notes — in seconds.
+        {t('connections.noConnectionsDescription')}
       </p>
     </div>
   );

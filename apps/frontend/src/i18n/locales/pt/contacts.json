@@ -1,0 +1,61 @@
+{
+  "title": "Contactos",
+  "description": "A sua agenda de leads, clientes e prospects.",
+  "metaTitle": "Contactos | Ringee",
+  "metaDescription": "A sua agenda de leads, clientes e prospects.",
+  "newContact": "Novo contacto",
+  "addContact": "Adicionar contacto",
+  "fields": {
+    "firstName": "Nome",
+    "lastName": "Apelido",
+    "email": "Email",
+    "phone": "Telefone",
+    "phoneLabel": "Número de telefone",
+    "company": "Empresa",
+    "title": "Cargo",
+    "tags": "Etiquetas",
+    "notes": "Notas"
+  },
+  "table": {
+    "name": "Nome",
+    "phone": "Telefone",
+    "email": "Email",
+    "company": "Empresa",
+    "lastCall": "Última chamada",
+    "tags": "Etiquetas"
+  },
+  "empty": {
+    "title": "Ainda sem contactos",
+    "description": "Adicione o seu primeiro contacto ou importe um CSV para começar.",
+    "action": "Adicionar contacto"
+  },
+  "delete": {
+    "title": "Eliminar contacto?",
+    "description": "Isto irá remover {name} dos seus contactos de forma permanente.",
+    "confirm": "Eliminar contacto"
+  },
+  "import": {
+    "title": "Importar contactos",
+    "description": "Carregue um ficheiro CSV com os seus contactos.",
+    "dropzone": "Arraste e largue o seu CSV aqui, ou clique para procurar",
+    "submit": "Importar",
+    "action": "Importar"
+  },
+  "export": {
+    "action": "Exportar"
+  },
+  "detail": {
+    "metaTitle": "Contacto — Detalhes | Ringee",
+    "metaDescription": "Consulte todos os detalhes do contacto, incluindo histórico de chamadas, notas, etiquetas e mais."
+  },
+  "editPage": {
+    "metaTitle": "Contacto — Editar | Ringee",
+    "metaDescription": "Edite os detalhes do contacto para manter o seu fluxo comercial e de chamadas organizado e eficiente."
+  },
+  "kanban": {
+    "title": "Pipeline comercial",
+    "description": "Faça a gestão visual dos seus leads",
+    "metaTitle": "Pipeline comercial — Visualize e organize leads | Ringee",
+    "metaDescription": "Faça a gestão visual do seu pipeline comercial com a Ringee. Organize leads, registe chamadas e mova oportunidades por cada fase com clareza e eficiência."
+  }
+}

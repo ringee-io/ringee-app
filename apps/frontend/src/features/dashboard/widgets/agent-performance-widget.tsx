@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { WidgetShell } from '../components/widget-shell';
 import { useWidgetData } from '../hooks/use-widget-data';
 
@@ -23,6 +24,7 @@ export function AgentPerformanceWidget({
   title: string;
   onRemove?: () => void;
 }) {
+  const t = useTranslations('dashboard.widgets.agentPerformance');
   const { data, loading, error } = useWidgetData<AgentRow[]>('/dashboard/agent-performance');
   const empty = !data || data.length === 0;
 
@@ -32,7 +34,7 @@ export function AgentPerformanceWidget({
       loading={loading}
       error={error}
       empty={empty}
-      emptyHint='Agent performance is available for organization admins. Once your team starts placing calls, their breakdown will appear here.'
+      emptyHint={t('emptyHint')}
       onRemove={onRemove}
       contentClassName='p-0'
     >
@@ -40,14 +42,14 @@ export function AgentPerformanceWidget({
         <table className='w-full text-sm'>
           <thead>
             <tr className='border-border text-muted-foreground border-b text-left text-xs'>
-              <th className='px-4 py-2 font-medium'>Agent</th>
-              <th className='px-3 py-2 text-right font-medium'>Calls</th>
-              <th className='px-3 py-2 text-right font-medium'>Answered</th>
-              <th className='px-3 py-2 text-right font-medium'>Meetings</th>
-              <th className='px-3 py-2 text-right font-medium'>Sales</th>
-              <th className='px-3 py-2 text-right font-medium'>Interested</th>
-              <th className='px-3 py-2 text-right font-medium'>Conv %</th>
-              <th className='px-3 py-2 text-right font-medium'>Meet %</th>
+              <th className='px-4 py-2 font-medium'>{t('headers.agent')}</th>
+              <th className='px-3 py-2 text-right font-medium'>{t('headers.calls')}</th>
+              <th className='px-3 py-2 text-right font-medium'>{t('headers.answered')}</th>
+              <th className='px-3 py-2 text-right font-medium'>{t('headers.meetings')}</th>
+              <th className='px-3 py-2 text-right font-medium'>{t('headers.sales')}</th>
+              <th className='px-3 py-2 text-right font-medium'>{t('headers.interested')}</th>
+              <th className='px-3 py-2 text-right font-medium'>{t('headers.conversion')}</th>
+              <th className='px-3 py-2 text-right font-medium'>{t('headers.meetRate')}</th>
             </tr>
           </thead>
           <tbody>

@@ -1,8 +1,11 @@
+'use client';
+
 import { Avatar, AvatarFallback } from './ui/avatar';
 import { Button } from './ui/button';
 import Marquee from './ui/marquee';
 import Link from 'next/link';
 import React, { ComponentProps } from 'react';
+import { useTranslations } from 'next-intl';
 
 const testimonials = [
   {
@@ -61,25 +64,28 @@ const testimonials = [
   }
 ];
 
-const Testimonials = () => (
-  <div id='testimonials' className='flex items-center justify-center py-20'>
-    <div className='h-full w-full'>
-      <h2 className='mb-12 px-6 text-center text-4xl font-bold tracking-tight md:text-5xl'>
-        Testimonials
-      </h2>
-      <div className='relative'>
-        <div className='from-background absolute inset-y-0 left-0 z-10 w-[15%] bg-gradient-to-r to-transparent' />
-        <div className='from-background absolute inset-y-0 right-0 z-10 w-[15%] bg-gradient-to-l to-transparent' />
-        <Marquee pauseOnHover className='[--duration:20s]'>
-          <TestimonialList />
-        </Marquee>
-        <Marquee pauseOnHover reverse className='mt-0 [--duration:20s]'>
-          <TestimonialList />
-        </Marquee>
+const Testimonials = () => {
+  const t = useTranslations('marketing.testimonials');
+  return (
+    <div id='testimonials' className='flex items-center justify-center py-20'>
+      <div className='h-full w-full'>
+        <h2 className='mb-12 px-6 text-center text-4xl font-bold tracking-tight md:text-5xl'>
+          {t('title')}
+        </h2>
+        <div className='relative'>
+          <div className='from-background absolute inset-y-0 left-0 z-10 w-[15%] bg-gradient-to-r to-transparent' />
+          <div className='from-background absolute inset-y-0 right-0 z-10 w-[15%] bg-gradient-to-l to-transparent' />
+          <Marquee pauseOnHover className='[--duration:20s]'>
+            <TestimonialList />
+          </Marquee>
+          <Marquee pauseOnHover reverse className='mt-0 [--duration:20s]'>
+            <TestimonialList />
+          </Marquee>
+        </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 const TestimonialList = () =>
   testimonials.map((testimonial) => (

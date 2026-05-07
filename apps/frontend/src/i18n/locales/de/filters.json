@@ -1,0 +1,25 @@
+{
+  "label": "Filter",
+  "addFilter": "Filter hinzufügen",
+  "clearAll": "Filter zurücksetzen",
+  "operators": {
+    "equals": "Ist gleich",
+    "notEquals": "Ist ungleich",
+    "contains": "Enthält",
+    "notContains": "Enthält nicht",
+    "startsWith": "Beginnt mit",
+    "endsWith": "Endet mit",
+    "greaterThan": "Größer als",
+    "lessThan": "Kleiner als",
+    "between": "Zwischen",
+    "isEmpty": "Ist leer",
+    "isNotEmpty": "Ist nicht leer"
+  },
+  "common": {
+    "country": "Land",
+    "status": "Status",
+    "tags": "Tags",
+    "owner": "Besitzer",
+    "dateRange": "Zeitraum"
+  }
+}

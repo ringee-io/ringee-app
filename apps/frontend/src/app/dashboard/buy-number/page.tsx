@@ -8,12 +8,15 @@ import { SearchParams } from 'nuqs/server';
 import { searchParamsCache } from '@ringee/frontend-shared/lib/searchparams';
 import { Metadata } from 'next';
 import { BuyNumberOnboardingTrigger } from '@/features/onboarding/components/buy-number-onboarding-trigger';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata: Metadata = {
-  title: 'Buy Virtual Numbers for Global Calling | Ringee',
-  description:
-    'Instantly buy local or international phone numbers to make and receive calls with Ringee. Perfect for sales teams, call centers, and global businesses.'
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('settings.numbers');
+  return {
+    title: t('metaTitle'),
+    description: t('metaDescription')
+  };
+}
 
 export default async function Page({
   searchParams
@@ -22,13 +25,14 @@ export default async function Page({
 }) {
   const searchParamss = await searchParams;
   searchParamsCache.parse(searchParamss);
+  const t = await getTranslations('settings.numbers');
 
   return (
     <PageContainer scrollable={false}>
       <BuyNumberOnboardingTrigger />
       <div className='flex flex-1 flex-col space-y-4'>
         <div className='flex items-start justify-between'>
-          <Heading title='Buy Numbers' description='Manage Numbers' />
+          <Heading title={t('title')} description={t('description')} />
         </div>
         <Separator />
 

@@ -1,0 +1,9 @@
+{
+  "items": {
+    "contacts": "Contactos",
+    "buyNumber": "Comprar número"
+  },
+  "userMenu": {
+    "signOut": "Cerrar sesión"
+  }
+}

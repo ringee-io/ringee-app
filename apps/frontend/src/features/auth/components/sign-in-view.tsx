@@ -2,13 +2,16 @@ import { Logo } from '@/features/landing/components/navbar/logo';
 import { SignIn as ClerkSignInForm } from '@clerk/nextjs';
 import { Metadata } from 'next';
 import Link from 'next/link';
+import { getTranslations } from 'next-intl/server';
 
 export const metadata: Metadata = {
   title: 'Authentication',
   description: 'Authentication forms built using the components.'
 };
 
-export default function SignInViewPage() {
+export default async function SignInViewPage() {
+  const t = await getTranslations('auth');
+
   return (
     <div className='relative h-screen flex-col items-center justify-center md:grid lg:max-w-none lg:grid-cols-2 lg:px-0'>
       <div className='bg-muted relative hidden h-full flex-col p-10 text-white lg:flex dark:border-r'>
@@ -21,12 +24,10 @@ export default function SignInViewPage() {
         <div className='relative z-20 mt-auto'>
           <blockquote className='space-y-2'>
             <p className='text-lg italic'>
-              &ldquo;Ringee.io has drastically reduced our communication costs
-              while delivering outstanding call quality. It’s a game-changer for
-              any business that values both efficiency and affordability.&rdquo;
+              &ldquo;{t('testimonial.quote')}&rdquo;
             </p>
             <footer className='text-muted-foreground text-sm font-semibold'>
-              Grupo Betuel
+              {t('testimonial.author')}
             </footer>
           </blockquote>
         </div>
@@ -44,21 +45,24 @@ export default function SignInViewPage() {
           />
 
           <p className='text-muted-foreground px-8 text-center text-sm'>
-            By clicking continue, you agree to our{' '}
-            <Link
-              href='/terms'
-              className='hover:text-primary underline underline-offset-4'
-            >
-              Terms of Service
-            </Link>{' '}
-            and{' '}
-            <Link
-              href='/privacy'
-              className='hover:text-primary underline underline-offset-4'
-            >
-              Privacy Policy
-            </Link>
-            .
+            {t.rich('legal.agreement', {
+              terms: (chunks) => (
+                <Link
+                  href='/terms'
+                  className='hover:text-primary underline underline-offset-4'
+                >
+                  {chunks}
+                </Link>
+              ),
+              privacy: (chunks) => (
+                <Link
+                  href='/privacy'
+                  className='hover:text-primary underline underline-offset-4'
+                >
+                  {chunks}
+                </Link>
+              )
+            })}
           </p>
         </div>
       </div>

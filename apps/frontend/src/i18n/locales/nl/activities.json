@@ -1,0 +1,48 @@
+{
+  "title": "Activiteiten",
+  "description": "Je algemene gespreksactiviteit buiten campagnes",
+  "metaTitle": "Activiteiten — Gesprekslogboek | Ringee",
+  "metaDescription": "Bekijk je algemene gesprekken, filter op uitkomst en datum, plan vergaderingen vanuit afgeronde gesprekken en houd geplande afspraken bij.",
+  "newActivity": "Nieuwe activiteit",
+  "types": {
+    "call": "Gesprek",
+    "note": "Notitie",
+    "task": "Taak",
+    "meeting": "Vergadering",
+    "email": "E-mail"
+  },
+  "outcomes": {
+    "meetingBooked": "Vergadering geboekt",
+    "sale": "Verkoop",
+    "interested": "Geïnteresseerd",
+    "followUp": "Opvolgen",
+    "notInterested": "Niet geïnteresseerd",
+    "noAnswer": "Geen antwoord",
+    "voicemail": "Voicemail",
+    "wrongNumber": "Fout nummer",
+    "gatekeeper": "Poortwachter"
+  },
+  "filters": {
+    "disposition": "Uitkomst",
+    "clearFilters": "Filters wissen"
+  },
+  "noCallsFound": "Geen gesprekken gevonden",
+  "noCallsDescription": "Geen algemene gesprekken voor {date}.",
+  "noCallsWithFilters": "Geen algemene gesprekken voor {date} met de geselecteerde filters.",
+  "scheduledMeeting": "Geplande vergadering",
+  "scheduleMeeting": "Vergadering plannen",
+  "callCount": "{count, plural, one {# gesprek} other {# gesprekken}}",
+  "pagination": {
+    "previous": "Vorige",
+    "next": "Volgende",
+    "page": "Pagina {page} van {totalPages}"
+  },
+  "toasts": {
+    "failedToLoad": "Activiteiten laden mislukt",
+    "meetingBooked": "Vergadering succesvol geboekt"
+  },
+  "empty": {
+    "title": "Nog geen activiteit",
+    "description": "Leg je eerste activiteit vast om je geschiedenis op te bouwen."
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "title": "Inbox",
+  "description": "Je inkomende gesprekken, berichten en voicemails op één plek.",
+  "filters": {
+    "all": "Alle",
+    "unread": "Ongelezen",
+    "missed": "Gemist",
+    "missedCalls": "Gemiste oproepen",
+    "voicemail": "Voicemail",
+    "voicemails": "Voicemails",
+    "sms": "SMS",
+    "resolved": "Opgelost",
+    "archived": "Gearchiveerd"
+  },
+  "empty": {
+    "title": "Inbox leeg",
+    "description": "Je bent helemaal bij. Nieuwe berichten verschijnen hier."
+  },
+  "threadList": {
+    "searchPlaceholder": "Zoeken op naam of nummer",
+    "noConversations": "Nog geen gesprekken",
+    "newWillAppear": "Nieuwe oproepen en SMS verschijnen hier automatisch.",
+    "importing": "Importeren…",
+    "importFromPastCalls": "Importeer uit eerdere oproepen"
+  },
+  "timeline": {
+    "selectConversation": "Selecteer een gesprek om te beginnen",
+    "viaNumber": "via {number}",
+    "linkContact": "Contact koppelen",
+    "call": "Bellen",
+    "markResolved": "Markeer als opgelost",
+    "archive": "Archiveren",
+    "reopen": "Heropenen",
+    "loading": "Laden…",
+    "noActivity": "Nog geen activiteit — stuur een bericht of bel om te beginnen."
+  },
+  "composer": {
+    "sms": "SMS",
+    "internalNote": "Interne notitie",
+    "selectNumber": "Nummer selecteren",
+    "noSmsSuffix": " (geen SMS)",
+    "notePlaceholder": "Voeg een interne notitie toe (alleen zichtbaar voor je team)…",
+    "messagePlaceholder": "Typ een bericht — ⌘/Ctrl + Enter om te verzenden",
+    "saveNote": "Notitie opslaan",
+    "send": "Verzenden",
+    "smsDisabledWarning": "Voor dit nummer is SMS niet ingeschakeld in Telnyx. Kies een ander of schakel berichten in voor het nummer."
+  },
+  "events": {
+    "missedCall": "Gemiste oproep",
+    "inboundCall": "Inkomende oproep",
+    "outboundCall": "Uitgaande oproep",
+    "callBack": "Terugbellen",
+    "voicemailReceived": "Voicemail ontvangen",
+    "voicedropSent": "Voicedrop verzonden",
+    "internalNote": "Interne notitie",
+    "meetingBooked": "Vergadering geboekt",
+    "callbackCompleted": "Terugbelverzoek voltooid",
+    "callbackScheduled": "Terugbelverzoek gepland"
+  }
+}

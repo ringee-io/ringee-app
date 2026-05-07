@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
@@ -87,76 +88,52 @@ interface CallsResponse {
   totalPages: number;
 }
 
-const OUTCOME_CONFIG: {
-  id: CallOutcome;
-  label: string;
-  icon: React.ElementType;
-  color: string;
-  badgeClass: string;
-}[] = [
-  {
-    id: 'meeting_booked',
-    label: 'Meeting Booked',
-    icon: CalendarCheck,
-    color: 'text-emerald-500',
-    badgeClass: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
-  },
-  {
-    id: 'sale',
-    label: 'Sale',
-    icon: DollarSign,
-    color: 'text-green-500',
-    badgeClass: 'bg-green-500/10 text-green-600 border-green-500/20'
-  },
-  {
-    id: 'interested',
-    label: 'Interested',
-    icon: ThumbsUp,
-    color: 'text-blue-500',
-    badgeClass: 'bg-blue-500/10 text-blue-600 border-blue-500/20'
-  },
-  {
-    id: 'follow_up',
-    label: 'Follow Up',
-    icon: Clock,
-    color: 'text-amber-500',
-    badgeClass: 'bg-amber-500/10 text-amber-600 border-amber-500/20'
-  },
-  {
-    id: 'not_interested',
-    label: 'Not Interested',
-    icon: ThumbsDown,
-    color: 'text-slate-400',
-    badgeClass: 'bg-slate-500/10 text-slate-500 border-slate-400/20'
-  },
-  {
-    id: 'no_answer',
-    label: 'No Answer',
-    icon: PhoneMissed,
-    color: 'text-gray-400',
-    badgeClass: 'bg-gray-500/10 text-gray-500 border-gray-400/20'
-  },
-  {
-    id: 'voicemail',
-    label: 'Voicemail',
-    icon: Voicemail,
-    color: 'text-purple-400',
-    badgeClass: 'bg-purple-500/10 text-purple-500 border-purple-400/20'
-  },
-  {
-    id: 'wrong_number',
-    label: 'Wrong Number',
-    icon: PhoneOff,
-    color: 'text-red-400',
-    badgeClass: 'bg-red-500/10 text-red-500 border-red-400/20'
-  },
-  {
-    id: 'gatekeeper',
-    label: 'Gatekeeper',
-    icon: ShieldAlert,
-    color: 'text-orange-400',
-    badgeClass: 'bg-orange-500/10 text-orange-500 border-orange-400/20'
-  }
+const OUTCOME_ICONS: Record<CallOutcome, React.ElementType> = {
+  meeting_booked: CalendarCheck,
+  sale: DollarSign,
+  interested: ThumbsUp,
+  follow_up: Clock,
+  not_interested: ThumbsDown,
+  no_answer: PhoneMissed,
+  voicemail: Voicemail,
+  wrong_number: PhoneOff,
+  gatekeeper: ShieldAlert
+};
+
+const OUTCOME_COLORS: Record<CallOutcome, string> = {
+  meeting_booked: 'text-emerald-500',
+  sale: 'text-green-500',
+  interested: 'text-blue-500',
+  follow_up: 'text-amber-500',
+  not_interested: 'text-slate-400',
+  no_answer: 'text-gray-400',
+  voicemail: 'text-purple-400',
+  wrong_number: 'text-red-400',
+  gatekeeper: 'text-orange-400'
+};
+
+const OUTCOME_BADGE_CLASSES: Record<CallOutcome, string> = {
+  meeting_booked: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
+  sale: 'bg-green-500/10 text-green-600 border-green-500/20',
+  interested: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
+  follow_up: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+  not_interested: 'bg-slate-500/10 text-slate-500 border-slate-400/20',
+  no_answer: 'bg-gray-500/10 text-gray-500 border-gray-400/20',
+  voicemail: 'bg-purple-500/10 text-purple-500 border-purple-400/20',
+  wrong_number: 'bg-red-500/10 text-red-500 border-red-400/20',
+  gatekeeper: 'bg-orange-500/10 text-orange-500 border-orange-400/20'
+};
+
+const ALL_OUTCOMES: CallOutcome[] = [
+  'meeting_booked',
+  'sale',
+  'interested',
+  'follow_up',
+  'not_interested',
+  'no_answer',
+  'voicemail',
+  'wrong_number',
+  'gatekeeper'
 ];
 
 const MEETING_ELIGIBLE_OUTCOMES: CallOutcome[] = [
@@ -167,6 +144,7 @@ const MEETING_ELIGIBLE_OUTCOMES: CallOutcome[] = [
 ];
 
 export function ActivitiesList() {
+  const t = useTranslations('activities');
   const api = useApi();
   const [calls, setCalls] = useState<ActivityCall[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -206,11 +184,11 @@ export function ActivitiesList() {
       setTotalPages(data.totalPages);
       setTotal(data.total);
     } catch {
-      toast.error('Failed to load activities');
+      toast.error(t('toasts.failedToLoad'));
     } finally {
       setIsLoading(false);
     }
-  }, [api, page, selectedDate, selectedOutcomes]);
+  }, [api, page, selectedDate, selectedOutcomes, t]);
 
   useEffect(() => {
     fetchCalls();
@@ -233,16 +211,14 @@ export function ActivitiesList() {
   const handleMeetingBooked = () => {
     setBookingCallId(null);
     fetchCalls();
-    toast.success('Meeting booked successfully');
+    toast.success(t('toasts.meetingBooked'));
   };
 
   const getContactMeeting = (call: ActivityCall): MeetingData | null => {
-    // Check meetings on the call itself first
     if (call.meetings && call.meetings.length > 0) {
       const scheduled = call.meetings.find((m) => m.status === 'scheduled');
       if (scheduled) return scheduled;
     }
-    // Then check the contact's latest meeting
     if (call.contact?.meetings && call.contact.meetings.length > 0) {
       const scheduled = call.contact.meetings.find(
         (m) => m.status === 'scheduled'
@@ -260,6 +236,9 @@ export function ActivitiesList() {
       !getContactMeeting(call)
     );
   };
+
+  const outcomeLabel = (id: CallOutcome) =>
+    t(`outcomes.${id === 'meeting_booked' ? 'meetingBooked' : id === 'follow_up' ? 'followUp' : id === 'not_interested' ? 'notInterested' : id === 'no_answer' ? 'noAnswer' : id === 'wrong_number' ? 'wrongNumber' : id}`);
 
   return (
     <div className='flex flex-col gap-4'>
@@ -293,7 +272,7 @@ export function ActivitiesList() {
           <PopoverTrigger asChild>
             <Button variant='outline' size='sm' className='h-9 gap-2'>
               <Filter className='h-4 w-4' />
-              Disposition
+              {t('filters.disposition')}
               {selectedOutcomes.length > 0 && (
                 <Badge
                   variant='secondary'
@@ -307,13 +286,13 @@ export function ActivitiesList() {
           </PopoverTrigger>
           <PopoverContent className='w-[220px] p-2' align='start'>
             <div className='flex flex-col gap-1'>
-              {OUTCOME_CONFIG.map((o) => {
-                const Icon = o.icon;
-                const isSelected = selectedOutcomes.includes(o.id);
+              {ALL_OUTCOMES.map((id) => {
+                const Icon = OUTCOME_ICONS[id];
+                const isSelected = selectedOutcomes.includes(id);
                 return (
                   <button
-                    key={o.id}
-                    onClick={() => toggleOutcome(o.id)}
+                    key={id}
+                    onClick={() => toggleOutcome(id)}
                     className={cn(
                       'flex items-center gap-2.5 rounded-md px-2.5 py-2 text-sm transition-colors',
                       isSelected
@@ -321,8 +300,8 @@ export function ActivitiesList() {
                         : 'hover:bg-muted/50'
                     )}
                   >
-                    <Icon className={cn('h-4 w-4', o.color)} />
-                    <span className='flex-1 text-left'>{o.label}</span>
+                    <Icon className={cn('h-4 w-4', OUTCOME_COLORS[id])} />
+                    <span className='flex-1 text-left'>{outcomeLabel(id)}</span>
                     {isSelected && (
                       <span className='h-2 w-2 rounded-full bg-primary' />
                     )}
@@ -335,7 +314,7 @@ export function ActivitiesList() {
                   className='mt-1 flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground'
                 >
                   <X className='h-3 w-3' />
-                  Clear filters
+                  {t('filters.clearFilters')}
                 </button>
               )}
             </div>
@@ -343,23 +322,21 @@ export function ActivitiesList() {
         </Popover>
 
         {/* Active filter badges */}
-        {selectedOutcomes.map((o) => {
-          const config = OUTCOME_CONFIG.find((c) => c.id === o);
-          if (!config) return null;
-          const Icon = config.icon;
+        {selectedOutcomes.map((id) => {
+          const Icon = OUTCOME_ICONS[id];
           return (
             <Badge
-              key={o}
+              key={id}
               variant='outline'
               className={cn(
                 'h-7 gap-1.5 pr-1.5 text-xs font-medium',
-                config.badgeClass
+                OUTCOME_BADGE_CLASSES[id]
               )}
             >
               <Icon className='h-3 w-3' />
-              {config.label}
+              {outcomeLabel(id)}
               <button
-                onClick={() => toggleOutcome(o)}
+                onClick={() => toggleOutcome(id)}
                 className='ml-0.5 rounded-full p-0.5 hover:bg-background/50'
               >
                 <X className='h-3 w-3' />
@@ -370,7 +347,7 @@ export function ActivitiesList() {
 
         {/* Total count */}
         <span className='ml-auto text-sm text-muted-foreground'>
-          {isLoading ? '...' : `${total} call${total !== 1 ? 's' : ''}`}
+          {isLoading ? '...' : t('callCount', { count: total })}
         </span>
       </div>
 
@@ -386,14 +363,11 @@ export function ActivitiesList() {
           <div className='mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted'>
             <Phone className='h-8 w-8 text-muted-foreground/50' />
           </div>
-          <h3 className='text-base font-semibold'>No calls found</h3>
+          <h3 className='text-base font-semibold'>{t('noCallsFound')}</h3>
           <p className='mt-1 max-w-xs text-sm text-muted-foreground'>
-            No general calls for{' '}
-            {format(selectedDate, 'MMMM d, yyyy')}
             {selectedOutcomes.length > 0
-              ? ' with the selected filters'
-              : ''}
-            .
+              ? t('noCallsWithFilters', { date: format(selectedDate, 'MMMM d, yyyy') })
+              : t('noCallsDescription', { date: format(selectedDate, 'MMMM d, yyyy') })}
           </p>
         </div>
       ) : (
@@ -408,6 +382,8 @@ export function ActivitiesList() {
               onStartBooking={() => setBookingCallId(call.id)}
               onCancelBooking={() => setBookingCallId(null)}
               onMeetingBooked={handleMeetingBooked}
+              outcomeLabel={outcomeLabel}
+              t={t}
             />
           ))}
         </div>
@@ -422,10 +398,10 @@ export function ActivitiesList() {
             disabled={page <= 1}
             onClick={() => setPage((p) => p - 1)}
           >
-            Previous
+            {t('pagination.previous')}
           </Button>
           <span className='text-sm text-muted-foreground'>
-            Page {page} of {totalPages}
+            {t('pagination.page', { page, totalPages })}
           </span>
           <Button
             variant='outline'
@@ -433,7 +409,7 @@ export function ActivitiesList() {
             disabled={page >= totalPages}
             onClick={() => setPage((p) => p + 1)}
           >
-            Next
+            {t('pagination.next')}
           </Button>
         </div>
       )}
@@ -448,7 +424,9 @@ function ActivityCallCard({
   isBooking,
   onStartBooking,
   onCancelBooking,
-  onMeetingBooked
+  onMeetingBooked,
+  outcomeLabel,
+  t
 }: {
   call: ActivityCall;
   meeting: MeetingData | null;
@@ -457,16 +435,13 @@ function ActivityCallCard({
   onStartBooking: () => void;
   onCancelBooking: () => void;
   onMeetingBooked: () => void;
+  outcomeLabel: (id: CallOutcome) => string;
+  t: (key: string, values?: Record<string, unknown>) => string;
 }) {
   const DirectionIcon =
     call.direction === 'inbound' ? PhoneIncoming : PhoneOutgoing;
   const directionColor =
     call.direction === 'inbound' ? 'text-green-500' : 'text-blue-500';
-
-  const outcomeConfig = call.outcome
-    ? OUTCOME_CONFIG.find((o) => o.id === call.outcome)
-    : null;
-  const OutcomeIcon = outcomeConfig?.icon;
 
   const durationLabel = call.durationSeconds
     ? `${Math.floor(call.durationSeconds / 60)}:${(call.durationSeconds % 60).toString().padStart(2, '0')}`
@@ -508,16 +483,16 @@ function ActivityCallCard({
 
             <div className='flex items-center gap-2 shrink-0'>
               {/* Outcome badge */}
-              {outcomeConfig && OutcomeIcon && (
+              {call.outcome && (
                 <Badge
                   variant='outline'
                   className={cn(
                     'gap-1 text-[11px] font-medium',
-                    outcomeConfig.badgeClass
+                    OUTCOME_BADGE_CLASSES[call.outcome]
                   )}
                 >
-                  <OutcomeIcon className='h-3 w-3' />
-                  {outcomeConfig.label}
+                  {(() => { const Icon = OUTCOME_ICONS[call.outcome!]; return <Icon className='h-3 w-3' />; })()}
+                  {outcomeLabel(call.outcome)}
                 </Badge>
               )}
 
@@ -560,7 +535,7 @@ function ActivityCallCard({
               <CalendarCheck className='h-4 w-4 shrink-0 text-emerald-500' />
               <div className='min-w-0 flex-1'>
                 <p className='text-sm font-medium text-emerald-600'>
-                  {meeting.title || 'Scheduled Meeting'}
+                  {meeting.title || t('scheduledMeeting')}
                 </p>
                 <p className='text-xs text-emerald-600/70'>
                   {format(new Date(meeting.scheduledAt), 'EEE, MMM d')} at{' '}
@@ -585,7 +560,7 @@ function ActivityCallCard({
               className='mt-3 flex items-center gap-2 rounded-md border border-dashed border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-sm font-medium text-emerald-600 transition-colors hover:border-emerald-500/50 hover:bg-emerald-500/10'
             >
               <CalendarPlus className='h-4 w-4' />
-              Schedule Meeting
+              {t('scheduleMeeting')}
             </button>
           )}
 

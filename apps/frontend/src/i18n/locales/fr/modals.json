@@ -1,0 +1,18 @@
+{
+  "confirmDelete": {
+    "title": "Êtes-vous sûr ?",
+    "description": "Cette action est irréversible.",
+    "confirm": "Oui, supprimer",
+    "cancel": "Annuler"
+  },
+  "confirmLeave": {
+    "title": "Quitter sans enregistrer ?",
+    "description": "Vos modifications non enregistrées seront perdues.",
+    "confirm": "Quitter",
+    "cancel": "Rester"
+  },
+  "unsavedChanges": {
+    "title": "Modifications non enregistrées",
+    "description": "Enregistrez-les avant de continuer."
+  }
+}

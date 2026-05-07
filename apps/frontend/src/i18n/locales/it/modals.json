@@ -1,0 +1,18 @@
+{
+  "confirmDelete": {
+    "title": "Sei sicuro?",
+    "description": "Questa azione non può essere annullata.",
+    "confirm": "Sì, elimina",
+    "cancel": "Annulla"
+  },
+  "confirmLeave": {
+    "title": "Uscire senza salvare?",
+    "description": "Le modifiche non salvate andranno perse.",
+    "confirm": "Esci",
+    "cancel": "Resta"
+  },
+  "unsavedChanges": {
+    "title": "Hai modifiche non salvate",
+    "description": "Salvale prima di continuare."
+  }
+}

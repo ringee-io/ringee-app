@@ -1,0 +1,25 @@
+{
+  "label": "Filters",
+  "addFilter": "Add filter",
+  "clearAll": "Clear filters",
+  "operators": {
+    "equals": "Equals",
+    "notEquals": "Does not equal",
+    "contains": "Contains",
+    "notContains": "Does not contain",
+    "startsWith": "Starts with",
+    "endsWith": "Ends with",
+    "greaterThan": "Greater than",
+    "lessThan": "Less than",
+    "between": "Between",
+    "isEmpty": "Is empty",
+    "isNotEmpty": "Is not empty"
+  },
+  "common": {
+    "country": "Country",
+    "status": "Status",
+    "tags": "Tags",
+    "owner": "Owner",
+    "dateRange": "Date range"
+  }
+}

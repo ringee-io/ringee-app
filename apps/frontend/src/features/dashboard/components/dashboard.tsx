@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import PageContainer from '@/components/layout/page-container';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
@@ -26,6 +27,7 @@ interface DashboardPageInnerProps {
 const SAVE_DEBOUNCE_MS = 600;
 
 function DashboardPageInner({ initialLayout, initialScope }: DashboardPageInnerProps) {
+  const t = useTranslations('dashboard.page');
   const api = useApi();
   const [widgets, setWidgets] = React.useState<DashboardWidget[]>(initialLayout.widgets);
   const [editing, setEditing] = React.useState(false);
@@ -114,11 +116,11 @@ function DashboardPageInner({ initialLayout, initialScope }: DashboardPageInnerP
           >
             {editing ? (
               <>
-                <IconLock size={14} /> Done editing
+                <IconLock size={14} /> {t('doneEditing')}
               </>
             ) : (
               <>
-                <IconPencil size={14} /> Customize
+                <IconPencil size={14} /> {t('customize')}
               </>
             )}
           </Button>
@@ -135,21 +137,22 @@ function DashboardPageInner({ initialLayout, initialScope }: DashboardPageInnerP
 }
 
 function DashboardHeader({ saving }: { saving: boolean }) {
+  const t = useTranslations('dashboard.page');
   const { hasOrg } = useOrgRole();
   return (
     <div className='flex items-center justify-between gap-2'>
       <div>
         <h1 className='text-2xl font-bold tracking-tight'>
-          {hasOrg ? 'Outbound Performance' : 'Your Calling Performance'}
+          {hasOrg ? t('headerOrg') : t('headerSolo')}
         </h1>
         <p className='text-muted-foreground text-sm'>
-          Outcomes, conversion, and the best hours to call — across the time range you pick.
+          {t('subtitle')}
         </p>
       </div>
       <div className='flex items-center gap-2'>
         {saving && (
           <span className='text-muted-foreground flex items-center gap-1 text-xs'>
-            <IconAdjustments className='animate-spin' size={12} /> Saving layout…
+            <IconAdjustments className='animate-spin' size={12} /> {t('savingLayout')}
           </span>
         )}
       </div>

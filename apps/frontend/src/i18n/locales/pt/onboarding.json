@@ -1,0 +1,63 @@
+{
+  "welcome": {
+    "title": "Bem-vindo à Ringee",
+    "description": "Configure o seu espaço de trabalho em poucos minutos."
+  },
+  "steps": {
+    "profile": "Conte-nos sobre si",
+    "organization": "Crie a sua organização",
+    "number": "Escolha um número",
+    "credits": "Adicione créditos",
+    "done": "Tudo pronto"
+  },
+  "actions": {
+    "skip": "Saltar por agora",
+    "finish": "Concluir configuração",
+    "letsGo": "Vamos lá"
+  },
+  "headerButton": "Configuração",
+  "progress": "{current} de {total}",
+  "guide": {
+    "title": "Guia de configuração",
+    "minimize": "Minimizar",
+    "close": "Fechar",
+    "showSteps": "Mostrar passos",
+    "hideSteps": "Ocultar passos",
+    "completedSummary": "{completed}/{total} concluídos",
+    "stepsCompleted": "{completed} de {total} passos concluídos"
+  },
+  "guideSteps": {
+    "first_call": {
+      "title": "Faça a sua primeira chamada",
+      "description": "A Ringee oferece a sua primeira chamada"
+    },
+    "recording": {
+      "title": "Grave e ouça",
+      "description": "Grave uma chamada e ouça a gravação"
+    },
+    "check_numbers": {
+      "title": "Explore os números disponíveis",
+      "description": "Descubra os números que pode comprar"
+    },
+    "buy_credits": {
+      "title": "Comprar créditos",
+      "description": "Adicione créditos para fazer mais chamadas"
+    }
+  },
+  "headerProgress": {
+    "label": "Guia de configuração",
+    "tooltip": "Retomar a configuração"
+  },
+  "firstCallModal": {
+    "title": "A sua primeira chamada é por nossa conta",
+    "subtitle": "Faça e grave a sua primeira chamada grátis!",
+    "step1Title": "Passo 1: introduza um número",
+    "step1Description": "Use o teclado para introduzir qualquer número. Funciona como um telefone normal.",
+    "step2Title": "Passo 2: comece a gravar",
+    "step2Description": "Não se esqueça de premir o botão de gravação assim que a chamada ligar para guardar a conversa.",
+    "recordingButton": "Botão de gravação",
+    "recordingAlt": "Como começar a gravar",
+    "maybeLater": "Talvez mais tarde",
+    "startCalling": "Começar a ligar"
+  }
+}

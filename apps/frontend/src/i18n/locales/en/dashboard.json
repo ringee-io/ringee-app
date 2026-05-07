@@ -1,0 +1,263 @@
+{
+  "title": "Dashboard",
+  "description": "An overview of your calls, contacts, and outreach performance.",
+  "greeting": {
+    "morning": "Good morning, {name}",
+    "afternoon": "Good afternoon, {name}",
+    "evening": "Good evening, {name}"
+  },
+  "stats": {
+    "totalCalls": {
+      "title": "Total calls",
+      "description": "All calls placed and received."
+    },
+    "talkTime": {
+      "title": "Talk time",
+      "description": "Total time spent on calls."
+    },
+    "answerRate": {
+      "title": "Answer rate",
+      "description": "Percentage of outbound calls answered."
+    },
+    "contactsReached": {
+      "title": "Contacts reached",
+      "description": "Unique contacts you've connected with."
+    },
+    "creditsUsed": {
+      "title": "Credits used",
+      "description": "Spend across the selected period."
+    }
+  },
+  "charts": {
+    "callsOverTime": "Calls over time",
+    "callOutcomes": "Call outcomes",
+    "topCountries": "Top countries"
+  },
+  "ranges": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "last7Days": "Last 7 days",
+    "last30Days": "Last 30 days",
+    "last90Days": "Last 90 days",
+    "thisMonth": "This month",
+    "lastMonth": "Last month",
+    "custom": "Custom range"
+  },
+  "filters": {
+    "scope": {
+      "organization": "Organization",
+      "personal": "Personal"
+    },
+    "allOutcomes": "All outcomes",
+    "allMembers": "All members",
+    "allCampaigns": "All campaigns",
+    "searchMembers": "Search members…",
+    "noMembers": "No members",
+    "memberFallback": "Member",
+    "customRange": {
+      "title": "Pick a custom range",
+      "from": "From",
+      "to": "To",
+      "aria": "Custom range"
+    }
+  },
+  "outcomes": {
+    "meeting_booked": "Meeting Booked",
+    "sale": "Sale",
+    "interested": "Interested",
+    "follow_up": "Follow-up",
+    "not_interested": "Not Interested",
+    "no_answer": "No Answer",
+    "voicemail": "Voicemail",
+    "wrong_number": "Wrong Number",
+    "gatekeeper": "Gatekeeper"
+  },
+  "widgets": {
+    "shell": {
+      "loading": "Loading…",
+      "failedToLoad": "Failed to load",
+      "empty": "Nothing to show yet",
+      "dragAria": "Drag widget",
+      "removeAria": "Remove widget",
+      "unknownKpi": "Unknown KPI: {type}"
+    },
+    "addWidget": "Add widget",
+    "categoryLabel": {
+      "KPI": "KPI widgets",
+      "Chart": "Chart widgets",
+      "Table": "Table widgets"
+    },
+    "catalog": {
+      "kpi_total_calls": { "title": "Total Calls", "description": "Calls placed in the selected period." },
+      "kpi_answered_calls": { "title": "Answered Calls", "description": "Calls answered by a person." },
+      "kpi_meetings_booked": { "title": "Meetings Booked", "description": "Meetings on the calendar from this period." },
+      "kpi_sales": { "title": "Sales Made", "description": "Calls with outcome \"Sale\"." },
+      "kpi_interested": { "title": "Interested Leads", "description": "Calls with outcome \"Interested\"." },
+      "kpi_follow_ups": { "title": "Follow-ups", "description": "Calls flagged for follow-up." },
+      "kpi_no_answer": { "title": "No Answer", "description": "Calls that went unanswered." },
+      "kpi_voicemail": { "title": "Voicemail", "description": "Calls that hit voicemail." },
+      "kpi_wrong_number": { "title": "Wrong Number", "description": "Calls flagged as wrong number." },
+      "kpi_conversion_rate": { "title": "Conversion Rate", "description": "Sales / answered calls." },
+      "kpi_meeting_rate": { "title": "Meeting Rate", "description": "Meetings booked / answered calls." },
+      "kpi_positive_outcome_rate": { "title": "Positive Outcome Rate", "description": "(Sales + Meetings + Interested) / answered." },
+      "chart_outcome_funnel": { "title": "Outcome Funnel", "description": "Total → Answered → Interested → Meetings → Sales." },
+      "chart_outcomes_over_time": { "title": "Outcomes Over Time", "description": "Stacked outcomes by day/week/month." },
+      "chart_best_time_of_day": { "title": "Best Hours to Call", "description": "Hours that produce the most results." },
+      "chart_calls_by_outcome": { "title": "Calls by Outcome", "description": "Distribution of dispositions." },
+      "table_recent_high_value_calls": { "title": "High-Value Calls", "description": "Recent sales, meetings, interested, follow-ups." },
+      "table_upcoming_meetings": { "title": "Upcoming Meetings", "description": "Meetings on the calendar." },
+      "table_agent_performance": { "title": "Agent Performance", "description": "Per-agent breakdown (org admins only)." }
+    },
+    "kpi": {
+      "totalCalls": {
+        "label": "Total Calls",
+        "hint": "{rate}% answered",
+        "emptyHint": "Calls placed in this period will appear here."
+      },
+      "answeredCalls": {
+        "label": "Answered Calls",
+        "hint": "{rate}% answer rate",
+        "emptyHint": "Calls connected to a person will appear here."
+      },
+      "meetingsBooked": {
+        "label": "Meetings Booked",
+        "hintExtra": "+{count} marked without calendar event",
+        "hintFromScheduled": "From scheduled Meeting records",
+        "emptyHint": "Booked meetings will appear here after a call is marked as meeting booked or scheduled through Google/Microsoft Calendar."
+      },
+      "sales": {
+        "label": "Sales Made",
+        "hint": "{rate}% conversion rate",
+        "emptyHint": "Calls marked with outcome \"Sale\" will appear here."
+      },
+      "interested": {
+        "label": "Interested Leads",
+        "emptyHint": "Calls marked \"Interested\" will appear here."
+      },
+      "followUps": {
+        "label": "Follow-ups",
+        "emptyHint": "Calls marked \"Follow-up\" will appear here."
+      },
+      "noAnswer": {
+        "label": "No Answer",
+        "emptyHint": "Calls with no answer will appear here."
+      },
+      "voicemail": {
+        "label": "Voicemail",
+        "emptyHint": "Calls that hit voicemail will appear here."
+      },
+      "wrongNumber": {
+        "label": "Wrong Number",
+        "emptyHint": "Calls flagged \"Wrong Number\" will appear here."
+      },
+      "conversionRate": {
+        "label": "Conversion Rate",
+        "hint": "{sales} sales / {answered} answered",
+        "emptyHint": "Conversion rate = sales ÷ answered calls. Mark calls as \"Sale\" to populate."
+      },
+      "meetingRate": {
+        "label": "Meeting Rate",
+        "hint": "{meetings} meetings / {answered} answered",
+        "emptyHint": "Meeting rate = meetings booked ÷ answered calls. Book a meeting from a call to populate."
+      },
+      "positiveOutcomeRate": {
+        "label": "Positive Outcome Rate",
+        "hint": "(Sales + Meetings + Interested) / Answered",
+        "emptyHint": "Counts sales, meetings booked, and interested leads as a share of answered calls."
+      }
+    },
+    "outcomeFunnel": {
+      "emptyHint": "Once you log call outcomes, the funnel from total calls to sales will populate here.",
+      "labels": {
+        "totalCalls": "Total Calls",
+        "answered": "Answered",
+        "interested": "Interested",
+        "meetingsBooked": "Meetings Booked",
+        "sales": "Sales"
+      }
+    },
+    "outcomesOverTime": {
+      "emptyHint": "Log outcomes on your calls to see how sales, meetings, and interested leads trend over time.",
+      "series": {
+        "sales": "Sales",
+        "meetings": "Meetings",
+        "interested": "Interested",
+        "followUps": "Follow-ups",
+        "noAnswer": "No Answer"
+      }
+    },
+    "bestTime": {
+      "emptyHint": "Once outcomes start showing up, this chart will reveal the hours of the day that produce the most results.",
+      "metrics": {
+        "sales": "Sales",
+        "meetings": "Meetings Booked",
+        "interested": "Interested Leads"
+      },
+      "tooltip": "{count} at {hour}"
+    },
+    "byOutcome": {
+      "emptyHint": "Pick an outcome on each call (Sale, Interested, Voicemail, etc.) to see how your dispositions break down."
+    },
+    "recentHighValue": {
+      "emptyHint": "Calls marked as Sale, Meeting Booked, Interested, or Follow-up will show up here so you know what to follow up on."
+    },
+    "upcomingMeetings": {
+      "emptyHint": "Schedule a meeting from a call (or sync your Google/Microsoft Calendar) and it will show here.",
+      "fromCall": "From call"
+    },
+    "agentPerformance": {
+      "emptyHint": "Agent performance is available for organization admins. Once your team starts placing calls, their breakdown will appear here.",
+      "headers": {
+        "agent": "Agent",
+        "calls": "Calls",
+        "answered": "Answered",
+        "meetings": "Meetings",
+        "sales": "Sales",
+        "interested": "Interested",
+        "conversion": "Conv %",
+        "meetRate": "Meet %"
+      }
+    }
+  },
+  "page": {
+    "headerOrg": "Outbound Performance",
+    "headerSolo": "Your Calling Performance",
+    "subtitle": "Outcomes, conversion, and the best hours to call — across the time range you pick.",
+    "savingLayout": "Saving layout…",
+    "doneEditing": "Done editing",
+    "customize": "Customize"
+  },
+  "overview": {
+    "welcome": "Hi, Welcome back 👋",
+    "tabs": {
+      "overview": "Overview",
+      "analytics": "Analytics"
+    },
+    "cards": {
+      "totalCalls": {
+        "title": "Total Calls",
+        "trend": "Trending up this month",
+        "subtitle": "Connection rate for the last 6 months",
+        "answered": "{rate}% answered",
+        "missed": "{rate}% missed"
+      },
+      "averageDuration": {
+        "title": "Average Duration",
+        "up": "Up {rate}% this period",
+        "down": "Down {rate}% this period",
+        "subtitleUp": "Users are staying longer on calls",
+        "subtitleDown": "Average call duration decreased"
+      },
+      "weeklyGrowth": {
+        "title": "Weekly Growth",
+        "trend": "Strong user retention",
+        "subtitle": "Engagement exceeds targets"
+      },
+      "growthRate": {
+        "title": "Growth Rate",
+        "trend": "Steady performance increase",
+        "subtitle": "Meets growth projections"
+      }
+    }
+  }
+}

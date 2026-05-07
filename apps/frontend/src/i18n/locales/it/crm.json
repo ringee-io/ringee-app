@@ -1,0 +1,94 @@
+{
+  "title": "CRM",
+  "description": "Sincronizza contatti e attività con il tuo CRM.",
+  "connected": "Connesso",
+  "notConnected": "Non connesso",
+  "connect": "Connetti",
+  "disconnect": "Disconnetti",
+  "lastSync": "Ultima sincronizzazione: {time}",
+  "neverSynced": "Mai sincronizzato",
+  "syncNow": "Sincronizza ora",
+  "providers": {
+    "attio": "Attio",
+    "odoo": "Odoo",
+    "apollo": "Apollo",
+    "prospeo": "Prospeo"
+  },
+  "tabs": {
+    "crm": "CRM",
+    "enrichment": "Arricchimento dati",
+    "leads": "Trova prospect"
+  },
+  "connections": {
+    "yourConnections": "Le tue connessioni",
+    "refresh": "Aggiorna",
+    "manageConnection": "Gestisci connessione",
+    "available": "Integrazioni disponibili",
+    "availableDescription": "Scegli un CRM per inviare chiamate, esiti, registrazioni e note al contatto o all'azienda giusta.",
+    "noConnections": "Nessuna integrazione ancora",
+    "noConnectionsDescription": "Collega un CRM e ogni chiamata apparirà automaticamente sul contatto giusto — con esito, durata, registrazione e note — in pochi secondi.",
+    "needsAttention": "{count, plural, one {# connessione richiede attenzione} other {# connessioni richiedono attenzione}}",
+    "needsAttentionDescription": "Riconnettiti per riprendere la registrazione delle chiamate. Le chiamate in sospeso verranno ritentate automaticamente quando la connessione sarà ripristinata.",
+    "loadError": "Impossibile caricare le connessioni"
+  },
+  "status": {
+    "active": "Connesso",
+    "error": "Attenzione richiesta",
+    "revoked": "Revocato",
+    "disconnected": "Disconnesso"
+  },
+  "scope": {
+    "organization": "Organizzazione",
+    "personal": "Personale",
+    "personalWorkspace": "Area di lavoro personale",
+    "personalWorkspaceDescription": "Vengono registrate solo le tue chiamate. Il token e i tuoi dati rimangono nel tuo account.",
+    "noActiveTeam": "Organizzazione (nessun team attivo)",
+    "orgDescription": "Tutti i membri dell'organizzazione condividono questa connessione. Le chiamate di chiunque nell'org vengono registrate.",
+    "noOrgHint": "Passa a un'organizzazione dall'angolo in alto a sinistra per abilitare la sincronizzazione a livello di org."
+  },
+  "lastSyncNever": "Mai",
+  "lastSyncJustNow": "proprio ora",
+  "lastSyncMinutesAgo": "{n} min fa",
+  "lastSyncHoursAgo": "{n} h fa",
+  "lastSyncDaysAgo": "{n} g fa",
+  "lastSyncAt": "Ultima sync {time}",
+  "stats": {
+    "synced": "Sincronizzati",
+    "pending": "In attesa",
+    "failed": "Falliti",
+    "review": "Da rivedere"
+  },
+  "actions": {
+    "viewSyncHistory": "Visualizza cronologia sync",
+    "reconnect": "Riconnetti",
+    "forgetConnection": "Dimentica connessione",
+    "forget": "Dimentica",
+    "cancel": "Annulla",
+    "addAnother": "Aggiungi un'altra",
+    "connect": "Connetti {provider}",
+    "continueWith": "Continua con {provider}",
+    "notifyMe": "Avvisami"
+  },
+  "dialogs": {
+    "disconnectTitle": "Disconnettere {provider}?",
+    "disconnectDescription": "La sincronizzazione delle chiamate verrà sospesa. La cronologia e i record CRM esistenti saranno preservati. Puoi riconnetterti in qualsiasi momento.",
+    "forgetTitle": "Dimenticare questa connessione?",
+    "forgetDescription": "Questo rimuove definitivamente token, collegamenti di contatti e cronologia di sincronizzazione da Ringee. I record già inviati a {provider} rimangono intatti.",
+    "connectTitle": "Connetti {provider}",
+    "connectDescription": "Scegli dove vivrà questa connessione. Le connessioni personali sono private, quelle dell'organizzazione sono condivise con tutto il team."
+  },
+  "errors": {
+    "revokedError": "L'accesso è stato revocato nel CRM.",
+    "connectionError": "Si è verificato un errore nel contattare il CRM.",
+    "errorCode": "Codice: {code}"
+  },
+  "managementSheet": {
+    "syncHistory": "Cronologia sync",
+    "import": "Importa",
+    "fieldMappings": "Mappatura campi",
+    "team": "Team"
+  },
+  "badges": {
+    "soon": "Presto"
+  }
+}

@@ -5,8 +5,10 @@ import { Github, Star, Users, ShieldCheck, Code, TestTube, Cloud, ChevronRight, 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import { motion, Variants } from 'framer-motion';
+import { useTranslations } from 'next-intl';
 
 export default function OpenSourceSection() {
+  const t = useTranslations('marketing.openSource');
   const [stars, setStars] = useState<number | null>(null);
   const [contributors, setContributors] = useState<number | null>(null);
 
@@ -60,19 +62,19 @@ export default function OpenSourceSection() {
         
         {/* Header Section */}
         <div className="mb-12 max-w-4xl">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 10 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}
             className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-500/20 bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-600 dark:text-amber-500"
           >
             <ShieldCheck className="h-4 w-4" strokeWidth={1.5} />
-            <span>Secure, open-source</span>
+            <span>{t('badge')}</span>
           </motion.div>
-          
-          <motion.h2 
+
+          <motion.h2
             initial={{ opacity: 0, y: 15 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay: 0.1 }}
             className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl lg:text-5xl max-w-3xl leading-tight"
           >
-            Proudly open source - host on your own infrastructure and own your data
+            {t('sectionTitle')}
           </motion.h2>
         </div>
 
@@ -84,9 +86,9 @@ export default function OpenSourceSection() {
             initial={{ opacity: 0, x: -20 }} whileInView={{ opacity: 1, x: 0 }} viewport={{ once: true }} transition={{ delay: 0.2 }}
             className="flex flex-col relative z-10"
           >
-            <h3 className="text-2xl font-bold text-foreground mb-3">Open-source, self-hosted</h3>
+            <h3 className="text-2xl font-bold text-foreground mb-3">{t('subheadline')}</h3>
             <p className="text-base text-muted-foreground leading-relaxed max-w-md mb-8">
-              Host Ringee on your own server. Own your customer data and stay fully compliant with regulatory standards.
+              {t('description')}
             </p>
 
             <div className="mb-12">
@@ -95,7 +97,7 @@ export default function OpenSourceSection() {
                 <Link href="https://github.com/ringee-io/ringee-app" target="_blank" rel="noopener noreferrer">
                   <Button variant="outline" className="relative gap-2 rounded-lg pl-3 pr-4 shadow-sm h-10 text-sm font-medium transition-transform group-hover:scale-[1.02]">
                     <Github className="h-4 w-4" />
-                    Find us on GitHub
+                    {t('githubCta')}
                   </Button>
                 </Link>
               </div>
@@ -105,17 +107,17 @@ export default function OpenSourceSection() {
               <div className="group space-y-2 cursor-default">
                 <div className="flex items-center gap-2 text-muted-foreground transition-colors group-hover:text-amber-500">
                   <Star className="h-5 w-5" strokeWidth={2} />
-                  <span className="text-xs font-medium uppercase tracking-wider">Stars on Github</span>
+                  <span className="text-xs font-medium uppercase tracking-wider">{t('starsLabel')}</span>
                 </div>
                 <div className="text-3xl font-bold tracking-tight group-hover:scale-105 origin-left transition-transform">
                   {stars !== null ? Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(stars) : '...'}
                 </div>
               </div>
-              
+
               <div className="group space-y-2 cursor-default">
                 <div className="flex items-center gap-2 text-muted-foreground transition-colors group-hover:text-blue-500">
                   <Users className="h-5 w-5" strokeWidth={2} />
-                  <span className="text-xs font-medium uppercase tracking-wider">Contributors</span>
+                  <span className="text-xs font-medium uppercase tracking-wider">{t('contributorsLabel')}</span>
                 </div>
                 <div className="text-3xl font-bold tracking-tight group-hover:scale-105 origin-left transition-transform">
                   {contributors !== null ? Intl.NumberFormat('en-US', { notation: 'compact', maximumFractionDigits: 1 }).format(contributors) : '...'}
@@ -157,25 +159,25 @@ export default function OpenSourceSection() {
                 <motion.div variants={itemVariants} className="group relative flex flex-col items-center justify-center p-6 sm:p-8 text-center border-r border-border/40 border-b border-border/40 overflow-hidden cursor-default">
                   <div className="absolute inset-0 bg-gradient-to-br from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <Fingerprint className="h-6 w-6 text-muted-foreground mb-3 group-hover:text-indigo-500 group-hover:-translate-y-1 transition-all duration-300" strokeWidth={1.5} />
-                  <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors">Secure<br/>personnel</span>
+                  <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors">{t('features.securePersonnel')}</span>
                 </motion.div>
-                
+
                 <motion.div variants={itemVariants} className="group relative flex flex-col items-center justify-center p-6 sm:p-8 text-center border-b border-border/40 overflow-hidden cursor-default">
                   <div className="absolute inset-0 bg-gradient-to-sw from-blue-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <Code className="h-6 w-6 text-muted-foreground mb-3 group-hover:text-blue-500 group-hover:-translate-y-1 transition-all duration-300" strokeWidth={1.5} />
-                  <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors">Secure<br/>development</span>
+                  <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors">{t('features.secureDevelopment')}</span>
                 </motion.div>
-                
+
                 <motion.div variants={itemVariants} className="group relative flex flex-col items-center justify-center p-6 sm:p-8 text-center border-r border-border/40 overflow-hidden cursor-default">
                   <div className="absolute inset-0 bg-gradient-to-tr from-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <TestTube className="h-6 w-6 text-muted-foreground mb-3 group-hover:text-amber-500 group-hover:-translate-y-1 transition-all duration-300" strokeWidth={1.5} />
-                  <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors">Secure<br/>testing</span>
+                  <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors">{t('features.secureTesting')}</span>
                 </motion.div>
-                
+
                 <motion.div variants={itemVariants} className="group relative flex flex-col items-center justify-center p-6 sm:p-8 text-center overflow-hidden cursor-default">
                   <div className="absolute inset-0 bg-gradient-to-tl from-emerald-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                   <Cloud className="h-6 w-6 text-muted-foreground mb-3 group-hover:text-emerald-500 group-hover:-translate-y-1 transition-all duration-300" strokeWidth={1.5} />
-                  <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors">Cloud<br/>security</span>
+                  <span className="text-sm font-medium text-foreground/80 group-hover:text-foreground transition-colors">{t('features.cloudSecurity')}</span>
                 </motion.div>
               </motion.div>
 
@@ -186,14 +188,14 @@ export default function OpenSourceSection() {
               >
                 <h4 className="flex items-center gap-2 text-2xl font-bold text-foreground mb-3 tracking-tight">
                   <ShieldCheck className="h-6 w-6 text-amber-500" />
-                  Security aligned with SOC 2 standards
+                  {t('soc2Title')}
                 </h4>
                 <p className="text-sm text-muted-foreground leading-relaxed mb-6 max-w-sm">
-                  With strict protocols in place, you can trust us to protect your information with confidence.
+                  {t('soc2Description')}
                 </p>
                 <Button asChild variant="ghost" className="group -ml-3 rounded-lg h-9 px-3 text-sm font-medium hover:bg-muted/50">
                   <Link href="/blog/ringee-open-source-self-hosted-security">
-                    Read more
+                    {t('readMore')}
                     <ChevronRight className="h-4 w-4 ml-1 group-hover:translate-x-1 transition-transform" />
                   </Link>
                 </Button>

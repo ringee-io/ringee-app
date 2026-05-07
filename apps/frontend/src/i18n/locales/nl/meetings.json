@@ -1,0 +1,59 @@
+{
+  "title": "Vergaderingen",
+  "description": "Alle vergaderingen geboekt vanuit cold calls",
+  "metaTitle": "Vergaderingen — Geboekt vanuit cold calls | Ringee",
+  "metaDescription": "Bekijk en beheer alle vergaderingen die zijn geboekt tijdens cold calls. Volg aankomende afspraken, bekijk eerdere boekingen en houd je pipeline op orde.",
+  "newMeeting": "Nieuwe vergadering",
+  "searchPlaceholder": "Zoek op contactnaam...",
+  "tabs": {
+    "upcoming": "Aankomend",
+    "all": "Alle",
+    "calendar": "Kalender",
+    "integrations": "Integraties"
+  },
+  "sections": {
+    "upcoming": "Aankomend",
+    "past": "Verleden"
+  },
+  "fields": {
+    "title": "Titel",
+    "with": "Met",
+    "when": "Wanneer",
+    "duration": "Duur",
+    "notes": "Notities"
+  },
+  "columns": {
+    "dateTime": "Datum & tijd",
+    "contact": "Contact",
+    "duration": "Duur",
+    "status": "Status"
+  },
+  "viewDetails": "Details bekijken",
+  "location": "Locatie",
+  "fromCall": "Van gesprek op {date}",
+  "min": "min",
+  "cancelMeeting": "Vergadering annuleren",
+  "defaultTitle": "Vergadering",
+  "status": {
+    "scheduled": "Gepland",
+    "completed": "Voltooid",
+    "cancelled": "Geannuleerd",
+    "rescheduled": "Verzet"
+  },
+  "calendar": {
+    "month": "maand",
+    "week": "week",
+    "day": "dag"
+  },
+  "empty": {
+    "title": "Geen vergaderingen gepland",
+    "description": "Zodra je een vergadering boekt, verschijnt deze hier.",
+    "noMeetings": "Nog geen vergaderingen",
+    "noMeetingsDescription": "Boek je eerste vergadering tijdens een gesprek. Alle geboekte vergaderingen verschijnen hier."
+  },
+  "toasts": {
+    "failedToLoad": "Vergaderingen laden mislukt",
+    "cancelled": "Vergadering geannuleerd",
+    "failedToCancel": "Vergadering annuleren mislukt"
+  }
+}

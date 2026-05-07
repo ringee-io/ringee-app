@@ -1,0 +1,56 @@
+{
+  "title": "Organizzazione",
+  "switcher": {
+    "select": "Seleziona un'organizzazione",
+    "personal": "Account personale",
+    "create": "Crea organizzazione",
+    "switching": "Cambio in corso…",
+    "myPersonal": "Il mio account personale",
+    "organization": "Organizzazione",
+    "organizations": "Organizzazioni",
+    "manageOrganization": "Gestisci organizzazione",
+    "createOrganization": "Crea organizzazione",
+    "createNewOrganization": "Crea nuova organizzazione",
+    "subscriptionReady": "Abbonamento pronto"
+  },
+  "create": {
+    "title": "Crea organizzazione",
+    "description": "Crea uno spazio di lavoro per il tuo team.",
+    "namePlaceholder": "Acme S.r.l."
+  },
+  "members": {
+    "title": "Membri",
+    "invite": "Invita membro",
+    "role": "Ruolo",
+    "status": "Stato",
+    "remove": "Rimuovi dall'organizzazione"
+  },
+  "roles": {
+    "owner": "Proprietario",
+    "admin": "Amministratore",
+    "member": "Membro"
+  },
+  "upgrade": {
+    "title": "Passa a Organizzazione",
+    "description": "Sblocca funzionalità professionali per il tuo team.",
+    "features": {
+      "unlimitedMembers": "Membri illimitati",
+      "cheaperRates": "Tariffe più convenienti al minuto",
+      "virtualNumbers": "Numeri virtuali inclusi",
+      "advancedAnalytics": "Analisi avanzate"
+    },
+    "unlockProFeatures": "Sblocca funzionalità Pro",
+    "pricing": "Prezzi",
+    "perMonth": "/mese",
+    "perMonthPerOrg": "/mese per org",
+    "proPlan": "Piano Pro",
+    "proceedToUpgrade": "Procedi con l'upgrade",
+    "secureByStripe": "Sicuro con Stripe",
+    "cancelAnytime": "Annulla in qualsiasi momento"
+  },
+  "subscription": {
+    "required": "Abbonamento richiesto",
+    "requiredDescription": "È necessario un abbonamento attivo per creare un'altra organizzazione.",
+    "subscribeNow": "Abbonati ora"
+  }
+}

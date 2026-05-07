@@ -1,10 +1,14 @@
 import PageContainer from '@/components/layout/page-container';
 import { CampaignDetail } from '@/features/campaigns/components/campaign-detail';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata = {
-  title: 'Campaign Detail | Ringee',
-  description: 'View and manage your outbound calling campaign.'
-};
+export async function generateMetadata() {
+  const t = await getTranslations('campaigns.detail');
+  return {
+    title: t('metaTitle'),
+    description: t('metaDescription')
+  };
+}
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -15,7 +19,7 @@ export default async function CampaignDetailPage(props: Props) {
 
   return (
     <PageContainer scrollable>
-      <div className="flex flex-1 flex-col space-y-4">
+      <div className='flex flex-1 flex-col space-y-4'>
         <CampaignDetail campaignId={params.id} />
       </div>
     </PageContainer>

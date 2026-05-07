@@ -1,0 +1,122 @@
+{
+  "title": "Settings",
+  "description": "Configure your account and preferences.",
+  "profile": {
+    "metaTitle": "Profile | Ringee"
+  },
+  "numbers": {
+    "title": "Buy Numbers",
+    "description": "Manage Numbers",
+    "metaTitle": "Buy Virtual Numbers for Global Calling | Ringee",
+    "metaDescription": "Instantly buy local or international phone numbers to make and receive calls with Ringee. Perfect for sales teams, call centers, and global businesses.",
+    "tabs": {
+      "buy": "Buy Number",
+      "myNumbers": "My Numbers"
+    },
+    "buy": {
+      "table": {
+        "phoneNumber": "Phone Number",
+        "phoneNumberPlaceholder": "Search number...",
+        "country": "Country",
+        "countryPlaceholder": "Select Country",
+        "type": "Type",
+        "typePlaceholder": "Select Type",
+        "areaCode": "Area Code",
+        "areaCodePlaceholder": "Area Code",
+        "region": "Region",
+        "features": "Features",
+        "featuresPlaceholder": "Select features",
+        "cost": "Cost",
+        "actions": "Actions",
+        "buy": "Buy",
+        "noNumbers": "No numbers available",
+        "errorLoading": "Could not load numbers. Try again."
+      },
+      "types": {
+        "local": "Local",
+        "tollFree": "Toll Free"
+      },
+      "features": {
+        "voice": "Voice",
+        "sms": "SMS",
+        "mms": "MMS",
+        "hdVoice": "HD Voice",
+        "internationalSms": "Intl. SMS",
+        "emergency": "Emergency",
+        "fax": "Fax"
+      },
+      "purchase": {
+        "confirmTitle": "Buy this number?",
+        "confirmDescription": "{phone} — {currency} {monthly}/month",
+        "confirm": "Buy",
+        "cancel": "Cancel",
+        "success": "Number purchased",
+        "error": "Could not purchase the number"
+      }
+    },
+    "my": {
+      "table": {
+        "phoneNumber": "Phone Number",
+        "country": "Country",
+        "type": "Type",
+        "status": "Status",
+        "connection": "Connection",
+        "purchaseDate": "Purchase Date",
+        "monthlyCost": "Monthly Cost",
+        "upfrontCost": "Upfront Cost",
+        "unknown": "unknown",
+        "na": "N/A"
+      },
+      "status": {
+        "assigned": "assigned",
+        "inactive": "inactive",
+        "pending": "pending"
+      }
+    }
+  },
+  "tabs": {
+    "general": "General",
+    "language": "Language",
+    "notifications": "Notifications",
+    "security": "Security",
+    "appearance": "Appearance",
+    "script": "Script"
+  },
+  "overview": {
+    "title": "Overview",
+    "description": "Personalize your account and your call script."
+  },
+  "language": {
+    "title": "Language",
+    "description": "Choose the language used across the Ringee app.",
+    "label": "App language",
+    "saved": "Language updated",
+    "error": "Couldn't update your language. Please try again."
+  },
+  "notifications": {
+    "title": "Notifications",
+    "description": "Choose what we email or push to you.",
+    "email": "Email notifications",
+    "push": "Push notifications",
+    "missedCall": "Missed calls",
+    "voicemail": "Voicemails",
+    "campaignUpdates": "Campaign updates"
+  },
+  "appearance": {
+    "title": "Appearance",
+    "description": "Choose how Ringee looks on your screen.",
+    "theme": "Theme",
+    "themes": {
+      "light": "Light",
+      "dark": "Dark",
+      "system": "System"
+    }
+  },
+  "script": {
+    "title": "Call script",
+    "description": "Personalize the script your dialer reads on calls.",
+    "tab": "Script",
+    "addSection": "Add section",
+    "saveScript": "Save script"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "title": "Calendario",
+  "today": "Hoy",
+  "weekdays": {
+    "mon": "Lun",
+    "tue": "Mar",
+    "wed": "Mié",
+    "thu": "Jue",
+    "fri": "Vie",
+    "sat": "Sáb",
+    "sun": "Dom"
+  },
+  "views": {
+    "day": "Día",
+    "week": "Semana",
+    "month": "Mes",
+    "agenda": "Agenda"
+  },
+  "empty": {
+    "title": "Nada programado",
+    "description": "Tu calendario está libre en este periodo."
+  }
+}

@@ -1,0 +1,133 @@
+{
+  "title": "Llamadas",
+  "description": "Realiza y recibe llamadas de máxima nitidez a más de 180 países directamente desde tu navegador.",
+  "metaTitle": "Llamadas — Realiza y recibe llamadas en todo el mundo | Ringee",
+  "metaDescription": "Realiza y recibe llamadas con calidad excepcional a más de 180 países directamente desde tu navegador. Con la tecnología de Telnyx y Ringee WebRTC para equipos comerciales y comunicación global.",
+  "newCall": "Nueva llamada",
+  "incomingCall": "Llamada entrante",
+  "outgoingCall": "Llamada saliente",
+  "missedCall": "Llamada perdida",
+  "answered": "Contestada",
+  "noAnswer": "Sin respuesta",
+  "busy": "Ocupado",
+  "failed": "Fallida",
+  "voicemail": "Buzón de voz",
+  "statusValues": {
+    "pending": "Pendiente",
+    "ringing": "Sonando",
+    "answered": "Contestada",
+    "recording": "Grabando",
+    "completed": "Completada",
+    "failed": "Fallida",
+    "processing": "Procesando",
+    "ready": "Lista"
+  },
+  "callDuration": "Duración",
+  "callCost": "Coste",
+  "from": "De",
+  "to": "Para",
+  "actions": {
+    "answer": "Contestar",
+    "decline": "Rechazar",
+    "hangUp": "Colgar",
+    "mute": "Silenciar",
+    "unmute": "Activar audio",
+    "hold": "En espera",
+    "resume": "Reanudar",
+    "transfer": "Transferir",
+    "addNote": "Añadir nota",
+    "viewContact": "Ver contacto"
+  },
+  "history": {
+    "title": "Historial de llamadas",
+    "shortTitle": "Historial",
+    "description": "Consulta tu historial de llamadas",
+    "metaTitle": "Historial de llamadas — Revisa y haz seguimiento | Ringee",
+    "metaDescription": "Accede a tu historial completo de llamadas en Ringee. Revisa llamadas pasadas, monitoriza el rendimiento y gestiona tus registros con claridad — pensado para equipos comerciales y profesionales.",
+    "empty": {
+      "title": "Aún no hay llamadas",
+      "description": "Tu historial aparecerá aquí en cuanto empieces a hacer o recibir llamadas."
+    },
+    "table": {
+      "type": "Tipo",
+      "contact": "Contacto",
+      "from": "De",
+      "to": "Para",
+      "status": "Estado",
+      "duration": "Duración",
+      "date": "Fecha",
+      "recording": "Grabación",
+      "unknown": "Desconocido",
+      "callAgain": "Llamar de nuevo",
+      "noRecording": "Sin grabación",
+      "downloadRecording": "Descargar grabación"
+    }
+  },
+  "recordings": {
+    "title": "Grabaciones de llamadas",
+    "description": "Escucha y descarga tus grabaciones cifradas",
+    "metaTitle": "Grabaciones — Escuchar y descargar | Ringee",
+    "metaDescription": "Accede a tus grabaciones de llamadas cifradas. Reproduce, descarga y gestiona los archivos de audio de forma segura desde tu panel de Ringee.",
+    "table": {
+      "type": "Tipo",
+      "contact": "Contacto",
+      "from": "De",
+      "to": "Para",
+      "duration": "Duración",
+      "date": "Fecha",
+      "status": "Estado",
+      "recording": "Grabación",
+      "unknown": "Desconocido",
+      "noRecording": "Sin grabación",
+      "processingShort": "Procesando…",
+      "unavailable": "No disponible",
+      "play": "Reproducir",
+      "playRecording": "Reproducir grabación",
+      "downloadRecording": "Descargar grabación"
+    },
+    "statusBadge": {
+      "started": "Procesando",
+      "processing": "Procesando",
+      "completed": "Lista",
+      "failed": "Fallida"
+    },
+    "player": {
+      "defaultTitle": "Grabación de llamada",
+      "callTitle": "Llamada: {from} → {to}",
+      "decrypting": "Descifrando grabación…",
+      "errorLoad": "No se pudo cargar la grabación. Inténtalo de nuevo."
+    },
+    "dateFilter": {
+      "filterByDate": "Filtrar por fecha",
+      "from": "Desde {date}",
+      "to": "Hasta {date}",
+      "clear": "Limpiar filtro de fecha"
+    }
+  },
+  "callbacks": {
+    "title": "Devoluciones de llamada",
+    "description": "Consulta y gestiona las devoluciones programadas desde el marcador",
+    "metaTitle": "Devoluciones | Ringee",
+    "metaDescription": "Consulta y gestiona las tareas de devolución de llamada programadas."
+  },
+  "dnc": {
+    "title": "No llamar",
+    "description": "Gestiona los números que nunca deben marcarse",
+    "metaTitle": "Lista de no llamar | Ringee",
+    "metaDescription": "Gestiona tu lista de no llamar para garantizar el cumplimiento."
+  },
+  "rates": {
+    "metaTitle": "Tarifas — Consulta y compara costes | Ringee",
+    "metaDescription": "Accede a las tarifas de llamadas actualizadas en tu panel de Ringee. Compara precios entre más de 180 países y controla tus costes de comunicación en tiempo real.",
+    "calculator": {
+      "title": "Calculadora de tarifas",
+      "subtitle": "Consulta tus tarifas en tiempo real con Ringee.",
+      "callingTo": "Estoy llamando a",
+      "to": "A un",
+      "mobile": "Móvil",
+      "landline": "Fijo",
+      "willCost": "Tu llamada costará",
+      "perMinute": "por minuto"
+    }
+  }
+}

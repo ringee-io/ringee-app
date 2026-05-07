@@ -34,6 +34,7 @@ import { useCongrats } from '@ringee/frontend-shared/hooks/use.congrats';
 import { useCreditStore } from '@/features/credit/store/credit.store';
 import { useAuth } from '@clerk/nextjs';
 import { useOnboardingComplete } from '@/features/onboarding/hooks/use.onboarding.complete';
+import { useTranslations } from 'next-intl';
 
 const PRESETS = [10, 25, 50, 100];
 
@@ -46,6 +47,7 @@ const MyButton = ({
   balance: number;
   onClick?: () => void;
 }) => {
+  const t = useTranslations('billing.credits.popover');
   return (
     <Button
       variant='ghost'
@@ -64,9 +66,11 @@ const MyButton = ({
 
       <div className='z-10 flex items-center gap-2'>
         <Zap className='text-foreground h-4 w-4 transition-transform group-hover:rotate-6' />
-        <span className='text-foreground font-semibold'>Call for free</span>
+        <span className='text-foreground font-semibold'>
+          {t('freeCallButton')}
+        </span>
         <span className='text-foreground hidden text-sm opacity-90 sm:inline'>
-          1 minute on us
+          {t('freeCallSubtitle')}
         </span>
       </div>
     </Button>
@@ -81,6 +85,7 @@ function OneTimeTab({
   onCheckout: (amount: number) => void;
   loading: boolean;
 }) {
+  const t = useTranslations('billing.credits.popover');
   const [amount, setAmount] = useState(25);
   const estimatedMinutes = Math.round(amount * 50);
   const level = Math.min(100, (amount / 100) * 100);
@@ -88,7 +93,7 @@ function OneTimeTab({
   return (
     <div className='space-y-4'>
       <div>
-        <Label className='mb-2 block text-sm'>Choose amount</Label>
+        <Label className='mb-2 block text-sm'>{t('common.chooseAmount')}</Label>
         <div className='flex flex-wrap gap-2'>
           {PRESETS.map((val) => (
             <Button
@@ -109,12 +114,12 @@ function OneTimeTab({
       </div>
 
       <div>
-        <Label htmlFor='custom'>Or enter custom amount</Label>
+        <Label htmlFor='custom'>{t('common.customAmountLabel')}</Label>
         <Input
           id='custom'
           type='number'
           min={5}
-          placeholder='e.g. 40'
+          placeholder={t('oneTime.customPlaceholder')}
           value={amount}
           onChange={(e) => setAmount(Number(e.target.value) || 0)}
           className='mt-1 max-w-[150px]'
@@ -123,14 +128,14 @@ function OneTimeTab({
 
       <div className='space-y-2 pt-1'>
         <div className='flex justify-between text-sm'>
-          <span>New balance</span>
+          <span>{t('oneTime.newBalance')}</span>
           <span className='font-medium text-emerald-400'>
             ${amount.toFixed(2)}
           </span>
         </div>
         <Progress value={level} className='bg-muted h-2 overflow-hidden' />
         <p className='text-muted-foreground text-xs'>
-          Estimated calling time: <strong>{estimatedMinutes}</strong> minutes
+          {t('oneTime.estimatedTime', { minutes: estimatedMinutes })}
         </p>
       </div>
 
@@ -144,7 +149,7 @@ function OneTimeTab({
           'cursor-pointer shadow-[0_0_15px_-4px_rgba(45,212,191,0.5)] hover:scale-[1.02] hover:brightness-110'
         )}
       >
-        {loading ? 'Redirecting...' : 'Secure Checkout'}
+        {loading ? t('common.redirecting') : t('oneTime.checkout')}
       </Button>
     </div>
   );
@@ -165,6 +170,7 @@ function MonthlyFundTab({
     monthlyFundAmount: number | null;
   } | null;
 }) {
+  const t = useTranslations('billing.credits.popover');
   const [amount, setAmount] = useState(
     currentSettings?.monthlyFundAmount ?? 50
   );
@@ -177,12 +183,14 @@ function MonthlyFundTab({
           <div className='flex items-center gap-2'>
             <CalendarSync className='h-4 w-4 text-emerald-400' />
             <span className='text-sm font-medium'>
-              Monthly fund active
+              {t('monthly.activeTitle')}
             </span>
           </div>
           <p className='text-muted-foreground mt-1 text-sm'>
-            <strong>${currentSettings?.monthlyFundAmount?.toFixed(2)}</strong>{' '}
-            will be added to your balance every month automatically.
+            {t.rich('monthly.activeDescription', {
+              amount: currentSettings?.monthlyFundAmount?.toFixed(2) ?? '0.00',
+              b: (chunks) => <strong>{chunks}</strong>
+            })}
           </p>
         </div>
 
@@ -193,7 +201,7 @@ function MonthlyFundTab({
           size='lg'
           className='w-full cursor-pointer border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300'
         >
-          {loading ? 'Cancelling...' : 'Cancel Monthly Fund'}
+          {loading ? t('monthly.cancelling') : t('monthly.cancel')}
         </Button>
       </div>
     );
@@ -201,13 +209,10 @@ function MonthlyFundTab({
 
   return (
     <div className='space-y-4'>
-      <p className='text-muted-foreground text-sm'>
-        Set a fixed monthly amount that will be automatically added to your
-        balance every month. No more manual recharges.
-      </p>
+      <p className='text-muted-foreground text-sm'>{t('monthly.intro')}</p>
 
       <div>
-        <Label className='mb-2 block text-sm'>Monthly amount</Label>
+        <Label className='mb-2 block text-sm'>{t('monthly.amountLabel')}</Label>
         <div className='flex flex-wrap gap-2'>
           {[25, 50, 100, 200].map((val) => (
             <Button
@@ -221,19 +226,20 @@ function MonthlyFundTab({
                   : 'hover:border-emerald-500 hover:text-emerald-400'
               )}
             >
-              ${val}/mo
+              ${val}
+              {t('monthly.perMonthSuffix')}
             </Button>
           ))}
         </div>
       </div>
 
       <div>
-        <Label htmlFor='monthly-custom'>Or enter custom amount</Label>
+        <Label htmlFor='monthly-custom'>{t('common.customAmountLabel')}</Label>
         <Input
           id='monthly-custom'
           type='number'
           min={5}
-          placeholder='e.g. 75'
+          placeholder={t('monthly.customPlaceholder')}
           value={amount}
           onChange={(e) => setAmount(Number(e.target.value) || 0)}
           className='mt-1 max-w-[150px]'
@@ -242,13 +248,13 @@ function MonthlyFundTab({
 
       <div className='space-y-1 pt-1'>
         <div className='flex justify-between text-sm'>
-          <span>Monthly charge</span>
+          <span>{t('monthly.monthlyCharge')}</span>
           <span className='font-medium text-emerald-400'>
-            ${amount.toFixed(2)}/month
+            {t('monthly.monthlyChargeValue', { amount: amount.toFixed(2) })}
           </span>
         </div>
         <p className='text-muted-foreground text-xs'>
-          ~{Math.round(amount * 50)} minutes of calling per month
+          {t('monthly.estimatedTime', { minutes: Math.round(amount * 50) })}
         </p>
       </div>
 
@@ -262,7 +268,7 @@ function MonthlyFundTab({
           'cursor-pointer shadow-[0_0_15px_-4px_rgba(45,212,191,0.5)] hover:scale-[1.02] hover:brightness-110'
         )}
       >
-        {loading ? 'Redirecting...' : 'Subscribe Monthly Fund'}
+        {loading ? t('common.redirecting') : t('monthly.subscribe')}
       </Button>
     </div>
   );
@@ -284,6 +290,7 @@ function AutoReloadTab({
     autoReloadAmount: number;
   } | null;
 }) {
+  const t = useTranslations('billing.credits.popover');
   const [threshold, setThreshold] = useState(
     currentSettings?.autoReloadThreshold ?? 5
   );
@@ -298,19 +305,23 @@ function AutoReloadTab({
         <div className='rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4'>
           <div className='flex items-center gap-2'>
             <RefreshCw className='h-4 w-4 text-emerald-400' />
-            <span className='text-sm font-medium'>Auto-reload active</span>
+            <span className='text-sm font-medium'>
+              {t('autoReload.activeTitle')}
+            </span>
           </div>
           <p className='text-muted-foreground mt-1 text-sm'>
-            When your balance drops below{' '}
-            <strong>${currentSettings?.autoReloadThreshold?.toFixed(2)}</strong>,{' '}
-            <strong>${currentSettings?.autoReloadAmount?.toFixed(2)}</strong>{' '}
-            will be charged and added automatically.
+            {t.rich('autoReload.activeDescription', {
+              threshold:
+                currentSettings?.autoReloadThreshold?.toFixed(2) ?? '0.00',
+              amount: currentSettings?.autoReloadAmount?.toFixed(2) ?? '0.00',
+              b: (chunks) => <strong>{chunks}</strong>
+            })}
           </p>
         </div>
 
         <div className='flex items-center justify-between'>
           <Label htmlFor='auto-reload-toggle' className='text-sm'>
-            Auto-reload enabled
+            {t('autoReload.toggleLabel')}
           </Label>
           <Switch
             id='auto-reload-toggle'
@@ -325,13 +336,10 @@ function AutoReloadTab({
 
   return (
     <div className='space-y-4'>
-      <p className='text-muted-foreground text-sm'>
-        Never run out of credit. Set a minimum balance threshold and we&#39;ll
-        automatically reload your account.
-      </p>
+      <p className='text-muted-foreground text-sm'>{t('autoReload.intro')}</p>
 
       <div>
-        <Label htmlFor='threshold'>Reload when balance drops below</Label>
+        <Label htmlFor='threshold'>{t('autoReload.thresholdLabel')}</Label>
         <div className='relative mt-1'>
           <span className='text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 text-sm'>
             $
@@ -348,7 +356,7 @@ function AutoReloadTab({
       </div>
 
       <div>
-        <Label htmlFor='reload-amount'>Reload amount</Label>
+        <Label htmlFor='reload-amount'>{t('autoReload.amountLabel')}</Label>
         <div className='flex flex-wrap gap-2 mt-1'>
           {[10, 25, 50, 100].map((val) => (
             <Button
@@ -370,7 +378,7 @@ function AutoReloadTab({
           id='reload-amount-custom'
           type='number'
           min={5}
-          placeholder='Custom amount'
+          placeholder={t('autoReload.customPlaceholder')}
           value={reloadAmount}
           onChange={(e) => setReloadAmount(Number(e.target.value) || 0)}
           className='mt-2 max-w-[150px]'
@@ -378,10 +386,11 @@ function AutoReloadTab({
       </div>
 
       <div className='rounded-lg border border-border/50 bg-muted/30 p-3 text-xs text-muted-foreground'>
-        Your card will be charged{' '}
-        <strong>${reloadAmount.toFixed(2)}</strong> now and saved for future
-        automatic reloads when your balance drops below{' '}
-        <strong>${threshold.toFixed(2)}</strong>.
+        {t.rich('autoReload.summary', {
+          amount: reloadAmount.toFixed(2),
+          threshold: threshold.toFixed(2),
+          b: (chunks) => <strong>{chunks}</strong>
+        })}
       </div>
 
       <Button
@@ -394,7 +403,7 @@ function AutoReloadTab({
           'cursor-pointer shadow-[0_0_15px_-4px_rgba(45,212,191,0.5)] hover:scale-[1.02] hover:brightness-110'
         )}
       >
-        {loading ? 'Redirecting...' : 'Enable Auto-Reload'}
+        {loading ? t('common.redirecting') : t('autoReload.enable')}
       </Button>
     </div>
   );
@@ -409,6 +418,7 @@ export function CreditPopover({
   fetch?: boolean;
   useMock?: boolean;
 }) {
+  const t = useTranslations('billing.credits.popover');
   const auth = useAuth();
 
   const [loading, setLoading] = useState(false);
@@ -551,7 +561,7 @@ export function CreditPopover({
                 ${balance.toFixed(2)}
               </span>
               <span className='text-foreground hidden text-sm opacity-90 sm:inline'>
-                Available credit
+                {t('availableCredit')}
               </span>
             </div>
 
@@ -572,11 +582,9 @@ export function CreditPopover({
           <div>
             <h3 className='flex items-center gap-2 text-base font-semibold'>
               <CreditCard className='h-4 w-4 text-emerald-400' />
-              Add Credits
+              {t('header')}
             </h3>
-            <p className='text-muted-foreground text-sm'>
-              Recharge instantly or set up automatic funding.
-            </p>
+            <p className='text-muted-foreground text-sm'>{t('subheader')}</p>
           </div>
 
           {/* Tabs */}
@@ -584,15 +592,15 @@ export function CreditPopover({
             <TabsList className='w-full'>
               <TabsTrigger value='one-time' className='flex-1 text-xs'>
                 <CreditCard className='mr-1 h-3 w-3' />
-                One-time
+                {t('tabs.oneTime')}
               </TabsTrigger>
               <TabsTrigger value='monthly' className='flex-1 text-xs'>
                 <CalendarSync className='mr-1 h-3 w-3' />
-                Monthly
+                {t('tabs.monthly')}
               </TabsTrigger>
               <TabsTrigger value='auto-reload' className='flex-1 text-xs'>
                 <RefreshCw className='mr-1 h-3 w-3' />
-                Auto-reload
+                {t('tabs.autoReload')}
               </TabsTrigger>
             </TabsList>
 
@@ -626,11 +634,11 @@ export function CreditPopover({
           <div className='text-muted-foreground flex items-center justify-between border-t pt-3 text-xs'>
             <div className='flex items-center gap-1'>
               <ShieldCheck className='h-3.5 w-3.5 text-emerald-400' />
-              Secure by Stripe
+              {t('footer.secureByStripe')}
             </div>
             <div className='flex items-center gap-1'>
               <DollarSign className='h-3.5 w-3.5 text-emerald-400' />
-              100% Refund Guarantee
+              {t('footer.refundGuarantee')}
             </div>
           </div>
         </div>

@@ -1,0 +1,48 @@
+{
+  "title": "Campaigns",
+  "description": "Manage outbound calling campaigns",
+  "metaTitle": "Campaigns — Outbound Calling | Ringee",
+  "metaDescription": "Manage your outbound calling campaigns. Create campaigns, import leads, configure dialers, and track performance.",
+  "newCampaign": "New campaign",
+  "create": {
+    "title": "New Campaign",
+    "description": "Create and configure an outbound calling campaign",
+    "metaTitle": "New Campaign | Ringee",
+    "metaDescription": "Create a new outbound calling campaign.",
+    "namePlaceholder": "Q1 outbound — US enterprise",
+    "submit": "Create campaign"
+  },
+  "edit": {
+    "title": "Edit campaign"
+  },
+  "detail": {
+    "metaTitle": "Campaign Detail | Ringee",
+    "metaDescription": "View and manage your outbound calling campaign."
+  },
+  "fields": {
+    "name": "Name",
+    "list": "Contact list",
+    "mode": "Dialer mode",
+    "callerId": "Caller ID",
+    "script": "Script"
+  },
+  "status": {
+    "draft": "Draft",
+    "scheduled": "Scheduled",
+    "running": "Running",
+    "paused": "Paused",
+    "completed": "Completed"
+  },
+  "actions": {
+    "start": "Start",
+    "pause": "Pause",
+    "resume": "Resume",
+    "stop": "Stop",
+    "duplicate": "Duplicate"
+  },
+  "empty": {
+    "title": "No campaigns yet",
+    "description": "Create your first campaign to start reaching out at scale.",
+    "action": "Create campaign"
+  }
+}

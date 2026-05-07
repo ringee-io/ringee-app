@@ -8,6 +8,7 @@ import {
   IconLogout,
   IconSparkles
 } from '@tabler/icons-react';
+import { useTranslations } from 'next-intl';
 
 import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import {
@@ -36,6 +37,7 @@ export function NavUser({
   };
 }) {
   const { isMobile } = useSidebar();
+  const t = useTranslations('navigation.userMenu');
 
   return (
     <SidebarMenu>
@@ -79,28 +81,28 @@ export function NavUser({
             <DropdownMenuGroup>
               <DropdownMenuItem>
                 <IconSparkles className='mr-2 h-4 w-4' />
-                Upgrade to Pro
+                {t('upgradeToPro')}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuGroup>
               <DropdownMenuItem>
                 <IconCircleCheck className='mr-2 h-4 w-4' />
-                Account
+                {t('account')}
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <IconCreditCard className='mr-2 h-4 w-4' />
-                Billing
+                {t('billing')}
               </DropdownMenuItem>
               <DropdownMenuItem>
                 <IconBell className='mr-2 h-4 w-4' />
-                Notifications
+                {t('notifications')}
               </DropdownMenuItem>
             </DropdownMenuGroup>
             <DropdownMenuSeparator />
             <DropdownMenuItem>
               <IconLogout className='mr-2 h-4 w-4' />
-              Log out
+              {t('logOut')}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

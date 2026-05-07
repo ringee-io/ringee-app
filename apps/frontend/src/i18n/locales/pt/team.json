@@ -1,0 +1,15 @@
+{
+  "title": "Equipa",
+  "description": "Veja como está a sua equipa.",
+  "leaderboard": {
+    "title": "Classificação",
+    "agent": "Agente",
+    "calls": "Chamadas",
+    "talkTime": "Tempo de conversação",
+    "answerRate": "Taxa de resposta"
+  },
+  "empty": {
+    "title": "Ainda sem colegas",
+    "description": "Convide a sua equipa para começarem a acompanhar o desempenho juntos."
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "confirmDelete": {
+    "title": "Are you sure?",
+    "description": "This action cannot be undone.",
+    "confirm": "Yes, delete",
+    "cancel": "Cancel"
+  },
+  "confirmLeave": {
+    "title": "Leave without saving?",
+    "description": "Your unsaved changes will be lost.",
+    "confirm": "Leave",
+    "cancel": "Stay"
+  },
+  "unsavedChanges": {
+    "title": "You have unsaved changes",
+    "description": "Save them before continuing."
+  }
+}

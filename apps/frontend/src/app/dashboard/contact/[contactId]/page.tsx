@@ -4,12 +4,15 @@ import { Suspense } from 'react';
 import ContactViewPage from '@/features/contact/components/product.view.page';
 import ContactDetailServer from '@/features/contact/components/contact-detail.server';
 import { DataTableSkeleton } from '@ringee/frontend-shared/components/ui/table/data-table-skeleton';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata = {
-  title: 'Contact — Details | Ringee',
-  description:
-    'View full contact details including call history, notes, tags, and more.'
-};
+export async function generateMetadata() {
+  const t = await getTranslations('contacts.detail');
+  return {
+    title: t('metaTitle'),
+    description: t('metaDescription')
+  };
+}
 
 type PageProps = { params: Promise<{ contactId: string }> };
 

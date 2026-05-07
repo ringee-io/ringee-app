@@ -1,0 +1,464 @@
+{
+  "nav": {
+    "product": "Product",
+    "features": "Features",
+    "pricing": "Prijzen",
+    "docs": "Documentatie",
+    "docsForDevelopers": "Documentatie voor developers",
+    "blog": "Blog",
+    "contact": "Contact",
+    "signIn": "Inloggen",
+    "getStarted": "Aan de slag",
+    "productDescription": "Het moderne open-source communicatieplatform voor groei.",
+    "navDescriptions": {
+      "features": "Ontdek onze kernfuncties en mogelijkheden.",
+      "campaigns": "Preview- en progressive-dialers voor outbound-teams.",
+      "findLeads": "Apollo.io en Prospeo.io — prospecting ingebouwd.",
+      "integrations": "Attio, Odoo — en meer onderweg.",
+      "comparison": "Bekijk hoe we ons meten aan de concurrentie.",
+      "pricing": "Flexibele prijzen voor teams van elke omvang."
+    },
+    "navItems": {
+      "features": "Features",
+      "campaigns": "Campagnes",
+      "findLeads": "Leads vinden & verrijken",
+      "integrations": "CRM-integraties",
+      "comparison": "Vergelijking",
+      "pricing": "Prijzen"
+    }
+  },
+  "hero": {
+    "headlinePrefix": "Gesprekken, campagnes &",
+    "headlineHighlight": "CRM",
+    "headlineSuffix": "in één browsertab",
+    "subcopy": "Het open-source outbound-platform. Draai preview- en progressive-dialers, synchroniseer elk gesprek met <attio>Attio</attio> of <odoo>Odoo</odoo>, en betaal alleen voor de minuten die je gebruikt.",
+    "tryFreeCall": "Probeer gratis bellen",
+    "tryFreeCallAria": "Start nu een gratis gesprek",
+    "bookDemo": "Demo plannen",
+    "trust": {
+      "noCard": "Geen creditcard nodig",
+      "countries": "180+ landen",
+      "firstCall": "Eerste gesprek in 60s",
+      "soc2": "SOC 2-aligned"
+    },
+    "capabilities": {
+      "manualDialer": "Handmatige dialer",
+      "previewDialer": "Preview Dialer",
+      "progressiveDialer": "Progressive Dialer",
+      "crmSync": "Attio- & Odoo-sync",
+      "recordings": "Opnames & transcripties",
+      "browserMobile": "Browser & mobiel"
+    }
+  },
+  "features": {
+    "title": "Versterk je gesprekken met Ringee.io",
+    "items": {
+      "smartDialer": {
+        "title": "Smart Dialer",
+        "description": "Bel wereldwijd in seconden met HD-kwaliteit en realtime call-analytics."
+      },
+      "buyNumbers": {
+        "title": "Koop lokale en internationale nummers",
+        "description": "Krijg geverifieerde nummers uit meerdere landen om je bereik te vergroten en verschillende merken te beheren."
+      },
+      "publicNumbers": {
+        "title": "Direct te gebruiken publieke nummers",
+        "description": "Begin meteen te bellen vanaf een gedeeld publiek Ringee-nummer — zonder setup."
+      },
+      "encryptedRecording": {
+        "title": "Versleutelde gespreksopname",
+        "description": "Neem gesprekken volledig versleuteld op. Elke opname wordt veilig opgeslagen en is alleen toegankelijk vanuit je Ringee-account, voor jou en je geautoriseerde teamleden."
+      },
+      "webMobile": {
+        "title": "Web- & mobiele toegang",
+        "description": "Gebruik Ringee direct in je browser of via de Android-app, met volledige sync tussen apparaten."
+      },
+      "billing": {
+        "title": "Tegoed- & factuurbeheer",
+        "description": "Houd saldo, kosten en opwaarderingen bij — met transparante prijs per minuut."
+      }
+    }
+  },
+  "videoDemo": {
+    "title": "Ringee in actie",
+    "subtitle": "Zie hoe je je registreert en binnen een minuut begint te bellen.",
+    "cards": {
+      "quickSetup": { "title": "Snelle setup", "description": "Bel binnen 60 seconden" },
+      "recordCalls": { "title": "Neem op", "description": "Mis geen belangrijke details" },
+      "countries": { "title": "180+ landen", "description": "Wereldwijde dekking, lokale tarieven" },
+      "cheaper": { "title": "50× goedkoper", "description": "Pay-as-you-go-tarieven" }
+    }
+  },
+  "campaigns": {
+    "kicker": "Outbound-campagnes",
+    "title": "Dialers op maat voor elke playbook",
+    "subtitle": "Doe cold calling, follow-ups en re-engagement met de dialer-modus die past bij jouw team — van door agenten beoordeelde gesprekken tot volledig automatisch.",
+    "featuresTitle": "Alles wat je nodig hebt voor een campagne",
+    "featuresSubtitle": "Van het importeren van leads tot live analyses — alles inbegrepen.",
+    "modes": {
+      "preview": {
+        "tag": "Automatische preview-dialer",
+        "tagline": "De agent beslist. Ringee belt.",
+        "description": "Haal de volgende gekwalificeerde lead uit de wachtrij, bekijk het contact, de notities en de laatste dispositie, en start dan het gesprek met één klik. Perfect voor hoogwaardige outreach waarbij context belangrijk is.",
+        "label": "Mens in de lus",
+        "bullets": {
+          "0": "Lead preview-kaart met contact, laatste poging en dispositie",
+          "1": "Één-klik bellen met jouw geverifieerde beller-ID",
+          "2": "Agentgestuurde snelheid — ideaal voor kwaliteit boven kwantiteit"
+        }
+      },
+      "progressive": {
+        "tag": "Progressieve dialer",
+        "tagline": "Klaar? Ringee pakt de volgende.",
+        "description": "De dialer-orchestrator wijst automatisch de volgende lead toe op het moment dat een agent gereed is. Minimale wachttijd, consistent doorvoer — zonder het geluid van voorspellend over-bellen.",
+        "label": "Automatisch toegewezen",
+        "bullets": {
+          "0": "Live-orchestrator koppelt beschikbare agents aan geschikte leads",
+          "1": "Compliance-bewust: respecteert tijdzones en werkvensters",
+          "2": "Geen gemiste gesprekken — 1:1 agent-tot-gesprek-verhouding"
+        }
+      }
+    },
+    "features": {
+      "csvImport": {
+        "title": "CSV & handmatige lead-import",
+        "description": "Importeer duizenden leads tegelijk. Ingebouwde deduplicatie tegen bestaande contacten en leads."
+      },
+      "dispositions": {
+        "title": "Disposities en uitkomsten",
+        "description": "Categoriseer elk gesprek — positief, neutraal, negatief, geen contact — met aangepaste disposities per campagne."
+      },
+      "callingWindow": {
+        "title": "Naleving van belvensters",
+        "description": "Tijdzone-bewuste planningen met werkuren en werkdagen. Leads worden alleen gebeld wanneer het legaal en gepast is."
+      },
+      "retries": {
+        "title": "Herhalingen en maximale pogingen",
+        "description": "Configureerbare maximale pogingen per lead en herhalingvertragingen — de herhalingsmotor doet de rest."
+      },
+      "callbacks": {
+        "title": "Terugbelverzoeken en afrondingstijd",
+        "description": "Plan terugbelverzoeken, stel afrondingstijd per campagne in, en laat voicemails achter bij geen antwoord."
+      },
+      "analytics": {
+        "title": "Live outbound analyses",
+        "description": "Agentsessies, belpogingen, verbindingspercentage en disposities — live gestreamd naar je dashboard."
+      }
+    }
+  },
+  "findLeads": {
+    "kicker": "Leads vinden & verrijken",
+    "title": "Vind en verrijk leads — zonder Ringee te verlaten",
+    "subtitle": "Apollo en Prospeo zitten ingebouwd. Zoek, verrijk en bel in seconden.",
+    "availableNow": "Nu beschikbaar",
+    "bringOwnKey": "Breng je eigen API-sleutel mee",
+    "workflow": {
+      "title": "Gebouwd voor een strakke prospect-naar-gesprek-cyclus",
+      "subtitle": "Elke zoekopdracht, onthulling en verrijking komt in je Ringee-workspace terecht — klaar voor een dialer, een CRM-sync of een workflow."
+    },
+    "workflowFeatures": {
+      "granularFilters": {
+        "title": "Granulaire zoekfilters",
+        "description": "Functie-senioriteit, branche, personeelsbestand, locatie, technologieën — stel de exacte ICP-zoekopdracht samen die je GTM-beweging nodig heeft."
+      },
+      "emailReveal": {
+        "title": "E-mail & telefoon onthulling op aanvraag",
+        "description": "Betaal alleen voor de contacten die je echt wilt bereiken. Onthullingen worden gecached en definitief aan de lead gekoppeld."
+      },
+      "unifiedCredits": {
+        "title": "Uniforme credits",
+        "description": "Eén creditledger dekt zoeken, onthullingen en verrijking. Transparante prijzen per actie, geen verrassingen."
+      },
+      "autoDedup": {
+        "title": "Automatische deduplicatie bij import",
+        "description": "Geïmporteerde leads worden gededupliceerd ten opzichte van je bestaande contacten op telefoon en e-mail voordat ze je pipeline ingaan."
+      },
+      "onClickCampaign": {
+        "title": "Één klik naar campagne",
+        "description": "Stuur een zoekresultaat rechtstreeks naar een Progressive of Preview dialer-campagne — klaar om te bellen in seconden."
+      },
+      "enrichContacts": {
+        "title": "Verrijk bestaande contacten",
+        "description": "Vul ontbrekende e-mails, telefoonnummers, functies en bedrijfsgegevens aan van contacten die al in Ringee staan — geen CSV-gedoe."
+      }
+    },
+    "badges": {
+      "payPerAction": "Credits per actie",
+      "encryptedCreds": "Versleutelde inloggegevens in rust",
+      "dedupeContacts": "Deduplicatie ten opzichte van bestaande contacten",
+      "moreProviders": "Meer providers komen eraan"
+    },
+    "providers": {
+      "apollo": {
+        "tagline": "Prospecteer, verrijk en bel — alles in één stroom.",
+        "description": "Zoek in 275M+ contacten en 70M+ bedrijven. Filter op functie, branche, geografie, personeelsbestand en tech stack, en onthul dan geverifieerde e-mails en mobiele nummers op aanvraag.",
+        "badge": "Lead zoeken + verrijking",
+        "capabilities": {
+          "search": "Personen- & bedrijfszoekopdrchten",
+          "emailReveal": "Geverifieerde e-mail onthulling",
+          "phoneReveal": "Mobiel nummer onthulling",
+          "firmographics": "Firmografie & tech stack"
+        }
+      },
+      "prospeo": {
+        "tagline": "Hoognauwkeurige e-mailfinder, op aanvraag.",
+        "description": "Verifieer e-mails vanuit LinkedIn-URL's of naam + bedrijfsparen met marktleidende geldigheidspercentages. Perfect voor het verrijken van bestaande contacten voordat je belt.",
+        "badge": "Contactverrijking",
+        "capabilities": {
+          "emailFinder": "E-mailfinder vanuit LinkedIn",
+          "domainLookup": "Domein & naam opzoeken",
+          "bulkEnrichment": "Bulkverrijking",
+          "deliverability": "Gevalideerde afleverbaarheid"
+        }
+      }
+    }
+  },
+  "crmIntegrations": {
+    "kicker": "CRM-integraties",
+    "title": "Elk gesprek automatisch in je CRM",
+    "subtitle": "Vandaag Attio en Odoo, meer onderweg. Notities, opnames en uitkomsten worden automatisch gesynchroniseerd.",
+    "availableNow": "Nu beschikbaar",
+    "comingSoon": "Binnenkort beschikbaar",
+    "moreOnTheWay": {
+      "title": "Meer onderweg",
+      "description": "Pipedrive, Zoho, Close en meer staan op de roadmap. Open een issue of stem op GitHub om ons te helpen prioriteren.",
+      "cta": "Integratie aanvragen"
+    },
+    "capabilities": {
+      "title": "Eén engine, elke integratie",
+      "subtitle": "Gebouwd op een gedeelde sync-primitieve — zodat elke CRM dezelfde betrouwbare garanties krijgt."
+    },
+    "syncFeatures": {
+      "contactSync": {
+        "title": "Bidirectionele contactsynchronisatie",
+        "description": "Haal contacten en bedrijven op bij verbinding. Nieuwe Ringee-contacten worden automatisch teruggestuurd naar upstream."
+      },
+      "callLogs": {
+        "title": "Gespreksactiviteitenlogboeken",
+        "description": "Elk voltooid gesprek wordt een gestructureerde activiteit met duur, dispositie en uitkomst."
+      },
+      "notesTranscripts": {
+        "title": "Notities, transcripties & opnames",
+        "description": "Koppel gespreksnotities, AI-samenvattingen, transcripties en beveiligde opname-URL's aan het juiste record."
+      },
+      "fieldMappings": {
+        "title": "Aangepaste veldmappings",
+        "description": "Wijs Ringee-velden toe aan je CRM-schema. Push, pull of bidirectioneel — per veld, per verbinding."
+      },
+      "retryOutbox": {
+        "title": "Betrouwbare herhalingen & outbox",
+        "description": "Een duurzame outbox herhaalt mislukte syncs met backoff, zodat tijdelijke CRM-problemen nooit data verliezen."
+      },
+      "orgScope": {
+        "title": "Persoonlijk & organisatiebereik",
+        "description": "Verbind een CRM alleen voor jezelf, of deel één verbinding met je hele team."
+      }
+    },
+    "badges": {
+      "oauthAuth": "OAuth & API-sleutel auth",
+      "encryptedCreds": "Versleutelde inloggegevens in rust",
+      "idempotentWrites": "Idempotente, retry-veilige schrijfacties"
+    },
+    "providers": {
+      "attio": {
+        "description": "Synchroniseer contacten, bedrijven, gespreksactiviteit, opnames en transcripties naar je Attio-workspace."
+      },
+      "odoo19": {
+        "description": "Moderne JSON-2-integratie voor de nieuwste Odoo-instanties. Log gesprekken als activiteiten op res.partner."
+      },
+      "odoo14": {
+        "description": "Klassieke XML-RPC-compatibiliteit voor bestaande Odoo-deployments van versie 14 tot 18."
+      },
+      "hubspot": {
+        "description": "Bidirectionele contactsync en native gespreksactiviteiten op HubSpot-records."
+      },
+      "salesforce": {
+        "description": "Enterprise-grade sync met Leads, Contacten en Accounts op SFDC."
+      }
+    }
+  },
+  "pricing": {
+    "title": "Prijzen voor individuen en teams",
+    "subtitle": "Begin als individu met pay-as-you-go of upgrade naar een business-plan voor samenwerking en betere volumeprijzen. Bel en ontvang gesprekken in <strong>180+ landen</strong> en huur nummers in <strong>50+</strong> — direct geactiveerd, volledige controle.",
+    "perMonth": "per maand",
+    "ctaStart": "Gratis starten",
+    "individual": {
+      "title": "Voor individuen (pay as you go)",
+      "price": "$0,020",
+      "priceCaption": "per minuut (instaptarief) — nummers vanaf $1,90/maand",
+      "features": {
+        "outbound": "Wereldwijd uitbellen",
+        "billingPerSecond": "Realtime facturatie per seconde",
+        "recording": "Optionele gespreksopname",
+        "rentNumbers": "Huur lokale of gratis nummers",
+        "instantActivation": "Directe activatie en verificatie",
+        "manageNumbers": "Beheer meerdere nummers eenvoudig"
+      },
+      "cta": "Maak een gratis gesprek van 1 minuut"
+    },
+    "business": {
+      "title": "Voor teams en bedrijven",
+      "price": "$20,00",
+      "priceCaption": "per maand — businessfuncties bovenop pay-as-you-go-gebruik",
+      "features": {
+        "everythingIndividual": "Alles uit het individuele plan",
+        "teamCollab": "Teamwork en gedeelde dashboards",
+        "unlimitedMembers": "Onbeperkt aantal teamleden",
+        "volumeRates": "Goedkopere minutenprijzen bij volume",
+        "prioritySupport": "Priority support en onboarding"
+      },
+      "cta": "Naar registratie"
+    },
+    "footnote": "* Tarieven kunnen per land licht variëren. Belastingen en carrier-kosten niet inbegrepen.",
+    "tooltips": {
+      "calls": "Betaal alleen voor wat je gebruikt. Uitgaande gesprekken starten vanaf $0,020/min en variëren per bestemming.",
+      "numbers": "Huur lokale of internationale telefoonnummers vanaf $1,90/maand in meer dan 50 landen.",
+      "recording": "Neem gesprekken op en download ze voor kwaliteitsbewaking en compliance.",
+      "coverage": "Met Ringee bel je en ontvang je gesprekken in meer dan 180 landen via VoIP-routes van hoge kwaliteit.",
+      "business": "Ontworpen voor teams en sales-operations — bevat alles uit het individuele plan plus teamfuncties, betere tarieven en priority support."
+    }
+  },
+  "comparison": {
+    "title": "Vergelijk Ringee.io",
+    "subtitle": "Hoe Ringee zich verhoudt tot Adversus en Genesys als je flexibele outbound-gesprekken in de browser wilt, zonder dure per-seat-contracten.",
+    "table": {
+      "featuresHeader": "Functies",
+      "footerNote": "* Adversus en Genesys rekenen doorgaans per seat met hogere vaste maandelijkse verplichtingen, terwijl Ringee een vaste $20/maand per organisatie hanteert met onbeperkte leden."
+    },
+    "rows": {
+      "browserBased": {
+        "feature": "Op browser gebaseerd (geen installatie)",
+        "ringee": "Bel en ontvang gesprekken direct vanuit je webbrowser — geen softphone vereist.",
+        "adversus": "Webgebaseerd platform gericht op outbound-campagnes en call center-workflows.",
+        "genesys": "Cloud contact center suite; agenten gebruiken doorgaans speciale web- of desktop-apps."
+      },
+      "singleUser": {
+        "feature": "Begin met 1 gebruiker",
+        "ringee": "Geen minimum aantal gebruikers — begin alleen en voeg teamleden toe naarmate je groeit."
+      },
+      "pricingModel": {
+        "feature": "Prijsmodel",
+        "ringee": "Pay-as-you-go voor minuten & nummers + optioneel business-plan van $20/maand per organisatie (onbeperkte leden).",
+        "adversus": "Per-seat-abonnement met maandelijkse/jaarlijkse facturering en een minimum aantal agenten.",
+        "genesys": "Enterprise per-seat / contractprijzen, doorgaans voor grotere deployments."
+      },
+      "perSeat": {
+        "feature": "Per-seat-abonnement",
+        "ringee": "GEEN PRIJS PER SEAT — vast $20/maand per organisatie met onbeperkte teamleden."
+      },
+      "monthlyMin": {
+        "feature": "Typisch maandelijks minimum",
+        "ringee": "Begin met $0 aan vaste kosten — laad gewoon credits op. Voeg het business-plan van $20/maand alleen toe wanneer je teamfuncties nodig hebt.",
+        "adversus": "Vanaf 122 €/maand per agent, minimaal 3 agenten (366 €/maand) voor onbeperkte EU + US + Canada-gesprekken, excl. btw.",
+        "genesys": "Aangepast enterprise-offerte, doorgaans hogere ACV en meerjarige contracten."
+      },
+      "globalCoverage": {
+        "feature": "Wereldwijde dekking",
+        "ringee": "Bel en ontvang in 180+ landen met transparante wereldwijde tarieven.",
+        "adversus": "Kernfocus op onbeperkte gesprekken in EU + US + Canada. Andere bestemmingen zijn afhankelijk van je plan en carrier-setup."
+      },
+      "outboundDialer": {
+        "feature": "Outbound verkoopdialer",
+        "ringee": "Ideaal voor handmatige en semi-gestructureerde outbound en cold calling vanuit browser of mobiel."
+      },
+      "smallTeams": {
+        "feature": "Ideaal voor kleine teams & startups",
+        "ringee": "Ontworpen zodat solo-oprichters en kleine teams klein kunnen beginnen en gebruik en leden kunnen schalen zonder extra seat-kosten.",
+        "adversus": "Beter geschikt als je al een toegewijd outbound-team en stabiel belvolume hebt."
+      },
+      "setupTime": {
+        "feature": "Opstarttijd",
+        "ringee": "Registreer en begin te bellen in minuten — geen implementatieproject vereist.",
+        "adversus": "Vereist het instellen van campagnes, disposities, lead-flows en agentconfiguratie.",
+        "genesys": "Enterprise onboarding, integraties en configuratie met IT-betrokkenheid."
+      }
+    }
+  },
+  "faq": {
+    "title": "Veelgestelde vragen",
+    "subtitle": "Alles wat je moet weten over Ringee.io, prijzen en gesprekskwaliteit.",
+    "items": {
+      "browserCalling": {
+        "question": "Hoe werkt bellen vanuit de browser?",
+        "answer": "Ringee.io gebruikt WebRTC om gesprekken direct vanuit je browser te verbinden — geen downloads of extensies nodig. Wanneer je belt, maakt je browser veilig en realtime verbinding met het wereldwijde telefoonnetwerk."
+      },
+      "incomingCalls": {
+        "question": "Kan ik inkomende gesprekken ontvangen?",
+        "answer": "Ja! Je kunt een nummer huren bij Ringee of je eigen geverifieerde nummer gebruiken om gesprekken in de browser te ontvangen. Je kunt ze desgewenst doorschakelen naar je mobiel."
+      },
+      "sms": {
+        "question": "Ondersteunen jullie SMS?",
+        "answer": "Nog niet — we zijn 100% gefocust op de beste gesprekskwaliteit tegen het laagste tarief. SMS staat al op de roadmap voor toekomstige releases."
+      },
+      "pricing": {
+        "question": "Waarom zijn jullie prijzen zo competitief?",
+        "answer": "Onze infrastructuur draait op dezelfde Tier-1-netwerken als grote carriers, maar zonder tussenpersonen. Dat betekent snellere verbindingen, transparante prijzen en wereldwijde dekking in meer dan 180 landen."
+      },
+      "vsApps": {
+        "question": "Waarom niet WhatsApp of Google Voice?",
+        "answer": "Die apps staan alleen gesprekken binnen hun eigen platform toe. Met Ringee bel je elk vast of mobiel nummer ter wereld, direct vanuit je browser — geen app of account aan de andere kant nodig."
+      },
+      "privacy": {
+        "question": "Zijn mijn gespreksgegevens privé?",
+        "answer": "Absoluut. Alle audiostreams zijn end-to-end versleuteld en we slaan alleen minimale metadata op voor je gespreksgeschiedenis. Privacy en beveiliging staan centraal in ons platform."
+      },
+      "subscription": {
+        "question": "Heb ik een abonnement nodig?",
+        "answer": "Geen abonnement — Ringee.io werkt op pay-as-you-go. Voeg tegoed toe wanneer je het nodig hebt en betaal alleen voor de minuten en nummers die je echt gebruikt."
+      },
+      "addCredit": {
+        "question": "Hoe voeg ik tegoed toe?",
+        "answer": "Je laadt direct op met elke gangbare creditcard of PayPal via onze veilige Stripe-integratie. Alle betalingen zijn versleuteld en PCI-compliant."
+      },
+      "callQuality": {
+        "question": "Wat als ik kwaliteitsproblemen heb?",
+        "answer": "De kwaliteit hangt af van je internetverbinding. Voor het beste resultaat gebruik je een stabiel breedband- of wifi-netwerk. Bij aanhoudende problemen helpt onze support je live om de oorzaak te vinden."
+      }
+    }
+  },
+  "openSource": {
+    "title": "Trots open-source",
+    "subtitle": "Host Ringee zelf, audit de code en draag bij. MIT-licentie.",
+    "badge": "Veilig en open source",
+    "sectionTitle": "Trots op open source — host op je eigen infrastructuur en beheer je eigen gegevens",
+    "subheadline": "Open source, zelf gehost",
+    "description": "Host Ringee op je eigen server. Beheer je klantgegevens en blijf volledig compliant met regelgevende normen.",
+    "githubCta": "Vind ons op GitHub",
+    "starsLabel": "Sterren op GitHub",
+    "starUs": "Geef ons een ster op GitHub",
+    "starsCount": "{count} sterren",
+    "contributorsLabel": "Bijdragers",
+    "features": {
+      "securePersonnel": "Veilig personeel",
+      "secureDevelopment": "Veilige ontwikkeling",
+      "secureTesting": "Veilig testen",
+      "cloudSecurity": "Cloudbeveiliging"
+    },
+    "soc2Title": "Beveiliging conform SOC 2-normen",
+    "soc2Description": "Met strikte protocollen ter plaatse kunt u erop vertrouwen dat wij uw informatie met vertrouwen beschermen.",
+    "readMore": "Lees meer"
+  },
+  "testimonials": {
+    "title": "Getuigenissen"
+  },
+  "ctaBanner": {
+    "title": "Klaar om je stem te versterken met Ringee.io?",
+    "subtitle": "Bel slimmer — koop nummers, beheer gesprekken en neem ze op in één platform.",
+    "getStarted": "Aan de slag",
+    "discoverMore": "Meer ontdekken"
+  },
+  "footer": {
+    "tagline": "Open-source wereldwijd bellen.",
+    "rights": "Alle rechten voorbehouden.",
+    "featuredOn": "Te zien op:",
+    "links": {
+      "features": "Features",
+      "pricing": "Prijzen",
+      "faq": "FAQ",
+      "comparison": "Vergelijking",
+      "blog": "Blog",
+      "privacy": "Privacy",
+      "terms": "Voorwaarden"
+    }
+  }
+}

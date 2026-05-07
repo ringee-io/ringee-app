@@ -3,8 +3,10 @@ import { Button } from './ui/button';
 import { AnimatedGridPattern } from './ui/animated-grid-pattern';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
 export default function CTABanner() {
+  const t = useTranslations('marketing.ctaBanner');
   return (
     <div className='px-6'>
       <div className='dark bg-background text-foreground relative mx-auto my-20 w-full max-w-screen-lg overflow-hidden rounded-lg px-6 py-10 md:px-14 md:py-16 dark:border'>
@@ -27,23 +29,18 @@ export default function CTABanner() {
           )}
         />
         <div className='relative z-0 flex flex-col gap-3'>
-          <h3 className='text-3xl font-semibold md:text-4xl'>
-            Ready to Power Your Voice with Ringee.io?
-          </h3>
-          <p className='mt-2 text-base md:text-lg'>
-            Start calling smarter — buy numbers, manage calls, and record
-            conversations all in one platform.
-          </p>
+          <h3 className='text-3xl font-semibold md:text-4xl'>{t('title')}</h3>
+          <p className='mt-2 text-base md:text-lg'>{t('subtitle')}</p>
         </div>
         <div className='relative z-0 mt-14 flex flex-col gap-4 sm:flex-row'>
           <Link href='/auth/sign-up'>
             <Button size='lg'>
-              Get Started <ArrowUpRight className='!h-5 !w-5' />
+              {t('getStarted')} <ArrowUpRight className='!h-5 !w-5' />
             </Button>
           </Link>
           <Link href='/auth/sign-in'>
             <Button size='lg' variant='outline'>
-              Discover More <Forward className='!h-5 !w-5' />
+              {t('discoverMore')} <Forward className='!h-5 !w-5' />
             </Button>
           </Link>
         </div>

@@ -1,0 +1,48 @@
+{
+  "title": "Campañas",
+  "description": "Gestiona campañas de llamadas salientes",
+  "metaTitle": "Campañas — Llamadas salientes | Ringee",
+  "metaDescription": "Gestiona tus campañas de llamadas salientes. Crea campañas, importa contactos, configura marcadores y haz seguimiento del rendimiento.",
+  "newCampaign": "Nueva campaña",
+  "create": {
+    "title": "Nueva campaña",
+    "description": "Crea y configura una campaña de llamadas salientes",
+    "metaTitle": "Nueva campaña | Ringee",
+    "metaDescription": "Crea una nueva campaña de llamadas salientes.",
+    "namePlaceholder": "Q1 outbound — Empresas EE. UU.",
+    "submit": "Crear campaña"
+  },
+  "edit": {
+    "title": "Editar campaña"
+  },
+  "detail": {
+    "metaTitle": "Detalle de campaña | Ringee",
+    "metaDescription": "Consulta y gestiona tu campaña de llamadas salientes."
+  },
+  "fields": {
+    "name": "Nombre",
+    "list": "Lista de contactos",
+    "mode": "Modo de marcador",
+    "callerId": "ID de llamante",
+    "script": "Guion"
+  },
+  "status": {
+    "draft": "Borrador",
+    "scheduled": "Programada",
+    "running": "En curso",
+    "paused": "En pausa",
+    "completed": "Completada"
+  },
+  "actions": {
+    "start": "Iniciar",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "stop": "Detener",
+    "duplicate": "Duplicar"
+  },
+  "empty": {
+    "title": "Aún no hay campañas",
+    "description": "Crea tu primera campaña para empezar a llegar a más gente.",
+    "action": "Crear campaña"
+  }
+}

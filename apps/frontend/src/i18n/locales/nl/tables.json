@@ -1,0 +1,28 @@
+{
+  "headers": {
+    "actions": "Acties",
+    "createdAt": "Aangemaakt",
+    "updatedAt": "Bijgewerkt"
+  },
+  "pagination": {
+    "rowsPerPage": "Rijen per pagina",
+    "of": "van",
+    "page": "Pagina {page} van {total}",
+    "first": "Eerste pagina",
+    "previous": "Vorige pagina",
+    "next": "Volgende pagina",
+    "last": "Laatste pagina",
+    "showing": "{from}–{to} van {total}"
+  },
+  "selection": {
+    "selected": "{count} geselecteerd",
+    "selectAll": "Alles selecteren",
+    "clearSelection": "Selectie wissen"
+  },
+  "sort": {
+    "asc": "Oplopend",
+    "desc": "Aflopend",
+    "clear": "Sortering wissen"
+  },
+  "noResults": "Geen resultaten gevonden."
+}

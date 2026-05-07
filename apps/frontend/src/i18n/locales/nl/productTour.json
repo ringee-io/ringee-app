@@ -1,0 +1,26 @@
+{
+  "controls": {
+    "next": "Volgende",
+    "back": "Terug",
+    "skip": "Tour overslaan",
+    "finish": "Begrepen"
+  },
+  "steps": {
+    "sidebar": {
+      "title": "Je navigatie",
+      "description": "Wissel hiermee tussen dashboard, contacten en campagnes."
+    },
+    "dialer": {
+      "title": "Snel bellen",
+      "description": "Open de dialer wanneer je maar wilt om een gesprek te starten."
+    },
+    "credits": {
+      "title": "Je tegoed",
+      "description": "Houd je saldo in de gaten — gesprekken worden hiervan afgeschreven."
+    },
+    "settings": {
+      "title": "Instellingen",
+      "description": "Beheer je script, integraties en voorkeuren."
+    }
+  }
+}

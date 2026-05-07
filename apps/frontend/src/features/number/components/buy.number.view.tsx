@@ -6,9 +6,11 @@ import { Suspense } from 'react';
 import { DataTableSkeleton } from '@ringee/frontend-shared/components/ui/table/data-table-skeleton';
 import { BuyNumberListing } from './buy.number.listing';
 import { MyNumberListing } from './my.number.listing';
+import { getTranslations } from 'next-intl/server';
 
 export default async function BuyNumberPage() {
   const tab = searchParamsCache.get('tab') || 'buy';
+  const t = await getTranslations('settings.numbers.tabs');
 
   if (!['buy', 'my-numbers'].includes(tab)) {
     redirect('/dashboard/numbers?tab=buy');
@@ -18,10 +20,10 @@ export default async function BuyNumberPage() {
     <Tabs defaultValue={tab}>
       <TabsList className='w-fit'>
         <TabsTrigger value='buy' asChild>
-          <Link href='?tab=buy'>Buy Number</Link>
+          <Link href='?tab=buy'>{t('buy')}</Link>
         </TabsTrigger>
         <TabsTrigger value='my-numbers' asChild>
-          <Link href='?tab=my-numbers'>My Numbers</Link>
+          <Link href='?tab=my-numbers'>{t('myNumbers')}</Link>
         </TabsTrigger>
       </TabsList>
 

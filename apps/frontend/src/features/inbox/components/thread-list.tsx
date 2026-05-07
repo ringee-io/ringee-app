@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { InboxEventKind, InboxThread, THREAD_FILTER_OPTIONS } from '../types';
 import { threadDisplayName, useThreads } from '../hooks/use-inbox';
+import { useTranslations } from 'next-intl';
 
 function kindIcon(kind: InboxEventKind | null) {
   switch (kind) {
@@ -65,6 +66,7 @@ interface Props {
 }
 
 export function ThreadList({ selectedThreadId, onSelect }: Props) {
+  const t = useTranslations('inbox');
   const [filterId, setFilterId] = useState('all');
   const [search, setSearch] = useState('');
   const [backfilling, setBackfilling] = useState(false);
@@ -94,7 +96,7 @@ export function ThreadList({ selectedThreadId, onSelect }: Props) {
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder='Search by name or number'
+            placeholder={t('threadList.searchPlaceholder')}
             className='pl-9'
           />
         </div>
@@ -110,7 +112,7 @@ export function ThreadList({ selectedThreadId, onSelect }: Props) {
                   : 'bg-muted text-muted-foreground hover:bg-muted/70'
               )}
             >
-              {f.label}
+              {t(f.labelKey as any)}
             </button>
           ))}
         </div>
@@ -126,10 +128,8 @@ export function ThreadList({ selectedThreadId, onSelect }: Props) {
         ) : threads.length === 0 ? (
           <div className='flex flex-col items-center px-6 py-12 text-center text-muted-foreground'>
             <InboxIcon className='mb-3 h-10 w-10' />
-            <p className='text-sm'>No conversations yet</p>
-            <p className='mt-1 text-xs'>
-              New calls and SMS will appear here automatically.
-            </p>
+            <p className='text-sm'>{t('threadList.noConversations')}</p>
+            <p className='mt-1 text-xs'>{t('threadList.newWillAppear')}</p>
             <Button
               variant='outline'
               size='sm'
@@ -137,7 +137,9 @@ export function ThreadList({ selectedThreadId, onSelect }: Props) {
               disabled={backfilling}
               onClick={runBackfill}
             >
-              {backfilling ? 'Importing…' : 'Import from past calls'}
+              {backfilling
+                ? t('threadList.importing')
+                : t('threadList.importFromPastCalls')}
             </Button>
           </div>
         ) : (

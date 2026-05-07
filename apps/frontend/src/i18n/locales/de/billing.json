@@ -1,0 +1,89 @@
+{
+  "title": "Abrechnung",
+  "description": "Verwalten Sie Ihren Tarif, Ihre Credits und Rechnungen.",
+  "credits": {
+    "title": "Credits",
+    "available": "Verfügbare Credits",
+    "lowBalance": "Ihr Guthaben wird knapp.",
+    "topUp": "Aufladen",
+    "topUpAction": "Credits hinzufügen",
+    "history": "Credit-Verlauf",
+    "popover": {
+      "freeCallButton": "Kostenlos anrufen",
+      "freeCallSubtitle": "1 Minute geht auf uns",
+      "availableCredit": "Verfügbares Guthaben",
+      "header": "Credits hinzufügen",
+      "subheader": "Sofort aufladen oder automatisches Aufladen einrichten.",
+      "tabs": {
+        "oneTime": "Einmalig",
+        "monthly": "Monatlich",
+        "autoReload": "Auto-Aufladung"
+      },
+      "common": {
+        "redirecting": "Weiterleitung...",
+        "chooseAmount": "Betrag wählen",
+        "customAmountLabel": "Oder einen eigenen Betrag eingeben"
+      },
+      "oneTime": {
+        "customPlaceholder": "z. B. 40",
+        "newBalance": "Neues Guthaben",
+        "estimatedTime": "Geschätzte Gesprächszeit: {minutes} Minuten",
+        "checkout": "Sicher zur Kasse"
+      },
+      "monthly": {
+        "activeTitle": "Monatliche Aufladung aktiv",
+        "activeDescription": "<b>${amount}</b> werden jeden Monat automatisch Ihrem Guthaben hinzugefügt.",
+        "cancelling": "Wird abgebrochen...",
+        "cancel": "Monatliche Aufladung beenden",
+        "intro": "Legen Sie einen festen Monatsbetrag fest, der automatisch jeden Monat zu Ihrem Guthaben hinzugefügt wird. Keine manuellen Aufladungen mehr.",
+        "amountLabel": "Monatlicher Betrag",
+        "customPlaceholder": "z. B. 75",
+        "perMonthSuffix": "/Mon.",
+        "monthlyCharge": "Monatliche Abbuchung",
+        "monthlyChargeValue": "${amount}/Monat",
+        "estimatedTime": "~{minutes} Gesprächsminuten pro Monat",
+        "subscribe": "Monatliche Aufladung abonnieren"
+      },
+      "autoReload": {
+        "activeTitle": "Auto-Aufladung aktiv",
+        "activeDescription": "Wenn Ihr Guthaben unter <b>${threshold}</b> fällt, werden <b>${amount}</b> abgebucht und automatisch hinzugefügt.",
+        "toggleLabel": "Auto-Aufladung aktiviert",
+        "intro": "Nie wieder ohne Guthaben. Legen Sie einen Mindestschwellwert fest, und wir laden Ihr Konto automatisch auf.",
+        "thresholdLabel": "Aufladen, wenn das Guthaben fällt unter",
+        "amountLabel": "Aufladungsbetrag",
+        "customPlaceholder": "Eigener Betrag",
+        "summary": "Ihre Karte wird jetzt mit <b>${amount}</b> belastet und für zukünftige automatische Aufladungen gespeichert, wenn Ihr Guthaben unter <b>${threshold}</b> fällt.",
+        "enable": "Auto-Aufladung aktivieren"
+      },
+      "footer": {
+        "secureByStripe": "Gesichert durch Stripe",
+        "refundGuarantee": "100 % Geld-zurück-Garantie"
+      }
+    }
+  },
+  "subscription": {
+    "title": "Abonnement",
+    "plan": "Tarif",
+    "renews": "Verlängert sich am {date}",
+    "cancelAt": "Wird am {date} gekündigt",
+    "manage": "Abonnement verwalten",
+    "upgrade": "Upgrade",
+    "downgrade": "Downgrade",
+    "cancel": "Abonnement kündigen"
+  },
+  "invoices": {
+    "title": "Rechnungen",
+    "number": "Rechnung",
+    "date": "Datum",
+    "amount": "Betrag",
+    "status": "Status",
+    "download": "Herunterladen",
+    "empty": "Noch keine Rechnungen."
+  },
+  "paymentMethod": {
+    "title": "Zahlungsmethode",
+    "addCard": "Karte hinzufügen",
+    "expiresOn": "Läuft ab am {date}",
+    "default": "Standard"
+  }
+}

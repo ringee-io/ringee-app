@@ -1,0 +1,89 @@
+{
+  "title": "Facturación",
+  "description": "Gestiona tu plan, créditos y facturas.",
+  "credits": {
+    "title": "Créditos",
+    "available": "Créditos disponibles",
+    "lowBalance": "Tu saldo se está agotando.",
+    "topUp": "Recargar",
+    "topUpAction": "Añadir créditos",
+    "history": "Historial de créditos",
+    "popover": {
+      "freeCallButton": "Llama gratis",
+      "freeCallSubtitle": "1 minuto por nuestra cuenta",
+      "availableCredit": "Crédito disponible",
+      "header": "Añadir créditos",
+      "subheader": "Recarga al instante o configura una recarga automática.",
+      "tabs": {
+        "oneTime": "Único",
+        "monthly": "Mensual",
+        "autoReload": "Recarga automática"
+      },
+      "common": {
+        "redirecting": "Redirigiendo...",
+        "chooseAmount": "Elige un importe",
+        "customAmountLabel": "O introduce un importe personalizado"
+      },
+      "oneTime": {
+        "customPlaceholder": "Ej. 40",
+        "newBalance": "Nuevo saldo",
+        "estimatedTime": "Tiempo estimado de llamada: {minutes} minutos",
+        "checkout": "Pago seguro"
+      },
+      "monthly": {
+        "activeTitle": "Recarga mensual activa",
+        "activeDescription": "<b>${amount}</b> se añadirá a tu saldo cada mes automáticamente.",
+        "cancelling": "Cancelando...",
+        "cancel": "Cancelar recarga mensual",
+        "intro": "Define un importe mensual fijo que se añadirá automáticamente a tu saldo cada mes. Sin recargas manuales.",
+        "amountLabel": "Importe mensual",
+        "customPlaceholder": "Ej. 75",
+        "perMonthSuffix": "/mes",
+        "monthlyCharge": "Cargo mensual",
+        "monthlyChargeValue": "${amount}/mes",
+        "estimatedTime": "~{minutes} minutos de llamada al mes",
+        "subscribe": "Suscribirse a la recarga mensual"
+      },
+      "autoReload": {
+        "activeTitle": "Recarga automática activa",
+        "activeDescription": "Cuando tu saldo baje de <b>${threshold}</b>, se cobrarán <b>${amount}</b> y se añadirán automáticamente.",
+        "toggleLabel": "Recarga automática activada",
+        "intro": "Nunca te quedes sin crédito. Define un umbral mínimo de saldo y recargaremos tu cuenta automáticamente.",
+        "thresholdLabel": "Recargar cuando el saldo baje de",
+        "amountLabel": "Importe de la recarga",
+        "customPlaceholder": "Importe personalizado",
+        "summary": "Se cobrarán <b>${amount}</b> a tu tarjeta ahora y se guardará para futuras recargas automáticas cuando tu saldo baje de <b>${threshold}</b>.",
+        "enable": "Activar recarga automática"
+      },
+      "footer": {
+        "secureByStripe": "Seguro con Stripe",
+        "refundGuarantee": "Garantía de reembolso del 100%"
+      }
+    }
+  },
+  "subscription": {
+    "title": "Suscripción",
+    "plan": "Plan",
+    "renews": "Se renueva el {date}",
+    "cancelAt": "Se cancela el {date}",
+    "manage": "Gestionar suscripción",
+    "upgrade": "Mejorar plan",
+    "downgrade": "Bajar plan",
+    "cancel": "Cancelar suscripción"
+  },
+  "invoices": {
+    "title": "Facturas",
+    "number": "Factura",
+    "date": "Fecha",
+    "amount": "Importe",
+    "status": "Estado",
+    "download": "Descargar",
+    "empty": "Aún no hay facturas."
+  },
+  "paymentMethod": {
+    "title": "Método de pago",
+    "addCard": "Añadir tarjeta",
+    "expiresOn": "Caduca el {date}",
+    "default": "Predeterminada"
+  }
+}

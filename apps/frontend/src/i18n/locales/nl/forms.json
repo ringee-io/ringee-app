@@ -1,0 +1,30 @@
+{
+  "validation": {
+    "required": "Dit veld is verplicht.",
+    "email": "Voer een geldig e-mailadres in.",
+    "phone": "Voer een geldig telefoonnummer in.",
+    "minLength": "Moet minstens {count} tekens bevatten.",
+    "maxLength": "Mag maximaal {count} tekens bevatten.",
+    "min": "Moet minstens {min} zijn.",
+    "max": "Mag maximaal {max} zijn.",
+    "url": "Voer een geldige URL in.",
+    "passwordsMatch": "Wachtwoorden komen niet overeen.",
+    "alreadyExists": "Bestaat al.",
+    "invalid": "Ongeldige waarde."
+  },
+  "placeholders": {
+    "search": "Zoeken…",
+    "selectOption": "Kies een optie",
+    "typeHere": "Typ hier…"
+  },
+  "fileUpload": {
+    "drop": "Sleep je bestand hierheen",
+    "or": "of",
+    "browse": "bladeren",
+    "uploading": "Uploaden…",
+    "uploaded": "Geüpload",
+    "removeFile": "Bestand verwijderen",
+    "tooLarge": "Het bestand is te groot. Max {size}.",
+    "wrongType": "Bestandstype wordt niet ondersteund."
+  }
+}

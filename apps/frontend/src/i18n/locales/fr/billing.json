@@ -1,0 +1,89 @@
+{
+  "title": "Facturation",
+  "description": "Gérez votre abonnement, vos crédits et vos factures.",
+  "credits": {
+    "title": "Crédits",
+    "available": "Crédits disponibles",
+    "lowBalance": "Votre solde est faible.",
+    "topUp": "Recharger",
+    "topUpAction": "Ajouter des crédits",
+    "history": "Historique des crédits",
+    "popover": {
+      "freeCallButton": "Appeler gratuitement",
+      "freeCallSubtitle": "1 minute offerte",
+      "availableCredit": "Crédit disponible",
+      "header": "Ajouter des crédits",
+      "subheader": "Rechargez instantanément ou configurez un rechargement automatique.",
+      "tabs": {
+        "oneTime": "Unique",
+        "monthly": "Mensuel",
+        "autoReload": "Auto-rechargement"
+      },
+      "common": {
+        "redirecting": "Redirection...",
+        "chooseAmount": "Choisir un montant",
+        "customAmountLabel": "Ou saisissez un montant personnalisé"
+      },
+      "oneTime": {
+        "customPlaceholder": "ex. 40",
+        "newBalance": "Nouveau solde",
+        "estimatedTime": "Temps d'appel estimé : {minutes} minutes",
+        "checkout": "Paiement sécurisé"
+      },
+      "monthly": {
+        "activeTitle": "Fonds mensuel actif",
+        "activeDescription": "<b>${amount}</b> seront ajoutés à votre solde chaque mois automatiquement.",
+        "cancelling": "Annulation...",
+        "cancel": "Annuler le fonds mensuel",
+        "intro": "Définissez un montant mensuel fixe qui sera automatiquement ajouté à votre solde chaque mois. Plus besoin de rechargements manuels.",
+        "amountLabel": "Montant mensuel",
+        "customPlaceholder": "ex. 75",
+        "perMonthSuffix": "/mois",
+        "monthlyCharge": "Prélèvement mensuel",
+        "monthlyChargeValue": "${amount}/mois",
+        "estimatedTime": "~{minutes} minutes d'appel par mois",
+        "subscribe": "S'abonner au fonds mensuel"
+      },
+      "autoReload": {
+        "activeTitle": "Auto-rechargement actif",
+        "activeDescription": "Lorsque votre solde passe sous <b>${threshold}</b>, <b>${amount}</b> seront prélevés et ajoutés automatiquement.",
+        "toggleLabel": "Auto-rechargement activé",
+        "intro": "Ne soyez plus jamais à court de crédit. Définissez un seuil minimum et nous rechargerons votre compte automatiquement.",
+        "thresholdLabel": "Recharger lorsque le solde passe sous",
+        "amountLabel": "Montant du rechargement",
+        "customPlaceholder": "Montant personnalisé",
+        "summary": "Votre carte sera débitée de <b>${amount}</b> maintenant et enregistrée pour les futurs rechargements automatiques lorsque votre solde passe sous <b>${threshold}</b>.",
+        "enable": "Activer l'auto-rechargement"
+      },
+      "footer": {
+        "secureByStripe": "Sécurisé par Stripe",
+        "refundGuarantee": "100 % de remboursement garanti"
+      }
+    }
+  },
+  "subscription": {
+    "title": "Abonnement",
+    "plan": "Forfait",
+    "renews": "Renouvellement le {date}",
+    "cancelAt": "Annulation le {date}",
+    "manage": "Gérer l'abonnement",
+    "upgrade": "Passer à un forfait supérieur",
+    "downgrade": "Rétrograder",
+    "cancel": "Annuler l'abonnement"
+  },
+  "invoices": {
+    "title": "Factures",
+    "number": "Facture",
+    "date": "Date",
+    "amount": "Montant",
+    "status": "Statut",
+    "download": "Télécharger",
+    "empty": "Aucune facture pour l'instant."
+  },
+  "paymentMethod": {
+    "title": "Mode de paiement",
+    "addCard": "Ajouter une carte",
+    "expiresOn": "Expire le {date}",
+    "default": "Par défaut"
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "title": "Intégrations",
+  "description": "Synchronisez l'activité des appels Ringee avec les outils que votre équipe utilise déjà.",
+  "metaTitle": "Intégrations | Ringee",
+  "metaDescription": "Connectez votre CRM et vos autres outils à Ringee.",
+  "attioDialer": {
+    "metaTitle": "Appel Attio | Ringee",
+    "metaDescription": "Passez un appel depuis votre intégration CRM Attio."
+  },
+  "categories": {
+    "crm": "CRM",
+    "calendar": "Calendrier",
+    "communication": "Communication",
+    "data": "Enrichissement de données"
+  },
+  "actions": {
+    "connect": "Connecter",
+    "configure": "Configurer",
+    "disconnect": "Déconnecter"
+  },
+  "status": {
+    "connected": "Connecté",
+    "disconnected": "Déconnecté",
+    "error": "Erreur de connexion"
+  },
+  "empty": {
+    "title": "Aucune intégration connectée",
+    "description": "Parcourez le catalogue et connectez votre premier outil."
+  }
+}

@@ -1,0 +1,59 @@
+{
+  "title": "Meetings",
+  "description": "Alle aus Cold Calls gebuchten Meetings",
+  "metaTitle": "Meetings — Aus Cold Calls gebucht | Ringee",
+  "metaDescription": "Sehen und verwalten Sie alle Meetings, die während Cold Calls gebucht wurden. Behalten Sie kommende Termine im Blick und prüfen Sie vergangene Buchungen.",
+  "newMeeting": "Neues Meeting",
+  "searchPlaceholder": "Nach Kontaktname suchen...",
+  "tabs": {
+    "upcoming": "Bevorstehend",
+    "all": "Alle",
+    "calendar": "Kalender",
+    "integrations": "Integrationen"
+  },
+  "sections": {
+    "upcoming": "Bevorstehend",
+    "past": "Vergangen"
+  },
+  "fields": {
+    "title": "Titel",
+    "with": "Mit",
+    "when": "Wann",
+    "duration": "Dauer",
+    "notes": "Notizen"
+  },
+  "columns": {
+    "dateTime": "Datum & Uhrzeit",
+    "contact": "Kontakt",
+    "duration": "Dauer",
+    "status": "Status"
+  },
+  "viewDetails": "Details anzeigen",
+  "location": "Ort",
+  "fromCall": "Aus Anruf vom {date}",
+  "min": "Min",
+  "cancelMeeting": "Meeting absagen",
+  "defaultTitle": "Meeting",
+  "status": {
+    "scheduled": "Geplant",
+    "completed": "Abgeschlossen",
+    "cancelled": "Abgesagt",
+    "rescheduled": "Verschoben"
+  },
+  "calendar": {
+    "month": "Monat",
+    "week": "Woche",
+    "day": "Tag"
+  },
+  "empty": {
+    "title": "Keine Meetings geplant",
+    "description": "Sobald Sie ein Meeting buchen, erscheint es hier.",
+    "noMeetings": "Noch keine Meetings",
+    "noMeetingsDescription": "Buchen Sie Ihr erstes Meeting während eines Anrufs. Alle gebuchten Meetings erscheinen hier."
+  },
+  "toasts": {
+    "failedToLoad": "Meetings konnten nicht geladen werden",
+    "cancelled": "Meeting abgesagt",
+    "failedToCancel": "Meeting konnte nicht abgesagt werden"
+  }
+}

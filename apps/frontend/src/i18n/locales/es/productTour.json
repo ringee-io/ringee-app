@@ -1,0 +1,26 @@
+{
+  "controls": {
+    "next": "Siguiente",
+    "back": "Atrás",
+    "skip": "Saltar tour",
+    "finish": "Entendido"
+  },
+  "steps": {
+    "sidebar": {
+      "title": "Tu navegación",
+      "description": "Cambia entre el panel, contactos y campañas desde aquí."
+    },
+    "dialer": {
+      "title": "Llamada rápida",
+      "description": "Abre el marcador en cualquier momento para hacer una llamada."
+    },
+    "credits": {
+      "title": "Tus créditos",
+      "description": "Vigila tu saldo: las llamadas se descuentan de aquí."
+    },
+    "settings": {
+      "title": "Ajustes",
+      "description": "Gestiona tu guion, integraciones y preferencias."
+    }
+  }
+}

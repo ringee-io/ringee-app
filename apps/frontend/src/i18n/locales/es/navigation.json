@@ -1,0 +1,59 @@
+{
+  "groups": {
+    "general": "General",
+    "communication": "Comunicación",
+    "outreach": "Prospección",
+    "settings": "Ajustes"
+  },
+  "items": {
+    "dashboard": "Panel",
+    "contacts": "Contactos",
+    "activities": "Actividades",
+    "meetings": "Reuniones",
+    "call": "Llamadas",
+    "inbox": "Bandeja",
+    "campaigns": "Campañas",
+    "callbacks": "Devoluciones",
+    "dnc": "DNC",
+    "overview": "Resumen",
+    "integrations": "Integraciones",
+    "profile": "Perfil",
+    "history": "Historial",
+    "recordings": "Grabaciones",
+    "rate": "Tarifas",
+    "buyNumber": "Comprar número"
+  },
+  "tabs": {
+    "dialer": "Marcador",
+    "contact": "Contacto",
+    "history": "Historial"
+  },
+  "userMenu": {
+    "profile": "Perfil",
+    "history": "Historial",
+    "recordings": "Grabaciones",
+    "rate": "Tarifas",
+    "buyNumber": "Comprar número",
+    "signOut": "Cerrar sesión",
+    "upgradeToPro": "Mejorar a Pro",
+    "account": "Cuenta",
+    "billing": "Facturación",
+    "notifications": "Notificaciones",
+    "logOut": "Cerrar sesión"
+  },
+  "sidebar": {
+    "openQuickCall": "Llamada rápida",
+    "outreachLocked": "Disponible para organizaciones",
+    "outreachLockedDescription": "Mejora tu plan para desbloquear las herramientas de prospección.",
+    "upgradeNow": "Mejorar ahora",
+    "redirecting": "Redirigiendo…"
+  },
+  "inboxTooltip": {
+    "title": "Bandeja — próximamente",
+    "description": "Gestiona todos tus mensajes entrantes, llamadas perdidas y mensajes de voz en una sola bandeja."
+  },
+  "kbar": {
+    "navigation": "Navegación",
+    "goTo": "Ir a {page}"
+  }
+}

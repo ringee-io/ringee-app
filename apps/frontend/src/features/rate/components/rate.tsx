@@ -16,6 +16,7 @@ import {
   Rate as RateType,
   useRateStore
 } from '@/features/rate/store/rate.store';
+import { useTranslations } from 'next-intl';
 
 function getFlagEmoji(code: string) {
   return String.fromCodePoint(
@@ -27,6 +28,7 @@ function getFlagEmoji(code: string) {
 }
 
 export function RateClient({ initialRates }: { initialRates: RateType[] }) {
+  const t = useTranslations('calls.rates.calculator');
   const { setRates } = useRateStore();
   const [selected, setSelected] = useState<RateType | null>(initialRates[0]);
   const [type, setType] = useState<'mobile' | 'landline'>('mobile');
@@ -50,18 +52,17 @@ export function RateClient({ initialRates }: { initialRates: RateType[] }) {
           <div className='flex w-full flex-col gap-8'>
             <div className='space-y-3'>
               <h2 className='text-foreground text-xl font-semibold tracking-tight'>
-                Call rate calculator
+                {t('title')}
               </h2>
               <p className='text-muted-foreground text-sm leading-snug'>
-                Check your real-time call rates powered by{' '}
-                <span className='text-primary font-medium'>Ringee</span>.
+                {t('subtitle')}
               </p>
             </div>
 
             <div className='flex flex-col gap-4'>
               <div>
                 <label className='text-muted-foreground text-sm font-medium'>
-                  I’m calling
+                  {t('callingTo')}
                 </label>
                 <Select
                   onValueChange={(code) =>
@@ -99,7 +100,7 @@ export function RateClient({ initialRates }: { initialRates: RateType[] }) {
               {/* Call type */}
               <div className='flex items-center gap-4'>
                 <span className='text-muted-foreground text-sm font-medium'>
-                  To a
+                  {t('to')}
                 </span>
                 <div className='flex items-center gap-2'>
                   <Button
@@ -111,7 +112,7 @@ export function RateClient({ initialRates }: { initialRates: RateType[] }) {
                     }`}
                     onClick={() => setType('mobile')}
                   >
-                    <Smartphone className='h-4 w-4' /> Mobile
+                    <Smartphone className='h-4 w-4' /> {t('mobile')}
                   </Button>
                   <Button
                     size='lg'
@@ -122,7 +123,7 @@ export function RateClient({ initialRates }: { initialRates: RateType[] }) {
                     }`}
                     onClick={() => setType('landline')}
                   >
-                    <Phone className='h-4 w-4' /> Landline
+                    <Phone className='h-4 w-4' /> {t('landline')}
                   </Button>
                 </div>
               </div>
@@ -139,12 +140,12 @@ export function RateClient({ initialRates }: { initialRates: RateType[] }) {
           >
             <div className='from-primary/5 pointer-events-none absolute inset-0 bg-gradient-to-br to-transparent' />
             <p className='text-muted-foreground mb-1 text-sm'>
-              Your call will cost
+              {t('willCost')}
             </p>
             <h3 className='text-foreground text-4xl font-bold tracking-tight'>
               {selected.currency} ${rate.toFixed(3)}
             </h3>
-            <p className='text-muted-foreground mt-1 text-sm'>per minute</p>
+            <p className='text-muted-foreground mt-1 text-sm'>{t('perMinute')}</p>
             {/* <p className='text-muted-foreground mt-3 text-xs tracking-wider uppercase'>
               Provider: {selected.provider}
             </p> */}

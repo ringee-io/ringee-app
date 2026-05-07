@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { WidgetShell } from '../components/widget-shell';
 import { useWidgetData } from '../hooks/use-widget-data';
@@ -10,17 +11,17 @@ interface OutcomeRow {
   count: number;
 }
 
-const OUTCOME_LABELS: Record<string, string> = {
-  meeting_booked: 'Meeting Booked',
-  sale: 'Sale',
-  interested: 'Interested',
-  follow_up: 'Follow-up',
-  not_interested: 'Not Interested',
-  no_answer: 'No Answer',
-  voicemail: 'Voicemail',
-  wrong_number: 'Wrong Number',
-  gatekeeper: 'Gatekeeper'
-};
+const KNOWN_OUTCOMES = new Set([
+  'meeting_booked',
+  'sale',
+  'interested',
+  'follow_up',
+  'not_interested',
+  'no_answer',
+  'voicemail',
+  'wrong_number',
+  'gatekeeper'
+]);
 
 const COLORS = [
   'var(--chart-1)',
@@ -35,6 +36,10 @@ const COLORS = [
 ];
 
 export function CallsByOutcomeWidget({ title, onRemove }: { title: string; onRemove?: () => void }) {
+  const t = useTranslations('dashboard.widgets.byOutcome');
+  const tOutcomes = useTranslations('dashboard.outcomes');
+  const localizeOutcome = (outcome: string) =>
+    KNOWN_OUTCOMES.has(outcome) ? tOutcomes(outcome as never) : outcome;
   const { data, loading, error } = useWidgetData<OutcomeRow[]>('/dashboard/calls-by-outcome');
   const empty = !data || data.length === 0;
 
@@ -44,7 +49,7 @@ export function CallsByOutcomeWidget({ title, onRemove }: { title: string; onRem
       loading={loading}
       error={error}
       empty={empty}
-      emptyHint='Pick an outcome on each call (Sale, Interested, Voicemail, etc.) to see how your dispositions break down.'
+      emptyHint={t('emptyHint')}
       onRemove={onRemove}
     >
       <div className='flex h-full flex-col gap-2'>
@@ -52,10 +57,7 @@ export function CallsByOutcomeWidget({ title, onRemove }: { title: string; onRem
           <ResponsiveContainer width='100%' height='100%'>
             <PieChart>
               <Tooltip
-                formatter={(v: number, _n, p) => [
-                  v,
-                  OUTCOME_LABELS[p.payload.outcome] ?? p.payload.outcome
-                ]}
+                formatter={(v: number, _n, p) => [v, localizeOutcome(p.payload.outcome)]}
                 contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)' }}
               />
               <Pie
@@ -81,9 +83,7 @@ export function CallsByOutcomeWidget({ title, onRemove }: { title: string; onRem
                   className='inline-block h-2 w-2 rounded-full'
                   style={{ background: COLORS[i % COLORS.length] }}
                 />
-                <span className='truncate'>
-                  {OUTCOME_LABELS[row.outcome] ?? row.outcome}
-                </span>
+                <span className='truncate'>{localizeOutcome(row.outcome)}</span>
               </span>
               <span className='text-muted-foreground tabular-nums'>{row.count}</span>
             </div>

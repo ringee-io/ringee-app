@@ -1,0 +1,23 @@
+{
+  "title": "Calendar",
+  "today": "Today",
+  "weekdays": {
+    "mon": "Mon",
+    "tue": "Tue",
+    "wed": "Wed",
+    "thu": "Thu",
+    "fri": "Fri",
+    "sat": "Sat",
+    "sun": "Sun"
+  },
+  "views": {
+    "day": "Day",
+    "week": "Week",
+    "month": "Month",
+    "agenda": "Agenda"
+  },
+  "empty": {
+    "title": "Nothing scheduled",
+    "description": "Your calendar is clear for this period."
+  }
+}

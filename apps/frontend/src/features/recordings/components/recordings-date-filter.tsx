@@ -12,8 +12,10 @@ import { useQueryState, parseAsString } from 'nuqs';
 import { DateRange } from 'react-day-picker';
 import { format } from 'date-fns';
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import { useTranslations } from 'next-intl';
 
 export function RecordingsDateFilter() {
+    const t = useTranslations('calls.recordings.dateFilter');
     const [dateFrom, setDateFrom] = useQueryState(
         'dateFrom',
         parseAsString.withDefault('')
@@ -51,15 +53,15 @@ export function RecordingsDateFilter() {
 
     const formatLabel = () => {
         if (!selectedRange.from && !selectedRange.to) {
-            return 'Filter by date';
+            return t('filterByDate');
         }
         if (selectedRange.from && selectedRange.to) {
             return `${format(selectedRange.from, 'MMM d')} - ${format(selectedRange.to, 'MMM d, yyyy')}`;
         }
         if (selectedRange.from) {
-            return `From ${format(selectedRange.from, 'MMM d, yyyy')}`;
+            return t('from', { date: format(selectedRange.from, 'MMM d, yyyy') });
         }
-        return `To ${format(selectedRange.to!, 'MMM d, yyyy')}`;
+        return t('to', { date: format(selectedRange.to!, 'MMM d, yyyy') });
     };
 
     return (
@@ -73,7 +75,7 @@ export function RecordingsDateFilter() {
                     {hasValue ? (
                         <div
                             role="button"
-                            aria-label="Clear date filter"
+                            aria-label={t('clear')}
                             tabIndex={0}
                             onClick={handleClear}
                             className="focus-visible:ring-ring rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-1 focus-visible:outline-none"

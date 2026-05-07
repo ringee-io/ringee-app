@@ -1,0 +1,30 @@
+{
+  "title": "Integrationen",
+  "description": "Synchronisieren Sie Ringee-Anrufaktivitäten mit den Tools, die Ihr Team bereits nutzt.",
+  "metaTitle": "Integrationen | Ringee",
+  "metaDescription": "Verbinden Sie Ihr CRM und andere Tools mit Ringee.",
+  "attioDialer": {
+    "metaTitle": "Attio-Anruf | Ringee",
+    "metaDescription": "Tätigen Sie einen Anruf über Ihre Attio-CRM-Integration."
+  },
+  "categories": {
+    "crm": "CRM",
+    "calendar": "Kalender",
+    "communication": "Kommunikation",
+    "data": "Datenanreicherung"
+  },
+  "actions": {
+    "connect": "Verbinden",
+    "configure": "Konfigurieren",
+    "disconnect": "Trennen"
+  },
+  "status": {
+    "connected": "Verbunden",
+    "disconnected": "Getrennt",
+    "error": "Verbindungsfehler"
+  },
+  "empty": {
+    "title": "Keine Integrationen verbunden",
+    "description": "Durchsuchen Sie den Katalog und verbinden Sie Ihr erstes Tool."
+  }
+}

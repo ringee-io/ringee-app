@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { WidgetShell } from '../components/widget-shell';
 import { useWidgetData } from '../hooks/use-widget-data';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
@@ -15,9 +16,12 @@ interface UpcomingMeeting {
   call?: { id: string; outcome: string | null } | null;
 }
 
-function fullName(p?: { firstName: string | null; lastName: string | null } | null) {
-  if (!p) return 'Contact';
-  return [p.firstName, p.lastName].filter(Boolean).join(' ').trim() || 'Contact';
+function fullName(
+  p: { firstName: string | null; lastName: string | null } | null | undefined,
+  fallback: string
+) {
+  if (!p) return fallback;
+  return [p.firstName, p.lastName].filter(Boolean).join(' ').trim() || fallback;
 }
 
 function fmtMeeting(s: string) {
@@ -38,10 +42,19 @@ export function UpcomingMeetingsWidget({
   title: string;
   onRemove?: () => void;
 }) {
+  const t = useTranslations('dashboard.widgets.upcomingMeetings');
+  const tContacts = useTranslations('contacts');
   const { data, loading, error } = useWidgetData<UpcomingMeeting[]>(
     '/dashboard/upcoming-meetings'
   );
   const empty = !data || data.length === 0;
+  const contactFallback = (() => {
+    try {
+      return tContacts('contact' as never) as string;
+    } catch {
+      return 'Contact';
+    }
+  })();
 
   return (
     <WidgetShell
@@ -49,19 +62,19 @@ export function UpcomingMeetingsWidget({
       loading={loading}
       error={error}
       empty={empty}
-      emptyHint='Schedule a meeting from a call (or sync your Google/Microsoft Calendar) and it will show here.'
+      emptyHint={t('emptyHint')}
       onRemove={onRemove}
       contentClassName='p-0'
     >
       <div className='divide-border divide-y'>
         {data?.map((meeting) => {
-          const linked = meeting.call ? '· From call' : null;
+          const linked = meeting.call ? `· ${t('fromCall')}` : null;
           return (
             <div key={meeting.id} className='flex items-start justify-between gap-3 px-4 py-3'>
               <div className='min-w-0 flex-1'>
                 <div className='flex items-center gap-2'>
                   <span className='truncate text-sm font-medium'>
-                    {fullName(meeting.contact)}
+                    {fullName(meeting.contact, contactFallback)}
                   </span>
                   <Badge variant='secondary' className='text-xs'>
                     {meeting.status}
