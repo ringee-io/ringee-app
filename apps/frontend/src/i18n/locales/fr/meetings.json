@@ -4,6 +4,17 @@
   "metaTitle": "Réunions — Issues d'appels à froid | Ringee",
   "metaDescription": "Consultez et gérez toutes les réunions planifiées lors d'appels à froid. Suivez les rendez-vous à venir, revoyez les précédents et gardez la maîtrise de votre pipeline.",
   "newMeeting": "Nouvelle réunion",
+  "searchPlaceholder": "Rechercher par nom de contact...",
+  "tabs": {
+    "upcoming": "À venir",
+    "all": "Toutes",
+    "calendar": "Calendrier",
+    "integrations": "Intégrations"
+  },
+  "sections": {
+    "upcoming": "À venir",
+    "past": "Passées"
+  },
   "fields": {
     "title": "Titre",
     "with": "Avec",
@@ -11,8 +22,38 @@
     "duration": "Durée",
     "notes": "Notes"
   },
+  "columns": {
+    "dateTime": "Date et heure",
+    "contact": "Contact",
+    "duration": "Durée",
+    "status": "Statut"
+  },
+  "viewDetails": "Voir les détails",
+  "location": "Lieu",
+  "fromCall": "Appel du {date}",
+  "min": "min",
+  "cancelMeeting": "Annuler la réunion",
+  "defaultTitle": "Réunion",
+  "status": {
+    "scheduled": "Planifiée",
+    "completed": "Terminée",
+    "cancelled": "Annulée",
+    "rescheduled": "Reportée"
+  },
+  "calendar": {
+    "month": "mois",
+    "week": "semaine",
+    "day": "jour"
+  },
   "empty": {
     "title": "Aucune réunion planifiée",
-    "description": "Dès que vous planifiez une réunion, elle apparaît ici."
+    "description": "Dès que vous planifiez une réunion, elle apparaît ici.",
+    "noMeetings": "Aucune réunion pour l'instant",
+    "noMeetingsDescription": "Réservez votre première réunion pendant un appel. Toutes vos réunions réservées apparaissent ici."
+  },
+  "toasts": {
+    "failedToLoad": "Impossible de charger les réunions",
+    "cancelled": "Réunion annulée",
+    "failedToCancel": "Impossible d'annuler la réunion"
   }
 }

@@ -15,101 +15,53 @@ import {
 } from '@tabler/icons-react';
 import { ArrowRight, CheckCircle2, Sparkles, Wand2 } from 'lucide-react';
 
+type ProviderKey = 'apollo' | 'prospeo';
+
 type Provider = {
-  key: 'apollo' | 'prospeo';
+  key: ProviderKey;
   name: string;
-  tagline: string;
-  description: string;
   logo: string;
   logoDarkInvert?: boolean;
-  badge: string;
   badgeClass: string;
   accent: string;
   ring: string;
   iconColor: string;
-  capabilities: { icon: typeof IconMail; label: string }[];
+  capabilities: { icon: typeof IconMail; capKey: string }[];
 };
 
 const providers: Provider[] = [
   {
     key: 'apollo',
     name: 'Apollo.io',
-    tagline: 'Prospect, enrich and call — all in one flow.',
-    description:
-      'Search across 275M+ contacts and 70M+ companies. Filter by title, industry, geography, headcount and tech stack, then reveal verified emails and mobile numbers on demand.',
     logo: '/companies/apollo.png',
-    badge: 'Lead search + enrichment',
     badgeClass:
       'border-sky-500/20 bg-sky-500/10 text-sky-600 dark:text-sky-400',
     accent: 'from-sky-500/15 to-transparent',
     ring: 'ring-sky-500/20',
     iconColor: 'text-sky-500',
     capabilities: [
-      { icon: IconSearch, label: 'People & company search' },
-      { icon: IconMail, label: 'Verified email reveal' },
-      { icon: IconPhone, label: 'Mobile number reveal' },
-      { icon: IconBuilding, label: 'Firmographics & tech stack' }
+      { icon: IconSearch, capKey: 'search' },
+      { icon: IconMail, capKey: 'emailReveal' },
+      { icon: IconPhone, capKey: 'phoneReveal' },
+      { icon: IconBuilding, capKey: 'firmographics' }
     ]
   },
   {
     key: 'prospeo',
     name: 'Prospeo.io',
-    tagline: 'High-accuracy email finder, on tap.',
-    description:
-      'Resolve emails from LinkedIn URLs or name + company pairs with industry-leading validity rates. Perfect for enriching existing contacts before you dial.',
     logo: '/companies/prospeo.svg',
     logoDarkInvert: true,
-    badge: 'Contact enrichment',
     badgeClass:
       'border-emerald-500/20 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
     accent: 'from-emerald-500/15 to-transparent',
     ring: 'ring-emerald-500/20',
     iconColor: 'text-emerald-500',
     capabilities: [
-      { icon: IconMail, label: 'Email finder from LinkedIn' },
-      { icon: IconSearch, label: 'Domain & name lookup' },
-      { icon: IconBolt, label: 'Bulk enrichment' },
-      { icon: IconDatabase, label: 'Validated deliverability' }
+      { icon: IconMail, capKey: 'emailFinder' },
+      { icon: IconSearch, capKey: 'domainLookup' },
+      { icon: IconBolt, capKey: 'bulkEnrichment' },
+      { icon: IconDatabase, capKey: 'deliverability' }
     ]
-  }
-];
-
-const workflowFeatures = [
-  {
-    icon: IconFilter,
-    title: 'Granular search filters',
-    description:
-      'Title seniority, industry, headcount, location, technologies — compose the exact ICP query your GTM motion needs.'
-  },
-  {
-    icon: IconMail,
-    title: 'On-demand email & phone reveal',
-    description:
-      'Pay only for the contacts you actually want to reach. Reveals are cached and attached to the lead permanently.'
-  },
-  {
-    icon: IconCoin,
-    title: 'Unified credits',
-    description:
-      'One credit ledger covers search, reveals and enrichment. Transparent per-action pricing, no surprise add-ons.'
-  },
-  {
-    icon: IconDatabase,
-    title: 'Auto-dedup on import',
-    description:
-      'Imported leads are deduped against your existing contacts by phone and email before they hit your pipeline.'
-  },
-  {
-    icon: IconBolt,
-    title: 'One-click to campaign',
-    description:
-      'Push a search result straight into a Progressive or Preview dialer campaign — ready to call in seconds.'
-  },
-  {
-    icon: Wand2,
-    title: 'Enrich existing contacts',
-    description:
-      'Backfill missing emails, phones, titles and company data on the contacts already in Ringee — no CSV shuffling.'
   }
 ];
 
@@ -132,6 +84,40 @@ const itemVariants: Variants = {
 
 export default function FindLeadsEnrichment() {
   const tFL = useTranslations('marketing.findLeads');
+
+  const workflowFeatures = [
+    {
+      icon: IconFilter,
+      title: tFL('workflowFeatures.granularFilters.title'),
+      description: tFL('workflowFeatures.granularFilters.description')
+    },
+    {
+      icon: IconMail,
+      title: tFL('workflowFeatures.emailReveal.title'),
+      description: tFL('workflowFeatures.emailReveal.description')
+    },
+    {
+      icon: IconCoin,
+      title: tFL('workflowFeatures.unifiedCredits.title'),
+      description: tFL('workflowFeatures.unifiedCredits.description')
+    },
+    {
+      icon: IconDatabase,
+      title: tFL('workflowFeatures.autoDedup.title'),
+      description: tFL('workflowFeatures.autoDedup.description')
+    },
+    {
+      icon: IconBolt,
+      title: tFL('workflowFeatures.onClickCampaign.title'),
+      description: tFL('workflowFeatures.onClickCampaign.description')
+    },
+    {
+      icon: Wand2,
+      title: tFL('workflowFeatures.enrichContacts.title'),
+      description: tFL('workflowFeatures.enrichContacts.description')
+    }
+  ];
+
   return (
     <section
       id='find-leads'
@@ -209,32 +195,32 @@ export default function FindLeadsEnrichment() {
                   <div>
                     <h3 className='text-xl font-semibold'>{p.name}</h3>
                     <p className='text-foreground/70 text-sm font-medium'>
-                      {p.tagline}
+                      {tFL(`providers.${p.key}.tagline`)}
                     </p>
                   </div>
                 </div>
                 <span
                   className={`shrink-0 rounded-lg border px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase ${p.badgeClass}`}
                 >
-                  {p.badge}
+                  {tFL(`providers.${p.key}.badge`)}
                 </span>
               </div>
 
               <p className='text-muted-foreground text-sm leading-relaxed'>
-                {p.description}
+                {tFL(`providers.${p.key}.description`)}
               </p>
 
               <ul className='mt-1 grid grid-cols-1 gap-2 sm:grid-cols-2'>
                 {p.capabilities.map((c) => (
                   <li
-                    key={c.label}
+                    key={c.capKey}
                     className='text-foreground/85 flex items-start gap-2 text-sm'
                   >
                     <c.icon
                       className={`mt-0.5 h-4 w-4 shrink-0 ${p.iconColor}`}
                       strokeWidth={2.2}
                     />
-                    <span>{c.label}</span>
+                    <span>{tFL(`providers.${p.key}.capabilities.${c.capKey}`)}</span>
                   </li>
                 ))}
               </ul>
@@ -242,10 +228,10 @@ export default function FindLeadsEnrichment() {
               <div className='border-border/50 mt-2 flex items-center justify-between gap-2 border-t pt-4'>
                 <span className='inline-flex items-center gap-1.5 text-[11px] font-medium text-green-600 dark:text-green-500'>
                   <span className='h-1.5 w-1.5 animate-pulse rounded-lg bg-green-500' />
-                  Available now
+                  {tFL('availableNow')}
                 </span>
                 <span className='text-muted-foreground inline-flex items-center gap-1 text-xs'>
-                  Bring your own API key
+                  {tFL('bringOwnKey')}
                   <ArrowRight className='h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5' />
                 </span>
               </div>
@@ -263,11 +249,10 @@ export default function FindLeadsEnrichment() {
           className='text-center'
         >
           <h3 className='text-xl font-semibold tracking-tight sm:text-2xl'>
-            Built for a tight prospect-to-call loop
+            {tFL('workflow.title')}
           </h3>
           <p className='text-muted-foreground mx-auto mt-2 max-w-xl text-sm'>
-            Every search, reveal and enrichment lands in your Ringee workspace —
-            ready for a dialer, a CRM sync or a workflow.
+            {tFL('workflow.subtitle')}
           </p>
         </motion.div>
 
@@ -304,19 +289,19 @@ export default function FindLeadsEnrichment() {
         >
           <span className='text-muted-foreground inline-flex items-center gap-1.5 text-xs'>
             <CheckCircle2 className='h-3.5 w-3.5 text-green-600' />
-            Pay-per-action credits
+            {tFL('badges.payPerAction')}
           </span>
           <span className='text-muted-foreground inline-flex items-center gap-1.5 text-xs'>
             <CheckCircle2 className='h-3.5 w-3.5 text-green-600' />
-            Encrypted credentials at rest
+            {tFL('badges.encryptedCreds')}
           </span>
           <span className='text-muted-foreground inline-flex items-center gap-1.5 text-xs'>
             <CheckCircle2 className='h-3.5 w-3.5 text-green-600' />
-            Dedupe against existing contacts
+            {tFL('badges.dedupeContacts')}
           </span>
           <span className='text-muted-foreground inline-flex items-center gap-1.5 text-xs'>
             <Sparkles className='h-3.5 w-3.5 text-sky-500' />
-            More providers coming
+            {tFL('badges.moreProviders')}
           </span>
         </motion.div>
       </div>

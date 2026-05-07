@@ -13,5 +13,82 @@
     "odoo": "Odoo",
     "apollo": "Apollo",
     "prospeo": "Prospeo"
+  },
+  "tabs": {
+    "crm": "CRM",
+    "enrichment": "Gegevensverrijking",
+    "leads": "Leads zoeken"
+  },
+  "connections": {
+    "yourConnections": "Jouw verbindingen",
+    "refresh": "Vernieuwen",
+    "manageConnection": "Verbinding beheren",
+    "available": "Beschikbare integraties",
+    "availableDescription": "Kies een CRM om gesprekken, uitkomsten, opnames en notities naar het juiste contact of bedrijf te sturen.",
+    "noConnections": "Nog geen integraties",
+    "noConnectionsDescription": "Verbind een CRM en elk gesprek dat je voert verschijnt automatisch bij het juiste contact — met uitkomst, duur, opname en notities — in seconden.",
+    "needsAttention": "{count, plural, one {# verbinding heeft aandacht nodig} other {# verbindingen hebben aandacht nodig}}",
+    "needsAttentionDescription": "Herverbind om de gespreksregistratie te hervatten. Lopende gesprekken worden automatisch opnieuw geprobeerd wanneer de verbinding hersteld is.",
+    "loadError": "Verbindingen laden mislukt"
+  },
+  "status": {
+    "active": "Verbonden",
+    "error": "Aandacht nodig",
+    "revoked": "Ingetrokken",
+    "disconnected": "Verbroken"
+  },
+  "scope": {
+    "organization": "Organisatie",
+    "personal": "Persoonlijk",
+    "personalWorkspace": "Persoonlijke werkruimte",
+    "personalWorkspaceDescription": "Alleen jouw gesprekken worden geregistreerd. Jouw token en gegevens blijven in jouw account.",
+    "noActiveTeam": "Organisatie (geen actief team)",
+    "orgDescription": "Alle teamleden in deze org delen deze verbinding. Gesprekken van iedereen in de org worden geregistreerd.",
+    "noOrgHint": "Schakel linksboven naar een organisatie om org-level sync te activeren."
+  },
+  "lastSyncNever": "Nooit",
+  "lastSyncJustNow": "zojuist",
+  "lastSyncMinutesAgo": "{n} min geleden",
+  "lastSyncHoursAgo": "{n} u geleden",
+  "lastSyncDaysAgo": "{n} d geleden",
+  "lastSyncAt": "Laatste sync {time}",
+  "stats": {
+    "synced": "Gesynchroniseerd",
+    "pending": "In behandeling",
+    "failed": "Mislukt",
+    "review": "Beoordelen"
+  },
+  "actions": {
+    "viewSyncHistory": "Synchronisatiegeschiedenis",
+    "reconnect": "Opnieuw verbinden",
+    "forgetConnection": "Verbinding vergeten",
+    "forget": "Vergeten",
+    "cancel": "Annuleren",
+    "addAnother": "Nog een toevoegen",
+    "connect": "{provider} verbinden",
+    "continueWith": "Doorgaan naar {provider}",
+    "notifyMe": "Meld me"
+  },
+  "dialogs": {
+    "disconnectTitle": "{provider} loskoppelen?",
+    "disconnectDescription": "Gespreksregistratie wordt gepauzeerd. Jouw bestaande synchronisatiegeschiedenis en CRM-records blijven bewaard. Je kunt op elk moment opnieuw verbinden.",
+    "forgetTitle": "Deze verbinding vergeten?",
+    "forgetDescription": "Dit verwijdert permanent tokens, contactkoppelingen en synchronisatiegeschiedenis uit Ringee. Records die al naar {provider} zijn gestuurd blijven ongewijzigd.",
+    "connectTitle": "{provider} verbinden",
+    "connectDescription": "Kies waar deze verbinding wordt opgeslagen. Persoonlijke verbindingen zijn privé, organisatieverbindingen worden gedeeld met je hele team."
+  },
+  "errors": {
+    "revokedError": "Toegang werd ingetrokken in de CRM.",
+    "connectionError": "Er is een fout opgetreden bij het contact met de CRM.",
+    "errorCode": "Code: {code}"
+  },
+  "managementSheet": {
+    "syncHistory": "Synchronisatiegeschiedenis",
+    "import": "Importeren",
+    "fieldMappings": "Veldtoewijzingen",
+    "team": "Team"
+  },
+  "badges": {
+    "soon": "Binnenkort"
   }
 }

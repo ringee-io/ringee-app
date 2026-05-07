@@ -11,6 +11,36 @@
     "meeting": "Riunione",
     "email": "Email"
   },
+  "outcomes": {
+    "meetingBooked": "Riunione prenotata",
+    "sale": "Vendita",
+    "interested": "Interessato",
+    "followUp": "Follow-up",
+    "notInterested": "Non interessato",
+    "noAnswer": "Nessuna risposta",
+    "voicemail": "Segreteria",
+    "wrongNumber": "Numero errato",
+    "gatekeeper": "Filtro"
+  },
+  "filters": {
+    "disposition": "Esito",
+    "clearFilters": "Rimuovi filtri"
+  },
+  "noCallsFound": "Nessuna chiamata trovata",
+  "noCallsDescription": "Nessuna chiamata generale per {date}.",
+  "noCallsWithFilters": "Nessuna chiamata generale per {date} con i filtri selezionati.",
+  "scheduledMeeting": "Riunione pianificata",
+  "scheduleMeeting": "Pianifica riunione",
+  "callCount": "{count, plural, one {# chiamata} other {# chiamate}}",
+  "pagination": {
+    "previous": "Precedente",
+    "next": "Successivo",
+    "page": "Pagina {page} di {totalPages}"
+  },
+  "toasts": {
+    "failedToLoad": "Impossibile caricare le attività",
+    "meetingBooked": "Riunione prenotata con successo"
+  },
   "empty": {
     "title": "Nessuna attività",
     "description": "Registra la tua prima attività per iniziare a costruire lo storico."

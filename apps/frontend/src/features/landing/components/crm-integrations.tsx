@@ -17,7 +17,6 @@ type Provider = {
   key: string;
   name: string;
   subtitle?: string;
-  description: string;
   logo: string;
   logoDarkInvert?: boolean;
   accent: string;
@@ -28,29 +27,23 @@ const providers: Provider[] = [
   {
     key: 'attio',
     name: 'Attio',
-    description:
-      'Sync contacts, companies, call activity, recordings and transcripts to your Attio workspace.',
     logo: '/companies/attio.svg',
     logoDarkInvert: true,
     accent: 'from-violet-500/15 to-transparent ring-violet-500/20',
     available: true
   },
   {
-    key: 'odoo_19',
+    key: 'odoo19',
     name: 'Odoo 19+',
     subtitle: 'JSON-2 API',
-    description:
-      'Modern JSON-2 integration for the latest Odoo instances. Log calls as activities on res.partner.',
     logo: '/companies/odoo.svg',
     accent: 'from-emerald-500/15 to-transparent ring-emerald-500/20',
     available: true
   },
   {
-    key: 'odoo_14',
+    key: 'odoo14',
     name: 'Odoo 14–18',
     subtitle: 'Legacy RPC',
-    description:
-      'Classic XML-RPC compatibility for existing Odoo deployments from version 14 through 18.',
     logo: '/companies/odoo.svg',
     accent: 'from-fuchsia-500/15 to-transparent ring-fuchsia-500/20',
     available: true
@@ -58,8 +51,6 @@ const providers: Provider[] = [
   {
     key: 'hubspot',
     name: 'HubSpot',
-    description:
-      'Bi-directional contact sync and native call activities on HubSpot records.',
     logo: '/companies/hubspot.svg',
     accent: 'from-orange-500/15 to-transparent ring-orange-500/20',
     available: false
@@ -67,50 +58,9 @@ const providers: Provider[] = [
   {
     key: 'salesforce',
     name: 'Salesforce',
-    description:
-      'Enterprise-grade sync with Leads, Contacts and Accounts on SFDC.',
     logo: '/companies/salesforce.svg',
     accent: 'from-sky-500/15 to-transparent ring-sky-500/20',
     available: false
-  }
-];
-
-const syncFeatures = [
-  {
-    icon: IconUsers,
-    title: 'Bi-directional contact sync',
-    description:
-      'Pull contacts and companies on connect. New Ringee contacts push back upstream automatically.'
-  },
-  {
-    icon: IconPhoneCheck,
-    title: 'Call activity logs',
-    description:
-      'Every completed call becomes a structured activity with duration, disposition and outcome.'
-  },
-  {
-    icon: IconNote,
-    title: 'Notes, transcripts & recordings',
-    description:
-      'Attach call notes, AI summaries, transcripts, and secure recording URLs to the right record.'
-  },
-  {
-    icon: IconArrowsLeftRight,
-    title: 'Custom field mappings',
-    description:
-      'Map Ringee fields to your CRM schema. Push, pull or bi-directional — per field, per connection.'
-  },
-  {
-    icon: IconRefresh,
-    title: 'Reliable retry & outbox',
-    description:
-      'A durable outbox retries failed syncs with backoff, so transient CRM hiccups never lose data.'
-  },
-  {
-    icon: IconPlugConnected,
-    title: 'Personal & organization scope',
-    description:
-      'Connect a CRM for just yourself, or share one connection across your whole team.'
   }
 ];
 
@@ -133,6 +83,40 @@ const itemVariants: Variants = {
 
 export default function CrmIntegrations() {
   const tCRM = useTranslations('marketing.crmIntegrations');
+
+  const syncFeatures = [
+    {
+      icon: IconUsers,
+      title: tCRM('syncFeatures.contactSync.title'),
+      description: tCRM('syncFeatures.contactSync.description')
+    },
+    {
+      icon: IconPhoneCheck,
+      title: tCRM('syncFeatures.callLogs.title'),
+      description: tCRM('syncFeatures.callLogs.description')
+    },
+    {
+      icon: IconNote,
+      title: tCRM('syncFeatures.notesTranscripts.title'),
+      description: tCRM('syncFeatures.notesTranscripts.description')
+    },
+    {
+      icon: IconArrowsLeftRight,
+      title: tCRM('syncFeatures.fieldMappings.title'),
+      description: tCRM('syncFeatures.fieldMappings.description')
+    },
+    {
+      icon: IconRefresh,
+      title: tCRM('syncFeatures.retryOutbox.title'),
+      description: tCRM('syncFeatures.retryOutbox.description')
+    },
+    {
+      icon: IconPlugConnected,
+      title: tCRM('syncFeatures.orgScope.title'),
+      description: tCRM('syncFeatures.orgScope.description')
+    }
+  ];
+
   return (
     <section
       id='integrations'
@@ -216,12 +200,12 @@ export default function CrmIntegrations() {
                       <>
                         <span className='h-1.5 w-1.5 animate-pulse rounded-lg bg-green-500' />
                         <span className='text-[11px] font-medium text-green-600 dark:text-green-500'>
-                          Available now
+                          {tCRM('availableNow')}
                         </span>
                       </>
                     ) : (
                       <span className='inline-flex items-center gap-1 text-[11px] font-medium text-amber-600 dark:text-amber-500'>
-                        <Sparkles className='h-3 w-3' /> Coming soon
+                        <Sparkles className='h-3 w-3' /> {tCRM('comingSoon')}
                       </span>
                     )}
                   </div>
@@ -229,7 +213,7 @@ export default function CrmIntegrations() {
               </div>
 
               <p className='text-muted-foreground mt-4 text-sm leading-relaxed'>
-                {p.description}
+                {tCRM(`providers.${p.key}.description`)}
               </p>
             </div>
           </motion.div>
@@ -247,10 +231,9 @@ export default function CrmIntegrations() {
                 strokeWidth={1.7}
               />
             </div>
-            <h3 className='mt-3 text-base font-semibold'>More on the way</h3>
+            <h3 className='mt-3 text-base font-semibold'>{tCRM('moreOnTheWay.title')}</h3>
             <p className='text-muted-foreground mt-2 text-sm leading-relaxed'>
-              Pipedrive, Zoho, Close and more are on the roadmap. Open an issue
-              or vote on GitHub to help us prioritize.
+              {tCRM('moreOnTheWay.description')}
             </p>
           </div>
           <a
@@ -259,7 +242,7 @@ export default function CrmIntegrations() {
             rel='noreferrer noopener'
             className='text-foreground/80 hover:text-foreground mt-4 inline-flex items-center gap-1 text-sm font-medium'
           >
-            Request an integration
+            {tCRM('moreOnTheWay.cta')}
             <ArrowRight className='h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5' />
           </a>
         </motion.div>
@@ -274,11 +257,10 @@ export default function CrmIntegrations() {
           className='text-center'
         >
           <h3 className='text-xl font-semibold tracking-tight sm:text-2xl'>
-            One engine, every integration
+            {tCRM('capabilities.title')}
           </h3>
           <p className='text-muted-foreground mx-auto mt-2 max-w-xl text-sm'>
-            Built on a shared sync primitive — so every CRM gets the same
-            reliable guarantees.
+            {tCRM('capabilities.subtitle')}
           </p>
         </motion.div>
 
@@ -315,15 +297,15 @@ export default function CrmIntegrations() {
         >
           <span className='text-muted-foreground inline-flex items-center gap-1.5 text-xs'>
             <CheckCircle2 className='h-3.5 w-3.5 text-green-600' />
-            OAuth &amp; API-key auth
+            {tCRM('badges.oauthAuth')}
           </span>
           <span className='text-muted-foreground inline-flex items-center gap-1.5 text-xs'>
             <CheckCircle2 className='h-3.5 w-3.5 text-green-600' />
-            Encrypted credentials at rest
+            {tCRM('badges.encryptedCreds')}
           </span>
           <span className='text-muted-foreground inline-flex items-center gap-1.5 text-xs'>
             <CheckCircle2 className='h-3.5 w-3.5 text-green-600' />
-            Idempotent, retry-safe writes
+            {tCRM('badges.idempotentWrites')}
           </span>
         </motion.div>
       </div>

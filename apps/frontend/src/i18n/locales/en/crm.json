@@ -13,5 +13,82 @@
     "odoo": "Odoo",
     "apollo": "Apollo",
     "prospeo": "Prospeo"
+  },
+  "tabs": {
+    "crm": "CRM",
+    "enrichment": "Data Enrichment",
+    "leads": "Find Leads"
+  },
+  "connections": {
+    "yourConnections": "Your connections",
+    "refresh": "Refresh",
+    "manageConnection": "Manage Connection",
+    "available": "Available integrations",
+    "availableDescription": "Choose a CRM to push calls, dispositions, recordings and notes to the right person or company record.",
+    "noConnections": "No integrations yet",
+    "noConnectionsDescription": "Connect a CRM below and every call you make will appear on the right contact — with disposition, duration, recording and notes — in seconds.",
+    "needsAttention": "{count, plural, one {# connection needs attention} other {# connections need attention}}",
+    "needsAttentionDescription": "Reconnect to resume call logging. Pending calls will retry automatically once the connection is healthy again.",
+    "loadError": "Couldn't load connections"
+  },
+  "status": {
+    "active": "Connected",
+    "error": "Needs attention",
+    "revoked": "Revoked",
+    "disconnected": "Disconnected"
+  },
+  "scope": {
+    "organization": "Organization",
+    "personal": "Personal",
+    "personalWorkspace": "Personal workspace",
+    "personalWorkspaceDescription": "Only your calls are logged. Your token and data stay on your account.",
+    "noActiveTeam": "Organization (no active team)",
+    "orgDescription": "All teammates in this org share this connection. Calls from anyone in the org get logged.",
+    "noOrgHint": "Switch to an organization from the top-left to enable org-level sync."
+  },
+  "lastSyncNever": "Never",
+  "lastSyncJustNow": "just now",
+  "lastSyncMinutesAgo": "{n}m ago",
+  "lastSyncHoursAgo": "{n}h ago",
+  "lastSyncDaysAgo": "{n}d ago",
+  "lastSyncAt": "Last sync {time}",
+  "stats": {
+    "synced": "Synced",
+    "pending": "Pending",
+    "failed": "Failed",
+    "review": "Review"
+  },
+  "actions": {
+    "viewSyncHistory": "View sync history",
+    "reconnect": "Reconnect",
+    "forgetConnection": "Forget connection",
+    "forget": "Forget",
+    "cancel": "Cancel",
+    "addAnother": "Add another",
+    "connect": "Connect {provider}",
+    "continueWith": "Continue to {provider}",
+    "notifyMe": "Notify me"
+  },
+  "dialogs": {
+    "disconnectTitle": "Disconnect {provider}?",
+    "disconnectDescription": "Call syncing will pause. Your existing sync history and CRM records will be preserved. You can reconnect anytime.",
+    "forgetTitle": "Forget this connection?",
+    "forgetDescription": "This removes tokens, contact links and sync history from Ringee permanently. Records already pushed to {provider} remain untouched.",
+    "connectTitle": "Connect {provider}",
+    "connectDescription": "Choose where this connection will live. Personal connections are private to you, while organization connections are shared with your whole team."
+  },
+  "errors": {
+    "revokedError": "Access was revoked in the CRM.",
+    "connectionError": "We hit an error contacting the CRM.",
+    "errorCode": "Code: {code}"
+  },
+  "managementSheet": {
+    "syncHistory": "Sync History",
+    "import": "Import",
+    "fieldMappings": "Field Mappings",
+    "team": "Team"
+  },
+  "badges": {
+    "soon": "Soon"
   }
 }

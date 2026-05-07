@@ -9,6 +9,15 @@
     "contact": "Contact",
     "signIn": "Inloggen",
     "getStarted": "Aan de slag",
+    "productDescription": "Het moderne open-source communicatieplatform voor groei.",
+    "navDescriptions": {
+      "features": "Ontdek onze kernfuncties en mogelijkheden.",
+      "campaigns": "Preview- en progressive-dialers voor outbound-teams.",
+      "findLeads": "Apollo.io en Prospeo.io — prospecting ingebouwd.",
+      "integrations": "Attio, Odoo — en meer onderweg.",
+      "comparison": "Bekijk hoe we ons meten aan de concurrentie.",
+      "pricing": "Flexibele prijzen voor teams van elke omvang."
+    },
     "navItems": {
       "features": "Features",
       "campaigns": "Campagnes",
@@ -83,17 +92,190 @@
   "campaigns": {
     "kicker": "Outbound-campagnes",
     "title": "Dialers op maat voor elke playbook",
-    "subtitle": "Doe cold calling, follow-ups en re-engagement met de dialer-modus die past bij jouw team — van door agenten beoordeelde gesprekken tot volledig automatisch."
+    "subtitle": "Doe cold calling, follow-ups en re-engagement met de dialer-modus die past bij jouw team — van door agenten beoordeelde gesprekken tot volledig automatisch.",
+    "featuresTitle": "Alles wat je nodig hebt voor een campagne",
+    "featuresSubtitle": "Van het importeren van leads tot live analyses — alles inbegrepen.",
+    "modes": {
+      "preview": {
+        "tag": "Automatische preview-dialer",
+        "tagline": "De agent beslist. Ringee belt.",
+        "description": "Haal de volgende gekwalificeerde lead uit de wachtrij, bekijk het contact, de notities en de laatste dispositie, en start dan het gesprek met één klik. Perfect voor hoogwaardige outreach waarbij context belangrijk is.",
+        "label": "Mens in de lus",
+        "bullets": {
+          "0": "Lead preview-kaart met contact, laatste poging en dispositie",
+          "1": "Één-klik bellen met jouw geverifieerde beller-ID",
+          "2": "Agentgestuurde snelheid — ideaal voor kwaliteit boven kwantiteit"
+        }
+      },
+      "progressive": {
+        "tag": "Progressieve dialer",
+        "tagline": "Klaar? Ringee pakt de volgende.",
+        "description": "De dialer-orchestrator wijst automatisch de volgende lead toe op het moment dat een agent gereed is. Minimale wachttijd, consistent doorvoer — zonder het geluid van voorspellend over-bellen.",
+        "label": "Automatisch toegewezen",
+        "bullets": {
+          "0": "Live-orchestrator koppelt beschikbare agents aan geschikte leads",
+          "1": "Compliance-bewust: respecteert tijdzones en werkvensters",
+          "2": "Geen gemiste gesprekken — 1:1 agent-tot-gesprek-verhouding"
+        }
+      }
+    },
+    "features": {
+      "csvImport": {
+        "title": "CSV & handmatige lead-import",
+        "description": "Importeer duizenden leads tegelijk. Ingebouwde deduplicatie tegen bestaande contacten en leads."
+      },
+      "dispositions": {
+        "title": "Disposities en uitkomsten",
+        "description": "Categoriseer elk gesprek — positief, neutraal, negatief, geen contact — met aangepaste disposities per campagne."
+      },
+      "callingWindow": {
+        "title": "Naleving van belvensters",
+        "description": "Tijdzone-bewuste planningen met werkuren en werkdagen. Leads worden alleen gebeld wanneer het legaal en gepast is."
+      },
+      "retries": {
+        "title": "Herhalingen en maximale pogingen",
+        "description": "Configureerbare maximale pogingen per lead en herhalingvertragingen — de herhalingsmotor doet de rest."
+      },
+      "callbacks": {
+        "title": "Terugbelverzoeken en afrondingstijd",
+        "description": "Plan terugbelverzoeken, stel afrondingstijd per campagne in, en laat voicemails achter bij geen antwoord."
+      },
+      "analytics": {
+        "title": "Live outbound analyses",
+        "description": "Agentsessies, belpogingen, verbindingspercentage en disposities — live gestreamd naar je dashboard."
+      }
+    }
   },
   "findLeads": {
     "kicker": "Leads vinden & verrijken",
     "title": "Vind en verrijk leads — zonder Ringee te verlaten",
-    "subtitle": "Apollo en Prospeo zitten ingebouwd. Zoek, verrijk en bel in seconden."
+    "subtitle": "Apollo en Prospeo zitten ingebouwd. Zoek, verrijk en bel in seconden.",
+    "availableNow": "Nu beschikbaar",
+    "bringOwnKey": "Breng je eigen API-sleutel mee",
+    "workflow": {
+      "title": "Gebouwd voor een strakke prospect-naar-gesprek-cyclus",
+      "subtitle": "Elke zoekopdracht, onthulling en verrijking komt in je Ringee-workspace terecht — klaar voor een dialer, een CRM-sync of een workflow."
+    },
+    "workflowFeatures": {
+      "granularFilters": {
+        "title": "Granulaire zoekfilters",
+        "description": "Functie-senioriteit, branche, personeelsbestand, locatie, technologieën — stel de exacte ICP-zoekopdracht samen die je GTM-beweging nodig heeft."
+      },
+      "emailReveal": {
+        "title": "E-mail & telefoon onthulling op aanvraag",
+        "description": "Betaal alleen voor de contacten die je echt wilt bereiken. Onthullingen worden gecached en definitief aan de lead gekoppeld."
+      },
+      "unifiedCredits": {
+        "title": "Uniforme credits",
+        "description": "Eén creditledger dekt zoeken, onthullingen en verrijking. Transparante prijzen per actie, geen verrassingen."
+      },
+      "autoDedup": {
+        "title": "Automatische deduplicatie bij import",
+        "description": "Geïmporteerde leads worden gededupliceerd ten opzichte van je bestaande contacten op telefoon en e-mail voordat ze je pipeline ingaan."
+      },
+      "onClickCampaign": {
+        "title": "Één klik naar campagne",
+        "description": "Stuur een zoekresultaat rechtstreeks naar een Progressive of Preview dialer-campagne — klaar om te bellen in seconden."
+      },
+      "enrichContacts": {
+        "title": "Verrijk bestaande contacten",
+        "description": "Vul ontbrekende e-mails, telefoonnummers, functies en bedrijfsgegevens aan van contacten die al in Ringee staan — geen CSV-gedoe."
+      }
+    },
+    "badges": {
+      "payPerAction": "Credits per actie",
+      "encryptedCreds": "Versleutelde inloggegevens in rust",
+      "dedupeContacts": "Deduplicatie ten opzichte van bestaande contacten",
+      "moreProviders": "Meer providers komen eraan"
+    },
+    "providers": {
+      "apollo": {
+        "tagline": "Prospecteer, verrijk en bel — alles in één stroom.",
+        "description": "Zoek in 275M+ contacten en 70M+ bedrijven. Filter op functie, branche, geografie, personeelsbestand en tech stack, en onthul dan geverifieerde e-mails en mobiele nummers op aanvraag.",
+        "badge": "Lead zoeken + verrijking",
+        "capabilities": {
+          "search": "Personen- & bedrijfszoekopdrchten",
+          "emailReveal": "Geverifieerde e-mail onthulling",
+          "phoneReveal": "Mobiel nummer onthulling",
+          "firmographics": "Firmografie & tech stack"
+        }
+      },
+      "prospeo": {
+        "tagline": "Hoognauwkeurige e-mailfinder, op aanvraag.",
+        "description": "Verifieer e-mails vanuit LinkedIn-URL's of naam + bedrijfsparen met marktleidende geldigheidspercentages. Perfect voor het verrijken van bestaande contacten voordat je belt.",
+        "badge": "Contactverrijking",
+        "capabilities": {
+          "emailFinder": "E-mailfinder vanuit LinkedIn",
+          "domainLookup": "Domein & naam opzoeken",
+          "bulkEnrichment": "Bulkverrijking",
+          "deliverability": "Gevalideerde afleverbaarheid"
+        }
+      }
+    }
   },
   "crmIntegrations": {
     "kicker": "CRM-integraties",
     "title": "Elk gesprek automatisch in je CRM",
-    "subtitle": "Vandaag Attio en Odoo, meer onderweg. Notities, opnames en uitkomsten worden automatisch gesynchroniseerd."
+    "subtitle": "Vandaag Attio en Odoo, meer onderweg. Notities, opnames en uitkomsten worden automatisch gesynchroniseerd.",
+    "availableNow": "Nu beschikbaar",
+    "comingSoon": "Binnenkort beschikbaar",
+    "moreOnTheWay": {
+      "title": "Meer onderweg",
+      "description": "Pipedrive, Zoho, Close en meer staan op de roadmap. Open een issue of stem op GitHub om ons te helpen prioriteren.",
+      "cta": "Integratie aanvragen"
+    },
+    "capabilities": {
+      "title": "Eén engine, elke integratie",
+      "subtitle": "Gebouwd op een gedeelde sync-primitieve — zodat elke CRM dezelfde betrouwbare garanties krijgt."
+    },
+    "syncFeatures": {
+      "contactSync": {
+        "title": "Bidirectionele contactsynchronisatie",
+        "description": "Haal contacten en bedrijven op bij verbinding. Nieuwe Ringee-contacten worden automatisch teruggestuurd naar upstream."
+      },
+      "callLogs": {
+        "title": "Gespreksactiviteitenlogboeken",
+        "description": "Elk voltooid gesprek wordt een gestructureerde activiteit met duur, dispositie en uitkomst."
+      },
+      "notesTranscripts": {
+        "title": "Notities, transcripties & opnames",
+        "description": "Koppel gespreksnotities, AI-samenvattingen, transcripties en beveiligde opname-URL's aan het juiste record."
+      },
+      "fieldMappings": {
+        "title": "Aangepaste veldmappings",
+        "description": "Wijs Ringee-velden toe aan je CRM-schema. Push, pull of bidirectioneel — per veld, per verbinding."
+      },
+      "retryOutbox": {
+        "title": "Betrouwbare herhalingen & outbox",
+        "description": "Een duurzame outbox herhaalt mislukte syncs met backoff, zodat tijdelijke CRM-problemen nooit data verliezen."
+      },
+      "orgScope": {
+        "title": "Persoonlijk & organisatiebereik",
+        "description": "Verbind een CRM alleen voor jezelf, of deel één verbinding met je hele team."
+      }
+    },
+    "badges": {
+      "oauthAuth": "OAuth & API-sleutel auth",
+      "encryptedCreds": "Versleutelde inloggegevens in rust",
+      "idempotentWrites": "Idempotente, retry-veilige schrijfacties"
+    },
+    "providers": {
+      "attio": {
+        "description": "Synchroniseer contacten, bedrijven, gespreksactiviteit, opnames en transcripties naar je Attio-workspace."
+      },
+      "odoo19": {
+        "description": "Moderne JSON-2-integratie voor de nieuwste Odoo-instanties. Log gesprekken als activiteiten op res.partner."
+      },
+      "odoo14": {
+        "description": "Klassieke XML-RPC-compatibiliteit voor bestaande Odoo-deployments van versie 14 tot 18."
+      },
+      "hubspot": {
+        "description": "Bidirectionele contactsync en native gespreksactiviteiten op HubSpot-records."
+      },
+      "salesforce": {
+        "description": "Enterprise-grade sync met Leads, Contacten en Accounts op SFDC."
+      }
+    }
   },
   "pricing": {
     "title": "Prijzen voor individuen en teams",
@@ -138,7 +320,59 @@
   },
   "comparison": {
     "title": "Vergelijk Ringee.io",
-    "subtitle": "Hoe Ringee zich verhoudt tot Adversus en Genesys als je flexibele outbound-gesprekken in de browser wilt, zonder dure per-seat-contracten."
+    "subtitle": "Hoe Ringee zich verhoudt tot Adversus en Genesys als je flexibele outbound-gesprekken in de browser wilt, zonder dure per-seat-contracten.",
+    "table": {
+      "featuresHeader": "Functies",
+      "footerNote": "* Adversus en Genesys rekenen doorgaans per seat met hogere vaste maandelijkse verplichtingen, terwijl Ringee een vaste $20/maand per organisatie hanteert met onbeperkte leden."
+    },
+    "rows": {
+      "browserBased": {
+        "feature": "Op browser gebaseerd (geen installatie)",
+        "ringee": "Bel en ontvang gesprekken direct vanuit je webbrowser — geen softphone vereist.",
+        "adversus": "Webgebaseerd platform gericht op outbound-campagnes en call center-workflows.",
+        "genesys": "Cloud contact center suite; agenten gebruiken doorgaans speciale web- of desktop-apps."
+      },
+      "singleUser": {
+        "feature": "Begin met 1 gebruiker",
+        "ringee": "Geen minimum aantal gebruikers — begin alleen en voeg teamleden toe naarmate je groeit."
+      },
+      "pricingModel": {
+        "feature": "Prijsmodel",
+        "ringee": "Pay-as-you-go voor minuten & nummers + optioneel business-plan van $20/maand per organisatie (onbeperkte leden).",
+        "adversus": "Per-seat-abonnement met maandelijkse/jaarlijkse facturering en een minimum aantal agenten.",
+        "genesys": "Enterprise per-seat / contractprijzen, doorgaans voor grotere deployments."
+      },
+      "perSeat": {
+        "feature": "Per-seat-abonnement",
+        "ringee": "GEEN PRIJS PER SEAT — vast $20/maand per organisatie met onbeperkte teamleden."
+      },
+      "monthlyMin": {
+        "feature": "Typisch maandelijks minimum",
+        "ringee": "Begin met $0 aan vaste kosten — laad gewoon credits op. Voeg het business-plan van $20/maand alleen toe wanneer je teamfuncties nodig hebt.",
+        "adversus": "Vanaf 122 €/maand per agent, minimaal 3 agenten (366 €/maand) voor onbeperkte EU + US + Canada-gesprekken, excl. btw.",
+        "genesys": "Aangepast enterprise-offerte, doorgaans hogere ACV en meerjarige contracten."
+      },
+      "globalCoverage": {
+        "feature": "Wereldwijde dekking",
+        "ringee": "Bel en ontvang in 180+ landen met transparante wereldwijde tarieven.",
+        "adversus": "Kernfocus op onbeperkte gesprekken in EU + US + Canada. Andere bestemmingen zijn afhankelijk van je plan en carrier-setup."
+      },
+      "outboundDialer": {
+        "feature": "Outbound verkoopdialer",
+        "ringee": "Ideaal voor handmatige en semi-gestructureerde outbound en cold calling vanuit browser of mobiel."
+      },
+      "smallTeams": {
+        "feature": "Ideaal voor kleine teams & startups",
+        "ringee": "Ontworpen zodat solo-oprichters en kleine teams klein kunnen beginnen en gebruik en leden kunnen schalen zonder extra seat-kosten.",
+        "adversus": "Beter geschikt als je al een toegewijd outbound-team en stabiel belvolume hebt."
+      },
+      "setupTime": {
+        "feature": "Opstarttijd",
+        "ringee": "Registreer en begin te bellen in minuten — geen implementatieproject vereist.",
+        "adversus": "Vereist het instellen van campagnes, disposities, lead-flows en agentconfiguratie.",
+        "genesys": "Enterprise onboarding, integraties en configuratie met IT-betrokkenheid."
+      }
+    }
   },
   "faq": {
     "title": "Veelgestelde vragen",
@@ -191,6 +425,8 @@
     "description": "Host Ringee op je eigen server. Beheer je klantgegevens en blijf volledig compliant met regelgevende normen.",
     "githubCta": "Vind ons op GitHub",
     "starsLabel": "Sterren op GitHub",
+    "starUs": "Geef ons een ster op GitHub",
+    "starsCount": "{count} sterren",
     "contributorsLabel": "Bijdragers",
     "features": {
       "securePersonnel": "Veilig personeel",
@@ -201,6 +437,9 @@
     "soc2Title": "Beveiliging conform SOC 2-normen",
     "soc2Description": "Met strikte protocollen ter plaatse kunt u erop vertrouwen dat wij uw informatie met vertrouwen beschermen.",
     "readMore": "Lees meer"
+  },
+  "testimonials": {
+    "title": "Getuigenissen"
   },
   "ctaBanner": {
     "title": "Klaar om je stem te versterken met Ringee.io?",

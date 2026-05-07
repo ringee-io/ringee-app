@@ -74,29 +74,28 @@ export const NavMenu = ({
                         Ringee
                       </div>
                       <p className='text-muted-foreground text-sm leading-tight'>
-                        The modern open-source communication platform designed
-                        for growth.
+                        {t('productDescription')}
                       </p>
                     </Link>
                   </NavigationMenuLink>
                 </li>
-                <ListItem href='#features' title='Features'>
-                  Explore our core features and capabilities.
+                <ListItem href='#features' title={t('navItems.features')}>
+                  {t('navDescriptions.features')}
                 </ListItem>
-                <ListItem href='#campaigns' title='Campaigns'>
-                  Preview and progressive dialers for outbound teams.
+                <ListItem href='#campaigns' title={t('navItems.campaigns')}>
+                  {t('navDescriptions.campaigns')}
                 </ListItem>
-                <ListItem href='#find-leads' title='Find leads & enrich'>
-                  Apollo.io and Prospeo.io — prospecting, built in.
+                <ListItem href='#find-leads' title={t('navItems.findLeads')}>
+                  {t('navDescriptions.findLeads')}
                 </ListItem>
-                <ListItem href='#integrations' title='CRM Integrations'>
-                  Attio, Odoo — and more on the way.
+                <ListItem href='#integrations' title={t('navItems.integrations')}>
+                  {t('navDescriptions.integrations')}
                 </ListItem>
-                <ListItem href='#comparison' title='Comparison'>
-                  See how we compare against the competition.
+                <ListItem href='#comparison' title={t('navItems.comparison')}>
+                  {t('navDescriptions.comparison')}
                 </ListItem>
-                <ListItem href='#pricing' title='Pricing'>
-                  Flexible pricing for teams of all sizes.
+                <ListItem href='#pricing' title={t('navItems.pricing')}>
+                  {t('navDescriptions.pricing')}
                 </ListItem>
               </ul>
             </NavigationMenuContent>
@@ -108,22 +107,22 @@ export const NavMenu = ({
             </span>
             <div className='border-border/40 mt-1 ml-2 flex flex-col gap-2 border-l pl-4'>
               <Link href='#features' className='py-1 text-base font-medium'>
-                Features
+                {t('navItems.features')}
               </Link>
               <Link href='#campaigns' className='py-1 text-base font-medium'>
-                Campaigns
+                {t('navItems.campaigns')}
               </Link>
               <Link href='#find-leads' className='py-1 text-base font-medium'>
-                Find leads &amp; enrich
+                {t('navItems.findLeads')}
               </Link>
               <Link href='#integrations' className='py-1 text-base font-medium'>
-                CRM Integrations
+                {t('navItems.integrations')}
               </Link>
               <Link href='#comparison' className='py-1 text-base font-medium'>
-                Comparison
+                {t('navItems.comparison')}
               </Link>
               <Link href='#pricing' className='py-1 text-base font-medium'>
-                Pricing
+                {t('navItems.pricing')}
               </Link>
             </div>
           </div>

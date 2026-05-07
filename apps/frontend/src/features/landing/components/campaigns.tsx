@@ -14,80 +14,6 @@ import {
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
-const modes = [
-  {
-    id: 'preview',
-    tag: 'Automatic Preview Dialer',
-    tagline: 'Agent decides. Ringee dials.',
-    description:
-      'Pull the next qualified lead from the queue, review the contact, notes and last disposition, then launch the call with one click. Perfect for high-value outreach where context matters.',
-    color: 'from-violet-500/20 via-violet-500/5 to-transparent',
-    ring: 'ring-violet-500/20',
-    icon: IconEye,
-    iconColor: 'text-violet-500',
-    bullets: [
-      'Lead preview card with contact, last attempt & disposition',
-      'One-click dial with your verified caller ID',
-      'Agent-paced — great for quality-over-quantity outreach'
-    ]
-  },
-  {
-    id: 'progressive',
-    tag: 'Progressive Dialer',
-    tagline: 'Ready? Ringee pulls the next one.',
-    description:
-      'The dialer orchestrator auto-assigns the next lead the moment an agent is ready. Minimal idle time, consistent throughput — without the noise of predictive over-dialing.',
-    color: 'from-amber-500/20 via-amber-500/5 to-transparent',
-    ring: 'ring-amber-500/20',
-    icon: IconBolt,
-    iconColor: 'text-amber-500',
-    bullets: [
-      'Live orchestrator pairs ready agents with eligible leads',
-      'Compliance-aware: respects timezone & work windows',
-      'No dropped calls — 1:1 agent-to-call ratio'
-    ]
-  }
-];
-
-const supportFeatures = [
-  {
-    icon: IconList,
-    title: 'CSV & manual lead import',
-    description:
-      'Drop in thousands of leads at once. Built-in dedupe against existing contacts and leads.'
-  },
-  {
-    icon: IconTargetArrow,
-    title: 'Dispositions & outcomes',
-    description:
-      'Categorize every call — positive, neutral, negative, no-contact — with custom per-campaign dispositions.'
-  },
-  {
-    icon: IconClockHour4,
-    title: 'Calling window compliance',
-    description:
-      'Timezone-aware schedules with working hours and working days. Leads only get called when it is legal and polite.'
-  },
-  {
-    icon: IconRepeat,
-    title: 'Retries & max attempts',
-    description:
-      'Configurable max attempts per lead and retry delays — the retry engine handles the rest.'
-  },
-  {
-    icon: IconPhoneCall,
-    title: 'Callbacks & wrap-up',
-    description:
-      'Schedule callbacks, set per-campaign wrap-up time, and drop voicemails on no-answer.'
-  },
-  {
-    icon: IconHeartRateMonitor,
-    title: 'Live outbound analytics',
-    description:
-      'Agent sessions, call attempts, connect rate and dispositions — streamed live to your dashboard.'
-  }
-];
-
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: {
@@ -107,6 +33,75 @@ const itemVariants: Variants = {
 
 export default function Campaigns() {
   const tCampaigns = useTranslations('marketing.campaigns');
+
+  const modes = [
+    {
+      id: 'preview',
+      color: 'from-violet-500/20 via-violet-500/5 to-transparent',
+      ring: 'ring-violet-500/20',
+      icon: IconEye,
+      iconColor: 'text-violet-500',
+      tag: tCampaigns('modes.preview.tag'),
+      tagline: tCampaigns('modes.preview.tagline'),
+      description: tCampaigns('modes.preview.description'),
+      label: tCampaigns('modes.preview.label'),
+      bullets: [
+        tCampaigns('modes.preview.bullets.0'),
+        tCampaigns('modes.preview.bullets.1'),
+        tCampaigns('modes.preview.bullets.2')
+      ]
+    },
+    {
+      id: 'progressive',
+      color: 'from-amber-500/20 via-amber-500/5 to-transparent',
+      ring: 'ring-amber-500/20',
+      icon: IconBolt,
+      iconColor: 'text-amber-500',
+      tag: tCampaigns('modes.progressive.tag'),
+      tagline: tCampaigns('modes.progressive.tagline'),
+      description: tCampaigns('modes.progressive.description'),
+      label: tCampaigns('modes.progressive.label'),
+      bullets: [
+        tCampaigns('modes.progressive.bullets.0'),
+        tCampaigns('modes.progressive.bullets.1'),
+        tCampaigns('modes.progressive.bullets.2')
+      ]
+    }
+  ];
+
+  const supportFeatures = [
+    {
+      icon: IconList,
+      title: tCampaigns('features.csvImport.title'),
+      description: tCampaigns('features.csvImport.description')
+    },
+    {
+      icon: IconTargetArrow,
+      title: tCampaigns('features.dispositions.title'),
+      description: tCampaigns('features.dispositions.description')
+    },
+    {
+      icon: IconClockHour4,
+      title: tCampaigns('features.callingWindow.title'),
+      description: tCampaigns('features.callingWindow.description')
+    },
+    {
+      icon: IconRepeat,
+      title: tCampaigns('features.retries.title'),
+      description: tCampaigns('features.retries.description')
+    },
+    {
+      icon: IconPhoneCall,
+      title: tCampaigns('features.callbacks.title'),
+      description: tCampaigns('features.callbacks.description')
+    },
+    {
+      icon: IconHeartRateMonitor,
+      title: tCampaigns('features.analytics.title'),
+      description: tCampaigns('features.analytics.description')
+    }
+  ];
+
   return (
     <section
       id='campaigns'
@@ -177,9 +172,7 @@ export default function Campaigns() {
                   <mode.icon className={`h-6 w-6 ${mode.iconColor}`} />
                 </div>
                 <span className='border-border/60 bg-background/70 text-muted-foreground rounded-lg border px-2.5 py-0.5 text-[10px] font-semibold tracking-wider uppercase'>
-                  {mode.id === 'preview'
-                    ? 'Human-in-the-loop'
-                    : 'Auto-assigned'}
+                  {mode.label}
                 </span>
               </div>
 
@@ -221,7 +214,7 @@ export default function Campaigns() {
           viewport={{ once: true }}
           className='text-center text-xl font-semibold tracking-tight sm:text-2xl'
         >
-          Everything you need to run a campaign
+          {tCampaigns('featuresTitle')}
         </motion.h3>
         <motion.p
           initial={{ opacity: 0, y: 10 }}
@@ -230,7 +223,7 @@ export default function Campaigns() {
           transition={{ delay: 0.1 }}
           className='text-muted-foreground mx-auto mt-2 max-w-xl text-center text-sm'
         >
-          From lead import to live analytics — batteries included.
+          {tCampaigns('featuresSubtitle')}
         </motion.p>
 
         <motion.div

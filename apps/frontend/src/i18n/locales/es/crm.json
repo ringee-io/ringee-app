@@ -13,5 +13,82 @@
     "odoo": "Odoo",
     "apollo": "Apollo",
     "prospeo": "Prospeo"
+  },
+  "tabs": {
+    "crm": "CRM",
+    "enrichment": "Enriquecimiento de datos",
+    "leads": "Buscar leads"
+  },
+  "connections": {
+    "yourConnections": "Tus conexiones",
+    "refresh": "Actualizar",
+    "manageConnection": "Gestionar conexión",
+    "available": "Integraciones disponibles",
+    "availableDescription": "Elige un CRM para enviar llamadas, resultados, grabaciones y notas al contacto o empresa correcta.",
+    "noConnections": "Aún sin integraciones",
+    "noConnectionsDescription": "Conecta un CRM y cada llamada que realices aparecerá en el contacto correcto — con resultado, duración, grabación y notas — en segundos.",
+    "needsAttention": "{count, plural, one {# conexión necesita atención} other {# conexiones necesitan atención}}",
+    "needsAttentionDescription": "Reconecta para reanudar el registro de llamadas. Las llamadas pendientes se reintentarán automáticamente cuando la conexión esté activa.",
+    "loadError": "No se pudieron cargar las conexiones"
+  },
+  "status": {
+    "active": "Conectado",
+    "error": "Necesita atención",
+    "revoked": "Revocado",
+    "disconnected": "Desconectado"
+  },
+  "scope": {
+    "organization": "Organización",
+    "personal": "Personal",
+    "personalWorkspace": "Espacio personal",
+    "personalWorkspaceDescription": "Solo se registran tus llamadas. Tu token y datos permanecen en tu cuenta.",
+    "noActiveTeam": "Organización (sin equipo activo)",
+    "orgDescription": "Todos los miembros del equipo comparten esta conexión. Las llamadas de cualquier miembro se registran.",
+    "noOrgHint": "Cambia a una organización desde la esquina superior izquierda para activar la sincronización de organización."
+  },
+  "lastSyncNever": "Nunca",
+  "lastSyncJustNow": "ahora mismo",
+  "lastSyncMinutesAgo": "hace {n} min",
+  "lastSyncHoursAgo": "hace {n} h",
+  "lastSyncDaysAgo": "hace {n} días",
+  "lastSyncAt": "Última sincronización {time}",
+  "stats": {
+    "synced": "Sincronizados",
+    "pending": "Pendiente",
+    "failed": "Fallidos",
+    "review": "Revisar"
+  },
+  "actions": {
+    "viewSyncHistory": "Ver historial de sincronización",
+    "reconnect": "Reconectar",
+    "forgetConnection": "Olvidar conexión",
+    "forget": "Olvidar",
+    "cancel": "Cancelar",
+    "addAnother": "Añadir otra",
+    "connect": "Conectar {provider}",
+    "continueWith": "Continuar con {provider}",
+    "notifyMe": "Notificarme"
+  },
+  "dialogs": {
+    "disconnectTitle": "¿Desconectar {provider}?",
+    "disconnectDescription": "La sincronización de llamadas se pausará. Tu historial y registros de CRM existentes se conservarán. Puedes reconectarte en cualquier momento.",
+    "forgetTitle": "¿Olvidar esta conexión?",
+    "forgetDescription": "Esto elimina permanentemente los tokens, los vínculos de contactos y el historial de sincronización de Ringee. Los registros ya enviados a {provider} permanecen intactos.",
+    "connectTitle": "Conectar {provider}",
+    "connectDescription": "Elige dónde vivirá esta conexión. Las conexiones personales son privadas para ti, mientras que las de organización se comparten con todo tu equipo."
+  },
+  "errors": {
+    "revokedError": "El acceso fue revocado en el CRM.",
+    "connectionError": "Se produjo un error al contactar con el CRM.",
+    "errorCode": "Código: {code}"
+  },
+  "managementSheet": {
+    "syncHistory": "Historial de sincronización",
+    "import": "Importar",
+    "fieldMappings": "Mapeo de campos",
+    "team": "Equipo"
+  },
+  "badges": {
+    "soon": "Próximamente"
   }
 }

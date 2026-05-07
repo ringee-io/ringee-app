@@ -4,6 +4,17 @@
   "metaTitle": "Reuniones — Agendadas desde llamadas en frío | Ringee",
   "metaDescription": "Consulta y gestiona todas las reuniones agendadas durante llamadas en frío. Haz seguimiento de las próximas reuniones, revisa las pasadas y mantén tu pipeline al día.",
   "newMeeting": "Nueva reunión",
+  "searchPlaceholder": "Buscar por nombre de contacto...",
+  "tabs": {
+    "upcoming": "Próximas",
+    "all": "Todas",
+    "calendar": "Calendario",
+    "integrations": "Integraciones"
+  },
+  "sections": {
+    "upcoming": "Próximas",
+    "past": "Pasadas"
+  },
   "fields": {
     "title": "Título",
     "with": "Con",
@@ -11,8 +22,38 @@
     "duration": "Duración",
     "notes": "Notas"
   },
+  "columns": {
+    "dateTime": "Fecha y hora",
+    "contact": "Contacto",
+    "duration": "Duración",
+    "status": "Estado"
+  },
+  "viewDetails": "Ver detalles",
+  "location": "Ubicación",
+  "fromCall": "Desde llamada del {date}",
+  "min": "min",
+  "cancelMeeting": "Cancelar reunión",
+  "defaultTitle": "Reunión",
+  "status": {
+    "scheduled": "Programada",
+    "completed": "Completada",
+    "cancelled": "Cancelada",
+    "rescheduled": "Reprogramada"
+  },
+  "calendar": {
+    "month": "mes",
+    "week": "semana",
+    "day": "día"
+  },
   "empty": {
     "title": "Sin reuniones programadas",
-    "description": "Cuando agendes una reunión aparecerá aquí."
+    "description": "Cuando agendes una reunión aparecerá aquí.",
+    "noMeetings": "Aún no hay reuniones",
+    "noMeetingsDescription": "Agenda tu primera reunión durante una llamada. Todas las reuniones agendadas aparecerán aquí."
+  },
+  "toasts": {
+    "failedToLoad": "Error al cargar las reuniones",
+    "cancelled": "Reunión cancelada",
+    "failedToCancel": "Error al cancelar la reunión"
   }
 }

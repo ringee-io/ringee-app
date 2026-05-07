@@ -13,5 +13,82 @@
     "odoo": "Odoo",
     "apollo": "Apollo",
     "prospeo": "Prospeo"
+  },
+  "tabs": {
+    "crm": "CRM",
+    "enrichment": "Enrichissement des données",
+    "leads": "Trouver des prospects"
+  },
+  "connections": {
+    "yourConnections": "Vos connexions",
+    "refresh": "Actualiser",
+    "manageConnection": "Gérer la connexion",
+    "available": "Intégrations disponibles",
+    "availableDescription": "Choisissez un CRM pour transmettre les appels, résultats, enregistrements et notes au bon contact ou à la bonne entreprise.",
+    "noConnections": "Aucune intégration pour l'instant",
+    "noConnectionsDescription": "Connectez un CRM et chaque appel apparaîtra automatiquement sur le bon contact — avec résultat, durée, enregistrement et notes — en quelques secondes.",
+    "needsAttention": "{count, plural, one {# connexion nécessite votre attention} other {# connexions nécessitent votre attention}}",
+    "needsAttentionDescription": "Reconnectez-vous pour reprendre la journalisation des appels. Les appels en attente seront réessayés automatiquement une fois la connexion rétablie.",
+    "loadError": "Impossible de charger les connexions"
+  },
+  "status": {
+    "active": "Connecté",
+    "error": "Attention requise",
+    "revoked": "Révoqué",
+    "disconnected": "Déconnecté"
+  },
+  "scope": {
+    "organization": "Organisation",
+    "personal": "Personnel",
+    "personalWorkspace": "Espace personnel",
+    "personalWorkspaceDescription": "Seuls vos appels sont enregistrés. Votre token et vos données restent sur votre compte.",
+    "noActiveTeam": "Organisation (aucune équipe active)",
+    "orgDescription": "Tous les membres de l'organisation partagent cette connexion. Les appels de n'importe quel membre sont enregistrés.",
+    "noOrgHint": "Basculez vers une organisation depuis le coin supérieur gauche pour activer la synchronisation organisationnelle."
+  },
+  "lastSyncNever": "Jamais",
+  "lastSyncJustNow": "à l'instant",
+  "lastSyncMinutesAgo": "il y a {n} min",
+  "lastSyncHoursAgo": "il y a {n} h",
+  "lastSyncDaysAgo": "il y a {n} j",
+  "lastSyncAt": "Dernière sync {time}",
+  "stats": {
+    "synced": "Synchronisés",
+    "pending": "En attente",
+    "failed": "Échoués",
+    "review": "À réviser"
+  },
+  "actions": {
+    "viewSyncHistory": "Voir l'historique de sync",
+    "reconnect": "Reconnecter",
+    "forgetConnection": "Oublier la connexion",
+    "forget": "Oublier",
+    "cancel": "Annuler",
+    "addAnother": "Ajouter une autre",
+    "connect": "Connecter {provider}",
+    "continueWith": "Continuer vers {provider}",
+    "notifyMe": "Me notifier"
+  },
+  "dialogs": {
+    "disconnectTitle": "Déconnecter {provider} ?",
+    "disconnectDescription": "La synchronisation des appels sera suspendue. Votre historique et vos enregistrements CRM existants seront conservés. Vous pouvez vous reconnecter à tout moment.",
+    "forgetTitle": "Oublier cette connexion ?",
+    "forgetDescription": "Ceci supprime définitivement les tokens, les liens de contacts et l'historique de synchronisation de Ringee. Les enregistrements déjà transmis à {provider} restent intacts.",
+    "connectTitle": "Connecter {provider}",
+    "connectDescription": "Choisissez où vivra cette connexion. Les connexions personnelles sont privées, tandis que les connexions d'organisation sont partagées avec toute votre équipe."
+  },
+  "errors": {
+    "revokedError": "L'accès a été révoqué dans le CRM.",
+    "connectionError": "Une erreur s'est produite lors du contact avec le CRM.",
+    "errorCode": "Code : {code}"
+  },
+  "managementSheet": {
+    "syncHistory": "Historique de sync",
+    "import": "Importer",
+    "fieldMappings": "Correspondance des champs",
+    "team": "Équipe"
+  },
+  "badges": {
+    "soon": "Bientôt"
   }
 }

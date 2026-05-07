@@ -13,5 +13,82 @@
     "odoo": "Odoo",
     "apollo": "Apollo",
     "prospeo": "Prospeo"
+  },
+  "tabs": {
+    "crm": "CRM",
+    "enrichment": "Enriquecimento de dados",
+    "leads": "Encontrar leads"
+  },
+  "connections": {
+    "yourConnections": "As suas ligações",
+    "refresh": "Atualizar",
+    "manageConnection": "Gerir ligação",
+    "available": "Integrações disponíveis",
+    "availableDescription": "Escolha um CRM para enviar chamadas, resultados, gravações e notas para o contacto ou empresa correto.",
+    "noConnections": "Ainda sem integrações",
+    "noConnectionsDescription": "Ligue um CRM e cada chamada que fizer aparecerá no contacto correto — com resultado, duração, gravação e notas — em segundos.",
+    "needsAttention": "{count, plural, one {# ligação precisa de atenção} other {# ligações precisam de atenção}}",
+    "needsAttentionDescription": "Volte a ligar para retomar o registo de chamadas. As chamadas pendentes serão reexperimentadas automaticamente quando a ligação estiver restabelecida.",
+    "loadError": "Não foi possível carregar as ligações"
+  },
+  "status": {
+    "active": "Ligado",
+    "error": "Atenção necessária",
+    "revoked": "Revogado",
+    "disconnected": "Desligado"
+  },
+  "scope": {
+    "organization": "Organização",
+    "personal": "Pessoal",
+    "personalWorkspace": "Área de trabalho pessoal",
+    "personalWorkspaceDescription": "Apenas as suas chamadas são registadas. O seu token e dados ficam na sua conta.",
+    "noActiveTeam": "Organização (sem equipa ativa)",
+    "orgDescription": "Todos os membros da organização partilham esta ligação. As chamadas de qualquer membro são registadas.",
+    "noOrgHint": "Mude para uma organização no canto superior esquerdo para ativar a sincronização ao nível da organização."
+  },
+  "lastSyncNever": "Nunca",
+  "lastSyncJustNow": "agora mesmo",
+  "lastSyncMinutesAgo": "há {n} min",
+  "lastSyncHoursAgo": "há {n} h",
+  "lastSyncDaysAgo": "há {n} dias",
+  "lastSyncAt": "Última sincronização {time}",
+  "stats": {
+    "synced": "Sincronizados",
+    "pending": "Pendente",
+    "failed": "Falhados",
+    "review": "Rever"
+  },
+  "actions": {
+    "viewSyncHistory": "Ver histórico de sincronização",
+    "reconnect": "Voltar a ligar",
+    "forgetConnection": "Esquecer ligação",
+    "forget": "Esquecer",
+    "cancel": "Cancelar",
+    "addAnother": "Adicionar outra",
+    "connect": "Ligar {provider}",
+    "continueWith": "Continuar para {provider}",
+    "notifyMe": "Notifique-me"
+  },
+  "dialogs": {
+    "disconnectTitle": "Desligar {provider}?",
+    "disconnectDescription": "A sincronização de chamadas será pausada. O seu histórico existente e registos de CRM serão preservados. Pode voltar a ligar a qualquer momento.",
+    "forgetTitle": "Esquecer esta ligação?",
+    "forgetDescription": "Isto remove permanentemente tokens, ligações de contactos e histórico de sincronização do Ringee. Os registos já enviados para {provider} ficam intactos.",
+    "connectTitle": "Ligar {provider}",
+    "connectDescription": "Escolha onde esta ligação ficará. As ligações pessoais são privadas, as de organização são partilhadas com toda a sua equipa."
+  },
+  "errors": {
+    "revokedError": "O acesso foi revogado no CRM.",
+    "connectionError": "Ocorreu um erro ao contactar o CRM.",
+    "errorCode": "Código: {code}"
+  },
+  "managementSheet": {
+    "syncHistory": "Histórico de sincronização",
+    "import": "Importar",
+    "fieldMappings": "Mapeamento de campos",
+    "team": "Equipa"
+  },
+  "badges": {
+    "soon": "Em breve"
   }
 }

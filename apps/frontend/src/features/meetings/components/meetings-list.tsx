@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useTranslations } from 'next-intl';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
@@ -95,6 +96,7 @@ interface MeetingsResponse {
 }
 
 export function MeetingsList() {
+  const t = useTranslations('meetings');
   const api = useApi();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -128,11 +130,11 @@ export function MeetingsList() {
       );
       setMeetings(data.data);
     } catch {
-      toast.error('Failed to load meetings');
+      toast.error(t('toasts.failedToLoad'));
     } finally {
       setIsLoading(false);
     }
-  }, [api, tab, debouncedSearch]);
+  }, [api, tab, debouncedSearch, t]);
 
   useEffect(() => {
     fetchMeetings();
@@ -142,11 +144,11 @@ export function MeetingsList() {
     setCancellingId(id);
     try {
       await api.patch(`/meetings/${id}/cancel`, {});
-      toast.success('Meeting cancelled');
+      toast.success(t('toasts.cancelled'));
       setSelectedMeeting(null);
       fetchMeetings();
     } catch {
-      toast.error('Failed to cancel meeting');
+      toast.error(t('toasts.failedToCancel'));
     } finally {
       setCancellingId(null);
     }
@@ -159,8 +161,6 @@ export function MeetingsList() {
     (m) => m.status !== 'scheduled' || isPast(new Date(m.scheduledAt))
   );
 
-
-
   return (
     <div className='flex flex-col gap-4'>
       {/* Top bar */}
@@ -168,7 +168,7 @@ export function MeetingsList() {
         <div className='relative flex-1 max-w-sm'>
           <Search className='text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2' />
           <Input
-            placeholder='Search by contact name...'
+            placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className='pl-9 h-9'
@@ -188,19 +188,19 @@ export function MeetingsList() {
         <TabsList>
           <TabsTrigger value='upcoming' className='gap-1.5'>
             <List className='h-3.5 w-3.5' />
-            Upcoming
+            {t('tabs.upcoming')}
           </TabsTrigger>
           <TabsTrigger value='all' className='gap-1.5'>
             <List className='h-3.5 w-3.5' />
-            All
+            {t('tabs.all')}
           </TabsTrigger>
           <TabsTrigger value='calendar' className='gap-1.5'>
             <CalendarDays className='h-3.5 w-3.5' />
-            Calendar
+            {t('tabs.calendar')}
           </TabsTrigger>
           <TabsTrigger value='integrations' className='gap-1.5'>
             <Link2 className='h-3.5 w-3.5' />
-            Integrations
+            {t('tabs.integrations')}
           </TabsTrigger>
         </TabsList>
 
@@ -209,9 +209,9 @@ export function MeetingsList() {
           {isLoading ? (
             <DataTableSkeleton columnCount={5} rowCount={5} withPagination={false} />
           ) : upcoming.length === 0 ? (
-            <EmptyState />
+            <EmptyState t={t} />
           ) : (
-            <MeetingRows meetings={upcoming} onSelect={setSelectedMeeting} />
+            <MeetingRows meetings={upcoming} onSelect={setSelectedMeeting} t={t} />
           )}
         </TabsContent>
 
@@ -220,26 +220,27 @@ export function MeetingsList() {
           {isLoading ? (
             <DataTableSkeleton columnCount={5} rowCount={7} withPagination={false} />
           ) : meetings.length === 0 ? (
-            <EmptyState />
+            <EmptyState t={t} />
           ) : (
             <div className='space-y-6'>
               {upcoming.length > 0 && (
                 <div>
                   <p className='text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wider'>
-                    Upcoming
+                    {t('sections.upcoming')}
                   </p>
                   <MeetingRows
                     meetings={upcoming}
                     onSelect={setSelectedMeeting}
+                    t={t}
                   />
                 </div>
               )}
               {past.length > 0 && (
                 <div>
                   <p className='text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wider'>
-                    Past
+                    {t('sections.past')}
                   </p>
-                  <MeetingRows meetings={past} onSelect={setSelectedMeeting} />
+                  <MeetingRows meetings={past} onSelect={setSelectedMeeting} t={t} />
                 </div>
               )}
             </div>
@@ -253,6 +254,7 @@ export function MeetingsList() {
             onDateChange={setCalendarDate}
             meetings={meetings}
             onSelectMeeting={setSelectedMeeting}
+            t={t}
           />
         </TabsContent>
 
@@ -273,6 +275,7 @@ export function MeetingsList() {
               meeting={selectedMeeting}
               onCancel={handleCancel}
               cancellingId={cancellingId}
+              t={t}
             />
           )}
         </SheetContent>
@@ -281,22 +284,26 @@ export function MeetingsList() {
   );
 }
 
+type TFunc = (key: string, values?: Record<string, unknown>) => string;
+
 function MeetingDetail({
   meeting,
   onCancel,
-  cancellingId
+  cancellingId,
+  t
 }: {
   meeting: Meeting;
   onCancel: (id: string) => void;
   cancellingId: string | null;
+  t: TFunc;
 }) {
   return (
     <>
       <SheetHeader>
         <SheetTitle className='text-base'>
-          {meeting.title || 'Meeting'}
+          {meeting.title || t('defaultTitle')}
         </SheetTitle>
-        <StatusBadge status={meeting.status} />
+        <StatusBadge status={meeting.status} t={t} />
       </SheetHeader>
       <div className='mt-6 space-y-5'>
         {/* Date & time */}
@@ -310,7 +317,7 @@ function MeetingDetail({
             </p>
             <p className='text-muted-foreground text-sm'>
               {format(new Date(meeting.scheduledAt), 'h:mm a')} &middot;{' '}
-              {meeting.duration} min
+              {meeting.duration} {t('min')}
             </p>
           </div>
         </div>
@@ -347,7 +354,7 @@ function MeetingDetail({
               </div>
               <div>
                 <p className='text-muted-foreground text-xs uppercase tracking-wider'>
-                  Location
+                  {t('location')}
                 </p>
                 <p className='text-sm'>{meeting.location}</p>
               </div>
@@ -365,7 +372,7 @@ function MeetingDetail({
               </div>
               <div>
                 <p className='text-muted-foreground text-xs uppercase tracking-wider'>
-                  Notes
+                  {t('fields.notes')}
                 </p>
                 <p className='mt-0.5 text-sm'>{meeting.notes}</p>
               </div>
@@ -383,12 +390,11 @@ function MeetingDetail({
               </div>
               <div>
                 <p className='text-muted-foreground text-xs'>
-                  From call on{' '}
-                  {format(new Date(meeting.call.createdAt), 'MMM d, yyyy')}
+                  {t('fromCall', { date: format(new Date(meeting.call.createdAt), 'MMM d, yyyy') })}
                 </p>
                 {meeting.call.durationSeconds != null && (
                   <p className='text-muted-foreground text-xs'>
-                    Duration:{' '}
+                    {t('fields.duration')}:{' '}
                     {Math.floor(meeting.call.durationSeconds / 60)}:
                     {(meeting.call.durationSeconds % 60)
                       .toString()
@@ -415,7 +421,7 @@ function MeetingDetail({
               {cancellingId === meeting.id ? (
                 <Loader2 className='mr-1.5 h-3.5 w-3.5 animate-spin' />
               ) : null}
-              Cancel Meeting
+              {t('cancelMeeting')}
             </Button>
           )}
       </div>
@@ -423,9 +429,7 @@ function MeetingDetail({
   );
 }
 
-// --- DataTable Configuration --- //
-
-function getColumns(onSelect: (m: Meeting) => void): ColumnDef<Meeting>[] {
+function getColumns(onSelect: (m: Meeting) => void, t: TFunc): ColumnDef<Meeting>[] {
   return [
     {
       accessorKey: 'statusDot',
@@ -451,7 +455,7 @@ function getColumns(onSelect: (m: Meeting) => void): ColumnDef<Meeting>[] {
     },
     {
       accessorKey: 'datetime',
-      header: 'Date & Time',
+      header: t('columns.dateTime'),
       cell: ({ row }) => {
         const m = row.original;
         return (
@@ -471,7 +475,7 @@ function getColumns(onSelect: (m: Meeting) => void): ColumnDef<Meeting>[] {
     },
     {
       accessorKey: 'contact',
-      header: 'Contact',
+      header: t('columns.contact'),
       cell: ({ row }) => {
         const m = row.original;
         return (
@@ -488,23 +492,23 @@ function getColumns(onSelect: (m: Meeting) => void): ColumnDef<Meeting>[] {
     },
     {
       accessorKey: 'duration',
-      header: 'Duration',
+      header: t('columns.duration'),
       cell: ({ row }) => {
         const m = row.original;
         return (
           <div className='text-muted-foreground flex items-center gap-1 text-xs'>
             <Clock className='h-3 w-3' />
-            {m.duration}m
+            {m.duration}{t('min')}
           </div>
         );
       }
     },
     {
       accessorKey: 'status',
-      header: () => <div className='text-right'>Status</div>,
+      header: () => <div className='text-right'>{t('columns.status')}</div>,
       cell: ({ row }) => (
         <div className='text-right'>
-          <StatusBadge status={row.original.status} />
+          <StatusBadge status={row.original.status} t={t} />
         </div>
       )
     },
@@ -513,7 +517,7 @@ function getColumns(onSelect: (m: Meeting) => void): ColumnDef<Meeting>[] {
       cell: ({ row }) => (
         <div className='flex justify-end'>
           <Button variant='ghost' size='sm' onClick={() => onSelect(row.original)}>
-            View Details
+            {t('viewDetails')}
           </Button>
         </div>
       ),
@@ -524,14 +528,16 @@ function getColumns(onSelect: (m: Meeting) => void): ColumnDef<Meeting>[] {
 
 function MeetingRows({
   meetings,
-  onSelect
+  onSelect,
+  t
 }: {
   meetings: Meeting[];
   onSelect: (m: Meeting) => void;
+  t: TFunc;
 }) {
   const table = useReactTable({
     data: meetings,
-    columns: getColumns(onSelect),
+    columns: getColumns(onSelect, t),
     getCoreRowModel: getCoreRowModel()
   });
 
@@ -539,29 +545,30 @@ function MeetingRows({
 }
 
 function StatusBadge({
-  status
+  status,
+  t
 }: {
   status: 'scheduled' | 'completed' | 'cancelled' | 'rescheduled';
+  t: TFunc;
 }) {
   if (status === 'scheduled') return null;
   const variant = status === 'cancelled' ? 'destructive' : 'secondary';
   return (
     <Badge variant={variant} className='text-[10px] capitalize'>
-      {status}
+      {t(`status.${status}`)}
     </Badge>
   );
 }
 
-function EmptyState() {
+function EmptyState({ t }: { t: TFunc }) {
   return (
     <div className='flex flex-col items-center justify-center py-20 text-center border rounded-md bg-card shadow-sm'>
       <div className='bg-muted mb-4 flex h-16 w-16 items-center justify-center rounded-full'>
         <CalendarCheck className='text-muted-foreground/50 h-8 w-8' />
       </div>
-      <h3 className='text-base font-semibold'>No meetings yet</h3>
+      <h3 className='text-base font-semibold'>{t('empty.noMeetings')}</h3>
       <p className='text-muted-foreground mt-1 max-w-xs text-sm'>
-        Book your first meeting during a call. Every booked meeting shows up
-        here.
+        {t('empty.noMeetingsDescription')}
       </p>
     </div>
   );
@@ -571,12 +578,14 @@ function FullCalendarView({
   currentDate,
   onDateChange,
   meetings,
-  onSelectMeeting
+  onSelectMeeting,
+  t
 }: {
   currentDate: Date;
   onDateChange: (date: Date) => void;
   meetings: Meeting[];
   onSelectMeeting: (m: Meeting) => void;
+  t: TFunc;
 }) {
   const [view, setView] = useState<'month' | 'week' | 'day'>('month');
 
@@ -625,7 +634,7 @@ function FullCalendarView({
                   view === v ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 )}
               >
-                {v}
+                {t(`calendar.${v}`)}
               </button>
             ))}
           </div>
@@ -682,7 +691,7 @@ function FullCalendarView({
                         onClick={() => onSelectMeeting(m)}
                         className={cn(
                           'flex flex-col items-start gap-0.5 truncate rounded px-2 py-1.5 text-left transition-all hover:opacity-80 hover:shadow-sm focus:ring-1 focus:outline-none w-full bg-zinc-950',
-                          m.status === 'scheduled' ? 'text-emerald-400 font-medium border border-emerald-500/30 shadow-[inset_0_0_10px_rgba(16,185,129,0.05)]' : 
+                          m.status === 'scheduled' ? 'text-emerald-400 font-medium border border-emerald-500/30 shadow-[inset_0_0_10px_rgba(16,185,129,0.05)]' :
                           m.status === 'completed' ? 'text-blue-400 border border-blue-500/30 shadow-[inset_0_0_10px_rgba(59,130,246,0.05)]' :
                           m.status === 'cancelled' ? 'text-red-400 border border-red-500/30 line-through opacity-70 shadow-[inset_0_0_10px_rgba(239,68,68,0.05)]' :
                           'text-amber-400 border border-amber-500/30 shadow-[inset_0_0_10px_rgba(245,158,11,0.05)]'
@@ -741,7 +750,7 @@ function FullCalendarView({
                         onClick={() => onSelectMeeting(m)}
                         className={cn(
                           'absolute left-1 right-1 rounded border p-1 sm:p-1.5 text-left transition-all hover:shadow-md overflow-hidden flex flex-col hover:z-10 bg-zinc-950',
-                          m.status === 'scheduled' ? 'text-emerald-400 border-emerald-500/40 shadow-[inset_0_0_12px_rgba(16,185,129,0.1)] shadow-[0_4px_12px_rgba(16,185,129,0.05)]' : 
+                          m.status === 'scheduled' ? 'text-emerald-400 border-emerald-500/40 shadow-[inset_0_0_12px_rgba(16,185,129,0.1)] shadow-[0_4px_12px_rgba(16,185,129,0.05)]' :
                           m.status === 'completed' ? 'text-blue-400 border-blue-500/30 shadow-[inset_0_0_12px_rgba(59,130,246,0.1)]' :
                           m.status === 'cancelled' ? 'text-red-400 border-red-500/30 line-through opacity-90 shadow-[inset_0_0_12px_rgba(239,68,68,0.05)]' :
                           'text-amber-400 border-amber-500/30 shadow-[inset_0_0_12px_rgba(245,158,11,0.1)]'
@@ -794,7 +803,7 @@ function FullCalendarView({
                       onClick={() => onSelectMeeting(m)}
                       className={cn(
                         'absolute left-2 right-4 rounded-md border p-2 text-left transition-all hover:shadow-md overflow-hidden flex flex-col hover:z-10 bg-zinc-950',
-                        m.status === 'scheduled' ? 'text-emerald-400 border-emerald-500/40 shadow-[inset_0_0_15px_rgba(16,185,129,0.15)] shadow-[0_4px_12px_rgba(16,185,129,0.05)]' : 
+                        m.status === 'scheduled' ? 'text-emerald-400 border-emerald-500/40 shadow-[inset_0_0_15px_rgba(16,185,129,0.15)] shadow-[0_4px_12px_rgba(16,185,129,0.05)]' :
                         m.status === 'completed' ? 'text-blue-400 border-blue-500/30 shadow-[inset_0_0_15px_rgba(59,130,246,0.1)]' :
                         m.status === 'cancelled' ? 'text-red-400 border-red-500/30 line-through opacity-90 shadow-[inset_0_0_15px_rgba(239,68,68,0.05)]' :
                         'text-amber-400 border-amber-500/30 shadow-[inset_0_0_15px_rgba(245,158,11,0.1)]'

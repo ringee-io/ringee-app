@@ -4,6 +4,17 @@
   "metaTitle": "Riunioni — Fissate dalle chiamate a freddo | Ringee",
   "metaDescription": "Visualizza e gestisci tutte le riunioni fissate durante le chiamate a freddo. Tieni traccia degli appuntamenti futuri, rivedi quelli passati e mantieni la pipeline sotto controllo.",
   "newMeeting": "Nuova riunione",
+  "searchPlaceholder": "Cerca per nome del contatto...",
+  "tabs": {
+    "upcoming": "In arrivo",
+    "all": "Tutte",
+    "calendar": "Calendario",
+    "integrations": "Integrazioni"
+  },
+  "sections": {
+    "upcoming": "In arrivo",
+    "past": "Passate"
+  },
   "fields": {
     "title": "Titolo",
     "with": "Con",
@@ -11,8 +22,38 @@
     "duration": "Durata",
     "notes": "Note"
   },
+  "columns": {
+    "dateTime": "Data e ora",
+    "contact": "Contatto",
+    "duration": "Durata",
+    "status": "Stato"
+  },
+  "viewDetails": "Visualizza dettagli",
+  "location": "Luogo",
+  "fromCall": "Dalla chiamata del {date}",
+  "min": "min",
+  "cancelMeeting": "Annulla riunione",
+  "defaultTitle": "Riunione",
+  "status": {
+    "scheduled": "Programmata",
+    "completed": "Completata",
+    "cancelled": "Annullata",
+    "rescheduled": "Riprogrammata"
+  },
+  "calendar": {
+    "month": "mese",
+    "week": "settimana",
+    "day": "giorno"
+  },
   "empty": {
     "title": "Nessuna riunione in programma",
-    "description": "Una volta fissata una riunione, comparirà qui."
+    "description": "Una volta fissata una riunione, comparirà qui.",
+    "noMeetings": "Nessuna riunione ancora",
+    "noMeetingsDescription": "Prenota la tua prima riunione durante una chiamata. Tutte le riunioni prenotate appariranno qui."
+  },
+  "toasts": {
+    "failedToLoad": "Impossibile caricare le riunioni",
+    "cancelled": "Riunione annullata",
+    "failedToCancel": "Impossibile annullare la riunione"
   }
 }

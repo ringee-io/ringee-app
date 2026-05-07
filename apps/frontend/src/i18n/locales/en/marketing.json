@@ -9,6 +9,15 @@
     "contact": "Contact",
     "signIn": "Sign in",
     "getStarted": "Get started",
+    "productDescription": "The modern open-source communication platform designed for growth.",
+    "navDescriptions": {
+      "features": "Explore our core features and capabilities.",
+      "campaigns": "Preview and progressive dialers for outbound teams.",
+      "findLeads": "Apollo.io and Prospeo.io — prospecting, built in.",
+      "integrations": "Attio, Odoo — and more on the way.",
+      "comparison": "See how we compare against the competition.",
+      "pricing": "Flexible pricing for teams of all sizes."
+    },
     "navItems": {
       "features": "Features",
       "campaigns": "Campaigns",
@@ -83,17 +92,190 @@
   "campaigns": {
     "kicker": "Outbound campaigns",
     "title": "Purpose-built dialers for every playbook",
-    "subtitle": "Run cold outreach, follow-ups, and re-engagement with the dialer mode that matches your team's flow — from agent-reviewed calls to hands-off auto-dialing."
+    "subtitle": "Run cold outreach, follow-ups, and re-engagement with the dialer mode that matches your team's flow — from agent-reviewed calls to hands-off auto-dialing.",
+    "featuresTitle": "Everything you need to run a campaign",
+    "featuresSubtitle": "From lead import to live analytics — batteries included.",
+    "modes": {
+      "preview": {
+        "tag": "Automatic Preview Dialer",
+        "tagline": "Agent decides. Ringee dials.",
+        "description": "Pull the next qualified lead from the queue, review the contact, notes and last disposition, then launch the call with one click. Perfect for high-value outreach where context matters.",
+        "label": "Human-in-the-loop",
+        "bullets": {
+          "0": "Lead preview card with contact, last attempt & disposition",
+          "1": "One-click dial with your verified caller ID",
+          "2": "Agent-paced — great for quality-over-quantity outreach"
+        }
+      },
+      "progressive": {
+        "tag": "Progressive Dialer",
+        "tagline": "Ready? Ringee pulls the next one.",
+        "description": "The dialer orchestrator auto-assigns the next lead the moment an agent is ready. Minimal idle time, consistent throughput — without the noise of predictive over-dialing.",
+        "label": "Auto-assigned",
+        "bullets": {
+          "0": "Live orchestrator pairs ready agents with eligible leads",
+          "1": "Compliance-aware: respects timezone & work windows",
+          "2": "No dropped calls — 1:1 agent-to-call ratio"
+        }
+      }
+    },
+    "features": {
+      "csvImport": {
+        "title": "CSV & manual lead import",
+        "description": "Drop in thousands of leads at once. Built-in dedupe against existing contacts and leads."
+      },
+      "dispositions": {
+        "title": "Dispositions & outcomes",
+        "description": "Categorize every call — positive, neutral, negative, no-contact — with custom per-campaign dispositions."
+      },
+      "callingWindow": {
+        "title": "Calling window compliance",
+        "description": "Timezone-aware schedules with working hours and working days. Leads only get called when it is legal and polite."
+      },
+      "retries": {
+        "title": "Retries & max attempts",
+        "description": "Configurable max attempts per lead and retry delays — the retry engine handles the rest."
+      },
+      "callbacks": {
+        "title": "Callbacks & wrap-up",
+        "description": "Schedule callbacks, set per-campaign wrap-up time, and drop voicemails on no-answer."
+      },
+      "analytics": {
+        "title": "Live outbound analytics",
+        "description": "Agent sessions, call attempts, connect rate and dispositions — streamed live to your dashboard."
+      }
+    }
   },
   "findLeads": {
     "kicker": "Find leads & enrich",
     "title": "Find and enrich leads — without leaving Ringee",
-    "subtitle": "Apollo and Prospeo are built in. Search, enrich, and dial in seconds."
+    "subtitle": "Apollo and Prospeo are built in. Search, enrich, and dial in seconds.",
+    "availableNow": "Available now",
+    "bringOwnKey": "Bring your own API key",
+    "workflow": {
+      "title": "Built for a tight prospect-to-call loop",
+      "subtitle": "Every search, reveal and enrichment lands in your Ringee workspace — ready for a dialer, a CRM sync or a workflow."
+    },
+    "workflowFeatures": {
+      "granularFilters": {
+        "title": "Granular search filters",
+        "description": "Title seniority, industry, headcount, location, technologies — compose the exact ICP query your GTM motion needs."
+      },
+      "emailReveal": {
+        "title": "On-demand email & phone reveal",
+        "description": "Pay only for the contacts you actually want to reach. Reveals are cached and attached to the lead permanently."
+      },
+      "unifiedCredits": {
+        "title": "Unified credits",
+        "description": "One credit ledger covers search, reveals and enrichment. Transparent per-action pricing, no surprise add-ons."
+      },
+      "autoDedup": {
+        "title": "Auto-dedup on import",
+        "description": "Imported leads are deduped against your existing contacts by phone and email before they hit your pipeline."
+      },
+      "onClickCampaign": {
+        "title": "One-click to campaign",
+        "description": "Push a search result straight into a Progressive or Preview dialer campaign — ready to call in seconds."
+      },
+      "enrichContacts": {
+        "title": "Enrich existing contacts",
+        "description": "Backfill missing emails, phones, titles and company data on the contacts already in Ringee — no CSV shuffling."
+      }
+    },
+    "badges": {
+      "payPerAction": "Pay-per-action credits",
+      "encryptedCreds": "Encrypted credentials at rest",
+      "dedupeContacts": "Dedupe against existing contacts",
+      "moreProviders": "More providers coming"
+    },
+    "providers": {
+      "apollo": {
+        "tagline": "Prospect, enrich and call — all in one flow.",
+        "description": "Search across 275M+ contacts and 70M+ companies. Filter by title, industry, geography, headcount and tech stack, then reveal verified emails and mobile numbers on demand.",
+        "badge": "Lead search + enrichment",
+        "capabilities": {
+          "search": "People & company search",
+          "emailReveal": "Verified email reveal",
+          "phoneReveal": "Mobile number reveal",
+          "firmographics": "Firmographics & tech stack"
+        }
+      },
+      "prospeo": {
+        "tagline": "High-accuracy email finder, on tap.",
+        "description": "Resolve emails from LinkedIn URLs or name + company pairs with industry-leading validity rates. Perfect for enriching existing contacts before you dial.",
+        "badge": "Contact enrichment",
+        "capabilities": {
+          "emailFinder": "Email finder from LinkedIn",
+          "domainLookup": "Domain & name lookup",
+          "bulkEnrichment": "Bulk enrichment",
+          "deliverability": "Validated deliverability"
+        }
+      }
+    }
   },
   "crmIntegrations": {
     "kicker": "CRM integrations",
     "title": "Every call auto-logged to your CRM",
-    "subtitle": "Attio and Odoo today, more on the way. Notes, recordings, and outcomes sync automatically."
+    "subtitle": "Attio and Odoo today, more on the way. Notes, recordings, and outcomes sync automatically.",
+    "availableNow": "Available now",
+    "comingSoon": "Coming soon",
+    "moreOnTheWay": {
+      "title": "More on the way",
+      "description": "Pipedrive, Zoho, Close and more are on the roadmap. Open an issue or vote on GitHub to help us prioritize.",
+      "cta": "Request an integration"
+    },
+    "capabilities": {
+      "title": "One engine, every integration",
+      "subtitle": "Built on a shared sync primitive — so every CRM gets the same reliable guarantees."
+    },
+    "syncFeatures": {
+      "contactSync": {
+        "title": "Bi-directional contact sync",
+        "description": "Pull contacts and companies on connect. New Ringee contacts push back upstream automatically."
+      },
+      "callLogs": {
+        "title": "Call activity logs",
+        "description": "Every completed call becomes a structured activity with duration, disposition and outcome."
+      },
+      "notesTranscripts": {
+        "title": "Notes, transcripts & recordings",
+        "description": "Attach call notes, AI summaries, transcripts, and secure recording URLs to the right record."
+      },
+      "fieldMappings": {
+        "title": "Custom field mappings",
+        "description": "Map Ringee fields to your CRM schema. Push, pull or bi-directional — per field, per connection."
+      },
+      "retryOutbox": {
+        "title": "Reliable retry & outbox",
+        "description": "A durable outbox retries failed syncs with backoff, so transient CRM hiccups never lose data."
+      },
+      "orgScope": {
+        "title": "Personal & organization scope",
+        "description": "Connect a CRM for just yourself, or share one connection across your whole team."
+      }
+    },
+    "badges": {
+      "oauthAuth": "OAuth & API-key auth",
+      "encryptedCreds": "Encrypted credentials at rest",
+      "idempotentWrites": "Idempotent, retry-safe writes"
+    },
+    "providers": {
+      "attio": {
+        "description": "Sync contacts, companies, call activity, recordings and transcripts to your Attio workspace."
+      },
+      "odoo19": {
+        "description": "Modern JSON-2 integration for the latest Odoo instances. Log calls as activities on res.partner."
+      },
+      "odoo14": {
+        "description": "Classic XML-RPC compatibility for existing Odoo deployments from version 14 through 18."
+      },
+      "hubspot": {
+        "description": "Bi-directional contact sync and native call activities on HubSpot records."
+      },
+      "salesforce": {
+        "description": "Enterprise-grade sync with Leads, Contacts and Accounts on SFDC."
+      }
+    }
   },
   "pricing": {
     "title": "Pricing for Individuals & Teams",
@@ -138,7 +320,59 @@
   },
   "comparison": {
     "title": "Compare Ringee.io",
-    "subtitle": "How Ringee compares to Adversus and Genesys if you want flexible, browser-based outbound calling without expensive per-seat contracts."
+    "subtitle": "How Ringee compares to Adversus and Genesys if you want flexible, browser-based outbound calling without expensive per-seat contracts.",
+    "table": {
+      "featuresHeader": "Features",
+      "footerNote": "* Adversus and Genesys typically charge per seat with higher fixed monthly commitments, while Ringee keeps a flat $20/month per organization with unlimited members."
+    },
+    "rows": {
+      "browserBased": {
+        "feature": "Browser-based (no install)",
+        "ringee": "Make and receive calls directly from your web browser — no softphone install required.",
+        "adversus": "Web-based platform focused on outbound campaigns and call-center workflows.",
+        "genesys": "Cloud contact-center suite; agents typically use dedicated web or desktop apps."
+      },
+      "singleUser": {
+        "feature": "Start with 1 user",
+        "ringee": "No minimum users — start solo and add team members as you grow."
+      },
+      "pricingModel": {
+        "feature": "Pricing model",
+        "ringee": "Pay-as-you-go for minutes & numbers + optional $20/month business plan per organization (unlimited members).",
+        "adversus": "Per-seat subscription with monthly/annual billing and a minimum number of agent users.",
+        "genesys": "Enterprise per-seat / contract pricing, usually tied to larger deployments."
+      },
+      "perSeat": {
+        "feature": "Per-seat subscription",
+        "ringee": "NO PER-SEAT PRICING — flat $20/month per organization with unlimited team members."
+      },
+      "monthlyMin": {
+        "feature": "Typical monthly minimum",
+        "ringee": "Start with $0 in fixed fees — just top up credits. Add the $20/month business plan only when you need team features.",
+        "adversus": "From 122 €/month per agent, minimum 3 agent users (366 €/month) for unlimited EU + US + Canada calls, excl. VAT.",
+        "genesys": "Custom enterprise quote, typically higher ACV and multi-year contracts."
+      },
+      "globalCoverage": {
+        "feature": "Global coverage",
+        "ringee": "Call and receive in 180+ countries with transparent global rates.",
+        "adversus": "Core focus on unlimited calls in EU + US + Canada. Other destinations depend on your plan and carrier setup."
+      },
+      "outboundDialer": {
+        "feature": "Outbound sales dialer",
+        "ringee": "Great for manual and semi-structured outbound and cold calling from browser or mobile."
+      },
+      "smallTeams": {
+        "feature": "Ideal for small teams & startups",
+        "ringee": "Designed so solo founders and small teams can start small, then scale usage and members without extra seat fees.",
+        "adversus": "Better fit once you already have a dedicated outbound team and steady call volume."
+      },
+      "setupTime": {
+        "feature": "Setup time",
+        "ringee": "Sign up and start calling in minutes — no implementation project required.",
+        "adversus": "Requires setting up campaigns, dispositions, lead flows and agent configuration.",
+        "genesys": "Enterprise onboarding, integrations and configuration with IT involvement."
+      }
+    }
   },
   "faq": {
     "title": "Frequently Asked Questions",
@@ -191,6 +425,8 @@
     "description": "Host Ringee on your own server. Own your customer data and stay fully compliant with regulatory standards.",
     "githubCta": "Find us on GitHub",
     "starsLabel": "Stars on GitHub",
+    "starUs": "Star us on GitHub",
+    "starsCount": "{count} stars",
     "contributorsLabel": "Contributors",
     "features": {
       "securePersonnel": "Secure personnel",
@@ -201,6 +437,9 @@
     "soc2Title": "Security aligned with SOC 2 standards",
     "soc2Description": "With strict protocols in place, you can trust us to protect your information with confidence.",
     "readMore": "Read more"
+  },
+  "testimonials": {
+    "title": "Testimonials"
   },
   "ctaBanner": {
     "title": "Ready to Power Your Voice with Ringee.io?",

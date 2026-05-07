@@ -9,6 +9,15 @@
     "contact": "Contacto",
     "signIn": "Iniciar sesión",
     "getStarted": "Empezar",
+    "productDescription": "La moderna plataforma de comunicación de código abierto diseñada para el crecimiento.",
+    "navDescriptions": {
+      "features": "Explora nuestras características y capacidades principales.",
+      "campaigns": "Marcadores de vista previa y progresivos para equipos outbound.",
+      "findLeads": "Apollo.io y Prospeo.io — prospección incorporada.",
+      "integrations": "Attio, Odoo — y más en camino.",
+      "comparison": "Mira cómo nos comparamos con la competencia.",
+      "pricing": "Precios flexibles para equipos de todos los tamaños."
+    },
     "navItems": {
       "features": "Funciones",
       "campaigns": "Campañas",
@@ -83,17 +92,190 @@
   "campaigns": {
     "kicker": "Campañas outbound",
     "title": "Marcadores hechos a medida para cada playbook",
-    "subtitle": "Lanza prospección en frío, seguimientos y reactivación con el modo de marcador que se adapte al flujo de tu equipo: desde llamadas revisadas por el agente hasta auto-marcado sin manos."
+    "subtitle": "Lanza prospección en frío, seguimientos y reactivación con el modo de marcador que se adapte al flujo de tu equipo: desde llamadas revisadas por el agente hasta auto-marcado sin manos.",
+    "featuresTitle": "Todo lo que necesitas para ejecutar una campaña",
+    "featuresSubtitle": "Desde la importación de leads hasta análisis en vivo — todo incluido.",
+    "modes": {
+      "preview": {
+        "tag": "Marcador de Vista Previa Automático",
+        "tagline": "El agente decide. Ringee marca.",
+        "description": "Extrae el siguiente lead calificado de la cola, revisa el contacto, las notas y la última disposición, luego inicia la llamada con un clic. Perfecto para alcance de alto valor donde el contexto importa.",
+        "label": "Humano en el bucle",
+        "bullets": {
+          "0": "Tarjeta de vista previa del lead con contacto, último intento y disposición",
+          "1": "Marcado con un clic con tu ID de llamante verificado",
+          "2": "A ritmo del agente — ideal para alcance de calidad sobre cantidad"
+        }
+      },
+      "progressive": {
+        "tag": "Marcador Progresivo",
+        "tagline": "¿Listo? Ringee extrae el siguiente.",
+        "description": "El orquestador del marcador asigna automáticamente el siguiente lead en el momento en que un agente está listo. Tiempo de inactividad mínimo, rendimiento constante — sin el ruido del sobremarco predictivo.",
+        "label": "Asignación automática",
+        "bullets": {
+          "0": "El orquestador en vivo empareja agentes listos con leads elegibles",
+          "1": "Compatible con cumplimiento: respeta zona horaria y ventanas de trabajo",
+          "2": "Sin llamadas perdidas — ratio 1:1 agente-a-llamada"
+        }
+      }
+    },
+    "features": {
+      "csvImport": {
+        "title": "Importación de leads CSV y manual",
+        "description": "Importa miles de leads a la vez. Deduplicación integrada contra contactos y leads existentes."
+      },
+      "dispositions": {
+        "title": "Disposiciones y resultados",
+        "description": "Categoriza cada llamada — positiva, neutral, negativa, sin contacto — con disposiciones personalizadas por campaña."
+      },
+      "callingWindow": {
+        "title": "Cumplimiento de ventanas de llamadas",
+        "description": "Horarios con conciencia de zona horaria, horario laboral y días hábiles. Los leads solo se llaman cuando es legal y apropiado."
+      },
+      "retries": {
+        "title": "Reintentos y máximo de intentos",
+        "description": "Intentos máximos por lead y retrasos de reintento configurables — el motor de reintentos hace el resto."
+      },
+      "callbacks": {
+        "title": "Devoluciones de llamada y tiempo de cierre",
+        "description": "Programa devoluciones de llamada, configura el tiempo de cierre por campaña y deja mensajes de voz en caso de no respuesta."
+      },
+      "analytics": {
+        "title": "Análisis de outbound en vivo",
+        "description": "Sesiones de agentes, intentos de llamada, tasa de conexión y disposiciones — transmitidas en vivo a tu panel."
+      }
+    }
   },
   "findLeads": {
     "kicker": "Encuentra y enriquece leads",
     "title": "Encuentra y enriquece leads sin salir de Ringee",
-    "subtitle": "Apollo y Prospeo están integrados. Busca, enriquece y marca en segundos."
+    "subtitle": "Apollo y Prospeo están integrados. Busca, enriquece y marca en segundos.",
+    "availableNow": "Disponible ahora",
+    "bringOwnKey": "Trae tu propia clave API",
+    "workflow": {
+      "title": "Construido para un ciclo ajustado de prospecto a llamada",
+      "subtitle": "Cada búsqueda, revelación y enriquecimiento llega a tu workspace de Ringee — listo para un marcador, una sincronización con CRM o un flujo de trabajo."
+    },
+    "workflowFeatures": {
+      "granularFilters": {
+        "title": "Filtros de búsqueda granulares",
+        "description": "Antigüedad del título, industria, número de empleados, ubicación, tecnologías — compone la consulta exacta de ICP que necesita tu movimiento GTM."
+      },
+      "emailReveal": {
+        "title": "Revelación de email y teléfono bajo demanda",
+        "description": "Paga solo por los contactos que realmente quieres alcanzar. Las revelaciones se guardan en caché y se adjuntan permanentemente al lead."
+      },
+      "unifiedCredits": {
+        "title": "Créditos unificados",
+        "description": "Un ledger de créditos cubre búsqueda, revelaciones y enriquecimiento. Precios transparentes por acción, sin complementos sorpresa."
+      },
+      "autoDedup": {
+        "title": "Deduplicación automática en importación",
+        "description": "Los leads importados se deduplicancontra tus contactos existentes por teléfono y email antes de llegar a tu pipeline."
+      },
+      "onClickCampaign": {
+        "title": "Un clic a la campaña",
+        "description": "Envía un resultado de búsqueda directamente a una campaña de marcador Progresivo o de Vista Previa — listo para llamar en segundos."
+      },
+      "enrichContacts": {
+        "title": "Enriquece contactos existentes",
+        "description": "Rellena emails, teléfonos, títulos y datos de empresa faltantes en los contactos ya en Ringee — sin manipulación de CSV."
+      }
+    },
+    "badges": {
+      "payPerAction": "Créditos de pago por acción",
+      "encryptedCreds": "Credenciales cifradas en reposo",
+      "dedupeContacts": "Deduplicación contra contactos existentes",
+      "moreProviders": "Más proveedores próximamente"
+    },
+    "providers": {
+      "apollo": {
+        "tagline": "Prospección, enriquecimiento y llamada — todo en un solo flujo.",
+        "description": "Busca en 275M+ contactos y 70M+ empresas. Filtra por título, industria, geografía, número de empleados y tech stack, luego revela emails verificados y números móviles bajo demanda.",
+        "badge": "Búsqueda de leads + enriquecimiento",
+        "capabilities": {
+          "search": "Búsqueda de personas y empresas",
+          "emailReveal": "Revelación de email verificado",
+          "phoneReveal": "Revelación de número móvil",
+          "firmographics": "Firmografía y tech stack"
+        }
+      },
+      "prospeo": {
+        "tagline": "Buscador de emails de alta precisión, a demanda.",
+        "description": "Resuelve emails desde URLs de LinkedIn o pares nombre + empresa con tasas de validez líderes en la industria. Perfecto para enriquecer contactos existentes antes de marcar.",
+        "badge": "Enriquecimiento de contactos",
+        "capabilities": {
+          "emailFinder": "Buscador de email desde LinkedIn",
+          "domainLookup": "Búsqueda por dominio y nombre",
+          "bulkEnrichment": "Enriquecimiento masivo",
+          "deliverability": "Entregabilidad validada"
+        }
+      }
+    }
   },
   "crmIntegrations": {
     "kicker": "Integraciones de CRM",
     "title": "Cada llamada registrada automáticamente en tu CRM",
-    "subtitle": "Hoy Attio y Odoo, pronto más. Notas, grabaciones y resultados se sincronizan automáticamente."
+    "subtitle": "Hoy Attio y Odoo, pronto más. Notas, grabaciones y resultados se sincronizan automáticamente.",
+    "availableNow": "Disponible ahora",
+    "comingSoon": "Próximamente",
+    "moreOnTheWay": {
+      "title": "Más en camino",
+      "description": "Pipedrive, Zoho, Close y más están en la hoja de ruta. Abre un issue o vota en GitHub para ayudarnos a priorizar.",
+      "cta": "Solicitar una integración"
+    },
+    "capabilities": {
+      "title": "Un motor, cada integración",
+      "subtitle": "Construido sobre una primitiva de sincronización compartida — para que cada CRM obtenga las mismas garantías confiables."
+    },
+    "syncFeatures": {
+      "contactSync": {
+        "title": "Sincronización bidireccional de contactos",
+        "description": "Extrae contactos y empresas al conectar. Los nuevos contactos de Ringee se envían automáticamente de vuelta al origen."
+      },
+      "callLogs": {
+        "title": "Registros de actividad de llamadas",
+        "description": "Cada llamada completada se convierte en una actividad estructurada con duración, disposición y resultado."
+      },
+      "notesTranscripts": {
+        "title": "Notas, transcripciones y grabaciones",
+        "description": "Adjunta notas de llamadas, resúmenes de IA, transcripciones y URLs de grabaciones seguras al registro correcto."
+      },
+      "fieldMappings": {
+        "title": "Mapeos de campos personalizados",
+        "description": "Mapea campos de Ringee a tu esquema de CRM. Empujar, jalar o bidireccional — por campo, por conexión."
+      },
+      "retryOutbox": {
+        "title": "Reintentos y bandeja de salida confiables",
+        "description": "Una bandeja de salida duradera reintenta sincronizaciones fallidas con backoff, para que los problemas transitorios del CRM nunca pierdan datos."
+      },
+      "orgScope": {
+        "title": "Alcance personal y de organización",
+        "description": "Conecta un CRM solo para ti, o comparte una conexión con todo tu equipo."
+      }
+    },
+    "badges": {
+      "oauthAuth": "Autenticación OAuth y clave API",
+      "encryptedCreds": "Credenciales cifradas en reposo",
+      "idempotentWrites": "Escrituras idempotentes y seguras para reintentos"
+    },
+    "providers": {
+      "attio": {
+        "description": "Sincroniza contactos, empresas, actividad de llamadas, grabaciones y transcripciones a tu workspace de Attio."
+      },
+      "odoo19": {
+        "description": "Integración JSON-2 moderna para las últimas instancias de Odoo. Registra llamadas como actividades en res.partner."
+      },
+      "odoo14": {
+        "description": "Compatibilidad clásica XML-RPC para despliegues Odoo existentes de la versión 14 a la 18."
+      },
+      "hubspot": {
+        "description": "Sincronización bidireccional de contactos y actividades de llamadas nativas en registros de HubSpot."
+      },
+      "salesforce": {
+        "description": "Sincronización de grado enterprise con Leads, Contactos y Cuentas en SFDC."
+      }
+    }
   },
   "pricing": {
     "title": "Precios para personas y equipos",
@@ -138,7 +320,59 @@
   },
   "comparison": {
     "title": "Compara Ringee.io",
-    "subtitle": "Cómo se compara Ringee con Adversus y Genesys si quieres llamadas outbound flexibles desde el navegador, sin contratos caros por usuario."
+    "subtitle": "Cómo se compara Ringee con Adversus y Genesys si quieres llamadas outbound flexibles desde el navegador, sin contratos caros por usuario.",
+    "table": {
+      "featuresHeader": "Características",
+      "footerNote": "* Adversus y Genesys generalmente cobran por asiento con compromisos mensuales fijos más altos, mientras que Ringee mantiene un precio fijo de $20/mes por organización con miembros ilimitados."
+    },
+    "rows": {
+      "browserBased": {
+        "feature": "Basado en navegador (sin instalación)",
+        "ringee": "Realiza y recibe llamadas directamente desde tu navegador web — sin necesidad de instalar softphone.",
+        "adversus": "Plataforma web centrada en campañas de outbound y flujos de trabajo de call center.",
+        "genesys": "Suite de contact center en la nube; los agentes normalmente usan apps web o de escritorio dedicadas."
+      },
+      "singleUser": {
+        "feature": "Comienza con 1 usuario",
+        "ringee": "Sin usuarios mínimos — comienza solo y agrega miembros al equipo a medida que creces."
+      },
+      "pricingModel": {
+        "feature": "Modelo de precios",
+        "ringee": "Pago por uso para minutos y números + plan de negocio opcional de $20/mes por organización (miembros ilimitados).",
+        "adversus": "Suscripción por asiento con facturación mensual/anual y un número mínimo de agentes.",
+        "genesys": "Precios enterprise por asiento/contrato, generalmente para despliegues grandes."
+      },
+      "perSeat": {
+        "feature": "Suscripción por asiento",
+        "ringee": "SIN PRECIO POR ASIENTO — $20 fijos/mes por organización con miembros de equipo ilimitados."
+      },
+      "monthlyMin": {
+        "feature": "Mínimo mensual típico",
+        "ringee": "Comienza con $0 en tarifas fijas — solo recarga créditos. Agrega el plan de negocio de $20/mes solo cuando necesites funciones de equipo.",
+        "adversus": "Desde 122 €/mes por agente, mínimo 3 agentes (366 €/mes) para llamadas ilimitadas a EU + US + Canadá, excl. IVA.",
+        "genesys": "Cotización enterprise personalizada, normalmente mayor ACV y contratos plurianuales."
+      },
+      "globalCoverage": {
+        "feature": "Cobertura global",
+        "ringee": "Llama y recibe en 180+ países con tarifas globales transparentes.",
+        "adversus": "Enfoque principal en llamadas ilimitadas a EU + US + Canadá. Otros destinos dependen de tu plan y configuración de operador."
+      },
+      "outboundDialer": {
+        "feature": "Marcador de ventas outbound",
+        "ringee": "Ideal para outbound manual y semiestructurado y llamadas en frío desde navegador o móvil."
+      },
+      "smallTeams": {
+        "feature": "Ideal para pequeños equipos y startups",
+        "ringee": "Diseñado para que fundadores individuales y pequeños equipos comiencen pequeño y luego escalen el uso y los miembros sin tarifas extra por asiento.",
+        "adversus": "Mejor opción cuando ya tienes un equipo outbound dedicado y volumen de llamadas estable."
+      },
+      "setupTime": {
+        "feature": "Tiempo de configuración",
+        "ringee": "Regístrate y comienza a llamar en minutos — sin proyecto de implementación.",
+        "adversus": "Requiere configurar campañas, disposiciones, flujos de leads y configuración de agentes.",
+        "genesys": "Incorporación enterprise, integraciones y configuración con participación de TI."
+      }
+    }
   },
   "faq": {
     "title": "Preguntas frecuentes",
@@ -191,6 +425,8 @@
     "description": "Aloja Ringee en tu propio servidor. Posee los datos de tus clientes y cumple con los estándares regulatorios.",
     "githubCta": "Encuéntranos en GitHub",
     "starsLabel": "Estrellas en GitHub",
+    "starUs": "Danos una estrella en GitHub",
+    "starsCount": "{count} estrellas",
     "contributorsLabel": "Colaboradores",
     "features": {
       "securePersonnel": "Personal seguro",
@@ -201,6 +437,9 @@
     "soc2Title": "Seguridad alineada con los estándares SOC 2",
     "soc2Description": "Con protocolos estrictos en vigor, puedes confiar en que protegeremos tu información con total garantía.",
     "readMore": "Leer más"
+  },
+  "testimonials": {
+    "title": "Testimonios"
   },
   "ctaBanner": {
     "title": "¿Listo para potenciar tu voz con Ringee.io?",
