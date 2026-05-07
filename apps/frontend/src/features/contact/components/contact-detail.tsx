@@ -317,12 +317,18 @@ export default function ContactDetail({
                 <div className='flex-1'>
                   <p className='text-muted-foreground text-xs'>{t('phone')}</p>
                   <p className='flex items-center gap-1.5 text-sm'>
-                    {contact.phoneNumber}
-                    {contact.phoneVerified && (
-                      <BadgeCheck
-                        className='h-3.5 w-3.5 text-green-600'
-                        aria-label='verified'
-                      />
+                    {/^(lead:|noPhone:|prospeo:|apollo:)/i.test(contact.phoneNumber ?? '') ? (
+                      <span className='text-muted-foreground'>—</span>
+                    ) : (
+                      <>
+                        {contact.phoneNumber}
+                        {contact.phoneVerified && (
+                          <BadgeCheck
+                            className='h-3.5 w-3.5 text-green-600'
+                            aria-label='verified'
+                          />
+                        )}
+                      </>
                     )}
                   </p>
                 </div>
@@ -388,10 +394,11 @@ export default function ContactDetail({
                       provider={contact.enrichmentMetadata.provider ?? null}
                       hasEmail={!!contact.email}
                       hasPhone={
-                        !contact.phoneNumber?.includes('***') || (!!contact.phoneNumber && 
-                        !/^(noPhone:|prospeo:|apollo:)/i.test(
+                        !!contact.phoneNumber &&
+                        !contact.phoneNumber.includes('***') &&
+                        !/^(lead:|noPhone:|prospeo:|apollo:)/i.test(
                           contact.phoneNumber
-                        ))
+                        )
                       }
                       onRevealed={() => router.refresh()}
                     />

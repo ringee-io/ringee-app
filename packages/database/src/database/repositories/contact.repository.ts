@@ -53,6 +53,16 @@ export class ContactRepository {
     });
   }
 
+  async findByLinkedInUrl(
+    ctx: OwnershipContext,
+    linkedinUrl: string,
+  ): Promise<Contact | null> {
+    const ownershipFilter = buildOwnershipFilter(ctx);
+    return this.prisma.contact.findFirst({
+      where: { ...ownershipFilter, linkedinUrl, deletedAt: null },
+    });
+  }
+
   async listByOwner(
     ctx: OwnershipContext,
     options?: { search?: string; sort?: string; page?: number; limit?: number; tagIds?: string[] },

@@ -761,6 +761,24 @@ export class LeadSearchService {
       if (byPhone) return byPhone;
     }
 
+    // Find previously imported contacts by LinkedIn URL to avoid duplicates
+    // and so the merge step can promote the placeholder phone to the real one.
+    if (cand.person.linkedinUrl) {
+      const byLinkedIn = await this.contactRepo.findByLinkedInUrl(
+        ctx,
+        cand.person.linkedinUrl,
+      );
+      if (byLinkedIn) {
+        const hasPlaceholderPhone = /^(lead:|noPhone:|prospeo:|apollo:)/i.test(
+          byLinkedIn.phoneNumber,
+        );
+        if (phone && hasPlaceholderPhone) {
+          await this.contactRepo.update(byLinkedIn.id, { phoneNumber: phone });
+        }
+        return byLinkedIn;
+      }
+    }
+
     return this.contactRepo.create(ctx, {
       name: cand.person.fullName ?? null,
       firstName: cand.person.firstName ?? null,
