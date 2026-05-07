@@ -184,7 +184,23 @@
   },
   "openSource": {
     "title": "Proudly open-source",
-    "subtitle": "Self-host Ringee, audit the code, and contribute back. MIT-licensed."
+    "subtitle": "Self-host Ringee, audit the code, and contribute back. MIT-licensed.",
+    "badge": "Secure, open-source",
+    "sectionTitle": "Proudly open source — host on your own infrastructure and own your data",
+    "subheadline": "Open-source, self-hosted",
+    "description": "Host Ringee on your own server. Own your customer data and stay fully compliant with regulatory standards.",
+    "githubCta": "Find us on GitHub",
+    "starsLabel": "Stars on GitHub",
+    "contributorsLabel": "Contributors",
+    "features": {
+      "securePersonnel": "Secure personnel",
+      "secureDevelopment": "Secure development",
+      "secureTesting": "Secure testing",
+      "cloudSecurity": "Cloud security"
+    },
+    "soc2Title": "Security aligned with SOC 2 standards",
+    "soc2Description": "With strict protocols in place, you can trust us to protect your information with confidence.",
+    "readMore": "Read more"
   },
   "ctaBanner": {
     "title": "Ready to Power Your Voice with Ringee.io?",

@@ -25,6 +25,7 @@ import {
   IconPlus,
   IconCheck
 } from '@tabler/icons-react';
+import { useTranslations } from 'next-intl';
 
 export interface Tag {
   id: string;
@@ -58,6 +59,8 @@ export function TagMultiSelect({
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState('');
   const [isCreating, setIsCreating] = useState(false);
+  const t = useTranslations('contacts.tags');
+  const tCommon = useTranslations('common');
 
   const selectedTags = useMemo(
     () => availableTags.filter((tag) => selectedTagIds.includes(tag.id)),
@@ -120,13 +123,13 @@ export function TagMultiSelect({
       const newTag = await onCreateTag(inputValue.trim(), randomColor); // Pass color if the callback supports it (will check prop type)
       onSelectionChange([...selectedTagIds, newTag.id]);
       setInputValue('');
-      toast.success(`Tag "${newTag.name}" created`);
+      toast.success(t('tagCreated', { name: newTag.name }));
     } catch (err) {
-      toast.error('Failed to create tag');
+      toast.error(t('failedToCreate'));
     } finally {
       setIsCreating(false);
     }
-  }, [inputValue, onCreateTag, selectedTagIds, onSelectionChange]);
+  }, [inputValue, onCreateTag, selectedTagIds, onSelectionChange, t]);
 
   const getTagColor = (color?: string | null) => {
     if (!color) return 'hsl(var(--primary))';
@@ -170,7 +173,7 @@ export function TagMultiSelect({
             ) : (
               <span className="flex items-center gap-2">
                 <IconTag className="h-4 w-4" />
-                {placeholder}
+                {placeholder || t('selectTags')}
               </span>
             )}
           </div>
@@ -179,7 +182,7 @@ export function TagMultiSelect({
       <PopoverContent className="w-[300px] p-0" align="start">
         <Command shouldFilter={false}>
           <CommandInput
-            placeholder="Search or create tags..."
+            placeholder={t('searchOrCreate')}
             value={inputValue}
             onValueChange={setInputValue}
           />
@@ -187,16 +190,16 @@ export function TagMultiSelect({
             <CommandEmpty>
               {canCreateNew ? (
                 <div className="text-muted-foreground py-2 text-sm">
-                  Press enter or click below to create
+                  {t('pressEnter')}
                 </div>
               ) : (
-                'No tags found.'
+                t('noTagsFound')
               )}
             </CommandEmpty>
             
             {canCreateNew && (
               <>
-                <CommandGroup heading="Create new">
+                <CommandGroup heading={t('createNew')}>
                   <CommandItem
                     onSelect={handleCreate}
                     disabled={isCreating}
@@ -207,14 +210,14 @@ export function TagMultiSelect({
                     ) : (
                       <IconPlus className="h-4 w-4" />
                     )}
-                    Create "{inputValue}"
+                    {t('create', { name: inputValue })}
                   </CommandItem>
                 </CommandGroup>
                 <CommandSeparator />
               </>
             )}
             
-            <CommandGroup heading="Available tags">
+            <CommandGroup heading={t('availableTags')}>
               {filteredTags.map((tag) => {
                 const isSelected = selectedTagIds.includes(tag.id);
                 return (
@@ -255,7 +258,7 @@ export function TagMultiSelect({
                     className="flex items-center gap-2 text-muted-foreground"
                   >
                     <IconTag className="h-4 w-4" />
-                    Manage all tags...
+                    {t('manageAll')}
                   </CommandItem>
                 </CommandGroup>
               </>

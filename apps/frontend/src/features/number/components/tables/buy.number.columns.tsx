@@ -4,6 +4,7 @@ import { ColumnDef, Column } from '@tanstack/react-table';
 import { DataTableColumnHeader } from '@ringee/frontend-shared/components/ui/table/data-table-column-header';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { CellActionBuy } from './buy.number.cell.action';
+import { useTranslations } from 'next-intl';
 
 export interface AvailableNumber {
   phoneNumber: string;
@@ -31,28 +32,39 @@ export interface CostInformation {
 
 const FEATURE_OPTIONS: {
   value: string;
-  label: string;
+  labelKey: string;
   capabilityKey: keyof Capabilities;
 }[] = [
-  { value: 'voice', label: 'Voice', capabilityKey: 'voice' },
-  { value: 'sms', label: 'SMS', capabilityKey: 'sms' },
-  { value: 'mms', label: 'MMS', capabilityKey: 'mms' },
-  { value: 'hd_voice', label: 'HD Voice', capabilityKey: 'hdVoice' },
+  { value: 'voice', labelKey: 'voice', capabilityKey: 'voice' },
+  { value: 'sms', labelKey: 'sms', capabilityKey: 'sms' },
+  { value: 'mms', labelKey: 'mms', capabilityKey: 'mms' },
+  { value: 'hd_voice', labelKey: 'hdVoice', capabilityKey: 'hdVoice' },
   {
     value: 'international_sms',
-    label: 'Intl. SMS',
+    labelKey: 'internationalSms',
     capabilityKey: 'internationalSms'
   },
-  { value: 'emergency', label: 'Emergency', capabilityKey: 'emergency' },
-  { value: 'fax', label: 'Fax', capabilityKey: 'fax' }
+  { value: 'emergency', labelKey: 'emergency', capabilityKey: 'emergency' },
+  { value: 'fax', labelKey: 'fax', capabilityKey: 'fax' }
+];
+
+const COUNTRY_OPTIONS = [
+  { flag: '🇺🇸', name: 'United States', value: 'US' },
+  { flag: '🇨🇦', name: 'Canada', value: 'CA' },
+  { flag: '🇪🇸', name: 'Spain', value: 'ES' },
+  { flag: '🇬🇧', name: 'United Kingdom', value: 'GB' },
+  { flag: '🇦🇷', name: 'Argentina', value: 'AR' },
+  { flag: '🇵🇦', name: 'Panama', value: 'PA' },
+  { flag: '🇲🇽', name: 'Mexico', value: 'MX' }
 ];
 
 export const columns: ColumnDef<AvailableNumber>[] = [
   {
     accessorKey: 'phoneNumber',
-    header: ({ column }: { column: Column<AvailableNumber, unknown> }) => (
-      <DataTableColumnHeader column={column} title='Phone Number' />
-    ),
+    header: ({ column }: { column: Column<AvailableNumber, unknown> }) => {
+      const t = useTranslations('settings.numbers.buy.table');
+      return <DataTableColumnHeader column={column} title={t('phoneNumber')} />;
+    },
     cell: ({ cell }) => (
       <span className='text-foreground font-medium'>
         {cell.getValue<string>()}
@@ -67,7 +79,10 @@ export const columns: ColumnDef<AvailableNumber>[] = [
   {
     id: 'countryCode',
     accessorKey: 'countryCode',
-    header: 'Country',
+    header: () => {
+      const t = useTranslations('settings.numbers.buy.table');
+      return <>{t('country')}</>;
+    },
     cell: ({ cell }) => (
       <span className='text-muted-foreground uppercase'>
         {cell.getValue<string>()}
@@ -77,24 +92,23 @@ export const columns: ColumnDef<AvailableNumber>[] = [
       label: 'Country',
       placeholder: 'Select Country',
       variant: 'select',
-      options: [
-        { label: '🇺🇸 United States', value: 'US' },
-        { label: '🇨🇦 Canada', value: 'CA' },
-        { label: '🇪🇸 Spain', value: 'ES' },
-        { label: '🇬🇧 United Kingdom', value: 'GB' },
-        { label: '🇦🇷 Argentina', value: 'AR' },
-        { label: '🇵🇦 Panama', value: 'PA' },
-        { label: '🇲🇽 Mexico', value: 'MX' },
-      ]
+      options: COUNTRY_OPTIONS.map((c) => ({
+        label: `${c.flag} ${c.name}`,
+        value: c.value
+      }))
     },
     enableColumnFilter: true
   },
   {
     id: 'numberType',
     accessorKey: 'numberType',
-    header: 'Type',
+    header: () => {
+      const t = useTranslations('settings.numbers.buy.table');
+      return <>{t('type')}</>;
+    },
     cell: ({ cell }) => {
-      const type = cell.getValue<string>() || 'N/A';
+      const t = useTranslations('settings.numbers.my.table');
+      const type = cell.getValue<string>() || t('na');
       return (
         <Badge variant='outline' className='capitalize'>
           {type}
@@ -115,7 +129,10 @@ export const columns: ColumnDef<AvailableNumber>[] = [
   {
     id: 'areaCode',
     accessorKey: 'region',
-    header: 'Region',
+    header: () => {
+      const t = useTranslations('settings.numbers.buy.table');
+      return <>{t('region')}</>;
+    },
     cell: ({ cell }) => (
       <span className='text-muted-foreground uppercase'>
         {cell.getValue<string>()}
@@ -131,8 +148,12 @@ export const columns: ColumnDef<AvailableNumber>[] = [
   {
     id: 'features',
     accessorKey: 'capabilities',
-    header: 'Features',
+    header: () => {
+      const t = useTranslations('settings.numbers.buy.table');
+      return <>{t('features')}</>;
+    },
     cell: ({ row }) => {
+      const t = useTranslations('settings.numbers.buy.features');
       const capabilities = row.original.capabilities;
       if (!capabilities) {
         return <span className='text-muted-foreground text-xs'>—</span>;
@@ -147,7 +168,7 @@ export const columns: ColumnDef<AvailableNumber>[] = [
         <div className='flex flex-wrap gap-1'>
           {enabled.map((option) => (
             <Badge key={option.value} variant='secondary' className='text-xs'>
-              {option.label}
+              {t(option.labelKey as any)}
             </Badge>
           ))}
         </div>
@@ -157,13 +178,19 @@ export const columns: ColumnDef<AvailableNumber>[] = [
       label: 'Features',
       placeholder: 'Select features',
       variant: 'multiSelect',
-      options: FEATURE_OPTIONS.map(({ value, label }) => ({ value, label }))
+      options: FEATURE_OPTIONS.map(({ value, labelKey }) => ({
+        value,
+        label: labelKey
+      }))
     },
     enableColumnFilter: true
   },
   {
     accessorKey: 'costInformation.monthlyCost',
-    header: 'Cost',
+    header: () => {
+      const t = useTranslations('settings.numbers.buy.table');
+      return <>{t('cost')}</>;
+    },
     cell: ({ row }) => {
       const cost = row.original.costInformation.monthlyCost || 0;
       const currency = row.original.costInformation.currency || 'USD';
@@ -172,7 +199,10 @@ export const columns: ColumnDef<AvailableNumber>[] = [
   },
   {
     id: 'actions',
-    header: 'Actions',
+    header: () => {
+      const t = useTranslations('settings.numbers.buy.table');
+      return <>{t('actions')}</>;
+    },
     cell: ({ row }) => <CellActionBuy data={row.original} />
   }
 ];

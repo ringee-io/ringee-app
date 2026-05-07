@@ -1,6 +1,79 @@
 {
   "title": "Paramètres",
   "description": "Configurez votre compte et vos préférences.",
+  "profile": {
+    "metaTitle": "Profil | Ringee"
+  },
+  "numbers": {
+    "title": "Acheter des numéros",
+    "description": "Gérer mes numéros",
+    "metaTitle": "Achetez des numéros virtuels pour des appels mondiaux | Ringee",
+    "metaDescription": "Achetez en un instant des numéros locaux ou internationaux pour passer et recevoir des appels avec Ringee. Idéal pour les équipes commerciales, les centres d'appel et les entreprises mondiales.",
+    "tabs": {
+      "buy": "Acheter un numéro",
+      "myNumbers": "Mes numéros"
+    },
+    "buy": {
+      "table": {
+        "phoneNumber": "Numéro de téléphone",
+        "phoneNumberPlaceholder": "Rechercher un numéro…",
+        "country": "Pays",
+        "countryPlaceholder": "Sélectionner un pays",
+        "type": "Type",
+        "typePlaceholder": "Sélectionner un type",
+        "areaCode": "Indicatif",
+        "areaCodePlaceholder": "Indicatif",
+        "region": "Région",
+        "features": "Fonctionnalités",
+        "featuresPlaceholder": "Sélectionner des fonctionnalités",
+        "cost": "Coût",
+        "actions": "Actions",
+        "buy": "Acheter",
+        "noNumbers": "Aucun numéro disponible",
+        "errorLoading": "Impossible de charger les numéros. Veuillez réessayer."
+      },
+      "types": {
+        "local": "Local",
+        "tollFree": "Numéro vert"
+      },
+      "features": {
+        "voice": "Voix",
+        "sms": "SMS",
+        "mms": "MMS",
+        "hdVoice": "Voix HD",
+        "internationalSms": "SMS intl.",
+        "emergency": "Urgence",
+        "fax": "Fax"
+      },
+      "purchase": {
+        "confirmTitle": "Acheter ce numéro ?",
+        "confirmDescription": "{phone} — {currency} {monthly}/mois",
+        "confirm": "Acheter",
+        "cancel": "Annuler",
+        "success": "Numéro acheté",
+        "error": "Impossible d'acheter le numéro"
+      }
+    },
+    "my": {
+      "table": {
+        "phoneNumber": "Numéro de téléphone",
+        "country": "Pays",
+        "type": "Type",
+        "status": "Statut",
+        "connection": "Connexion",
+        "purchaseDate": "Date d'achat",
+        "monthlyCost": "Coût mensuel",
+        "upfrontCost": "Coût initial",
+        "unknown": "Inconnu",
+        "na": "N/D"
+      },
+      "status": {
+        "assigned": "attribué",
+        "inactive": "inactif",
+        "pending": "en attente"
+      }
+    }
+  },
   "tabs": {
     "general": "Général",
     "language": "Langue",

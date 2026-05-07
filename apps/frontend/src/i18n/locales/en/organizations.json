@@ -3,7 +3,15 @@
   "switcher": {
     "select": "Select an organization",
     "personal": "Personal account",
-    "create": "Create organization"
+    "create": "Create organization",
+    "switching": "Switching...",
+    "myPersonal": "My Personal",
+    "organization": "Organization",
+    "organizations": "Organizations",
+    "manageOrganization": "Manage Organization",
+    "createOrganization": "Create Organization",
+    "createNewOrganization": "Create new Organization",
+    "subscriptionReady": "Subscription Ready"
   },
   "create": {
     "title": "Create organization",
@@ -21,5 +29,28 @@
     "owner": "Owner",
     "admin": "Admin",
     "member": "Member"
+  },
+  "upgrade": {
+    "title": "Upgrade to Organization",
+    "description": "Unlock professional power for your team with advanced features.",
+    "features": {
+      "unlimitedMembers": "Unlimited team members",
+      "cheaperRates": "Cheaper rates per minute",
+      "virtualNumbers": "Virtual numbers included",
+      "advancedAnalytics": "Advanced analytics"
+    },
+    "unlockProFeatures": "Unlock Pro Features",
+    "pricing": "Pricing",
+    "perMonth": "/month",
+    "perMonthPerOrg": "/month per org",
+    "proPlan": "Pro Plan",
+    "proceedToUpgrade": "Proceed to upgrade",
+    "secureByStripe": "Secure by Stripe",
+    "cancelAnytime": "Cancel anytime"
+  },
+  "subscription": {
+    "required": "Subscription Required",
+    "requiredDescription": "You need an active subscription to create another organization.",
+    "subscribeNow": "Subscribe Now"
   }
 }

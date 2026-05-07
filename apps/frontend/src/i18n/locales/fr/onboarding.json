@@ -1,13 +1,13 @@
 {
   "welcome": {
     "title": "Bienvenue sur Ringee",
-    "description": "Configurons votre espace de travail en quelques minutes."
+    "description": "Configurez votre espace en quelques minutes."
   },
   "steps": {
     "profile": "Parlez-nous de vous",
     "organization": "Créez votre organisation",
     "number": "Choisissez un numéro",
-    "credits": "Ajoutez des crédits",
+    "credits": "Ajoutez du crédit",
     "done": "Tout est prêt"
   },
   "actions": {
@@ -16,5 +16,48 @@
     "letsGo": "C'est parti"
   },
   "headerButton": "Configuration",
-  "progress": "{current} sur {total}"
+  "progress": "{current} sur {total}",
+  "guide": {
+    "title": "Guide de configuration",
+    "minimize": "Réduire",
+    "close": "Fermer",
+    "showSteps": "Afficher les étapes",
+    "hideSteps": "Masquer les étapes",
+    "completedSummary": "{completed}/{total} terminés",
+    "stepsCompleted": "{completed} étapes sur {total} terminées"
+  },
+  "guideSteps": {
+    "first_call": {
+      "title": "Passez votre premier appel",
+      "description": "Ringee offre votre premier appel"
+    },
+    "recording": {
+      "title": "Enregistrez et écoutez",
+      "description": "Enregistrez un appel et écoutez l'enregistrement"
+    },
+    "check_numbers": {
+      "title": "Découvrez les numéros disponibles",
+      "description": "Parcourez les numéros que vous pouvez acheter"
+    },
+    "buy_credits": {
+      "title": "Acheter du crédit",
+      "description": "Ajoutez du crédit pour passer plus d'appels"
+    }
+  },
+  "headerProgress": {
+    "label": "Guide de configuration",
+    "tooltip": "Reprendre l'onboarding"
+  },
+  "firstCallModal": {
+    "title": "Votre premier appel est offert",
+    "subtitle": "Passez et enregistrez votre premier appel gratuitement !",
+    "step1Title": "Étape 1 : Saisissez un numéro",
+    "step1Description": "Utilisez le clavier pour saisir n'importe quel numéro. Cela fonctionne comme un téléphone classique.",
+    "step2Title": "Étape 2 : Démarrez l'enregistrement",
+    "step2Description": "N'oubliez pas d'appuyer sur le bouton d'enregistrement après la connexion pour conserver la conversation.",
+    "recordingButton": "Bouton d'enregistrement",
+    "recordingAlt": "Comment démarrer l'enregistrement",
+    "maybeLater": "Plus tard",
+    "startCalling": "Commencer à appeler"
+  }
 }

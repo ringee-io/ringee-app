@@ -37,13 +37,62 @@
     "empty": {
       "title": "Nessuna chiamata",
       "description": "La tua cronologia comparirà qui non appena inizierai a chiamare o a ricevere chiamate."
+    },
+    "table": {
+      "type": "Tipo",
+      "contact": "Contatto",
+      "from": "Da",
+      "to": "A",
+      "status": "Stato",
+      "duration": "Durata",
+      "date": "Data",
+      "recording": "Registrazione",
+      "unknown": "Sconosciuto",
+      "callAgain": "Richiama",
+      "noRecording": "Nessuna registrazione",
+      "downloadRecording": "Scarica registrazione"
     }
   },
   "recordings": {
     "title": "Registrazioni delle chiamate",
     "description": "Ascolta e scarica le tue registrazioni cifrate",
     "metaTitle": "Registrazioni — Ascolta e scarica | Ringee",
-    "metaDescription": "Accedi alle tue registrazioni cifrate. Riproduci, scarica e gestisci tutti i file audio in modo sicuro dalla dashboard Ringee."
+    "metaDescription": "Accedi alle tue registrazioni cifrate. Riproduci, scarica e gestisci tutti i file audio in modo sicuro dalla dashboard Ringee.",
+    "table": {
+      "type": "Tipo",
+      "contact": "Contatto",
+      "from": "Da",
+      "to": "A",
+      "duration": "Durata",
+      "date": "Data",
+      "status": "Stato",
+      "recording": "Registrazione",
+      "unknown": "Sconosciuto",
+      "noRecording": "Nessuna registrazione",
+      "processingShort": "In elaborazione…",
+      "unavailable": "Non disponibile",
+      "play": "Riproduci",
+      "playRecording": "Riproduci registrazione",
+      "downloadRecording": "Scarica registrazione"
+    },
+    "statusBadge": {
+      "started": "In elaborazione",
+      "processing": "In elaborazione",
+      "completed": "Pronta",
+      "failed": "Fallita"
+    },
+    "player": {
+      "defaultTitle": "Registrazione chiamata",
+      "callTitle": "Chiamata: {from} → {to}",
+      "decrypting": "Decrittazione in corso…",
+      "errorLoad": "Impossibile caricare la registrazione. Riprova."
+    },
+    "dateFilter": {
+      "filterByDate": "Filtra per data",
+      "from": "Da {date}",
+      "to": "Fino a {date}",
+      "clear": "Rimuovi filtro data"
+    }
   },
   "callbacks": {
     "title": "Richiami",
@@ -59,6 +108,26 @@
   },
   "rates": {
     "metaTitle": "Tariffe — Visualizza e confronta i costi | Ringee",
-    "metaDescription": "Consulta le tariffe aggiornate dalla dashboard Ringee. Confronta i prezzi tra oltre 180 paesi e tieni sotto controllo i costi in tempo reale."
+    "metaDescription": "Consulta le tariffe aggiornate dalla dashboard Ringee. Confronta i prezzi tra oltre 180 paesi e tieni sotto controllo i costi in tempo reale.",
+    "calculator": {
+      "title": "Calcolatore tariffe",
+      "subtitle": "Controlla le tariffe in tempo reale con Ringee.",
+      "callingTo": "Sto chiamando",
+      "to": "Verso un",
+      "mobile": "Cellulare",
+      "landline": "Fisso",
+      "willCost": "La tua chiamata costerà",
+      "perMinute": "al minuto"
+    }
+  },
+  "statusValues": {
+    "pending": "In attesa",
+    "ringing": "Squillo",
+    "answered": "Risposta",
+    "recording": "Registrazione",
+    "completed": "Completata",
+    "failed": "Fallita",
+    "processing": "In elaborazione",
+    "ready": "Pronta"
   }
 }

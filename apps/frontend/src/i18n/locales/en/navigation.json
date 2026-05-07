@@ -23,13 +23,23 @@
     "rate": "Rate",
     "buyNumber": "Buy Number"
   },
+  "tabs": {
+    "dialer": "Dialer",
+    "contact": "Contact",
+    "history": "History"
+  },
   "userMenu": {
     "profile": "Profile",
     "history": "History",
     "recordings": "Recordings",
     "rate": "Rate",
     "buyNumber": "Buy Number",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "upgradeToPro": "Upgrade to Pro",
+    "account": "Account",
+    "billing": "Billing",
+    "notifications": "Notifications",
+    "logOut": "Log out"
   },
   "sidebar": {
     "openQuickCall": "Open Quick call",
@@ -41,5 +51,9 @@
   "inboxTooltip": {
     "title": "Inbox — coming soon",
     "description": "Manage all your inbound messages, missed calls, and voicemails in one unified inbox."
+  },
+  "kbar": {
+    "navigation": "Navigation",
+    "goTo": "Go to {page}"
   }
 }

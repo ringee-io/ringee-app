@@ -37,13 +37,62 @@
     "empty": {
       "title": "Noch keine Anrufe",
       "description": "Ihr Anrufverlauf erscheint hier, sobald Sie Anrufe tätigen oder empfangen."
+    },
+    "table": {
+      "type": "Typ",
+      "contact": "Kontakt",
+      "from": "Von",
+      "to": "An",
+      "status": "Status",
+      "duration": "Dauer",
+      "date": "Datum",
+      "recording": "Aufzeichnung",
+      "unknown": "Unbekannt",
+      "callAgain": "Erneut anrufen",
+      "noRecording": "Keine Aufzeichnung",
+      "downloadRecording": "Aufzeichnung herunterladen"
     }
   },
   "recordings": {
     "title": "Anrufaufzeichnungen",
     "description": "Hören Sie Ihre verschlüsselten Aufzeichnungen an und laden Sie sie herunter",
     "metaTitle": "Aufzeichnungen — Anhören und herunterladen | Ringee",
-    "metaDescription": "Greifen Sie auf Ihre verschlüsselten Anrufaufzeichnungen zu. Spielen Sie Audiodateien sicher ab, laden Sie sie herunter und verwalten Sie sie über Ihr Ringee-Dashboard."
+    "metaDescription": "Greifen Sie auf Ihre verschlüsselten Anrufaufzeichnungen zu. Spielen Sie Audiodateien sicher ab, laden Sie sie herunter und verwalten Sie sie über Ihr Ringee-Dashboard.",
+    "table": {
+      "type": "Typ",
+      "contact": "Kontakt",
+      "from": "Von",
+      "to": "An",
+      "duration": "Dauer",
+      "date": "Datum",
+      "status": "Status",
+      "recording": "Aufzeichnung",
+      "unknown": "Unbekannt",
+      "noRecording": "Keine Aufzeichnung",
+      "processingShort": "Wird verarbeitet…",
+      "unavailable": "Nicht verfügbar",
+      "play": "Abspielen",
+      "playRecording": "Aufzeichnung abspielen",
+      "downloadRecording": "Aufzeichnung herunterladen"
+    },
+    "statusBadge": {
+      "started": "Wird verarbeitet",
+      "processing": "Wird verarbeitet",
+      "completed": "Bereit",
+      "failed": "Fehlgeschlagen"
+    },
+    "player": {
+      "defaultTitle": "Anrufaufzeichnung",
+      "callTitle": "Anruf: {from} → {to}",
+      "decrypting": "Aufzeichnung wird entschlüsselt…",
+      "errorLoad": "Aufzeichnung konnte nicht geladen werden. Bitte erneut versuchen."
+    },
+    "dateFilter": {
+      "filterByDate": "Nach Datum filtern",
+      "from": "Ab {date}",
+      "to": "Bis {date}",
+      "clear": "Datumsfilter löschen"
+    }
   },
   "callbacks": {
     "title": "Rückrufe",
@@ -59,6 +108,26 @@
   },
   "rates": {
     "metaTitle": "Tarife — Kosten ansehen und vergleichen | Ringee",
-    "metaDescription": "Greifen Sie auf aktuelle Tarife in Ihrem Ringee-Dashboard zu. Vergleichen Sie Preise zwischen über 180 Ländern und behalten Sie Ihre Kommunikationskosten in Echtzeit im Blick."
+    "metaDescription": "Greifen Sie auf aktuelle Tarife in Ihrem Ringee-Dashboard zu. Vergleichen Sie Preise zwischen über 180 Ländern und behalten Sie Ihre Kommunikationskosten in Echtzeit im Blick.",
+    "calculator": {
+      "title": "Tarifrechner",
+      "subtitle": "Sehen Sie Ihre aktuellen Anruftarife in Ringee.",
+      "callingTo": "Ich rufe an",
+      "to": "An ein",
+      "mobile": "Mobil",
+      "landline": "Festnetz",
+      "willCost": "Ihr Anruf kostet",
+      "perMinute": "pro Minute"
+    }
+  },
+  "statusValues": {
+    "pending": "Ausstehend",
+    "ringing": "Klingelt",
+    "answered": "Angenommen",
+    "recording": "Aufzeichnung",
+    "completed": "Abgeschlossen",
+    "failed": "Fehlgeschlagen",
+    "processing": "Wird verarbeitet",
+    "ready": "Bereit"
   }
 }

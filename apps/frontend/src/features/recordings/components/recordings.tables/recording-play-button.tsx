@@ -1,15 +1,16 @@
 'use client';
 
 import { Button } from '@ringee/frontend-shared/components/ui/button';
-import { PlayCircle, AlertCircle } from 'lucide-react';
+import { PlayCircle } from 'lucide-react';
 import {
     Tooltip,
     TooltipContent,
     TooltipTrigger
 } from '@ringee/frontend-shared/components/ui/tooltip';
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { AudioPlayerModal } from '../audio-player-modal';
 import { useOnboardingComplete } from '@/features/onboarding/hooks/use.onboarding.complete';
+import { useTranslations } from 'next-intl';
 
 interface RecordingPlayButtonProps {
     recordingUrl: string;
@@ -24,10 +25,11 @@ export function RecordingPlayButton({
 }: RecordingPlayButtonProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const { completeStep } = useOnboardingComplete();
+    const t = useTranslations('calls.recordings.table');
+    const tPlayer = useTranslations('calls.recordings.player');
 
     const handlePlay = () => {
         setIsModalOpen(true);
-        // Complete recording step when listening to a recording
         completeStep('recording');
     };
 
@@ -42,19 +44,18 @@ export function RecordingPlayButton({
                         onClick={handlePlay}
                     >
                         <PlayCircle className="mr-1 h-4 w-4" />
-                        Play
+                        {t('play')}
                     </Button>
                 </TooltipTrigger>
-                <TooltipContent>Play recording</TooltipContent>
+                <TooltipContent>{t('playRecording')}</TooltipContent>
             </Tooltip>
 
             <AudioPlayerModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 audioUrl={recordingUrl}
-                title={`Call: ${callFrom} → ${callTo}`}
+                title={tPlayer('callTitle', { from: callFrom, to: callTo })}
             />
         </>
     );
 }
-

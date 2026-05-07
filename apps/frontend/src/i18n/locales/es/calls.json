@@ -12,6 +12,16 @@
   "busy": "Ocupado",
   "failed": "Fallida",
   "voicemail": "Buzón de voz",
+  "statusValues": {
+    "pending": "Pendiente",
+    "ringing": "Sonando",
+    "answered": "Contestada",
+    "recording": "Grabando",
+    "completed": "Completada",
+    "failed": "Fallida",
+    "processing": "Procesando",
+    "ready": "Lista"
+  },
   "callDuration": "Duración",
   "callCost": "Coste",
   "from": "De",
@@ -37,13 +47,62 @@
     "empty": {
       "title": "Aún no hay llamadas",
       "description": "Tu historial aparecerá aquí en cuanto empieces a hacer o recibir llamadas."
+    },
+    "table": {
+      "type": "Tipo",
+      "contact": "Contacto",
+      "from": "De",
+      "to": "Para",
+      "status": "Estado",
+      "duration": "Duración",
+      "date": "Fecha",
+      "recording": "Grabación",
+      "unknown": "Desconocido",
+      "callAgain": "Llamar de nuevo",
+      "noRecording": "Sin grabación",
+      "downloadRecording": "Descargar grabación"
     }
   },
   "recordings": {
     "title": "Grabaciones de llamadas",
     "description": "Escucha y descarga tus grabaciones cifradas",
     "metaTitle": "Grabaciones — Escuchar y descargar | Ringee",
-    "metaDescription": "Accede a tus grabaciones de llamadas cifradas. Reproduce, descarga y gestiona los archivos de audio de forma segura desde tu panel de Ringee."
+    "metaDescription": "Accede a tus grabaciones de llamadas cifradas. Reproduce, descarga y gestiona los archivos de audio de forma segura desde tu panel de Ringee.",
+    "table": {
+      "type": "Tipo",
+      "contact": "Contacto",
+      "from": "De",
+      "to": "Para",
+      "duration": "Duración",
+      "date": "Fecha",
+      "status": "Estado",
+      "recording": "Grabación",
+      "unknown": "Desconocido",
+      "noRecording": "Sin grabación",
+      "processingShort": "Procesando…",
+      "unavailable": "No disponible",
+      "play": "Reproducir",
+      "playRecording": "Reproducir grabación",
+      "downloadRecording": "Descargar grabación"
+    },
+    "statusBadge": {
+      "started": "Procesando",
+      "processing": "Procesando",
+      "completed": "Lista",
+      "failed": "Fallida"
+    },
+    "player": {
+      "defaultTitle": "Grabación de llamada",
+      "callTitle": "Llamada: {from} → {to}",
+      "decrypting": "Descifrando grabación…",
+      "errorLoad": "No se pudo cargar la grabación. Inténtalo de nuevo."
+    },
+    "dateFilter": {
+      "filterByDate": "Filtrar por fecha",
+      "from": "Desde {date}",
+      "to": "Hasta {date}",
+      "clear": "Limpiar filtro de fecha"
+    }
   },
   "callbacks": {
     "title": "Devoluciones de llamada",
@@ -59,6 +118,16 @@
   },
   "rates": {
     "metaTitle": "Tarifas — Consulta y compara costes | Ringee",
-    "metaDescription": "Accede a las tarifas de llamadas actualizadas en tu panel de Ringee. Compara precios entre más de 180 países y controla tus costes de comunicación en tiempo real."
+    "metaDescription": "Accede a las tarifas de llamadas actualizadas en tu panel de Ringee. Compara precios entre más de 180 países y controla tus costes de comunicación en tiempo real.",
+    "calculator": {
+      "title": "Calculadora de tarifas",
+      "subtitle": "Consulta tus tarifas en tiempo real con Ringee.",
+      "callingTo": "Estoy llamando a",
+      "to": "A un",
+      "mobile": "Móvil",
+      "landline": "Fijo",
+      "willCost": "Tu llamada costará",
+      "perMinute": "por minuto"
+    }
   }
 }

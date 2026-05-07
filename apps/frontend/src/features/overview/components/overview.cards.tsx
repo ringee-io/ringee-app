@@ -14,6 +14,7 @@ import {
   IconPhoneCall,
   IconPhoneOff
 } from '@tabler/icons-react';
+import { getTranslations } from 'next-intl/server';
 import React from 'react';
 
 // 🧠 Helper para formatear duración inteligentemente
@@ -28,6 +29,7 @@ function formatDuration(seconds?: number | null): string {
 }
 
 export async function OverviewCards({ useMock, memberId }: { useMock?: boolean; memberId?: string }) {
+  const t = await getTranslations('dashboard.overview.cards');
   const {
     total,
     answered,
@@ -51,7 +53,7 @@ export async function OverviewCards({ useMock, memberId }: { useMock?: boolean; 
       {/* 🟦 Total Calls */}
       <Card className='@container/card'>
         <CardHeader>
-          <CardDescription>Total Calls</CardDescription>
+          <CardDescription>{t('totalCalls.title')}</CardDescription>
           <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
             {total.toLocaleString()}
           </CardTitle>
@@ -63,23 +65,25 @@ export async function OverviewCards({ useMock, memberId }: { useMock?: boolean; 
         </CardHeader>
         <CardFooter className='flex-col items-start gap-1.5 text-sm'>
           <div className='flex gap-2 font-medium'>
-            Trending up this month <IconTrendingUp className='size-4' />
+            {t('totalCalls.trend')} <IconTrendingUp className='size-4' />
           </div>
           <div className='text-muted-foreground'>
-            Connection rate for the last 6 months
+            {t('totalCalls.subtitle')}
           </div>
           <div className='flex gap-3 pt-2'>
             <Badge
               variant='secondary'
               className='flex items-center gap-1 text-green-600'
             >
-              <IconPhoneCall size={14} /> {answerRate?.toFixed(1)}% answered
+              <IconPhoneCall size={14} />{' '}
+              {t('totalCalls.answered', { rate: answerRate?.toFixed(1) ?? '0' })}
             </Badge>
             <Badge
               variant='secondary'
               className='flex items-center gap-1 text-red-600'
             >
-              <IconPhoneOff size={14} /> {missedRate?.toFixed(1)}% missed
+              <IconPhoneOff size={14} />{' '}
+              {t('totalCalls.missed', { rate: missedRate?.toFixed(1) ?? '0' })}
             </Badge>
           </div>
         </CardFooter>
@@ -88,7 +92,7 @@ export async function OverviewCards({ useMock, memberId }: { useMock?: boolean; 
       {/* 🕒 Average Duration */}
       <Card className='@container/card'>
         <CardHeader>
-          <CardDescription>Average Duration</CardDescription>
+          <CardDescription>{t('averageDuration.title')}</CardDescription>
           <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
             {avgFormatted}
           </CardTitle>
@@ -113,19 +117,19 @@ export async function OverviewCards({ useMock, memberId }: { useMock?: boolean; 
         <CardFooter className='flex-col items-start gap-1.5 text-sm'>
           {durationPositive ? (
             <div className='flex gap-2 font-medium text-green-600'>
-              Up {durationChange.toFixed(1)}% this period{' '}
+              {t('averageDuration.up', { rate: durationChange.toFixed(1) })}{' '}
               <IconTrendingUp className='size-4' />
             </div>
           ) : (
             <div className='flex gap-2 font-medium text-red-600'>
-              Down {Math.abs(durationChange).toFixed(1)}% this period{' '}
+              {t('averageDuration.down', { rate: Math.abs(durationChange).toFixed(1) })}{' '}
               <IconTrendingDown className='size-4' />
             </div>
           )}
           <div className='text-muted-foreground'>
             {durationPositive
-              ? 'Users are staying longer on calls'
-              : 'Average call duration decreased'}
+              ? t('averageDuration.subtitleUp')
+              : t('averageDuration.subtitleDown')}
           </div>
         </CardFooter>
       </Card>
@@ -133,7 +137,7 @@ export async function OverviewCards({ useMock, memberId }: { useMock?: boolean; 
       {/* 📈 Weekly Growth */}
       <Card className='@container/card'>
         <CardHeader>
-          <CardDescription>Weekly Growth</CardDescription>
+          <CardDescription>{t('weeklyGrowth.title')}</CardDescription>
           <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
             {weeklyGrowth > 0
               ? `+${weeklyGrowth?.toFixed(1) ?? '0'}% 📈`
@@ -157,10 +161,10 @@ export async function OverviewCards({ useMock, memberId }: { useMock?: boolean; 
         </CardHeader>
         <CardFooter className='flex-col items-start gap-1.5 text-sm'>
           <div className='flex gap-2 font-medium'>
-            Strong user retention <IconTrendingUp className='size-4' />
+            {t('weeklyGrowth.trend')} <IconTrendingUp className='size-4' />
           </div>
           <div className='text-muted-foreground'>
-            Engagement exceeds targets
+            {t('weeklyGrowth.subtitle')}
           </div>
         </CardFooter>
       </Card>
@@ -168,7 +172,7 @@ export async function OverviewCards({ useMock, memberId }: { useMock?: boolean; 
       {/* 🚀 Growth Rate */}
       <Card className='@container/card'>
         <CardHeader>
-          <CardDescription>Growth Rate</CardDescription>
+          <CardDescription>{t('growthRate.title')}</CardDescription>
           <CardTitle className='text-2xl font-semibold tabular-nums @[250px]/card:text-3xl'>
             {growthRate > 0
               ? `+${growthRate?.toFixed(1) ?? '0'}% 📈`
@@ -191,9 +195,9 @@ export async function OverviewCards({ useMock, memberId }: { useMock?: boolean; 
         </CardHeader>
         <CardFooter className='flex-col items-start gap-1.5 text-sm'>
           <div className='flex gap-2 font-medium'>
-            Steady performance increase <IconTrendingUp className='size-4' />
+            {t('growthRate.trend')} <IconTrendingUp className='size-4' />
           </div>
-          <div className='text-muted-foreground'>Meets growth projections</div>
+          <div className='text-muted-foreground'>{t('growthRate.subtitle')}</div>
         </CardFooter>
       </Card>
     </div>

@@ -7,6 +7,7 @@
   "loading": "Chargement…",
   "continue": "Continuer",
   "back": "Retour",
+  "backTo": "Retour à {title}",
   "next": "Suivant",
   "confirm": "Confirmer",
   "close": "Fermer",
@@ -46,5 +47,35 @@
   "duration": "Durée",
   "type": "Type",
   "price": "Prix",
-  "total": "Total"
+  "total": "Total",
+  "searchPlaceholder": "Rechercher...",
+  "removeFile": "Supprimer le fichier",
+  "areYouSure": "Êtes-vous sûr ?",
+  "cannotBeUndone": "Cette action est irréversible.",
+  "theme": "Thème",
+  "selectTheme": "Choisir un thème :",
+  "selectThemePlaceholder": "Choisir un thème",
+  "platform": "Plateforme",
+  "projects": "Projets",
+  "fileUpload": {
+    "dropHere": "Déposez les fichiers ici",
+    "dragAndDrop": "Glissez-déposez vos fichiers ici, ou cliquez pour sélectionner",
+    "uploadMultiple": "Vous pouvez importer {count} fichiers (jusqu'à {maxSize} chacun)",
+    "uploadMultipleUnlimited": "Vous pouvez importer plusieurs fichiers (jusqu'à {maxSize} chacun)",
+    "uploadSingle": "Vous pouvez importer un fichier de {maxSize}",
+    "cannotUploadMore": "Impossible d'importer plus de {count} fichier(s)",
+    "fileRejected": "Le fichier {name} a été refusé",
+    "uploadingFiles": "Import de {target}…",
+    "uploaded": "{target} importé(s)",
+    "failedToUpload": "Échec de l'import de {target}",
+    "files": "{count} fichiers",
+    "file": "fichier"
+  },
+  "project": {
+    "view": "Voir le projet",
+    "share": "Partager le projet",
+    "delete": "Supprimer le projet"
+  },
+  "toggleTheme": "Changer de thème",
+  "toggleSidebar": "Basculer la barre latérale"
 }

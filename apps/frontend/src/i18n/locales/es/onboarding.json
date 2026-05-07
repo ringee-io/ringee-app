@@ -1,20 +1,63 @@
 {
   "welcome": {
     "title": "Bienvenido a Ringee",
-    "description": "Vamos a configurar tu espacio de trabajo en un par de minutos."
+    "description": "Configura tu espacio de trabajo en pocos minutos."
   },
   "steps": {
     "profile": "Cuéntanos sobre ti",
     "organization": "Crea tu organización",
-    "number": "Elige un número de teléfono",
+    "number": "Elige un número",
     "credits": "Añade créditos",
-    "done": "¡Todo listo!"
+    "done": "Todo listo"
   },
   "actions": {
     "skip": "Omitir por ahora",
     "finish": "Finalizar configuración",
-    "letsGo": "¡Vamos!"
+    "letsGo": "Empezar"
   },
   "headerButton": "Configuración",
-  "progress": "{current} de {total}"
+  "progress": "{current} de {total}",
+  "guide": {
+    "title": "Guía de configuración",
+    "minimize": "Minimizar",
+    "close": "Cerrar",
+    "showSteps": "Mostrar pasos",
+    "hideSteps": "Ocultar pasos",
+    "completedSummary": "{completed}/{total} completados",
+    "stepsCompleted": "{completed} de {total} pasos completados"
+  },
+  "guideSteps": {
+    "first_call": {
+      "title": "Haz tu primera llamada",
+      "description": "Ringee te regala la primera llamada"
+    },
+    "recording": {
+      "title": "Graba y escucha",
+      "description": "Graba una llamada y escucha la grabación"
+    },
+    "check_numbers": {
+      "title": "Explora números disponibles",
+      "description": "Descubre los números que puedes comprar"
+    },
+    "buy_credits": {
+      "title": "Compra créditos",
+      "description": "Añade créditos para hacer más llamadas"
+    }
+  },
+  "headerProgress": {
+    "label": "Guía de configuración",
+    "tooltip": "Reanudar la configuración"
+  },
+  "firstCallModal": {
+    "title": "Tu primera llamada va por nuestra cuenta",
+    "subtitle": "¡Haz y graba tu primera llamada gratis!",
+    "step1Title": "Paso 1: Introduce un número",
+    "step1Description": "Usa el teclado para introducir cualquier número. Funciona igual que un teléfono normal.",
+    "step2Title": "Paso 2: Empieza a grabar",
+    "step2Description": "No olvides pulsar el botón de grabación al conectar la llamada para guardar la conversación.",
+    "recordingButton": "Botón de grabación",
+    "recordingAlt": "Cómo iniciar la grabación",
+    "maybeLater": "Quizás más tarde",
+    "startCalling": "Empezar a llamar"
+  }
 }

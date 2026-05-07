@@ -3,7 +3,15 @@
   "switcher": {
     "select": "Selecteer een organisatie",
     "personal": "Persoonlijk account",
-    "create": "Organisatie aanmaken"
+    "create": "Organisatie aanmaken",
+    "switching": "Wisselen…",
+    "myPersonal": "Mijn persoonlijk account",
+    "organization": "Organisatie",
+    "organizations": "Organisaties",
+    "manageOrganization": "Organisatie beheren",
+    "createOrganization": "Organisatie aanmaken",
+    "createNewOrganization": "Nieuwe organisatie aanmaken",
+    "subscriptionReady": "Abonnement klaar"
   },
   "create": {
     "title": "Organisatie aanmaken",
@@ -21,5 +29,28 @@
     "owner": "Eigenaar",
     "admin": "Beheerder",
     "member": "Lid"
+  },
+  "upgrade": {
+    "title": "Upgraden naar Organisatie",
+    "description": "Ontgrendel professionele functies voor je team.",
+    "features": {
+      "unlimitedMembers": "Onbeperkte teamleden",
+      "cheaperRates": "Goedkopere tarieven per minuut",
+      "virtualNumbers": "Virtuele nummers inbegrepen",
+      "advancedAnalytics": "Geavanceerde analyses"
+    },
+    "unlockProFeatures": "Pro-functies ontgrendelen",
+    "pricing": "Prijzen",
+    "perMonth": "/maand",
+    "perMonthPerOrg": "/maand per org",
+    "proPlan": "Pro-plan",
+    "proceedToUpgrade": "Doorgaan met upgraden",
+    "secureByStripe": "Beveiligd door Stripe",
+    "cancelAnytime": "Op elk moment opzegbaar"
+  },
+  "subscription": {
+    "required": "Abonnement vereist",
+    "requiredDescription": "U heeft een actief abonnement nodig om nog een organisatie aan te maken.",
+    "subscribeNow": "Nu abonneren"
   }
 }

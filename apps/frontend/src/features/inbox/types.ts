@@ -98,28 +98,28 @@ export interface InboxEvent {
 
 export const THREAD_FILTER_OPTIONS: {
   id: string;
-  label: string;
+  labelKey: string;
   status?: InboxThreadStatus[];
   kind?: InboxEventKind[];
   unreadOnly?: boolean;
 }[] = [
-  { id: 'all', label: 'All', status: ['open', 'pending'] },
-  { id: 'unread', label: 'Unread', unreadOnly: true },
+  { id: 'all', labelKey: 'filters.all', status: ['open', 'pending'] },
+  { id: 'unread', labelKey: 'filters.unread', unreadOnly: true },
   {
     id: 'missed',
-    label: 'Missed Calls',
+    labelKey: 'filters.missedCalls',
     kind: ['missed_call']
   },
   {
     id: 'voicemails',
-    label: 'Voicemails',
+    labelKey: 'filters.voicemails',
     kind: ['voicemail_received']
   },
   {
     id: 'sms',
-    label: 'SMS',
+    labelKey: 'filters.sms',
     kind: ['sms_received', 'sms_sent', 'mms_received', 'mms_sent']
   },
-  { id: 'resolved', label: 'Resolved', status: ['resolved'] },
-  { id: 'archived', label: 'Archived', status: ['archived'] }
+  { id: 'resolved', labelKey: 'filters.resolved', status: ['resolved'] },
+  { id: 'archived', labelKey: 'filters.archived', status: ['archived'] }
 ];

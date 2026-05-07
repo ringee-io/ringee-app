@@ -29,7 +29,12 @@
     "recordings": "Aufzeichnungen",
     "rate": "Tarife",
     "buyNumber": "Nummer kaufen",
-    "signOut": "Abmelden"
+    "signOut": "Abmelden",
+    "upgradeToPro": "Auf Pro upgraden",
+    "account": "Konto",
+    "billing": "Abrechnung",
+    "notifications": "Benachrichtigungen",
+    "logOut": "Abmelden"
   },
   "sidebar": {
     "openQuickCall": "Schnellanruf",
@@ -41,5 +46,9 @@
   "inboxTooltip": {
     "title": "Posteingang — demnächst verfügbar",
     "description": "Verwalten Sie eingehende Nachrichten, verpasste Anrufe und Voicemails an einem Ort."
+  },
+  "kbar": {
+    "navigation": "Navigation",
+    "goTo": "Gehe zu {page}"
   }
 }

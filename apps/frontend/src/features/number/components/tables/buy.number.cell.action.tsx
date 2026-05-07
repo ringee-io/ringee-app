@@ -7,8 +7,10 @@ import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AvailableNumber } from './buy.number.columns';
+import { useTranslations } from 'next-intl';
 
 export const CellActionBuy = ({ data }: { data: AvailableNumber }) => {
+  const t = useTranslations('settings.numbers.buy');
   const [loading, setLoading] = useState(false);
   const api = useApi();
   const router = useRouter();
@@ -31,7 +33,7 @@ export const CellActionBuy = ({ data }: { data: AvailableNumber }) => {
 
       router.push(url);
     } catch (err) {
-      toast.error('Failed to purchase number');
+      toast.error(t('purchase.error'));
     } finally {
       setLoading(false);
     }
@@ -46,7 +48,7 @@ export const CellActionBuy = ({ data }: { data: AvailableNumber }) => {
       className='cursor-pointer'
     >
       <IconShoppingCart className='mr-2 h-4 w-4' />
-      Buy
+      {t('table.buy')}
     </Button>
   );
 };

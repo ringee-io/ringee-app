@@ -13,6 +13,7 @@ import { useMemo } from 'react';
 import RenderResults from './render-result';
 import useThemeSwitching from './use-theme-switching';
 import { useOrgRole } from '../../hooks/use-org-role';
+import { useTranslations } from 'next-intl';
 
 export default function KBar({ children }: { children: React.ReactNode }) {
   return (
@@ -22,10 +23,30 @@ export default function KBar({ children }: { children: React.ReactNode }) {
   );
 }
 
+const ITEM_TITLE_KEYS: Record<string, string> = {
+  Dashboard: 'items.dashboard',
+  Contacts: 'items.contacts',
+  Activities: 'items.activities',
+  Meetings: 'items.meetings',
+  Call: 'items.call',
+  Inbox: 'items.inbox',
+  Campaigns: 'items.campaigns',
+  Callbacks: 'items.callbacks',
+  DNC: 'items.dnc',
+  Overview: 'items.overview',
+  Integrations: 'items.integrations'
+};
+
 const KBarComponent = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
   const { canAccessAdminFeatures, hiddenForMember } = useOrgRole();
-  
+  const t = useTranslations('navigation.kbar');
+  const tNav = useTranslations('navigation');
+  const localizeTitle = (title: string) => {
+    const key = ITEM_TITLE_KEYS[title];
+    return key ? tNav(key) : title;
+  };
+
   useThemeSwitching();
 
   // Build and register navigation actions dynamically based on role
@@ -35,41 +56,43 @@ const KBarComponent = ({ children }: { children: React.ReactNode }) => {
     };
 
     return navItems.flatMap((navItem) => {
-      // Filter base action if it's in hidden list
       const shouldShowBase = canAccessAdminFeatures || !hiddenForMember.includes(navItem.title);
-      
+      const navLabel = localizeTitle(navItem.title);
+
       const baseAction =
         navItem.url !== '#' && shouldShowBase
           ? {
               id: `${navItem.title.toLowerCase()}Action`,
-              name: navItem.title,
+              name: navLabel,
               shortcut: navItem.shortcut,
-              keywords: navItem.title.toLowerCase(),
-              section: 'Navigation',
-              subtitle: `Go to ${navItem.title}`,
+              keywords: `${navItem.title.toLowerCase()} ${navLabel.toLowerCase()}`,
+              section: t('navigation'),
+              subtitle: t('goTo', { page: navLabel }),
               perform: () => navigateTo(navItem.url)
             }
           : null;
 
-      // Map child items into actions, filtering based on role
       const childActions =
         navItem.items
-          ?.filter((childItem) => 
+          ?.filter((childItem) =>
             canAccessAdminFeatures || !hiddenForMember.includes(childItem.title)
           )
-          .map((childItem) => ({
-            id: `${childItem.title.toLowerCase()}Action`,
-            name: childItem.title,
-            shortcut: childItem.shortcut,
-            keywords: childItem.title.toLowerCase(),
-            section: navItem.title,
-            subtitle: `Go to ${childItem.title}`,
-            perform: () => navigateTo(childItem.url)
-          })) ?? [];
+          .map((childItem) => {
+            const childLabel = localizeTitle(childItem.title);
+            return {
+              id: `${childItem.title.toLowerCase()}Action`,
+              name: childLabel,
+              shortcut: childItem.shortcut,
+              keywords: `${childItem.title.toLowerCase()} ${childLabel.toLowerCase()}`,
+              section: navLabel,
+              subtitle: t('goTo', { page: childLabel }),
+              perform: () => navigateTo(childItem.url)
+            };
+          }) ?? [];
 
       return baseAction ? [baseAction, ...childActions] : childActions;
     });
-  }, [router, canAccessAdminFeatures, hiddenForMember]);
+  }, [router, canAccessAdminFeatures, hiddenForMember, t, tNav]);
 
   // Register actions dynamically - this updates when role changes
   useRegisterActions(actions, [actions]);

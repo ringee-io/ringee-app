@@ -14,6 +14,7 @@ import { Loader2, Send, StickyNote, MessageSquare } from 'lucide-react';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { InboxThread } from '../types';
 import { useNumbers, useThreadActions } from '../hooks/use-inbox';
+import { useTranslations } from 'next-intl';
 
 interface Props {
   thread: InboxThread;
@@ -23,6 +24,7 @@ interface Props {
 type Mode = 'sms' | 'note';
 
 export function Composer({ thread, onAfterAction }: Props) {
+  const t = useTranslations('inbox.composer');
   const [mode, setMode] = useState<Mode>('sms');
   const [text, setText] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -86,7 +88,7 @@ export function Composer({ thread, onAfterAction }: Props) {
               : 'bg-muted text-muted-foreground'
           )}
         >
-          <MessageSquare className='h-3.5 w-3.5' /> SMS
+          <MessageSquare className='h-3.5 w-3.5' /> {t('sms')}
         </button>
         <button
           type='button'
@@ -98,7 +100,7 @@ export function Composer({ thread, onAfterAction }: Props) {
               : 'bg-muted text-muted-foreground'
           )}
         >
-          <StickyNote className='h-3.5 w-3.5' /> Internal note
+          <StickyNote className='h-3.5 w-3.5' /> {t('internalNote')}
         </button>
 
         {mode === 'sms' && numbers.length > 0 && (
@@ -108,7 +110,7 @@ export function Composer({ thread, onAfterAction }: Props) {
               onValueChange={(v) => setFromNumber(v)}
             >
               <SelectTrigger className='h-7 w-[180px] text-xs'>
-                <SelectValue placeholder='Select number' />
+                <SelectValue placeholder={t('selectNumber')} />
               </SelectTrigger>
               <SelectContent>
                 {numbers.map((n) => (
@@ -118,7 +120,7 @@ export function Composer({ thread, onAfterAction }: Props) {
                     disabled={!n.smsEnabled}
                   >
                     {n.phoneNumber}
-                    {!n.smsEnabled && ' (no SMS)'}
+                    {!n.smsEnabled && t('noSmsSuffix')}
                   </SelectItem>
                 ))}
               </SelectContent>
@@ -134,8 +136,8 @@ export function Composer({ thread, onAfterAction }: Props) {
           rows={2}
           placeholder={
             mode === 'note'
-              ? 'Add an internal note (only visible to your team)…'
-              : 'Type a message — ⌘/Ctrl + Enter to send'
+              ? t('notePlaceholder')
+              : t('messagePlaceholder')
           }
           className={cn(
             'min-h-[60px] flex-1 resize-none',
@@ -157,15 +159,14 @@ export function Composer({ thread, onAfterAction }: Props) {
           ) : (
             <>
               <Send className='mr-1 h-4 w-4' />
-              {mode === 'note' ? 'Save note' : 'Send'}
+              {mode === 'note' ? t('saveNote') : t('send')}
             </>
           )}
         </Button>
       </div>
       {mode === 'sms' && fromNumber && smsCapable === false && (
         <p className='px-3 pb-2 text-xs text-amber-600'>
-          This number does not have SMS enabled in Telnyx. Pick another or
-          enable messaging on the number.
+          {t('smsDisabledWarning')}
         </p>
       )}
     </div>

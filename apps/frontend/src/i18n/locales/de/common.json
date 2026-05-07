@@ -7,6 +7,7 @@
   "loading": "Wird geladen…",
   "continue": "Fortfahren",
   "back": "Zurück",
+  "backTo": "Zurück zu {title}",
   "next": "Weiter",
   "confirm": "Bestätigen",
   "close": "Schließen",
@@ -46,5 +47,35 @@
   "duration": "Dauer",
   "type": "Typ",
   "price": "Preis",
-  "total": "Gesamt"
+  "total": "Gesamt",
+  "searchPlaceholder": "Suchen...",
+  "removeFile": "Datei entfernen",
+  "areYouSure": "Sind Sie sicher?",
+  "cannotBeUndone": "Diese Aktion kann nicht rückgängig gemacht werden.",
+  "theme": "Thema",
+  "selectTheme": "Thema wählen:",
+  "selectThemePlaceholder": "Thema wählen",
+  "platform": "Plattform",
+  "projects": "Projekte",
+  "fileUpload": {
+    "dropHere": "Dateien hier ablegen",
+    "dragAndDrop": "Dateien hierher ziehen oder klicken zum Auswählen",
+    "uploadMultiple": "Sie können {count} Dateien hochladen (jeweils bis zu {maxSize})",
+    "uploadMultipleUnlimited": "Sie können mehrere Dateien hochladen (jeweils bis zu {maxSize})",
+    "uploadSingle": "Sie können eine Datei bis zu {maxSize} hochladen",
+    "cannotUploadMore": "Es können nicht mehr als {count} Datei(en) hochgeladen werden",
+    "fileRejected": "Die Datei {name} wurde abgelehnt",
+    "uploadingFiles": "{target} wird hochgeladen…",
+    "uploaded": "{target} hochgeladen",
+    "failedToUpload": "Fehler beim Hochladen von {target}",
+    "files": "{count} Dateien",
+    "file": "Datei"
+  },
+  "project": {
+    "view": "Projekt ansehen",
+    "share": "Projekt teilen",
+    "delete": "Projekt löschen"
+  },
+  "toggleTheme": "Design umschalten",
+  "toggleSidebar": "Seitenleiste umschalten"
 }

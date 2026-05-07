@@ -36,6 +36,7 @@ import {
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { toast } from 'sonner';
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import { useTranslations } from 'next-intl';
 
 interface Tag {
   id: string;
@@ -121,6 +122,8 @@ export function EditTagsModal({
   const [saving, setSaving] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [tagToDelete, setTagToDelete] = useState<Tag | null>(null);
+  const t = useTranslations('contacts.manageTags');
+  const tCommon = useTranslations('common');
 
   const fetchTags = useCallback(async () => {
     setLoading(true);
@@ -128,7 +131,7 @@ export function EditTagsModal({
       const data = await api.get<Tag[]>('/tags');
       setTags(data);
     } catch (err) {
-      toast.error('Failed to load tags');
+      toast.error(tCommon('somethingWentWrong'));
     } finally {
       setLoading(false);
     }
@@ -153,10 +156,10 @@ export function EditTagsModal({
       setNewName('');
       setNewColor(DEFAULT_COLORS[Math.floor(Math.random() * DEFAULT_COLORS.length)]);
       setIsCreating(false);
-      toast.success('Tag created');
+      toast.success(tCommon('success') || 'Tag created');
       onTagsUpdated?.();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to create tag');
+      toast.error(err.message || tCommon('somethingWentWrong'));
     } finally {
       setSaving(false);
     }
@@ -185,10 +188,10 @@ export function EditTagsModal({
       });
       setTags(tags.map((t) => (t.id === editingId ? updated : t)));
       handleCancelEdit();
-      toast.success('Tag updated');
+      toast.success(tCommon('success') || 'Tag updated');
       onTagsUpdated?.();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update tag');
+      toast.error(err.message || tCommon('somethingWentWrong'));
     } finally {
       setSaving(false);
     }
@@ -205,10 +208,10 @@ export function EditTagsModal({
     try {
       await api.delete(`/tags/${tagToDelete.id}`);
       setTags(tags.filter((t) => t.id !== tagToDelete.id));
-      toast.success('Tag deleted');
+      toast.success(tCommon('success') || 'Tag deleted');
       onTagsUpdated?.();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to delete tag');
+      toast.error(err.message || tCommon('somethingWentWrong'));
     } finally {
       setDeleteDialogOpen(false);
       setTagToDelete(null);
@@ -222,10 +225,10 @@ export function EditTagsModal({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <IconTag className="h-5 w-5" />
-            Manage Tags
+            {t('title')}
           </DialogTitle>
           <DialogDescription>
-            Create and manage tags to organize your contacts
+            {t('description')}
           </DialogDescription>
         </DialogHeader>
 
@@ -234,9 +237,9 @@ export function EditTagsModal({
           {isCreating ? (
             <div className="space-y-3 rounded-lg border p-3">
               <div className="space-y-2">
-                <Label>Tag name</Label>
+                <Label>{t('tagName')}</Label>
                 <Input
-                  placeholder="Enter tag name..."
+                  placeholder={t('enterTagName')}
                   value={newName}
                   onChange={(e) => setNewName(e.target.value)}
                   autoFocus
@@ -245,7 +248,7 @@ export function EditTagsModal({
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <IconColorPicker className="h-4 w-4" />
-                  Color
+                  {t('color')}
                 </Label>
                 <div className="flex flex-wrap items-center gap-2">
                   {DEFAULT_COLORS.map((color) => (
@@ -270,7 +273,7 @@ export function EditTagsModal({
                 </div>
                 {/* Color preview */}
                 <div className="flex items-center gap-2 mt-2">
-                  <span className="text-sm text-muted-foreground">Preview:</span>
+                  <span className="text-sm text-muted-foreground">{t('preview')}:</span>
                   <Badge
                     variant="secondary"
                     style={{
@@ -280,7 +283,7 @@ export function EditTagsModal({
                     }}
                     className="border"
                   >
-                    {newName || 'Tag name'}
+                    {newName || t('tagName')}
                   </Badge>
                 </div>
               </div>
@@ -295,14 +298,14 @@ export function EditTagsModal({
                   ) : (
                     <IconCheck className="h-4 w-4" />
                   )}
-                  Create
+                  {t('create')}
                 </Button>
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setIsCreating(false)}
                 >
-                  Cancel
+                  {t('cancel')}
                 </Button>
               </div>
             </div>
@@ -313,7 +316,7 @@ export function EditTagsModal({
               onClick={() => setIsCreating(true)}
             >
               <IconPlus className="mr-2 h-4 w-4" />
-              Create New Tag
+              {t('createNewTag')}
             </Button>
           )}
 
@@ -325,7 +328,7 @@ export function EditTagsModal({
               </div>
             ) : tags.length === 0 ? (
               <div className="text-muted-foreground py-8 text-center text-sm">
-                No tags created yet
+                {t('noTagsYet')}
               </div>
             ) : (
               tags.map((tag) =>
@@ -437,9 +440,9 @@ export function EditTagsModal({
             <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
               <IconTrash className="h-8 w-8 text-red-600 dark:text-red-400" />
             </div>
-            <AlertDialogTitle className="text-center text-xl">Delete tag?</AlertDialogTitle>
+            <AlertDialogTitle className="text-center text-xl">{t('deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription className="text-center">
-              This will permanently delete <span className="font-semibold text-foreground">"{tagToDelete?.name}"</span> and remove it from all contacts. This action cannot be undone.
+              {t('deleteDescription', { name: tagToDelete?.name || '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0 pt-4">
@@ -447,9 +450,9 @@ export function EditTagsModal({
               onClick={confirmDelete}
               className="w-full bg-gradient-to-r from-red-600 to-red-500 text-white hover:from-red-700 hover:to-red-600 shadow-lg shadow-red-500/20"
             >
-              Yes, delete tag
+              {t('deleteConfirm')}
             </AlertDialogAction>
-            <AlertDialogCancel className="w-full">Cancel</AlertDialogCancel>
+            <AlertDialogCancel className="w-full">{t('cancel')}</AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

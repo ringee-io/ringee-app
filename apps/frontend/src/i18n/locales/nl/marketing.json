@@ -8,7 +8,15 @@
     "blog": "Blog",
     "contact": "Contact",
     "signIn": "Inloggen",
-    "getStarted": "Aan de slag"
+    "getStarted": "Aan de slag",
+    "navItems": {
+      "features": "Features",
+      "campaigns": "Campagnes",
+      "findLeads": "Leads vinden & verrijken",
+      "integrations": "CRM-integraties",
+      "comparison": "Vergelijking",
+      "pricing": "Prijzen"
+    }
   },
   "hero": {
     "headlinePrefix": "Gesprekken, campagnes &",
@@ -33,15 +41,166 @@
       "browserMobile": "Browser & mobiel"
     }
   },
-  "features": { "title": "Versterk je gesprekken met Ringee.io" },
-  "faq": {
-    "title": "Veelgestelde vragen",
-    "subtitle": "Alles wat je moet weten over Ringee.io, prijzen en gesprekskwaliteit."
+  "features": {
+    "title": "Versterk je gesprekken met Ringee.io",
+    "items": {
+      "smartDialer": {
+        "title": "Smart Dialer",
+        "description": "Bel wereldwijd in seconden met HD-kwaliteit en realtime call-analytics."
+      },
+      "buyNumbers": {
+        "title": "Koop lokale en internationale nummers",
+        "description": "Krijg geverifieerde nummers uit meerdere landen om je bereik te vergroten en verschillende merken te beheren."
+      },
+      "publicNumbers": {
+        "title": "Direct te gebruiken publieke nummers",
+        "description": "Begin meteen te bellen vanaf een gedeeld publiek Ringee-nummer — zonder setup."
+      },
+      "encryptedRecording": {
+        "title": "Versleutelde gespreksopname",
+        "description": "Neem gesprekken volledig versleuteld op. Elke opname wordt veilig opgeslagen en is alleen toegankelijk vanuit je Ringee-account, voor jou en je geautoriseerde teamleden."
+      },
+      "webMobile": {
+        "title": "Web- & mobiele toegang",
+        "description": "Gebruik Ringee direct in je browser of via de Android-app, met volledige sync tussen apparaten."
+      },
+      "billing": {
+        "title": "Tegoed- & factuurbeheer",
+        "description": "Houd saldo, kosten en opwaarderingen bij — met transparante prijs per minuut."
+      }
+    }
   },
-  "pricing": { "title": "Prijzen voor individuen en teams", "perMonth": "per maand" },
+  "videoDemo": {
+    "title": "Ringee in actie",
+    "subtitle": "Zie hoe je je registreert en binnen een minuut begint te bellen.",
+    "cards": {
+      "quickSetup": { "title": "Snelle setup", "description": "Bel binnen 60 seconden" },
+      "recordCalls": { "title": "Neem op", "description": "Mis geen belangrijke details" },
+      "countries": { "title": "180+ landen", "description": "Wereldwijde dekking, lokale tarieven" },
+      "cheaper": { "title": "50× goedkoper", "description": "Pay-as-you-go-tarieven" }
+    }
+  },
+  "campaigns": {
+    "kicker": "Outbound-campagnes",
+    "title": "Dialers op maat voor elke playbook",
+    "subtitle": "Doe cold calling, follow-ups en re-engagement met de dialer-modus die past bij jouw team — van door agenten beoordeelde gesprekken tot volledig automatisch."
+  },
+  "findLeads": {
+    "kicker": "Leads vinden & verrijken",
+    "title": "Vind en verrijk leads — zonder Ringee te verlaten",
+    "subtitle": "Apollo en Prospeo zitten ingebouwd. Zoek, verrijk en bel in seconden."
+  },
+  "crmIntegrations": {
+    "kicker": "CRM-integraties",
+    "title": "Elk gesprek automatisch in je CRM",
+    "subtitle": "Vandaag Attio en Odoo, meer onderweg. Notities, opnames en uitkomsten worden automatisch gesynchroniseerd."
+  },
+  "pricing": {
+    "title": "Prijzen voor individuen en teams",
+    "subtitle": "Begin als individu met pay-as-you-go of upgrade naar een business-plan voor samenwerking en betere volumeprijzen. Bel en ontvang gesprekken in <strong>180+ landen</strong> en huur nummers in <strong>50+</strong> — direct geactiveerd, volledige controle.",
+    "perMonth": "per maand",
+    "ctaStart": "Gratis starten",
+    "individual": {
+      "title": "Voor individuen (pay as you go)",
+      "price": "$0,020",
+      "priceCaption": "per minuut (instaptarief) — nummers vanaf $1,90/maand",
+      "features": {
+        "outbound": "Wereldwijd uitbellen",
+        "billingPerSecond": "Realtime facturatie per seconde",
+        "recording": "Optionele gespreksopname",
+        "rentNumbers": "Huur lokale of gratis nummers",
+        "instantActivation": "Directe activatie en verificatie",
+        "manageNumbers": "Beheer meerdere nummers eenvoudig"
+      },
+      "cta": "Maak een gratis gesprek van 1 minuut"
+    },
+    "business": {
+      "title": "Voor teams en bedrijven",
+      "price": "$20,00",
+      "priceCaption": "per maand — businessfuncties bovenop pay-as-you-go-gebruik",
+      "features": {
+        "everythingIndividual": "Alles uit het individuele plan",
+        "teamCollab": "Teamwork en gedeelde dashboards",
+        "unlimitedMembers": "Onbeperkt aantal teamleden",
+        "volumeRates": "Goedkopere minutenprijzen bij volume",
+        "prioritySupport": "Priority support en onboarding"
+      },
+      "cta": "Naar registratie"
+    },
+    "footnote": "* Tarieven kunnen per land licht variëren. Belastingen en carrier-kosten niet inbegrepen.",
+    "tooltips": {
+      "calls": "Betaal alleen voor wat je gebruikt. Uitgaande gesprekken starten vanaf $0,020/min en variëren per bestemming.",
+      "numbers": "Huur lokale of internationale telefoonnummers vanaf $1,90/maand in meer dan 50 landen.",
+      "recording": "Neem gesprekken op en download ze voor kwaliteitsbewaking en compliance.",
+      "coverage": "Met Ringee bel je en ontvang je gesprekken in meer dan 180 landen via VoIP-routes van hoge kwaliteit.",
+      "business": "Ontworpen voor teams en sales-operations — bevat alles uit het individuele plan plus teamfuncties, betere tarieven en priority support."
+    }
+  },
   "comparison": {
     "title": "Vergelijk Ringee.io",
     "subtitle": "Hoe Ringee zich verhoudt tot Adversus en Genesys als je flexibele outbound-gesprekken in de browser wilt, zonder dure per-seat-contracten."
+  },
+  "faq": {
+    "title": "Veelgestelde vragen",
+    "subtitle": "Alles wat je moet weten over Ringee.io, prijzen en gesprekskwaliteit.",
+    "items": {
+      "browserCalling": {
+        "question": "Hoe werkt bellen vanuit de browser?",
+        "answer": "Ringee.io gebruikt WebRTC om gesprekken direct vanuit je browser te verbinden — geen downloads of extensies nodig. Wanneer je belt, maakt je browser veilig en realtime verbinding met het wereldwijde telefoonnetwerk."
+      },
+      "incomingCalls": {
+        "question": "Kan ik inkomende gesprekken ontvangen?",
+        "answer": "Ja! Je kunt een nummer huren bij Ringee of je eigen geverifieerde nummer gebruiken om gesprekken in de browser te ontvangen. Je kunt ze desgewenst doorschakelen naar je mobiel."
+      },
+      "sms": {
+        "question": "Ondersteunen jullie SMS?",
+        "answer": "Nog niet — we zijn 100% gefocust op de beste gesprekskwaliteit tegen het laagste tarief. SMS staat al op de roadmap voor toekomstige releases."
+      },
+      "pricing": {
+        "question": "Waarom zijn jullie prijzen zo competitief?",
+        "answer": "Onze infrastructuur draait op dezelfde Tier-1-netwerken als grote carriers, maar zonder tussenpersonen. Dat betekent snellere verbindingen, transparante prijzen en wereldwijde dekking in meer dan 180 landen."
+      },
+      "vsApps": {
+        "question": "Waarom niet WhatsApp of Google Voice?",
+        "answer": "Die apps staan alleen gesprekken binnen hun eigen platform toe. Met Ringee bel je elk vast of mobiel nummer ter wereld, direct vanuit je browser — geen app of account aan de andere kant nodig."
+      },
+      "privacy": {
+        "question": "Zijn mijn gespreksgegevens privé?",
+        "answer": "Absoluut. Alle audiostreams zijn end-to-end versleuteld en we slaan alleen minimale metadata op voor je gespreksgeschiedenis. Privacy en beveiliging staan centraal in ons platform."
+      },
+      "subscription": {
+        "question": "Heb ik een abonnement nodig?",
+        "answer": "Geen abonnement — Ringee.io werkt op pay-as-you-go. Voeg tegoed toe wanneer je het nodig hebt en betaal alleen voor de minuten en nummers die je echt gebruikt."
+      },
+      "addCredit": {
+        "question": "Hoe voeg ik tegoed toe?",
+        "answer": "Je laadt direct op met elke gangbare creditcard of PayPal via onze veilige Stripe-integratie. Alle betalingen zijn versleuteld en PCI-compliant."
+      },
+      "callQuality": {
+        "question": "Wat als ik kwaliteitsproblemen heb?",
+        "answer": "De kwaliteit hangt af van je internetverbinding. Voor het beste resultaat gebruik je een stabiel breedband- of wifi-netwerk. Bij aanhoudende problemen helpt onze support je live om de oorzaak te vinden."
+      }
+    }
+  },
+  "openSource": {
+    "title": "Trots open-source",
+    "subtitle": "Host Ringee zelf, audit de code en draag bij. MIT-licentie.",
+    "badge": "Veilig en open source",
+    "sectionTitle": "Trots op open source — host op je eigen infrastructuur en beheer je eigen gegevens",
+    "subheadline": "Open source, zelf gehost",
+    "description": "Host Ringee op je eigen server. Beheer je klantgegevens en blijf volledig compliant met regelgevende normen.",
+    "githubCta": "Vind ons op GitHub",
+    "starsLabel": "Sterren op GitHub",
+    "contributorsLabel": "Bijdragers",
+    "features": {
+      "securePersonnel": "Veilig personeel",
+      "secureDevelopment": "Veilige ontwikkeling",
+      "secureTesting": "Veilig testen",
+      "cloudSecurity": "Cloudbeveiliging"
+    },
+    "soc2Title": "Beveiliging conform SOC 2-normen",
+    "soc2Description": "Met strikte protocollen ter plaatse kunt u erop vertrouwen dat wij uw informatie met vertrouwen beschermen.",
+    "readMore": "Lees meer"
   },
   "ctaBanner": {
     "title": "Klaar om je stem te versterken met Ringee.io?",

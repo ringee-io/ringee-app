@@ -29,9 +29,12 @@ import { useOnboardingUIStore } from '../store/onboarding.store';
 import { OnboardingStepItem } from './onboarding-step';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import type { OnboardingStep, OnboardingStepConfig } from '../types/onboarding.types';
+import { useTranslations } from 'next-intl';
 
 export function OnboardingGuide() {
   const router = useRouter();
+  const t = useTranslations('onboarding.guide');
+  const tSteps = useTranslations('onboarding.guideSteps');
   const { canAccessAdminFeatures, hasOrg, isLoaded: isOrgLoaded } = useOrgRole();
   const {
     status,
@@ -53,8 +56,8 @@ export function OnboardingGuide() {
     () => [
       {
         id: 'first_call' as OnboardingStep,
-        title: 'Make your first call',
-        description: 'Ringee offers your first call for free',
+        title: tSteps('first_call.title'),
+        description: tSteps('first_call.description'),
         icon: 'phone',
         action: () => {
           router.push('/dashboard/call');
@@ -62,8 +65,8 @@ export function OnboardingGuide() {
       },
       {
         id: 'recording' as OnboardingStep,
-        title: 'Record and listen',
-        description: 'Record a call and listen to the recording',
+        title: tSteps('recording.title'),
+        description: tSteps('recording.description'),
         icon: 'mic',
         action: () => {
           router.push('/dashboard/recordings');
@@ -71,8 +74,8 @@ export function OnboardingGuide() {
       },
       {
         id: 'check_numbers' as OnboardingStep,
-        title: 'Explore available numbers',
-        description: 'Discover numbers you can buy',
+        title: tSteps('check_numbers.title'),
+        description: tSteps('check_numbers.description'),
         icon: 'hash',
         action: () => {
           router.push('/dashboard/buy-number');
@@ -80,8 +83,8 @@ export function OnboardingGuide() {
       },
       {
         id: 'buy_credits' as OnboardingStep,
-        title: 'Buy credits',
-        description: 'Add credits to make more calls',
+        title: tSteps('buy_credits.title'),
+        description: tSteps('buy_credits.description'),
         icon: 'credit-card',
         requiresAdmin: true,
         action: () => {
@@ -89,7 +92,7 @@ export function OnboardingGuide() {
         },
       },
     ],
-    [router, completeStep]
+    [router, completeStep, tSteps]
   );
 
   // Filter steps based on org role
@@ -131,7 +134,7 @@ export function OnboardingGuide() {
       >
         <Sparkles className="h-4 w-4 text-primary" />
         <span className="text-xs font-medium">
-          {completedCount}/{visibleSteps.length} completed
+          {t('completedSummary', { completed: completedCount, total: visibleSteps.length })}
         </span>
         <Maximize2 className="h-3.5 w-3.5" />
       </Button>
@@ -145,7 +148,7 @@ export function OnboardingGuide() {
         <div className="flex items-center justify-between mb-2">
           <div className="flex items-center gap-2">
             <Sparkles className="h-4 w-4 text-primary" />
-            <span className="font-semibold text-sm">Setup guide</span>
+            <span className="font-semibold text-sm">{t('title')}</span>
           </div>
           <div className="flex items-center gap-1">
             <Button
@@ -153,7 +156,7 @@ export function OnboardingGuide() {
               size="icon"
               className="h-7 w-7"
               onClick={toggleMinimized}
-              title="Minimize"
+              title={t('minimize')}
             >
               <Minimize2 className="h-3.5 w-3.5" />
             </Button>
@@ -163,7 +166,7 @@ export function OnboardingGuide() {
               className="h-7 w-7"
               onClick={handleDismiss}
               disabled={isDismissing}
-              title="Close"
+              title={t('close')}
             >
               <X className="h-3.5 w-3.5" />
             </Button>
@@ -174,7 +177,7 @@ export function OnboardingGuide() {
         <div className="space-y-1.5">
           <Progress value={progress} className="h-1.5" />
           <p className="text-xs text-muted-foreground">
-            {completedCount} of {visibleSteps.length} steps completed
+            {t('stepsCompleted', { completed: completedCount, total: visibleSteps.length })}
           </p>
         </div>
       </CardHeader>
@@ -189,7 +192,7 @@ export function OnboardingGuide() {
               className="w-full justify-between mb-1 text-muted-foreground hover:text-foreground"
             >
               <span className="text-xs">
-                {isExpanded ? 'Hide steps' : 'Show steps'}
+                {isExpanded ? t('hideSteps') : t('showSteps')}
               </span>
               {isExpanded ? (
                 <ChevronUp className="h-3.5 w-3.5" />

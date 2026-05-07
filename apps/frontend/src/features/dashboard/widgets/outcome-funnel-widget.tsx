@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import { WidgetShell } from '../components/widget-shell';
 import { useWidgetData } from '../hooks/use-widget-data';
 
@@ -9,10 +10,23 @@ interface FunnelStep {
   value: number;
 }
 
+const FUNNEL_LABEL_KEYS: Record<string, string> = {
+  'Total Calls': 'totalCalls',
+  Answered: 'answered',
+  Interested: 'interested',
+  'Meetings Booked': 'meetingsBooked',
+  Sales: 'sales'
+};
+
 export function OutcomeFunnelWidget({ title, onRemove }: { title: string; onRemove?: () => void }) {
+  const t = useTranslations('dashboard.widgets.outcomeFunnel');
   const { data, loading, error } = useWidgetData<FunnelStep[]>('/dashboard/outcome-funnel');
   const max = Math.max(...(data?.map((d) => d.value) ?? [0]), 1);
   const empty = !!data && data.every((d) => d.value === 0);
+  const localizeLabel = (label: string) => {
+    const key = FUNNEL_LABEL_KEYS[label];
+    return key ? t(`labels.${key}` as never) : label;
+  };
 
   return (
     <WidgetShell
@@ -20,7 +34,7 @@ export function OutcomeFunnelWidget({ title, onRemove }: { title: string; onRemo
       loading={loading}
       error={error}
       empty={empty}
-      emptyHint='Once you log call outcomes, the funnel from total calls to sales will populate here.'
+      emptyHint={t('emptyHint')}
       onRemove={onRemove}
     >
       <div className='flex h-full flex-col justify-center gap-2'>
@@ -32,7 +46,7 @@ export function OutcomeFunnelWidget({ title, onRemove }: { title: string; onRemo
           return (
             <div key={step.label} className='flex flex-col gap-1'>
               <div className='flex items-baseline justify-between text-xs'>
-                <span className='font-medium'>{step.label}</span>
+                <span className='font-medium'>{localizeLabel(step.label)}</span>
                 <span className='tabular-nums'>
                   {step.value.toLocaleString()}
                   {conversion && (

@@ -5,8 +5,10 @@ import { Logo } from './logo';
 import { NavMenu } from './nav-menu';
 import Link from 'next/link';
 import ThemeToggle from '../theme-toggle';
+import { useTranslations } from 'next-intl';
 
 export const NavigationSheet = () => {
+  const t = useTranslations('marketing.nav');
   return (
     <Sheet>
       <SheetTrigger asChild>
@@ -28,11 +30,11 @@ export const NavigationSheet = () => {
         <div className='mt-auto flex flex-col gap-3 pt-6 border-t border-border/40'>
           <Link href='/auth/sign-in' className="w-full">
             <Button variant='outline' className='w-full'>
-              Sign In
+              {t('signIn')}
             </Button>
           </Link>
           <Link href='/auth/sign-up' className="w-full">
-            <Button className='w-full'>Get Started</Button>
+            <Button className='w-full'>{t('getStarted')}</Button>
           </Link>
         </div>
       </SheetContent>

@@ -1,6 +1,79 @@
 {
   "title": "Einstellungen",
   "description": "Verwalten Sie Ihr Konto und Ihre Einstellungen.",
+  "profile": {
+    "metaTitle": "Profil | Ringee"
+  },
+  "numbers": {
+    "title": "Nummern kaufen",
+    "description": "Nummern verwalten",
+    "metaTitle": "Virtuelle Nummern für globale Anrufe kaufen | Ringee",
+    "metaDescription": "Kaufen Sie sofort lokale oder internationale Rufnummern, um mit Ringee Anrufe zu tätigen und zu empfangen. Perfekt für Vertriebsteams, Call Center und global tätige Unternehmen.",
+    "tabs": {
+      "buy": "Nummer kaufen",
+      "myNumbers": "Meine Nummern"
+    },
+    "buy": {
+      "table": {
+        "phoneNumber": "Telefonnummer",
+        "phoneNumberPlaceholder": "Nummer suchen…",
+        "country": "Land",
+        "countryPlaceholder": "Land auswählen",
+        "type": "Typ",
+        "typePlaceholder": "Typ auswählen",
+        "areaCode": "Vorwahl",
+        "areaCodePlaceholder": "Vorwahl",
+        "region": "Region",
+        "features": "Funktionen",
+        "featuresPlaceholder": "Funktionen auswählen",
+        "cost": "Kosten",
+        "actions": "Aktionen",
+        "buy": "Kaufen",
+        "noNumbers": "Keine Nummern verfügbar",
+        "errorLoading": "Nummern konnten nicht geladen werden. Bitte erneut versuchen."
+      },
+      "types": {
+        "local": "Lokal",
+        "tollFree": "Gebührenfrei"
+      },
+      "features": {
+        "voice": "Sprache",
+        "sms": "SMS",
+        "mms": "MMS",
+        "hdVoice": "HD-Sprache",
+        "internationalSms": "Intl. SMS",
+        "emergency": "Notruf",
+        "fax": "Fax"
+      },
+      "purchase": {
+        "confirmTitle": "Diese Nummer kaufen?",
+        "confirmDescription": "{phone} — {currency} {monthly}/Monat",
+        "confirm": "Kaufen",
+        "cancel": "Abbrechen",
+        "success": "Nummer gekauft",
+        "error": "Nummer konnte nicht gekauft werden"
+      }
+    },
+    "my": {
+      "table": {
+        "phoneNumber": "Telefonnummer",
+        "country": "Land",
+        "type": "Typ",
+        "status": "Status",
+        "connection": "Verbindung",
+        "purchaseDate": "Kaufdatum",
+        "monthlyCost": "Monatliche Kosten",
+        "upfrontCost": "Einmalige Kosten",
+        "unknown": "Unbekannt",
+        "na": "k.A."
+      },
+      "status": {
+        "assigned": "zugewiesen",
+        "inactive": "inaktiv",
+        "pending": "ausstehend"
+      }
+    }
+  },
   "tabs": {
     "general": "Allgemein",
     "language": "Sprache",

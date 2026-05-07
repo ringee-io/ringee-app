@@ -29,7 +29,12 @@
     "recordings": "Opnames",
     "rate": "Tarieven",
     "buyNumber": "Nummer kopen",
-    "signOut": "Uitloggen"
+    "signOut": "Uitloggen",
+    "upgradeToPro": "Upgraden naar Pro",
+    "account": "Account",
+    "billing": "Facturering",
+    "notifications": "Meldingen",
+    "logOut": "Uitloggen"
   },
   "sidebar": {
     "openQuickCall": "Snel bellen",
@@ -41,5 +46,9 @@
   "inboxTooltip": {
     "title": "Inbox — binnenkort beschikbaar",
     "description": "Beheer al je inkomende berichten, gemiste gesprekken en voicemails op één plek."
+  },
+  "kbar": {
+    "navigation": "Navigatie",
+    "goTo": "Ga naar {page}"
   }
 }

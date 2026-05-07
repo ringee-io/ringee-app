@@ -7,6 +7,7 @@
   "loading": "Caricamento…",
   "continue": "Continua",
   "back": "Indietro",
+  "backTo": "Torna a {title}",
   "next": "Avanti",
   "confirm": "Conferma",
   "close": "Chiudi",
@@ -46,5 +47,35 @@
   "duration": "Durata",
   "type": "Tipo",
   "price": "Prezzo",
-  "total": "Totale"
+  "total": "Totale",
+  "searchPlaceholder": "Cerca...",
+  "removeFile": "Rimuovi file",
+  "areYouSure": "Sei sicuro?",
+  "cannotBeUndone": "Questa azione non può essere annullata.",
+  "theme": "Tema",
+  "selectTheme": "Seleziona un tema:",
+  "selectThemePlaceholder": "Seleziona un tema",
+  "platform": "Piattaforma",
+  "projects": "Progetti",
+  "fileUpload": {
+    "dropHere": "Trascina i file qui",
+    "dragAndDrop": "Trascina e rilascia i file qui, o clicca per selezionare",
+    "uploadMultiple": "Puoi caricare {count} file (fino a {maxSize} ciascuno)",
+    "uploadMultipleUnlimited": "Puoi caricare più file (fino a {maxSize} ciascuno)",
+    "uploadSingle": "Puoi caricare un file di massimo {maxSize}",
+    "cannotUploadMore": "Non è possibile caricare più di {count} file",
+    "fileRejected": "Il file {name} è stato rifiutato",
+    "uploadingFiles": "Caricamento di {target}…",
+    "uploaded": "{target} caricato/i",
+    "failedToUpload": "Impossibile caricare {target}",
+    "files": "{count} file",
+    "file": "file"
+  },
+  "project": {
+    "view": "Visualizza progetto",
+    "share": "Condividi progetto",
+    "delete": "Elimina progetto"
+  },
+  "toggleTheme": "Cambia tema",
+  "toggleSidebar": "Mostra/nascondi barra laterale"
 }

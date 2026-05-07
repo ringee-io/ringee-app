@@ -25,6 +25,7 @@ import {
 } from '@tabler/icons-react';
 import { toast } from 'sonner';
 import { TagMultiSelect, Tag } from './tag-multi-select';
+import { useTranslations } from 'next-intl';
 
 interface ImportCsvModalProps {
   open: boolean;
@@ -54,6 +55,8 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
   const api = useApi();
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const t = useTranslations('contacts.import');
+  const tCommon = useTranslations('common');
 
   const [state, setState] = useState<ImportState>('idle');
   const [file, setFile] = useState<File | null>(null);
@@ -93,10 +96,10 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
 
   const validateFile = (file: File): string | null => {
     if (!file.name.toLowerCase().endsWith('.csv')) {
-      return 'Only CSV files are allowed';
+      return t('onlyCsv');
     }
     if (file.size > CSV_CONFIG.MAX_FILE_SIZE) {
-      return `File size exceeds ${CSV_CONFIG.MAX_FILE_SIZE / (1024 * 1024)}MB limit`;
+      return t('fileTooLarge', { size: CSV_CONFIG.MAX_FILE_SIZE / (1024 * 1024) });
     }
     return null;
   };
@@ -165,7 +168,7 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
       // Search value is cleared inside TagMultiSelect
       return newTag;
     } catch (err) {
-      toast.error('Failed to create tag');
+      toast.error(t('failedToCreateTag') || 'Failed to create tag');
       throw err;
     }
   };
@@ -189,11 +192,11 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
 
       setSummary(response.summary);
       setState('success');
-      toast.success(`Successfully imported ${response.summary.inserted} contacts`);
+      toast.success(t('successfullyImported', { count: response.summary.inserted }));
     } catch (err: any) {
-      setError(err.message || 'Failed to import contacts');
+      setError(err.message || t('importFailed'));
       setState('error');
-      toast.error('Import failed');
+      toast.error(t('importFailed'));
     }
   };
 
@@ -216,9 +219,9 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className='w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto'>
         <DialogHeader>
-          <DialogTitle>Import Contacts from CSV</DialogTitle>
+          <DialogTitle>{t('titleExtended')}</DialogTitle>
           <DialogDescription>
-            Upload a CSV file to bulk import contacts
+            {t('descriptionExtended')}
           </DialogDescription>
         </DialogHeader>
 
@@ -227,29 +230,29 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
             <div className='bg-green-500/10 border-green-500/20 rounded-lg border p-4'>
               <div className='flex items-center gap-2 text-green-500'>
                 <IconCheck className='h-5 w-5' />
-                <span className='font-medium'>Import Complete</span>
+                <span className='font-medium'>{t('importComplete')}</span>
               </div>
             </div>
 
             <div className='grid grid-cols-2 gap-3 text-sm'>
               <div className='bg-muted rounded-lg p-3'>
-                <div className='text-muted-foreground'>Total Rows</div>
+                <div className='text-muted-foreground'>{t('totalRows')}</div>
                 <div className='text-xl font-semibold'>{summary.totalRows}</div>
               </div>
               <div className='bg-muted rounded-lg p-3'>
-                <div className='text-muted-foreground'>Inserted</div>
+                <div className='text-muted-foreground'>{t('inserted')}</div>
                 <div className='text-xl font-semibold text-green-500'>
                   {summary.inserted}
                 </div>
               </div>
               <div className='bg-muted rounded-lg p-3'>
-                <div className='text-muted-foreground'>Duplicates Skipped</div>
+                <div className='text-muted-foreground'>{t('duplicatesSkipped')}</div>
                 <div className='text-xl font-semibold text-yellow-500'>
                   {summary.duplicatesSkipped}
                 </div>
               </div>
               <div className='bg-muted rounded-lg p-3'>
-                <div className='text-muted-foreground'>Invalid Rows</div>
+                <div className='text-muted-foreground'>{t('invalidRows')}</div>
                 <div className='text-xl font-semibold text-red-500'>
                   {summary.invalidRows}
                 </div>
@@ -259,18 +262,18 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
             {summary.errors.length > 0 && (
               <div className='border-destructive/20 max-h-32 overflow-y-auto rounded-lg border p-3'>
                 <div className='text-destructive mb-2 text-sm font-medium'>
-                  Errors ({summary.errors.length})
+                  {t('errors')} ({summary.errors.length})
                 </div>
                 {summary.errors.slice(0, 10).map((err, i) => (
                   <div key={i} className='text-muted-foreground text-xs'>
-                    Row {err.row}: {err.message}
+                    {t('row')} {err.row}: {err.message}
                   </div>
                 ))}
               </div>
             )}
 
             <Button onClick={handleClose} className='w-full'>
-              Done
+              {t('done')}
             </Button>
           </div>
         ) : (
@@ -312,11 +315,11 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
                 <>
                   <IconUpload className='text-muted-foreground mb-2 h-10 w-10' />
                   <span className='font-medium'>
-                    Drop CSV file here or click to browse
+                    {t('dropzoneAlt')}
                   </span>
                   <span className='text-muted-foreground text-sm'>
-                    Max {CSV_CONFIG.MAX_FILE_SIZE / (1024 * 1024)}MB •{' '}
-                    {CSV_CONFIG.MAX_ROWS.toLocaleString()} rows
+                    {t('maxSize', { size: CSV_CONFIG.MAX_FILE_SIZE / (1024 * 1024) })} •{' '}
+                    {t('maxRows', { count: CSV_CONFIG.MAX_ROWS.toLocaleString() })}
                   </span>
                 </>
               )}
@@ -329,7 +332,7 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
                 selectedTagIds={selectedTagIds}
                 onSelectionChange={setSelectedTagIds}
                 onCreateTag={handleCreateTag}
-                placeholder="Assign tags to imported contacts"
+                placeholder={t('assignTagsPlaceholder')}
                 className="w-full"
               />
             )}
@@ -343,14 +346,14 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
 
             {/* Format Info */}
             <div className='bg-muted/50 rounded-lg p-3 text-sm'>
-              <div className='mb-2 font-medium'>CSV Format Requirements</div>
+              <div className='mb-2 font-medium'>{t('csvFormat')}</div>
               <div className='space-y-1 text-xs'>
                 <div>
-                  <span className='text-green-500'>✓ Required:</span>{' '}
+                  <span className='text-green-500'>{t('required')}</span>{' '}
                   {REQUIRED_FIELDS.join(', ')}
                 </div>
                 <div>
-                  <span className='text-muted-foreground'>○ Optional:</span>{' '}
+                  <span className='text-muted-foreground'>{t('optional')}</span>{' '}
                   {OPTIONAL_FIELDS.join(', ')}
                 </div>
               </div>
@@ -364,7 +367,7 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
                 }}
               >
                 <IconDownload className='mr-1 h-3 w-3' />
-                Download template
+                {t('downloadTemplate')}
               </Button>
             </div>
 
@@ -375,7 +378,7 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
                 onClick={handleClose}
                 className='flex-1'
               >
-                Cancel
+                {tCommon('cancel')}
               </Button>
               <Button
                 onClick={handleUpload}
@@ -385,10 +388,10 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
                 {state === 'uploading' ? (
                   <>
                     <IconLoader2 className='mr-2 h-4 w-4 animate-spin' />
-                    Importing...
+                    {t('importing')}
                   </>
                 ) : (
-                  'Import Contacts'
+                  t('importContacts')
                 )}
               </Button>
             </div>

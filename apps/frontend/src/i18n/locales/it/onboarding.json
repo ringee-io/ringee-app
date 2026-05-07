@@ -1,20 +1,63 @@
 {
   "welcome": {
     "title": "Benvenuto su Ringee",
-    "description": "Configuriamo il tuo workspace in un paio di minuti."
+    "description": "Configura il tuo spazio di lavoro in pochi minuti."
   },
   "steps": {
     "profile": "Parlaci di te",
     "organization": "Crea la tua organizzazione",
-    "number": "Scegli un numero di telefono",
+    "number": "Scegli un numero",
     "credits": "Aggiungi crediti",
     "done": "Tutto pronto"
   },
   "actions": {
     "skip": "Salta per ora",
-    "finish": "Termina configurazione",
+    "finish": "Completa la configurazione",
     "letsGo": "Iniziamo"
   },
   "headerButton": "Configurazione",
-  "progress": "{current} di {total}"
+  "progress": "{current} di {total}",
+  "guide": {
+    "title": "Guida alla configurazione",
+    "minimize": "Riduci a icona",
+    "close": "Chiudi",
+    "showSteps": "Mostra passaggi",
+    "hideSteps": "Nascondi passaggi",
+    "completedSummary": "{completed}/{total} completati",
+    "stepsCompleted": "{completed} di {total} passaggi completati"
+  },
+  "guideSteps": {
+    "first_call": {
+      "title": "Effettua la tua prima chiamata",
+      "description": "Ringee ti offre la prima chiamata"
+    },
+    "recording": {
+      "title": "Registra e ascolta",
+      "description": "Registra una chiamata e ascolta la registrazione"
+    },
+    "check_numbers": {
+      "title": "Esplora i numeri disponibili",
+      "description": "Scopri i numeri che puoi acquistare"
+    },
+    "buy_credits": {
+      "title": "Acquista crediti",
+      "description": "Aggiungi crediti per fare più chiamate"
+    }
+  },
+  "headerProgress": {
+    "label": "Guida alla configurazione",
+    "tooltip": "Riprendi l'onboarding"
+  },
+  "firstCallModal": {
+    "title": "La tua prima chiamata la offriamo noi",
+    "subtitle": "Effettua e registra la tua prima chiamata gratuita!",
+    "step1Title": "Passo 1: inserisci un numero",
+    "step1Description": "Usa il tastierino per inserire un numero. Funziona come un telefono normale.",
+    "step2Title": "Passo 2: avvia la registrazione",
+    "step2Description": "Non dimenticare di premere il pulsante di registrazione una volta connessa la chiamata per salvare la conversazione.",
+    "recordingButton": "Pulsante di registrazione",
+    "recordingAlt": "Come avviare la registrazione",
+    "maybeLater": "Magari più tardi",
+    "startCalling": "Inizia a chiamare"
+  }
 }

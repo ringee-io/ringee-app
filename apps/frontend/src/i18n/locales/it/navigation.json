@@ -29,7 +29,12 @@
     "recordings": "Registrazioni",
     "rate": "Tariffe",
     "buyNumber": "Acquista numero",
-    "signOut": "Esci"
+    "signOut": "Esci",
+    "upgradeToPro": "Passa a Pro",
+    "account": "Account",
+    "billing": "Fatturazione",
+    "notifications": "Notifiche",
+    "logOut": "Esci"
   },
   "sidebar": {
     "openQuickCall": "Chiamata rapida",
@@ -41,5 +46,9 @@
   "inboxTooltip": {
     "title": "Posta in arrivo — in arrivo",
     "description": "Gestisci tutti i messaggi in arrivo, le chiamate perse e le segreterie in un'unica casella."
+  },
+  "kbar": {
+    "navigation": "Navigazione",
+    "goTo": "Vai a {page}"
   }
 }

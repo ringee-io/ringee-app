@@ -1,13 +1,13 @@
 {
   "welcome": {
     "title": "Willkommen bei Ringee",
-    "description": "Lassen Sie uns Ihren Workspace in wenigen Minuten einrichten."
+    "description": "Richten Sie Ihren Arbeitsbereich in wenigen Minuten ein."
   },
   "steps": {
     "profile": "Erzählen Sie uns von sich",
     "organization": "Organisation erstellen",
     "number": "Telefonnummer auswählen",
-    "credits": "Credits hinzufügen",
+    "credits": "Guthaben hinzufügen",
     "done": "Alles bereit"
   },
   "actions": {
@@ -16,5 +16,48 @@
     "letsGo": "Los geht's"
   },
   "headerButton": "Einrichtung",
-  "progress": "{current} von {total}"
+  "progress": "{current} von {total}",
+  "guide": {
+    "title": "Einrichtungsleitfaden",
+    "minimize": "Minimieren",
+    "close": "Schließen",
+    "showSteps": "Schritte anzeigen",
+    "hideSteps": "Schritte ausblenden",
+    "completedSummary": "{completed}/{total} abgeschlossen",
+    "stepsCompleted": "{completed} von {total} Schritten abgeschlossen"
+  },
+  "guideSteps": {
+    "first_call": {
+      "title": "Tätigen Sie Ihren ersten Anruf",
+      "description": "Ihr erster Anruf bei Ringee ist kostenlos"
+    },
+    "recording": {
+      "title": "Aufzeichnen und anhören",
+      "description": "Zeichnen Sie einen Anruf auf und hören Sie sich die Aufzeichnung an"
+    },
+    "check_numbers": {
+      "title": "Verfügbare Nummern entdecken",
+      "description": "Sehen Sie sich die kaufbaren Nummern an"
+    },
+    "buy_credits": {
+      "title": "Guthaben kaufen",
+      "description": "Fügen Sie Guthaben für mehr Anrufe hinzu"
+    }
+  },
+  "headerProgress": {
+    "label": "Einrichtungsleitfaden",
+    "tooltip": "Onboarding fortsetzen"
+  },
+  "firstCallModal": {
+    "title": "Ihr erster Anruf geht aufs Haus",
+    "subtitle": "Tätigen und zeichnen Sie Ihren ersten kostenlosen Anruf auf!",
+    "step1Title": "Schritt 1: Telefonnummer eingeben",
+    "step1Description": "Geben Sie über das Tastenfeld eine beliebige Nummer ein. Es funktioniert wie ein normales Telefon.",
+    "step2Title": "Schritt 2: Aufzeichnung starten",
+    "step2Description": "Vergessen Sie nicht, nach Verbindungsaufbau auf die Aufnahmetaste zu klicken, um das Gespräch zu speichern.",
+    "recordingButton": "Aufnahmetaste",
+    "recordingAlt": "So starten Sie die Aufzeichnung",
+    "maybeLater": "Vielleicht später",
+    "startCalling": "Jetzt anrufen"
+  }
 }

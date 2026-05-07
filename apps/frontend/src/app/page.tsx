@@ -1,5 +1,6 @@
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 
 import { BarGraph } from '@/features/overview/components/bar-graph';
 import { RecentSales } from '@/features/overview/components/recent-sales';
@@ -28,6 +29,7 @@ export default async function Page() {
       mock: true
     };
 
+    const t = await getTranslations('dashboard.overview');
     const data = await apiServer.get('/dashboard/overview', params);
     const pieData = await apiServer.get('/dashboard/calls-by-period', params);
     const areaData = await apiServer.get('/dashboard/calls-per-month', params);
@@ -45,7 +47,7 @@ export default async function Page() {
                 <div className='flex flex-1 flex-col space-y-2'>
                   <div className='flex items-center justify-between space-y-2'>
                     <h2 className='text-2xl font-bold tracking-tight'>
-                      Hi, Welcome 👋
+                      {t('welcome')}
                     </h2>
                   </div>
 

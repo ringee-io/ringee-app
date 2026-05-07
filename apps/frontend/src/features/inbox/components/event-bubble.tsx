@@ -15,6 +15,7 @@ import {
   PhoneIncoming
 } from 'lucide-react';
 import { InboxEvent } from '../types';
+import { useTranslations } from 'next-intl';
 
 function formatTime(iso: string) {
   return new Date(iso).toLocaleTimeString([], {
@@ -83,6 +84,7 @@ function MessageBubble({ event }: { event: InboxEvent }) {
 }
 
 function CallCard({ event }: { event: InboxEvent }) {
+  const t = useTranslations('inbox.events');
   const isMissed = event.kind === 'missed_call';
   const inbound = event.direction === 'inbound';
   const Icon = isMissed
@@ -114,10 +116,10 @@ function CallCard({ event }: { event: InboxEvent }) {
           <div className='flex items-center gap-2'>
             <p className='text-sm font-medium'>
               {isMissed
-                ? 'Missed call'
+                ? t('missedCall')
                 : inbound
-                  ? 'Inbound call'
-                  : 'Outbound call'}
+                  ? t('inboundCall')
+                  : t('outboundCall')}
             </p>
             <span className='text-xs text-muted-foreground'>
               {formatTime(event.occurredAt)}
@@ -160,7 +162,7 @@ function CallCard({ event }: { event: InboxEvent }) {
                 }
               >
                 <Phone className='mr-1 h-3.5 w-3.5' />
-                Call back
+                {t('callBack')}
               </Button>
             </div>
           )}
@@ -171,6 +173,7 @@ function CallCard({ event }: { event: InboxEvent }) {
 }
 
 function VoicemailCard({ event }: { event: InboxEvent }) {
+  const t = useTranslations('inbox.events');
   return (
     <div className='mx-auto w-full max-w-md rounded-xl border bg-amber-50/40 p-3 shadow-sm dark:bg-amber-950/20'>
       <div className='flex items-start gap-3'>
@@ -179,7 +182,7 @@ function VoicemailCard({ event }: { event: InboxEvent }) {
         </div>
         <div className='flex-1'>
           <div className='flex items-center gap-2'>
-            <p className='text-sm font-medium'>Voicemail received</p>
+            <p className='text-sm font-medium'>{t('voicemailReceived')}</p>
             <span className='text-xs text-muted-foreground'>
               {formatTime(event.occurredAt)}
             </span>
@@ -206,6 +209,7 @@ function VoicemailCard({ event }: { event: InboxEvent }) {
 }
 
 function VoiceDropCard({ event }: { event: InboxEvent }) {
+  const t = useTranslations('inbox.events');
   return (
     <div className='mx-auto w-full max-w-md rounded-xl border bg-violet-50/40 p-3 shadow-sm dark:bg-violet-950/20'>
       <div className='flex items-start gap-3'>
@@ -214,7 +218,7 @@ function VoiceDropCard({ event }: { event: InboxEvent }) {
         </div>
         <div className='flex-1'>
           <div className='flex items-center gap-2'>
-            <p className='text-sm font-medium'>Voicedrop sent</p>
+            <p className='text-sm font-medium'>{t('voicedropSent')}</p>
             <span className='text-xs text-muted-foreground'>
               {formatTime(event.occurredAt)}
             </span>
@@ -239,6 +243,7 @@ function VoiceDropCard({ event }: { event: InboxEvent }) {
 }
 
 function NoteCard({ event }: { event: InboxEvent }) {
+  const t = useTranslations('inbox.events');
   return (
     <div className='mx-auto w-full max-w-md rounded-md border-l-4 border-yellow-400 bg-yellow-50/60 p-3 dark:bg-yellow-950/20'>
       <div className='flex items-start gap-2'>
@@ -246,7 +251,7 @@ function NoteCard({ event }: { event: InboxEvent }) {
         <div className='flex-1'>
           <div className='flex items-center gap-2'>
             <span className='text-xs font-medium uppercase text-yellow-700 dark:text-yellow-300'>
-              Internal note
+              {t('internalNote')}
             </span>
             <span className='text-xs text-muted-foreground'>
               {formatTime(event.occurredAt)}
@@ -260,6 +265,7 @@ function NoteCard({ event }: { event: InboxEvent }) {
 }
 
 function CallbackCard({ event }: { event: InboxEvent }) {
+  const t = useTranslations('inbox.events');
   const scheduled = event.metadata?.scheduledAt
     ? new Date(event.metadata.scheduledAt).toLocaleString()
     : null;
@@ -273,10 +279,10 @@ function CallbackCard({ event }: { event: InboxEvent }) {
         <div className='flex-1'>
           <p className='text-sm font-medium'>
             {event.kind === 'meeting_booked'
-              ? 'Meeting booked'
+              ? t('meetingBooked')
               : event.kind === 'callback_completed'
-                ? 'Callback completed'
-                : 'Callback scheduled'}
+                ? t('callbackCompleted')
+                : t('callbackScheduled')}
           </p>
           {scheduled && (
             <p className='text-xs text-muted-foreground'>{scheduled}</p>

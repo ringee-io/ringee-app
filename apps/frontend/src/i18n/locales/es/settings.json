@@ -1,6 +1,79 @@
 {
   "title": "Ajustes",
   "description": "Configura tu cuenta y tus preferencias.",
+  "profile": {
+    "metaTitle": "Perfil | Ringee"
+  },
+  "numbers": {
+    "title": "Comprar números",
+    "description": "Gestiona tus números",
+    "metaTitle": "Compra números virtuales para llamadas globales | Ringee",
+    "metaDescription": "Compra al instante números locales o internacionales para hacer y recibir llamadas con Ringee. Ideal para equipos de ventas, call centers y negocios globales.",
+    "tabs": {
+      "buy": "Comprar número",
+      "myNumbers": "Mis números"
+    },
+    "buy": {
+      "table": {
+        "phoneNumber": "Número de teléfono",
+        "phoneNumberPlaceholder": "Buscar número…",
+        "country": "País",
+        "countryPlaceholder": "Seleccionar país",
+        "type": "Tipo",
+        "typePlaceholder": "Seleccionar tipo",
+        "areaCode": "Prefijo",
+        "areaCodePlaceholder": "Prefijo",
+        "region": "Región",
+        "features": "Funciones",
+        "featuresPlaceholder": "Seleccionar funciones",
+        "cost": "Coste",
+        "actions": "Acciones",
+        "buy": "Comprar",
+        "noNumbers": "No hay números disponibles",
+        "errorLoading": "No se pudieron cargar los números. Inténtalo de nuevo."
+      },
+      "types": {
+        "local": "Local",
+        "tollFree": "Gratuito"
+      },
+      "features": {
+        "voice": "Voz",
+        "sms": "SMS",
+        "mms": "MMS",
+        "hdVoice": "Voz HD",
+        "internationalSms": "SMS intl.",
+        "emergency": "Emergencia",
+        "fax": "Fax"
+      },
+      "purchase": {
+        "confirmTitle": "¿Comprar este número?",
+        "confirmDescription": "{phone} — {currency} {monthly}/mes",
+        "confirm": "Comprar",
+        "cancel": "Cancelar",
+        "success": "Número comprado",
+        "error": "No se pudo comprar el número"
+      }
+    },
+    "my": {
+      "table": {
+        "phoneNumber": "Número de teléfono",
+        "country": "País",
+        "type": "Tipo",
+        "status": "Estado",
+        "connection": "Conexión",
+        "purchaseDate": "Fecha de compra",
+        "monthlyCost": "Coste mensual",
+        "upfrontCost": "Coste inicial",
+        "unknown": "Desconocido",
+        "na": "N/D"
+      },
+      "status": {
+        "assigned": "asignado",
+        "inactive": "inactivo",
+        "pending": "pendiente"
+      }
+    }
+  },
   "tabs": {
     "general": "General",
     "language": "Idioma",

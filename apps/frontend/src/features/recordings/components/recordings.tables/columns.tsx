@@ -6,7 +6,6 @@ import {
     Clock,
     PhoneIncoming,
     PhoneOutgoing,
-    PlayCircle,
     Download,
     Calendar,
     Loader2,
@@ -23,6 +22,7 @@ import {
     TooltipTrigger
 } from '@ringee/frontend-shared/components/ui/tooltip';
 import { RecordingPlayButton } from './recording-play-button';
+import { useTranslations } from 'next-intl';
 
 type RecordingData = {
     id: string;
@@ -43,38 +43,25 @@ type CallWithRecordings = {
     contact?: { name?: string | null };
 };
 
+type StatusKey = 'started' | 'completed' | 'failed' | 'processing';
+
 const statusConfig: Record<
     string,
-    { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: typeof CheckCircle2 }
+    { key: StatusKey; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: typeof CheckCircle2 }
 > = {
-    started: {
-        label: 'Processing',
-        variant: 'secondary',
-        icon: Loader2
-    },
-    completed: {
-        label: 'Ready',
-        variant: 'default',
-        icon: CheckCircle2
-    },
-    failed: {
-        label: 'Failed',
-        variant: 'destructive',
-        icon: AlertCircle
-    },
-    processing: {
-        label: 'Processing',
-        variant: 'secondary',
-        icon: Loader2
-    }
+    started: { key: 'started', variant: 'secondary', icon: Loader2 },
+    completed: { key: 'completed', variant: 'default', icon: CheckCircle2 },
+    failed: { key: 'failed', variant: 'destructive', icon: AlertCircle },
+    processing: { key: 'processing', variant: 'secondary', icon: Loader2 }
 };
 
 export const columns: ColumnDef<CallWithRecordings>[] = [
     {
         accessorKey: 'direction',
-        header: ({ column }: { column: Column<CallWithRecordings, unknown> }) => (
-            <DataTableColumnHeader column={column} title="Type" />
-        ),
+        header: ({ column }: { column: Column<CallWithRecordings, unknown> }) => {
+            const t = useTranslations('calls.recordings.table');
+            return <DataTableColumnHeader column={column} title={t('type')} />;
+        },
         cell: ({ row }) => {
             const direction = row.original.direction;
             const Icon = direction === 'inbound' ? PhoneIncoming : PhoneOutgoing;
@@ -94,12 +81,15 @@ export const columns: ColumnDef<CallWithRecordings>[] = [
     },
     {
         accessorKey: 'contact.name',
-        header: ({ column }: { column: Column<CallWithRecordings, unknown> }) => (
-            <DataTableColumnHeader column={column} title="Contact" />
-        ),
+        header: ({ column }: { column: Column<CallWithRecordings, unknown> }) => {
+            const t = useTranslations('calls.recordings.table');
+            return <DataTableColumnHeader column={column} title={t('contact')} />;
+        },
         cell: ({ row }) => {
-            const name = row.original.contact?.name || 'Unknown';
-            return name !== 'Unknown' ? (
+            const t = useTranslations('calls.recordings.table');
+            const unknown = t('unknown');
+            const name = row.original.contact?.name || unknown;
+            return name !== unknown ? (
                 <Link
                     href={`/dashboard/call?tab=contact&name=${row.original.toNumber}`}
                     className="text-foreground font-medium"
@@ -113,7 +103,10 @@ export const columns: ColumnDef<CallWithRecordings>[] = [
     },
     {
         accessorKey: 'fromNumber',
-        header: 'From',
+        header: () => {
+            const t = useTranslations('calls.recordings.table');
+            return <>{t('from')}</>;
+        },
         cell: ({ cell }) => (
             <span className="text-muted-foreground font-mono text-sm">
                 {cell.getValue<string>()}
@@ -122,7 +115,10 @@ export const columns: ColumnDef<CallWithRecordings>[] = [
     },
     {
         accessorKey: 'toNumber',
-        header: 'To',
+        header: () => {
+            const t = useTranslations('calls.recordings.table');
+            return <>{t('to')}</>;
+        },
         cell: ({ cell }) => (
             <span className="text-muted-foreground font-mono text-sm">
                 {cell.getValue<string>()}
@@ -131,7 +127,10 @@ export const columns: ColumnDef<CallWithRecordings>[] = [
     },
     {
         accessorKey: 'durationSeconds',
-        header: 'Duration',
+        header: () => {
+            const t = useTranslations('calls.recordings.table');
+            return <>{t('duration')}</>;
+        },
         cell: ({ cell }) => {
             const seconds = cell.getValue<number>();
             if (!seconds) return '-';
@@ -148,9 +147,10 @@ export const columns: ColumnDef<CallWithRecordings>[] = [
     },
     {
         accessorKey: 'startedAt',
-        header: ({ column }: { column: Column<CallWithRecordings, unknown> }) => (
-            <DataTableColumnHeader column={column} title="Date" />
-        ),
+        header: ({ column }: { column: Column<CallWithRecordings, unknown> }) => {
+            const t = useTranslations('calls.recordings.table');
+            return <DataTableColumnHeader column={column} title={t('date')} />;
+        },
         cell: ({ cell }) => {
             const date = cell.getValue<string>();
             if (!date) return '—';
@@ -166,16 +166,20 @@ export const columns: ColumnDef<CallWithRecordings>[] = [
     },
     {
         id: 'recordingStatus',
-        header: 'Status',
+        header: () => {
+            const t = useTranslations('calls.recordings.table');
+            return <>{t('status')}</>;
+        },
         cell: ({ row }) => {
+            const t = useTranslations('calls.recordings.table');
+            const tBadge = useTranslations('calls.recordings.statusBadge');
             const recordings = row.original.recordings || [];
             if (recordings.length === 0) {
                 return (
-                    <span className="text-muted-foreground text-xs">No recording</span>
+                    <span className="text-muted-foreground text-xs">{t('noRecording')}</span>
                 );
             }
 
-            // Get the first recording's status
             const recording = recordings[0];
             const status = recording.status || 'started';
             const config = statusConfig[status] || statusConfig.started;
@@ -189,15 +193,19 @@ export const columns: ColumnDef<CallWithRecordings>[] = [
                             status === 'started' || status === 'processing' ? 'animate-spin' : ''
                         )}
                     />
-                    {config.label}
+                    {tBadge(config.key)}
                 </Badge>
             );
         }
     },
     {
         id: 'recording',
-        header: 'Recording',
+        header: () => {
+            const t = useTranslations('calls.recordings.table');
+            return <>{t('recording')}</>;
+        },
         cell: ({ row }) => {
+            const t = useTranslations('calls.recordings.table');
             const recordings = row.original.recordings || [];
             if (recordings.length === 0) {
                 return <span className="text-muted-foreground text-xs">—</span>;
@@ -207,13 +215,12 @@ export const columns: ColumnDef<CallWithRecordings>[] = [
             const recordingUrl = recording.url;
             const status = recording.status || 'started';
 
-            // Only show play button if status is completed and URL exists
             if (status !== 'completed' || !recordingUrl) {
                 return (
                     <span className="text-muted-foreground text-xs">
                         {status === 'started' || status === 'processing'
-                            ? 'Processing...'
-                            : 'Unavailable'}
+                            ? t('processingShort')
+                            : t('unavailable')}
                     </span>
                 );
             }
@@ -234,7 +241,7 @@ export const columns: ColumnDef<CallWithRecordings>[] = [
                                 </a>
                             </Button>
                         </TooltipTrigger>
-                        <TooltipContent>Download recording</TooltipContent>
+                        <TooltipContent>{t('downloadRecording')}</TooltipContent>
                     </Tooltip>
                 </div>
             );

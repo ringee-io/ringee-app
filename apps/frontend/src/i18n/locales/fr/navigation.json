@@ -29,7 +29,12 @@
     "recordings": "Enregistrements",
     "rate": "Tarifs",
     "buyNumber": "Acheter un numéro",
-    "signOut": "Se déconnecter"
+    "signOut": "Se déconnecter",
+    "upgradeToPro": "Passer à Pro",
+    "account": "Compte",
+    "billing": "Facturation",
+    "notifications": "Notifications",
+    "logOut": "Se déconnecter"
   },
   "sidebar": {
     "openQuickCall": "Appel rapide",
@@ -41,5 +46,9 @@
   "inboxTooltip": {
     "title": "Boîte de réception — bientôt disponible",
     "description": "Gérez tous vos messages entrants, appels manqués et messages vocaux dans une seule boîte unifiée."
+  },
+  "kbar": {
+    "navigation": "Navigation",
+    "goTo": "Aller à {page}"
   }
 }

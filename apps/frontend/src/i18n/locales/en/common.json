@@ -7,6 +7,7 @@
   "loading": "Loading…",
   "continue": "Continue",
   "back": "Back",
+  "backTo": "Back to {title}",
   "next": "Next",
   "confirm": "Confirm",
   "close": "Close",
@@ -46,5 +47,35 @@
   "duration": "Duration",
   "type": "Type",
   "price": "Price",
-  "total": "Total"
+  "total": "Total",
+  "searchPlaceholder": "Search...",
+  "removeFile": "Remove file",
+  "areYouSure": "Are you sure?",
+  "cannotBeUndone": "This action cannot be undone.",
+  "theme": "Theme",
+  "selectTheme": "Select a theme:",
+  "selectThemePlaceholder": "Select a theme",
+  "toggleTheme": "Toggle theme",
+  "toggleSidebar": "Toggle Sidebar",
+  "platform": "Platform",
+  "projects": "Projects",
+  "fileUpload": {
+    "dropHere": "Drop the files here",
+    "dragAndDrop": "Drag 'n' drop files here, or click to select files",
+    "uploadMultiple": "You can upload {count} files (up to {maxSize} each)",
+    "uploadMultipleUnlimited": "You can upload multiple files (up to {maxSize} each)",
+    "uploadSingle": "You can upload a file with {maxSize}",
+    "cannotUploadMore": "Cannot upload more than {count} file(s)",
+    "fileRejected": "File {name} was rejected",
+    "uploadingFiles": "Uploading {target}...",
+    "uploaded": "{target} uploaded",
+    "failedToUpload": "Failed to upload {target}",
+    "files": "{count} files",
+    "file": "file"
+  },
+  "project": {
+    "view": "View Project",
+    "share": "Share Project",
+    "delete": "Delete Project"
+  }
 }

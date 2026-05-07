@@ -18,6 +18,7 @@ import {
   SidebarMenuSubButton,
   SidebarMenuSubItem
 } from './ui/sidebar';
+import { useTranslations } from 'next-intl';
 import { Icon } from './icons';
 
 export function NavMain({
@@ -34,9 +35,10 @@ export function NavMain({
     }[];
   }[];
 }) {
+  const t = useTranslations('common');
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Platform</SidebarGroupLabel>
+      <SidebarGroupLabel>{t('platform')}</SidebarGroupLabel>
       <SidebarGroupContent className='flex flex-col gap-2'>
         <SidebarMenu>
           {items.map((item) => (

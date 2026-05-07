@@ -3,7 +3,15 @@
   "switcher": {
     "select": "Selecione uma organização",
     "personal": "Conta pessoal",
-    "create": "Criar organização"
+    "create": "Criar organização",
+    "switching": "A mudar...",
+    "myPersonal": "Minha conta pessoal",
+    "organization": "Organização",
+    "organizations": "Organizações",
+    "manageOrganization": "Gerir organização",
+    "createOrganization": "Criar organização",
+    "createNewOrganization": "Criar nova organização",
+    "subscriptionReady": "Subscrição pronta"
   },
   "create": {
     "title": "Criar organização",
@@ -21,5 +29,28 @@
     "owner": "Proprietário",
     "admin": "Administrador",
     "member": "Membro"
+  },
+  "upgrade": {
+    "title": "Fazer upgrade para Organização",
+    "description": "Desbloqueie funcionalidades profissionais para a sua equipa.",
+    "features": {
+      "unlimitedMembers": "Membros ilimitados",
+      "cheaperRates": "Tarifas mais baratas por minuto",
+      "virtualNumbers": "Números virtuais incluídos",
+      "advancedAnalytics": "Análises avançadas"
+    },
+    "unlockProFeatures": "Desbloquear funcionalidades Pro",
+    "pricing": "Preços",
+    "perMonth": "/mês",
+    "perMonthPerOrg": "/mês por org",
+    "proPlan": "Plano Pro",
+    "proceedToUpgrade": "Prosseguir com o upgrade",
+    "secureByStripe": "Seguro pelo Stripe",
+    "cancelAnytime": "Cancele a qualquer momento"
+  },
+  "subscription": {
+    "required": "Subscrição necessária",
+    "requiredDescription": "Precisa de uma subscrição ativa para criar outra organização.",
+    "subscribeNow": "Subscrever agora"
   }
 }

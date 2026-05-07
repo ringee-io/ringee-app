@@ -12,6 +12,16 @@
   "busy": "Busy",
   "failed": "Failed",
   "voicemail": "Voicemail",
+  "statusValues": {
+    "pending": "Pending",
+    "ringing": "Ringing",
+    "answered": "Answered",
+    "recording": "Recording",
+    "completed": "Completed",
+    "failed": "Failed",
+    "processing": "Processing",
+    "ready": "Ready"
+  },
   "callDuration": "Duration",
   "callCost": "Cost",
   "from": "From",
@@ -37,13 +47,62 @@
     "empty": {
       "title": "No calls yet",
       "description": "Your call history will appear here once you start making or receiving calls."
+    },
+    "table": {
+      "type": "Type",
+      "contact": "Contact",
+      "from": "From",
+      "to": "To",
+      "status": "Status",
+      "duration": "Duration",
+      "date": "Date",
+      "recording": "Recording",
+      "unknown": "Unknown",
+      "callAgain": "Call again",
+      "noRecording": "No recording",
+      "downloadRecording": "Download recording"
     }
   },
   "recordings": {
     "title": "Call Recordings",
     "description": "Listen and download your encrypted call recordings",
     "metaTitle": "Call Recordings — Listen and Download | Ringee",
-    "metaDescription": "Access your encrypted call recordings. Play, download, and manage all audio files securely from your Ringee dashboard."
+    "metaDescription": "Access your encrypted call recordings. Play, download, and manage all audio files securely from your Ringee dashboard.",
+    "table": {
+      "type": "Type",
+      "contact": "Contact",
+      "from": "From",
+      "to": "To",
+      "duration": "Duration",
+      "date": "Date",
+      "status": "Status",
+      "recording": "Recording",
+      "unknown": "Unknown",
+      "noRecording": "No recording",
+      "processingShort": "Processing...",
+      "unavailable": "Unavailable",
+      "play": "Play",
+      "playRecording": "Play recording",
+      "downloadRecording": "Download recording"
+    },
+    "statusBadge": {
+      "started": "Processing",
+      "processing": "Processing",
+      "completed": "Ready",
+      "failed": "Failed"
+    },
+    "player": {
+      "defaultTitle": "Call Recording",
+      "callTitle": "Call: {from} → {to}",
+      "decrypting": "Decrypting recording...",
+      "errorLoad": "Failed to load recording. Please try again."
+    },
+    "dateFilter": {
+      "filterByDate": "Filter by date",
+      "from": "From {date}",
+      "to": "To {date}",
+      "clear": "Clear date filter"
+    }
   },
   "callbacks": {
     "title": "Callbacks",
@@ -59,6 +118,16 @@
   },
   "rates": {
     "metaTitle": "Call Rates — View and Compare Costs | Ringee",
-    "metaDescription": "Access up-to-date calling rates in your Ringee dashboard. Compare prices across 180+ countries and keep track of your communication costs in real time."
+    "metaDescription": "Access up-to-date calling rates in your Ringee dashboard. Compare prices across 180+ countries and keep track of your communication costs in real time.",
+    "calculator": {
+      "title": "Call rate calculator",
+      "subtitle": "Check your real-time call rates powered by Ringee.",
+      "callingTo": "I'm calling",
+      "to": "To a",
+      "mobile": "Mobile",
+      "landline": "Landline",
+      "willCost": "Your call will cost",
+      "perMinute": "per minute"
+    }
   }
 }

@@ -12,6 +12,7 @@ import {
   SelectTrigger,
   SelectValue
 } from './ui/select';
+import { useTranslations } from 'next-intl';
 
 // const DEFAULT_THEMES = [
 //   {
@@ -52,11 +53,12 @@ const MONO_THEMES = [
 
 export function ThemeSelector() {
   const { activeTheme, setActiveTheme } = useThemeConfig();
+  const t = useTranslations('common');
 
   return (
     <div className='flex items-center gap-2'>
       <Label htmlFor='theme-selector' className='sr-only'>
-        Theme
+        {t('theme')}
       </Label>
       <Select value={activeTheme} onValueChange={setActiveTheme}>
         <SelectTrigger
@@ -64,10 +66,10 @@ export function ThemeSelector() {
           className='justify-start *:data-[slot=select-value]:w-12'
         >
           <span className='text-muted-foreground hidden sm:block'>
-            Select a theme:
+            {t('selectTheme')}
           </span>
-          <span className='text-muted-foreground block sm:hidden'>Theme</span>
-          <SelectValue placeholder='Select a theme' />
+          <span className='text-muted-foreground block sm:hidden'>{t('theme')}</span>
+          <SelectValue placeholder={t('selectThemePlaceholder')} />
         </SelectTrigger>
         <SelectContent align='end'>
           {/* <SelectGroup>

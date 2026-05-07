@@ -1,6 +1,79 @@
 {
   "title": "Impostazioni",
   "description": "Configura il tuo account e le tue preferenze.",
+  "profile": {
+    "metaTitle": "Profilo | Ringee"
+  },
+  "numbers": {
+    "title": "Acquista numeri",
+    "description": "Gestisci i numeri",
+    "metaTitle": "Acquista numeri virtuali per chiamate globali | Ringee",
+    "metaDescription": "Acquista all'istante numeri locali o internazionali per effettuare e ricevere chiamate con Ringee. Perfetto per team di vendita, call center e aziende globali.",
+    "tabs": {
+      "buy": "Acquista numero",
+      "myNumbers": "I miei numeri"
+    },
+    "buy": {
+      "table": {
+        "phoneNumber": "Numero di telefono",
+        "phoneNumberPlaceholder": "Cerca numero…",
+        "country": "Paese",
+        "countryPlaceholder": "Seleziona paese",
+        "type": "Tipo",
+        "typePlaceholder": "Seleziona tipo",
+        "areaCode": "Prefisso",
+        "areaCodePlaceholder": "Prefisso",
+        "region": "Regione",
+        "features": "Funzioni",
+        "featuresPlaceholder": "Seleziona funzioni",
+        "cost": "Costo",
+        "actions": "Azioni",
+        "buy": "Acquista",
+        "noNumbers": "Nessun numero disponibile",
+        "errorLoading": "Impossibile caricare i numeri. Riprova."
+      },
+      "types": {
+        "local": "Locale",
+        "tollFree": "Numero verde"
+      },
+      "features": {
+        "voice": "Voce",
+        "sms": "SMS",
+        "mms": "MMS",
+        "hdVoice": "Voce HD",
+        "internationalSms": "SMS intl.",
+        "emergency": "Emergenza",
+        "fax": "Fax"
+      },
+      "purchase": {
+        "confirmTitle": "Acquistare questo numero?",
+        "confirmDescription": "{phone} — {currency} {monthly}/mese",
+        "confirm": "Acquista",
+        "cancel": "Annulla",
+        "success": "Numero acquistato",
+        "error": "Impossibile acquistare il numero"
+      }
+    },
+    "my": {
+      "table": {
+        "phoneNumber": "Numero di telefono",
+        "country": "Paese",
+        "type": "Tipo",
+        "status": "Stato",
+        "connection": "Connessione",
+        "purchaseDate": "Data acquisto",
+        "monthlyCost": "Costo mensile",
+        "upfrontCost": "Costo iniziale",
+        "unknown": "Sconosciuto",
+        "na": "N/D"
+      },
+      "status": {
+        "assigned": "assegnato",
+        "inactive": "inattivo",
+        "pending": "in attesa"
+      }
+    }
+  },
   "tabs": {
     "general": "Generale",
     "language": "Lingua",

@@ -5,10 +5,56 @@
     "all": "All",
     "unread": "Unread",
     "missed": "Missed",
-    "voicemail": "Voicemail"
+    "missedCalls": "Missed Calls",
+    "voicemail": "Voicemail",
+    "voicemails": "Voicemails",
+    "sms": "SMS",
+    "resolved": "Resolved",
+    "archived": "Archived"
   },
   "empty": {
     "title": "Inbox zero",
     "description": "You're all caught up. New messages will show up here."
+  },
+  "threadList": {
+    "searchPlaceholder": "Search by name or number",
+    "noConversations": "No conversations yet",
+    "newWillAppear": "New calls and SMS will appear here automatically.",
+    "importing": "Importing…",
+    "importFromPastCalls": "Import from past calls"
+  },
+  "timeline": {
+    "selectConversation": "Select a conversation to start",
+    "viaNumber": "via {number}",
+    "linkContact": "Link contact",
+    "call": "Call",
+    "markResolved": "Mark resolved",
+    "archive": "Archive",
+    "reopen": "Reopen",
+    "loading": "Loading…",
+    "noActivity": "No activity yet — send a message or place a call to start."
+  },
+  "composer": {
+    "sms": "SMS",
+    "internalNote": "Internal note",
+    "selectNumber": "Select number",
+    "noSmsSuffix": " (no SMS)",
+    "notePlaceholder": "Add an internal note (only visible to your team)…",
+    "messagePlaceholder": "Type a message — ⌘/Ctrl + Enter to send",
+    "saveNote": "Save note",
+    "send": "Send",
+    "smsDisabledWarning": "This number does not have SMS enabled in Telnyx. Pick another or enable messaging on the number."
+  },
+  "events": {
+    "missedCall": "Missed call",
+    "inboundCall": "Inbound call",
+    "outboundCall": "Outbound call",
+    "callBack": "Call back",
+    "voicemailReceived": "Voicemail received",
+    "voicedropSent": "Voicedrop sent",
+    "internalNote": "Internal note",
+    "meetingBooked": "Meeting booked",
+    "callbackCompleted": "Callback completed",
+    "callbackScheduled": "Callback scheduled"
   }
 }

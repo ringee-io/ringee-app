@@ -6,6 +6,7 @@ import { DataTableSkeleton } from '@ringee/frontend-shared/components/ui/table/d
 import ContactListingPage from '@/features/contact/components/contact.listing';
 import { Dialer } from './dialer';
 import CallHistoryListing from '@/features/history/components/call.history.listing';
+import { getTranslations } from 'next-intl/server';
 
 enum TabEnum {
   Dialer = 'dialer',
@@ -15,18 +16,19 @@ enum TabEnum {
 
 export default async function CallPageView() {
   const tab = searchParamsCache.get('tab') || TabEnum.Dialer;
+  const t = await getTranslations('navigation.tabs');
 
   return (
     <Tabs defaultValue={tab} key={tab}>
       <TabsList className='w-fit'>
         <TabsTrigger value={TabEnum.Dialer} asChild>
-          <Link href={`?tab=${TabEnum.Dialer}`}>Dialer</Link>
+          <Link href={`?tab=${TabEnum.Dialer}`}>{t('dialer')}</Link>
         </TabsTrigger>
         <TabsTrigger value={TabEnum.Contact} asChild>
-          <Link href={`?tab=${TabEnum.Contact}`}>Contact</Link>
+          <Link href={`?tab=${TabEnum.Contact}`}>{t('contact')}</Link>
         </TabsTrigger>
         <TabsTrigger value={TabEnum.History} asChild>
-          <Link href={`?tab=${TabEnum.History}`}>History</Link>
+          <Link href={`?tab=${TabEnum.History}`}>{t('history')}</Link>
         </TabsTrigger>
       </TabsList>
 

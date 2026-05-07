@@ -16,5 +16,48 @@
     "letsGo": "Let's go"
   },
   "headerButton": "Setup",
-  "progress": "{current} of {total}"
+  "progress": "{current} of {total}",
+  "guide": {
+    "title": "Setup guide",
+    "minimize": "Minimize",
+    "close": "Close",
+    "showSteps": "Show steps",
+    "hideSteps": "Hide steps",
+    "completedSummary": "{completed}/{total} completed",
+    "stepsCompleted": "{completed} of {total} steps completed"
+  },
+  "guideSteps": {
+    "first_call": {
+      "title": "Make your first call",
+      "description": "Ringee offers your first call for free"
+    },
+    "recording": {
+      "title": "Record and listen",
+      "description": "Record a call and listen to the recording"
+    },
+    "check_numbers": {
+      "title": "Explore available numbers",
+      "description": "Discover numbers you can buy"
+    },
+    "buy_credits": {
+      "title": "Buy credits",
+      "description": "Add credits to make more calls"
+    }
+  },
+  "headerProgress": {
+    "label": "Setup guide",
+    "tooltip": "Resume onboarding progress"
+  },
+  "firstCallModal": {
+    "title": "Your first call is on us",
+    "subtitle": "Make and record your first free call!",
+    "step1Title": "Step 1: Enter a phone number",
+    "step1Description": "Use the dial pad to enter any phone number you want to call. It works just like a normal phone.",
+    "step2Title": "Step 2: Start recording",
+    "step2Description": "Don't forget to click the record button once your call connects to save the conversation.",
+    "recordingButton": "Recording Button",
+    "recordingAlt": "How to start recording",
+    "maybeLater": "Maybe later",
+    "startCalling": "Start calling now"
+  }
 }

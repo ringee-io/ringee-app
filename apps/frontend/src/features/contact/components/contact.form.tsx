@@ -32,6 +32,7 @@ import 'react-phone-number-input/style.css';
 import { toast } from 'sonner';
 import { ApiError } from '@ringee/frontend-shared/lib/api';
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import { useTranslations } from 'next-intl';
 
 const SOURCE_OPTIONS = [
   'manual',
@@ -93,6 +94,8 @@ export default function ContactForm({
   const isEdit = Boolean(initialData?.id);
   const router = useRouter();
   const api = useApi();
+  const t = useTranslations('contacts.fields');
+  const tCommon = useTranslations('common');
 
   const [loading, setLoading] = useState(false);
   const [noteModalOpen, setNoteModalOpen] = useState(false);
@@ -134,10 +137,10 @@ export default function ContactForm({
       setTags(prev => [...prev.sort((a, b) => a.name.localeCompare(b.name)), newTag]);
       return newTag;
     } catch (err) {
-      toast.error('Failed to create tag');
+      toast.error(tCommon('somethingWentWrong'));
       throw err;
     }
-  }, [api]);
+  }, [api, tCommon]);
 
   async function onSubmit(values: ContactFormValues) {
     try {
@@ -152,12 +155,12 @@ export default function ContactForm({
 
       onSaved?.();
 
-      toast.success('Contact saved successfully');
+      toast.success(t('savedSuccessfully'));
     } catch (error) {
       if (error instanceof ApiError) {
         toast.error(error.message);
       } else {
-        toast.error('Something went wrong');
+        toast.error(t('somethingWentWrong'));
       }
     } finally {
       setLoading(false);
@@ -210,13 +213,13 @@ export default function ContactForm({
                 <FormInput
                   control={form.control}
                   name='firstName'
-                  label='First Name'
+                  label={t('firstName')}
                   placeholder='John'
                 />
                 <FormInput
                   control={form.control}
                   name='lastName'
-                  label='Last Name'
+                  label={t('lastName')}
                   placeholder='Doe'
                 />
               </div>
@@ -224,13 +227,13 @@ export default function ContactForm({
               <FormInput
                 control={form.control}
                 name='name'
-                label='Display Name'
-                placeholder='Auto-generated from first/last name if empty'
+                label={t('displayName')}
+                placeholder={t('displayNamePlaceholder')}
               />
 
               <div className='space-y-2'>
                 <label className='text-sm font-medium'>
-                  Phone Number <span className='text-red-500'> * </span>
+                  {t('phoneNumber')} <span className='text-red-500'> * </span>
                 </label>
                 <Controller
                   name='phoneNumber'
@@ -256,8 +259,8 @@ export default function ContactForm({
               <FormInput
                 control={form.control}
                 name='email'
-                label='Email'
-                placeholder='john@example.com'
+                label={t('email')}
+                placeholder={t('emailPlaceholder') || 'john@example.com'}
               />
 
               <Separator />
@@ -266,14 +269,14 @@ export default function ContactForm({
                 <FormInput
                   control={form.control}
                   name='organization'
-                  label='Company / Organization'
-                  placeholder='Acme Inc.'
+                  label={t('companyOrOrg')}
+                  placeholder={t('companyPlaceholder') || 'Acme Inc.'}
                 />
                 <FormInput
                   control={form.control}
                   name='jobTitle'
-                  label='Job Title'
-                  placeholder='Sales Manager'
+                  label={t('jobTitle')}
+                  placeholder={t('jobTitlePlaceholder') || 'Sales Manager'}
                 />
               </div>
 
@@ -282,14 +285,14 @@ export default function ContactForm({
                 name='source'
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Source</FormLabel>
+                    <FormLabel>{t('source')}</FormLabel>
                     <FormControl>
                       <select
                         value={field.value || ''}
                         onChange={field.onChange}
                         className='border-input bg-background ring-offset-background focus:ring-ring flex h-10 w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-offset-2 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50'
                       >
-                        <option value=''>Select source...</option>
+                        <option value=''>{t('selectSource')}</option>
                         {SOURCE_OPTIONS.map((src) => (
                           <option key={src} value={src}>
                             {src.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
@@ -307,14 +310,14 @@ export default function ContactForm({
                 name="tagIds"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Tags</FormLabel>
+                    <FormLabel>{t('tags')}</FormLabel>
                     <FormControl>
                       <TagMultiSelect
                         availableTags={tags}
                         selectedTagIds={field.value || []}
                         onSelectionChange={field.onChange}
                         onCreateTag={handleCreateTag}
-                        placeholder="Select or create tags..."
+                        placeholder={t('selectOrCreateTags')}
                       />
                     </FormControl>
                     <FormMessage />
@@ -327,8 +330,8 @@ export default function ContactForm({
               <FormTextarea
                 control={form.control}
                 name='note'
-                label='Note'
-                placeholder='Write something about this contact...'
+                label={t('note')}
+                placeholder={t('notePlaceholder')}
                 config={{
                   maxLength: 500,
                   showCharCount: true,
@@ -340,10 +343,10 @@ export default function ContactForm({
             <div className='flex justify-end'>
               <Button type='submit' disabled={loading}>
                 {loading
-                  ? 'Saving...'
+                  ? t('saving')
                   : isEdit
-                    ? 'Update Contact'
-                    : 'Add Contact'}
+                    ? t('updateContact')
+                    : t('addContact')}
               </Button>
             </div>
           </Form>

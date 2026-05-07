@@ -40,6 +40,224 @@
     "last90Days": "Letzte 90 Tage",
     "thisMonth": "Dieser Monat",
     "lastMonth": "Letzter Monat",
-    "custom": "Benutzerdefinierter Zeitraum"
+    "custom": "Benutzerdefinierter Zeitraum",
+    "yesterday": "Gestern"
+  },
+  "filters": {
+    "scope": {
+      "organization": "Organisation",
+      "personal": "Persönlich"
+    },
+    "allOutcomes": "Alle Ergebnisse",
+    "allMembers": "Alle Mitglieder",
+    "allCampaigns": "Alle Kampagnen",
+    "searchMembers": "Mitglieder suchen…",
+    "noMembers": "Keine Mitglieder",
+    "memberFallback": "Mitglied",
+    "customRange": {
+      "title": "Eigenen Zeitraum wählen",
+      "from": "Von",
+      "to": "Bis",
+      "aria": "Benutzerdefinierter Zeitraum"
+    }
+  },
+  "outcomes": {
+    "meeting_booked": "Termin vereinbart",
+    "sale": "Verkauf",
+    "interested": "Interessiert",
+    "follow_up": "Follow-up",
+    "not_interested": "Kein Interesse",
+    "no_answer": "Keine Antwort",
+    "voicemail": "Mailbox",
+    "wrong_number": "Falsche Nummer",
+    "gatekeeper": "Vorzimmer"
+  },
+  "widgets": {
+    "shell": {
+      "loading": "Wird geladen…",
+      "failedToLoad": "Laden fehlgeschlagen",
+      "empty": "Noch nichts zu zeigen",
+      "dragAria": "Widget verschieben",
+      "removeAria": "Widget entfernen",
+      "unknownKpi": "Unbekannter KPI: {type}"
+    },
+    "addWidget": "Widget hinzufügen",
+    "categoryLabel": {
+      "KPI": "KPI-Widgets",
+      "Chart": "Diagramm-Widgets",
+      "Table": "Tabellen-Widgets"
+    },
+    "catalog": {
+      "kpi_total_calls": { "title": "Anrufe gesamt", "description": "Anrufe im gewählten Zeitraum." },
+      "kpi_answered_calls": { "title": "Angenommene Anrufe", "description": "Anrufe, die von einer Person beantwortet wurden." },
+      "kpi_meetings_booked": { "title": "Termine vereinbart", "description": "Termine im Kalender für diesen Zeitraum." },
+      "kpi_sales": { "title": "Abschlüsse", "description": "Anrufe mit Ergebnis „Verkauf“." },
+      "kpi_interested": { "title": "Interessierte Leads", "description": "Anrufe mit Ergebnis „Interessiert“." },
+      "kpi_follow_ups": { "title": "Follow-ups", "description": "Für Follow-up markierte Anrufe." },
+      "kpi_no_answer": { "title": "Keine Antwort", "description": "Anrufe, die nicht beantwortet wurden." },
+      "kpi_voicemail": { "title": "Mailbox", "description": "Anrufe, die auf der Mailbox landeten." },
+      "kpi_wrong_number": { "title": "Falsche Nummer", "description": "Als falsche Nummer markierte Anrufe." },
+      "kpi_conversion_rate": { "title": "Conversion Rate", "description": "Verkäufe / angenommene Anrufe." },
+      "kpi_meeting_rate": { "title": "Termin-Quote", "description": "Vereinbarte Termine / angenommene Anrufe." },
+      "kpi_positive_outcome_rate": { "title": "Positive-Outcome-Rate", "description": "(Verkäufe + Termine + Interessiert) / angenommen." },
+      "chart_outcome_funnel": { "title": "Ergebnis-Funnel", "description": "Gesamt → Angenommen → Interessiert → Termine → Verkäufe." },
+      "chart_outcomes_over_time": { "title": "Ergebnisse im Zeitverlauf", "description": "Gestapelte Ergebnisse pro Tag/Woche/Monat." },
+      "chart_best_time_of_day": { "title": "Beste Anrufzeiten", "description": "Stunden mit den meisten Ergebnissen." },
+      "chart_calls_by_outcome": { "title": "Anrufe nach Ergebnis", "description": "Verteilung der Ergebnisse." },
+      "table_recent_high_value_calls": { "title": "Hochwertige Anrufe", "description": "Aktuelle Verkäufe, Termine, Interessenten, Follow-ups." },
+      "table_upcoming_meetings": { "title": "Kommende Termine", "description": "Termine im Kalender." },
+      "table_agent_performance": { "title": "Agenten-Performance", "description": "Aufschlüsselung pro Agent (nur Org-Admins)." }
+    },
+    "kpi": {
+      "totalCalls": {
+        "label": "Anrufe gesamt",
+        "hint": "{rate}% angenommen",
+        "emptyHint": "Anrufe in diesem Zeitraum erscheinen hier."
+      },
+      "answeredCalls": {
+        "label": "Angenommene Anrufe",
+        "hint": "{rate}% Antwortquote",
+        "emptyHint": "Anrufe, die zu einer Person durchgestellt wurden, erscheinen hier."
+      },
+      "meetingsBooked": {
+        "label": "Termine vereinbart",
+        "hintExtra": "+{count} ohne Kalendertermin markiert",
+        "hintFromScheduled": "Aus geplanten Terminen",
+        "emptyHint": "Vereinbarte Termine erscheinen hier, sobald ein Anruf als Termin markiert oder über Google/Microsoft Calendar geplant wurde."
+      },
+      "sales": {
+        "label": "Abschlüsse",
+        "hint": "{rate}% Conversion Rate",
+        "emptyHint": "Anrufe mit Ergebnis „Verkauf“ erscheinen hier."
+      },
+      "interested": {
+        "label": "Interessierte Leads",
+        "emptyHint": "Anrufe mit Markierung „Interessiert“ erscheinen hier."
+      },
+      "followUps": {
+        "label": "Follow-ups",
+        "emptyHint": "Anrufe mit Markierung „Follow-up“ erscheinen hier."
+      },
+      "noAnswer": {
+        "label": "Keine Antwort",
+        "emptyHint": "Anrufe ohne Antwort erscheinen hier."
+      },
+      "voicemail": {
+        "label": "Mailbox",
+        "emptyHint": "Anrufe, die auf der Mailbox landeten, erscheinen hier."
+      },
+      "wrongNumber": {
+        "label": "Falsche Nummer",
+        "emptyHint": "Als „Falsche Nummer“ markierte Anrufe erscheinen hier."
+      },
+      "conversionRate": {
+        "label": "Conversion Rate",
+        "hint": "{sales} Verkäufe / {answered} angenommen",
+        "emptyHint": "Conversion Rate = Verkäufe ÷ angenommene Anrufe. Markieren Sie Anrufe als „Verkauf“, um Daten zu sehen."
+      },
+      "meetingRate": {
+        "label": "Termin-Quote",
+        "hint": "{meetings} Termine / {answered} angenommen",
+        "emptyHint": "Termin-Quote = vereinbarte Termine ÷ angenommene Anrufe. Buchen Sie aus einem Anruf einen Termin, um Daten zu sehen."
+      },
+      "positiveOutcomeRate": {
+        "label": "Positive-Outcome-Rate",
+        "hint": "(Verkäufe + Termine + Interessiert) / Angenommen",
+        "emptyHint": "Zählt Verkäufe, vereinbarte Termine und interessierte Leads als Anteil der angenommenen Anrufe."
+      }
+    },
+    "outcomeFunnel": {
+      "emptyHint": "Sobald Sie Anrufergebnisse erfassen, füllt sich hier der Funnel von der Gesamtzahl der Anrufe bis zu den Verkäufen.",
+      "labels": {
+        "totalCalls": "Gesamtanrufe",
+        "answered": "Angenommen",
+        "interested": "Interessiert",
+        "meetingsBooked": "Gebuchte Termine",
+        "sales": "Verkäufe"
+      }
+    },
+    "outcomesOverTime": {
+      "emptyHint": "Erfassen Sie Ergebnisse zu Ihren Anrufen, um zu sehen, wie sich Verkäufe, Termine und Interessenten im Zeitverlauf entwickeln.",
+      "series": {
+        "sales": "Verkäufe",
+        "meetings": "Termine",
+        "interested": "Interessiert",
+        "followUps": "Follow-ups",
+        "noAnswer": "Keine Antwort"
+      }
+    },
+    "bestTime": {
+      "emptyHint": "Sobald Ergebnisse vorliegen, zeigt dieses Diagramm, in welchen Stunden des Tages die meisten Ergebnisse entstehen.",
+      "metrics": {
+        "sales": "Verkäufe",
+        "meetings": "Termine vereinbart",
+        "interested": "Interessierte Leads"
+      },
+      "tooltip": "{count} um {hour}"
+    },
+    "byOutcome": {
+      "emptyHint": "Wählen Sie zu jedem Anruf ein Ergebnis (Verkauf, Interessiert, Mailbox usw.), um die Verteilung zu sehen."
+    },
+    "recentHighValue": {
+      "emptyHint": "Anrufe, die als Verkauf, Termin vereinbart, Interessiert oder Follow-up markiert wurden, erscheinen hier, damit Sie wissen, woran Sie dranbleiben sollten."
+    },
+    "upcomingMeetings": {
+      "emptyHint": "Planen Sie aus einem Anruf einen Termin (oder synchronisieren Sie Google/Microsoft Calendar) — er erscheint dann hier.",
+      "fromCall": "Aus Anruf"
+    },
+    "agentPerformance": {
+      "emptyHint": "Die Agenten-Performance ist für Org-Admins verfügbar. Sobald Ihr Team telefoniert, erscheint hier die Aufschlüsselung.",
+      "headers": {
+        "agent": "Agent",
+        "calls": "Anrufe",
+        "answered": "Angenommen",
+        "meetings": "Termine",
+        "sales": "Verkäufe",
+        "interested": "Interessiert",
+        "conversion": "Conv %",
+        "meetRate": "Termin %"
+      }
+    }
+  },
+  "page": {
+    "headerOrg": "Outbound-Performance",
+    "headerSolo": "Ihre Anruf-Performance",
+    "subtitle": "Ergebnisse, Conversion und die besten Anrufzeiten — für den von Ihnen gewählten Zeitraum.",
+    "savingLayout": "Layout wird gespeichert…",
+    "doneEditing": "Bearbeitung beenden",
+    "customize": "Anpassen"
+  },
+  "overview": {
+    "welcome": "Hallo, willkommen zurück 👋",
+    "tabs": {
+      "overview": "Übersicht",
+      "analytics": "Analytics"
+    },
+    "cards": {
+      "totalCalls": {
+        "title": "Anrufe gesamt",
+        "trend": "Trend in diesem Monat steigend",
+        "subtitle": "Verbindungsrate der letzten 6 Monate",
+        "answered": "{rate}% angenommen",
+        "missed": "{rate}% verpasst"
+      },
+      "averageDuration": {
+        "title": "Durchschnittliche Dauer",
+        "up": "+{rate}% in diesem Zeitraum",
+        "down": "-{rate}% in diesem Zeitraum",
+        "subtitleUp": "Nutzer bleiben länger im Gespräch",
+        "subtitleDown": "Durchschnittliche Anrufdauer ist gesunken"
+      },
+      "weeklyGrowth": {
+        "title": "Wöchentliches Wachstum",
+        "trend": "Starke Nutzerbindung",
+        "subtitle": "Engagement übertrifft die Ziele"
+      },
+      "growthRate": {
+        "title": "Wachstumsrate",
+        "trend": "Stetige Performance-Steigerung",
+        "subtitle": "Erfüllt die Wachstumsprognosen"
+      }
+    }
   }
 }

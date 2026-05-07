@@ -40,6 +40,224 @@
     "last90Days": "Últimos 90 días",
     "thisMonth": "Este mes",
     "lastMonth": "Mes pasado",
-    "custom": "Rango personalizado"
+    "custom": "Rango personalizado",
+    "yesterday": "Ayer"
+  },
+  "filters": {
+    "scope": {
+      "organization": "Organización",
+      "personal": "Personal"
+    },
+    "allOutcomes": "Todos los resultados",
+    "allMembers": "Todos los miembros",
+    "allCampaigns": "Todas las campañas",
+    "searchMembers": "Buscar miembros…",
+    "noMembers": "Sin miembros",
+    "memberFallback": "Miembro",
+    "customRange": {
+      "title": "Elige un rango personalizado",
+      "from": "Desde",
+      "to": "Hasta",
+      "aria": "Rango personalizado"
+    }
+  },
+  "outcomes": {
+    "meeting_booked": "Reunión agendada",
+    "sale": "Venta",
+    "interested": "Interesado",
+    "follow_up": "Seguimiento",
+    "not_interested": "No interesado",
+    "no_answer": "Sin respuesta",
+    "voicemail": "Buzón de voz",
+    "wrong_number": "Número equivocado",
+    "gatekeeper": "Filtro"
+  },
+  "widgets": {
+    "shell": {
+      "loading": "Cargando…",
+      "failedToLoad": "No se pudo cargar",
+      "empty": "Aún no hay nada que mostrar",
+      "dragAria": "Arrastrar widget",
+      "removeAria": "Eliminar widget",
+      "unknownKpi": "KPI desconocido: {type}"
+    },
+    "addWidget": "Añadir widget",
+    "categoryLabel": {
+      "KPI": "Widgets KPI",
+      "Chart": "Widgets de gráfico",
+      "Table": "Widgets de tabla"
+    },
+    "catalog": {
+      "kpi_total_calls": { "title": "Llamadas totales", "description": "Llamadas realizadas en el período seleccionado." },
+      "kpi_answered_calls": { "title": "Llamadas contestadas", "description": "Llamadas atendidas por una persona." },
+      "kpi_meetings_booked": { "title": "Reuniones agendadas", "description": "Reuniones en el calendario para este período." },
+      "kpi_sales": { "title": "Ventas realizadas", "description": "Llamadas con resultado \"Venta\"." },
+      "kpi_interested": { "title": "Leads interesados", "description": "Llamadas con resultado \"Interesado\"." },
+      "kpi_follow_ups": { "title": "Seguimientos", "description": "Llamadas marcadas para seguimiento." },
+      "kpi_no_answer": { "title": "Sin respuesta", "description": "Llamadas que no fueron contestadas." },
+      "kpi_voicemail": { "title": "Buzón de voz", "description": "Llamadas que cayeron en buzón." },
+      "kpi_wrong_number": { "title": "Número equivocado", "description": "Llamadas marcadas como número equivocado." },
+      "kpi_conversion_rate": { "title": "Tasa de conversión", "description": "Ventas / llamadas contestadas." },
+      "kpi_meeting_rate": { "title": "Tasa de reuniones", "description": "Reuniones agendadas / llamadas contestadas." },
+      "kpi_positive_outcome_rate": { "title": "Tasa de resultado positivo", "description": "(Ventas + Reuniones + Interesados) / contestadas." },
+      "chart_outcome_funnel": { "title": "Embudo de resultados", "description": "Total → Contestadas → Interesados → Reuniones → Ventas." },
+      "chart_outcomes_over_time": { "title": "Resultados en el tiempo", "description": "Resultados apilados por día/semana/mes." },
+      "chart_best_time_of_day": { "title": "Mejores horas para llamar", "description": "Las horas que generan más resultados." },
+      "chart_calls_by_outcome": { "title": "Llamadas por resultado", "description": "Distribución de los resultados." },
+      "table_recent_high_value_calls": { "title": "Llamadas de alto valor", "description": "Ventas, reuniones, interesados y seguimientos recientes." },
+      "table_upcoming_meetings": { "title": "Próximas reuniones", "description": "Reuniones en el calendario." },
+      "table_agent_performance": { "title": "Rendimiento por agente", "description": "Detalle por agente (solo admins de la organización)." }
+    },
+    "kpi": {
+      "totalCalls": {
+        "label": "Llamadas totales",
+        "hint": "{rate}% contestadas",
+        "emptyHint": "Aquí aparecerán las llamadas realizadas en este período."
+      },
+      "answeredCalls": {
+        "label": "Llamadas contestadas",
+        "hint": "{rate}% de tasa de respuesta",
+        "emptyHint": "Aquí aparecerán las llamadas que conectaron con una persona."
+      },
+      "meetingsBooked": {
+        "label": "Reuniones agendadas",
+        "hintExtra": "+{count} marcadas sin evento de calendario",
+        "hintFromScheduled": "De registros de reunión programados",
+        "emptyHint": "Las reuniones agendadas aparecerán aquí cuando marques una llamada como reunión agendada o cuando se sincronice desde Google/Microsoft Calendar."
+      },
+      "sales": {
+        "label": "Ventas realizadas",
+        "hint": "{rate}% de tasa de conversión",
+        "emptyHint": "Aquí aparecerán las llamadas marcadas con resultado \"Venta\"."
+      },
+      "interested": {
+        "label": "Leads interesados",
+        "emptyHint": "Aquí aparecerán las llamadas marcadas como \"Interesado\"."
+      },
+      "followUps": {
+        "label": "Seguimientos",
+        "emptyHint": "Aquí aparecerán las llamadas marcadas como \"Seguimiento\"."
+      },
+      "noAnswer": {
+        "label": "Sin respuesta",
+        "emptyHint": "Aquí aparecerán las llamadas sin respuesta."
+      },
+      "voicemail": {
+        "label": "Buzón de voz",
+        "emptyHint": "Aquí aparecerán las llamadas que cayeron en buzón."
+      },
+      "wrongNumber": {
+        "label": "Número equivocado",
+        "emptyHint": "Aquí aparecerán las llamadas marcadas como \"Número equivocado\"."
+      },
+      "conversionRate": {
+        "label": "Tasa de conversión",
+        "hint": "{sales} ventas / {answered} contestadas",
+        "emptyHint": "Tasa de conversión = ventas ÷ llamadas contestadas. Marca llamadas como \"Venta\" para que aparezcan datos."
+      },
+      "meetingRate": {
+        "label": "Tasa de reuniones",
+        "hint": "{meetings} reuniones / {answered} contestadas",
+        "emptyHint": "Tasa de reuniones = reuniones agendadas ÷ llamadas contestadas. Agenda una reunión desde una llamada para que aparezcan datos."
+      },
+      "positiveOutcomeRate": {
+        "label": "Tasa de resultado positivo",
+        "hint": "(Ventas + Reuniones + Interesados) / Contestadas",
+        "emptyHint": "Cuenta ventas, reuniones agendadas e interesados como proporción de llamadas contestadas."
+      }
+    },
+    "outcomeFunnel": {
+      "emptyHint": "Cuando registres resultados de llamadas, el embudo desde llamadas totales hasta ventas aparecerá aquí.",
+      "labels": {
+        "totalCalls": "Llamadas totales",
+        "answered": "Contestadas",
+        "interested": "Interesados",
+        "meetingsBooked": "Reuniones agendadas",
+        "sales": "Ventas"
+      }
+    },
+    "outcomesOverTime": {
+      "emptyHint": "Registra resultados en tus llamadas para ver cómo evolucionan ventas, reuniones e interesados en el tiempo.",
+      "series": {
+        "sales": "Ventas",
+        "meetings": "Reuniones",
+        "interested": "Interesados",
+        "followUps": "Seguimientos",
+        "noAnswer": "Sin respuesta"
+      }
+    },
+    "bestTime": {
+      "emptyHint": "Cuando empiecen a registrarse resultados, este gráfico te mostrará las horas del día que generan más resultados.",
+      "metrics": {
+        "sales": "Ventas",
+        "meetings": "Reuniones agendadas",
+        "interested": "Leads interesados"
+      },
+      "tooltip": "{count} a las {hour}"
+    },
+    "byOutcome": {
+      "emptyHint": "Elige un resultado en cada llamada (Venta, Interesado, Buzón, etc.) para ver cómo se distribuyen tus resultados."
+    },
+    "recentHighValue": {
+      "emptyHint": "Las llamadas marcadas como Venta, Reunión agendada, Interesado o Seguimiento aparecerán aquí para que sepas a qué hacer seguimiento."
+    },
+    "upcomingMeetings": {
+      "emptyHint": "Agenda una reunión desde una llamada (o sincroniza tu Google/Microsoft Calendar) y aparecerá aquí.",
+      "fromCall": "Desde llamada"
+    },
+    "agentPerformance": {
+      "emptyHint": "El rendimiento por agente está disponible para administradores de la organización. Cuando tu equipo empiece a hacer llamadas, su detalle aparecerá aquí.",
+      "headers": {
+        "agent": "Agente",
+        "calls": "Llamadas",
+        "answered": "Contestadas",
+        "meetings": "Reuniones",
+        "sales": "Ventas",
+        "interested": "Interesados",
+        "conversion": "Conv %",
+        "meetRate": "Reun %"
+      }
+    }
+  },
+  "page": {
+    "headerOrg": "Rendimiento outbound",
+    "headerSolo": "Tu rendimiento de llamadas",
+    "subtitle": "Resultados, conversión y las mejores horas para llamar — en el rango de tiempo que elijas.",
+    "savingLayout": "Guardando layout…",
+    "doneEditing": "Terminar edición",
+    "customize": "Personalizar"
+  },
+  "overview": {
+    "welcome": "Hola, ¡bienvenido de vuelta! 👋",
+    "tabs": {
+      "overview": "Resumen",
+      "analytics": "Analíticas"
+    },
+    "cards": {
+      "totalCalls": {
+        "title": "Llamadas totales",
+        "trend": "Tendencia al alza este mes",
+        "subtitle": "Tasa de conexión de los últimos 6 meses",
+        "answered": "{rate}% contestadas",
+        "missed": "{rate}% perdidas"
+      },
+      "averageDuration": {
+        "title": "Duración media",
+        "up": "Sube {rate}% este período",
+        "down": "Baja {rate}% este período",
+        "subtitleUp": "Los usuarios pasan más tiempo en llamada",
+        "subtitleDown": "La duración media de llamada bajó"
+      },
+      "weeklyGrowth": {
+        "title": "Crecimiento semanal",
+        "trend": "Fuerte retención de usuarios",
+        "subtitle": "El engagement supera los objetivos"
+      },
+      "growthRate": {
+        "title": "Tasa de crecimiento",
+        "trend": "Mejora sostenida del rendimiento",
+        "subtitle": "Cumple las previsiones de crecimiento"
+      }
+    }
   }
 }

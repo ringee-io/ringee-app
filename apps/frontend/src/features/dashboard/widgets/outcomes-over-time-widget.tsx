@@ -1,6 +1,7 @@
 'use client';
 
 import * as React from 'react';
+import { useTranslations } from 'next-intl';
 import {
   Bar,
   BarChart,
@@ -29,11 +30,11 @@ interface OutcomesResponse {
 }
 
 const SERIES = [
-  { key: 'sales', label: 'Sales', color: 'var(--chart-1)' },
-  { key: 'meetingsBooked', label: 'Meetings', color: 'var(--chart-2)' },
-  { key: 'interested', label: 'Interested', color: 'var(--chart-3)' },
-  { key: 'followUps', label: 'Follow-ups', color: 'var(--chart-4)' },
-  { key: 'noAnswer', label: 'No Answer', color: 'var(--chart-5)' }
+  { key: 'sales', i18nKey: 'sales', color: 'var(--chart-1)' },
+  { key: 'meetingsBooked', i18nKey: 'meetings', color: 'var(--chart-2)' },
+  { key: 'interested', i18nKey: 'interested', color: 'var(--chart-3)' },
+  { key: 'followUps', i18nKey: 'followUps', color: 'var(--chart-4)' },
+  { key: 'noAnswer', i18nKey: 'noAnswer', color: 'var(--chart-5)' }
 ] as const;
 
 function formatBucket(s: string, granularity: 'day' | 'week' | 'month') {
@@ -52,6 +53,7 @@ export function OutcomesOverTimeWidget({
   title: string;
   onRemove?: () => void;
 }) {
+  const t = useTranslations('dashboard.widgets.outcomesOverTime');
   const { data, loading, error } = useWidgetData<OutcomesResponse>(
     '/dashboard/outcomes-over-time'
   );
@@ -64,7 +66,7 @@ export function OutcomesOverTimeWidget({
       loading={loading}
       error={error}
       empty={empty}
-      emptyHint='Log outcomes on your calls to see how sales, meetings, and interested leads trend over time.'
+      emptyHint={t('emptyHint')}
       onRemove={onRemove}
       contentClassName='pb-4'
     >
@@ -89,7 +91,7 @@ export function OutcomesOverTimeWidget({
               key={s.key}
               dataKey={s.key}
               stackId='outcomes'
-              name={s.label}
+              name={t(`series.${s.i18nKey}`)}
               fill={s.color}
               radius={[2, 2, 0, 0]}
             />

@@ -29,7 +29,12 @@
     "recordings": "Gravações",
     "rate": "Tarifas",
     "buyNumber": "Comprar número",
-    "signOut": "Terminar sessão"
+    "signOut": "Terminar sessão",
+    "upgradeToPro": "Fazer upgrade para Pro",
+    "account": "Conta",
+    "billing": "Faturação",
+    "notifications": "Notificações",
+    "logOut": "Terminar sessão"
   },
   "sidebar": {
     "openQuickCall": "Chamada rápida",
@@ -41,5 +46,9 @@
   "inboxTooltip": {
     "title": "Caixa de entrada — em breve",
     "description": "Gerencie todas as suas mensagens, chamadas perdidas e correios de voz numa só caixa."
+  },
+  "kbar": {
+    "navigation": "Navegação",
+    "goTo": "Ir para {page}"
   }
 }

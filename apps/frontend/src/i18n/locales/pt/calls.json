@@ -37,13 +37,62 @@
     "empty": {
       "title": "Ainda sem chamadas",
       "description": "O seu histórico aparece aqui assim que começar a fazer ou receber chamadas."
+    },
+    "table": {
+      "type": "Tipo",
+      "contact": "Contacto",
+      "from": "De",
+      "to": "Para",
+      "status": "Estado",
+      "duration": "Duração",
+      "date": "Data",
+      "recording": "Gravação",
+      "unknown": "Desconhecido",
+      "callAgain": "Voltar a chamar",
+      "noRecording": "Sem gravação",
+      "downloadRecording": "Transferir gravação"
     }
   },
   "recordings": {
     "title": "Gravações de chamadas",
     "description": "Ouça e transfira as suas gravações cifradas",
     "metaTitle": "Gravações — Ouvir e transferir | Ringee",
-    "metaDescription": "Aceda às suas gravações de chamadas cifradas. Reproduza, transfira e gira todos os ficheiros áudio em segurança a partir do painel da Ringee."
+    "metaDescription": "Aceda às suas gravações de chamadas cifradas. Reproduza, transfira e gira todos os ficheiros áudio em segurança a partir do painel da Ringee.",
+    "table": {
+      "type": "Tipo",
+      "contact": "Contacto",
+      "from": "De",
+      "to": "Para",
+      "duration": "Duração",
+      "date": "Data",
+      "status": "Estado",
+      "recording": "Gravação",
+      "unknown": "Desconhecido",
+      "noRecording": "Sem gravação",
+      "processingShort": "A processar…",
+      "unavailable": "Indisponível",
+      "play": "Reproduzir",
+      "playRecording": "Reproduzir gravação",
+      "downloadRecording": "Transferir gravação"
+    },
+    "statusBadge": {
+      "started": "A processar",
+      "processing": "A processar",
+      "completed": "Pronta",
+      "failed": "Falhou"
+    },
+    "player": {
+      "defaultTitle": "Gravação de chamada",
+      "callTitle": "Chamada: {from} → {to}",
+      "decrypting": "A desencriptar gravação…",
+      "errorLoad": "Não foi possível carregar a gravação. Tente novamente."
+    },
+    "dateFilter": {
+      "filterByDate": "Filtrar por data",
+      "from": "Desde {date}",
+      "to": "Até {date}",
+      "clear": "Limpar filtro de data"
+    }
   },
   "callbacks": {
     "title": "Retornos de chamada",
@@ -59,6 +108,26 @@
   },
   "rates": {
     "metaTitle": "Tarifas — Veja e compare custos | Ringee",
-    "metaDescription": "Aceda às tarifas atualizadas no painel da Ringee. Compare preços entre mais de 180 países e acompanhe os seus custos de comunicação em tempo real."
+    "metaDescription": "Aceda às tarifas atualizadas no painel da Ringee. Compare preços entre mais de 180 países e acompanhe os seus custos de comunicação em tempo real.",
+    "calculator": {
+      "title": "Calculadora de tarifas",
+      "subtitle": "Consulte as tarifas de chamadas em tempo real com a Ringee.",
+      "callingTo": "Estou a ligar para",
+      "to": "Para um",
+      "mobile": "Móvel",
+      "landline": "Fixo",
+      "willCost": "A sua chamada custa",
+      "perMinute": "por minuto"
+    }
+  },
+  "statusValues": {
+    "pending": "Pendente",
+    "ringing": "A chamar",
+    "answered": "Atendida",
+    "recording": "A gravar",
+    "completed": "Concluída",
+    "failed": "Falhou",
+    "processing": "A processar",
+    "ready": "Pronta"
   }
 }

@@ -23,6 +23,7 @@ import {
 } from '@ringee/frontend-shared/components/ui/tooltip';
 import { useQuickDialerCall } from '@/features/calls/hooks/use.quick.dialer.call';
 import { RecordingPlayButton } from '@/features/recordings/components/recordings.tables/recording-play-button';
+import { useTranslations } from 'next-intl';
 
 type RecordingData = {
   id: string;
@@ -72,10 +73,12 @@ const statusConfig: Record<
 export const columns: ColumnDef<Call>[] = [
   {
     accessorKey: 'direction',
-    header: ({ column }: { column: Column<Call, unknown> }) => (
-      <DataTableColumnHeader column={column} title='Type' />
-    ),
+    header: ({ column }: { column: Column<Call, unknown> }) => {
+      const t = useTranslations('calls.history.table');
+      return <DataTableColumnHeader column={column} title={t('type')} />;
+    },
     cell: ({ row }) => {
+      const t = useTranslations('calls.history.table');
       const direction = row.original.direction;
       const Icon = direction === 'inbound' ? PhoneIncoming : PhoneOutgoing;
       const phoneNumber = direction === 'inbound' ? row.original.fromNumber : row.original.toNumber;
@@ -109,7 +112,7 @@ export const columns: ColumnDef<Call>[] = [
             className='flex items-center gap-2'
           >
             <Phone className='h-4 w-4' />
-            <span>Call again</span>
+            <span>{t('callAgain')}</span>
           </TooltipContent>
         </Tooltip>
       );
@@ -117,15 +120,17 @@ export const columns: ColumnDef<Call>[] = [
   },
   {
     accessorKey: 'contact.name',
-    header: ({ column }: { column: Column<Call, unknown> }) => (
-      <DataTableColumnHeader column={column} title='Contact' />
-    ),
+    header: ({ column }: { column: Column<Call, unknown> }) => {
+      const t = useTranslations('calls.history.table');
+      return <DataTableColumnHeader column={column} title={t('contact')} />;
+    },
     cell: ({ row }) => {
-      const name = row.original.contact?.name || 'Unknown';
+      const t = useTranslations('calls.history.table');
+      const name = row.original.contact?.name || t('unknown');
       const phoneNumber = row.original.direction === 'inbound' ? row.original.fromNumber : row.original.toNumber;
       const { handleRecall } = useQuickDialerCall();
 
-      return name !== 'Unknown' ? (
+      return name !== t('unknown') ? (
         <Button
           variant='link'
           className='text-foreground p-0 font-medium'
@@ -140,7 +145,10 @@ export const columns: ColumnDef<Call>[] = [
   },
   {
     accessorKey: 'fromNumber',
-    header: 'From',
+    header: () => {
+      const t = useTranslations('calls.history.table');
+      return <>{t('from')}</>;
+    },
     cell: ({ cell }) => (
       <span className='text-muted-foreground font-mono text-sm'>
         {cell.getValue<string>()}
@@ -149,7 +157,10 @@ export const columns: ColumnDef<Call>[] = [
   },
   {
     accessorKey: 'toNumber',
-    header: 'To',
+    header: () => {
+      const t = useTranslations('calls.history.table');
+      return <>{t('to')}</>;
+    },
     cell: ({ cell }) => (
       <span className='text-muted-foreground font-mono text-sm'>
         {cell.getValue<string>()}
@@ -158,8 +169,12 @@ export const columns: ColumnDef<Call>[] = [
   },
   {
     accessorKey: 'status',
-    header: 'Status',
+    header: () => {
+      const t = useTranslations('calls.history.table');
+      return <>{t('status')}</>;
+    },
     cell: ({ row }) => {
+      const t = useTranslations('calls.statusValues');
       const status = row.original.status;
       const statusMap: Record<string, string> = {
         pending: 'bg-yellow-100 text-yellow-800',
@@ -178,14 +193,17 @@ export const columns: ColumnDef<Call>[] = [
             statusMap[status] || 'bg-muted text-muted-foreground'
           )}
         >
-          {status}
+          {t(status as any) || status}
         </Badge>
       );
     }
   },
   {
     accessorKey: 'durationSeconds',
-    header: 'Duration',
+    header: () => {
+      const t = useTranslations('calls.history.table');
+      return <>{t('duration')}</>;
+    },
     cell: ({ cell }) => {
       const seconds = cell.getValue<number>();
       if (!seconds) return '-';
@@ -202,7 +220,10 @@ export const columns: ColumnDef<Call>[] = [
   },
   {
     accessorKey: 'startedAt',
-    header: 'Date',
+    header: () => {
+      const t = useTranslations('calls.history.table');
+      return <>{t('date')}</>;
+    },
     cell: ({ cell }) => {
       const date = cell.getValue<string>();
       if (!date) return '—';
@@ -217,13 +238,18 @@ export const columns: ColumnDef<Call>[] = [
   },
   {
     id: 'recording',
-    header: 'Recording',
+    header: () => {
+      const t = useTranslations('calls.history.table');
+      return <>{t('recording')}</>;
+    },
     cell: ({ row }) => {
+      const t = useTranslations('calls.history.table');
+      const tStatus = useTranslations('calls.statusValues');
       const recordings = row.original.recordings || [];
       
       if (recordings.length === 0) {
         return (
-          <span className='text-muted-foreground text-xs'>No recording</span>
+          <span className='text-muted-foreground text-xs'>{t('noRecording')}</span>
         );
       }
 
@@ -244,7 +270,7 @@ export const columns: ColumnDef<Call>[] = [
                 status === 'started' || status === 'processing' ? 'animate-spin' : ''
               )}
             />
-            {config.label}
+            {tStatus(status as any) || config.label}
           </Badge>
         );
       }
@@ -265,7 +291,7 @@ export const columns: ColumnDef<Call>[] = [
                 </a>
               </Button>
             </TooltipTrigger>
-            <TooltipContent>Download recording</TooltipContent>
+            <TooltipContent>{t('downloadRecording')}</TooltipContent>
           </Tooltip>
         </div>
       );

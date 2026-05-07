@@ -57,6 +57,7 @@ import { toast } from 'sonner';
 import { useQuickDialerCall } from '@/features/calls/hooks/use.quick.dialer.call';
 import { ContactEnrichButton } from '@/features/integrations/components/contact-enrich-button';
 import { ContactRevealButtons } from '@/features/integrations/components/contact-reveal-buttons';
+import { useTranslations } from 'next-intl';
 
 interface ContactPhone {
   id: string;
@@ -211,6 +212,8 @@ export default function ContactDetail({
   const [deleteContactModal, setDeleteContactModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const quickDialerCall = useQuickDialerCall();
+  const t = useTranslations('contacts.detail');
+  const tCommon = useTranslations('common');
 
   const displayName =
     contact.name ||
@@ -234,10 +237,10 @@ export default function ContactDetail({
     setLoading(true);
     try {
       await api.delete(`/contacts/${contact.id}`);
-      toast.success('Contact deleted');
+      toast.success(t('deleteContact') + ' ' + tCommon('success') || 'Contact deleted');
       router.push('/dashboard/contact');
     } catch {
-      toast.error('Failed to delete contact');
+      toast.error(tCommon('somethingWentWrong') || 'Failed to delete contact');
     } finally {
       setLoading(false);
     }
@@ -274,7 +277,7 @@ export default function ContactDetail({
             onClick={() => quickDialerCall.handleRecall(contact.phoneNumber)}
           >
             <PhoneCall className='mr-2 h-4 w-4' />
-            Call
+            {t('call')}
           </Button>
           <ContactEnrichButton
             contactId={contact.id}
@@ -285,7 +288,7 @@ export default function ContactDetail({
           <Link href={`/dashboard/contact/${contact.id}/edit`}>
             <Button variant='outline' size='sm'>
               <Edit className='mr-2 h-4 w-4' />
-              Edit
+              {t('edit')}
             </Button>
           </Link>
           <Button
@@ -295,7 +298,7 @@ export default function ContactDetail({
             onClick={() => setDeleteContactModal(true)}
           >
             <Trash className='mr-2 h-4 w-4' />
-            Delete
+            {t('delete')}
           </Button>
         </div>
       </div>
@@ -306,13 +309,13 @@ export default function ContactDetail({
           {/* Basic Info */}
           <Card>
             <CardHeader>
-              <CardTitle className='text-base'>Contact Information</CardTitle>
+              <CardTitle className='text-base'>{t('contactInformation')}</CardTitle>
             </CardHeader>
             <CardContent className='space-y-1'>
               <div className='flex items-start gap-3 py-2'>
                 <Phone className='text-muted-foreground mt-0.5 h-4 w-4 shrink-0' />
                 <div className='flex-1'>
-                  <p className='text-muted-foreground text-xs'>Phone</p>
+                  <p className='text-muted-foreground text-xs'>{t('phone')}</p>
                   <p className='flex items-center gap-1.5 text-sm'>
                     {contact.phoneNumber}
                     {contact.phoneVerified && (
@@ -328,7 +331,7 @@ export default function ContactDetail({
                 <div className='flex items-start gap-3 py-2'>
                   <Mail className='text-muted-foreground mt-0.5 h-4 w-4 shrink-0' />
                   <div className='flex-1'>
-                    <p className='text-muted-foreground text-xs'>Email</p>
+                    <p className='text-muted-foreground text-xs'>{t('email')}</p>
                     <p className='flex items-center gap-1.5 text-sm break-all'>
                       {contact.email}
                       {contact.emailVerified && (
@@ -343,37 +346,37 @@ export default function ContactDetail({
               )}
               <InfoRow
                 icon={Building2}
-                label='Company'
+                label={t('company')}
                 value={contact.company}
               />
               <InfoRow
                 icon={Briefcase}
-                label='Job Title'
+                label={t('jobTitle')}
                 value={contact.jobTitle}
               />
               <InfoRow
                 icon={Globe}
-                label='Source'
+                label={t('source')}
                 value={contact.source
                   ?.replace(/_/g, ' ')
                   .replace(/\b\w/g, (c) => c.toUpperCase())}
               />
               <InfoRow
                 icon={Calendar}
-                label='Created'
+                label={t('created')}
                 value={new Date(contact.createdAt).toLocaleDateString()}
               />
               {contact.lastCallAt && (
                 <InfoRow
                   icon={Clock}
-                  label='Last Call'
+                  label={t('lastCall')}
                   value={new Date(contact.lastCallAt).toLocaleString()}
                 />
               )}
               {contact.lastEnrichedAt && (
                 <InfoRow
                   icon={Sparkles}
-                  label={`Last enriched${contact.enrichmentMetadata?.provider ? ` via ${contact.enrichmentMetadata.provider}` : ''}`}
+                  label={contact.enrichmentMetadata?.provider ? t('lastEnrichedVia', { provider: contact.enrichmentMetadata.provider }) : t('lastEnriched')}
                   value={new Date(contact.lastEnrichedAt).toLocaleString()}
                 />
               )}
@@ -408,7 +411,7 @@ export default function ContactDetail({
             (contact.interests?.length ?? 0) > 0) && (
             <Card>
               <CardHeader>
-                <CardTitle className='text-base'>Professional</CardTitle>
+                <CardTitle className='text-base'>{t('professional')}</CardTitle>
               </CardHeader>
               <CardContent className='space-y-3'>
                 {contact.headline && (
@@ -422,18 +425,18 @@ export default function ContactDetail({
                 <div className='space-y-1'>
                   <InfoRow
                     icon={GraduationCap}
-                    label='Seniority'
+                    label={t('seniority')}
                     value={contact.seniority}
                   />
                   <InfoRow
                     icon={Briefcase}
-                    label='Department'
+                    label={t('department')}
                     value={contact.department}
                   />
                   {contact.yearsExperience != null && (
                     <InfoRow
                       icon={Clock}
-                      label='Years of experience'
+                      label={t('yearsOfExperience')}
                       value={`${contact.yearsExperience}`}
                     />
                   )}
@@ -441,7 +444,7 @@ export default function ContactDetail({
                 {(contact.skills?.length ?? 0) > 0 && (
                   <div>
                     <p className='text-muted-foreground mb-1 flex items-center gap-1.5 text-xs'>
-                      <Wrench className='h-3.5 w-3.5' /> Skills
+                      <Wrench className='h-3.5 w-3.5' /> {t('skills')}
                     </p>
                     <div className='flex flex-wrap gap-1.5'>
                       {contact.skills!.map((s) => (
@@ -455,7 +458,7 @@ export default function ContactDetail({
                 {(contact.languages?.length ?? 0) > 0 && (
                   <div>
                     <p className='text-muted-foreground mb-1 flex items-center gap-1.5 text-xs'>
-                      <LanguagesIcon className='h-3.5 w-3.5' /> Languages
+                      <LanguagesIcon className='h-3.5 w-3.5' /> {t('languages')}
                     </p>
                     <div className='flex flex-wrap gap-1.5'>
                       {contact.languages!.map((l) => (
@@ -469,7 +472,7 @@ export default function ContactDetail({
                 {(contact.interests?.length ?? 0) > 0 && (
                   <div>
                     <p className='text-muted-foreground mb-1 text-xs'>
-                      Interests
+                      {t('interests')}
                     </p>
                     <div className='flex flex-wrap gap-1.5'>
                       {contact.interests!.map((i) => (
@@ -491,12 +494,12 @@ export default function ContactDetail({
             contact.timezone) && (
             <Card>
               <CardHeader>
-                <CardTitle className='text-base'>Location</CardTitle>
+                <CardTitle className='text-base'>{t('location')}</CardTitle>
               </CardHeader>
               <CardContent className='space-y-1'>
                 <InfoRow
                   icon={MapPin}
-                  label='Location'
+                  label={t('location')}
                   value={
                     [
                       contact.locationCity,
@@ -509,7 +512,7 @@ export default function ContactDetail({
                 />
                 <InfoRow
                   icon={Clock}
-                  label='Timezone'
+                  label={t('timezone')}
                   value={contact.timezone}
                 />
               </CardContent>
@@ -569,7 +572,7 @@ export default function ContactDetail({
             return (
               <Card>
                 <CardHeader>
-                  <CardTitle className='text-base'>Social profiles</CardTitle>
+                  <CardTitle className='text-base'>{t('socialProfiles')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className='space-y-2'>
@@ -596,7 +599,7 @@ export default function ContactDetail({
           {contact.phones.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className='text-base'>Phone Numbers</CardTitle>
+                <CardTitle className='text-base'>{t('phoneNumbers')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className='space-y-2'>
@@ -616,7 +619,7 @@ export default function ContactDetail({
                           </Badge>
                         )}
                         {p.isPrimary && (
-                          <Badge className='text-xs'>Primary</Badge>
+                          <Badge className='text-xs'>{t('primary')}</Badge>
                         )}
                       </div>
                     </div>
@@ -630,7 +633,7 @@ export default function ContactDetail({
           {contact.emails.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className='text-base'>Email Addresses</CardTitle>
+                <CardTitle className='text-base'>{t('emailAddresses')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className='space-y-2'>
@@ -650,7 +653,7 @@ export default function ContactDetail({
                           </Badge>
                         )}
                         {e.isPrimary && (
-                          <Badge className='text-xs'>Primary</Badge>
+                          <Badge className='text-xs'>{t('primary')}</Badge>
                         )}
                       </div>
                     </div>
@@ -664,7 +667,7 @@ export default function ContactDetail({
           {contact.affiliations.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className='text-base'>Companies</CardTitle>
+                <CardTitle className='text-base'>{t('companies')}</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className='space-y-3'>
@@ -686,7 +689,7 @@ export default function ContactDetail({
                           </p>
                         )}
                         {aff.isPrimary && (
-                          <Badge className='mt-1 text-xs'>Primary</Badge>
+                          <Badge className='mt-1 text-xs'>{t('primary')}</Badge>
                         )}
                       </div>
                     </div>
@@ -700,13 +703,13 @@ export default function ContactDetail({
           <Card>
             <CardHeader>
               <div className='flex items-center justify-between'>
-                <CardTitle className='text-base'>Tags</CardTitle>
+                <CardTitle className='text-base'>{t('tags')}</CardTitle>
                 <Button
                   size='sm'
                   variant='ghost'
                   onClick={() => setTagsModalOpen(true)}
                 >
-                  <Tag className='mr-1 h-3.5 w-3.5' /> Manage
+                  <Tag className='mr-1 h-3.5 w-3.5' /> {t('manage')}
                 </Button>
               </div>
             </CardHeader>
@@ -728,7 +731,7 @@ export default function ContactDetail({
                   ))}
                 </div>
               ) : (
-                <p className='text-muted-foreground text-sm'>No tags</p>
+                <p className='text-muted-foreground text-sm'>{t('noTags')}</p>
               )}
             </CardContent>
           </Card>
@@ -738,13 +741,13 @@ export default function ContactDetail({
             <CardHeader>
               <div className='flex items-center gap-2'>
                 <ArrowUpRight className='text-muted-foreground h-4 w-4' />
-                <CardTitle className='text-base'>CRM Sync</CardTitle>
+                <CardTitle className='text-base'>{t('crmSync')}</CardTitle>
               </div>
             </CardHeader>
             <CardContent>
               {contact.source?.startsWith('crm:') && (
                 <p className='text-muted-foreground mb-3 text-xs'>
-                  Imported from{' '}
+                  {t('importedFrom')}{' '}
                   <Badge variant='outline' className='text-[10px]'>
                     {contact.source.replace('crm:', '').toUpperCase()}
                   </Badge>
@@ -761,13 +764,13 @@ export default function ContactDetail({
           <Card>
             <CardHeader>
               <div className='flex items-center justify-between'>
-                <CardTitle className='text-base'>Notes</CardTitle>
+                <CardTitle className='text-base'>{t('notes')}</CardTitle>
                 <Button
                   size='sm'
                   className='gap-1'
                   onClick={() => setNoteModalOpen(true)}
                 >
-                  <Plus className='h-4 w-4' /> Add Note
+                  <Plus className='h-4 w-4' /> {t('addNote')}
                 </Button>
               </div>
             </CardHeader>

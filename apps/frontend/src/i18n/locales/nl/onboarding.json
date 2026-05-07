@@ -1,20 +1,63 @@
 {
   "welcome": {
     "title": "Welkom bij Ringee",
-    "description": "Laten we je werkruimte in een paar minuten instellen."
+    "description": "Stel je werkruimte in een paar minuten in."
   },
   "steps": {
-    "profile": "Vertel ons over jezelf",
-    "organization": "Maak je organisatie aan",
-    "number": "Kies een telefoonnummer",
-    "credits": "Tegoed toevoegen",
+    "profile": "Vertel iets over jezelf",
+    "organization": "Maak je organisatie",
+    "number": "Kies een nummer",
+    "credits": "Voeg tegoed toe",
     "done": "Helemaal klaar"
   },
   "actions": {
     "skip": "Voor nu overslaan",
-    "finish": "Setup voltooien",
+    "finish": "Setup afronden",
     "letsGo": "Aan de slag"
   },
   "headerButton": "Setup",
-  "progress": "{current} van {total}"
+  "progress": "{current} van {total}",
+  "guide": {
+    "title": "Setup-gids",
+    "minimize": "Minimaliseren",
+    "close": "Sluiten",
+    "showSteps": "Stappen tonen",
+    "hideSteps": "Stappen verbergen",
+    "completedSummary": "{completed}/{total} voltooid",
+    "stepsCompleted": "{completed} van {total} stappen voltooid"
+  },
+  "guideSteps": {
+    "first_call": {
+      "title": "Maak je eerste gesprek",
+      "description": "Je eerste Ringee-gesprek is gratis"
+    },
+    "recording": {
+      "title": "Opnemen en beluisteren",
+      "description": "Neem een gesprek op en luister de opname terug"
+    },
+    "check_numbers": {
+      "title": "Ontdek beschikbare nummers",
+      "description": "Bekijk welke nummers je kunt kopen"
+    },
+    "buy_credits": {
+      "title": "Tegoed kopen",
+      "description": "Voeg tegoed toe om meer te bellen"
+    }
+  },
+  "headerProgress": {
+    "label": "Setup-gids",
+    "tooltip": "Onboarding hervatten"
+  },
+  "firstCallModal": {
+    "title": "Je eerste gesprek is van ons",
+    "subtitle": "Maak en neem je eerste gratis gesprek op!",
+    "step1Title": "Stap 1: voer een nummer in",
+    "step1Description": "Gebruik het toetsenblok om een nummer in te voeren. Het werkt als een gewone telefoon.",
+    "step2Title": "Stap 2: start de opname",
+    "step2Description": "Vergeet niet op de opnameknop te klikken zodra het gesprek tot stand komt om het op te slaan.",
+    "recordingButton": "Opnameknop",
+    "recordingAlt": "Zo start je een opname",
+    "maybeLater": "Misschien later",
+    "startCalling": "Begin met bellen"
+  }
 }

@@ -8,7 +8,15 @@
     "blog": "Blog",
     "contact": "Contacto",
     "signIn": "Iniciar sesión",
-    "getStarted": "Empezar"
+    "getStarted": "Empezar",
+    "navItems": {
+      "features": "Funciones",
+      "campaigns": "Campañas",
+      "findLeads": "Encontrar y enriquecer leads",
+      "integrations": "Integraciones de CRM",
+      "comparison": "Comparativa",
+      "pricing": "Precios"
+    }
   },
   "hero": {
     "headlinePrefix": "Llamadas, campañas y tu",
@@ -34,38 +42,32 @@
     }
   },
   "features": {
-    "title": "Potencia tus llamadas con Ringee.io"
-  },
-  "faq": {
-    "title": "Preguntas frecuentes",
-    "subtitle": "Todo lo que necesitas saber sobre Ringee.io, precios y calidad de llamada."
-  },
-  "pricing": {
-    "title": "Precios para personas y equipos",
-    "perMonth": "al mes"
-  },
-  "comparison": {
-    "title": "Compara Ringee.io",
-    "subtitle": "Cómo se compara Ringee con Adversus y Genesys si quieres llamadas outbound flexibles desde el navegador, sin contratos caros por usuario."
-  },
-  "ctaBanner": {
-    "title": "¿Listo para potenciar tu voz con Ringee.io?",
-    "subtitle": "Empieza a llamar de forma más inteligente: compra números, gestiona llamadas y graba conversaciones en una sola plataforma.",
-    "getStarted": "Empezar",
-    "discoverMore": "Saber más"
-  },
-  "footer": {
-    "tagline": "Llamadas globales open-source.",
-    "rights": "Todos los derechos reservados.",
-    "featuredOn": "Destacado en:",
-    "links": {
-      "features": "Funciones",
-      "pricing": "Precios",
-      "faq": "Preguntas frecuentes",
-      "comparison": "Comparativa",
-      "blog": "Blog",
-      "privacy": "Privacidad",
-      "terms": "Términos"
+    "title": "Potencia tus llamadas con Ringee.io",
+    "items": {
+      "smartDialer": {
+        "title": "Marcador inteligente",
+        "description": "Realiza llamadas en todo el mundo en segundos con calidad HD y analítica de llamadas en tiempo real."
+      },
+      "buyNumbers": {
+        "title": "Compra números locales e internacionales",
+        "description": "Obtén números verificados de varios países para ampliar tu alcance y gestionar diferentes marcas."
+      },
+      "publicNumbers": {
+        "title": "Números públicos listos para usar",
+        "description": "Empieza a llamar al instante desde un número público compartido de Ringee — sin configuración."
+      },
+      "encryptedRecording": {
+        "title": "Grabación de llamadas cifrada",
+        "description": "Graba tus llamadas con cifrado completo. Cada grabación se almacena de forma segura y solo es accesible desde tu cuenta de Ringee, por ti y los miembros autorizados de tu equipo."
+      },
+      "webMobile": {
+        "title": "Acceso web y móvil",
+        "description": "Usa Ringee directamente desde tu navegador o desde la app de Android, con sincronización completa entre dispositivos."
+      },
+      "billing": {
+        "title": "Control de crédito y facturación",
+        "description": "Sigue tu saldo, costes y recargas con precios transparentes por minuto."
+      }
     }
   },
   "videoDemo": {
@@ -92,5 +94,132 @@
     "kicker": "Integraciones de CRM",
     "title": "Cada llamada registrada automáticamente en tu CRM",
     "subtitle": "Hoy Attio y Odoo, pronto más. Notas, grabaciones y resultados se sincronizan automáticamente."
+  },
+  "pricing": {
+    "title": "Precios para personas y equipos",
+    "subtitle": "Empieza como individual con pago por uso o pasa a un plan business para colaborar y obtener mejores tarifas por volumen. Llama y recibe llamadas en <strong>más de 180 países</strong> y alquila números en <strong>más de 50</strong>: configuración instantánea y control total.",
+    "perMonth": "al mes",
+    "ctaStart": "Empieza gratis",
+    "individual": {
+      "title": "Para individuos (pago por uso)",
+      "price": "$0,020",
+      "priceCaption": "por minuto (tarifa inicial) — números desde 1,90 $/mes",
+      "features": {
+        "outbound": "Llamadas salientes a todo el mundo",
+        "billingPerSecond": "Facturación al segundo en tiempo real",
+        "recording": "Grabación de llamadas opcional",
+        "rentNumbers": "Alquila números locales o gratuitos",
+        "instantActivation": "Activación y verificación instantáneas",
+        "manageNumbers": "Gestiona varios números fácilmente"
+      },
+      "cta": "Hacer una llamada gratis de 1 minuto"
+    },
+    "business": {
+      "title": "Para equipos y empresas",
+      "price": "$20,00",
+      "priceCaption": "al mes — funciones business sobre el uso pay-as-you-go",
+      "features": {
+        "everythingIndividual": "Todo lo del plan individual",
+        "teamCollab": "Colaboración en equipo y dashboards compartidos",
+        "unlimitedMembers": "Miembros ilimitados en tu equipo",
+        "volumeRates": "Tarifas por minuto más baratas con volumen",
+        "prioritySupport": "Soporte prioritario y onboarding"
+      },
+      "cta": "Ir al registro"
+    },
+    "footnote": "* Las tarifas pueden variar ligeramente según el país. No incluye impuestos ni tasas de operador.",
+    "tooltips": {
+      "calls": "Paga solo por lo que usas. Las llamadas salientes empiezan en 0,020 $/min y varían según el destino.",
+      "numbers": "Alquila números locales o internacionales desde 1,90 $/mes en más de 50 países.",
+      "recording": "Graba y descarga tus llamadas para control de calidad y cumplimiento.",
+      "coverage": "Ringee te permite llamar y recibir llamadas en más de 180 países con rutas VoIP de alta calidad.",
+      "business": "Diseñado para equipos y operaciones de ventas: incluye todo lo del plan individual más funciones de equipo, mejores tarifas y soporte prioritario."
+    }
+  },
+  "comparison": {
+    "title": "Compara Ringee.io",
+    "subtitle": "Cómo se compara Ringee con Adversus y Genesys si quieres llamadas outbound flexibles desde el navegador, sin contratos caros por usuario."
+  },
+  "faq": {
+    "title": "Preguntas frecuentes",
+    "subtitle": "Todo lo que necesitas saber sobre Ringee.io, precios y calidad de llamada.",
+    "items": {
+      "browserCalling": {
+        "question": "¿Cómo funcionan las llamadas desde el navegador?",
+        "answer": "Ringee.io usa tecnología WebRTC para conectar llamadas directamente desde tu navegador, sin descargas ni extensiones. Cuando marcas, tu navegador se conecta de forma segura a la red telefónica global en tiempo real."
+      },
+      "incomingCalls": {
+        "question": "¿Puedo recibir llamadas entrantes?",
+        "answer": "¡Sí! Puedes alquilar un número en Ringee o usar tu propio número verificado para recibir llamadas en el navegador. Incluso puedes desviar llamadas a tu móvil si lo prefieres."
+      },
+      "sms": {
+        "question": "¿Soportáis mensajes SMS?",
+        "answer": "Aún no — nuestro foco está al 100% en ofrecer la mejor calidad de llamada al precio más bajo posible. El soporte de SMS ya está en nuestra hoja de ruta para próximas versiones."
+      },
+      "pricing": {
+        "question": "¿Por qué vuestros precios son tan competitivos?",
+        "answer": "Nuestra infraestructura corre sobre las mismas redes Tier-1 que usan los grandes operadores, pero sin intermediarios. Eso significa conexiones más rápidas, precios transparentes y alcance global en más de 180 países."
+      },
+      "vsApps": {
+        "question": "¿Por qué no usar apps como WhatsApp o Google Voice?",
+        "answer": "Esas apps solo permiten llamadas dentro de su propia plataforma. Ringee te permite llamar a cualquier número fijo o móvil del mundo directamente desde tu navegador, sin que la otra parte necesite apps ni cuentas."
+      },
+      "privacy": {
+        "question": "¿Mis datos de llamada son privados?",
+        "answer": "Por supuesto. Todo el audio se cifra de extremo a extremo y solo guardamos los metadatos mínimos para tu historial. Tu privacidad y seguridad son el corazón de la plataforma."
+      },
+      "subscription": {
+        "question": "¿Necesito una suscripción?",
+        "answer": "Aquí no hay suscripciones — Ringee.io funciona por pago por uso. Añade saldo cuando lo necesites y paga solo los minutos y números que usas realmente."
+      },
+      "addCredit": {
+        "question": "¿Cómo añado saldo a mi cuenta?",
+        "answer": "Puedes recargar al instante con cualquier tarjeta de crédito principal o PayPal a través de nuestra integración segura con Stripe. Todos los pagos están cifrados y cumplen con PCI."
+      },
+      "callQuality": {
+        "question": "¿Y si tengo problemas de calidad de llamada?",
+        "answer": "La calidad depende de tu conexión a internet. Para mejores resultados, usa una red de banda ancha o Wi-Fi estable. Si los problemas persisten, nuestro equipo de soporte puede ayudarte a diagnosticar en tiempo real."
+      }
+    }
+  },
+  "openSource": {
+    "title": "Orgullosamente open-source",
+    "subtitle": "Auto-aloja Ringee, audita el código y contribuye. Licencia MIT.",
+    "badge": "Seguro y de código abierto",
+    "sectionTitle": "Orgullosamente de código abierto — alójalo en tu propia infraestructura y posee tus datos",
+    "subheadline": "Código abierto, auto-hospedado",
+    "description": "Aloja Ringee en tu propio servidor. Posee los datos de tus clientes y cumple con los estándares regulatorios.",
+    "githubCta": "Encuéntranos en GitHub",
+    "starsLabel": "Estrellas en GitHub",
+    "contributorsLabel": "Colaboradores",
+    "features": {
+      "securePersonnel": "Personal seguro",
+      "secureDevelopment": "Desarrollo seguro",
+      "secureTesting": "Pruebas seguras",
+      "cloudSecurity": "Seguridad en la nube"
+    },
+    "soc2Title": "Seguridad alineada con los estándares SOC 2",
+    "soc2Description": "Con protocolos estrictos en vigor, puedes confiar en que protegeremos tu información con total garantía.",
+    "readMore": "Leer más"
+  },
+  "ctaBanner": {
+    "title": "¿Listo para potenciar tu voz con Ringee.io?",
+    "subtitle": "Empieza a llamar de forma más inteligente: compra números, gestiona llamadas y graba conversaciones en una sola plataforma.",
+    "getStarted": "Empezar",
+    "discoverMore": "Saber más"
+  },
+  "footer": {
+    "tagline": "Llamadas globales open-source.",
+    "rights": "Todos los derechos reservados.",
+    "featuredOn": "Destacado en:",
+    "links": {
+      "features": "Funciones",
+      "pricing": "Precios",
+      "faq": "Preguntas frecuentes",
+      "comparison": "Comparativa",
+      "blog": "Blog",
+      "privacy": "Privacidad",
+      "terms": "Términos"
+    }
   }
 }

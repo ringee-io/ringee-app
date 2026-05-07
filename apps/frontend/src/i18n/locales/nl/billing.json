@@ -7,7 +7,59 @@
     "lowBalance": "Je saldo raakt op.",
     "topUp": "Opwaarderen",
     "topUpAction": "Tegoed toevoegen",
-    "history": "Tegoedgeschiedenis"
+    "history": "Tegoedgeschiedenis",
+    "popover": {
+      "freeCallButton": "Gratis bellen",
+      "freeCallSubtitle": "1 minuut van ons",
+      "availableCredit": "Beschikbaar tegoed",
+      "header": "Tegoed toevoegen",
+      "subheader": "Direct opwaarderen of automatisch aanvullen instellen.",
+      "tabs": {
+        "oneTime": "Eenmalig",
+        "monthly": "Maandelijks",
+        "autoReload": "Automatisch aanvullen"
+      },
+      "common": {
+        "redirecting": "Doorverwijzen...",
+        "chooseAmount": "Kies bedrag",
+        "customAmountLabel": "Of voer een eigen bedrag in"
+      },
+      "oneTime": {
+        "customPlaceholder": "bv. 40",
+        "newBalance": "Nieuw saldo",
+        "estimatedTime": "Geschatte beltijd: {minutes} minuten",
+        "checkout": "Veilig afrekenen"
+      },
+      "monthly": {
+        "activeTitle": "Maandelijkse aanvulling actief",
+        "activeDescription": "<b>${amount}</b> wordt elke maand automatisch aan je saldo toegevoegd.",
+        "cancelling": "Annuleren...",
+        "cancel": "Maandelijkse aanvulling stoppen",
+        "intro": "Stel een vast maandbedrag in dat elke maand automatisch aan je saldo wordt toegevoegd. Geen handmatige opwaarderingen meer.",
+        "amountLabel": "Maandbedrag",
+        "customPlaceholder": "bv. 75",
+        "perMonthSuffix": "/mnd",
+        "monthlyCharge": "Maandelijkse afschrijving",
+        "monthlyChargeValue": "${amount}/maand",
+        "estimatedTime": "~{minutes} belminuten per maand",
+        "subscribe": "Abonneer op maandelijkse aanvulling"
+      },
+      "autoReload": {
+        "activeTitle": "Automatisch aanvullen actief",
+        "activeDescription": "Wanneer je saldo onder <b>${threshold}</b> komt, wordt <b>${amount}</b> in rekening gebracht en automatisch toegevoegd.",
+        "toggleLabel": "Automatisch aanvullen ingeschakeld",
+        "intro": "Kom nooit zonder tegoed. Stel een minimumdrempel in en we vullen je account automatisch aan.",
+        "thresholdLabel": "Aanvullen wanneer saldo onder",
+        "amountLabel": "Aanvulbedrag",
+        "customPlaceholder": "Eigen bedrag",
+        "summary": "Je kaart wordt nu belast met <b>${amount}</b> en opgeslagen voor toekomstige automatische aanvullingen wanneer je saldo onder <b>${threshold}</b> komt.",
+        "enable": "Automatisch aanvullen inschakelen"
+      },
+      "footer": {
+        "secureByStripe": "Beveiligd door Stripe",
+        "refundGuarantee": "100% terugbetalingsgarantie"
+      }
+    }
   },
   "subscription": {
     "title": "Abonnement",

@@ -7,7 +7,59 @@
     "lowBalance": "Il tuo saldo si sta esaurendo.",
     "topUp": "Ricarica",
     "topUpAction": "Aggiungi crediti",
-    "history": "Cronologia crediti"
+    "history": "Cronologia crediti",
+    "popover": {
+      "freeCallButton": "Chiama gratis",
+      "freeCallSubtitle": "1 minuto offerto da noi",
+      "availableCredit": "Credito disponibile",
+      "header": "Aggiungi crediti",
+      "subheader": "Ricarica all'istante o imposta una ricarica automatica.",
+      "tabs": {
+        "oneTime": "Una tantum",
+        "monthly": "Mensile",
+        "autoReload": "Ricarica automatica"
+      },
+      "common": {
+        "redirecting": "Reindirizzamento...",
+        "chooseAmount": "Scegli un importo",
+        "customAmountLabel": "Oppure inserisci un importo personalizzato"
+      },
+      "oneTime": {
+        "customPlaceholder": "es. 40",
+        "newBalance": "Nuovo saldo",
+        "estimatedTime": "Tempo di chiamata stimato: {minutes} minuti",
+        "checkout": "Pagamento sicuro"
+      },
+      "monthly": {
+        "activeTitle": "Ricarica mensile attiva",
+        "activeDescription": "<b>${amount}</b> verranno aggiunti al tuo saldo ogni mese automaticamente.",
+        "cancelling": "Annullamento...",
+        "cancel": "Annulla ricarica mensile",
+        "intro": "Imposta un importo mensile fisso che verrà aggiunto automaticamente al tuo saldo ogni mese. Niente più ricariche manuali.",
+        "amountLabel": "Importo mensile",
+        "customPlaceholder": "es. 75",
+        "perMonthSuffix": "/mese",
+        "monthlyCharge": "Addebito mensile",
+        "monthlyChargeValue": "${amount}/mese",
+        "estimatedTime": "~{minutes} minuti di chiamata al mese",
+        "subscribe": "Iscriviti alla ricarica mensile"
+      },
+      "autoReload": {
+        "activeTitle": "Ricarica automatica attiva",
+        "activeDescription": "Quando il tuo saldo scende sotto <b>${threshold}</b>, verranno addebitati <b>${amount}</b> e aggiunti automaticamente.",
+        "toggleLabel": "Ricarica automatica attivata",
+        "intro": "Non rimanere mai senza credito. Imposta una soglia minima di saldo e ricaricheremo automaticamente il tuo account.",
+        "thresholdLabel": "Ricarica quando il saldo scende sotto",
+        "amountLabel": "Importo della ricarica",
+        "customPlaceholder": "Importo personalizzato",
+        "summary": "La tua carta verrà addebitata di <b>${amount}</b> ora e salvata per future ricariche automatiche quando il tuo saldo scende sotto <b>${threshold}</b>.",
+        "enable": "Attiva ricarica automatica"
+      },
+      "footer": {
+        "secureByStripe": "Sicuro con Stripe",
+        "refundGuarantee": "Rimborso garantito al 100%"
+      }
+    }
   },
   "subscription": {
     "title": "Abbonamento",

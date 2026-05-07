@@ -7,6 +7,7 @@
   "loading": "Cargando…",
   "continue": "Continuar",
   "back": "Atrás",
+  "backTo": "Volver a {title}",
   "next": "Siguiente",
   "confirm": "Confirmar",
   "close": "Cerrar",
@@ -46,5 +47,35 @@
   "duration": "Duración",
   "type": "Tipo",
   "price": "Precio",
-  "total": "Total"
+  "total": "Total",
+  "searchPlaceholder": "Buscar...",
+  "removeFile": "Quitar archivo",
+  "areYouSure": "¿Estás seguro?",
+  "cannotBeUndone": "Esta acción no se puede deshacer.",
+  "theme": "Tema",
+  "selectTheme": "Seleccionar tema:",
+  "selectThemePlaceholder": "Seleccionar tema",
+  "platform": "Plataforma",
+  "projects": "Proyectos",
+  "fileUpload": {
+    "dropHere": "Suelta los archivos aquí",
+    "dragAndDrop": "Arrastra y suelta archivos aquí, o haz clic para seleccionar",
+    "uploadMultiple": "Puedes subir {count} archivos (hasta {maxSize} cada uno)",
+    "uploadMultipleUnlimited": "Puedes subir varios archivos (hasta {maxSize} cada uno)",
+    "uploadSingle": "Puedes subir un archivo de hasta {maxSize}",
+    "cannotUploadMore": "No se pueden subir más de {count} archivo(s)",
+    "fileRejected": "El archivo {name} fue rechazado",
+    "uploadingFiles": "Subiendo {target}...",
+    "uploaded": "{target} subido(s)",
+    "failedToUpload": "Error al subir {target}",
+    "files": "{count} archivos",
+    "file": "archivo"
+  },
+  "project": {
+    "view": "Ver proyecto",
+    "share": "Compartir proyecto",
+    "delete": "Eliminar proyecto"
+  },
+  "toggleTheme": "Cambiar tema",
+  "toggleSidebar": "Mostrar/ocultar barra lateral"
 }

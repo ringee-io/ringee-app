@@ -2,12 +2,16 @@ import FormCardSkeleton from '@ringee/frontend-shared/components/form-card-skele
 import { RateClient } from '@/features/rate/components/rate';
 import { apiServer } from '@ringee/frontend-shared/lib/api.server';
 import { Suspense } from 'react';
+import { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata = {
-  title: 'Call Rates — View and Compare Costs | Ringee',
-  description:
-    'Access up-to-date calling rates in your Ringee dashboard. Compare prices across 180+ countries and keep track of your communication costs in real time.'
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('calls.rates');
+  return {
+    title: t('metaTitle'),
+    description: t('metaDescription')
+  };
+}
 
 export default async function RateLayout() {
   const rates = await apiServer.get('/telephony/rates');

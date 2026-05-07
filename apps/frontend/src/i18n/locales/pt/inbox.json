@@ -5,10 +5,56 @@
     "all": "Todos",
     "unread": "Não lidos",
     "missed": "Perdidos",
-    "voicemail": "Correio de voz"
+    "missedCalls": "Chamadas perdidas",
+    "voicemail": "Correio de voz",
+    "voicemails": "Mensagens de voz",
+    "sms": "SMS",
+    "resolved": "Resolvidos",
+    "archived": "Arquivados"
   },
   "empty": {
     "title": "Caixa vazia",
     "description": "Está em dia. As novas mensagens aparecem aqui."
+  },
+  "threadList": {
+    "searchPlaceholder": "Pesquisar por nome ou número",
+    "noConversations": "Ainda não há conversas",
+    "newWillAppear": "As novas chamadas e SMS aparecerão aqui automaticamente.",
+    "importing": "A importar…",
+    "importFromPastCalls": "Importar de chamadas anteriores"
+  },
+  "timeline": {
+    "selectConversation": "Selecione uma conversa para começar",
+    "viaNumber": "via {number}",
+    "linkContact": "Associar contacto",
+    "call": "Ligar",
+    "markResolved": "Marcar como resolvido",
+    "archive": "Arquivar",
+    "reopen": "Reabrir",
+    "loading": "A carregar…",
+    "noActivity": "Ainda não há atividade — envie uma mensagem ou faça uma chamada para começar."
+  },
+  "composer": {
+    "sms": "SMS",
+    "internalNote": "Nota interna",
+    "selectNumber": "Selecionar número",
+    "noSmsSuffix": " (sem SMS)",
+    "notePlaceholder": "Adicione uma nota interna (visível apenas para a sua equipa)…",
+    "messagePlaceholder": "Escreva uma mensagem — ⌘/Ctrl + Enter para enviar",
+    "saveNote": "Guardar nota",
+    "send": "Enviar",
+    "smsDisabledWarning": "Este número não tem SMS ativado no Telnyx. Escolha outro ou ative as mensagens no número."
+  },
+  "events": {
+    "missedCall": "Chamada perdida",
+    "inboundCall": "Chamada recebida",
+    "outboundCall": "Chamada efetuada",
+    "callBack": "Devolver chamada",
+    "voicemailReceived": "Mensagem de voz recebida",
+    "voicedropSent": "Voicedrop enviado",
+    "internalNote": "Nota interna",
+    "meetingBooked": "Reunião marcada",
+    "callbackCompleted": "Retorno concluído",
+    "callbackScheduled": "Retorno agendado"
   }
 }

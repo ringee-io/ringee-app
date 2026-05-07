@@ -23,13 +23,23 @@
     "rate": "Tarifas",
     "buyNumber": "Comprar número"
   },
+  "tabs": {
+    "dialer": "Marcador",
+    "contact": "Contacto",
+    "history": "Historial"
+  },
   "userMenu": {
     "profile": "Perfil",
     "history": "Historial",
     "recordings": "Grabaciones",
     "rate": "Tarifas",
     "buyNumber": "Comprar número",
-    "signOut": "Cerrar sesión"
+    "signOut": "Cerrar sesión",
+    "upgradeToPro": "Mejorar a Pro",
+    "account": "Cuenta",
+    "billing": "Facturación",
+    "notifications": "Notificaciones",
+    "logOut": "Cerrar sesión"
   },
   "sidebar": {
     "openQuickCall": "Llamada rápida",
@@ -41,5 +51,9 @@
   "inboxTooltip": {
     "title": "Bandeja — próximamente",
     "description": "Gestiona todos tus mensajes entrantes, llamadas perdidas y mensajes de voz en una sola bandeja."
+  },
+  "kbar": {
+    "navigation": "Navegación",
+    "goTo": "Ir a {page}"
   }
 }

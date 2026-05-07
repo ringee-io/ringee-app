@@ -6,12 +6,16 @@ import RecordingsListing from '@/features/recordings/components/recordings.listi
 import { Suspense } from 'react';
 import { SearchParams } from 'nuqs/server';
 import { searchParamsCache } from '@ringee/frontend-shared/lib/searchparams';
+import { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata = {
-    title: 'Call Recordings — Listen and Download | Ringee',
-    description:
-        'Access your encrypted call recordings. Play, download, and manage all audio files securely from your Ringee dashboard.'
-};
+export async function generateMetadata(): Promise<Metadata> {
+    const t = await getTranslations('calls.recordings');
+    return {
+        title: t('metaTitle'),
+        description: t('metaDescription')
+    };
+}
 
 export default async function RecordingsPage({
     searchParams
@@ -20,14 +24,15 @@ export default async function RecordingsPage({
 }) {
     const searchParamss = await searchParams;
     searchParamsCache.parse(searchParamss);
+    const t = await getTranslations('calls.recordings');
 
     return (
         <PageContainer scrollable={true}>
             <div className="flex flex-1 flex-col space-y-4">
                 <div className="flex items-start justify-between">
                     <Heading
-                        title="Call Recordings"
-                        description="Listen and download your encrypted call recordings"
+                        title={t('title')}
+                        description={t('description')}
                     />
                 </div>
                 <Separator />

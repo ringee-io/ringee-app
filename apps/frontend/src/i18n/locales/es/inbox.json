@@ -5,10 +5,56 @@
     "all": "Todos",
     "unread": "No leídos",
     "missed": "Perdidos",
-    "voicemail": "Mensaje de voz"
+    "missedCalls": "Llamadas perdidas",
+    "voicemail": "Mensaje de voz",
+    "voicemails": "Mensajes de voz",
+    "sms": "SMS",
+    "resolved": "Resueltos",
+    "archived": "Archivados"
   },
   "empty": {
     "title": "Bandeja vacía",
     "description": "Estás al día. Los mensajes nuevos aparecerán aquí."
+  },
+  "threadList": {
+    "searchPlaceholder": "Buscar por nombre o número",
+    "noConversations": "Aún no hay conversaciones",
+    "newWillAppear": "Las nuevas llamadas y SMS aparecerán aquí automáticamente.",
+    "importing": "Importando…",
+    "importFromPastCalls": "Importar desde llamadas anteriores"
+  },
+  "timeline": {
+    "selectConversation": "Selecciona una conversación para empezar",
+    "viaNumber": "vía {number}",
+    "linkContact": "Vincular contacto",
+    "call": "Llamar",
+    "markResolved": "Marcar como resuelto",
+    "archive": "Archivar",
+    "reopen": "Reabrir",
+    "loading": "Cargando…",
+    "noActivity": "Aún no hay actividad — envía un mensaje o realiza una llamada para empezar."
+  },
+  "composer": {
+    "sms": "SMS",
+    "internalNote": "Nota interna",
+    "selectNumber": "Seleccionar número",
+    "noSmsSuffix": " (sin SMS)",
+    "notePlaceholder": "Añade una nota interna (solo visible para tu equipo)…",
+    "messagePlaceholder": "Escribe un mensaje — ⌘/Ctrl + Enter para enviar",
+    "saveNote": "Guardar nota",
+    "send": "Enviar",
+    "smsDisabledWarning": "Este número no tiene SMS habilitado en Telnyx. Elige otro o habilita los mensajes en el número."
+  },
+  "events": {
+    "missedCall": "Llamada perdida",
+    "inboundCall": "Llamada entrante",
+    "outboundCall": "Llamada saliente",
+    "callBack": "Devolver llamada",
+    "voicemailReceived": "Mensaje de voz recibido",
+    "voicedropSent": "Voicedrop enviado",
+    "internalNote": "Nota interna",
+    "meetingBooked": "Reunión agendada",
+    "callbackCompleted": "Devolución completada",
+    "callbackScheduled": "Devolución programada"
   }
 }
