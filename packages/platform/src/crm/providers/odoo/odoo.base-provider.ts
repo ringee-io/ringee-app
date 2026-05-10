@@ -11,6 +11,8 @@ import type {
   CrmContactSyncResult,
   CrmCredentials,
   CrmExchangeParams,
+  CrmMeetingInput,
+  CrmMeetingSyncResult,
   CrmNoteInput,
   CrmOwnerRef,
   CrmPagedResult,
@@ -23,6 +25,7 @@ import type {
 } from "../../types";
 import { ODOO_CAPABILITIES } from "./odoo.capabilities";
 import { buildOdooCallLog } from "./odoo.call-log";
+import { buildOdooMeetingLog } from "./odoo.meeting-log";
 import { parseOdooCredentials } from "./odoo.credentials";
 import {
   mapOdooCompanyToMatch,
@@ -550,6 +553,93 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
     return { externalId: String(created), externalType: target.externalType };
   }
 
+  // ── Meeting ──────────────────────────────────────────────────────────────────
+  async upsertMeeting(creds: CrmCredentials, input: CrmMeetingInput): Promise<CrmMeetingSyncResult> {
+    const odooCreds = parseOdooCredentials(creds);
+    await this.authenticate(odooCreds);
+
+    const target = input.linkedRecords[0];
+    if (!target) {
+      throw new CrmError("VALIDATION", false, "meeting sync requires at least one linked record");
+    }
+
+    const resModel = "res.partner";
+    const resId = Number(target.externalId);
+    const { body, activitySummary, activityNote } = buildOdooMeetingLog(input);
+    const idempotencyTag = `[ringee:${input.idempotencyKey}]`;
+
+    // Idempotency: check if a chatter message with this tag already exists
+    try {
+      const existing = await this.callModel<number[]>(
+        odooCreds,
+        "mail.message",
+        "search",
+        [[
+          ["model", "=", resModel],
+          ["res_id", "=", resId],
+          ["body", "ilike", idempotencyTag],
+        ]],
+        { limit: 1 },
+      );
+      if (existing && existing.length > 0) {
+        return {
+          ref: { externalId: String(resId), externalType: target.externalType },
+          syncMode: "crm_activity_with_note",
+        };
+      }
+    } catch {
+      // Non-fatal: if search fails, proceed to create
+    }
+
+    // 1) Post the meeting details into the chatter.
+    await this.callModel(odooCreds, resModel, "message_post", [[resId]], {
+      body,
+      subject: activitySummary,
+      message_type: "comment",
+      subtype_xmlid: "mail.mt_note",
+    });
+
+    // 2) Create a completed mail.activity for the CRM workflow.
+    try {
+      const activityTypeId = await this.resolveMeetingActivityTypeId(odooCreds);
+      const modelId = await this.resolveIrModelId(odooCreds, resModel);
+      const activityVals: Record<string, unknown> = {
+        res_model: resModel,
+        res_model_id: modelId,
+        res_id: resId,
+        summary: activitySummary,
+        note: activityNote,
+        date_deadline: input.startAt.toISOString().slice(0, 10),
+      };
+      if (activityTypeId) activityVals.activity_type_id = activityTypeId;
+      const activityId = await this.callModel<number>(
+        odooCreds,
+        "mail.activity",
+        "create",
+        [activityVals],
+      );
+      // Mark as done so it shows up in the past-activities timeline.
+      await this.callModel(
+        odooCreds,
+        "mail.activity",
+        "action_feedback",
+        [[activityId]],
+        { feedback: activitySummary },
+      ).catch(() => {
+        // Not all versions expose action_feedback; the activity still exists.
+      });
+    } catch (err) {
+      this.logger.warn(
+        `mail.activity creation skipped for meeting ${input.idempotencyKey}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+
+    return {
+      ref: { externalId: String(resId), externalType: target.externalType },
+      syncMode: "crm_activity_with_note",
+    };
+  }
+
   // ── Fetch & bulk ─────────────────────────────────────────────────────
   async fetchPerson(creds: CrmCredentials, externalId: string): Promise<CrmContactSyncResult> {
     const odooCreds = parseOdooCredentials(creds);
@@ -665,6 +755,31 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
         "mail.activity.type",
         "search",
         [[["name", "ilike", "call"]]],
+        { limit: 1 },
+      );
+      return fallback?.[0] ?? null;
+    } catch {
+      return null;
+    }
+  }
+
+  protected async resolveMeetingActivityTypeId(
+    creds: OdooCredentialPayload,
+  ): Promise<number | null> {
+    try {
+      const found = await this.callModel<number[]>(
+        creds,
+        "mail.activity.type",
+        "search",
+        [[["category", "=", "meeting"]]],
+        { limit: 1 },
+      );
+      if (found?.[0]) return found[0];
+      const fallback = await this.callModel<number[]>(
+        creds,
+        "mail.activity.type",
+        "search",
+        [[["name", "ilike", "meeting"]]],
         { limit: 1 },
       );
       return fallback?.[0] ?? null;

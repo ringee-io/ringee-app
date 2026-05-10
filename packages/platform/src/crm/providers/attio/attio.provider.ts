@@ -13,6 +13,8 @@ import type {
   CrmCredentials,
   CrmExchangeParams,
   CrmListRef,
+  CrmMeetingInput,
+  CrmMeetingSyncResult,
   CrmNoteInput,
   CrmOwnerRef,
   CrmPagedResult,
@@ -27,6 +29,7 @@ import { ATTIO_CAPABILITIES } from "./attio.capabilities";
 import {
   attioIdempotencyTag,
   buildCallLogNote,
+  buildMeetingNote,
   mapAttioCompanyToMatch,
   mapAttioCompanyToSyncResult,
   mapAttioMemberToOwnerRef,
@@ -371,6 +374,63 @@ export class AttioProvider extends AbstractCrmProvider {
       body,
     });
     return { externalId: res.data.id.task_id, externalType: "person" };
+  }
+
+  // ── Meeting ──────────────────────────────────────────────────────────
+
+  async upsertMeeting(creds: CrmCredentials, input: CrmMeetingInput): Promise<CrmMeetingSyncResult> {
+    const target = input.linkedRecords[0];
+    if (!target) {
+      throw new CrmError("VALIDATION", false, "meeting sync requires at least one linked record");
+    }
+
+    const parentObject = target.externalType === "company" ? "companies" : "people";
+    const tag = attioIdempotencyTag(input.idempotencyKey);
+
+    // Idempotency: search existing notes on this record for the tag
+    try {
+      const existingNotes = await this.request<{ data: Array<{ id: { note_id: string }; title?: string }> }>({
+        method: "GET",
+        url: `${this.config.apiBaseUrl}/v2/notes`,
+        headers: this.authHeaders(creds.accessToken),
+        query: {
+          parent_object: parentObject,
+          parent_record_id: target.externalId,
+        },
+      });
+      const existing = existingNotes.data?.find((n) => n.title?.includes(tag));
+      if (existing) {
+        return {
+          ref: { externalId: existing.id.note_id, externalType: target.externalType },
+          syncMode: "attio_note",
+        };
+      }
+    } catch {
+      // Non-fatal: if note listing fails, proceed to create
+    }
+
+    const { title, content } = buildMeetingNote(input);
+    const body: AttioNoteRequest = {
+      data: {
+        format: "markdown",
+        parent_object: parentObject,
+        parent_record_id: target.externalId,
+        title: `${title} ${tag}`,
+        content,
+      },
+    };
+
+    const res = await this.request<AttioNoteResponse>({
+      method: "POST",
+      url: `${this.config.apiBaseUrl}/v2/notes`,
+      headers: this.authHeaders(creds.accessToken),
+      body,
+    });
+
+    return {
+      ref: { externalId: res.data.id.note_id, externalType: target.externalType },
+      syncMode: "attio_note",
+    };
   }
 
   // ── Search by email ─────────────────────────────────────────────────

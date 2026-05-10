@@ -14,6 +14,7 @@ import {
 } from "@ringee/database";
 import { OwnershipContext } from "@ringee/platform";
 import { CalendarService } from "./calendar.service";
+import { CrmMeetingSyncService } from "./crm/crm-meeting-sync.service";
 
 @Injectable()
 export class MeetingService {
@@ -23,6 +24,7 @@ export class MeetingService {
     private readonly meetingRepo: MeetingRepository,
     private readonly callRepo: CallRepository,
     private readonly calendarService: CalendarService,
+    private readonly crmMeetingSync: CrmMeetingSyncService,
   ) {}
 
   private ensureOrganization(ctx: OwnershipContext): void {
@@ -64,8 +66,9 @@ export class MeetingService {
     }
 
     // Best-effort: push to external calendar (Google/Microsoft)
+    let calendarResult: { externalEventId: string; meetLink?: string } | null = null;
     try {
-      const result = await this.calendarService.createCalendarEvent(ctx, {
+      calendarResult = await this.calendarService.createCalendarEvent(ctx, {
         meetingId: meeting.id,
         title: dto.title || "Meeting via Ringee",
         scheduledAt: dto.scheduledAt,
@@ -74,12 +77,26 @@ export class MeetingService {
         provider: dto.calendarProvider as any,
       });
       this.logger.log(
-        `Synced meeting ${meeting.id} to external calendar: ${result.externalEventId}`,
+        `Synced meeting ${meeting.id} to external calendar: ${calendarResult.externalEventId}`,
       );
     } catch (err) {
       // No calendar connected or API error — don't block meeting creation
       this.logger.debug(
         `Skipped calendar sync for meeting ${meeting.id}: ${(err as Error).message}`,
+      );
+    }
+
+    // Best-effort: sync to active CRM integrations
+    try {
+      await this.crmMeetingSync.enqueueMeetingSync(ctx, meeting, {
+        calendarProvider: dto.calendarProvider ?? null,
+        calendarEventId: calendarResult?.externalEventId ?? null,
+        meetingUrl: calendarResult?.meetLink ?? null,
+        attendeeEmail: dto.attendeeEmail ?? null,
+      });
+    } catch (err) {
+      this.logger.debug(
+        `Skipped CRM meeting sync for meeting ${meeting.id}: ${(err as Error).message}`,
       );
     }
 

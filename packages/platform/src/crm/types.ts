@@ -20,6 +20,7 @@ export type CrmCapabilities = {
   supportsCompanies: boolean;
   supportsTasks: boolean;
   supportsLists: boolean;
+  supportsMeetings: boolean;
   supportsRecordingUrl: boolean;
   supportsTranscript: boolean;
   supportsCallObject: boolean;
@@ -93,6 +94,32 @@ export type CrmTaskInput = {
   assigneeEmail?: string | null;
   linkedRecords: CrmRecordRef[];
   idempotencyKey?: string;
+};
+
+export type CrmMeetingInput = {
+  idempotencyKey: string;
+  ringeeMeetingId: string;
+  callId?: string | null;
+  title: string;
+  description?: string | null;
+  startAt: Date;
+  endAt: Date;
+  timezone?: string | null;
+  meetingUrl?: string | null;
+  ringeeMeetingUrl?: string | null;
+  calendarProvider?: string | null;
+  calendarEventId?: string | null;
+  recordingUrl?: string | null;
+  sourceCallUrl?: string | null;
+  attendees: Array<{ email?: string | null; name?: string | null }>;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
+  linkedRecords: CrmRecordRef[];
+};
+
+export type CrmMeetingSyncResult = {
+  ref: CrmRecordRef;
+  syncMode: string;
 };
 
 export type CrmPersonInput = {

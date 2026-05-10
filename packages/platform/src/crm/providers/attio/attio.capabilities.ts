@@ -4,6 +4,7 @@ export const ATTIO_CAPABILITIES: CrmCapabilities = {
   supportsCompanies: true,
   supportsTasks: true,
   supportsLists: true,
+  supportsMeetings: true,
   supportsRecordingUrl: true,
   supportsTranscript: true,
   supportsCallObject: false,

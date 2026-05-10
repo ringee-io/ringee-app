@@ -8,6 +8,7 @@ import {
 } from "@ringee/database";
 import type {
   CrmCallLogInput,
+  CrmMeetingInput,
   CrmNoteInput,
   CrmRecordRef,
   CrmTaskInput,
@@ -52,6 +53,9 @@ export class CrmSyncService {
           break;
         case "task.sync":
           await this.processTaskSync(event);
+          break;
+        case "meeting.sync":
+          await this.processMeetingSync(event);
           break;
         default:
           this.logger.warn(`unknown outbox kind: ${event.kind}`);
@@ -195,6 +199,45 @@ export class CrmSyncService {
     const createTask = provider.createTask.bind(provider);
     await this.connections.runWithFreshCredentials(connection, (creds) =>
       createTask(creds, taskInput),
+    );
+
+    await this.connections.touchLastSync(connection.id);
+    await this.outbox.markSent(event.id);
+  }
+
+  private async processMeetingSync(event: CrmOutboxEvent): Promise<void> {
+    const payload = event.payload as Record<string, unknown> | null;
+    if (!payload?.ringeeMeetingId) {
+      await this.outbox.markFailed(event.id, "missing ringeeMeetingId in payload");
+      return;
+    }
+    if (!event.connectionId) {
+      await this.outbox.markFailed(event.id, "missing connectionId");
+      return;
+    }
+
+    const connection = await this.connections.findById(event.connectionId);
+    if (!connection || connection.status !== "active") {
+      await this.outbox.markFailed(event.id, "connection not active");
+      return;
+    }
+
+    const provider = this.registry.get(connection.provider);
+    if (!provider.upsertMeeting) {
+      await this.outbox.markFailed(event.id, `${connection.provider} does not support meetings`);
+      return;
+    }
+
+    // Rehydrate dates from JSON strings
+    const meetingInput: CrmMeetingInput = {
+      ...(payload as unknown as CrmMeetingInput),
+      startAt: new Date(payload.startAt as string),
+      endAt: new Date(payload.endAt as string),
+    };
+
+    const upsertMeeting = provider.upsertMeeting.bind(provider);
+    await this.connections.runWithFreshCredentials(connection, (creds) =>
+      upsertMeeting(creds, meetingInput),
     );
 
     await this.connections.touchLastSync(connection.id);

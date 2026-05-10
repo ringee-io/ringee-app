@@ -16,3 +16,5 @@ export * from "./providers/odoo/odoo.mapper";
 export * from "./providers/odoo/odoo.types";
 export * from "./providers/odoo/odoo-legacy.provider";
 export * from "./providers/odoo/odoo-json2.provider";
+export * from "./providers/odoo/odoo.call-log";
+export * from "./providers/odoo/odoo.meeting-log";
