@@ -12,3 +12,4 @@ export * from "./crm-note-sync.service";
 export * from "./crm-task-sync.service";
 export * from "./crm-bulk-sync.service";
 export * from "./crm-meeting-sync.service";
+export * from "./crm-recording-upload.service";

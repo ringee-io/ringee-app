@@ -20,6 +20,8 @@ import type {
   CrmPersonInput,
   CrmRecordMatch,
   CrmRecordRef,
+  CrmRecordingUploadInput,
+  CrmRecordingUploadResult,
   CrmTaskInput,
   CrmTokenSet,
   CrmWorkspaceInfo,
@@ -60,6 +62,7 @@ export abstract class AbstractCrmProvider implements CrmProvider {
   upsertCompany?(creds: CrmCredentials, input: CrmCompanyInput): Promise<CrmRecordRef>;
   createTask?(creds: CrmCredentials, input: CrmTaskInput): Promise<CrmRecordRef>;
   upsertMeeting?(creds: CrmCredentials, input: CrmMeetingInput): Promise<CrmMeetingSyncResult>;
+  uploadRecording?(creds: CrmCredentials, input: CrmRecordingUploadInput): Promise<CrmRecordingUploadResult>;
   revoke?(token: string): Promise<void>;
   searchByEmail?(creds: CrmCredentials, email: string, opts?: { limit?: number }): Promise<CrmRecordMatch[]>;
   searchCompanyByDomain?(creds: CrmCredentials, domain: string): Promise<CrmCompanyMatch[]>;
@@ -169,5 +172,58 @@ export abstract class AbstractCrmProvider implements CrmProvider {
 
   protected authHeaders(accessToken: string): Record<string, string> {
     return { Authorization: `Bearer ${accessToken}` };
+  }
+
+  /**
+   * Like `request()` but sends a `FormData` body instead of JSON.
+   * Used for multipart file uploads (e.g. Attio `POST /v2/files/upload`).
+   */
+  protected async requestMultipart<T>(req: {
+    method: string;
+    url: string;
+    headers: Record<string, string>;
+    formData: FormData;
+    timeoutMs?: number;
+  }): Promise<T> {
+    const timeoutMs = req.timeoutMs ?? 60_000;
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+
+    const init: RequestInit = {
+      method: req.method,
+      headers: {
+        "User-Agent": "ringee/1.0",
+        Accept: "application/json",
+        ...req.headers,
+      },
+      body: req.formData,
+      signal: controller.signal,
+    };
+
+    let res: Response;
+    try {
+      res = await fetch(req.url, init);
+    } catch (err: unknown) {
+      clearTimeout(timer);
+      const message = err instanceof Error ? err.message : String(err);
+      if ((err as { name?: string }).name === "AbortError") {
+        throw new CrmError("TRANSIENT", true, `timeout after ${timeoutMs}ms`);
+      }
+      throw new CrmError("TRANSIENT", true, `network error: ${message}`);
+    }
+    clearTimeout(timer);
+
+    if (!res.ok) {
+      let parsed: unknown = undefined;
+      try {
+        parsed = await res.json();
+      } catch {
+        parsed = await res.text().catch(() => undefined);
+      }
+      throw this.classifyHttpError(res.status, parsed, res.headers.get("retry-after"));
+    }
+
+    if (res.status === 204) return undefined as unknown as T;
+    return (await res.json()) as T;
   }
 }

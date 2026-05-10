@@ -21,6 +21,8 @@ import type {
   CrmPersonInput,
   CrmRecordMatch,
   CrmRecordRef,
+  CrmRecordingUploadInput,
+  CrmRecordingUploadResult,
   CrmTaskInput,
   CrmTokenSet,
   CrmWorkspaceInfo,
@@ -431,6 +433,140 @@ export class AttioProvider extends AbstractCrmProvider {
       ref: { externalId: res.data.id.note_id, externalType: target.externalType },
       syncMode: "attio_note",
     };
+  }
+
+  // ── Recording file upload ───────────────────────────────────────────
+
+  private static readonly ATTIO_MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+
+  async uploadRecording(creds: CrmCredentials, input: CrmRecordingUploadInput): Promise<CrmRecordingUploadResult> {
+    const target = input.linkedRecords[0];
+    if (!target) {
+      throw new CrmError("VALIDATION", false, "recording upload requires at least one linked record");
+    }
+
+    const parentObject = target.externalType === "company" ? "companies" : "people";
+
+    // Size check
+    if (input.fileSizeBytes > AttioProvider.ATTIO_MAX_FILE_SIZE) {
+      this.logger.warn(
+        `recording_file_too_large: ${input.fileSizeBytes} bytes exceeds Attio 50MB limit for recording ${input.recordingId}`,
+      );
+      return {
+        ref: { externalId: target.externalId, externalType: target.externalType },
+        externalFileId: null,
+        syncMode: "skipped",
+      };
+    }
+
+    // Build folder hierarchy: ringee → recordings → <who-outcome-recId>
+    const ringeeFolderId = await this.ensureAttioFolder(
+      creds, parentObject, target.externalId, "ringee", null,
+    );
+    const recordingsFolderId = await this.ensureAttioFolder(
+      creds, parentObject, target.externalId, "recordings", ringeeFolderId,
+    );
+    const leafFolderName = input.fileName.replace(/\.[^.]+$/, ""); // strip extension for folder name
+    const leafFolderId = await this.ensureAttioFolder(
+      creds, parentObject, target.externalId, leafFolderName, recordingsFolderId,
+    );
+
+    // Idempotency: check if file already exists in the leaf folder
+    try {
+      const existing = await this.request<{ data: Array<{ id: { file_id: string }; name?: string; file_type?: string }> }>({
+        method: "GET",
+        url: `${this.config.apiBaseUrl}/v2/files`,
+        headers: this.authHeaders(creds.accessToken),
+        query: {
+          object: parentObject,
+          record_id: target.externalId,
+          parent_folder_id: leafFolderId,
+        },
+      });
+      const found = existing.data?.find(
+        (f) => f.file_type === "file" && f.name === input.fileName,
+      );
+      if (found) {
+        return {
+          ref: { externalId: found.id.file_id, externalType: target.externalType },
+          externalFileId: found.id.file_id,
+          syncMode: "attio_file_upload",
+        };
+      }
+    } catch {
+      // Non-fatal: if listing fails, proceed to upload
+    }
+
+    // Upload the file using multipart/form-data
+    const formData = new FormData();
+    formData.append("file", new Blob([new Uint8Array(input.fileBuffer)], { type: input.fileMimeType }), input.fileName);
+    formData.append("object", parentObject);
+    formData.append("record_id", target.externalId);
+    formData.append("parent_folder_id", leafFolderId);
+
+    const res = await this.requestMultipart<{ data: { id: { file_id: string } } }>({
+      method: "POST",
+      url: `${this.config.apiBaseUrl}/v2/files/upload`,
+      headers: this.authHeaders(creds.accessToken),
+      formData,
+    });
+
+    return {
+      ref: { externalId: res.data.id.file_id, externalType: target.externalType },
+      externalFileId: res.data.id.file_id,
+      syncMode: "attio_file_upload",
+    };
+  }
+
+  /**
+   * Find or create a folder on an Attio record.
+   * Uses `GET /v2/files` to search, `POST /v2/files` to create.
+   */
+  private async ensureAttioFolder(
+    creds: CrmCredentials,
+    objectSlug: string,
+    recordId: string,
+    folderName: string,
+    parentFolderId: string | null,
+  ): Promise<string> {
+    // Search for existing folder
+    try {
+      const query: Record<string, string | undefined> = {
+        object: objectSlug,
+        record_id: recordId,
+      };
+      if (parentFolderId) query.parent_folder_id = parentFolderId;
+
+      const listing = await this.request<{ data: Array<{ id: { file_id: string }; name?: string; file_type?: string }> }>({
+        method: "GET",
+        url: `${this.config.apiBaseUrl}/v2/files`,
+        headers: this.authHeaders(creds.accessToken),
+        query,
+      });
+      const found = listing.data?.find(
+        (f) => f.file_type === "folder" && f.name === folderName,
+      );
+      if (found) return found.id.file_id;
+    } catch {
+      // Non-fatal: if listing fails, try creating
+    }
+
+    // Create the folder
+    const body: Record<string, unknown> = {
+      object: objectSlug,
+      record_id: recordId,
+      file_type: "folder",
+      name: folderName,
+    };
+    if (parentFolderId) body.parent_folder_id = parentFolderId;
+
+    const res = await this.request<{ data: { id: { file_id: string } } }>({
+      method: "POST",
+      url: `${this.config.apiBaseUrl}/v2/files`,
+      headers: this.authHeaders(creds.accessToken),
+      body,
+    });
+    return res.data.id.file_id;
   }
 
   // ── Search by email ─────────────────────────────────────────────────

@@ -21,6 +21,7 @@ export type CrmCapabilities = {
   supportsTasks: boolean;
   supportsLists: boolean;
   supportsMeetings: boolean;
+  supportsRecordingUpload: boolean;
   supportsRecordingUrl: boolean;
   supportsTranscript: boolean;
   supportsCallObject: boolean;
@@ -119,6 +120,23 @@ export type CrmMeetingInput = {
 
 export type CrmMeetingSyncResult = {
   ref: CrmRecordRef;
+  syncMode: string;
+};
+
+export type CrmRecordingUploadInput = {
+  idempotencyKey: string;
+  recordingId: string;
+  callId: string;
+  fileName: string;
+  fileBuffer: Buffer;
+  fileMimeType: string;
+  fileSizeBytes: number;
+  linkedRecords: CrmRecordRef[];
+};
+
+export type CrmRecordingUploadResult = {
+  ref: CrmRecordRef;
+  externalFileId?: string | null;
   syncMode: string;
 };
 

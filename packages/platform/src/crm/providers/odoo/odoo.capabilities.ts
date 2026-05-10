@@ -5,6 +5,7 @@ export const ODOO_CAPABILITIES: CrmCapabilities = {
   supportsTasks: true,
   supportsLists: false,
   supportsMeetings: true,
+  supportsRecordingUpload: true,
   supportsRecordingUrl: true,
   supportsTranscript: true,
   supportsCallObject: false,
