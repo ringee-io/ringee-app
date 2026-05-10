@@ -82,6 +82,7 @@ type ActiveCallModalProps = {
 
   contactId?: string | null;
   callId?: string | null;
+  callSessionId?: string | null;
 };
 
 export function ActiveCallModal({
@@ -106,7 +107,8 @@ export function ActiveCallModal({
   isPostCall = false,
   onPostCallClose,
   contactId,
-  callId
+  callId,
+  callSessionId
 }: ActiveCallModalProps) {
   const [elapsed, setElapsed] = useState(0);
   const [dtmfDigits, setDtmfDigits] = useState<string[]>([]);
@@ -470,6 +472,7 @@ export function ActiveCallModal({
                       <BookMeetingForm
                         contactId={contactId}
                         callId={callId}
+                        callSessionId={callSessionId}
                         onBooked={() => {
                           setMeetingBooked(true);
                           setActiveTab('activities');

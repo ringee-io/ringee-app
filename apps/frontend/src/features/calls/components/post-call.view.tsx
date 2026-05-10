@@ -123,14 +123,21 @@ export function PostCallView({ onClose }: PostCallViewProps) {
     setIsSaving(true);
     try {
       if (callId || callSessionId) {
-        await api.post('/meetings/call-outcome', {
-          callId: callId || undefined,
-          callSessionId: callSessionId || undefined,
-          outcome,
-          outcomeNote: outcomeNote || undefined
-        });
+        try {
+          await api.post('/meetings/call-outcome', {
+            callId: callId || undefined,
+            callSessionId: callSessionId || undefined,
+            outcome,
+            outcomeNote: outcomeNote || undefined
+          });
+        } catch (err) {
+          // If a meeting was already booked, the server has linked it and set
+          // the outcome during /meetings — don't surface the redundant
+          // call-outcome failure to the user.
+          if (!meetingBooked) throw err;
+        }
       }
-      toast.success('Call outcome saved');
+      toast.success(meetingBooked ? 'Meeting booked' : 'Call outcome saved');
       onClose();
     } catch {
       toast.error('Failed to save outcome');
@@ -239,6 +246,7 @@ export function PostCallView({ onClose }: PostCallViewProps) {
         <BookMeetingForm
           contactId={callContactId}
           callId={callId}
+          callSessionId={callSessionId}
           onBooked={handleMeetingBooked}
           onCancel={() => setShowBooking(false)}
         />

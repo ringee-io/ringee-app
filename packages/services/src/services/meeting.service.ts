@@ -36,6 +36,7 @@ export class MeetingService {
     dto: {
       contactId: string;
       callId?: string;
+      callSessionId?: string;
       title?: string;
       scheduledAt: string;
       duration?: number;
@@ -45,9 +46,15 @@ export class MeetingService {
       calendarProvider?: "google" | "microsoft";
     },
   ): Promise<Meeting> {
+    let resolvedCallId = dto.callId;
+    if (!resolvedCallId && dto.callSessionId) {
+      const call = await this.callRepo.findOneBySessionId(dto.callSessionId);
+      resolvedCallId = call?.id;
+    }
+
     const meeting = await this.meetingRepo.create(ctx, {
       contactId: dto.contactId,
-      callId: dto.callId,
+      callId: resolvedCallId,
       title: dto.title,
       scheduledAt: new Date(dto.scheduledAt),
       duration: dto.duration,
@@ -56,8 +63,8 @@ export class MeetingService {
     });
 
     // Auto-set call outcome to meeting_booked if linked to a call
-    if (dto.callId) {
-      const call = await this.callRepo.findById(dto.callId);
+    if (resolvedCallId) {
+      const call = await this.callRepo.findById(resolvedCallId);
       if (call) {
         await this.callRepo.updateOutcome(call.id, CallOutcome.meeting_booked);
       }

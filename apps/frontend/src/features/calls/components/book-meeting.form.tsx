@@ -26,6 +26,7 @@ const DURATIONS = [
 interface BookMeetingFormProps {
   contactId: string;
   callId?: string | null;
+  callSessionId?: string | null;
   onBooked: () => void;
   onCancel: () => void;
 }
@@ -33,6 +34,7 @@ interface BookMeetingFormProps {
 export function BookMeetingForm({
   contactId,
   callId,
+  callSessionId,
   onBooked,
   onCancel
 }: BookMeetingFormProps) {
@@ -144,6 +146,7 @@ export function BookMeetingForm({
       await api.post('/meetings', {
         contactId,
         callId: callId || undefined,
+        callSessionId: callSessionId || undefined,
         scheduledAt: scheduledAt.toISOString(),
         duration,
         attendeeEmail: contactEmail || undefined,
