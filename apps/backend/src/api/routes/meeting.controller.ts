@@ -27,7 +27,6 @@ export class MeetingController {
     dto: {
       contactId: string;
       callId?: string;
-      callSessionId?: string;
       title?: string;
       scheduledAt: string;
       duration?: number;

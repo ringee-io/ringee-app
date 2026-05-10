@@ -56,9 +56,9 @@ export function useHangupListener() {
       // contactName and contactId are resolved by ShowActiveCall and will be
       // available via the call store's existing state set by show.active.call
       const sessionId =
-        (call as any)?.telnyxIDs?.telnyxSessionId ??
-        (notification.call as any)?.telnyxIDs?.telnyxSessionId ??
-        (activeCall as any)?.telnyxIDs?.telnyxSessionId ??
+        call?.telnyxIDs?.telnyxSessionId ??
+        notification.call?.telnyxIDs?.telnyxSessionId ??
+        activeCall?.telnyxIDs?.telnyxSessionId ??
         null;
       enterPostCallPhase({
         duration,

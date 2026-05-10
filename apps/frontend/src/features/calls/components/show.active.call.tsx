@@ -116,10 +116,6 @@ export function ShowActiveCall() {
       onPostCallClose={handlePostCallClose}
       contactId={contactId}
       callId={useCallStore.getState().callId}
-      callSessionId={
-        activeCall?.telnyxIDs?.telnyxSessionId ??
-        useCallStore.getState().callSessionId
-      }
     />
   );
 }
