@@ -11,6 +11,7 @@ import type {
   CrmMeetingInput,
   CrmNoteInput,
   CrmRecordRef,
+  CrmRecordingUploadInput,
   CrmTaskInput,
 } from "@ringee/platform";
 import {
@@ -56,6 +57,9 @@ export class CrmSyncService {
           break;
         case "meeting.sync":
           await this.processMeetingSync(event);
+          break;
+        case "recording.upload":
+          await this.processRecordingUpload(event);
           break;
         default:
           this.logger.warn(`unknown outbox kind: ${event.kind}`);
@@ -238,6 +242,69 @@ export class CrmSyncService {
     const upsertMeeting = provider.upsertMeeting.bind(provider);
     await this.connections.runWithFreshCredentials(connection, (creds) =>
       upsertMeeting(creds, meetingInput),
+    );
+
+    await this.connections.touchLastSync(connection.id);
+    await this.outbox.markSent(event.id);
+  }
+
+  private async processRecordingUpload(event: CrmOutboxEvent): Promise<void> {
+    const payload = event.payload as Record<string, unknown> | null;
+    if (!payload?.publicRecordingUrl || !payload?.fileName) {
+      await this.outbox.markFailed(event.id, "missing publicRecordingUrl or fileName in payload");
+      return;
+    }
+    if (!event.connectionId) {
+      await this.outbox.markFailed(event.id, "missing connectionId");
+      return;
+    }
+
+    const connection = await this.connections.findById(event.connectionId);
+    if (!connection || connection.status !== "active") {
+      await this.outbox.markFailed(event.id, "connection not active");
+      return;
+    }
+
+    const provider = this.registry.get(connection.provider);
+    if (!provider.uploadRecording) {
+      await this.outbox.markFailed(event.id, `${connection.provider} does not support recording upload`);
+      return;
+    }
+
+    // Download the recording binary from the public URL
+    let fileBuffer: Buffer;
+    try {
+      const res = await fetch(payload.publicRecordingUrl as string);
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+      const arrayBuffer = await res.arrayBuffer();
+      fileBuffer = Buffer.from(arrayBuffer);
+    } catch (err) {
+      this.logger.warn(
+        `recording_binary_unavailable: could not download recording for event=${event.id}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      await this.outbox.markFailed(event.id, "recording_binary_unavailable");
+      return;
+    }
+
+    const linkedRecords = (payload.linkedRecords as CrmRecordRef[]) ?? [];
+    const uploadInput: CrmRecordingUploadInput = {
+      idempotencyKey: (payload.idempotencyKey as string) ?? "",
+      recordingId: (payload.recordingId as string) ?? "",
+      callId: (payload.callId as string) ?? "",
+      fileName: payload.fileName as string,
+      fileBuffer,
+      fileMimeType: "audio/mpeg",
+      fileSizeBytes: fileBuffer.length,
+      linkedRecords,
+    };
+
+    const uploadRecording = provider.uploadRecording.bind(provider);
+    await this.connections.runWithFreshCredentials(connection, (creds) =>
+      uploadRecording(creds, uploadInput),
     );
 
     await this.connections.touchLastSync(connection.id);

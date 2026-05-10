@@ -1,0 +1,134 @@
+import { Injectable, Logger } from "@nestjs/common";
+import { createHash } from "crypto";
+import {
+  CallRepository,
+  ContactRepository,
+  CrmContactLinkRepository,
+  CrmOutboxRepository,
+} from "@ringee/database";
+import { OwnershipContext } from "@ringee/platform";
+import { CrmConnectionService } from "./crm-connection.service";
+
+/**
+ * Sanitise a string for safe use as a file-path segment.
+ * Replaces anything that isn't alphanumeric, dot, dash, or underscore
+ * with a dash, collapses consecutive dashes, and trims dashes from ends.
+ */
+function sanitizePathSegment(s: string): string {
+  return s
+    .replace(/[^a-zA-Z0-9._-]/g, "-")
+    .replace(/-{2,}/g, "-")
+    .replace(/^-+|-+$/g, "")
+    || "unknown";
+}
+
+function buildRecordingFileName(
+  callerName: string | null | undefined,
+  outcome: string | null | undefined,
+  recordingId: string,
+): string {
+  const who = sanitizePathSegment(callerName || "unknown");
+  const out = sanitizePathSegment(outcome || "unknown-outcome");
+  const recId = sanitizePathSegment(recordingId);
+  return `${who}-${out}-${recId}.mp3`;
+}
+
+@Injectable()
+export class CrmRecordingUploadService {
+  private readonly logger = new Logger(CrmRecordingUploadService.name);
+
+  constructor(
+    private readonly connections: CrmConnectionService,
+    private readonly callRepo: CallRepository,
+    private readonly contactRepo: ContactRepository,
+    private readonly linkRepo: CrmContactLinkRepository,
+    private readonly outbox: CrmOutboxRepository,
+  ) {}
+
+  async enqueueRecordingUpload(
+    callId: string,
+    recordingId: string,
+    publicRecordingUrl: string,
+  ): Promise<void> {
+    try {
+      const call = await this.callRepo.findById(callId);
+      if (!call || !call.userId) return;
+
+      const ctx: OwnershipContext = {
+        userId: call.userId,
+        organizationId: call.organizationId ?? null,
+      };
+
+      const connections = await this.connections.listActive(ctx);
+      if (connections.length === 0) return;
+
+      // Resolve caller identity for folder naming
+      let callerName: string | null = null;
+      const callerPhone = call.direction === "outbound" ? call.toNumber : call.fromNumber;
+
+      if (call.contactId) {
+        try {
+          const contact = await this.contactRepo.findById(call.contactId);
+          if (contact?.name) callerName = contact.name;
+        } catch {
+          // Non-fatal
+        }
+      }
+      if (!callerName) callerName = callerPhone ?? null;
+
+      const fileName = buildRecordingFileName(
+        callerName,
+        call.outcome,
+        recordingId,
+      );
+
+      // Get CRM links for this contact
+      const links = call.contactId
+        ? await this.linkRepo.listByContact(call.contactId)
+        : [];
+
+      for (const connection of connections) {
+        const link = links.find((l) => l.connectionId === connection.id);
+        if (!link) {
+          this.logger.debug(
+            `no CRM link for contact=${call.contactId} on connection=${connection.id}, skipping recording upload`,
+          );
+          continue;
+        }
+
+        const idempotencyKey = createHash("sha1")
+          .update(`${connection.id}|${recordingId}|v1`)
+          .digest("hex");
+
+        const payload = {
+          idempotencyKey,
+          recordingId,
+          callId,
+          fileName,
+          publicRecordingUrl,
+          linkedRecords: [
+            {
+              externalId: link.externalId,
+              externalType: link.externalType,
+            },
+          ],
+        };
+
+        await this.outbox.enqueue({
+          connectionId: connection.id,
+          provider: connection.provider,
+          kind: "recording.upload",
+          subjectId: recordingId,
+          payload: payload as Record<string, unknown>,
+          dedupeKey: `recording.upload:${connection.id}:${recordingId}:v1`,
+        });
+      }
+    } catch (err) {
+      this.logger.error(
+        `recording upload enqueue failed for call=${callId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+}

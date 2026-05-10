@@ -19,6 +19,8 @@ import type {
   CrmPersonInput,
   CrmRecordMatch,
   CrmRecordRef,
+  CrmRecordingUploadInput,
+  CrmRecordingUploadResult,
   CrmTaskInput,
   CrmTokenSet,
   CrmWorkspaceInfo,
@@ -637,6 +639,65 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
     return {
       ref: { externalId: String(resId), externalType: target.externalType },
       syncMode: "crm_activity_with_note",
+    };
+  }
+
+  // ── Recording file upload ───────────────────────────────────────────────
+  async uploadRecording(creds: CrmCredentials, input: CrmRecordingUploadInput): Promise<CrmRecordingUploadResult> {
+    const odooCreds = parseOdooCredentials(creds);
+    await this.authenticate(odooCreds);
+
+    const target = input.linkedRecords[0];
+    if (!target) {
+      throw new CrmError("VALIDATION", false, "recording upload requires at least one linked record");
+    }
+
+    const resModel = "res.partner";
+    const resId = Number(target.externalId);
+
+    // Idempotency: check if attachment with same name already exists
+    try {
+      const existing = await this.callModel<number[]>(
+        odooCreds,
+        "ir.attachment",
+        "search",
+        [[
+          ["name", "=", input.fileName],
+          ["res_model", "=", resModel],
+          ["res_id", "=", resId],
+        ]],
+        { limit: 1 },
+      );
+      if (existing && existing.length > 0) {
+        return {
+          ref: { externalId: String(resId), externalType: target.externalType },
+          externalFileId: String(existing[0]),
+          syncMode: "odoo_ir_attachment",
+        };
+      }
+    } catch {
+      // Non-fatal: if search fails, proceed to create
+    }
+
+    // Create the ir.attachment
+    const attachmentId = await this.callModel<number>(
+      odooCreds,
+      "ir.attachment",
+      "create",
+      [{
+        name: input.fileName,
+        datas: input.fileBuffer.toString("base64"),
+        res_model: resModel,
+        res_id: resId,
+        mimetype: input.fileMimeType,
+        type: "binary",
+      }],
+    );
+
+    return {
+      ref: { externalId: String(resId), externalType: target.externalType },
+      externalFileId: String(attachmentId),
+      syncMode: "odoo_ir_attachment",
     };
   }
 

@@ -19,6 +19,8 @@ import {
   CrmPersonInput,
   CrmRecordMatch,
   CrmRecordRef,
+  CrmRecordingUploadInput,
+  CrmRecordingUploadResult,
   CrmTaskInput,
   CrmTokenSet,
   CrmWorkspaceInfo,
@@ -72,6 +74,9 @@ export interface CrmProvider {
 
   // Meetings (optional)
   upsertMeeting?(creds: CrmCredentials, input: CrmMeetingInput): Promise<CrmMeetingSyncResult>;
+
+  // Recording file upload (optional)
+  uploadRecording?(creds: CrmCredentials, input: CrmRecordingUploadInput): Promise<CrmRecordingUploadResult>;
 
   // Record fetch (inbound sync)
   fetchPerson?(creds: CrmCredentials, externalId: string): Promise<CrmContactSyncResult>;

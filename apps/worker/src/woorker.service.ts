@@ -13,6 +13,7 @@ import {
   CrmSyncService,
   CrmBulkSyncService,
   CrmCallLogService,
+  CrmRecordingUploadService,
   EnrichmentDrainService,
 } from "@ringee/services";
 import {
@@ -56,6 +57,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly crmBulkSyncService: CrmBulkSyncService,
     private readonly publicRecordingRepo: PublicRecordingRepository,
     private readonly enrichmentDrainService: EnrichmentDrainService,
+    private readonly crmRecordingUpload: CrmRecordingUploadService,
   ) { }
 
   onModuleInit() {
@@ -303,6 +305,16 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
           format: "mp3",
           status: "completed",
         });
+      }
+
+      // Best-effort: upload recording file to CRM
+      try {
+        const recId = processingRecording?.id ?? recordings[0]?.id ?? call.id;
+        await this.crmRecordingUpload.enqueueRecordingUpload(call.id, recId, publicUrl);
+      } catch (uploadErr) {
+        this.logger.debug(
+          `Skipped CRM recording upload for call ${call.id}: ${(uploadErr as Error).message}`,
+        );
       }
 
       this.logger.log(`Recording saved for call ${call.id} with encryption`);
