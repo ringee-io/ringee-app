@@ -3,6 +3,7 @@ import type {
   CrmCompanyMatch,
   CrmCompanySyncResult,
   CrmContactSyncResult,
+  CrmMeetingInput,
   CrmOwnerRef,
   CrmRecordMatch,
 } from "../../types";
@@ -200,4 +201,59 @@ export function mapAttioMemberToOwnerRef(member: AttioWorkspaceMember): CrmOwner
     email: member.email_address,
     name,
   };
+}
+
+export function buildMeetingNote(input: CrmMeetingInput): {
+  title: string;
+  content: string;
+} {
+  const startStr = input.startAt.toISOString();
+  const endStr = input.endAt.toISOString();
+  const lines: string[] = [
+    `**Meeting scheduled** — ${startStr}`,
+  ];
+  lines.push("");
+  lines.push(`**Title:** ${input.title}`);
+  lines.push(`**Start:** ${startStr}`);
+  lines.push(`**End:** ${endStr}`);
+  if (input.timezone) lines.push(`**Timezone:** ${input.timezone}`);
+  if (input.ownerName) lines.push(`**Organizer:** ${input.ownerName}`);
+  if (input.attendees.length > 0) {
+    lines.push("");
+    lines.push("**Attendees:**");
+    for (const a of input.attendees) {
+      const parts = [a.name, a.email].filter(Boolean);
+      lines.push(`- ${parts.join(" — ") || "Unknown"}`);
+    }
+  }
+  if (input.description && input.description.trim()) {
+    lines.push("");
+    lines.push("**Description**");
+    lines.push(input.description.trim());
+  }
+
+  const links: string[] = [];
+  if (input.meetingUrl) links.push(`[Join meeting](${input.meetingUrl})`);
+  if (input.ringeeMeetingUrl) links.push(`[View in Ringee](${input.ringeeMeetingUrl})`);
+  if (input.sourceCallUrl) links.push(`[Source call](${input.sourceCallUrl})`);
+  if (input.recordingUrl) links.push(`[Recording](${input.recordingUrl})`);
+  if (links.length > 0) {
+    lines.push("");
+    lines.push(links.join(" · "));
+  }
+
+  if (input.calendarProvider || input.calendarEventId) {
+    lines.push("");
+    const calParts: string[] = [];
+    if (input.calendarProvider) calParts.push(`Provider: ${input.calendarProvider}`);
+    if (input.calendarEventId) calParts.push(`Event ID: ${input.calendarEventId}`);
+    lines.push(`_Calendar: ${calParts.join(" · ")}_`);
+  }
+
+  lines.push("");
+  lines.push(`_Synced from Ringee · ${input.idempotencyKey}_`);
+
+  const title = `Ringee meeting — ${input.title}`;
+
+  return { title, content: lines.join("\n") };
 }

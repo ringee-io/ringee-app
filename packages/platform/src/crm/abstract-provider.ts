@@ -13,6 +13,8 @@ import type {
   CrmCredentials,
   CrmExchangeParams,
   CrmListRef,
+  CrmMeetingInput,
+  CrmMeetingSyncResult,
   CrmNoteInput,
   CrmOwnerRef,
   CrmPersonInput,
@@ -57,6 +59,7 @@ export abstract class AbstractCrmProvider implements CrmProvider {
 
   upsertCompany?(creds: CrmCredentials, input: CrmCompanyInput): Promise<CrmRecordRef>;
   createTask?(creds: CrmCredentials, input: CrmTaskInput): Promise<CrmRecordRef>;
+  upsertMeeting?(creds: CrmCredentials, input: CrmMeetingInput): Promise<CrmMeetingSyncResult>;
   revoke?(token: string): Promise<void>;
   searchByEmail?(creds: CrmCredentials, email: string, opts?: { limit?: number }): Promise<CrmRecordMatch[]>;
   searchCompanyByDomain?(creds: CrmCredentials, domain: string): Promise<CrmCompanyMatch[]>;

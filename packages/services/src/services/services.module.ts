@@ -59,6 +59,7 @@ import {
   CrmNoteSyncService,
   CrmTaskSyncService,
   CrmBulkSyncService,
+  CrmMeetingSyncService,
 } from "./crm";
 import {
   EnrichmentConnectionService,
@@ -119,6 +120,7 @@ const servicesProviders = [
   CrmNoteSyncService,
   CrmTaskSyncService,
   CrmBulkSyncService,
+  CrmMeetingSyncService,
   // Attio App SDK integration
   AttioAppService,
   // Data Enrichment & Lead Search

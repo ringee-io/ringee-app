@@ -11,6 +11,8 @@ import {
   CrmCredentials,
   CrmExchangeParams,
   CrmListRef,
+  CrmMeetingInput,
+  CrmMeetingSyncResult,
   CrmNoteInput,
   CrmOwnerRef,
   CrmPagedResult,
@@ -67,6 +69,9 @@ export interface CrmProvider {
 
   // Tasks (optional)
   createTask?(creds: CrmCredentials, input: CrmTaskInput): Promise<CrmRecordRef>;
+
+  // Meetings (optional)
+  upsertMeeting?(creds: CrmCredentials, input: CrmMeetingInput): Promise<CrmMeetingSyncResult>;
 
   // Record fetch (inbound sync)
   fetchPerson?(creds: CrmCredentials, externalId: string): Promise<CrmContactSyncResult>;
