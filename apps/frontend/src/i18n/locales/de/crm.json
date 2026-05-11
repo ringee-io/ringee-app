@@ -67,7 +67,9 @@
     "addAnother": "Weitere hinzufügen",
     "connect": "{provider} verbinden",
     "continueWith": "Weiter zu {provider}",
-    "notifyMe": "Benachrichtige mich"
+    "notifyMe": "Benachrichtige mich",
+    "syncNow": "Jetzt synchronisieren",
+    "syncNowTooltip": "Alle Kontakte und Unternehmen aus Ihrem CRM in Ringee importieren"
   },
   "dialogs": {
     "disconnectTitle": "{provider} trennen?",
@@ -90,5 +92,7 @@
   },
   "badges": {
     "soon": "Demnächst"
-  }
+  },
+  "syncSuccess": "Synchronisierung gestartet — Kontakte und Unternehmen werden importiert.",
+  "syncError": "Synchronisierung konnte nicht gestartet werden. Bitte versuchen Sie es erneut."
 }

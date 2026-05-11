@@ -20,6 +20,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@ringee/frontend-shared/components/ui/tooltip';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import {
   AlertCircle,
@@ -49,6 +55,8 @@ interface Props {
   ) => void | Promise<void>;
   onViewHistory: (id: string) => void;
   onManage: (id: string) => void;
+  onSync?: (id: string) => Promise<void>;
+  syncing?: boolean;
   disconnecting?: boolean;
 }
 
@@ -114,6 +122,8 @@ export function CrmConnectionCard({
   onReconnect,
   onViewHistory,
   onManage,
+  onSync,
+  syncing,
   disconnecting,
 }: Props) {
   const t = useTranslations('crm');
@@ -268,15 +278,42 @@ export function CrmConnectionCard({
         />
       </div>
 
-      {/* Manage button */}
-      <Button
-        variant="outline"
-        size="sm"
-        className="w-full"
-        onClick={() => onManage(connection.id)}
-      >
-        {t('connections.manageConnection')}
-      </Button>
+      {/* Sync + Manage buttons */}
+      <div className="flex gap-2">
+        {onSync && connection.status === 'active' && (
+          <TooltipProvider delayDuration={0}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  disabled={syncing}
+                  onClick={() => onSync(connection.id)}
+                >
+                  {syncing ? (
+                    <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  ) : (
+                    <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                  )}
+                  {t('actions.syncNow')}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[220px] text-center">
+                {t('actions.syncNowTooltip')}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full"
+          onClick={() => onManage(connection.id)}
+        >
+          {t('connections.manageConnection')}
+        </Button>
+      </div>
 
       {/* Error hint */}
       {needsReconnect && (
