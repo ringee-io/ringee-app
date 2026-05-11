@@ -2,9 +2,9 @@ import { Injectable, Logger } from "@nestjs/common";
 import { createHash } from "crypto";
 import {
   CallRepository,
-  ContactRepository,
   CrmContactLinkRepository,
   CrmOutboxRepository,
+  UserRepository,
 } from "@ringee/database";
 import { OwnershipContext } from "@ringee/platform";
 import { CrmConnectionService } from "./crm-connection.service";
@@ -40,10 +40,10 @@ export class CrmRecordingUploadService {
   constructor(
     private readonly connections: CrmConnectionService,
     private readonly callRepo: CallRepository,
-    private readonly contactRepo: ContactRepository,
     private readonly linkRepo: CrmContactLinkRepository,
     private readonly outbox: CrmOutboxRepository,
-  ) {}
+    private readonly userRepo: UserRepository,
+  ) { }
 
   async enqueueRecordingUpload(
     callId: string,
@@ -64,16 +64,18 @@ export class CrmRecordingUploadService {
 
       // Resolve caller identity for folder naming
       let callerName: string | null = null;
-      const callerPhone = call.direction === "outbound" ? call.toNumber : call.fromNumber;
+      const callerPhone = ["outbound", "outgoing"].includes(call.direction ?? "") ? call.toNumber : call.fromNumber;
 
-      if (call.contactId) {
-        try {
-          const contact = await this.contactRepo.findById(call.contactId);
-          if (contact?.name) callerName = contact.name;
-        } catch {
-          // Non-fatal
+      try {
+        const user = await this.userRepo.findById(call.userId);
+
+        if (user) {
+          callerName = `${user.firstName} ${user.lastName}`.trim();
         }
+      } catch {
+        // Non-fatal
       }
+
       if (!callerName) callerName = callerPhone ?? null;
 
       const fileName = buildRecordingFileName(
@@ -125,8 +127,7 @@ export class CrmRecordingUploadService {
       }
     } catch (err) {
       this.logger.error(
-        `recording upload enqueue failed for call=${callId}: ${
-          err instanceof Error ? err.message : String(err)
+        `recording upload enqueue failed for call=${callId}: ${err instanceof Error ? err.message : String(err)
         }`,
       );
     }
