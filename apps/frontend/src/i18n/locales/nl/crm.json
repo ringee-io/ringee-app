@@ -67,7 +67,9 @@
     "addAnother": "Nog een toevoegen",
     "connect": "{provider} verbinden",
     "continueWith": "Doorgaan naar {provider}",
-    "notifyMe": "Meld me"
+    "notifyMe": "Meld me",
+    "syncNow": "Nu synchroniseren",
+    "syncNowTooltip": "Alle contacten en bedrijven uit je CRM importeren in Ringee"
   },
   "dialogs": {
     "disconnectTitle": "{provider} loskoppelen?",
@@ -90,5 +92,7 @@
   },
   "badges": {
     "soon": "Binnenkort"
-  }
+  },
+  "syncSuccess": "Synchronisatie gestart — contacten en bedrijven worden geïmporteerd.",
+  "syncError": "Synchronisatie kon niet worden gestart. Probeer het opnieuw."
 }

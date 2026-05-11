@@ -86,6 +86,19 @@ export class CrmController {
     return { ok: true };
   }
 
+  @Post("connections/:id/sync")
+  async triggerSync(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    const ctx = createOwnershipContext(user);
+    const conn = await this.connections.findById(id);
+    if (!conn) throw new BadRequestException("connection not found");
+    await this.connections.assertAccess(ctx, conn);
+    const result = await this.bulkSync.syncConnection(conn);
+    return { ok: true, ...result };
+  }
+
   // ── OAuth ────────────────────────────────────────────────────────────
 
   @Get(":provider/oauth/start")

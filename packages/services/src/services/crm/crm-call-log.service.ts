@@ -80,7 +80,9 @@ export class CrmCallLogService {
     if (connections.length === 0) return;
 
     const direction: "inbound" | "outbound" =
-      call.direction === "inbound" ? "inbound" : "outbound";
+      [ "inbound", "incoming"].includes(call.direction ?? "") ? "inbound" : "outbound";
+
+
     const counterpartPhone = direction === "outbound" ? call.toNumber : call.fromNumber;
 
     // If Ringee already has a contact for this call, propagate its

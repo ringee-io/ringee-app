@@ -33,6 +33,7 @@ export default function IntegrationsViewPage() {
   const { connections, loading, error, reload } = useCrmConnections();
   const [manageConnection, setManageConnection] = useState<CrmConnectionSummary | null>(null);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
   const notifiedRef = useRef<string | null>(null);
 
   useEffect(() => {
@@ -116,6 +117,19 @@ export default function IntegrationsViewPage() {
     }
   };
 
+  const handleSync = async (id: string) => {
+    setSyncingId(id);
+    try {
+      await api.post(`/crm/connections/${id}/sync`);
+      toast.success(t('syncSuccess'));
+      await reload();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t('syncError'));
+    } finally {
+      setSyncingId(null);
+    }
+  };
+
   const handleManage = (id: string) => {
     const conn = connections.find((c) => c.id === id) ?? null;
     setManageConnection(conn);
@@ -165,11 +179,13 @@ export default function IntegrationsViewPage() {
           needsAttention={needsAttention}
           connectedProviders={connectedProviders}
           disconnectingId={disconnectingId}
+          syncingId={syncingId}
           onReload={reload}
           onConnect={handleConnect}
           onDisconnect={handleDisconnect}
           onForget={handleForget}
           onManage={handleManage}
+          onSync={handleSync}
           t={t}
         />
       </TabsContent>
@@ -192,11 +208,13 @@ interface CrmTabContentProps {
   needsAttention: CrmConnectionSummary[];
   connectedProviders: CrmProviderType[];
   disconnectingId: string | null;
+  syncingId: string | null;
   onReload: () => void;
   onConnect: (provider: CrmProviderType, scope: 'personal' | 'organization') => Promise<void>;
   onDisconnect: (id: string) => Promise<void>;
   onForget: (id: string) => Promise<void>;
   onManage: (id: string) => void;
+  onSync: (id: string) => Promise<void>;
   t: TFunc;
 }
 
@@ -207,11 +225,13 @@ function CrmTabContent({
   needsAttention,
   connectedProviders,
   disconnectingId,
+  syncingId,
   onReload,
   onConnect,
   onDisconnect,
   onForget,
   onManage,
+  onSync,
   t,
 }: CrmTabContentProps) {
   return (
@@ -274,6 +294,8 @@ function CrmTabContent({
                 onReconnect={onConnect}
                 onViewHistory={(id) => onManage(id)}
                 onManage={onManage}
+                onSync={onSync}
+                syncing={syncingId === c.id}
                 disconnecting={disconnectingId === c.id}
               />
             ))}
