@@ -279,7 +279,7 @@ export function CrmConnectionCard({
       </div>
 
       {/* Sync + Manage buttons */}
-      <div className="flex gap-2">
+      <div className="gap-2">
         {onSync && connection.status === 'active' && (
           <TooltipProvider delayDuration={0}>
             <Tooltip>
