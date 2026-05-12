@@ -36,11 +36,8 @@ export function useCall(call?: Call | null) {
         if (!call) return;
         if (mute) {
           if (typeof call.muteAudio === 'function') await call.muteAudio();
-          else if (typeof call.muteAudio === 'function') await call.muteAudio();
         } else {
           if (typeof call.unmuteAudio === 'function') await call.unmuteAudio();
-          else if (typeof call.unmuteAudio === 'function')
-            await call.unmuteAudio();
         }
         setIsMuted(mute);
       } catch (err) {

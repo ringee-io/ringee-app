@@ -16,33 +16,12 @@ import getCallerIds from "../server/get-caller-ids.server"
 import prepareCallSession from "../server/prepare-call-session.server"
 import checkConnection from "../server/check-connection.server"
 
-interface PersonData {
-    name: string
-    phones: string[]
-    company: string | null
-}
-
-interface CompanyData {
-    name: string
-    phones: string[]
-}
-
-function PersonPhoneResolver({
-    recordId,
-    onResolved,
-}: {
-    recordId: string
-    onResolved: (data: PersonData) => void
-}) {
+function PersonCallDialog({recordId, object}: {recordId: string; object: string}) {
     const {person} = useQuery(getPersonPhonesById, {recordId})
 
     const name = person?.name?.full_name ?? "Unknown"
     const phones: string[] = person?.phone_numbers ?? []
     const company: string | null = person?.company?.name ?? null
-
-    if (phones.length > 0) {
-        onResolved({name, phones, company})
-    }
 
     if (phones.length === 0) {
         return (
@@ -55,16 +34,25 @@ function PersonPhoneResolver({
         )
     }
 
-    return null
+    return (
+        <>
+            <Section title={name}>
+                {company ? <Typography.Body>{company}</Typography.Body> : null}
+                <Typography.Body>Select a number to call:</Typography.Body>
+            </Section>
+            <Suspense fallback={<LoadingState />}>
+                <PhoneListWithCallerIds
+                    contactName={name}
+                    phones={phones}
+                    object={object}
+                    recordId={recordId}
+                />
+            </Suspense>
+        </>
+    )
 }
 
-function CompanyPhoneResolver({
-    recordId,
-    onResolved,
-}: {
-    recordId: string
-    onResolved: (data: CompanyData) => void
-}) {
+function CompanyCallDialog({recordId, object}: {recordId: string; object: string}) {
     const {company} = useQuery(getCompanyPhonesById, {recordId})
 
     const name = company?.name ?? "Unknown Company"
@@ -72,10 +60,6 @@ function CompanyPhoneResolver({
         (member: {phone_numbers?: string[]}) => member.phone_numbers ?? []
     )
     const uniquePhones = [...new Set(teamPhones)]
-
-    if (uniquePhones.length > 0) {
-        onResolved({name, phones: uniquePhones})
-    }
 
     if (uniquePhones.length === 0) {
         return (
@@ -88,32 +72,15 @@ function CompanyPhoneResolver({
         )
     }
 
-    return null
-}
-
-function PhoneSelector({
-    contactName,
-    phones,
-    company,
-    object,
-    recordId,
-}: {
-    contactName: string
-    phones: string[]
-    company?: string | null
-    object: string
-    recordId: string
-}) {
     return (
         <>
-            <Section title={contactName}>
-                {company ? <Typography.Body>{company}</Typography.Body> : null}
+            <Section title={name}>
                 <Typography.Body>Select a number to call:</Typography.Body>
             </Section>
             <Suspense fallback={<LoadingState />}>
                 <PhoneListWithCallerIds
-                    contactName={contactName}
-                    phones={phones}
+                    contactName={name}
+                    phones={uniquePhones}
                     object={object}
                     recordId={recordId}
                 />
@@ -184,15 +151,6 @@ function PhoneListWithCallerIds({
         )
     }
 
-    if (error) {
-        return (
-            <>
-                <Banner variant="error">{error}</Banner>
-                <PhoneList phones={phones} onSelect={initiateCall} disabled={calling} />
-            </>
-        )
-    }
-
     if (calling) {
         return (
             <Section title="Preparing Call...">
@@ -203,6 +161,7 @@ function PhoneListWithCallerIds({
 
     return (
         <>
+            {error ? <Banner variant="error">{error}</Banner> : null}
             {defaultCallerId ? (
                 <Section title="Calling From">
                     <Badge color="blue">{defaultCallerId.phoneNumber}</Badge>
@@ -214,10 +173,15 @@ function PhoneListWithCallerIds({
                 </Section>
             ) : (
                 <Banner variant="warning">
-                    No caller ID configured in Ringee. Please set up a phone number first.
+                    No caller ID configured in Ringee. Add a verified phone number or buy one in
+                    Ringee before placing a call.
                 </Banner>
             )}
-            <PhoneList phones={phones} onSelect={initiateCall} disabled={!defaultCallerId} />
+            <PhoneList
+                phones={phones}
+                onSelect={initiateCall}
+                ready={Boolean(defaultCallerId)}
+            />
         </>
     )
 }
@@ -225,11 +189,11 @@ function PhoneListWithCallerIds({
 function PhoneList({
     phones,
     onSelect,
-    disabled,
+    ready,
 }: {
     phones: string[]
     onSelect: (phone: string) => void
-    disabled: boolean
+    ready: boolean
 }) {
     return (
         <DialogList emptyState={{text: "No phone numbers available"}}>
@@ -237,11 +201,15 @@ function PhoneList({
                 <DialogList.Item
                     key={phone}
                     icon="Phone"
-                    onTrigger={() => {
-                        if (!disabled) onSelect(phone)
-                    }}
+                    onTrigger={() => onSelect(phone)}
                     actionLabel="Call"
-                    suffix={<Badge color="green">Available</Badge>}
+                    suffix={
+                        ready ? (
+                            <Badge color="green">Available</Badge>
+                        ) : (
+                            <Badge color="red">Setup required</Badge>
+                        )
+                    }
                 >
                     {phone}
                 </DialogList.Item>
@@ -272,37 +240,11 @@ function DialogConnectionGuard({children}: {children: React.ReactNode}) {
 }
 
 function CallDialogContent({object, recordId}: {object: string; recordId: string}) {
-    const [resolvedPerson, setResolvedPerson] = useState<PersonData | null>(null)
-    const [resolvedCompany, setResolvedCompany] = useState<CompanyData | null>(null)
-
     if (object === "people") {
-        if (resolvedPerson) {
-            return (
-                <PhoneSelector
-                    contactName={resolvedPerson.name}
-                    phones={resolvedPerson.phones}
-                    company={resolvedPerson.company}
-                    object={object}
-                    recordId={recordId}
-                />
-            )
-        }
-
-        return <PersonPhoneResolver recordId={recordId} onResolved={setResolvedPerson} />
+        return <PersonCallDialog recordId={recordId} object={object} />
     }
 
-    if (resolvedCompany) {
-        return (
-            <PhoneSelector
-                contactName={resolvedCompany.name}
-                phones={resolvedCompany.phones}
-                object={object}
-                recordId={recordId}
-            />
-        )
-    }
-
-    return <CompanyPhoneResolver recordId={recordId} onResolved={setResolvedCompany} />
+    return <CompanyCallDialog recordId={recordId} object={object} />
 }
 
 export default function CallDialog({object, recordId}: {object: string; recordId: string}) {
