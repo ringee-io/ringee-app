@@ -196,6 +196,7 @@ export class ReminderService {
     note?: string | null;
     contact?: { name: string | null; phoneNumber: string };
     title?: string | null;
+    location?: string | null;
   } | null> {
     if (subjectType === ReminderSubjectType.callback) {
       const callback = await this.callbackRepo.findById(subjectId);
@@ -231,6 +232,7 @@ export class ReminderService {
         scheduledAt: meeting.scheduledAt,
         note: meeting.notes,
         title: meeting.title,
+        location: meeting.location,
         contact: contact
           ? { name: contact.name ?? null, phoneNumber: contact.phoneNumber }
           : undefined,
@@ -238,6 +240,11 @@ export class ReminderService {
     }
 
     return null;
+  }
+
+  private isLikelyUrl(value: string | null | undefined): boolean {
+    if (!value) return false;
+    return /^https?:\/\//i.test(value.trim());
   }
 
   private async resolveRecipient(userId: string): Promise<ReminderRecipient> {
@@ -275,19 +282,22 @@ export class ReminderService {
     if (subjectType === ReminderSubjectType.meeting) {
       const title = subjectCtx.title?.trim() || "Upcoming meeting";
       const subject = `Reminder: ${title} at ${when}`;
+      const linkLine = this.isLikelyUrl(subjectCtx.location)
+        ? `Join: ${subjectCtx.location}`
+        : subjectCtx.location
+          ? `Where: ${subjectCtx.location}`
+          : "";
       const bodyText = [
         `${title}`,
         `When: ${when}`,
         `With: ${contactLine}`,
+        linkLine,
         subjectCtx.note ? `\nNotes:\n${subjectCtx.note}` : "",
       ]
         .filter(Boolean)
         .join("\n");
-      return {
-        subject,
-        bodyText,
-        bodyHtml: bodyText.replace(/\n/g, "<br>"),
-      };
+      const bodyHtml = this.toHtml(bodyText, subjectCtx.location);
+      return { subject, bodyText, bodyHtml };
     }
 
     // callback / followup
@@ -307,5 +317,15 @@ export class ReminderService {
       bodyText,
       bodyHtml: bodyText.replace(/\n/g, "<br>"),
     };
+  }
+
+  private toHtml(text: string, maybeUrl?: string | null): string {
+    const escaped = text.replace(/\n/g, "<br>");
+    if (!this.isLikelyUrl(maybeUrl)) return escaped;
+    const url = (maybeUrl as string).trim();
+    return escaped.replace(
+      url,
+      `<a href="${url}">${url}</a>`
+    );
   }
 }
