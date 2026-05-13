@@ -22,5 +22,14 @@
     "title": "Dialer session",
     "remaining": "{count} remaining",
     "completed": "{count} completed"
+  },
+  "dnc": {
+    "title": "This number is on your Do Not Call list",
+    "description": "This contact was previously marked as Do Not Call. Placing this call could breach compliance rules and your organization's policy.",
+    "reasonLabel": "Reason",
+    "addedLabel": "Added on",
+    "compliance": "Only call if you have a legitimate reason and the recipient's consent.",
+    "doNotCall": "Don't call",
+    "callAnyway": "Call anyway"
   }
 }

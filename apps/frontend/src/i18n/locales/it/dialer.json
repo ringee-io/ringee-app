@@ -22,5 +22,14 @@
     "title": "Sessione dialer",
     "remaining": "{count} rimanenti",
     "completed": "{count} completati"
+  },
+  "dnc": {
+    "title": "Questo numero è nella tua lista Non Chiamare",
+    "description": "Questo contatto è stato precedentemente contrassegnato come Non Chiamare. Effettuare questa chiamata potrebbe violare le regole di conformità e la politica della tua organizzazione.",
+    "reasonLabel": "Motivo",
+    "addedLabel": "Aggiunto il",
+    "compliance": "Chiama solo se hai un motivo legittimo e il consenso del destinatario.",
+    "doNotCall": "Non chiamare",
+    "callAnyway": "Chiama comunque"
   }
 }

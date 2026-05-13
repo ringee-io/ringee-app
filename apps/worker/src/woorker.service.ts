@@ -15,6 +15,7 @@ import {
   CrmCallLogService,
   CrmRecordingUploadService,
   EnrichmentDrainService,
+  ReminderService,
 } from "@ringee/services";
 import {
   UserRepository,
@@ -33,6 +34,7 @@ const CRM_DRAIN_BATCH_SIZE = 25;
 const CRM_BULK_SYNC_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const ENRICHMENT_DRAIN_INTERVAL_MS = 5_000; // 5 seconds
 const ENRICHMENT_DRAIN_BATCH_SIZE = 25;
+const REMINDER_INTERVAL_MS = 30_000; // 30 seconds
 
 @Injectable()
 export class WorkerService implements OnModuleInit, OnModuleDestroy {
@@ -58,6 +60,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly publicRecordingRepo: PublicRecordingRepository,
     private readonly enrichmentDrainService: EnrichmentDrainService,
     private readonly crmRecordingUpload: CrmRecordingUploadService,
+    private readonly reminderService: ReminderService,
   ) { }
 
   onModuleInit() {
@@ -77,6 +80,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
       setInterval(() => this.runCrmDrain(), CRM_DRAIN_INTERVAL_MS),
       setInterval(() => this.crmBulkSyncService.syncAllActiveConnections(), CRM_BULK_SYNC_INTERVAL_MS),
       setInterval(() => this.runEnrichmentDrain(), ENRICHMENT_DRAIN_INTERVAL_MS),
+      setInterval(() => this.runReminderScheduler(), REMINDER_INTERVAL_MS),
     );
     this.logger.log("Outbound schedulers started");
   }
@@ -153,6 +157,23 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
       this.logger.error("EnrichmentDrain error:", err);
     } finally {
       this.enrichmentDrainInFlight = false;
+    }
+  }
+
+  private reminderInFlight = false;
+
+  private async runReminderScheduler() {
+    if (this.reminderInFlight) return;
+    this.reminderInFlight = true;
+    try {
+      const count = await this.reminderService.processDuePending();
+      if (count > 0) {
+        this.logger.debug(`ReminderScheduler: ${count} reminders dispatched`);
+      }
+    } catch (err) {
+      this.logger.error("ReminderScheduler error:", err);
+    } finally {
+      this.reminderInFlight = false;
     }
   }
 

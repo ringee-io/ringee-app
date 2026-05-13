@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = "postgresql://ringee-user:ringee-password@localhost:5432/ringee-db-local?schema=public"
 }
 
 enum EmailStatus {
@@ -44,6 +44,20 @@ enum MeetingStatus {
   completed
   cancelled
   rescheduled
+}
+
+enum ReminderSubjectType {
+  callback
+  meeting
+  followup
+}
+
+enum ReminderStatus {
+  pending
+  sent
+  failed
+  cancelled
+  snoozed
 }
 
 enum SubscriptionStatus {
@@ -293,6 +307,9 @@ model User {
   enrichmentJobs          EnrichmentJob[]
   leadSearchJobs          LeadSearchJob[]
   callScripts             CallScript[]
+  callbacks               CallbackTask[]
+  dncEntries              DNCEntry[]
+  reminders               Reminder[]
 
   @@index([clerkId])
 }
@@ -330,6 +347,9 @@ model Organization {
   leadSearchJobs         LeadSearchJob[]
   callScripts            CallScript[]
   customFieldDefinitions CustomFieldDefinition[]
+  callbacks              CallbackTask[]
+  dncEntries             DNCEntry[]
+  reminders              Reminder[]
 
   @@index([clerkId])
 }
@@ -459,6 +479,7 @@ model Call {
   callAttempts     CallAttempt[]
   crmSyncs         CrmCallSync[]
   inboxEvents      InboxEvent[]
+  callbacks        CallbackTask[]
 
   @@index([userId])
   @@index([organizationId])
@@ -667,6 +688,7 @@ model Contact {
   enrichmentJobs    EnrichmentJob[]
   inboxThreads      InboxThread[]
   messages          Message[]
+  callbacks         CallbackTask[]
 
   @@unique([userId, phoneNumber, deletedAt])
   @@index([userId])
@@ -1280,8 +1302,11 @@ model RetryRule {
 
 model CallbackTask {
   id             String         @id @default(uuid()) @db.Uuid
-  campaignLeadId String         @db.Uuid
-  agentUserId    String         @db.Uuid
+  userId         String         @db.Uuid
+  organizationId String?        @db.Uuid
+  contactId      String         @db.Uuid
+  callId         String?        @db.Uuid
+  campaignLeadId String?        @db.Uuid
   scheduledAt    DateTime
   note           String?        @db.Text
   status         CallbackStatus @default(scheduled)
@@ -1290,9 +1315,16 @@ model CallbackTask {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  campaignLead CampaignLead @relation(fields: [campaignLeadId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  contact      Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  call         Call?         @relation(fields: [callId], references: [id], onDelete: SetNull)
+  campaignLead CampaignLead? @relation(fields: [campaignLeadId], references: [id], onDelete: Cascade)
 
-  @@index([agentUserId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([contactId])
+  @@index([callId])
   @@index([status, scheduledAt])
   @@index([campaignLeadId])
 }
@@ -1300,16 +1332,60 @@ model CallbackTask {
 model DNCEntry {
   id             String  @id @default(uuid()) @db.Uuid
   phoneNumber    String  @db.VarChar(20)
-  organizationId String  @db.Uuid
+  userId         String  @db.Uuid
+  organizationId String? @db.Uuid
   reason         String?
   source         String? // "manual", "disposition", "import"
   addedByUserId  String? @db.Uuid
 
   createdAt DateTime @default(now())
 
-  @@unique([organizationId, phoneNumber])
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Uniqueness is enforced by partial indexes in SQL:
+  //   - (organizationId, phoneNumber) WHERE organizationId IS NOT NULL → org-wide DNC
+  //   - (userId, phoneNumber)        WHERE organizationId IS NULL     → personal/freelancer DNC
+  // Prisma can't express WHERE clauses on @@unique, so see migration SQL.
   @@index([phoneNumber])
   @@index([organizationId])
+  @@index([userId])
+}
+
+// Reminders fire scheduled notifications for callbacks, meetings and follow-ups.
+// The Reminder row is the source of truth; the worker polls pending rows whose
+// fireAt has passed and dispatches them through the configured channels.
+// Cancellation/reschedule of the subject (callback or meeting) updates the
+// related reminder rows to keep state consistent.
+model Reminder {
+  id             String              @id @default(uuid()) @db.Uuid
+  userId         String              @db.Uuid
+  organizationId String?             @db.Uuid
+  subjectType    ReminderSubjectType
+  subjectId      String              @db.Uuid
+  fireAt         DateTime
+  channels       String[]            @default([]) // ["email"] today; "in_app" | "sms" | "whatsapp" later
+  status         ReminderStatus      @default(pending)
+  attemptCount   Int                 @default(0)
+  lastError      String?             @db.Text
+  sentAt         DateTime?
+  snoozedUntil   DateTime?
+
+  // Stable dedupe key per (subjectType, subjectId, offsetTag), e.g.
+  // "callback:<uuid>:T-15m". Lets us upsert without duplicating rows when
+  // a subject is re-scheduled to the same time.
+  dedupeKey String @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([status, fireAt])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([subjectType, subjectId])
 }
 
 model VoicemailDropAsset {

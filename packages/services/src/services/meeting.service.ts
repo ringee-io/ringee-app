@@ -1,4 +1,6 @@
 import {
+  forwardRef,
+  Inject,
   Injectable,
   ForbiddenException,
   NotFoundException,
@@ -11,10 +13,12 @@ import {
   MeetingStatus,
   CallOutcome,
   Call,
+  ReminderSubjectType,
 } from "@ringee/database";
 import { OwnershipContext } from "@ringee/platform";
 import { CalendarService } from "./calendar.service";
 import { CrmMeetingSyncService } from "./crm/crm-meeting-sync.service";
+import { ReminderService } from "./reminders/reminder.service";
 
 @Injectable()
 export class MeetingService {
@@ -25,6 +29,8 @@ export class MeetingService {
     private readonly callRepo: CallRepository,
     private readonly calendarService: CalendarService,
     private readonly crmMeetingSync: CrmMeetingSyncService,
+    @Inject(forwardRef(() => ReminderService))
+    private readonly reminderService: ReminderService,
   ) {}
 
   private ensureOrganization(ctx: OwnershipContext): void {
@@ -100,6 +106,21 @@ export class MeetingService {
       );
     }
 
+    // Best-effort: schedule reminders (-15min, -5min email by default)
+    try {
+      await this.reminderService.scheduleForSubject({
+        subjectType: ReminderSubjectType.meeting,
+        subjectId: meeting.id,
+        userId: meeting.userId,
+        organizationId: meeting.organizationId,
+        fireAt: meeting.scheduledAt,
+      });
+    } catch (err) {
+      this.logger.debug(
+        `Skipped reminder scheduling for meeting ${meeting.id}: ${(err as Error).message}`,
+      );
+    }
+
     return meeting;
   }
 
@@ -147,22 +168,53 @@ export class MeetingService {
   ): Promise<Meeting> {
     const meeting = await this.getMeetingById(ctx, id);
 
-    return this.meetingRepo.update(meeting.id, {
+    const updated = await this.meetingRepo.update(meeting.id, {
       title: dto.title,
       scheduledAt: dto.scheduledAt ? new Date(dto.scheduledAt) : undefined,
       duration: dto.duration,
       location: dto.location,
       notes: dto.notes,
     });
+
+    if (dto.scheduledAt) {
+      try {
+        await this.reminderService.rescheduleForSubject({
+          subjectType: ReminderSubjectType.meeting,
+          subjectId: meeting.id,
+          userId: meeting.userId,
+          organizationId: meeting.organizationId,
+          fireAt: new Date(dto.scheduledAt),
+        });
+      } catch (err) {
+        this.logger.debug(
+          `Skipped reminder reschedule for meeting ${meeting.id}: ${(err as Error).message}`,
+        );
+      }
+    }
+
+    return updated;
   }
 
   async cancelMeeting(ctx: OwnershipContext, id: string): Promise<Meeting> {
     const meeting = await this.getMeetingById(ctx, id);
 
-    return this.meetingRepo.update(meeting.id, {
+    const updated = await this.meetingRepo.update(meeting.id, {
       status: MeetingStatus.cancelled,
       cancelledAt: new Date(),
     });
+
+    try {
+      await this.reminderService.cancelForSubject(
+        ReminderSubjectType.meeting,
+        meeting.id,
+      );
+    } catch (err) {
+      this.logger.debug(
+        `Skipped reminder cancel for meeting ${meeting.id}: ${(err as Error).message}`,
+      );
+    }
+
+    return updated;
   }
 
   async findCallBySessionId(sessionId: string): Promise<Call | null> {

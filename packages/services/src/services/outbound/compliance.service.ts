@@ -1,51 +1,55 @@
 import { Injectable } from "@nestjs/common";
-import { DNCEntryRepository } from "@ringee/database";
+import {
+  DNCEntryRepository,
+  DNCOwnerScope,
+  DNCCreateInput,
+} from "@ringee/database";
 
 @Injectable()
 export class ComplianceService {
   constructor(private readonly dncRepo: DNCEntryRepository) {}
 
+  /**
+   * Check whether a phone number is on the caller's applicable DNC list.
+   * The owner scope decides which list — personal lists and org lists are
+   * never queried together. A freelancer placing a call only consults their
+   * personal DNC; an org member only consults the org DNC.
+   */
   async isOnDNC(
-    organizationId: string,
+    owner: DNCOwnerScope,
     phoneNumber: string
   ): Promise<boolean> {
-    return this.dncRepo.isOnDNC(organizationId, phoneNumber);
+    return this.dncRepo.isOnDNC(owner, phoneNumber);
   }
 
-  async addToDNC(data: {
-    phoneNumber: string;
-    organizationId: string;
-    reason?: string;
-    source?: string;
-    addedByUserId?: string;
-  }) {
+  /**
+   * Same scope rules as `isOnDNC` but returns the matching entry so callers
+   * can show the reason / source / addedAt to the user.
+   */
+  async findOnDNC(owner: DNCOwnerScope, phoneNumber: string) {
+    return this.dncRepo.findByPhone(owner, phoneNumber);
+  }
+
+  async addToDNC(data: DNCCreateInput) {
     return this.dncRepo.create(data);
   }
 
-  async bulkAddToDNC(
-    entries: {
-      phoneNumber: string;
-      organizationId: string;
-      reason?: string;
-      source?: string;
-      addedByUserId?: string;
-    }[]
-  ) {
+  async bulkAddToDNC(entries: DNCCreateInput[]) {
     return this.dncRepo.createMany(entries);
   }
 
-  async removeFromDNC(organizationId: string, phoneNumber: string) {
-    return this.dncRepo.deleteByPhone(organizationId, phoneNumber);
+  async removeFromDNCByPhone(owner: DNCOwnerScope, phoneNumber: string) {
+    return this.dncRepo.deleteByPhone(owner, phoneNumber);
   }
 
   async listDNC(
-    organizationId: string,
+    owner: DNCOwnerScope,
     options?: { search?: string; page?: number; limit?: number }
   ) {
-    return this.dncRepo.listByOrganization(organizationId, options);
+    return this.dncRepo.listForOwner(owner, options);
   }
 
-  async checkDNCById(id: string) {
+  async deleteDNCById(id: string) {
     return this.dncRepo.delete(id);
   }
 
@@ -60,7 +64,6 @@ export class ComplianceService {
   }): boolean {
     const now = new Date();
 
-    // Get current time in campaign timezone
     const formatter = new Intl.DateTimeFormat("en-US", {
       timeZone: campaign.timezone,
       hour: "numeric",

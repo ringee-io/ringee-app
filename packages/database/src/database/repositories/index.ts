@@ -25,6 +25,7 @@ export * from "./disposition.repository";
 export * from "./retry-rule.repository";
 export * from "./callback-task.repository";
 export * from "./dnc-entry.repository";
+export * from "./reminder.repository";
 export * from "./voicemail-drop-asset.repository";
 export * from "./agent-session.repository";
 export * from "./outbound-analytics.repository";

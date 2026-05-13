@@ -22,5 +22,14 @@
     "title": "Dialer-sessie",
     "remaining": "{count} resterend",
     "completed": "{count} voltooid"
+  },
+  "dnc": {
+    "title": "Dit nummer staat op je Niet-bellen-lijst",
+    "description": "Dit contact is eerder gemarkeerd als Niet bellen. Doorgaan met dit gesprek kan in strijd zijn met compliance-regels en het beleid van je organisatie.",
+    "reasonLabel": "Reden",
+    "addedLabel": "Toegevoegd op",
+    "compliance": "Bel alleen als je een legitieme reden en de toestemming van de ontvanger hebt.",
+    "doNotCall": "Niet bellen",
+    "callAnyway": "Toch bellen"
   }
 }

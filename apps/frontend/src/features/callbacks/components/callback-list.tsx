@@ -24,21 +24,26 @@ import { CalendarClock, X } from 'lucide-react';
 
 interface CallbackEntry {
   id: string;
-  campaignLeadId: string;
-  agentUserId: string;
+  userId: string;
+  organizationId: string | null;
+  contactId: string;
+  callId: string | null;
+  campaignLeadId: string | null;
   scheduledAt: string;
   note: string | null;
   status: string;
   completedAt: string | null;
-  campaignLead?: {
-    contact?: {
-      name: string;
-      phoneNumber: string;
-    };
-    campaign?: {
-      name: string;
-    };
+  contact: {
+    id: string;
+    name: string | null;
+    phoneNumber: string;
+    company: string | null;
   };
+  campaignLead: {
+    id: string;
+    campaignId: string;
+    campaign: { id: string; name: string };
+  } | null;
 }
 
 const STATUS_COLORS: Record<string, string> = {
@@ -121,10 +126,10 @@ export function CallbackList() {
                   <TableCell>
                     <div>
                       <div className="font-medium">
-                        {cb.campaignLead?.contact?.name || 'Unknown'}
+                        {cb.contact.name || 'Unknown'}
                       </div>
                       <div className="text-xs text-muted-foreground">
-                        {cb.campaignLead?.contact?.phoneNumber}
+                        {cb.contact.phoneNumber}
                       </div>
                     </div>
                   </TableCell>

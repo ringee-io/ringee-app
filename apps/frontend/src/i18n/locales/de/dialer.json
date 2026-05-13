@@ -22,5 +22,14 @@
     "title": "Dialer-Sitzung",
     "remaining": "{count} verbleibend",
     "completed": "{count} abgeschlossen"
+  },
+  "dnc": {
+    "title": "Diese Nummer steht auf Ihrer Nicht-anrufen-Liste",
+    "description": "Dieser Kontakt wurde zuvor als „Nicht anrufen“ markiert. Diesen Anruf zu tätigen, könnte gegen Compliance-Regeln und die Richtlinie Ihrer Organisation verstoßen.",
+    "reasonLabel": "Grund",
+    "addedLabel": "Hinzugefügt am",
+    "compliance": "Rufen Sie nur an, wenn Sie einen legitimen Grund und die Zustimmung des Empfängers haben.",
+    "doNotCall": "Nicht anrufen",
+    "callAnyway": "Trotzdem anrufen"
   }
 }
