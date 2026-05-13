@@ -108,7 +108,23 @@
     "title": "Callbacks",
     "description": "View and manage scheduled callbacks from dialer sessions",
     "metaTitle": "Callbacks | Ringee",
-    "metaDescription": "View and manage scheduled callback tasks."
+    "metaDescription": "View and manage scheduled callback tasks.",
+    "disposition": "Schedule Callback",
+    "badge": "Callback scheduled during call",
+    "form": {
+      "timeLabel": "Time",
+      "noteLabel": "Note (optional)",
+      "notePlaceholder": "What did you agree on?",
+      "reminderHint": "We'll email you a reminder 15 and 5 minutes before.",
+      "cancel": "Cancel",
+      "confirm": "Schedule callback",
+      "success": "Callback scheduled — {date} at {time}",
+      "errors": {
+        "invalidTime": "Please pick a valid time",
+        "mustBeFuture": "Pick a time in the future",
+        "saveFailed": "Couldn't schedule callback"
+      }
+    }
   },
   "dnc": {
     "title": "Do Not Call",

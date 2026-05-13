@@ -22,5 +22,14 @@
     "title": "Session du composeur",
     "remaining": "{count} restants",
     "completed": "{count} terminés"
+  },
+  "dnc": {
+    "title": "Ce numéro figure sur votre liste « Ne pas appeler »",
+    "description": "Ce contact a déjà été marqué comme « Ne pas appeler ». Poursuivre cet appel pourrait enfreindre les règles de conformité et la politique de votre organisation.",
+    "reasonLabel": "Motif",
+    "addedLabel": "Ajouté le",
+    "compliance": "N'appelez que si vous avez un motif légitime et le consentement du destinataire.",
+    "doNotCall": "Ne pas appeler",
+    "callAnyway": "Appeler quand même"
   }
 }

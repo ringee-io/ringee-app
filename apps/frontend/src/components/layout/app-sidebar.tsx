@@ -51,7 +51,7 @@ import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 
 /** Groups that require an active organization session */
-const ORG_ONLY_GROUPS = ['Outreach'];
+const ORG_ONLY_GROUPS = [''];
 
 /** Maps the English labels in the shared `navGroups` constant to translation keys. */
 const GROUP_LABEL_KEYS: Record<string, string> = {

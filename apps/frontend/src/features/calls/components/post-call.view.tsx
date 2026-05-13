@@ -6,6 +6,7 @@ import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useCallStore, type CallOutcome } from '../store/call.store';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
   CalendarCheck,
@@ -18,9 +19,11 @@ import {
   ShieldAlert,
   Loader2,
   DollarSign,
-  Check
+  Check,
+  PhoneCall
 } from 'lucide-react';
 import { BookMeetingForm } from './book-meeting.form';
+import { ScheduleCallbackForm } from './schedule-callback.form';
 
 const OUTCOMES: {
   id: CallOutcome;
@@ -54,6 +57,13 @@ const OUTCOMES: {
     id: 'follow_up',
     label: 'Follow Up',
     icon: Clock,
+    color: 'text-amber-500',
+    bgActive: 'bg-amber-500/10 border-amber-500 text-amber-600 ring-1 ring-amber-500/20'
+  },
+  {
+    id: 'callback_scheduled',
+    label: 'Schedule Callback',
+    icon: PhoneCall,
     color: 'text-amber-500',
     bgActive: 'bg-amber-500/10 border-amber-500 text-amber-600 ring-1 ring-amber-500/20'
   },
@@ -103,6 +113,7 @@ export function PostCallView({ onClose }: PostCallViewProps) {
     outcome,
     outcomeNote,
     meetingBooked,
+    callbackScheduled,
     callDuration,
     callContactName,
     callContactId,
@@ -110,11 +121,14 @@ export function PostCallView({ onClose }: PostCallViewProps) {
     callSessionId,
     setOutcome,
     setOutcomeNote,
-    setMeetingBooked
+    setMeetingBooked,
+    setCallbackScheduled
   } = useCallStore();
   const api = useApi();
+  const t = useTranslations('calls.callbacks');
   const [isSaving, setIsSaving] = useState(false);
   const [showBooking, setShowBooking] = useState(false);
+  const [showCallback, setShowCallback] = useState(false);
 
   const durationLabel = `${Math.floor(callDuration / 60)}:${(callDuration % 60).toString().padStart(2, '0')}`;
 
@@ -142,6 +156,22 @@ export function PostCallView({ onClose }: PostCallViewProps) {
   const handleMeetingBooked = () => {
     setMeetingBooked(true);
     setShowBooking(false);
+  };
+
+  const handleCallbackScheduled = () => {
+    setCallbackScheduled(true);
+    setShowCallback(false);
+  };
+
+  const handleOutcomeClick = (id: CallOutcome) => {
+    setOutcome(id);
+    // Selecting `callback_scheduled` immediately opens the date/time picker.
+    // Deselecting it (or picking something else) hides the form.
+    if (id === 'callback_scheduled') {
+      if (!callbackScheduled) setShowCallback(true);
+    } else if (showCallback) {
+      setShowCallback(false);
+    }
   };
 
   const showBookingPrompt =
@@ -172,6 +202,16 @@ export function PostCallView({ onClose }: PostCallViewProps) {
         </div>
       )}
 
+      {/* Callback scheduled badge */}
+      {callbackScheduled && (
+        <div className='flex items-center gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 px-3 py-2.5'>
+          <PhoneCall className='h-4 w-4 text-amber-500' />
+          <span className='text-sm font-medium text-amber-600'>
+            {t('badge')}
+          </span>
+        </div>
+      )}
+
       {/* Outcomes */}
       <div className='flex flex-col gap-3 mb-2'>
         <p className='text-xs font-medium uppercase tracking-wider text-muted-foreground'>Successful Outcomes</p>
@@ -182,7 +222,7 @@ export function PostCallView({ onClose }: PostCallViewProps) {
             return (
               <button
                 key={o.id}
-                onClick={() => setOutcome(o.id)}
+                onClick={() => handleOutcomeClick(o.id)}
                 className={cn(
                   'flex items-center gap-3 rounded-xl border p-3 text-sm font-semibold transition-all duration-200 active:scale-95',
                   isSelected
@@ -207,7 +247,7 @@ export function PostCallView({ onClose }: PostCallViewProps) {
             return (
               <button
                 key={o.id}
-                onClick={() => setOutcome(o.id)}
+                onClick={() => handleOutcomeClick(o.id)}
                 className={cn(
                   'flex flex-col items-center gap-1.5 rounded-lg border px-2 py-3 text-xs font-medium transition-all duration-200 active:scale-95',
                   isSelected
@@ -216,7 +256,9 @@ export function PostCallView({ onClose }: PostCallViewProps) {
                 )}
               >
                 <Icon className={cn('h-4 w-4 mb-0.5', isSelected ? '' : o.color)} />
-                <span className='leading-tight text-center'>{o.label}</span>
+                <span className='leading-tight text-center'>
+                  {o.id === 'callback_scheduled' ? t('disposition') : o.label}
+                </span>
               </button>
             );
           })}
@@ -244,6 +286,16 @@ export function PostCallView({ onClose }: PostCallViewProps) {
         />
       )}
 
+      {/* Inline callback scheduling form */}
+      {showCallback && callContactId && (
+        <ScheduleCallbackForm
+          contactId={callContactId}
+          callId={callId}
+          onScheduled={handleCallbackScheduled}
+          onCancel={() => setShowCallback(false)}
+        />
+      )}
+
       {/* Note */}
       <Textarea
         placeholder='Add a quick note...'
@@ -263,7 +315,11 @@ export function PostCallView({ onClose }: PostCallViewProps) {
         </button>
         <Button
           onClick={handleSave}
-          disabled={!outcome || isSaving}
+          disabled={
+            !outcome ||
+            isSaving ||
+            (outcome === 'callback_scheduled' && !callbackScheduled)
+          }
           className='flex-1'
           size='sm'
         >

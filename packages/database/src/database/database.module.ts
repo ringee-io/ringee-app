@@ -27,6 +27,7 @@ import { DispositionRepository } from "./repositories/disposition.repository";
 import { RetryRuleRepository } from "./repositories/retry-rule.repository";
 import { CallbackTaskRepository } from "./repositories/callback-task.repository";
 import { DNCEntryRepository } from "./repositories/dnc-entry.repository";
+import { ReminderRepository } from "./repositories/reminder.repository";
 import { VoicemailDropAssetRepository } from "./repositories/voicemail-drop-asset.repository";
 import { AgentSessionRepository } from "./repositories/agent-session.repository";
 import { OutboundAnalyticsRepository } from "./repositories/outbound-analytics.repository";
@@ -86,6 +87,7 @@ const databaseProviders = [
   RetryRuleRepository,
   CallbackTaskRepository,
   DNCEntryRepository,
+  ReminderRepository,
   VoicemailDropAssetRepository,
   AgentSessionRepository,
   OutboundAnalyticsRepository,

@@ -108,7 +108,23 @@
     "title": "Devoluciones de llamada",
     "description": "Consulta y gestiona las devoluciones programadas desde el marcador",
     "metaTitle": "Devoluciones | Ringee",
-    "metaDescription": "Consulta y gestiona las tareas de devolución de llamada programadas."
+    "metaDescription": "Consulta y gestiona las tareas de devolución de llamada programadas.",
+    "disposition": "Agendar devolución",
+    "badge": "Devolución agendada durante la llamada",
+    "form": {
+      "timeLabel": "Hora",
+      "noteLabel": "Nota (opcional)",
+      "notePlaceholder": "¿En qué quedaron?",
+      "reminderHint": "Te enviaremos un recordatorio por email 15 y 5 minutos antes.",
+      "cancel": "Cancelar",
+      "confirm": "Agendar devolución",
+      "success": "Devolución agendada — {date} a las {time}",
+      "errors": {
+        "invalidTime": "Elige una hora válida",
+        "mustBeFuture": "Elige una hora en el futuro",
+        "saveFailed": "No se pudo agendar la devolución"
+      }
+    }
   },
   "dnc": {
     "title": "No llamar",

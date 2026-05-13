@@ -98,7 +98,23 @@
     "title": "Richiami",
     "description": "Visualizza e gestisci i richiami pianificati dal dialer",
     "metaTitle": "Richiami | Ringee",
-    "metaDescription": "Visualizza e gestisci le attività di richiamo pianificate."
+    "metaDescription": "Visualizza e gestisci le attività di richiamo pianificate.",
+    "disposition": "Pianifica richiamo",
+    "badge": "Richiamo pianificato durante la chiamata",
+    "form": {
+      "timeLabel": "Ora",
+      "noteLabel": "Nota (facoltativa)",
+      "notePlaceholder": "Cosa avete concordato?",
+      "reminderHint": "Ti invieremo un promemoria via email 15 e 5 minuti prima.",
+      "cancel": "Annulla",
+      "confirm": "Pianifica richiamo",
+      "success": "Richiamo pianificato — {date} alle {time}",
+      "errors": {
+        "invalidTime": "Scegli un orario valido",
+        "mustBeFuture": "Scegli un orario nel futuro",
+        "saveFailed": "Impossibile pianificare il richiamo"
+      }
+    }
   },
   "dnc": {
     "title": "Non chiamare",

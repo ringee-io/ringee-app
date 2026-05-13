@@ -6,20 +6,24 @@ import {
   Body,
   Param,
   Query,
-  ForbiddenException,
+  BadRequestException,
 } from "@nestjs/common";
-import { CurrentUser, createOwnershipContext } from "@ringee/platform";
+import {
+  CurrentUser,
+  CurrentUserData,
+  createOwnershipContext,
+} from "@ringee/platform";
 import { ComplianceService } from "@ringee/services";
-
-interface CurrentUserData {
-  id: string;
-  activeOrgId?: string | null;
-}
 
 @Controller("dnc")
 export class DNCController {
   constructor(private readonly complianceService: ComplianceService) {}
 
+  /**
+   * List DNC entries for the current scope.
+   * - Org context (user has activeOrgId): returns the organization's DNC list.
+   * - Freelancer context: returns the user's personal DNC list.
+   */
   @Get()
   async listDNC(
     @CurrentUser() user: CurrentUserData,
@@ -27,11 +31,8 @@ export class DNCController {
     @Query("page") page = "1",
     @Query("limit") limit = "20"
   ) {
-    if (!user.activeOrgId) {
-      throw new ForbiddenException("Organization required");
-    }
     const ctx = createOwnershipContext(user);
-    return this.complianceService.listDNC(ctx.organizationId!, {
+    return this.complianceService.listDNC(ctx, {
       search,
       page: Number(page),
       limit: Number(limit),
@@ -43,13 +44,14 @@ export class DNCController {
     @Body() body: { phoneNumber: string; reason?: string },
     @CurrentUser() user: CurrentUserData
   ) {
-    if (!user.activeOrgId) {
-      throw new ForbiddenException("Organization required");
+    if (!body.phoneNumber) {
+      throw new BadRequestException("phoneNumber is required");
     }
     const ctx = createOwnershipContext(user);
     return this.complianceService.addToDNC({
       phoneNumber: body.phoneNumber,
-      organizationId: ctx.organizationId!,
+      userId: ctx.userId,
+      organizationId: ctx.organizationId ?? null,
       reason: body.reason,
       source: "manual",
       addedByUserId: ctx.userId,
@@ -61,14 +63,15 @@ export class DNCController {
     @Body() body: { phoneNumbers: string[]; reason?: string },
     @CurrentUser() user: CurrentUserData
   ) {
-    if (!user.activeOrgId) {
-      throw new ForbiddenException("Organization required");
+    if (!Array.isArray(body.phoneNumbers) || body.phoneNumbers.length === 0) {
+      throw new BadRequestException("phoneNumbers must be a non-empty array");
     }
     const ctx = createOwnershipContext(user);
     return this.complianceService.bulkAddToDNC(
       body.phoneNumbers.map((phone) => ({
         phoneNumber: phone,
-        organizationId: ctx.organizationId!,
+        userId: ctx.userId,
+        organizationId: ctx.organizationId ?? null,
         reason: body.reason,
         source: "import",
         addedByUserId: ctx.userId,
@@ -81,19 +84,19 @@ export class DNCController {
     @Param("phoneNumber") phoneNumber: string,
     @CurrentUser() user: CurrentUserData
   ) {
-    if (!user.activeOrgId) {
-      throw new ForbiddenException("Organization required");
-    }
     const ctx = createOwnershipContext(user);
-    const isOnDNC = await this.complianceService.isOnDNC(
-      ctx.organizationId!,
-      phoneNumber
-    );
-    return { phoneNumber, isOnDNC };
+    const entry = await this.complianceService.findOnDNC(ctx, phoneNumber);
+    return {
+      phoneNumber,
+      isOnDNC: entry !== null,
+      reason: entry?.reason ?? null,
+      source: entry?.source ?? null,
+      addedAt: entry?.createdAt ?? null,
+    };
   }
 
   @Delete(":id")
   async removeFromDNC(@Param("id") id: string) {
-    return this.complianceService.checkDNCById(id);
+    return this.complianceService.deleteDNCById(id);
   }
 }

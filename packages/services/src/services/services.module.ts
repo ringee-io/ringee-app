@@ -1,4 +1,4 @@
-import { Global, Module } from "@nestjs/common";
+import { Global, Module, Provider } from "@nestjs/common";
 import { UserService } from "./user.service";
 import {
   AuthModule,
@@ -71,6 +71,11 @@ import {
   CustomFieldsService,
 } from "./enrichment";
 import { InboxTimelineService, MessageService } from "./inbox";
+import {
+  EmailReminderChannel,
+  REMINDER_CHANNELS,
+  ReminderService,
+} from "./reminders";
 
 const servicesProviders = [
   UserService,
@@ -135,12 +140,26 @@ const servicesProviders = [
   // Inbox / messaging
   InboxTimelineService,
   MessageService,
+  // Reminders
+  ReminderService,
+  EmailReminderChannel,
+];
+
+const reminderChannelsProvider: Provider = {
+  provide: REMINDER_CHANNELS,
+  useFactory: (email: EmailReminderChannel) => [email],
+  inject: [EmailReminderChannel],
+};
+
+const allProviders: Provider[] = [
+  ...servicesProviders,
+  reminderChannelsProvider,
 ];
 
 @Global()
 @Module({
   imports: [AuthModule, NotificationModule, TelephonyModule, StripeModule, CrmModule, EnrichmentModule, RedisModule, CryptoModule],
-  providers: servicesProviders,
-  exports: servicesProviders,
+  providers: allProviders,
+  exports: allProviders,
 })
 export class ServicesModule { }

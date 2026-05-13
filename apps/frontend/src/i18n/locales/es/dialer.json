@@ -22,5 +22,14 @@
     "title": "Sesión del marcador",
     "remaining": "{count} pendientes",
     "completed": "{count} completados"
+  },
+  "dnc": {
+    "title": "Este número está en tu lista de No Llamar",
+    "description": "Este contacto fue marcado anteriormente como No Llamar. Continuar con esta llamada podría infringir las reglas de cumplimiento y la política de tu organización.",
+    "reasonLabel": "Motivo",
+    "addedLabel": "Añadido el",
+    "compliance": "Llama únicamente si tienes un motivo legítimo y el consentimiento del destinatario.",
+    "doNotCall": "No llamar",
+    "callAnyway": "Llamar de todos modos"
   }
 }

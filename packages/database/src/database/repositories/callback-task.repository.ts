@@ -1,18 +1,26 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
-import { CallbackTask, CallbackStatus } from "@prisma/client";
+import { CallbackTask, CallbackStatus, Prisma } from "@prisma/client";
 
-export interface CallbackTaskWithLead extends CallbackTask {
-  campaignLead: {
+export interface CallbackTaskWithContext extends CallbackTask {
+  contact: {
     id: string;
-    campaignId: string;
-    contact: {
-      id: string;
-      name: string | null;
-      phoneNumber: string;
-      company: string | null;
-    };
+    name: string | null;
+    phoneNumber: string;
+    company: string | null;
   };
+  campaignLead:
+    | {
+        id: string;
+        campaignId: string;
+        campaign: { id: string; name: string };
+      }
+    | null;
+}
+
+export interface CallbackOwnerFilter {
+  userId: string;
+  organizationId?: string | null;
 }
 
 @Injectable()
@@ -20,29 +28,49 @@ export class CallbackTaskRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async create(data: {
-    campaignLeadId: string;
-    agentUserId: string;
+    userId: string;
+    organizationId?: string | null;
+    contactId: string;
+    callId?: string | null;
+    campaignLeadId?: string | null;
     scheduledAt: Date;
     note?: string;
   }): Promise<CallbackTask> {
-    return this.prisma.callbackTask.create({ data });
+    return this.prisma.callbackTask.create({
+      data: {
+        userId: data.userId,
+        organizationId: data.organizationId ?? null,
+        contactId: data.contactId,
+        callId: data.callId ?? null,
+        campaignLeadId: data.campaignLeadId ?? null,
+        scheduledAt: data.scheduledAt,
+        note: data.note,
+      },
+    });
   }
 
   async findById(id: string): Promise<CallbackTask | null> {
     return this.prisma.callbackTask.findUnique({ where: { id } });
   }
 
-  async findByAgent(
-    agentUserId: string,
+  /**
+   * List callbacks visible to the given owner context.
+   * - Org context: returns every callback in the organization.
+   * - Freelancer context: returns the user's personal callbacks (organizationId IS NULL).
+   */
+  async listForOwner(
+    owner: CallbackOwnerFilter,
     options?: { status?: CallbackStatus; page?: number; limit?: number }
   ): Promise<{
-    data: CallbackTaskWithLead[];
+    data: CallbackTaskWithContext[];
     meta: { total: number; page: number; limit: number; totalPages: number };
   }> {
     const { status, page = 1, limit = 20 } = options || {};
 
-    const where = {
-      agentUserId,
+    const where: Prisma.CallbackTaskWhereInput = {
+      ...(owner.organizationId
+        ? { organizationId: owner.organizationId }
+        : { userId: owner.userId, organizationId: null }),
       ...(status ? { status } : {}),
     };
 
@@ -50,16 +78,19 @@ export class CallbackTaskRepository {
     const data = await this.prisma.callbackTask.findMany({
       where,
       include: {
+        contact: {
+          select: {
+            id: true,
+            name: true,
+            phoneNumber: true,
+            company: true,
+          },
+        },
         campaignLead: {
-          include: {
-            contact: {
-              select: {
-                id: true,
-                name: true,
-                phoneNumber: true,
-                company: true,
-              },
-            },
+          select: {
+            id: true,
+            campaignId: true,
+            campaign: { select: { id: true, name: true } },
           },
         },
       },
@@ -69,7 +100,7 @@ export class CallbackTaskRepository {
     });
 
     return {
-      data: data as CallbackTaskWithLead[],
+      data: data as CallbackTaskWithContext[],
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -105,6 +136,13 @@ export class CallbackTaskRepository {
   async findByCampaignLead(campaignLeadId: string): Promise<CallbackTask[]> {
     return this.prisma.callbackTask.findMany({
       where: { campaignLeadId },
+      orderBy: { scheduledAt: "desc" },
+    });
+  }
+
+  async findByContact(contactId: string): Promise<CallbackTask[]> {
+    return this.prisma.callbackTask.findMany({
+      where: { contactId },
       orderBy: { scheduledAt: "desc" },
     });
   }

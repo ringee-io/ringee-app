@@ -230,9 +230,11 @@ export class CallAttemptService {
       if (leadData) {
         await this.complianceService.addToDNC({
           phoneNumber: leadData.campaignLead.contact.phoneNumber,
+          userId: attempt.agentUserId,
           organizationId: data.organizationId,
           reason: `Disposition: ${disposition.label}`,
           source: "disposition",
+          addedByUserId: attempt.agentUserId,
         });
       }
       action = "dnc";
@@ -240,9 +242,9 @@ export class CallAttemptService {
       disposition.triggersCallback &&
       data.callback?.scheduledAt
     ) {
-      await this.callbackService.schedule({
+      await this.callbackService.scheduleFromCampaign({
         campaignLeadId: attempt.campaignLeadId,
-        agentUserId: attempt.agentUserId,
+        userId: attempt.agentUserId,
         scheduledAt: data.callback.scheduledAt,
         note: data.callback.note,
       });

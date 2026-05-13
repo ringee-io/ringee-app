@@ -98,7 +98,23 @@
     "title": "Retornos de chamada",
     "description": "Consulte e gira retornos agendados a partir das sessões do marcador",
     "metaTitle": "Retornos de chamada | Ringee",
-    "metaDescription": "Consulte e gira tarefas de retorno de chamada agendadas."
+    "metaDescription": "Consulte e gira tarefas de retorno de chamada agendadas.",
+    "disposition": "Agendar retorno",
+    "badge": "Retorno agendado durante a chamada",
+    "form": {
+      "timeLabel": "Hora",
+      "noteLabel": "Nota (opcional)",
+      "notePlaceholder": "O que combinaram?",
+      "reminderHint": "Enviaremos um lembrete por e-mail 15 e 5 minutos antes.",
+      "cancel": "Cancelar",
+      "confirm": "Agendar retorno",
+      "success": "Retorno agendado — {date} às {time}",
+      "errors": {
+        "invalidTime": "Escolha uma hora válida",
+        "mustBeFuture": "Escolha uma hora no futuro",
+        "saveFailed": "Não foi possível agendar o retorno"
+      }
+    }
   },
   "dnc": {
     "title": "Não ligar",

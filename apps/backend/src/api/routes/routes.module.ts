@@ -41,6 +41,7 @@ import { CustomFieldsController } from "./custom-fields.controller";
 import { EnrichmentFeatureGuard } from "../guards/enrichment-feature.guard";
 import { InboxController } from "./inbox.controller";
 import { MessagingWebhookController } from "./messaging.webhook.controller";
+import { ReminderController } from "./reminder.controller";
 
 @Module({
   controllers: [
@@ -77,6 +78,7 @@ import { MessagingWebhookController } from "./messaging.webhook.controller";
     CustomFieldsController,
     InboxController,
     MessagingWebhookController,
+    ReminderController,
   ],
   providers: [EnrichmentFeatureGuard],
   imports: [

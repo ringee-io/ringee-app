@@ -1,56 +1,85 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
-import { DNCEntry } from "@prisma/client";
+import { DNCEntry, Prisma } from "@prisma/client";
+
+export interface DNCOwnerScope {
+  userId: string;
+  organizationId?: string | null;
+}
+
+export interface DNCCreateInput {
+  phoneNumber: string;
+  userId: string;
+  organizationId?: string | null;
+  reason?: string;
+  source?: string;
+  addedByUserId?: string;
+}
 
 @Injectable()
 export class DNCEntryRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: {
-    phoneNumber: string;
-    organizationId: string;
-    reason?: string;
-    source?: string;
-    addedByUserId?: string;
-  }): Promise<DNCEntry> {
-    return this.prisma.dNCEntry.create({ data });
+  /**
+   * Build the WHERE clause for the owner's DNC list. Org context queries the
+   * org list only; freelancer context queries the user's personal list only.
+   * The two are never mixed.
+   */
+  private ownerWhere(owner: DNCOwnerScope): Prisma.DNCEntryWhereInput {
+    return owner.organizationId
+      ? { organizationId: owner.organizationId }
+      : { userId: owner.userId, organizationId: null };
   }
 
-  async createMany(
-    entries: {
-      phoneNumber: string;
-      organizationId: string;
-      reason?: string;
-      source?: string;
-      addedByUserId?: string;
-    }[]
-  ): Promise<number> {
+  async create(data: DNCCreateInput): Promise<DNCEntry> {
+    return this.prisma.dNCEntry.create({
+      data: {
+        phoneNumber: data.phoneNumber,
+        userId: data.userId,
+        organizationId: data.organizationId ?? null,
+        reason: data.reason,
+        source: data.source,
+        addedByUserId: data.addedByUserId,
+      },
+    });
+  }
+
+  async createMany(entries: DNCCreateInput[]): Promise<number> {
     const result = await this.prisma.dNCEntry.createMany({
-      data: entries,
+      data: entries.map((e) => ({
+        phoneNumber: e.phoneNumber,
+        userId: e.userId,
+        organizationId: e.organizationId ?? null,
+        reason: e.reason,
+        source: e.source,
+        addedByUserId: e.addedByUserId,
+      })),
       skipDuplicates: true,
     });
     return result.count;
   }
 
   async findByPhone(
-    organizationId: string,
+    owner: DNCOwnerScope,
     phoneNumber: string
   ): Promise<DNCEntry | null> {
-    return this.prisma.dNCEntry.findUnique({
-      where: { organizationId_phoneNumber: { organizationId, phoneNumber } },
+    return this.prisma.dNCEntry.findFirst({
+      where: { ...this.ownerWhere(owner), phoneNumber },
     });
   }
 
   async isOnDNC(
-    organizationId: string,
+    owner: DNCOwnerScope,
     phoneNumber: string
   ): Promise<boolean> {
-    const entry = await this.findByPhone(organizationId, phoneNumber);
-    return entry !== null;
+    const count = await this.prisma.dNCEntry.count({
+      where: { ...this.ownerWhere(owner), phoneNumber },
+    });
+    return count > 0;
   }
 
-  async listByOrganization(
-    organizationId: string,
+  async listForOwner(
+    owner: DNCOwnerScope,
     options?: { search?: string; page?: number; limit?: number }
   ): Promise<{
     data: DNCEntry[];
@@ -58,8 +87,8 @@ export class DNCEntryRepository {
   }> {
     const { search, page = 1, limit = 20 } = options || {};
 
-    const where = {
-      organizationId,
+    const where: Prisma.DNCEntryWhereInput = {
+      ...this.ownerWhere(owner),
       ...(search ? { phoneNumber: { contains: search } } : {}),
     };
 
@@ -82,11 +111,12 @@ export class DNCEntryRepository {
   }
 
   async deleteByPhone(
-    organizationId: string,
+    owner: DNCOwnerScope,
     phoneNumber: string
-  ): Promise<DNCEntry> {
-    return this.prisma.dNCEntry.delete({
-      where: { organizationId_phoneNumber: { organizationId, phoneNumber } },
+  ): Promise<number> {
+    const result = await this.prisma.dNCEntry.deleteMany({
+      where: { ...this.ownerWhere(owner), phoneNumber },
     });
+    return result.count;
   }
 }
