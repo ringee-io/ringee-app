@@ -98,7 +98,23 @@
     "title": "Terugbelverzoeken",
     "description": "Bekijk en beheer geplande terugbelverzoeken vanuit dialer-sessies",
     "metaTitle": "Terugbelverzoeken | Ringee",
-    "metaDescription": "Bekijk en beheer geplande terugbeltaken."
+    "metaDescription": "Bekijk en beheer geplande terugbeltaken.",
+    "disposition": "Terugbelverzoek plannen",
+    "badge": "Terugbelverzoek tijdens gesprek gepland",
+    "form": {
+      "timeLabel": "Tijd",
+      "noteLabel": "Notitie (optioneel)",
+      "notePlaceholder": "Wat hebben jullie afgesproken?",
+      "reminderHint": "We sturen je 15 en 5 minuten van tevoren een herinnering per e-mail.",
+      "cancel": "Annuleren",
+      "confirm": "Terugbelverzoek plannen",
+      "success": "Terugbelverzoek gepland — {date} om {time}",
+      "errors": {
+        "invalidTime": "Kies een geldige tijd",
+        "mustBeFuture": "Kies een tijd in de toekomst",
+        "saveFailed": "Terugbelverzoek kon niet worden gepland"
+      }
+    }
   },
   "dnc": {
     "title": "Niet bellen",

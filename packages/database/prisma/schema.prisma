@@ -27,6 +27,7 @@ enum CallOutcome {
   sale
   interested
   follow_up
+  callback_scheduled
   not_interested
   no_answer
   voicemail

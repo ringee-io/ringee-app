@@ -7,6 +7,7 @@ export type CallOutcome =
   | 'sale'
   | 'interested'
   | 'follow_up'
+  | 'callback_scheduled'
   | 'not_interested'
   | 'no_answer'
   | 'voicemail'
@@ -25,6 +26,7 @@ interface CallState {
   outcome: CallOutcome | null;
   outcomeNote: string;
   meetingBooked: boolean;
+  callbackScheduled: boolean;
   callDuration: number;
   callContactName: string | null;
   callContactId: string | null;
@@ -55,6 +57,7 @@ interface CallState {
   setOutcome: (outcome: CallOutcome | null) => void;
   setOutcomeNote: (note: string) => void;
   setMeetingBooked: (booked: boolean) => void;
+  setCallbackScheduled: (scheduled: boolean) => void;
   setBookingPanelOpen: (open: boolean) => void;
   reset: () => void;
 }
@@ -68,6 +71,7 @@ const initialState = {
   outcome: null,
   outcomeNote: '',
   meetingBooked: false,
+  callbackScheduled: false,
   callDuration: 0,
   callContactName: null,
   callContactId: null,
@@ -105,6 +109,11 @@ export const useCallStore = create<CallState>((set) => ({
     set({
       meetingBooked: booked,
       outcome: booked ? 'meeting_booked' : null
+    }),
+  setCallbackScheduled: (scheduled) =>
+    set({
+      callbackScheduled: scheduled,
+      outcome: scheduled ? 'callback_scheduled' : null
     }),
   setBookingPanelOpen: (open) => set({ bookingPanelOpen: open }),
   reset: () => set(initialState)

@@ -98,7 +98,23 @@
     "title": "Rückrufe",
     "description": "Geplante Rückrufe aus Dialer-Sitzungen einsehen und verwalten",
     "metaTitle": "Rückrufe | Ringee",
-    "metaDescription": "Geplante Rückrufaufgaben einsehen und verwalten."
+    "metaDescription": "Geplante Rückrufaufgaben einsehen und verwalten.",
+    "disposition": "Rückruf planen",
+    "badge": "Rückruf während des Gesprächs geplant",
+    "form": {
+      "timeLabel": "Uhrzeit",
+      "noteLabel": "Notiz (optional)",
+      "notePlaceholder": "Was haben Sie vereinbart?",
+      "reminderHint": "Wir senden Ihnen 15 und 5 Minuten vorher eine Erinnerung per E-Mail.",
+      "cancel": "Abbrechen",
+      "confirm": "Rückruf planen",
+      "success": "Rückruf geplant — {date} um {time}",
+      "errors": {
+        "invalidTime": "Wählen Sie eine gültige Uhrzeit",
+        "mustBeFuture": "Wählen Sie eine Uhrzeit in der Zukunft",
+        "saveFailed": "Rückruf konnte nicht geplant werden"
+      }
+    }
   },
   "dnc": {
     "title": "Nicht anrufen",

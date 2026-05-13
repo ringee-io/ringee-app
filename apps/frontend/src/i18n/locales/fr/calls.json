@@ -98,7 +98,23 @@
     "title": "Rappels",
     "description": "Consultez et gérez les rappels planifiés depuis le composeur",
     "metaTitle": "Rappels | Ringee",
-    "metaDescription": "Consultez et gérez les tâches de rappel planifiées."
+    "metaDescription": "Consultez et gérez les tâches de rappel planifiées.",
+    "disposition": "Planifier un rappel",
+    "badge": "Rappel planifié pendant l'appel",
+    "form": {
+      "timeLabel": "Heure",
+      "noteLabel": "Note (facultative)",
+      "notePlaceholder": "Qu'avez-vous convenu ?",
+      "reminderHint": "Nous vous enverrons un rappel par e-mail 15 et 5 minutes avant.",
+      "cancel": "Annuler",
+      "confirm": "Planifier le rappel",
+      "success": "Rappel planifié — {date} à {time}",
+      "errors": {
+        "invalidTime": "Choisissez une heure valide",
+        "mustBeFuture": "Choisissez une heure dans le futur",
+        "saveFailed": "Impossible de planifier le rappel"
+      }
+    }
   },
   "dnc": {
     "title": "Ne pas appeler",
