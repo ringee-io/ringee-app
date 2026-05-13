@@ -23,7 +23,9 @@ export class EmailReminderChannel implements ReminderChannel {
     const result = await this.provider.sendEmail(
       recipient.email,
       content.subject,
-      content.bodyHtml
+      content.bodyHtml,
+      "no-reply",
+      "no-reply@notifications.ringee.io"
     );
 
     this.logger.debug(

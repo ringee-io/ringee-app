@@ -163,7 +163,8 @@ export class ReminderService {
 
         const content = this.buildContent(
           reminder.subjectType,
-          subjectCtx
+          subjectCtx,
+          reminder.fireAt
         );
 
         for (const channelKind of reminder.channels) {
@@ -269,19 +270,25 @@ export class ReminderService {
     subjectType: ReminderSubjectType,
     subjectCtx: NonNullable<
       Awaited<ReturnType<ReminderService["loadSubjectContext"]>>
-    >
+    >,
+    fireAt: Date
   ): ReminderContent {
     const when = subjectCtx.scheduledAt.toLocaleString(undefined, {
       dateStyle: "medium",
       timeStyle: "short",
     });
+    const minutesUntil = Math.max(
+      1,
+      Math.round((subjectCtx.scheduledAt.getTime() - fireAt.getTime()) / 60_000)
+    );
+    const subjectTimeLabel = `${this.formatClock(subjectCtx.scheduledAt)}(in ${minutesUntil} min)`;
     const contactLine = subjectCtx.contact
       ? `${subjectCtx.contact.name ?? "Unknown"} (${subjectCtx.contact.phoneNumber})`
       : "Unknown contact";
 
     if (subjectType === ReminderSubjectType.meeting) {
       const title = subjectCtx.title?.trim() || "Upcoming meeting";
-      const subject = `Reminder: ${title} at ${when}`;
+      const subject = `Reminder: ${title} ${subjectTimeLabel}`;
       const linkLine = this.isLikelyUrl(subjectCtx.location)
         ? `Join: ${subjectCtx.location}`
         : subjectCtx.location
@@ -303,7 +310,7 @@ export class ReminderService {
     // callback / followup
     const subject = `Reminder: callback with ${
       subjectCtx.contact?.name ?? "your lead"
-    } at ${when}`;
+    } ${subjectTimeLabel}`;
     const bodyText = [
       `You have a scheduled callback.`,
       `When: ${when}`,
@@ -317,6 +324,14 @@ export class ReminderService {
       bodyText,
       bodyHtml: bodyText.replace(/\n/g, "<br>"),
     };
+  }
+
+  private formatClock(date: Date): string {
+    const h24 = date.getHours();
+    const m = date.getMinutes();
+    const period = h24 >= 12 ? "pm" : "am";
+    const h12 = h24 % 12 === 0 ? 12 : h24 % 12;
+    return `${h12}:${m.toString().padStart(2, "0")}${period}`;
   }
 
   private toHtml(text: string, maybeUrl?: string | null): string {
