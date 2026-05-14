@@ -31,5 +31,50 @@
     "compliance": "N'appelez que si vous avez un motif légitime et le consentement du destinataire.",
     "doNotCall": "Ne pas appeler",
     "callAnyway": "Appeler quand même"
+  },
+  "sidePanel": {
+    "workQueue": "File de travail",
+    "dueCount": "{count} à traiter",
+    "pendingCount": "{count} en attente",
+    "tabs": {
+      "callbacks": "Rappels",
+      "today": "Aujourd'hui",
+      "recent": "Récents"
+    },
+    "callbacks": {
+      "emptyTitle": "Aucun rappel en attente",
+      "emptyDescription": "Bon travail — votre file est vide.",
+      "createdBy": "Créé par {name}",
+      "unknownUser": "Inconnu",
+      "actions": {
+        "call": "Appeler maintenant",
+        "viewContact": "Voir le contact",
+        "cancel": "Annuler le rappel"
+      }
+    },
+    "today": {
+      "emptyTitle": "Aucune réunion aujourd'hui",
+      "emptyDescription": "Les réunions planifiées pour aujourd'hui apparaîtront ici.",
+      "joinLink": "Lien de réunion",
+      "actions": {
+        "join": "Rejoindre la réunion",
+        "callContact": "Appeler le contact"
+      }
+    },
+    "recent": {
+      "emptyTitle": "Aucun appel récent",
+      "emptyDescription": "Les appels sortants que vous passez apparaîtront ici pour les recomposer rapidement.",
+      "actions": {
+        "redial": "Recomposer"
+      }
+    },
+    "relative": {
+      "now": "maintenant",
+      "inMinutes": "dans {count}m",
+      "minutesAgo": "il y a {count}m",
+      "inHours": "dans {count}h",
+      "hoursAgo": "il y a {count}h",
+      "tomorrowAt": "demain {time}"
+    }
   }
 }

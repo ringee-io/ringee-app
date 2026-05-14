@@ -37,7 +37,7 @@ export class CallbackController {
     @CurrentUser() user: CurrentUserData,
     @Query("status") status?: string,
     @Query("page") page = "1",
-    @Query("limit") limit = "20"
+    @Query("limit") limit = "20",
   ) {
     const ctx = createOwnershipContext(user);
     return this.callbackService.listForOwner(ctx, {
@@ -55,7 +55,7 @@ export class CallbackController {
   @Post()
   async create(
     @CurrentUser() user: CurrentUserData,
-    @Body() body: CreateCallbackBody
+    @Body() body: CreateCallbackBody,
   ) {
     if (!body.contactId) {
       throw new BadRequestException("contactId is required");
@@ -84,10 +84,7 @@ export class CallbackController {
   }
 
   @Patch(":id/cancel")
-  async cancel(
-    @CurrentUser() user: CurrentUserData,
-    @Param("id") id: string
-  ) {
+  async cancel(@CurrentUser() user: CurrentUserData, @Param("id") id: string) {
     await this.callbackService.findOwnedById(id, createOwnershipContext(user));
     return this.callbackService.cancel(id);
   }
@@ -95,7 +92,7 @@ export class CallbackController {
   @Patch(":id/complete")
   async complete(
     @CurrentUser() user: CurrentUserData,
-    @Param("id") id: string
+    @Param("id") id: string,
   ) {
     await this.callbackService.findOwnedById(id, createOwnershipContext(user));
     return this.callbackService.markCompleted(id);
@@ -105,7 +102,7 @@ export class CallbackController {
   async reschedule(
     @CurrentUser() user: CurrentUserData,
     @Param("id") id: string,
-    @Body() body: { scheduledAt: string }
+    @Body() body: { scheduledAt: string },
   ) {
     await this.callbackService.findOwnedById(id, createOwnershipContext(user));
 

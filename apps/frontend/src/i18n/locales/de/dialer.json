@@ -31,5 +31,50 @@
     "compliance": "Rufen Sie nur an, wenn Sie einen legitimen Grund und die Zustimmung des Empfängers haben.",
     "doNotCall": "Nicht anrufen",
     "callAnyway": "Trotzdem anrufen"
+  },
+  "sidePanel": {
+    "workQueue": "Arbeitsliste",
+    "dueCount": "{count} fällig",
+    "pendingCount": "{count} ausstehend",
+    "tabs": {
+      "callbacks": "Rückrufe",
+      "today": "Heute",
+      "recent": "Zuletzt"
+    },
+    "callbacks": {
+      "emptyTitle": "Keine offenen Rückrufe",
+      "emptyDescription": "Gute Arbeit — deine Liste ist leer.",
+      "createdBy": "Erstellt von {name}",
+      "unknownUser": "Unbekannt",
+      "actions": {
+        "call": "Jetzt anrufen",
+        "viewContact": "Kontakt anzeigen",
+        "cancel": "Rückruf abbrechen"
+      }
+    },
+    "today": {
+      "emptyTitle": "Keine Meetings heute",
+      "emptyDescription": "Heute geplante Meetings erscheinen hier.",
+      "joinLink": "Meeting-Link",
+      "actions": {
+        "join": "Meeting beitreten",
+        "callContact": "Kontakt anrufen"
+      }
+    },
+    "recent": {
+      "emptyTitle": "Keine letzten Anrufe",
+      "emptyDescription": "Deine ausgehenden Anrufe erscheinen hier für schnelle Wahlwiederholung.",
+      "actions": {
+        "redial": "Erneut wählen"
+      }
+    },
+    "relative": {
+      "now": "jetzt",
+      "inMinutes": "in {count}m",
+      "minutesAgo": "vor {count}m",
+      "inHours": "in {count}h",
+      "hoursAgo": "vor {count}h",
+      "tomorrowAt": "morgen {time}"
+    }
   }
 }

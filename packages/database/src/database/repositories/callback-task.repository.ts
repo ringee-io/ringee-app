@@ -9,13 +9,17 @@ export interface CallbackTaskWithContext extends CallbackTask {
     phoneNumber: string;
     company: string | null;
   };
-  campaignLead:
-    | {
-        id: string;
-        campaignId: string;
-        campaign: { id: string; name: string };
-      }
-    | null;
+  campaignLead: {
+    id: string;
+    campaignId: string;
+    campaign: { id: string; name: string };
+  } | null;
+  user: {
+    id: string;
+    firstName: string | null;
+    lastName: string | null;
+    imageUrl: string | null;
+  };
 }
 
 export interface CallbackOwnerFilter {
@@ -60,7 +64,7 @@ export class CallbackTaskRepository {
    */
   async listForOwner(
     owner: CallbackOwnerFilter,
-    options?: { status?: CallbackStatus; page?: number; limit?: number }
+    options?: { status?: CallbackStatus; page?: number; limit?: number },
   ): Promise<{
     data: CallbackTaskWithContext[];
     meta: { total: number; page: number; limit: number; totalPages: number };
@@ -93,6 +97,14 @@ export class CallbackTaskRepository {
             campaign: { select: { id: true, name: true } },
           },
         },
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            imageUrl: true,
+          },
+        },
       },
       orderBy: { scheduledAt: "asc" },
       skip: (page - 1) * limit,
@@ -118,7 +130,7 @@ export class CallbackTaskRepository {
   async updateStatus(
     id: string,
     status: CallbackStatus,
-    completedAt?: Date
+    completedAt?: Date,
   ): Promise<CallbackTask> {
     return this.prisma.callbackTask.update({
       where: { id },
@@ -128,7 +140,7 @@ export class CallbackTaskRepository {
 
   async update(
     id: string,
-    data: Partial<Pick<CallbackTask, "scheduledAt" | "note" | "status">>
+    data: Partial<Pick<CallbackTask, "scheduledAt" | "note" | "status">>,
   ): Promise<CallbackTask> {
     return this.prisma.callbackTask.update({ where: { id }, data });
   }

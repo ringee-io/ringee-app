@@ -31,5 +31,50 @@
     "compliance": "Llama únicamente si tienes un motivo legítimo y el consentimiento del destinatario.",
     "doNotCall": "No llamar",
     "callAnyway": "Llamar de todos modos"
+  },
+  "sidePanel": {
+    "workQueue": "Cola de trabajo",
+    "dueCount": "{count} vencidas",
+    "pendingCount": "{count} pendientes",
+    "tabs": {
+      "callbacks": "Devoluciones",
+      "today": "Hoy",
+      "recent": "Recientes"
+    },
+    "callbacks": {
+      "emptyTitle": "Sin devoluciones pendientes",
+      "emptyDescription": "Buen trabajo — tu cola está limpia.",
+      "createdBy": "Creada por {name}",
+      "unknownUser": "Desconocido",
+      "actions": {
+        "call": "Llamar ahora",
+        "viewContact": "Ver contacto",
+        "cancel": "Cancelar devolución"
+      }
+    },
+    "today": {
+      "emptyTitle": "Sin reuniones hoy",
+      "emptyDescription": "Las reuniones programadas para hoy aparecerán aquí.",
+      "joinLink": "Enlace de reunión",
+      "actions": {
+        "join": "Unirse a la reunión",
+        "callContact": "Llamar al contacto"
+      }
+    },
+    "recent": {
+      "emptyTitle": "Sin llamadas recientes",
+      "emptyDescription": "Las llamadas salientes que hagas aparecerán aquí para volver a marcar rápidamente.",
+      "actions": {
+        "redial": "Volver a marcar"
+      }
+    },
+    "relative": {
+      "now": "ahora",
+      "inMinutes": "en {count}m",
+      "minutesAgo": "hace {count}m",
+      "inHours": "en {count}h",
+      "hoursAgo": "hace {count}h",
+      "tomorrowAt": "mañana {time}"
+    }
   }
 }
