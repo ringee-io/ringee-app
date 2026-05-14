@@ -16,6 +16,7 @@
     "sale": "Sale",
     "interested": "Interested",
     "followUp": "Follow Up",
+    "callbackScheduled": "Callback Scheduled",
     "notInterested": "Not Interested",
     "noAnswer": "No Answer",
     "voicemail": "Voicemail",

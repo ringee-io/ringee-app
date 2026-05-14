@@ -24,6 +24,7 @@ import {
   Filter,
   Loader2,
   Phone,
+  PhoneCall,
   PhoneIncoming,
   PhoneMissed,
   PhoneOff,
@@ -42,6 +43,7 @@ type CallOutcome =
   | 'sale'
   | 'interested'
   | 'follow_up'
+  | 'callback_scheduled'
   | 'not_interested'
   | 'no_answer'
   | 'voicemail'
@@ -93,6 +95,7 @@ const OUTCOME_ICONS: Record<CallOutcome, React.ElementType> = {
   sale: DollarSign,
   interested: ThumbsUp,
   follow_up: Clock,
+  callback_scheduled: PhoneCall,
   not_interested: ThumbsDown,
   no_answer: PhoneMissed,
   voicemail: Voicemail,
@@ -105,6 +108,7 @@ const OUTCOME_COLORS: Record<CallOutcome, string> = {
   sale: 'text-green-500',
   interested: 'text-blue-500',
   follow_up: 'text-amber-500',
+  callback_scheduled: 'text-amber-500',
   not_interested: 'text-slate-400',
   no_answer: 'text-gray-400',
   voicemail: 'text-purple-400',
@@ -117,6 +121,7 @@ const OUTCOME_BADGE_CLASSES: Record<CallOutcome, string> = {
   sale: 'bg-green-500/10 text-green-600 border-green-500/20',
   interested: 'bg-blue-500/10 text-blue-600 border-blue-500/20',
   follow_up: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
+  callback_scheduled: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
   not_interested: 'bg-slate-500/10 text-slate-500 border-slate-400/20',
   no_answer: 'bg-gray-500/10 text-gray-500 border-gray-400/20',
   voicemail: 'bg-purple-500/10 text-purple-500 border-purple-400/20',
@@ -129,6 +134,7 @@ const ALL_OUTCOMES: CallOutcome[] = [
   'sale',
   'interested',
   'follow_up',
+  'callback_scheduled',
   'not_interested',
   'no_answer',
   'voicemail',
@@ -238,7 +244,7 @@ export function ActivitiesList() {
   };
 
   const outcomeLabel = (id: CallOutcome) =>
-    t(`outcomes.${id === 'meeting_booked' ? 'meetingBooked' : id === 'follow_up' ? 'followUp' : id === 'not_interested' ? 'notInterested' : id === 'no_answer' ? 'noAnswer' : id === 'wrong_number' ? 'wrongNumber' : id}`);
+    t(`outcomes.${id === 'meeting_booked' ? 'meetingBooked' : id === 'follow_up' ? 'followUp' : id === 'callback_scheduled' ? 'callbackScheduled' : id === 'not_interested' ? 'notInterested' : id === 'no_answer' ? 'noAnswer' : id === 'wrong_number' ? 'wrongNumber' : id}`);
 
   return (
     <div className='flex flex-col gap-4'>
