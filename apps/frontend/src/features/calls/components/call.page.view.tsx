@@ -1,10 +1,16 @@
 import Link from 'next/link';
 import { searchParamsCache } from '@ringee/frontend-shared/lib/searchparams';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@ringee/frontend-shared/components/ui/tabs';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from '@ringee/frontend-shared/components/ui/tabs';
 import { Suspense } from 'react';
 import { DataTableSkeleton } from '@ringee/frontend-shared/components/ui/table/data-table-skeleton';
 import ContactListingPage from '@/features/contact/components/contact.listing';
 import { Dialer } from './dialer';
+import { DialerSidePanel } from './dialer-side-panel/dialer-side-panel';
 import CallHistoryListing from '@/features/history/components/call.history.listing';
 import { getTranslations } from 'next-intl/server';
 
@@ -49,7 +55,14 @@ export default async function CallPageView() {
 
       {tab === TabEnum.Dialer && (
         <TabsContent value={TabEnum.Dialer}>
-          <Dialer />
+          <div className='flex flex-col gap-4 lg:flex-row lg:items-stretch'>
+            <div className='lg:w-[35%]'>
+              <Dialer full />
+            </div>
+            <div className='lg:w-[65%]'>
+              <DialerSidePanel />
+            </div>
+          </div>
         </TabsContent>
       )}
 

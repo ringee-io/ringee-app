@@ -31,5 +31,50 @@
     "compliance": "Bel alleen als je een legitieme reden en de toestemming van de ontvanger hebt.",
     "doNotCall": "Niet bellen",
     "callAnyway": "Toch bellen"
+  },
+  "sidePanel": {
+    "workQueue": "Werkwachtrij",
+    "dueCount": "{count} verlopen",
+    "pendingCount": "{count} openstaand",
+    "tabs": {
+      "callbacks": "Terugbellen",
+      "today": "Vandaag",
+      "recent": "Recent"
+    },
+    "callbacks": {
+      "emptyTitle": "Geen openstaande terugbelacties",
+      "emptyDescription": "Goed gedaan — je wachtrij is leeg.",
+      "createdBy": "Aangemaakt door {name}",
+      "unknownUser": "Onbekend",
+      "actions": {
+        "call": "Nu bellen",
+        "viewContact": "Contact bekijken",
+        "cancel": "Terugbelactie annuleren"
+      }
+    },
+    "today": {
+      "emptyTitle": "Geen vergaderingen vandaag",
+      "emptyDescription": "Vergaderingen die vandaag gepland staan verschijnen hier.",
+      "joinLink": "Vergaderingslink",
+      "actions": {
+        "join": "Deelnemen aan vergadering",
+        "callContact": "Contact bellen"
+      }
+    },
+    "recent": {
+      "emptyTitle": "Geen recente gesprekken",
+      "emptyDescription": "Uitgaande gesprekken die je voert verschijnen hier om snel opnieuw te bellen.",
+      "actions": {
+        "redial": "Opnieuw bellen"
+      }
+    },
+    "relative": {
+      "now": "nu",
+      "inMinutes": "over {count}m",
+      "minutesAgo": "{count}m geleden",
+      "inHours": "over {count}h",
+      "hoursAgo": "{count}h geleden",
+      "tomorrowAt": "morgen {time}"
+    }
   }
 }

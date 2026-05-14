@@ -47,7 +47,7 @@ export class TelephonyController {
     private readonly callService: CallService,
     private readonly ratePerMinuteRepository: TelnyxRatePerMinuteRepository,
     private readonly recordingService: RecordingService,
-  ) { }
+  ) {}
 
   @Public()
   @Get("rates")
@@ -139,6 +139,7 @@ export class TelephonyController {
       dateTo?: string;
       excludeCampaignCalls?: string;
       includeMeetings?: string;
+      userId?: string;
       orderBy?: "createdAt" | "startedAt" | "endedAt";
       sortDirection?: "asc" | "desc";
     } = {},
@@ -150,8 +151,15 @@ export class TelephonyController {
   }> {
     const ctx = createOwnershipContext(user);
     const outcome = query.outcome
-      ? Array.isArray(query.outcome) ? query.outcome : [query.outcome]
+      ? Array.isArray(query.outcome)
+        ? query.outcome
+        : [query.outcome]
       : undefined;
+
+    if (query.userId === "me") {
+      query.userId = ctx.userId;
+    }
+
     return this.callService.listByOwnerPaginated(ctx, {
       ...query,
       outcome,

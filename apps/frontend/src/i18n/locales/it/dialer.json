@@ -31,5 +31,50 @@
     "compliance": "Chiama solo se hai un motivo legittimo e il consenso del destinatario.",
     "doNotCall": "Non chiamare",
     "callAnyway": "Chiama comunque"
+  },
+  "sidePanel": {
+    "workQueue": "Coda di lavoro",
+    "dueCount": "{count} in scadenza",
+    "pendingCount": "{count} in attesa",
+    "tabs": {
+      "callbacks": "Richiami",
+      "today": "Oggi",
+      "recent": "Recenti"
+    },
+    "callbacks": {
+      "emptyTitle": "Nessun richiamo in sospeso",
+      "emptyDescription": "Buon lavoro — la tua coda è vuota.",
+      "createdBy": "Creato da {name}",
+      "unknownUser": "Sconosciuto",
+      "actions": {
+        "call": "Chiama ora",
+        "viewContact": "Vedi contatto",
+        "cancel": "Annulla richiamo"
+      }
+    },
+    "today": {
+      "emptyTitle": "Nessuna riunione oggi",
+      "emptyDescription": "Le riunioni programmate per oggi appariranno qui.",
+      "joinLink": "Link riunione",
+      "actions": {
+        "join": "Partecipa alla riunione",
+        "callContact": "Chiama il contatto"
+      }
+    },
+    "recent": {
+      "emptyTitle": "Nessuna chiamata recente",
+      "emptyDescription": "Le chiamate in uscita che effettui appariranno qui per richiamare rapidamente.",
+      "actions": {
+        "redial": "Richiama"
+      }
+    },
+    "relative": {
+      "now": "ora",
+      "inMinutes": "tra {count}m",
+      "minutesAgo": "{count}m fa",
+      "inHours": "tra {count}h",
+      "hoursAgo": "{count}h fa",
+      "tomorrowAt": "domani {time}"
+    }
   }
 }
