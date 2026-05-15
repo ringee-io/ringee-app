@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { IconAlertTriangleFilled } from '@tabler/icons-react';
@@ -19,28 +20,73 @@ import type {
 } from '../types';
 
 const DEFAULT_AGENT: AiAgentId = 'prospecting_expert';
+// sessionStorage key for a message queued in the empty state before the new
+// conversation route exists. RingeeAiView unmounts during the route change, so
+// we cannot keep this in React state.
+const PENDING_SEND_KEY = 'ringee:ai:pending-send';
+
+interface PendingSendRecord {
+  conversationId: string;
+  text: string;
+}
+
+function readPendingSend(): PendingSendRecord | null {
+  if (typeof window === 'undefined') return null;
+  try {
+    const raw = window.sessionStorage.getItem(PENDING_SEND_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PendingSendRecord;
+    if (!parsed?.conversationId || typeof parsed.text !== 'string') return null;
+    return parsed;
+  } catch {
+    return null;
+  }
+}
+
+function writePendingSend(record: PendingSendRecord) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.setItem(PENDING_SEND_KEY, JSON.stringify(record));
+  } catch {
+    // ignore quota / disabled storage
+  }
+}
+
+function clearPendingSend() {
+  if (typeof window === 'undefined') return;
+  try {
+    window.sessionStorage.removeItem(PENDING_SEND_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 interface ConnectionListItem {
   provider: string;
   status: string;
 }
 
-export function RingeeAiView() {
+interface Props {
+  conversationId: string | null;
+}
+
+export function RingeeAiView({ conversationId }: Props) {
   const api = useApi();
+  const router = useRouter();
   const [agents, setAgents] = useState<AiAgentDescriptor[]>([]);
   const [agentId, setAgentId] = useState<AiAgentId>(DEFAULT_AGENT);
   const [conversations, setConversations] = useState<AiConversation[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(true);
-  const [activeId, setActiveId] = useState<string | null>(null);
   const [topLevelError, setTopLevelError] = useState<string | null>(null);
   const [connectedProviders, setConnectedProviders] = useState<string[]>([]);
-  // Holds a message that was submitted before a conversation existed. The
-  // effect below dispatches it once the new conversation is loaded so the
-  // hook's sendMessage has a non-stale conversationId in its closure.
-  const [pendingSend, setPendingSend] = useState<string | null>(null);
+  // True while we have an empty-state message queued in sessionStorage for the
+  // conversation that is about to mount. Drives the empty-state spinner.
+  const [hasPendingSend, setHasPendingSend] = useState<boolean>(
+    () => readPendingSend() !== null
+  );
   const chatInputRef = useRef<ChatInputHandle | null>(null);
 
-  const { state, sendMessage, confirmAction } = useAiConversation(activeId);
+  const { state, sendMessage, confirmAction } = useAiConversation(conversationId);
 
   // Initial load: agents + conversation list + connection summary.
   useEffect(() => {
@@ -62,9 +108,6 @@ export function RingeeAiView() {
             .filter((c) => c.status === 'active' || c.status === 'connected')
             .map((c) => c.provider)
         );
-        if (convs.length > 0 && !activeId) {
-          setActiveId(convs[0].id);
-        }
       } catch (err) {
         if (!cancelled) {
           setTopLevelError(err instanceof Error ? err.message : String(err));
@@ -95,50 +138,57 @@ export function RingeeAiView() {
 
   // When a queued message is waiting and the new conversation is ready,
   // dispatch it through the hook (so the optimistic message renders and
-  // sendMessage's closure has the current activeId).
+  // sendMessage's closure has the current conversationId). The queue lives in
+  // sessionStorage because RingeeAiView unmounts during the empty-state →
+  // conversation route change.
   useEffect(() => {
     if (
-      pendingSend &&
-      activeId &&
-      state.conversation &&
-      state.conversation.id === activeId &&
-      !state.loading
+      !conversationId ||
+      !state.conversation ||
+      state.conversation.id !== conversationId ||
+      state.loading
     ) {
-      const text = pendingSend;
-      setPendingSend(null);
-      void sendMessage(text);
+      return;
     }
-  }, [pendingSend, activeId, state.conversation, state.loading, sendMessage]);
-
-  async function createConversation(): Promise<string | null> {
-    try {
-      const c = await api.post<AiConversation>('/ai/conversations', {
-        agent: agentId
-      });
-      setConversations((prev) => [c, ...prev]);
-      setActiveId(c.id);
-      return c.id;
-    } catch (err) {
-      setTopLevelError(err instanceof Error ? err.message : String(err));
-      return null;
-    }
-  }
+    const pending = readPendingSend();
+    if (!pending || pending.conversationId !== conversationId) return;
+    clearPendingSend();
+    setHasPendingSend(false);
+    void sendMessage(pending.text);
+  }, [conversationId, state.conversation, state.loading, sendMessage]);
 
   async function handleSend(text: string) {
     setTopLevelError(null);
-    if (!activeId) {
-      // Queue the message; it will be dispatched in the effect above once the
-      // new conversation has finished loading on the hook side.
-      setPendingSend(text);
-      await createConversation();
+    if (!conversationId) {
+      try {
+        const c = await api.post<AiConversation>('/ai/conversations', {
+          agent: agentId
+        });
+        setConversations((prev) => [c, ...prev]);
+        // Persist across the route change — RingeeAiView remounts and React
+        // state would be wiped. The effect above picks this up once the new
+        // conversation route mounts and finishes its initial load.
+        writePendingSend({ conversationId: c.id, text });
+        setHasPendingSend(true);
+        router.replace(`/dashboard/ai/${c.id}`);
+      } catch (err) {
+        setTopLevelError(err instanceof Error ? err.message : String(err));
+      }
       return;
     }
     await sendMessage(text);
   }
 
+  function handleSelectConversation(id: string) {
+    clearPendingSend();
+    setHasPendingSend(false);
+    router.push(`/dashboard/ai/${id}`);
+  }
+
   function handleNewConversation() {
-    setActiveId(null);
-    setPendingSend(null);
+    clearPendingSend();
+    setHasPendingSend(false);
+    router.push('/dashboard/ai');
     chatInputRef.current?.focus();
   }
 
@@ -178,8 +228,12 @@ export function RingeeAiView() {
     [state.pendingConfirmations]
   );
 
+  // Empty state is purely route-driven: no id in the URL means a new chat.
+  const showEmpty = !conversationId;
+
   const showRail =
-    state.prospectGroups.length > 0 || state.pendingConfirmations.length > 0;
+    !showEmpty &&
+    (state.prospectGroups.length > 0 || state.pendingConfirmations.length > 0);
 
   // Ref + helper so the in-chat banner can scroll the confirmation panel into
   // view when the rail is long (or in narrower viewports where it gets pushed
@@ -201,39 +255,24 @@ export function RingeeAiView() {
     railRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }
 
-  // Show empty state when there is no active conversation, OR when the active
-  // conversation exists but has no visible messages yet AND nothing is
-  // streaming (i.e. immediately after creating a fresh conversation).
-  const visibleMessages = state.messages.filter(
-    (m) => (m.role === 'user' || m.role === 'assistant') && !m.toolName
-  );
-  const showEmpty =
-    !activeId ||
-    (!state.loading &&
-      visibleMessages.length === 0 &&
-      !state.busy &&
-      !pendingSend);
-
   return (
-    <div className='flex h-[calc(100vh-3.5rem)] w-full'>
-      <ConversationList
-        conversations={conversations}
-        activeId={activeId}
-        loading={conversationsLoading}
-        onSelect={(id) => {
-          setActiveId(id);
-          setPendingSend(null);
-        }}
-        onNew={handleNewConversation}
-      />
-
+    <div className='flex h-[calc(100vh-3.5rem)] w-full lg:w-[90%] mx-auto'>
       <main className='flex flex-1 flex-col'>
         <header className='flex items-center justify-between gap-3 border-b border-border/60 bg-background/60 px-4 py-3 backdrop-blur'>
-          <AgentSelector
-            agents={agents}
-            selectedId={agentId}
-            onSelect={(id) => setAgentId(id as AiAgentId)}
-          />
+          <div className='flex items-center gap-2'>
+            <ConversationList
+              conversations={conversations}
+              activeId={conversationId}
+              loading={conversationsLoading}
+              onSelect={handleSelectConversation}
+              onNew={handleNewConversation}
+            />
+            <AgentSelector
+              agents={agents}
+              selectedId={agentId}
+              onSelect={(id) => setAgentId(id as AiAgentId)}
+            />
+          </div>
           {state.conversation?.title && (
             <span className='truncate text-sm font-medium text-muted-foreground'>
               {state.conversation.title}
@@ -254,7 +293,7 @@ export function RingeeAiView() {
               </div>
             )}
 
-            {pendingOpen.length > 0 && (
+            {!showEmpty && pendingOpen.length > 0 && (
               <div className='border-b border-amber-500/40 bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-transparent px-4 py-2'>
                 <div className='flex items-center justify-between gap-3'>
                   <div className='flex items-center gap-2 text-sm'>
@@ -285,26 +324,28 @@ export function RingeeAiView() {
               <EmptyState
                 providersConnected={connectedProviders}
                 onPick={handlePickExample}
-                onStartBlank={() => chatInputRef.current?.focus()}
+                onSubmit={(text) => void handleSend(text)}
+                sending={hasPendingSend}
               />
             ) : state.loading ? (
               <div className='flex flex-1 items-center justify-center text-sm text-muted-foreground'>
                 Loading conversation…
               </div>
             ) : (
-              <ChatMessages
-                messages={state.messages}
-                streamingAssistantId={state.streamingAssistantId}
-                busy={state.busy || Boolean(pendingSend)}
-              />
+              <>
+                <ChatMessages
+                  messages={state.messages}
+                  streamingAssistantId={state.streamingAssistantId}
+                  busy={state.busy || hasPendingSend}
+                />
+                <ChatInput
+                  ref={chatInputRef}
+                  disabled={state.loading}
+                  sending={state.busy || hasPendingSend}
+                  onSubmit={(text) => void handleSend(text)}
+                />
+              </>
             )}
-
-            <ChatInput
-              ref={chatInputRef}
-              disabled={state.loading}
-              sending={state.busy || Boolean(pendingSend)}
-              onSubmit={(text) => void handleSend(text)}
-            />
           </div>
 
           {showRail && (
