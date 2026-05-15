@@ -154,6 +154,15 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
           <IconPhoneCalling className='size-4' />
           <span>{tNav('sidebar.openQuickCall')}</span>
         </SidebarMenuButton>
+
+
+        <SidebarMenuButton
+          className='mt-4 cursor-pointer'
+          onClick={() => router.push('/dashboard/ai')}
+        >
+          <IconPhoneCalling className='size-4' />
+          <span>Ringee AI</span>
+        </SidebarMenuButton>
       </SidebarHeader>
 
       <SidebarContent className='overflow-x-hidden'>

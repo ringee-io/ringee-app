@@ -2,6 +2,7 @@ export * from "./dtos";
 export * from "./auth";
 export * from "./chat";
 export * from "./ai";
+export * from "./ai-agents";
 export * from "./redis";
 export * from "./email";
 export * from "./telephony";

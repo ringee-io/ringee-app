@@ -278,10 +278,12 @@ export class ApolloProvider extends AbstractEnrichmentProvider {
       body.person_seniorities = filters.seniorities;
     if (filters.departments?.length)
       body.person_departments = filters.departments;
-    if (filters.personLocations?.length)
-      body.person_locations = filters.personLocations;
-    if (filters.personCountries?.length)
-      body.person_locations = filters.personCountries;
+    const personLocations = dedupeStrings([
+      ...(filters.personLocations ?? []),
+      ...(filters.personCountries ?? []),
+      ...(filters.personCities ?? []),
+    ]);
+    if (personLocations.length) body.person_locations = personLocations;
     if (filters.companyNames?.length)
       body.q_organization_name = filters.companyNames.join(" ");
     if (filters.companyDomains?.length)
@@ -299,8 +301,11 @@ export class ApolloProvider extends AbstractEnrichmentProvider {
       body.currently_using_any_of_technology_uids = filters.technologies;
     if (filters.fundingStages?.length)
       body.organization_latest_funding_stage_cd = filters.fundingStages;
-    if (filters.companyLocations?.length)
-      body.organization_locations = filters.companyLocations;
+    const companyLocations = dedupeStrings([
+      ...(filters.companyLocations ?? []),
+      ...(filters.companyCountries ?? []),
+    ]);
+    if (companyLocations.length) body.organization_locations = companyLocations;
     if (filters.keywords) body.q_keywords = filters.keywords;
     if (filters.hasEmail)
       body.contact_email_status = ["verified", "likely to engage"];
@@ -314,4 +319,19 @@ export class ApolloProvider extends AbstractEnrichmentProvider {
       "Cache-Control": "no-cache",
     };
   }
+}
+
+function dedupeStrings(input: (string | null | undefined)[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of input) {
+    if (typeof raw !== "string") continue;
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(trimmed);
+  }
+  return out;
 }

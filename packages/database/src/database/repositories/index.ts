@@ -55,3 +55,6 @@ export * from "./inbox-thread.repository";
 export * from "./inbox-event.repository";
 export * from "./message.repository";
 export * from "./message-event.repository";
+export * from "./ai-conversation.repository";
+export * from "./ai-message.repository";
+export * from "./ai-tool-event.repository";

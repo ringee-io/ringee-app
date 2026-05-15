@@ -57,6 +57,9 @@ import { InboxThreadRepository } from "./repositories/inbox-thread.repository";
 import { InboxEventRepository } from "./repositories/inbox-event.repository";
 import { MessageRepository } from "./repositories/message.repository";
 import { MessageEventRepository } from "./repositories/message-event.repository";
+import { AiConversationRepository } from "./repositories/ai-conversation.repository";
+import { AiMessageRepository } from "./repositories/ai-message.repository";
+import { AiToolEventRepository } from "./repositories/ai-tool-event.repository";
 
 const databaseProviders = [
   PrismaService,
@@ -117,6 +120,9 @@ const databaseProviders = [
   InboxEventRepository,
   MessageRepository,
   MessageEventRepository,
+  AiConversationRepository,
+  AiMessageRepository,
+  AiToolEventRepository,
 ];
 
 @Global()

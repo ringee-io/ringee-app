@@ -42,7 +42,8 @@ import {
   IconPhoneIncoming,
   IconInbox,
   IconActivity,
-  IconPlug
+  IconPlug,
+  IconSparkles
 } from '@tabler/icons-react';
 import { MoreHorizontal } from 'lucide-react';
 
@@ -92,6 +93,7 @@ export const Icons = {
   phoneIncoming: IconPhoneIncoming,
   inbox: IconInbox,
   activity: IconActivity,
-  plug: IconPlug
+  plug: IconPlug,
+  sparkles: IconSparkles
 };
 

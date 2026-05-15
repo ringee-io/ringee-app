@@ -1,0 +1,299 @@
+'use client';
+
+import { useCallback, useEffect, useState } from 'react';
+import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import type {
+  AiConversation,
+  AiMessage,
+  AiToolEvent,
+  ProspectPreview,
+  StreamMessage
+} from '../types';
+import { useAiStream } from './use-ai-stream';
+
+export interface PendingConfirmation {
+  confirmationId: string;
+  action: 'reveal' | 'save' | 'list_create';
+  summary: string;
+  payload: Record<string, unknown>;
+  estimatedCreditCost: number | null;
+  resolved: boolean;
+  accepted?: boolean;
+}
+
+export interface ProspectResultGroup {
+  toolEventId: string;
+  jobId: string;
+  provider: string;
+  filtersSummary: string;
+  results: ProspectPreview[];
+}
+
+export interface AiConversationState {
+  conversation: AiConversation | null;
+  messages: AiMessage[];
+  toolEvents: AiToolEvent[];
+  prospectGroups: ProspectResultGroup[];
+  pendingConfirmations: PendingConfirmation[];
+  streamingAssistantId: string | null;
+  loading: boolean;
+  busy: boolean;
+  error: string | null;
+}
+
+/**
+ * Owns conversation state for the AI page: loads history, subscribes to the
+ * SSE stream, applies deltas, exposes commands (sendMessage, confirm, decline).
+ */
+export function useAiConversation(conversationId: string | null) {
+  const api = useApi();
+  const [state, setState] = useState<AiConversationState>({
+    conversation: null,
+    messages: [],
+    toolEvents: [],
+    prospectGroups: [],
+    pendingConfirmations: [],
+    streamingAssistantId: null,
+    loading: false,
+    busy: false,
+    error: null
+  });
+
+  const reload = useCallback(async () => {
+    if (!conversationId) return;
+    setState((s) => ({ ...s, loading: true, error: null }));
+    try {
+      const [conv, msgs] = await Promise.all([
+        api.get<AiConversation>(`/ai/conversations/${conversationId}`),
+        api.get<{ messages: AiMessage[]; toolEvents: AiToolEvent[] }>(
+          `/ai/conversations/${conversationId}/messages`
+        )
+      ]);
+
+      const prospectGroups: ProspectResultGroup[] = msgs.toolEvents
+        .filter((e) => e.kind === 'prospect_results')
+        .map((e) => ({
+          toolEventId: e.id,
+          jobId: String((e.payload as Record<string, unknown>)?.jobId ?? ''),
+          provider: String((e.payload as Record<string, unknown>)?.provider ?? ''),
+          filtersSummary: String(
+            (e.payload as Record<string, unknown>)?.filtersSummary ?? ''
+          ),
+          results:
+            ((e.payload as Record<string, unknown>)?.results as ProspectPreview[]) ?? []
+        }));
+
+      const pendingConfirmations: PendingConfirmation[] = msgs.toolEvents
+        .filter((e) => e.kind === 'confirmation_request')
+        .map((e) => ({
+          confirmationId: e.id,
+          action: ((e.payload as Record<string, unknown>)?.action as PendingConfirmation['action']) ?? 'reveal',
+          summary: String((e.payload as Record<string, unknown>)?.summary ?? ''),
+          payload: (e.payload as Record<string, unknown>) ?? {},
+          estimatedCreditCost: null,
+          resolved: e.resolved,
+          accepted:
+            (e.resolutionData as Record<string, unknown> | null)?.accepted === true
+        }));
+
+      setState((s) => ({
+        ...s,
+        conversation: conv,
+        messages: msgs.messages,
+        toolEvents: msgs.toolEvents,
+        prospectGroups,
+        pendingConfirmations,
+        loading: false
+      }));
+    } catch (err) {
+      setState((s) => ({
+        ...s,
+        loading: false,
+        error: err instanceof Error ? err.message : String(err)
+      }));
+    }
+  }, [api, conversationId]);
+
+  useEffect(() => {
+    if (!conversationId) {
+      setState({
+        conversation: null,
+        messages: [],
+        toolEvents: [],
+        prospectGroups: [],
+        pendingConfirmations: [],
+        streamingAssistantId: null,
+        loading: false,
+        busy: false,
+        error: null
+      });
+      return;
+    }
+    void reload();
+  }, [conversationId, reload]);
+
+  // SSE → state reducer
+  useAiStream(conversationId, (event: StreamMessage) => {
+    setState((prev) => {
+      switch (event.type) {
+        case 'message_started': {
+          const msg: AiMessage = {
+            id: String(event.messageId),
+            conversationId: conversationId!,
+            role: 'assistant',
+            status: 'streaming',
+            content: '',
+            toolName: null,
+            toolPayload: null,
+            createdAt: String(event.createdAt ?? new Date().toISOString())
+          };
+          return {
+            ...prev,
+            messages: [...prev.messages, msg],
+            streamingAssistantId: msg.id,
+            busy: true
+          };
+        }
+        case 'text_delta': {
+          const id = String(event.messageId);
+          return {
+            ...prev,
+            messages: prev.messages.map((m) =>
+              m.id === id
+                ? { ...m, content: (m.content ?? '') + String(event.delta) }
+                : m
+            )
+          };
+        }
+        case 'message_completed': {
+          const id = String(event.messageId);
+          return {
+            ...prev,
+            messages: prev.messages.map((m) =>
+              m.id === id
+                ? {
+                    ...m,
+                    content: String(event.content ?? m.content ?? ''),
+                    status: 'completed' as const
+                  }
+                : m
+            ),
+            streamingAssistantId:
+              prev.streamingAssistantId === id ? null : prev.streamingAssistantId
+          };
+        }
+        case 'tool_event': {
+          const kind = String(event.kind ?? '');
+          if (kind === 'prospect_results') {
+            const payload = (event.payload as Record<string, unknown>) ?? {};
+            const group: ProspectResultGroup = {
+              toolEventId: String(event.toolEventId ?? ''),
+              jobId: String(payload.jobId ?? ''),
+              provider: String(payload.provider ?? ''),
+              filtersSummary: String(payload.filtersSummary ?? ''),
+              results: (payload.results as ProspectPreview[]) ?? []
+            };
+            return {
+              ...prev,
+              prospectGroups: [...prev.prospectGroups, group]
+            };
+          }
+          return prev;
+        }
+        case 'confirmation_request': {
+          const conf: PendingConfirmation = {
+            confirmationId: String(event.confirmationId ?? ''),
+            action: (event.action as PendingConfirmation['action']) ?? 'reveal',
+            summary: String(event.summary ?? ''),
+            payload: (event.payload as Record<string, unknown>) ?? {},
+            estimatedCreditCost:
+              typeof event.estimatedCreditCost === 'number'
+                ? event.estimatedCreditCost
+                : null,
+            resolved: false
+          };
+          return {
+            ...prev,
+            pendingConfirmations: [...prev.pendingConfirmations, conf]
+          };
+        }
+        case 'confirmation_resolved': {
+          const id = String(event.confirmationId ?? '');
+          return {
+            ...prev,
+            pendingConfirmations: prev.pendingConfirmations.map((c) =>
+              c.confirmationId === id
+                ? { ...c, resolved: true, accepted: event.accepted === true }
+                : c
+            )
+          };
+        }
+        case 'completed': {
+          return { ...prev, busy: false, streamingAssistantId: null };
+        }
+        case 'error': {
+          return { ...prev, error: String(event.message ?? 'Unknown error'), busy: false };
+        }
+        default:
+          return prev;
+      }
+    });
+  });
+
+  const sendMessage = useCallback(
+    async (text: string) => {
+      if (!conversationId || !text.trim()) return;
+      const optimistic: AiMessage = {
+        id: `local_${Date.now()}`,
+        conversationId,
+        role: 'user',
+        status: 'completed',
+        content: text,
+        toolName: null,
+        toolPayload: null,
+        createdAt: new Date().toISOString()
+      };
+      setState((s) => ({
+        ...s,
+        messages: [...s.messages, optimistic],
+        busy: true,
+        error: null
+      }));
+      try {
+        await api.post(`/ai/conversations/${conversationId}/messages`, { text });
+      } catch (err) {
+        setState((s) => ({
+          ...s,
+          busy: false,
+          error: err instanceof Error ? err.message : String(err)
+        }));
+      }
+    },
+    [api, conversationId]
+  );
+
+  const confirmAction = useCallback(
+    async (
+      confirmationId: string,
+      accepted: boolean,
+      overrides?: Record<string, unknown>
+    ) => {
+      if (!conversationId) return;
+      try {
+        await api.post(
+          `/ai/conversations/${conversationId}/confirm/${confirmationId}`,
+          { accepted, overrides }
+        );
+        // The SSE confirmation_resolved event will update local state.
+      } catch (err) {
+        setState((s) => ({
+          ...s,
+          error: err instanceof Error ? err.message : String(err)
+        }));
+      }
+    },
+    [api, conversationId]
+  );
+
+  return { state, sendMessage, confirmAction, reload };
+}

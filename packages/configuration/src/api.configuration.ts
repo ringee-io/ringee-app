@@ -49,6 +49,22 @@ const apiConfiguration = {
   ENRICHMENT_COST_LEAD_IMPORT: Number(process.env.ENRICHMENT_COST_LEAD_IMPORT ?? 5),
   PROSPEO_API_BASE_URL: process.env.PROSPEO_API_BASE_URL || "https://api.prospeo.io",
   APOLLO_API_BASE_URL: process.env.APOLLO_API_BASE_URL || "https://api.apollo.io",
+  // ── Ringee AI ──
+  AI_PROVIDER: (process.env.AI_PROVIDER || "openai") as
+    | "openai"
+    | "anthropic"
+    | "google"
+    | "groq",
+  OPENAI_DEFAULT_MODEL:
+    process.env.OPENAI_DEFAULT_MODEL || "gpt-4.1-mini",
+  OPENAI_SUMMARY_MODEL:
+    process.env.OPENAI_SUMMARY_MODEL || "gpt-4.1-mini",
+  AI_TEMPERATURE: Number(process.env.AI_TEMPERATURE ?? 0.4),
+  AI_MAX_CONTEXT_MESSAGES: Number(process.env.AI_MAX_CONTEXT_MESSAGES ?? 20),
+  AI_SUMMARY_TRIGGER_TOKENS: Number(
+    process.env.AI_SUMMARY_TRIGGER_TOKENS ?? 6000,
+  ),
+  AI_PROMPT_CACHE_ENABLED: process.env.AI_PROMPT_CACHE_ENABLED !== "false",
 };
 
 const errors = [];

@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = "postgresql://ringee-user:ringee-password@localhost:5432/ringee-db-local?schema=public"
 }
 
 enum EmailStatus {
@@ -311,6 +311,8 @@ model User {
   callbacks               CallbackTask[]
   dncEntries              DNCEntry[]
   reminders               Reminder[]
+  aiConversations         AiConversation[]
+  aiMessages              AiMessage[]
 
   @@index([clerkId])
 }
@@ -351,6 +353,7 @@ model Organization {
   callbacks              CallbackTask[]
   dncEntries             DNCEntry[]
   reminders              Reminder[]
+  aiConversations        AiConversation[]
 
   @@index([clerkId])
 }
@@ -2210,4 +2213,125 @@ model DashboardWidget {
   dashboard DashboardLayout @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
 
   @@index([dashboardId])
+}
+
+// ── Ringee AI ─────────────────────────────────────────────────────
+
+enum AiAgentType {
+  prospecting_expert
+  campaign_builder
+  crm
+  call_coach
+  analytics
+}
+
+enum AiMessageRole {
+  user
+  assistant
+  system
+  tool
+}
+
+enum AiMessageStatus {
+  pending
+  streaming
+  completed
+  failed
+}
+
+enum AiToolEventKind {
+  tool_call
+  tool_result
+  prospect_results
+  confirmation_request
+  confirmation_resolved
+  prospects_saved
+  list_created
+  error
+}
+
+model AiConversation {
+  id             String      @id @default(uuid()) @db.Uuid
+  userId         String      @db.Uuid
+  organizationId String?     @db.Uuid
+  agent          AiAgentType
+  title          String?
+
+  // Provider preference resolved by the agent (apollo | prospeo | null)
+  providerSelection String?
+
+  // Structured agent state (ICP, segments, lastSearchJobId, pending confirmations, etc.)
+  agentState Json?
+
+  // Long-term summary written when history grows too large
+  summary       String? @db.Text
+  summaryTokens Int?
+
+  lastMessageAt DateTime?
+  archivedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  messages     AiMessage[]
+  toolEvents   AiToolEvent[]
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([userId, agent])
+  @@index([lastMessageAt])
+}
+
+model AiMessage {
+  id             String          @id @default(uuid()) @db.Uuid
+  conversationId String          @db.Uuid
+  userId         String?         @db.Uuid
+  role           AiMessageRole
+  status         AiMessageStatus @default(completed)
+
+  // Plain text content (final assembled text for streaming responses)
+  content String? @db.Text
+
+  // For tool messages: tool name + result payload
+  toolName    String?
+  toolPayload Json?
+
+  // Provider usage / model used (for cost/observability)
+  model         String?
+  inputTokens   Int?
+  outputTokens  Int?
+  cachedTokens  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user         User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  toolEvents   AiToolEvent[]
+
+  @@index([conversationId])
+  @@index([conversationId, createdAt])
+}
+
+model AiToolEvent {
+  id             String          @id @default(uuid()) @db.Uuid
+  conversationId String          @db.Uuid
+  messageId      String?         @db.Uuid
+  kind           AiToolEventKind
+  payload        Json
+
+  // For confirmation flow: tracks whether the user accepted/declined.
+  resolved       Boolean   @default(false)
+  resolvedAt     DateTime?
+  resolutionData Json?
+
+  createdAt DateTime @default(now())
+
+  conversation AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  message      AiMessage?     @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId])
+  @@index([conversationId, kind])
 }
