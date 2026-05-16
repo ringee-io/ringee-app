@@ -55,10 +55,10 @@ const RELAXATION_PRIORITY = [
   "company_technology",
   "company_email_provider",
   "person_seniority",
-  "person_departments",
+  "person_department",
   "person_year_of_experience",
-  "company_location",
-  "person_location",
+  "company_location_search",
+  "person_location_search",
   "person_job_title",
   "company_names",
   "company_websites",
@@ -443,17 +443,17 @@ export class ProspeoProvider extends AbstractEnrichmentProvider {
     }
 
     if (resolvedCompanyLocations.length) {
-      out.company_location = { include: resolvedCompanyLocations };
+      out.company_location_search = { include: resolvedCompanyLocations };
     }
 
     const headcount = normalizeHeadcountRanges(filters.employeeCountRanges);
     if (headcount.length) {
-      out.company_headcount_range = { include: headcount };
+      out.company_headcount_range = headcount;
     }
 
     const fundings = normalizeFundingStages(filters.fundingStages);
     if (fundings.length) {
-      out.company_funding = { include: fundings };
+      out.company_funding = { stage: fundings };
     }
 
     const technologies = uniqueStrings(filters.technologies);
@@ -478,7 +478,7 @@ export class ProspeoProvider extends AbstractEnrichmentProvider {
     }
 
     if (resolvedPersonLocations.length) {
-      out.person_location = { include: resolvedPersonLocations };
+      out.person_location_search = { include: resolvedPersonLocations };
     }
 
     const jobTitles = uniqueStrings(filters.jobTitles);
@@ -492,7 +492,7 @@ export class ProspeoProvider extends AbstractEnrichmentProvider {
 
     const departments = normalizeDepartments(filters.departments);
     if (departments.length) {
-      out.person_departments = { include: departments };
+      out.person_department = { include: departments };
     }
 
     return out;
@@ -959,12 +959,12 @@ function hasGroup(
       return !!(
         f.company_industry?.include?.length || f.company_industry?.exclude?.length
       );
-    case "company_location":
-      return !!f.company_location?.include?.length;
+    case "company_location_search":
+      return !!f.company_location_search?.include?.length;
     case "company_headcount_range":
-      return !!f.company_headcount_range?.include?.length;
+      return !!f.company_headcount_range?.length;
     case "company_funding":
-      return !!f.company_funding?.include?.length;
+      return !!f.company_funding?.stage?.length;
     case "company_technology":
       return !!f.company_technology?.include?.length;
     case "company_email_provider":
@@ -976,14 +976,14 @@ function hasGroup(
         typeof f.person_year_of_experience?.min === "number" ||
         typeof f.person_year_of_experience?.max === "number"
       );
-    case "person_location":
-      return !!f.person_location?.include?.length;
+    case "person_location_search":
+      return !!f.person_location_search?.include?.length;
     case "person_job_title":
       return !!(
         f.person_job_title?.include?.length || f.person_job_title?.exclude?.length
       );
-    case "person_departments":
-      return !!f.person_departments?.include?.length;
+    case "person_department":
+      return !!f.person_department?.include?.length;
     default:
       return false;
   }
@@ -1030,9 +1030,9 @@ function hasAnyFilter(f: ProspeoSearchPersonRequest["filters"]): boolean {
     return true;
   if (f.company_industry?.include?.length || f.company_industry?.exclude?.length)
     return true;
-  if (f.company_location?.include?.length) return true;
-  if (f.company_headcount_range?.include?.length) return true;
-  if (f.company_funding?.include?.length) return true;
+  if (f.company_location_search?.include?.length) return true;
+  if (f.company_headcount_range?.length) return true;
+  if (f.company_funding?.stage?.length) return true;
   if (f.company_technology?.include?.length) return true;
   if (f.person_seniority?.include?.length) return true;
   if (
@@ -1040,10 +1040,10 @@ function hasAnyFilter(f: ProspeoSearchPersonRequest["filters"]): boolean {
     typeof f.person_year_of_experience?.max === "number"
   )
     return true;
-  if (f.person_location?.include?.length) return true;
+  if (f.person_location_search?.include?.length) return true;
   if (f.person_job_title?.include?.length || f.person_job_title?.exclude?.length)
     return true;
-  if (f.person_departments?.include?.length) return true;
+  if (f.person_department?.include?.length) return true;
   return false;
 }
 

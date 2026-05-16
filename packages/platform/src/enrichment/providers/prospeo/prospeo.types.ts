@@ -62,16 +62,16 @@ export type ProspeoSearchPersonFilters = {
     names?: { include?: string[]; exclude?: string[] };
   };
   company_industry?: { include?: string[]; exclude?: string[] };
-  company_location?: { include?: string[]; exclude?: string[] };
-  company_headcount_range?: { include?: string[]; exclude?: string[] };
-  company_funding?: { include?: string[]; exclude?: string[] };
+  company_location_search?: { include?: string[]; exclude?: string[] };
+  company_headcount_range?: string[];
+  company_funding?: { stage?: string[]; funding_date?: number; last_funding?: { min?: string; max?: string }; total_funding?: { min?: string; max?: string } };
   company_technology?: { include?: string[]; exclude?: string[] };
   company_email_provider?: { include?: string[]; exclude?: string[] };
   person_seniority?: { include?: string[]; exclude?: string[] };
   person_year_of_experience?: { min?: number; max?: number };
-  person_location?: { include?: string[]; exclude?: string[] };
+  person_location_search?: { include?: string[]; exclude?: string[] };
   person_job_title?: { include?: string[]; exclude?: string[] };
-  person_departments?: { include?: string[]; exclude?: string[] };
+  person_department?: { include?: string[]; exclude?: string[] };
 };
 
 export type ProspeoSearchPersonRequest = {
