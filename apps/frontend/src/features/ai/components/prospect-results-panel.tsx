@@ -177,8 +177,8 @@ function GroupSection({
   return (
     <section
       className={cn(
-        'flex flex-col gap-3 rounded-xl border p-3 shadow-sm',
-        'border-primary/30 bg-gradient-to-br from-primary/[0.06] via-primary/[0.02] to-transparent'
+        'flex flex-col gap-3 rounded-xl p-3',
+        ''
       )}
     >
       <header className='flex flex-col gap-2'>

@@ -8,6 +8,7 @@
     "build": "nest build"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.96.0",
     "@aws-sdk/client-s3": "^3.940.0",
     "@clerk/express": "^1.7.37",
     "@keyv/redis": "^5.1.2",

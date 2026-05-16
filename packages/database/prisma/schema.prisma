@@ -2267,6 +2267,9 @@ model AiConversation {
   summary       String? @db.Text
   summaryTokens Int?
 
+  // Running total of AI credits consumed by this conversation (USD-equivalent)
+  totalCostCredits Float @default(0)
+
   lastMessageAt DateTime?
   archivedAt    DateTime?
 
@@ -2299,10 +2302,13 @@ model AiMessage {
   toolPayload Json?
 
   // Provider usage / model used (for cost/observability)
-  model         String?
-  inputTokens   Int?
-  outputTokens  Int?
-  cachedTokens  Int?
+  model            String?
+  inputTokens      Int?
+  outputTokens     Int?
+  cachedTokens     Int?
+  cacheWriteTokens Int?
+  // Credits charged to the user for this turn (USD-equivalent, margin applied)
+  costCredits      Float?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

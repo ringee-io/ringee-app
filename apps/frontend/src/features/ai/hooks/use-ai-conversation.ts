@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { ApiError } from '@ringee/frontend-shared/lib/api';
+import { useCreditStore } from '@/features/credit/store/credit.store';
 import type {
   AiConversation,
   AiMessage,
@@ -134,6 +136,21 @@ export function useAiConversation(conversationId: string | null) {
 
   // SSE → state reducer
   useAiStream(conversationId, (event: StreamMessage) => {
+    // Credit side-effects, kept out of the setState updater so React strict
+    // mode's double-invocation can't double-apply them.
+    if (event.type === 'usage') {
+      const cost = Number(event.costCredits ?? 0);
+      if (cost > 0) {
+        const store = useCreditStore.getState();
+        store.setBalance(Math.max(0, store.balance - cost));
+      }
+    } else if (
+      event.type === 'error' &&
+      event.code === 'insufficient_credit'
+    ) {
+      useCreditStore.getState().setBalance(0);
+    }
+
     setState((prev) => {
       switch (event.type) {
         case 'message_started': {
@@ -228,6 +245,33 @@ export function useAiConversation(conversationId: string | null) {
             )
           };
         }
+        case 'usage': {
+          const id = String(event.messageId);
+          const total = Number(
+            event.conversationTotalCost ??
+              prev.conversation?.totalCostCredits ??
+              0
+          );
+          return {
+            ...prev,
+            messages: prev.messages.map((m) =>
+              m.id === id
+                ? {
+                    ...m,
+                    model: (event.model as string | null) ?? m.model ?? null,
+                    inputTokens: Number(event.inputTokens ?? 0),
+                    outputTokens: Number(event.outputTokens ?? 0),
+                    cachedTokens: Number(event.cachedTokens ?? 0),
+                    cacheWriteTokens: Number(event.cacheWriteTokens ?? 0),
+                    costCredits: Number(event.costCredits ?? 0)
+                  }
+                : m
+            ),
+            conversation: prev.conversation
+              ? { ...prev.conversation, totalCostCredits: total }
+              : prev.conversation
+          };
+        }
         case 'completed': {
           return { ...prev, busy: false, streamingAssistantId: null };
         }
@@ -262,6 +306,15 @@ export function useAiConversation(conversationId: string | null) {
       try {
         await api.post(`/ai/conversations/${conversationId}/messages`, { text });
       } catch (err) {
+        const code =
+          err instanceof ApiError
+            ? (err.data as { code?: string } | undefined)?.code
+            : undefined;
+        if (code === 'INSUFFICIENT_CREDIT') {
+          // Reflect the server's verdict immediately so the out-of-credit
+          // panel renders without waiting for a balance refetch.
+          useCreditStore.getState().setBalance(0);
+        }
         setState((s) => ({
           ...s,
           busy: false,

@@ -81,7 +81,6 @@ export function EmptyState({
 }: Props) {
   const { user } = useUser();
   const [value, setValue] = useState('');
-  const noProviders = providersConnected.length === 0;
   const firstName = user?.firstName?.trim() ?? '';
 
   function submit() {
@@ -160,14 +159,6 @@ export function EmptyState({
             </button>
           ))}
         </div>
-
-        {noProviders && (
-          <div className='mt-6 inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-muted/40 px-3 py-1 text-[11px] text-muted-foreground'>
-            <IconLock size={11} />
-            No prospecting provider connected — connect one below to unlock
-            searches.
-          </div>
-        )}
 
         <CalendarSection />
         <EnrichmentSection />

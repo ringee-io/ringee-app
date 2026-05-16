@@ -9,6 +9,7 @@ import type {
   AiSummarizeRequest,
   AiSummarizeResponse,
   AiToolDefinition,
+  AiUsage,
 } from "../types";
 
 type ChatMessage =
@@ -164,15 +165,7 @@ export class OpenAiProvider implements AiProvider {
       yield {
         type: "completed",
         finishReason,
-        usage: usage
-          ? {
-              inputTokens: usage.prompt_tokens,
-              outputTokens: usage.completion_tokens,
-              cachedInputTokens:
-                usage.prompt_tokens_details?.cached_tokens ?? undefined,
-              model,
-            }
-          : { model },
+        usage: usage ? toAiUsage(usage, model) : { model },
       };
     } catch (err) {
       if ((err as { name?: string })?.name === "AbortError") {
@@ -200,13 +193,7 @@ export class OpenAiProvider implements AiProvider {
     const text = res.choices?.[0]?.message?.content ?? "";
     return {
       summary: text,
-      usage: {
-        inputTokens: res.usage?.prompt_tokens,
-        outputTokens: res.usage?.completion_tokens,
-        cachedInputTokens:
-          res.usage?.prompt_tokens_details?.cached_tokens ?? undefined,
-        model,
-      },
+      usage: res.usage ? toAiUsage(res.usage, model) : { model },
     };
   }
 }
@@ -245,6 +232,27 @@ function toOpenAiTool(t: AiToolDefinition): OpenAI.Chat.Completions.ChatCompleti
       description: t.description,
       parameters: t.parameters as Record<string, unknown>,
     },
+  };
+}
+
+/**
+ * Normalize OpenAI usage to the provider-agnostic shape. OpenAI's
+ * `prompt_tokens` is the *total* input including cached tokens; the cost
+ * layer needs fresh vs cached split out. OpenAI does not bill cache writes
+ * separately, so `cacheWriteTokens` is always 0.
+ */
+function toAiUsage(
+  usage: OpenAI.Completions.CompletionUsage,
+  model: string,
+): AiUsage {
+  const cached = usage.prompt_tokens_details?.cached_tokens ?? 0;
+  const prompt = usage.prompt_tokens ?? 0;
+  return {
+    inputTokens: Math.max(0, prompt - cached),
+    outputTokens: usage.completion_tokens ?? 0,
+    cachedInputTokens: cached,
+    cacheWriteTokens: 0,
+    model,
   };
 }
 

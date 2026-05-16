@@ -5,7 +5,13 @@ import {
   AiConversationRepository,
   AiMessageRepository,
 } from "@ringee/database";
-import { AiProviderRegistry } from "@ringee/platform";
+import {
+  AiProviderRegistry,
+  OwnershipContext,
+  computeTokenCost,
+} from "@ringee/platform";
+import type { AiUsage } from "@ringee/platform";
+import { CreditService } from "../credit.service";
 
 const SUMMARIZER_SYSTEM = `
 You are a conversation summarizer for an outbound-sales AI assistant.
@@ -34,6 +40,7 @@ export class AiSummarizerService {
     private readonly conversations: AiConversationRepository,
     private readonly messages: AiMessageRepository,
     private readonly providerRegistry: AiProviderRegistry,
+    private readonly credits: CreditService,
   ) {}
 
   shouldSummarize(estimatedTokens: number, conversation: AiConversation): boolean {
@@ -82,9 +89,46 @@ export class AiSummarizerService {
         res.summary.trim(),
         res.usage?.outputTokens ?? null,
       );
+      // Summarization is a real model call — bill it to the conversation
+      // total so the displayed cost stays accurate.
+      await this.chargeSummary(conversation, res.usage);
     } catch (err) {
       this.logger.warn(
         `Summarization failed for conversation ${conversation.id}: ${
+          (err as Error).message
+        }`,
+      );
+    }
+  }
+
+  private async chargeSummary(
+    conversation: AiConversation,
+    usage: AiUsage | undefined,
+  ): Promise<void> {
+    if (!usage) return;
+    const { chargedCredits } = computeTokenCost(
+      usage.model,
+      {
+        inputTokens: usage.inputTokens,
+        outputTokens: usage.outputTokens,
+        cachedInputTokens: usage.cachedInputTokens,
+        cacheWriteTokens: usage.cacheWriteTokens,
+      },
+      apiConfiguration.AI_TOKEN_MARGIN,
+    );
+    const cost = Math.round(chargedCredits * 1e6) / 1e6;
+    if (cost <= 0) return;
+
+    const ctx: OwnershipContext = {
+      userId: conversation.userId,
+      organizationId: conversation.organizationId,
+    };
+    try {
+      await this.credits.consumeCredits(ctx, cost);
+      await this.conversations.incrementCost(conversation.id, cost);
+    } catch (err) {
+      this.logger.warn(
+        `summary credit debit failed for ${conversation.id}: ${
           (err as Error).message
         }`,
       );

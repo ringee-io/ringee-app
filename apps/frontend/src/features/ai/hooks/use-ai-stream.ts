@@ -14,6 +14,7 @@ const EVENT_TYPES = [
   'tool_event',
   'confirmation_request',
   'confirmation_resolved',
+  'usage',
   'error',
   'completed',
   'heartbeat'

@@ -94,9 +94,13 @@ export type AiStreamEvent =
   | { type: "error"; error: string };
 
 export interface AiUsage {
+  /** Fresh input tokens — excludes cache reads and writes. */
   inputTokens?: number;
   outputTokens?: number;
+  /** Tokens served from the prompt cache (cache reads). */
   cachedInputTokens?: number;
+  /** Tokens written to the prompt cache (cache creation). 0 when unsupported. */
+  cacheWriteTokens?: number;
   model?: string;
 }
 

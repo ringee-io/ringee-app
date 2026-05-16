@@ -12,8 +12,12 @@ import {
 import {
   AiProviderRegistry,
   OwnershipContext,
+  computeTokenCost,
+  isModelPriced,
 } from "@ringee/platform";
+import type { AiUsage } from "@ringee/platform";
 import { SSEBridgeService } from "../outbound/sse-bridge.service";
+import { CreditService } from "../credit.service";
 import { AgentRegistry, RunnableAgent } from "./agent.registry";
 import { AiContextBuilder } from "./ai-context.builder";
 import { AiConversationService } from "./ai-conversation.service";
@@ -47,6 +51,7 @@ export class AiChatOrchestrator {
     private readonly contextBuilder: AiContextBuilder,
     private readonly summarizer: AiSummarizerService,
     private readonly sse: SSEBridgeService,
+    private readonly credits: CreditService,
   ) {}
 
   channel(conversationId: string): string {
@@ -89,6 +94,18 @@ export class AiChatOrchestrator {
       );
     }
     const agent = this.agents.getRunnable(conversation.agent);
+
+    // Block the whole turn if the user is out of credit — never start a run
+    // we can't pay for. The frontend renders a dedicated out-of-credit state
+    // off this error code.
+    const balance = await this.credits.getBalance(ctx);
+    if (balance <= 0) {
+      throw new BadRequestException({
+        code: "INSUFFICIENT_CREDIT",
+        message:
+          "You've run out of credit. Add credit to keep using Ringee AI.",
+      });
+    }
 
     // Persist the user message immediately so the UI history is consistent.
     await this.messages.create({
@@ -140,6 +157,26 @@ export class AiChatOrchestrator {
     while (hops < MAX_TOOL_HOPS) {
       hops += 1;
 
+      // Mid-turn credit cutoff: if a prior hop's tool work drained the
+      // balance, stop before calling the model again instead of running up
+      // negative credit.
+      if (hops > 1) {
+        const balance = await this.credits.getBalance(ctx);
+        if (balance <= 0) {
+          this.emit(conversationId, {
+            type: "error",
+            message:
+              "You've run out of credit. The assistant stopped before finishing — add credit to continue.",
+            code: "insufficient_credit",
+          });
+          this.emit(conversationId, {
+            type: "completed",
+            finishReason: "error",
+          });
+          return;
+        }
+      }
+
       const conversation = await this.conversationsRepo.findById(conversationId);
       if (!conversation) return;
 
@@ -188,14 +225,7 @@ export class AiChatOrchestrator {
         | "length"
         | "error"
         | "cancelled" = "stop";
-      let usage:
-        | {
-            inputTokens?: number;
-            outputTokens?: number;
-            cachedInputTokens?: number;
-            model?: string;
-          }
-        | undefined;
+      let usage: AiUsage | undefined;
 
       try {
         for await (const ev of provider.stream({
@@ -254,6 +284,10 @@ export class AiChatOrchestrator {
         return;
       }
 
+      // Price this model turn and debit the user's credits before doing
+      // anything else with the result.
+      const charge = await this.chargeTurn(ctx, conversationId, usage);
+
       // Finalize the assistant row for this hop.
       if (completedToolCalls.length > 0) {
         // OpenAI accepts a single assistant message carrying BOTH content and
@@ -272,6 +306,8 @@ export class AiChatOrchestrator {
             inputTokens: usage?.inputTokens ?? null,
             outputTokens: usage?.outputTokens ?? null,
             cachedTokens: usage?.cachedInputTokens ?? null,
+            cacheWriteTokens: usage?.cacheWriteTokens ?? null,
+            costCredits: charge.costCredits,
             model: usage?.model ?? null,
           });
           toolCallMsg = { id: updated.id };
@@ -292,9 +328,14 @@ export class AiChatOrchestrator {
             inputTokens: usage?.inputTokens ?? null,
             outputTokens: usage?.outputTokens ?? null,
             cachedTokens: usage?.cachedInputTokens ?? null,
+            cacheWriteTokens: usage?.cacheWriteTokens ?? null,
+            costCredits: charge.costCredits,
           });
           toolCallMsg = { id: created.id };
         }
+
+        // Surface the usage/cost for this hop so the UI total updates live.
+        this.emitUsage(conversationId, toolCallMsg.id, usage, charge);
 
         // Execute the tool — only the first; the others (if any) are ignored
         // and recorded so the model can retry next hop.
@@ -378,6 +419,8 @@ export class AiChatOrchestrator {
           inputTokens: usage?.inputTokens ?? null,
           outputTokens: usage?.outputTokens ?? null,
           cachedTokens: usage?.cachedInputTokens ?? null,
+          cacheWriteTokens: usage?.cacheWriteTokens ?? null,
+          costCredits: charge.costCredits,
           model: usage?.model ?? null,
         });
         this.emit(conversationId, {
@@ -385,6 +428,7 @@ export class AiChatOrchestrator {
           messageId: slot.row.id,
           content: accumulatedText,
         });
+        this.emitUsage(conversationId, slot.row.id, usage, charge);
       } else if (accumulatedText) {
         // No streaming row was created but text arrived via a bulk delta —
         // persist it now so history stays consistent.
@@ -397,12 +441,15 @@ export class AiChatOrchestrator {
           inputTokens: usage?.inputTokens ?? null,
           outputTokens: usage?.outputTokens ?? null,
           cachedTokens: usage?.cachedInputTokens ?? null,
+          cacheWriteTokens: usage?.cacheWriteTokens ?? null,
+          costCredits: charge.costCredits,
         });
         this.emit(conversationId, {
           type: "message_completed",
           messageId: created.id,
           content: accumulatedText,
         });
+        this.emitUsage(conversationId, created.id, usage, charge);
       }
       await this.conversationsRepo.touchLastMessageAt(conversationId);
       this.emit(conversationId, {
@@ -478,6 +525,83 @@ export class AiChatOrchestrator {
       content: `[user ${accepted ? "approved" : "declined"} ${
         (event.payload as { action?: string })?.action ?? "action"
       }${overrides ? ` with overrides ${JSON.stringify(overrides)}` : ""}]`,
+    });
+  }
+
+  /**
+   * Price a single model turn against the per-model rate table, debit the
+   * user's credits, and add it to the conversation's running total. Returns
+   * the values to persist on the assistant row and stream to the UI.
+   */
+  private async chargeTurn(
+    ctx: OwnershipContext,
+    conversationId: string,
+    usage: AiUsage | undefined,
+  ): Promise<{ costCredits: number; conversationTotalCost: number }> {
+    const { chargedCredits } = computeTokenCost(
+      usage?.model,
+      {
+        inputTokens: usage?.inputTokens,
+        outputTokens: usage?.outputTokens,
+        cachedInputTokens: usage?.cachedInputTokens,
+        cacheWriteTokens: usage?.cacheWriteTokens,
+      },
+      apiConfiguration.AI_TOKEN_MARGIN,
+    );
+    // Round to micro-credit precision to avoid float dust accumulating.
+    const cost = Math.round(chargedCredits * 1e6) / 1e6;
+
+    if (cost <= 0) {
+      if (usage?.model && !isModelPriced(usage.model)) {
+        this.logger.warn(
+          `AI turn for ${conversationId} used unpriced model "${usage.model}" — no credits charged. Add it to the pricing table.`,
+        );
+      }
+      const fresh = await this.conversationsRepo.findById(conversationId);
+      return {
+        costCredits: 0,
+        conversationTotalCost: fresh?.totalCostCredits ?? 0,
+      };
+    }
+
+    try {
+      await this.credits.consumeCredits(ctx, cost);
+    } catch (err) {
+      this.logger.warn(
+        `AI credit debit failed for ${conversationId}: ${errorMessage(err)}`,
+      );
+    }
+    let conversationTotalCost = cost;
+    try {
+      const updated = await this.conversationsRepo.incrementCost(
+        conversationId,
+        cost,
+      );
+      conversationTotalCost = updated.totalCostCredits;
+    } catch (err) {
+      this.logger.warn(
+        `AI cost rollup failed for ${conversationId}: ${errorMessage(err)}`,
+      );
+    }
+    return { costCredits: cost, conversationTotalCost };
+  }
+
+  private emitUsage(
+    conversationId: string,
+    messageId: string,
+    usage: AiUsage | undefined,
+    charge: { costCredits: number; conversationTotalCost: number },
+  ): void {
+    this.emit(conversationId, {
+      type: "usage",
+      messageId,
+      model: usage?.model ?? null,
+      inputTokens: usage?.inputTokens ?? 0,
+      outputTokens: usage?.outputTokens ?? 0,
+      cachedTokens: usage?.cachedInputTokens ?? 0,
+      cacheWriteTokens: usage?.cacheWriteTokens ?? 0,
+      costCredits: charge.costCredits,
+      conversationTotalCost: charge.conversationTotalCost,
     });
   }
 

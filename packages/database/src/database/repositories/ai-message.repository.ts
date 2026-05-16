@@ -23,6 +23,8 @@ export class AiMessageRepository {
     inputTokens?: number | null;
     outputTokens?: number | null;
     cachedTokens?: number | null;
+    cacheWriteTokens?: number | null;
+    costCredits?: number | null;
   }): Promise<AiMessage> {
     return this.prisma.aiMessage.create({
       data: {
@@ -37,6 +39,8 @@ export class AiMessageRepository {
         inputTokens: input.inputTokens ?? null,
         outputTokens: input.outputTokens ?? null,
         cachedTokens: input.cachedTokens ?? null,
+        cacheWriteTokens: input.cacheWriteTokens ?? null,
+        costCredits: input.costCredits ?? null,
       },
     });
   }
@@ -63,6 +67,8 @@ export class AiMessageRepository {
     inputTokens?: number | null;
     outputTokens?: number | null;
     cachedTokens?: number | null;
+    cacheWriteTokens?: number | null;
+    costCredits?: number | null;
   }): Promise<AiMessage> {
     return this.prisma.aiMessage.update({
       where: { id: input.id },
@@ -75,6 +81,8 @@ export class AiMessageRepository {
         inputTokens: input.inputTokens ?? undefined,
         outputTokens: input.outputTokens ?? undefined,
         cachedTokens: input.cachedTokens ?? undefined,
+        cacheWriteTokens: input.cacheWriteTokens ?? undefined,
+        costCredits: input.costCredits ?? undefined,
       },
     });
   }
@@ -87,6 +95,8 @@ export class AiMessageRepository {
     inputTokens?: number | null;
     outputTokens?: number | null;
     cachedTokens?: number | null;
+    cacheWriteTokens?: number | null;
+    costCredits?: number | null;
   }): Promise<AiMessage> {
     return this.prisma.aiMessage.update({
       where: { id: input.id },
@@ -97,6 +107,8 @@ export class AiMessageRepository {
         inputTokens: input.inputTokens ?? undefined,
         outputTokens: input.outputTokens ?? undefined,
         cachedTokens: input.cachedTokens ?? undefined,
+        cacheWriteTokens: input.cacheWriteTokens ?? undefined,
+        costCredits: input.costCredits ?? undefined,
       },
     });
   }

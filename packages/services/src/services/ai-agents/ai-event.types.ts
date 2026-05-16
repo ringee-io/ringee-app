@@ -54,8 +54,23 @@ export type AiChatStreamEvent =
       result?: Record<string, unknown>;
     }
   | {
+      type: "usage";
+      messageId: string;
+      model: string | null;
+      inputTokens: number;
+      outputTokens: number;
+      cachedTokens: number;
+      cacheWriteTokens: number;
+      /** Credits charged for this turn (USD-equivalent, margin applied). */
+      costCredits: number;
+      /** Running AI cost total for the whole conversation. */
+      conversationTotalCost: number;
+    }
+  | {
       type: "error";
       message: string;
+      /** Set to "insufficient_credit" when the run was blocked/stopped for credit. */
+      code?: string;
     }
   | {
       type: "completed";

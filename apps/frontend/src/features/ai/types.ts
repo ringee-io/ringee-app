@@ -22,6 +22,8 @@ export interface AiConversation {
   providerSelection: string | null;
   agentState: Record<string, unknown> | null;
   summary: string | null;
+  /** Running total of AI credits consumed by this conversation. */
+  totalCostCredits: number;
   lastMessageAt: string | null;
   archivedAt: string | null;
   createdAt: string;
@@ -40,6 +42,23 @@ export interface AiMessage {
   toolName: string | null;
   toolPayload: Record<string, unknown> | null;
   createdAt: string;
+  // Token usage + cost (populated on assistant turns).
+  model?: string | null;
+  inputTokens?: number | null;
+  outputTokens?: number | null;
+  cachedTokens?: number | null;
+  cacheWriteTokens?: number | null;
+  costCredits?: number | null;
+}
+
+/** Per-message token usage carried by the `usage` SSE event. */
+export interface AiUsageInfo {
+  model: string | null;
+  inputTokens: number;
+  outputTokens: number;
+  cachedTokens: number;
+  cacheWriteTokens: number;
+  costCredits: number;
 }
 
 export interface ProspectPreview {

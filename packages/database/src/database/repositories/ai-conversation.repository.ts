@@ -88,6 +88,14 @@ export class AiConversationRepository {
     });
   }
 
+  /** Add to the running AI cost total for a conversation. */
+  incrementCost(id: string, amount: number): Promise<AiConversation> {
+    return this.prisma.aiConversation.update({
+      where: { id },
+      data: { totalCostCredits: { increment: amount } },
+    });
+  }
+
   touchLastMessageAt(id: string, at: Date = new Date()): Promise<AiConversation> {
     return this.prisma.aiConversation.update({
       where: { id },

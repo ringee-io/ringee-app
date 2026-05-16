@@ -4,13 +4,15 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
-import { IconAlertTriangleFilled } from '@tabler/icons-react';
+import { IconAlertTriangleFilled, IconBolt } from '@tabler/icons-react';
+import { useCreditStore } from '@/features/credit/store/credit.store';
 import { AgentSelector } from './agent-selector';
 import { ChatInput, ChatInputHandle } from './chat-input';
-import { ChatMessages } from './chat-messages';
+import { ChatMessages, formatCredits } from './chat-messages';
 import { ConfirmationCard } from './confirmation-card';
 import { ConversationList } from './conversation-list';
 import { EmptyState } from './empty-state';
+import { OutOfCreditPanel } from './out-of-credit-panel';
 import { ProspectResultsPanel } from './prospect-results-panel';
 import { useAiConversation } from '../hooks/use-ai-conversation';
 import type {
@@ -86,11 +88,19 @@ export function RingeeAiView({ conversationId }: Props) {
   );
   const chatInputRef = useRef<ChatInputHandle | null>(null);
 
+  const creditBalance = useCreditStore((s) => s.balance);
+  const creditStatus = useCreditStore((s) => s.status);
+  const fetchBalance = useCreditStore((s) => s.fetchBalance);
+  // Only trust a zero balance once the balance has actually loaded — a failed
+  // or in-flight fetch must not lock the user out of the chat.
+  const outOfCredit = creditStatus === 'success' && creditBalance <= 0;
+
   const { state, sendMessage, confirmAction } = useAiConversation(conversationId);
 
-  // Initial load: agents + conversation list + connection summary.
+  // Initial load: agents + conversation list + connection summary + balance.
   useEffect(() => {
     let cancelled = false;
+    void fetchBalance(api);
     async function init() {
       try {
         const [agentsList, convs, connections] = await Promise.all([
@@ -273,11 +283,28 @@ export function RingeeAiView({ conversationId }: Props) {
               onSelect={(id) => setAgentId(id as AiAgentId)}
             />
           </div>
-          {state.conversation?.title && (
-            <span className='truncate text-sm font-medium text-muted-foreground'>
-              {state.conversation.title}
-            </span>
-          )}
+          <div className='flex min-w-0 items-center gap-2'>
+            {state.conversation?.title && (
+              <span className='hidden truncate text-sm font-medium text-muted-foreground sm:inline'>
+                {state.conversation.title}
+              </span>
+            )}
+            {state.conversation && (
+              <span
+                className='flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground'
+                title='Total AI cost for this conversation'
+              >
+                <IconBolt
+                  size={11}
+                  className='text-amber-500'
+                  fill='currentColor'
+                />
+                <span className='tabular-nums'>
+                  {formatCredits(state.conversation.totalCostCredits ?? 0)} cr
+                </span>
+              </span>
+            )}
+          </div>
         </header>
 
         <div className='flex flex-1 overflow-hidden'>
@@ -321,12 +348,16 @@ export function RingeeAiView({ conversationId }: Props) {
             )}
 
             {showEmpty ? (
-              <EmptyState
-                providersConnected={connectedProviders}
-                onPick={handlePickExample}
-                onSubmit={(text) => void handleSend(text)}
-                sending={hasPendingSend}
-              />
+              outOfCredit ? (
+                <OutOfCreditPanel />
+              ) : (
+                <EmptyState
+                  providersConnected={connectedProviders}
+                  onPick={handlePickExample}
+                  onSubmit={(text) => void handleSend(text)}
+                  sending={hasPendingSend}
+                />
+              )
             ) : state.loading ? (
               <div className='flex flex-1 items-center justify-center text-sm text-muted-foreground'>
                 Loading conversation…
@@ -338,12 +369,16 @@ export function RingeeAiView({ conversationId }: Props) {
                   streamingAssistantId={state.streamingAssistantId}
                   busy={state.busy || hasPendingSend}
                 />
-                <ChatInput
-                  ref={chatInputRef}
-                  disabled={state.loading}
-                  sending={state.busy || hasPendingSend}
-                  onSubmit={(text) => void handleSend(text)}
-                />
+                {outOfCredit ? (
+                  <OutOfCreditPanel compact />
+                ) : (
+                  <ChatInput
+                    ref={chatInputRef}
+                    disabled={state.loading}
+                    sending={state.busy || hasPendingSend}
+                    onSubmit={(text) => void handleSend(text)}
+                  />
+                )}
               </>
             )}
           </div>
