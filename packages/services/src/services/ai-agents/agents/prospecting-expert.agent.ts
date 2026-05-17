@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import type { AiConversation } from "@ringee/database";
 import type { AgentTool } from "../tool.types";
 import type { AiToolDefinition } from "@ringee/platform";
 import { ProspectingTools } from "../tools/prospecting.tools";
@@ -119,6 +120,87 @@ FORMAT
 
 export const PROSPECTING_EXPERT_PROMPT = SYSTEM_PROMPT;
 
+/**
+ * The three prospecting entry modes. Each starts from a different kind of
+ * input and gives the agent a distinct playbook. The mode is chosen by the
+ * user in the UI and persisted on `AiConversation.agentState.mode`.
+ */
+export type ProspectingMode = "icp" | "customers" | "signals";
+
+export const PROSPECTING_MODES: ProspectingMode[] = [
+  "icp",
+  "customers",
+  "signals",
+];
+
+export function isProspectingMode(value: unknown): value is ProspectingMode {
+  return (
+    value === "icp" || value === "customers" || value === "signals"
+  );
+}
+
+/**
+ * Mode-specific playbook appended to the base system prompt. The base prompt
+ * (filter vocabularies, provider rules, confirmation gates) is shared by all
+ * modes — these blocks only change how the agent OPENS the conversation and
+ * what it does with the user's first message.
+ */
+const MODE_PLAYBOOKS: Record<ProspectingMode, string> = {
+  icp: `
+ACTIVE MODE: SEARCH BY ICP
+The user chose the "Based on my ICP" mode — their message describes their ideal customer profile. Playbook:
+1. Extract the ICP from their message: kind of company / industry, employee size, countries, target personas (roles/seniorities), and the pain your product most likely solves for them.
+2. Reflect the ICP back as a short structured recap (Companies, Size, Countries, Target personas, Probable pain) so the user can confirm or correct it before you spend provider credits.
+3. Translate the ICP into concrete canonical filters using the QUERY ENRICHMENT RULES.
+4. Recommend ONE clear segment to search first (e.g. "start with founders of B2B agencies, 10-50 employees, in Mexico and Colombia") — a recommendation, not a menu.
+5. Call detect_connected_providers; if both are connected pick the better one in one sentence, if one is connected use it.
+6. Call search_prospects with the rich, expanded filter set, then score and present the top 3-5 in prose and offer to reveal or save.
+The READINESS GATE still applies: if the message is too thin to name WHO + (MARKET or GEOGRAPHY), ask for the missing pieces first instead of inventing them.
+`.trim(),
+
+  customers: `
+ACTIVE MODE: LOOKALIKE FROM BEST CUSTOMERS
+The user chose the "Based on my best customers" mode — they want leads similar to customers who already bought, using real evidence instead of a theoretical ICP. Playbook:
+1. First inspect the user's message: did they PASTE a list of customers (companies/people they already sold to)?
+   - If YES — those pasted customers ARE the evidence. Use them directly. You do not need analyze_past_buyers in this case (you may still call it to enrich, but the pasted list is primary).
+   - If NO — call analyze_past_buyers on turn 1 with limit 25. It inspects the user's 25 most recent calls whose outcome is a booked meeting or a closed sale, and infers ICP signals from those contacts. The READINESS GATE is satisfied by this analysis — the user does not need to describe an ICP.
+2. FALLBACK — if the user did NOT paste customers AND analyze_past_buyers returns count: 0 (the user has no calls marked as a booked meeting or a sale): do NOT invent an ICP and do NOT search. Reply asking the user to paste the details of the customers who already bought from them — for each one: company, what they do, country, and the role you sold to (e.g. "GrowthLab — lead-gen agency — Mexico — Founder"). Stop there until they provide that list; on their next message, treat the pasted customers as the evidence and continue from step 3.
+3. With evidence in hand (pasted customers and/or the analysis), describe the pattern: the personas/titles that buy most, common company sizes, repeated industries, countries, and the shared pain those customers likely have.
+4. Build an INFERRED ICP from that pattern and reflect it back to the user.
+5. Translate the inferred ICP into canonical lookalike filters and call search_prospects. Buyer signals from the analysis are cached and used to score — prospects closest to past winners rank highest.
+6. Present the top 3-5 in prose, calling out for each WHY it resembles a past customer, then offer to reveal or save.
+`.trim(),
+
+  signals: `
+ACTIVE MODE: SEARCH BY BUYING SIGNALS
+The user chose the "Based on buying signals" mode — they want companies that look like they NEED the product now, not just companies that fit. Playbook:
+1. From the user's message, work out what they sell, then identify the buying signals that imply present need: hiring operations/sales/support managers, remote or distributed teams, fast headcount growth, agencies/BPOs/outsourcing with large teams, companies running productivity/CRM/project-management tooling, open operations or revenue roles.
+2. List the 4-6 strongest signals for THEIR product, in prose.
+3. Translate signals into searchable filters: signal roles → jobTitles + departments + seniorities; "remote / distributed / growing / scaling" and tool usage → keywords (e.g. "remote OR distributed OR hiring OR scaling"); company-type signals → industries + employeeCountRanges. Signal-bearing companies skew mid-sized — default employeeCountRanges to ["51-100","101-200","201-500"] unless the user says otherwise.
+4. Recommend the segment with the most urgency first.
+5. Call detect_connected_providers, then search_prospects with the signal-derived filters.
+6. Score by fit AND buying-signal strength; present the top 3-5 prioritized prospects in prose, naming the signal each one shows, then offer to reveal or save.
+Be honest: the providers have no literal "is hiring" filter — you approximate intent through roles, keywords, industry and size. This is signal-based targeting, not verified intent data.
+`.trim(),
+};
+
+/** Resolve the prospecting mode persisted on a conversation, if any. */
+export function readProspectingMode(
+  conversation?: AiConversation | null,
+): ProspectingMode | null {
+  const state = conversation?.agentState as { mode?: unknown } | null;
+  return isProspectingMode(state?.mode) ? state.mode : null;
+}
+
+/** Base prompt plus the mode playbook for the conversation's chosen mode. */
+export function buildProspectingPrompt(
+  conversation?: AiConversation | null,
+): string {
+  const mode = readProspectingMode(conversation);
+  if (!mode) return SYSTEM_PROMPT;
+  return `${SYSTEM_PROMPT}\n\n${MODE_PLAYBOOKS[mode]}`;
+}
+
 @Injectable()
 export class ProspectingExpertAgent {
   readonly id = "prospecting_expert" as const;
@@ -128,8 +210,8 @@ export class ProspectingExpertAgent {
 
   constructor(private readonly prospectingTools: ProspectingTools) {}
 
-  systemPrompt(): string {
-    return SYSTEM_PROMPT;
+  systemPrompt(conversation?: AiConversation | null): string {
+    return buildProspectingPrompt(conversation);
   }
 
   tools(): AgentTool[] {

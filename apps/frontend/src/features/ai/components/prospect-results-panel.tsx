@@ -10,6 +10,7 @@ import {
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import {
   IconChevronDown,
+  IconChevronUp,
   IconClock,
   IconHistory,
   IconLock,
@@ -252,6 +253,8 @@ function GroupActions({
   );
 }
 
+const INITIAL_VISIBLE = 12;
+
 function GroupBody({
   group,
   ctx
@@ -259,10 +262,17 @@ function GroupBody({
   group: ProspectResultGroup;
   ctx: GroupContext;
 }) {
+  const [showAll, setShowAll] = useState(false);
+  const hasMore = group.results.length > INITIAL_VISIBLE;
+  const visible =
+    showAll || !hasMore
+      ? group.results
+      : group.results.slice(0, INITIAL_VISIBLE);
+
   return (
     <>
       <div className='grid gap-2 md:grid-cols-2'>
-        {group.results.slice(0, 12).map((p) => (
+        {visible.map((p) => (
           <ProspectCard
             key={p.externalId}
             prospect={p}
@@ -271,10 +281,24 @@ function GroupBody({
           />
         ))}
       </div>
-      {group.results.length > 12 && (
-        <div className='text-center text-xs text-muted-foreground'>
-          Showing top 12 of {group.results.length} results.
-        </div>
+      {hasMore && (
+        <Button
+          variant='outline'
+          size='sm'
+          className='h-8 w-full gap-1 text-xs'
+          onClick={() => setShowAll((v) => !v)}
+        >
+          {showAll ? (
+            <>
+              <IconChevronUp size={14} /> Show less
+            </>
+          ) : (
+            <>
+              <IconChevronDown size={14} /> Show all {group.results.length}{' '}
+              results
+            </>
+          )}
+        </Button>
       )}
     </>
   );

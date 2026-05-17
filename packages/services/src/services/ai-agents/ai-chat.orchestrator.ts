@@ -182,7 +182,7 @@ export class AiChatOrchestrator {
 
       const built = await this.contextBuilder.build(
         conversation,
-        agent.systemPrompt(),
+        agent.systemPrompt(conversation),
       );
 
       // Assistant row is created lazily: only when the first text delta or

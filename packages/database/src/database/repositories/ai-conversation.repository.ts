@@ -15,6 +15,7 @@ export class AiConversationRepository {
     organizationId?: string | null;
     agent: AiAgentType;
     title?: string | null;
+    agentState?: Prisma.InputJsonValue | null;
   }): Promise<AiConversation> {
     return this.prisma.aiConversation.create({
       data: {
@@ -22,6 +23,9 @@ export class AiConversationRepository {
         organizationId: input.organizationId ?? null,
         agent: input.agent,
         title: input.title ?? null,
+        ...(input.agentState != null
+          ? { agentState: input.agentState }
+          : {}),
       },
     });
   }

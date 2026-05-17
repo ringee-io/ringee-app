@@ -4,12 +4,16 @@ import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { Checkbox } from '@ringee/frontend-shared/components/ui/checkbox';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import {
+  IconArrowUpRight,
+  IconBrandLinkedin,
   IconBriefcase,
   IconMail,
   IconMapPin,
   IconPhone
 } from '@tabler/icons-react';
-import type { ProspectPreview } from '../types';
+import { useState } from 'react';
+import type { ProspectDetails, ProspectPreview } from '../types';
+import { ProspectDetailModal } from './prospect-detail-modal';
 
 interface Props {
   prospect: ProspectPreview;
@@ -18,6 +22,11 @@ interface Props {
 }
 
 export function ProspectCard({ prospect, selected, onToggle }: Props) {
+  const [detailOpen, setDetailOpen] = useState(false);
+  // `details` is absent on prospect cards persisted before the detail modal
+  // shipped — fall back to a non-clickable name for those.
+  const details = prospect.details as ProspectDetails | undefined;
+
   return (
     <div
       className={cn(
@@ -33,9 +42,26 @@ export function ProspectCard({ prospect, selected, onToggle }: Props) {
         />
         <div className='min-w-0 flex-1'>
           <div className='flex items-center justify-between gap-2'>
-            <div className='line-clamp-1 text-sm font-semibold'>
-              {prospect.fullName ?? 'Unknown'}
-            </div>
+            {details ? (
+              <button
+                type='button'
+                onClick={() => setDetailOpen(true)}
+                title='View full lead detail'
+                className='group inline-flex min-w-0 items-center gap-1 text-left text-sm font-semibold text-foreground transition-colors hover:text-primary'
+              >
+                <span className='line-clamp-1 group-hover:underline'>
+                  {prospect.fullName ?? 'Unknown'}
+                </span>
+                <IconArrowUpRight
+                  size={13}
+                  className='shrink-0 text-muted-foreground transition-colors group-hover:text-primary'
+                />
+              </button>
+            ) : (
+              <span className='line-clamp-1 text-sm font-semibold'>
+                {prospect.fullName ?? 'Unknown'}
+              </span>
+            )}
             <FitScoreBadge score={prospect.fitScore} />
           </div>
           <div className='mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground'>
@@ -88,10 +114,24 @@ export function ProspectCard({ prospect, selected, onToggle }: Props) {
         </ul>
       )}
 
-      {prospect.suggestedCallAngle && (
-        <div className='rounded-md bg-muted/50 p-2 text-xs italic text-muted-foreground'>
-          “{prospect.suggestedCallAngle}”
-        </div>
+      {prospect.linkedinUrl && (
+        <a
+          href={prospect.linkedinUrl}
+          target='_blank'
+          rel='noopener noreferrer'
+          className='inline-flex w-fit items-center gap-1 text-xs font-medium text-[#0a66c2] transition-opacity hover:underline'
+        >
+          <IconBrandLinkedin size={14} />
+          View LinkedIn profile
+        </a>
+      )}
+
+      {details && (
+        <ProspectDetailModal
+          prospect={prospect}
+          open={detailOpen}
+          onOpenChange={setDetailOpen}
+        />
       )}
     </div>
   );

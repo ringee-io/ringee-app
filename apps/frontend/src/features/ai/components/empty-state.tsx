@@ -5,15 +5,13 @@ import { Textarea } from '@ringee/frontend-shared/components/ui/textarea';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useUser } from '@clerk/nextjs';
 import {
-  IconChartBar,
+  IconBolt,
   IconCheck,
   IconLoader2,
-  IconLock,
-  IconSearch,
   IconSend,
   IconSparkles,
   IconTargetArrow,
-  IconUserSearch
+  IconUsers
 } from '@tabler/icons-react';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
@@ -23,38 +21,58 @@ import {
   type EnrichmentConnectionSummary,
   type EnrichmentProviderType
 } from '@/features/integrations/types/enrichment';
+import type { ProspectingMode } from '../types';
 
-const QUICK_PROMPTS: Array<{
+interface ProspectingModeCard {
+  id: ProspectingMode;
   icon: React.ComponentType<{ size?: number; className?: string }>;
-  label: string;
-  text: string;
-}> = [
+  title: string;
+  tagline: string;
+  /** Placeholder shown in the description input while this mode is active. */
+  placeholder: string;
+  /** One-tap example that fills the input. */
+  example: string;
+  /** When set, the mode can be submitted with an empty input — this seed
+   *  message is sent instead. */
+  seed?: string;
+}
+
+const PROSPECTING_MODES: ProspectingModeCard[] = [
   {
+    id: 'icp',
     icon: IconTargetArrow,
-    label: 'Find decision-makers',
-    text: 'I want to reach Heads of Sales at 50-200 person B2B SaaS companies in France that have an outbound team. Help me build the strongest search and find the top 25 leads.'
+    title: 'Based on my ICP',
+    tagline: 'I already know who my ideal customer is.',
+    placeholder:
+      'Describe your ideal customer — e.g. "B2B marketing agencies with 10-50 employees in Mexico and Colombia. I sell to founders, CEOs and heads of sales."',
+    example:
+      'My ICP is B2B marketing agencies with 10-50 employees in Mexico and Colombia. I usually sell to founders, CEOs or heads of sales. My product improves team productivity and visibility.'
   },
   {
-    icon: IconChartBar,
-    label: 'Lookalike from won deals',
-    text: 'Analyze my past won deals in Ringee and recommend 2 or 3 lookalike search strategies. Then run the one most likely to convert.'
+    id: 'customers',
+    icon: IconUsers,
+    title: 'Based on my best customers',
+    tagline: 'Use who already bought to find lookalikes.',
+    placeholder:
+      'Send as-is to analyze your won deals in Ringee — or paste a few customers (name — what they do — country — role) to guide the search.',
+    example:
+      'Find leads similar to the customers who already bought from me.',
+    seed: 'Use my won customers and booked meetings in Ringee to find lookalike companies.'
   },
   {
-    icon: IconSearch,
-    label: 'Refine a vague target',
-    text: "I want to sell to founders in LATAM with an international outbound sales team. Translate this into concrete filters (titles, industries, country codes, company size) and run the search."
-  },
-  {
-    icon: IconUserSearch,
-    label: 'Search by industry',
-    text: 'Find me 25 prospects in the fintech industry, Series A or B, based in Western Europe. Score them by likelihood to need outbound calling software.'
+    id: 'signals',
+    icon: IconBolt,
+    title: 'Based on buying signals',
+    tagline: 'Find companies that look like they need it now.',
+    placeholder:
+      'Describe the need your product solves — e.g. "companies showing they need team analytics and productivity software: hiring managers, remote teams, growing fast."',
+    example:
+      'I want companies showing signals that they need team analytics and productivity software — hiring operations managers, remote teams, or growing fast.'
   }
 ];
 
 interface Props {
-  providersConnected: string[];
-  onPick: (text: string) => void;
-  onSubmit: (text: string) => void;
+  onSubmit: (text: string, mode: ProspectingMode) => void;
   sending?: boolean;
 }
 
@@ -73,20 +91,25 @@ function greetingFor(date: Date): string {
   return 'Evening';
 }
 
-export function EmptyState({
-  providersConnected,
-  onPick,
-  onSubmit,
-  sending
-}: Props) {
+export function EmptyState({ onSubmit, sending }: Props) {
   const { user } = useUser();
+  const [mode, setMode] = useState<ProspectingMode>('icp');
   const [value, setValue] = useState('');
   const firstName = user?.firstName?.trim() ?? '';
 
+  const activeMode =
+    PROSPECTING_MODES.find((m) => m.id === mode) ?? PROSPECTING_MODES[0];
+  const trimmed = value.trim();
+  // ICP and signals need a description; the customers mode can run off the
+  // user's Ringee history alone, so it submits with an empty input.
+  const canSubmit =
+    !sending && (trimmed.length > 0 || Boolean(activeMode.seed));
+
   function submit() {
-    const trimmed = value.trim();
-    if (!trimmed || sending) return;
-    onSubmit(trimmed);
+    if (sending) return;
+    const text = trimmed || activeMode.seed || '';
+    if (!text) return;
+    onSubmit(text, mode);
     setValue('');
   }
 
@@ -107,11 +130,51 @@ export function EmptyState({
           </h1>
         </div>
 
-        <div className='mt-8 w-full'>
+        <p className='mt-3 text-sm text-muted-foreground'>
+          How do you want to find leads?
+        </p>
+
+        <div className='mt-5 grid w-full gap-2.5 sm:grid-cols-3'>
+          {PROSPECTING_MODES.map((m) => {
+            const Icon = m.icon;
+            const selected = m.id === mode;
+            return (
+              <button
+                key={m.id}
+                type='button'
+                onClick={() => setMode(m.id)}
+                aria-pressed={selected}
+                className={`flex flex-col gap-1.5 rounded-xl border p-3 text-left transition-all ${
+                  selected
+                    ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary/30'
+                    : 'border-border/60 bg-background hover:border-border hover:bg-muted/50'
+                }`}
+              >
+                <span
+                  className={`flex h-7 w-7 items-center justify-center rounded-lg ${
+                    selected
+                      ? 'bg-primary/15 text-primary'
+                      : 'bg-muted text-muted-foreground'
+                  }`}
+                >
+                  <Icon size={15} />
+                </span>
+                <span className='text-sm font-medium leading-tight'>
+                  {m.title}
+                </span>
+                <span className='text-xs text-muted-foreground'>
+                  {m.tagline}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        <div className='mt-4 w-full'>
           <div className='group relative overflow-hidden rounded-lg border border-border/60 bg-muted/30 shadow-sm transition-all focus-within:border-border focus-within:bg-muted/50 focus-within:shadow-md'>
             <Textarea
               value={value}
-              placeholder='How can I help you today?'
+              placeholder={activeMode.placeholder}
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -120,16 +183,16 @@ export function EmptyState({
                 }
               }}
               rows={3}
-              className='min-h-[88px] resize-none border-0 bg-transparent px-5 pb-12 pt-4 text-base shadow-none focus-visible:ring-0 dark:bg-transparent'
+              className='min-h-[96px] resize-none border-0 bg-transparent px-5 pb-12 pt-4 text-base shadow-none focus-visible:ring-0 dark:bg-transparent'
             />
             <div className='pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between px-3 py-2'>
               <div className='pointer-events-auto flex items-center gap-1.5 text-xs text-muted-foreground'>
                 <IconSparkles size={12} className='text-primary' />
-                <span className='hidden sm:inline'>Prospecting Expert</span>
+                <span className='hidden sm:inline'>{activeMode.title}</span>
               </div>
               <Button
                 onClick={submit}
-                disabled={!value.trim() || sending}
+                disabled={!canSubmit}
                 size='icon'
                 className='pointer-events-auto h-9 w-9 rounded-lg'
               >
@@ -141,23 +204,17 @@ export function EmptyState({
               </Button>
             </div>
           </div>
-        </div>
 
-        <div className='mt-5 flex flex-wrap items-center justify-center gap-2'>
-          {QUICK_PROMPTS.map(({ icon: Icon, label, text }) => (
-            <button
-              key={label}
-              type='button'
-              onClick={() => {
-                setValue(text);
-                onPick(text);
-              }}
-              className='inline-flex items-center gap-1.5 rounded-lg border border-border/60 bg-background px-3 py-1.5 text-xs text-muted-foreground transition-colors hover:border-border hover:bg-muted hover:text-foreground'
-            >
-              <Icon size={13} />
-              {label}
-            </button>
-          ))}
+          <button
+            type='button'
+            onClick={() => setValue(activeMode.example)}
+            className='mt-2 flex w-full items-start gap-1.5 rounded-lg px-1 text-left text-xs text-muted-foreground transition-colors hover:text-foreground'
+          >
+            <span className='shrink-0 font-medium text-primary/80'>
+              Example
+            </span>
+            <span className='line-clamp-2'>{activeMode.example}</span>
+          </button>
         </div>
 
         <CalendarSection />

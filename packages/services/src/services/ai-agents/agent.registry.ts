@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import type { AiAgentType } from "@ringee/database";
+import type { AiAgentType, AiConversation } from "@ringee/database";
 import type { AgentTool } from "./tool.types";
 import type { AiToolDefinition } from "@ringee/platform";
 import { ProspectingExpertAgent } from "./agents/prospecting-expert.agent";
@@ -15,7 +15,12 @@ export interface AgentDescriptor {
 export interface RunnableAgent {
   id: AiAgentType;
   label: string;
-  systemPrompt(): string;
+  /**
+   * The system prompt for a turn. Receives the conversation so agents can
+   * tailor the prompt to per-conversation state (e.g. the prospecting mode
+   * stored on `agentState`).
+   */
+  systemPrompt(conversation?: AiConversation | null): string;
   tools(): AgentTool[];
   toolSchemas(): AiToolDefinition[];
 }

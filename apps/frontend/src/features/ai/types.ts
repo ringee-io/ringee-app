@@ -5,6 +5,12 @@ export type AiAgentId =
   | 'call_coach'
   | 'analytics';
 
+/**
+ * The three prospecting entry modes. Each starts a conversation from a
+ * different kind of input and gives the agent a distinct playbook.
+ */
+export type ProspectingMode = 'icp' | 'customers' | 'signals';
+
 export interface AiAgentDescriptor {
   id: AiAgentId;
   label: string;
@@ -61,6 +67,72 @@ export interface AiUsageInfo {
   costCredits: number;
 }
 
+export interface ProspectWorkHistoryEntry {
+  company: string | null;
+  title: string | null;
+  current: boolean | null;
+}
+
+export interface ProspectEducationEntry {
+  school: string | null;
+  degree: string | null;
+  field: string | null;
+}
+
+export interface ProspectPersonDetails {
+  firstName: string | null;
+  lastName: string | null;
+  headline: string | null;
+  summary: string | null;
+  jobTitle: string | null;
+  seniority: string | null;
+  department: string | null;
+  yearsExperience: number | null;
+  linkedinUrl: string | null;
+  twitterUrl: string | null;
+  githubUrl: string | null;
+  facebookUrl: string | null;
+  websiteUrl: string | null;
+  city: string | null;
+  region: string | null;
+  country: string | null;
+  timezone: string | null;
+  languages: string[];
+  skills: string[];
+  emailCount: number;
+  verifiedEmailCount: number;
+  phoneCount: number;
+  workHistory: ProspectWorkHistoryEntry[];
+  education: ProspectEducationEntry[];
+}
+
+export interface ProspectCompanyDetails {
+  name: string | null;
+  legalName: string | null;
+  domain: string | null;
+  website: string | null;
+  description: string | null;
+  industry: string | null;
+  subIndustry: string | null;
+  size: string | null;
+  employeeCount: number | null;
+  employeeCountRange: string | null;
+  revenueRange: string | null;
+  fundingStage: string | null;
+  foundedYear: number | null;
+  companyType: string | null;
+  linkedinUrl: string | null;
+  logoUrl: string | null;
+  location: string | null;
+  technologies: string[];
+  keywords: string[];
+}
+
+export interface ProspectDetails {
+  person: ProspectPersonDetails;
+  company: ProspectCompanyDetails | null;
+}
+
 export interface ProspectPreview {
   externalId: string;
   jobId: string;
@@ -74,7 +146,10 @@ export interface ProspectPreview {
   fitScore: number;
   confidence: number | null;
   reasons: string[];
-  suggestedCallAngle: string | null;
+  /** Public LinkedIn profile URL, when the provider returned one. */
+  linkedinUrl: string | null;
+  /** Full normalized provider data for the detail modal. */
+  details: ProspectDetails;
 }
 
 export interface AiToolEvent {

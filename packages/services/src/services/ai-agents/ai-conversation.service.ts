@@ -13,6 +13,7 @@ import {
   AiToolEventRepository,
 } from "@ringee/database";
 import { OwnershipContext } from "@ringee/platform";
+import type { ProspectingMode } from "./agents/prospecting-expert.agent";
 
 @Injectable()
 export class AiConversationService {
@@ -24,13 +25,20 @@ export class AiConversationService {
 
   async create(
     ctx: OwnershipContext,
-    input: { agent: AiAgentType; title?: string | null },
+    input: {
+      agent: AiAgentType;
+      title?: string | null;
+      /** Prospecting entry mode — persisted on agentState so the agent can
+       *  pick the matching playbook on every turn. */
+      mode?: ProspectingMode | null;
+    },
   ): Promise<AiConversation> {
     return this.conversations.create({
       userId: ctx.userId,
       organizationId: ctx.organizationId ?? null,
       agent: input.agent,
       title: input.title ?? null,
+      agentState: input.mode ? { mode: input.mode } : null,
     });
   }
 

@@ -7,7 +7,9 @@ import {
   TagRepository,
 } from "@ringee/database";
 import {
+  EnrichedPerson,
   EnrichmentProviderRegistry,
+  LeadCandidate,
   LeadSearchFilters,
 } from "@ringee/platform";
 import {
@@ -25,6 +27,7 @@ import {
 import {
   AgentTool,
   AgentToolContext,
+  ProspectDetails,
   ProspectPreview,
 } from "../tool.types";
 
@@ -123,19 +126,20 @@ export class ProspectingTools {
     return {
       name: "analyze_past_buyers",
       description:
-        "Inspect contacts that resulted in a sale, meeting booked, or strong interest and infer ICP signals (titles, seniorities, industries, countries, company sizes). Use these signals to recommend stronger searches and to score new prospects.",
+        "Inspect the user's most recent calls whose outcome is a booked meeting or a closed sale, pull those contacts, and infer ICP signals (titles, seniorities, industries, countries, company sizes). Defaults to the last 25 such calls. Returns count: 0 when the user has no calls with those outcomes. Use the signals to recommend stronger searches and to score new prospects.",
       parameters: {
         type: "object",
         properties: {
           limit: {
             type: "integer",
-            description: "Maximum number of past won contacts to inspect (default 200).",
+            description:
+              "How many of the most recent booked-meeting / sale calls to inspect. Default 25.",
           },
         },
         additionalProperties: false,
       },
       execute: async (args, rt) => {
-        const limit = Math.min(500, Math.max(10, Number(args?.limit) || 200));
+        const limit = Math.min(500, Math.max(1, Number(args?.limit) || 25));
         const analysis = await this.pastBuyers.analyze(rt.ctx, limit);
 
         // Cache signals on conversation state so subsequent searches can score.
@@ -227,7 +231,8 @@ export class ProspectingTools {
           fitScore: s.score,
           confidence: s.candidate.confidence ?? null,
           reasons: s.reasons,
-          suggestedCallAngle: s.suggestedCallAngle ?? null,
+          linkedinUrl: personLinkedinUrl(s.candidate.person),
+          details: buildProspectDetails(s.candidate),
         }));
 
         await rt.emit({
@@ -458,6 +463,87 @@ export class ProspectingTools {
     if (!sig || typeof sig !== "object") return null;
     return sig as BuyerSignals;
   }
+}
+
+/** Best-effort LinkedIn URL: explicit field, else a linkedin social profile. */
+function personLinkedinUrl(person: EnrichedPerson): string | null {
+  if (person.linkedinUrl) return person.linkedinUrl;
+  const social = person.socialProfiles?.find((s) =>
+    /linkedin/i.test(s.platform),
+  );
+  return social?.url ?? null;
+}
+
+/**
+ * Project a provider lead candidate into the normalized detail payload the
+ * UI modal renders. Email/phone VALUES are never included — only counts —
+ * so the reveal-confirmation gate is never bypassed.
+ */
+function buildProspectDetails(c: LeadCandidate): ProspectDetails {
+  const p = c.person;
+  const co = c.company;
+  return {
+    person: {
+      firstName: p.firstName ?? null,
+      lastName: p.lastName ?? null,
+      headline: p.headline ?? null,
+      summary: p.summary ?? null,
+      jobTitle: p.jobTitle ?? null,
+      seniority: p.seniority ?? null,
+      department: p.department ?? null,
+      yearsExperience: p.yearsExperience ?? null,
+      linkedinUrl: personLinkedinUrl(p),
+      twitterUrl: p.twitterUrl ?? null,
+      githubUrl: p.githubUrl ?? null,
+      facebookUrl: p.facebookUrl ?? null,
+      websiteUrl: p.websiteUrl ?? null,
+      city: p.location?.city ?? null,
+      region: p.location?.region ?? null,
+      country: p.location?.country ?? null,
+      timezone: p.timezone ?? null,
+      languages: p.languages ?? [],
+      skills: p.skills ?? [],
+      emailCount: p.emails.length,
+      verifiedEmailCount: p.emails.filter((e) => e.verified).length,
+      phoneCount: p.phones.length,
+      workHistory: (p.workHistory ?? []).slice(0, 8).map((w) => ({
+        company: w.company ?? null,
+        title: w.title ?? null,
+        current: w.current ?? null,
+      })),
+      education: (p.education ?? []).slice(0, 6).map((e) => ({
+        school: e.school ?? null,
+        degree: e.degree ?? null,
+        field: e.field ?? null,
+      })),
+    },
+    company: co
+      ? {
+          name: co.name ?? null,
+          legalName: co.legalName ?? null,
+          domain: co.domain ?? null,
+          website: co.website ?? null,
+          description: co.description ?? null,
+          industry: co.industry ?? null,
+          subIndustry: co.subIndustry ?? null,
+          size: co.size ?? null,
+          employeeCount: co.employeeCount ?? null,
+          employeeCountRange: co.employeeCountRange ?? null,
+          revenueRange: co.revenueRange ?? null,
+          fundingStage: co.fundingStage ?? null,
+          foundedYear: co.foundedYear ?? null,
+          companyType: co.companyType ?? null,
+          linkedinUrl: co.linkedinUrl ?? null,
+          logoUrl: co.logoUrl ?? null,
+          location:
+            [co.hq?.city, co.hq?.region, co.hq?.country]
+              .filter(Boolean)
+              .join(", ") || null,
+          technologies: co.technologies ?? [],
+          keywords: co.keywords ?? [],
+        }
+      : null,
+  };
 }
 
 function summarizeFilters(filters: LeadSearchFilters): string {

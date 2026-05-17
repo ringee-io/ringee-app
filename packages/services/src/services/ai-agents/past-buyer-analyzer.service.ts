@@ -11,7 +11,10 @@ import {
   ProspectScoringService,
 } from "./prospect-scoring.service";
 
-const POSITIVE_OUTCOMES: CallOutcome[] = ["sale", "meeting_booked", "interested"];
+// A "won customer" for lookalike prospecting is a contact the user actually
+// converted: a booked meeting or a closed sale. Weaker outcomes (e.g.
+// "interested") are intentionally excluded — they are not evidence of a buyer.
+const POSITIVE_OUTCOMES: CallOutcome[] = ["sale", "meeting_booked"];
 
 export interface PastBuyerAnalysis {
   count: number;
@@ -41,7 +44,7 @@ export class PastBuyerAnalyzerService {
     private readonly scoring: ProspectScoringService,
   ) {}
 
-  async analyze(ctx: OwnershipContext, limit = 200): Promise<PastBuyerAnalysis> {
+  async analyze(ctx: OwnershipContext, limit = 25): Promise<PastBuyerAnalysis> {
     const ownershipFilter = buildOwnershipFilter(ctx);
 
     // Find recent calls with a positive outcome and pull their contacts.

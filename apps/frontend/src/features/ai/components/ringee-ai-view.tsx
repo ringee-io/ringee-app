@@ -18,8 +18,25 @@ import { useAiConversation } from '../hooks/use-ai-conversation';
 import type {
   AiAgentDescriptor,
   AiAgentId,
-  AiConversation
+  AiConversation,
+  ProspectingMode
 } from '../types';
+
+const MODE_LABELS: Record<ProspectingMode, string> = {
+  icp: 'ICP',
+  customers: 'Lookalike',
+  signals: 'Buying signals'
+};
+
+/** Read the prospecting mode persisted on a conversation's agentState. */
+function conversationMode(
+  conversation: AiConversation | null
+): ProspectingMode | null {
+  const mode = (conversation?.agentState as { mode?: unknown } | null)?.mode;
+  return mode === 'icp' || mode === 'customers' || mode === 'signals'
+    ? mode
+    : null;
+}
 
 const DEFAULT_AGENT: AiAgentId = 'prospecting_expert';
 // sessionStorage key for a message queued in the empty state before the new
@@ -63,11 +80,6 @@ function clearPendingSend() {
   }
 }
 
-interface ConnectionListItem {
-  provider: string;
-  status: string;
-}
-
 interface Props {
   conversationId: string | null;
 }
@@ -80,7 +92,6 @@ export function RingeeAiView({ conversationId }: Props) {
   const [conversations, setConversations] = useState<AiConversation[]>([]);
   const [conversationsLoading, setConversationsLoading] = useState(true);
   const [topLevelError, setTopLevelError] = useState<string | null>(null);
-  const [connectedProviders, setConnectedProviders] = useState<string[]>([]);
   // True while we have an empty-state message queued in sessionStorage for the
   // conversation that is about to mount. Drives the empty-state spinner.
   const [hasPendingSend, setHasPendingSend] = useState<boolean>(
@@ -103,21 +114,13 @@ export function RingeeAiView({ conversationId }: Props) {
     void fetchBalance(api);
     async function init() {
       try {
-        const [agentsList, convs, connections] = await Promise.all([
+        const [agentsList, convs] = await Promise.all([
           api.get<AiAgentDescriptor[]>('/ai/agents'),
-          api.get<AiConversation[]>(`/ai/conversations?agent=${DEFAULT_AGENT}`),
-          api
-            .get<ConnectionListItem[]>('/enrichment/connections')
-            .catch(() => [] as ConnectionListItem[])
+          api.get<AiConversation[]>(`/ai/conversations?agent=${DEFAULT_AGENT}`)
         ]);
         if (cancelled) return;
         setAgents(agentsList);
         setConversations(convs);
-        setConnectedProviders(
-          (connections ?? [])
-            .filter((c) => c.status === 'active' || c.status === 'connected')
-            .map((c) => c.provider)
-        );
       } catch (err) {
         if (!cancelled) {
           setTopLevelError(err instanceof Error ? err.message : String(err));
@@ -167,12 +170,13 @@ export function RingeeAiView({ conversationId }: Props) {
     void sendMessage(pending.text);
   }, [conversationId, state.conversation, state.loading, sendMessage]);
 
-  async function handleSend(text: string) {
+  async function handleSend(text: string, mode?: ProspectingMode) {
     setTopLevelError(null);
     if (!conversationId) {
       try {
         const c = await api.post<AiConversation>('/ai/conversations', {
-          agent: agentId
+          agent: agentId,
+          mode: mode ?? null
         });
         setConversations((prev) => [c, ...prev]);
         // Persist across the route change — RingeeAiView remounts and React
@@ -200,11 +204,6 @@ export function RingeeAiView({ conversationId }: Props) {
     setHasPendingSend(false);
     router.push('/dashboard/ai');
     chatInputRef.current?.focus();
-  }
-
-  function handlePickExample(text: string) {
-    // Populate the input so the user can review / edit before sending.
-    chatInputRef.current?.fill(text);
   }
 
   function handleRequestReveal(
@@ -237,6 +236,8 @@ export function RingeeAiView({ conversationId }: Props) {
     () => state.pendingConfirmations.filter((c) => !c.resolved),
     [state.pendingConfirmations]
   );
+
+  const activeMode = conversationMode(state.conversation);
 
   // Empty state is purely route-driven: no id in the URL means a new chat.
   const showEmpty = !conversationId;
@@ -284,6 +285,11 @@ export function RingeeAiView({ conversationId }: Props) {
             />
           </div>
           <div className='flex min-w-0 items-center gap-2'>
+            {activeMode && (
+              <span className='shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary'>
+                {MODE_LABELS[activeMode]}
+              </span>
+            )}
             {state.conversation?.title && (
               <span className='hidden truncate text-sm font-medium text-muted-foreground sm:inline'>
                 {state.conversation.title}
@@ -352,9 +358,7 @@ export function RingeeAiView({ conversationId }: Props) {
                 <OutOfCreditPanel />
               ) : (
                 <EmptyState
-                  providersConnected={connectedProviders}
-                  onPick={handlePickExample}
-                  onSubmit={(text) => void handleSend(text)}
+                  onSubmit={(text, mode) => void handleSend(text, mode)}
                   sending={hasPendingSend}
                 />
               )

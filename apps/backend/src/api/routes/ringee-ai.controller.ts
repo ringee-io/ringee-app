@@ -22,6 +22,8 @@ import {
   AiChatOrchestrator,
   AiConfirmationService,
   AiConversationService,
+  isProspectingMode,
+  ProspectingMode,
 } from "@ringee/services";
 import { SSEBridgeService } from "@ringee/services";
 import {
@@ -65,7 +67,12 @@ export class RingeeAiController {
   @Post("conversations")
   async createConversation(
     @CurrentUser() user: CurrentUserData,
-    @Body() body: { agent: AiAgentType; title?: string | null },
+    @Body()
+    body: {
+      agent: AiAgentType;
+      title?: string | null;
+      mode?: string | null;
+    },
   ): Promise<AiConversation> {
     if (!body?.agent) throw new BadRequestException("agent is required");
     if (!this.agents.isActive(body.agent)) {
@@ -73,10 +80,20 @@ export class RingeeAiController {
         `Agent ${body.agent} is not enabled in this build.`,
       );
     }
+    let mode: ProspectingMode | null = null;
+    if (body.mode != null && body.mode !== "") {
+      if (!isProspectingMode(body.mode)) {
+        throw new BadRequestException(
+          `Invalid prospecting mode "${body.mode}".`,
+        );
+      }
+      mode = body.mode;
+    }
     const ctx = createOwnershipContext(user);
     return this.conversations.create(ctx, {
       agent: body.agent,
       title: body.title ?? null,
+      mode,
     });
   }
 

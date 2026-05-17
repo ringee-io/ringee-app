@@ -18,7 +18,6 @@ export interface ScoredProspect {
   candidate: LeadCandidate;
   score: number;
   reasons: string[];
-  suggestedCallAngle: string | null;
 }
 
 /**
@@ -114,9 +113,7 @@ export class ProspectScoringService {
       );
     }
 
-    const suggestedCallAngle = this.buildCallAngle(candidate, signals);
-
-    return { candidate, score, reasons, suggestedCallAngle };
+    return { candidate, score, reasons };
   }
 
   scoreMany(
@@ -126,25 +123,6 @@ export class ProspectScoringService {
     return candidates
       .map((c) => this.score(c, signals))
       .sort((a, b) => b.score - a.score);
-  }
-
-  private buildCallAngle(
-    candidate: LeadCandidate,
-    signals: BuyerSignals | null,
-  ): string | null {
-    const title = candidate.person.jobTitle;
-    const company = candidate.company?.name;
-    if (!title || !company) return null;
-
-    const industryMatch =
-      signals?.industries.find((i) =>
-        candidate.company?.industry?.toLowerCase().includes(i),
-      ) ?? null;
-
-    if (industryMatch) {
-      return `Hi ${candidate.person.firstName ?? "there"}, I work with ${title}s at ${industryMatch} companies similar to ${company} and wanted to share how teams like yours are saving time on outbound calls.`;
-    }
-    return `Hi ${candidate.person.firstName ?? "there"}, I help ${title}s at companies like ${company} run more efficient outbound calling — open to a quick conversation?`;
   }
 
   /**
