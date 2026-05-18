@@ -9,6 +9,7 @@ import {
   IconUserPlus,
   IconX
 } from '@tabler/icons-react';
+import { useTranslations } from 'next-intl';
 import { useState } from 'react';
 import type { PendingConfirmation } from '../hooks/use-ai-conversation';
 
@@ -18,19 +19,22 @@ interface Props {
   onDecline: () => void | Promise<void>;
 }
 
-const ACTION_LABELS: Record<PendingConfirmation['action'], string> = {
-  reveal: 'Reveal contact data',
-  save: 'Save prospects to Ringee',
-  list_create: 'Create list'
+/** Maps each confirmation action to its translation key under `ai.confirmation`. */
+const ACTION_LABEL_KEYS: Record<PendingConfirmation['action'], string> = {
+  reveal: 'actionReveal',
+  save: 'actionSave',
+  list_create: 'actionListCreate'
 };
 
-const ACTION_ICONS: Record<PendingConfirmation['action'], typeof IconUserPlus> = {
-  reveal: IconShieldCheck,
-  save: IconUserPlus,
-  list_create: IconUserPlus
-};
+const ACTION_ICONS: Record<PendingConfirmation['action'], typeof IconUserPlus> =
+  {
+    reveal: IconShieldCheck,
+    save: IconUserPlus,
+    list_create: IconUserPlus
+  };
 
 export function ConfirmationCard({ confirmation, onAccept, onDecline }: Props) {
+  const t = useTranslations('ai.confirmation');
   const [busy, setBusy] = useState<'approve' | 'decline' | null>(null);
   const isReveal = confirmation.action === 'reveal';
   const revealPhone = Boolean(confirmation.payload?.revealPhone);
@@ -56,7 +60,7 @@ export function ConfirmationCard({ confirmation, onAccept, onDecline }: Props) {
         'group relative flex flex-col gap-3 overflow-hidden rounded-xl border p-4 shadow-sm transition-all',
         resolved
           ? 'border-border/60 bg-muted/30'
-          : 'border-amber-500/60 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent ring-2 ring-amber-500/30 ring-offset-2 ring-offset-background animate-in fade-in slide-in-from-top-2 duration-300'
+          : 'ring-offset-background animate-in fade-in slide-in-from-top-2 border-amber-500/60 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent ring-2 ring-amber-500/30 ring-offset-2 duration-300'
       ].join(' ')}
     >
       {!resolved && (
@@ -85,24 +89,24 @@ export function ConfirmationCard({ confirmation, onAccept, onDecline }: Props) {
             <IconAlertTriangleFilled size={18} />
           )}
         </div>
-        <div className='flex-1 min-w-0'>
+        <div className='min-w-0 flex-1'>
           <div className='flex items-center gap-2'>
             <span
               className={[
-                'text-[10px] font-bold uppercase tracking-wider',
+                'text-[10px] font-bold tracking-wider uppercase',
                 resolved
                   ? 'text-muted-foreground'
                   : 'text-amber-700 dark:text-amber-300'
               ].join(' ')}
             >
-              {resolved ? 'Resolved' : 'Action required'}
+              {resolved ? t('resolved') : t('actionRequired')}
             </span>
-            <span className='flex items-center gap-1 text-xs font-medium text-muted-foreground'>
+            <span className='text-muted-foreground flex items-center gap-1 text-xs font-medium'>
               <ActionIcon size={12} />
-              {ACTION_LABELS[confirmation.action]}
+              {t(ACTION_LABEL_KEYS[confirmation.action])}
             </span>
           </div>
-          <p className='mt-1 text-sm font-medium leading-snug'>
+          <p className='mt-1 text-sm leading-snug font-medium'>
             {confirmation.summary}
           </p>
         </div>
@@ -110,21 +114,18 @@ export function ConfirmationCard({ confirmation, onAccept, onDecline }: Props) {
 
       {isReveal && revealPhone && (
         <div className='rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200'>
-          Phone reveal usually costs more credits than email reveal.
+          {t('phoneCostWarning')}
         </div>
       )}
       {typeof confirmation.estimatedCreditCost === 'number' && (
-        <div className='text-xs text-muted-foreground'>
-          Estimated cost: {confirmation.estimatedCreditCost} credit
-          {confirmation.estimatedCreditCost === 1 ? '' : 's'}.
+        <div className='text-muted-foreground text-xs'>
+          {t('estimatedCost', { count: confirmation.estimatedCreditCost })}
         </div>
       )}
 
       {resolved ? (
-        <div className='text-xs italic text-muted-foreground'>
-          {confirmation.accepted
-            ? 'Approved — Ringee is processing this action.'
-            : 'Declined.'}
+        <div className='text-muted-foreground text-xs italic'>
+          {confirmation.accepted ? t('approvedNote') : t('declinedNote')}
         </div>
       ) : (
         <div className='flex items-center gap-2'>
@@ -140,7 +141,7 @@ export function ConfirmationCard({ confirmation, onAccept, onDecline }: Props) {
             ) : (
               <IconX size={15} />
             )}
-            Decline
+            {t('decline')}
           </Button>
           <Button
             size='sm'
@@ -153,7 +154,7 @@ export function ConfirmationCard({ confirmation, onAccept, onDecline }: Props) {
             ) : (
               <IconCheck size={15} />
             )}
-            Approve
+            {t('approve')}
           </Button>
         </div>
       )}

@@ -3,6 +3,7 @@
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { IconCoins, IconBolt } from '@tabler/icons-react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 
 interface Props {
@@ -11,10 +12,11 @@ interface Props {
 }
 
 /**
- * Shown when the user's credit balance hits zero. Ringee AI is billed per
- * token, so the run is blocked until the balance is topped up.
+ * Shown when the user's credit balance hits zero. The AI Assistant is billed
+ * per token, so the run is blocked until the balance is topped up.
  */
 export function OutOfCreditPanel({ compact = false }: Props) {
+  const t = useTranslations('ai.outOfCredit');
   const router = useRouter();
   const goToBilling = () => router.push('/dashboard/rate');
 
@@ -27,11 +29,11 @@ export function OutOfCreditPanel({ compact = false }: Props) {
               <IconCoins size={16} />
             </span>
             <div className='flex flex-col'>
-              <span className='text-sm font-semibold text-foreground'>
-                You&apos;ve run out of credit
+              <span className='text-foreground text-sm font-semibold'>
+                {t('compactTitle')}
               </span>
-              <span className='text-xs text-muted-foreground'>
-                Add credit to keep chatting with Ringee AI.
+              <span className='text-muted-foreground text-xs'>
+                {t('compactDescription')}
               </span>
             </div>
           </div>
@@ -41,7 +43,7 @@ export function OutOfCreditPanel({ compact = false }: Props) {
             className='h-8 shrink-0 gap-1.5 bg-amber-500 text-amber-950 hover:bg-amber-400 dark:bg-amber-400 dark:hover:bg-amber-300'
           >
             <IconCoins size={15} />
-            Add credit
+            {t('addCredit')}
           </Button>
         </div>
       </div>
@@ -56,23 +58,20 @@ export function OutOfCreditPanel({ compact = false }: Props) {
     >
       <div className='relative mb-5 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-500/15 text-amber-600 dark:text-amber-300'>
         <IconCoins size={30} />
-        <span className='absolute -right-1.5 -top-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-amber-950'>
+        <span className='absolute -top-1.5 -right-1.5 flex h-6 w-6 items-center justify-center rounded-full bg-amber-500 text-amber-950'>
           <IconBolt size={13} fill='currentColor' />
         </span>
       </div>
-      <h2 className='text-lg font-semibold text-foreground'>
-        You&apos;re out of credit
-      </h2>
-      <p className='mt-1.5 max-w-sm text-sm text-muted-foreground'>
-        Ringee AI is billed per token used. Top up your balance to start a new
-        conversation and keep your prospecting agent running.
+      <h2 className='text-foreground text-lg font-semibold'>{t('title')}</h2>
+      <p className='text-muted-foreground mt-1.5 max-w-sm text-sm'>
+        {t('description')}
       </p>
       <Button
         onClick={goToBilling}
         className='mt-5 gap-1.5 bg-amber-500 text-amber-950 hover:bg-amber-400 dark:bg-amber-400 dark:hover:bg-amber-300'
       >
         <IconCoins size={16} />
-        Add credit
+        {t('addCredit')}
       </Button>
     </div>
   );

@@ -12,6 +12,7 @@ import {
   IconMessageCircle2,
   IconPlus
 } from '@tabler/icons-react';
+import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import type { AiConversation } from '../types';
 
@@ -30,6 +31,7 @@ export function ConversationList({
   onSelect,
   onNew
 }: Props) {
+  const t = useTranslations('ai.conversations');
   const [open, setOpen] = useState(false);
 
   const active = useMemo(
@@ -57,10 +59,10 @@ export function ConversationList({
         >
           <IconMessageCircle2 size={16} className='text-muted-foreground' />
           <span className='truncate text-sm font-medium'>
-            {active?.title ?? 'Conversations'}
+            {active?.title ?? t('title')}
           </span>
           {conversations.length > 0 && (
-            <span className='ml-0.5 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground'>
+            <span className='bg-muted text-muted-foreground ml-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-semibold'>
               {conversations.length}
             </span>
           )}
@@ -68,9 +70,9 @@ export function ConversationList({
         </Button>
       </PopoverTrigger>
       <PopoverContent align='start' className='w-80 p-0'>
-        <div className='flex items-center justify-between gap-2 border-b border-border/60 px-3 py-2.5'>
-          <span className='text-xs font-semibold uppercase tracking-wide text-muted-foreground'>
-            Conversations
+        <div className='border-border/60 flex items-center justify-between gap-2 border-b px-3 py-2.5'>
+          <span className='text-muted-foreground text-xs font-semibold tracking-wide uppercase'>
+            {t('title')}
           </span>
           <Button
             variant='outline'
@@ -79,7 +81,7 @@ export function ConversationList({
             onClick={handleNew}
           >
             <IconPlus size={14} />
-            New
+            {t('new')}
           </Button>
         </div>
 
@@ -89,13 +91,13 @@ export function ConversationList({
               {[0, 1, 2].map((i) => (
                 <div
                   key={i}
-                  className='h-12 animate-pulse rounded-md bg-muted/40'
+                  className='bg-muted/40 h-12 animate-pulse rounded-md'
                 />
               ))}
             </div>
           ) : conversations.length === 0 ? (
-            <div className='px-3 py-6 text-xs text-muted-foreground'>
-              No conversations yet. Start one with the Prospecting Expert.
+            <div className='text-muted-foreground px-3 py-6 text-xs'>
+              {t('empty')}
             </div>
           ) : (
             <ul className='px-1.5 py-2'>
@@ -105,14 +107,14 @@ export function ConversationList({
                     type='button'
                     onClick={() => handleSelect(c.id)}
                     className={cn(
-                      'w-full rounded-md px-2 py-2 text-left transition-colors hover:bg-muted/60',
+                      'hover:bg-muted/60 w-full rounded-md px-2 py-2 text-left transition-colors',
                       activeId === c.id && 'bg-muted'
                     )}
                   >
                     <div className='line-clamp-1 text-sm font-medium'>
-                      {c.title ?? 'New conversation'}
+                      {c.title ?? t('untitled')}
                     </div>
-                    <div className='line-clamp-1 text-[11px] text-muted-foreground'>
+                    <div className='text-muted-foreground line-clamp-1 text-[11px]'>
                       {c.lastMessageAt
                         ? new Date(c.lastMessageAt).toLocaleString()
                         : new Date(c.createdAt).toLocaleString()}

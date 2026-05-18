@@ -1,0 +1,170 @@
+{
+  "launcher": {
+    "label": "AI Assistant",
+    "beta": "Beta",
+    "version": "v{version}",
+    "tooltipTitle": "AI Assistant",
+    "tooltipBeta": "Beta · v{version}",
+    "tooltipDescription": "O seu assistente de IA para prospeção — descreva o seu cliente ideal e ele encontra, pontua e guarda leads qualificados por si. Mais agentes (campanhas, CRM, coaching de chamadas e análise) estão a caminho."
+  },
+  "header": {
+    "conversationCostTitle": "Custo total de IA desta conversa",
+    "credits": "{amount} cr",
+    "loadingConversation": "A carregar conversa…",
+    "review": "Rever",
+    "actionsPending": "{count, plural, =1 {1 ação precisa da sua aprovação} other {# ações precisam da sua aprovação}}"
+  },
+  "commands": {
+    "revealRequest": "{count, plural, =1 {Revele 1 prospeto selecionado} other {Revele # prospetos selecionados}} do trabalho {jobId}{phoneSuffix}. IDs selecionados: {ids}.",
+    "revealPhoneSuffix": " (incluindo o número de telefone)",
+    "saveRequest": "{count, plural, =1 {Guarde 1 prospeto selecionado} other {Guarde # prospetos selecionados}} do trabalho {jobId} nos meus contactos do Ringee. IDs selecionados: {ids}."
+  },
+  "modes": {
+    "icp": {
+      "badge": "ICP",
+      "title": "Com base no meu ICP",
+      "tagline": "Já sei quem é o meu cliente ideal.",
+      "placeholder": "Descreva o seu cliente ideal — p. ex. «agências de marketing B2B com 10-50 colaboradores no México e na Colômbia. Vendo a fundadores, CEO e diretores de vendas».",
+      "example": "O meu ICP são agências de marketing B2B com 10-50 colaboradores no México e na Colômbia. Normalmente vendo a fundadores, CEO ou diretores de vendas. O meu produto melhora a produtividade e a visibilidade da equipa."
+    },
+    "customers": {
+      "badge": "Semelhantes",
+      "title": "Com base nos meus melhores clientes",
+      "tagline": "Use quem já comprou para encontrar perfis semelhantes.",
+      "placeholder": "Envie tal como está para analisar os seus negócios ganhos no Ringee — ou cole alguns clientes (nome — atividade — país — função) para orientar a pesquisa.",
+      "example": "Encontra leads semelhantes aos clientes que já me compraram.",
+      "seed": "Usa os meus clientes ganhos e reuniões agendadas no Ringee para encontrar empresas semelhantes."
+    },
+    "signals": {
+      "badge": "Sinais de compra",
+      "title": "Com base em sinais de compra",
+      "tagline": "Encontre empresas que parecem precisar disto agora.",
+      "placeholder": "Descreva a necessidade que o seu produto resolve — p. ex. «empresas que mostram precisar de análise de equipa e software de produtividade: gestores que recrutam, equipas remotas, em crescimento rápido».",
+      "example": "Quero empresas que mostrem sinais de precisar de análise de equipa e software de produtividade — gestores de operações a recrutar, equipas remotas ou em crescimento rápido."
+    }
+  },
+  "emptyState": {
+    "greetingLateNight": "Boa noite",
+    "greetingMorning": "Bom dia",
+    "greetingAfternoon": "Boa tarde",
+    "greetingEvening": "Boa noite",
+    "greetingWithName": "{greeting}, {name}",
+    "prompt": "Como quer encontrar leads?",
+    "example": "Exemplo",
+    "calendarTitle": "Agende reuniões diretamente a partir das suas chamadas",
+    "calendarDescription": "Sincronize o seu calendário para que o Ringee possa agendar reuniões ao vivo durante as chamadas e verificar a sua disponibilidade em tempo real.",
+    "calendarConnected": "Google Calendar ligado",
+    "calendarConnect": "Sincronizar conta Google",
+    "enrichmentTitle": "Desbloqueie a pesquisa de prospetos",
+    "enrichmentDescription": "Ligue um fornecedor para que o Ringee possa encontrar e revelar contactos por si.",
+    "enrichmentConnected": "{provider} ligado"
+  },
+  "chatInput": {
+    "placeholder": "Descreva a quem quer vender…",
+    "hint": "Prima Enter para enviar · Shift+Enter para nova linha"
+  },
+  "chat": {
+    "thinking": "A pensar",
+    "usageTitle": "Utilização de tokens desta resposta",
+    "tokensIn": "{count} entrada",
+    "tokensOut": "{count} saída",
+    "credits": "{amount} cr",
+    "usageInput": "Entrada",
+    "usageOutput": "Saída",
+    "usageCacheRead": "Leitura de cache",
+    "usageCacheWrite": "Escrita de cache",
+    "usageCost": "Custo",
+    "usageModel": "Modelo",
+    "tokensValue": "{count} tokens",
+    "creditsValue": "{amount} créditos"
+  },
+  "agents": {
+    "selectAgent": "Selecionar agente",
+    "menuLabel": "Agentes de IA",
+    "active": "Ativo",
+    "comingSoon": "Em breve"
+  },
+  "confirmation": {
+    "actionReveal": "Revelar dados de contacto",
+    "actionSave": "Guardar prospetos no Ringee",
+    "actionListCreate": "Criar lista",
+    "phoneCostWarning": "Revelar o telefone costuma custar mais créditos do que revelar o e-mail.",
+    "estimatedCost": "{count, plural, =1 {Custo estimado: 1 crédito.} other {Custo estimado: # créditos.}}",
+    "resolved": "Resolvido",
+    "actionRequired": "Ação necessária",
+    "approvedNote": "Aprovado — o Ringee está a processar esta ação.",
+    "declinedNote": "Recusado.",
+    "decline": "Recusar",
+    "approve": "Aprovar"
+  },
+  "conversations": {
+    "title": "Conversas",
+    "new": "Nova",
+    "empty": "Ainda não há conversas. Inicie uma com o Especialista em Prospeção.",
+    "untitled": "Nova conversa"
+  },
+  "outOfCredit": {
+    "compactTitle": "Ficou sem crédito",
+    "compactDescription": "Adicione crédito para continuar a conversar com o AI Assistant.",
+    "title": "Está sem crédito",
+    "description": "O AI Assistant é cobrado por token utilizado. Recarregue o seu saldo para iniciar uma nova conversa e manter o seu agente de prospeção ativo.",
+    "addCredit": "Adicionar crédito"
+  },
+  "prospect": {
+    "viewDetail": "Ver detalhe completo do lead",
+    "unknown": "Desconhecido",
+    "unknownProspect": "Prospeto desconhecido",
+    "noTitle": "Sem cargo disponível",
+    "emailAvailable": "E-mail disponível",
+    "emailHidden": "E-mail oculto",
+    "phoneAvailable": "Telefone disponível",
+    "phoneHidden": "Telefone oculto",
+    "confidence": "{percent}% de confiança",
+    "viewLinkedin": "Ver perfil do LinkedIn",
+    "fit": "Afinidade {score}",
+    "unknownRole": "Cargo desconhecido",
+    "current": "Atual",
+    "sectionPerson": "Pessoa",
+    "sectionWorkHistory": "Percurso profissional",
+    "sectionEducation": "Formação",
+    "sectionCompany": "Empresa",
+    "sectionWhyFits": "Porque encaixa",
+    "fieldFirstName": "Nome próprio",
+    "fieldLastName": "Apelido",
+    "fieldSeniority": "Nível de senioridade",
+    "fieldDepartment": "Departamento",
+    "fieldYearsExperience": "Anos de experiência",
+    "fieldTimezone": "Fuso horário",
+    "fieldLocation": "Localização",
+    "fieldLanguages": "Idiomas",
+    "fieldSkills": "Competências",
+    "fieldName": "Nome",
+    "fieldLegalName": "Designação social",
+    "fieldIndustry": "Indústria",
+    "fieldSubIndustry": "Subindústria",
+    "fieldEmployees": "Colaboradores",
+    "fieldRevenue": "Receita",
+    "fieldFundingStage": "Fase de financiamento",
+    "fieldFounded": "Fundação",
+    "fieldType": "Tipo",
+    "fieldDomain": "Domínio",
+    "fieldTechnologies": "Tecnologias",
+    "fieldKeywords": "Palavras-chave",
+    "linkWebsite": "Site",
+    "linkCompany": "Empresa",
+    "linkCompanySite": "Site da empresa"
+  },
+  "results": {
+    "selectedCount": "{count, plural, =1 {1 prospeto selecionado} other {# prospetos selecionados}}",
+    "previousSearches": "Pesquisas anteriores",
+    "prospectsVia": "{count} prospetos via {provider}",
+    "latestResult": "Resultado mais recente",
+    "justNow": "agora mesmo",
+    "selected": "{count} selecionados",
+    "revealEmail": "Revelar e-mail ({count})",
+    "revealPhone": "Revelar +telefone",
+    "save": "Guardar ({count})",
+    "showLess": "Ver menos",
+    "showAll": "Ver os {count} resultados"
+  }
+}

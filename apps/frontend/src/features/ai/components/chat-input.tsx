@@ -3,12 +3,8 @@
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Textarea } from '@ringee/frontend-shared/components/ui/textarea';
 import { IconSend, IconLoader2 } from '@tabler/icons-react';
-import {
-  forwardRef,
-  useImperativeHandle,
-  useRef,
-  useState
-} from 'react';
+import { useTranslations } from 'next-intl';
+import { forwardRef, useImperativeHandle, useRef, useState } from 'react';
 
 interface Props {
   disabled?: boolean;
@@ -26,6 +22,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
   { disabled, sending, placeholder, onSubmit },
   ref
 ) {
+  const t = useTranslations('ai.chatInput');
   const [value, setValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -48,13 +45,13 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
   }
 
   return (
-    <div className='border-t border-border/60 bg-background/80 px-4 py-3 backdrop-blur'>
+    <div className='border-border/60 bg-background/80 border-t px-4 py-3 backdrop-blur'>
       <div className='mx-auto flex max-w-3xl items-end gap-2'>
         <Textarea
           ref={textareaRef}
           value={value}
           disabled={disabled}
-          placeholder={placeholder ?? 'Describe who you want to sell to…'}
+          placeholder={placeholder ?? t('placeholder')}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
@@ -63,7 +60,7 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
             }
           }}
           rows={2}
-          className='min-h-[48px] resize-none rounded-xl border-border/80 bg-background shadow-sm'
+          className='border-border/80 bg-background min-h-[48px] resize-none rounded-xl shadow-sm'
         />
         <Button
           onClick={submit}
@@ -77,8 +74,8 @@ export const ChatInput = forwardRef<ChatInputHandle, Props>(function ChatInput(
           )}
         </Button>
       </div>
-      <div className='mx-auto mt-1.5 max-w-3xl text-[11px] text-muted-foreground'>
-        Press Enter to send · Shift+Enter for newline
+      <div className='text-muted-foreground mx-auto mt-1.5 max-w-3xl text-[11px]'>
+        {t('hint')}
       </div>
     </div>
   );

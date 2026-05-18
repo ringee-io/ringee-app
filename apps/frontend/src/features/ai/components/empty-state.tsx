@@ -13,6 +13,7 @@ import {
   IconTargetArrow,
   IconUsers
 } from '@tabler/icons-react';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { EnrichmentConnectDialog } from '@/features/integrations/components/enrichment-connect-dialog';
@@ -26,49 +27,19 @@ import type { ProspectingMode } from '../types';
 interface ProspectingModeCard {
   id: ProspectingMode;
   icon: React.ComponentType<{ size?: number; className?: string }>;
-  title: string;
-  tagline: string;
-  /** Placeholder shown in the description input while this mode is active. */
-  placeholder: string;
-  /** One-tap example that fills the input. */
-  example: string;
-  /** When set, the mode can be submitted with an empty input — this seed
-   *  message is sent instead. */
-  seed?: string;
+  /** When true, the mode can be submitted with an empty input — the
+   *  `modes.<id>.seed` message is sent instead. */
+  hasSeed?: boolean;
 }
 
+/**
+ * The prospecting entry modes. Display copy (title, tagline, placeholder,
+ * example, seed) lives in the `ai.modes.<id>` translation namespace.
+ */
 const PROSPECTING_MODES: ProspectingModeCard[] = [
-  {
-    id: 'icp',
-    icon: IconTargetArrow,
-    title: 'Based on my ICP',
-    tagline: 'I already know who my ideal customer is.',
-    placeholder:
-      'Describe your ideal customer — e.g. "B2B marketing agencies with 10-50 employees in Mexico and Colombia. I sell to founders, CEOs and heads of sales."',
-    example:
-      'My ICP is B2B marketing agencies with 10-50 employees in Mexico and Colombia. I usually sell to founders, CEOs or heads of sales. My product improves team productivity and visibility.'
-  },
-  {
-    id: 'customers',
-    icon: IconUsers,
-    title: 'Based on my best customers',
-    tagline: 'Use who already bought to find lookalikes.',
-    placeholder:
-      'Send as-is to analyze your won deals in Ringee — or paste a few customers (name — what they do — country — role) to guide the search.',
-    example:
-      'Find leads similar to the customers who already bought from me.',
-    seed: 'Use my won customers and booked meetings in Ringee to find lookalike companies.'
-  },
-  {
-    id: 'signals',
-    icon: IconBolt,
-    title: 'Based on buying signals',
-    tagline: 'Find companies that look like they need it now.',
-    placeholder:
-      'Describe the need your product solves — e.g. "companies showing they need team analytics and productivity software: hiring managers, remote teams, growing fast."',
-    example:
-      'I want companies showing signals that they need team analytics and productivity software — hiring operations managers, remote teams, or growing fast.'
-  }
+  { id: 'icp', icon: IconTargetArrow },
+  { id: 'customers', icon: IconUsers, hasSeed: true },
+  { id: 'signals', icon: IconBolt }
 ];
 
 interface Props {
@@ -83,15 +54,17 @@ interface CalendarIntegration {
   isActive: boolean;
 }
 
-function greetingFor(date: Date): string {
+/** Returns the `ai.emptyState.*` greeting key for the given local time. */
+function greetingKey(date: Date): string {
   const hour = date.getHours();
-  if (hour < 5) return 'Late night';
-  if (hour < 12) return 'Morning';
-  if (hour < 18) return 'Afternoon';
-  return 'Evening';
+  if (hour < 5) return 'greetingLateNight';
+  if (hour < 12) return 'greetingMorning';
+  if (hour < 18) return 'greetingAfternoon';
+  return 'greetingEvening';
 }
 
 export function EmptyState({ onSubmit, sending }: Props) {
+  const t = useTranslations('ai');
   const { user } = useUser();
   const [mode, setMode] = useState<ProspectingMode>('icp');
   const [value, setValue] = useState('');
@@ -99,15 +72,17 @@ export function EmptyState({ onSubmit, sending }: Props) {
 
   const activeMode =
     PROSPECTING_MODES.find((m) => m.id === mode) ?? PROSPECTING_MODES[0];
-  const trimmed = value.trim();
   // ICP and signals need a description; the customers mode can run off the
-  // user's Ringee history alone, so it submits with an empty input.
-  const canSubmit =
-    !sending && (trimmed.length > 0 || Boolean(activeMode.seed));
+  // user's Ringee history alone, so it submits a seed message instead.
+  const seed = activeMode.hasSeed ? t(`modes.${activeMode.id}.seed`) : '';
+  const trimmed = value.trim();
+  const canSubmit = !sending && (trimmed.length > 0 || Boolean(seed));
+
+  const greeting = t(`emptyState.${greetingKey(new Date())}`);
 
   function submit() {
     if (sending) return;
-    const text = trimmed || activeMode.seed || '';
+    const text = trimmed || seed;
     if (!text) return;
     onSubmit(text, mode);
     setValue('');
@@ -122,16 +97,20 @@ export function EmptyState({ onSubmit, sending }: Props) {
             alt='Ringee'
             width={44}
             height={44}
-            className='h-10 w-10 rounded-full ring-1 ring-border/60'
+            className='ring-border/60 h-10 w-10 rounded-full ring-1'
           />
-          <h1 className='text-3xl font-serif font-medium tracking-tight md:text-4xl'>
-            {greetingFor(new Date())}
-            {firstName ? `, ${firstName}` : ''}
+          <h1 className='font-serif text-3xl font-medium tracking-tight md:text-4xl'>
+            {firstName
+              ? t('emptyState.greetingWithName', {
+                  greeting,
+                  name: firstName
+                })
+              : greeting}
           </h1>
         </div>
 
-        <p className='mt-3 text-sm text-muted-foreground'>
-          How do you want to find leads?
+        <p className='text-muted-foreground mt-3 text-sm'>
+          {t('emptyState.prompt')}
         </p>
 
         <div className='mt-5 grid w-full gap-2.5 sm:grid-cols-3'>
@@ -146,7 +125,7 @@ export function EmptyState({ onSubmit, sending }: Props) {
                 aria-pressed={selected}
                 className={`flex flex-col gap-1.5 rounded-xl border p-3 text-left transition-all ${
                   selected
-                    ? 'border-primary bg-primary/5 shadow-sm ring-1 ring-primary/30'
+                    ? 'border-primary bg-primary/5 ring-primary/30 shadow-sm ring-1'
                     : 'border-border/60 bg-background hover:border-border hover:bg-muted/50'
                 }`}
               >
@@ -159,11 +138,11 @@ export function EmptyState({ onSubmit, sending }: Props) {
                 >
                   <Icon size={15} />
                 </span>
-                <span className='text-sm font-medium leading-tight'>
-                  {m.title}
+                <span className='text-sm leading-tight font-medium'>
+                  {t(`modes.${m.id}.title`)}
                 </span>
-                <span className='text-xs text-muted-foreground'>
-                  {m.tagline}
+                <span className='text-muted-foreground text-xs'>
+                  {t(`modes.${m.id}.tagline`)}
                 </span>
               </button>
             );
@@ -171,10 +150,10 @@ export function EmptyState({ onSubmit, sending }: Props) {
         </div>
 
         <div className='mt-4 w-full'>
-          <div className='group relative overflow-hidden rounded-lg border border-border/60 bg-muted/30 shadow-sm transition-all focus-within:border-border focus-within:bg-muted/50 focus-within:shadow-md'>
+          <div className='group border-border/60 bg-muted/30 focus-within:border-border focus-within:bg-muted/50 relative overflow-hidden rounded-lg border shadow-sm transition-all focus-within:shadow-md'>
             <Textarea
               value={value}
-              placeholder={activeMode.placeholder}
+              placeholder={t(`modes.${mode}.placeholder`)}
               onChange={(e) => setValue(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
@@ -183,12 +162,14 @@ export function EmptyState({ onSubmit, sending }: Props) {
                 }
               }}
               rows={3}
-              className='min-h-[96px] resize-none border-0 bg-transparent px-5 pb-12 pt-4 text-base shadow-none focus-visible:ring-0 dark:bg-transparent'
+              className='min-h-[96px] resize-none border-0 bg-transparent px-5 pt-4 pb-12 text-base shadow-none focus-visible:ring-0 dark:bg-transparent'
             />
             <div className='pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between px-3 py-2'>
-              <div className='pointer-events-auto flex items-center gap-1.5 text-xs text-muted-foreground'>
+              <div className='text-muted-foreground pointer-events-auto flex items-center gap-1.5 text-xs'>
                 <IconSparkles size={12} className='text-primary' />
-                <span className='hidden sm:inline'>{activeMode.title}</span>
+                <span className='hidden sm:inline'>
+                  {t(`modes.${mode}.title`)}
+                </span>
               </div>
               <Button
                 onClick={submit}
@@ -207,24 +188,25 @@ export function EmptyState({ onSubmit, sending }: Props) {
 
           <button
             type='button'
-            onClick={() => setValue(activeMode.example)}
-            className='mt-2 flex w-full items-start gap-1.5 rounded-lg px-1 text-left text-xs text-muted-foreground transition-colors hover:text-foreground'
+            onClick={() => setValue(t(`modes.${mode}.example`))}
+            className='text-muted-foreground hover:text-foreground mt-2 flex w-full items-start gap-1.5 rounded-lg px-1 text-left text-xs transition-colors'
           >
-            <span className='shrink-0 font-medium text-primary/80'>
-              Example
+            <span className='text-primary/80 shrink-0 font-medium'>
+              {t('emptyState.example')}
             </span>
-            <span className='line-clamp-2'>{activeMode.example}</span>
+            <span className='line-clamp-2'>{t(`modes.${mode}.example`)}</span>
           </button>
         </div>
 
-        <CalendarSection />
         <EnrichmentSection />
+        <CalendarSection />
       </div>
     </div>
   );
 }
 
 function CalendarSection() {
+  const t = useTranslations('ai.emptyState');
   const api = useApi();
   const [loading, setLoading] = useState(true);
   const [integration, setIntegration] = useState<CalendarIntegration | null>(
@@ -261,20 +243,19 @@ function CalendarSection() {
 
   return (
     <section className='mt-14 flex w-full flex-col items-center text-center'>
-      <h2 className='text-base font-medium text-foreground'>
-        Book meetings straight from your calls
+      <h2 className='text-foreground text-base font-medium'>
+        {t('calendarTitle')}
       </h2>
-      <p className='mt-1 text-xs text-muted-foreground'>
-        Sync your calendar so Ringee can schedule meetings live during calls
-        and check your real-time availability.
+      <p className='text-muted-foreground mt-1 text-xs'>
+        {t('calendarDescription')}
       </p>
       <div className='mt-4'>
         {loading ? (
-          <div className='h-9 w-44 animate-pulse rounded-lg bg-muted/40' />
+          <div className='bg-muted/40 h-9 w-44 animate-pulse rounded-lg' />
         ) : integration ? (
           <div className='inline-flex items-center gap-2 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-600 dark:text-emerald-300'>
             <IconCheck size={13} />
-            <span className='font-medium'>Google Calendar connected</span>
+            <span className='font-medium'>{t('calendarConnected')}</span>
             {integration.email && (
               <span className='text-muted-foreground'>
                 · {integration.email}
@@ -285,10 +266,10 @@ function CalendarSection() {
           <Button
             variant='outline'
             onClick={handleConnect}
-            className='h-9 gap-2 rounded-lg border-border/70 px-4 text-sm font-medium'
+            className='border-border/70 h-9 gap-2 rounded-lg px-4 text-sm font-medium'
           >
             <GoogleGlyph />
-            Sync Google Account
+            {t('calendarConnect')}
           </Button>
         )}
       </div>
@@ -297,6 +278,7 @@ function CalendarSection() {
 }
 
 function EnrichmentSection() {
+  const t = useTranslations('ai.emptyState');
   const api = useApi();
   const [loading, setLoading] = useState(true);
   const [connections, setConnections] = useState<EnrichmentConnectionSummary[]>(
@@ -325,18 +307,18 @@ function EnrichmentSection() {
 
   return (
     <section className='mt-12 flex w-full flex-col items-center text-center'>
-      <h2 className='text-base font-medium text-foreground'>
-        Unlock prospect search
+      <h2 className='text-foreground text-base font-medium'>
+        {t('enrichmentTitle')}
       </h2>
-      <p className='mt-1 text-xs text-muted-foreground'>
-        Connect a provider so Ringee can find and reveal contacts for you.
+      <p className='text-muted-foreground mt-1 text-xs'>
+        {t('enrichmentDescription')}
       </p>
       <div className='mt-4 flex flex-wrap items-center justify-center gap-2'>
         {loading
           ? providers.map((p) => (
               <div
                 key={p}
-                className='h-9 w-36 animate-pulse rounded-lg bg-muted/40'
+                className='bg-muted/40 h-9 w-36 animate-pulse rounded-lg'
               />
             ))
           : providers.map((p) => {
@@ -352,14 +334,16 @@ function EnrichmentSection() {
                   >
                     <ProviderLogo provider={p} />
                     <IconCheck size={13} />
-                    <span className='font-medium'>{meta.name} connected</span>
+                    <span className='font-medium'>
+                      {t('enrichmentConnected', { provider: meta.name })}
+                    </span>
                   </div>
                 );
               }
               return (
                 <div
                   key={p}
-                  className='inline-flex items-center gap-4 rounded-lg border border-border/70 bg-background px-3 py-1.5'
+                  className='border-border/70 bg-background inline-flex items-center gap-4 rounded-lg border px-3 py-1.5'
                 >
                   <ProviderLogo provider={p} />
                   <span className='text-sm font-medium'>{meta.name}</span>

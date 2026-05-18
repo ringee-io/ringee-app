@@ -1,11 +1,8 @@
 'use client';
 
 import { cn } from '@ringee/frontend-shared/lib/utils';
-import {
-  IconBolt,
-  IconChevronDown,
-  IconUser
-} from '@tabler/icons-react';
+import { IconBolt, IconChevronDown, IconUser } from '@tabler/icons-react';
+import { useTranslations } from 'next-intl';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import type { AiMessage } from '../types';
@@ -48,7 +45,7 @@ function AssistantAvatar({ thinking = false }: { thinking?: boolean }) {
   return (
     <div
       className={cn(
-        'relative mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-background ring-1 ring-border/60',
+        'bg-background ring-border/60 relative mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full ring-1',
         thinking && 'ring-primary/40'
       )}
     >
@@ -62,7 +59,7 @@ function AssistantAvatar({ thinking = false }: { thinking?: boolean }) {
       {thinking && (
         <span
           aria-hidden
-          className='pointer-events-none absolute inset-0 animate-ping rounded-full ring-2 ring-primary/40'
+          className='ring-primary/40 pointer-events-none absolute inset-0 animate-ping rounded-full ring-2'
         />
       )}
     </div>
@@ -95,7 +92,7 @@ function ChatRow({
         {!isUser && <AssistantAvatar />}
         <div
           className={cn(
-            'max-w-[80%] whitespace-pre-wrap rounded-2xl px-3 py-2 text-sm leading-relaxed',
+            'max-w-[80%] rounded-2xl px-3 py-2 text-sm leading-relaxed whitespace-pre-wrap',
             isUser
               ? 'bg-primary text-primary-foreground'
               : 'bg-muted text-foreground'
@@ -107,7 +104,7 @@ function ChatRow({
           )}
         </div>
         {isUser && (
-          <div className='mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground'>
+          <div className='bg-muted text-muted-foreground mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full'>
             <IconUser size={14} />
           </div>
         )}
@@ -118,6 +115,7 @@ function ChatRow({
 }
 
 function UsageLine({ message }: { message: AiMessage }) {
+  const t = useTranslations('ai.chat');
   const [open, setOpen] = useState(false);
   const input = message.inputTokens ?? 0;
   const output = message.outputTokens ?? 0;
@@ -130,20 +128,20 @@ function UsageLine({ message }: { message: AiMessage }) {
       <button
         type='button'
         onClick={() => setOpen((v) => !v)}
-        className='group flex w-fit items-center gap-1.5 rounded-md px-1 py-0.5 text-[11px] text-muted-foreground transition-colors hover:text-foreground'
-        title='Token usage for this response'
+        className='group text-muted-foreground hover:text-foreground flex w-fit items-center gap-1.5 rounded-md px-1 py-0.5 text-[11px] transition-colors'
+        title={t('usageTitle')}
       >
-        <IconBolt
-          size={11}
-          className='text-amber-500'
-          fill='currentColor'
-        />
-        <span className='tabular-nums'>{formatTokens(input)} in</span>
+        <IconBolt size={11} className='text-amber-500' fill='currentColor' />
+        <span className='tabular-nums'>
+          {t('tokensIn', { count: formatTokens(input) })}
+        </span>
         <span className='text-muted-foreground/50'>·</span>
-        <span className='tabular-nums'>{formatTokens(output)} out</span>
+        <span className='tabular-nums'>
+          {t('tokensOut', { count: formatTokens(output) })}
+        </span>
         <span className='text-muted-foreground/50'>·</span>
-        <span className='font-medium tabular-nums text-foreground/80'>
-          {formatCredits(cost)} cr
+        <span className='text-foreground/80 font-medium tabular-nums'>
+          {t('credits', { amount: formatCredits(cost) })}
         </span>
         <IconChevronDown
           size={11}
@@ -154,24 +152,33 @@ function UsageLine({ message }: { message: AiMessage }) {
         />
       </button>
       {open && (
-        <div className='ml-1 flex flex-wrap gap-x-3 gap-y-0.5 rounded-md bg-muted/40 px-2 py-1 text-[11px] text-muted-foreground'>
-          <UsageDetail label='Input' value={`${formatTokens(input)} tokens`} />
-          <UsageDetail label='Output' value={`${formatTokens(output)} tokens`} />
+        <div className='bg-muted/40 text-muted-foreground ml-1 flex flex-wrap gap-x-3 gap-y-0.5 rounded-md px-2 py-1 text-[11px]'>
+          <UsageDetail
+            label={t('usageInput')}
+            value={t('tokensValue', { count: formatTokens(input) })}
+          />
+          <UsageDetail
+            label={t('usageOutput')}
+            value={t('tokensValue', { count: formatTokens(output) })}
+          />
           {cached > 0 && (
             <UsageDetail
-              label='Cache read'
-              value={`${formatTokens(cached)} tokens`}
+              label={t('usageCacheRead')}
+              value={t('tokensValue', { count: formatTokens(cached) })}
             />
           )}
           {cacheWrite > 0 && (
             <UsageDetail
-              label='Cache write'
-              value={`${formatTokens(cacheWrite)} tokens`}
+              label={t('usageCacheWrite')}
+              value={t('tokensValue', { count: formatTokens(cacheWrite) })}
             />
           )}
-          <UsageDetail label='Cost' value={`${formatCredits(cost)} credits`} />
+          <UsageDetail
+            label={t('usageCost')}
+            value={t('creditsValue', { amount: formatCredits(cost) })}
+          />
           {message.model && (
-            <UsageDetail label='Model' value={message.model} />
+            <UsageDetail label={t('usageModel')} value={message.model} />
           )}
         </div>
       )}
@@ -183,18 +190,24 @@ function UsageDetail({ label, value }: { label: string; value: string }) {
   return (
     <span className='inline-flex items-center gap-1'>
       <span className='text-muted-foreground/60'>{label}:</span>
-      <span className='font-medium text-foreground/80'>{value}</span>
+      <span className='text-foreground/80 font-medium'>{value}</span>
     </span>
   );
 }
 
 function ThinkingRow() {
+  const t = useTranslations('ai.chat');
   return (
     <div className='flex w-full justify-start gap-2'>
       <AssistantAvatar thinking />
-      <div className='flex items-center gap-2 rounded-2xl bg-muted px-3 py-2.5 text-sm text-foreground shadow-sm'>
-        <span className='ringee-thinking-shimmer font-medium'>Thinking</span>
-        <span className='flex items-center gap-1 text-muted-foreground' aria-hidden>
+      <div className='bg-muted text-foreground flex items-center gap-2 rounded-2xl px-3 py-2.5 text-sm shadow-sm'>
+        <span className='ringee-thinking-shimmer font-medium'>
+          {t('thinking')}
+        </span>
+        <span
+          className='text-muted-foreground flex items-center gap-1'
+          aria-hidden
+        >
           <span
             className='ringee-thinking-dot'
             style={{ animationDelay: '0ms' }}

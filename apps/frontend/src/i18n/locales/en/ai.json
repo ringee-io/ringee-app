@@ -1,0 +1,170 @@
+{
+  "launcher": {
+    "label": "AI Assistant",
+    "beta": "Beta",
+    "version": "v{version}",
+    "tooltipTitle": "AI Assistant",
+    "tooltipBeta": "Beta · v{version}",
+    "tooltipDescription": "Your AI assistant for prospecting — describe your ideal customer and it finds, scores and saves qualified leads for you. More agents (campaigns, CRM, call coaching and analytics) are on the way."
+  },
+  "header": {
+    "conversationCostTitle": "Total AI cost for this conversation",
+    "credits": "{amount} cr",
+    "loadingConversation": "Loading conversation…",
+    "review": "Review",
+    "actionsPending": "{count, plural, =1 {1 action needs your approval} other {# actions need your approval}}"
+  },
+  "commands": {
+    "revealRequest": "{count, plural, =1 {Please request reveal of 1 selected prospect} other {Please request reveal of # selected prospects}} from job {jobId}{phoneSuffix}. Selected ids: {ids}.",
+    "revealPhoneSuffix": " (including phone number)",
+    "saveRequest": "{count, plural, =1 {Please save the 1 selected prospect} other {Please save the # selected prospects}} from job {jobId} into my Ringee contacts. Selected ids: {ids}."
+  },
+  "modes": {
+    "icp": {
+      "badge": "ICP",
+      "title": "Based on my ICP",
+      "tagline": "I already know who my ideal customer is.",
+      "placeholder": "Describe your ideal customer — e.g. \"B2B marketing agencies with 10-50 employees in Mexico and Colombia. I sell to founders, CEOs and heads of sales.\"",
+      "example": "My ICP is B2B marketing agencies with 10-50 employees in Mexico and Colombia. I usually sell to founders, CEOs or heads of sales. My product improves team productivity and visibility."
+    },
+    "customers": {
+      "badge": "Lookalike",
+      "title": "Based on my best customers",
+      "tagline": "Use who already bought to find lookalikes.",
+      "placeholder": "Send as-is to analyze your won deals in Ringee — or paste a few customers (name — what they do — country — role) to guide the search.",
+      "example": "Find leads similar to the customers who already bought from me.",
+      "seed": "Use my won customers and booked meetings in Ringee to find lookalike companies."
+    },
+    "signals": {
+      "badge": "Buying signals",
+      "title": "Based on buying signals",
+      "tagline": "Find companies that look like they need it now.",
+      "placeholder": "Describe the need your product solves — e.g. \"companies showing they need team analytics and productivity software: hiring managers, remote teams, growing fast.\"",
+      "example": "I want companies showing signals that they need team analytics and productivity software — hiring operations managers, remote teams, or growing fast."
+    }
+  },
+  "emptyState": {
+    "greetingLateNight": "Late night",
+    "greetingMorning": "Morning",
+    "greetingAfternoon": "Afternoon",
+    "greetingEvening": "Evening",
+    "greetingWithName": "{greeting}, {name}",
+    "prompt": "How do you want to find leads?",
+    "example": "Example",
+    "calendarTitle": "Book meetings straight from your calls",
+    "calendarDescription": "Sync your calendar so Ringee can schedule meetings live during calls and check your real-time availability.",
+    "calendarConnected": "Google Calendar connected",
+    "calendarConnect": "Sync Google Account",
+    "enrichmentTitle": "Unlock prospect search",
+    "enrichmentDescription": "Connect a provider so Ringee can find and reveal contacts for you.",
+    "enrichmentConnected": "{provider} connected"
+  },
+  "chatInput": {
+    "placeholder": "Describe who you want to sell to…",
+    "hint": "Press Enter to send · Shift+Enter for newline"
+  },
+  "chat": {
+    "thinking": "Thinking",
+    "usageTitle": "Token usage for this response",
+    "tokensIn": "{count} in",
+    "tokensOut": "{count} out",
+    "credits": "{amount} cr",
+    "usageInput": "Input",
+    "usageOutput": "Output",
+    "usageCacheRead": "Cache read",
+    "usageCacheWrite": "Cache write",
+    "usageCost": "Cost",
+    "usageModel": "Model",
+    "tokensValue": "{count} tokens",
+    "creditsValue": "{amount} credits"
+  },
+  "agents": {
+    "selectAgent": "Select agent",
+    "menuLabel": "AI agents",
+    "active": "Active",
+    "comingSoon": "Coming soon"
+  },
+  "confirmation": {
+    "actionReveal": "Reveal contact data",
+    "actionSave": "Save prospects to Ringee",
+    "actionListCreate": "Create list",
+    "phoneCostWarning": "Phone reveal usually costs more credits than email reveal.",
+    "estimatedCost": "{count, plural, =1 {Estimated cost: 1 credit.} other {Estimated cost: # credits.}}",
+    "resolved": "Resolved",
+    "actionRequired": "Action required",
+    "approvedNote": "Approved — Ringee is processing this action.",
+    "declinedNote": "Declined.",
+    "decline": "Decline",
+    "approve": "Approve"
+  },
+  "conversations": {
+    "title": "Conversations",
+    "new": "New",
+    "empty": "No conversations yet. Start one with the Prospecting Expert.",
+    "untitled": "New conversation"
+  },
+  "outOfCredit": {
+    "compactTitle": "You've run out of credit",
+    "compactDescription": "Add credit to keep chatting with the AI Assistant.",
+    "title": "You're out of credit",
+    "description": "The AI Assistant is billed per token used. Top up your balance to start a new conversation and keep your prospecting agent running.",
+    "addCredit": "Add credit"
+  },
+  "prospect": {
+    "viewDetail": "View full lead detail",
+    "unknown": "Unknown",
+    "unknownProspect": "Unknown prospect",
+    "noTitle": "No title available",
+    "emailAvailable": "Email available",
+    "emailHidden": "Email hidden",
+    "phoneAvailable": "Phone available",
+    "phoneHidden": "Phone hidden",
+    "confidence": "{percent}% confidence",
+    "viewLinkedin": "View LinkedIn profile",
+    "fit": "Fit {score}",
+    "unknownRole": "Unknown role",
+    "current": "Current",
+    "sectionPerson": "Person",
+    "sectionWorkHistory": "Work history",
+    "sectionEducation": "Education",
+    "sectionCompany": "Company",
+    "sectionWhyFits": "Why it fits",
+    "fieldFirstName": "First name",
+    "fieldLastName": "Last name",
+    "fieldSeniority": "Seniority",
+    "fieldDepartment": "Department",
+    "fieldYearsExperience": "Years of experience",
+    "fieldTimezone": "Timezone",
+    "fieldLocation": "Location",
+    "fieldLanguages": "Languages",
+    "fieldSkills": "Skills",
+    "fieldName": "Name",
+    "fieldLegalName": "Legal name",
+    "fieldIndustry": "Industry",
+    "fieldSubIndustry": "Sub-industry",
+    "fieldEmployees": "Employees",
+    "fieldRevenue": "Revenue",
+    "fieldFundingStage": "Funding stage",
+    "fieldFounded": "Founded",
+    "fieldType": "Type",
+    "fieldDomain": "Domain",
+    "fieldTechnologies": "Technologies",
+    "fieldKeywords": "Keywords",
+    "linkWebsite": "Website",
+    "linkCompany": "Company",
+    "linkCompanySite": "Company site"
+  },
+  "results": {
+    "selectedCount": "{count, plural, =1 {1 prospect selected} other {# prospects selected}}",
+    "previousSearches": "Previous searches",
+    "prospectsVia": "{count} prospects via {provider}",
+    "latestResult": "Latest result",
+    "justNow": "just now",
+    "selected": "{count} selected",
+    "revealEmail": "Reveal email ({count})",
+    "revealPhone": "Reveal +phone",
+    "save": "Save ({count})",
+    "showLess": "Show less",
+    "showAll": "Show all {count} results"
+  }
+}

@@ -11,6 +11,7 @@ import {
   DropdownMenuTrigger
 } from '@ringee/frontend-shared/components/ui/dropdown-menu';
 import { IconChevronDown, IconSparkles } from '@tabler/icons-react';
+import { useTranslations } from 'next-intl';
 import type { AiAgentDescriptor } from '../types';
 
 interface Props {
@@ -20,18 +21,21 @@ interface Props {
 }
 
 export function AgentSelector({ agents, selectedId, onSelect }: Props) {
+  const t = useTranslations('ai.agents');
   const selected = agents.find((a) => a.id === selectedId) ?? agents[0];
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant='outline' size='sm' className='gap-2'>
           <IconSparkles size={16} className='text-primary' />
-          <span className='font-medium'>{selected?.label ?? 'Select agent'}</span>
+          <span className='font-medium'>
+            {selected?.label ?? t('selectAgent')}
+          </span>
           <IconChevronDown size={14} className='opacity-60' />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align='start' className='w-80'>
-        <DropdownMenuLabel>Ringee AI agents</DropdownMenuLabel>
+        <DropdownMenuLabel>{t('menuLabel')}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {agents.map((a) => (
           <DropdownMenuItem
@@ -45,16 +49,16 @@ export function AgentSelector({ agents, selectedId, onSelect }: Props) {
               {a.active ? (
                 a.id === selectedId ? (
                   <Badge variant='default' className='ml-auto text-[10px]'>
-                    Active
+                    {t('active')}
                   </Badge>
                 ) : null
               ) : (
                 <Badge variant='secondary' className='ml-auto text-[10px]'>
-                  Coming soon
+                  {t('comingSoon')}
                 </Badge>
               )}
             </div>
-            <span className='text-xs text-muted-foreground line-clamp-2'>
+            <span className='text-muted-foreground line-clamp-2 text-xs'>
               {a.description}
             </span>
           </DropdownMenuItem>

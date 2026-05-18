@@ -20,6 +20,7 @@ import {
   IconSchool,
   IconWorld
 } from '@tabler/icons-react';
+import { useTranslations } from 'next-intl';
 import type { ReactNode } from 'react';
 import type { ProspectPreview } from '../types';
 
@@ -30,40 +31,45 @@ interface Props {
 }
 
 export function ProspectDetailModal({ prospect, open, onOpenChange }: Props) {
+  const t = useTranslations('ai.prospect');
   const { person, company } = prospect.details;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className='max-w-2xl gap-0 p-0'>
-        <DialogHeader className='border-b border-border/60 px-5 py-4'>
+        <DialogHeader className='border-border/60 border-b px-5 py-4'>
           <DialogTitle className='flex items-center gap-2 text-base'>
-            {prospect.fullName ?? 'Unknown prospect'}
+            {prospect.fullName ?? t('unknownProspect')}
             <Badge variant='secondary' className='capitalize'>
               {prospect.provider}
             </Badge>
           </DialogTitle>
-          <p className='text-sm text-muted-foreground'>
+          <p className='text-muted-foreground text-sm'>
             {[prospect.jobTitle, prospect.company]
               .filter(Boolean)
-              .join(' · ') || 'No title available'}
+              .join(' · ') || t('noTitle')}
           </p>
           {person.headline && (
-            <p className='text-xs text-muted-foreground'>{person.headline}</p>
+            <p className='text-muted-foreground text-xs'>{person.headline}</p>
           )}
           <div className='mt-1 flex flex-wrap gap-1.5'>
-            <Badge variant='outline'>Fit {prospect.fitScore}</Badge>
+            <Badge variant='outline'>
+              {t('fit', { score: prospect.fitScore })}
+            </Badge>
             {typeof prospect.confidence === 'number' && (
               <Badge variant='outline'>
-                {Math.round(prospect.confidence * 100)}% confidence
+                {t('confidence', {
+                  percent: Math.round(prospect.confidence * 100)
+                })}
               </Badge>
             )}
             <Badge variant='outline' className='gap-1'>
               <IconMail size={11} />
-              {prospect.hasEmail ? 'Email available' : 'Email hidden'}
+              {prospect.hasEmail ? t('emailAvailable') : t('emailHidden')}
             </Badge>
             <Badge variant='outline' className='gap-1'>
               <IconPhone size={11} />
-              {prospect.hasPhone ? 'Phone available' : 'Phone hidden'}
+              {prospect.hasPhone ? t('phoneAvailable') : t('phoneHidden')}
             </Badge>
           </div>
         </DialogHeader>
@@ -72,23 +78,23 @@ export function ProspectDetailModal({ prospect, open, onOpenChange }: Props) {
           <div className='flex flex-col gap-5 px-5 py-4'>
             <Links prospect={prospect} />
 
-            <Section title='Person'>
+            <Section title={t('sectionPerson')}>
               <FieldGrid>
-                <Field label='First name' value={person.firstName} />
-                <Field label='Last name' value={person.lastName} />
-                <Field label='Seniority' value={person.seniority} />
-                <Field label='Department' value={person.department} />
+                <Field label={t('fieldFirstName')} value={person.firstName} />
+                <Field label={t('fieldLastName')} value={person.lastName} />
+                <Field label={t('fieldSeniority')} value={person.seniority} />
+                <Field label={t('fieldDepartment')} value={person.department} />
                 <Field
-                  label='Years of experience'
+                  label={t('fieldYearsExperience')}
                   value={
                     person.yearsExperience !== null
                       ? String(person.yearsExperience)
                       : null
                   }
                 />
-                <Field label='Timezone' value={person.timezone} />
+                <Field label={t('fieldTimezone')} value={person.timezone} />
                 <Field
-                  label='Location'
+                  label={t('fieldLocation')}
                   value={
                     [person.city, person.region, person.country]
                       .filter(Boolean)
@@ -97,32 +103,32 @@ export function ProspectDetailModal({ prospect, open, onOpenChange }: Props) {
                 />
               </FieldGrid>
               {person.summary && (
-                <p className='mt-1 text-sm text-muted-foreground'>
+                <p className='text-muted-foreground mt-1 text-sm'>
                   {person.summary}
                 </p>
               )}
-              <TagRow label='Languages' values={person.languages} />
-              <TagRow label='Skills' values={person.skills} />
+              <TagRow label={t('fieldLanguages')} values={person.languages} />
+              <TagRow label={t('fieldSkills')} values={person.skills} />
             </Section>
 
             {person.workHistory.length > 0 && (
-              <Section title='Work history'>
+              <Section title={t('sectionWorkHistory')}>
                 <ul className='flex flex-col gap-2'>
                   {person.workHistory.map((w, i) => (
                     <li key={i} className='flex items-start gap-2 text-sm'>
                       <IconBriefcase
                         size={14}
-                        className='mt-0.5 shrink-0 text-muted-foreground'
+                        className='text-muted-foreground mt-0.5 shrink-0'
                       />
                       <span>
                         {[w.title, w.company].filter(Boolean).join(' — ') ||
-                          'Unknown role'}
+                          t('unknownRole')}
                         {w.current && (
                           <Badge
                             variant='secondary'
                             className='ml-1.5 text-[10px]'
                           >
-                            Current
+                            {t('current')}
                           </Badge>
                         )}
                       </span>
@@ -133,18 +139,18 @@ export function ProspectDetailModal({ prospect, open, onOpenChange }: Props) {
             )}
 
             {person.education.length > 0 && (
-              <Section title='Education'>
+              <Section title={t('sectionEducation')}>
                 <ul className='flex flex-col gap-2'>
                   {person.education.map((e, i) => (
                     <li key={i} className='flex items-start gap-2 text-sm'>
                       <IconSchool
                         size={14}
-                        className='mt-0.5 shrink-0 text-muted-foreground'
+                        className='text-muted-foreground mt-0.5 shrink-0'
                       />
                       <span>
                         {[e.school, e.degree, e.field]
                           .filter(Boolean)
-                          .join(' — ') || 'Unknown'}
+                          .join(' — ') || t('unknown')}
                       </span>
                     </li>
                   ))}
@@ -153,14 +159,20 @@ export function ProspectDetailModal({ prospect, open, onOpenChange }: Props) {
             )}
 
             {company && (
-              <Section title='Company'>
+              <Section title={t('sectionCompany')}>
                 <FieldGrid>
-                  <Field label='Name' value={company.name} />
-                  <Field label='Legal name' value={company.legalName} />
-                  <Field label='Industry' value={company.industry} />
-                  <Field label='Sub-industry' value={company.subIndustry} />
+                  <Field label={t('fieldName')} value={company.name} />
                   <Field
-                    label='Employees'
+                    label={t('fieldLegalName')}
+                    value={company.legalName}
+                  />
+                  <Field label={t('fieldIndustry')} value={company.industry} />
+                  <Field
+                    label={t('fieldSubIndustry')}
+                    value={company.subIndustry}
+                  />
+                  <Field
+                    label={t('fieldEmployees')}
                     value={
                       company.employeeCountRange ??
                       company.size ??
@@ -169,31 +181,40 @@ export function ProspectDetailModal({ prospect, open, onOpenChange }: Props) {
                         : null)
                     }
                   />
-                  <Field label='Revenue' value={company.revenueRange} />
-                  <Field label='Funding stage' value={company.fundingStage} />
                   <Field
-                    label='Founded'
+                    label={t('fieldRevenue')}
+                    value={company.revenueRange}
+                  />
+                  <Field
+                    label={t('fieldFundingStage')}
+                    value={company.fundingStage}
+                  />
+                  <Field
+                    label={t('fieldFounded')}
                     value={
                       company.foundedYear !== null
                         ? String(company.foundedYear)
                         : null
                     }
                   />
-                  <Field label='Type' value={company.companyType} />
-                  <Field label='Domain' value={company.domain} />
-                  <Field label='Location' value={company.location} />
+                  <Field label={t('fieldType')} value={company.companyType} />
+                  <Field label={t('fieldDomain')} value={company.domain} />
+                  <Field label={t('fieldLocation')} value={company.location} />
                 </FieldGrid>
                 {company.description && (
-                  <p className='mt-1 text-sm text-muted-foreground'>
+                  <p className='text-muted-foreground mt-1 text-sm'>
                     {company.description}
                   </p>
                 )}
-                <TagRow label='Technologies' values={company.technologies} />
-                <TagRow label='Keywords' values={company.keywords} />
+                <TagRow
+                  label={t('fieldTechnologies')}
+                  values={company.technologies}
+                />
+                <TagRow label={t('fieldKeywords')} values={company.keywords} />
               </Section>
             )}
 
-            <Section title='Why it fits'>
+            <Section title={t('sectionWhyFits')}>
               <ul className='flex flex-col gap-1'>
                 {prospect.reasons.map((r, i) => (
                   <li key={i} className='flex gap-1.5 text-sm'>
@@ -211,6 +232,7 @@ export function ProspectDetailModal({ prospect, open, onOpenChange }: Props) {
 }
 
 function Links({ prospect }: { prospect: ProspectPreview }) {
+  const t = useTranslations('ai.prospect');
   const { person, company } = prospect.details;
   const links: Array<{
     href: string;
@@ -231,19 +253,19 @@ function Links({ prospect }: { prospect: ProspectPreview }) {
   if (person.websiteUrl)
     links.push({
       href: person.websiteUrl,
-      label: 'Website',
+      label: t('linkWebsite'),
       icon: IconWorld
     });
   if (company?.linkedinUrl)
     links.push({
       href: company.linkedinUrl,
-      label: 'Company',
+      label: t('linkCompany'),
       icon: IconBuilding
     });
   if (company?.website)
     links.push({
       href: company.website,
-      label: 'Company site',
+      label: t('linkCompanySite'),
       icon: IconMapPin
     });
 
@@ -258,7 +280,7 @@ function Links({ prospect }: { prospect: ProspectPreview }) {
             href={l.href}
             target='_blank'
             rel='noopener noreferrer'
-            className='inline-flex items-center gap-1.5 rounded-lg border border-border/70 bg-background px-2.5 py-1.5 text-xs font-medium transition-colors hover:border-border hover:bg-muted'
+            className='border-border/70 bg-background hover:border-border hover:bg-muted inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors'
           >
             <Icon size={13} />
             {l.label}
@@ -269,16 +291,10 @@ function Links({ prospect }: { prospect: ProspectPreview }) {
   );
 }
 
-function Section({
-  title,
-  children
-}: {
-  title: string;
-  children: ReactNode;
-}) {
+function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className='flex flex-col gap-2'>
-      <h3 className='text-[11px] font-semibold uppercase tracking-wide text-muted-foreground'>
+      <h3 className='text-muted-foreground text-[11px] font-semibold tracking-wide uppercase'>
         {title}
       </h3>
       {children}
@@ -287,16 +303,14 @@ function Section({
 }
 
 function FieldGrid({ children }: { children: ReactNode }) {
-  return (
-    <dl className='grid grid-cols-2 gap-x-4 gap-y-2.5'>{children}</dl>
-  );
+  return <dl className='grid grid-cols-2 gap-x-4 gap-y-2.5'>{children}</dl>;
 }
 
 function Field({ label, value }: { label: string; value: ReactNode }) {
   if (value === null || value === undefined || value === '') return null;
   return (
     <div className='flex flex-col gap-0.5'>
-      <dt className='text-[11px] font-medium uppercase tracking-wide text-muted-foreground'>
+      <dt className='text-muted-foreground text-[11px] font-medium tracking-wide uppercase'>
         {label}
       </dt>
       <dd className='text-sm break-words'>{value}</dd>
@@ -308,7 +322,7 @@ function TagRow({ label, values }: { label: string; values: string[] }) {
   if (!values || values.length === 0) return null;
   return (
     <div className='flex flex-col gap-1'>
-      <span className='text-[11px] font-medium uppercase tracking-wide text-muted-foreground'>
+      <span className='text-muted-foreground text-[11px] font-medium tracking-wide uppercase'>
         {label}
       </span>
       <div className='flex flex-wrap gap-1'>

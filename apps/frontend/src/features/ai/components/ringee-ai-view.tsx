@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { useRouter } from 'next/navigation';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
@@ -21,12 +22,6 @@ import type {
   AiConversation,
   ProspectingMode
 } from '../types';
-
-const MODE_LABELS: Record<ProspectingMode, string> = {
-  icp: 'ICP',
-  customers: 'Lookalike',
-  signals: 'Buying signals'
-};
 
 /** Read the prospecting mode persisted on a conversation's agentState. */
 function conversationMode(
@@ -85,6 +80,7 @@ interface Props {
 }
 
 export function RingeeAiView({ conversationId }: Props) {
+  const t = useTranslations('ai');
   const api = useApi();
   const router = useRouter();
   const [agents, setAgents] = useState<AiAgentDescriptor[]>([]);
@@ -106,7 +102,8 @@ export function RingeeAiView({ conversationId }: Props) {
   // or in-flight fetch must not lock the user out of the chat.
   const outOfCredit = creditStatus === 'success' && creditBalance <= 0;
 
-  const { state, sendMessage, confirmAction } = useAiConversation(conversationId);
+  const { state, sendMessage, confirmAction } =
+    useAiConversation(conversationId);
 
   // Initial load: agents + conversation list + connection summary + balance.
   useEffect(() => {
@@ -213,22 +210,23 @@ export function RingeeAiView({ conversationId }: Props) {
   ) {
     if (externalIds.length === 0) return;
     void handleSend(
-      `Please request reveal of ${externalIds.length} selected prospect${
-        externalIds.length === 1 ? '' : 's'
-      } from job ${jobId}${
-        revealPhone ? ' (including phone number)' : ''
-      }. Selected ids: ${externalIds.join(', ')}.`
+      t('commands.revealRequest', {
+        count: externalIds.length,
+        jobId,
+        phoneSuffix: revealPhone ? t('commands.revealPhoneSuffix') : '',
+        ids: externalIds.join(', ')
+      })
     );
   }
 
   function handleRequestSave(jobId: string, externalIds: string[]) {
     if (externalIds.length === 0) return;
     void handleSend(
-      `Please save the ${externalIds.length} selected prospect${
-        externalIds.length === 1 ? '' : 's'
-      } from job ${jobId} into my Ringee contacts. Selected ids: ${externalIds.join(
-        ', '
-      )}.`
+      t('commands.saveRequest', {
+        count: externalIds.length,
+        jobId,
+        ids: externalIds.join(', ')
+      })
     );
   }
 
@@ -267,9 +265,9 @@ export function RingeeAiView({ conversationId }: Props) {
   }
 
   return (
-    <div className='flex h-[calc(100vh-3.5rem)] w-full lg:w-[90%] mx-auto'>
+    <div className='mx-auto flex h-[calc(100vh-3.5rem)] w-full lg:w-[90%]'>
       <main className='flex flex-1 flex-col'>
-        <header className='flex items-center justify-between gap-3 border-b border-border/60 bg-background/60 px-4 py-3 backdrop-blur'>
+        <header className='border-border/60 bg-background/60 flex items-center justify-between gap-3 border-b px-4 py-3 backdrop-blur'>
           <div className='flex items-center gap-2'>
             <ConversationList
               conversations={conversations}
@@ -286,19 +284,19 @@ export function RingeeAiView({ conversationId }: Props) {
           </div>
           <div className='flex min-w-0 items-center gap-2'>
             {activeMode && (
-              <span className='shrink-0 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary'>
-                {MODE_LABELS[activeMode]}
+              <span className='border-primary/30 bg-primary/10 text-primary shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium'>
+                {t(`modes.${activeMode}.badge`)}
               </span>
             )}
             {state.conversation?.title && (
-              <span className='hidden truncate text-sm font-medium text-muted-foreground sm:inline'>
+              <span className='text-muted-foreground hidden truncate text-sm font-medium sm:inline'>
                 {state.conversation.title}
               </span>
             )}
             {state.conversation && (
               <span
-                className='flex shrink-0 items-center gap-1 rounded-full bg-muted px-2 py-1 text-[11px] font-medium text-muted-foreground'
-                title='Total AI cost for this conversation'
+                className='bg-muted text-muted-foreground flex shrink-0 items-center gap-1 rounded-full px-2 py-1 text-[11px] font-medium'
+                title={t('header.conversationCostTitle')}
               >
                 <IconBolt
                   size={11}
@@ -306,7 +304,11 @@ export function RingeeAiView({ conversationId }: Props) {
                   fill='currentColor'
                 />
                 <span className='tabular-nums'>
-                  {formatCredits(state.conversation.totalCostCredits ?? 0)} cr
+                  {t('header.credits', {
+                    amount: formatCredits(
+                      state.conversation.totalCostCredits ?? 0
+                    )
+                  })}
                 </span>
               </span>
             )}
@@ -316,12 +318,12 @@ export function RingeeAiView({ conversationId }: Props) {
         <div className='flex flex-1 overflow-hidden'>
           <div className='flex flex-1 flex-col'>
             {topLevelError && (
-              <div className='border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-xs text-destructive'>
+              <div className='border-destructive/30 bg-destructive/10 text-destructive border-b px-4 py-2 text-xs'>
                 {topLevelError}
               </div>
             )}
             {state.error && (
-              <div className='border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-xs text-destructive'>
+              <div className='border-destructive/30 bg-destructive/10 text-destructive border-b px-4 py-2 text-xs'>
                 {state.error}
               </div>
             )}
@@ -334,11 +336,11 @@ export function RingeeAiView({ conversationId }: Props) {
                       <IconAlertTriangleFilled size={13} />
                     </span>
                     <span className='font-medium'>
-                      {pendingOpen.length === 1
-                        ? '1 action needs your approval'
-                        : `${pendingOpen.length} actions need your approval`}
+                      {t('header.actionsPending', {
+                        count: pendingOpen.length
+                      })}
                     </span>
-                    <span className='hidden text-xs text-muted-foreground sm:inline'>
+                    <span className='text-muted-foreground hidden text-xs sm:inline'>
                       {pendingOpen[0]?.summary}
                     </span>
                   </div>
@@ -347,7 +349,7 @@ export function RingeeAiView({ conversationId }: Props) {
                     onClick={focusPending}
                     className='h-7 gap-1 bg-amber-500 text-amber-950 hover:bg-amber-400 dark:bg-amber-400 dark:text-amber-950 dark:hover:bg-amber-300'
                   >
-                    Review
+                    {t('header.review')}
                   </Button>
                 </div>
               </div>
@@ -363,8 +365,8 @@ export function RingeeAiView({ conversationId }: Props) {
                 />
               )
             ) : state.loading ? (
-              <div className='flex flex-1 items-center justify-center text-sm text-muted-foreground'>
-                Loading conversation…
+              <div className='text-muted-foreground flex flex-1 items-center justify-center text-sm'>
+                {t('header.loadingConversation')}
               </div>
             ) : (
               <>
@@ -390,12 +392,16 @@ export function RingeeAiView({ conversationId }: Props) {
           {showRail && (
             <aside
               ref={railRef}
-              className='hidden w-[28rem] shrink-0 flex-col overflow-y-auto border-l border-border/60 bg-muted/10 lg:flex'
+              className='border-border/60 bg-muted/10 hidden w-[28rem] shrink-0 flex-col overflow-y-auto border-l lg:flex'
             >
               {pendingOpen.length > 0 && (
-                <div className='sticky top-0 z-10 flex flex-col gap-2 border-b border-amber-500/30 bg-background/95 px-3 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/70'>
+                <div className='bg-background/95 supports-[backdrop-filter]:bg-background/70 sticky top-0 z-10 flex flex-col gap-2 border-b border-amber-500/30 px-3 py-3 backdrop-blur'>
                   {pendingOpen.map((c) => (
-                    <div key={c.confirmationId} id={`confirmation-${c.confirmationId}`} className='rounded-xl transition-shadow'>
+                    <div
+                      key={c.confirmationId}
+                      id={`confirmation-${c.confirmationId}`}
+                      className='rounded-xl transition-shadow'
+                    >
                       <ConfirmationCard
                         confirmation={c}
                         onAccept={(overrides) =>

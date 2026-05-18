@@ -17,13 +17,23 @@ import {
   IconSparkles,
   IconUserPlus
 } from '@tabler/icons-react';
+import { useTranslations } from 'next-intl';
 import { useMemo, useState } from 'react';
 import type { ProspectResultGroup } from '../hooks/use-ai-conversation';
 import { ProspectCard } from './prospect-card';
 
+/** Title-case a provider slug (e.g. `apollo` → `Apollo`) for display. */
+function capitalize(value: string): string {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : value;
+}
+
 interface Props {
   groups: ProspectResultGroup[];
-  onRequestReveal: (jobId: string, externalIds: string[], revealPhone: boolean) => void;
+  onRequestReveal: (
+    jobId: string,
+    externalIds: string[],
+    revealPhone: boolean
+  ) => void;
   onRequestSave: (jobId: string, externalIds: string[]) => void;
 }
 
@@ -39,11 +49,11 @@ export function ProspectResultsPanel({
   onRequestReveal,
   onRequestSave
 }: Props) {
+  const t = useTranslations('ai.results');
   const [selected, setSelected] = useState<Record<string, Set<string>>>({});
 
   const totalSelected = useMemo(
-    () =>
-      Object.values(selected).reduce((sum, s) => sum + s.size, 0),
+    () => Object.values(selected).reduce((sum, s) => sum + s.size, 0),
     [selected]
   );
 
@@ -88,8 +98,8 @@ export function ProspectResultsPanel({
       />
 
       {totalSelected > 0 && (
-        <div className='sticky bottom-2 mt-1 self-center rounded-full bg-muted/80 px-3 py-1 text-[11px] text-muted-foreground'>
-          {totalSelected} prospect{totalSelected === 1 ? '' : 's'} selected
+        <div className='bg-muted/80 text-muted-foreground sticky bottom-2 mt-1 self-center rounded-full px-3 py-1 text-[11px]'>
+          {t('selectedCount', { count: totalSelected })}
         </div>
       )}
     </div>
@@ -103,12 +113,13 @@ function PreviousSearches({
   groups: ProspectResultGroup[];
   ctxFor: (jobId: string) => GroupContext;
 }) {
+  const t = useTranslations('ai.results');
   return (
     <div className='flex flex-col gap-1.5'>
-      <div className='flex items-center gap-1.5 px-1 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground'>
+      <div className='text-muted-foreground flex items-center gap-1.5 px-1 text-[11px] font-semibold tracking-wide uppercase'>
         <IconHistory size={12} />
-        Previous searches
-        <span className='rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground'>
+        {t('previousSearches')}
+        <span className='bg-muted text-muted-foreground rounded-full px-1.5 py-0.5 text-[10px] font-bold'>
           {groups.length}
         </span>
       </div>
@@ -132,33 +143,36 @@ function CollapsibleGroup({
   group: ProspectResultGroup;
   ctx: GroupContext;
 }) {
+  const t = useTranslations('ai.results');
   const [open, setOpen] = useState(false);
   return (
     <Collapsible open={open} onOpenChange={setOpen}>
       <CollapsibleTrigger
         className={cn(
-          'group flex w-full items-center gap-2 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-left transition-colors hover:bg-muted/40',
-          open && 'rounded-b-none border-b-transparent bg-muted/40'
+          'group border-border/60 bg-muted/20 hover:bg-muted/40 flex w-full items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors',
+          open && 'bg-muted/40 rounded-b-none border-b-transparent'
         )}
       >
         <IconChevronDown
           size={14}
-          className='shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180'
+          className='text-muted-foreground shrink-0 transition-transform group-data-[state=open]:rotate-180'
         />
-        <div className='flex flex-1 items-center gap-2 min-w-0'>
+        <div className='flex min-w-0 flex-1 items-center gap-2'>
           <span className='truncate text-sm font-medium'>
-            {group.results.length} prospects via{' '}
-            <span className='capitalize'>{group.provider}</span>
+            {t('prospectsVia', {
+              count: group.results.length,
+              provider: capitalize(group.provider)
+            })}
           </span>
           {ctx.selected.size > 0 && (
             <Badge variant='secondary' className='ml-auto text-[10px]'>
-              {ctx.selected.size} selected
+              {t('selected', { count: ctx.selected.size })}
             </Badge>
           )}
         </div>
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <div className='rounded-b-lg border border-t-0 border-border/60 bg-muted/10 p-3'>
+        <div className='border-border/60 bg-muted/10 rounded-b-lg border border-t-0 p-3'>
           <GroupBody group={group} ctx={ctx} />
         </div>
       </CollapsibleContent>
@@ -175,34 +189,32 @@ function GroupSection({
   ctx: GroupContext;
   variant: 'latest';
 }) {
+  const t = useTranslations('ai.results');
   return (
-    <section
-      className={cn(
-        'flex flex-col gap-3 rounded-xl p-3',
-        ''
-      )}
-    >
+    <section className={cn('flex flex-col gap-3 rounded-xl p-3', '')}>
       <header className='flex flex-col gap-2'>
         <div className='flex items-center gap-2'>
           <Badge
             variant='default'
-            className='gap-1 bg-primary/15 text-primary hover:bg-primary/15'
+            className='bg-primary/15 text-primary hover:bg-primary/15 gap-1'
           >
             <IconSparkles size={11} />
-            Latest result
+            {t('latestResult')}
           </Badge>
-          <span className='inline-flex items-center gap-1 text-[10px] text-muted-foreground'>
+          <span className='text-muted-foreground inline-flex items-center gap-1 text-[10px]'>
             <IconClock size={11} />
-            just now
+            {t('justNow')}
           </span>
         </div>
         <div>
           <div className='text-sm font-semibold'>
-            {group.results.length} prospects via{' '}
-            <span className='capitalize'>{group.provider}</span>
+            {t('prospectsVia', {
+              count: group.results.length,
+              provider: capitalize(group.provider)
+            })}
           </div>
           {group.filtersSummary && (
-            <div className='mt-0.5 line-clamp-3 text-[11px] text-muted-foreground'>
+            <div className='text-muted-foreground mt-0.5 line-clamp-3 text-[11px]'>
               {group.filtersSummary}
             </div>
           )}
@@ -221,6 +233,7 @@ function GroupActions({
   group: ProspectResultGroup;
   ctx: GroupContext;
 }) {
+  const t = useTranslations('ai.results');
   const selCount = ctx.selected.size;
   if (selCount === 0) return null;
   const sel = Array.from(ctx.selected);
@@ -232,7 +245,7 @@ function GroupActions({
         className='h-7 gap-1 text-xs'
         onClick={() => ctx.onRequestReveal(group.jobId, sel, false)}
       >
-        <IconLock size={13} /> Reveal email ({selCount})
+        <IconLock size={13} /> {t('revealEmail', { count: selCount })}
       </Button>
       <Button
         size='sm'
@@ -240,14 +253,14 @@ function GroupActions({
         className='h-7 gap-1 text-xs'
         onClick={() => ctx.onRequestReveal(group.jobId, sel, true)}
       >
-        <IconLock size={13} /> Reveal +phone
+        <IconLock size={13} /> {t('revealPhone')}
       </Button>
       <Button
         size='sm'
         className='h-7 gap-1 text-xs'
         onClick={() => ctx.onRequestSave(group.jobId, sel)}
       >
-        <IconUserPlus size={13} /> Save ({selCount})
+        <IconUserPlus size={13} /> {t('save', { count: selCount })}
       </Button>
     </div>
   );
@@ -262,6 +275,7 @@ function GroupBody({
   group: ProspectResultGroup;
   ctx: GroupContext;
 }) {
+  const t = useTranslations('ai.results');
   const [showAll, setShowAll] = useState(false);
   const hasMore = group.results.length > INITIAL_VISIBLE;
   const visible =
@@ -290,12 +304,12 @@ function GroupBody({
         >
           {showAll ? (
             <>
-              <IconChevronUp size={14} /> Show less
+              <IconChevronUp size={14} /> {t('showLess')}
             </>
           ) : (
             <>
-              <IconChevronDown size={14} /> Show all {group.results.length}{' '}
-              results
+              <IconChevronDown size={14} />{' '}
+              {t('showAll', { count: group.results.length })}
             </>
           )}
         </Button>

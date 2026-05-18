@@ -38,7 +38,6 @@ import {
   IconPhoneCalling
 } from '@tabler/icons-react';
 
-
 import { SignOutButton } from '@clerk/nextjs';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -83,7 +82,9 @@ function OutreachLockOverlay({ collapsed }: { collapsed: boolean }) {
   const handleUpgrade = async () => {
     setLoading(true);
     try {
-      const res = await api.post<{ url: string }>('/stripe/checkout/organization');
+      const res = await api.post<{ url: string }>(
+        '/stripe/checkout/organization'
+      );
       if (res.url) window.location.href = res.url;
     } catch {
       // silent
@@ -97,13 +98,13 @@ function OutreachLockOverlay({ collapsed }: { collapsed: boolean }) {
 
   return (
     <div className='absolute inset-0 z-10 flex flex-col items-center justify-center backdrop-blur-[0.5px]'>
-      <p className='text-[11px] font-semibold text-foreground'>
+      <p className='text-foreground text-[11px] font-semibold'>
         {t('outreachLocked')}
       </p>
       <button
         onClick={handleUpgrade}
         disabled={loading}
-        className='mt-0.5 text-xs text-emerald-500 hover:text-emerald-400 hover:underline transition-colors disabled:opacity-60'
+        className='mt-0.5 text-xs text-emerald-500 transition-colors hover:text-emerald-400 hover:underline disabled:opacity-60'
       >
         {loading ? t('redirecting') : t('upgradeNow')}
       </button>
@@ -119,12 +120,12 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
 
   const { user } = useMock
     ? {
-      user: {
-        imageUrl: '/edison.jpg',
-        fullName: 'Edison J. Padilla',
-        emailAddresses: [{ emailAddress: 'edisonjpp@gmail.com' }]
+        user: {
+          imageUrl: '/edison.jpg',
+          fullName: 'Edison J. Padilla',
+          emailAddresses: [{ emailAddress: 'edisonjpp@gmail.com' }]
+        }
       }
-    }
     : useUser();
 
   const router = useRouter();
@@ -154,15 +155,6 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
           <IconPhoneCalling className='size-4' />
           <span>{tNav('sidebar.openQuickCall')}</span>
         </SidebarMenuButton>
-
-
-        <SidebarMenuButton
-          className='mt-4 cursor-pointer'
-          onClick={() => router.push('/dashboard/ai')}
-        >
-          <IconPhoneCalling className='size-4' />
-          <span>Ringee AI</span>
-        </SidebarMenuButton>
       </SidebarHeader>
 
       <SidebarContent className='overflow-x-hidden'>
@@ -181,18 +173,28 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                     <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>
                   </TooltipTrigger>
                   <TooltipContent side='right' className='text-xs'>
-                    <p className='font-semibold'>{tNav('sidebar.outreachLocked')}</p>
-                    <p className='text-[11px] text-muted-foreground mt-0.5'>{tNav('sidebar.outreachLockedDescription')}</p>
+                    <p className='font-semibold'>
+                      {tNav('sidebar.outreachLocked')}
+                    </p>
+                    <p className='text-muted-foreground mt-0.5 text-[11px]'>
+                      {tNav('sidebar.outreachLockedDescription')}
+                    </p>
                   </TooltipContent>
                 </Tooltip>
               ) : (
                 <SidebarGroupLabel>{groupLabel}</SidebarGroupLabel>
               )}
 
-              {!useMock && isLocked && <OutreachLockOverlay collapsed={isCollapsed} />}
+              {!useMock && isLocked && (
+                <OutreachLockOverlay collapsed={isCollapsed} />
+              )}
 
               <SidebarMenu
-                className={isLocked ? 'pointer-events-none select-none blur-[0.5px] opacity-50' : ''}
+                className={
+                  isLocked
+                    ? 'pointer-events-none opacity-50 blur-[0.5px] select-none'
+                    : ''
+                }
               >
                 {group.items.map((item: NavItem) => {
                   // @ts-ignore
@@ -214,15 +216,17 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                                 {/* @ts-ignore */}
                                 <Icon />
                                 <span>{itemTitle}</span>
-                                <span className='ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-muted-foreground'>
+                                <span className='bg-muted text-muted-foreground ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-semibold tracking-wide uppercase'>
                                   {tCommon('comingSoon')}
                                 </span>
                               </SidebarMenuButton>
                             </span>
                           </TooltipTrigger>
                           <TooltipContent side='right' className='max-w-52'>
-                            <p className='font-semibold text-xs'>{tNav('inboxTooltip.title')}</p>
-                            <p className='mt-0.5 text-[11px] text-muted-foreground'>
+                            <p className='text-xs font-semibold'>
+                              {tNav('inboxTooltip.title')}
+                            </p>
+                            <p className='text-muted-foreground mt-0.5 text-[11px]'>
                               {tNav('inboxTooltip.description')}
                             </p>
                           </TooltipContent>
@@ -296,17 +300,23 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
 
                 {/* Always visible */}
                 <DropdownMenuGroup>
-                  <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
+                  <DropdownMenuItem
+                    onClick={() => router.push('/dashboard/profile')}
+                  >
                     {/* @ts-ignore */}
                     <Icons.user className='mr-2 h-4 w-4' />
                     {tNav('userMenu.profile')}
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push('/dashboard/history')}>
+                  <DropdownMenuItem
+                    onClick={() => router.push('/dashboard/history')}
+                  >
                     {/* @ts-ignore */}
                     <Icons.history className='mr-2 h-4 w-4' />
                     {tNav('userMenu.history')}
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => router.push('/dashboard/recordings')}>
+                  <DropdownMenuItem
+                    onClick={() => router.push('/dashboard/recordings')}
+                  >
                     {/* @ts-ignore */}
                     <Icons.mic className='mr-2 h-4 w-4' />
                     {tNav('userMenu.recordings')}
@@ -318,12 +328,16 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                   <>
                     <DropdownMenuSeparator />
                     <DropdownMenuGroup>
-                      <DropdownMenuItem onClick={() => router.push('/dashboard/rate')}>
+                      <DropdownMenuItem
+                        onClick={() => router.push('/dashboard/rate')}
+                      >
                         {/* @ts-ignore */}
                         <Icons.star className='mr-2 h-4 w-4' />
                         {tNav('userMenu.rate')}
                       </DropdownMenuItem>
-                      <DropdownMenuItem onClick={() => router.push('/dashboard/buy-number')}>
+                      <DropdownMenuItem
+                        onClick={() => router.push('/dashboard/buy-number')}
+                      >
                         {/* @ts-ignore */}
                         <Icons.phoneCall className='mr-2 h-4 w-4' />
                         {tNav('userMenu.buyNumber')}
