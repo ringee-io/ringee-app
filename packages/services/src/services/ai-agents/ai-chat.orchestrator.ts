@@ -615,36 +615,37 @@ export class AiChatOrchestrator {
     event: AgentToolEvent,
   ): Promise<void> {
     const kind = event.kind;
+
+    // confirmation_request is special: the tool that emits it has ALREADY
+    // persisted the confirmation_request row itself (it needs the row id
+    // synchronously to hand a confirmationId back to the model) and passes
+    // that id here as `requestId`. Reuse it. Creating a second row would
+    // leave the tool's row orphaned and unresolved — and since the UI lists
+    // every confirmation_request row on reload, that orphan resurfaces as a
+    // stuck "Action required" card even after the user approved.
+    if (kind === "confirmation_request") {
+      this.emit(conversationId, {
+        type: "confirmation_request",
+        confirmationId: event.requestId,
+        action: event.action,
+        summary: event.summary,
+        payload: event.payload,
+        estimatedCreditCost: event.estimatedCreditCost ?? null,
+      });
+      return;
+    }
+
     if (
       kind === "prospect_results" ||
-      kind === "confirmation_request" ||
       kind === "prospects_saved" ||
       kind === "list_created"
     ) {
       const row = await this.toolEvents.create({
         conversationId,
         messageId,
-        kind:
-          kind === "prospect_results"
-            ? "prospect_results"
-            : kind === "confirmation_request"
-              ? "confirmation_request"
-              : kind === "prospects_saved"
-                ? "prospects_saved"
-                : "list_created",
+        kind,
         payload: event as unknown as Record<string, unknown>,
       });
-      if (kind === "confirmation_request") {
-        this.emit(conversationId, {
-          type: "confirmation_request",
-          confirmationId: row.id,
-          action: event.action,
-          summary: event.summary,
-          payload: event.payload,
-          estimatedCreditCost: event.estimatedCreditCost ?? null,
-        });
-        return;
-      }
       this.emit(conversationId, {
         type: "tool_event",
         toolEventId: row.id,

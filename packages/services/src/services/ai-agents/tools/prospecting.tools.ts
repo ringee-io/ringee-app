@@ -309,6 +309,15 @@ export class ProspectingTools {
           ? args.externalIds
           : [];
 
+        const summary = `Reveal ${revealEmail ? "email" : ""}${
+          revealEmail && revealPhone ? " + " : ""
+        }${revealPhone ? "phone" : ""} for ${ids.length} prospect${
+          ids.length === 1 ? "" : "s"
+        }.`;
+
+        // The persisted row is the single source of truth the UI re-reads on
+        // reload, so it must carry `summary` — the SSE event alone is not
+        // replayed.
         const event = await this.toolEvents.create({
           conversationId: rt.conversation.id,
           kind: "confirmation_request",
@@ -319,6 +328,7 @@ export class ProspectingTools {
             externalIds: ids,
             revealEmail,
             revealPhone,
+            summary,
           },
         });
 
@@ -332,11 +342,7 @@ export class ProspectingTools {
             revealEmail,
             revealPhone,
           },
-          summary: `Reveal ${revealEmail ? "email" : ""}${
-            revealEmail && revealPhone ? " + " : ""
-          }${revealPhone ? "phone" : ""} for ${ids.length} prospect${
-            ids.length === 1 ? "" : "s"
-          }.`,
+          summary,
           estimatedCreditCost: null,
         });
 
@@ -374,6 +380,15 @@ export class ProspectingTools {
         const ids: string[] = Array.isArray(args?.externalIds)
           ? args.externalIds
           : [];
+        const summary = `Save ${ids.length} prospect${
+          ids.length === 1 ? "" : "s"
+        } to Ringee${
+          args.listName ? ` and add to list "${args.listName}"` : ""
+        }.`;
+
+        // The persisted row is the single source of truth the UI re-reads on
+        // reload, so it must carry `summary` — the SSE event alone is not
+        // replayed.
         const event = await this.toolEvents.create({
           conversationId: rt.conversation.id,
           kind: "confirmation_request",
@@ -382,6 +397,7 @@ export class ProspectingTools {
             jobId: args.jobId,
             externalIds: ids,
             listName: args.listName ?? null,
+            summary,
           },
         });
 
@@ -394,9 +410,7 @@ export class ProspectingTools {
             externalIds: ids,
             listName: args.listName ?? null,
           },
-          summary: `Save ${ids.length} prospect${ids.length === 1 ? "" : "s"} to Ringee${
-            args.listName ? ` and add to list "${args.listName}"` : ""
-          }.`,
+          summary,
         });
 
         return {

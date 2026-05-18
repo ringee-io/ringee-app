@@ -85,8 +85,23 @@ export function useAiConversation(conversationId: string | null) {
             ((e.payload as Record<string, unknown>)?.results as ProspectPreview[]) ?? []
         }));
 
-      const pendingConfirmations: PendingConfirmation[] = msgs.toolEvents
-        .filter((e) => e.kind === 'confirmation_request')
+      // Every confirmation_request row is surfaced as a card. Older runs
+      // persisted each confirmation twice (once by the tool, once by the
+      // orchestrator); the orchestrator copy embedded the tool row's id under
+      // payload.requestId, leaving the tool row orphaned and unresolved — a
+      // stuck "Action required" card on every reload. Drop any confirmation
+      // whose id is referenced as another confirmation's requestId. New runs
+      // persist a single row, so this is a no-op for them.
+      const confirmationEvents = msgs.toolEvents.filter(
+        (e) => e.kind === 'confirmation_request'
+      );
+      const shadowedConfirmationIds = new Set(
+        confirmationEvents
+          .map((e) => (e.payload as Record<string, unknown> | null)?.requestId)
+          .filter((v): v is string => typeof v === 'string')
+      );
+      const pendingConfirmations: PendingConfirmation[] = confirmationEvents
+        .filter((e) => !shadowedConfirmationIds.has(e.id))
         .map((e) => ({
           confirmationId: e.id,
           action: ((e.payload as Record<string, unknown>)?.action as PendingConfirmation['action']) ?? 'reveal',

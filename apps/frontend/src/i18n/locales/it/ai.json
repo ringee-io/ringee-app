@@ -92,7 +92,7 @@
     "estimatedCost": "{count, plural, =1 {Costo stimato: 1 credito.} other {Costo stimato: # crediti.}}",
     "resolved": "Risolto",
     "actionRequired": "Azione richiesta",
-    "approvedNote": "Approvato — Ringee sta elaborando questa azione.",
+    "approvedNote": "Approvato — azione completata.",
     "declinedNote": "Rifiutato.",
     "decline": "Rifiuta",
     "approve": "Approva"

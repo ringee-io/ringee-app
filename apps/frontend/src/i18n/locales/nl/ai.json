@@ -92,7 +92,7 @@
     "estimatedCost": "{count, plural, =1 {Geschatte kosten: 1 credit.} other {Geschatte kosten: # credits.}}",
     "resolved": "Afgehandeld",
     "actionRequired": "Actie vereist",
-    "approvedNote": "Goedgekeurd — Ringee verwerkt deze actie.",
+    "approvedNote": "Goedgekeurd — actie voltooid.",
     "declinedNote": "Geweigerd.",
     "decline": "Weigeren",
     "approve": "Goedkeuren"
