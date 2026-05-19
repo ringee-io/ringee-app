@@ -4,7 +4,7 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { IconCoins, IconBolt } from '@tabler/icons-react';
 import { useTranslations } from 'next-intl';
-import { useRouter } from 'next/navigation';
+import { CreditPopover } from '@/features/credit/components/credit.popover';
 
 interface Props {
   /** Compact bar variant — replaces the chat input. Otherwise a full card. */
@@ -14,11 +14,14 @@ interface Props {
 /**
  * Shown when the user's credit balance hits zero. The AI Assistant is billed
  * per token, so the run is blocked until the balance is topped up.
+ *
+ * The "add credit" button opens the shared CreditPopover. `fetch={false}` is
+ * required: this panel only renders while the credit store status is
+ * `success`, and letting the popover re-fetch would flip the status back to
+ * `loading`, unmounting the panel mid-interaction.
  */
 export function OutOfCreditPanel({ compact = false }: Props) {
   const t = useTranslations('ai.outOfCredit');
-  const router = useRouter();
-  const goToBilling = () => router.push('/dashboard/rate');
 
   if (compact) {
     return (
@@ -37,14 +40,15 @@ export function OutOfCreditPanel({ compact = false }: Props) {
               </span>
             </div>
           </div>
-          <Button
-            size='sm'
-            onClick={goToBilling}
-            className='h-8 shrink-0 gap-1.5 bg-amber-500 text-amber-950 hover:bg-amber-400 dark:bg-amber-400 dark:hover:bg-amber-300'
-          >
-            <IconCoins size={15} />
-            {t('addCredit')}
-          </Button>
+          <CreditPopover fetch={false}>
+            <Button
+              size='sm'
+              className='h-8 shrink-0 gap-1.5 bg-amber-500 text-amber-950 hover:bg-amber-400 dark:bg-amber-400 dark:hover:bg-amber-300'
+            >
+              <IconCoins size={15} />
+              {t('addCredit')}
+            </Button>
+          </CreditPopover>
         </div>
       </div>
     );
@@ -66,13 +70,12 @@ export function OutOfCreditPanel({ compact = false }: Props) {
       <p className='text-muted-foreground mt-1.5 max-w-sm text-sm'>
         {t('description')}
       </p>
-      <Button
-        onClick={goToBilling}
-        className='mt-5 gap-1.5 bg-amber-500 text-amber-950 hover:bg-amber-400 dark:bg-amber-400 dark:hover:bg-amber-300'
-      >
-        <IconCoins size={16} />
-        {t('addCredit')}
-      </Button>
+      <CreditPopover fetch={false}>
+        <Button className='mt-5 gap-1.5 bg-amber-500 text-amber-950 hover:bg-amber-400 dark:bg-amber-400 dark:hover:bg-amber-300'>
+          <IconCoins size={16} />
+          {t('addCredit')}
+        </Button>
+      </CreditPopover>
     </div>
   );
 }

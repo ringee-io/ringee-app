@@ -373,14 +373,11 @@ export function RingeeAiView({ conversationId }: Props) {
             )}
 
             {showEmpty ? (
-              outOfCredit ? (
-                <OutOfCreditPanel />
-              ) : (
-                <EmptyState
-                  onSubmit={(text, mode) => void handleSend(text, mode)}
-                  sending={hasPendingSend}
-                />
-              )
+              <EmptyState
+                onSubmit={(text, mode) => void handleSend(text, mode)}
+                sending={hasPendingSend}
+                outOfCredit={outOfCredit}
+              />
             ) : state.loading ? (
               <div className='text-muted-foreground flex flex-1 items-center justify-center text-sm'>
                 {t('header.loadingConversation')}

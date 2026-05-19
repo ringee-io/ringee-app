@@ -23,6 +23,7 @@ import {
   type EnrichmentProviderType
 } from '@/features/integrations/types/enrichment';
 import type { ProspectingMode } from '../types';
+import { OutOfCreditPanel } from './out-of-credit-panel';
 
 interface ProspectingModeCard {
   id: ProspectingMode;
@@ -45,6 +46,9 @@ const PROSPECTING_MODES: ProspectingModeCard[] = [
 interface Props {
   onSubmit: (text: string, mode: ProspectingMode) => void;
   sending?: boolean;
+  /** When true, the credit balance is exhausted — the input is replaced by the
+   *  out-of-credit panel, matching the conversation view. */
+  outOfCredit?: boolean;
 }
 
 interface CalendarIntegration {
@@ -63,7 +67,7 @@ function greetingKey(date: Date): string {
   return 'greetingEvening';
 }
 
-export function EmptyState({ onSubmit, sending }: Props) {
+export function EmptyState({ onSubmit, sending, outOfCredit }: Props) {
   const t = useTranslations('ai');
   const { user } = useUser();
   const [mode, setMode] = useState<ProspectingMode>('icp');
@@ -150,52 +154,62 @@ export function EmptyState({ onSubmit, sending }: Props) {
         </div>
 
         <div className='mt-4 w-full'>
-          <div className='group border-border/60 bg-muted/30 focus-within:border-border focus-within:bg-muted/50 relative overflow-hidden rounded-lg border shadow-sm transition-all focus-within:shadow-md'>
-            <Textarea
-              value={value}
-              placeholder={t(`modes.${mode}.placeholder`)}
-              onChange={(e) => setValue(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  submit();
-                }
-              }}
-              rows={3}
-              className='min-h-[96px] resize-none border-0 bg-transparent px-5 pt-4 pb-12 text-base shadow-none focus-visible:ring-0 dark:bg-transparent'
-            />
-            <div className='pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between px-3 py-2'>
-              <div className='text-muted-foreground pointer-events-auto flex items-center gap-1.5 text-xs'>
-                <IconSparkles size={12} className='text-primary' />
-                <span className='hidden sm:inline'>
-                  {t(`modes.${mode}.title`)}
-                </span>
-              </div>
-              <Button
-                onClick={submit}
-                disabled={!canSubmit}
-                size='icon'
-                className='pointer-events-auto h-9 w-9 rounded-lg'
-              >
-                {sending ? (
-                  <IconLoader2 size={16} className='animate-spin' />
-                ) : (
-                  <IconSend size={16} />
-                )}
-              </Button>
+          {outOfCredit ? (
+            <div className='overflow-hidden rounded-lg shadow-sm'>
+              <OutOfCreditPanel compact />
             </div>
-          </div>
+          ) : (
+            <>
+              <div className='group border-border/60 bg-muted/30 focus-within:border-border focus-within:bg-muted/50 relative overflow-hidden rounded-lg border shadow-sm transition-all focus-within:shadow-md'>
+                <Textarea
+                  value={value}
+                  placeholder={t(`modes.${mode}.placeholder`)}
+                  onChange={(e) => setValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      submit();
+                    }
+                  }}
+                  rows={3}
+                  className='min-h-[96px] resize-none border-0 bg-transparent px-5 pt-4 pb-12 text-base shadow-none focus-visible:ring-0 dark:bg-transparent'
+                />
+                <div className='pointer-events-none absolute inset-x-0 bottom-0 flex items-center justify-between px-3 py-2'>
+                  <div className='text-muted-foreground pointer-events-auto flex items-center gap-1.5 text-xs'>
+                    <IconSparkles size={12} className='text-primary' />
+                    <span className='hidden sm:inline'>
+                      {t(`modes.${mode}.title`)}
+                    </span>
+                  </div>
+                  <Button
+                    onClick={submit}
+                    disabled={!canSubmit}
+                    size='icon'
+                    className='pointer-events-auto h-9 w-9 rounded-lg'
+                  >
+                    {sending ? (
+                      <IconLoader2 size={16} className='animate-spin' />
+                    ) : (
+                      <IconSend size={16} />
+                    )}
+                  </Button>
+                </div>
+              </div>
 
-          <button
-            type='button'
-            onClick={() => setValue(t(`modes.${mode}.example`))}
-            className='text-muted-foreground hover:text-foreground mt-2 flex w-full items-start gap-1.5 rounded-lg px-1 text-left text-xs transition-colors'
-          >
-            <span className='text-primary/80 shrink-0 font-medium'>
-              {t('emptyState.example')}
-            </span>
-            <span className='line-clamp-2'>{t(`modes.${mode}.example`)}</span>
-          </button>
+              <button
+                type='button'
+                onClick={() => setValue(t(`modes.${mode}.example`))}
+                className='text-muted-foreground hover:text-foreground mt-2 flex w-full items-start gap-1.5 rounded-lg px-1 text-left text-xs transition-colors'
+              >
+                <span className='text-primary/80 shrink-0 font-medium'>
+                  {t('emptyState.example')}
+                </span>
+                <span className='line-clamp-2'>
+                  {t(`modes.${mode}.example`)}
+                </span>
+              </button>
+            </>
+          )}
         </div>
 
         <EnrichmentSection />
