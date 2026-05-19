@@ -828,6 +828,9 @@ importers:
 
   apps/worker:
     dependencies:
+      '@anthropic-ai/sdk':
+        specifier: ^0.96.0
+        version: 0.96.0(zod@4.1.12)
       '@aws-sdk/client-s3':
         specifier: ^3.940.0
         version: 3.940.0
