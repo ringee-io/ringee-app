@@ -17,7 +17,12 @@
   "commands": {
     "revealRequest": "{count, plural, =1 {Veuillez révéler 1 prospect sélectionné} other {Veuillez révéler # prospects sélectionnés}} de la tâche {jobId}{phoneSuffix}. ID sélectionnés : {ids}.",
     "revealPhoneSuffix": " (numéro de téléphone inclus)",
-    "saveRequest": "{count, plural, =1 {Veuillez enregistrer 1 prospect sélectionné} other {Veuillez enregistrer # prospects sélectionnés}} de la tâche {jobId} dans mes contacts Ringee. ID sélectionnés : {ids}."
+    "saveRequest": "{count, plural, =1 {Veuillez enregistrer 1 prospect sélectionné} other {Veuillez enregistrer # prospects sélectionnés}} de la tâche {jobId} dans mes contacts Ringee. ID sélectionnés : {ids}.",
+    "dedupShowPrevious": "Montre-moi les résultats de la recherche précédente.",
+    "dedupNextPage": "Cherche la page suivante de cette recherche.",
+    "dedupBroaden": "Élargis les filtres et relance la recherche.",
+    "dedupNarrow": "Affine les filtres et relance la recherche.",
+    "dedupRefresh": "Actualise quand même la recherche, même si elle est similaire."
   },
   "modes": {
     "icp": {
@@ -152,7 +157,12 @@
     "fieldKeywords": "Mots-clés",
     "linkWebsite": "Site web",
     "linkCompany": "Entreprise",
-    "linkCompanySite": "Site de l'entreprise"
+    "linkCompanySite": "Site de l'entreprise",
+    "statusSeenBefore": "Déjà vu",
+    "statusAlreadySaved": "Déjà enregistré",
+    "statusAlreadyCalled": "Déjà appelé",
+    "statusOnDnc": "Liste anti-appel",
+    "statusDuplicate": "Doublon"
   },
   "results": {
     "selectedCount": "{count, plural, =1 {1 prospect sélectionné} other {# prospects sélectionnés}}",
@@ -166,5 +176,21 @@
     "save": "Enregistrer ({count})",
     "showLess": "Voir moins",
     "showAll": "Voir les {count} résultats"
+  },
+  "dedup": {
+    "identicalTitle": "Vous avez déjà lancé cette recherche",
+    "similarTitle": "Très proche d'une recherche récente",
+    "freshIdentical": "Lancée {when} sur {provider} · {count} leads. La relancer dépenserait des crédits pour les mêmes leads.",
+    "freshSimilar": "{percent}% similaire à une recherche {when} sur {provider} · {count} leads. Elle répétera probablement de nombreux leads.",
+    "staleNote": "Cette recherche est assez ancienne pour être actualisée.",
+    "revealed": "{count} déjà révélés.",
+    "actionShowPrevious": "Voir les résultats précédents",
+    "actionNextPage": "Page suivante",
+    "actionBroaden": "Élargir les filtres",
+    "actionNarrow": "Affiner les filtres",
+    "actionRefresh": "Actualiser quand même",
+    "whenMinutes": "il y a {count} min",
+    "whenHours": "il y a {count} h",
+    "whenDays": "il y a {count} j"
   }
 }

@@ -17,7 +17,12 @@
   "commands": {
     "revealRequest": "{count, plural, =1 {Rivela 1 prospect selezionato} other {Rivela # prospect selezionati}} dal lavoro {jobId}{phoneSuffix}. ID selezionati: {ids}.",
     "revealPhoneSuffix": " (incluso il numero di telefono)",
-    "saveRequest": "{count, plural, =1 {Salva 1 prospect selezionato} other {Salva # prospect selezionati}} dal lavoro {jobId} nei miei contatti Ringee. ID selezionati: {ids}."
+    "saveRequest": "{count, plural, =1 {Salva 1 prospect selezionato} other {Salva # prospect selezionati}} dal lavoro {jobId} nei miei contatti Ringee. ID selezionati: {ids}.",
+    "dedupShowPrevious": "Mostrami i risultati della ricerca precedente.",
+    "dedupNextPage": "Cerca la pagina successiva di quella ricerca.",
+    "dedupBroaden": "Amplia i filtri e cerca di nuovo.",
+    "dedupNarrow": "Restringi i filtri e cerca di nuovo.",
+    "dedupRefresh": "Aggiorna comunque la ricerca, anche se è simile."
   },
   "modes": {
     "icp": {
@@ -152,7 +157,12 @@
     "fieldKeywords": "Parole chiave",
     "linkWebsite": "Sito web",
     "linkCompany": "Azienda",
-    "linkCompanySite": "Sito dell'azienda"
+    "linkCompanySite": "Sito dell'azienda",
+    "statusSeenBefore": "Già visto",
+    "statusAlreadySaved": "Già salvato",
+    "statusAlreadyCalled": "Già chiamato",
+    "statusOnDnc": "In lista DNC",
+    "statusDuplicate": "Duplicato"
   },
   "results": {
     "selectedCount": "{count, plural, =1 {1 prospect selezionato} other {# prospect selezionati}}",
@@ -166,5 +176,21 @@
     "save": "Salva ({count})",
     "showLess": "Mostra meno",
     "showAll": "Mostra tutti i {count} risultati"
+  },
+  "dedup": {
+    "identicalTitle": "Hai già fatto questa ricerca",
+    "similarTitle": "Molto simile a una ricerca recente",
+    "freshIdentical": "Eseguita {when} su {provider} · {count} lead. Ripeterla spenderebbe crediti per gli stessi lead.",
+    "freshSimilar": "{percent}% simile a una ricerca {when} su {provider} · {count} lead. Probabilmente ripeterà molti lead.",
+    "staleNote": "Quella ricerca è abbastanza vecchia da aggiornare.",
+    "revealed": "{count} già rivelati.",
+    "actionShowPrevious": "Vedi risultati precedenti",
+    "actionNextPage": "Pagina successiva",
+    "actionBroaden": "Amplia i filtri",
+    "actionNarrow": "Restringi i filtri",
+    "actionRefresh": "Aggiorna comunque",
+    "whenMinutes": "{count} min fa",
+    "whenHours": "{count} h fa",
+    "whenDays": "{count} g fa"
   }
 }

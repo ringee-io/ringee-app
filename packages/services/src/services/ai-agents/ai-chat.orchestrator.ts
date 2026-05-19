@@ -654,7 +654,10 @@ export class AiChatOrchestrator {
       });
       return;
     }
-    // tool_progress — UI-only ephemeral event.
+    // tool_progress and duplicate_search_detected — UI-only ephemeral events.
+    // They are advisory (a progress ping, a "you already searched this"
+    // prompt) and carry no server-side state to resolve, so they are streamed
+    // but not persisted as AiToolEvent rows.
     this.emit(conversationId, {
       type: "tool_event",
       toolEventId: "",

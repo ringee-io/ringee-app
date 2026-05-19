@@ -17,7 +17,12 @@
   "commands": {
     "revealRequest": "{count, plural, =1 {Onthul 1 geselecteerde prospect} other {Onthul # geselecteerde prospects}} uit job {jobId}{phoneSuffix}. Geselecteerde id's: {ids}.",
     "revealPhoneSuffix": " (inclusief telefoonnummer)",
-    "saveRequest": "{count, plural, =1 {Sla 1 geselecteerde prospect op} other {Sla # geselecteerde prospects op}} uit job {jobId} in mijn Ringee-contacten. Geselecteerde id's: {ids}."
+    "saveRequest": "{count, plural, =1 {Sla 1 geselecteerde prospect op} other {Sla # geselecteerde prospects op}} uit job {jobId} in mijn Ringee-contacten. Geselecteerde id's: {ids}.",
+    "dedupShowPrevious": "Laat me de resultaten van de vorige zoekopdracht zien.",
+    "dedupNextPage": "Zoek de volgende pagina van die zoekopdracht.",
+    "dedupBroaden": "Verbreed de filters en zoek opnieuw.",
+    "dedupNarrow": "Verfijn de filters en zoek opnieuw.",
+    "dedupRefresh": "Vernieuw de zoekopdracht toch, ook al lijkt die erg op elkaar."
   },
   "modes": {
     "icp": {
@@ -152,7 +157,12 @@
     "fieldKeywords": "Trefwoorden",
     "linkWebsite": "Website",
     "linkCompany": "Bedrijf",
-    "linkCompanySite": "Bedrijfswebsite"
+    "linkCompanySite": "Bedrijfswebsite",
+    "statusSeenBefore": "Eerder gezien",
+    "statusAlreadySaved": "Al opgeslagen",
+    "statusAlreadyCalled": "Al gebeld",
+    "statusOnDnc": "Op DNC-lijst",
+    "statusDuplicate": "Duplicaat"
   },
   "results": {
     "selectedCount": "{count, plural, =1 {1 prospect geselecteerd} other {# prospects geselecteerd}}",
@@ -166,5 +176,21 @@
     "save": "Opslaan ({count})",
     "showLess": "Minder tonen",
     "showAll": "Alle {count} resultaten tonen"
+  },
+  "dedup": {
+    "identicalTitle": "Je hebt deze zoekopdracht al uitgevoerd",
+    "similarTitle": "Lijkt sterk op een recente zoekopdracht",
+    "freshIdentical": "Uitgevoerd {when} via {provider} · {count} leads. Opnieuw uitvoeren kost credits voor dezelfde leads.",
+    "freshSimilar": "{percent}% vergelijkbaar met een zoekopdracht {when} via {provider} · {count} leads. Levert waarschijnlijk veel dezelfde leads op.",
+    "staleNote": "Die zoekopdracht is oud genoeg om te vernieuwen.",
+    "revealed": "{count} al onthuld.",
+    "actionShowPrevious": "Vorige resultaten tonen",
+    "actionNextPage": "Volgende pagina zoeken",
+    "actionBroaden": "Filters verbreden",
+    "actionNarrow": "Filters verfijnen",
+    "actionRefresh": "Toch vernieuwen",
+    "whenMinutes": "{count} min geleden",
+    "whenHours": "{count} u geleden",
+    "whenDays": "{count} d geleden"
   }
 }

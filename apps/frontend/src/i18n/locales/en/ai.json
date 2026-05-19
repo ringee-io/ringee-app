@@ -17,7 +17,12 @@
   "commands": {
     "revealRequest": "{count, plural, =1 {Please request reveal of 1 selected prospect} other {Please request reveal of # selected prospects}} from job {jobId}{phoneSuffix}. Selected ids: {ids}.",
     "revealPhoneSuffix": " (including phone number)",
-    "saveRequest": "{count, plural, =1 {Please save the 1 selected prospect} other {Please save the # selected prospects}} from job {jobId} into my Ringee contacts. Selected ids: {ids}."
+    "saveRequest": "{count, plural, =1 {Please save the 1 selected prospect} other {Please save the # selected prospects}} from job {jobId} into my Ringee contacts. Selected ids: {ids}.",
+    "dedupShowPrevious": "Show me the previous search results.",
+    "dedupNextPage": "Search the next page of that search.",
+    "dedupBroaden": "Broaden the filters and search again.",
+    "dedupNarrow": "Narrow the filters and search again.",
+    "dedupRefresh": "Refresh the search anyway, even though it's similar."
   },
   "modes": {
     "icp": {
@@ -152,7 +157,12 @@
     "fieldKeywords": "Keywords",
     "linkWebsite": "Website",
     "linkCompany": "Company",
-    "linkCompanySite": "Company site"
+    "linkCompanySite": "Company site",
+    "statusSeenBefore": "Seen before",
+    "statusAlreadySaved": "Already saved",
+    "statusAlreadyCalled": "Already called",
+    "statusOnDnc": "On DNC",
+    "statusDuplicate": "Duplicate"
   },
   "results": {
     "selectedCount": "{count, plural, =1 {1 prospect selected} other {# prospects selected}}",
@@ -166,5 +176,21 @@
     "save": "Save ({count})",
     "showLess": "Show less",
     "showAll": "Show all {count} results"
+  },
+  "dedup": {
+    "identicalTitle": "You already ran this search",
+    "similarTitle": "Very similar to a recent search",
+    "freshIdentical": "Ran {when} on {provider} · {count} leads. Re-running it would spend credits for the same leads.",
+    "freshSimilar": "{percent}% similar to a search {when} on {provider} · {count} leads. It will likely repeat many leads.",
+    "staleNote": "That run is old enough to refresh.",
+    "revealed": "{count} already revealed.",
+    "actionShowPrevious": "Show previous results",
+    "actionNextPage": "Search next page",
+    "actionBroaden": "Broaden filters",
+    "actionNarrow": "Narrow filters",
+    "actionRefresh": "Refresh anyway",
+    "whenMinutes": "{count}m ago",
+    "whenHours": "{count}h ago",
+    "whenDays": "{count}d ago"
   }
 }

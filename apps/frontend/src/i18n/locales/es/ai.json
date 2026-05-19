@@ -17,7 +17,12 @@
   "commands": {
     "revealRequest": "{count, plural, =1 {Revela 1 prospecto seleccionado} other {Revela # prospectos seleccionados}} del trabajo {jobId}{phoneSuffix}. IDs seleccionados: {ids}.",
     "revealPhoneSuffix": " (incluyendo el número de teléfono)",
-    "saveRequest": "{count, plural, =1 {Guarda 1 prospecto seleccionado} other {Guarda # prospectos seleccionados}} del trabajo {jobId} en mis contactos de Ringee. IDs seleccionados: {ids}."
+    "saveRequest": "{count, plural, =1 {Guarda 1 prospecto seleccionado} other {Guarda # prospectos seleccionados}} del trabajo {jobId} en mis contactos de Ringee. IDs seleccionados: {ids}.",
+    "dedupShowPrevious": "Muéstrame los resultados de la búsqueda anterior.",
+    "dedupNextPage": "Busca la siguiente página de esa búsqueda.",
+    "dedupBroaden": "Amplía los filtros y busca de nuevo.",
+    "dedupNarrow": "Acota los filtros y busca de nuevo.",
+    "dedupRefresh": "Actualiza la búsqueda de todos modos, aunque sea similar."
   },
   "modes": {
     "icp": {
@@ -152,7 +157,12 @@
     "fieldKeywords": "Palabras clave",
     "linkWebsite": "Sitio web",
     "linkCompany": "Empresa",
-    "linkCompanySite": "Sitio de la empresa"
+    "linkCompanySite": "Sitio de la empresa",
+    "statusSeenBefore": "Visto antes",
+    "statusAlreadySaved": "Ya guardado",
+    "statusAlreadyCalled": "Ya llamado",
+    "statusOnDnc": "En lista DNC",
+    "statusDuplicate": "Duplicado"
   },
   "results": {
     "selectedCount": "{count, plural, =1 {1 prospecto seleccionado} other {# prospectos seleccionados}}",
@@ -166,5 +176,21 @@
     "save": "Guardar ({count})",
     "showLess": "Ver menos",
     "showAll": "Ver los {count} resultados"
+  },
+  "dedup": {
+    "identicalTitle": "Ya hiciste esta búsqueda",
+    "similarTitle": "Muy similar a una búsqueda reciente",
+    "freshIdentical": "Ejecutada {when} en {provider} · {count} leads. Repetirla gastaría créditos en los mismos leads.",
+    "freshSimilar": "{percent}% similar a una búsqueda de {when} en {provider} · {count} leads. Probablemente repetirá muchos leads.",
+    "staleNote": "Esa búsqueda es lo bastante antigua para actualizarla.",
+    "revealed": "{count} ya revelados.",
+    "actionShowPrevious": "Ver resultados anteriores",
+    "actionNextPage": "Buscar siguiente página",
+    "actionBroaden": "Ampliar filtros",
+    "actionNarrow": "Acotar filtros",
+    "actionRefresh": "Actualizar de todos modos",
+    "whenMinutes": "hace {count} min",
+    "whenHours": "hace {count} h",
+    "whenDays": "hace {count} d"
   }
 }

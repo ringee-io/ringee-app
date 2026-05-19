@@ -85,6 +85,7 @@ import {
   AiConversationService,
   AiSummarizerService,
   PastBuyerAnalyzerService,
+  ProspectDedupService,
   ProspectingExpertAgent,
   ProspectingTools,
   ProspectScoringService,
@@ -159,6 +160,7 @@ const servicesProviders = [
   // Ringee AI
   ProspectScoringService,
   PastBuyerAnalyzerService,
+  ProspectDedupService,
   ProspectingTools,
   ProspectingExpertAgent,
   AgentRegistry,

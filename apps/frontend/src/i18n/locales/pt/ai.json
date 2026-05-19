@@ -17,7 +17,12 @@
   "commands": {
     "revealRequest": "{count, plural, =1 {Revele 1 prospeto selecionado} other {Revele # prospetos selecionados}} do trabalho {jobId}{phoneSuffix}. IDs selecionados: {ids}.",
     "revealPhoneSuffix": " (incluindo o número de telefone)",
-    "saveRequest": "{count, plural, =1 {Guarde 1 prospeto selecionado} other {Guarde # prospetos selecionados}} do trabalho {jobId} nos meus contactos do Ringee. IDs selecionados: {ids}."
+    "saveRequest": "{count, plural, =1 {Guarde 1 prospeto selecionado} other {Guarde # prospetos selecionados}} do trabalho {jobId} nos meus contactos do Ringee. IDs selecionados: {ids}.",
+    "dedupShowPrevious": "Mostra-me os resultados da pesquisa anterior.",
+    "dedupNextPage": "Pesquisa a página seguinte dessa pesquisa.",
+    "dedupBroaden": "Amplia os filtros e pesquisa de novo.",
+    "dedupNarrow": "Restringe os filtros e pesquisa de novo.",
+    "dedupRefresh": "Atualiza a pesquisa mesmo assim, ainda que seja semelhante."
   },
   "modes": {
     "icp": {
@@ -152,7 +157,12 @@
     "fieldKeywords": "Palavras-chave",
     "linkWebsite": "Site",
     "linkCompany": "Empresa",
-    "linkCompanySite": "Site da empresa"
+    "linkCompanySite": "Site da empresa",
+    "statusSeenBefore": "Visto antes",
+    "statusAlreadySaved": "Já guardado",
+    "statusAlreadyCalled": "Já contactado",
+    "statusOnDnc": "Na lista DNC",
+    "statusDuplicate": "Duplicado"
   },
   "results": {
     "selectedCount": "{count, plural, =1 {1 prospeto selecionado} other {# prospetos selecionados}}",
@@ -166,5 +176,21 @@
     "save": "Guardar ({count})",
     "showLess": "Ver menos",
     "showAll": "Ver os {count} resultados"
+  },
+  "dedup": {
+    "identicalTitle": "Já fez esta pesquisa",
+    "similarTitle": "Muito semelhante a uma pesquisa recente",
+    "freshIdentical": "Executada {when} no {provider} · {count} leads. Repeti-la gastaria créditos com os mesmos leads.",
+    "freshSimilar": "{percent}% semelhante a uma pesquisa {when} no {provider} · {count} leads. Provavelmente vai repetir muitos leads.",
+    "staleNote": "Essa pesquisa é antiga o suficiente para atualizar.",
+    "revealed": "{count} já revelados.",
+    "actionShowPrevious": "Ver resultados anteriores",
+    "actionNextPage": "Pesquisar página seguinte",
+    "actionBroaden": "Ampliar filtros",
+    "actionNarrow": "Restringir filtros",
+    "actionRefresh": "Atualizar mesmo assim",
+    "whenMinutes": "há {count} min",
+    "whenHours": "há {count} h",
+    "whenDays": "há {count} d"
   }
 }

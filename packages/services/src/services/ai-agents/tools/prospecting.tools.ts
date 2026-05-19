@@ -11,6 +11,7 @@ import {
   EnrichmentProviderRegistry,
   LeadCandidate,
   LeadSearchFilters,
+  LeadSearchResult,
 } from "@ringee/platform";
 import {
   EnrichmentConnectionService,
@@ -21,6 +22,11 @@ import {
   PastBuyerAnalyzerService,
 } from "../past-buyer-analyzer.service";
 import {
+  LeadDedupSummary,
+  LeadStatus,
+  ProspectDedupService,
+} from "../prospect-dedup.service";
+import {
   BuyerSignals,
   ProspectScoringService,
 } from "../prospect-scoring.service";
@@ -30,6 +36,30 @@ import {
   ProspectDetails,
   ProspectPreview,
 } from "../tool.types";
+
+/** Search intents recognized by the search_prospects tool. */
+type SearchIntent = "auto" | "next_page" | "refresh" | "reuse";
+
+function normalizeIntent(value: unknown): SearchIntent {
+  return value === "next_page" ||
+    value === "refresh" ||
+    value === "reuse"
+    ? value
+    : "auto";
+}
+
+/**
+ * Sort weight by dedup status — new and previously-seen leads surface above
+ * duplicates and already-saved contacts so the user acts on fresh leads first.
+ */
+const STATUS_SORT: Record<LeadStatus, number> = {
+  new: 0,
+  seen_before: 1,
+  duplicate_provider: 2,
+  already_saved: 3,
+  already_called: 3,
+  on_dnc: 4,
+};
 
 const FILTERS_SCHEMA: Record<string, unknown> = {
   type: "object",
@@ -70,6 +100,7 @@ export class ProspectingTools {
     private readonly registry: EnrichmentProviderRegistry,
     private readonly pastBuyers: PastBuyerAnalyzerService,
     private readonly scoring: ProspectScoringService,
+    private readonly dedup: ProspectDedupService,
     private readonly tags: TagService,
     private readonly tagRepo: TagRepository,
     private readonly conversations: AiConversationRepository,
@@ -162,7 +193,10 @@ export class ProspectingTools {
     return {
       name: "search_prospects",
       description:
-        "Search prospects across the user's connected prospecting providers using ICP-style filters. Returns a normalized, deduplicated, scored preview that does NOT yet reveal contact data. Always present the results and reasons to the user before revealing emails or phones.",
+        "Search prospects across the user's connected prospecting providers using ICP-style filters. Returns a normalized, deduplicated, scored preview that does NOT yet reveal contact data. " +
+        "CREDIT PROTECTION: with intent 'auto' (the default) this tool first checks whether the user already ran the same or a highly similar search recently. If a fresh match exists it does NOT call the provider, spends no credits, and instead returns status 'duplicate_search_detected' with the previous run and the actions to offer. " +
+        "To act on the user's choice, call again with intent 'reuse' (re-show a previous run — pass previousJobId), 'next_page' (pass an incremented page), or 'refresh' (force a fresh provider call). Use 'auto' for genuinely new or broadened/narrowed filters. " +
+        "Always present the results and reasons to the user before revealing emails or phones.",
       parameters: {
         type: "object",
         properties: {
@@ -178,13 +212,77 @@ export class ProspectingTools {
             description: "Results per page (max 50). Default 25.",
           },
           page: { type: "integer", description: "Page number (1-indexed)." },
+          intent: {
+            type: "string",
+            enum: ["auto", "next_page", "refresh", "reuse"],
+            description:
+              "How to handle a possible duplicate search. 'auto' (default): run the dedup check first. 'next_page': skip the dedup gate and fetch the given page. 'refresh': force a fresh provider call even if a cached/recent run exists. 'reuse': re-show a previous run's results for free — requires previousJobId.",
+          },
+          previousJobId: {
+            type: "string",
+            description:
+              "Required when intent is 'reuse'. The jobId of the previous search run to re-show (from a duplicate_search_detected match).",
+          },
         },
         required: ["filters"],
         additionalProperties: false,
       },
       execute: async (args, rt) => {
         const filters = (args?.filters ?? {}) as LeadSearchFilters;
-        const provider = (args?.provider as EnrichmentProviderType | undefined) ?? undefined;
+        const provider =
+          (args?.provider as EnrichmentProviderType | undefined) ?? undefined;
+        const intent = normalizeIntent(args?.intent);
+        const page = Math.max(1, Number(args?.page) || 1);
+        const perPage = Math.min(50, Math.max(1, Number(args?.perPage) || 25));
+
+        // intent: reuse → re-show a stored run without spending credits.
+        if (intent === "reuse" && typeof args?.previousJobId === "string") {
+          return this.reusePreviousSearch(rt, args.previousJobId);
+        }
+
+        // intent: auto → dedup gate. A fresh identical/similar run means we
+        // must NOT call the provider; surface the previous run instead.
+        if (intent === "auto") {
+          try {
+            const resolvedProvider = await this.leadSearch.resolveProvider(
+              rt.ctx,
+              provider,
+            );
+            const verdict = await this.dedup.checkSearch(rt.ctx, {
+              provider: resolvedProvider,
+              filters,
+              page,
+              perPage,
+            });
+            if (verdict.shouldReuse && verdict.match) {
+              await rt.emit({
+                kind: "duplicate_search_detected",
+                relationship: verdict.relationship as "identical" | "similar",
+                match: verdict.match,
+                recommendedActions: verdict.recommendedActions,
+                message: verdict.message,
+              });
+              return {
+                status: "duplicate_search_detected",
+                relationship: verdict.relationship,
+                previousRun: verdict.match,
+                recommendedActions: verdict.recommendedActions,
+                guidance:
+                  verdict.message +
+                  " IMPORTANT: no new search was run and no credits were spent. " +
+                  "Present these options to the user and wait for their choice. " +
+                  "To act on it, call search_prospects again with intent 'reuse' " +
+                  "(pass previousJobId to show the previous results), 'next_page' " +
+                  "(pass an incremented page), or 'refresh'.",
+              };
+            }
+          } catch (err) {
+            // Dedup is best-effort — never block a search because of it.
+            this.logger.warn(
+              `search dedup check skipped: ${(err as Error).message}`,
+            );
+          }
+        }
 
         await rt.emit({
           kind: "tool_progress",
@@ -196,51 +294,18 @@ export class ProspectingTools {
 
         const response = await this.leadSearch.searchLeads(rt.ctx, filters, {
           provider,
-          page: Math.max(1, Number(args?.page) || 1),
-          perPage: Math.min(50, Math.max(1, Number(args?.perPage) || 25)),
+          page,
+          perPage,
+          // 'refresh' bypasses even the exact-hash result cache.
+          useCache: intent !== "refresh",
         });
 
-        // Score results using buyer signals from prior analysis (if any).
-        const stateSignals = this.readBuyerSignals(rt);
-        const scored = this.scoring.scoreMany(
-          response.result.results,
-          stateSignals,
-        );
-
-        const previews: ProspectPreview[] = scored.map((s) => ({
-          externalId: s.candidate.externalId,
-          jobId: response.job.id,
-          provider: s.candidate.provider,
-          fullName:
-            s.candidate.person.fullName ??
-            ([s.candidate.person.firstName, s.candidate.person.lastName]
-              .filter(Boolean)
-              .join(" ") ||
-              null),
-          jobTitle: s.candidate.person.jobTitle ?? null,
-          company: s.candidate.company?.name ?? null,
-          location:
-            [
-              s.candidate.person.location?.city,
-              s.candidate.person.location?.country,
-            ]
-              .filter(Boolean)
-              .join(", ") || null,
-          hasEmail: s.candidate.person.emails.some((e) => Boolean(e.value)),
-          hasPhone: s.candidate.person.phones.some((p) => Boolean(p.value)),
-          fitScore: s.score,
-          confidence: s.candidate.confidence ?? null,
-          reasons: s.reasons,
-          linkedinUrl: personLinkedinUrl(s.candidate.person),
-          details: buildProspectDetails(s.candidate),
-        }));
-
-        await rt.emit({
-          kind: "prospect_results",
+        const { previews, dedupSummary } = await this.emitProspectResults(rt, {
           jobId: response.job.id,
           provider: response.job.provider,
-          results: previews,
-          filtersSummary: summarizeFilters(filters),
+          candidates: response.result.results,
+          filters,
+          excludeJobId: response.job.id,
         });
 
         // Persist the lastSearch reference into agent state.
@@ -267,10 +332,131 @@ export class ProspectingTools {
           perPage: response.result.perPage,
           hasMore: response.result.hasMore,
           cached: response.cached,
+          dedupSummary,
           previews,
         };
       },
     };
+  }
+
+  /**
+   * Re-show a previous search run's results without calling the provider —
+   * the "show previous results" path of the duplicate-search decision UI.
+   * Spends no credits.
+   */
+  private async reusePreviousSearch(
+    rt: AgentToolContext,
+    jobId: string,
+  ): Promise<unknown> {
+    let job;
+    try {
+      job = await this.leadSearch.getJob(jobId, rt.ctx);
+    } catch (err) {
+      return {
+        status: "error",
+        error: `Could not load the previous search: ${(err as Error).message}`,
+      };
+    }
+    const snapshot = job.resultSnapshot as LeadSearchResult | null;
+    const candidates = snapshot?.results ?? [];
+    const filters = (job.filters ?? {}) as LeadSearchFilters;
+
+    const { previews, dedupSummary } = await this.emitProspectResults(rt, {
+      jobId: job.id,
+      provider: job.provider,
+      candidates,
+      filters,
+      excludeJobId: job.id,
+    });
+
+    return {
+      status: "reused_previous_search",
+      jobId: job.id,
+      provider: job.provider,
+      cached: true,
+      dedupSummary,
+      previews,
+      guidance:
+        "These are the previous run's results, re-shown for free. No credits were spent.",
+    };
+  }
+
+  /**
+   * Score + dedup-classify a candidate set, build previews (new leads first),
+   * and emit them as a prospect_results event. Shared by the fresh-search and
+   * reuse-previous paths.
+   */
+  private async emitProspectResults(
+    rt: AgentToolContext,
+    params: {
+      jobId: string;
+      provider: string;
+      candidates: LeadCandidate[];
+      filters: LeadSearchFilters;
+      excludeJobId?: string;
+    },
+  ): Promise<{ previews: ProspectPreview[]; dedupSummary: LeadDedupSummary }> {
+    const stateSignals = this.readBuyerSignals(rt);
+    const scored = this.scoring.scoreMany(params.candidates, stateSignals);
+
+    const report = await this.dedup.classifyCandidates(
+      rt.ctx,
+      params.candidates,
+      { excludeJobId: params.excludeJobId },
+    );
+
+    const previews: ProspectPreview[] = scored.map((s) => {
+      const info = report.byExternalId[s.candidate.externalId];
+      return {
+        externalId: s.candidate.externalId,
+        jobId: params.jobId,
+        provider: s.candidate.provider,
+        fullName:
+          s.candidate.person.fullName ??
+          ([s.candidate.person.firstName, s.candidate.person.lastName]
+            .filter(Boolean)
+            .join(" ") ||
+            null),
+        jobTitle: s.candidate.person.jobTitle ?? null,
+        company: s.candidate.company?.name ?? null,
+        location:
+          [
+            s.candidate.person.location?.city,
+            s.candidate.person.location?.country,
+          ]
+            .filter(Boolean)
+            .join(", ") || null,
+        hasEmail: s.candidate.person.emails.some((e) => Boolean(e.value)),
+        hasPhone: s.candidate.person.phones.some((p) => Boolean(p.value)),
+        fitScore: s.score,
+        confidence: s.candidate.confidence ?? null,
+        reasons: s.reasons,
+        linkedinUrl: personLinkedinUrl(s.candidate.person),
+        details: buildProspectDetails(s.candidate),
+        status: info?.status ?? "new",
+        dedupReasons: info?.reasons ?? [],
+        ringeeHasEmail: info?.ringeeHasEmail ?? false,
+        ringeeHasPhone: info?.ringeeHasPhone ?? false,
+      };
+    });
+
+    // Surface new and previously-seen leads above duplicates / saved contacts;
+    // within a status band keep the highest fit score first.
+    previews.sort((a, b) => {
+      const rank = STATUS_SORT[a.status] - STATUS_SORT[b.status];
+      return rank !== 0 ? rank : b.fitScore - a.fitScore;
+    });
+
+    await rt.emit({
+      kind: "prospect_results",
+      jobId: params.jobId,
+      provider: params.provider,
+      results: previews,
+      filtersSummary: summarizeFilters(params.filters),
+      dedupSummary: report.summary,
+    });
+
+    return { previews, dedupSummary: report.summary };
   }
 
   // ── request_reveal_prospects (requires explicit user confirmation) ─
@@ -305,15 +491,65 @@ export class ProspectingTools {
         const requestId = randomUUID();
         const revealEmail = args?.revealEmail !== false;
         const revealPhone = args?.revealPhone === true;
-        const ids: string[] = Array.isArray(args?.externalIds)
+        const requestedIds: string[] = Array.isArray(args?.externalIds)
           ? args.externalIds
           : [];
 
+        // Reveal dedup — drop prospects whose requested contact data Ringee
+        // already has, so the user is never charged for a re-reveal.
+        let ids = requestedIds;
+        let alreadyAvailable = 0;
+        try {
+          const job = await this.leadSearch.getJob(args.jobId, rt.ctx);
+          const snapshot = job.resultSnapshot as LeadSearchResult | null;
+          const candidates = (snapshot?.results ?? []).filter((c) =>
+            requestedIds.includes(c.externalId),
+          );
+          if (candidates.length > 0) {
+            const report = await this.dedup.classifyCandidates(
+              rt.ctx,
+              candidates,
+            );
+            const needReveal: string[] = [];
+            for (const id of requestedIds) {
+              const info = report.byExternalId[id];
+              if (!info) {
+                // Not found in the snapshot — cannot verify, so reveal it.
+                needReveal.push(id);
+                continue;
+              }
+              const emailCovered = !revealEmail || info.ringeeHasEmail;
+              const phoneCovered = !revealPhone || info.ringeeHasPhone;
+              if (emailCovered && phoneCovered) alreadyAvailable += 1;
+              else needReveal.push(id);
+            }
+            ids = needReveal;
+          }
+        } catch (err) {
+          // On any dedup failure, fall back to revealing everything asked for.
+          this.logger.warn(`reveal dedup skipped: ${(err as Error).message}`);
+          ids = requestedIds;
+          alreadyAvailable = 0;
+        }
+
+        if (ids.length === 0) {
+          return {
+            status: "already_revealed",
+            alreadyAvailable,
+            instruction:
+              "Every selected prospect already has the requested contact data stored in Ringee. Tell the user no reveal is needed — the data is already available and no credits will be spent.",
+          };
+        }
+
+        const skippedNote =
+          alreadyAvailable > 0
+            ? ` (${alreadyAvailable} skipped — already in Ringee)`
+            : "";
         const summary = `Reveal ${revealEmail ? "email" : ""}${
           revealEmail && revealPhone ? " + " : ""
         }${revealPhone ? "phone" : ""} for ${ids.length} prospect${
           ids.length === 1 ? "" : "s"
-        }.`;
+        }${skippedNote}.`;
 
         // The persisted row is the single source of truth the UI re-reads on
         // reload, so it must carry `summary` — the SSE event alone is not

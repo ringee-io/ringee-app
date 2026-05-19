@@ -8,10 +8,36 @@ import type {
   AiConversation,
   AiMessage,
   AiToolEvent,
+  DedupAction,
+  DuplicateSearchMatch,
+  DuplicateSearchNotice,
   ProspectPreview,
   StreamMessage
 } from '../types';
 import { useAiStream } from './use-ai-stream';
+
+/** Parse a duplicate_search_detected tool-event payload into a notice. */
+function parseDuplicateNotice(
+  toolEventId: string,
+  payload: Record<string, unknown>
+): DuplicateSearchNotice | null {
+  const match = payload.match as DuplicateSearchMatch | undefined;
+  const relationship = payload.relationship;
+  if (
+    !match ||
+    (relationship !== 'identical' && relationship !== 'similar')
+  ) {
+    return null;
+  }
+  return {
+    toolEventId,
+    relationship,
+    match,
+    recommendedActions:
+      (payload.recommendedActions as DedupAction[] | undefined) ?? [],
+    message: String(payload.message ?? '')
+  };
+}
 
 export interface PendingConfirmation {
   confirmationId: string;
@@ -36,6 +62,8 @@ export interface AiConversationState {
   messages: AiMessage[];
   toolEvents: AiToolEvent[];
   prospectGroups: ProspectResultGroup[];
+  /** Active "you already ran this" prompts, cleared once new results arrive. */
+  duplicateSearches: DuplicateSearchNotice[];
   pendingConfirmations: PendingConfirmation[];
   streamingAssistantId: string | null;
   loading: boolean;
@@ -54,6 +82,7 @@ export function useAiConversation(conversationId: string | null) {
     messages: [],
     toolEvents: [],
     prospectGroups: [],
+    duplicateSearches: [],
     pendingConfirmations: [],
     streamingAssistantId: null,
     loading: false,
@@ -84,6 +113,27 @@ export function useAiConversation(conversationId: string | null) {
           results:
             ((e.payload as Record<string, unknown>)?.results as ProspectPreview[]) ?? []
         }));
+
+      // A duplicate-search prompt is "active" only while it is the most
+      // recent search-related event — once a prospect_results event follows
+      // it, the user has already moved past the decision.
+      const lastResultsIdx = msgs.toolEvents.reduce(
+        (last, e, i) => (e.kind === 'prospect_results' ? i : last),
+        -1
+      );
+      const duplicateSearches: DuplicateSearchNotice[] = msgs.toolEvents
+        .map((e, i) => ({ e, i }))
+        .filter(
+          ({ e, i }) =>
+            e.kind === 'duplicate_search_detected' && i > lastResultsIdx
+        )
+        .map(({ e }) =>
+          parseDuplicateNotice(
+            e.id,
+            (e.payload as Record<string, unknown>) ?? {}
+          )
+        )
+        .filter((n): n is DuplicateSearchNotice => n !== null);
 
       // Every confirmation_request row is surfaced as a card. Older runs
       // persisted each confirmation twice (once by the tool, once by the
@@ -119,6 +169,7 @@ export function useAiConversation(conversationId: string | null) {
         messages: msgs.messages,
         toolEvents: msgs.toolEvents,
         prospectGroups,
+        duplicateSearches,
         pendingConfirmations,
         loading: false
       }));
@@ -138,6 +189,7 @@ export function useAiConversation(conversationId: string | null) {
         messages: [],
         toolEvents: [],
         prospectGroups: [],
+        duplicateSearches: [],
         pendingConfirmations: [],
         streamingAssistantId: null,
         loading: false,
@@ -216,8 +268,8 @@ export function useAiConversation(conversationId: string | null) {
         }
         case 'tool_event': {
           const kind = String(event.kind ?? '');
+          const payload = (event.payload as Record<string, unknown>) ?? {};
           if (kind === 'prospect_results') {
-            const payload = (event.payload as Record<string, unknown>) ?? {};
             const group: ProspectResultGroup = {
               toolEventId: String(event.toolEventId ?? ''),
               jobId: String(payload.jobId ?? ''),
@@ -227,8 +279,24 @@ export function useAiConversation(conversationId: string | null) {
             };
             return {
               ...prev,
-              prospectGroups: [...prev.prospectGroups, group]
+              prospectGroups: [...prev.prospectGroups, group],
+              // New results supersede any pending duplicate-search prompt.
+              duplicateSearches: []
             };
+          }
+          if (kind === 'duplicate_search_detected') {
+            // This event is streamed but never persisted, so it has no
+            // tool-event id — synthesize a stable one for the React key.
+            const noticeId =
+              String(event.toolEventId || '') ||
+              `dup-${Date.now()}-${prev.duplicateSearches.length}`;
+            const notice = parseDuplicateNotice(noticeId, payload);
+            return notice
+              ? {
+                  ...prev,
+                  duplicateSearches: [...prev.duplicateSearches, notice]
+                }
+              : prev;
           }
           return prev;
         }

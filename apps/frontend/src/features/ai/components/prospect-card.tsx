@@ -5,15 +5,20 @@ import { Checkbox } from '@ringee/frontend-shared/components/ui/checkbox';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import {
   IconArrowUpRight,
+  IconBan,
+  IconBookmark,
   IconBrandLinkedin,
   IconBriefcase,
+  IconCopy,
+  IconHistory,
   IconMail,
   IconMapPin,
-  IconPhone
+  IconPhone,
+  IconPhoneCheck
 } from '@tabler/icons-react';
 import { useTranslations } from 'next-intl';
 import { useState } from 'react';
-import type { ProspectDetails, ProspectPreview } from '../types';
+import type { LeadStatus, ProspectDetails, ProspectPreview } from '../types';
 import { ProspectDetailModal } from './prospect-detail-modal';
 
 interface Props {
@@ -87,6 +92,7 @@ export function ProspectCard({ prospect, selected, onToggle }: Props) {
       </div>
 
       <div className='flex flex-wrap items-center gap-1.5 text-[11px]'>
+        <LeadStatusBadge status={prospect.status} />
         <Badge variant='outline' className='gap-1'>
           <IconMail size={11} />
           {prospect.hasEmail ? t('emailAvailable') : t('emailHidden')}
@@ -138,6 +144,59 @@ export function ProspectCard({ prospect, selected, onToggle }: Props) {
         />
       )}
     </div>
+  );
+}
+
+interface StatusMeta {
+  key: string;
+  icon: typeof IconHistory;
+  className: string;
+}
+
+/**
+ * Visual treatment per dedup status. `new` (and undefined, for previews
+ * persisted before dedup shipped) renders nothing — only the statuses that
+ * need the user's attention get a badge.
+ */
+const STATUS_META: Record<Exclude<LeadStatus, 'new'>, StatusMeta> = {
+  seen_before: {
+    key: 'statusSeenBefore',
+    icon: IconHistory,
+    className: 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+  },
+  already_saved: {
+    key: 'statusAlreadySaved',
+    icon: IconBookmark,
+    className: 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300'
+  },
+  already_called: {
+    key: 'statusAlreadyCalled',
+    icon: IconPhoneCheck,
+    className: 'border-sky-500/40 bg-sky-500/10 text-sky-700 dark:text-sky-300'
+  },
+  on_dnc: {
+    key: 'statusOnDnc',
+    icon: IconBan,
+    className:
+      'border-destructive/50 bg-destructive/10 text-destructive'
+  },
+  duplicate_provider: {
+    key: 'statusDuplicate',
+    icon: IconCopy,
+    className: 'border-border bg-muted text-muted-foreground'
+  }
+};
+
+function LeadStatusBadge({ status }: { status?: LeadStatus }) {
+  const t = useTranslations('ai.prospect');
+  if (!status || status === 'new') return null;
+  const meta = STATUS_META[status];
+  const Icon = meta.icon;
+  return (
+    <Badge variant='outline' className={cn('gap-1', meta.className)}>
+      <Icon size={11} />
+      {t(meta.key)}
+    </Badge>
   );
 }
 

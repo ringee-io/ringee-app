@@ -133,6 +133,15 @@ export interface ProspectDetails {
   company: ProspectCompanyDetails | null;
 }
 
+/** Cross-source dedup verdict assigned to a prospect by the backend. */
+export type LeadStatus =
+  | 'new'
+  | 'seen_before'
+  | 'already_saved'
+  | 'already_called'
+  | 'on_dnc'
+  | 'duplicate_provider';
+
 export interface ProspectPreview {
   externalId: string;
   jobId: string;
@@ -150,6 +159,58 @@ export interface ProspectPreview {
   linkedinUrl: string | null;
   /** Full normalized provider data for the detail modal. */
   details: ProspectDetails;
+  /** Dedup status — absent on previews persisted before dedup shipped. */
+  status?: LeadStatus;
+  /** Why the status was assigned. */
+  dedupReasons?: string[];
+  /** True when Ringee already stores this lead's email. */
+  ringeeHasEmail?: boolean;
+  /** True when Ringee already stores a real phone for this lead. */
+  ringeeHasPhone?: boolean;
+}
+
+/** Aggregate dedup breakdown carried by a prospect_results event. */
+export interface LeadDedupSummary {
+  total: number;
+  new: number;
+  seenBefore: number;
+  alreadySaved: number;
+  alreadyCalled: number;
+  onDnc: number;
+  duplicateProvider: number;
+}
+
+/** A previous search run matched by the dedup check. */
+export interface DuplicateSearchMatch {
+  jobId: string;
+  provider: string;
+  page: number;
+  perPage: number;
+  totalResults: number;
+  leadCount: number;
+  revealedCount: number;
+  similarity: number;
+  samePage: boolean;
+  ageHours: number;
+  fresh: boolean;
+  ranAt: string;
+  filtersSummary: string;
+}
+
+export type DedupAction =
+  | 'show_previous'
+  | 'next_page'
+  | 'broaden'
+  | 'narrow'
+  | 'refresh';
+
+/** An active "you already ran this search" decision prompt. */
+export interface DuplicateSearchNotice {
+  toolEventId: string;
+  relationship: 'identical' | 'similar';
+  match: DuplicateSearchMatch;
+  recommendedActions: DedupAction[];
+  message: string;
 }
 
 export interface AiToolEvent {

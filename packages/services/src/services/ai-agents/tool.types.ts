@@ -1,5 +1,11 @@
 import type { AiAgentType, AiConversation } from "@ringee/database";
 import type { OwnershipContext } from "@ringee/platform";
+import type {
+  DedupAction,
+  LeadDedupSummary,
+  LeadStatus,
+  SearchRunSummary,
+} from "./prospect-dedup.service";
 
 /**
  * Runtime context handed to every internal tool. Tools must never
@@ -25,6 +31,18 @@ export type AgentToolEvent =
       provider: string;
       results: ProspectPreview[];
       filtersSummary: string;
+      /** Cross-source dedup breakdown for this result set. */
+      dedupSummary: LeadDedupSummary;
+    }
+  | {
+      kind: "duplicate_search_detected";
+      /** How the requested search relates to the matched previous run. */
+      relationship: "identical" | "similar";
+      /** The previous run the agent should reuse instead of re-searching. */
+      match: SearchRunSummary;
+      recommendedActions: DedupAction[];
+      /** Human-readable explanation, mirrored from the dedup check. */
+      message: string;
     }
   | {
       kind: "confirmation_request";
@@ -132,6 +150,14 @@ export interface ProspectPreview {
   linkedinUrl: string | null;
   /** Full normalized provider data for the detail modal — no contact values. */
   details: ProspectDetails;
+  /** Cross-source dedup verdict (new, already saved, on DNC, …). */
+  status: LeadStatus;
+  /** Why this status was assigned — surfaced to the user as needed. */
+  dedupReasons: string[];
+  /** True when Ringee already stores this lead's email (reveal is free). */
+  ringeeHasEmail: boolean;
+  /** True when Ringee already stores a real phone for this lead. */
+  ringeeHasPhone: boolean;
 }
 
 /**

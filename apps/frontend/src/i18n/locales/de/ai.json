@@ -17,7 +17,12 @@
   "commands": {
     "revealRequest": "{count, plural, =1 {Bitte decke 1 ausgewählten Interessenten auf} other {Bitte decke # ausgewählte Interessenten auf}} aus Job {jobId}{phoneSuffix}. Ausgewählte IDs: {ids}.",
     "revealPhoneSuffix": " (einschließlich Telefonnummer)",
-    "saveRequest": "{count, plural, =1 {Bitte speichere 1 ausgewählten Interessenten} other {Bitte speichere # ausgewählte Interessenten}} aus Job {jobId} in meine Ringee-Kontakte. Ausgewählte IDs: {ids}."
+    "saveRequest": "{count, plural, =1 {Bitte speichere 1 ausgewählten Interessenten} other {Bitte speichere # ausgewählte Interessenten}} aus Job {jobId} in meine Ringee-Kontakte. Ausgewählte IDs: {ids}.",
+    "dedupShowPrevious": "Zeig mir die Ergebnisse der vorherigen Suche.",
+    "dedupNextPage": "Suche die nächste Seite dieser Suche.",
+    "dedupBroaden": "Erweitere die Filter und suche erneut.",
+    "dedupNarrow": "Grenze die Filter ein und suche erneut.",
+    "dedupRefresh": "Aktualisiere die Suche trotzdem, auch wenn sie ähnlich ist."
   },
   "modes": {
     "icp": {
@@ -152,7 +157,12 @@
     "fieldKeywords": "Schlüsselwörter",
     "linkWebsite": "Website",
     "linkCompany": "Unternehmen",
-    "linkCompanySite": "Unternehmenswebsite"
+    "linkCompanySite": "Unternehmenswebsite",
+    "statusSeenBefore": "Schon gesehen",
+    "statusAlreadySaved": "Bereits gespeichert",
+    "statusAlreadyCalled": "Bereits angerufen",
+    "statusOnDnc": "Auf Sperrliste",
+    "statusDuplicate": "Duplikat"
   },
   "results": {
     "selectedCount": "{count, plural, =1 {1 Interessent ausgewählt} other {# Interessenten ausgewählt}}",
@@ -166,5 +176,21 @@
     "save": "Speichern ({count})",
     "showLess": "Weniger anzeigen",
     "showAll": "Alle {count} Ergebnisse anzeigen"
+  },
+  "dedup": {
+    "identicalTitle": "Diese Suche hast du bereits ausgeführt",
+    "similarTitle": "Sehr ähnlich zu einer kürzlichen Suche",
+    "freshIdentical": "Ausgeführt {when} über {provider} · {count} Leads. Eine Wiederholung würde Credits für dieselben Leads kosten.",
+    "freshSimilar": "{percent}% ähnlich zu einer Suche {when} über {provider} · {count} Leads. Liefert wahrscheinlich viele gleiche Leads.",
+    "staleNote": "Diese Suche ist alt genug für eine Aktualisierung.",
+    "revealed": "{count} bereits aufgedeckt.",
+    "actionShowPrevious": "Vorherige Ergebnisse anzeigen",
+    "actionNextPage": "Nächste Seite suchen",
+    "actionBroaden": "Filter erweitern",
+    "actionNarrow": "Filter eingrenzen",
+    "actionRefresh": "Trotzdem aktualisieren",
+    "whenMinutes": "vor {count} Min.",
+    "whenHours": "vor {count} Std.",
+    "whenDays": "vor {count} T."
   }
 }

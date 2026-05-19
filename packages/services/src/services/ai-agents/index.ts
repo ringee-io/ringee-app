@@ -1,6 +1,7 @@
 export * from "./agent.registry";
 export * from "./agents/prospecting-expert.agent";
 export * from "./tools/prospecting.tools";
+export * from "./prospect-dedup.service";
 export * from "./tool.types";
 export * from "./ai-context.builder";
 export * from "./ai-conversation.service";

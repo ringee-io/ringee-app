@@ -12,6 +12,7 @@ import { ChatInput, ChatInputHandle } from './chat-input';
 import { ChatMessages, formatCredits } from './chat-messages';
 import { ConfirmationCard } from './confirmation-card';
 import { ConversationList } from './conversation-list';
+import { DuplicateSearchCard } from './duplicate-search-card';
 import { EmptyState } from './empty-state';
 import { OutOfCreditPanel } from './out-of-credit-panel';
 import { ProspectResultsPanel } from './prospect-results-panel';
@@ -20,8 +21,18 @@ import type {
   AiAgentDescriptor,
   AiAgentId,
   AiConversation,
+  DedupAction,
   ProspectingMode
 } from '../types';
+
+/** Canned message sent to the agent for each duplicate-search decision. */
+const DEDUP_ACTION_KEY: Record<DedupAction, string> = {
+  show_previous: 'commands.dedupShowPrevious',
+  next_page: 'commands.dedupNextPage',
+  broaden: 'commands.dedupBroaden',
+  narrow: 'commands.dedupNarrow',
+  refresh: 'commands.dedupRefresh'
+};
 
 /** Read the prospecting mode persisted on a conversation's agentState. */
 function conversationMode(
@@ -230,6 +241,10 @@ export function RingeeAiView({ conversationId }: Props) {
     );
   }
 
+  function handleDedupAction(action: DedupAction) {
+    void handleSend(t(DEDUP_ACTION_KEY[action]));
+  }
+
   const pendingOpen = useMemo(
     () => state.pendingConfirmations.filter((c) => !c.resolved),
     [state.pendingConfirmations]
@@ -242,7 +257,9 @@ export function RingeeAiView({ conversationId }: Props) {
 
   const showRail =
     !showEmpty &&
-    (state.prospectGroups.length > 0 || state.pendingConfirmations.length > 0);
+    (state.prospectGroups.length > 0 ||
+      state.pendingConfirmations.length > 0 ||
+      state.duplicateSearches.length > 0);
 
   // Ref + helper so the in-chat banner can scroll the confirmation panel into
   // view when the rail is long (or in narrower viewports where it gets pushed
@@ -415,6 +432,15 @@ export function RingeeAiView({ conversationId }: Props) {
               )}
 
               <div className='flex flex-col gap-3 px-3 py-3'>
+                {state.duplicateSearches.map((notice) => (
+                  <DuplicateSearchCard
+                    key={notice.toolEventId}
+                    notice={notice}
+                    onAction={handleDedupAction}
+                    disabled={state.busy || hasPendingSend}
+                  />
+                ))}
+
                 {state.pendingConfirmations
                   .filter((c) => c.resolved)
                   .map((c) => (
