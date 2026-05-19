@@ -29,6 +29,7 @@ export function AiAssistantLauncher() {
             onClick={() => router.push('/dashboard/ai')}
             variant='link'
             size='sm'
+            className='cursor-pointer'
           >
             <IconSparkles size={15} />
             <span className='text-xs font-semibold'>{t('label')}</span>
