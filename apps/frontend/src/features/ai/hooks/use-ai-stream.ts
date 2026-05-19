@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import type { StreamMessage } from '../types';
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL ?? '';
+const API_URL = process.env.NEXT_PUBLIC_API_URL ?? '';
 
 const EVENT_TYPES = [
   'message_started',
