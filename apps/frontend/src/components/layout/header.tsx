@@ -6,12 +6,11 @@ import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import { Breadcrumbs } from '@ringee/frontend-shared/components/breadcrumbs';
 import SearchInput from '@ringee/frontend-shared/components/search-input';
 import { UserNav } from './user-nav';
-import { ThemeSelector } from '@ringee/frontend-shared/components/theme-selector';
-import { ModeToggle } from './ThemeToggle/theme-toggle';
 import { CreditPopover } from '@/features/credit/components/credit.popover';
 import { useIsMobile } from '@ringee/frontend-shared/hooks/use-mobile';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { HeaderOnboardingButton } from '@/features/onboarding/components/header-onboarding-button';
+import { AiAssistantLauncher } from '@/features/ai/components/ai-assistant-launcher';
 
 export default function Header({ useMock }: { useMock?: boolean }) {
   const mobile = useIsMobile();
@@ -35,17 +34,17 @@ export default function Header({ useMock }: { useMock?: boolean }) {
         </div>
       )}
 
-      <div className='flex items-center gap-2 px-4'>
-        {!mobile && canAccessAdminFeatures && <CreditPopover useMock={useMock} />}
-        <HeaderOnboardingButton />
+      <div className='flex items-center gap-4 px-4'>
+        <AiAssistantLauncher />
+        {!mobile && canAccessAdminFeatures && (
+          <CreditPopover useMock={useMock} />
+        )}
         <div className='hidden sm:flex'>
           <SearchInput />
         </div>
         <UserNav useMock={useMock} />
-        <ModeToggle />
-        <ThemeSelector />
+        <HeaderOnboardingButton />
       </div>
     </header>
   );
 }
-

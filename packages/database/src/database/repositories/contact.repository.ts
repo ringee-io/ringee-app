@@ -6,6 +6,11 @@ import {
   buildOwnershipFilter,
 } from "@ringee/platform";
 
+/** A contact row with the multi-value email/phone relations needed for dedup. */
+export type ContactDedupMatch = Prisma.ContactGetPayload<{
+  include: { emails: true; phones: true };
+}>;
+
 @Injectable()
 export class ContactRepository {
   constructor(private readonly prisma: PrismaService) { }
@@ -197,6 +202,73 @@ export class ContactRepository {
       select: { id: true },
     });
     return contacts.map((c) => c.id);
+  }
+
+  /**
+   * Find contacts matching any of the given identity keys. Used by the
+   * prospecting agent to detect leads Ringee already has BEFORE spending
+   * provider credits to reveal them again. Matches the scalar
+   * phone/email/linkedin columns, the multi-value email/phone relations, and
+   * the lead-import externalId stored under `enrichmentMetadata.externalId`.
+   *
+   * Email/LinkedIn matching is case-folded best-effort (we query both the
+   * original and lowercased forms); a missed case-variant only means a
+   * duplicate is not flagged, which is acceptable degradation for a
+   * credit-saving heuristic.
+   */
+  async findByDedupKeys(
+    ctx: OwnershipContext,
+    keys: {
+      emails?: string[];
+      phones?: string[];
+      linkedinUrls?: string[];
+      externalIds?: string[];
+    },
+  ): Promise<ContactDedupMatch[]> {
+    const expand = (values: string[] | undefined): string[] => {
+      const out = new Set<string>();
+      for (const raw of values ?? []) {
+        const trimmed = raw?.trim();
+        if (!trimmed) continue;
+        out.add(trimmed);
+        out.add(trimmed.toLowerCase());
+      }
+      return [...out];
+    };
+
+    const emails = expand(keys.emails);
+    const phones = expand(keys.phones);
+    const linkedinUrls = expand(keys.linkedinUrls);
+    const externalIds = [
+      ...new Set((keys.externalIds ?? []).map((v) => v?.trim()).filter(Boolean)),
+    ] as string[];
+
+    const or: Prisma.ContactWhereInput[] = [];
+    if (emails.length) {
+      or.push({ email: { in: emails } });
+      or.push({ emails: { some: { email: { in: emails } } } });
+    }
+    if (phones.length) {
+      or.push({ phoneNumber: { in: phones } });
+      or.push({
+        phones: {
+          some: { OR: [{ phone: { in: phones } }, { phoneE164: { in: phones } }] },
+        },
+      });
+    }
+    if (linkedinUrls.length) {
+      or.push({ linkedinUrl: { in: linkedinUrls } });
+    }
+    for (const externalId of externalIds) {
+      or.push({ enrichmentMetadata: { path: ["externalId"], equals: externalId } });
+    }
+    if (or.length === 0) return [];
+
+    return this.prisma.contact.findMany({
+      where: { ...buildOwnershipFilter(ctx), deletedAt: null, OR: or },
+      include: { emails: true, phones: true },
+      take: 1000,
+    });
   }
 
   /**

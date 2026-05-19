@@ -324,6 +324,21 @@ export class LeadSearchService {
     return `${provider}:${slugMatch ? slugMatch[1] : url}`;
   }
 
+  /**
+   * Resolve which provider a lead search would actually run on for this ctx
+   * (the preferred one if connected, else the default active connection).
+   * Lets callers run dedup/freshness checks against a concrete provider
+   * before committing to a search. Throws the same "no connection" error a
+   * search would.
+   */
+  async resolveProvider(
+    ctx: OwnershipContext,
+    preferred?: EnrichmentProviderType,
+  ): Promise<EnrichmentProviderType> {
+    const connection = await this.pickConnection(ctx, preferred);
+    return connection.provider;
+  }
+
   async getJob(id: string, ctx: OwnershipContext): Promise<LeadSearchJob> {
     const job = await this.leadJobs.findById(id);
     if (!job) throw new NotFoundException("Lead search job not found");

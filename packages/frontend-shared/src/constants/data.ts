@@ -45,6 +45,14 @@ export const navGroups: NavGroup[] = [
         isActive: false,
         items: []
       },
+      // {
+      //   title: 'Ringee AI',
+      //   url: '/dashboard/ai',
+      //   icon: 'sparkles',
+      //   shortcut: ['a', 'i'],
+      //   isActive: false,
+      //   items: []
+      // },
       {
         title: 'Meetings',
         url: '/dashboard/meetings',

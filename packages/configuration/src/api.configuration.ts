@@ -7,6 +7,7 @@ const apiConfiguration = {
   WHATSAPP_VERIFY_TOKEN: process.env.WHATSAPP_VERIFY_TOKEN!,
   FRONTEND_URL: process.env.FRONTEND_URL!,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
+  ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!,
   PUBLIC_BACKEND_URL: process.env.PUBLIC_BACKEND_URL!,
   REDIS_URL: process.env.REDIS_URL!,
   RESEND_API_KEY: process.env.RESEND_API_KEY!,
@@ -49,6 +50,29 @@ const apiConfiguration = {
   ENRICHMENT_COST_LEAD_IMPORT: Number(process.env.ENRICHMENT_COST_LEAD_IMPORT ?? 5),
   PROSPEO_API_BASE_URL: process.env.PROSPEO_API_BASE_URL || "https://api.prospeo.io",
   APOLLO_API_BASE_URL: process.env.APOLLO_API_BASE_URL || "https://api.apollo.io",
+  // ── Ringee AI ──
+  AI_PROVIDER: (process.env.AI_PROVIDER || "openai") as
+    | "openai"
+    | "anthropic"
+    | "google"
+    | "groq",
+  OPENAI_DEFAULT_MODEL:
+    process.env.OPENAI_DEFAULT_MODEL || "gpt-5.4-mini",
+  OPENAI_SUMMARY_MODEL:
+    process.env.OPENAI_SUMMARY_MODEL || "gpt-5.4-mini",
+  ANTHROPIC_DEFAULT_MODEL:
+    process.env.ANTHROPIC_DEFAULT_MODEL || "claude-haiku-4-5",
+  ANTHROPIC_SUMMARY_MODEL:
+    process.env.ANTHROPIC_SUMMARY_MODEL || "claude-haiku-4-5",
+  // Profit margin multiplier applied to raw token cost before debiting
+  // credits. 1 = charge exactly the provider cost; 1.5 = +50% margin.
+  AI_TOKEN_MARGIN: Number(process.env.AI_TOKEN_MARGIN ?? 1),
+  AI_TEMPERATURE: Number(process.env.AI_TEMPERATURE ?? 0.4),
+  AI_MAX_CONTEXT_MESSAGES: Number(process.env.AI_MAX_CONTEXT_MESSAGES ?? 20),
+  AI_SUMMARY_TRIGGER_TOKENS: Number(
+    process.env.AI_SUMMARY_TRIGGER_TOKENS ?? 6000,
+  ),
+  AI_PROMPT_CACHE_ENABLED: process.env.AI_PROMPT_CACHE_ENABLED !== "false",
 };
 
 const errors = [];
@@ -75,6 +99,17 @@ if (!apiConfiguration.FRONTEND_URL) {
 
 if (!apiConfiguration.OPENAI_API_KEY) {
   errors.push("OPENAI_API_KEY is not defined");
+}
+
+if (
+  apiConfiguration.AI_PROVIDER === "anthropic" &&
+  !apiConfiguration.ANTHROPIC_API_KEY
+) {
+  errors.push("ANTHROPIC_API_KEY is not defined (required when AI_PROVIDER=anthropic)");
+}
+
+if (!(apiConfiguration.AI_TOKEN_MARGIN >= 1)) {
+  errors.push("AI_TOKEN_MARGIN must be a number >= 1");
 }
 
 if (!apiConfiguration.PUBLIC_BACKEND_URL) {

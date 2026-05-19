@@ -9,6 +9,7 @@ import {
   CrmModule,
   CryptoModule,
   EnrichmentModule,
+  AiAgentsPlatformModule,
 } from "@ringee/platform";
 import { ChatAuthService } from "./chat.auth.service";
 import { CallTranscriptionService } from "./call.transcription.service";
@@ -76,6 +77,19 @@ import {
   REMINDER_CHANNELS,
   ReminderService,
 } from "./reminders";
+import {
+  AgentRegistry,
+  AiChatOrchestrator,
+  AiConfirmationService,
+  AiContextBuilder,
+  AiConversationService,
+  AiSummarizerService,
+  PastBuyerAnalyzerService,
+  ProspectDedupService,
+  ProspectingExpertAgent,
+  ProspectingTools,
+  ProspectScoringService,
+} from "./ai-agents";
 
 const servicesProviders = [
   UserService,
@@ -143,6 +157,18 @@ const servicesProviders = [
   // Reminders
   ReminderService,
   EmailReminderChannel,
+  // Ringee AI
+  ProspectScoringService,
+  PastBuyerAnalyzerService,
+  ProspectDedupService,
+  ProspectingTools,
+  ProspectingExpertAgent,
+  AgentRegistry,
+  AiContextBuilder,
+  AiConversationService,
+  AiSummarizerService,
+  AiChatOrchestrator,
+  AiConfirmationService,
 ];
 
 const reminderChannelsProvider: Provider = {
@@ -158,7 +184,7 @@ const allProviders: Provider[] = [
 
 @Global()
 @Module({
-  imports: [AuthModule, NotificationModule, TelephonyModule, StripeModule, CrmModule, EnrichmentModule, RedisModule, CryptoModule],
+  imports: [AuthModule, NotificationModule, TelephonyModule, StripeModule, CrmModule, EnrichmentModule, RedisModule, CryptoModule, AiAgentsPlatformModule],
   providers: allProviders,
   exports: allProviders,
 })

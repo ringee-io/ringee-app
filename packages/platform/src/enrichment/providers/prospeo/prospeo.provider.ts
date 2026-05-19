@@ -29,9 +29,41 @@ import type {
   ProspeoSearchPersonResponse,
   ProspeoSearchPersonResult,
 } from "./prospeo.types";
+import {
+  normalizeDepartments,
+  normalizeFundingStages,
+  normalizeHeadcountRanges,
+  normalizeIndustries,
+  normalizeSeniorities,
+} from "./prospeo.vocabulary";
+import { ProspeoLocationResolver, RawRequester } from "./prospeo.locations";
 
 const DEFAULT_BASE_URL = "https://api.prospeo.io";
 const SEARCH_PER_PAGE = 25;
+// Max times we'll drop a filter group and retry on Prospeo INVALID_FILTERS
+// errors before surfacing the failure to the caller.
+const MAX_FILTER_RELAX_RETRIES = 4;
+
+// Filter groups in priority order for automatic relaxation. Earlier entries
+// are dropped first because their enum vocabularies are the most fragile;
+// later entries (titles, locations, domains) carry the actual search intent
+// and we'd rather fail than strip them.
+const RELAXATION_PRIORITY = [
+  "company_headcount_range",
+  "company_industry",
+  "company_funding",
+  "company_technology",
+  "company_email_provider",
+  "person_seniority",
+  "person_department",
+  "person_year_of_experience",
+  "company_location_search",
+  "person_location_search",
+  "person_job_title",
+  "company_names",
+  "company_websites",
+] as const;
+type RelaxableGroup = (typeof RELAXATION_PRIORITY)[number];
 
 export type ProspeoProviderConfig = {
   apiBaseUrl?: string;
@@ -58,10 +90,20 @@ export class ProspeoProvider extends AbstractEnrichmentProvider {
   };
 
   private readonly baseUrl: string;
+  private readonly locations: ProspeoLocationResolver;
 
   constructor(config: ProspeoProviderConfig = {}) {
     super();
     this.baseUrl = (config.apiBaseUrl ?? DEFAULT_BASE_URL).replace(/\/+$/, "");
+    const rawRequester: RawRequester = (input) =>
+      this.request({
+        method: input.method,
+        url: input.url,
+        headers: input.headers,
+        body: input.body,
+        timeoutMs: input.timeoutMs,
+      });
+    this.locations = new ProspeoLocationResolver(this.baseUrl, rawRequester);
   }
 
   // ── Auth & account ──
@@ -204,49 +246,115 @@ export class ProspeoProvider extends AbstractEnrichmentProvider {
     };
   }
 
-  // ── Lead Search (Prospeo /search-person, domain-driven) ──
+  // ── Lead Search (Prospeo /search-person) ──
+  // Maps the full LeadSearchFilters surface to Prospeo's nested filter object.
+  // Prospeo accepts any combination of company/person filter groups; we no
+  // longer require companyDomains, but we DO require at least one usable
+  // filter group so the API call isn't unbounded.
 
   async searchLeads(
     creds: EnrichmentCredentials,
     filters: LeadSearchFilters,
     opts?: LeadSearchOpts,
   ): Promise<LeadSearchResult> {
-    const domains = (filters.companyDomains ?? [])
-      .map((d) => normalizeDomain(d))
-      .filter((d): d is string => !!d);
+    // Resolve raw location strings to canonical Prospeo names via
+    // /search-suggestions (free, no daily limit) before building filters.
+    // Any unresolvable input is dropped — invalid locations are the #1 cause
+    // of /search-person 400s and they cost us daily quota.
+    const resolvedPersonLocations = await this.resolveLocations(creds, [
+      ...(filters.personLocations ?? []),
+      ...(filters.personCountries ?? []),
+      ...(filters.personCities ?? []),
+    ]);
+    const resolvedCompanyLocations = await this.resolveLocations(creds, [
+      ...(filters.companyLocations ?? []),
+      ...(filters.companyCountries ?? []),
+    ]);
 
-    if (domains.length === 0) {
+    let prospeoFilters = this.buildSearchFilters(
+      filters,
+      resolvedPersonLocations,
+      resolvedCompanyLocations,
+    );
+    if (!hasAnyFilter(prospeoFilters)) {
       throw new EnrichmentError(
         "VALIDATION",
         false,
-        "Prospeo lead search requires at least one company domain (e.g. ringee.io).",
+        "Prospeo lead search requires at least one valid filter. After normalization (industries, headcount, seniorities, departments, locations all checked against Prospeo's vocabulary) nothing remained — try job titles or company domains instead.",
       );
     }
 
     const page = Math.max(1, opts?.page ?? 1);
 
-    await this.acquireToken(creds.accountId);
-    const body: ProspeoSearchPersonRequest = {
-      page,
-      filters: {
-        company: { websites: { include: domains } },
-      },
-    };
+    // Prospeo's /search-person is strict about enum vocab (headcount strings,
+    // industry names, seniority codes). When the API rejects a filter group,
+    // automatically drop the offending group and retry — agents typically
+    // construct rich filter sets and shouldn't burn turns on validation
+    // errors. We retry at most MAX_FILTER_RELAX_RETRIES times; each retry
+    // drops one filter group in priority order.
+    const droppedGroups: string[] = [];
+    let res: ProspeoSearchPersonResponse | null = null;
+    for (let attempt = 0; attempt <= MAX_FILTER_RELAX_RETRIES; attempt += 1) {
+      await this.acquireToken(creds.accountId);
+      const body: ProspeoSearchPersonRequest = {
+        page,
+        filters: prospeoFilters,
+      };
+      // Provider-side response is NOT wrapped in `response`; talk to it directly.
+      res = await this.requestRaw<ProspeoSearchPersonResponse>(
+        creds,
+        "POST",
+        "/search-person",
+        body,
+        opts?.timeoutMs,
+      );
 
-    // Provider-side response is NOT wrapped in `response`; talk to it directly.
-    const res = await this.requestRaw<ProspeoSearchPersonResponse>(
-      creds,
-      "POST",
-      "/search-person",
-      body,
-      opts?.timeoutMs,
-    );
+      if (!res.error) break;
 
-    if (res.error) {
-      throw this.classifyProspeoError(
-        res.error_code ?? res.filter_error,
-        res.filter_error ?? res.error_code ?? "search-person failed",
-        res,
+      const filterIssue = res.filter_error ?? "";
+      const code = (res.error_code ?? "").toUpperCase();
+      const looksLikeFilterIssue =
+        !!filterIssue ||
+        code === "INVALID_FILTERS" ||
+        code === "INVALID_REQUEST" ||
+        code === "INVALID_DATAPOINTS";
+
+      if (!looksLikeFilterIssue || attempt === MAX_FILTER_RELAX_RETRIES) {
+        throw this.classifyProspeoError(
+          res.error_code ?? res.filter_error,
+          res.filter_error ?? res.error_code ?? "search-person failed",
+          res,
+        );
+      }
+
+      const target = pickFilterGroupToDrop(prospeoFilters, filterIssue);
+      if (!target) {
+        // Nothing safe left to drop — surface the original error.
+        throw this.classifyProspeoError(
+          res.error_code ?? res.filter_error,
+          res.filter_error ?? res.error_code ?? "search-person failed",
+          res,
+        );
+      }
+      prospeoFilters = dropFilterGroup(prospeoFilters, target);
+      droppedGroups.push(target);
+      if (!hasAnyFilter(prospeoFilters)) {
+        // All filters got dropped — refuse rather than make an unbounded call.
+        throw this.classifyProspeoError(
+          res.error_code ?? res.filter_error,
+          res.filter_error ??
+            res.error_code ??
+            "Prospeo rejected every filter group provided",
+          res,
+        );
+      }
+    }
+
+    if (!res || res.error) {
+      throw new EnrichmentError(
+        "VALIDATION",
+        false,
+        "Prospeo search-person failed after relaxation retries",
       );
     }
 
@@ -264,7 +372,12 @@ export class ProspeoProvider extends AbstractEnrichmentProvider {
       perPage,
       hasMore: currentPage < totalPages,
       results,
-      raw: res,
+      // Surface the relaxation trail on the raw payload so callers (and the
+      // agent's tool result) can mention dropped filters if useful.
+      raw:
+        droppedGroups.length > 0
+          ? { ...res, _relaxedFilters: droppedGroups }
+          : res,
     };
   }
 
@@ -292,6 +405,112 @@ export class ProspeoProvider extends AbstractEnrichmentProvider {
   }
 
   // ── Internals ──
+
+  /**
+   * Builds the Prospeo `/search-person` filters object. EVERY enum-typed
+   * field is normalized against Prospeo's controlled vocabulary BEFORE the
+   * request leaves us; invalid values are dropped silently because they cost
+   * us a 400 (and burn daily search quota). Locations are pre-resolved by
+   * the caller (resolveLocations) since that requires an async lookup.
+   */
+  private buildSearchFilters(
+    filters: LeadSearchFilters,
+    resolvedPersonLocations: string[],
+    resolvedCompanyLocations: string[],
+  ): ProspeoSearchPersonRequest["filters"] {
+    const out: ProspeoSearchPersonRequest["filters"] = {};
+
+    const domains = (filters.companyDomains ?? [])
+      .map((d) => normalizeDomain(d))
+      .filter((d): d is string => !!d);
+    const companyNamesInclude = uniqueStrings(filters.companyNames);
+
+    if (domains.length || companyNamesInclude.length) {
+      out.company = {};
+      if (domains.length) out.company.websites = { include: domains };
+      if (companyNamesInclude.length)
+        out.company.names = { include: companyNamesInclude };
+    }
+
+    const industriesInclude = normalizeIndustries(filters.industries);
+    const industriesExclude = normalizeIndustries(filters.industriesExclude);
+    if (industriesInclude.length || industriesExclude.length) {
+      out.company_industry = {};
+      if (industriesInclude.length)
+        out.company_industry.include = industriesInclude;
+      if (industriesExclude.length)
+        out.company_industry.exclude = industriesExclude;
+    }
+
+    if (resolvedCompanyLocations.length) {
+      out.company_location_search = { include: resolvedCompanyLocations };
+    }
+
+    const headcount = normalizeHeadcountRanges(filters.employeeCountRanges);
+    if (headcount.length) {
+      out.company_headcount_range = headcount;
+    }
+
+    const fundings = normalizeFundingStages(filters.fundingStages);
+    if (fundings.length) {
+      out.company_funding = { stage: fundings };
+    }
+
+    const technologies = uniqueStrings(filters.technologies);
+    if (technologies.length) {
+      out.company_technology = { include: technologies };
+    }
+
+    const seniorities = normalizeSeniorities(filters.seniorities);
+    if (seniorities.length) {
+      out.person_seniority = { include: seniorities };
+    }
+
+    if (
+      typeof filters.yearsExperienceMin === "number" ||
+      typeof filters.yearsExperienceMax === "number"
+    ) {
+      out.person_year_of_experience = {};
+      if (typeof filters.yearsExperienceMin === "number")
+        out.person_year_of_experience.min = filters.yearsExperienceMin;
+      if (typeof filters.yearsExperienceMax === "number")
+        out.person_year_of_experience.max = filters.yearsExperienceMax;
+    }
+
+    if (resolvedPersonLocations.length) {
+      out.person_location_search = { include: resolvedPersonLocations };
+    }
+
+    const jobTitles = uniqueStrings(filters.jobTitles);
+    const jobTitlesExclude = uniqueStrings(filters.jobTitlesExclude);
+    if (jobTitles.length || jobTitlesExclude.length) {
+      out.person_job_title = {};
+      if (jobTitles.length) out.person_job_title.include = jobTitles;
+      if (jobTitlesExclude.length)
+        out.person_job_title.exclude = jobTitlesExclude;
+    }
+
+    const departments = normalizeDepartments(filters.departments);
+    if (departments.length) {
+      out.person_department = { include: departments };
+    }
+
+    return out;
+  }
+
+  /**
+   * Resolves user-supplied location strings (ISO codes, country names, city
+   * names) to the canonical form Prospeo's /search-person accepts. Hits
+   * /search-suggestions for unknown inputs — free per Prospeo's pricing,
+   * rate-limited at 15 req/s, no daily limit. Cached per-instance.
+   */
+  private async resolveLocations(
+    creds: EnrichmentCredentials,
+    raws: (string | null | undefined)[],
+  ): Promise<string[]> {
+    if (raws.length === 0) return [];
+    return this.locations.resolveMany(creds.apiKey, raws);
+  }
 
   /**
    * Unified call to Prospeo /enrich-person — supports lookup by person_id,
@@ -635,6 +854,197 @@ export class ProspeoProvider extends AbstractEnrichmentProvider {
       return new EnrichmentError("NOT_FOUND", false, message, undefined, raw);
     return new EnrichmentError("VALIDATION", false, message, undefined, raw);
   }
+}
+
+function uniqueStrings(input: string[] | undefined): string[] {
+  if (!input) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of input) {
+    if (typeof raw !== "string") continue;
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(trimmed);
+  }
+  return out;
+}
+
+function collectLocations(values: (string | null | undefined)[]): string[] {
+  return uniqueStrings(values.filter((v): v is string => !!v && v.trim().length > 0));
+}
+
+// ISO 3166-1 alpha-2 → country name for the codes most likely to come from
+// the agent's normalized filters. Unknown codes pass through unchanged so
+// Prospeo can still receive raw strings the user typed (e.g. "Spain").
+const ISO_COUNTRY_NAMES: Record<string, string> = {
+  US: "United States",
+  CA: "Canada",
+  MX: "Mexico",
+  GT: "Guatemala",
+  HN: "Honduras",
+  SV: "El Salvador",
+  NI: "Nicaragua",
+  CR: "Costa Rica",
+  PA: "Panama",
+  CO: "Colombia",
+  VE: "Venezuela",
+  EC: "Ecuador",
+  PE: "Peru",
+  BO: "Bolivia",
+  CL: "Chile",
+  AR: "Argentina",
+  PY: "Paraguay",
+  UY: "Uruguay",
+  BR: "Brazil",
+  DO: "Dominican Republic",
+  PR: "Puerto Rico",
+  CU: "Cuba",
+  ES: "Spain",
+  PT: "Portugal",
+  FR: "France",
+  DE: "Germany",
+  IT: "Italy",
+  GB: "United Kingdom",
+  UK: "United Kingdom",
+  IE: "Ireland",
+  NL: "Netherlands",
+  BE: "Belgium",
+  CH: "Switzerland",
+  AT: "Austria",
+  SE: "Sweden",
+  NO: "Norway",
+  DK: "Denmark",
+  FI: "Finland",
+  PL: "Poland",
+  AU: "Australia",
+  NZ: "New Zealand",
+  IN: "India",
+  SG: "Singapore",
+  PH: "Philippines",
+  JP: "Japan",
+  KR: "South Korea",
+  CN: "China",
+  HK: "Hong Kong",
+  TW: "Taiwan",
+  AE: "United Arab Emirates",
+  SA: "Saudi Arabia",
+  IL: "Israel",
+  TR: "Turkey",
+  ZA: "South Africa",
+};
+
+function countryToName(input: string): string {
+  if (!input) return input;
+  const trimmed = input.trim();
+  const upper = trimmed.toUpperCase();
+  if (upper.length === 2 && ISO_COUNTRY_NAMES[upper]) {
+    return ISO_COUNTRY_NAMES[upper];
+  }
+  return trimmed;
+}
+
+function hasGroup(
+  f: ProspeoSearchPersonRequest["filters"],
+  group: RelaxableGroup,
+): boolean {
+  switch (group) {
+    case "company_websites":
+      return !!f.company?.websites?.include?.length;
+    case "company_names":
+      return !!f.company?.names?.include?.length;
+    case "company_industry":
+      return !!(
+        f.company_industry?.include?.length || f.company_industry?.exclude?.length
+      );
+    case "company_location_search":
+      return !!f.company_location_search?.include?.length;
+    case "company_headcount_range":
+      return !!f.company_headcount_range?.length;
+    case "company_funding":
+      return !!f.company_funding?.stage?.length;
+    case "company_technology":
+      return !!f.company_technology?.include?.length;
+    case "company_email_provider":
+      return !!f.company_email_provider?.include?.length;
+    case "person_seniority":
+      return !!f.person_seniority?.include?.length;
+    case "person_year_of_experience":
+      return (
+        typeof f.person_year_of_experience?.min === "number" ||
+        typeof f.person_year_of_experience?.max === "number"
+      );
+    case "person_location_search":
+      return !!f.person_location_search?.include?.length;
+    case "person_job_title":
+      return !!(
+        f.person_job_title?.include?.length || f.person_job_title?.exclude?.length
+      );
+    case "person_department":
+      return !!f.person_department?.include?.length;
+    default:
+      return false;
+  }
+}
+
+function pickFilterGroupToDrop(
+  f: ProspeoSearchPersonRequest["filters"],
+  filterIssue: string,
+): RelaxableGroup | null {
+  // First, try to identify the offending group from Prospeo's filter_error
+  // message — it usually mentions the field name (e.g. "company_headcount_range").
+  const lc = filterIssue.toLowerCase();
+  for (const group of RELAXATION_PRIORITY) {
+    if (lc.includes(group) && hasGroup(f, group)) return group;
+  }
+  // Fall back to priority order: drop the first present group.
+  for (const group of RELAXATION_PRIORITY) {
+    if (hasGroup(f, group)) return group;
+  }
+  return null;
+}
+
+function dropFilterGroup(
+  f: ProspeoSearchPersonRequest["filters"],
+  group: RelaxableGroup,
+): ProspeoSearchPersonRequest["filters"] {
+  const next: ProspeoSearchPersonRequest["filters"] = { ...f };
+  if (group === "company_websites" || group === "company_names") {
+    if (!next.company) return next;
+    const company = { ...next.company };
+    if (group === "company_websites") delete company.websites;
+    else delete company.names;
+    if (!company.websites && !company.names) delete next.company;
+    else next.company = company;
+    return next;
+  }
+  delete (next as Record<string, unknown>)[group];
+  return next;
+}
+
+function hasAnyFilter(f: ProspeoSearchPersonRequest["filters"]): boolean {
+  const company = f.company;
+  if (company && (company.websites?.include?.length || company.names?.include?.length))
+    return true;
+  if (f.company_industry?.include?.length || f.company_industry?.exclude?.length)
+    return true;
+  if (f.company_location_search?.include?.length) return true;
+  if (f.company_headcount_range?.length) return true;
+  if (f.company_funding?.stage?.length) return true;
+  if (f.company_technology?.include?.length) return true;
+  if (f.person_seniority?.include?.length) return true;
+  if (
+    typeof f.person_year_of_experience?.min === "number" ||
+    typeof f.person_year_of_experience?.max === "number"
+  )
+    return true;
+  if (f.person_location_search?.include?.length) return true;
+  if (f.person_job_title?.include?.length || f.person_job_title?.exclude?.length)
+    return true;
+  if (f.person_department?.include?.length) return true;
+  return false;
 }
 
 function normalizeDomain(input: string): string | null {

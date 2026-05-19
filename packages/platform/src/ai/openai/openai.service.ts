@@ -41,7 +41,7 @@ export class OpenaiService implements AiServiceInterface {
 
     const completion = await openai.chat.completions.create({
       model: "gpt-4.1",
-      temperature,
+      // temperature,
       max_tokens: maxTokens,
       tool_choice: "auto",
       tools,

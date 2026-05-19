@@ -123,6 +123,30 @@ export class LeadSearchJobRepository {
     });
   }
 
+  /**
+   * Recent completed search runs for an owner (org-scoped when an org context
+   * is present, otherwise the user's personal runs). Powers the search
+   * deduplication / credit-protection checks in the prospecting agent.
+   */
+  listRecentForOwner(input: {
+    userId: string;
+    organizationId?: string | null;
+    since?: Date;
+    limit?: number;
+  }): Promise<LeadSearchJob[]> {
+    return this.prisma.leadSearchJob.findMany({
+      where: {
+        status: "done",
+        ...(input.organizationId
+          ? { organizationId: input.organizationId }
+          : { userId: input.userId, organizationId: null }),
+        ...(input.since ? { completedAt: { gte: input.since } } : {}),
+      },
+      orderBy: { completedAt: "desc" },
+      take: input.limit ?? 40,
+    });
+  }
+
   countByStatus(status: LeadSearchJobStatus): Promise<number> {
     return this.prisma.leadSearchJob.count({ where: { status } });
   }

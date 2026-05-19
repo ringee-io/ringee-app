@@ -1,8 +1,4 @@
-import {
-  DEFAULT_LOCALE,
-  getLocaleChain,
-  type SupportedLocale
-} from './config';
+import { DEFAULT_LOCALE, getLocaleChain, type SupportedLocale } from './config';
 
 type MessageNode = string | { [key: string]: MessageNode };
 export type Messages = Record<string, MessageNode>;
@@ -39,6 +35,7 @@ const NAMESPACES = [
   'auth',
   'marketing',
   'dashboard',
+  'ai',
   'calls',
   'dialer',
   'contacts',
@@ -84,9 +81,7 @@ async function loadNamespace(
  * In development, missing keys at the leaf are visible because the resolver
  * leaves them undefined and `next-intl` will surface them.
  */
-export async function loadMessages(
-  locale: SupportedLocale
-): Promise<Messages> {
+export async function loadMessages(locale: SupportedLocale): Promise<Messages> {
   const chain = getLocaleChain(locale);
   // English is always the ultimate fallback so `chain` already ends in `en`
   // for every supported locale (including `en` itself).

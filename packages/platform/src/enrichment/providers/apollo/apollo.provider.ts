@@ -15,6 +15,15 @@ import type {
   NameCompanyInput,
 } from "../../types";
 import { mapApolloCompany, mapApolloPerson } from "./apollo.mapper";
+import { normalizeApolloLocations } from "./apollo.locations";
+import {
+  APOLLO_REACHABLE_EMAIL_STATUSES,
+  normalizeEmployeeRanges,
+  normalizeIndustryTagIds,
+  normalizeSeniorities,
+  normalizeTechnologies,
+  toApolloRevenueRange,
+} from "./apollo.vocabulary";
 import type {
   ApolloAuthHealthResponse,
   ApolloOrganizationEnrichResponse,
@@ -274,36 +283,75 @@ export class ApolloProvider extends AbstractEnrichmentProvider {
     if (filters.jobTitles?.length) body.person_titles = filters.jobTitles;
     if (filters.jobTitlesExclude?.length)
       body.person_not_titles = filters.jobTitlesExclude;
-    if (filters.seniorities?.length)
-      body.person_seniorities = filters.seniorities;
+
+    // Seniorities are a strict enum (owner/founder/c_suite/vp/...). Apollo
+    // silently ignores anything off-vocabulary, so normalize first.
+    const seniorities = normalizeSeniorities(filters.seniorities);
+    if (seniorities.length) body.person_seniorities = seniorities;
     if (filters.departments?.length)
       body.person_departments = filters.departments;
-    if (filters.personLocations?.length)
-      body.person_locations = filters.personLocations;
-    if (filters.personCountries?.length)
-      body.person_locations = filters.personCountries;
+
+    // Locations: expand bare ISO country codes to names — Apollo matches
+    // nothing on "MX"/"GB" but works on "Mexico"/"United Kingdom".
+    const personLocations = normalizeApolloLocations([
+      ...(filters.personLocations ?? []),
+      ...(filters.personCountries ?? []),
+      ...(filters.personCities ?? []),
+    ]);
+    if (personLocations.length) body.person_locations = personLocations;
+
     if (filters.companyNames?.length)
       body.q_organization_name = filters.companyNames.join(" ");
-    if (filters.companyDomains?.length)
-      body.q_organization_domains = filters.companyDomains.join("\n");
-    if (filters.industries?.length)
-      body.organization_industry_tag_ids = filters.industries;
-    if (filters.industriesExclude?.length)
-      body.organization_not_industry_tag_ids = filters.industriesExclude;
-    if (filters.employeeCountRanges?.length) {
-      body.organization_num_employees_ranges = filters.employeeCountRanges;
+    if (filters.companyDomains?.length) {
+      const domains = dedupeStrings(
+        filters.companyDomains.map((d) => cleanApolloDomain(d)),
+      );
+      // Apollo's documented param is the array form `q_organization_domains_list`.
+      if (domains.length) body.q_organization_domains_list = domains;
     }
-    if (filters.revenueRanges?.length)
-      body.revenue_range = filters.revenueRanges;
-    if (filters.technologies?.length)
-      body.currently_using_any_of_technology_uids = filters.technologies;
+
+    // Industries are filtered by Apollo-internal tag IDs. Pass through values
+    // that already look like a tag ID; fold plain industry names into the
+    // free-text keyword filter below since we can't resolve them offline.
+    const { tagIds: industryTagIds, unmatched: industryKeywords } =
+      normalizeIndustryTagIds(filters.industries);
+    if (industryTagIds.length)
+      body.organization_industry_tag_ids = industryTagIds;
+    const { tagIds: notIndustryTagIds } = normalizeIndustryTagIds(
+      filters.industriesExclude,
+    );
+    if (notIndustryTagIds.length)
+      body.organization_not_industry_tag_ids = notIndustryTagIds;
+
+    const employeeRanges = normalizeEmployeeRanges(filters.employeeCountRanges);
+    if (employeeRanges.length)
+      body.organization_num_employees_ranges = employeeRanges;
+
+    // revenue_range is an { min, max } object of plain integers, not an array.
+    const revenueRange = toApolloRevenueRange(filters.revenueRanges);
+    if (revenueRange) body.revenue_range = revenueRange;
+
+    const technologies = normalizeTechnologies(filters.technologies);
+    if (technologies.length)
+      body.currently_using_any_of_technology_uids = technologies;
+
     if (filters.fundingStages?.length)
       body.organization_latest_funding_stage_cd = filters.fundingStages;
-    if (filters.companyLocations?.length)
-      body.organization_locations = filters.companyLocations;
-    if (filters.keywords) body.q_keywords = filters.keywords;
+
+    const companyLocations = normalizeApolloLocations([
+      ...(filters.companyLocations ?? []),
+      ...(filters.companyCountries ?? []),
+    ]);
+    if (companyLocations.length) body.organization_locations = companyLocations;
+
+    const keywords = dedupeStrings([
+      ...(filters.keywords ? [filters.keywords] : []),
+      ...industryKeywords,
+    ]);
+    if (keywords.length) body.q_keywords = keywords.join(" ");
+
     if (filters.hasEmail)
-      body.contact_email_status = ["verified", "likely to engage"];
+      body.contact_email_status = [...APOLLO_REACHABLE_EMAIL_STATUSES];
     if (filters.extra) Object.assign(body, filters.extra);
     return body;
   }
@@ -313,5 +361,39 @@ export class ApolloProvider extends AbstractEnrichmentProvider {
       "X-Api-Key": creds.apiKey,
       "Cache-Control": "no-cache",
     };
+  }
+}
+
+function dedupeStrings(input: (string | null | undefined)[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of input) {
+    if (typeof raw !== "string") continue;
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    const key = trimmed.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(trimmed);
+  }
+  return out;
+}
+
+// Apollo's `q_organization_domains_list` wants bare hostnames — no scheme,
+// no "www.", no "@", no trailing path. Accepts "ringee.io",
+// "https://ringee.io/foo" and "www.ringee.io" alike.
+function cleanApolloDomain(input: string): string {
+  const trimmed = input.trim();
+  if (!trimmed) return "";
+  try {
+    const withScheme = /^https?:\/\//i.test(trimmed)
+      ? trimmed
+      : `https://${trimmed}`;
+    return new URL(withScheme).hostname.replace(/^www\./i, "").toLowerCase();
+  } catch {
+    return trimmed
+      .replace(/^www\./i, "")
+      .replace(/^@/, "")
+      .toLowerCase();
   }
 }
