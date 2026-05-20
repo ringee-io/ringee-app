@@ -3,11 +3,9 @@ import {
   Get,
   Post,
   Patch,
-  Delete,
   Body,
   Param,
   Query,
-  ForbiddenException,
   BadRequestException,
 } from "@nestjs/common";
 import {
@@ -15,11 +13,14 @@ import {
   CurrentUserData,
   createOwnershipContext,
 } from "@ringee/platform";
-import { MeetingService } from "@ringee/services";
+import { MeetingService, OrganizationService } from "@ringee/services";
 
 @Controller("meetings")
 export class MeetingController {
-  constructor(private readonly meetingService: MeetingService) {}
+  constructor(
+    private readonly orgService: OrganizationService,
+    private readonly meetingService: MeetingService,
+  ) { }
 
   @Post()
   async createMeeting(
@@ -38,6 +39,17 @@ export class MeetingController {
     @CurrentUser() user: CurrentUserData,
   ) {
     const ctx = createOwnershipContext(user);
+
+    if (!dto.title) {
+      const org = ctx.organizationId && await this.orgService.getOrganizationById(ctx.organizationId!);
+
+      if (org) {
+        dto.title = `Meeting with ${org.name}`;
+      } else {
+        dto.title = `Meeting with ${user.firstName} ${user.lastName}`;
+      }
+    }
+
     return this.meetingService.createMeeting(ctx, {
       ...dto,
       calendarProvider: dto.provider as any,
