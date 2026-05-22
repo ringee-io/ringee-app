@@ -172,7 +172,12 @@ export class AttioAppService {
         select: { id: true, phoneNumber: true, verified: true, status: true },
       }),
       this.prisma.numberPurchased.findMany({
-        where: { ...ownerFilter, status: "active" },
+        where: { 
+          ...ownerFilter, 
+              status: {
+                in: ["active", "assigned"],
+              },
+         },
         select: { id: true, phoneNumber: true, status: true },
       }),
     ]);

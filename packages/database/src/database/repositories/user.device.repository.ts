@@ -22,6 +22,51 @@ export class UserDeviceRepository {
     });
   }
 
+  /**
+   * Upsert a device token for a user. Used by mobile clients on every
+   * sign-in / app launch.
+   *   - If the token already exists for this user → bump lastActive, clear
+   *     revokedAt (reactivates a device that previously signed out).
+   *   - If the token exists but for a different user → reassign it. This
+   *     covers the "device swap" case where the same phone signs into a
+   *     different Ringee account.
+   *   - Otherwise → create.
+   *
+   * We dedupe by `fcmToken` because vendors recycle tokens between
+   * accounts on the same physical device.
+   */
+  async registerToken(userId: string, fcmToken: string): Promise<UserDevice> {
+    const existing = await this.prisma.userDevice.findFirst({
+      where: { fcmToken },
+    });
+
+    if (existing) {
+      return this.prisma.userDevice.update({
+        where: { id: existing.id },
+        data: {
+          userId,
+          revokedAt: null,
+          lastActive: new Date(),
+        },
+      });
+    }
+
+    return this.prisma.userDevice.create({
+      data: { userId, fcmToken },
+    });
+  }
+
+  /**
+   * Revoke a specific token (sign-out). Idempotent — missing tokens are a
+   * no-op so a flaky sign-out flow doesn't error.
+   */
+  async revokeToken(fcmToken: string): Promise<void> {
+    await this.prisma.userDevice.updateMany({
+      where: { fcmToken, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+  }
+
   async revokeOldestForUser(userId: string, keepCount: number): Promise<void> {
     const active = await this.prisma.userDevice.findMany({
       where: { userId, revokedAt: null },

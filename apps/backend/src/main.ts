@@ -15,7 +15,7 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
   app.enableCors({
-    origin: [apiConfiguration.FRONTEND_URL, 'https://phone.ringee.io', 'http://localhost:4201', 'http://localhost:4200'],
+    origin: [apiConfiguration.FRONTEND_URL, 'https://phone.ringee.io', 'http://localhost:4201', 'http://localhost:4200', 'http://localhost:8081', 'http://localhost:19006'],
     credentials: true,
   });
 

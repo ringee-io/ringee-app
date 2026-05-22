@@ -7,8 +7,7 @@ import { useEffect, useRef } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
 
 export function useHangupListener() {
-  const { notification, activeCall, setActiveCall, dequeue } =
-    useTelnyxStore();
+  const { notification, activeCall, setActiveCall, dequeue } = useTelnyxStore();
   const { postCallPhase, enterPostCallPhase } = useCallStore();
   const callStartTimeRef = useRef<number | null>(null);
 
@@ -39,6 +38,25 @@ export function useHangupListener() {
     const { state } = call;
 
     if (['hangup', 'destroy', 'done', 'failed'].includes(state)) {
+      // Surface the SIP teardown reason. For international destinations a call
+      // that rings and then drops almost always carries a 4xx here (e.g. 403
+      // when the destination region isn't allowed by the Outbound Voice
+      // Profile). Without logging this the failure is invisible.
+      const anyCall = call as unknown as {
+        cause?: string;
+        causeCode?: number | string;
+        sipCode?: number | string | null;
+        sipReason?: string | null;
+      };
+      console.warn('📞 Call ended:', {
+        state,
+        cause: anyCall.cause,
+        causeCode: anyCall.causeCode,
+        sipCode: anyCall.sipCode,
+        sipReason: anyCall.sipReason,
+        destination: call.options?.destinationNumber
+      });
+
       dequeue(call.id);
 
       // Calculate call duration

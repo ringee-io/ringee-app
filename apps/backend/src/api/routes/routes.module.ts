@@ -43,6 +43,7 @@ import { InboxController } from "./inbox.controller";
 import { MessagingWebhookController } from "./messaging.webhook.controller";
 import { ReminderController } from "./reminder.controller";
 import { RingeeAiController } from "./ringee-ai.controller";
+import { MobileController } from "./mobile.controller";
 
 @Module({
   controllers: [
@@ -81,6 +82,7 @@ import { RingeeAiController } from "./ringee-ai.controller";
     MessagingWebhookController,
     ReminderController,
     RingeeAiController,
+    MobileController,
   ],
   providers: [EnrichmentFeatureGuard],
   imports: [

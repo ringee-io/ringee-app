@@ -77,6 +77,13 @@ export class CallRepository {
       (endedAtDate.getTime() - startedAtDate.getTime()) / 1000,
     );
 
+   const call =  await this.findByControlId(callControlId);
+
+   if(!call) {
+      console.log(call, "CALL NOT FOUND")
+     return call as unknown as Call 
+   }
+
     return this.prisma.call.update({
       where: { callControlId },
       data: {
