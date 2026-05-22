@@ -589,6 +589,7 @@ model NumberPurchased {
   user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   userNumbers  UserNumber[]
+  campaigns    Campaign[]    @relation("campaignNumberPurchased")
 
   @@index([isoCountry])
   @@index([provider])
@@ -1036,6 +1037,8 @@ model Campaign {
   // Dialer configuration
   dialerMode  DialerMode @default(progressive)
   callerIdId  String?    @db.Uuid
+  // Purchased number used as the outbound caller ID for this campaign's calls
+  numberPurchasedId String? @db.Uuid
   maxAttempts Int        @default(3)
 
   // Working hours (minutes from midnight in campaign timezone)
@@ -1057,6 +1060,7 @@ model Campaign {
   user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization  Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   callerId      CallerId?        @relation("campaignCallerId", fields: [callerIdId], references: [id])
+  numberPurchased NumberPurchased? @relation("campaignNumberPurchased", fields: [numberPurchasedId], references: [id], onDelete: SetNull)
   members       CampaignMember[]
   leads         CampaignLead[]
   lists         CampaignList[]
@@ -1068,6 +1072,7 @@ model Campaign {
   @@index([userId])
   @@index([organizationId])
   @@index([status])
+  @@index([numberPurchasedId])
 }
 
 model CampaignLead {

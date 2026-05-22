@@ -31,6 +31,12 @@ interface CallerId {
   status: string;
 }
 
+interface PhoneNumber {
+  id: string;
+  phoneNumber: string;
+  status: string | null;
+}
+
 const TIMEZONES = [
   'America/New_York',
   'America/Chicago',
@@ -65,6 +71,7 @@ export function CampaignCreateForm() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [callerIds, setCallerIds] = useState<CallerId[]>([]);
+  const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([]);
 
   const [form, setForm] = useState<CreateCampaignDto>({
     name: '',
@@ -79,9 +86,13 @@ export function CampaignCreateForm() {
     retryDelayMin: 60,
   });
 
-  // Load caller IDs on mount
+  // Load caller IDs and purchased numbers on mount
   useEffect(() => {
     api.get<CallerId[]>('/telephony/caller-ids').then(setCallerIds).catch(() => {});
+    api
+      .get<PhoneNumber[]>('/telephony/phone-numbers')
+      .then(setPhoneNumbers)
+      .catch(() => {});
   }, [api]);
 
   function updateForm(patch: Partial<CreateCampaignDto>) {
@@ -160,15 +171,50 @@ export function CampaignCreateForm() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label>Caller ID</Label>
+            <Label>Phone Number</Label>
             <Select
-              value={form.callerIdId || ''}
-              onValueChange={(v) => updateForm({ callerIdId: v || undefined })}
+              value={form.numberPurchasedId || ''}
+              onValueChange={(v) => updateForm({ numberPurchasedId: v || undefined })}
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select a caller ID..." />
+                <SelectValue placeholder="Select a phone number..." />
               </SelectTrigger>
               <SelectContent>
+                {phoneNumbers.map((num) => (
+                  <SelectItem key={num.id} value={num.id}>
+                    <span className="flex items-center gap-2">
+                      <Phone className="h-3 w-3" />
+                      {num.phoneNumber}
+                    </span>
+                  </SelectItem>
+                ))}
+                {phoneNumbers.length === 0 && (
+                  <SelectItem value="__none" disabled>
+                    No purchased numbers
+                  </SelectItem>
+                )}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Calls in this campaign are placed from this purchased number.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label>Caller ID (optional)</Label>
+            <Select
+              value={form.callerIdId || '__default'}
+              onValueChange={(v) =>
+                updateForm({ callerIdId: v === '__default' ? undefined : v })
+              }
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Use the campaign phone number" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__default">
+                  Use the campaign phone number (default)
+                </SelectItem>
                 {callerIds.filter(c => c.verified).map((cid) => (
                   <SelectItem key={cid.id} value={cid.id}>
                     <span className="flex items-center gap-2">
@@ -177,15 +223,11 @@ export function CampaignCreateForm() {
                     </span>
                   </SelectItem>
                 ))}
-                {callerIds.filter(c => c.verified).length === 0 && (
-                  <SelectItem value="__none" disabled>
-                    No verified caller IDs
-                  </SelectItem>
-                )}
               </SelectContent>
             </Select>
             <p className="text-xs text-muted-foreground">
-              The phone number displayed to leads when calling.
+              Legacy verified caller ID, used only when no phone number is
+              assigned above. Leave as default to use the campaign phone number.
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">

@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from "@nestjs/commo
 import {
   CampaignRepository,
   CallerIdRepository,
+  NumberPurchasedRepository,
   AgentSessionStatus,
   CampaignLeadStatus,
 } from "@ringee/database";
@@ -24,6 +25,7 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
   constructor(
     private readonly campaignRepo: CampaignRepository,
     private readonly callerIdRepo: CallerIdRepository,
+    private readonly numberPurchasedRepo: NumberPurchasedRepository,
     private readonly leadQueueService: LeadQueueService,
     private readonly agentSessionService: AgentSessionService,
     private readonly callAttemptService: CallAttemptService,
@@ -81,6 +83,7 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
     id: string;
     organizationId: string | null;
     callerIdId: string | null;
+    numberPurchasedId: string | null;
     maxAttempts: number;
     timezone: string;
     workStartMin: number;
@@ -134,6 +137,7 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
       id: string;
       organizationId: string | null;
       callerIdId: string | null;
+      numberPurchasedId: string | null;
       maxAttempts: number;
       dialerMode: string;
     },
@@ -214,6 +218,44 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
   }
 
   /**
+   * Resolve the phone number to present as caller ID for a campaign.
+   *
+   * Priority: the campaign's explicitly assigned purchased number → a verified
+   * caller ID → as a last resort, any of the organization's purchased numbers.
+   * This keeps outbound dialing working even when no separate caller ID exists.
+   */
+  private async resolveCallerIdNumber(campaign: {
+    callerIdId: string | null;
+    numberPurchasedId: string | null;
+    organizationId: string | null;
+  }): Promise<string | null> {
+    // 1. Number explicitly assigned to the campaign.
+    if (campaign.numberPurchasedId) {
+      const assigned = await this.numberPurchasedRepo.findById(
+        campaign.numberPurchasedId
+      );
+      if (assigned?.phoneNumber) return assigned.phoneNumber;
+    }
+
+    // 2. Verified caller ID.
+    if (campaign.callerIdId) {
+      const callerId = await this.callerIdRepo.findById(campaign.callerIdId);
+      if (callerId?.phoneNumber) return callerId.phoneNumber;
+    }
+
+    // 3. Fall back to any of the organization's purchased numbers.
+    if (campaign.organizationId) {
+      const purchased = await this.numberPurchasedRepo.findOne({
+        organizationId: campaign.organizationId,
+        status: { in: ["active", "assigned"] },
+      });
+      if (purchased?.phoneNumber) return purchased.phoneNumber;
+    }
+
+    return null;
+  }
+
+  /**
    * Initiate a call via Telnyx WebRTC.
    * Resolves the campaign caller ID and tells the frontend to place the call.
    */
@@ -221,17 +263,15 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
     campaign: {
       id: string;
       callerIdId: string | null;
+      numberPurchasedId: string | null;
+      organizationId: string | null;
     },
     agent: { id: string; userId: string },
     lead: { id: string; contact: { phoneNumber: string } },
     attemptId: string
   ): Promise<void> {
-    // Resolve caller ID phone number
-    let callerIdNumber: string | null = null;
-    if (campaign.callerIdId) {
-      const callerId = await this.callerIdRepo.findById(campaign.callerIdId);
-      callerIdNumber = callerId?.phoneNumber ?? null;
-    }
+    // Resolve caller ID phone number (falls back to purchased number)
+    const callerIdNumber = await this.resolveCallerIdNumber(campaign);
 
     // Transition states
     await this.agentSessionService.transitionTo(
@@ -271,12 +311,8 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
     const campaign = await this.campaignRepo.findById(campaignId);
     if (!campaign) throw new Error("Campaign not found");
 
-    // Resolve caller ID
-    let callerIdNumber: string | null = null;
-    if (campaign.callerIdId) {
-      const callerId = await this.callerIdRepo.findById(campaign.callerIdId);
-      callerIdNumber = callerId?.phoneNumber ?? null;
-    }
+    // Resolve caller ID (falls back to the org's purchased number)
+    const callerIdNumber = await this.resolveCallerIdNumber(campaign);
 
     // Get the lead's phone number
     const lead = await this.leadQueueService.getLeadById(session.currentLeadId);

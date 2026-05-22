@@ -165,6 +165,7 @@ export class CampaignRepository {
         | "description"
         | "dialerMode"
         | "callerIdId"
+        | "numberPurchasedId"
         | "maxAttempts"
         | "timezone"
         | "workStartMin"

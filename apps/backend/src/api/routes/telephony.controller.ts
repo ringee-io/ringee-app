@@ -29,7 +29,6 @@ import {
   CallOutcome,
   NumberPurchased,
   TelnyxRatePerMinuteRepository,
-  CallerId,
 } from "@ringee/database";
 import { UserService, RecordingService, CallService } from "@ringee/services";
 
@@ -48,7 +47,7 @@ export class TelephonyController {
     private readonly callService: CallService,
     private readonly ratePerMinuteRepository: TelnyxRatePerMinuteRepository,
     private readonly recordingService: RecordingService,
-  ) { }
+  ) {}
 
   @Public()
   @Get("rates")
@@ -89,30 +88,7 @@ export class TelephonyController {
   @Get("caller-ids")
   async getCallerIds(@CurrentUser() user: CurrentUserData) {
     const ctx = createOwnershipContext(user);
-
-    const [phonesNumbers, callerIds] = await Promise.all([
-      this.numberPurchasedService.findByOwner(ctx),
-      this.callerIdService.getCallerIds(ctx),
-    ]);
-
-    const mapToCallerId = (number: NumberPurchased): CallerId => ({
-      id: number.id,
-      phoneNumber: number.phoneNumber,
-      verified: ['active', 'assigned'].includes(number.status ?? ''),
-      verifiedAt: new Date(number.updatedAt),
-      userId: number.userId ?? '',
-      organizationId: number.organizationId ?? '',
-      status: number.status ?? '',
-      provider: "telnyx",
-      providerId: "",
-      deletedAt: null,
-      createdAt: number.createdAt ? new Date(number.createdAt) : new Date(),
-      updatedAt: number.updatedAt ? new Date(number.updatedAt) : new Date(),
-    });
-
-    const purchasedCallerIds = phonesNumbers.map(mapToCallerId);
-
-    return [...callerIds, ...purchasedCallerIds];
+    return this.callerIdService.getCallerIds(ctx);
   }
 
   @Post("caller-id")

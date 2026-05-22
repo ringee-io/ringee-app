@@ -24,6 +24,7 @@ export interface Campaign {
   status: CampaignStatus;
   dialerMode: DialerMode;
   callerIdId: string | null;
+  numberPurchasedId: string | null;
   maxAttempts: number;
   timezone: string;
   workStartMin: number;
@@ -102,6 +103,7 @@ export interface CreateCampaignDto {
   description?: string;
   dialerMode?: DialerMode;
   callerIdId?: string;
+  numberPurchasedId?: string;
   maxAttempts?: number;
   timezone?: string;
   workStartMin?: number;

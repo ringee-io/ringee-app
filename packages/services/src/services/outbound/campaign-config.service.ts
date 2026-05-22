@@ -9,6 +9,7 @@ import {
   CampaignLeadRepository,
   CampaignListRepository,
   DispositionRepository,
+  NumberPurchasedRepository,
   Campaign,
   DialerMode,
 } from "@ringee/database";
@@ -21,6 +22,7 @@ export interface CreateCampaignFullDto {
   description?: string;
   dialerMode?: DialerMode;
   callerIdId?: string;
+  numberPurchasedId?: string;
   maxAttempts?: number;
   timezone?: string;
   workStartMin?: number;
@@ -35,6 +37,7 @@ export interface UpdateCampaignSettingsDto {
   description?: string;
   dialerMode?: DialerMode;
   callerIdId?: string;
+  numberPurchasedId?: string | null;
   maxAttempts?: number;
   timezone?: string;
   workStartMin?: number;
@@ -51,6 +54,7 @@ export class CampaignConfigService {
     private readonly campaignLeadRepo: CampaignLeadRepository,
     private readonly campaignListRepo: CampaignListRepository,
     private readonly dispositionRepo: DispositionRepository,
+    private readonly numberPurchasedRepo: NumberPurchasedRepository,
     private readonly dispositionService: DispositionService,
     private readonly leadQueueService: LeadQueueService
   ) {}
@@ -58,6 +62,24 @@ export class CampaignConfigService {
   private ensureOrganization(ctx: OwnershipContext): void {
     if (!ctx.organizationId) {
       throw new ForbiddenException("Campaigns require an organization");
+    }
+  }
+
+  /**
+   * Ensure the purchased number being assigned to a campaign exists and belongs
+   * to the caller's organization. Returns silently when no id is provided.
+   */
+  private async ensureNumberPurchasedOwnership(
+    ctx: OwnershipContext,
+    numberPurchasedId?: string | null
+  ): Promise<void> {
+    if (!numberPurchasedId) return;
+    const number = await this.numberPurchasedRepo.findById(numberPurchasedId);
+    if (!number) {
+      throw new NotFoundException("Phone number not found");
+    }
+    if (number.organizationId !== ctx.organizationId) {
+      throw new ForbiddenException("Phone number does not belong to your organization");
     }
   }
 
@@ -75,6 +97,7 @@ export class CampaignConfigService {
     dto: CreateCampaignFullDto
   ): Promise<Campaign> {
     this.ensureOrganization(ctx);
+    await this.ensureNumberPurchasedOwnership(ctx, dto.numberPurchasedId);
 
     const campaign = await this.campaignRepo.create(
       ctx.userId,
@@ -86,6 +109,7 @@ export class CampaignConfigService {
     if (
       dto.dialerMode ||
       dto.callerIdId ||
+      dto.numberPurchasedId ||
       dto.maxAttempts ||
       dto.timezone ||
       dto.workStartMin !== undefined ||
@@ -111,6 +135,7 @@ export class CampaignConfigService {
   ): Promise<Campaign> {
     this.ensureOrganization(ctx);
     const campaign = await this.getCampaignWithAuth(ctx, campaignId);
+    await this.ensureNumberPurchasedOwnership(ctx, dto.numberPurchasedId);
 
     if (campaign.status !== "draft" && campaign.status !== "paused") {
       // Only allow limited changes on active campaigns
@@ -118,6 +143,7 @@ export class CampaignConfigService {
         "name",
         "description",
         "callerIdId",
+        "numberPurchasedId",
         "wrapUpTimeSec",
         "maxAttempts",
         "timezone",
@@ -184,10 +210,20 @@ export class CampaignConfigService {
         );
       }
 
-      if (!campaign.callerIdId) {
-        throw new BadRequestException(
-          "Campaign must have a caller ID assigned"
-        );
+      // A caller ID is optional: the campaign can dial from an explicitly
+      // assigned purchased number, a caller ID, or — failing those — any of the
+      // organization's purchased numbers. Activation only requires that *some*
+      // number can be resolved.
+      if (!campaign.numberPurchasedId && !campaign.callerIdId) {
+        const purchasedNumber = await this.numberPurchasedRepo.findOne({
+          organizationId: ctx.organizationId,
+          status: { in: ["active", "assigned"] },
+        });
+        if (!purchasedNumber) {
+          throw new BadRequestException(
+            "Campaign must have a phone number or caller ID to dial from"
+          );
+        }
       }
 
       // Queue all pending leads

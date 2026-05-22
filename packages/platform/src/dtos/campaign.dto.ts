@@ -35,6 +35,10 @@ export class CreateCampaignDto {
   callerIdId?: string;
 
   @IsOptional()
+  @IsString()
+  numberPurchasedId?: string;
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(20)
