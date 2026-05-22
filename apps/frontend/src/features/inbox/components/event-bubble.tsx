@@ -15,6 +15,7 @@ import {
   PhoneIncoming
 } from 'lucide-react';
 import { InboxEvent } from '../types';
+import { EncryptedAudio } from './encrypted-audio';
 import { useTranslations } from 'next-intl';
 
 function formatTime(iso: string) {
@@ -141,13 +142,7 @@ function CallCard({ event }: { event: InboxEvent }) {
           {event.body && (
             <p className='mt-2 text-xs text-muted-foreground'>{event.body}</p>
           )}
-          {recording?.url && (
-            <audio
-              controls
-              src={recording.url}
-              className='mt-2 h-8 w-full'
-            />
-          )}
+          {recording?.url && <EncryptedAudio url={recording.url} />}
           {isMissed && event.fromNumber && (
             <div className='mt-2 flex gap-2'>
               <Button
@@ -190,13 +185,7 @@ function VoicemailCard({ event }: { event: InboxEvent }) {
               <Badge variant='outline'>{formatDuration(event.durationSec)}</Badge>
             )}
           </div>
-          {event.audioUrl && (
-            <audio
-              controls
-              src={event.audioUrl}
-              className='mt-2 h-8 w-full'
-            />
-          )}
+          {event.audioUrl && <EncryptedAudio url={event.audioUrl} />}
           {event.transcript && (
             <p className='mt-2 text-xs italic text-muted-foreground'>
               “{event.transcript}”
@@ -229,13 +218,7 @@ function VoiceDropCard({ event }: { event: InboxEvent }) {
           {event.body && (
             <p className='mt-1 text-xs text-muted-foreground'>{event.body}</p>
           )}
-          {event.audioUrl && (
-            <audio
-              controls
-              src={event.audioUrl}
-              className='mt-2 h-8 w-full'
-            />
-          )}
+          {event.audioUrl && <EncryptedAudio url={event.audioUrl} />}
         </div>
       </div>
     </div>
