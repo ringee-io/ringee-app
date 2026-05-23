@@ -90,6 +90,14 @@ import {
   ProspectingTools,
   ProspectScoringService,
 } from "./ai-agents";
+import {
+  CustomIntegrationService,
+  CustomIntegrationAuthService,
+  CustomIntegrationInboundService,
+  CustomIntegrationOutboundService,
+  CustomIntegrationDeliveryService,
+  CustomIntegrationClickToCallService,
+} from "./custom-integrations";
 
 const servicesProviders = [
   UserService,
@@ -169,6 +177,13 @@ const servicesProviders = [
   AiSummarizerService,
   AiChatOrchestrator,
   AiConfirmationService,
+  // Custom Integrations
+  CustomIntegrationService,
+  CustomIntegrationAuthService,
+  CustomIntegrationInboundService,
+  CustomIntegrationOutboundService,
+  CustomIntegrationDeliveryService,
+  CustomIntegrationClickToCallService,
 ];
 
 const reminderChannelsProvider: Provider = {

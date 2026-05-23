@@ -58,3 +58,7 @@ export * from "./message-event.repository";
 export * from "./ai-conversation.repository";
 export * from "./ai-message.repository";
 export * from "./ai-tool-event.repository";
+export * from "./custom-integration.repository";
+export * from "./custom-integration-link.repository";
+export * from "./custom-integration-inbound.repository";
+export * from "./custom-integration-delivery.repository";

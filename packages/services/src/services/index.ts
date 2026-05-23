@@ -26,3 +26,4 @@ export * from "./attio-app.service";
 export * from "./inbox";
 export * from "./reminders";
 export * from "./ai-agents";
+export * from "./custom-integrations";

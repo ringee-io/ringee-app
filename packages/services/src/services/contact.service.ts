@@ -17,12 +17,15 @@ import {
   validateCsvRow,
   ALL_CSV_FIELDS,
 } from "@ringee/platform";
+import { CustomIntegrationOutboundService } from "./custom-integrations/custom-integration-outbound.service";
+import { buildNoteEventData } from "./custom-integrations/custom-integration-event-builders";
 
 @Injectable()
 export class ContactService {
   constructor(
     private readonly repo: ContactRepository,
     private readonly tagRepo: TagRepository,
+    private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
   ) { }
 
   async createContact(
@@ -106,8 +109,15 @@ export class ContactService {
   }
 
   async addNoteToContact(userId: string, contactId: string, dto: AddNoteDto) {
-    await this.ensureExists(contactId);
-    return this.repo.addNote(contactId, userId, dto.content);
+    const contact = await this.ensureExists(contactId);
+    const note = await this.repo.addNote(contactId, userId, dto.content);
+    void this.customIntegrationOutbound.enqueue({
+      ctx: { userId: contact.userId, organizationId: contact.organizationId },
+      eventEnum: "note_created",
+      subjectId: note.id,
+      data: buildNoteEventData(note, contact),
+    });
+    return note;
   }
 
   async updateLastCall(contactId: string, date: Date): Promise<Contact> {

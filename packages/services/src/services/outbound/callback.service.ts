@@ -8,6 +8,9 @@ import {
   ReminderSubjectType,
 } from "@ringee/database";
 import { ReminderService } from "../reminders/reminder.service";
+import { ContactRepository } from "@ringee/database";
+import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
+import { buildCallbackEventData } from "../custom-integrations/custom-integration-event-builders";
 
 @Injectable()
 export class CallbackService {
@@ -18,8 +21,29 @@ export class CallbackService {
     private readonly campaignLeadRepo: CampaignLeadRepository,
     private readonly campaignRepo: CampaignRepository,
     @Inject(forwardRef(() => ReminderService))
-    private readonly reminderService: ReminderService
+    private readonly reminderService: ReminderService,
+    private readonly contactRepo: ContactRepository,
+    private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
   ) {}
+
+  private async enqueueCallbackCreated(callback: {
+    id: string;
+    userId: string;
+    organizationId: string | null;
+    contactId: string;
+    scheduledAt: Date;
+    status: CallbackStatus;
+    createdAt: Date;
+    note: string | null;
+  }) {
+    const contact = await this.contactRepo.findById(callback.contactId).catch(() => null);
+    void this.customIntegrationOutbound.enqueue({
+      ctx: { userId: callback.userId, organizationId: callback.organizationId },
+      eventEnum: "callback_created",
+      subjectId: callback.id,
+      data: buildCallbackEventData(callback as any, contact),
+    });
+  }
 
   /**
    * Best-effort reminder scheduling. Never blocks callback creation if
@@ -92,6 +116,7 @@ export class CallbackService {
       `Campaign callback scheduled for lead ${data.campaignLeadId} at ${data.scheduledAt.toISOString()}`
     );
 
+    await this.enqueueCallbackCreated(callback);
     return callback;
   }
 
@@ -128,6 +153,7 @@ export class CallbackService {
       `Standalone callback ${callback.id} scheduled for contact ${data.contactId} at ${data.scheduledAt.toISOString()}`
     );
 
+    await this.enqueueCallbackCreated(callback);
     return callback;
   }
 

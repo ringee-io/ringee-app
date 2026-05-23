@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL)
 }
 
 enum EmailStatus {
@@ -170,6 +170,40 @@ enum CrmOutboxStatus {
   failed
 }
 
+// ── Custom Integrations Enums ──
+
+enum CustomIntegrationStatus {
+  active
+  disabled
+}
+
+enum CustomIntegrationEventType {
+  call_completed
+  call_outcome_updated
+  note_created
+  callback_created
+  meeting_created
+  recording_ready
+  call_missed
+  call_failed
+  dnc_created
+}
+
+enum CustomIntegrationInboundStatus {
+  received
+  processing
+  processed
+  failed
+  skipped
+}
+
+enum CustomIntegrationDeliveryStatus {
+  pending
+  sending
+  sent
+  failed
+}
+
 // ── Data Enrichment & Lead Search Enums ──
 
 enum EnrichmentProviderType {
@@ -313,6 +347,7 @@ model User {
   reminders               Reminder[]
   aiConversations         AiConversation[]
   aiMessages              AiMessage[]
+  customIntegrations      CustomIntegration[]
 
   @@index([clerkId])
 }
@@ -354,6 +389,7 @@ model Organization {
   dncEntries             DNCEntry[]
   reminders              Reminder[]
   aiConversations        AiConversation[]
+  customIntegrations     CustomIntegration[]
 
   @@index([clerkId])
 }
@@ -694,6 +730,7 @@ model Contact {
   inboxThreads      InboxThread[]
   messages          Message[]
   callbacks         CallbackTask[]
+  customIntegrationLinks CustomIntegrationContactLink[]
 
   @@unique([userId, phoneNumber, deletedAt])
   @@index([userId])
@@ -842,6 +879,7 @@ model Company {
   crmLinks          CrmCompanyLink[]
   socialLinks       CompanySocialLink[]
   customFieldValues CompanyCustomFieldValue[]
+  customIntegrationLinks CustomIntegrationCompanyLink[]
 
   @@index([userId])
   @@index([organizationId])
@@ -1673,6 +1711,122 @@ model CrmFieldMapping {
 
   @@unique([connectionId, ringeeEntity, ringeeField])
   @@index([connectionId])
+}
+
+// ── Custom Integrations ──
+// Generic, workspace-scoped integration that connects Ringee to any external
+// system via API Key + inbound/outbound webhooks + click-to-call. The API Key
+// inherits the scope of the workspace where it was created (freelancer when
+// organizationId is null, organization when set). No manual scope.
+
+model CustomIntegration {
+  id             String                  @id @default(uuid()) @db.Uuid
+  userId         String                  @db.Uuid
+  organizationId String?                 @db.Uuid
+  name           String
+  status         CustomIntegrationStatus @default(active)
+
+  // Public prefix shown in UI (e.g. "cik_live_a1b2c3d4"); the full key
+  // is only revealed once at creation/regeneration.
+  apiKeyPrefix     String  @unique
+  apiKeyHash       String  @unique
+  apiKeyLastUsedAt DateTime?
+
+  // AES-256-GCM ciphertext of the HMAC signing secret (encrypted with
+  // the workspace encryptionKey, same pattern as CrmConnection tokens).
+  webhookSigningSecretCt String @db.Text
+
+  outboundUrl      String?
+  subscribedEvents CustomIntegrationEventType[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  contactLinks    CustomIntegrationContactLink[]
+  companyLinks    CustomIntegrationCompanyLink[]
+  inboundEvents   CustomIntegrationInboundEvent[]
+  deliveryEvents  CustomIntegrationDelivery[]
+
+  @@index([userId])
+  @@index([organizationId])
+}
+
+model CustomIntegrationContactLink {
+  id            String    @id @default(uuid()) @db.Uuid
+  integrationId String    @db.Uuid
+  contactId     String?   @db.Uuid
+  externalId    String
+  archivedAt    DateTime?
+  rawSnapshot   Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  integration CustomIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  contact     Contact?          @relation(fields: [contactId], references: [id], onDelete: SetNull)
+
+  @@unique([integrationId, externalId])
+  @@index([contactId])
+}
+
+model CustomIntegrationCompanyLink {
+  id            String    @id @default(uuid()) @db.Uuid
+  integrationId String    @db.Uuid
+  companyId     String?   @db.Uuid
+  externalId    String
+  archivedAt    DateTime?
+  rawSnapshot   Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  integration CustomIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  company     Company?          @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@unique([integrationId, externalId])
+  @@index([companyId])
+}
+
+model CustomIntegrationInboundEvent {
+  id              String                        @id @default(uuid()) @db.Uuid
+  integrationId   String                        @db.Uuid
+  eventType       String
+  externalEventId String
+  status          CustomIntegrationInboundStatus @default(received)
+  receivedAt      DateTime                      @default(now())
+  processedAt     DateTime?
+  errorMessage    String?                       @db.Text
+  rawPayload      Json
+
+  integration CustomIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@unique([integrationId, externalEventId])
+  @@index([integrationId, receivedAt])
+  @@index([status])
+}
+
+model CustomIntegrationDelivery {
+  id             String                         @id @default(uuid()) @db.Uuid
+  integrationId  String                         @db.Uuid
+  eventType      CustomIntegrationEventType
+  subjectId      String?
+  destinationUrl String
+  payload        Json
+  signature      String?
+  status         CustomIntegrationDeliveryStatus @default(pending)
+  attemptCount   Int                            @default(0)
+  lastError      String?                        @db.Text
+  nextAttemptAt  DateTime                       @default(now())
+  sentAt         DateTime?
+  dedupeKey      String                         @unique
+  createdAt      DateTime                       @default(now())
+  updatedAt      DateTime                       @updatedAt
+
+  integration CustomIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  @@index([status, nextAttemptAt])
+  @@index([integrationId, createdAt])
 }
 
 // ── Social Links ──
