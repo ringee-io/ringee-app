@@ -1581,7 +1581,7 @@ model CrmContactLink {
   provider        CrmProviderType
   externalId      String
   externalType    CrmRecordType
-  phoneNumberE164 String
+  phoneNumberE164 String?
 
   matchConfidence String   @default("phone_exact")
   lastSyncedAt    DateTime @default(now())
