@@ -45,7 +45,7 @@ export class McpController {
       throw new HttpException("Unauthorized", 401);
     }
 
-    const baseUrl = (apiConfiguration.PUBLIC_BACKEND_URL || "").replace(
+    const baseUrl = (apiConfiguration.BACKEND_URL || "").replace(
       /\/+$/,
       "",
     );
