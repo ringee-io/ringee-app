@@ -4,10 +4,15 @@ import {
   DNCOwnerScope,
   DNCCreateInput,
 } from "@ringee/database";
+import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
+import { buildDncEventData } from "../custom-integrations/custom-integration-event-builders";
 
 @Injectable()
 export class ComplianceService {
-  constructor(private readonly dncRepo: DNCEntryRepository) {}
+  constructor(
+    private readonly dncRepo: DNCEntryRepository,
+    private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
+  ) {}
 
   /**
    * Check whether a phone number is on the caller's applicable DNC list.
@@ -31,7 +36,14 @@ export class ComplianceService {
   }
 
   async addToDNC(data: DNCCreateInput) {
-    return this.dncRepo.create(data);
+    const entry = await this.dncRepo.create(data);
+    void this.customIntegrationOutbound.enqueue({
+      ctx: { userId: entry.userId, organizationId: entry.organizationId ?? null },
+      eventEnum: "dnc_created",
+      subjectId: entry.id,
+      data: buildDncEventData(entry),
+    });
+    return entry;
   }
 
   async bulkAddToDNC(entries: DNCCreateInput[]) {

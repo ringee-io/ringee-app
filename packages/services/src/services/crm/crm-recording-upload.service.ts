@@ -4,10 +4,13 @@ import {
   CallRepository,
   CrmContactLinkRepository,
   CrmOutboxRepository,
+  RecordingRepository,
   UserRepository,
 } from "@ringee/database";
 import { OwnershipContext } from "@ringee/platform";
 import { CrmConnectionService } from "./crm-connection.service";
+import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
+import { buildRecordingEventData } from "../custom-integrations/custom-integration-event-builders";
 
 /**
  * Sanitise a string for safe use as a file-path segment.
@@ -43,6 +46,8 @@ export class CrmRecordingUploadService {
     private readonly linkRepo: CrmContactLinkRepository,
     private readonly outbox: CrmOutboxRepository,
     private readonly userRepo: UserRepository,
+    private readonly recordingRepo: RecordingRepository,
+    private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
   ) { }
 
   async enqueueRecordingUpload(
@@ -58,6 +63,23 @@ export class CrmRecordingUploadService {
         userId: call.userId,
         organizationId: call.organizationId ?? null,
       };
+
+      // Fire recording.ready to any Custom Integration subscribed to it.
+      try {
+        const recording = await this.recordingRepo.findById?.(recordingId);
+        if (recording) {
+          void this.customIntegrationOutbound.enqueue({
+            ctx,
+            eventEnum: "recording_ready",
+            subjectId: recordingId,
+            data: buildRecordingEventData(recording, publicRecordingUrl),
+          });
+        }
+      } catch (err) {
+        this.logger.debug(
+          `custom-integrations recording.ready enqueue skipped: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
 
       const connections = await this.connections.listActive(ctx);
       if (connections.length === 0) return;

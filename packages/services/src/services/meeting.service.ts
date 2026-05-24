@@ -19,6 +19,13 @@ import { OwnershipContext } from "@ringee/platform";
 import { CalendarService } from "./calendar.service";
 import { CrmMeetingSyncService } from "./crm/crm-meeting-sync.service";
 import { ReminderService } from "./reminders/reminder.service";
+import { ContactRepository } from "@ringee/database";
+import { CustomIntegrationOutboundService } from "./custom-integrations/custom-integration-outbound.service";
+import {
+  buildCallOutcomeData,
+  buildMeetingEventData,
+  callOwnershipFromCall,
+} from "./custom-integrations/custom-integration-event-builders";
 
 @Injectable()
 export class MeetingService {
@@ -31,7 +38,31 @@ export class MeetingService {
     private readonly crmMeetingSync: CrmMeetingSyncService,
     @Inject(forwardRef(() => ReminderService))
     private readonly reminderService: ReminderService,
+    private readonly contactRepo: ContactRepository,
+    private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
   ) {}
+
+  private async enqueueMeetingCreated(meeting: Meeting): Promise<void> {
+    const ctx = { userId: meeting.userId, organizationId: meeting.organizationId };
+    const contact = await this.contactRepo.findById(meeting.contactId);
+    void this.customIntegrationOutbound.enqueue({
+      ctx,
+      eventEnum: "meeting_created",
+      subjectId: meeting.id,
+      data: buildMeetingEventData(meeting, contact),
+    });
+  }
+
+  private async enqueueOutcomeUpdated(call: Call): Promise<void> {
+    const ctx = callOwnershipFromCall(call);
+    if (!ctx) return;
+    void this.customIntegrationOutbound.enqueue({
+      ctx,
+      eventEnum: "call_outcome_updated",
+      subjectId: call.id,
+      data: buildCallOutcomeData(call),
+    });
+  }
 
   private ensureOrganization(ctx: OwnershipContext): void {
     if (!ctx.organizationId) {
@@ -67,9 +98,13 @@ export class MeetingService {
     if (dto.callId) {
       const call = await this.callRepo.findById(dto.callId);
       if (call) {
-        await this.callRepo.updateOutcome(call.id, CallOutcome.meeting_booked);
+        const updated = await this.callRepo.updateOutcome(call.id, CallOutcome.meeting_booked);
+        await this.enqueueOutcomeUpdated(updated);
       }
     }
+
+    // Custom Integrations: meeting.created (independent of outcome)
+    await this.enqueueMeetingCreated(meeting);
 
     // Best-effort: push to external calendar (Google/Microsoft)
     let calendarResult: { externalEventId: string; meetLink?: string } | null = null;
@@ -239,6 +274,8 @@ export class MeetingService {
       throw new ForbiddenException("Access denied");
     }
 
-    return this.callRepo.updateOutcome(callId, dto.outcome, dto.outcomeNote);
+    const updated = await this.callRepo.updateOutcome(callId, dto.outcome, dto.outcomeNote);
+    await this.enqueueOutcomeUpdated(updated);
+    return updated;
   }
 }

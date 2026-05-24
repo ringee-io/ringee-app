@@ -16,3 +16,4 @@ export * from "./crypto/crypto.module";
 export * from "./upload";
 export * from "./crm";
 export * from "./enrichment";
+export * from "./custom-integrations";

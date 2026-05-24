@@ -16,6 +16,7 @@ import {
   CrmRecordingUploadService,
   EnrichmentDrainService,
   ReminderService,
+  CustomIntegrationDeliveryService,
 } from "@ringee/services";
 import {
   UserRepository,
@@ -35,6 +36,8 @@ const CRM_BULK_SYNC_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
 const ENRICHMENT_DRAIN_INTERVAL_MS = 5_000; // 5 seconds
 const ENRICHMENT_DRAIN_BATCH_SIZE = 25;
 const REMINDER_INTERVAL_MS = 30_000; // 30 seconds
+const CUSTOM_INTEGRATIONS_DRAIN_INTERVAL_MS = 5_000; // 5 seconds
+const CUSTOM_INTEGRATIONS_DRAIN_BATCH_SIZE = 25;
 
 @Injectable()
 export class WorkerService implements OnModuleInit, OnModuleDestroy {
@@ -61,6 +64,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly enrichmentDrainService: EnrichmentDrainService,
     private readonly crmRecordingUpload: CrmRecordingUploadService,
     private readonly reminderService: ReminderService,
+    private readonly customIntegrationsDelivery: CustomIntegrationDeliveryService,
   ) { }
 
   onModuleInit() {
@@ -81,6 +85,7 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
       setInterval(() => this.crmBulkSyncService.syncAllActiveConnections(), CRM_BULK_SYNC_INTERVAL_MS),
       setInterval(() => this.runEnrichmentDrain(), ENRICHMENT_DRAIN_INTERVAL_MS),
       setInterval(() => this.runReminderScheduler(), REMINDER_INTERVAL_MS),
+      setInterval(() => this.runCustomIntegrationsDrain(), CUSTOM_INTEGRATIONS_DRAIN_INTERVAL_MS),
     );
     this.logger.log("Outbound schedulers started");
   }
@@ -174,6 +179,25 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
       this.logger.error("ReminderScheduler error:", err);
     } finally {
       this.reminderInFlight = false;
+    }
+  }
+
+  private customIntegrationsDrainInFlight = false;
+
+  private async runCustomIntegrationsDrain() {
+    if (this.customIntegrationsDrainInFlight) return;
+    this.customIntegrationsDrainInFlight = true;
+    try {
+      const count = await this.customIntegrationsDelivery.drain(
+        CUSTOM_INTEGRATIONS_DRAIN_BATCH_SIZE,
+      );
+      if (count > 0) {
+        this.logger.debug(`CustomIntegrationsDrain: ${count} deliveries processed`);
+      }
+    } catch (err) {
+      this.logger.error("CustomIntegrationsDrain error:", err);
+    } finally {
+      this.customIntegrationsDrainInFlight = false;
     }
   }
 

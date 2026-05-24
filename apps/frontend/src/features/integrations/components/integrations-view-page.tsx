@@ -10,7 +10,7 @@ import {
   TabsTrigger,
 } from '@ringee/frontend-shared/components/ui/tabs';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
-import { AlertCircle, Plug, RefreshCw, Sparkles, Users } from 'lucide-react';
+import { AlertCircle, Plug, PlugZap, RefreshCw, Sparkles, Users } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
@@ -23,6 +23,7 @@ import { CrmConnectionCard } from './crm-connection-card';
 import { ProviderCatalog } from './provider-catalog';
 import { ConnectionManagementSheet } from './connection-management-sheet';
 import { EnrichmentTab } from './tabs/enrichment-tab';
+import { CustomIntegrationsTab } from './tabs/custom-integrations-tab';
 import { LeadSearchPanel } from './lead-search-panel';
 
 export default function IntegrationsViewPage() {
@@ -161,6 +162,9 @@ export default function IntegrationsViewPage() {
         <TabsTrigger value="leads" className="gap-1.5">
           <Users className="h-3.5 w-3.5" /> {t('tabs.leads')}
         </TabsTrigger>
+        <TabsTrigger value="custom" className="gap-1.5">
+          <PlugZap className="h-3.5 w-3.5" /> Custom Integrations
+        </TabsTrigger>
       </TabsList>
 
       <TabsContent value="enrichment" className="mt-6">
@@ -169,6 +173,10 @@ export default function IntegrationsViewPage() {
 
       <TabsContent value="leads" className="mt-6">
         <LeadSearchPanel />
+      </TabsContent>
+
+      <TabsContent value="custom" className="mt-6">
+        <CustomIntegrationsTab />
       </TabsContent>
 
       <TabsContent value="crm" className="mt-6">

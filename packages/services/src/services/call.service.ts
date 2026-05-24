@@ -24,6 +24,12 @@ import { OrganizationService } from "./organization.service";
 import { CallAttemptService } from "./outbound/call-attempt.service";
 import { CrmCallLogService } from "./crm/crm-call-log.service";
 import { InboxTimelineService } from "./inbox/inbox.timeline.service";
+import { CustomIntegrationOutboundService } from "./custom-integrations/custom-integration-outbound.service";
+import {
+  buildCallEventData,
+  callOwnershipFromCall,
+  pickCallTerminalEvent,
+} from "./custom-integrations/custom-integration-event-builders";
 
 @Injectable()
 export class CallService {
@@ -44,6 +50,7 @@ export class CallService {
     private readonly crmCallLogService: CrmCallLogService,
     private readonly inboxTimelineService: InboxTimelineService,
     private readonly recordingRepository: RecordingRepository,
+    private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
   ) { }
 
   /**
@@ -329,6 +336,17 @@ export class CallService {
         }
         if (hangupCall) {
           void this.crmCallLogService.handleCallCompleted(hangupCall);
+          // Custom Integrations outbound — choose the most specific event.
+          const ciCtx = callOwnershipFromCall(hangupCall);
+          if (ciCtx) {
+            const eventEnum = pickCallTerminalEvent(hangupCall);
+            void this.customIntegrationOutbound.enqueue({
+              ctx: ciCtx,
+              eventEnum,
+              subjectId: hangupCall.id,
+              data: buildCallEventData(hangupCall),
+            });
+          }
           // Inbox timeline hook (best-effort, never block hangup processing)
           const ctx = InboxTimelineService.buildOwnershipFromCall(hangupCall);
           if (ctx) {

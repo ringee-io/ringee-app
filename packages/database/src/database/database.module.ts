@@ -60,6 +60,13 @@ import { MessageEventRepository } from "./repositories/message-event.repository"
 import { AiConversationRepository } from "./repositories/ai-conversation.repository";
 import { AiMessageRepository } from "./repositories/ai-message.repository";
 import { AiToolEventRepository } from "./repositories/ai-tool-event.repository";
+import { CustomIntegrationRepository } from "./repositories/custom-integration.repository";
+import {
+  CustomIntegrationContactLinkRepository,
+  CustomIntegrationCompanyLinkRepository,
+} from "./repositories/custom-integration-link.repository";
+import { CustomIntegrationInboundRepository } from "./repositories/custom-integration-inbound.repository";
+import { CustomIntegrationDeliveryRepository } from "./repositories/custom-integration-delivery.repository";
 
 const databaseProviders = [
   PrismaService,
@@ -123,6 +130,11 @@ const databaseProviders = [
   AiConversationRepository,
   AiMessageRepository,
   AiToolEventRepository,
+  CustomIntegrationRepository,
+  CustomIntegrationContactLinkRepository,
+  CustomIntegrationCompanyLinkRepository,
+  CustomIntegrationInboundRepository,
+  CustomIntegrationDeliveryRepository,
 ];
 
 @Global()
