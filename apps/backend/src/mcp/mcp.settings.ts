@@ -1,65 +1,100 @@
+// @ts-ignore
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { getAiSystemPrompt } from "@ringee/platform";
+import { OwnershipContext } from "@ringee/platform";
+import dayjs from "dayjs";
+import utc from "dayjs/plugin/utc";
+import { McpFunc } from "./mcp.func";
+import { McpToolsRepository } from "./mcp.tools.repository";
 
-class MainMcp {}
+dayjs.extend(utc);
+
+const SERVER_NAME = "Ringee";
+const SERVER_VERSION = "2.0.0";
+
+const baseInstructions = `
+You are connected to Ringee — a VoIP platform for international calling, contact
+management, callbacks and meetings. Use the available tools to read and act on
+the authenticated user's data.
+
+Guidelines:
+1. Resolve contacts with search_contacts before calling start_call,
+   create_callback or schedule_meeting (you need a contactId).
+2. Phone numbers must be in E.164 format (e.g. +14155552671).
+3. Dates and times must be ISO-8601 with timezone offset (e.g.
+   2026-05-23T14:30:00-04:00). All datetimes are interpreted as absolute.
+4. start_call sends a push to the user's active devices — it does not place
+   the call server-side. If no device is active, ask the user to open Ringee.
+5. log_call_outcome requires the callId of an existing call. Use the values
+   returned by other tools, never invent ids.
+6. Keep responses concise and action-oriented.
+
+UTC Current Date: __CURRENT_DATE__
+`.trim();
+
+function buildInstructions(ctx: OwnershipContext): string {
+  const date = dayjs().utc().format("YYYY-MM-DD");
+  return (
+    baseInstructions.replace("__CURRENT_DATE__", date) +
+    `\n\nSession:\n- userId: ${ctx.userId}` +
+    (ctx.organizationId
+      ? `\n- organizationId: ${ctx.organizationId}`
+      : "\n- mode: freelancer (no organization)")
+  );
+}
+
+const noopJsonSchemaValidator = {
+  getValidator: () => (input: unknown) => ({
+    valid: true,
+    data: input,
+    errorMessage: undefined,
+  }),
+} as never;
 
 export class McpSettings {
-  private _server!: McpServer;
-
-  createServer(userId: string, service: MainMcp) {
-    this._server = new McpServer(
+  static build(
+    ctx: OwnershipContext,
+    func: McpFunc,
+    tools: McpToolsRepository,
+  ): McpServer {
+    const server = new McpServer(
+      { name: SERVER_NAME, version: SERVER_VERSION },
       {
-        name: "Ringee",
-        version: "2.0.0",
-      },
-      {
-        instructions: getAiSystemPrompt(),
+        instructions: buildInstructions(ctx),
+        // Bypass the SDK's default Ajv-backed validator. The default loads
+        // ajv-formats which crashes in our ESM/CJS interop. We don't use
+        // elicitation, so an accept-all validator is safe here.
+        jsonSchemaValidator: noopJsonSchemaValidator,
       },
     );
 
-    for (const usePrompt of Reflect.getMetadata(
-      "MCP_PROMPT",
-      MainMcp.prototype,
-    ) || []) {
-      const list = [
-        usePrompt.data.promptName,
-        usePrompt.data.zod,
-        async (...args: any[]) => {
-          return {
-            // @ts-ignore
-            messages: await service[usePrompt.func as string](userId, ...args),
-          };
-        },
-      ].filter((f) => f);
-      this._server.prompt(...(list as [any, any, any]));
+    for (const entry of tools.getEntries()) {
+      const { toolName, description, zod } = entry.data;
+
+      const handler = async (input: Record<string, unknown>) => {
+        const result = await (
+          func as unknown as Record<string, Function>
+        )[entry.func as string].call(func, ctx, input);
+        return { content: result };
+      };
+
+      if (zod) {
+        server.registerTool(
+          toolName,
+          {
+            description: description ?? `Ringee tool: ${toolName}`,
+            inputSchema: zod,
+          },
+          handler as never,
+        );
+      } else {
+        server.tool(
+          toolName,
+          description ?? `Ringee tool: ${toolName}`,
+          handler as never,
+        );
+      }
     }
 
-    for (const usePrompt of Reflect.getMetadata(
-      "MCP_TOOL",
-      MainMcp.prototype,
-    ) || []) {
-      const list: any[] = [
-        usePrompt.data.toolName,
-        usePrompt.data.zod,
-        async (...args: any[]) => {
-          return {
-            // @ts-ignore
-            content: await service[usePrompt.func as string](userId, ...args),
-          };
-        },
-      ].filter((f) => f);
-
-      this._server.tool(...(list as [any, any, any]));
-    }
-
-    return this;
-  }
-
-  server() {
-    return this._server;
-  }
-
-  static load(userId: string, service: MainMcp): McpSettings {
-    return new McpSettings().createServer(userId, service);
+    return server;
   }
 }

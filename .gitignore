@@ -12,3 +12,8 @@ ringee-io-firebase-adminsdk-*.json
 apps/frontend/public/sw.js
 
 packages/database/prisma/migrations
+
+# Temporary local copy of @modelcontextprotocol/sdk@1.29.0 used while the
+# pnpm store has root-owned files. Remove after fixing pnpm permissions and
+# running `pnpm install`.
+.local-sdk*/

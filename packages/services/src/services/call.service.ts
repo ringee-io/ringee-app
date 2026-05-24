@@ -239,8 +239,6 @@ export class CallService {
         const organizationId = await this.getOrganizationIdFromHeaders(payload.custom_headers);
         const user = await this.userService.getByClerkId(userId);
 
-        console.log(user, "percoooo")
-
         if (!user) {
           this.logger.warn(`⚠️ User ${userId} not found`);
           return;

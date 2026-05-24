@@ -1,185 +1,194 @@
-// ======================================
-//  Sign In
-// ======================================
-export const SignInSchema = {
-  type: "object",
-  description:
-    "Send a friendly localized message inviting the user to sign in to Ringee. " +
-    "Used when the user already has an account and wants to access call or contact features.",
-  properties: {
-    signInText: {
-      type: "string",
-      description:
-        "Localized message inviting the user to sign in. " +
-        "Mention that signing in unlocks access to international calls, call history, and contacts. " +
-        "Default language: English. Auto-translate based on user's message language.",
-    },
-  },
-  required: ["signInText"],
-  additionalProperties: false,
+import { z } from "zod";
+
+// ZodRawShape objects — keep these as plain object literals (not z.object(...))
+// so they're compatible with McpServer#tool / registerTool API.
+
+export const SearchContactsSchema = {
+  query: z
+    .string()
+    .min(1)
+    .max(200)
+    .describe(
+      "Free-text search across contact name, phone number, email, and company. " +
+        "Use to find existing contacts before placing a call or scheduling a meeting.",
+    ),
+  page: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe("1-based page number. Defaults to 1."),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(50)
+    .optional()
+    .describe("Page size. Defaults to 10, max 50."),
 };
 
-// ======================================
-//  Sign Up
-// ======================================
-export const SignUpSchema = {
-  type: "object",
-  description:
-    "Send a friendly localized message inviting the user to sign up to Ringee. " +
-    "Used when the user is new and wants to create an account before making calls.",
-  properties: {
-    signUpText: {
-      type: "string",
-      description:
-        "Localized text inviting the user to create a free Ringee account. " +
-        "Mention that signup allows making affordable international calls via WhatsApp. " +
-        "Default language: English. Auto-translate based on user's message language.",
-    },
-  },
-  required: ["signUpText"],
-  additionalProperties: false,
+export const GetContactSchema = {
+  contactId: z
+    .string()
+    .uuid()
+    .describe(
+      "UUID of the contact. Use search_contacts first if you only have a phone/name.",
+    ),
 };
 
-// ======================================
-//  Welcome (Not Logged In)
-// ======================================
-export const WelcomeNotLoggedInSchema = {
-  type: "object",
-  description:
-    "Display a warm welcome message for users who are not logged in yet. " +
-    "Includes localized call-to-action buttons for Sign In and Sign Up. " +
-    "This is the entry point for first-time users in WhatsApp.",
-  properties: {
-    signInText: {
-      type: "string",
-      description: "Text label for the 'Sign In' button.",
-    },
-    signUpText: {
-      type: "string",
-      description: "Text label for the 'Sign Up' button.",
-    },
-    headerText: {
-      type: "string",
-      description: "Short title welcoming the user to Ringee.",
-    },
-    bodyText: {
-      type: "string",
-      description:
-        "Localized body text introducing Ringee — explain briefly that it's a service for making low-cost international calls directly from WhatsApp.",
-    },
-    footerText: {
-      type: "string",
-      description:
-        "Footer note shown below buttons. Can contain small tips or greetings like 'Powered by Ringee.co'.",
-    },
-  },
-  required: [
-    "signInText",
-    "signUpText",
-    "headerText",
-    "bodyText",
-    "footerText",
-  ],
-  additionalProperties: false,
+export const StartCallSchema = {
+  contactId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe(
+      "UUID of the contact to dial. Either contactId or phoneNumber is required.",
+    ),
+  phoneNumber: z
+    .string()
+    .min(3)
+    .max(20)
+    .optional()
+    .describe(
+      "Destination phone number in E.164 format (e.g. +14155552671). " +
+        "Used when the destination is not yet a saved contact.",
+    ),
+  note: z
+    .string()
+    .max(500)
+    .optional()
+    .describe(
+      "Optional context about why the call is being placed — surfaced as a notification on the user's device.",
+    ),
 };
 
-// ======================================
-//  Show Menu
-// ======================================
-export const ShowMenuSchema = {
-  type: "object",
-  description:
-    "Display the main interactive menu inside WhatsApp. " +
-    "Used to help users navigate through Ringee’s main actions such as making calls, viewing history, and managing contacts.",
-  properties: {
-    headerText: {
-      type: "string",
-      description:
-        "Title shown at the top of the menu, e.g. 'Main Menu' or 'Your Ringee Dashboard'.",
-    },
-    bodyText: {
-      type: "string",
-      description:
-        "Short description guiding the user to choose what they want to do next.",
-    },
-    footerText: {
-      type: "string",
-      description:
-        "Footer text below the menu. Example: 'Ringee – Connecting people worldwide.'",
-    },
-    buttonText: {
-      type: "string",
-      description:
-        "Label for the button that expands the menu list. Example: 'View Options'.",
-    },
-    menu: {
-      type: "array",
-      description:
-        "Array of menu sections, each containing a title and a list of available options. " +
-        "Ringee menus should focus on convenience and clarity.",
-      items: {
-        type: "object",
-        description: "A menu section grouping related options.",
-        properties: {
-          title: {
-            type: "string",
-            description:
-              "Title of the menu section (e.g. 'Calls', 'Contacts').",
-          },
-          options: {
-            type: "array",
-            description: "Array of available options under this section.",
-            items: {
-              type: "object",
-              description: "A single actionable option within the menu.",
-              properties: {
-                id: {
-                  type: "string",
-                  description:
-                    "Unique ID for the option. Used for tracking user selection.",
-                },
-                title: {
-                  type: "string",
-                  description:
-                    "Visible text for the option (e.g. 'Make a Call').",
-                },
-                description: {
-                  type: "string",
-                  description:
-                    "Optional short explanation or hint below the title.",
-                },
-              },
-              required: ["id", "title", "description"],
-              additionalProperties: false,
-            },
-          },
-        },
-        required: ["title", "options"],
-        additionalProperties: false,
-      },
-    },
-  },
-  required: ["headerText", "bodyText", "footerText", "buttonText", "menu"],
-  additionalProperties: false,
+export const LogCallOutcomeSchema = {
+  callId: z
+    .string()
+    .uuid()
+    .describe("UUID of the call whose outcome should be recorded."),
+  outcome: z
+    .enum([
+      "meeting_booked",
+      "sale",
+      "interested",
+      "follow_up",
+      "callback_scheduled",
+      "not_interested",
+      "no_answer",
+      "voicemail",
+      "wrong_number",
+      "gatekeeper",
+    ])
+    .describe("Disposition for the call. Pick the most specific value."),
+  outcomeNote: z
+    .string()
+    .max(2000)
+    .optional()
+    .describe("Free-text follow-up note. Visible in the call detail view."),
 };
 
-// ======================================
-//  Welcome (with Menu)
-// ======================================
-export const WelcomeSchema = {
-  type: "object",
-  description:
-    "Display a personalized welcome message for logged-in users, followed by the main menu of quick actions. " +
-    "This is typically the first interaction after authentication.",
-  properties: {
-    welcomeText: {
-      type: "string",
-      description:
-        "Localized greeting message for the user. " +
-        "Example: 'Welcome back to Ringee! What would you like to do today?'",
-    },
-    menu: ShowMenuSchema,
-  },
-  required: ["welcomeText", "menu"],
-  additionalProperties: false,
+export const CreateCallbackSchema = {
+  contactId: z
+    .string()
+    .uuid()
+    .describe("UUID of the contact who should be called back."),
+  scheduledAt: z
+    .string()
+    .datetime({ offset: true })
+    .describe(
+      "ISO-8601 datetime (with timezone) when the callback should fire. " +
+        "Must be in the future.",
+    ),
+  callId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe("Optional UUID of the source call this callback originated from."),
+  note: z
+    .string()
+    .max(500)
+    .optional()
+    .describe("Optional reminder note for the user — e.g. talking points."),
+};
+
+export const ScheduleMeetingSchema = {
+  contactId: z
+    .string()
+    .uuid()
+    .describe("UUID of the contact the meeting is with."),
+  scheduledAt: z
+    .string()
+    .datetime({ offset: true })
+    .describe("ISO-8601 datetime (with timezone) when the meeting starts."),
+  title: z
+    .string()
+    .max(200)
+    .optional()
+    .describe("Meeting title shown in calendars and reminders."),
+  duration: z
+    .number()
+    .int()
+    .min(5)
+    .max(480)
+    .optional()
+    .describe("Meeting duration in minutes. Defaults to 30."),
+  location: z
+    .string()
+    .max(500)
+    .optional()
+    .describe("Physical address or video-call URL."),
+  notes: z
+    .string()
+    .max(2000)
+    .optional()
+    .describe("Optional agenda / preparation notes."),
+  attendeeEmail: z
+    .string()
+    .email()
+    .optional()
+    .describe(
+      "External attendee email. When provided and a calendar is connected, " +
+        "the invite is delivered through the user's Google/Microsoft calendar.",
+    ),
+  calendarProvider: z
+    .enum(["google", "microsoft"])
+    .optional()
+    .describe(
+      "Force a specific calendar integration. Defaults to whichever is connected.",
+    ),
+  callId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe(
+      "Optional UUID of the call this meeting was booked from. Sets the call outcome to meeting_booked.",
+    ),
+};
+
+export type SearchContactsInput = {
+  [K in keyof typeof SearchContactsSchema]: z.infer<
+    (typeof SearchContactsSchema)[K]
+  >;
+};
+export type GetContactInput = {
+  [K in keyof typeof GetContactSchema]: z.infer<(typeof GetContactSchema)[K]>;
+};
+export type StartCallInput = {
+  [K in keyof typeof StartCallSchema]: z.infer<(typeof StartCallSchema)[K]>;
+};
+export type LogCallOutcomeInput = {
+  [K in keyof typeof LogCallOutcomeSchema]: z.infer<
+    (typeof LogCallOutcomeSchema)[K]
+  >;
+};
+export type CreateCallbackInput = {
+  [K in keyof typeof CreateCallbackSchema]: z.infer<
+    (typeof CreateCallbackSchema)[K]
+  >;
+};
+export type ScheduleMeetingInput = {
+  [K in keyof typeof ScheduleMeetingSchema]: z.infer<
+    (typeof ScheduleMeetingSchema)[K]
+  >;
 };
