@@ -201,6 +201,6 @@ const allProviders: Provider[] = [
 @Module({
   imports: [AuthModule, NotificationModule, TelephonyModule, StripeModule, CrmModule, EnrichmentModule, RedisModule, CryptoModule, AiAgentsPlatformModule],
   providers: allProviders,
-  exports: allProviders,
+  exports: [...allProviders, NotificationModule],
 })
 export class ServicesModule { }

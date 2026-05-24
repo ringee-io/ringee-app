@@ -1,7 +1,12 @@
 import "reflect-metadata";
 import { Injectable, Logger } from "@nestjs/common";
+import { OwnershipContext } from "@ringee/platform";
 import { McpFunc } from "./mcp.func";
-import { ChatCompletionTool } from "@ringee/platform";
+import {
+  MCP_TOOL_METADATA,
+  McpToolEntry,
+  McpToolMeta,
+} from "./mcp.tools";
 
 @Injectable()
 export class McpToolsRepository {
@@ -9,55 +14,47 @@ export class McpToolsRepository {
 
   constructor(private readonly mainMcp: McpFunc) {}
 
-  getAllTools(): ChatCompletionTool[] {
-    const metadata =
-      Reflect.getMetadata("MCP_TOOL", this.mainMcp.constructor.prototype) || [];
+  /**
+   * All registered MCP tools metadata. Used by McpSettings to wire them
+   * into the McpServer instance per session.
+   */
+  getAllTools(): McpToolMeta[] {
+    return this.getEntries().map((entry) => entry.data);
+  }
 
-    const tools: ChatCompletionTool[] = metadata.map((meta: any) => {
-      const { toolName, zod, description } = meta.data;
-
-      return {
-        type: "function",
-        function: {
-          name: toolName,
-          description: description || `Executes the ${toolName} WhatsApp flow.`,
-          strict: true,
-          parameters: zod,
-        },
-      };
-    });
-
-    this.logger.log(`Loaded ${tools.length} MCP tools`);
-    return tools;
+  getEntries(): McpToolEntry[] {
+    return (
+      (Reflect.getMetadata(
+        MCP_TOOL_METADATA,
+        this.mainMcp.constructor.prototype,
+      ) as McpToolEntry[] | undefined) ?? []
+    );
   }
 
   async exec(
-    phoneNumber: string,
+    ctx: OwnershipContext,
     toolName: string,
-    ...args: any[]
-  ): Promise<any> {
-    const toolsMetadata =
-      Reflect.getMetadata("MCP_TOOL", this.mainMcp.constructor.prototype) || [];
-
-    const selectedTool = toolsMetadata.find(
-      (meta: any) => meta.data.toolName === toolName,
+    input: unknown,
+  ): Promise<unknown> {
+    const entry = this.getEntries().find(
+      (meta) => meta.data.toolName === toolName,
     );
 
-    if (!selectedTool) {
+    if (!entry) {
       this.logger.error(`Tool "${toolName}" not found.`);
       throw new Error(`Tool "${toolName}" not found.`);
     }
 
-    const funcName = selectedTool.func as string;
-    const fn = (this.mainMcp as any)[funcName];
+    const fnName = entry.func as string;
+    const fn = (this.mainMcp as unknown as Record<string, unknown>)[fnName];
 
     if (typeof fn !== "function") {
-      throw new Error(`"${funcName}" is not a valid function`);
+      throw new Error(`"${fnName}" is not a callable tool handler`);
     }
 
     try {
-      const result = await fn.call(this.mainMcp, phoneNumber, ...args);
-      this.logger.log(`Tool "${toolName}" executed successfully`);
+      const result = await (fn as Function).call(this.mainMcp, ctx, input);
+      this.logger.log(`Tool "${toolName}" executed (user=${ctx.userId})`);
       return result;
     } catch (error) {
       this.logger.error(

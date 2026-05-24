@@ -46,6 +46,7 @@ import { RingeeAiController } from "./ringee-ai.controller";
 import { MobileController } from "./mobile.controller";
 import { CustomIntegrationsController } from "./custom-integrations.controller";
 import { CustomIntegrationsWebhookController } from "./custom-integrations.webhook.controller";
+import { McpController } from "./mcp.controller";
 
 @Module({
   controllers: [
@@ -87,6 +88,7 @@ import { CustomIntegrationsWebhookController } from "./custom-integrations.webho
     MobileController,
     CustomIntegrationsController,
     CustomIntegrationsWebhookController,
+    McpController,
   ],
   providers: [EnrichmentFeatureGuard],
   imports: [

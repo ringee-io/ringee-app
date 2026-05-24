@@ -11,14 +11,12 @@ import { Response } from "express";
 import {
   WhatsappService,
   buildSystemPrompt,
-  WhatsappEmoji,
   Public,
   OpenaiService,
   CryptoService,
   RedisService,
   OwnershipContext,
 } from "@ringee/platform";
-import { McpToolsRepository } from "../../mcp/mcp.tools.repository";
 import { apiConfiguration } from "@ringee/configuration";
 import { ChatAuthService, UserService } from "@ringee/services";
 
@@ -30,7 +28,6 @@ const hours24ms = 60 * 60 * 24 * 1000;
 export class WhatsappController {
   constructor(
     private readonly redisService: RedisService,
-    private readonly mcpToolsRepository: McpToolsRepository,
     private readonly whatsappService: WhatsappService,
     private readonly aiService: OpenaiService,
     private readonly chatAuthService: ChatAuthService,
@@ -103,7 +100,6 @@ export class WhatsappController {
 
       const user = await this.guardAgainstUnauthorized(from);
       const userContext = (await this.getContext(from)) || [];
-      const tools = this.mcpToolsRepository.getAllTools();
 
       const messagesForAI = [
         ...userContext,
@@ -116,50 +112,10 @@ export class WhatsappController {
       const aiResponse = await this.aiService.generateWithTools({
         messages: messagesForAI,
         systemPrompt: buildSystemPrompt(user),
-        tools,
+        tools: [],
       });
 
-      if (aiResponse.type === "tool_call") {
-        const { toolName, arguments: args } = aiResponse;
-        console.log(`⚙️ AI solicitó ejecutar la tool: ${toolName}`, args);
-
-        try {
-          if (toolName === "SignIn" || toolName === "SignUp") {
-            await this.whatsappService.sendReaction(
-              from,
-              messageId,
-              WhatsappEmoji.COOL,
-            );
-          }
-
-          const result = await this.mcpToolsRepository.exec(
-            from,
-            toolName,
-            args,
-          );
-
-          if (result) {
-            const items = result.map((item: any) => ({
-              role: "assistant",
-              content: item,
-            }));
-
-            await this.redisService.set(
-              `${from}_context`,
-              JSON.stringify([...messagesForAI, ...items]),
-              minutes30ms,
-            );
-          }
-
-          console.log(`✅ Tool "${toolName}" ejecutada con éxito.`, result);
-        } catch (err) {
-          console.error(`❌ Error ejecutando la tool "${toolName}":`, err);
-          await this.whatsappService.sendText(
-            from,
-            `❌ Ocurrió un error al ejecutar la acción "${toolName}".`,
-          );
-        }
-      } else if (aiResponse.type === "text" && aiResponse.text.trim()) {
+      if (aiResponse.type === "text" && aiResponse.text.trim()) {
         await this.whatsappService.sendText(from, aiResponse.text);
         await this.redisService.set(
           `${from}_context`,

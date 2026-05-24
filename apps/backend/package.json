@@ -15,7 +15,7 @@
     "@clerk/backend": "^2.17.2",
     "@clerk/express": "^1.7.37",
     "@keyv/redis": "^5.1.2",
-    "@modelcontextprotocol/sdk": "^1.19.1",
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/cache-manager": "^3.0.1",
     "@nestjs/common": "~11.1.0",
