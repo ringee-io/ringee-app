@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import {
   CallRepository,
+  CallSessionRepository,
   CallStatus,
   CallOutcome,
   Call,
@@ -51,7 +52,22 @@ export class CallService {
     private readonly inboxTimelineService: InboxTimelineService,
     private readonly recordingRepository: RecordingRepository,
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
+    private readonly callSessionRepository: CallSessionRepository,
   ) { }
+
+  /**
+   * Extract a custom header value from a Telnyx call.initiated payload.
+   * Telnyx delivers custom headers as an array of `{ name, value }` objects;
+   * names are case-insensitive in SIP, so we compare lower-cased.
+   */
+  private getCustomHeader(headers: unknown, name: string): string | null {
+    if (!Array.isArray(headers)) return null;
+    const target = name.toLowerCase();
+    const found = (headers as Array<{ name?: string; value?: string }>).find(
+      (h) => typeof h?.name === "string" && h.name.toLowerCase() === target,
+    );
+    return found?.value ?? null;
+  }
 
   /**
    * Extract callAttemptId from Telnyx client_state if present.
@@ -234,21 +250,49 @@ export class CallService {
           return;
         }
 
-        const userId = this.getClerkUserIdFromHeaders(payload.custom_headers);
-        
-        const organizationId = await this.getOrganizationIdFromHeaders(payload.custom_headers);
-        const user = await this.userService.getByClerkId(userId);
+        // Public CallSession dialer path: the WebRTC client embeds the session
+        // id and item id as custom headers so we can attribute the call to
+        // the session owner without exposing their Clerk/DB ids in the URL.
+        const ringeeSessionId = this.getCustomHeader(
+          payload.custom_headers,
+          "X-Ringee-Call-Session-Id",
+        );
+        const ringeeSessionItemId = this.getCustomHeader(
+          payload.custom_headers,
+          "X-Ringee-Call-Session-Item-Id",
+        );
 
-        if (!user) {
-          this.logger.warn(`⚠️ User ${userId} not found`);
-          return;
+        let outboundCtx: OwnershipContext;
+        if (ringeeSessionId) {
+          const callSession =
+            await this.callSessionRepository.findById(ringeeSessionId);
+          if (!callSession || callSession.deletedAt) {
+            this.logger.warn(
+              `⚠️ Call session ${ringeeSessionId} not found or deleted`,
+            );
+            return;
+          }
+          outboundCtx = {
+            userId: callSession.userId,
+            organizationId: callSession.organizationId,
+          };
+        } else {
+          const userId = this.getClerkUserIdFromHeaders(payload.custom_headers);
+          const organizationId = await this.getOrganizationIdFromHeaders(
+            payload.custom_headers,
+          );
+          const user = await this.userService.getByClerkId(userId);
+
+          if (!user) {
+            this.logger.warn(`⚠️ User ${userId} not found`);
+            return;
+          }
+
+          outboundCtx = {
+            userId: user.id,
+            organizationId: organizationId,
+          };
         }
-
-        // For outbound calls, build context from the calling user
-        const outboundCtx: OwnershipContext = {
-          userId: user.id,
-          organizationId: organizationId,
-        };
 
         const contact = await this.contactService.findByPhone(
           outboundCtx,
@@ -290,6 +334,20 @@ export class CallService {
             event_type,
             outboundCall.id,
           );
+        }
+
+        // Link to the originating CallSessionItem so the public dialer
+        // can resolve the Ringee callId without an extra round-trip.
+        if (ringeeSessionItemId && outboundCall) {
+          await this.callSessionRepository
+            .updateItem(ringeeSessionItemId, {
+              call: { connect: { id: outboundCall.id } },
+            })
+            .catch((err) =>
+              this.logger.warn(
+                `Failed to link CallSessionItem ${ringeeSessionItemId} to call ${outboundCall.id}: ${err.message}`,
+              ),
+            );
         }
 
         this.logger.log(`📞 Llamada ${callControlId} iniciada`);

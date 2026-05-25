@@ -98,6 +98,10 @@ import {
   CustomIntegrationDeliveryService,
   CustomIntegrationClickToCallService,
 } from "./custom-integrations";
+import {
+  CallSessionService,
+  CallSessionAccessTokenService,
+} from "./call-session";
 
 const servicesProviders = [
   UserService,
@@ -184,6 +188,9 @@ const servicesProviders = [
   CustomIntegrationOutboundService,
   CustomIntegrationDeliveryService,
   CustomIntegrationClickToCallService,
+  // Call Sessions (magic-link dialing)
+  CallSessionService,
+  CallSessionAccessTokenService,
 ];
 
 const reminderChannelsProvider: Provider = {

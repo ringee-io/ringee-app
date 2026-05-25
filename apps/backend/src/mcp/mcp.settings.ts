@@ -26,7 +26,14 @@ Guidelines:
    the call server-side. If no device is active, ask the user to open Ringee.
 5. log_call_outcome requires the callId of an existing call. Use the values
    returned by other tools, never invent ids.
-6. Keep responses concise and action-oriented.
+6. create_call_session returns a joinUrl — share that URL exactly as given. The
+   raw token is embedded once and cannot be re-fetched; use get_call_session
+   to check status afterwards.
+7. update_call_session can replace the contact queue only before the first
+   call. Pass campaignId=null to detach a session from its campaign.
+8. delete_call_session is a revoke: history is preserved, but the magic link
+   stops working immediately.
+9. Keep responses concise and action-oriented.
 
 UTC Current Date: __CURRENT_DATE__
 `.trim();
