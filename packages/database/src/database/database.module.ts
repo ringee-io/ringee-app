@@ -67,6 +67,7 @@ import {
 } from "./repositories/custom-integration-link.repository";
 import { CustomIntegrationInboundRepository } from "./repositories/custom-integration-inbound.repository";
 import { CustomIntegrationDeliveryRepository } from "./repositories/custom-integration-delivery.repository";
+import { CallSessionRepository } from "./repositories/call-session.repository";
 
 const databaseProviders = [
   PrismaService,
@@ -135,6 +136,7 @@ const databaseProviders = [
   CustomIntegrationCompanyLinkRepository,
   CustomIntegrationInboundRepository,
   CustomIntegrationDeliveryRepository,
+  CallSessionRepository,
 ];
 
 @Global()

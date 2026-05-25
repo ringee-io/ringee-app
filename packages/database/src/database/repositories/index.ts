@@ -62,3 +62,4 @@ export * from "./custom-integration.repository";
 export * from "./custom-integration-link.repository";
 export * from "./custom-integration-inbound.repository";
 export * from "./custom-integration-delivery.repository";
+export * from "./call-session.repository";

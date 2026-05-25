@@ -47,6 +47,7 @@ import { MobileController } from "./mobile.controller";
 import { CustomIntegrationsController } from "./custom-integrations.controller";
 import { CustomIntegrationsWebhookController } from "./custom-integrations.webhook.controller";
 import { McpController } from "./mcp.controller";
+import { CallSessionController } from "./call-session.controller";
 
 @Module({
   controllers: [
@@ -89,6 +90,7 @@ import { McpController } from "./mcp.controller";
     CustomIntegrationsController,
     CustomIntegrationsWebhookController,
     McpController,
+    CallSessionController,
   ],
   providers: [EnrichmentFeatureGuard],
   imports: [

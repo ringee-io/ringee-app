@@ -166,6 +166,108 @@ export const ScheduleMeetingSchema = {
     ),
 };
 
+// ── Call Session tool schemas ──────────────────────────────────
+
+const CallSessionContactSchema = z.object({
+  contactId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe("Existing Ringee contact UUID. If provided, name/phone are looked up server-side."),
+  phoneNumber: z
+    .string()
+    .min(3)
+    .max(20)
+    .optional()
+    .describe("Destination phone number, E.164 (e.g. +14155552671). Required when contactId is absent."),
+  name: z.string().max(200).optional().describe("Display name shown in the dialer UI."),
+  company: z.string().max(200).optional().describe("Company shown in the dialer UI."),
+});
+
+export const CreateCallSessionSchema = {
+  title: z
+    .string()
+    .max(200)
+    .optional()
+    .describe("Human-readable title for the session (visible to the magic-link recipient)."),
+  campaignId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe("Optional campaign UUID to attribute the session against."),
+  contacts: z
+    .array(CallSessionContactSchema)
+    .min(1)
+    .max(500)
+    .describe("Ordered queue of contacts/numbers to dial."),
+  expiresInMinutes: z
+    .number()
+    .int()
+    .min(1)
+    .max(60 * 24 * 30)
+    .optional()
+    .describe("How long the magic link stays valid. Default 60 minutes."),
+  maxCalls: z
+    .number()
+    .int()
+    .min(1)
+    .max(500)
+    .optional()
+    .describe("Optional cap on the number of calls placed before the session auto-completes."),
+  metadata: z
+    .record(z.string(), z.any())
+    .optional()
+    .describe("Free-form JSON metadata persisted with the session (not exposed to the magic-link UI)."),
+};
+
+export const UpdateCallSessionSchema = {
+  callSessionId: z.string().uuid().describe("UUID of the call session to update."),
+  title: z.string().max(200).optional(),
+  campaignId: z
+    .string()
+    .uuid()
+    .nullable()
+    .optional()
+    .describe("Pass null to detach the session from its current campaign."),
+  expiresInMinutes: z.number().int().min(1).max(60 * 24 * 30).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
+  contacts: z
+    .array(CallSessionContactSchema)
+    .min(1)
+    .max(500)
+    .optional()
+    .describe("Replace the queue. Only allowed before the session has started any calls."),
+};
+
+export const DeleteCallSessionSchema = {
+  callSessionId: z.string().uuid().describe("UUID of the call session to revoke."),
+};
+
+export const GetCallSessionSchema = {
+  callSessionId: z.string().uuid().describe("UUID of the call session to fetch."),
+};
+
+export type CreateCallSessionInput = {
+  [K in keyof typeof CreateCallSessionSchema]: z.infer<
+    (typeof CreateCallSessionSchema)[K]
+  >;
+};
+export type UpdateCallSessionInput = {
+  [K in keyof typeof UpdateCallSessionSchema]: z.infer<
+    (typeof UpdateCallSessionSchema)[K]
+  >;
+};
+export type DeleteCallSessionInput = {
+  [K in keyof typeof DeleteCallSessionSchema]: z.infer<
+    (typeof DeleteCallSessionSchema)[K]
+  >;
+};
+export type GetCallSessionInput = {
+  [K in keyof typeof GetCallSessionSchema]: z.infer<
+    (typeof GetCallSessionSchema)[K]
+  >;
+};
+
 export type SearchContactsInput = {
   [K in keyof typeof SearchContactsSchema]: z.infer<
     (typeof SearchContactsSchema)[K]

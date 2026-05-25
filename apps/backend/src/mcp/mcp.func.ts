@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import {
   CallService,
+  CallSessionService,
   CallbackService,
   ContactService,
   MeetingService,
@@ -10,11 +11,21 @@ import {
   NotificationService,
   OwnershipContext,
 } from "@ringee/platform";
-import { CallOutcome } from "@ringee/database";
+import { apiConfiguration } from "@ringee/configuration";
+import {
+  CallOutcome,
+  CallSessionSource,
+} from "@ringee/database";
 import { McpTool } from "./mcp.tools";
 import {
+  CreateCallSessionInput,
+  CreateCallSessionSchema,
   CreateCallbackInput,
   CreateCallbackSchema,
+  DeleteCallSessionInput,
+  DeleteCallSessionSchema,
+  GetCallSessionInput,
+  GetCallSessionSchema,
   GetContactInput,
   GetContactSchema,
   LogCallOutcomeInput,
@@ -25,7 +36,10 @@ import {
   SearchContactsSchema,
   StartCallInput,
   StartCallSchema,
+  UpdateCallSessionInput,
+  UpdateCallSessionSchema,
 } from "./mcp.zod";
+import { CallSessionActorSource } from "@ringee/database";
 
 type Content = { type: "text"; text: string };
 
@@ -48,7 +62,13 @@ export class McpFunc {
     private readonly meetingService: MeetingService,
     private readonly userDeviceService: UserDeviceService,
     private readonly notificationService: NotificationService,
+    private readonly callSessionService: CallSessionService,
   ) {}
+
+  private buildJoinUrl(rawToken: string): string {
+    const base = apiConfiguration.FRONTEND_URL.replace(/\/$/, "");
+    return `${base}/dialer/session?token=${encodeURIComponent(rawToken)}`;
+  }
 
   @McpTool({
     toolName: "search_contacts",
@@ -99,82 +119,82 @@ export class McpFunc {
     return text(contact);
   }
 
-  @McpTool({
-    toolName: "start_call",
-    description:
-      "Place an outbound call from the user's Ringee app. " +
-      "Because calls are dialed in the user's browser/mobile via WebRTC, this tool sends a push " +
-      "notification to the user's active devices instructing them to dial. " +
-      "Provide either contactId (preferred) or a raw phoneNumber in E.164 format. " +
-      "Returns whether a device was notified.",
-    zod: StartCallSchema,
-  })
-  async startCall(ctx: OwnershipContext, input: StartCallInput) {
-    if (!input.contactId && !input.phoneNumber) {
-      return text({
-        ok: false,
-        error: "Either contactId or phoneNumber is required.",
-      });
-    }
+  // @McpTool({
+  //   toolName: "start_call",
+  //   description:
+  //     "Place an outbound call from the user's Ringee app. " +
+  //     "Because calls are dialed in the user's browser/mobile via WebRTC, this tool sends a push " +
+  //     "notification to the user's active devices instructing them to dial. " +
+  //     "Provide either contactId (preferred) or a raw phoneNumber in E.164 format. " +
+  //     "Returns whether a device was notified.",
+  //   zod: StartCallSchema,
+  // })
+  // async startCall(ctx: OwnershipContext, input: StartCallInput) {
+  //   if (!input.contactId && !input.phoneNumber) {
+  //     return text({
+  //       ok: false,
+  //       error: "Either contactId or phoneNumber is required.",
+  //     });
+  //   }
 
-    let phoneNumber = input.phoneNumber ?? null;
-    let contactName: string | null = null;
-    let contactId: string | null = input.contactId ?? null;
+  //   let phoneNumber = input.phoneNumber ?? null;
+  //   let contactName: string | null = null;
+  //   let contactId: string | null = input.contactId ?? null;
 
-    if (input.contactId) {
-      const contact = await this.contactService.getContactById(input.contactId);
-      phoneNumber = contact.phoneNumber;
-      contactName = contact.name ?? null;
-      contactId = contact.id;
-    }
+  //   if (input.contactId) {
+  //     const contact = await this.contactService.getContactById(input.contactId);
+  //     phoneNumber = contact.phoneNumber;
+  //     contactName = contact.name ?? null;
+  //     contactId = contact.id;
+  //   }
 
-    if (!phoneNumber) {
-      return text({ ok: false, error: "Contact has no phone number." });
-    }
+  //   if (!phoneNumber) {
+  //     return text({ ok: false, error: "Contact has no phone number." });
+  //   }
 
-    const devices = await this.userDeviceService.findActiveByUser(ctx.userId);
+  //   const devices = await this.userDeviceService.findActiveByUser(ctx.userId);
 
-    if (devices.length === 0) {
-      return text({
-        ok: false,
-        notified: 0,
-        error:
-          "User has no active devices. Ask them to open the Ringee app and try again.",
-      });
-    }
+  //   if (devices.length === 0) {
+  //     return text({
+  //       ok: false,
+  //       notified: 0,
+  //       error:
+  //         "User has no active devices. Ask them to open the Ringee app and try again.",
+  //     });
+  //   }
 
-    const title = "📞 Ringee — Start call";
-    const body = contactName
-      ? `Tap to dial ${contactName} (${phoneNumber})`
-      : `Tap to dial ${phoneNumber}`;
+  //   const title = "📞 Ringee — Start call";
+  //   const body = contactName
+  //     ? `Tap to dial ${contactName} (${phoneNumber})`
+  //     : `Tap to dial ${phoneNumber}`;
 
-    const results = await Promise.allSettled(
-      devices.map((device) =>
-        this.notificationService.sendNotification(device.fcmToken, {
-          title,
-          body,
-          data: {
-            type: "MCP_START_CALL",
-            phoneNumber,
-            contactId: contactId ?? "",
-            organizationId: ctx.organizationId ?? "",
-            note: input.note ?? "",
-            url: `/dashboard/call?dial=${encodeURIComponent(phoneNumber)}`,
-          },
-        }),
-      ),
-    );
+  //   const results = await Promise.allSettled(
+  //     devices.map((device) =>
+  //       this.notificationService.sendNotification(device.fcmToken, {
+  //         title,
+  //         body,
+  //         data: {
+  //           type: "MCP_START_CALL",
+  //           phoneNumber,
+  //           contactId: contactId ?? "",
+  //           organizationId: ctx.organizationId ?? "",
+  //           note: input.note ?? "",
+  //           url: `/dashboard/call?dial=${encodeURIComponent(phoneNumber)}`,
+  //         },
+  //       }),
+  //     ),
+  //   );
 
-    const notified = results.filter((r) => r.status === "fulfilled").length;
+  //   const notified = results.filter((r) => r.status === "fulfilled").length;
 
-    return text({
-      ok: notified > 0,
-      notified,
-      totalDevices: devices.length,
-      phoneNumber,
-      contactId,
-    });
-  }
+  //   return text({
+  //     ok: notified > 0,
+  //     notified,
+  //     totalDevices: devices.length,
+  //     phoneNumber,
+  //     contactId,
+  //   });
+  // }
 
   @McpTool({
     toolName: "log_call_outcome",
@@ -261,6 +281,131 @@ export class McpFunc {
       scheduledAt: meeting.scheduledAt,
       duration: meeting.duration,
       status: meeting.status,
+    });
+  }
+
+  // ── Call Session tools ─────────────────────────────────────
+
+  @McpTool({
+    toolName: "create_call_session",
+    description:
+      "Create a Ringee call session: a queue of contacts/phone numbers to call. " +
+      "Returns a magic-link URL the user (or a collaborator) can open without logging in " +
+      "to dial each contact one by one and record outcomes. " +
+      "Phone numbers must be E.164. Provide contactId when possible to enrich the UI with name/company. " +
+      "campaignId and organization scope come from the authenticated session.",
+    zod: CreateCallSessionSchema,
+  })
+  async createCallSession(
+    ctx: OwnershipContext,
+    input: CreateCallSessionInput,
+  ) {
+    const { session, items, rawToken } =
+      await this.callSessionService.createSession({
+        userId: ctx.userId,
+        organizationId: ctx.organizationId ?? null,
+        campaignId: input.campaignId ?? null,
+        title: input.title ?? null,
+        contacts: input.contacts,
+        expiresInMinutes: input.expiresInMinutes ?? null,
+        maxCalls: input.maxCalls ?? null,
+        metadata: input.metadata ?? null,
+        source: CallSessionSource.mcp,
+        actorUserId: ctx.userId,
+      });
+
+    return text({
+      callSessionId: session.id,
+      joinUrl: this.buildJoinUrl(rawToken),
+      expiresAt: session.expiresAt,
+      contactsCount: items.length,
+      status: session.status,
+    });
+  }
+
+  @McpTool({
+    toolName: "update_call_session",
+    description:
+      "Update an existing call session. You can change the title, swap the campaign, extend the expiration, " +
+      "update metadata, or replace the contact queue (only if no calls have started yet). " +
+      "Pass campaignId=null to detach the campaign.",
+    zod: UpdateCallSessionSchema,
+  })
+  async updateCallSession(
+    ctx: OwnershipContext,
+    input: UpdateCallSessionInput,
+  ) {
+    const updated = await this.callSessionService.updateSession(
+      ctx,
+      input.callSessionId,
+      {
+        title: input.title ?? undefined,
+        campaignId:
+          input.campaignId === undefined ? undefined : input.campaignId,
+        expiresInMinutes: input.expiresInMinutes ?? null,
+        metadata: input.metadata ?? null,
+        contacts: input.contacts ?? null,
+        actorSource: CallSessionActorSource.mcp,
+        actorUserId: ctx.userId,
+      },
+    );
+    return text({
+      callSessionId: updated.id,
+      status: updated.status,
+      updated: true,
+    });
+  }
+
+  @McpTool({
+    toolName: "delete_call_session",
+    description:
+      "Revoke a call session. Past calls are preserved (no destructive delete) but the session " +
+      "is marked revoked and all active magic-link tokens stop working immediately.",
+    zod: DeleteCallSessionSchema,
+  })
+  async deleteCallSession(
+    ctx: OwnershipContext,
+    input: DeleteCallSessionInput,
+  ) {
+    const session = await this.callSessionService.revokeSession(
+      ctx,
+      input.callSessionId,
+      { source: CallSessionActorSource.mcp, userId: ctx.userId },
+    );
+    return text({
+      callSessionId: session.id,
+      deleted: true,
+      status: session.status,
+    });
+  }
+
+  @McpTool({
+    toolName: "get_call_session",
+    description:
+      "Fetch a call session's safe metadata (status, counts, expiration) — does NOT expose the raw magic-link token. " +
+      "Use this to check progress or whether a session is still valid.",
+    zod: GetCallSessionSchema,
+  })
+  async getCallSession(
+    ctx: OwnershipContext,
+    input: GetCallSessionInput,
+  ) {
+    const { session, items, hasActiveToken } =
+      await this.callSessionService.getOwnedSessionWithItems(
+        ctx,
+        input.callSessionId,
+      );
+    return text({
+      callSessionId: session.id,
+      title: session.title,
+      userId: session.userId,
+      organizationId: session.organizationId,
+      campaignId: session.campaignId,
+      status: session.status,
+      expiresAt: session.expiresAt,
+      contactsCount: items.length,
+      callsCompleted: session.callsCompleted,
+      joinUrlAvailable: hasActiveToken,
     });
   }
 }

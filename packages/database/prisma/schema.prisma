@@ -125,6 +125,68 @@ enum CallbackStatus {
   cancelled
 }
 
+// ── Call Session Enums ──
+
+enum CallSessionStatus {
+  draft
+  ready
+  active
+  paused
+  completed
+  expired
+  revoked
+}
+
+enum CallSessionSource {
+  mcp
+  dashboard
+  api
+}
+
+enum CallSessionAccessMode {
+  magic_link
+}
+
+enum CallSessionItemStatus {
+  pending
+  calling
+  completed
+  skipped
+  failed
+}
+
+enum CallSessionAccessTokenType {
+  magic_link
+}
+
+enum CallSessionAccessTokenStatus {
+  active
+  revoked
+  expired
+}
+
+enum CallSessionActorSource {
+  mcp
+  dashboard
+  api
+  magic_link
+}
+
+enum CallSessionEventType {
+  session_created
+  session_opened
+  session_updated
+  session_deleted
+  session_revoked
+  call_started
+  call_ended
+  outcome_saved
+  item_skipped
+  credits_failed
+  token_expired
+  error
+}
+
 // ── CRM Integration Enums ──
 
 enum CrmProviderType {
@@ -348,6 +410,7 @@ model User {
   aiConversations         AiConversation[]
   aiMessages              AiMessage[]
   customIntegrations      CustomIntegration[]
+  callSessions            CallSession[]
 
   @@index([clerkId])
 }
@@ -390,6 +453,7 @@ model Organization {
   reminders              Reminder[]
   aiConversations        AiConversation[]
   customIntegrations     CustomIntegration[]
+  callSessions           CallSession[]
 
   @@index([clerkId])
 }
@@ -520,6 +584,7 @@ model Call {
   crmSyncs         CrmCallSync[]
   inboxEvents      InboxEvent[]
   callbacks        CallbackTask[]
+  callSessionItems CallSessionItem[]
 
   @@index([userId])
   @@index([organizationId])
@@ -731,6 +796,7 @@ model Contact {
   messages          Message[]
   callbacks         CallbackTask[]
   customIntegrationLinks CustomIntegrationContactLink[]
+  callSessionItems  CallSessionItem[]
 
   @@unique([userId, phoneNumber, deletedAt])
   @@index([userId])
@@ -1106,6 +1172,7 @@ model Campaign {
   retryRules    RetryRule[]
   callAttempts  CallAttempt[]
   agentSessions AgentSession[]
+  callSessions  CallSession[]
 
   @@index([userId])
   @@index([organizationId])
@@ -2499,4 +2566,132 @@ model AiToolEvent {
 
   @@index([conversationId])
   @@index([conversationId, kind])
+}
+
+// ── Call Sessions ──
+// A CallSession is a queue of contacts/phone numbers to call. It can be
+// shared via a magic-link access token so an unauthenticated collaborator
+// can step through the queue and capture outcomes per call.
+
+model CallSession {
+  id             String                @id @default(uuid()) @db.Uuid
+  userId         String                @db.Uuid
+  organizationId String?               @db.Uuid
+  campaignId     String?               @db.Uuid
+
+  title      String?
+  status     CallSessionStatus     @default(ready)
+  source     CallSessionSource     @default(api)
+  accessMode CallSessionAccessMode @default(magic_link)
+
+  expiresAt   DateTime?
+  maxCalls    Int?
+  callsCompleted Int @default(0)
+
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  metadata Json?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  campaign     Campaign?     @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  items        CallSessionItem[]
+  accessTokens CallSessionAccessToken[]
+  events       CallSessionEvent[]
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([campaignId])
+  @@index([status])
+  @@index([expiresAt])
+  @@index([deletedAt])
+}
+
+model CallSessionItem {
+  id            String                @id @default(uuid()) @db.Uuid
+  callSessionId String                @db.Uuid
+  contactId     String?               @db.Uuid
+
+  phoneNumber   String                @db.VarChar(20)
+  displayName   String?
+  company       String?
+
+  positionIndex Int
+  status        CallSessionItemStatus @default(pending)
+
+  callId      String?      @db.Uuid
+  outcome     CallOutcome?
+  outcomeNote String?      @db.Text
+
+  callbackAt DateTime?
+  meetingId  String?  @db.Uuid
+
+  startedAt DateTime?
+  endedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  callSession CallSession @relation(fields: [callSessionId], references: [id], onDelete: Cascade)
+  contact     Contact?    @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  call        Call?       @relation(fields: [callId], references: [id], onDelete: SetNull)
+
+  @@unique([callSessionId, positionIndex])
+  @@index([callSessionId])
+  @@index([callSessionId, status])
+  @@index([contactId])
+  @@index([callId])
+}
+
+// Magic-link tokens are stored as opaque high-entropy strings. The raw value
+// is shown to the caller once at issue time; we only persist tokenHash.
+model CallSessionAccessToken {
+  id            String                       @id @default(uuid()) @db.Uuid
+  callSessionId String                       @db.Uuid
+
+  tokenHash String                          @unique
+  type      CallSessionAccessTokenType      @default(magic_link)
+  status    CallSessionAccessTokenStatus    @default(active)
+
+  expiresAt   DateTime
+  lastUsedAt  DateTime?
+
+  createdByUserId String?              @db.Uuid
+  createdBySource CallSessionSource    @default(api)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  callSession CallSession @relation(fields: [callSessionId], references: [id], onDelete: Cascade)
+
+  @@index([callSessionId])
+  @@index([status, expiresAt])
+}
+
+// Auditable trail of session activity. Especially important for magic-link
+// access, where the actor is unauthenticated.
+model CallSessionEvent {
+  id            String                  @id @default(uuid()) @db.Uuid
+  callSessionId String                  @db.Uuid
+
+  type        CallSessionEventType
+  actorUserId String?                 @db.Uuid
+  actorSource CallSessionActorSource?
+
+  ipAddress String?
+  userAgent String? @db.Text
+  payload   Json?
+
+  createdAt DateTime @default(now())
+
+  callSession CallSession @relation(fields: [callSessionId], references: [id], onDelete: Cascade)
+
+  @@index([callSessionId, createdAt])
+  @@index([type])
 }
