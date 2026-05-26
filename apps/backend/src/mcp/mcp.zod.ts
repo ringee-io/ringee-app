@@ -36,6 +36,231 @@ export const GetContactSchema = {
     ),
 };
 
+// ── Contact write tools (create / update / delete) ─────────────
+
+const E164_REGEX = /^\+[1-9]\d{1,14}$/;
+
+const phoneNumberField = z
+  .string()
+  .min(3)
+  .max(20)
+  .regex(E164_REGEX, "Phone number must be E.164 (e.g. +14155552671).");
+
+export const CreateContactSchema = {
+  phoneNumber: phoneNumberField.describe(
+    "Destination phone number in E.164 format (e.g. +14155552671). Must be unique within the user/organization.",
+  ),
+  name: z
+    .string()
+    .min(1)
+    .max(100)
+    .optional()
+    .describe("Display name. If omitted, firstName/lastName are used."),
+  firstName: z.string().max(50).optional().describe("Given name."),
+  lastName: z.string().max(50).optional().describe("Family name."),
+  email: z.string().email().max(100).optional().describe("Primary email."),
+  jobTitle: z.string().max(100).optional().describe("Role at the company."),
+  organization: z
+    .string()
+    .max(100)
+    .optional()
+    .describe("Company name (stored as contact.company)."),
+  source: z
+    .string()
+    .max(50)
+    .optional()
+    .describe(
+      "Where this contact came from (e.g. 'mcp', 'event', 'referral'). Defaults to 'mcp' when omitted.",
+    ),
+  note: z
+    .string()
+    .max(2000)
+    .optional()
+    .describe("Optional initial note attached to the contact."),
+  tagIds: z
+    .array(z.string().uuid())
+    .max(20)
+    .optional()
+    .describe("Optional tag UUIDs to attach on creation."),
+};
+
+export const UpdateContactSchema = {
+  contactId: z
+    .string()
+    .uuid()
+    .describe("UUID of the contact to update. Must belong to the current user/organization."),
+  phoneNumber: phoneNumberField.optional().describe(
+    "New phone number, E.164. Must remain unique within the user/organization.",
+  ),
+  name: z.string().min(1).max(100).optional(),
+  firstName: z.string().max(50).optional(),
+  lastName: z.string().max(50).optional(),
+  email: z.string().email().max(100).optional(),
+  jobTitle: z.string().max(100).optional(),
+  organization: z
+    .string()
+    .max(100)
+    .optional()
+    .describe("Company name (stored as contact.company)."),
+  source: z.string().max(50).optional(),
+  tagIds: z
+    .array(z.string().uuid())
+    .max(20)
+    .optional()
+    .describe(
+      "Replace the contact's tags with this exact set (omit to leave tags unchanged).",
+    ),
+};
+
+export const DeleteContactSchema = {
+  contactId: z
+    .string()
+    .uuid()
+    .describe("UUID of the contact to delete (soft delete — sets deletedAt)."),
+  confirm: z
+    .literal(true)
+    .describe(
+      "Must be the literal boolean true. Forces the model to make deletion explicit; do not pass true unless the human user has unambiguously asked to delete this specific contact.",
+    ),
+  confirmPhoneNumber: phoneNumberField.describe(
+    "Must EXACTLY match the contact's stored phoneNumber (E.164). Fetch it with get_contact first — this guard prevents deleting the wrong contact.",
+  ),
+};
+
+export type CreateContactInput = {
+  [K in keyof typeof CreateContactSchema]: z.infer<
+    (typeof CreateContactSchema)[K]
+  >;
+};
+export type UpdateContactInput = {
+  [K in keyof typeof UpdateContactSchema]: z.infer<
+    (typeof UpdateContactSchema)[K]
+  >;
+};
+export type DeleteContactInput = {
+  [K in keyof typeof DeleteContactSchema]: z.infer<
+    (typeof DeleteContactSchema)[K]
+  >;
+};
+
+// ── Lead prospecting tools (Apollo / Prospeo) ──────────────────
+
+const ProviderEnum = z
+  .enum(["apollo", "prospeo"])
+  .describe(
+    "Optional enrichment provider to use. Defaults to whichever the user has connected — Apollo is preferred when both are available.",
+  );
+
+export const SearchLeadsSchema = {
+  provider: ProviderEnum.optional(),
+  keywords: z
+    .string()
+    .max(500)
+    .optional()
+    .describe("Free-text / boolean keyword search (e.g. 'VP marketing SaaS')."),
+  jobTitles: z
+    .array(z.string().min(1).max(100))
+    .max(20)
+    .optional()
+    .describe("Match any of these job titles (e.g. ['VP Sales', 'Head of Sales'])."),
+  jobTitlesExclude: z
+    .array(z.string().min(1).max(100))
+    .max(20)
+    .optional()
+    .describe("Exclude leads matching any of these titles."),
+  seniorities: z
+    .array(z.string().min(1).max(50))
+    .max(20)
+    .optional()
+    .describe(
+      "Seniority bands (e.g. ['c_suite','vp','director','manager']). Provider-specific.",
+    ),
+  departments: z
+    .array(z.string().min(1).max(50))
+    .max(20)
+    .optional()
+    .describe("Departments (e.g. ['sales','marketing','engineering'])."),
+  personCountries: z
+    .array(z.string().min(2).max(60))
+    .max(20)
+    .optional()
+    .describe("ISO country codes or names for the person's location."),
+  personCities: z.array(z.string().max(100)).max(20).optional(),
+  industries: z.array(z.string().max(100)).max(20).optional(),
+  companyDomains: z
+    .array(z.string().max(120))
+    .max(20)
+    .optional()
+    .describe("Company domains (e.g. ['stripe.com'])."),
+  companyNames: z.array(z.string().max(120)).max(20).optional(),
+  employeeCountRanges: z
+    .array(z.string().max(20))
+    .max(10)
+    .optional()
+    .describe("Employee-count buckets (e.g. ['1-10','11-50','51-200'])."),
+  technologies: z.array(z.string().max(80)).max(20).optional(),
+  hasEmail: z.boolean().optional(),
+  hasPhone: z.boolean().optional(),
+  emailVerified: z.boolean().optional(),
+  page: z.number().int().min(1).optional().describe("1-based page. Defaults to 1."),
+  perPage: z
+    .number()
+    .int()
+    .min(1)
+    .max(25)
+    .optional()
+    .describe("Results per page. Defaults to 25, capped at 25."),
+};
+
+export const RevealLeadSchema = {
+  jobId: z
+    .string()
+    .uuid()
+    .describe("UUID of the lead search job returned by search_leads."),
+  externalId: z
+    .string()
+    .min(1)
+    .max(200)
+    .describe("Candidate.externalId from the search result you want to reveal."),
+  revealPhone: z
+    .boolean()
+    .optional()
+    .describe(
+      "Set true to also reveal a mobile phone number. Costs extra credits with the upstream provider.",
+    ),
+};
+
+export const ImportLeadsSchema = {
+  jobId: z
+    .string()
+    .uuid()
+    .describe("UUID of the lead search job containing the candidates to import."),
+  externalIds: z
+    .array(z.string().min(1).max(200))
+    .min(1)
+    .max(50)
+    .describe("Candidate externalIds from that job's results to import as contacts."),
+  tagIds: z
+    .array(z.string().uuid())
+    .max(10)
+    .optional()
+    .describe("Optional tag UUIDs to assign to every imported contact."),
+};
+
+export type SearchLeadsInput = {
+  [K in keyof typeof SearchLeadsSchema]: z.infer<
+    (typeof SearchLeadsSchema)[K]
+  >;
+};
+export type RevealLeadInput = {
+  [K in keyof typeof RevealLeadSchema]: z.infer<(typeof RevealLeadSchema)[K]>;
+};
+export type ImportLeadsInput = {
+  [K in keyof typeof ImportLeadsSchema]: z.infer<
+    (typeof ImportLeadsSchema)[K]
+  >;
+};
+
 export const StartCallSchema = {
   contactId: z
     .string()

@@ -1,13 +1,15 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { ForbiddenException, Injectable, Logger } from "@nestjs/common";
 import {
   CallService,
   CallSessionService,
   CallbackService,
   ContactService,
+  LeadSearchService,
   MeetingService,
   UserDeviceService,
 } from "@ringee/services";
 import {
+  LeadSearchFilters,
   NotificationService,
   OwnershipContext,
 } from "@ringee/platform";
@@ -15,6 +17,8 @@ import { apiConfiguration } from "@ringee/configuration";
 import {
   CallOutcome,
   CallSessionSource,
+  Contact,
+  EnrichmentProviderType,
 } from "@ringee/database";
 import { McpTool } from "./mcp.tools";
 import {
@@ -22,22 +26,34 @@ import {
   CreateCallSessionSchema,
   CreateCallbackInput,
   CreateCallbackSchema,
+  CreateContactInput,
+  CreateContactSchema,
   DeleteCallSessionInput,
   DeleteCallSessionSchema,
+  DeleteContactInput,
+  DeleteContactSchema,
   GetCallSessionInput,
   GetCallSessionSchema,
   GetContactInput,
   GetContactSchema,
+  ImportLeadsInput,
+  ImportLeadsSchema,
   LogCallOutcomeInput,
   LogCallOutcomeSchema,
+  RevealLeadInput,
+  RevealLeadSchema,
   ScheduleMeetingInput,
   ScheduleMeetingSchema,
   SearchContactsInput,
   SearchContactsSchema,
+  SearchLeadsInput,
+  SearchLeadsSchema,
   StartCallInput,
   StartCallSchema,
   UpdateCallSessionInput,
   UpdateCallSessionSchema,
+  UpdateContactInput,
+  UpdateContactSchema,
 } from "./mcp.zod";
 import { CallSessionActorSource } from "@ringee/database";
 
@@ -63,11 +79,40 @@ export class McpFunc {
     private readonly userDeviceService: UserDeviceService,
     private readonly notificationService: NotificationService,
     private readonly callSessionService: CallSessionService,
+    private readonly leadSearchService: LeadSearchService,
   ) {}
 
   private buildJoinUrl(rawToken: string): string {
     const base = apiConfiguration.FRONTEND_URL.replace(/\/$/, "");
     return `${base}/dialer/session?token=${encodeURIComponent(rawToken)}`;
+  }
+
+  private assertContactOwnership(
+    ctx: OwnershipContext,
+    contact: Pick<Contact, "id" | "userId" | "organizationId">,
+  ): void {
+    if (ctx.organizationId) {
+      if (contact.organizationId !== ctx.organizationId) {
+        throw new ForbiddenException("Contact does not belong to this organization");
+      }
+      return;
+    }
+    if (contact.userId !== ctx.userId || contact.organizationId !== null) {
+      throw new ForbiddenException("Contact does not belong to this user");
+    }
+  }
+
+  private serializeContact(contact: Contact) {
+    return {
+      id: contact.id,
+      name: contact.name,
+      firstName: contact.firstName,
+      lastName: contact.lastName,
+      phoneNumber: contact.phoneNumber,
+      email: contact.email,
+      company: contact.company,
+      jobTitle: contact.jobTitle,
+    };
   }
 
   @McpTool({
@@ -406,6 +451,264 @@ export class McpFunc {
       contactsCount: items.length,
       callsCompleted: session.callsCompleted,
       joinUrlAvailable: hasActiveToken,
+    });
+  }
+
+  // ── Contact write tools ────────────────────────────────────
+
+  @McpTool({
+    toolName: "create_contact",
+    description:
+      "Create a new contact in the user's (or organization's) Ringee directory. " +
+      "phoneNumber must be unique within the scope — the tool fails fast if a contact with the same number already exists. " +
+      "Returns the new contact id and a compact representation.",
+    zod: CreateContactSchema,
+  })
+  async createContact(ctx: OwnershipContext, input: CreateContactInput) {
+    const created = await this.contactService.createContact(ctx, {
+      name: input.name,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      phoneNumber: input.phoneNumber,
+      email: input.email,
+      jobTitle: input.jobTitle,
+      organization: input.organization,
+      source: input.source ?? "mcp",
+      note: input.note,
+      tagIds: input.tagIds,
+    });
+
+    return text({
+      ok: true,
+      created: true,
+      contact: this.serializeContact(created),
+    });
+  }
+
+  @McpTool({
+    toolName: "update_contact",
+    description:
+      "Patch fields on an existing contact. Only provided fields are changed. " +
+      "Verifies the contact belongs to the current user/organization before writing. " +
+      "Pass tagIds to REPLACE the contact's tag set (omit to leave tags untouched).",
+    zod: UpdateContactSchema,
+  })
+  async updateContact(ctx: OwnershipContext, input: UpdateContactInput) {
+    const existing = await this.contactService.getContactById(input.contactId);
+    this.assertContactOwnership(ctx, existing);
+
+    const updated = await this.contactService.updateContact(input.contactId, {
+      name: input.name,
+      firstName: input.firstName,
+      lastName: input.lastName,
+      phoneNumber: input.phoneNumber as string,
+      email: input.email,
+      jobTitle: input.jobTitle,
+      organization: input.organization,
+      source: input.source,
+      tagIds: input.tagIds,
+    });
+
+    return text({
+      ok: true,
+      updated: true,
+      contact: this.serializeContact(updated),
+    });
+  }
+
+  @McpTool({
+    toolName: "delete_contact",
+    description:
+      "Soft-delete a contact (sets deletedAt). DESTRUCTIVE — requires strict double-confirmation: " +
+      "(1) confirm must be the literal boolean true, and (2) confirmPhoneNumber must exactly match the contact's " +
+      "stored phoneNumber in E.164. Always fetch the contact with get_contact first and read the phoneNumber back " +
+      "to the human user for explicit approval before calling this tool. Never auto-confirm without a clear human ask.",
+    zod: DeleteContactSchema,
+  })
+  async deleteContact(ctx: OwnershipContext, input: DeleteContactInput) {
+    const existing = await this.contactService.getContactById(input.contactId);
+    this.assertContactOwnership(ctx, existing);
+
+    if (input.confirm !== true) {
+      return text({
+        ok: false,
+        deleted: false,
+        error: "confirm must be the literal boolean true to delete a contact.",
+      });
+    }
+
+    if (input.confirmPhoneNumber !== existing.phoneNumber) {
+      return text({
+        ok: false,
+        deleted: false,
+        error:
+          "confirmPhoneNumber does not match the contact's stored phoneNumber. Re-fetch with get_contact and ask the user to confirm before retrying.",
+      });
+    }
+
+    const deleted = await this.contactService.deleteContact(input.contactId);
+
+    return text({
+      ok: true,
+      deleted: true,
+      contactId: deleted.id,
+      phoneNumber: deleted.phoneNumber,
+    });
+  }
+
+  // ── Lead prospecting tools (Apollo / Prospeo) ─────────────
+
+  @McpTool({
+    toolName: "search_leads",
+    description:
+      "Prospect new leads via the user's connected enrichment provider (Apollo or Prospeo). " +
+      "Results are NOT contacts yet — they are candidates. To turn them into Ringee contacts, " +
+      "either call reveal_lead (to also unlock email/phone) or import_leads_as_contacts. " +
+      "Returns a jobId you must pass to those follow-up tools. " +
+      "Provider auto-selected if omitted (Apollo preferred when both are connected).",
+    zod: SearchLeadsSchema,
+  })
+  async searchLeads(ctx: OwnershipContext, input: SearchLeadsInput) {
+    const filters: LeadSearchFilters = {
+      keywords: input.keywords,
+      jobTitles: input.jobTitles,
+      jobTitlesExclude: input.jobTitlesExclude,
+      seniorities: input.seniorities,
+      departments: input.departments,
+      personCountries: input.personCountries,
+      personCities: input.personCities,
+      industries: input.industries,
+      companyDomains: input.companyDomains,
+      companyNames: input.companyNames,
+      employeeCountRanges: input.employeeCountRanges,
+      technologies: input.technologies,
+      hasEmail: input.hasEmail,
+      hasPhone: input.hasPhone,
+      emailVerified: input.emailVerified,
+    };
+
+    const { job, result, cached } = await this.leadSearchService.searchLeads(
+      ctx,
+      filters,
+      {
+        provider: input.provider as EnrichmentProviderType | undefined,
+        page: input.page,
+        perPage: input.perPage,
+      },
+    );
+
+    return text({
+      ok: true,
+      jobId: job.id,
+      provider: job.provider,
+      cached,
+      page: result.page,
+      perPage: result.perPage,
+      total: result.total,
+      hasMore: result.hasMore,
+      results: result.results.map((c) => ({
+        externalId: c.externalId,
+        confidence: c.confidence,
+        person: {
+          fullName: c.person.fullName,
+          jobTitle: c.person.jobTitle,
+          seniority: c.person.seniority,
+          department: c.person.department,
+          linkedinUrl: c.person.linkedinUrl,
+          location: c.person.location,
+          emailsAvailable: (c.person.emails?.length ?? 0) > 0,
+          phonesAvailable: (c.person.phones?.length ?? 0) > 0,
+        },
+        company: c.company
+          ? {
+              name: c.company.name,
+              domain: c.company.domain,
+              industry: c.company.industry,
+              employeeCount: c.company.employeeCount,
+            }
+          : null,
+      })),
+    });
+  }
+
+  @McpTool({
+    toolName: "reveal_lead",
+    description:
+      "Reveal email (and optionally mobile phone) for a single candidate from a previous search_leads job. " +
+      "Also upserts a Contact in Ringee with the revealed data so the lead is immediately callable. " +
+      "Consumes provider credits — only call when the user has explicitly chosen this lead.",
+    zod: RevealLeadSchema,
+  })
+  async revealLead(ctx: OwnershipContext, input: RevealLeadInput) {
+    const result = await this.leadSearchService.revealCandidate(
+      ctx,
+      input.jobId,
+      input.externalId,
+      { revealPhone: input.revealPhone ?? false },
+    );
+
+    return text({
+      ok: true,
+      contactId: result.contactId,
+      emailRevealed: result.emailRevealed,
+      phoneRevealed: result.phoneRevealed,
+      person: {
+        fullName: result.candidate.person.fullName,
+        jobTitle: result.candidate.person.jobTitle,
+        emails: result.candidate.person.emails?.map((e) => e.value) ?? [],
+        phones: result.candidate.person.phones?.map((p) => p.value) ?? [],
+      },
+      company: result.candidate.company
+        ? {
+            name: result.candidate.company.name,
+            domain: result.candidate.company.domain,
+          }
+        : null,
+    });
+  }
+
+  @McpTool({
+    toolName: "import_leads_as_contacts",
+    description:
+      "Bulk-import selected candidates from a search_leads job as Ringee contacts. " +
+      "Skips candidates already present (phone-number dedup). Does NOT reveal hidden emails/phones — " +
+      "use reveal_lead first if you need contact info unlocked. Returns counts and the new contact ids.",
+    zod: ImportLeadsSchema,
+  })
+  async importLeadsAsContacts(
+    ctx: OwnershipContext,
+    input: ImportLeadsInput,
+  ) {
+    const job = await this.leadSearchService.getJob(input.jobId, ctx);
+    const snapshot = job.resultSnapshot as
+      | { results?: Array<{ externalId: string }> }
+      | null;
+    const all = snapshot?.results ?? [];
+    const wanted = new Set(input.externalIds);
+    const candidates = all.filter((c) =>
+      wanted.has((c as { externalId: string }).externalId),
+    );
+
+    if (candidates.length === 0) {
+      return text({
+        ok: false,
+        imported: 0,
+        error: "None of the provided externalIds match candidates in this job.",
+      });
+    }
+
+    const result = await this.leadSearchService.importLeads(
+      ctx,
+      candidates as never,
+      { tagIds: input.tagIds },
+    );
+
+    return text({
+      ok: true,
+      imported: result.importedContactIds.length,
+      duplicates: result.duplicates,
+      errors: result.errors,
+      contactIds: result.importedContactIds,
     });
   }
 }
