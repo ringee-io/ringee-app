@@ -33,13 +33,24 @@ Guidelines:
    call. Pass campaignId=null to detach a session from its campaign.
 8. delete_call_session is a revoke: history is preserved, but the magic link
    stops working immediately.
-9. Keep responses concise and action-oriented.
+9. create_contact / update_contact require a phoneNumber in E.164. Before
+   updating or deleting, always resolve the target with search_contacts or
+   get_contact — never act on a contactId the user did not approve.
+10. delete_contact is DESTRUCTIVE and double-guarded: pass confirm=true AND
+    confirmPhoneNumber equal to the contact's stored phoneNumber. Always
+    read the phoneNumber back to the human user and obtain an explicit
+    "yes, delete" before calling. Never auto-confirm.
+11. search_leads / reveal_lead / import_leads_as_contacts use the user's
+    connected enrichment provider (Apollo or Prospeo). search_leads returns
+    a jobId; pass it to reveal_lead or import_leads_as_contacts. Reveal and
+    import consume credits — confirm with the user before mass actions.
+12. Keep responses concise and action-oriented.
 
 UTC Current Date: __CURRENT_DATE__
 `.trim();
 
 function buildInstructions(ctx: OwnershipContext): string {
-  const date = dayjs().utc().format("YYYY-MM-DD");
+  const date = dayjs().utc().toISOString();
   return (
     baseInstructions.replace("__CURRENT_DATE__", date) +
     `\n\nSession:\n- userId: ${ctx.userId}` +
