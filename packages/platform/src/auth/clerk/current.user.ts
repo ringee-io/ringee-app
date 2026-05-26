@@ -1,4 +1,9 @@
-import { createParamDecorator, ExecutionContext } from "@nestjs/common";
+import {
+  createParamDecorator,
+  ExecutionContext,
+  InternalServerErrorException,
+  UnauthorizedException,
+} from "@nestjs/common";
 import { ClerkUserRepository } from "./clerk.user.repository";
 
 export const CurrentUser = createParamDecorator(
@@ -9,31 +14,38 @@ export const CurrentUser = createParamDecorator(
     const clerkOrgId = request.clerkOrgId;
     const activeOrgRole = request.orgRole;
 
-    if (!clerkUserId) return null;
+    if (!clerkUserId) {
+      throw new UnauthorizedException("No authenticated user in request");
+    }
 
+    let user;
     try {
-      const user = await ClerkUserRepository.findById(clerkUserId);
-
-      if (!user) return null;
-
-      const mappedUser = ClerkUserRepository.mapToUser(user);
-      const rawUserId = (user.privateMetadata as any)?.userId;
-
-      let activeOrgId = null;
-
-      if (clerkOrgId) {
-        activeOrgId = clerkOrgId;
-      }
-
-      return {
-        ...mappedUser,
-        id: rawUserId,
-        activeOrgId,
-        activeOrgRole,
-      };
+      user = await ClerkUserRepository.findById(clerkUserId);
     } catch (error) {
       console.error("Error al obtener usuario:", error);
-      return null;
+      throw new InternalServerErrorException(
+        "Failed to resolve user from Clerk",
+      );
     }
+
+    if (!user) {
+      throw new UnauthorizedException("Clerk user not found");
+    }
+
+    const mappedUser = ClerkUserRepository.mapToUser(user);
+    const rawUserId = (user.privateMetadata as any)?.userId;
+
+    if (!rawUserId) {
+      throw new UnauthorizedException(
+        "Clerk user is missing privateMetadata.userId",
+      );
+    }
+
+    return {
+      ...mappedUser,
+      id: rawUserId,
+      activeOrgId: clerkOrgId ?? null,
+      activeOrgRole,
+    };
   },
 );
