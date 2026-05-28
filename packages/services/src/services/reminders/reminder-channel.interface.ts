@@ -22,6 +22,12 @@ export interface ReminderContent {
   bodyText: string;
   /** Deep-link the user can follow to open the reminder's subject in-app. */
   deepLinkUrl?: string;
+  /**
+   * Extra string-valued fields forwarded as the FCM `data` payload. The
+   * mobile app routes off `type` + the relevant subject id; orchestration
+   * populates this per subject type.
+   */
+  pushData?: Record<string, string>;
 }
 
 export interface ReminderChannel {

@@ -24,7 +24,35 @@ import {
 } from "./reminder-channel.interface";
 
 const DEFAULT_OFFSETS_MIN = [15, 5] as const;
-const DEFAULT_CHANNELS: ReminderChannelKind[] = ["email"];
+const DEFAULT_CHANNELS: ReminderChannelKind[] = ["email", "in_app"];
+
+// Defaults applied when a user has no stored notificationPreferences row.
+// New users opt into everything until they explicitly disable a category.
+const DEFAULT_NOTIFICATION_PREFS = {
+  callbacks: true,
+  meetings: true,
+  missedCalls: true,
+} as const;
+
+interface NotificationPreferences {
+  callbacks: boolean;
+  meetings: boolean;
+  missedCalls: boolean;
+}
+
+function parsePrefs(raw: unknown): NotificationPreferences {
+  if (!raw || typeof raw !== "object") return { ...DEFAULT_NOTIFICATION_PREFS };
+  const obj = raw as Record<string, unknown>;
+  const pick = (k: keyof NotificationPreferences) =>
+    typeof obj[k] === "boolean"
+      ? (obj[k] as boolean)
+      : DEFAULT_NOTIFICATION_PREFS[k];
+  return {
+    callbacks: pick("callbacks"),
+    meetings: pick("meetings"),
+    missedCalls: pick("missedCalls"),
+  };
+}
 
 interface ScheduleSubjectInput {
   subjectType: ReminderSubjectType;
@@ -152,31 +180,69 @@ export class ReminderService {
           continue;
         }
 
-        const recipient = await this.resolveRecipient(reminder.userId);
-        if (!recipient.email) {
-          await this.reminderRepo.markFailed(
-            reminder.id,
-            "recipient has no email on file"
-          );
-          continue;
-        }
+        const user = await this.userRepo.findById(reminder.userId);
+        const prefs = parsePrefs(
+          (user as { notificationPreferences?: unknown } | null)
+            ?.notificationPreferences
+        );
 
+        // Preferences only gate push notifications — email is always sent
+        // so the user never misses a reminder for an event they scheduled.
+        const pushAllowed =
+          (reminder.subjectType === ReminderSubjectType.callback &&
+            prefs.callbacks) ||
+          (reminder.subjectType === ReminderSubjectType.meeting &&
+            prefs.meetings);
+
+        const recipient = await this.resolveRecipient(reminder.userId);
         const content = this.buildContent(
           reminder.subjectType,
           subjectCtx,
           reminder.fireAt
         );
 
+        // Attach a route hint so the push channel can deep-link the user
+        // back into the relevant subject when they tap the notification.
+        const pushData: Record<string, string> = {};
+        if (reminder.subjectType === ReminderSubjectType.callback) {
+          pushData.type = "CALLBACK_REMINDER";
+          pushData.callbackId = reminder.subjectId;
+          pushData.subjectId = reminder.subjectId;
+        } else if (reminder.subjectType === ReminderSubjectType.meeting) {
+          pushData.type = "MEETING_REMINDER";
+          pushData.meetingId = reminder.subjectId;
+          pushData.subjectId = reminder.subjectId;
+        }
+        const contentWithPush: ReminderContent = { ...content, pushData };
+
+        let anySent = false;
+        const errors: string[] = [];
+
         for (const channelKind of reminder.channels) {
+          if (channelKind === "in_app" && !pushAllowed) continue;
           const channel = this.channels.find((c) => c.kind === channelKind);
           if (!channel) {
-            throw new Error(`No channel registered for kind ${channelKind}`);
+            errors.push(`No channel registered for kind ${channelKind}`);
+            continue;
           }
-          await channel.send(recipient, content);
+          try {
+            await channel.send(recipient, contentWithPush);
+            anySent = true;
+          } catch (err) {
+            const message = err instanceof Error ? err.message : String(err);
+            errors.push(`${channelKind}: ${message}`);
+          }
         }
 
-        await this.reminderRepo.markSent(reminder.id);
-        dispatched++;
+        if (anySent) {
+          await this.reminderRepo.markSent(reminder.id);
+          dispatched++;
+        } else {
+          await this.reminderRepo.markFailed(
+            reminder.id,
+            errors.join("; ") || "no channels delivered"
+          );
+        }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         this.logger.error(

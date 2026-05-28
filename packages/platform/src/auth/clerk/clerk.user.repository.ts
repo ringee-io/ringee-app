@@ -65,6 +65,7 @@ export class ClerkUserRepository {
       encryptionKey: null,
       onboardingCompletedSteps: [],
       onboardingDismissedAt: null,
+      notificationPreferences: null,
       emails: user.emailAddresses.map((e) => ({
         id: e.id,
         userId: user.id,

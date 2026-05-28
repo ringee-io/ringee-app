@@ -6,6 +6,7 @@ import {
   Get,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Query,
 } from "@nestjs/common";
@@ -19,7 +20,9 @@ import {
   CallbackService,
   ContactService,
   MeetingService,
+  NotificationPreferences,
   ReminderService,
+  UserService,
 } from "@ringee/services";
 import { PrismaService, UserDeviceRepository } from "@ringee/database";
 import {
@@ -53,6 +56,7 @@ export class MobileController {
     private readonly meetingService: MeetingService,
     private readonly reminderService: ReminderService,
     private readonly userDeviceRepository: UserDeviceRepository,
+    private readonly userService: UserService,
   ) {}
 
   // ─── Today ────────────────────────────────────────────────────────────
@@ -394,6 +398,31 @@ export class MobileController {
     if (!body?.token) throw new BadRequestException("token is required");
     await this.userDeviceRepository.revokeToken(body.token);
     return { ok: true };
+  }
+
+  // ─── Preferences ──────────────────────────────────────────────────────
+  // Per-user toggles for which categories of notifications the mobile app
+  // (and reminder worker) should deliver. The shape mirrors the toggles on
+  // the Settings screen 1:1 — keep them aligned when adding new categories.
+
+  @Get("preferences/notifications")
+  async getNotificationPreferences(@CurrentUser() user: CurrentUserData) {
+    return this.userService.getNotificationPreferences(user.id);
+  }
+
+  @Patch("preferences/notifications")
+  async updateNotificationPreferences(
+    @CurrentUser() user: CurrentUserData,
+    @Body() body: Partial<NotificationPreferences>,
+  ) {
+    if (!body || typeof body !== "object") {
+      throw new BadRequestException("body must be an object");
+    }
+    const patch: Partial<NotificationPreferences> = {};
+    for (const key of ["callbacks", "meetings", "missedCalls"] as const) {
+      if (typeof body[key] === "boolean") patch[key] = body[key] as boolean;
+    }
+    return this.userService.setNotificationPreferences(user.id, patch);
   }
 
   // ─── Helpers ──────────────────────────────────────────────────────────

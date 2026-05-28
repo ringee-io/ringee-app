@@ -74,6 +74,7 @@ import {
 import { InboxTimelineService, MessageService } from "./inbox";
 import {
   EmailReminderChannel,
+  PushReminderChannel,
   REMINDER_CHANNELS,
   ReminderService,
 } from "./reminders";
@@ -169,6 +170,7 @@ const servicesProviders = [
   // Reminders
   ReminderService,
   EmailReminderChannel,
+  PushReminderChannel,
   // Ringee AI
   ProspectScoringService,
   PastBuyerAnalyzerService,
@@ -195,8 +197,11 @@ const servicesProviders = [
 
 const reminderChannelsProvider: Provider = {
   provide: REMINDER_CHANNELS,
-  useFactory: (email: EmailReminderChannel) => [email],
-  inject: [EmailReminderChannel],
+  useFactory: (email: EmailReminderChannel, push: PushReminderChannel) => [
+    email,
+    push,
+  ],
+  inject: [EmailReminderChannel, PushReminderChannel],
 };
 
 const allProviders: Provider[] = [

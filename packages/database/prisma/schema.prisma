@@ -378,6 +378,11 @@ model User {
   onboardingCompletedSteps String[]  @default([])
   onboardingDismissedAt    DateTime?
 
+  // Per-user toggles for what gets pushed to mobile devices.
+  // Shape: { callbacks: boolean, meetings: boolean, missedCalls: boolean }
+  // Missing keys mean "default on" so older rows keep current behavior.
+  notificationPreferences Json?
+
   emails                  UserEmail[]
   chatAuths               ChatAuth[]
   calls                   Call[]
