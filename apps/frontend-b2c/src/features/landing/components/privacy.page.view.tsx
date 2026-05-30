@@ -8,15 +8,16 @@ export default function PrivacyPageView() {
           Privacy Policy
         </h1>
         <p className='text-muted-foreground mb-10 text-sm'>
-          Last updated: November 2, 2025
+          Last updated: May 29, 2026
         </p>
 
         <p className='mb-6'>
-          Ringee.io (“Ringee”, “we”, “our”, “us”) provides browser-based voice
-          calling services that let you make and receive calls, rent numbers,
-          and manage credits. This Privacy Policy explains what information we
-          collect, how we use it, and how we protect it. By using our service,
-          you agree to the terms below.
+          Ringee.io (“Ringee”, “we”, “our”, “us”) provides voice calling
+          services — through both our web app (browser-based calling) and the
+          Ringee mobile app for iOS — that let you make and receive calls, rent
+          numbers, and manage credits. This Privacy Policy explains what
+          information we collect, how we use it, and how we protect it. By using
+          our service, you agree to the terms below.
         </p>
 
         <Separator className='my-8' />
@@ -51,7 +52,29 @@ export default function PrivacyPageView() {
             <strong>Usage data:</strong> login times, IP address, and actions in
             your dashboard. This helps detect fraud and maintain stability.
           </li>
+          <li>
+            <strong>Microphone access (mobile app):</strong> the Ringee iOS app
+            requests access to your device microphone solely to place outbound
+            VoIP calls. We do not access your microphone in the background or
+            when you are not on a call.
+          </li>
+          <li>
+            <strong>Push notifications (mobile app):</strong> with your
+            permission, the app sends push notifications for callback reminders
+            and follow-up activities. You can turn these off anytime in your
+            device settings.
+          </li>
+          <li>
+            <strong>Contacts, notes, and activities:</strong> contacts, notes,
+            activities, and call history you create are synced with your Ringee
+            account so they stay available across the web and mobile app.
+          </li>
         </ul>
+        <p className='mb-6'>
+          The Ringee mobile app does not process any payments or in-app
+          purchases. All billing happens on our website — see “Billing &amp;
+          Plans” below.
+        </p>
 
         <Separator className='my-8' />
 
@@ -85,12 +108,18 @@ export default function PrivacyPageView() {
         </p>
         <ul className='mb-6 list-disc space-y-2 pl-6'>
           <li>
-            <strong>Telecom carriers:</strong> to connect your calls to external
-            phone networks.
+            <strong>Authentication (Clerk):</strong> we use Clerk to create and
+            secure your account, including email/password, Google Sign-In, and
+            Sign in with Apple.
           </li>
           <li>
-            <strong>Payment processors:</strong> to handle credit purchases and
-            prevent fraud.
+            <strong>Voice infrastructure (Telnyx):</strong> to connect and route
+            your calls across external phone networks.
+          </li>
+          <li>
+            <strong>Payment processors (Stripe and PayPal):</strong> to handle
+            subscriptions, credit purchases, and number rentals on our website,
+            and to help prevent fraud.
           </li>
           <li>
             <strong>Legal obligations:</strong> we may provide limited account
@@ -139,8 +168,11 @@ export default function PrivacyPageView() {
             or verified numbers.
           </li>
           <li>
-            <strong>Deletion:</strong> request deletion of your recordings or
-            account. Certain data may remain for compliance.
+            <strong>Deletion:</strong> you can delete your account directly from
+            the Ringee mobile app (Profile / Settings → Delete account), or
+            request deletion by email. Deleting your account permanently removes
+            your account and its associated data, except information we are
+            legally required to retain.
           </li>
           <li>
             <strong>Export:</strong> request an export of your call or billing
@@ -182,12 +214,15 @@ export default function PrivacyPageView() {
         <Separator className='my-8' />
 
         <h2 className='text-foreground mb-3 text-2xl font-semibold'>
-          7. Pay-As-You-Go Model
+          7. Billing &amp; Plans
         </h2>
         <p className='mb-6'>
-          Ringee.io does not use recurring subscriptions. You only pay for the
-          minutes and numbers you use. Your call and payment history is retained
-          so you can view invoices and credit usage at any time.
+          Ringee offers two ways to pay: subscription plans and pay-as-you-go
+          (prepaid credits plus rented phone numbers). All purchases —
+          subscriptions, credits, and phone numbers — are made and paid for
+          exclusively on our website (ringee.io). No purchases of any kind are
+          available within the Ringee mobile app. Your call and payment history
+          is retained so you can view invoices and credit usage at any time.
         </p>
 
         <Separator className='my-8' />
