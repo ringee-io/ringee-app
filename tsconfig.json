@@ -4,6 +4,8 @@
   "compilerOptions": {
     "baseUrl": ".",
     "paths": {
+      "@ringee-io/agent": ["packages/agent/src/index.ts"],
+      "@ringee-io/agent/*": ["packages/agent/src/*"],
       "@ringee/components/*": ["packages/components/src/*"],
       "@ringee/*": ["packages/*/src"]
     },

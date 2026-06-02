@@ -100,6 +100,67 @@ Open:
 
 ---
 
+## Agent layer (`@ringee-io/agent`)
+
+A thin agent layer lets Claude, Claude Code/OpenClaw, the `ringee` CLI and a
+ChatGPT App operate Ringee on top of the **existing backend/MCP** — which stays
+the single source of truth. No business logic is duplicated.
+
+```
+Ringee backend / MCP  (apps/backend — source of truth)
+        │
+        ▼
+@ringee-io/agent      (packages/agent — clients · schemas · flows · prompts · rules)
+        │
+        ├── ringee CLI      (apps/agent-cli)
+        ├── Claude Skills   (packages/agent/skills → wired into .claude/)
+        ├── slash commands  (packages/agent/commands → wired into .claude/)
+        └── ChatGPT App     (apps/chatgpt-app)
+```
+
+Capabilities mirror the MCP: search/get/create/update/delete contacts, log call
+outcomes, callbacks, meetings, create/update/get/revoke call sessions, and lead
+prospecting (search/reveal/import via Apollo/Prospeo). Sensitive actions (credits,
+magic links) and destructive ones (delete/revoke) require explicit confirmation.
+
+```bash
+# CLI (configure RINGEE_MCP_URL or RINGEE_BACKEND_URL + RINGEE_USER_ID)
+pnpm ringee config check
+pnpm ringee contacts search acme
+pnpm ringee leads search --title "VP Sales" --country US
+
+# ChatGPT App: polished component gallery + the MCP endpoint
+pnpm dev:chatgpt-app          # http://localhost:4202 (UI preview)
+pnpm chatgpt-app:mcp          # http://localhost:4250/mcp (connect ChatGPT here)
+
+# Install the Claude Skills + slash commands elsewhere
+pnpm agent:install-skills
+```
+
+In Claude Code, the `/ringee-prospect`, `/ringee-contacts`, `/ringee-session`,
+`/ringee-followup` and `/ringee-flow` slash commands are available, backed by the
+`ringee-operator`, `ringee-prospecting` and `ringee-call-sessions` skills.
+
+### Distribution
+
+This repo is also a **Claude Code plugin marketplace** (`/.claude-plugin/marketplace.json`
++ `packages/agent/.claude-plugin/`). Install the plugin with:
+
+```text
+/plugin marketplace add ringee-io/ringee
+/plugin install ringee@ringee-io
+```
+
+The **ChatGPT App** ships as an Apps SDK MCP server (`apps/chatgpt-app`) with
+inlined visual widgets, an OAuth 2.1 scaffold and a Dockerfile.
+
+See [`PUBLISHING.md`](PUBLISHING.md) for the full publish runbook, plus
+[`packages/agent/README.md`](packages/agent/README.md),
+[`apps/agent-cli/README.md`](apps/agent-cli/README.md) and
+[`apps/chatgpt-app/README.md`](apps/chatgpt-app/README.md).
+
+---
+
 ## Sponsorship
 
 Ringee is open-source to help developers and teams deploy their own communication infrastructure.  
