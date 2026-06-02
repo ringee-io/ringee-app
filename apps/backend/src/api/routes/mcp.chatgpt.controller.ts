@@ -101,16 +101,28 @@ export class McpChatgptController {
   private async resolveContext(
     req: Request,
   ): Promise<OwnershipContext | null> {
-    const { isAuthenticated, userId, orgId } = getAuth(req);
+    // ChatGPT authenticates with a Clerk OAuth access token; first-party
+    // callers (e.g. the dashboard) use a session token. getAuth() defaults to
+    // accepting session tokens ONLY, so an OAuth token would always come back
+    // unauthenticated and 401 the connector. Accept both token types here.
+    const auth = getAuth(req, {
+      acceptsToken: ["session_token", "oauth_token"],
+    });
 
-    if (!isAuthenticated || !userId) {
+    if (!auth.isAuthenticated) {
       return null;
     }
 
-    const user = await this.userService.getByClerkId(userId);
+    // After the guard the object is a SignedIn session OR an authenticated
+    // OAuth machine object — both expose `userId` (the Clerk user id).
+    const user = await this.userService.getByClerkId(auth.userId);
     if (!user) {
       return null;
     }
+
+    // Only session tokens carry an active organization; OAuth tokens resolve to
+    // the user's personal scope.
+    const orgId = "orgId" in auth ? auth.orgId : null;
 
     let organizationId: string | null = null;
     if (orgId) {
