@@ -147,7 +147,7 @@ This repo is also a **Claude Code plugin marketplace** (`/.claude-plugin/marketp
 + `packages/agent/.claude-plugin/`). Install the plugin with:
 
 ```text
-/plugin marketplace add ringee-io/ringee
+/plugin marketplace add ringee-io/ringee-app
 /plugin install ringee@ringee-io
 ```
 

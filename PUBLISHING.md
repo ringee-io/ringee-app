@@ -31,7 +31,7 @@ wires it into the `ringee` MCP server (`${user_config.mcp_url}`).
 claude plugin validate ./packages/agent
 claude plugin validate .          # validates the marketplace
 
-# 2. Commit and push to the PUBLIC repo (github.com/ringee-io/ringee)
+# 2. Commit and push to the PUBLIC repo (github.com/ringee-io/ringee-app)
 git add .claude-plugin packages/agent/.claude-plugin packages/agent/.mcp.json
 git commit -m "feat: Ringee Claude Code plugin + marketplace"
 git push
@@ -42,7 +42,7 @@ That's it — there is no central submission. A public git repo *is* the marketp
 ### How users install it
 
 ```text
-/plugin marketplace add ringee-io/ringee
+/plugin marketplace add ringee-io/ringee-app
 /plugin install ringee@ringee-io
 ```
 
@@ -61,7 +61,7 @@ with `/plugin marketplace update`.
 Anthropic curates a discoverable set in the `/plugin` Discover tab. To be
 considered, open your marketplace publicly and submit it through Anthropic's
 plugin submission form / community process (see code.claude.com/docs → Discover
-and install plugins). The decentralized `add ringee-io/ringee` route works
+and install plugins). The decentralized `add ringee-io/ringee-app` route works
 immediately regardless.
 
 ---
