@@ -1,13 +1,12 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
-import { hasConfig, type RingeeClient } from "@ringee-io/agent";
+import type { RingeeClient } from "@ringee-io/agent";
 import { createRingeeAppServer } from "./mcp-server.js";
-import { getRingeeClientFor } from "./ringee-mcp.js";
+import { getRingeeClientForToken } from "./ringee-mcp.js";
 import {
   buildProtectedResourceMetadata,
   extractBearer,
   getAuthConfig,
-  resolveRingeeIdentity,
   verifyAccessToken,
   wwwAuthenticate,
 } from "./auth.js";
@@ -57,40 +56,33 @@ const httpServer = createServer(async (req, res) => {
   }
 
   if (url.startsWith("/mcp")) {
-    // Per-request Ringee account. Stays undefined in dev / single-tenant, where
+    // Per-request Ringee client. Stays undefined in dev (auth off), where
     // createRingeeAppServer falls back to the env-configured singleton.
     let ringeeClient: RingeeClient | undefined;
 
-    // Enforce OAuth when enabled.
+    // Enforce OAuth when enabled, then forward the caller's token downstream.
     if (auth.enabled) {
       const token = extractBearer(req);
       if (!token) {
         res.setHeader("WWW-Authenticate", wwwAuthenticate(auth));
         return json(res, 401, { error: "Unauthorized" });
       }
-      try {
-        const payload = await verifyAccessToken(token, auth);
-        const identity = resolveRingeeIdentity(payload, auth);
-        if (identity) {
-          // Multi-tenant: act as the account the token resolves to.
-          ringeeClient = getRingeeClientFor(identity);
-        } else if (!hasConfig()) {
-          // No identity claim and no env fallback → we can't tell whose data
-          // to act on. Reject rather than risk acting as the wrong account.
+      // Verify locally when JWKS/issuer are configured so we can answer with a
+      // clean 401 challenge before forwarding. The backend re-verifies the
+      // token and is the single authority on which account it maps to.
+      if (auth.jwksUrl && auth.issuer) {
+        try {
+          await verifyAccessToken(token, auth);
+        } catch (err) {
           res.setHeader("WWW-Authenticate", wwwAuthenticate(auth));
-          return json(res, 403, {
-            error:
-              `Token is missing the Ringee identity claim "${auth.userIdClaim}". ` +
-              "Configure your IdP to emit it (or RINGEE_OAUTH_USER_ID_CLAIM).",
+          return json(res, 401, {
+            error: err instanceof Error ? err.message : "Invalid token",
           });
         }
-        // else: identity absent but env fallback exists → single-tenant mode.
-      } catch (err) {
-        res.setHeader("WWW-Authenticate", wwwAuthenticate(auth));
-        return json(res, 401, {
-          error: err instanceof Error ? err.message : "Invalid token",
-        });
       }
+      // Forward the token to the authenticated backend MCP, which resolves the
+      // Ringee user — or active organization — from it.
+      ringeeClient = getRingeeClientForToken(token);
     }
 
     try {
@@ -102,6 +94,8 @@ const httpServer = createServer(async (req, res) => {
       res.on("close", () => {
         void transport.close();
         void server.close();
+        // Close the per-request upstream client (never the env singleton).
+        if (ringeeClient) void ringeeClient.close().catch(() => undefined);
       });
       await server.connect(transport);
       await transport.handleRequest(req, res, body);

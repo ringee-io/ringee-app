@@ -62,40 +62,41 @@ Point a ChatGPT connector or the [MCP Inspector](https://github.com/modelcontext
 at `http://localhost:4250/mcp`. Tool calls flow straight through to your Ringee
 backend; results come back tagged with the component to render.
 
-### 3. Multi-tenant (one Ringee account per ChatGPT user)
+### 3. Multi-tenant (every customer, user **and** organization)
 
 For a published app where each customer signs in with their own Ringee account,
-enable OAuth and let the verified token decide whose data to act on — no single
-`RINGEE_USER_ID` baked into the env.
+enable OAuth. The app authenticates the caller and **forwards their bearer
+token** to the backend's authenticated MCP endpoint (`/api/mcp/chatgpt/sse`),
+which is the single authority that maps the token to a Ringee account.
 
 ```bash
 export RINGEE_REQUIRE_AUTH="true"
-export RINGEE_OAUTH_ISSUER="https://<your-clerk-domain>"      # IdP issuer
+export RINGEE_OAUTH_ISSUER="https://<your-clerk-domain>"      # Clerk issuer
 export RINGEE_OAUTH_JWKS_URL="https://<your-clerk-domain>/.well-known/jwks.json"
 export RINGEE_OAUTH_AUDIENCE="https://<this-app-host>"        # = RINGEE_PUBLIC_URL
 export RINGEE_PUBLIC_URL="https://<this-app-host>"
 
-# The backend base — the per-user MCP URL is built as
-#   <backend>/api/mcp/<userId>[/<orgId>]/sse
+# The Ringee API origin we forward the token to.
 export RINGEE_BACKEND_URL="https://api.ringee.io"
-
-# JWT claims that carry the Ringee ids (defaults shown). Configure your IdP to
-# emit them — e.g. a Clerk JWT template that maps user metadata → these claims.
-export RINGEE_OAUTH_USER_ID_CLAIM="ringee_user_id"
-export RINGEE_OAUTH_ORG_ID_CLAIM="ringee_org_id"
 ```
 
 How it resolves per request (`src/server/serve.ts`):
 
-1. The Bearer JWT is verified against the issuer's JWKS.
-2. `resolveRingeeIdentity` reads the `userId` (+ optional `orgId`) claims.
-3. `getRingeeClientFor` builds — and caches — a Ringee client scoped to that
-   account; the privileged capability URL is constructed server-side and never
-   leaves the process.
+1. No bearer token → `401 + WWW-Authenticate`, so ChatGPT runs the OAuth flow.
+2. When `RINGEE_OAUTH_JWKS_URL`/`ISSUER` are set, the token is verified locally
+   for a clean fast-fail (recommended).
+3. `getRingeeClientForToken` opens a client to `/api/mcp/chatgpt/sse` with the
+   caller's token as the bearer. No account ids ever live in this proxy.
+4. The backend (`McpChatgptController`) verifies the token with Clerk and
+   resolves it via `getByClerkId` to the Ringee **user** — or, when the Clerk
+   session has an active **organization**, to that organization. Both are
+   supported automatically; nothing extra to configure per tenant.
 
-If a valid token has **no** Ringee identity claim and no env fallback is
-configured, the request is rejected with `403` rather than acting as the wrong
-account. With auth disabled (local dev) it keeps using the single env account.
+With auth disabled (local dev) the app keeps using the single env-configured
+account (`RINGEE_MCP_URL` / `RINGEE_USER_ID`).
+
+> The public, id-in-the-URL `McpController` is left as-is for non-ChatGPT
+> clients (e.g. Claude). ChatGPT always goes through the authenticated path.
 
 ## How the visual components reach ChatGPT
 
