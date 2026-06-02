@@ -22,6 +22,7 @@
     "chatgpt-app:mcp": "pnpm --filter ./apps/chatgpt-app run mcp",
     "ringee": "pnpm --filter @ringee-io/cli run start",
     "agent:install-skills": "pnpm --filter @ringee-io/agent run install-skills",
+    "agent:package-skills": "pnpm --filter @ringee-io/agent run package-skills",
     "dev": "pnpm run --filter ./apps/backend --filter ./apps/frontend --parallel dev",
     "build:frontend": "rm -rf apps/frontend/dist && pnpm --filter ./apps/frontend run build",
     "build:database": "rm -rf packages/database/dist && pnpm --filter ./packages/database run build",

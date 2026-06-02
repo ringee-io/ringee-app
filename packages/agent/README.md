@@ -13,8 +13,7 @@ Ringee backend / MCP   (source of truth — lives in apps/backend)
 @ringee-io/agent       (this package: clients · schemas · flows · prompts · rules)
         │
         ├── ringee CLI            (apps/agent-cli)
-        ├── Claude Skills         (packages/agent/skills)
-        ├── slash commands        (packages/agent/commands)
+        ├── Claude Skills         (packages/agent/skills → /comandos in Claude Code & claude.ai)
         └── ChatGPT App           (apps/chatgpt-app)
 ```
 
@@ -31,8 +30,7 @@ Ringee backend / MCP   (source of truth — lives in apps/backend)
 | `src/flows/*` | The outbound flow (prospect → contact → session → outcome → follow-up). |
 | `src/rules/*` | Operating guardrails for sensitive/destructive actions. |
 | `src/prompts/*` | `buildSystemPrompt()` composed from catalog + flow + rules. |
-| `skills/*` | Distributable Claude Skills. |
-| `commands/*` | Distributable Claude Code / OpenClaw slash commands. |
+| `skills/*` | Distributable Claude Skills (`/ringee…`) — work in Claude Code AND claude.ai. |
 
 ## Usage
 
@@ -80,16 +78,23 @@ export RINGEE_USER_ID="<userId>"
 export RINGEE_ORG_ID="<organizationId>"   # optional
 ```
 
-## Installing the Claude Skills + slash commands
+## Installing the Claude Skills
 
-In-repo they are already wired into `.claude/`. To copy them elsewhere:
+The skills (`ringee`, `ringee-prospect`, `ringee-contacts`, `ringee-session`,
+`ringee-followup`, `ringee-flow`) create `/ringee…` commands and work in **both**
+Claude Code and the **claude.ai** chatbot.
 
 ```bash
-pnpm --filter @ringee-io/agent install-skills            # -> ./.claude
-node packages/agent/scripts/install-skills.mjs ~/project # -> ~/project/.claude
+# Claude Code: copy into a project's .claude/skills
+pnpm --filter @ringee-io/agent install-skills            # -> ./.claude/skills
+node packages/agent/scripts/install-skills.mjs ~/project # -> ~/project/.claude/skills
+
+# claude.ai: build upload-ready zips (one per skill)
+pnpm --filter @ringee-io/agent package-skills            # -> dist/skills/*.zip
 ```
 
-Once published, the intended distribution is `npx skills add ringee-io/ringee-agent`.
+For claude.ai, upload each zip at Settings → Customize → Skills, and add the
+Ringee MCP as a custom Connector. See [`../../PUBLISHING.md`](../../PUBLISHING.md).
 
 ## Build
 

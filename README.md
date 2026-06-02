@@ -113,8 +113,7 @@ Ringee backend / MCP  (apps/backend — source of truth)
 @ringee-io/agent      (packages/agent — clients · schemas · flows · prompts · rules)
         │
         ├── ringee CLI      (apps/agent-cli)
-        ├── Claude Skills   (packages/agent/skills → wired into .claude/)
-        ├── slash commands  (packages/agent/commands → wired into .claude/)
+        ├── Claude Skills   (packages/agent/skills → /comandos in Claude Code & claude.ai)
         └── ChatGPT App     (apps/chatgpt-app)
 ```
 
@@ -133,26 +132,32 @@ pnpm ringee leads search --title "VP Sales" --country US
 pnpm dev:chatgpt-app          # http://localhost:4202 (UI preview)
 pnpm chatgpt-app:mcp          # http://localhost:4250/mcp (connect ChatGPT here)
 
-# Install the Claude Skills + slash commands elsewhere
+# Install the Claude Skills into a project's .claude/ (Claude Code)
 pnpm agent:install-skills
+# Package the skills as .zip for upload to claude.ai
+pnpm agent:package-skills
 ```
 
-In Claude Code, the `/ringee-prospect`, `/ringee-contacts`, `/ringee-session`,
-`/ringee-followup` and `/ringee-flow` slash commands are available, backed by the
-`ringee-operator`, `ringee-prospecting` and `ringee-call-sessions` skills.
+The skills create `/ringee`, `/ringee-prospect`, `/ringee-contacts`,
+`/ringee-session`, `/ringee-followup` and `/ringee-flow` — usable both in
+**Claude Code** and the **claude.ai** chatbot.
 
 ### Distribution
 
-This repo is also a **Claude Code plugin marketplace** (`/.claude-plugin/marketplace.json`
-+ `packages/agent/.claude-plugin/`). Install the plugin with:
+**Claude Code** — this repo is also a plugin marketplace
+(`/.claude-plugin/marketplace.json` + `packages/agent/.claude-plugin/`):
 
 ```text
 /plugin marketplace add ringee-io/ringee-app
 /plugin install ringee@ringee-io
 ```
 
-The **ChatGPT App** ships as an Apps SDK MCP server (`apps/chatgpt-app`) with
-inlined visual widgets, an OAuth 2.1 scaffold and a Dockerfile.
+**claude.ai (chatbot)** — add the Ringee MCP as a custom Connector, then upload
+the skill zips (Settings → Customize → Skills). The `/ringee…` commands then work
+in chat. See [`PUBLISHING.md`](PUBLISHING.md).
+
+**ChatGPT App** — an Apps SDK MCP server (`apps/chatgpt-app`) with inlined visual
+widgets, an OAuth 2.1 scaffold and a Dockerfile.
 
 See [`PUBLISHING.md`](PUBLISHING.md) for the full publish runbook, plus
 [`packages/agent/README.md`](packages/agent/README.md),

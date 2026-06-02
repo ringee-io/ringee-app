@@ -17,7 +17,7 @@ The marketplace is **this repo**. Two manifests make it work (both validated wit
 - `/.claude-plugin/marketplace.json` — the catalog (marketplace name `ringee-io`,
   one plugin `ringee` sourced from `./packages/agent`).
 - `packages/agent/.claude-plugin/plugin.json` — the plugin manifest. It ships the
-  `skills/` and `commands/` already in that package and declares the Ringee MCP via
+  `skills/` already in that package and declares the Ringee MCP via
   `packages/agent/.mcp.json`.
 
 The plugin connects to Ringee over MCP. On install Claude Code prompts the user
@@ -47,9 +47,9 @@ That's it — there is no central submission. A public git repo *is* the marketp
 ```
 
 On enable they paste their Ringee MCP URL (from the dashboard:
-Settings → MCP / Integrations → `GET /api/mcp/connection-info`). Then
-`/ringee-prospect`, `/ringee-contacts`, `/ringee-session`, `/ringee-followup`
-and `/ringee-flow` are available, backed by the `ringee` MCP tools.
+Settings → MCP / Integrations → `GET /api/mcp/connection-info`). Then the skill
+commands `/ringee`, `/ringee-prospect`, `/ringee-contacts`, `/ringee-session`,
+`/ringee-followup` and `/ringee-flow` are available, backed by the `ringee` MCP tools.
 
 ### Versioning
 
@@ -66,7 +66,40 @@ immediately regardless.
 
 ---
 
-## 2. ChatGPT App (Apps SDK)
+## 2. claude.ai (the chatbot — `/comandos`)
+
+claude.ai does **not** use Claude Code plugins. It uses two native mechanisms,
+and the Ringee skills/MCP work directly with both:
+
+**a) Connect the Ringee MCP** (gives Claude the tools)
+
+claude.ai → **Settings → Connectors → Add custom connector** → paste your Ringee
+MCP URL (the public HTTPS SSE URL from `GET /api/mcp/connection-info`). Optionally
+set OAuth client id/secret under Advanced. The MCP must be reachable from
+Anthropic's cloud (public internet), not just localhost. Available on Free/Pro/
+Max/Team/Enterprise (Free = 1 connector).
+
+**b) Upload the Ringee skills** (gives the `/comandos`)
+
+```bash
+pnpm agent:package-skills   # → packages/agent/dist/skills/*.zip (one per skill)
+```
+
+claude.ai → **Settings → Customize → Skills** → enable Skills (requires *code
+execution*) → **Upload skill** → upload each `*.zip`. Each zip has the skill folder
+at its root with `SKILL.md` inside (the required format).
+
+In any chat, type `/` and pick (or just mention what you want):
+`/ringee`, `/ringee-prospect`, `/ringee-contacts`, `/ringee-session`,
+`/ringee-followup`, `/ringee-flow`. The skill drives the flow and calls the Ringee
+connector's tools; sensitive/destructive actions still ask for confirmation.
+
+> Team/Enterprise: upload once for everyone under **Organization settings →
+> Skills** (enable *Code execution & file creation* and *Skills*). Same zips.
+
+---
+
+## 3. ChatGPT App (Apps SDK)
 
 The app **is** an MCP server (`apps/chatgpt-app/src/server`) that proxies the
 Ringee tools and renders them as visual components. The components are compiled to

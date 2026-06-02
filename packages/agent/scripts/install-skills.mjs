@@ -1,15 +1,14 @@
 #!/usr/bin/env node
 /**
- * Copy the Ringee Claude Skills and slash commands into a target `.claude`
- * directory. This powers an "install skills" workflow such as:
+ * Copy the Ringee Claude Skills into a target `.claude/skills` directory.
  *
- *   node packages/agent/scripts/install-skills.mjs            # -> ./.claude
- *   node packages/agent/scripts/install-skills.mjs ~/myproj   # -> ~/myproj/.claude
- *   RINGEE_SKILLS_TARGET=~/.claude node .../install-skills.mjs # -> ~/.claude
+ *   node packages/agent/scripts/install-skills.mjs            # -> ./.claude/skills
+ *   node packages/agent/scripts/install-skills.mjs ~/myproj   # -> ~/myproj/.claude/skills
+ *   RINGEE_SKILLS_TARGET=~/.claude node .../install-skills.mjs # -> ~/.claude/skills
  *
- * It is intentionally dependency-free so it can run via `npx`/`pnpm dlx` once
- * `@ringee-io/agent` is published, e.g. `npx skills add ringee-io/ringee-agent`
- * style tooling can shell out to it.
+ * Skills create `/skill-name` slash commands in Claude Code AND on claude.ai
+ * (where you upload them — see `package-skills.mjs`). Dependency-free so it can
+ * run via `npx`/`pnpm dlx`.
  */
 import { cp, mkdir } from "node:fs/promises";
 import { existsSync } from "node:fs";
@@ -22,25 +21,18 @@ const packageRoot = resolve(here, "..");
 const arg = process.argv[2];
 const targetBase = resolve(
   process.env.RINGEE_SKILLS_TARGET
-    ? // explicit .claude dir
-      process.env.RINGEE_SKILLS_TARGET
+    ? process.env.RINGEE_SKILLS_TARGET
     : join(arg ? resolve(arg) : process.cwd(), ".claude"),
 );
 
-const jobs = [
-  { from: join(packageRoot, "skills"), to: join(targetBase, "skills") },
-  { from: join(packageRoot, "commands"), to: join(targetBase, "commands") },
-];
+const from = join(packageRoot, "skills");
+const to = join(targetBase, "skills");
 
-for (const { from, to } of jobs) {
-  if (!existsSync(from)) {
-    console.warn(`! skipped (missing): ${from}`);
-    continue;
-  }
-  await mkdir(to, { recursive: true });
-  await cp(from, to, { recursive: true });
-  console.log(`✓ ${from}  ->  ${to}`);
+if (!existsSync(from)) {
+  console.error(`! missing skills directory: ${from}`);
+  process.exit(1);
 }
-
-console.log(`\nRingee skills + commands installed into ${targetBase}`);
+await mkdir(to, { recursive: true });
+await cp(from, to, { recursive: true });
+console.log(`✓ ${from}  ->  ${to}`);
 console.log("Restart Claude Code (or reload skills) to pick them up.");
