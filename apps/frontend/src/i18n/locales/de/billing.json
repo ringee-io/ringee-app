@@ -22,7 +22,8 @@
       "common": {
         "redirecting": "Weiterleitung...",
         "chooseAmount": "Betrag wählen",
-        "customAmountLabel": "Oder einen eigenen Betrag eingeben"
+        "customAmountLabel": "Oder einen eigenen Betrag eingeben",
+        "minAmountError": "Der Mindestkauf beträgt ${amount}"
       },
       "oneTime": {
         "customPlaceholder": "z. B. 40",

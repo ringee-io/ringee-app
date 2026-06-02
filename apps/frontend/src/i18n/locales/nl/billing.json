@@ -22,7 +22,8 @@
       "common": {
         "redirecting": "Doorverwijzen...",
         "chooseAmount": "Kies bedrag",
-        "customAmountLabel": "Of voer een eigen bedrag in"
+        "customAmountLabel": "Of voer een eigen bedrag in",
+        "minAmountError": "De minimale aankoop is ${amount}"
       },
       "oneTime": {
         "customPlaceholder": "bv. 40",

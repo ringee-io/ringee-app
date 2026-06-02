@@ -22,7 +22,8 @@
       "common": {
         "redirecting": "Redirecting...",
         "chooseAmount": "Choose amount",
-        "customAmountLabel": "Or enter custom amount"
+        "customAmountLabel": "Or enter custom amount",
+        "minAmountError": "Minimum purchase is ${amount}"
       },
       "oneTime": {
         "customPlaceholder": "e.g. 40",

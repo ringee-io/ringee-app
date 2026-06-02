@@ -38,6 +38,9 @@ import { useTranslations } from 'next-intl';
 
 const PRESETS = [10, 25, 50, 100];
 
+// Minimum purchase amount enforced across recharge flows (USD).
+const MIN_AMOUNT = 5;
+
 const MyButton = ({
   freeCallTrial,
   balance,
@@ -89,6 +92,7 @@ function OneTimeTab({
   const [amount, setAmount] = useState(25);
   const estimatedMinutes = Math.round(amount * 50);
   const level = Math.min(100, (amount / 100) * 100);
+  const belowMin = amount < MIN_AMOUNT;
 
   return (
     <div className='space-y-4'>
@@ -118,12 +122,21 @@ function OneTimeTab({
         <Input
           id='custom'
           type='number'
-          min={5}
+          min={MIN_AMOUNT}
           placeholder={t('oneTime.customPlaceholder')}
           value={amount}
           onChange={(e) => setAmount(Number(e.target.value) || 0)}
-          className='mt-1 max-w-[150px]'
+          aria-invalid={belowMin}
+          className={cn(
+            'mt-1 max-w-[150px]',
+            belowMin && 'border-red-500 focus-visible:ring-red-500'
+          )}
         />
+        {belowMin && (
+          <p className='mt-1 text-xs text-red-500'>
+            {t('common.minAmountError', { amount: MIN_AMOUNT })}
+          </p>
+        )}
       </div>
 
       <div className='space-y-2 pt-1'>
@@ -141,7 +154,7 @@ function OneTimeTab({
 
       <Button
         onClick={() => onCheckout(amount)}
-        disabled={loading || amount < 1}
+        disabled={loading || belowMin}
         size='lg'
         className={cn(
           'w-full font-semibold transition-all duration-300',
@@ -175,6 +188,7 @@ function MonthlyFundTab({
     currentSettings?.monthlyFundAmount ?? 50
   );
   const isActive = currentSettings?.monthlyFundEnabled ?? false;
+  const belowMin = amount < MIN_AMOUNT;
 
   if (isActive) {
     return (
@@ -238,12 +252,21 @@ function MonthlyFundTab({
         <Input
           id='monthly-custom'
           type='number'
-          min={5}
+          min={MIN_AMOUNT}
           placeholder={t('monthly.customPlaceholder')}
           value={amount}
           onChange={(e) => setAmount(Number(e.target.value) || 0)}
-          className='mt-1 max-w-[150px]'
+          aria-invalid={belowMin}
+          className={cn(
+            'mt-1 max-w-[150px]',
+            belowMin && 'border-red-500 focus-visible:ring-red-500'
+          )}
         />
+        {belowMin && (
+          <p className='mt-1 text-xs text-red-500'>
+            {t('common.minAmountError', { amount: MIN_AMOUNT })}
+          </p>
+        )}
       </div>
 
       <div className='space-y-1 pt-1'>
@@ -260,7 +283,7 @@ function MonthlyFundTab({
 
       <Button
         onClick={() => onSubscribe(amount)}
-        disabled={loading || amount < 5}
+        disabled={loading || belowMin}
         size='lg'
         className={cn(
           'w-full font-semibold transition-all duration-300',
@@ -298,6 +321,7 @@ function AutoReloadTab({
     currentSettings?.autoReloadAmount ?? 25
   );
   const isActive = currentSettings?.autoReloadEnabled ?? false;
+  const belowMin = reloadAmount < MIN_AMOUNT;
 
   if (isActive) {
     return (
@@ -377,12 +401,21 @@ function AutoReloadTab({
         <Input
           id='reload-amount-custom'
           type='number'
-          min={5}
+          min={MIN_AMOUNT}
           placeholder={t('autoReload.customPlaceholder')}
           value={reloadAmount}
           onChange={(e) => setReloadAmount(Number(e.target.value) || 0)}
-          className='mt-2 max-w-[150px]'
+          aria-invalid={belowMin}
+          className={cn(
+            'mt-2 max-w-[150px]',
+            belowMin && 'border-red-500 focus-visible:ring-red-500'
+          )}
         />
+        {belowMin && (
+          <p className='mt-1 text-xs text-red-500'>
+            {t('common.minAmountError', { amount: MIN_AMOUNT })}
+          </p>
+        )}
       </div>
 
       <div className='rounded-lg border border-border/50 bg-muted/30 p-3 text-xs text-muted-foreground'>
@@ -395,7 +428,7 @@ function AutoReloadTab({
 
       <Button
         onClick={() => onSetup(threshold, reloadAmount)}
-        disabled={loading || threshold < 1 || reloadAmount < 5}
+        disabled={loading || threshold < 1 || belowMin}
         size='lg'
         className={cn(
           'w-full font-semibold transition-all duration-300',

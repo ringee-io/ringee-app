@@ -22,7 +22,8 @@
       "common": {
         "redirecting": "A redirecionar...",
         "chooseAmount": "Escolha um valor",
-        "customAmountLabel": "Ou introduza um valor personalizado"
+        "customAmountLabel": "Ou introduza um valor personalizado",
+        "minAmountError": "A compra mínima é de ${amount}"
       },
       "oneTime": {
         "customPlaceholder": "Ex. 40",

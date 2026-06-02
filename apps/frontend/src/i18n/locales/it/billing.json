@@ -22,7 +22,8 @@
       "common": {
         "redirecting": "Reindirizzamento...",
         "chooseAmount": "Scegli un importo",
-        "customAmountLabel": "Oppure inserisci un importo personalizzato"
+        "customAmountLabel": "Oppure inserisci un importo personalizzato",
+        "minAmountError": "L'acquisto minimo è ${amount}"
       },
       "oneTime": {
         "customPlaceholder": "es. 40",
