@@ -1,0 +1,31 @@
+{
+  "name": "@ringee-io/cli",
+  "version": "0.1.0",
+  "description": "The `ringee` CLI — operate Ringee (contacts, leads, call sessions, callbacks, meetings) from the terminal, on top of the Ringee backend/MCP.",
+  "license": "AGPL-3.0-or-later",
+  "type": "module",
+  "private": true,
+  "bin": {
+    "ringee": "./dist/index.js"
+  },
+  "files": ["dist", "README.md"],
+  "scripts": {
+    "clean": "rimraf dist",
+    "dev": "tsx src/index.ts",
+    "start": "tsx src/index.ts",
+    "prebuild": "pnpm run clean",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ringee-io/agent": "workspace:*",
+    "commander": "^13.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "~22.16.0",
+    "rimraf": "^6.0.0",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "~5.9.0"
+  }
+}

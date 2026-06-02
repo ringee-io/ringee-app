@@ -1,0 +1,57 @@
+{
+  "comment": "Single source for the ChatGPT App submission. Not auto-consumed — copy these into the OpenAI Apps developer portal when submitting. Fill the TODO fields before submitting.",
+  "name": "Ringee",
+  "shortDescription": "Outbound calling, contacts, leads and call sessions — operated from chat.",
+  "longDescription": "Ringee turns ChatGPT into an outbound-sales cockpit. Search and manage contacts, prospect leads with Apollo/Prospeo, reveal or import them, spin up magic-link call sessions, log call outcomes, and schedule callbacks and meetings — all rendered as rich, interactive cards. Every action runs on top of your existing Ringee account via the Ringee MCP; sensitive actions (credits, magic links) and destructive ones (delete, revoke) always require explicit confirmation.",
+  "categories": ["productivity", "sales", "crm"],
+  "developer": {
+    "name": "Ringee",
+    "website": "https://ringee.io",
+    "supportEmail": "TODO: support@ringee.io"
+  },
+  "legal": {
+    "privacyPolicyUrl": "https://ringee.io/privacy",
+    "termsOfServiceUrl": "https://ringee.io/terms"
+  },
+  "assets": {
+    "icon": "TODO: https://ringee.io/logos/icon.png (square, 512x512+)",
+    "screenshots": [
+      "TODO: gallery screenshot (use the / route)",
+      "TODO: a ContactCard / LeadSearchResults screenshot"
+    ]
+  },
+  "mcp": {
+    "endpoint": "https://TODO-your-host/mcp",
+    "transport": "streamable-http",
+    "auth": {
+      "type": "oauth2.1",
+      "protectedResourceMetadata": "https://TODO-your-host/.well-known/oauth-protected-resource",
+      "scopes": ["ringee:use"]
+    }
+  },
+  "tools": [
+    "search_contacts",
+    "get_contact",
+    "create_contact",
+    "update_contact",
+    "delete_contact",
+    "search_leads",
+    "reveal_lead",
+    "import_leads_as_contacts",
+    "create_call_session",
+    "get_call_session",
+    "update_call_session",
+    "delete_call_session",
+    "log_call_outcome",
+    "create_callback",
+    "schedule_meeting"
+  ],
+  "components": [
+    "ContactCard",
+    "LeadSearchResults",
+    "CallSessionCard",
+    "CallbackCard",
+    "MeetingCard",
+    "CallOutcomeCard"
+  ]
+}

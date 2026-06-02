@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "ringee",
+  "displayName": "Ringee",
+  "version": "0.1.0",
+  "description": "Operate Ringee — outbound calling, contacts, leads, call sessions, callbacks and meetings — directly from Claude, backed by the Ringee MCP. Enforces confirmation for sensitive (credits, magic links) and destructive (delete, revoke) actions.",
+  "author": {
+    "name": "Ringee",
+    "url": "https://ringee.io"
+  },
+  "homepage": "https://ringee.io",
+  "repository": "https://github.com/ringee-io/ringee-app",
+  "license": "AGPL-3.0-or-later",
+  "keywords": [
+    "ringee",
+    "voip",
+    "outbound",
+    "sales",
+    "crm",
+    "calling",
+    "leads",
+    "mcp"
+  ],
+  "defaultEnabled": false,
+  "userConfig": {
+    "mcp_url": {
+      "type": "string",
+      "title": "Ringee MCP URL",
+      "description": "Your Ringee MCP SSE URL from the dashboard (Settings → MCP / Integrations, i.e. GET /api/mcp/connection-info). Example: https://api.ringee.io/api/mcp/<userId>/sse (or .../<userId>/<organizationId>/sse).",
+      "sensitive": true,
+      "required": true
+    }
+  }
+}

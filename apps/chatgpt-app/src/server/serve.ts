@@ -1,0 +1,103 @@
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { createRingeeAppServer } from "./mcp-server.js";
+import {
+  buildProtectedResourceMetadata,
+  extractBearer,
+  getAuthConfig,
+  verifyAccessToken,
+  wwwAuthenticate,
+} from "./auth.js";
+
+/**
+ * Standalone MCP endpoint for the Ringee ChatGPT App.
+ *
+ * This is what ChatGPT connects to. The visual components are inlined into the
+ * tool result HTML resources, so this server is the only thing you deploy for
+ * the app to work. Point a ChatGPT connector / the MCP Inspector at
+ * https://<host>/mcp.
+ *
+ * Requires the agent env (RINGEE_MCP_URL, or RINGEE_BACKEND_URL +
+ * RINGEE_USER_ID [+ RINGEE_ORG_ID]). For production, enable OAuth with
+ * RINGEE_REQUIRE_AUTH=true (see auth.ts / README).
+ */
+const PORT = Number(process.env.RINGEE_MCP_PORT ?? 4250);
+const auth = getAuthConfig();
+
+function json(res: ServerResponse, status: number, body: unknown): void {
+  res.writeHead(status, { "content-type": "application/json" });
+  res.end(JSON.stringify(body));
+}
+
+async function readBody(req: IncomingMessage): Promise<unknown> {
+  const chunks: Buffer[] = [];
+  for await (const chunk of req) chunks.push(chunk as Buffer);
+  if (chunks.length === 0) return undefined;
+  try {
+    return JSON.parse(Buffer.concat(chunks).toString("utf8"));
+  } catch {
+    return undefined;
+  }
+}
+
+const httpServer = createServer(async (req, res) => {
+  const url = req.url ?? "/";
+
+  if (req.method === "GET" && url === "/health") {
+    return json(res, 200, { ok: true, service: "ringee-chatgpt-app-mcp" });
+  }
+
+  // RFC 9728 — protected resource metadata (always exposed when auth is on).
+  if (req.method === "GET" && url.startsWith("/.well-known/oauth-protected-resource")) {
+    if (!auth.enabled) return json(res, 404, { error: "Auth not enabled" });
+    return json(res, 200, buildProtectedResourceMetadata(auth));
+  }
+
+  if (url.startsWith("/mcp")) {
+    // Enforce OAuth when enabled.
+    if (auth.enabled) {
+      const token = extractBearer(req);
+      if (!token) {
+        res.setHeader("WWW-Authenticate", wwwAuthenticate(auth));
+        return json(res, 401, { error: "Unauthorized" });
+      }
+      try {
+        await verifyAccessToken(token, auth);
+      } catch (err) {
+        res.setHeader("WWW-Authenticate", wwwAuthenticate(auth));
+        return json(res, 401, {
+          error: err instanceof Error ? err.message : "Invalid token",
+        });
+      }
+    }
+
+    try {
+      const body = await readBody(req);
+      const server = createRingeeAppServer();
+      const transport = new StreamableHTTPServerTransport({
+        sessionIdGenerator: undefined, // stateless
+      });
+      res.on("close", () => {
+        void transport.close();
+        void server.close();
+      });
+      await server.connect(transport);
+      await transport.handleRequest(req, res, body);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Internal error";
+      if (!res.headersSent) json(res, 500, { error: message });
+      else res.end();
+    }
+    return;
+  }
+
+  json(res, 404, { error: "Not found. Use POST /mcp." });
+});
+
+httpServer.listen(PORT, () => {
+  process.stdout.write(
+    `Ringee ChatGPT App MCP on http://localhost:${PORT}/mcp` +
+      (auth.enabled ? " (OAuth required)" : " (no auth — dev)") +
+      "\n",
+  );
+});

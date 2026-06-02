@@ -1,0 +1,46 @@
+{
+  "name": "@ringee-io/chatgpt-app",
+  "version": "0.1.0",
+  "description": "Ringee ChatGPT App — polished visual components (contacts, leads, call sessions, callbacks, meetings, outcomes) backed by the Ringee MCP, plus the MCP server/adapter that connects ChatGPT to the existing Ringee backend.",
+  "license": "AGPL-3.0-or-later",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "next dev --port 4202",
+    "build": "next build",
+    "start": "next start --port 4202",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "build:widgets": "node scripts/build-widgets.mjs",
+    "mcp": "tsx src/server/serve.ts",
+    "mcp:prod": "pnpm build:widgets && tsx src/server/serve.ts"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "@ringee-io/agent": "workspace:*",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.476.0",
+    "next": "15.3.8",
+    "react": "19.0.1",
+    "react-dom": "19.0.1",
+    "tailwind-merge": "^3.0.2",
+    "zod": "^4.1.12"
+  },
+  "optionalDependencies": {
+    "jose": "^5.9.6"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.0.0",
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "22.10.2",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "esbuild": "^0.24.2",
+    "postcss": "8.4.49",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.19.2",
+    "tw-animate-css": "^1.2.4",
+    "typescript": "5.7.2"
+  }
+}
