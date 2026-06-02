@@ -77,8 +77,8 @@ export function InCallScript() {
                   className={cn(
                     'w-full truncate rounded-lg px-2.5 py-2 text-left text-xs md:text-sm transition-colors',
                     selectedId === section.id
-                      ? 'bg-white/5 text-foreground border border-border/30'
-                      : 'text-muted-foreground hover:bg-white/5 hover:text-foreground border border-transparent'
+                      ? 'bg-foreground/5 text-foreground border border-border/30'
+                      : 'text-muted-foreground hover:bg-foreground/5 hover:text-foreground border border-transparent'
                   )}
                   title={section.title}
                 >
