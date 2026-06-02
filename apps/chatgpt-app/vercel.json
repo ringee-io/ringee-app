@@ -2,6 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "buildCommand": "cd ../.. && pnpm --filter @ringee-io/chatgpt-app build",
-  "installCommand": "cd ../.. && pnpm install --frozen-lockfile=false",
-  "comment": "Optional — deploys the component gallery / design preview (the / route). The ChatGPT App itself is the MCP server (see Dockerfile), which inlines the widgets and does not require this Next deployment."
+  "installCommand": "cd ../.. && pnpm install --frozen-lockfile=false"
 }
