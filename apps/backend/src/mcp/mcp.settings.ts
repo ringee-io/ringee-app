@@ -86,7 +86,7 @@ export class McpSettings {
     );
 
     for (const entry of tools.getEntries()) {
-      const { toolName, description, zod } = entry.data;
+      const { toolName, description, zod, annotations } = entry.data;
 
       const handler = async (input: Record<string, unknown>) => {
         const result = await (
@@ -101,7 +101,15 @@ export class McpSettings {
           {
             description: description ?? `Ringee tool: ${toolName}`,
             inputSchema: zod,
+            ...(annotations ? { annotations } : {}),
           },
+          handler as never,
+        );
+      } else if (annotations) {
+        server.tool(
+          toolName,
+          description ?? `Ringee tool: ${toolName}`,
+          annotations as never,
           handler as never,
         );
       } else {

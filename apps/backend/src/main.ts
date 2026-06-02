@@ -6,7 +6,7 @@ import "dotenv/config";
 
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
-import { ValidationPipe } from "@nestjs/common";
+import { RequestMethod, ValidationPipe } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import express from "express";
 import { clerkMiddleware } from "@ringee/platform";
@@ -39,7 +39,16 @@ async function bootstrap() {
 
   app.use("/webhooks/clerk", express.raw({ type: "application/json" }));
 
-  app.setGlobalPrefix("api");
+  app.setGlobalPrefix("api", {
+    // Verification crawlers (e.g. OpenAI Apps SDK domain check) fetch the
+    // `.well-known` challenge at the bare hostname root, not under `/api`.
+    exclude: [
+      {
+        path: ".well-known/openai-apps-challenge",
+        method: RequestMethod.GET,
+      },
+    ],
+  });
 
   app.use(clerkMiddleware());
 

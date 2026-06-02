@@ -1,6 +1,22 @@
 import type { Sensitivity } from "../types/index.js";
 
 /**
+ * MCP tool annotations (trust hints) surfaced to clients like ChatGPT and
+ * Claude. Mirrors the MCP spec `ToolAnnotations`. OpenAI's Apps SDK requires
+ * `readOnlyHint`, `openWorldHint` and `destructiveHint` to be explicit.
+ */
+export interface ToolAnnotations {
+  /** True when the tool only reads and never modifies state. */
+  readOnlyHint: boolean;
+  /** True when the tool may perform irreversible/destructive updates. */
+  destructiveHint: boolean;
+  /** True when repeating the call with the same args has no extra effect. */
+  idempotentHint: boolean;
+  /** True when the tool reaches an external ("open world") system. */
+  openWorldHint: boolean;
+}
+
+/**
  * Canonical catalog of everything the agent layer can do. Each entry maps a
  * human-friendly *action* to the real MCP tool it calls on the Ringee backend.
  *
@@ -26,6 +42,8 @@ export interface ToolDescriptor {
   cli: string;
   /** ChatGPT App component used to render the result, when applicable. */
   component?: string;
+  /** MCP trust hints exposed to ChatGPT/Claude on the registered tool. */
+  annotations: ToolAnnotations;
 }
 
 export const TOOL_CATALOG: ToolDescriptor[] = [
@@ -38,6 +56,12 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     sensitivity: "read",
     cli: "ringee contacts search <query>",
     component: "ContactCard",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
   {
     action: "contacts.get",
@@ -47,6 +71,12 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     sensitivity: "read",
     cli: "ringee contacts get <contactId>",
     component: "ContactCard",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
   {
     action: "contacts.create",
@@ -56,6 +86,12 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     sensitivity: "write",
     cli: "ringee contacts create --phone +14155552671 --name \"Jane Doe\"",
     component: "ContactCard",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
   },
   {
     action: "contacts.update",
@@ -65,6 +101,12 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     sensitivity: "write",
     cli: "ringee contacts update <contactId> --email jane@acme.com",
     component: "ContactCard",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
   {
     action: "contacts.delete",
@@ -75,6 +117,12 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     requiresConfirmation: true,
     cli: "ringee contacts delete <contactId> --confirm-phone +14155552671 --yes",
     component: "ContactCard",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
 
   // ── Call activity ─────────────────────────────────────────────────
@@ -86,6 +134,12 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     sensitivity: "write",
     cli: "ringee outcomes log <callId> meeting_booked --note \"Demo Friday\"",
     component: "CallOutcomeCard",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
   {
     action: "callbacks.create",
@@ -95,6 +149,12 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     sensitivity: "write",
     cli: "ringee callbacks create <contactId> 2026-06-02T15:00:00-04:00",
     component: "CallbackCard",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
   },
   {
     action: "meetings.schedule",
@@ -104,6 +164,13 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     sensitivity: "write",
     cli: "ringee meetings schedule <contactId> 2026-06-03T10:00:00-04:00 --title \"Intro\"",
     component: "MeetingCard",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      // May sync to an external calendar (Google/Microsoft) and email invites.
+      openWorldHint: true,
+    },
   },
 
   // ── Call sessions (magic-link dialing) ────────────────────────────
@@ -116,6 +183,12 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     requiresConfirmation: true,
     cli: "ringee sessions create --contact <contactId> --title \"Tuesday outbound\"",
     component: "CallSessionCard",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
   },
   {
     action: "sessions.get",
@@ -125,6 +198,12 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     sensitivity: "read",
     cli: "ringee sessions get <callSessionId>",
     component: "CallSessionCard",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
   {
     action: "sessions.update",
@@ -135,6 +214,12 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     requiresConfirmation: true,
     cli: "ringee sessions update <callSessionId> --title \"Renamed\"",
     component: "CallSessionCard",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
   {
     action: "sessions.revoke",
@@ -145,6 +230,13 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     requiresConfirmation: true,
     cli: "ringee sessions revoke <callSessionId> --yes",
     component: "CallSessionCard",
+    annotations: {
+      readOnlyHint: false,
+      // Irreversible: invalidates the magic-link token immediately.
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
 
   // ── Lead prospecting (Apollo / Prospeo) ───────────────────────────
@@ -156,6 +248,14 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     sensitivity: "read",
     cli: "ringee leads search --title \"VP Sales\" --country US",
     component: "LeadSearchResults",
+    annotations: {
+      // No contacts created and no credits spent — only a cached search job.
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      // Queries a third-party enrichment provider (Apollo/Prospeo).
+      openWorldHint: true,
+    },
   },
   {
     action: "leads.reveal",
@@ -167,6 +267,14 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     requiresConfirmation: true,
     cli: "ringee leads reveal <jobId> <externalId> --phone --yes",
     component: "LeadSearchResults",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      // Spends credits each time — not safe to repeat blindly.
+      idempotentHint: false,
+      // Unlocks data via a third-party enrichment provider (Apollo/Prospeo).
+      openWorldHint: true,
+    },
   },
   {
     action: "leads.import",
@@ -177,6 +285,14 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     requiresConfirmation: true,
     cli: "ringee leads import <jobId> <externalId...>",
     component: "LeadSearchResults",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      // Imports from the cached search snapshot; phone-number dedup makes
+      // re-imports a no-op and there is no live provider call here.
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   },
 ];
 

@@ -150,8 +150,10 @@ export function createRingeeAppServer(): McpServer {
     server.registerTool(
       name,
       {
+        title: meta?.title,
         description: meta?.summary ?? `Ringee tool: ${name}`,
         inputSchema: schema.shape,
+        ...(meta?.annotations ? { annotations: meta.annotations } : {}),
         _meta: toolMeta,
       },
       async (args: Record<string, unknown>) => {

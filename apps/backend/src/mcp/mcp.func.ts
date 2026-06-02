@@ -122,6 +122,13 @@ export class McpFunc {
       "Returns a paginated list of matching contacts with their id, name, phone, email and lastCallAt. " +
       "Use this to resolve a contactId before calling start_call, create_callback, or schedule_meeting.",
     zod: SearchContactsSchema,
+    annotations: {
+      title: "Search contacts",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   })
   async searchContacts(ctx: OwnershipContext, input: SearchContactsInput) {
     const { data, meta } = await this.contactService.listContacts(
@@ -156,6 +163,13 @@ export class McpFunc {
       "Fetch the full record for a single contact, including recent calls, notes, meetings and tags. " +
       "Call this when the user asks for details or when you need history before placing a follow-up call.",
     zod: GetContactSchema,
+    annotations: {
+      title: "Get contact",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   })
   async getContact(_ctx: OwnershipContext, input: GetContactInput) {
     const contact = await this.contactService.getContactActivities(
@@ -247,6 +261,13 @@ export class McpFunc {
       "Record the outcome of a past call (e.g. meeting_booked, interested, voicemail). " +
       "Use after the user describes how a call went. The call must belong to the current user/organization.",
     zod: LogCallOutcomeSchema,
+    annotations: {
+      title: "Log call outcome",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   })
   async logCallOutcome(ctx: OwnershipContext, input: LogCallOutcomeInput) {
     const updated = await this.meetingService.updateCallOutcome(
@@ -272,6 +293,13 @@ export class McpFunc {
       "Schedule a reminder to call a contact back at a specific future time. " +
       "Creates a callback task and a reminder. Returns the callback id and scheduled time.",
     zod: CreateCallbackSchema,
+    annotations: {
+      title: "Schedule callback",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
   })
   async createCallback(ctx: OwnershipContext, input: CreateCallbackInput) {
     const scheduledAt = new Date(input.scheduledAt);
@@ -306,6 +334,14 @@ export class McpFunc {
       "the event is synced and a Meet/Teams link is generated. " +
       "Provide attendeeEmail to send a calendar invite.",
     zod: ScheduleMeetingSchema,
+    annotations: {
+      title: "Schedule meeting",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      // May sync to an external calendar (Google/Microsoft) and email invites.
+      openWorldHint: true,
+    },
   })
   async scheduleMeeting(ctx: OwnershipContext, input: ScheduleMeetingInput) {
     const meeting = await this.meetingService.createMeeting(ctx, {
@@ -340,6 +376,13 @@ export class McpFunc {
       "Phone numbers must be E.164. Provide contactId when possible to enrich the UI with name/company. " +
       "campaignId and organization scope come from the authenticated session.",
     zod: CreateCallSessionSchema,
+    annotations: {
+      title: "Create call session",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
   })
   async createCallSession(
     ctx: OwnershipContext,
@@ -375,6 +418,13 @@ export class McpFunc {
       "update metadata, or replace the contact queue (only if no calls have started yet). " +
       "Pass campaignId=null to detach the campaign.",
     zod: UpdateCallSessionSchema,
+    annotations: {
+      title: "Update call session",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   })
   async updateCallSession(
     ctx: OwnershipContext,
@@ -407,6 +457,14 @@ export class McpFunc {
       "Revoke a call session. Past calls are preserved (no destructive delete) but the session " +
       "is marked revoked and all active magic-link tokens stop working immediately.",
     zod: DeleteCallSessionSchema,
+    annotations: {
+      title: "Revoke call session",
+      readOnlyHint: false,
+      // Irreversible: invalidates the magic-link token immediately.
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   })
   async deleteCallSession(
     ctx: OwnershipContext,
@@ -430,6 +488,13 @@ export class McpFunc {
       "Fetch a call session's safe metadata (status, counts, expiration) — does NOT expose the raw magic-link token. " +
       "Use this to check progress or whether a session is still valid.",
     zod: GetCallSessionSchema,
+    annotations: {
+      title: "Get call session",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   })
   async getCallSession(
     ctx: OwnershipContext,
@@ -463,6 +528,13 @@ export class McpFunc {
       "phoneNumber must be unique within the scope — the tool fails fast if a contact with the same number already exists. " +
       "Returns the new contact id and a compact representation.",
     zod: CreateContactSchema,
+    annotations: {
+      title: "Create contact",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
   })
   async createContact(ctx: OwnershipContext, input: CreateContactInput) {
     const created = await this.contactService.createContact(ctx, {
@@ -492,6 +564,13 @@ export class McpFunc {
       "Verifies the contact belongs to the current user/organization before writing. " +
       "Pass tagIds to REPLACE the contact's tag set (omit to leave tags untouched).",
     zod: UpdateContactSchema,
+    annotations: {
+      title: "Update contact",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   })
   async updateContact(ctx: OwnershipContext, input: UpdateContactInput) {
     const existing = await this.contactService.getContactById(input.contactId);
@@ -524,6 +603,14 @@ export class McpFunc {
       "stored phoneNumber in E.164. Always fetch the contact with get_contact first and read the phoneNumber back " +
       "to the human user for explicit approval before calling this tool. Never auto-confirm without a clear human ask.",
     zod: DeleteContactSchema,
+    annotations: {
+      title: "Delete contact",
+      readOnlyHint: false,
+      // Removes the contact from the directory (soft-delete).
+      destructiveHint: true,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   })
   async deleteContact(ctx: OwnershipContext, input: DeleteContactInput) {
     const existing = await this.contactService.getContactById(input.contactId);
@@ -567,6 +654,15 @@ export class McpFunc {
       "Returns a jobId you must pass to those follow-up tools. " +
       "Provider auto-selected if omitted (Apollo preferred when both are connected).",
     zod: SearchLeadsSchema,
+    annotations: {
+      title: "Search leads",
+      // No contacts created and no credits spent — only a cached search job.
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      // Queries a third-party enrichment provider (Apollo/Prospeo).
+      openWorldHint: true,
+    },
   })
   async searchLeads(ctx: OwnershipContext, input: SearchLeadsInput) {
     const filters: LeadSearchFilters = {
@@ -638,6 +734,15 @@ export class McpFunc {
       "Also upserts a Contact in Ringee with the revealed data so the lead is immediately callable. " +
       "Consumes provider credits — only call when the user has explicitly chosen this lead.",
     zod: RevealLeadSchema,
+    annotations: {
+      title: "Reveal lead",
+      readOnlyHint: false,
+      destructiveHint: false,
+      // Spends credits each time — not safe to repeat blindly.
+      idempotentHint: false,
+      // Unlocks data via a third-party enrichment provider (Apollo/Prospeo).
+      openWorldHint: true,
+    },
   })
   async revealLead(ctx: OwnershipContext, input: RevealLeadInput) {
     const result = await this.leadSearchService.revealCandidate(
@@ -674,6 +779,15 @@ export class McpFunc {
       "Skips candidates already present (phone-number dedup). Does NOT reveal hidden emails/phones — " +
       "use reveal_lead first if you need contact info unlocked. Returns counts and the new contact ids.",
     zod: ImportLeadsSchema,
+    annotations: {
+      title: "Import leads as contacts",
+      readOnlyHint: false,
+      destructiveHint: false,
+      // Imports from the cached search snapshot; phone-number dedup makes
+      // re-imports a no-op and there is no live provider call here.
+      idempotentHint: true,
+      openWorldHint: false,
+    },
   })
   async importLeadsAsContacts(
     ctx: OwnershipContext,

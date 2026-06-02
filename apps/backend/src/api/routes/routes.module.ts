@@ -48,6 +48,7 @@ import { CustomIntegrationsController } from "./custom-integrations.controller";
 import { CustomIntegrationsWebhookController } from "./custom-integrations.webhook.controller";
 import { McpController } from "./mcp.controller";
 import { CallSessionController } from "./call-session.controller";
+import { WellKnownController } from "./well-known.controller";
 
 @Module({
   controllers: [
@@ -91,6 +92,7 @@ import { CallSessionController } from "./call-session.controller";
     CustomIntegrationsWebhookController,
     McpController,
     CallSessionController,
+    WellKnownController,
   ],
   providers: [EnrichmentFeatureGuard],
   imports: [
