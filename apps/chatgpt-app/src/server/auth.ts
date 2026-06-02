@@ -25,6 +25,14 @@ export interface AuthConfig {
   audience?: string;
   issuer?: string;
   scopes: string[];
+  /**
+   * Multi-tenant identity mapping. The verified access token must carry the
+   * caller's Ringee userId (and optionally organizationId) so the server can
+   * act on behalf of the right account. These name the JWT claims that hold
+   * those ids — configure your IdP (e.g. a Clerk JWT template) to emit them.
+   */
+  userIdClaim: string;
+  orgIdClaim: string;
 }
 
 export function getAuthConfig(
@@ -44,6 +52,8 @@ export function getAuthConfig(
     audience: env.RINGEE_OAUTH_AUDIENCE || resource,
     issuer,
     scopes: (env.RINGEE_OAUTH_SCOPES || "ringee:use").split(/[ ,]+/).filter(Boolean),
+    userIdClaim: env.RINGEE_OAUTH_USER_ID_CLAIM || "ringee_user_id",
+    orgIdClaim: env.RINGEE_OAUTH_ORG_ID_CLAIM || "ringee_org_id",
   };
 }
 
@@ -111,4 +121,32 @@ export async function verifyAccessToken(
     audience: cfg.audience,
   });
   return payload as VerifiedToken;
+}
+
+/** The Ringee account a verified token resolves to. */
+export interface RingeeIdentity {
+  userId: string;
+  organizationId?: string;
+}
+
+/**
+ * Map a verified token's claims to the Ringee account it should act as.
+ * Returns null when the token carries no Ringee userId claim (the caller
+ * decides whether to fall back to an env-configured account or reject).
+ */
+export function resolveRingeeIdentity(
+  payload: VerifiedToken,
+  cfg: AuthConfig,
+): RingeeIdentity | null {
+  const claim = (name: string): string | undefined => {
+    const value = payload[name];
+    if (typeof value !== "string") return undefined;
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  };
+
+  const userId = claim(cfg.userIdClaim);
+  if (!userId) return null;
+
+  return { userId, organizationId: claim(cfg.orgIdClaim) };
 }

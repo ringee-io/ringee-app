@@ -47,6 +47,7 @@ import { MobileController } from "./mobile.controller";
 import { CustomIntegrationsController } from "./custom-integrations.controller";
 import { CustomIntegrationsWebhookController } from "./custom-integrations.webhook.controller";
 import { McpController } from "./mcp.controller";
+import { McpChatgptController } from "./mcp.chatgpt.controller";
 import { CallSessionController } from "./call-session.controller";
 import { WellKnownController } from "./well-known.controller";
 
@@ -90,6 +91,9 @@ import { WellKnownController } from "./well-known.controller";
     MobileController,
     CustomIntegrationsController,
     CustomIntegrationsWebhookController,
+    // Register the static /mcp/chatgpt routes BEFORE McpController's
+    // /mcp/:id/* param routes, or "chatgpt" would be captured as an :id.
+    McpChatgptController,
     McpController,
     CallSessionController,
     WellKnownController,

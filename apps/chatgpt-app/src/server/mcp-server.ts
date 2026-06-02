@@ -21,6 +21,7 @@ import {
   UpdateContactSchema,
 } from "@ringee-io/agent";
 import type { z } from "zod";
+import type { RingeeClient } from "@ringee-io/agent";
 import { getRingeeClient } from "./ringee-mcp.js";
 import {
   RESOURCE_MIME_TYPE,
@@ -93,7 +94,14 @@ function loadWidgetAssets(): WidgetAssets {
   return assets;
 }
 
-export function createRingeeAppServer(): McpServer {
+/**
+ * Build the ChatGPT App MCP server.
+ *
+ * `ringeeClient` scopes every tool call to one account. In multi-tenant mode
+ * the caller passes the client resolved from the verified token; when omitted
+ * (dev / single-tenant) we fall back to the env-configured singleton.
+ */
+export function createRingeeAppServer(ringeeClient?: RingeeClient): McpServer {
   const server = new McpServer(
     { name: "Ringee", version: "0.1.0" },
     {
@@ -157,7 +165,7 @@ export function createRingeeAppServer(): McpServer {
         _meta: toolMeta,
       },
       async (args: Record<string, unknown>) => {
-        const ringee = getRingeeClient();
+        const ringee = ringeeClient ?? getRingeeClient();
         const result = await ringee.mcp.callTool(name, args);
         return {
           content: [{ type: "text" as const, text: result.rawText }],

@@ -1,10 +1,13 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { hasConfig, type RingeeClient } from "@ringee-io/agent";
 import { createRingeeAppServer } from "./mcp-server.js";
+import { getRingeeClientFor } from "./ringee-mcp.js";
 import {
   buildProtectedResourceMetadata,
   extractBearer,
   getAuthConfig,
+  resolveRingeeIdentity,
   verifyAccessToken,
   wwwAuthenticate,
 } from "./auth.js";
@@ -54,6 +57,10 @@ const httpServer = createServer(async (req, res) => {
   }
 
   if (url.startsWith("/mcp")) {
+    // Per-request Ringee account. Stays undefined in dev / single-tenant, where
+    // createRingeeAppServer falls back to the env-configured singleton.
+    let ringeeClient: RingeeClient | undefined;
+
     // Enforce OAuth when enabled.
     if (auth.enabled) {
       const token = extractBearer(req);
@@ -62,7 +69,22 @@ const httpServer = createServer(async (req, res) => {
         return json(res, 401, { error: "Unauthorized" });
       }
       try {
-        await verifyAccessToken(token, auth);
+        const payload = await verifyAccessToken(token, auth);
+        const identity = resolveRingeeIdentity(payload, auth);
+        if (identity) {
+          // Multi-tenant: act as the account the token resolves to.
+          ringeeClient = getRingeeClientFor(identity);
+        } else if (!hasConfig()) {
+          // No identity claim and no env fallback → we can't tell whose data
+          // to act on. Reject rather than risk acting as the wrong account.
+          res.setHeader("WWW-Authenticate", wwwAuthenticate(auth));
+          return json(res, 403, {
+            error:
+              `Token is missing the Ringee identity claim "${auth.userIdClaim}". ` +
+              "Configure your IdP to emit it (or RINGEE_OAUTH_USER_ID_CLAIM).",
+          });
+        }
+        // else: identity absent but env fallback exists → single-tenant mode.
       } catch (err) {
         res.setHeader("WWW-Authenticate", wwwAuthenticate(auth));
         return json(res, 401, {
@@ -73,7 +95,7 @@ const httpServer = createServer(async (req, res) => {
 
     try {
       const body = await readBody(req);
-      const server = createRingeeAppServer();
+      const server = createRingeeAppServer(ringeeClient);
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: undefined, // stateless
       });
