@@ -6,7 +6,9 @@ export const SearchContactsSchema = z.object({
     .string()
     .min(1)
     .max(200)
-    .describe("Free-text search across name, phone, email and company."),
+    .describe(
+      'Free-text search across name, phone, email and company. Pass "*" to list ALL contacts (paginated).',
+    ),
   page: z.number().int().min(1).optional(),
   limit: z.number().int().min(1).max(50).optional(),
 });

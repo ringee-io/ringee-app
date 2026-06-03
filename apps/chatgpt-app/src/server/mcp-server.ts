@@ -107,8 +107,17 @@ export function createRingeeAppServer(ringeeClient?: RingeeClient): McpServer {
     {
       instructions:
         "Operate Ringee — outbound calling, contacts, leads, call sessions, " +
-        "callbacks and meetings. Confirm sensitive actions (reveal/session = " +
-        "credits/magic links) and destructive ones (delete/revoke) before calling.",
+        "callbacks and meetings.\n\n" +
+        "Every tool result is rendered to the user as a rich, interactive card. " +
+        "Do NOT restate or summarize the fields already shown in that card " +
+        "(name, phone, email, ids, lists, etc.). After a tool runs, reply with " +
+        "at most one short sentence — a confirmation or the recommended next " +
+        "step — or simply nothing if the card already says it all.\n\n" +
+        'To list every contact, call search_contacts with query "*" (paginated). ' +
+        "The contacts card paginates itself, so you don't need to re-call the " +
+        "tool when the user just wants the next page.\n\n" +
+        "Confirm sensitive actions (reveal/session = credits/magic links) and " +
+        "destructive ones (delete/revoke) before calling.",
     },
   );
 
@@ -154,6 +163,12 @@ export function createRingeeAppServer(ringeeClient?: RingeeClient): McpServer {
       "openai/toolInvocation/invoked": `${meta?.title ?? name} done`,
     };
     if (outputTemplate) toolMeta["openai/outputTemplate"] = outputTemplate;
+    // Read-only tools are safe to call straight from the widget (e.g. the
+    // contacts card paginating in place). Write/sensitive/destructive tools are
+    // left model-gated so confirmation rules still apply.
+    if (meta?.annotations?.readOnlyHint) {
+      toolMeta["openai/widgetAccessible"] = true;
+    }
 
     server.registerTool(
       name,
@@ -167,8 +182,18 @@ export function createRingeeAppServer(ringeeClient?: RingeeClient): McpServer {
       async (args: Record<string, unknown>) => {
         const ringee = ringeeClient ?? getRingeeClient();
         const result = await ringee.mcp.callTool(name, args);
+
+        // The widget shows the full result. Keep the model-facing text minimal so
+        // ChatGPT doesn't echo the card's contents as a second message. On error,
+        // surface the real text so the model can explain what failed.
+        const narration = result.isError
+          ? result.rawText
+          : outputTemplate
+            ? `${meta?.title ?? name} is shown to the user in an interactive card above. Don't restate its contents — reply briefly or suggest the next step.`
+            : result.rawText;
+
         return {
-          content: [{ type: "text" as const, text: result.rawText }],
+          content: [{ type: "text" as const, text: narration }],
           structuredContent:
             result.data && typeof result.data === "object"
               ? (result.data as Record<string, unknown>)

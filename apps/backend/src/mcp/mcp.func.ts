@@ -119,6 +119,7 @@ export class McpFunc {
     toolName: "search_contacts",
     description:
       "Search the user's (or organization's) Ringee contact directory by name, phone, email, or company. " +
+      'Pass query "*" to list ALL contacts (paginated). ' +
       "Returns a paginated list of matching contacts with their id, name, phone, email and lastCallAt. " +
       "Use this to resolve a contactId before calling start_call, create_callback, or schedule_meeting.",
     zod: SearchContactsSchema,
@@ -131,9 +132,14 @@ export class McpFunc {
     },
   })
   async searchContacts(ctx: OwnershipContext, input: SearchContactsInput) {
+    // "*" (or an empty query) means "list everything" — drop the text filter so
+    // the user can page through their whole directory.
+    const trimmed = input.query.trim();
+    const search = trimmed === "*" || trimmed === "" ? undefined : trimmed;
+
     const { data, meta } = await this.contactService.listContacts(
       ctx,
-      input.query,
+      search,
       undefined,
       input.page ?? 1,
       input.limit ?? 10,
@@ -143,6 +149,8 @@ export class McpFunc {
       total: meta.total,
       page: meta.page,
       totalPages: meta.totalPages,
+      limit: meta.limit,
+      query: input.query,
       contacts: data.map((c) => ({
         id: c.id,
         name: c.name,

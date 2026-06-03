@@ -53,6 +53,10 @@ export interface SearchContactsResult {
   total: number;
   page: number;
   totalPages: number;
+  /** Page size used for this result (echoed back for stable pagination). */
+  limit?: number;
+  /** The query that produced this result ("*" means "all contacts"). */
+  query?: string;
   contacts: ContactSummary[];
 }
 

@@ -4,6 +4,7 @@ import type {
   CreateCallbackResult,
   LogCallOutcomeResult,
   ScheduleMeetingResult,
+  SearchContactsResult,
   SearchLeadsResult,
 } from "@ringee-io/agent";
 import {
@@ -11,12 +12,19 @@ import {
   CallSessionCard,
   CallbackCard,
   ContactCard,
+  ContactListCard,
   LeadSearchResults,
   MeetingCard,
 } from "@/components/cards";
 import {
+  ContactCardSkeleton,
+  GenericCardSkeleton,
+  ListCardSkeleton,
+} from "@/components/skeletons";
+import {
   mockCallback,
   mockContact,
+  mockContactList,
   mockLeadSearch,
   mockMeeting,
   mockOutcome,
@@ -25,9 +33,10 @@ import {
 } from "@/lib/mock";
 
 /**
- * Maps a ChatGPT App component name to: a renderer (from tool output), demo
- * data, and a label. The render route and gallery both use this so a component
- * looks identical whether driven by ChatGPT or by the local demo data.
+ * Maps a ChatGPT App component name to: a renderer (from tool output), a
+ * loading skeleton, demo data, and a label. The render route and gallery both
+ * use this so a component looks identical whether driven by ChatGPT or by the
+ * local demo data.
  *
  * Component names line up with `component` in `@ringee-io/agent`'s TOOL_CATALOG.
  */
@@ -38,6 +47,8 @@ export interface ComponentEntry {
   /** Tools whose output this component renders. */
   tools: string[];
   render: (data: unknown) => React.ReactNode;
+  /** Placeholder shown in the widget while the tool runs (no real data yet). */
+  skeleton: React.ReactNode;
   mock: unknown;
 }
 
@@ -49,7 +60,7 @@ export const COMPONENTS: Record<string, ComponentEntry> = {
     name: "ContactCard",
     title: "Contact",
     description: "A single contact with activity and quick actions.",
-    tools: ["get_contact", "create_contact", "update_contact", "search_contacts"],
+    tools: ["get_contact", "create_contact", "update_contact"],
     render: (data) => {
       const d = asRecord(data);
       // Accept { contact }, { contacts: [...] } or a bare contact detail.
@@ -58,7 +69,20 @@ export const COMPONENTS: Record<string, ComponentEntry> = {
         d) as ContactDetail;
       return <ContactCard contact={contact} />;
     },
+    skeleton: <ContactCardSkeleton />,
     mock: { contact: mockContact },
+  },
+
+  ContactListCard: {
+    name: "ContactListCard",
+    title: "Contacts",
+    description: "A paginated list of contacts with quick actions.",
+    tools: ["search_contacts"],
+    render: (data) => (
+      <ContactListCard data={data as SearchContactsResult} />
+    ),
+    skeleton: <ListCardSkeleton />,
+    mock: mockContactList,
   },
 
   LeadSearchResults: {
@@ -67,6 +91,7 @@ export const COMPONENTS: Record<string, ComponentEntry> = {
     description: "Prospecting candidates with reveal/import actions.",
     tools: ["search_leads", "reveal_lead", "import_leads_as_contacts"],
     render: (data) => <LeadSearchResults data={data as SearchLeadsResult} />,
+    skeleton: <ListCardSkeleton />,
     mock: mockLeadSearch,
   },
 
@@ -91,6 +116,7 @@ export const COMPONENTS: Record<string, ComponentEntry> = {
       };
       return <CallSessionCard session={session} joinUrl={d.joinUrl as string} />;
     },
+    skeleton: <GenericCardSkeleton />,
     mock: { ...mockSession, joinUrl: mockSessionJoinUrl },
   },
 
@@ -100,6 +126,7 @@ export const COMPONENTS: Record<string, ComponentEntry> = {
     description: "A scheduled call-back reminder.",
     tools: ["create_callback"],
     render: (data) => <CallbackCard callback={data as CreateCallbackResult} />,
+    skeleton: <GenericCardSkeleton />,
     mock: mockCallback,
   },
 
@@ -109,6 +136,7 @@ export const COMPONENTS: Record<string, ComponentEntry> = {
     description: "A booked meeting, calendar-synced when available.",
     tools: ["schedule_meeting"],
     render: (data) => <MeetingCard meeting={data as ScheduleMeetingResult} />,
+    skeleton: <GenericCardSkeleton />,
     mock: mockMeeting,
   },
 
@@ -118,6 +146,7 @@ export const COMPONENTS: Record<string, ComponentEntry> = {
     description: "A logged call disposition with the next best step.",
     tools: ["log_call_outcome"],
     render: (data) => <CallOutcomeCard outcome={data as LogCallOutcomeResult} />,
+    skeleton: <GenericCardSkeleton />,
     mock: mockOutcome,
   },
 };

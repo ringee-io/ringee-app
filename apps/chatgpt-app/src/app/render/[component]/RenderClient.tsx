@@ -2,17 +2,18 @@
 
 import { COMPONENTS } from "@/components/registry";
 import { ErrorState } from "@/components/states";
-import { useToolOutput } from "@/lib/openai";
+import { useIsEmbedded, useToolOutputRaw } from "@/lib/openai";
 
 /**
- * The surface ChatGPT embeds in its iframe. It reads the tool output from
- * `window.openai.toolOutput` and renders the matching component; standalone it
- * falls back to demo data so the same URL is previewable in a browser.
+ * Standalone surface for one component. Reads the tool output from
+ * `window.openai.toolOutput` and renders the matching component; embedded but
+ * not ready → the loading skeleton; standalone (plain browser) → demo data.
  */
 export function RenderClient({ component }: { component: string }) {
   const entry = COMPONENTS[component];
-  // Hooks must run unconditionally — fall back to an empty object if unknown.
-  const data = useToolOutput<unknown>(entry?.mock ?? {});
+  // Hooks must run unconditionally.
+  const embedded = useIsEmbedded();
+  const output = useToolOutputRaw<unknown>();
 
   if (!entry) {
     return (
@@ -27,5 +28,10 @@ export function RenderClient({ component }: { component: string }) {
     );
   }
 
+  if (embedded && output == null) {
+    return <div className="p-3">{entry.skeleton}</div>;
+  }
+
+  const data = output ?? entry.mock;
   return <div className="p-3">{entry.render(data)}</div>;
 }

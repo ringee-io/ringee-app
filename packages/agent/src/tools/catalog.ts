@@ -52,10 +52,11 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     action: "contacts.search",
     tool: "search_contacts",
     title: "Search contacts",
-    summary: "Find existing contacts by name, phone, email or company.",
+    summary:
+      'Find existing contacts by name, phone, email or company. Use "*" to list all.',
     sensitivity: "read",
     cli: "ringee contacts search <query>",
-    component: "ContactCard",
+    component: "ContactListCard",
     annotations: {
       readOnlyHint: true,
       destructiveHint: false,
