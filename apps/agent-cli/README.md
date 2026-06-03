@@ -1,8 +1,39 @@
-# ringee CLI (`@ringee-io/cli`)
+# ringee CLI (`ringee`)
 
 Operate Ringee from the terminal. The CLI is a thin front-end over
 [`@ringee-io/agent`](../../packages/agent), which talks to the Ringee
 backend/MCP — the single source of truth.
+
+## Install
+
+```bash
+# Global binary
+npm i -g ringee      # then: ringee --help
+
+# Or run without installing
+npx ringee --help
+```
+
+Runtime requires Node ≥ 20. The published binary is self-contained except for
+its npm dependencies (`@modelcontextprotocol/sdk`, `zod`, `commander`), which
+the installer pulls in automatically.
+
+## Use from an agent harness (Claude Code, OpenClaw, Hermes…)
+
+Any agent that can run shell commands can drive Ringee through this CLI: install
+it (globally or via `npx`), export the connection env, and have the agent call
+`ringee … --json` so it can parse structured output.
+
+```bash
+npm i -g ringee
+export RINGEE_MCP_URL="https://api.ringee.io/api/mcp/<userId>/sse"
+ringee config check                       # confirm connectivity
+ringee contacts search acme --json        # machine-readable for the agent
+```
+
+Sensitive/destructive actions still require explicit flags (`--yes`,
+`--confirm-phone`) — see [Safety](#safety) — so an autonomous agent cannot spend
+credits, mint magic links, or delete data without an intentional flag.
 
 ## Configure
 
@@ -20,13 +51,13 @@ In-repo (no build needed):
 
 ```bash
 pnpm ringee contacts search acme          # root convenience script
-pnpm --filter @ringee-io/cli dev -- config check
+pnpm --filter ringee dev -- config check
 ```
 
 Built / global binary:
 
 ```bash
-pnpm --filter @ringee-io/cli build        # bundles to dist/index.js
+pnpm --filter ringee build        # bundles to dist/index.js
 node apps/agent-cli/dist/index.js --help  # or `ringee` once linked on PATH
 ```
 

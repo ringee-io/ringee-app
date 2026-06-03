@@ -1,27 +1,49 @@
 {
-  "name": "@ringee-io/cli",
+  "name": "ringee",
   "version": "0.1.0",
-  "description": "The `ringee` CLI — operate Ringee (contacts, leads, call sessions, callbacks, meetings) from the terminal, on top of the Ringee backend/MCP.",
+  "description": "The `ringee` CLI — operate Ringee (contacts, leads, call sessions, callbacks, meetings) from the terminal, on top of the Ringee backend/MCP. Usable from any agent harness (Claude Code, OpenClaw, Hermes, …).",
   "license": "AGPL-3.0-or-later",
   "type": "module",
-  "private": true,
   "bin": {
     "ringee": "./dist/index.js"
   },
   "files": ["dist", "README.md"],
+  "keywords": [
+    "ringee",
+    "cli",
+    "voip",
+    "mcp",
+    "agent",
+    "contacts",
+    "calls",
+    "telephony"
+  ],
+  "homepage": "https://github.com/ringee-io/ringee-app/tree/main/apps/agent-cli#readme",
+  "bugs": "https://github.com/ringee-io/ringee-app/issues",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ringee-io/ringee-app.git",
+    "directory": "apps/agent-cli"
+  },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "clean": "rimraf dist",
     "dev": "tsx src/index.ts",
     "start": "tsx src/index.ts",
     "prebuild": "pnpm run clean",
     "build": "tsup",
+    "prepublishOnly": "pnpm run build",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ringee-io/agent": "workspace:*",
-    "commander": "^13.1.0"
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "commander": "^13.1.0",
+    "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@ringee-io/agent": "workspace:*",
     "@types/node": "~22.16.0",
     "rimraf": "^6.0.0",
     "tsup": "^8.3.5",
