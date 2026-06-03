@@ -7,21 +7,22 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
+  CardTitle
 } from '@ringee/frontend-shared/components/ui/card';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+  SelectValue
 } from '@ringee/frontend-shared/components/ui/select';
+import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import {
   ChartConfig,
   ChartContainer,
   ChartTooltip,
-  ChartTooltipContent,
+  ChartTooltipContent
 } from '@ringee/frontend-shared/components/ui/chart';
 import {
   Bar,
@@ -32,33 +33,43 @@ import {
   Pie,
   PieChart,
   Cell,
-  Label,
+  Label
 } from 'recharts';
-import { Phone, PhoneIncoming, Clock, TrendingUp } from 'lucide-react';
+import {
+  Phone,
+  PhoneIncoming,
+  Clock,
+  TrendingUp,
+  BarChart3,
+  RefreshCw
+} from 'lucide-react';
+import type { Disposition } from '../types/campaign.types';
 
+/** Matches OutboundAnalyticsRepository.getCampaignSummary + leadsByStatus. */
 interface AnalyticsSummary {
   totalAttempts: number;
-  totalAnswered: number;
-  totalDispositioned: number;
-  contactRate: number;
-  avgDurationSec: number;
-  totalTalkTimeSec: number;
+  connected: number;
+  conversions: number;
+  avgHandleTimeSec: number | null;
+  uniqueLeadsDialed: number;
+  contactRate: number; // already a percentage (0-100)
+  conversionRate: number; // already a percentage (0-100)
+  leadsByStatus?: { status: string; count: number }[];
 }
 
 interface DispositionDist {
-  code: string;
-  label: string | null;
+  dispositionCode: string;
   count: number;
   percentage: number;
 }
 
 interface AgentPerf {
-  userId: string;
+  agentUserId: string;
   attempts: number;
   connected: number;
-  contactRate: number;
-  avgDuration: number;
   totalTalkSec: number;
+  conversions: number;
+  contactRate: number; // already a percentage (0-100)
 }
 
 interface DispositionByAgent {
@@ -88,14 +99,15 @@ const DISPOSITION_COLORS = [
   '#f59e0b',
   '#06b6d4',
   '#ec4899',
-  '#10b981',
+  '#10b981'
 ];
 
-function formatTime(sec: number): string {
-  if (sec < 60) return `${Math.round(sec)}s`;
-  const m = Math.floor(sec / 60);
-  const s = Math.round(sec % 60);
-  return `${m}m ${s}s`;
+function formatTime(sec: number | null | undefined): string {
+  const s = sec ?? 0;
+  if (s < 60) return `${Math.round(s)}s`;
+  const m = Math.floor(s / 60);
+  const rem = Math.round(s % 60);
+  return `${m}m ${rem}s`;
 }
 
 interface Props {
@@ -107,8 +119,11 @@ export function CampaignAnalytics({ campaignId }: Props) {
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [dispositions, setDispositions] = useState<DispositionDist[]>([]);
   const [agents, setAgents] = useState<AgentPerf[]>([]);
-  const [dispositionsByAgent, setDispositionsByAgent] = useState<DispositionByAgent[]>([]);
+  const [dispositionsByAgent, setDispositionsByAgent] = useState<
+    DispositionByAgent[]
+  >([]);
   const [members, setMembers] = useState<CampaignMember[]>([]);
+  const [dispoConfig, setDispoConfig] = useState<Disposition[]>([]);
   const [selectedAgent, setSelectedAgent] = useState<string>('all');
   const [loading, setLoading] = useState(true);
 
@@ -119,20 +134,26 @@ export function CampaignAnalytics({ campaignId }: Props) {
   async function loadAnalytics() {
     setLoading(true);
     try {
-      const [s, d, a, dba, m] = await Promise.all([
+      const [s, d, a, dba, m, dc] = await Promise.all([
         api.get<AnalyticsSummary>(`/campaigns/${campaignId}/analytics/summary`),
-        api.get<DispositionDist[]>(`/campaigns/${campaignId}/analytics/dispositions`),
+        api.get<DispositionDist[]>(
+          `/campaigns/${campaignId}/analytics/dispositions`
+        ),
         api.get<AgentPerf[]>(`/campaigns/${campaignId}/analytics/agents`),
-        api.get<DispositionByAgent[]>(`/campaigns/${campaignId}/analytics/dispositions-by-agent`),
+        api.get<DispositionByAgent[]>(
+          `/campaigns/${campaignId}/analytics/dispositions-by-agent`
+        ),
         api.get<CampaignMember[]>(`/campaigns/${campaignId}/members`),
+        api.get<Disposition[]>(`/campaigns/${campaignId}/dispositions`)
       ]);
       setSummary(s);
       setDispositions(d);
       setAgents(a);
       setDispositionsByAgent(dba);
       setMembers(m);
+      setDispoConfig(dc);
     } catch {
-      // handled
+      // handled by api client
     } finally {
       setLoading(false);
     }
@@ -141,79 +162,99 @@ export function CampaignAnalytics({ campaignId }: Props) {
   const memberNameMap = useMemo(() => {
     const map = new Map<string, string>();
     members.forEach((m) => {
-      const name = `${m.user.firstName || ''} ${m.user.lastName || ''}`.trim() || 'Unknown';
+      const name =
+        `${m.user.firstName || ''} ${m.user.lastName || ''}`.trim() ||
+        'Unknown';
       map.set(m.userId, name);
     });
     return map;
   }, [members]);
 
+  // Map disposition codes -> human-friendly labels (falls back to the code).
+  const dispoLabelMap = useMemo(() => {
+    const map = new Map<string, string>();
+    dispoConfig.forEach((d) => map.set(d.code, d.label));
+    return map;
+  }, [dispoConfig]);
+
   function getAgentName(userId: string): string {
-    return memberNameMap.get(userId) || userId?.slice(0, 8) + '...';
+    return memberNameMap.get(userId) || `${userId?.slice(0, 8) ?? 'unknown'}…`;
+  }
+
+  function getDispoLabel(code: string): string {
+    return dispoLabelMap.get(code) || code;
   }
 
   // Disposition pie chart data
   const pieData = useMemo(() => {
     return dispositions.map((d, i) => ({
-      name: d.label || d.code,
+      name: getDispoLabel(d.dispositionCode),
       value: d.count,
-      fill: DISPOSITION_COLORS[i % DISPOSITION_COLORS.length],
+      fill: DISPOSITION_COLORS[i % DISPOSITION_COLORS.length]
     }));
-  }, [dispositions]);
+  }, [dispositions, dispoLabelMap]);
 
   const pieChartConfig = useMemo(() => {
     const config: ChartConfig = {};
     dispositions.forEach((d, i) => {
-      config[d.code] = {
-        label: d.label || d.code,
-        color: DISPOSITION_COLORS[i % DISPOSITION_COLORS.length],
+      config[d.dispositionCode] = {
+        label: getDispoLabel(d.dispositionCode),
+        color: DISPOSITION_COLORS[i % DISPOSITION_COLORS.length]
       };
     });
     return config;
-  }, [dispositions]);
+  }, [dispositions, dispoLabelMap]);
 
   // Filtered dispositions by agent for the bar chart
   const agentDispositionBarData = useMemo(() => {
+    let entries: { dispositionCode: string; count: number }[];
     if (selectedAgent === 'all') {
-      // Group all agents' data by disposition
       const byDisp = new Map<string, number>();
       dispositionsByAgent.forEach((d) => {
-        byDisp.set(d.dispositionCode, (byDisp.get(d.dispositionCode) || 0) + d.count);
+        byDisp.set(
+          d.dispositionCode,
+          (byDisp.get(d.dispositionCode) || 0) + d.count
+        );
       });
-      return Array.from(byDisp.entries())
-        .map(([code, count]) => ({ dispositionCode: code, count }))
-        .sort((a, b) => b.count - a.count);
+      entries = Array.from(byDisp.entries()).map(([code, count]) => ({
+        dispositionCode: code,
+        count
+      }));
+    } else {
+      entries = dispositionsByAgent.filter(
+        (d) => d.agentUserId === selectedAgent
+      );
     }
-    return dispositionsByAgent
-      .filter((d) => d.agentUserId === selectedAgent)
+    return entries
+      .map((e) => ({ ...e, label: getDispoLabel(e.dispositionCode) }))
       .sort((a, b) => b.count - a.count);
-  }, [dispositionsByAgent, selectedAgent]);
+  }, [dispositionsByAgent, selectedAgent, dispoLabelMap]);
 
   const barChartConfig: ChartConfig = {
     count: {
       label: 'Count',
-      color: 'var(--primary)',
-    },
+      color: 'var(--primary)'
+    }
   };
 
   // Agent performance bar chart data
   const agentPerfBarData = useMemo(() => {
     return agents.map((a) => ({
-      name: getAgentName(a.userId),
+      name: getAgentName(a.agentUserId),
       attempts: a.attempts,
-      connected: a.connected,
-      contactRate: Math.round(a.contactRate * 100),
+      connected: a.connected
     }));
   }, [agents, memberNameMap]);
 
   const agentPerfChartConfig: ChartConfig = {
     attempts: {
       label: 'Attempts',
-      color: 'var(--chart-1)',
+      color: 'var(--chart-1)'
     },
     connected: {
       label: 'Connected',
-      color: 'var(--chart-2)',
-    },
+      color: 'var(--chart-2)'
+    }
   };
 
   const totalDispositioned = useMemo(
@@ -223,274 +264,371 @@ export function CampaignAnalytics({ campaignId }: Props) {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="grid gap-4 sm:grid-cols-4">
+      <div className='space-y-4'>
+        <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
           {Array.from({ length: 4 }).map((_, i) => (
             <Card key={i}>
-              <CardHeader className="pb-2">
-                <Skeleton className="h-4 w-20" />
+              <CardHeader className='pb-2'>
+                <Skeleton className='h-4 w-20' />
               </CardHeader>
               <CardContent>
-                <Skeleton className="h-8 w-16" />
+                <Skeleton className='h-8 w-16' />
               </CardContent>
             </Card>
           ))}
         </div>
-        <Skeleton className="h-[300px] w-full" />
+        <Skeleton className='h-[300px] w-full' />
       </div>
     );
   }
 
+  const hasActivity = (summary?.totalAttempts ?? 0) > 0;
+
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       {/* Summary Cards */}
       {summary && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader className='flex flex-row items-center justify-between pb-2'>
               <CardDescription>Total Calls</CardDescription>
-              <Phone className="h-4 w-4 text-muted-foreground" />
+              <Phone className='text-muted-foreground h-4 w-4' />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{summary.totalAttempts}</div>
+              <div className='text-2xl font-bold'>{summary.totalAttempts}</div>
+              <p className='text-muted-foreground text-xs'>
+                {summary.uniqueLeadsDialed} unique leads dialed
+              </p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardHeader className='flex flex-row items-center justify-between pb-2'>
               <CardDescription>Connected</CardDescription>
-              <PhoneIncoming className="h-4 w-4 text-muted-foreground" />
+              <PhoneIncoming className='text-muted-foreground h-4 w-4' />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{summary.totalAnswered}</div>
+              <div className='text-2xl font-bold'>{summary.connected}</div>
+              <p className='text-muted-foreground text-xs'>
+                {Math.round(summary.contactRate)}% contact rate
+              </p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardDescription>Contact Rate</CardDescription>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className='flex flex-row items-center justify-between pb-2'>
+              <CardDescription>Conversions</CardDescription>
+              <TrendingUp className='text-muted-foreground h-4 w-4' />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {Math.round(summary.contactRate * 100)}%
-              </div>
+              <div className='text-2xl font-bold'>{summary.conversions}</div>
+              <p className='text-muted-foreground text-xs'>
+                {Math.round(summary.conversionRate)}% conversion rate
+              </p>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardDescription>Avg Duration</CardDescription>
-              <Clock className="h-4 w-4 text-muted-foreground" />
+            <CardHeader className='flex flex-row items-center justify-between pb-2'>
+              <CardDescription>Avg Talk Time</CardDescription>
+              <Clock className='text-muted-foreground h-4 w-4' />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">
-                {formatTime(summary.avgDurationSec)}
+              <div className='text-2xl font-bold'>
+                {formatTime(summary.avgHandleTimeSec)}
               </div>
+              <p className='text-muted-foreground text-xs'>
+                per connected call
+              </p>
             </CardContent>
           </Card>
         </div>
       )}
 
-      {/* Charts Row 1: Disposition Pie + Agent Performance Bar */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Disposition Distribution Pie Chart */}
+      {!hasActivity ? (
         <Card>
-          <CardHeader>
-            <CardTitle>Disposition Distribution</CardTitle>
-            <CardDescription>Breakdown of all call outcomes</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {dispositions.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No data yet</p>
-            ) : (
-              <ChartContainer config={pieChartConfig} className="mx-auto aspect-square h-[280px]">
-                <PieChart>
-                  <ChartTooltip
-                    cursor={false}
-                    content={<ChartTooltipContent hideLabel />}
-                  />
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={60}
-                    strokeWidth={2}
-                    stroke="var(--background)"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell key={index} fill={entry.fill} />
-                    ))}
-                    <Label
-                      content={({ viewBox }) => {
-                        if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
-                          return (
-                            <text
-                              x={viewBox.cx}
-                              y={viewBox.cy}
-                              textAnchor="middle"
-                              dominantBaseline="middle"
-                            >
-                              <tspan
-                                x={viewBox.cx}
-                                y={viewBox.cy}
-                                className="fill-foreground text-3xl font-bold"
-                              >
-                                {totalDispositioned}
-                              </tspan>
-                              <tspan
-                                x={viewBox.cx}
-                                y={(viewBox.cy || 0) + 24}
-                                className="fill-muted-foreground text-sm"
-                              >
-                                Dispositions
-                              </tspan>
-                            </text>
-                          );
-                        }
-                      }}
-                    />
-                  </Pie>
-                </PieChart>
-              </ChartContainer>
-            )}
-            {/* Legend */}
-            {dispositions.length > 0 && (
-              <div className="mt-4 grid grid-cols-2 gap-2">
-                {dispositions.map((d, i) => (
-                  <div key={i} className="flex items-center gap-2 text-sm">
-                    <div
-                      className="h-3 w-3 rounded-full"
-                      style={{ backgroundColor: DISPOSITION_COLORS[i % DISPOSITION_COLORS.length] }}
-                    />
-                    <span className="truncate text-muted-foreground">
-                      {d.label || d.code}
-                    </span>
-                    <span className="ml-auto font-medium">{d.count}</span>
-                  </div>
-                ))}
-              </div>
-            )}
+          <CardContent className='flex flex-col items-center justify-center py-16 text-center'>
+            <BarChart3 className='text-muted-foreground mb-4 h-12 w-12' />
+            <h3 className='text-lg font-semibold'>No call activity yet</h3>
+            <p className='text-muted-foreground mt-1 max-w-sm text-sm'>
+              Analytics appear here once agents start dialing this campaign.
+              Charts will populate automatically as calls are completed and
+              dispositioned.
+            </p>
+            <Button
+              variant='outline'
+              size='sm'
+              className='mt-4'
+              onClick={loadAnalytics}
+            >
+              <RefreshCw className='mr-2 h-4 w-4' />
+              Refresh
+            </Button>
           </CardContent>
         </Card>
-
-        {/* Agent Performance Bar Chart */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Agent Performance</CardTitle>
-            <CardDescription>Attempts vs connected calls per agent</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {agents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No data yet</p>
-            ) : (
-              <ChartContainer config={agentPerfChartConfig} className="h-[280px] w-full">
-                <BarChart
-                  data={agentPerfBarData}
-                  layout="vertical"
-                  margin={{ left: 20, right: 20 }}
-                >
-                  <CartesianGrid horizontal={false} />
-                  <YAxis
-                    dataKey="name"
-                    type="category"
-                    tickLine={false}
-                    axisLine={false}
-                    width={100}
-                    tick={{ fontSize: 12 }}
-                  />
-                  <XAxis type="number" tickLine={false} axisLine={false} />
-                  <ChartTooltip
-                    cursor={{ fill: 'var(--primary)', opacity: 0.1 }}
-                    content={<ChartTooltipContent />}
-                  />
-                  <Bar dataKey="attempts" fill="var(--chart-1)" radius={[0, 4, 4, 0]} barSize={16} />
-                  <Bar dataKey="connected" fill="var(--chart-2)" radius={[0, 4, 4, 0]} barSize={16} />
-                </BarChart>
-              </ChartContainer>
-            )}
-            {/* Agent details list */}
-            {agents.length > 0 && (
-              <div className="mt-4 space-y-2">
-                {agents.map((a) => (
-                  <div
-                    key={a.userId}
-                    className="flex items-center justify-between rounded-md border px-3 py-2 text-sm"
-                  >
-                    <span className="font-medium">{getAgentName(a.userId)}</span>
-                    <div className="flex gap-4 text-xs text-muted-foreground">
-                      <span>{a.attempts} calls</span>
-                      <span>{Math.round(a.contactRate * 100)}% rate</span>
-                      <span>{formatTime(a.totalTalkSec)} talk</span>
+      ) : (
+        <>
+          {/* Charts Row 1: Disposition Pie + Agent Performance Bar */}
+          <div className='grid gap-6 lg:grid-cols-2'>
+            {/* Disposition Distribution Pie Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Disposition Distribution</CardTitle>
+                <CardDescription>
+                  Breakdown of all call outcomes
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {dispositions.length === 0 ? (
+                  <p className='text-muted-foreground py-12 text-center text-sm'>
+                    No dispositioned calls yet
+                  </p>
+                ) : (
+                  <>
+                    <ChartContainer
+                      config={pieChartConfig}
+                      className='mx-auto aspect-square h-[280px]'
+                    >
+                      <PieChart>
+                        <ChartTooltip
+                          cursor={false}
+                          content={<ChartTooltipContent hideLabel />}
+                        />
+                        <Pie
+                          data={pieData}
+                          dataKey='value'
+                          nameKey='name'
+                          innerRadius={60}
+                          strokeWidth={2}
+                          stroke='var(--background)'
+                        >
+                          {pieData.map((entry, index) => (
+                            <Cell key={index} fill={entry.fill} />
+                          ))}
+                          <Label
+                            content={({ viewBox }) => {
+                              if (
+                                viewBox &&
+                                'cx' in viewBox &&
+                                'cy' in viewBox
+                              ) {
+                                return (
+                                  <text
+                                    x={viewBox.cx}
+                                    y={viewBox.cy}
+                                    textAnchor='middle'
+                                    dominantBaseline='middle'
+                                  >
+                                    <tspan
+                                      x={viewBox.cx}
+                                      y={viewBox.cy}
+                                      className='fill-foreground text-3xl font-bold'
+                                    >
+                                      {totalDispositioned}
+                                    </tspan>
+                                    <tspan
+                                      x={viewBox.cx}
+                                      y={(viewBox.cy || 0) + 24}
+                                      className='fill-muted-foreground text-sm'
+                                    >
+                                      Dispositions
+                                    </tspan>
+                                  </text>
+                                );
+                              }
+                            }}
+                          />
+                        </Pie>
+                      </PieChart>
+                    </ChartContainer>
+                    {/* Legend */}
+                    <div className='mt-4 grid grid-cols-2 gap-2'>
+                      {dispositions.map((d, i) => (
+                        <div
+                          key={i}
+                          className='flex items-center gap-2 text-sm'
+                        >
+                          <div
+                            className='h-3 w-3 shrink-0 rounded-full'
+                            style={{
+                              backgroundColor:
+                                DISPOSITION_COLORS[
+                                  i % DISPOSITION_COLORS.length
+                                ]
+                            }}
+                          />
+                          <span className='text-muted-foreground truncate'>
+                            {getDispoLabel(d.dispositionCode)}
+                          </span>
+                          <span className='ml-auto font-medium'>{d.count}</span>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
 
-      {/* Chart Row 2: Dispositions by Agent */}
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Dispositions by Agent</CardTitle>
-            <CardDescription>
-              Disposition breakdown filtered by agent
-            </CardDescription>
+            {/* Agent Performance Bar Chart */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Agent Performance</CardTitle>
+                <CardDescription>
+                  Attempts vs connected calls per agent
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {agents.length === 0 ? (
+                  <p className='text-muted-foreground py-12 text-center text-sm'>
+                    No agent activity yet
+                  </p>
+                ) : (
+                  <>
+                    <ChartContainer
+                      config={agentPerfChartConfig}
+                      className='h-[280px] w-full'
+                    >
+                      <BarChart
+                        data={agentPerfBarData}
+                        layout='vertical'
+                        margin={{ left: 20, right: 20 }}
+                      >
+                        <CartesianGrid horizontal={false} />
+                        <YAxis
+                          dataKey='name'
+                          type='category'
+                          tickLine={false}
+                          axisLine={false}
+                          width={100}
+                          tick={{ fontSize: 12 }}
+                        />
+                        <XAxis
+                          type='number'
+                          tickLine={false}
+                          axisLine={false}
+                          allowDecimals={false}
+                        />
+                        <ChartTooltip
+                          cursor={{ fill: 'var(--primary)', opacity: 0.1 }}
+                          content={<ChartTooltipContent />}
+                        />
+                        <Bar
+                          dataKey='attempts'
+                          fill='var(--chart-1)'
+                          radius={[0, 4, 4, 0]}
+                          barSize={16}
+                        />
+                        <Bar
+                          dataKey='connected'
+                          fill='var(--chart-2)'
+                          radius={[0, 4, 4, 0]}
+                          barSize={16}
+                        />
+                      </BarChart>
+                    </ChartContainer>
+                    {/* Agent details list */}
+                    <div className='mt-4 space-y-2'>
+                      {agents.map((a) => (
+                        <div
+                          key={a.agentUserId}
+                          className='flex items-center justify-between rounded-md border px-3 py-2 text-sm'
+                        >
+                          <span className='font-medium'>
+                            {getAgentName(a.agentUserId)}
+                          </span>
+                          <div className='text-muted-foreground flex gap-4 text-xs'>
+                            <span>{a.attempts} calls</span>
+                            <span>{Math.round(a.contactRate)}% rate</span>
+                            <span>{formatTime(a.totalTalkSec)} talk</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </CardContent>
+            </Card>
           </div>
-          <Select value={selectedAgent} onValueChange={setSelectedAgent}>
-            <SelectTrigger className="w-[200px]">
-              <SelectValue placeholder="All agents" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Agents</SelectItem>
-              {agents.map((a) => (
-                <SelectItem key={a.userId} value={a.userId}>
-                  {getAgentName(a.userId)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardHeader>
-        <CardContent>
-          {agentDispositionBarData.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No disposition data available</p>
-          ) : (
-            <ChartContainer config={barChartConfig} className="h-[300px] w-full">
-              <BarChart
-                data={agentDispositionBarData}
-                margin={{ left: 12, right: 12, bottom: 40 }}
-              >
-                <defs>
-                  <linearGradient id="fillDisp" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.8} />
-                    <stop offset="100%" stopColor="var(--primary)" stopOpacity={0.2} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid vertical={false} />
-                <XAxis
-                  dataKey="dispositionCode"
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  angle={-35}
-                  textAnchor="end"
-                  tick={{ fontSize: 11 }}
-                />
-                <YAxis tickLine={false} axisLine={false} />
-                <ChartTooltip
-                  cursor={{ fill: 'var(--primary)', opacity: 0.1 }}
-                  content={<ChartTooltipContent />}
-                />
-                <Bar
-                  dataKey="count"
-                  fill="url(#fillDisp)"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ChartContainer>
-          )}
-        </CardContent>
-      </Card>
+
+          {/* Chart Row 2: Dispositions by Agent */}
+          <Card>
+            <CardHeader className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+              <div>
+                <CardTitle>Dispositions by Agent</CardTitle>
+                <CardDescription>
+                  Disposition breakdown filtered by agent
+                </CardDescription>
+              </div>
+              <Select value={selectedAgent} onValueChange={setSelectedAgent}>
+                <SelectTrigger className='w-full sm:w-[200px]'>
+                  <SelectValue placeholder='All agents' />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value='all'>All Agents</SelectItem>
+                  {agents.map((a) => (
+                    <SelectItem key={a.agentUserId} value={a.agentUserId}>
+                      {getAgentName(a.agentUserId)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </CardHeader>
+            <CardContent>
+              {agentDispositionBarData.length === 0 ? (
+                <p className='text-muted-foreground py-12 text-center text-sm'>
+                  No disposition data available
+                </p>
+              ) : (
+                <ChartContainer
+                  config={barChartConfig}
+                  className='h-[300px] w-full'
+                >
+                  <BarChart
+                    data={agentDispositionBarData}
+                    margin={{ left: 12, right: 12, bottom: 40 }}
+                  >
+                    <defs>
+                      <linearGradient id='fillDisp' x1='0' y1='0' x2='0' y2='1'>
+                        <stop
+                          offset='0%'
+                          stopColor='var(--primary)'
+                          stopOpacity={0.8}
+                        />
+                        <stop
+                          offset='100%'
+                          stopColor='var(--primary)'
+                          stopOpacity={0.2}
+                        />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid vertical={false} />
+                    <XAxis
+                      dataKey='label'
+                      tickLine={false}
+                      axisLine={false}
+                      tickMargin={8}
+                      angle={-35}
+                      textAnchor='end'
+                      tick={{ fontSize: 11 }}
+                    />
+                    <YAxis
+                      tickLine={false}
+                      axisLine={false}
+                      allowDecimals={false}
+                    />
+                    <ChartTooltip
+                      cursor={{ fill: 'var(--primary)', opacity: 0.1 }}
+                      content={<ChartTooltipContent />}
+                    />
+                    <Bar
+                      dataKey='count'
+                      fill='url(#fillDisp)'
+                      radius={[4, 4, 0, 0]}
+                    />
+                  </BarChart>
+                </ChartContainer>
+              )}
+            </CardContent>
+          </Card>
+        </>
+      )}
     </div>
   );
 }

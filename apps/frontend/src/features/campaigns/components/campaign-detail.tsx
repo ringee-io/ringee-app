@@ -9,8 +9,7 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardHeader,
-  CardTitle,
+  CardHeader
 } from '@ringee/frontend-shared/components/ui/card';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
@@ -18,7 +17,7 @@ import {
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger,
+  TabsTrigger
 } from '@ringee/frontend-shared/components/ui/tabs';
 import {
   AlertDialog,
@@ -29,8 +28,13 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialogTrigger
 } from '@ringee/frontend-shared/components/ui/alert-dialog';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle
+} from '@ringee/frontend-shared/components/ui/alert';
 import {
   ArrowLeft,
   Play,
@@ -43,7 +47,9 @@ import {
   ListChecks,
   Settings,
   Loader2,
+  AlertTriangle
 } from 'lucide-react';
+import { toast } from 'sonner';
 import type { Campaign, CampaignStatus } from '../types/campaign.types';
 import { CampaignLeadsTab } from './campaign-leads-tab';
 import { CampaignDispositionsTab } from './campaign-dispositions-tab';
@@ -55,7 +61,7 @@ const STATUS_COLORS: Record<CampaignStatus, string> = {
   draft: 'bg-gray-100 text-gray-700 border-gray-300',
   active: 'bg-green-100 text-green-700 border-green-300',
   paused: 'bg-yellow-100 text-yellow-700 border-yellow-300',
-  completed: 'bg-blue-100 text-blue-700 border-blue-300',
+  completed: 'bg-blue-100 text-blue-700 border-blue-300'
 };
 
 interface Props {
@@ -68,6 +74,7 @@ export function CampaignDetail({ campaignId }: Props) {
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(true);
   const [transitioning, setTransitioning] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
 
   useEffect(() => {
     loadCampaign();
@@ -87,11 +94,25 @@ export function CampaignDetail({ campaignId }: Props) {
 
   async function transitionStatus(newStatus: CampaignStatus) {
     setTransitioning(true);
+    setActionError(null);
     try {
       await api.patch(`/campaigns/${campaignId}/status`, { status: newStatus });
       await loadCampaign();
-    } catch {
-      // handled by api client
+      const verb =
+        newStatus === 'active'
+          ? 'activated'
+          : newStatus === 'paused'
+            ? 'paused'
+            : newStatus === 'completed'
+              ? 'completed'
+              : 'updated';
+      toast.success(`Campaign ${verb}.`);
+    } catch (err: any) {
+      const message =
+        err?.message ||
+        'Could not update the campaign status. Please try again.';
+      setActionError(message);
+      toast.error(message);
     } finally {
       setTransitioning(false);
     }
@@ -99,10 +120,10 @@ export function CampaignDetail({ campaignId }: Props) {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-8 w-64" />
-        <Skeleton className="h-4 w-96" />
-        <Skeleton className="h-[400px] w-full" />
+      <div className='space-y-4'>
+        <Skeleton className='h-8 w-64' />
+        <Skeleton className='h-4 w-96' />
+        <Skeleton className='h-[400px] w-full' />
       </div>
     );
   }
@@ -110,11 +131,11 @@ export function CampaignDetail({ campaignId }: Props) {
   if (!campaign) {
     return (
       <Card>
-        <CardContent className="flex flex-col items-center py-16">
-          <h3 className="text-lg font-semibold">Campaign not found</h3>
+        <CardContent className='flex flex-col items-center py-16'>
+          <h3 className='text-lg font-semibold'>Campaign not found</h3>
           <Button
-            variant="outline"
-            className="mt-4"
+            variant='outline'
+            className='mt-4'
             onClick={() => router.push('/dashboard/campaigns')}
           >
             Back to Campaigns
@@ -127,40 +148,45 @@ export function CampaignDetail({ campaignId }: Props) {
   const leadCount = campaign._count?.leads ?? 0;
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
+      <div className='flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between'>
+        <div className='flex items-center gap-3'>
           <Button
-            variant="ghost"
-            size="icon"
+            variant='ghost'
+            size='icon'
             onClick={() => router.push('/dashboard/campaigns')}
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className='h-4 w-4' />
           </Button>
           <div>
-            <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-bold">{campaign.name}</h1>
-              <Badge variant="outline" className={STATUS_COLORS[campaign.status]}>
+            <div className='flex items-center gap-2'>
+              <h1 className='text-2xl font-bold'>{campaign.name}</h1>
+              <Badge
+                variant='outline'
+                className={STATUS_COLORS[campaign.status]}
+              >
                 {campaign.status}
               </Badge>
             </div>
             {campaign.description && (
-              <p className="text-sm text-muted-foreground">{campaign.description}</p>
+              <p className='text-muted-foreground text-sm'>
+                {campaign.description}
+              </p>
             )}
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className='flex items-center gap-2'>
           {campaign.status === 'draft' && (
             <Button
               onClick={() => transitionStatus('active')}
               disabled={transitioning}
             >
               {transitioning ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className='mr-2 h-4 w-4 animate-spin' />
               ) : (
-                <Play className="mr-2 h-4 w-4" />
+                <Play className='mr-2 h-4 w-4' />
               )}
               Activate
             </Button>
@@ -168,21 +194,21 @@ export function CampaignDetail({ campaignId }: Props) {
           {campaign.status === 'active' && (
             <>
               <Button
-                variant="outline"
+                variant='outline'
                 onClick={() => transitionStatus('paused')}
                 disabled={transitioning}
               >
                 {transitioning ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                 ) : (
-                  <Pause className="mr-2 h-4 w-4" />
+                  <Pause className='mr-2 h-4 w-4' />
                 )}
                 Pause
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" disabled={transitioning}>
-                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                  <Button variant='outline' disabled={transitioning}>
+                    <CheckCircle2 className='mr-2 h-4 w-4' />
                     Complete
                   </Button>
                 </AlertDialogTrigger>
@@ -190,15 +216,20 @@ export function CampaignDetail({ campaignId }: Props) {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Complete Campaign?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Once this campaign is marked as completed, it cannot be reactivated,
-                      edited, or have new leads added. All active agent sessions will end
-                      and no further calls will be made. This action is irreversible.
+                      Once this campaign is marked as completed, it cannot be
+                      reactivated, edited, or have new leads added. All active
+                      agent sessions will end and no further calls will be made.
+                      This action is irreversible.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => transitionStatus('completed')}>
-                      {transitioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    <AlertDialogAction
+                      onClick={() => transitionStatus('completed')}
+                    >
+                      {transitioning && (
+                        <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                      )}
                       Yes, Complete Campaign
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -213,16 +244,16 @@ export function CampaignDetail({ campaignId }: Props) {
                 disabled={transitioning}
               >
                 {transitioning ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                 ) : (
-                  <Play className="mr-2 h-4 w-4" />
+                  <Play className='mr-2 h-4 w-4' />
                 )}
                 Resume
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
-                  <Button variant="outline" disabled={transitioning}>
-                    <CheckCircle2 className="mr-2 h-4 w-4" />
+                  <Button variant='outline' disabled={transitioning}>
+                    <CheckCircle2 className='mr-2 h-4 w-4' />
                     Complete
                   </Button>
                 </AlertDialogTrigger>
@@ -230,15 +261,20 @@ export function CampaignDetail({ campaignId }: Props) {
                   <AlertDialogHeader>
                     <AlertDialogTitle>Complete Campaign?</AlertDialogTitle>
                     <AlertDialogDescription>
-                      Once this campaign is marked as completed, it cannot be reactivated,
-                      edited, or have new leads added. All active agent sessions will end
-                      and no further calls will be made. This action is irreversible.
+                      Once this campaign is marked as completed, it cannot be
+                      reactivated, edited, or have new leads added. All active
+                      agent sessions will end and no further calls will be made.
+                      This action is irreversible.
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={() => transitionStatus('completed')}>
-                      {transitioning && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                    <AlertDialogAction
+                      onClick={() => transitionStatus('completed')}
+                    >
+                      {transitioning && (
+                        <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+                      )}
                       Yes, Complete Campaign
                     </AlertDialogAction>
                   </AlertDialogFooter>
@@ -248,10 +284,10 @@ export function CampaignDetail({ campaignId }: Props) {
           )}
           {(campaign.status === 'active' || campaign.status === 'paused') && (
             <Button
-              variant="default"
+              variant='default'
               onClick={() => router.push(`/dashboard/dialer/${campaign.id}`)}
             >
-              <Phone className="mr-2 h-4 w-4" />
+              <Phone className='mr-2 h-4 w-4' />
               Open Dialer
             </Button>
           )}
@@ -260,84 +296,117 @@ export function CampaignDetail({ campaignId }: Props) {
 
       <Separator />
 
+      {/* Action error (e.g. failed activation due to missing leads / number) */}
+      {actionError && (
+        <Alert variant='destructive'>
+          <AlertTriangle className='h-4 w-4' />
+          <AlertTitle>Action could not be completed</AlertTitle>
+          <AlertDescription>{actionError}</AlertDescription>
+        </Alert>
+      )}
+
+      {/* Proactive guidance: a draft with no leads can't be activated. */}
+      {campaign.status === 'draft' && leadCount === 0 && !actionError && (
+        <Alert>
+          <AlertTriangle className='h-4 w-4' />
+          <AlertTitle>This campaign isn&apos;t ready yet</AlertTitle>
+          <AlertDescription>
+            Import at least one lead from the Leads tab before activating.
+            You&apos;ll also need a phone number (or caller ID) the campaign can
+            dial from.
+          </AlertDescription>
+        </Alert>
+      )}
+
       {/* Quick Stats */}
-      <div className="grid gap-4 sm:grid-cols-4">
+      <div className='grid gap-4 sm:grid-cols-4'>
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className='pb-2'>
             <CardDescription>Total Leads</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{leadCount}</div>
+            <div className='text-2xl font-bold'>{leadCount}</div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className='pb-2'>
             <CardDescription>Dialer Mode</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold capitalize">{campaign.dialerMode}</div>
+            <div className='text-2xl font-bold capitalize'>
+              {campaign.dialerMode}
+            </div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className='pb-2'>
             <CardDescription>Max Attempts</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{campaign.maxAttempts}</div>
+            <div className='text-2xl font-bold'>{campaign.maxAttempts}</div>
           </CardContent>
         </Card>
         <Card>
-          <CardHeader className="pb-2">
+          <CardHeader className='pb-2'>
             <CardDescription>Timezone</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="text-lg font-bold">{campaign.timezone.replace(/_/g, ' ')}</div>
+            <div className='text-lg font-bold'>
+              {campaign.timezone.replace(/_/g, ' ')}
+            </div>
           </CardContent>
         </Card>
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="leads">
+      <Tabs defaultValue='leads'>
         <TabsList>
-          <TabsTrigger value="leads">
-            <Users className="mr-2 h-4 w-4" />
+          <TabsTrigger value='leads'>
+            <Users className='mr-2 h-4 w-4' />
             Leads
           </TabsTrigger>
-          <TabsTrigger value="members">
-            <UserPlus className="mr-2 h-4 w-4" />
+          <TabsTrigger value='members'>
+            <UserPlus className='mr-2 h-4 w-4' />
             Members
           </TabsTrigger>
-          <TabsTrigger value="dispositions">
-            <ListChecks className="mr-2 h-4 w-4" />
+          <TabsTrigger value='dispositions'>
+            <ListChecks className='mr-2 h-4 w-4' />
             Dispositions
           </TabsTrigger>
-          <TabsTrigger value="analytics">
-            <BarChart3 className="mr-2 h-4 w-4" />
+          <TabsTrigger value='analytics'>
+            <BarChart3 className='mr-2 h-4 w-4' />
             Analytics
           </TabsTrigger>
-          <TabsTrigger value="settings">
-            <Settings className="mr-2 h-4 w-4" />
+          <TabsTrigger value='settings'>
+            <Settings className='mr-2 h-4 w-4' />
             Settings
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="leads" className="mt-4">
-          <CampaignLeadsTab campaignId={campaignId} campaignStatus={campaign.status} />
+        <TabsContent value='leads' className='mt-4'>
+          <CampaignLeadsTab
+            campaignId={campaignId}
+            campaignStatus={campaign.status}
+            onLeadsChanged={loadCampaign}
+          />
         </TabsContent>
 
-        <TabsContent value="members" className="mt-4">
-          <CampaignMembersTab campaignId={campaignId} campaignStatus={campaign.status} />
+        <TabsContent value='members' className='mt-4'>
+          <CampaignMembersTab
+            campaignId={campaignId}
+            campaignStatus={campaign.status}
+          />
         </TabsContent>
 
-        <TabsContent value="dispositions" className="mt-4">
+        <TabsContent value='dispositions' className='mt-4'>
           <CampaignDispositionsTab campaignId={campaignId} />
         </TabsContent>
 
-        <TabsContent value="analytics" className="mt-4">
+        <TabsContent value='analytics' className='mt-4'>
           <CampaignAnalytics campaignId={campaignId} />
         </TabsContent>
 
-        <TabsContent value="settings" className="mt-4">
+        <TabsContent value='settings' className='mt-4'>
           <CampaignSettingsTab campaign={campaign} onUpdated={loadCampaign} />
         </TabsContent>
       </Tabs>

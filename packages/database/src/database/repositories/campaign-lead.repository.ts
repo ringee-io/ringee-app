@@ -70,7 +70,7 @@ export class CampaignLeadRepository {
     options?: {
       page?: number;
       limit?: number;
-      status?: "pending" | "called" | "dead";
+      status?: string;
     }
   ): Promise<{
     data: CampaignLeadWithContact[];
@@ -78,13 +78,19 @@ export class CampaignLeadRepository {
   }> {
     const { page = 1, limit = 20, status } = options || {};
 
+    // Filter by the real CampaignLeadStatus enum column so it matches the
+    // status badges shown in the UI. Legacy aggregate aliases ("called" /
+    // "dead") are kept for backwards compatibility with older callers.
     let statusFilter: Prisma.CampaignLeadWhereInput = {};
-    if (status === "pending") {
-      statusFilter = { attempts: 0, deadAt: null };
-    } else if (status === "called") {
+    if (status === "called") {
       statusFilter = { attempts: { gt: 0 }, deadAt: null };
     } else if (status === "dead") {
       statusFilter = { deadAt: { not: null } };
+    } else if (
+      status &&
+      (Object.values(CampaignLeadStatus) as string[]).includes(status)
+    ) {
+      statusFilter = { status: status as CampaignLeadStatus };
     }
 
     const where: Prisma.CampaignLeadWhereInput = {

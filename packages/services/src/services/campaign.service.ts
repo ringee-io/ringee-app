@@ -112,7 +112,7 @@ export class CampaignService {
   async getLeads(
     ctx: OwnershipContext,
     campaignId: string,
-    options?: { page?: number; limit?: number; status?: "pending" | "called" | "dead" }
+    options?: { page?: number; limit?: number; status?: string }
   ) {
     this.ensureOrganization(ctx);
 

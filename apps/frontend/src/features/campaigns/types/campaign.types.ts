@@ -15,7 +15,11 @@ export type CampaignLeadStatus =
   | 'exhausted'
   | 'dnc';
 
-export type DispositionCategory = 'positive' | 'neutral' | 'negative' | 'no_contact';
+export type DispositionCategory =
+  | 'positive'
+  | 'neutral'
+  | 'negative'
+  | 'no_contact';
 
 export interface Campaign {
   id: string;

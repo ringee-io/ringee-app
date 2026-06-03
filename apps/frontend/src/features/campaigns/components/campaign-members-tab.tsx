@@ -9,14 +9,14 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
+  CardTitle
 } from '@ringee/frontend-shared/components/ui/card';
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+  SelectValue
 } from '@ringee/frontend-shared/components/ui/select';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
@@ -29,9 +29,10 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
+  AlertDialogTrigger
 } from '@ringee/frontend-shared/components/ui/alert-dialog';
 import { UserPlus, Trash2, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import type { CampaignStatus } from '../types/campaign.types';
 
 interface CampaignMember {
@@ -87,7 +88,9 @@ export function CampaignMembersTab({ campaignId, campaignStatus }: Props) {
   async function loadMembers() {
     setLoading(true);
     try {
-      const data = await api.get<CampaignMember[]>(`/campaigns/${campaignId}/members`);
+      const data = await api.get<CampaignMember[]>(
+        `/campaigns/${campaignId}/members`
+      );
       setMembers(data);
     } catch {
       // handled
@@ -124,7 +127,7 @@ export function CampaignMembersTab({ campaignId, campaignStatus }: Props) {
               name:
                 `${m.publicUserData?.firstName || ''} ${m.publicUserData?.lastName || ''}`.trim() ||
                 'Unknown',
-              email: m.publicUserData?.identifier || '',
+              email: m.publicUserData?.identifier || ''
             };
           })
           .filter((m) => m.dbUserId)
@@ -138,11 +141,14 @@ export function CampaignMembersTab({ campaignId, campaignStatus }: Props) {
     if (!selectedUserId) return;
     setAdding(true);
     try {
-      await api.post(`/campaigns/${campaignId}/members`, { userId: selectedUserId });
+      await api.post(`/campaigns/${campaignId}/members`, {
+        userId: selectedUserId
+      });
       setSelectedUserId('');
       await loadMembers();
-    } catch {
-      // handled
+      toast.success('Member added to campaign.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not add member.');
     } finally {
       setAdding(false);
     }
@@ -153,15 +159,18 @@ export function CampaignMembersTab({ campaignId, campaignStatus }: Props) {
     try {
       await api.delete(`/campaigns/${campaignId}/members/${userId}`);
       await loadMembers();
-    } catch {
-      // handled
+      toast.success('Member removed from campaign.');
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not remove member.');
     } finally {
       setRemovingId(null);
     }
   }
 
   const assignedUserIds = new Set(members.map((m) => m.userId));
-  const availableMembers = orgMembers.filter((m) => !assignedUserIds.has(m.dbUserId));
+  const availableMembers = orgMembers.filter(
+    (m) => !assignedUserIds.has(m.dbUserId)
+  );
 
   function getMemberName(member: CampaignMember): string {
     const { firstName, lastName } = member.user;
@@ -175,40 +184,46 @@ export function CampaignMembersTab({ campaignId, campaignStatus }: Props) {
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-[200px] w-full" />
+      <div className='space-y-4'>
+        <Skeleton className='h-[200px] w-full' />
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       {!isCompleted && (
         <Card>
           <CardHeader>
             <CardTitle>Add Member</CardTitle>
             <CardDescription>
-              Assign organization members to this campaign. Only assigned members can participate as agents.
+              Assign organization members to this campaign. Only assigned
+              members can participate as agents.
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex items-end gap-3">
-              <div className="flex-1">
-                <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+            <div className='flex items-end gap-3'>
+              <div className='flex-1'>
+                <Select
+                  value={selectedUserId}
+                  onValueChange={setSelectedUserId}
+                >
                   <SelectTrigger>
-                    <SelectValue placeholder="Select a member..." />
+                    <SelectValue placeholder='Select a member...' />
                   </SelectTrigger>
                   <SelectContent>
                     {availableMembers.length === 0 ? (
-                      <SelectItem value="__none" disabled>
+                      <SelectItem value='__none' disabled>
                         No available members
                       </SelectItem>
                     ) : (
                       availableMembers.map((m) => (
                         <SelectItem key={m.dbUserId} value={m.dbUserId}>
-                          <span className="flex flex-col">
+                          <span className='flex flex-col'>
                             <span>{m.name}</span>
-                            <span className="text-xs text-muted-foreground">{m.email}</span>
+                            <span className='text-muted-foreground text-xs'>
+                              {m.email}
+                            </span>
                           </span>
                         </SelectItem>
                       ))
@@ -218,9 +233,9 @@ export function CampaignMembersTab({ campaignId, campaignStatus }: Props) {
               </div>
               <Button onClick={handleAdd} disabled={!selectedUserId || adding}>
                 {adding ? (
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                 ) : (
-                  <UserPlus className="mr-2 h-4 w-4" />
+                  <UserPlus className='mr-2 h-4 w-4' />
                 )}
                 Add
               </Button>
@@ -238,26 +253,31 @@ export function CampaignMembersTab({ campaignId, campaignStatus }: Props) {
         </CardHeader>
         <CardContent>
           {members.length === 0 ? (
-            <p className="text-sm text-muted-foreground">
-              No members assigned yet. Add members to allow them to participate in this campaign.
+            <p className='text-muted-foreground text-sm'>
+              No members assigned yet. Add members to allow them to participate
+              in this campaign.
             </p>
           ) : (
-            <div className="space-y-2">
+            <div className='space-y-2'>
               {members.map((member) => (
                 <div
                   key={member.id}
-                  className="flex items-center justify-between rounded-md border px-4 py-3"
+                  className='flex items-center justify-between rounded-md border px-4 py-3'
                 >
-                  <div className="flex items-center gap-3">
+                  <div className='flex items-center gap-3'>
                     <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-medium">{getMemberName(member)}</span>
-                        <Badge variant="outline" className="text-xs capitalize">
+                      <div className='flex items-center gap-2'>
+                        <span className='font-medium'>
+                          {getMemberName(member)}
+                        </span>
+                        <Badge variant='outline' className='text-xs capitalize'>
                           {member.role}
                         </Badge>
                       </div>
                       {getMemberEmail(member) && (
-                        <p className="text-xs text-muted-foreground">{getMemberEmail(member)}</p>
+                        <p className='text-muted-foreground text-xs'>
+                          {getMemberEmail(member)}
+                        </p>
                       )}
                     </div>
                   </div>
@@ -265,14 +285,14 @@ export function CampaignMembersTab({ campaignId, campaignStatus }: Props) {
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button
-                          variant="ghost"
-                          size="icon"
+                          variant='ghost'
+                          size='icon'
                           disabled={removingId === member.userId}
                         >
                           {removingId === member.userId ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className='h-4 w-4 animate-spin' />
                           ) : (
-                            <Trash2 className="h-4 w-4 text-muted-foreground" />
+                            <Trash2 className='text-muted-foreground h-4 w-4' />
                           )}
                         </Button>
                       </AlertDialogTrigger>
@@ -280,13 +300,16 @@ export function CampaignMembersTab({ campaignId, campaignStatus }: Props) {
                         <AlertDialogHeader>
                           <AlertDialogTitle>Remove Member?</AlertDialogTitle>
                           <AlertDialogDescription>
-                            Remove {getMemberName(member)} from this campaign? They will no longer
-                            be able to participate as an agent.
+                            Remove {getMemberName(member)} from this campaign?
+                            They will no longer be able to participate as an
+                            agent.
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                           <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={() => handleRemove(member.userId)}>
+                          <AlertDialogAction
+                            onClick={() => handleRemove(member.userId)}
+                          >
                             Remove
                           </AlertDialogAction>
                         </AlertDialogFooter>

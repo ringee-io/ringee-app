@@ -9,7 +9,7 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
+  CardTitle
 } from '@ringee/frontend-shared/components/ui/card';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
@@ -19,10 +19,15 @@ import {
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue,
+  SelectValue
 } from '@ringee/frontend-shared/components/ui/select';
 import { Loader2, Phone } from 'lucide-react';
-import type { CreateCampaignDto, DialerMode } from '../types/campaign.types';
+import { toast } from 'sonner';
+import type {
+  Campaign,
+  CreateCampaignDto,
+  DialerMode
+} from '../types/campaign.types';
 
 interface CallerId {
   id: string;
@@ -49,7 +54,7 @@ const TIMEZONES = [
   'Europe/Berlin',
   'Asia/Tokyo',
   'Asia/Kolkata',
-  'Australia/Sydney',
+  'Australia/Sydney'
 ];
 
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -83,12 +88,15 @@ export function CampaignCreateForm() {
     workEndMin: 1260,
     workDays: [0, 1, 2, 3, 4, 5, 6],
     wrapUpTimeSec: 30,
-    retryDelayMin: 60,
+    retryDelayMin: 60
   });
 
   // Load caller IDs and purchased numbers on mount
   useEffect(() => {
-    api.get<CallerId[]>('/telephony/caller-ids').then(setCallerIds).catch(() => {});
+    api
+      .get<CallerId[]>('/telephony/caller-ids')
+      .then(setCallerIds)
+      .catch(() => {});
     api
       .get<PhoneNumber[]>('/telephony/phone-numbers')
       .then(setPhoneNumbers)
@@ -104,7 +112,7 @@ export function CampaignCreateForm() {
     updateForm({
       workDays: days.includes(day)
         ? days.filter((d) => d !== day)
-        : [...days, day].sort(),
+        : [...days, day].sort()
     });
   }
 
@@ -117,19 +125,22 @@ export function CampaignCreateForm() {
     setError(null);
     setSaving(true);
     try {
-      const campaign = await api.post('/campaigns', form);
+      const campaign = await api.post<Campaign>('/campaigns', form);
+      toast.success('Campaign created.');
       router.push(`/dashboard/campaigns/${campaign.id}`);
     } catch (err: any) {
-      setError(err?.message || 'Failed to create campaign');
+      const message = err?.message || 'Failed to create campaign';
+      setError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-6">
+    <form onSubmit={handleSubmit} className='space-y-6'>
       {error && (
-        <div className="rounded-md bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className='bg-destructive/10 text-destructive rounded-md px-4 py-3 text-sm'>
           {error}
         </div>
       )}
@@ -138,23 +149,25 @@ export function CampaignCreateForm() {
       <Card>
         <CardHeader>
           <CardTitle>Campaign Details</CardTitle>
-          <CardDescription>Name and describe your outbound campaign.</CardDescription>
+          <CardDescription>
+            Name and describe your outbound campaign.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="name">Campaign Name *</Label>
+        <CardContent className='space-y-4'>
+          <div className='space-y-2'>
+            <Label htmlFor='name'>Campaign Name *</Label>
             <Input
-              id="name"
-              placeholder="e.g. Q2 Outreach"
+              id='name'
+              placeholder='e.g. Q2 Outreach'
               value={form.name}
               onChange={(e) => updateForm({ name: e.target.value })}
             />
           </div>
-          <div className="space-y-2">
-            <Label htmlFor="description">Description</Label>
+          <div className='space-y-2'>
+            <Label htmlFor='description'>Description</Label>
             <Textarea
-              id="description"
-              placeholder="Brief description of this campaign..."
+              id='description'
+              placeholder='Brief description of this campaign...'
               value={form.description || ''}
               onChange={(e) => updateForm({ description: e.target.value })}
               rows={3}
@@ -169,38 +182,40 @@ export function CampaignCreateForm() {
           <CardTitle>Dialer Settings</CardTitle>
           <CardDescription>Configure how calls are placed.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
+        <CardContent className='space-y-4'>
+          <div className='space-y-2'>
             <Label>Phone Number</Label>
             <Select
               value={form.numberPurchasedId || ''}
-              onValueChange={(v) => updateForm({ numberPurchasedId: v || undefined })}
+              onValueChange={(v) =>
+                updateForm({ numberPurchasedId: v || undefined })
+              }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Select a phone number..." />
+                <SelectValue placeholder='Select a phone number...' />
               </SelectTrigger>
               <SelectContent>
                 {phoneNumbers.map((num) => (
                   <SelectItem key={num.id} value={num.id}>
-                    <span className="flex items-center gap-2">
-                      <Phone className="h-3 w-3" />
+                    <span className='flex items-center gap-2'>
+                      <Phone className='h-3 w-3' />
                       {num.phoneNumber}
                     </span>
                   </SelectItem>
                 ))}
                 {phoneNumbers.length === 0 && (
-                  <SelectItem value="__none" disabled>
+                  <SelectItem value='__none' disabled>
                     No purchased numbers
                   </SelectItem>
                 )}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
+            <p className='text-muted-foreground text-xs'>
               Calls in this campaign are placed from this purchased number.
             </p>
           </div>
 
-          <div className="space-y-2">
+          <div className='space-y-2'>
             <Label>Caller ID (optional)</Label>
             <Select
               value={form.callerIdId || '__default'}
@@ -209,78 +224,88 @@ export function CampaignCreateForm() {
               }
             >
               <SelectTrigger>
-                <SelectValue placeholder="Use the campaign phone number" />
+                <SelectValue placeholder='Use the campaign phone number' />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="__default">
+                <SelectItem value='__default'>
                   Use the campaign phone number (default)
                 </SelectItem>
-                {callerIds.filter(c => c.verified).map((cid) => (
-                  <SelectItem key={cid.id} value={cid.id}>
-                    <span className="flex items-center gap-2">
-                      <Phone className="h-3 w-3" />
-                      {cid.phoneNumber}
-                    </span>
-                  </SelectItem>
-                ))}
+                {callerIds
+                  .filter((c) => c.verified)
+                  .map((cid) => (
+                    <SelectItem key={cid.id} value={cid.id}>
+                      <span className='flex items-center gap-2'>
+                        <Phone className='h-3 w-3' />
+                        {cid.phoneNumber}
+                      </span>
+                    </SelectItem>
+                  ))}
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground">
+            <p className='text-muted-foreground text-xs'>
               Legacy verified caller ID, used only when no phone number is
               assigned above. Leave as default to use the campaign phone number.
             </p>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
+          <div className='grid gap-4 sm:grid-cols-2'>
+            <div className='space-y-2'>
               <Label>Dialer Mode</Label>
               <Select
                 value={form.dialerMode}
-                onValueChange={(v) => updateForm({ dialerMode: v as DialerMode })}
+                onValueChange={(v) =>
+                  updateForm({ dialerMode: v as DialerMode })
+                }
               >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="progressive">
+                  <SelectItem value='progressive'>
                     Progressive — auto-dials next lead
                   </SelectItem>
-                  <SelectItem value="preview">
+                  <SelectItem value='preview'>
                     Preview — agent reviews before dialing
                   </SelectItem>
                 </SelectContent>
               </Select>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="maxAttempts">Max Attempts per Lead</Label>
+            <div className='space-y-2'>
+              <Label htmlFor='maxAttempts'>Max Attempts per Lead</Label>
               <Input
-                id="maxAttempts"
-                type="number"
+                id='maxAttempts'
+                type='number'
                 min={1}
                 max={20}
                 value={form.maxAttempts}
-                onChange={(e) => updateForm({ maxAttempts: Number(e.target.value) })}
+                onChange={(e) =>
+                  updateForm({ maxAttempts: Number(e.target.value) })
+                }
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="wrapUp">Wrap-up Time (seconds)</Label>
+            <div className='space-y-2'>
+              <Label htmlFor='wrapUp'>Wrap-up Time (seconds)</Label>
               <Input
-                id="wrapUp"
-                type="number"
+                id='wrapUp'
+                type='number'
                 min={0}
                 max={300}
                 value={form.wrapUpTimeSec}
-                onChange={(e) => updateForm({ wrapUpTimeSec: Number(e.target.value) })}
+                onChange={(e) =>
+                  updateForm({ wrapUpTimeSec: Number(e.target.value) })
+                }
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="retryDelay">Default Retry Delay (minutes)</Label>
+            <div className='space-y-2'>
+              <Label htmlFor='retryDelay'>Default Retry Delay (minutes)</Label>
               <Input
-                id="retryDelay"
-                type="number"
+                id='retryDelay'
+                type='number'
                 min={1}
                 max={10080}
                 value={form.retryDelayMin}
-                onChange={(e) => updateForm({ retryDelayMin: Number(e.target.value) })}
+                onChange={(e) =>
+                  updateForm({ retryDelayMin: Number(e.target.value) })
+                }
               />
             </div>
           </div>
@@ -293,8 +318,8 @@ export function CampaignCreateForm() {
           <CardTitle>Calling Schedule</CardTitle>
           <CardDescription>Set when agents can make calls.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
+        <CardContent className='space-y-4'>
+          <div className='space-y-2'>
             <Label>Timezone</Label>
             <Select
               value={form.timezone}
@@ -312,37 +337,41 @@ export function CampaignCreateForm() {
               </SelectContent>
             </Select>
           </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div className="space-y-2">
-              <Label htmlFor="workStart">Start Time</Label>
+          <div className='grid gap-4 sm:grid-cols-2'>
+            <div className='space-y-2'>
+              <Label htmlFor='workStart'>Start Time</Label>
               <Input
-                id="workStart"
-                type="time"
+                id='workStart'
+                type='time'
                 value={minutesToTime(form.workStartMin ?? 480)}
-                onChange={(e) => updateForm({ workStartMin: timeToMinutes(e.target.value) })}
+                onChange={(e) =>
+                  updateForm({ workStartMin: timeToMinutes(e.target.value) })
+                }
               />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="workEnd">End Time</Label>
+            <div className='space-y-2'>
+              <Label htmlFor='workEnd'>End Time</Label>
               <Input
-                id="workEnd"
-                type="time"
+                id='workEnd'
+                type='time'
                 value={minutesToTime(form.workEndMin ?? 1260)}
-                onChange={(e) => updateForm({ workEndMin: timeToMinutes(e.target.value) })}
+                onChange={(e) =>
+                  updateForm({ workEndMin: timeToMinutes(e.target.value) })
+                }
               />
             </div>
           </div>
-          <div className="space-y-2">
+          <div className='space-y-2'>
             <Label>Working Days</Label>
-            <div className="flex flex-wrap gap-2">
+            <div className='flex flex-wrap gap-2'>
               {DAY_LABELS.map((label, idx) => {
                 const selected = (form.workDays ?? []).includes(idx);
                 return (
                   <Button
                     key={idx}
-                    type="button"
+                    type='button'
                     variant={selected ? 'default' : 'outline'}
-                    size="sm"
+                    size='sm'
                     onClick={() => toggleDay(idx)}
                   >
                     {label}
@@ -355,16 +384,16 @@ export function CampaignCreateForm() {
       </Card>
 
       {/* Submit */}
-      <div className="flex items-center justify-end gap-3">
+      <div className='flex items-center justify-end gap-3'>
         <Button
-          type="button"
-          variant="outline"
+          type='button'
+          variant='outline'
           onClick={() => router.push('/dashboard/campaigns')}
         >
           Cancel
         </Button>
-        <Button type="submit" disabled={saving}>
-          {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+        <Button type='submit' disabled={saving}>
+          {saving && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
           Create Campaign
         </Button>
       </div>

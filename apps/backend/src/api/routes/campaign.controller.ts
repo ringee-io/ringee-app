@@ -355,7 +355,7 @@ export class CampaignController {
     @CurrentUser() user: CurrentUserData,
     @Query("page") page = "1",
     @Query("limit") limit = "20",
-    @Query("status") status?: "pending" | "called" | "dead"
+    @Query("status") status?: string
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
