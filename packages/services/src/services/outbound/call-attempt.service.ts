@@ -57,6 +57,13 @@ export class CallAttemptService {
       return;
     }
 
+    // Once an attempt has been dispositioned (or already ended), it is final.
+    // Ignore late or duplicate lifecycle webhooks so they can't double-count
+    // stats or knock a finished lead back into wrap_up.
+    const isFinalized =
+      attempt.status === CallAttemptStatus.dispositioned ||
+      attempt.status === CallAttemptStatus.ended;
+
     switch (eventType) {
       case "call.initiated":
         if (!attempt.callId) {
@@ -65,6 +72,9 @@ export class CallAttemptService {
         break;
 
       case "call.answered":
+        if (isFinalized || attempt.status === CallAttemptStatus.answered) {
+          break;
+        }
         await this.attemptRepo.updateStatus(
           callAttemptId,
           CallAttemptStatus.answered,
@@ -91,6 +101,9 @@ export class CallAttemptService {
         break;
 
       case "call.hangup":
+        if (isFinalized) {
+          break;
+        }
         await this.attemptRepo.updateStatus(
           callAttemptId,
           CallAttemptStatus.ended,
@@ -198,11 +211,6 @@ export class CallAttemptService {
       );
     }
 
-    const lead = await this.campaignLeadRepo.findByCampaign(
-      attempt.campaignId,
-      { limit: 1 }
-    );
-
     // Mark lead as dispositioned first
     await this.campaignLeadRepo.updateStatus(
       attempt.campaignLeadId,
@@ -259,19 +267,30 @@ export class CallAttemptService {
       );
       action = retryResult;
     } else {
-      // No trigger — check if max attempts reached
+      // No workflow trigger (e.g. the default "Not Interested"): the agent
+      // handled the lead and it should not be dialed again. Mark it terminal so
+      // it leaves the queue and the campaign can auto-complete — exhausted if no
+      // attempts remain, otherwise completed. (Previously such leads were left
+      // stuck in `dispositioned`, never re-queued nor terminal, which blocked
+      // campaign auto-completion indefinitely.)
       if (attempt.attemptNumber >= data.campaignDefaults.maxAttempts) {
         await this.campaignLeadRepo.markAsDead(attempt.campaignLeadId);
         action = "exhausted";
+      } else {
+        await this.campaignLeadRepo.updateStatus(
+          attempt.campaignLeadId,
+          CampaignLeadStatus.completed
+        );
+        action = "completed";
       }
     }
 
-    // Transition agent back to ready
+    // Transition agent back to ready and clear the finished lead reference.
     if (attempt.agentSessionId) {
       await this.agentSessionService.transitionTo(
         attempt.agentSessionId,
         AgentSessionStatus.ready,
-        undefined
+        null
       );
     }
 

@@ -353,7 +353,7 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
     await this.agentSessionService.transitionTo(
       sessionId,
       AgentSessionStatus.ready,
-      undefined
+      null
     );
 
     this.sseBridge.emit(`agent:${sessionId}`, "session.state", {

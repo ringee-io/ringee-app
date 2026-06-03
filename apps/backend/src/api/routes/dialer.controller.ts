@@ -47,19 +47,36 @@ export class DialerController {
     private readonly sseBridge: SSEBridgeService,
   ) {}
 
+  /**
+   * Assert the campaign exists and belongs to the caller's organization.
+   * Returns the organization id for convenience.
+   */
+  private requireOrg(user: CurrentUserData): string {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Organization required");
+    }
+    return user.activeOrgId;
+  }
+
   @Post("sessions")
   async startSession(
     @Body() body: { campaignId: string },
     @CurrentUser() user: CurrentUserData
   ) {
-    if (!user.activeOrgId) {
-      throw new ForbiddenException("Organization required");
-    }
+    const orgId = this.requireOrg(user);
     const ctx = createOwnershipContext(user);
+
+    // Ensure the campaign exists and belongs to the caller's org before
+    // creating a session against it.
+    const campaign = await this.campaignRepo.findById(body.campaignId);
+    if (!campaign || campaign.organizationId !== orgId) {
+      throw new ForbiddenException("Campaign not found in your organization");
+    }
+
     return this.agentSessionService.startSession({
       campaignId: body.campaignId,
       userId: ctx.userId,
-      organizationId: ctx.organizationId!,
+      organizationId: orgId,
     });
   }
 
@@ -68,28 +85,46 @@ export class DialerController {
     @Param("sessionId") sessionId: string,
     @CurrentUser() user: CurrentUserData
   ) {
+    await this.agentSessionService.getByIdForOrg(sessionId, this.requireOrg(user));
     return this.agentSessionService.endSession(sessionId);
   }
 
   @Patch("sessions/:sessionId/pause")
-  async pause(@Param("sessionId") sessionId: string) {
+  async pause(
+    @Param("sessionId") sessionId: string,
+    @CurrentUser() user: CurrentUserData
+  ) {
+    await this.agentSessionService.getByIdForOrg(sessionId, this.requireOrg(user));
     return this.agentSessionService.pause(sessionId);
   }
 
   @Patch("sessions/:sessionId/resume")
-  async resume(@Param("sessionId") sessionId: string) {
+  async resume(
+    @Param("sessionId") sessionId: string,
+    @CurrentUser() user: CurrentUserData
+  ) {
+    await this.agentSessionService.getByIdForOrg(sessionId, this.requireOrg(user));
     return this.agentSessionService.resume(sessionId);
   }
 
   @Post("sessions/:sessionId/heartbeat")
-  async heartbeat(@Param("sessionId") sessionId: string) {
+  async heartbeat(
+    @Param("sessionId") sessionId: string,
+    @CurrentUser() user: CurrentUserData
+  ) {
+    await this.agentSessionService.getByIdForOrg(sessionId, this.requireOrg(user));
     return this.agentSessionService.heartbeat(sessionId);
   }
 
   @Post("dial")
   async manualDial(
-    @Body() body: { sessionId: string; campaignId: string }
+    @Body() body: { sessionId: string; campaignId: string },
+    @CurrentUser() user: CurrentUserData
   ) {
+    await this.agentSessionService.getByIdForOrg(
+      body.sessionId,
+      this.requireOrg(user)
+    );
     return this.dialerOrchestration.manualDial(
       body.sessionId,
       body.campaignId
@@ -97,7 +132,14 @@ export class DialerController {
   }
 
   @Post("skip")
-  async skipLead(@Body() body: { sessionId: string }) {
+  async skipLead(
+    @Body() body: { sessionId: string },
+    @CurrentUser() user: CurrentUserData
+  ) {
+    await this.agentSessionService.getByIdForOrg(
+      body.sessionId,
+      this.requireOrg(user)
+    );
     return this.dialerOrchestration.skipLead(body.sessionId);
   }
 
@@ -113,22 +155,23 @@ export class DialerController {
     },
     @CurrentUser() user: CurrentUserData
   ) {
-    if (!user.activeOrgId) {
-      throw new ForbiddenException("Organization required");
-    }
+    const orgId = this.requireOrg(user);
 
     // Resolve the disposition by code from the attempt's campaign
     const attempt = await this.callAttemptService.getAttemptById(body.callAttemptId);
     if (!attempt) throw new BadRequestException("Attempt not found");
+
+    const campaign = await this.campaignRepo.findById(attempt.campaignId);
+    if (!campaign) throw new BadRequestException("Campaign not found");
+    if (campaign.organizationId !== orgId) {
+      throw new ForbiddenException("Attempt does not belong to your organization");
+    }
 
     const disposition = await this.dispositionRepo.findByCampaignAndCode(
       attempt.campaignId,
       body.dispositionCode
     );
     if (!disposition) throw new BadRequestException("Disposition not found");
-
-    const campaign = await this.campaignRepo.findById(attempt.campaignId);
-    if (!campaign) throw new BadRequestException("Campaign not found");
 
     const result = await this.callAttemptService.submitDisposition({
       callAttemptId: body.callAttemptId,
@@ -145,7 +188,7 @@ export class DialerController {
         maxAttempts: campaign.maxAttempts,
         retryDelayMin: campaign.retryDelayMin,
       },
-      organizationId: user.activeOrgId!,
+      organizationId: orgId,
     });
 
     // Emit session.state ready event so frontend moves to next lead
@@ -160,20 +203,29 @@ export class DialerController {
 
   @Post("voicemail-drop")
   async voicemailDrop(
-    @Body() body: { callAttemptId: string; assetId?: string }
+    @Body() body: { callAttemptId: string; assetId?: string },
+    @CurrentUser() user: CurrentUserData
   ) {
+    const orgId = this.requireOrg(user);
     // For MVP, voicemail drop needs a callControlId. Get it from the attempt.
     const attempt = await this.callAttemptService.getAttemptById(body.callAttemptId);
     if (!attempt?.callId) {
       throw new BadRequestException("No active call for this attempt");
+    }
+    const campaign = await this.campaignRepo.findById(attempt.campaignId);
+    if (!campaign || campaign.organizationId !== orgId) {
+      throw new ForbiddenException("Attempt does not belong to your organization");
     }
     // TODO: resolve callControlId from Call and trigger playbackStart
     return { status: "voicemail_drop_requested" };
   }
 
   @Get("sessions/:sessionId/state")
-  async getSessionState(@Param("sessionId") sessionId: string) {
-    return this.agentSessionService.getById(sessionId);
+  async getSessionState(
+    @Param("sessionId") sessionId: string,
+    @CurrentUser() user: CurrentUserData
+  ) {
+    return this.agentSessionService.getByIdForOrg(sessionId, this.requireOrg(user));
   }
 
   /**

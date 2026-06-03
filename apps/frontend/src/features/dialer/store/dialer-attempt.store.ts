@@ -40,7 +40,7 @@ const initialState = {
   callStatus: null as CallAttemptStatus | null,
   callDuration: 0,
   dispositionRequired: false,
-  availableDispositions: [] as DialerAttemptState['availableDispositions'],
+  availableDispositions: [] as DialerAttemptState['availableDispositions']
 };
 
 export const useDialerAttemptStore = create<DialerAttemptState>((set) => ({
@@ -55,8 +55,8 @@ export const useDialerAttemptStore = create<DialerAttemptState>((set) => ({
   setDispositionRequired: (required, dispositions) =>
     set({
       dispositionRequired: required,
-      ...(dispositions ? { availableDispositions: dispositions } : {}),
+      ...(dispositions ? { availableDispositions: dispositions } : {})
     }),
 
-  clear: () => set(initialState),
+  clear: () => set(initialState)
 }));

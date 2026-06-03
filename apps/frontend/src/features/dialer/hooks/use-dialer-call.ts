@@ -3,7 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Call } from '@telnyx/webrtc';
 import { useTelnyxStore } from '@/features/calls/store/telnyx.store';
-import { useDialerAttemptStore, type CallAttemptStatus } from '../store/dialer-attempt.store';
+import {
+  useDialerAttemptStore,
+  type CallAttemptStatus
+} from '../store/dialer-attempt.store';
 import { useDialerSessionStore } from '../store/dialer-session.store';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useAuth } from '@clerk/nextjs';
@@ -29,7 +32,12 @@ export function useDialerCall() {
 
   // Track call notifications to update our local call reference and attempt store
   useEffect(() => {
-    if (!notification || notification.type !== 'callUpdate' || !notification.call) return;
+    if (
+      !notification ||
+      notification.type !== 'callUpdate' ||
+      !notification.call
+    )
+      return;
     const call = notification.call as unknown as Call;
     const state = (call as any).state;
     const direction = (call as any).direction;
@@ -38,7 +46,17 @@ export function useDialerCall() {
     const hasSession = useDialerSessionStore.getState().sessionId;
     if (direction !== 'outbound' || !hasSession) return;
 
-    if (['new', 'trying', 'requesting', 'recovering', 'active', 'answering', 'early'].includes(state)) {
+    if (
+      [
+        'new',
+        'trying',
+        'requesting',
+        'recovering',
+        'active',
+        'answering',
+        'early'
+      ].includes(state)
+    ) {
       callRef.current = call;
       setActiveCall(call);
     }
@@ -62,7 +80,11 @@ export function useDialerCall() {
   }, [notification, setCallStatus]);
 
   const dial = useCallback(
-    (phoneNumber: string, callerIdNumber: string | null) => {
+    (
+      phoneNumber: string,
+      callerIdNumber: string | null,
+      attemptId?: string
+    ) => {
       if (!client) {
         console.warn('Telnyx client not ready');
         return;
@@ -70,20 +92,36 @@ export function useDialerCall() {
 
       const callerId = callerIdNumber || '+10000000000';
 
+      // Encode the campaign call attempt id into client_state so Telnyx
+      // call-control webhooks can be linked back to this CallAttempt on the
+      // backend (CallService.extractCallAttemptId). This is what lets the
+      // attempt record answeredAt / durationSec, which campaign analytics
+      // (connected, contact rate, talk time) are computed from.
+      const clientState = attemptId
+        ? btoa(JSON.stringify({ callAttemptId: attemptId }))
+        : undefined;
+
       client.newCall({
         callerNumber: callerId,
         destinationNumber: phoneNumber,
         audio: true,
+        ...(clientState ? { clientState } : {}),
         customHeaders: [
           { name: 'From', value: `sip:${callerId}@sip.telnyx.com` },
-          { name: 'P-Asserted-Identity', value: `sip:${callerId}@sip.telnyx.com` },
-          { name: 'P-Preferred-Identity', value: `sip:${callerId}@sip.telnyx.com` },
+          {
+            name: 'P-Asserted-Identity',
+            value: `sip:${callerId}@sip.telnyx.com`
+          },
+          {
+            name: 'P-Preferred-Identity',
+            value: `sip:${callerId}@sip.telnyx.com`
+          },
           { name: 'X-User-Id', value: userId! },
-          ...(orgId ? [{ name: 'X-Organization-Id', value: orgId! }] : []),
+          ...(orgId ? [{ name: 'X-Organization-Id', value: orgId! }] : [])
         ],
         keepConnectionAliveOnSocketClose: true,
         debug: process.env.NODE_ENV === 'development',
-        debugOutput: 'socket',
+        debugOutput: 'socket'
       });
     },
     [client, userId, orgId]
@@ -128,9 +166,12 @@ export function useDialerCall() {
 
       if (!isRecording) {
         setIsRecordingLoading(true);
-        const res = await api.post<{ id: string }>('/telephony/recordings/start', {
-          callSessionId: sessionId,
-        });
+        const res = await api.post<{ id: string }>(
+          '/telephony/recordings/start',
+          {
+            callSessionId: sessionId
+          }
+        );
         if (res?.id) {
           setRecordingId(res.id);
           setIsRecording(true);
@@ -140,7 +181,7 @@ export function useDialerCall() {
           const sessionId = (call as any).telnyxIDs?.telnyxSessionId;
           await api.post('/telephony/recordings/stop', {
             recordingId,
-            callSessionId: sessionId,
+            callSessionId: sessionId
           });
         }
         setRecordingId(null);
@@ -205,6 +246,6 @@ export function useDialerCall() {
     toggleHold,
     toggleRecord,
     sendDTMF,
-    hangup,
+    hangup
   };
 }

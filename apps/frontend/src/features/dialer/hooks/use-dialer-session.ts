@@ -109,6 +109,6 @@ export function useDialerSession(campaignId: string) {
     startSession,
     endSession,
     pauseSession,
-    resumeSession,
+    resumeSession
   };
 }

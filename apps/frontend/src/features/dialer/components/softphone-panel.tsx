@@ -15,11 +15,11 @@ import {
   Pause,
   Play,
   Circle,
-  Voicemail,
   SkipForward,
   Grid3X3,
-  X,
+  X
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 function formatDuration(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -31,7 +31,7 @@ const DTMF_KEYS = [
   ['1', '2', '3'],
   ['4', '5', '6'],
   ['7', '8', '9'],
-  ['*', '0', '#'],
+  ['*', '0', '#']
 ];
 
 interface Props {
@@ -45,7 +45,6 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
   const currentLead = useDialerLeadStore((s) => s.currentLead);
   const callStatus = useDialerAttemptStore((s) => s.callStatus);
   const callDuration = useDialerAttemptStore((s) => s.callDuration);
-  const attemptId = useDialerAttemptStore((s) => s.attemptId);
 
   const {
     activeCall,
@@ -57,7 +56,7 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
     toggleHold,
     toggleRecord,
     sendDTMF,
-    hangup,
+    hangup
   } = useDialerCall();
 
   const [showDTMF, setShowDTMF] = useState(false);
@@ -96,8 +95,10 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
 
   const displayDuration = callDuration > 0 ? callDuration : localTimer;
 
-  const isInCall = isConnected || callStatus === 'answered' || callStatus === 'in_call';
-  const isDialing = isDialingWebRTC || callStatus === 'dialing' || callStatus === 'ringing';
+  const isInCall =
+    isConnected || callStatus === 'answered' || callStatus === 'in_call';
+  const isDialing =
+    isDialingWebRTC || callStatus === 'dialing' || callStatus === 'ringing';
 
   // Attach the remote audio stream
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -111,25 +112,16 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
   async function handleDial() {
     try {
       await api.post('/dialer/dial', { sessionId, campaignId });
-    } catch {
-      // handled
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not start the call.');
     }
   }
 
   async function handleSkip() {
     try {
       await api.post('/dialer/skip', { sessionId, campaignId });
-    } catch {
-      // handled
-    }
-  }
-
-  async function handleVoicemailDrop() {
-    if (!attemptId) return;
-    try {
-      await api.post('/dialer/voicemail-drop', { callAttemptId: attemptId });
-    } catch {
-      // handled
+    } catch (err: any) {
+      toast.error(err?.message || 'Could not skip this lead.');
     }
   }
 
@@ -138,15 +130,17 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
   }
 
   // Hidden audio element for remote stream
-  const remoteAudio = <audio ref={audioRef} autoPlay playsInline style={{ display: 'none' }} />;
+  const remoteAudio = (
+    <audio ref={audioRef} autoPlay playsInline style={{ display: 'none' }} />
+  );
 
   // Waiting state (no lead, session ready)
   if (!currentLead && (status === 'ready' || status === 'paused')) {
     return (
-      <div className="flex flex-col items-center justify-center p-8 text-center">
+      <div className='flex flex-col items-center justify-center p-8 text-center'>
         {remoteAudio}
-        <Phone className="mb-3 h-16 w-16 text-muted-foreground/40" />
-        <p className="text-sm text-muted-foreground">
+        <Phone className='text-muted-foreground/40 mb-3 h-16 w-16' />
+        <p className='text-muted-foreground text-sm'>
           {status === 'paused' ? 'Session paused' : 'Waiting for next lead...'}
         </p>
       </div>
@@ -156,21 +150,21 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
   // Preview mode — lead assigned but not dialing yet
   if (currentLead && !activeCall && status === 'reserved') {
     return (
-      <div className="flex flex-col items-center justify-center gap-4 p-8">
+      <div className='flex flex-col items-center justify-center gap-4 p-8'>
         {remoteAudio}
-        <div className="text-center">
-          <p className="text-lg font-semibold">{currentLead.contact.name}</p>
-          <p className="text-sm text-muted-foreground">
+        <div className='text-center'>
+          <p className='text-lg font-semibold'>{currentLead.contact.name}</p>
+          <p className='text-muted-foreground text-sm'>
             {currentLead.contact.phoneNumber}
           </p>
         </div>
-        <div className="flex gap-3">
-          <Button size="lg" onClick={handleDial}>
-            <Phone className="mr-2 h-5 w-5" />
+        <div className='flex gap-3'>
+          <Button size='lg' onClick={handleDial}>
+            <Phone className='mr-2 h-5 w-5' />
             Dial
           </Button>
-          <Button variant="outline" size="lg" onClick={handleSkip}>
-            <SkipForward className="mr-2 h-5 w-5" />
+          <Button variant='outline' size='lg' onClick={handleSkip}>
+            <SkipForward className='mr-2 h-5 w-5' />
             Skip
           </Button>
         </div>
@@ -179,81 +173,82 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center gap-6 p-8">
+    <div className='flex flex-col items-center justify-center gap-6 p-8'>
       {remoteAudio}
 
       {/* Call duration / status */}
-      <div className="text-center">
+      <div className='text-center'>
         {isDialing && !isInCall && (
-          <div className="text-lg text-muted-foreground animate-pulse">
+          <div className='text-muted-foreground animate-pulse text-lg'>
             Dialing...
           </div>
         )}
         {isInCall && (
-          <div className="text-4xl font-mono font-bold tabular-nums">
+          <div className='font-mono text-4xl font-bold tabular-nums'>
             {formatDuration(displayDuration)}
           </div>
         )}
         {!isInCall && !isDialing && callStatus === 'ended' && (
-          <div className="text-lg text-muted-foreground">Call ended</div>
+          <div className='text-muted-foreground text-lg'>Call ended</div>
         )}
         {currentLead && (
-          <p className="mt-1 text-sm text-muted-foreground">
-            {currentLead.contact.name} &middot; {currentLead.contact.phoneNumber}
+          <p className='text-muted-foreground mt-1 text-sm'>
+            {currentLead.contact.name} &middot;{' '}
+            {currentLead.contact.phoneNumber}
           </p>
         )}
         {isRecording && (
-          <div className="mt-1 flex items-center justify-center gap-1 text-xs text-red-500">
-            <Circle className="h-2 w-2 fill-red-500" />
+          <div className='mt-1 flex items-center justify-center gap-1 text-xs text-red-500'>
+            <Circle className='h-2 w-2 fill-red-500' />
             Recording
           </div>
         )}
         {isOnHold && (
-          <div className="mt-1 text-xs text-yellow-500">On Hold</div>
+          <div className='mt-1 text-xs text-yellow-500'>On Hold</div>
         )}
       </div>
 
       {/* Call controls */}
       {(isInCall || isDialing) && (
         <>
-          <div className="flex items-center gap-3">
+          <div className='flex items-center gap-3'>
             {/* Mute */}
             <Button
               variant={isMuted ? 'destructive' : 'outline'}
-              size="icon"
-              className="h-12 w-12 rounded-full"
+              size='icon'
+              className='h-12 w-12 rounded-full'
               onClick={toggleMute}
               disabled={!isInCall}
               title={isMuted ? 'Unmute' : 'Mute'}
             >
               {isMuted ? (
-                <MicOff className="h-5 w-5" />
+                <MicOff className='h-5 w-5' />
               ) : (
-                <Mic className="h-5 w-5" />
+                <Mic className='h-5 w-5' />
               )}
             </Button>
 
             {/* Hold */}
             <Button
               variant={isOnHold ? 'secondary' : 'outline'}
-              size="icon"
-              className="h-12 w-12 rounded-full"
+              size='icon'
+              className='h-12 w-12 rounded-full'
               onClick={toggleHold}
               disabled={!isInCall}
               title={isOnHold ? 'Resume' : 'Hold'}
             >
               {isOnHold ? (
-                <Play className="h-5 w-5" />
+                <Play className='h-5 w-5' />
               ) : (
-                <Pause className="h-5 w-5" />
+                <Pause className='h-5 w-5' />
               )}
             </Button>
 
             {/* Record */}
             <Button
               variant={isRecording ? 'destructive' : 'outline'}
-              size="icon"
-              className="h-12 w-12 rounded-full"
+              size='icon'
+              className='h-12 w-12 rounded-full'
               onClick={toggleRecord}
               disabled={!isInCall || isRecordingLoading}
               title={isRecording ? 'Stop recording' : 'Start recording'}
@@ -266,57 +261,48 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
             {/* DTMF */}
             <Button
               variant={showDTMF ? 'secondary' : 'outline'}
-              size="icon"
-              className="h-12 w-12 rounded-full"
+              size='icon'
+              className='h-12 w-12 rounded-full'
               onClick={() => setShowDTMF(!showDTMF)}
               disabled={!isInCall}
-              title="Send DTMF"
+              title='Send DTMF'
             >
-              <Grid3X3 className="h-5 w-5" />
+              <Grid3X3 className='h-5 w-5' />
             </Button>
 
-            {/* Voicemail Drop */}
-            <Button
-              variant="outline"
-              size="icon"
-              className="h-12 w-12 rounded-full"
-              onClick={handleVoicemailDrop}
-              disabled={!isInCall}
-              title="Drop voicemail"
-            >
-              <Voicemail className="h-5 w-5" />
-            </Button>
+            {/* Voicemail drop is not implemented yet — hidden until the
+                backend supports playbackStart. */}
           </div>
 
           {/* Hangup button */}
           <Button
-            variant="destructive"
-            size="lg"
-            className="h-14 w-14 rounded-full"
+            variant='destructive'
+            size='lg'
+            className='h-14 w-14 rounded-full'
             onClick={handleHangup}
-            title="Hang up"
+            title='Hang up'
           >
-            <PhoneOff className="h-6 w-6" />
+            <PhoneOff className='h-6 w-6' />
           </Button>
 
           {/* DTMF Pad */}
           {showDTMF && (
-            <div className="relative rounded-lg border bg-card p-3">
+            <div className='bg-card relative rounded-lg border p-3'>
               <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1 top-1 h-6 w-6"
+                variant='ghost'
+                size='icon'
+                className='absolute top-1 right-1 h-6 w-6'
                 onClick={() => setShowDTMF(false)}
               >
-                <X className="h-3 w-3" />
+                <X className='h-3 w-3' />
               </Button>
-              <div className="grid grid-cols-3 gap-2 pt-4">
+              <div className='grid grid-cols-3 gap-2 pt-4'>
                 {DTMF_KEYS.flat().map((key) => (
                   <Button
                     key={key}
-                    variant="outline"
-                    size="sm"
-                    className="h-10 w-10 text-lg font-mono"
+                    variant='outline'
+                    size='sm'
+                    className='h-10 w-10 font-mono text-lg'
                     onClick={() => sendDTMF(key)}
                   >
                     {key}

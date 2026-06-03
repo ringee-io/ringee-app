@@ -33,5 +33,5 @@ interface DialerLeadState {
 export const useDialerLeadStore = create<DialerLeadState>((set) => ({
   currentLead: null,
   setLead: (lead) => set({ currentLead: lead }),
-  clear: () => set({ currentLead: null }),
+  clear: () => set({ currentLead: null })
 }));

@@ -33,7 +33,7 @@ const initialState = {
   sessionId: null as string | null,
   campaignId: null as string | null,
   status: 'offline' as AgentSessionStatus,
-  stats: { callsAttempted: 0, callsConnected: 0, totalTalkSec: 0 },
+  stats: { callsAttempted: 0, callsConnected: 0, totalTalkSec: 0 }
 };
 
 export const useDialerSessionStore = create<DialerSessionState>((set) => ({
@@ -46,5 +46,5 @@ export const useDialerSessionStore = create<DialerSessionState>((set) => ({
 
   setStats: (stats) => set({ stats }),
 
-  clear: () => set(initialState),
+  clear: () => set(initialState)
 }));

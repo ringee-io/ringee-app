@@ -252,17 +252,35 @@ export class CampaignLeadRepository {
   }
 
   /**
-   * Release a locked lead back to queued status.
+   * Release a lead back to queued status.
+   *
+   * Only genuinely in-flight leads (locked / dialing / in_call / wrap_up) are
+   * returned to the queue. A terminal lead (completed / dnc / exhausted) or one
+   * already dispositioned must never be resurrected — re-queueing a DNC lead
+   * would let it be dialed again, which is a compliance violation.
+   *
+   * Returns the number of leads actually released (0 if it was already terminal).
    */
-  async releaseLock(id: string): Promise<CampaignLead> {
-    return this.prisma.campaignLead.update({
-      where: { id },
+  async releaseLock(id: string): Promise<number> {
+    const result = await this.prisma.campaignLead.updateMany({
+      where: {
+        id,
+        status: {
+          in: [
+            CampaignLeadStatus.locked,
+            CampaignLeadStatus.dialing,
+            CampaignLeadStatus.in_call,
+            CampaignLeadStatus.wrap_up,
+          ],
+        },
+      },
       data: {
         status: CampaignLeadStatus.queued,
         lockedBy: null,
         lockedAt: null,
       },
     });
+    return result.count;
   }
 
   /**
@@ -277,16 +295,30 @@ export class CampaignLeadRepository {
   }
 
   /**
-   * Find leads due for retry (dispositioned with nextCallAt in the past).
+   * Safety net for orphaned locks: return leads that have been stuck in
+   * `locked` longer than the threshold (e.g. an agent session that died mid-lock
+   * before the call was placed and was never cleaned up) back to the queue.
+   *
+   * Retries themselves do NOT rely on this — evaluateRetry re-queues a lead
+   * directly with a future nextCallAt and lockNextLead honours it. This only
+   * recovers leads that would otherwise be locked forever.
+   *
+   * Returns the number of leads recovered.
    */
-  async findDueForRetry(): Promise<CampaignLead[]> {
-    return this.prisma.campaignLead.findMany({
+  async requeueStaleLocked(thresholdMs: number): Promise<number> {
+    const cutoff = new Date(Date.now() - thresholdMs);
+    const result = await this.prisma.campaignLead.updateMany({
       where: {
-        status: CampaignLeadStatus.dispositioned,
-        nextCallAt: { lte: new Date() },
+        status: CampaignLeadStatus.locked,
+        lockedAt: { lt: cutoff },
       },
-      take: 100,
+      data: {
+        status: CampaignLeadStatus.queued,
+        lockedBy: null,
+        lockedAt: null,
+      },
     });
+    return result.count;
   }
 
   /**

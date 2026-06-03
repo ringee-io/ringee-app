@@ -10,6 +10,9 @@ import {
 export class RetryEngine {
   private readonly logger = new Logger(RetryEngine.name);
 
+  /** A lead locked longer than this is treated as an orphaned lock. */
+  private static readonly STALE_LOCK_MS = 5 * 60_000; // 5 minutes
+
   constructor(
     private readonly retryRuleRepo: RetryRuleRepository,
     private readonly campaignLeadRepo: CampaignLeadRepository
@@ -62,21 +65,17 @@ export class RetryEngine {
   }
 
   /**
-   * Process leads that are due for retry.
-   * Called by the RetryScheduler background job.
+   * Recover orphaned locks. Run periodically by the worker's RetryScheduler.
+   *
+   * Retries are scheduled eagerly by {@link evaluateRetry} (which sets the lead
+   * back to `queued` with a future `nextCallAt`, then picked up by
+   * `lockNextLead`), so no background promotion is needed for them. This sweep
+   * only returns leads that have been stuck in `locked` for longer than
+   * STALE_LOCK_MS — e.g. a session that died mid-lock before placing the call —
+   * back to the queue so they aren't lost.
    */
   async processRetryQueue(): Promise<number> {
-    const dueLeads = await this.campaignLeadRepo.findDueForRetry();
-    let count = 0;
-    for (const lead of dueLeads) {
-      await this.campaignLeadRepo.updateStatus(
-        lead.id,
-        CampaignLeadStatus.queued,
-        { lockedBy: null, lockedAt: null }
-      );
-      count++;
-    }
-    return count;
+    return this.campaignLeadRepo.requeueStaleLocked(RetryEngine.STALE_LOCK_MS);
   }
 
   async listRules(campaignId: string) {

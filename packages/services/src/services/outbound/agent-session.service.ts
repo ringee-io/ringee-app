@@ -3,6 +3,7 @@ import {
   Logger,
   NotFoundException,
   ConflictException,
+  ForbiddenException,
 } from "@nestjs/common";
 import {
   AgentSessionRepository,
@@ -77,10 +78,22 @@ export class AgentSessionService {
     return this.sessionRepo.heartbeat(sessionId);
   }
 
-  async transitionTo(sessionId: string, status: AgentSessionStatus, currentLeadId?: string) {
-    return this.sessionRepo.updateStatus(sessionId, status, {
-      currentLeadId: currentLeadId ?? undefined,
-    });
+  async transitionTo(
+    sessionId: string,
+    status: AgentSessionStatus,
+    currentLeadId?: string | null
+  ) {
+    // Distinguish "leave unchanged" (param omitted → undefined) from "clear"
+    // (explicit null). Prisma ignores `undefined` but applies `null`, so only
+    // include the key when the caller actually passed a value. Without this,
+    // passing `undefined` to clear the lead silently left a stale currentLeadId
+    // pointing at the finished lead — which could later be released back to the
+    // queue (even after it was completed/DNC).
+    const extra: { currentLeadId?: string | null } = {};
+    if (currentLeadId !== undefined) {
+      extra.currentLeadId = currentLeadId;
+    }
+    return this.sessionRepo.updateStatus(sessionId, status, extra);
   }
 
   async incrementStats(
@@ -104,6 +117,21 @@ export class AgentSessionService {
 
   async getById(sessionId: string) {
     return this.getSession(sessionId);
+  }
+
+  /**
+   * Load a session and assert it belongs to the given organization. Use this
+   * for any request that acts on a session on behalf of an authenticated user,
+   * so one tenant cannot drive another tenant's session by guessing its id.
+   */
+  async getByIdForOrg(sessionId: string, organizationId: string) {
+    const session = await this.getSession(sessionId);
+    if (session.organizationId !== organizationId) {
+      throw new ForbiddenException(
+        "Session does not belong to your organization"
+      );
+    }
+    return session;
   }
 
   /**
