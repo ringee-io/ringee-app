@@ -10,6 +10,7 @@ import {
   CampaignMemberRepository,
   ContactRepository,
   Campaign,
+  CampaignLeadStatus,
   Prisma,
 } from "@ringee/database";
 import {
@@ -24,7 +25,6 @@ import {
   CsvRowError,
   VALID_CAMPAIGN_STATUSES,
 } from "@ringee/platform";
-
 
 export interface CampaignLeadsImportResult {
   success: boolean;
@@ -44,7 +44,7 @@ export class CampaignService {
     private readonly campaignRepo: CampaignRepository,
     private readonly campaignLeadRepo: CampaignLeadRepository,
     private readonly campaignMemberRepo: CampaignMemberRepository,
-    private readonly contactRepo: ContactRepository
+    private readonly contactRepo: ContactRepository,
   ) {}
 
   private ensureOrganization(ctx: OwnershipContext): void {
@@ -55,7 +55,7 @@ export class CampaignService {
 
   async createCampaign(
     ctx: OwnershipContext,
-    dto: CreateCampaignDto
+    dto: CreateCampaignDto,
   ): Promise<Campaign> {
     this.ensureOrganization(ctx);
     return this.campaignRepo.create(ctx.userId, ctx.organizationId!, {
@@ -67,7 +67,7 @@ export class CampaignService {
   async getCampaignById(
     ctx: OwnershipContext,
     id: string,
-    options?: { requireMembershipForUserId?: string }
+    options?: { requireMembershipForUserId?: string },
   ) {
     this.ensureOrganization(ctx);
     const campaign = await this.campaignRepo.findById(id);
@@ -84,12 +84,10 @@ export class CampaignService {
     if (options?.requireMembershipForUserId) {
       const isMember = await this.campaignMemberRepo.isMember(
         id,
-        options.requireMembershipForUserId
+        options.requireMembershipForUserId,
       );
       if (!isMember) {
-        throw new ForbiddenException(
-          "You don't have access to this campaign"
-        );
+        throw new ForbiddenException("You don't have access to this campaign");
       }
     }
 
@@ -104,7 +102,7 @@ export class CampaignService {
       page?: number;
       limit?: number;
       memberUserId?: string;
-    }
+    },
   ) {
     this.ensureOrganization(ctx);
     return this.campaignRepo.listByOrganization(ctx.organizationId!, options);
@@ -113,7 +111,7 @@ export class CampaignService {
   async updateStatus(
     ctx: OwnershipContext,
     campaignId: string,
-    dto: UpdateCampaignStatusDto
+    dto: UpdateCampaignStatusDto,
   ): Promise<Campaign> {
     this.ensureOrganization(ctx);
 
@@ -137,7 +135,7 @@ export class CampaignService {
   async getLeads(
     ctx: OwnershipContext,
     campaignId: string,
-    options?: { page?: number; limit?: number; status?: string }
+    options?: { page?: number; limit?: number; status?: string },
   ) {
     this.ensureOrganization(ctx);
 
@@ -154,10 +152,58 @@ export class CampaignService {
     return this.campaignLeadRepo.findByCampaign(campaignId, options);
   }
 
+  /**
+   * Remove a single lead from a campaign. This is a hard delete of the
+   * CampaignLead row (and its cascaded call attempts / callbacks); the
+   * underlying Contact is preserved. A lead that is actively being dialed
+   * cannot be removed — releasing it mid-flight would corrupt the dialer
+   * state, so the caller must wait for the call to wrap up first.
+   */
+  async deleteLead(
+    ctx: OwnershipContext,
+    campaignId: string,
+    leadId: string,
+  ): Promise<{ success: true }> {
+    this.ensureOrganization(ctx);
+
+    const campaign = await this.campaignRepo.findById(campaignId);
+
+    if (!campaign) {
+      throw new NotFoundException("Campaign not found");
+    }
+
+    if (campaign.organizationId !== ctx.organizationId) {
+      throw new ForbiddenException("Access denied");
+    }
+
+    const lead = await this.campaignLeadRepo.findByIdWithContact(leadId);
+
+    if (!lead || lead.campaignId !== campaignId) {
+      throw new NotFoundException("Lead not found");
+    }
+
+    const inFlightStatuses: CampaignLeadStatus[] = [
+      CampaignLeadStatus.locked,
+      CampaignLeadStatus.dialing,
+      CampaignLeadStatus.in_call,
+      CampaignLeadStatus.wrap_up,
+    ];
+
+    if (inFlightStatuses.includes(lead.status)) {
+      throw new BadRequestException(
+        "This lead is currently being dialed and cannot be removed. Try again once the call has wrapped up.",
+      );
+    }
+
+    await this.campaignLeadRepo.deleteById(leadId);
+
+    return { success: true };
+  }
+
   async addLeadsManually(
     ctx: OwnershipContext,
     campaignId: string,
-    leads: ManualLeadDto[]
+    leads: ManualLeadDto[],
   ): Promise<CampaignLeadsImportResult> {
     this.ensureOrganization(ctx);
 
@@ -194,17 +240,20 @@ export class CampaignService {
     }
 
     // Check for existing leads in this campaign
-    const existingContactIds = await this.campaignLeadRepo.findExistingContactIds(
-      campaignId,
-      contactIds
-    );
+    const existingContactIds =
+      await this.campaignLeadRepo.findExistingContactIds(
+        campaignId,
+        contactIds,
+      );
     const existingSet = new Set(existingContactIds);
 
     // Create campaign leads for new contacts only
     const newLeads = contactIds
       .map((contactId, idx) => ({
         contactId,
-        metadata: (leads[idx].metadata ?? undefined) as Prisma.JsonValue | undefined,
+        metadata: (leads[idx].metadata ?? undefined) as
+          | Prisma.JsonValue
+          | undefined,
       }))
       .filter((l) => !existingSet.has(l.contactId));
 
@@ -230,7 +279,7 @@ export class CampaignService {
   async importLeadsFromCsv(
     ctx: OwnershipContext,
     campaignId: string,
-    csvContent: string
+    csvContent: string,
   ): Promise<CampaignLeadsImportResult> {
     this.ensureOrganization(ctx);
 
@@ -252,7 +301,7 @@ export class CampaignService {
 
     if (lines.length > CSV_IMPORT_CONFIG.MAX_ROWS + 1) {
       throw new BadRequestException(
-        `CSV file exceeds maximum of ${CSV_IMPORT_CONFIG.MAX_ROWS} rows`
+        `CSV file exceeds maximum of ${CSV_IMPORT_CONFIG.MAX_ROWS} rows`,
       );
     }
 
@@ -263,7 +312,7 @@ export class CampaignService {
 
     if (!headerValidation.valid) {
       throw new BadRequestException(
-        `Missing required columns: ${headerValidation.missingRequired.join(", ")}`
+        `Missing required columns: ${headerValidation.missingRequired.join(", ")}`,
       );
     }
 
@@ -325,13 +374,13 @@ export class CampaignService {
       // Check existing contacts
       const existingPhones = await this.contactRepo.findByPhoneNumbers(
         ctx,
-        phonesBatch
+        phonesBatch,
       );
       const existingPhonesSet = new Set(existingPhones);
 
       // Create new contacts
       const newContacts = batch.filter(
-        (c) => !existingPhonesSet.has(c.phoneNumber)
+        (c) => !existingPhonesSet.has(c.phoneNumber),
       );
 
       if (newContacts.length > 0) {
@@ -344,7 +393,7 @@ export class CampaignService {
       for (const contact of batch) {
         const dbContact = await this.contactRepo.findByPhone(
           ctx,
-          contact.phoneNumber
+          contact.phoneNumber,
         );
         if (dbContact) {
           contactIds.push(dbContact.id);
@@ -355,7 +404,7 @@ export class CampaignService {
       const existingLeadContactIds =
         await this.campaignLeadRepo.findExistingContactIds(
           campaignId,
-          contactIds
+          contactIds,
         );
       const existingLeadsSet = new Set(existingLeadContactIds);
 
@@ -369,7 +418,7 @@ export class CampaignService {
       if (newLeads.length > 0) {
         const count = await this.campaignLeadRepo.createMany(
           campaignId,
-          newLeads
+          newLeads,
         );
         leadsAdded += count;
       }

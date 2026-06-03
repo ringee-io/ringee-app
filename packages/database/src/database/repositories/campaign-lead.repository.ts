@@ -34,7 +34,7 @@ export class CampaignLeadRepository {
 
   async createMany(
     campaignId: string,
-    leads: Array<{ contactId: string; metadata?: Prisma.JsonValue }>
+    leads: Array<{ contactId: string; metadata?: Prisma.JsonValue }>,
   ): Promise<number> {
     const result = await this.prisma.campaignLead.createMany({
       data: leads.map((lead) => ({
@@ -47,7 +47,9 @@ export class CampaignLeadRepository {
     return result.count;
   }
 
-  async findByIdWithContact(id: string): Promise<CampaignLeadWithContact | null> {
+  async findByIdWithContact(
+    id: string,
+  ): Promise<CampaignLeadWithContact | null> {
     const lead = await this.prisma.campaignLead.findUnique({
       where: { id },
       include: {
@@ -71,7 +73,7 @@ export class CampaignLeadRepository {
       page?: number;
       limit?: number;
       status?: string;
-    }
+    },
   ): Promise<{
     data: CampaignLeadWithContact[];
     meta: { total: number; page: number; limit: number; totalPages: number };
@@ -129,9 +131,18 @@ export class CampaignLeadRepository {
     };
   }
 
+  /**
+   * Hard-delete a single campaign lead. Cascades to its CallAttempt and
+   * CallbackTask rows (onDelete: Cascade in the schema). The underlying
+   * Contact is left untouched — this only removes campaign membership.
+   */
+  async deleteById(id: string): Promise<void> {
+    await this.prisma.campaignLead.delete({ where: { id } });
+  }
+
   async findExistingContactIds(
     campaignId: string,
-    contactIds: string[]
+    contactIds: string[],
   ): Promise<string[]> {
     const existing = await this.prisma.campaignLead.findMany({
       where: {
@@ -150,7 +161,7 @@ export class CampaignLeadRepository {
       lastCallAt?: Date;
       nextCallAt?: Date | null;
       deadAt?: Date | null;
-    }
+    },
   ): Promise<CampaignLead> {
     return this.prisma.campaignLead.update({
       where: { id },
@@ -186,8 +197,11 @@ export class CampaignLeadRepository {
     id: string,
     status: CampaignLeadStatus,
     extra?: Partial<
-      Pick<CampaignLead, "lockedBy" | "lockedAt" | "nextCallAt" | "userId" | "priority">
-    >
+      Pick<
+        CampaignLead,
+        "lockedBy" | "lockedAt" | "nextCallAt" | "userId" | "priority"
+      >
+    >,
   ): Promise<CampaignLead> {
     return this.prisma.campaignLead.update({
       where: { id },
@@ -203,7 +217,7 @@ export class CampaignLeadRepository {
     campaignId: string,
     agentSessionId: string,
     maxAttempts: number,
-    organizationId: string
+    organizationId: string,
   ): Promise<CampaignLeadWithContact | null> {
     const result = await this.prisma.$queryRaw<{ id: string }[]>`
       UPDATE "CampaignLead" cl
@@ -325,7 +339,7 @@ export class CampaignLeadRepository {
    * Count leads by status for a campaign.
    */
   async countByStatus(
-    campaignId: string
+    campaignId: string,
   ): Promise<{ status: CampaignLeadStatus; count: number }[]> {
     const results = await this.prisma.campaignLead.groupBy({
       by: ["status"],

@@ -27,14 +27,36 @@ import {
   TableRow
 } from '@ringee/frontend-shared/components/ui/table';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
-import { Upload, UserPlus, Plus } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@ringee/frontend-shared/components/ui/alert-dialog';
+import { Upload, UserPlus, Plus, Trash2, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import type {
   CampaignLead,
   CampaignLeadListResponse,
+  CampaignLeadStatus,
   CampaignStatus
 } from '../types/campaign.types';
 import { ImportLeadsModal } from './import-leads-modal';
 import { AddLeadModal } from './add-lead-modal';
+
+// Leads actively in the dialer can't be removed — the backend rejects it and
+// releasing one mid-call would corrupt dialer state.
+const IN_FLIGHT_STATUSES: CampaignLeadStatus[] = [
+  'locked',
+  'dialing',
+  'in_call',
+  'wrap_up'
+];
 
 const LEAD_STATUS_COLORS: Record<string, string> = {
   pending: 'bg-gray-100 text-gray-700',
@@ -83,6 +105,7 @@ export function CampaignLeadsTab({
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [importOpen, setImportOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const limit = 20;
 
   useEffect(() => {
@@ -114,11 +137,37 @@ export function CampaignLeadsTab({
     onLeadsChanged?.();
   }
 
+  async function handleDelete(lead: CampaignLead) {
+    setDeletingId(lead.id);
+    try {
+      await api.delete(`/campaigns/${campaignId}/leads/${lead.id}`);
+      toast.success(
+        `${lead.contact.name || 'Lead'} removed from the campaign.`
+      );
+      // If we just emptied the current page, step back one so the user isn't
+      // left staring at a blank table.
+      if (leads.length === 1 && page > 1) {
+        setPage(page - 1);
+      } else {
+        await loadLeads();
+      }
+      onLeadsChanged?.();
+    } catch (err: any) {
+      toast.error(
+        err?.message || 'Could not remove the lead. Please try again.'
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
   const totalPages = Math.ceil(total / limit);
   const canImport =
     campaignStatus === 'draft' ||
     campaignStatus === 'active' ||
     campaignStatus === 'paused';
+  // Leads can be removed in any non-completed campaign.
+  const canManageLeads = campaignStatus !== 'completed';
 
   return (
     <>
@@ -219,6 +268,11 @@ export function CampaignLeadsTab({
                     <TableHead className='hidden lg:table-cell'>
                       Last Call
                     </TableHead>
+                    {canManageLeads && (
+                      <TableHead className='w-[60px] text-right'>
+                        <span className='sr-only'>Actions</span>
+                      </TableHead>
+                    )}
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -247,6 +301,63 @@ export function CampaignLeadsTab({
                           ? new Date(lead.lastCallAt).toLocaleString()
                           : '—'}
                       </TableCell>
+                      {canManageLeads && (
+                        <TableCell className='text-right'>
+                          {IN_FLIGHT_STATUSES.includes(lead.status) ? (
+                            <Button
+                              variant='ghost'
+                              size='icon'
+                              disabled
+                              title='This lead is currently being dialed and cannot be removed.'
+                            >
+                              <Trash2 className='text-muted-foreground/40 h-4 w-4' />
+                            </Button>
+                          ) : (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant='ghost'
+                                  size='icon'
+                                  disabled={deletingId === lead.id}
+                                  aria-label={`Remove ${lead.contact.name || 'lead'}`}
+                                >
+                                  {deletingId === lead.id ? (
+                                    <Loader2 className='h-4 w-4 animate-spin' />
+                                  ) : (
+                                    <Trash2 className='text-muted-foreground hover:text-destructive h-4 w-4' />
+                                  )}
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>
+                                    Remove this lead?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    <span className='text-foreground font-medium'>
+                                      {lead.contact.name || 'This lead'}
+                                    </span>{' '}
+                                    ({lead.contact.phoneNumber}) will be removed
+                                    from this campaign, along with its call
+                                    attempts and scheduled callbacks. The
+                                    contact itself is kept and can be added
+                                    again later. This can&apos;t be undone.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => handleDelete(lead)}
+                                    className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+                                  >
+                                    Remove lead
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          )}
+                        </TableCell>
+                      )}
                     </TableRow>
                   ))}
                 </TableBody>

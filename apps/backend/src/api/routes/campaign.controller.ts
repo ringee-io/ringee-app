@@ -43,13 +43,13 @@ export class CampaignController {
     private readonly campaignConfig: CampaignConfigService,
     private readonly dispositionService: DispositionService,
     private readonly retryEngine: RetryEngine,
-    private readonly memberService: CampaignMemberService
+    private readonly memberService: CampaignMemberService,
   ) {}
 
   @Post()
   async createCampaign(
     @Body() dto: CreateCampaignDto,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -64,7 +64,7 @@ export class CampaignController {
     @Query("search") search?: string,
     @Query("status") status?: string,
     @Query("page") page = "1",
-    @Query("limit") limit = "10"
+    @Query("limit") limit = "10",
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -84,7 +84,7 @@ export class CampaignController {
   @Get(":id")
   async getCampaign(
     @Param("id") id: string,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -101,7 +101,7 @@ export class CampaignController {
   async updateCampaign(
     @Param("id") id: string,
     @Body() dto: any,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -114,7 +114,7 @@ export class CampaignController {
   async updateCampaignStatus(
     @Param("id") id: string,
     @Body() dto: UpdateCampaignStatusDto,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -126,7 +126,7 @@ export class CampaignController {
   @Delete(":id")
   async deleteCampaign(
     @Param("id") id: string,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -140,7 +140,7 @@ export class CampaignController {
   @Get(":id/dispositions")
   async listDispositions(
     @Param("id") campaignId: string,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -151,7 +151,8 @@ export class CampaignController {
   @Post(":id/dispositions")
   async createDisposition(
     @Param("id") campaignId: string,
-    @Body() body: {
+    @Body()
+    body: {
       code: string;
       label: string;
       category: DispositionCategory;
@@ -162,7 +163,7 @@ export class CampaignController {
       triggersDnc?: boolean;
       triggersCallback?: boolean;
     },
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -174,7 +175,7 @@ export class CampaignController {
   async updateDisposition(
     @Param("dispositionId") dispositionId: string,
     @Body() body: any,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -185,7 +186,7 @@ export class CampaignController {
   @Delete(":id/dispositions/:dispositionId")
   async deleteDisposition(
     @Param("dispositionId") dispositionId: string,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -198,7 +199,7 @@ export class CampaignController {
   @Get(":id/retry-rules")
   async listRetryRules(
     @Param("id") campaignId: string,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -209,13 +210,14 @@ export class CampaignController {
   @Post(":id/retry-rules")
   async upsertRetryRule(
     @Param("id") campaignId: string,
-    @Body() body: {
+    @Body()
+    body: {
       dispositionCategory: DispositionCategory;
       maxAttempts: number;
       delayMinutes: number;
       delayMultiplier?: number;
     },
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -226,7 +228,7 @@ export class CampaignController {
   @Delete(":id/retry-rules/:ruleId")
   async deleteRetryRule(
     @Param("ruleId") ruleId: string,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -239,7 +241,7 @@ export class CampaignController {
   @Get(":id/members")
   async listMembers(
     @Param("id") campaignId: string,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -252,20 +254,25 @@ export class CampaignController {
   async addMember(
     @Param("id") campaignId: string,
     @Body() body: { userId: string; role?: string },
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
     }
     const ctx = createOwnershipContext(user);
-    return this.memberService.addMember(ctx, campaignId, body.userId, body.role);
+    return this.memberService.addMember(
+      ctx,
+      campaignId,
+      body.userId,
+      body.role,
+    );
   }
 
   @Delete(":id/members/:userId")
   async removeMember(
     @Param("id") campaignId: string,
     @Param("userId") userId: string,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -280,7 +287,7 @@ export class CampaignController {
   async createList(
     @Param("id") campaignId: string,
     @Body() body: { name: string; description?: string; source?: string },
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -292,7 +299,7 @@ export class CampaignController {
   @Get(":id/lists")
   async listLists(
     @Param("id") campaignId: string,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -305,7 +312,7 @@ export class CampaignController {
   async deleteList(
     @Param("id") campaignId: string,
     @Param("listId") listId: string,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -325,12 +332,12 @@ export class CampaignController {
           cb(null, true);
         }
       },
-    })
+    }),
   )
   async importLeadsFromCsv(
     @Param("id") campaignId: string,
     @UploadedFile() file: { buffer: Buffer; originalname: string },
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -348,7 +355,7 @@ export class CampaignController {
   async addLeadsManually(
     @Param("id") campaignId: string,
     @Body() dto: ImportLeadsManualDto,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -363,7 +370,7 @@ export class CampaignController {
     @CurrentUser() user: CurrentUserData,
     @Query("page") page = "1",
     @Query("limit") limit = "20",
-    @Query("status") status?: string
+    @Query("status") status?: string,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -374,5 +381,18 @@ export class CampaignController {
       limit: Number(limit),
       status,
     });
+  }
+
+  @Delete(":id/leads/:leadId")
+  async deleteCampaignLead(
+    @Param("id") campaignId: string,
+    @Param("leadId") leadId: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (!user.activeOrgId) {
+      throw new ForbiddenException("Campaigns require an organization");
+    }
+    const ctx = createOwnershipContext(user);
+    return this.campaignService.deleteLead(ctx, campaignId, leadId);
   }
 }
