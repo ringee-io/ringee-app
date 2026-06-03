@@ -99,16 +99,27 @@ export class CampaignRepository {
 
   async listByOrganization(
     organizationId: string,
-    options?: { search?: string; status?: string; page?: number; limit?: number }
+    options?: {
+      search?: string;
+      status?: string;
+      page?: number;
+      limit?: number;
+      /**
+       * When set, restrict results to campaigns this user is a member of.
+       * Used to hide campaigns from non-admin members who aren't assigned.
+       */
+      memberUserId?: string;
+    }
   ): Promise<{
     data: CampaignWithLeadsCount[];
     meta: { total: number; page: number; limit: number; totalPages: number };
   }> {
-    const { search, status, page = 1, limit = 10 } = options || {};
+    const { search, status, page = 1, limit = 10, memberUserId } = options || {};
 
     const where: Prisma.CampaignWhereInput = {
       organizationId,
       ...(status ? { status } : {}),
+      ...(memberUserId ? { members: { some: { userId: memberUserId } } } : {}),
       ...(search
         ? {
             OR: [

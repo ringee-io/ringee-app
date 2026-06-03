@@ -27,11 +27,16 @@ import {
   VoicemailDropService,
   SSEBridgeService,
 } from "@ringee/services";
-import { CampaignRepository, DispositionRepository } from "@ringee/database";
+import {
+  CampaignRepository,
+  DispositionRepository,
+  CampaignMemberRepository,
+} from "@ringee/database";
 
 interface CurrentUserData {
   id: string;
   activeOrgId?: string | null;
+  activeOrgRole?: string | null;
 }
 
 @Controller("dialer")
@@ -45,6 +50,7 @@ export class DialerController {
     private readonly campaignRepo: CampaignRepository,
     private readonly dispositionRepo: DispositionRepository,
     private readonly sseBridge: SSEBridgeService,
+    private readonly campaignMemberRepo: CampaignMemberRepository,
   ) {}
 
   /**
@@ -71,6 +77,20 @@ export class DialerController {
     const campaign = await this.campaignRepo.findById(body.campaignId);
     if (!campaign || campaign.organizationId !== orgId) {
       throw new ForbiddenException("Campaign not found in your organization");
+    }
+
+    // Non-admins must be assigned to the campaign to dial it.
+    const isAdmin = user.activeOrgRole === "org:admin";
+    if (!isAdmin) {
+      const isMember = await this.campaignMemberRepo.isMember(
+        body.campaignId,
+        ctx.userId
+      );
+      if (!isMember) {
+        throw new ForbiddenException(
+          "You are not assigned to this campaign"
+        );
+      }
     }
 
     return this.agentSessionService.startSession({

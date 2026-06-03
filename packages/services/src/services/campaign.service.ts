@@ -7,6 +7,7 @@ import {
 import {
   CampaignRepository,
   CampaignLeadRepository,
+  CampaignMemberRepository,
   ContactRepository,
   Campaign,
   Prisma,
@@ -42,6 +43,7 @@ export class CampaignService {
   constructor(
     private readonly campaignRepo: CampaignRepository,
     private readonly campaignLeadRepo: CampaignLeadRepository,
+    private readonly campaignMemberRepo: CampaignMemberRepository,
     private readonly contactRepo: ContactRepository
   ) {}
 
@@ -62,7 +64,11 @@ export class CampaignService {
     });
   }
 
-  async getCampaignById(ctx: OwnershipContext, id: string) {
+  async getCampaignById(
+    ctx: OwnershipContext,
+    id: string,
+    options?: { requireMembershipForUserId?: string }
+  ) {
     this.ensureOrganization(ctx);
     const campaign = await this.campaignRepo.findById(id);
 
@@ -74,12 +80,31 @@ export class CampaignService {
       throw new ForbiddenException("Access denied");
     }
 
+    // Non-admin members may only open campaigns they're assigned to.
+    if (options?.requireMembershipForUserId) {
+      const isMember = await this.campaignMemberRepo.isMember(
+        id,
+        options.requireMembershipForUserId
+      );
+      if (!isMember) {
+        throw new ForbiddenException(
+          "You don't have access to this campaign"
+        );
+      }
+    }
+
     return campaign;
   }
 
   async listCampaigns(
     ctx: OwnershipContext,
-    options?: { search?: string; status?: string; page?: number; limit?: number }
+    options?: {
+      search?: string;
+      status?: string;
+      page?: number;
+      limit?: number;
+      memberUserId?: string;
+    }
   ) {
     this.ensureOrganization(ctx);
     return this.campaignRepo.listByOrganization(ctx.organizationId!, options);

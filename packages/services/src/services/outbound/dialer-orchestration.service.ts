@@ -1,10 +1,9 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
+import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
 import {
   CampaignRepository,
   CallerIdRepository,
   NumberPurchasedRepository,
   AgentSessionStatus,
-  CampaignLeadStatus,
 } from "@ringee/database";
 import { TelephonyService } from "@ringee/platform";
 import { LeadQueueService } from "./lead-queue.service";
@@ -17,7 +16,7 @@ import { DispositionService } from "./disposition.service";
 const DIALER_POLL_INTERVAL_MS = 500;
 
 @Injectable()
-export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy {
+export class DialerOrchestrationService implements OnModuleDestroy {
   private readonly logger = new Logger(DialerOrchestrationService.name);
   private pollingTimer: NodeJS.Timeout | null = null;
   private lastWindowLog: number | null = null;
@@ -35,19 +34,27 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
     private readonly dispositionService: DispositionService,
   ) {}
 
-  onModuleInit(): void {
-    this.startPolling();
-  }
-
   onModuleDestroy(): void {
     this.stopPolling();
   }
 
+  /**
+   * Start the dialer poll loop.
+   *
+   * IMPORTANT: this must run in the same process that serves the SSE endpoint
+   * (the backend HTTP app), because lead assignments are pushed to agents via
+   * the in-process {@link SSEBridgeService}. It is therefore started explicitly
+   * from the backend's bootstrap (AppModule.onApplicationBootstrap) and NOT
+   * from onModuleInit — otherwise the worker process (which also imports
+   * ServicesModule) would poll and emit events that never reach SSE clients,
+   * leaving the agent UI stuck on "Waiting for lead".
+   */
   startPolling(): void {
     if (this.pollingTimer) return;
     this.pollingTimer = setInterval(
-      () => this.tick().catch((err) => this.logger.error("Dialer tick error", err)),
-      DIALER_POLL_INTERVAL_MS
+      () =>
+        this.tick().catch((err) => this.logger.error("Dialer tick error", err)),
+      DIALER_POLL_INTERVAL_MS,
     );
     this.logger.log("Dialer orchestration polling started");
   }
@@ -107,7 +114,7 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
       if (!this.lastWindowLog || now - this.lastWindowLog > 60_000) {
         this.lastWindowLog = now;
         this.logger.warn(
-          `Campaign ${campaign.id} outside calling window (${campaign.timezone} ${campaign.workStartMin}-${campaign.workEndMin})`
+          `Campaign ${campaign.id} outside calling window (${campaign.timezone} ${campaign.workStartMin}-${campaign.workEndMin})`,
         );
       }
       return;
@@ -115,7 +122,7 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
 
     // Find ready agents
     const readyAgents = await this.agentSessionService.findReadyByCampaign(
-      campaign.id
+      campaign.id,
     );
 
     for (const agent of readyAgents) {
@@ -123,7 +130,7 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
         await this.assignLeadToAgent(campaign, agent);
       } catch (err) {
         this.logger.error(
-          `Error assigning lead to agent ${agent.userId}: ${err}`
+          `Error assigning lead to agent ${agent.userId}: ${err}`,
         );
       }
     }
@@ -141,30 +148,32 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
       maxAttempts: number;
       dialerMode: string;
     },
-    agent: { id: string; userId: string; organizationId: string }
+    agent: { id: string; userId: string; organizationId: string },
   ): Promise<void> {
     // Select and lock next lead
     const lead = await this.leadQueueService.selectAndLockNext(
       campaign.id,
       agent.id,
       campaign.maxAttempts,
-      agent.organizationId
+      agent.organizationId,
     );
 
     if (!lead) {
-      this.logger.debug(`No eligible leads for agent ${agent.userId} in campaign ${campaign.id}`);
+      this.logger.debug(
+        `No eligible leads for agent ${agent.userId} in campaign ${campaign.id}`,
+      );
       return;
     }
 
     this.logger.log(
-      `Assigning lead ${lead.id} (${lead.contact?.phoneNumber}) to agent ${agent.userId}`
+      `Assigning lead ${lead.id} (${lead.contact?.phoneNumber}) to agent ${agent.userId}`,
     );
 
     // Reserve the agent
     await this.agentSessionService.transitionTo(
       agent.id,
       AgentSessionStatus.reserved,
-      lead.id
+      lead.id,
     );
 
     // Create the call attempt
@@ -180,7 +189,9 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
     const history = await this.callAttemptService.getAttemptHistory(lead.id);
 
     // Load dispositions for the campaign (for the disposition panel)
-    const dispositions = await this.dispositionService.listByCampaign(campaign.id);
+    const dispositions = await this.dispositionService.listByCampaign(
+      campaign.id,
+    );
 
     // Emit lead.assigned event via SSE bridge
     this.sseBridge.emit(`agent:${agent.id}`, "lead.assigned", {
@@ -232,7 +243,7 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
     // 1. Number explicitly assigned to the campaign.
     if (campaign.numberPurchasedId) {
       const assigned = await this.numberPurchasedRepo.findById(
-        campaign.numberPurchasedId
+        campaign.numberPurchasedId,
       );
       if (assigned?.phoneNumber) return assigned.phoneNumber;
     }
@@ -268,7 +279,7 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
     },
     agent: { id: string; userId: string },
     lead: { id: string; contact: { phoneNumber: string } },
-    attemptId: string
+    attemptId: string,
   ): Promise<void> {
     // Resolve caller ID phone number (falls back to purchased number)
     const callerIdNumber = await this.resolveCallerIdNumber(campaign);
@@ -276,7 +287,7 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
     // Transition states
     await this.agentSessionService.transitionTo(
       agent.id,
-      AgentSessionStatus.dialing
+      AgentSessionStatus.dialing,
     );
 
     // Emit call.initiate event — frontend uses this to place the WebRTC call
@@ -287,17 +298,14 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
     });
 
     this.logger.log(
-      `Call initiated for lead ${lead.id} → ${lead.contact.phoneNumber} (attempt: ${attemptId}, callerId: ${callerIdNumber})`
+      `Call initiated for lead ${lead.id} → ${lead.contact.phoneNumber} (attempt: ${attemptId}, callerId: ${callerIdNumber})`,
     );
   }
 
   /**
    * Manual dial trigger for preview mode.
    */
-  async manualDial(
-    sessionId: string,
-    campaignId: string
-  ): Promise<void> {
+  async manualDial(sessionId: string, campaignId: string): Promise<void> {
     const session = await this.agentSessionService.getById(sessionId);
 
     if (session.status !== AgentSessionStatus.reserved) {
@@ -318,12 +326,14 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
     const lead = await this.leadQueueService.getLeadById(session.currentLeadId);
 
     // Find the current attempt for this lead
-    const attempts = await this.callAttemptService.getAttemptHistory(session.currentLeadId);
+    const attempts = await this.callAttemptService.getAttemptHistory(
+      session.currentLeadId,
+    );
     const latestAttempt = attempts[0];
 
     await this.agentSessionService.transitionTo(
       sessionId,
-      AgentSessionStatus.dialing
+      AgentSessionStatus.dialing,
     );
 
     this.sseBridge.emit(`agent:${sessionId}`, "call.initiate", {
@@ -353,7 +363,7 @@ export class DialerOrchestrationService implements OnModuleInit, OnModuleDestroy
     await this.agentSessionService.transitionTo(
       sessionId,
       AgentSessionStatus.ready,
-      null
+      null,
     );
 
     this.sseBridge.emit(`agent:${sessionId}`, "session.state", {

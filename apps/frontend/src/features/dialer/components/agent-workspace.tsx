@@ -1,7 +1,6 @@
 'use client';
 
-import { useCallback } from 'react';
-import { useDialerSessionStore } from '../store/dialer-session.store';
+import { useCallback, useState } from 'react';
 import { useDialerSession } from '../hooks/use-dialer-session';
 import { useDialerEvents } from '../hooks/use-dialer-events';
 import { useDialerCall } from '../hooks/use-dialer-call';
@@ -13,6 +12,7 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Card, CardContent } from '@ringee/frontend-shared/components/ui/card';
 import { Play, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 
 interface Props {
   campaignId: string;
@@ -30,6 +30,25 @@ export function AgentWorkspace({ campaignId }: Props) {
   } = useDialerSession(campaignId);
 
   const { dial } = useDialerCall();
+  const [starting, setStarting] = useState(false);
+  const [startError, setStartError] = useState<string | null>(null);
+
+  async function handleStart() {
+    setStarting(true);
+    setStartError(null);
+    try {
+      await startSession();
+    } catch (err: any) {
+      const message =
+        err?.status === 403
+          ? "You're not assigned to this campaign. Ask an admin to add you as a member."
+          : err?.message || 'Could not start the session. Please try again.';
+      setStartError(message);
+      toast.error(message);
+    } finally {
+      setStarting(false);
+    }
+  }
 
   // When backend sends call.initiate via SSE, place the actual WebRTC call.
   // Forward the attemptId so it can be linked to the call's webhooks.
@@ -71,9 +90,19 @@ export function AgentWorkspace({ campaignId }: Props) {
                 dialer will automatically assign leads based on the campaign
                 configuration.
               </p>
-              <Button className='mt-6' size='lg' onClick={startSession}>
+              {startError && (
+                <p className='text-destructive mt-4 max-w-sm text-center text-sm'>
+                  {startError}
+                </p>
+              )}
+              <Button
+                className='mt-6'
+                size='lg'
+                onClick={handleStart}
+                disabled={starting}
+              >
                 <Play className='mr-2 h-5 w-5' />
-                Start Session
+                {starting ? 'Starting…' : 'Start Session'}
               </Button>
             </CardContent>
           </Card>

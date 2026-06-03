@@ -1,9 +1,9 @@
-import { Module } from "@nestjs/common";
+import { Module, OnApplicationBootstrap } from "@nestjs/common";
 import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { DatabaseModule } from "@ringee/database";
 import { ApiModule } from "./api/api.module";
-import { ServicesModule } from "@ringee/services";
+import { ServicesModule, DialerOrchestrationService } from "@ringee/services";
 import { McpModule } from "./mcp/mcp.module";
 import { RedisModule } from "@ringee/platform";
 import { APP_GUARD } from "@nestjs/core";
@@ -28,4 +28,17 @@ import { TriggerLoopModule } from "./triggerloop/triggerloop.module";
     },
   ],
 })
-export class AppModule { }
+export class AppModule implements OnApplicationBootstrap {
+  constructor(
+    private readonly dialerOrchestration: DialerOrchestrationService,
+  ) {}
+
+  /**
+   * Start the dialer poll loop here (and only here). It must run in the same
+   * process as the SSE endpoint so lead assignments reach agents; the worker
+   * process must NOT poll (see DialerOrchestrationService.startPolling).
+   */
+  onApplicationBootstrap(): void {
+    this.dialerOrchestration.startPolling();
+  }
+}

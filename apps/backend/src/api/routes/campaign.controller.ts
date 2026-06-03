@@ -33,6 +33,7 @@ import { DispositionCategory } from "@ringee/database";
 interface CurrentUserData {
   id: string;
   activeOrgId?: string | null;
+  activeOrgRole?: string | null;
 }
 
 @Controller("campaigns")
@@ -69,11 +70,14 @@ export class CampaignController {
       throw new ForbiddenException("Campaigns require an organization");
     }
     const ctx = createOwnershipContext(user);
+    const isAdmin = user.activeOrgRole === "org:admin";
     return this.campaignService.listCampaigns(ctx, {
       search,
       status,
       page: Number(page),
       limit: Number(limit),
+      // Non-admins only see campaigns they're a member of.
+      memberUserId: isAdmin ? undefined : user.id,
     });
   }
 
@@ -86,7 +90,11 @@ export class CampaignController {
       throw new ForbiddenException("Campaigns require an organization");
     }
     const ctx = createOwnershipContext(user);
-    return this.campaignService.getCampaignById(ctx, id);
+    const isAdmin = user.activeOrgRole === "org:admin";
+    return this.campaignService.getCampaignById(ctx, id, {
+      // Non-admins may only open campaigns they're assigned to.
+      requireMembershipForUserId: isAdmin ? undefined : user.id,
+    });
   }
 
   @Patch(":id")

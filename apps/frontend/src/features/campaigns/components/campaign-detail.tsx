@@ -75,6 +75,7 @@ export function CampaignDetail({ campaignId }: Props) {
   const [loading, setLoading] = useState(true);
   const [transitioning, setTransitioning] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [accessDenied, setAccessDenied] = useState(false);
 
   useEffect(() => {
     loadCampaign();
@@ -85,8 +86,10 @@ export function CampaignDetail({ campaignId }: Props) {
     try {
       const data = await api.get<Campaign>(`/campaigns/${campaignId}`);
       setCampaign(data);
-    } catch {
-      // handled by api client
+      setAccessDenied(false);
+    } catch (err: any) {
+      // A 403 means the user isn't an admin and isn't assigned to this campaign.
+      if (err?.status === 403) setAccessDenied(true);
     } finally {
       setLoading(false);
     }
@@ -131,8 +134,17 @@ export function CampaignDetail({ campaignId }: Props) {
   if (!campaign) {
     return (
       <Card>
-        <CardContent className='flex flex-col items-center py-16'>
-          <h3 className='text-lg font-semibold'>Campaign not found</h3>
+        <CardContent className='flex flex-col items-center py-16 text-center'>
+          <h3 className='text-lg font-semibold'>
+            {accessDenied
+              ? "You don't have access to this campaign"
+              : 'Campaign not found'}
+          </h3>
+          <p className='text-muted-foreground mt-1 max-w-sm text-sm'>
+            {accessDenied
+              ? 'Only organization admins and assigned members can open this campaign. Ask an admin to add you to it.'
+              : 'This campaign may have been deleted or the link is incorrect.'}
+          </p>
           <Button
             variant='outline'
             className='mt-4'

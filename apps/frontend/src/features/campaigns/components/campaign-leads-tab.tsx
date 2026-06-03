@@ -27,13 +27,14 @@ import {
   TableRow
 } from '@ringee/frontend-shared/components/ui/table';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
-import { Upload, UserPlus } from 'lucide-react';
+import { Upload, UserPlus, Plus } from 'lucide-react';
 import type {
   CampaignLead,
   CampaignLeadListResponse,
   CampaignStatus
 } from '../types/campaign.types';
 import { ImportLeadsModal } from './import-leads-modal';
+import { AddLeadModal } from './add-lead-modal';
 
 const LEAD_STATUS_COLORS: Record<string, string> = {
   pending: 'bg-gray-100 text-gray-700',
@@ -81,6 +82,7 @@ export function CampaignLeadsTab({
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [importOpen, setImportOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const limit = 20;
 
   useEffect(() => {
@@ -149,14 +151,20 @@ export function CampaignLeadsTab({
                 </SelectContent>
               </Select>
               {canImport && (
-                <Button
-                  variant='outline'
-                  size='sm'
-                  onClick={() => setImportOpen(true)}
-                >
-                  <Upload className='mr-2 h-4 w-4' />
-                  Import CSV
-                </Button>
+                <>
+                  <Button
+                    variant='outline'
+                    size='sm'
+                    onClick={() => setImportOpen(true)}
+                  >
+                    <Upload className='mr-2 h-4 w-4' />
+                    Import CSV
+                  </Button>
+                  <Button size='sm' onClick={() => setAddOpen(true)}>
+                    <Plus className='mr-2 h-4 w-4' />
+                    Add Lead
+                  </Button>
+                </>
               )}
             </div>
           </div>
@@ -178,18 +186,20 @@ export function CampaignLeadsTab({
               </h3>
               <p className='text-muted-foreground mt-1 text-sm'>
                 {statusFilter === 'all'
-                  ? 'Import a CSV file to add leads and get started.'
+                  ? 'Import a CSV file or add a lead manually to get started.'
                   : 'Try a different status filter.'}
               </p>
               {canImport && statusFilter === 'all' && (
-                <Button
-                  className='mt-4'
-                  variant='outline'
-                  onClick={() => setImportOpen(true)}
-                >
-                  <Upload className='mr-2 h-4 w-4' />
-                  Import CSV
-                </Button>
+                <div className='mt-4 flex gap-2'>
+                  <Button variant='outline' onClick={() => setImportOpen(true)}>
+                    <Upload className='mr-2 h-4 w-4' />
+                    Import CSV
+                  </Button>
+                  <Button onClick={() => setAddOpen(true)}>
+                    <Plus className='mr-2 h-4 w-4' />
+                    Add Lead
+                  </Button>
+                </div>
               )}
             </div>
           ) : (
@@ -277,6 +287,13 @@ export function CampaignLeadsTab({
         open={importOpen}
         onOpenChange={setImportOpen}
         onImported={handleImported}
+      />
+
+      <AddLeadModal
+        campaignId={campaignId}
+        open={addOpen}
+        onOpenChange={setAddOpen}
+        onAdded={handleImported}
       />
     </>
   );
