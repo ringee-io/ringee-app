@@ -10,9 +10,11 @@ import {
   Check,
   ChevronLeft,
   ChevronRight,
+  Link2,
   Loader2,
   PhoneOutgoing,
   Users,
+  X,
 } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
@@ -28,36 +30,27 @@ function queryView(query?: string | null): { all: boolean; label: string } {
   return { all, label: all ? "All contacts" : `Results for “${q}”` };
 }
 
-function ContactRow({ contact }: { contact: ContactSummary }) {
+function ContactRow({
+  contact,
+  selected,
+  onToggle,
+}: {
+  contact: ContactSummary;
+  selected: boolean;
+  onToggle: (contact: ContactSummary) => void;
+}) {
   const name = displayName(contact);
   const subtitle = [contact.jobTitle, contact.company]
     .filter(Boolean)
     .join(" · ");
   const hasContactId = typeof contact.id === "string" && contact.id.length > 0;
-  // Per-row queue state: a click maps to exactly one create_call_session.
-  const [queue, setQueue] = useState<"idle" | "busy" | "done">("idle");
-
-  async function queueCall() {
-    if (queue !== "idle") return;
-    setQueue("busy");
-    const data = hasContactId
-      ? await callToolData<CreateCallSessionResult>("create_call_session", {
-          contacts: [{ contactId: contact.id }],
-          title: `Call ${name}`,
-        })
-      : null;
-    if (data?.callSessionId) {
-      setQueue("done");
-    } else {
-      setQueue("idle");
-      void sendFollowup(
-        `Add ${name} (${contact.phoneNumber}) to a new call session`,
-      );
-    }
-  }
 
   return (
-    <li className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/40 sm:px-5">
+    <li
+      className={`flex items-center gap-3 px-4 py-2.5 transition-colors sm:px-5 ${
+        selected ? "bg-primary/5" : "hover:bg-muted/40"
+      }`}
+    >
       <Avatar fallback={initials(name)} className="size-9" />
       <button
         type="button"
@@ -90,25 +83,28 @@ function ContactRow({ contact }: { contact: ContactSummary }) {
           ) : null}
         </div>
       </button>
-      <Button
-        size="icon"
-        variant="ghost"
-        className="size-8 shrink-0"
-        disabled={queue !== "idle"}
-        title={queue === "done" ? `${name} queued` : `Queue a call to ${name}`}
-        aria-label={
-          queue === "done" ? `${name} queued` : `Queue a call to ${name}`
+      {/* Click selects (not call). The header button creates ONE session from the
+          whole selection, so ChatGPT never has to guess which contacts. */}
+      <button
+        type="button"
+        role="checkbox"
+        aria-checked={selected}
+        disabled={!hasContactId}
+        title={
+          selected ? `${name} selected` : `Select ${name} for a call session`
         }
-        onClick={() => void queueCall()}
+        aria-label={
+          selected ? `${name} selected` : `Select ${name} for a call session`
+        }
+        onClick={() => onToggle(contact)}
+        className={`flex size-6 shrink-0 items-center justify-center rounded-md border transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-40 ${
+          selected
+            ? "border-primary bg-primary text-primary-foreground"
+            : "border-input hover:border-primary/60 hover:bg-muted"
+        }`}
       >
-        {queue === "busy" ? (
-          <Loader2 className="animate-spin" />
-        ) : queue === "done" ? (
-          <Check className="text-[var(--success)]" />
-        ) : (
-          <PhoneOutgoing />
-        )}
-      </Button>
+        {selected ? <Check className="size-3.5" /> : null}
+      </button>
     </li>
   );
 }
@@ -119,12 +115,32 @@ export function ContactListCard({ data }: { data: SearchContactsResult }) {
   const [override, setOverride] = useState<SearchContactsResult | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Multi-select for batch session creation. Keyed by contactId and holding the
+  // full summary so the selection survives pagination and we can name each
+  // contact in the gallery fallback message.
+  const [selected, setSelected] = useState<Record<string, ContactSummary>>({});
+  const [creating, setCreating] = useState(false);
+  const [session, setSession] = useState<CreateCallSessionResult | null>(null);
+
   const current = override ?? data;
   const contacts = Array.isArray(current.contacts) ? current.contacts : [];
   const totalPages = Math.max(current.totalPages || 1, 1);
   const page = current.page || 1;
   const pageSize = current.limit ?? contacts.length ?? 10;
   const { all, label } = queryView(current.query);
+
+  const selectedList = Object.values(selected);
+  const selectedCount = selectedList.length;
+
+  function toggle(contact: ContactSummary) {
+    if (!contact.id) return;
+    setSelected((prev) => {
+      const next = { ...prev };
+      if (next[contact.id]) delete next[contact.id];
+      else next[contact.id] = contact;
+      return next;
+    });
+  }
 
   async function goToPage(target: number) {
     if (loading || target < 1 || target > totalPages || target === page) return;
@@ -145,6 +161,35 @@ export function ContactListCard({ data }: { data: SearchContactsResult }) {
     }
   }
 
+  async function createSession() {
+    if (creating || selectedCount === 0) return;
+    setCreating(true);
+    const data = await callToolData<CreateCallSessionResult>(
+      "create_call_session",
+      {
+        contacts: selectedList.map((c) => ({ contactId: c.id })),
+        title:
+          selectedCount === 1
+            ? `Call ${displayName(selectedList[0])}`
+            : `Call session · ${selectedCount} contacts`,
+      },
+    );
+    setCreating(false);
+    if (data?.callSessionId) {
+      setSession(data);
+      setSelected({});
+    } else {
+      // Standalone gallery or a failed call → hand off to the model, but name the
+      // exact contacts the user picked so it never asks "which contacts?".
+      const names = selectedList
+        .map((c) => `${displayName(c)} (${c.phoneNumber})`)
+        .join(", ");
+      void sendFollowup(
+        `Create a call session with these ${selectedCount} contacts: ${names}`,
+      );
+    }
+  }
+
   if (contacts.length === 0 && !loading) {
     return (
       <EmptyState
@@ -161,7 +206,7 @@ export function ContactListCard({ data }: { data: SearchContactsResult }) {
 
   return (
     <Card className="w-full max-w-lg overflow-hidden">
-      <CardHeader className="flex-col items-stretch gap-1">
+      <CardHeader className="flex-col items-stretch gap-2.5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <div className="flex size-8 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
@@ -173,6 +218,62 @@ export function ContactListCard({ data }: { data: SearchContactsResult }) {
             {current.total.toLocaleString()} total
           </span>
         </div>
+
+        {session?.joinUrl ? (
+          <div className="space-y-1.5">
+            <a
+              href={session.joinUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-xs transition-colors hover:bg-muted"
+            >
+              <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate font-medium">
+                Call session ready — open the dialer
+              </span>
+              <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                {session.contactsCount} queued
+              </span>
+            </a>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 w-full"
+              onClick={() => setSession(null)}
+            >
+              Select more contacts
+            </Button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              className="flex-1"
+              disabled={selectedCount === 0 || creating}
+              onClick={() => void createSession()}
+            >
+              {creating ? (
+                <Loader2 className="animate-spin" />
+              ) : (
+                <PhoneOutgoing />
+              )}
+              {selectedCount > 0
+                ? `Create call session (${selectedCount})`
+                : "Create call session"}
+            </Button>
+            {selectedCount > 0 ? (
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={creating}
+                title="Clear selection"
+                onClick={() => setSelected({})}
+              >
+                <X /> Clear
+              </Button>
+            ) : null}
+          </div>
+        )}
       </CardHeader>
 
       <CardContent className="p-0">
@@ -182,7 +283,12 @@ export function ContactListCard({ data }: { data: SearchContactsResult }) {
           }`}
         >
           {contacts.map((c) => (
-            <ContactRow key={c.id} contact={c} />
+            <ContactRow
+              key={c.id}
+              contact={c}
+              selected={!!selected[c.id]}
+              onToggle={toggle}
+            />
           ))}
         </ul>
 
