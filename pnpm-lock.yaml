@@ -47,13 +47,19 @@ importers:
 
   apps/agent-cli:
     dependencies:
-      '@ringee-io/agent':
-        specifier: workspace:*
-        version: link:../../packages/agent
+      '@modelcontextprotocol/sdk':
+        specifier: ^1.29.0
+        version: 1.29.0(zod@4.1.12)
       commander:
         specifier: ^13.1.0
         version: 13.1.0
+      zod:
+        specifier: ^4.1.12
+        version: 4.1.12
     devDependencies:
+      '@ringee-io/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
       '@types/node':
         specifier: ~22.16.0
         version: 22.16.5
