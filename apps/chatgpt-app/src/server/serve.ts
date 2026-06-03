@@ -31,6 +31,21 @@ function json(res: ServerResponse, status: number, body: unknown): void {
   res.end(JSON.stringify(body));
 }
 
+function text(res: ServerResponse, status: number, body: string): void {
+  res.writeHead(status, { "content-type": "text/plain; charset=utf-8" });
+  res.end(body);
+}
+
+/**
+ * OpenAI Apps SDK domain-verification token for this MCP origin
+ * (`chatgpt.ringee.io`). OpenAI issues a distinct token per verified origin,
+ * so this is deliberately NOT the backend's `OPENAI_APPS_CHALLENGE_TOKEN`
+ * (which verifies `api.ringee.io`) — reusing that var would serve the wrong
+ * token here. Configurable via `OPENAI_APPS_CHALLENGE_TOKEN_CHATGPT`; the
+ * fallback is the value OpenAI issued for chatgpt.ringee.io.
+ */
+const OPENAI_APPS_CHALLENGE_TOKEN = process.env.OPENAI_APPS_CHALLENGE_TOKEN_CHATGPT ?? "";
+
 async function readBody(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
   for await (const chunk of req) chunks.push(chunk as Buffer);
@@ -47,6 +62,12 @@ const httpServer = createServer(async (req, res) => {
 
   if (req.method === "GET" && url === "/health") {
     return json(res, 200, { ok: true, service: "ringee-chatgpt-app-mcp" });
+  }
+
+  // OpenAI Apps SDK domain verification: serve the issued token verbatim at the
+  // origin root, e.g. GET https://chatgpt.ringee.io/.well-known/openai-apps-challenge
+  if (req.method === "GET" && url.split("?")[0] === "/.well-known/openai-apps-challenge") {
+    return text(res, 200, OPENAI_APPS_CHALLENGE_TOKEN);
   }
 
   // RFC 9728 — protected resource metadata (always exposed when auth is on).
