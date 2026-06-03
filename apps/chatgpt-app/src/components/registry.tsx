@@ -2,6 +2,7 @@ import type {
   CallSessionInfo,
   ContactDetail,
   CreateCallbackResult,
+  ListWorkspacesResult,
   LogCallOutcomeResult,
   ScheduleMeetingResult,
   SearchContactsResult,
@@ -15,6 +16,7 @@ import {
   ContactListCard,
   LeadSearchResults,
   MeetingCard,
+  WorkspaceCard,
 } from "@/components/cards";
 import {
   ContactCardSkeleton,
@@ -30,6 +32,7 @@ import {
   mockOutcome,
   mockSession,
   mockSessionJoinUrl,
+  mockWorkspaces,
 } from "@/lib/mock";
 
 /**
@@ -56,6 +59,16 @@ const asRecord = (data: unknown): Record<string, unknown> =>
   data && typeof data === "object" ? (data as Record<string, unknown>) : {};
 
 export const COMPONENTS: Record<string, ComponentEntry> = {
+  WorkspaceCard: {
+    name: "WorkspaceCard",
+    title: "Workspaces",
+    description: "Switch between the personal and organization workspaces.",
+    tools: ["list_workspaces", "switch_workspace"],
+    render: (data) => <WorkspaceCard data={data as ListWorkspacesResult} />,
+    skeleton: <ListCardSkeleton rows={3} />,
+    mock: mockWorkspaces,
+  },
+
   ContactCard: {
     name: "ContactCard",
     title: "Contact",

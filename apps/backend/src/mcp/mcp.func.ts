@@ -6,6 +6,7 @@ import {
   ContactService,
   LeadSearchService,
   MeetingService,
+  OrganizationService,
   UserDeviceService,
 } from "@ringee/services";
 import {
@@ -38,6 +39,9 @@ import {
   GetContactSchema,
   ImportLeadsInput,
   ImportLeadsSchema,
+  ListWorkspacesSchema,
+  SwitchWorkspaceInput,
+  SwitchWorkspaceSchema,
   LogCallOutcomeInput,
   LogCallOutcomeSchema,
   RevealLeadInput,
@@ -80,6 +84,7 @@ export class McpFunc {
     private readonly notificationService: NotificationService,
     private readonly callSessionService: CallSessionService,
     private readonly leadSearchService: LeadSearchService,
+    private readonly organizationService: OrganizationService,
   ) {}
 
   private buildJoinUrl(rawToken: string): string {
@@ -113,6 +118,109 @@ export class McpFunc {
       company: contact.company,
       jobTitle: contact.jobTitle,
     };
+  }
+
+  /**
+   * Build the workspace picker payload for a user: the personal scope plus
+   * every organization they belong to, flagging the active one. Shared by
+   * list_workspaces and switch_workspace so both render the same card.
+   */
+  private async buildWorkspacesPayload(userId: string) {
+    const [memberships, activeOrgId] = await Promise.all([
+      this.organizationService.listMembershipsForUser(userId),
+      this.organizationService.getActiveWorkspaceOrgId(userId),
+    ]);
+
+    const workspaces = [
+      {
+        id: "personal",
+        type: "personal" as const,
+        name: "Personal",
+        role: null as string | null,
+        imageUrl: null as string | null,
+        active: activeOrgId === null,
+      },
+      ...memberships.map((m) => ({
+        id: m.id,
+        type: "organization" as const,
+        name: m.name,
+        role: m.role,
+        imageUrl: m.imageUrl,
+        active: m.id === activeOrgId,
+      })),
+    ];
+
+    return { active: activeOrgId ?? "personal", workspaces };
+  }
+
+  @McpTool({
+    toolName: "list_workspaces",
+    description:
+      "List the workspaces this user can operate in — their Personal account " +
+      "plus every organization they belong to — and which one is currently " +
+      "active. Use switch_workspace to change it. Contacts, calls, sessions and " +
+      "leads are all scoped to the active workspace.",
+    zod: ListWorkspacesSchema,
+    annotations: {
+      title: "List workspaces",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  })
+  async listWorkspaces(ctx: OwnershipContext) {
+    return text(await this.buildWorkspacesPayload(ctx.userId));
+  }
+
+  @McpTool({
+    toolName: "switch_workspace",
+    description:
+      "Switch the active workspace. Pass workspaceId 'personal' for the user's " +
+      "own account, or an organization id from list_workspaces (an exact " +
+      "organization name also works). The change applies to every subsequent " +
+      "action — there is no need to re-authenticate. Returns the updated " +
+      "workspace list with the new active one flagged.",
+    zod: SwitchWorkspaceSchema,
+    annotations: {
+      title: "Switch workspace",
+      readOnlyHint: false,
+      destructiveHint: false,
+      // Switching to the already-active workspace is a no-op.
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  })
+  async switchWorkspace(ctx: OwnershipContext, input: SwitchWorkspaceInput) {
+    const raw = input.workspaceId.trim();
+
+    if (raw === "" || raw.toLowerCase() === "personal") {
+      await this.organizationService.setActiveWorkspace(ctx.userId, null);
+      return text({ switched: true, ...(await this.buildWorkspacesPayload(ctx.userId)) });
+    }
+
+    // Resolve against the user's memberships so we never trust an arbitrary id:
+    // match by organization id first, then fall back to an exact (case-
+    // insensitive) name so the model can pass what the user said.
+    const memberships =
+      await this.organizationService.listMembershipsForUser(ctx.userId);
+    const target =
+      memberships.find((m) => m.id === raw) ??
+      memberships.find(
+        (m) => m.name.toLowerCase() === raw.toLowerCase(),
+      );
+
+    if (!target) {
+      throw new ForbiddenException(
+        `No workspace matched "${raw}". Call list_workspaces to see the options.`,
+      );
+    }
+
+    await this.organizationService.setActiveWorkspace(ctx.userId, target.id);
+    return text({
+      switched: true,
+      ...(await this.buildWorkspacesPayload(ctx.userId)),
+    });
   }
 
   @McpTool({

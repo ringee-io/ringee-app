@@ -493,6 +493,29 @@ export type GetCallSessionInput = {
   >;
 };
 
+// ── Workspace switching (personal ⇆ organization) ──────────────
+
+export const ListWorkspacesSchema = {};
+
+export const SwitchWorkspaceSchema = {
+  workspaceId: z
+    .string()
+    .min(1)
+    .max(100)
+    .describe(
+      "Which workspace to operate in. Pass the literal 'personal' for your own " +
+        "account, or an organization id from list_workspaces (an exact " +
+        "organization name also works). Applies to all subsequent actions.",
+    ),
+};
+
+export type ListWorkspacesInput = Record<string, never>;
+export type SwitchWorkspaceInput = {
+  [K in keyof typeof SwitchWorkspaceSchema]: z.infer<
+    (typeof SwitchWorkspaceSchema)[K]
+  >;
+};
+
 export type SearchContactsInput = {
   [K in keyof typeof SearchContactsSchema]: z.infer<
     (typeof SearchContactsSchema)[K]

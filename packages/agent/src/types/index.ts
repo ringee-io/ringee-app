@@ -219,3 +219,27 @@ export interface ImportLeadsResult {
   contactIds: string[];
   error?: string;
 }
+
+// ── Workspaces (personal ⇆ organization scope) ────────────────────────
+
+export interface Workspace {
+  /** "personal" for the user's own account, or the organization id. */
+  id: string;
+  type: "personal" | "organization";
+  name: string;
+  /** Org role (e.g. "org:admin"); null for the personal workspace. */
+  role: string | null;
+  imageUrl: string | null;
+  /** Whether this is the workspace every action is currently scoped to. */
+  active: boolean;
+}
+
+export interface ListWorkspacesResult {
+  /** id of the active workspace ("personal" or an organization id). */
+  active: string;
+  workspaces: Workspace[];
+}
+
+export interface SwitchWorkspaceResult extends ListWorkspacesResult {
+  switched: boolean;
+}

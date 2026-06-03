@@ -47,6 +47,40 @@ export interface ToolDescriptor {
 }
 
 export const TOOL_CATALOG: ToolDescriptor[] = [
+  // ── Workspaces (personal ⇆ organization scope) ────────────────────
+  {
+    action: "workspaces.list",
+    tool: "list_workspaces",
+    title: "Workspaces",
+    summary:
+      "List the Personal + organization workspaces and which one is active.",
+    sensitivity: "read",
+    cli: "ringee workspaces list",
+    component: "WorkspaceCard",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  {
+    action: "workspaces.switch",
+    tool: "switch_workspace",
+    title: "Switch workspace",
+    summary:
+      "Switch the active workspace (personal or an organization). No re-login.",
+    sensitivity: "write",
+    cli: "ringee workspaces switch <personal|orgId>",
+    component: "WorkspaceCard",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+
   // ── Contacts ──────────────────────────────────────────────────────
   {
     action: "contacts.search",

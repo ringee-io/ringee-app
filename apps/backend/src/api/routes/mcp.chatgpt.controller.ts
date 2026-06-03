@@ -120,8 +120,9 @@ export class McpChatgptController {
       return null;
     }
 
-    // Only session tokens carry an active organization; OAuth tokens resolve to
-    // the user's personal scope.
+    // Only session tokens carry an active organization (the user explicitly
+    // switched org in their Clerk session). OAuth tokens — what ChatGPT sends —
+    // never do, so they'd be pinned to the personal scope forever.
     const orgId = "orgId" in auth ? auth.orgId : null;
 
     let organizationId: string | null = null;
@@ -133,6 +134,13 @@ export class McpChatgptController {
         return null;
       }
       organizationId = org.id;
+    } else {
+      // No org in the token. Honor the workspace the user picked via
+      // switch_workspace so OAuth callers can operate inside an organization
+      // and switch back to personal at will. Membership is re-validated there.
+      organizationId = await this.organizationService.getActiveWorkspaceOrgId(
+        user.id,
+      );
     }
 
     return { userId: user.id, organizationId };

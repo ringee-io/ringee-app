@@ -2,6 +2,7 @@ import type {
   CallSessionInfo,
   ContactDetail,
   CreateCallbackResult,
+  ListWorkspacesResult,
   LogCallOutcomeResult,
   ScheduleMeetingResult,
   SearchContactsResult,
@@ -221,4 +222,34 @@ export const mockOutcome: LogCallOutcomeResult = {
   callId: "call-90021",
   outcome: "meeting_booked",
   outcomeNote: "Booked a 30-min demo for Thursday. Send the deck beforehand.",
+};
+
+export const mockWorkspaces: ListWorkspacesResult = {
+  active: "org-1",
+  workspaces: [
+    {
+      id: "personal",
+      type: "personal",
+      name: "Personal",
+      role: null,
+      imageUrl: null,
+      active: false,
+    },
+    {
+      id: "org-1",
+      type: "organization",
+      name: "Northwind Labs",
+      role: "org:admin",
+      imageUrl: null,
+      active: true,
+    },
+    {
+      id: "org-2",
+      type: "organization",
+      name: "Lumen AI",
+      role: "org:member",
+      imageUrl: null,
+      active: false,
+    },
+  ],
 };

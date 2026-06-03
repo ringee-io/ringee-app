@@ -11,11 +11,13 @@ import {
   GetCallSessionSchema,
   GetContactSchema,
   ImportLeadsSchema,
+  ListWorkspacesSchema,
   LogCallOutcomeSchema,
   RevealLeadSchema,
   ScheduleMeetingSchema,
   SearchContactsSchema,
   SearchLeadsSchema,
+  SwitchWorkspaceSchema,
   TOOL_BY_NAME,
   UpdateCallSessionSchema,
   UpdateContactSchema,
@@ -57,6 +59,8 @@ const MODEL_GATED_TOOLS = new Set<string>([
 
 // Same names as the backend MCP tools; schemas are the shared agent contracts.
 const PROXY_TOOLS: ProxyTool[] = [
+  { name: "list_workspaces", schema: ListWorkspacesSchema },
+  { name: "switch_workspace", schema: SwitchWorkspaceSchema },
   { name: "search_contacts", schema: SearchContactsSchema },
   { name: "get_contact", schema: GetContactSchema },
   { name: "create_contact", schema: CreateContactSchema },

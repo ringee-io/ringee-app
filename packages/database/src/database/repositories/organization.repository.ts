@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
-import { Prisma, Organization } from "@prisma/client";
+import { Prisma, Organization, OrganizationMembership } from "@prisma/client";
 import { ClerkOrganization } from "@ringee/platform";
 import { randomBytes } from "crypto";
 
@@ -24,6 +24,28 @@ export class OrganizationRepository {
             where: { id },
             include: { members: true },
         });
+    }
+
+    /**
+     * All organizations the user belongs to (resolved membership only — pending
+     * clerk-only invitations are excluded). Used to list switchable workspaces.
+     */
+    async findMembershipsByUserId(
+        userId: string,
+    ): Promise<Array<OrganizationMembership & { organization: Organization }>> {
+        return this.prisma.organizationMembership.findMany({
+            where: { userId },
+            include: { organization: true },
+            orderBy: { organization: { name: "asc" } },
+        });
+    }
+
+    /** True when the user has a resolved membership in the organization. */
+    async isMember(userId: string, organizationId: string): Promise<boolean> {
+        const count = await this.prisma.organizationMembership.count({
+            where: { userId, organizationId },
+        });
+        return count > 0;
     }
 
     private mapClerkToPrisma(
