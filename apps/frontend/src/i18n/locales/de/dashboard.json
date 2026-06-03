@@ -66,6 +66,7 @@
     "sale": "Verkauf",
     "interested": "Interessiert",
     "follow_up": "Follow-up",
+    "callback_scheduled": "Rückruf geplant",
     "not_interested": "Kein Interesse",
     "no_answer": "Keine Antwort",
     "voicemail": "Mailbox",
@@ -105,7 +106,7 @@
       "chart_best_time_of_day": { "title": "Beste Anrufzeiten", "description": "Stunden mit den meisten Ergebnissen." },
       "chart_calls_by_outcome": { "title": "Anrufe nach Ergebnis", "description": "Verteilung der Ergebnisse." },
       "table_recent_high_value_calls": { "title": "Hochwertige Anrufe", "description": "Aktuelle Verkäufe, Termine, Interessenten, Follow-ups." },
-      "table_upcoming_meetings": { "title": "Kommende Termine", "description": "Termine im Kalender." },
+      "table_upcoming_meetings": { "title": "Anstehende Termine & Rückrufe", "description": "Geplante Termine und Rückrufe, die nächsten zuerst." },
       "table_agent_performance": { "title": "Agenten-Performance", "description": "Aufschlüsselung pro Agent (nur Org-Admins)." }
     },
     "kpi": {
@@ -183,6 +184,7 @@
         "meetings": "Termine",
         "interested": "Interessiert",
         "followUps": "Follow-ups",
+        "callbacksScheduled": "Rückrufe",
         "noAnswer": "Keine Antwort"
       }
     },
@@ -202,8 +204,11 @@
       "emptyHint": "Anrufe, die als Verkauf, Termin vereinbart, Interessiert oder Follow-up markiert wurden, erscheinen hier, damit Sie wissen, woran Sie dranbleiben sollten."
     },
     "upcomingMeetings": {
-      "emptyHint": "Planen Sie aus einem Anruf einen Termin (oder synchronisieren Sie Google/Microsoft Calendar) — er erscheint dann hier.",
-      "fromCall": "Aus Anruf"
+      "emptyHint": "Planen Sie aus einem Anruf einen Termin oder Rückruf (oder synchronisieren Sie Google/Microsoft Calendar) — er erscheint dann hier.",
+      "fromCall": "Aus Anruf",
+      "typeMeeting": "Termin",
+      "typeCallback": "Rückruf",
+      "contactFallback": "Kontakt"
     },
     "agentPerformance": {
       "emptyHint": "Die Agenten-Performance ist für Org-Admins verfügbar. Sobald Ihr Team telefoniert, erscheint hier die Aufschlüsselung.",

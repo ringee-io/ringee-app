@@ -75,6 +75,10 @@ export interface KpisData {
   voicemail: number;
   wrongNumber: number;
   gatekeeper: number;
+  /** Calls dispositioned as "callback scheduled". */
+  callbackScheduled: number;
+  /** Scheduled CallbackTask records due in the selected period. */
+  callbacksScheduled: number;
   conversionRate: number;
   meetingRate: number;
   positiveOutcomeRate: number;

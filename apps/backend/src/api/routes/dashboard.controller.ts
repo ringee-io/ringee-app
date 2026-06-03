@@ -117,6 +117,18 @@ export class DashboardController {
     );
   }
 
+  @Get("upcoming-callbacks")
+  async upcomingCallbacks(
+    @CurrentUser() user: CurrentUserData,
+    @Query() q: CommonFilterQuery & { limit?: string },
+  ) {
+    const limit = q.limit ? Math.min(parseInt(q.limit, 10) || 10, 50) : 10;
+    return this.service.upcomingCallbacks(
+      await this.buildContext(user, q),
+      limit,
+    );
+  }
+
   @Get("agent-performance")
   async agentPerformance(
     @CurrentUser() user: CurrentUserData,

@@ -66,6 +66,7 @@
     "sale": "Verkoop",
     "interested": "Geïnteresseerd",
     "follow_up": "Opvolging",
+    "callback_scheduled": "Terugbelafspraak",
     "not_interested": "Niet geïnteresseerd",
     "no_answer": "Geen antwoord",
     "voicemail": "Voicemail",
@@ -105,7 +106,7 @@
       "chart_best_time_of_day": { "title": "Beste beluren", "description": "Uren met de meeste resultaten." },
       "chart_calls_by_outcome": { "title": "Gesprekken per resultaat", "description": "Verdeling van resultaten." },
       "table_recent_high_value_calls": { "title": "Hoog-waardige gesprekken", "description": "Recente verkopen, afspraken, geïnteresseerden, opvolgingen." },
-      "table_upcoming_meetings": { "title": "Aankomende afspraken", "description": "Afspraken in de agenda." },
+      "table_upcoming_meetings": { "title": "Aankomende afspraken & terugbelafspraken", "description": "Geplande afspraken en terugbelafspraken, eerstvolgende eerst." },
       "table_agent_performance": { "title": "Agentprestaties", "description": "Per-agent overzicht (alleen org-admins)." }
     },
     "kpi": {
@@ -183,6 +184,7 @@
         "meetings": "Afspraken",
         "interested": "Geïnteresseerd",
         "followUps": "Opvolgingen",
+        "callbacksScheduled": "Terugbelafspraken",
         "noAnswer": "Geen antwoord"
       }
     },
@@ -202,8 +204,11 @@
       "emptyHint": "Gesprekken gemarkeerd als Verkoop, Afspraak ingepland, Geïnteresseerd of Opvolging verschijnen hier zodat je weet wat je moet opvolgen."
     },
     "upcomingMeetings": {
-      "emptyHint": "Plan een afspraak vanuit een gesprek (of synchroniseer je Google/Microsoft Calendar) en hij verschijnt hier.",
-      "fromCall": "Vanuit gesprek"
+      "emptyHint": "Plan een afspraak of terugbelafspraak vanuit een gesprek (of synchroniseer je Google/Microsoft Calendar) en hij verschijnt hier.",
+      "fromCall": "Vanuit gesprek",
+      "typeMeeting": "Afspraak",
+      "typeCallback": "Terugbellen",
+      "contactFallback": "Contact"
     },
     "agentPerformance": {
       "emptyHint": "Agentprestaties zijn beschikbaar voor org-admins. Zodra je team gesprekken voert, verschijnt hier het overzicht.",

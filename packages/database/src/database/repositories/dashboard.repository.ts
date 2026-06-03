@@ -1,6 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
-import { CallOutcome, CallStatus, MeetingStatus, Prisma } from "@prisma/client";
+import {
+  CallbackStatus,
+  CallOutcome,
+  CallStatus,
+  MeetingStatus,
+  Prisma,
+} from "@prisma/client";
 import { DashboardContext } from "@ringee/platform";
 
 /**
@@ -46,6 +52,79 @@ function buildMeetingFilter(ctx: DashboardContext): Prisma.MeetingWhereInput {
   return { userId: ctx.userId, organizationId: ctx.organizationId };
 }
 
+function buildCallbackFilter(ctx: DashboardContext): Prisma.CallbackTaskWhereInput {
+  if (!ctx.organizationId || ctx.scope === "personal") {
+    return { userId: ctx.userId, organizationId: null };
+  }
+
+  if (ctx.isOrgAdmin) {
+    if (ctx.filterMemberId) {
+      return {
+        userId: ctx.filterMemberId,
+        organizationId: ctx.organizationId,
+      };
+    }
+    return { organizationId: ctx.organizationId };
+  }
+
+  return { userId: ctx.userId, organizationId: ctx.organizationId };
+}
+
+/**
+ * Prisma `where` fragment restricting Calls to a campaign via CallAttempt.
+ * Empty when no campaign is selected.
+ */
+function callCampaignWhere(ctx: DashboardContext): Prisma.CallWhereInput {
+  return ctx.campaignId
+    ? { callAttempts: { some: { campaignId: ctx.campaignId } } }
+    : {};
+}
+
+/**
+ * Raw-SQL fragment restricting a `Call` row (referenced by `alias`) to a
+ * campaign. Used by the $queryRaw aggregations. Returns Prisma.empty when no
+ * campaign is selected.
+ */
+function callCampaignSql(ctx: DashboardContext, callIdColumn: Prisma.Sql): Prisma.Sql {
+  if (!ctx.campaignId) return Prisma.empty;
+  return Prisma.sql`AND EXISTS (
+    SELECT 1 FROM "CallAttempt" ca
+    WHERE ca."callId" = ${callIdColumn}
+      AND ca."campaignId" = ${ctx.campaignId}::uuid
+  )`;
+}
+
+/**
+ * Derive raw-SQL owner filters (userId / organizationId) from the resolved
+ * ownership filter so that personal scope, member scope and org scope all map
+ * to the SAME predicate the Prisma queries use. Columns are referenced through
+ * the supplied `userCol` / `orgCol` SQL so the helper works with or without a
+ * table alias.
+ */
+function rawOwnerFilters(
+  owner: Prisma.CallWhereInput,
+  userCol: Prisma.Sql,
+  orgCol: Prisma.Sql,
+): { userFilter: Prisma.Sql; orgFilter: Prisma.Sql } {
+  const userId = "userId" in owner ? (owner.userId as string | undefined) : undefined;
+  const userFilter = userId
+    ? Prisma.sql`AND ${userCol} = ${userId}::uuid`
+    : Prisma.empty;
+
+  const orgId =
+    "organizationId" in owner
+      ? (owner.organizationId as string | null | undefined)
+      : undefined;
+  const orgFilter =
+    orgId === null
+      ? Prisma.sql`AND ${orgCol} IS NULL`
+      : orgId
+        ? Prisma.sql`AND ${orgCol} = ${orgId}::uuid`
+        : Prisma.empty;
+
+  return { userFilter, orgFilter };
+}
+
 function dateRange(ctx: DashboardContext) {
   if (ctx.dateRange) return ctx.dateRange;
   const end = new Date();
@@ -70,14 +149,23 @@ export class DashboardRepository {
   async getKpis(ctx: DashboardContext) {
     const owner = buildDashboardFilter(ctx);
     const meetingOwner = buildMeetingFilter(ctx);
+    const callbackOwner = buildCallbackFilter(ctx);
     const { start, end } = dateRange(ctx);
+
+    // Campaign scoping for entities that link to a Call (meetings) or to a
+    // campaign lead (callbacks). Keeps every count consistent with the
+    // campaign filter applied to the call-level counts.
+    const meetingCampaignWhere: Prisma.MeetingWhereInput = ctx.campaignId
+      ? { call: { callAttempts: { some: { campaignId: ctx.campaignId } } } }
+      : {};
+    const callbackCampaignWhere: Prisma.CallbackTaskWhereInput = ctx.campaignId
+      ? { campaignLead: { campaignId: ctx.campaignId } }
+      : {};
 
     const callBaseWhere: Prisma.CallWhereInput = {
       ...owner,
       startedAt: { gte: start, lte: end },
-      ...(ctx.campaignId
-        ? { callAttempts: { some: { campaignId: ctx.campaignId } } }
-        : {}),
+      ...callCampaignWhere(ctx),
       ...(ctx.outcome ? { outcome: ctx.outcome as CallOutcome } : {}),
     };
 
@@ -98,7 +186,9 @@ export class DashboardRepository {
       voicemail,
       wrongNumber,
       gatekeeper,
+      callbackOutcomes,
       meetingsScheduled,
+      callbacksScheduled,
       avgDurationAgg,
     ] = await Promise.all([
       this.prisma.call.count({ where: callBaseWhere }),
@@ -120,10 +210,20 @@ export class DashboardRepository {
       countByOutcome(CallOutcome.voicemail),
       countByOutcome(CallOutcome.wrong_number),
       countByOutcome(CallOutcome.gatekeeper),
+      countByOutcome(CallOutcome.callback_scheduled),
       this.prisma.meeting.count({
         where: {
           ...meetingOwner,
+          ...meetingCampaignWhere,
           scheduledAt: { gte: start, lte: end },
+        },
+      }),
+      this.prisma.callbackTask.count({
+        where: {
+          ...callbackOwner,
+          ...callbackCampaignWhere,
+          scheduledAt: { gte: start, lte: end },
+          status: { not: CallbackStatus.cancelled },
         },
       }),
       this.prisma.call.aggregate({
@@ -158,6 +258,8 @@ export class DashboardRepository {
       voicemail,
       wrongNumber,
       gatekeeper,
+      callbackScheduled: callbackOutcomes,
+      callbacksScheduled,
       conversionRate: round(conversionRate),
       meetingRate: round(meetingRate),
       positiveOutcomeRate: round(positiveOutcomeRate),
@@ -203,14 +305,12 @@ export class DashboardRepository {
           ? "week"
           : "month";
 
-    const orgFilter = ctx.organizationId
-      ? Prisma.sql`AND "organizationId" = ${ctx.organizationId}::uuid`
-      : Prisma.sql`AND "organizationId" IS NULL`;
-
-    const userFilter =
-      "userId" in owner && owner.userId
-        ? Prisma.sql`AND "userId" = ${owner.userId}::uuid`
-        : Prisma.empty;
+    const { userFilter, orgFilter } = rawOwnerFilters(
+      owner,
+      Prisma.sql`"userId"`,
+      Prisma.sql`"organizationId"`,
+    );
+    const campaignFilter = callCampaignSql(ctx, Prisma.sql`"Call".id`);
 
     const rows = await this.prisma.$queryRaw<
       {
@@ -219,6 +319,7 @@ export class DashboardRepository {
         meeting_booked: number;
         interested: number;
         follow_up: number;
+        callback_scheduled: number;
         no_answer: number;
       }[]
     >`
@@ -228,6 +329,7 @@ export class DashboardRepository {
         COUNT(*) FILTER (WHERE outcome = 'meeting_booked')::int AS meeting_booked,
         COUNT(*) FILTER (WHERE outcome = 'interested')::int AS interested,
         COUNT(*) FILTER (WHERE outcome = 'follow_up')::int AS follow_up,
+        COUNT(*) FILTER (WHERE outcome = 'callback_scheduled')::int AS callback_scheduled,
         COUNT(*) FILTER (WHERE outcome = 'no_answer')::int AS no_answer
       FROM "Call"
       WHERE "startedAt" IS NOT NULL
@@ -235,6 +337,7 @@ export class DashboardRepository {
         AND "startedAt" <= ${end}
         ${userFilter}
         ${orgFilter}
+        ${campaignFilter}
       GROUP BY bucket
       ORDER BY bucket ASC
     `;
@@ -247,6 +350,7 @@ export class DashboardRepository {
         meetingsBooked: Number(r.meeting_booked),
         interested: Number(r.interested),
         followUps: Number(r.follow_up),
+        callbacksScheduled: Number(r.callback_scheduled),
         noAnswer: Number(r.no_answer),
       })),
     };
@@ -259,14 +363,12 @@ export class DashboardRepository {
     const owner = buildDashboardFilter(ctx);
     const { start, end } = dateRange(ctx);
 
-    const orgFilter = ctx.organizationId
-      ? Prisma.sql`AND "organizationId" = ${ctx.organizationId}::uuid`
-      : Prisma.sql`AND "organizationId" IS NULL`;
-
-    const userFilter =
-      "userId" in owner && owner.userId
-        ? Prisma.sql`AND "userId" = ${owner.userId}::uuid`
-        : Prisma.empty;
+    const { userFilter, orgFilter } = rawOwnerFilters(
+      owner,
+      Prisma.sql`"userId"`,
+      Prisma.sql`"organizationId"`,
+    );
+    const campaignFilter = callCampaignSql(ctx, Prisma.sql`"Call".id`);
 
     const rows = await this.prisma.$queryRaw<
       {
@@ -289,6 +391,7 @@ export class DashboardRepository {
         AND "startedAt" <= ${end}
         ${userFilter}
         ${orgFilter}
+        ${campaignFilter}
       GROUP BY hour
       ORDER BY hour ASC
     `;
@@ -335,23 +438,32 @@ export class DashboardRepository {
   }
 
   /**
-   * Recent high-value calls (sale, meeting_booked, interested, follow_up).
+   * Recent high-value calls. By default surfaces the positive/actionable
+   * dispositions (sale, meeting_booked, interested, follow_up,
+   * callback_scheduled). When an explicit outcome filter is set, the table
+   * narrows to that single outcome so the filter bar actually drives the list.
    */
   async getRecentHighValueCalls(ctx: DashboardContext, limit = 10) {
     const owner = buildDashboardFilter(ctx);
     const { start, end } = dateRange(ctx);
 
-    return this.prisma.call.findMany({
-      where: {
-        ...owner,
-        outcome: {
+    const outcomeFilter: Prisma.CallWhereInput["outcome"] = ctx.outcome
+      ? { equals: ctx.outcome as CallOutcome }
+      : {
           in: [
             CallOutcome.sale,
             CallOutcome.meeting_booked,
             CallOutcome.interested,
             CallOutcome.follow_up,
+            CallOutcome.callback_scheduled,
           ],
-        },
+        };
+
+    return this.prisma.call.findMany({
+      where: {
+        ...owner,
+        ...callCampaignWhere(ctx),
+        outcome: outcomeFilter,
         startedAt: { gte: start, lte: end },
       },
       orderBy: { startedAt: "desc" },
@@ -364,7 +476,7 @@ export class DashboardRepository {
   }
 
   /**
-   * Upcoming meetings.
+   * Upcoming meetings (campaign-aware via the originating call).
    */
   async getUpcomingMeetings(ctx: DashboardContext, limit = 10) {
     const meetingOwner = buildMeetingFilter(ctx);
@@ -373,8 +485,38 @@ export class DashboardRepository {
     return this.prisma.meeting.findMany({
       where: {
         ...meetingOwner,
+        ...(ctx.campaignId
+          ? { call: { callAttempts: { some: { campaignId: ctx.campaignId } } } }
+          : {}),
         scheduledAt: { gte: now },
         status: { in: [MeetingStatus.scheduled, MeetingStatus.rescheduled] },
+      },
+      orderBy: { scheduledAt: "asc" },
+      take: limit,
+      include: {
+        contact: { select: { id: true, firstName: true, lastName: true } },
+        call: { select: { id: true, outcome: true } },
+      },
+    });
+  }
+
+  /**
+   * Upcoming callbacks (scheduled / due CallbackTasks). Campaign-aware via the
+   * linked campaign lead. Mirrors getUpcomingMeetings so the dashboard can show
+   * both meetings and callbacks side by side.
+   */
+  async getUpcomingCallbacks(ctx: DashboardContext, limit = 10) {
+    const callbackOwner = buildCallbackFilter(ctx);
+    const now = new Date();
+
+    return this.prisma.callbackTask.findMany({
+      where: {
+        ...callbackOwner,
+        ...(ctx.campaignId
+          ? { campaignLead: { campaignId: ctx.campaignId } }
+          : {}),
+        scheduledAt: { gte: now },
+        status: { in: [CallbackStatus.scheduled, CallbackStatus.due] },
       },
       orderBy: { scheduledAt: "asc" },
       take: limit,
@@ -392,6 +534,11 @@ export class DashboardRepository {
     if (!ctx.organizationId || !ctx.isOrgAdmin) return [];
 
     const { start, end } = dateRange(ctx);
+
+    const memberFilter = ctx.filterMemberId
+      ? Prisma.sql`AND c."userId" = ${ctx.filterMemberId}::uuid`
+      : Prisma.empty;
+    const campaignFilter = callCampaignSql(ctx, Prisma.sql`c.id`);
 
     const rows = await this.prisma.$queryRaw<
       {
@@ -423,6 +570,8 @@ export class DashboardRepository {
         AND c."startedAt" >= ${start}
         AND c."startedAt" <= ${end}
         AND c."userId" IS NOT NULL
+        ${memberFilter}
+        ${campaignFilter}
       GROUP BY c."userId", u."firstName", u."lastName"
       ORDER BY sales DESC, meetings DESC, total DESC
     `;

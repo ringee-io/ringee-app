@@ -16,6 +16,7 @@ const KNOWN_OUTCOMES = new Set([
   'sale',
   'interested',
   'follow_up',
+  'callback_scheduled',
   'not_interested',
   'no_answer',
   'voicemail',

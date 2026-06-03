@@ -66,6 +66,7 @@
     "sale": "Vente",
     "interested": "Intéressé",
     "follow_up": "Relance",
+    "callback_scheduled": "Rappel programmé",
     "not_interested": "Non intéressé",
     "no_answer": "Pas de réponse",
     "voicemail": "Messagerie",
@@ -105,7 +106,7 @@
       "chart_best_time_of_day": { "title": "Meilleures heures pour appeler", "description": "Les heures qui produisent le plus de résultats." },
       "chart_calls_by_outcome": { "title": "Appels par résultat", "description": "Répartition des résultats." },
       "table_recent_high_value_calls": { "title": "Appels à forte valeur", "description": "Ventes, rendez-vous, intéressés et relances récents." },
-      "table_upcoming_meetings": { "title": "Rendez-vous à venir", "description": "Rendez-vous dans le calendrier." },
+      "table_upcoming_meetings": { "title": "Rendez-vous et rappels à venir", "description": "Rendez-vous et rappels planifiés, les plus proches d'abord." },
       "table_agent_performance": { "title": "Performance par agent", "description": "Détail par agent (admins de l'organisation uniquement)." }
     },
     "kpi": {
@@ -183,6 +184,7 @@
         "meetings": "Rendez-vous",
         "interested": "Intéressés",
         "followUps": "Relances",
+        "callbacksScheduled": "Rappels",
         "noAnswer": "Pas de réponse"
       }
     },
@@ -202,8 +204,11 @@
       "emptyHint": "Les appels marqués Vente, Rendez-vous pris, Intéressé ou Relance apparaîtront ici pour vous indiquer ce sur quoi relancer."
     },
     "upcomingMeetings": {
-      "emptyHint": "Planifiez un rendez-vous depuis un appel (ou synchronisez votre Google/Microsoft Calendar) et il apparaîtra ici.",
-      "fromCall": "Depuis un appel"
+      "emptyHint": "Planifiez un rendez-vous ou un rappel depuis un appel (ou synchronisez votre Google/Microsoft Calendar) et il apparaîtra ici.",
+      "fromCall": "Depuis un appel",
+      "typeMeeting": "Rendez-vous",
+      "typeCallback": "Rappel",
+      "contactFallback": "Contact"
     },
     "agentPerformance": {
       "emptyHint": "La performance par agent est disponible pour les admins de l'organisation. Une fois que votre équipe commencera à passer des appels, leur détail apparaîtra ici.",

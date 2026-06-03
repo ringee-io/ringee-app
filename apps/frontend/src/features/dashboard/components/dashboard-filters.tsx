@@ -43,6 +43,7 @@ const OUTCOME_VALUES = [
   'sale',
   'interested',
   'follow_up',
+  'callback_scheduled',
   'not_interested',
   'no_answer',
   'voicemail',

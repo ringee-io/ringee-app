@@ -141,8 +141,8 @@ export const WIDGET_CATALOG: WidgetMeta[] = [
   },
   {
     type: 'table_upcoming_meetings',
-    defaultTitle: 'Upcoming Meetings',
-    description: 'Meetings on the calendar.',
+    defaultTitle: 'Upcoming Meetings & Callbacks',
+    description: 'Scheduled meetings and callbacks, soonest first.',
     category: 'Table',
     defaultSize: { w: 6, h: 6 }
   },

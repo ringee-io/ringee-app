@@ -66,6 +66,7 @@
     "sale": "Vendita",
     "interested": "Interessato",
     "follow_up": "Follow-up",
+    "callback_scheduled": "Richiamo programmato",
     "not_interested": "Non interessato",
     "no_answer": "Nessuna risposta",
     "voicemail": "Segreteria",
@@ -105,7 +106,7 @@
       "chart_best_time_of_day": { "title": "Migliori ore per chiamare", "description": "Le ore che generano più risultati." },
       "chart_calls_by_outcome": { "title": "Chiamate per esito", "description": "Distribuzione degli esiti." },
       "table_recent_high_value_calls": { "title": "Chiamate ad alto valore", "description": "Vendite, riunioni, interessati e follow-up recenti." },
-      "table_upcoming_meetings": { "title": "Riunioni in arrivo", "description": "Riunioni a calendario." },
+      "table_upcoming_meetings": { "title": "Prossime riunioni e richiami", "description": "Riunioni e richiami pianificati, prima i più imminenti." },
       "table_agent_performance": { "title": "Performance per agente", "description": "Dettaglio per agente (solo admin org)." }
     },
     "kpi": {
@@ -183,6 +184,7 @@
         "meetings": "Riunioni",
         "interested": "Interessati",
         "followUps": "Follow-up",
+        "callbacksScheduled": "Richiami",
         "noAnswer": "Nessuna risposta"
       }
     },
@@ -202,8 +204,11 @@
       "emptyHint": "Le chiamate marcate come Vendita, Riunione fissata, Interessato o Follow-up appariranno qui per sapere su cosa fare follow-up."
     },
     "upcomingMeetings": {
-      "emptyHint": "Pianifica una riunione da una chiamata (o sincronizza Google/Microsoft Calendar) e apparirà qui.",
-      "fromCall": "Da chiamata"
+      "emptyHint": "Pianifica una riunione o un richiamo da una chiamata (o sincronizza Google/Microsoft Calendar) e apparirà qui.",
+      "fromCall": "Da chiamata",
+      "typeMeeting": "Riunione",
+      "typeCallback": "Richiamo",
+      "contactFallback": "Contatto"
     },
     "agentPerformance": {
       "emptyHint": "La performance per agente è disponibile per gli admin dell'organizzazione. Quando il team inizierà a chiamare, qui apparirà il dettaglio.",

@@ -21,7 +21,8 @@ const OUTCOME_VARIANT: Record<string, string> = {
   sale: 'bg-emerald-100 text-emerald-700',
   meeting_booked: 'bg-blue-100 text-blue-700',
   interested: 'bg-amber-100 text-amber-700',
-  follow_up: 'bg-violet-100 text-violet-700'
+  follow_up: 'bg-violet-100 text-violet-700',
+  callback_scheduled: 'bg-cyan-100 text-cyan-700'
 };
 
 const KNOWN_OUTCOMES = new Set([
@@ -29,6 +30,7 @@ const KNOWN_OUTCOMES = new Set([
   'sale',
   'interested',
   'follow_up',
+  'callback_scheduled',
   'not_interested',
   'no_answer',
   'voicemail',

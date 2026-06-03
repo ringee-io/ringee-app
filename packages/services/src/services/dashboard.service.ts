@@ -10,6 +10,7 @@ export type DashboardWidgetDataType =
   | "calls-by-outcome"
   | "recent-high-value"
   | "upcoming-meetings"
+  | "upcoming-callbacks"
   | "agent-performance";
 
 @Injectable()
@@ -44,6 +45,10 @@ export class DashboardService {
     return this.repo.getUpcomingMeetings(ctx, limit);
   }
 
+  upcomingCallbacks(ctx: DashboardContext, limit = 10) {
+    return this.repo.getUpcomingCallbacks(ctx, limit);
+  }
+
   agentPerformance(ctx: DashboardContext) {
     return this.repo.getAgentPerformance(ctx);
   }
@@ -70,6 +75,8 @@ export class DashboardService {
         return this.recentHighValueCalls(ctx);
       case "upcoming-meetings":
         return this.upcomingMeetings(ctx);
+      case "upcoming-callbacks":
+        return this.upcomingCallbacks(ctx);
       case "agent-performance":
         return this.agentPerformance(ctx);
     }

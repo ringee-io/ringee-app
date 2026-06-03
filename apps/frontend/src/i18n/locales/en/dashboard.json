@@ -66,6 +66,7 @@
     "sale": "Sale",
     "interested": "Interested",
     "follow_up": "Follow-up",
+    "callback_scheduled": "Callback Scheduled",
     "not_interested": "Not Interested",
     "no_answer": "No Answer",
     "voicemail": "Voicemail",
@@ -105,7 +106,7 @@
       "chart_best_time_of_day": { "title": "Best Hours to Call", "description": "Hours that produce the most results." },
       "chart_calls_by_outcome": { "title": "Calls by Outcome", "description": "Distribution of dispositions." },
       "table_recent_high_value_calls": { "title": "High-Value Calls", "description": "Recent sales, meetings, interested, follow-ups." },
-      "table_upcoming_meetings": { "title": "Upcoming Meetings", "description": "Meetings on the calendar." },
+      "table_upcoming_meetings": { "title": "Upcoming Meetings & Callbacks", "description": "Scheduled meetings and callbacks, soonest first." },
       "table_agent_performance": { "title": "Agent Performance", "description": "Per-agent breakdown (org admins only)." }
     },
     "kpi": {
@@ -183,6 +184,7 @@
         "meetings": "Meetings",
         "interested": "Interested",
         "followUps": "Follow-ups",
+        "callbacksScheduled": "Callbacks",
         "noAnswer": "No Answer"
       }
     },
@@ -202,8 +204,11 @@
       "emptyHint": "Calls marked as Sale, Meeting Booked, Interested, or Follow-up will show up here so you know what to follow up on."
     },
     "upcomingMeetings": {
-      "emptyHint": "Schedule a meeting from a call (or sync your Google/Microsoft Calendar) and it will show here.",
-      "fromCall": "From call"
+      "emptyHint": "Schedule a meeting or a callback from a call (or sync your Google/Microsoft Calendar) and it will show here.",
+      "fromCall": "From call",
+      "typeMeeting": "Meeting",
+      "typeCallback": "Callback",
+      "contactFallback": "Contact"
     },
     "agentPerformance": {
       "emptyHint": "Agent performance is available for organization admins. Once your team starts placing calls, their breakdown will appear here.",

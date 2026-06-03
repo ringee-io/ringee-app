@@ -36,7 +36,7 @@ export const DEFAULT_DASHBOARD_WIDGETS: UpsertWidgetInput[] = [
 
   // Tables
   { type: "table_recent_high_value_calls", title: "High-Value Calls", x: 0, y: 14, w: 6, h: 6 },
-  { type: "table_upcoming_meetings", title: "Upcoming Meetings", x: 6, y: 14, w: 6, h: 6 },
+  { type: "table_upcoming_meetings", title: "Upcoming Meetings & Callbacks", x: 6, y: 14, w: 6, h: 6 },
   { type: "table_agent_performance", title: "Agent Performance", x: 0, y: 20, w: 12, h: 6 },
 ];
 

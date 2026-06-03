@@ -21,6 +21,7 @@ interface OutcomesPoint {
   meetingsBooked: number;
   interested: number;
   followUps: number;
+  callbacksScheduled: number;
   noAnswer: number;
 }
 
@@ -34,6 +35,11 @@ const SERIES = [
   { key: 'meetingsBooked', i18nKey: 'meetings', color: 'var(--chart-2)' },
   { key: 'interested', i18nKey: 'interested', color: 'var(--chart-3)' },
   { key: 'followUps', i18nKey: 'followUps', color: 'var(--chart-4)' },
+  {
+    key: 'callbacksScheduled',
+    i18nKey: 'callbacksScheduled',
+    color: '#06b6d4'
+  },
   { key: 'noAnswer', i18nKey: 'noAnswer', color: 'var(--chart-5)' }
 ] as const;
 

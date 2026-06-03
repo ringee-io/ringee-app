@@ -66,6 +66,7 @@
     "sale": "Venta",
     "interested": "Interesado",
     "follow_up": "Seguimiento",
+    "callback_scheduled": "Devolución de llamada",
     "not_interested": "No interesado",
     "no_answer": "Sin respuesta",
     "voicemail": "Buzón de voz",
@@ -105,7 +106,7 @@
       "chart_best_time_of_day": { "title": "Mejores horas para llamar", "description": "Las horas que generan más resultados." },
       "chart_calls_by_outcome": { "title": "Llamadas por resultado", "description": "Distribución de los resultados." },
       "table_recent_high_value_calls": { "title": "Llamadas de alto valor", "description": "Ventas, reuniones, interesados y seguimientos recientes." },
-      "table_upcoming_meetings": { "title": "Próximas reuniones", "description": "Reuniones en el calendario." },
+      "table_upcoming_meetings": { "title": "Próximas reuniones y devoluciones", "description": "Reuniones y devoluciones de llamada agendadas, las más próximas primero." },
       "table_agent_performance": { "title": "Rendimiento por agente", "description": "Detalle por agente (solo admins de la organización)." }
     },
     "kpi": {
@@ -183,6 +184,7 @@
         "meetings": "Reuniones",
         "interested": "Interesados",
         "followUps": "Seguimientos",
+        "callbacksScheduled": "Devoluciones",
         "noAnswer": "Sin respuesta"
       }
     },
@@ -202,8 +204,11 @@
       "emptyHint": "Las llamadas marcadas como Venta, Reunión agendada, Interesado o Seguimiento aparecerán aquí para que sepas a qué hacer seguimiento."
     },
     "upcomingMeetings": {
-      "emptyHint": "Agenda una reunión desde una llamada (o sincroniza tu Google/Microsoft Calendar) y aparecerá aquí.",
-      "fromCall": "Desde llamada"
+      "emptyHint": "Agenda una reunión o una devolución de llamada desde una llamada (o sincroniza tu Google/Microsoft Calendar) y aparecerá aquí.",
+      "fromCall": "Desde llamada",
+      "typeMeeting": "Reunión",
+      "typeCallback": "Devolución",
+      "contactFallback": "Contacto"
     },
     "agentPerformance": {
       "emptyHint": "El rendimiento por agente está disponible para administradores de la organización. Cuando tu equipo empiece a hacer llamadas, su detalle aparecerá aquí.",
