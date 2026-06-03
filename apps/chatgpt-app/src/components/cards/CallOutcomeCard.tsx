@@ -13,80 +13,31 @@ import {
 } from "lucide-react";
 import * as React from "react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { NextStepBanner } from "@/components/next-step";
 import { titleCase } from "@/lib/format";
 
 type OutcomeConfig = {
   icon: React.ComponentType<{ className?: string }>;
   color: string;
-  nextLabel: string;
-  nextPrompt: string;
 };
 
 const OUTCOMES: Record<CallOutcome, OutcomeConfig> = {
-  meeting_booked: {
-    icon: CalendarCheck,
-    color: "var(--success)",
-    nextLabel: "Confirm the meeting details",
-    nextPrompt: "Schedule / confirm the meeting for this contact",
-  },
-  sale: {
-    icon: CircleDollarSign,
-    color: "var(--success)",
-    nextLabel: "Log the deal and next steps",
-    nextPrompt: "What are the next steps after closing this contact?",
-  },
-  interested: {
-    icon: ThumbsUp,
-    color: "var(--info)",
-    nextLabel: "Book a follow-up meeting",
-    nextPrompt: "Schedule a meeting with this interested contact",
-  },
-  follow_up: {
-    icon: Clock4,
-    color: "var(--info)",
-    nextLabel: "Schedule a callback",
-    nextPrompt: "Create a callback for this contact",
-  },
-  callback_scheduled: {
-    icon: Clock4,
-    color: "var(--info)",
-    nextLabel: "Review the callback time",
-    nextPrompt: "Show the callback for this contact",
-  },
-  not_interested: {
-    icon: ThumbsDown,
-    color: "var(--muted-foreground)",
-    nextLabel: "Move to the next lead",
-    nextPrompt: "Who should I call next?",
-  },
-  no_answer: {
-    icon: PhoneMissed,
-    color: "var(--warning)",
-    nextLabel: "Schedule a callback",
-    nextPrompt: "Create a callback for this contact later today",
-  },
-  voicemail: {
-    icon: Voicemail,
-    color: "var(--warning)",
-    nextLabel: "Schedule a callback",
-    nextPrompt: "Create a callback for this contact tomorrow",
-  },
-  wrong_number: {
-    icon: PhoneOff,
-    color: "var(--destructive)",
-    nextLabel: "Update the contact's phone",
-    nextPrompt: "Update this contact's phone number",
-  },
-  gatekeeper: {
-    icon: PhoneOff,
-    color: "var(--warning)",
-    nextLabel: "Schedule a retry",
-    nextPrompt: "Create a callback to try past the gatekeeper",
-  },
+  meeting_booked: { icon: CalendarCheck, color: "var(--success)" },
+  sale: { icon: CircleDollarSign, color: "var(--success)" },
+  interested: { icon: ThumbsUp, color: "var(--info)" },
+  follow_up: { icon: Clock4, color: "var(--info)" },
+  callback_scheduled: { icon: Clock4, color: "var(--info)" },
+  not_interested: { icon: ThumbsDown, color: "var(--muted-foreground)" },
+  no_answer: { icon: PhoneMissed, color: "var(--warning)" },
+  voicemail: { icon: Voicemail, color: "var(--warning)" },
+  wrong_number: { icon: PhoneOff, color: "var(--destructive)" },
+  gatekeeper: { icon: PhoneOff, color: "var(--warning)" },
 };
 
-export function CallOutcomeCard({ outcome }: { outcome: LogCallOutcomeResult }) {
+export function CallOutcomeCard({
+  outcome,
+}: {
+  outcome: LogCallOutcomeResult;
+}) {
   const cfg = OUTCOMES[outcome.outcome] ?? OUTCOMES.follow_up;
   const Icon = cfg.icon;
 
@@ -122,7 +73,6 @@ export function CallOutcomeCard({ outcome }: { outcome: LogCallOutcomeResult }) 
         <p className="font-mono text-[11px] text-muted-foreground">
           call {outcome.callId}
         </p>
-        <NextStepBanner label={cfg.nextLabel} prompt={cfg.nextPrompt} />
       </CardContent>
     </Card>
   );

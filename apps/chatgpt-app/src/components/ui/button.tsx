@@ -10,10 +10,10 @@ const buttonVariants = cva(
         default: "bg-primary text-primary-foreground hover:opacity-90",
         secondary:
           "bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        outline: "border bg-background hover:bg-accent hover:text-accent-foreground",
+        outline:
+          "border bg-background hover:bg-accent hover:text-accent-foreground",
         ghost: "hover:bg-accent hover:text-accent-foreground",
-        warning:
-          "bg-[var(--warning)] text-black/80 hover:opacity-90",
+        warning: "bg-[var(--warning)] text-black/80 hover:opacity-90",
         destructive: "bg-destructive text-white hover:opacity-90",
       },
       size: {

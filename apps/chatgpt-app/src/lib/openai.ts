@@ -41,7 +41,10 @@ export interface CallToolResult {
 }
 
 export interface OpenAiApi extends OpenAiGlobals {
-  callTool?: (name: string, args: Record<string, unknown>) => Promise<CallToolResult>;
+  callTool?: (
+    name: string,
+    args: Record<string, unknown>,
+  ) => Promise<CallToolResult>;
   // NOTE: the Apps SDK method is `sendFollowUpMessage` (camelCase U + M).
   // The previous `sendFollowupMessage` spelling silently no-op'd every button.
   sendFollowUpMessage?: (args: { prompt: string }) => Promise<void>;
@@ -64,7 +67,9 @@ function subscribe(onChange: () => void): () => void {
   return () => window.removeEventListener(SET_GLOBALS_EVENT, onChange);
 }
 
-function readGlobal<K extends keyof OpenAiApi>(key: K): OpenAiApi[K] | undefined {
+function readGlobal<K extends keyof OpenAiApi>(
+  key: K,
+): OpenAiApi[K] | undefined {
   if (typeof window === "undefined") return undefined;
   return window.openai?.[key];
 }
@@ -109,7 +114,8 @@ export function useDisplayMode(): DisplayMode {
 
 /** Ask ChatGPT to run a follow-up turn (e.g. "reveal this lead"). No-op standalone. */
 export async function sendFollowup(prompt: string): Promise<void> {
-  if (typeof window === "undefined" || !window.openai?.sendFollowUpMessage) return;
+  if (typeof window === "undefined" || !window.openai?.sendFollowUpMessage)
+    return;
   await window.openai.sendFollowUpMessage({ prompt });
 }
 
@@ -118,7 +124,8 @@ export async function callTool(
   name: string,
   args: Record<string, unknown> = {},
 ): Promise<CallToolResult | undefined> {
-  if (typeof window === "undefined" || !window.openai?.callTool) return undefined;
+  if (typeof window === "undefined" || !window.openai?.callTool)
+    return undefined;
   return window.openai.callTool(name, args);
 }
 

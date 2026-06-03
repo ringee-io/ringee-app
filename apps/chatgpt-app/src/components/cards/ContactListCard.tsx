@@ -1,8 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import type { ContactSummary, SearchContactsResult } from "@ringee-io/agent";
+import type {
+  ContactSummary,
+  CreateCallSessionResult,
+  SearchContactsResult,
+} from "@ringee-io/agent";
 import {
+  Check,
   ChevronLeft,
   ChevronRight,
   Loader2,
@@ -25,14 +30,43 @@ function queryView(query?: string | null): { all: boolean; label: string } {
 
 function ContactRow({ contact }: { contact: ContactSummary }) {
   const name = displayName(contact);
-  const subtitle = [contact.jobTitle, contact.company].filter(Boolean).join(" · ");
+  const subtitle = [contact.jobTitle, contact.company]
+    .filter(Boolean)
+    .join(" · ");
+  const hasContactId = typeof contact.id === "string" && contact.id.length > 0;
+  // Per-row queue state: a click maps to exactly one create_call_session.
+  const [queue, setQueue] = useState<"idle" | "busy" | "done">("idle");
+
+  async function queueCall() {
+    if (queue !== "idle") return;
+    setQueue("busy");
+    const data = hasContactId
+      ? await callToolData<CreateCallSessionResult>("create_call_session", {
+          contacts: [{ contactId: contact.id }],
+          title: `Call ${name}`,
+        })
+      : null;
+    if (data?.callSessionId) {
+      setQueue("done");
+    } else {
+      setQueue("idle");
+      void sendFollowup(
+        `Add ${name} (${contact.phoneNumber}) to a new call session`,
+      );
+    }
+  }
+
   return (
     <li className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-muted/40 sm:px-5">
       <Avatar fallback={initials(name)} className="size-9" />
       <button
         type="button"
         onClick={() =>
-          void sendFollowup(`Show details for ${name} (${contact.phoneNumber})`)
+          void sendFollowup(
+            hasContactId
+              ? `Show details for ${name} (contactId ${contact.id})`
+              : `Show details for ${name} (${contact.phoneNumber})`,
+          )
         }
         className="min-w-0 flex-1 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
       >
@@ -45,7 +79,9 @@ function ContactRow({ contact }: { contact: ContactSummary }) {
           ) : null}
         </div>
         <div className="flex items-center gap-2 text-xs text-muted-foreground">
-          <span className="tabular-nums">{formatPhone(contact.phoneNumber)}</span>
+          <span className="tabular-nums">
+            {formatPhone(contact.phoneNumber)}
+          </span>
           {subtitle ? (
             <>
               <span aria-hidden>·</span>
@@ -58,15 +94,20 @@ function ContactRow({ contact }: { contact: ContactSummary }) {
         size="icon"
         variant="ghost"
         className="size-8 shrink-0"
-        title={`Queue a call to ${name}`}
-        aria-label={`Queue a call to ${name}`}
-        onClick={() =>
-          void sendFollowup(
-            `Add ${name} (${contact.phoneNumber}) to a call session`,
-          )
+        disabled={queue !== "idle"}
+        title={queue === "done" ? `${name} queued` : `Queue a call to ${name}`}
+        aria-label={
+          queue === "done" ? `${name} queued` : `Queue a call to ${name}`
         }
+        onClick={() => void queueCall()}
       >
-        <PhoneOutgoing />
+        {queue === "busy" ? (
+          <Loader2 className="animate-spin" />
+        ) : queue === "done" ? (
+          <Check className="text-[var(--success)]" />
+        ) : (
+          <PhoneOutgoing />
+        )}
       </Button>
     </li>
   );

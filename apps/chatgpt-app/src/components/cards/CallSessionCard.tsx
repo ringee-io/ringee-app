@@ -1,21 +1,37 @@
 "use client";
 
 import { useState } from "react";
-import type { CallSessionInfo } from "@ringee-io/agent";
+import type {
+  CallSessionInfo,
+  DeleteCallSessionResult,
+} from "@ringee-io/agent";
 import {
   Check,
   Copy,
   Link2,
+  Loader2,
   Megaphone,
   PhoneCall,
   RefreshCw,
   Trash2,
+  X,
 } from "lucide-react";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { GuardNote, SensitivityBadge, Stat, StatusPill } from "@/components/atoms";
-import { sendFollowup } from "@/lib/openai";
+import {
+  GuardNote,
+  SensitivityBadge,
+  Stat,
+  StatusPill,
+} from "@/components/atoms";
+import { callToolData, sendFollowup } from "@/lib/openai";
 import { formatDateTime, relativeTime } from "@/lib/format";
+import { copyText } from "@/lib/utils";
 
 interface CallSessionCardProps {
   session: CallSessionInfo;
@@ -23,8 +39,18 @@ interface CallSessionCardProps {
   joinUrl?: string;
 }
 
-export function CallSessionCard({ session, joinUrl }: CallSessionCardProps) {
+export function CallSessionCard({
+  session: initial,
+  joinUrl,
+}: CallSessionCardProps) {
+  // Local source of truth so Refresh/Revoke update this card in place — these
+  // are deterministic tool calls (callTool), never a free-text turn the model
+  // could turn into a brand-new session.
+  const [session, setSession] = useState<CallSessionInfo>(initial);
+  const [busy, setBusy] = useState<null | "refresh" | "revoke">(null);
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
   const [copied, setCopied] = useState(false);
+
   const pct =
     session.contactsCount > 0
       ? Math.round((session.callsCompleted / session.contactsCount) * 100)
@@ -33,14 +59,52 @@ export function CallSessionCard({ session, joinUrl }: CallSessionCardProps) {
 
   const copy = async () => {
     if (!joinUrl) return;
-    try {
-      await navigator.clipboard.writeText(joinUrl);
+    const ok = await copyText(joinUrl);
+    if (ok) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
-    } catch {
-      /* clipboard unavailable */
     }
   };
+
+  async function refresh() {
+    if (busy) return;
+    setBusy("refresh");
+    const data = await callToolData<CallSessionInfo>("get_call_session", {
+      callSessionId: session.callSessionId,
+    });
+    setBusy(null);
+    if (data?.callSessionId) setSession((s) => ({ ...s, ...data }));
+    else
+      void sendFollowup(
+        `Check the status of call session ${session.callSessionId}`,
+      );
+  }
+
+  async function revoke() {
+    if (busy) return;
+    if (!confirmRevoke) {
+      setConfirmRevoke(true);
+      return;
+    }
+    setBusy("revoke");
+    const data = await callToolData<DeleteCallSessionResult>(
+      "delete_call_session",
+      { callSessionId: session.callSessionId },
+    );
+    setBusy(null);
+    setConfirmRevoke(false);
+    if (data?.callSessionId) {
+      setSession((s) => ({
+        ...s,
+        status: data.status ?? "revoked",
+        joinUrlAvailable: false,
+      }));
+    } else {
+      void sendFollowup(
+        `Revoke call session ${session.callSessionId} (disable the magic link)`,
+      );
+    }
+  }
 
   return (
     <Card className="w-full max-w-md overflow-hidden">
@@ -67,6 +131,7 @@ export function CallSessionCard({ session, joinUrl }: CallSessionCardProps) {
             <span className="text-muted-foreground">Progress</span>
             <span className="font-medium tabular-nums">
               {session.callsCompleted}/{session.contactsCount} calls
+              {session.contactsCount > 0 ? ` · ${pct}%` : ""}
             </span>
           </div>
           <div className="h-2 overflow-hidden rounded-full bg-muted">
@@ -96,14 +161,20 @@ export function CallSessionCard({ session, joinUrl }: CallSessionCardProps) {
           </div>
         ) : null}
 
-        {joinUrl ? (
+        {joinUrl && !isRevoked ? (
           <div className="space-y-1.5">
             <div className="flex items-center gap-2 rounded-lg border bg-muted/40 p-2">
               <Link2 className="size-4 shrink-0 text-muted-foreground" />
-              <span className="min-w-0 flex-1 truncate font-mono text-xs">
+              <a
+                href={joinUrl}
+                target="_blank"
+                rel="noreferrer"
+                title="Open the dialer link"
+                className="min-w-0 flex-1 truncate font-mono text-xs underline-offset-2 hover:underline"
+              >
                 {joinUrl}
-              </span>
-              <Button size="sm" variant="secondary" onClick={copy}>
+              </a>
+              <Button size="sm" variant="secondary" onClick={() => void copy()}>
                 {copied ? <Check /> : <Copy />}
                 {copied ? "Copied" : "Copy"}
               </Button>
@@ -115,16 +186,19 @@ export function CallSessionCard({ session, joinUrl }: CallSessionCardProps) {
         ) : (
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <Link2 className="size-3.5" />
-            {session.joinUrlAvailable
-              ? "Magic link is active (token hidden for security)."
-              : "No active magic link."}
+            {isRevoked
+              ? "Magic link revoked — this session can no longer be dialed."
+              : session.joinUrlAvailable
+                ? "Magic link is active (token hidden for security)."
+                : "No active magic link."}
           </div>
         )}
 
-        {!isRevoked ? (
+        {!isRevoked && confirmRevoke ? (
           <GuardNote level="destructive">
-            Revoking disables the magic link immediately for everyone holding it.
-            Call history is preserved. <SensitivityBadge level="destructive" />
+            Revoking disables the magic link immediately for everyone holding
+            it. Call history is preserved.{" "}
+            <SensitivityBadge level="destructive" />
           </GuardNote>
         ) : null}
       </CardContent>
@@ -133,26 +207,52 @@ export function CallSessionCard({ session, joinUrl }: CallSessionCardProps) {
         <Button
           size="sm"
           variant="ghost"
-          onClick={() =>
-            void sendFollowup(
-              `Check the status of call session ${session.callSessionId}`,
-            )
-          }
+          disabled={!!busy}
+          onClick={() => void refresh()}
         >
-          <RefreshCw /> Refresh
+          {busy === "refresh" ? (
+            <Loader2 className="animate-spin" />
+          ) : (
+            <RefreshCw />
+          )}
+          Refresh
         </Button>
+
         {!isRevoked ? (
-          <Button
-            size="sm"
-            variant="destructive"
-            onClick={() =>
-              void sendFollowup(
-                `Revoke call session ${session.callSessionId} — confirm I want the magic link disabled`,
-              )
-            }
-          >
-            <Trash2 /> Revoke
-          </Button>
+          confirmRevoke ? (
+            <div className="flex gap-1.5">
+              <Button
+                size="sm"
+                variant="ghost"
+                disabled={!!busy}
+                onClick={() => setConfirmRevoke(false)}
+              >
+                <X /> Cancel
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                disabled={!!busy}
+                onClick={() => void revoke()}
+              >
+                {busy === "revoke" ? (
+                  <Loader2 className="animate-spin" />
+                ) : (
+                  <Trash2 />
+                )}
+                Confirm revoke
+              </Button>
+            </div>
+          ) : (
+            <Button
+              size="sm"
+              variant="destructive"
+              disabled={!!busy}
+              onClick={() => setConfirmRevoke(true)}
+            >
+              <Trash2 /> Revoke
+            </Button>
+          )
         ) : null}
       </CardFooter>
     </Card>

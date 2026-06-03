@@ -43,6 +43,18 @@ interface ProxyTool {
   schema: z.ZodObject<z.ZodRawShape>;
 }
 
+/**
+ * Tools that must NOT be callable straight from a widget button: they either
+ * spend enrichment credits or are a hard double-confirmed delete. These keep
+ * going through the model so their confirmation flow runs. Everything else is
+ * safe to invoke directly from an explicit button click.
+ */
+const MODEL_GATED_TOOLS = new Set<string>([
+  "delete_contact",
+  "reveal_lead",
+  "import_leads_as_contacts",
+]);
+
 // Same names as the backend MCP tools; schemas are the shared agent contracts.
 const PROXY_TOOLS: ProxyTool[] = [
   { name: "search_contacts", schema: SearchContactsSchema },
@@ -134,10 +146,12 @@ export function createRingeeAppServer(ringeeClient?: RingeeClient): McpServer {
         mimeType: RESOURCE_MIME_TYPE,
         _meta: {
           "openai/widgetPrefersBorder": true,
-          "openai/widgetDescription": TOOL_BY_NAME[
-            PROXY_TOOLS.find((t) => TOOL_BY_NAME[t.name]?.component === component)
-              ?.name ?? ""
-          ]?.summary,
+          "openai/widgetDescription":
+            TOOL_BY_NAME[
+              PROXY_TOOLS.find(
+                (t) => TOOL_BY_NAME[t.name]?.component === component,
+              )?.name ?? ""
+            ]?.summary,
         },
       },
       async () => ({
@@ -163,10 +177,11 @@ export function createRingeeAppServer(ringeeClient?: RingeeClient): McpServer {
       "openai/toolInvocation/invoked": `${meta?.title ?? name} done`,
     };
     if (outputTemplate) toolMeta["openai/outputTemplate"] = outputTemplate;
-    // Read-only tools are safe to call straight from the widget (e.g. the
-    // contacts card paginating in place). Write/sensitive/destructive tools are
-    // left model-gated so confirmation rules still apply.
-    if (meta?.annotations?.readOnlyHint) {
+    // Let card buttons call tools deterministically from the widget (a real
+    // click is the user's intent, so it never round-trips through the model and
+    // can't misfire or duplicate). Credit-spending and destructive-delete tools
+    // stay model-gated so their confirmation flows still run.
+    if (!MODEL_GATED_TOOLS.has(name)) {
       toolMeta["openai/widgetAccessible"] = true;
     }
 

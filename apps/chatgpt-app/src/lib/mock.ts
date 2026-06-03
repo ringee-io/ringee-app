@@ -25,8 +25,14 @@ export const mockContact: ContactDetail = {
   lastCallAt: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
   tags: [{ name: "Hot lead" }, { name: "Enterprise" }],
   calls: [
-    { outcome: "interested", createdAt: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString() },
-    { outcome: "voicemail", createdAt: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString() },
+    {
+      outcome: "interested",
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
+    },
+    {
+      outcome: "voicemail",
+      createdAt: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(),
+    },
   ],
 };
 

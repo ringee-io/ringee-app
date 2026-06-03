@@ -1,12 +1,9 @@
 "use client";
 
 import type { CreateCallbackResult } from "@ringee-io/agent";
-import { Bell, CalendarClock, NotebookPen, PhoneCall } from "lucide-react";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Bell, CalendarClock } from "lucide-react";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { StatusPill } from "@/components/atoms";
-import { NextStepBanner } from "@/components/next-step";
-import { sendFollowup } from "@/lib/openai";
 import { formatDateTime, relativeTime } from "@/lib/format";
 
 interface CallbackCardProps {
@@ -47,30 +44,6 @@ export function CallbackCard({ callback, contactName }: CallbackCardProps) {
           <p className="text-xs text-[var(--destructive)]">{callback.error}</p>
         ) : null}
       </CardContent>
-
-      <CardFooter className="flex-col items-stretch gap-2">
-        <div className="flex gap-2">
-          <Button
-            size="sm"
-            variant="secondary"
-            className="flex-1"
-            onClick={() => void sendFollowup("Add a note to this callback")}
-          >
-            <NotebookPen /> Add note
-          </Button>
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => void sendFollowup("Reschedule this callback")}
-          >
-            <PhoneCall /> Reschedule
-          </Button>
-        </div>
-        <NextStepBanner
-          label="Queue the contact for the next call"
-          prompt="Create a call session for this contact"
-        />
-      </CardFooter>
     </Card>
   );
 }

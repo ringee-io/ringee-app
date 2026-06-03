@@ -1,18 +1,15 @@
 "use client";
 
 import type { ScheduleMeetingResult } from "@ringee-io/agent";
+import { CalendarCheck, Clock, MapPin, Users, Video } from "lucide-react";
 import {
-  CalendarCheck,
-  Clock,
-  ExternalLink,
-  MapPin,
-  Users,
-  Video,
-} from "lucide-react";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FieldRow, StatusPill } from "@/components/atoms";
-import { sendFollowup } from "@/lib/openai";
 import { formatDateTime, relativeTime } from "@/lib/format";
 
 interface MeetingCardProps {
@@ -67,7 +64,10 @@ export function MeetingCard({
             </FieldRow>
           ) : null}
           {location ? (
-            <FieldRow icon={isLink ? Video : MapPin} label={isLink ? "Link" : "Where"}>
+            <FieldRow
+              icon={isLink ? Video : MapPin}
+              label={isLink ? "Link" : "Where"}
+            >
               {location}
             </FieldRow>
           ) : null}
@@ -78,24 +78,20 @@ export function MeetingCard({
         ) : null}
       </CardContent>
 
-      <CardFooter>
-        {isLink && location ? (
-          <a href={location} target="_blank" rel="noreferrer" className="flex-1">
+      {isLink && location ? (
+        <CardFooter>
+          <a
+            href={location}
+            target="_blank"
+            rel="noreferrer"
+            className="flex-1"
+          >
             <Button size="sm" className="w-full">
               <Video /> Join meeting
             </Button>
           </a>
-        ) : (
-          <Button
-            size="sm"
-            variant="secondary"
-            className="flex-1"
-            onClick={() => void sendFollowup("Add this meeting to my calendar")}
-          >
-            <ExternalLink /> Add to calendar
-          </Button>
-        )}
-      </CardFooter>
+        </CardFooter>
+      ) : null}
     </Card>
   );
 }

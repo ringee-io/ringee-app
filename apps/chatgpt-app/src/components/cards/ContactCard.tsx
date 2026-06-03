@@ -1,21 +1,29 @@
 "use client";
 
-import type { ContactDetail } from "@ringee-io/agent";
+import { useState } from "react";
+import type { ContactDetail, CreateCallSessionResult } from "@ringee-io/agent";
 import {
   Building2,
   CalendarPlus,
+  Check,
+  Link2,
+  Loader2,
   Mail,
   Phone,
   PhoneOutgoing,
   Tag,
 } from "lucide-react";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardFooter,
+  CardHeader,
+} from "@/components/ui/card";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { FieldRow, SectionLabel } from "@/components/atoms";
-import { NextStepBanner } from "@/components/next-step";
-import { sendFollowup } from "@/lib/openai";
+import { callToolData, sendFollowup } from "@/lib/openai";
 import {
   displayName,
   formatPhone,
@@ -46,6 +54,33 @@ export function ContactCard({ contact }: ContactCardProps) {
   const name = displayName(contact);
   const tags = tagLabels(contact);
   const recentCalls = Array.isArray(contact.calls) ? contact.calls : [];
+
+  // "Queue call" creates a 1-contact session deterministically (callTool), so a
+  // click maps to exactly one create_call_session — never the model guessing.
+  const [queue, setQueue] = useState<"idle" | "busy" | "done">("idle");
+  const [session, setSession] = useState<CreateCallSessionResult | null>(null);
+  const hasContactId = typeof contact.id === "string" && contact.id.length > 0;
+
+  async function queueCall() {
+    if (queue !== "idle") return;
+    setQueue("busy");
+    const data = hasContactId
+      ? await callToolData<CreateCallSessionResult>("create_call_session", {
+          contacts: [{ contactId: contact.id }],
+          title: `Call ${name}`,
+        })
+      : null;
+    if (data?.callSessionId) {
+      setSession(data);
+      setQueue("done");
+    } else {
+      // Standalone gallery or a failed call → let the model handle it.
+      setQueue("idle");
+      void sendFollowup(
+        `Add ${name} (${contact.phoneNumber}) to a new call session`,
+      );
+    }
+  }
 
   return (
     <Card className="w-full max-w-md overflow-hidden">
@@ -121,35 +156,55 @@ export function ContactCard({ contact }: ContactCardProps) {
         ) : null}
       </CardContent>
 
-      <CardFooter className="justify-between">
+      <CardFooter className="flex-col items-stretch gap-2">
         <div className="flex gap-2">
           <Button
             size="sm"
             variant="secondary"
-            onClick={() =>
-              void sendFollowup(
-                `Add ${name} (${contact.phoneNumber}) to a call session`,
-              )
-            }
+            disabled={queue !== "idle"}
+            onClick={() => void queueCall()}
           >
-            <PhoneOutgoing /> Queue call
+            {queue === "busy" ? (
+              <Loader2 className="animate-spin" />
+            ) : queue === "done" ? (
+              <Check />
+            ) : (
+              <PhoneOutgoing />
+            )}
+            {queue === "done" ? "Queued" : "Queue call"}
           </Button>
           <Button
             size="sm"
             variant="ghost"
-            onClick={() => void sendFollowup(`Schedule a meeting with ${name}`)}
+            onClick={() =>
+              void sendFollowup(
+                hasContactId
+                  ? `Schedule a meeting with ${name} (contactId ${contact.id}). Ask me for the date and time first.`
+                  : `Schedule a meeting with ${name} (${contact.phoneNumber}). Ask me for the date and time first.`,
+              )
+            }
           >
             <CalendarPlus /> Meeting
           </Button>
         </div>
-      </CardFooter>
 
-      <div className="px-4 pb-4 sm:px-5">
-        <NextStepBanner
-          label="Create a call session for this contact"
-          prompt={`Create a call session for ${name} (${contact.phoneNumber})`}
-        />
-      </div>
+        {queue === "done" && session?.joinUrl ? (
+          <a
+            href={session.joinUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-2 text-xs transition-colors hover:bg-muted"
+          >
+            <Link2 className="size-3.5 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate font-medium">
+              Call session ready — open the dialer
+            </span>
+            <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+              {session.contactsCount} queued
+            </span>
+          </a>
+        ) : null}
+      </CardFooter>
     </Card>
   );
 }

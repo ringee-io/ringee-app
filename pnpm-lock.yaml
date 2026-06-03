@@ -74,7 +74,7 @@ importers:
     dependencies:
       attio:
         specifier: latest
-        version: 0.0.1-experimental.20260520(@types/node@24.12.2)(eslint@9.35.0(jiti@2.7.0))(react-dom@19.1.1(react@19.1.0))(react@19.1.0)
+        version: 0.0.1-experimental.20260602(@types/node@24.12.2)(eslint@9.35.0(jiti@2.7.0))(react-dom@19.1.1(react@19.1.0))(react@19.1.0)
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -7007,8 +7007,8 @@ packages:
     resolution: {integrity: sha512-+q/t7Ekv1EDY2l6Gda6LLiX14rU9TV20Wa3ofeQmwPFZbOMo9DXrLbOjFaaclkXKWidIaopwAObQDqwWtGUjqg==}
     engines: {node: '>= 4.0.0'}
 
-  attio@0.0.1-experimental.20260520:
-    resolution: {integrity: sha512-F+Oh0sUuNrSH0V+uefhBvJzXWP92jY/l/x4mCLUd8HC1BZaQ1NQ9lxyHBL/RbbbiEgFgFjnF92uK7EuxedMcSg==}
+  attio@0.0.1-experimental.20260602:
+    resolution: {integrity: sha512-vUlnDQBQ2JDoT02Lqdwzhw4BoW3lFVLEMdZx/itjSe+yEquPG0brvB17wZjFKHyrIHBzoDeMRlC0kKFt1wQrMA==}
     hasBin: true
 
   attr-accept@2.2.5:
@@ -18572,7 +18572,7 @@ snapshots:
 
   at-least-node@1.0.0: {}
 
-  attio@0.0.1-experimental.20260520(@types/node@24.12.2)(eslint@9.35.0(jiti@2.7.0))(react-dom@19.1.1(react@19.1.0))(react@19.1.0):
+  attio@0.0.1-experimental.20260602(@types/node@24.12.2)(eslint@9.35.0(jiti@2.7.0))(react-dom@19.1.1(react@19.1.0))(react@19.1.0):
     dependencies:
       '@attio/fetchable': 0.0.1-experimental.9
       '@babel/code-frame': 7.27.1

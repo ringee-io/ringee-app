@@ -78,9 +78,7 @@ export const COMPONENTS: Record<string, ComponentEntry> = {
     title: "Contacts",
     description: "A paginated list of contacts with quick actions.",
     tools: ["search_contacts"],
-    render: (data) => (
-      <ContactListCard data={data as SearchContactsResult} />
-    ),
+    render: (data) => <ContactListCard data={data as SearchContactsResult} />,
     skeleton: <ListCardSkeleton />,
     mock: mockContactList,
   },
@@ -114,7 +112,9 @@ export const COMPONENTS: Record<string, ComponentEntry> = {
         callsCompleted: Number(d.callsCompleted ?? 0),
         joinUrlAvailable: Boolean(d.joinUrlAvailable ?? d.joinUrl),
       };
-      return <CallSessionCard session={session} joinUrl={d.joinUrl as string} />;
+      return (
+        <CallSessionCard session={session} joinUrl={d.joinUrl as string} />
+      );
     },
     skeleton: <GenericCardSkeleton />,
     mock: { ...mockSession, joinUrl: mockSessionJoinUrl },
@@ -145,7 +145,9 @@ export const COMPONENTS: Record<string, ComponentEntry> = {
     title: "Call outcome",
     description: "A logged call disposition with the next best step.",
     tools: ["log_call_outcome"],
-    render: (data) => <CallOutcomeCard outcome={data as LogCallOutcomeResult} />,
+    render: (data) => (
+      <CallOutcomeCard outcome={data as LogCallOutcomeResult} />
+    ),
     skeleton: <GenericCardSkeleton />,
     mock: mockOutcome,
   },
