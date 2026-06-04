@@ -30,6 +30,10 @@ export class TelnyxService implements TelephonyService {
     const profitMargin = rawMargin ? parseFloat(rawMargin) : 0;
 
     if (!Number.isFinite(cost)) return 0;
+
+    // Numbers that cost exactly $1 are priced at a flat $3, skipping the margin.
+    if (cost === 1) return 3;
+
     if (!Number.isFinite(profitMargin)) return parseFloat(cost.toFixed(4));
 
     const finalCost = cost * (1 + profitMargin);
