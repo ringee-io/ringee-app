@@ -1,6 +1,6 @@
 {
   "name": "ringee",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "The `ringee` CLI — operate Ringee (contacts, leads, call sessions, callbacks, meetings) from the terminal, on top of the Ringee backend/MCP. Usable from any agent harness (Claude Code, OpenClaw, Hermes, …).",
   "license": "AGPL-3.0-or-later",
   "type": "module",
