@@ -1,7 +1,7 @@
 {
   "name": "ringee",
   "description": "An open-source global communication infrastructure to make international calls seamlessly",
-  "private": true,
+  "private": false,
   "workspaces": [
     "packages/*",
     "apps/*"
