@@ -10,6 +10,7 @@ import {
   CreateContactSchema,
   DeleteCallSessionSchema,
   DeleteContactSchema,
+  FindContactsByOutcomeSchema,
   GetCallSessionSchema,
   GetContactSchema,
   ImportLeadsSchema,
@@ -25,6 +26,7 @@ import {
   type CreateContactInput,
   type DeleteCallSessionInput,
   type DeleteContactInput,
+  type FindContactsByOutcomeInput,
   type GetCallSessionInput,
   type GetContactInput,
   type ImportLeadsInput,
@@ -43,6 +45,7 @@ import type {
   CreateCallbackResult,
   DeleteCallSessionResult,
   DeleteContactResult,
+  FindContactsByOutcomeResult,
   ImportLeadsResult,
   LogCallOutcomeResult,
   MutateContactResult,
@@ -71,8 +74,7 @@ export class RingeeClient {
   constructor(client: RingeeMcpClient);
   constructor(options: RingeeMcpClientOptions);
   constructor(arg: RingeeMcpClient | RingeeMcpClientOptions) {
-    this.mcp =
-      arg instanceof RingeeMcpClient ? arg : new RingeeMcpClient(arg);
+    this.mcp = arg instanceof RingeeMcpClient ? arg : new RingeeMcpClient(arg);
   }
 
   /** Build a client from a resolved config object. */
@@ -118,6 +120,16 @@ export class RingeeClient {
 
   getContact(input: GetContactInput): Promise<ContactDetail> {
     return this.call("get_contact", GetContactSchema.parse(input));
+  }
+
+  /** Find contacts by call outcome — ICP learning. Read-only, no credits. */
+  findContactsByOutcome(
+    input: FindContactsByOutcomeInput,
+  ): Promise<FindContactsByOutcomeResult> {
+    return this.call(
+      "find_contacts_by_outcome",
+      FindContactsByOutcomeSchema.parse(input),
+    );
   }
 
   createContact(input: CreateContactInput): Promise<MutateContactResult> {

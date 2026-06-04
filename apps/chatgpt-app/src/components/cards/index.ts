@@ -1,5 +1,6 @@
 export { ContactCard } from "./ContactCard";
 export { ContactListCard } from "./ContactListCard";
+export { OutcomeContactsCard } from "./OutcomeContactsCard";
 export { LeadSearchResults } from "./LeadSearchResults";
 export { CallSessionCard } from "./CallSessionCard";
 export { CallbackCard } from "./CallbackCard";

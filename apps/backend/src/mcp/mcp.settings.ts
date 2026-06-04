@@ -48,7 +48,11 @@ Guidelines:
     organization). Use list_workspaces to see the options and switch_workspace
     to change it — no re-login needed. If the user asks for their personal vs
     an organization's data, switch first, then run the action.
-13. Keep responses concise and action-oriented.
+13. find_contacts_by_outcome is read-only (no credits): pass CallOutcome values
+    (e.g. sale, interested, meeting_booked) to find who already converted or
+    engaged and learn the real ICP from them. Use match="last" to look only at
+    each contact's most recent call.
+14. Keep responses concise and action-oriented.
 
 UTC Current Date: __CURRENT_DATE__
 `.trim();
@@ -93,9 +97,9 @@ export class McpSettings {
       const { toolName, description, zod, annotations } = entry.data;
 
       const handler = async (input: Record<string, unknown>) => {
-        const result = await (
-          func as unknown as Record<string, Function>
-        )[entry.func as string].call(func, ctx, input);
+        const result = await (func as unknown as Record<string, Function>)[
+          entry.func as string
+        ].call(func, ctx, input);
         return { content: result };
       };
 

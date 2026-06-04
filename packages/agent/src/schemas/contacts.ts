@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { phoneNumber, uuid } from "./common.js";
+import { callOutcomeEnum, phoneNumber, uuid } from "./common.js";
 
 export const SearchContactsSchema = z.object({
   query: z
@@ -15,6 +15,33 @@ export const SearchContactsSchema = z.object({
 
 export const GetContactSchema = z.object({
   contactId: uuid.describe("UUID of the contact. Resolve with search first."),
+});
+
+/**
+ * Find contacts by the outcome of their calls — the basis for learning the
+ * real ICP from who already converted/engaged. Read-only, spends no credits.
+ */
+export const FindContactsByOutcomeSchema = z.object({
+  outcomes: z
+    .array(callOutcomeEnum)
+    .min(1)
+    .describe(
+      'Conversion/engagement outcomes to match, e.g. ["sale","interested","meeting_booked"].',
+    ),
+  match: z
+    .enum(["any", "last"])
+    .optional()
+    .describe(
+      '"any" (default): contact had ANY call with one of these outcomes. "last": only the most recent call counts.',
+    ),
+  includeUnreachable: z
+    .boolean()
+    .optional()
+    .describe(
+      "Include contacts flagged doNotCall/unsubscribed (excluded by default).",
+    ),
+  page: z.number().int().min(1).optional(),
+  limit: z.number().int().min(1).max(50).optional(),
 });
 
 export const CreateContactSchema = z.object({
@@ -64,6 +91,9 @@ export const DeleteContactSchema = z.object({
 
 export type SearchContactsInput = z.infer<typeof SearchContactsSchema>;
 export type GetContactInput = z.infer<typeof GetContactSchema>;
+export type FindContactsByOutcomeInput = z.infer<
+  typeof FindContactsByOutcomeSchema
+>;
 export type CreateContactInput = z.infer<typeof CreateContactSchema>;
 export type UpdateContactInput = z.infer<typeof UpdateContactSchema>;
 export type DeleteContactInput = z.infer<typeof DeleteContactSchema>;

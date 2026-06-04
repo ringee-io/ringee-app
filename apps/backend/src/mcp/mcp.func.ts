@@ -33,6 +33,8 @@ import {
   DeleteCallSessionSchema,
   DeleteContactInput,
   DeleteContactSchema,
+  FindContactsByOutcomeInput,
+  FindContactsByOutcomeSchema,
   GetCallSessionInput,
   GetCallSessionSchema,
   GetContactInput,
@@ -66,8 +68,7 @@ type Content = { type: "text"; text: string };
 const text = (value: unknown): Content[] => [
   {
     type: "text",
-    text:
-      typeof value === "string" ? value : JSON.stringify(value, null, 2),
+    text: typeof value === "string" ? value : JSON.stringify(value, null, 2),
   },
 ];
 
@@ -98,7 +99,9 @@ export class McpFunc {
   ): void {
     if (ctx.organizationId) {
       if (contact.organizationId !== ctx.organizationId) {
-        throw new ForbiddenException("Contact does not belong to this organization");
+        throw new ForbiddenException(
+          "Contact does not belong to this organization",
+        );
       }
       return;
     }
@@ -196,19 +199,21 @@ export class McpFunc {
 
     if (raw === "" || raw.toLowerCase() === "personal") {
       await this.organizationService.setActiveWorkspace(ctx.userId, null);
-      return text({ switched: true, ...(await this.buildWorkspacesPayload(ctx.userId)) });
+      return text({
+        switched: true,
+        ...(await this.buildWorkspacesPayload(ctx.userId)),
+      });
     }
 
     // Resolve against the user's memberships so we never trust an arbitrary id:
     // match by organization id first, then fall back to an exact (case-
     // insensitive) name so the model can pass what the user said.
-    const memberships =
-      await this.organizationService.listMembershipsForUser(ctx.userId);
+    const memberships = await this.organizationService.listMembershipsForUser(
+      ctx.userId,
+    );
     const target =
       memberships.find((m) => m.id === raw) ??
-      memberships.find(
-        (m) => m.name.toLowerCase() === raw.toLowerCase(),
-      );
+      memberships.find((m) => m.name.toLowerCase() === raw.toLowerCase());
 
     if (!target) {
       throw new ForbiddenException(
@@ -292,6 +297,71 @@ export class McpFunc {
       input.contactId,
     );
     return text(contact);
+  }
+
+  @McpTool({
+    toolName: "find_contacts_by_outcome",
+    description:
+      "Find the contacts whose calls reached a given set of outcomes — e.g. who " +
+      "converted (sale), showed interest, or booked a meeting. Use this to learn " +
+      "the real ICP from who already bought or engaged. match='any' (default) " +
+      "matches a contact with ANY call in those outcomes; match='last' considers " +
+      "only the most recent call. Contacts flagged doNotCall/unsubscribed are " +
+      "excluded unless includeUnreachable=true. Read-only, spends no credits. " +
+      "Returns ICP-relevant fields (company, jobTitle, seniority, department, " +
+      "country, score, lifecycleStage) plus lastOutcome and lastCallAt.",
+    zod: FindContactsByOutcomeSchema,
+    annotations: {
+      title: "Find contacts by outcome",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  })
+  async findContactsByOutcome(
+    ctx: OwnershipContext,
+    input: FindContactsByOutcomeInput,
+  ) {
+    const match = input.match ?? "any";
+    const { data, meta } = await this.contactService.findContactsByCallOutcome(
+      ctx,
+      {
+        outcomes: input.outcomes as CallOutcome[],
+        match,
+        includeUnreachable: input.includeUnreachable ?? false,
+        page: input.page ?? 1,
+        limit: input.limit ?? 10,
+      },
+    );
+
+    return text({
+      total: meta.total,
+      page: meta.page,
+      totalPages: meta.totalPages,
+      limit: meta.limit,
+      match,
+      outcomes: input.outcomes,
+      contacts: data.map((c) => {
+        const lastCall = c.calls[0];
+        return {
+          id: c.id,
+          name: c.name,
+          company: c.company,
+          jobTitle: c.jobTitle,
+          seniority: c.seniority,
+          department: c.department,
+          locationCountryCode: c.locationCountryCode,
+          email: c.email,
+          phoneNumber: c.phoneNumber,
+          score: c.score,
+          status: c.status,
+          lifecycleStage: c.lifecycleStage,
+          lastOutcome: lastCall?.outcome ?? null,
+          lastCallAt: lastCall?.createdAt ?? c.lastCallAt,
+        };
+      }),
+    });
   }
 
   // @McpTool({
@@ -612,10 +682,7 @@ export class McpFunc {
       openWorldHint: false,
     },
   })
-  async getCallSession(
-    ctx: OwnershipContext,
-    input: GetCallSessionInput,
-  ) {
+  async getCallSession(ctx: OwnershipContext, input: GetCallSessionInput) {
     const { session, items, hasActiveToken } =
       await this.callSessionService.getOwnedSessionWithItems(
         ctx,
@@ -905,14 +972,11 @@ export class McpFunc {
       openWorldHint: false,
     },
   })
-  async importLeadsAsContacts(
-    ctx: OwnershipContext,
-    input: ImportLeadsInput,
-  ) {
+  async importLeadsAsContacts(ctx: OwnershipContext, input: ImportLeadsInput) {
     const job = await this.leadSearchService.getJob(input.jobId, ctx);
-    const snapshot = job.resultSnapshot as
-      | { results?: Array<{ externalId: string }> }
-      | null;
+    const snapshot = job.resultSnapshot as {
+      results?: Array<{ externalId: string }>;
+    } | null;
     const all = snapshot?.results ?? [];
     const wanted = new Set(input.externalIds);
     const candidates = all.filter((c) =>

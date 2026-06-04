@@ -114,12 +114,28 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     },
   },
   {
+    action: "contacts.byOutcome",
+    tool: "find_contacts_by_outcome",
+    title: "Contacts by outcome",
+    summary:
+      "Find who converted/engaged by call outcome (sale, interested, …) to learn the ICP.",
+    sensitivity: "read",
+    cli: "ringee contacts by-outcome sale interested --match last",
+    component: "OutcomeContactsCard",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  {
     action: "contacts.create",
     tool: "create_contact",
     title: "Create contact",
     summary: "Add a new contact (phone must be unique, E.164).",
     sensitivity: "write",
-    cli: "ringee contacts create --phone +14155552671 --name \"Jane Doe\"",
+    cli: 'ringee contacts create --phone +14155552671 --name "Jane Doe"',
     component: "ContactCard",
     annotations: {
       readOnlyHint: false,
@@ -167,7 +183,7 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     title: "Log call outcome",
     summary: "Record the disposition of a past call.",
     sensitivity: "write",
-    cli: "ringee outcomes log <callId> meeting_booked --note \"Demo Friday\"",
+    cli: 'ringee outcomes log <callId> meeting_booked --note "Demo Friday"',
     component: "CallOutcomeCard",
     annotations: {
       readOnlyHint: false,
@@ -197,7 +213,7 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     title: "Schedule meeting",
     summary: "Book a meeting; syncs to a connected calendar when available.",
     sensitivity: "write",
-    cli: "ringee meetings schedule <contactId> 2026-06-03T10:00:00-04:00 --title \"Intro\"",
+    cli: 'ringee meetings schedule <contactId> 2026-06-03T10:00:00-04:00 --title "Intro"',
     component: "MeetingCard",
     annotations: {
       readOnlyHint: false,
@@ -216,7 +232,7 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     summary: "Mint a magic-link dialing queue. Generates shareable access.",
     sensitivity: "sensitive",
     requiresConfirmation: true,
-    cli: "ringee sessions create --contact <contactId> --title \"Tuesday outbound\"",
+    cli: 'ringee sessions create --contact <contactId> --title "Tuesday outbound"',
     component: "CallSessionCard",
     annotations: {
       readOnlyHint: false,
@@ -247,7 +263,7 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     summary: "Change title/campaign/expiry, or replace the queue pre-call.",
     sensitivity: "sensitive",
     requiresConfirmation: true,
-    cli: "ringee sessions update <callSessionId> --title \"Renamed\"",
+    cli: 'ringee sessions update <callSessionId> --title "Renamed"',
     component: "CallSessionCard",
     annotations: {
       readOnlyHint: false,
@@ -281,7 +297,7 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     title: "Search leads",
     summary: "Prospect candidates via Apollo/Prospeo. Returns a jobId.",
     sensitivity: "read",
-    cli: "ringee leads search --title \"VP Sales\" --country US",
+    cli: 'ringee leads search --title "VP Sales" --country US',
     component: "LeadSearchResults",
     annotations: {
       // No contacts created and no credits spent — only a cached search job.
@@ -331,9 +347,8 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
   },
 ];
 
-export const TOOL_BY_ACTION: Record<string, ToolDescriptor> = Object.fromEntries(
-  TOOL_CATALOG.map((t) => [t.action, t]),
-);
+export const TOOL_BY_ACTION: Record<string, ToolDescriptor> =
+  Object.fromEntries(TOOL_CATALOG.map((t) => [t.action, t]));
 
 export const TOOL_BY_NAME: Record<string, ToolDescriptor> = Object.fromEntries(
   TOOL_CATALOG.map((t) => [t.tool, t]),

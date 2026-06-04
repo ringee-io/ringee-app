@@ -3,7 +3,12 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Contact, ContactRepository, TagRepository } from "@ringee/database";
+import {
+  CallOutcome,
+  Contact,
+  ContactRepository,
+  TagRepository,
+} from "@ringee/database";
 import {
   AddNoteDto,
   CreateContactDto,
@@ -26,7 +31,7 @@ export class ContactService {
     private readonly repo: ContactRepository,
     private readonly tagRepo: TagRepository,
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
-  ) { }
+  ) {}
 
   async createContact(
     ctx: OwnershipContext,
@@ -48,15 +53,21 @@ export class ContactService {
       jobTitle: dto.jobTitle,
       source: dto.source,
       notes: dto.note
-        ? { create: { content: dto.note, user: { connect: { id: ctx.userId } } } }
-        : undefined,
-      tags: dto.tagIds && dto.tagIds.length > 0
         ? {
-            create: dto.tagIds.map(tagId => ({
-              tag: { connect: { id: tagId } }
-            }))
+            create: {
+              content: dto.note,
+              user: { connect: { id: ctx.userId } },
+            },
           }
         : undefined,
+      tags:
+        dto.tagIds && dto.tagIds.length > 0
+          ? {
+              create: dto.tagIds.map((tagId) => ({
+                tag: { connect: { id: tagId } },
+              })),
+            }
+          : undefined,
     });
   }
 
@@ -75,6 +86,25 @@ export class ContactService {
     tagIds?: string[],
   ) {
     return this.repo.listByOwner(ctx, { search, sort, page, limit, tagIds });
+  }
+
+  /**
+   * Find contacts whose calls reached one of the given outcomes (conversion /
+   * engagement signals). Read-only; powers ICP learning from who already
+   * bought or engaged. See {@link ContactRepository.listByCallOutcome} for the
+   * `match` ("any" | "last") and reachability semantics.
+   */
+  async findContactsByCallOutcome(
+    ctx: OwnershipContext,
+    options: {
+      outcomes: CallOutcome[];
+      match?: "any" | "last";
+      includeUnreachable?: boolean;
+      page?: number;
+      limit?: number;
+    },
+  ) {
+    return this.repo.listByCallOutcome(ctx, options);
   }
 
   async updateContact(id: string, dto: UpdateContactDto): Promise<Contact> {
@@ -144,7 +174,10 @@ export class ContactService {
     return contact;
   }
 
-  async findByPhone(ctx: OwnershipContext, phoneNumber: string): Promise<Contact | null> {
+  async findByPhone(
+    ctx: OwnershipContext,
+    phoneNumber: string,
+  ): Promise<Contact | null> {
     return this.repo.findByPhone(ctx, phoneNumber);
   }
 
@@ -180,7 +213,7 @@ export class ContactService {
 
     if (lines.length > CSV_IMPORT_CONFIG.MAX_ROWS + 1) {
       throw new BadRequestException(
-        `CSV file exceeds maximum of ${CSV_IMPORT_CONFIG.MAX_ROWS} rows`
+        `CSV file exceeds maximum of ${CSV_IMPORT_CONFIG.MAX_ROWS} rows`,
       );
     }
 
@@ -191,7 +224,7 @@ export class ContactService {
 
     if (!headerValidation.valid) {
       throw new BadRequestException(
-        `Missing required columns: ${headerValidation.missingRequired.join(", ")}`
+        `Missing required columns: ${headerValidation.missingRequired.join(", ")}`,
       );
     }
 
@@ -248,14 +281,12 @@ export class ContactService {
       // Check existing in DB
       const existingPhones = await this.repo.findByPhoneNumbers(
         ctx,
-        phonesBatch
+        phonesBatch,
       );
       const existingSet = new Set(existingPhones);
 
       // Filter out existing
-      const newContacts = batch.filter(
-        (c) => !existingSet.has(c.phoneNumber)
-      );
+      const newContacts = batch.filter((c) => !existingSet.has(c.phoneNumber));
       duplicatesSkipped += batch.length - newContacts.length;
 
       if (newContacts.length > 0) {
@@ -270,7 +301,7 @@ export class ContactService {
     if (tagIds && tagIds.length > 0 && insertedPhones.length > 0) {
       const newContactIds = await this.repo.findContactIdsByPhoneNumbers(
         ctx,
-        insertedPhones
+        insertedPhones,
       );
       if (newContactIds.length > 0) {
         await this.tagRepo.assignTagsToContacts(newContactIds, tagIds);

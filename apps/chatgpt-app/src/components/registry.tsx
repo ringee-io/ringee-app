@@ -2,6 +2,7 @@ import type {
   CallSessionInfo,
   ContactDetail,
   CreateCallbackResult,
+  FindContactsByOutcomeResult,
   ListWorkspacesResult,
   LogCallOutcomeResult,
   ScheduleMeetingResult,
@@ -16,6 +17,7 @@ import {
   ContactListCard,
   LeadSearchResults,
   MeetingCard,
+  OutcomeContactsCard,
   WorkspaceCard,
 } from "@/components/cards";
 import {
@@ -30,6 +32,7 @@ import {
   mockLeadSearch,
   mockMeeting,
   mockOutcome,
+  mockOutcomeContacts,
   mockSession,
   mockSessionJoinUrl,
   mockWorkspaces,
@@ -94,6 +97,19 @@ export const COMPONENTS: Record<string, ComponentEntry> = {
     render: (data) => <ContactListCard data={data as SearchContactsResult} />,
     skeleton: <ListCardSkeleton />,
     mock: mockContactList,
+  },
+
+  OutcomeContactsCard: {
+    name: "OutcomeContactsCard",
+    title: "Contacts by outcome",
+    description:
+      "Contacts who converted/engaged, by call outcome — for learning the ICP.",
+    tools: ["find_contacts_by_outcome"],
+    render: (data) => (
+      <OutcomeContactsCard data={data as FindContactsByOutcomeResult} />
+    ),
+    skeleton: <ListCardSkeleton />,
+    mock: mockOutcomeContacts,
   },
 
   LeadSearchResults: {

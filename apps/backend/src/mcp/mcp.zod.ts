@@ -3,6 +3,24 @@ import { z } from "zod";
 // ZodRawShape objects — keep these as plain object literals (not z.object(...))
 // so they're compatible with McpServer#tool / registerTool API.
 
+/**
+ * The CallOutcome enum values (mirrors `enum CallOutcome` in the Prisma
+ * schema). Shared by log_call_outcome and find_contacts_by_outcome so the two
+ * tools never drift from each other or from the database.
+ */
+export const CALL_OUTCOME_VALUES = [
+  "meeting_booked",
+  "sale",
+  "interested",
+  "follow_up",
+  "callback_scheduled",
+  "not_interested",
+  "no_answer",
+  "voicemail",
+  "wrong_number",
+  "gatekeeper",
+] as const;
+
 export const SearchContactsSchema = {
   query: z
     .string()
@@ -34,6 +52,46 @@ export const GetContactSchema = {
     .describe(
       "UUID of the contact. Use search_contacts first if you only have a phone/name.",
     ),
+};
+
+export const FindContactsByOutcomeSchema = {
+  outcomes: z
+    .array(z.enum(CALL_OUTCOME_VALUES))
+    .min(1)
+    .max(CALL_OUTCOME_VALUES.length)
+    .describe(
+      "Call outcomes that mark conversion or engagement, e.g. " +
+        '["sale","interested","meeting_booked"]. A contact matches when one of ' +
+        "its calls reached any of these outcomes. Use this to learn the real ICP " +
+        "from who already bought or engaged.",
+    ),
+  match: z
+    .enum(["any", "last"])
+    .optional()
+    .describe(
+      '"any" (default): the contact had ANY call with one of these outcomes. ' +
+        '"last": only the contact\'s most recent call is considered.',
+    ),
+  includeUnreachable: z
+    .boolean()
+    .optional()
+    .describe(
+      "By default contacts flagged doNotCall or unsubscribed are excluded. " +
+        "Set true to include them.",
+    ),
+  page: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe("1-based page number. Defaults to 1."),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(50)
+    .optional()
+    .describe("Page size. Defaults to 10, max 50."),
 };
 
 // ── Contact write tools (create / update / delete) ─────────────
@@ -88,10 +146,14 @@ export const UpdateContactSchema = {
   contactId: z
     .string()
     .uuid()
-    .describe("UUID of the contact to update. Must belong to the current user/organization."),
-  phoneNumber: phoneNumberField.optional().describe(
-    "New phone number, E.164. Must remain unique within the user/organization.",
-  ),
+    .describe(
+      "UUID of the contact to update. Must belong to the current user/organization.",
+    ),
+  phoneNumber: phoneNumberField
+    .optional()
+    .describe(
+      "New phone number, E.164. Must remain unique within the user/organization.",
+    ),
   name: z.string().min(1).max(100).optional(),
   firstName: z.string().max(50).optional(),
   lastName: z.string().max(50).optional(),
@@ -162,7 +224,9 @@ export const SearchLeadsSchema = {
     .array(z.string().min(1).max(100))
     .max(20)
     .optional()
-    .describe("Match any of these job titles (e.g. ['VP Sales', 'Head of Sales'])."),
+    .describe(
+      "Match any of these job titles (e.g. ['VP Sales', 'Head of Sales']).",
+    ),
   jobTitlesExclude: z
     .array(z.string().min(1).max(100))
     .max(20)
@@ -202,7 +266,12 @@ export const SearchLeadsSchema = {
   hasEmail: z.boolean().optional(),
   hasPhone: z.boolean().optional(),
   emailVerified: z.boolean().optional(),
-  page: z.number().int().min(1).optional().describe("1-based page. Defaults to 1."),
+  page: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe("1-based page. Defaults to 1."),
   perPage: z
     .number()
     .int()
@@ -221,7 +290,9 @@ export const RevealLeadSchema = {
     .string()
     .min(1)
     .max(200)
-    .describe("Candidate.externalId from the search result you want to reveal."),
+    .describe(
+      "Candidate.externalId from the search result you want to reveal.",
+    ),
   revealPhone: z
     .boolean()
     .optional()
@@ -234,12 +305,16 @@ export const ImportLeadsSchema = {
   jobId: z
     .string()
     .uuid()
-    .describe("UUID of the lead search job containing the candidates to import."),
+    .describe(
+      "UUID of the lead search job containing the candidates to import.",
+    ),
   externalIds: z
     .array(z.string().min(1).max(200))
     .min(1)
     .max(50)
-    .describe("Candidate externalIds from that job's results to import as contacts."),
+    .describe(
+      "Candidate externalIds from that job's results to import as contacts.",
+    ),
   tagIds: z
     .array(z.string().uuid())
     .max(10)
@@ -248,17 +323,13 @@ export const ImportLeadsSchema = {
 };
 
 export type SearchLeadsInput = {
-  [K in keyof typeof SearchLeadsSchema]: z.infer<
-    (typeof SearchLeadsSchema)[K]
-  >;
+  [K in keyof typeof SearchLeadsSchema]: z.infer<(typeof SearchLeadsSchema)[K]>;
 };
 export type RevealLeadInput = {
   [K in keyof typeof RevealLeadSchema]: z.infer<(typeof RevealLeadSchema)[K]>;
 };
 export type ImportLeadsInput = {
-  [K in keyof typeof ImportLeadsSchema]: z.infer<
-    (typeof ImportLeadsSchema)[K]
-  >;
+  [K in keyof typeof ImportLeadsSchema]: z.infer<(typeof ImportLeadsSchema)[K]>;
 };
 
 export const StartCallSchema = {
@@ -293,18 +364,7 @@ export const LogCallOutcomeSchema = {
     .uuid()
     .describe("UUID of the call whose outcome should be recorded."),
   outcome: z
-    .enum([
-      "meeting_booked",
-      "sale",
-      "interested",
-      "follow_up",
-      "callback_scheduled",
-      "not_interested",
-      "no_answer",
-      "voicemail",
-      "wrong_number",
-      "gatekeeper",
-    ])
+    .enum(CALL_OUTCOME_VALUES)
     .describe("Disposition for the call. Pick the most specific value."),
   outcomeNote: z
     .string()
@@ -329,7 +389,9 @@ export const CreateCallbackSchema = {
     .string()
     .uuid()
     .optional()
-    .describe("Optional UUID of the source call this callback originated from."),
+    .describe(
+      "Optional UUID of the source call this callback originated from.",
+    ),
   note: z
     .string()
     .max(500)
@@ -398,15 +460,27 @@ const CallSessionContactSchema = z.object({
     .string()
     .uuid()
     .optional()
-    .describe("Existing Ringee contact UUID. If provided, name/phone are looked up server-side."),
+    .describe(
+      "Existing Ringee contact UUID. If provided, name/phone are looked up server-side.",
+    ),
   phoneNumber: z
     .string()
     .min(3)
     .max(20)
     .optional()
-    .describe("Destination phone number, E.164 (e.g. +14155552671). Required when contactId is absent."),
-  name: z.string().max(200).optional().describe("Display name shown in the dialer UI."),
-  company: z.string().max(200).optional().describe("Company shown in the dialer UI."),
+    .describe(
+      "Destination phone number, E.164 (e.g. +14155552671). Required when contactId is absent.",
+    ),
+  name: z
+    .string()
+    .max(200)
+    .optional()
+    .describe("Display name shown in the dialer UI."),
+  company: z
+    .string()
+    .max(200)
+    .optional()
+    .describe("Company shown in the dialer UI."),
 });
 
 export const CreateCallSessionSchema = {
@@ -414,7 +488,9 @@ export const CreateCallSessionSchema = {
     .string()
     .max(200)
     .optional()
-    .describe("Human-readable title for the session (visible to the magic-link recipient)."),
+    .describe(
+      "Human-readable title for the session (visible to the magic-link recipient).",
+    ),
   campaignId: z
     .string()
     .uuid()
@@ -438,15 +514,22 @@ export const CreateCallSessionSchema = {
     .min(1)
     .max(500)
     .optional()
-    .describe("Optional cap on the number of calls placed before the session auto-completes."),
+    .describe(
+      "Optional cap on the number of calls placed before the session auto-completes.",
+    ),
   metadata: z
     .record(z.string(), z.any())
     .optional()
-    .describe("Free-form JSON metadata persisted with the session (not exposed to the magic-link UI)."),
+    .describe(
+      "Free-form JSON metadata persisted with the session (not exposed to the magic-link UI).",
+    ),
 };
 
 export const UpdateCallSessionSchema = {
-  callSessionId: z.string().uuid().describe("UUID of the call session to update."),
+  callSessionId: z
+    .string()
+    .uuid()
+    .describe("UUID of the call session to update."),
   title: z.string().max(200).optional(),
   campaignId: z
     .string()
@@ -454,22 +537,35 @@ export const UpdateCallSessionSchema = {
     .nullable()
     .optional()
     .describe("Pass null to detach the session from its current campaign."),
-  expiresInMinutes: z.number().int().min(1).max(60 * 24 * 30).optional(),
+  expiresInMinutes: z
+    .number()
+    .int()
+    .min(1)
+    .max(60 * 24 * 30)
+    .optional(),
   metadata: z.record(z.string(), z.any()).optional(),
   contacts: z
     .array(CallSessionContactSchema)
     .min(1)
     .max(500)
     .optional()
-    .describe("Replace the queue. Only allowed before the session has started any calls."),
+    .describe(
+      "Replace the queue. Only allowed before the session has started any calls.",
+    ),
 };
 
 export const DeleteCallSessionSchema = {
-  callSessionId: z.string().uuid().describe("UUID of the call session to revoke."),
+  callSessionId: z
+    .string()
+    .uuid()
+    .describe("UUID of the call session to revoke."),
 };
 
 export const GetCallSessionSchema = {
-  callSessionId: z.string().uuid().describe("UUID of the call session to fetch."),
+  callSessionId: z
+    .string()
+    .uuid()
+    .describe("UUID of the call session to fetch."),
 };
 
 export type CreateCallSessionInput = {
@@ -523,6 +619,11 @@ export type SearchContactsInput = {
 };
 export type GetContactInput = {
   [K in keyof typeof GetContactSchema]: z.infer<(typeof GetContactSchema)[K]>;
+};
+export type FindContactsByOutcomeInput = {
+  [K in keyof typeof FindContactsByOutcomeSchema]: z.infer<
+    (typeof FindContactsByOutcomeSchema)[K]
+  >;
 };
 export type StartCallInput = {
   [K in keyof typeof StartCallSchema]: z.infer<(typeof StartCallSchema)[K]>;

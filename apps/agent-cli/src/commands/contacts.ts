@@ -1,10 +1,29 @@
 import { Command } from "commander";
-import type { ContactSummary } from "@ringee-io/agent";
+import type {
+  CallOutcome,
+  ContactSummary,
+  OutcomeContactSummary,
+} from "@ringee-io/agent";
 import { getClient, run } from "../client.js";
-import { c, fail, heading, info, json, kv, line, ok, sensitivityTag, wantsJson, warn } from "../ui.js";
+import {
+  c,
+  fail,
+  heading,
+  info,
+  json,
+  kv,
+  line,
+  ok,
+  sensitivityTag,
+  wantsJson,
+  warn,
+} from "../ui.js";
 
 function printContact(ct: ContactSummary): void {
-  const title = ct.name || [ct.firstName, ct.lastName].filter(Boolean).join(" ") || ct.phoneNumber;
+  const title =
+    ct.name ||
+    [ct.firstName, ct.lastName].filter(Boolean).join(" ") ||
+    ct.phoneNumber;
   line(`${c.bold(title)}  ${c.gray(ct.id)}`);
   kv("phone", ct.phoneNumber);
   kv("email", ct.email);
@@ -13,8 +32,29 @@ function printContact(ct: ContactSummary): void {
   if (ct.lastCallAt) kv("last call", ct.lastCallAt);
 }
 
+function printOutcomeContact(ct: OutcomeContactSummary): void {
+  const title =
+    ct.name ||
+    [ct.firstName, ct.lastName].filter(Boolean).join(" ") ||
+    ct.phoneNumber;
+  line(`${c.bold(title)}  ${c.gray(ct.id)}`);
+  kv("phone", ct.phoneNumber);
+  kv("email", ct.email);
+  kv("company", ct.company);
+  kv("title", ct.jobTitle);
+  kv("seniority", ct.seniority);
+  kv("department", ct.department);
+  kv("country", ct.locationCountryCode);
+  kv("score", ct.score);
+  kv("stage", ct.lifecycleStage);
+  kv("last outcome", ct.lastOutcome);
+  if (ct.lastCallAt) kv("last call", ct.lastCallAt);
+}
+
 export function registerContacts(program: Command): void {
-  const contacts = program.command("contacts").description("Search, view and manage contacts");
+  const contacts = program
+    .command("contacts")
+    .description("Search, view and manage contacts");
 
   contacts
     .command("search <query...>")
@@ -48,6 +88,45 @@ export function registerContacts(program: Command): void {
       run(async () => {
         const res = await getClient().getContact({ contactId });
         json(res);
+      }),
+    );
+
+  contacts
+    .command("by-outcome <outcomes...>")
+    .description(
+      "Find contacts by call outcome (e.g. sale interested) to learn the ICP",
+    )
+    .option(
+      "-m, --match <mode>",
+      "'any' (default) or 'last' (most recent call only)",
+      "any",
+    )
+    .option("--include-unreachable", "include doNotCall/unsubscribed contacts")
+    .option("-p, --page <n>", "page number", (v) => parseInt(v, 10))
+    .option("-l, --limit <n>", "page size (max 50)", (v) => parseInt(v, 10))
+    .action((outcomes: string[], opts) =>
+      run(async () => {
+        const res = await getClient().findContactsByOutcome({
+          // Raw argv strings; the client's zod schema validates them and throws
+          // a friendly error on anything that is not a real CallOutcome.
+          outcomes: outcomes as CallOutcome[],
+          match: opts.match,
+          includeUnreachable: opts.includeUnreachable ?? undefined,
+          page: opts.page,
+          limit: opts.limit,
+        });
+        if (wantsJson()) return json(res);
+        if (res.contacts.length === 0) {
+          warn("No contacts matched those outcomes.");
+          return;
+        }
+        heading(
+          `${res.total} contact(s) — ${res.match} match · page ${res.page}/${res.totalPages}`,
+        );
+        res.contacts.forEach((ct) => {
+          line("");
+          printOutcomeContact(ct);
+        });
       }),
     );
 
@@ -120,15 +199,22 @@ export function registerContacts(program: Command): void {
 
   contacts
     .command("delete <contactId>")
-    .description(`${sensitivityTag("destructive")} Soft-delete a contact (double-confirmation required)`)
-    .requiredOption("--confirm-phone <e164>", "must EXACTLY match the contact's stored phone")
+    .description(
+      `${sensitivityTag("destructive")} Soft-delete a contact (double-confirmation required)`,
+    )
+    .requiredOption(
+      "--confirm-phone <e164>",
+      "must EXACTLY match the contact's stored phone",
+    )
     .option("-y, --yes", "acknowledge this is destructive")
     .action((contactId: string, opts) =>
       run(async () => {
         if (!opts.yes) {
           fail("Refusing to delete without --yes. This is destructive.");
           info("First verify the contact: ringee contacts get <id>");
-          info("Then: ringee contacts delete <id> --confirm-phone <storedPhone> --yes");
+          info(
+            "Then: ringee contacts delete <id> --confirm-phone <storedPhone> --yes",
+          );
           process.exitCode = 1;
           return;
         }

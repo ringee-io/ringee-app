@@ -60,6 +60,35 @@ export interface SearchContactsResult {
   contacts: ContactSummary[];
 }
 
+/**
+ * A contact returned by find_contacts_by_outcome: ICP-relevant attributes plus
+ * the outcome/time of the most recent call. A superset of {@link ContactSummary}
+ * so the same list components can render it.
+ */
+export interface OutcomeContactSummary extends ContactSummary {
+  seniority: string | null;
+  department: string | null;
+  locationCountryCode: string | null;
+  score: number | null;
+  status: string | null;
+  lifecycleStage: string | null;
+  /** Outcome of the contact's most recent call, if any. */
+  lastOutcome: CallOutcome | null;
+}
+
+export interface FindContactsByOutcomeResult {
+  total: number;
+  page: number;
+  totalPages: number;
+  /** Page size used for this result (echoed back for stable pagination). */
+  limit?: number;
+  /** Whether "any" call matched or only the "last" call was considered. */
+  match: "any" | "last";
+  /** The outcome set this result was filtered by (echoed for pagination). */
+  outcomes: CallOutcome[];
+  contacts: OutcomeContactSummary[];
+}
+
 /** Full contact record with activity. Shape is backend-defined; we keep the
  *  known fields strongly typed and allow the rest through. */
 export interface ContactDetail extends ContactSummary {

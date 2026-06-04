@@ -32,6 +32,7 @@
     "build": "tsc -p tsconfig.build.json",
     "dev": "tsc -p tsconfig.build.json --watch",
     "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --import tsx --test \"src/**/*.test.ts\"",
     "install-skills": "node scripts/install-skills.mjs",
     "package-skills": "node scripts/package-skills.mjs"
   },
@@ -42,6 +43,7 @@
   "devDependencies": {
     "@types/node": "~22.16.0",
     "rimraf": "^6.0.0",
+    "tsx": "^4.20.0",
     "typescript": "~5.9.0"
   }
 }

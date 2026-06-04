@@ -1,19 +1,21 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
-import { Prisma, Contact } from "@prisma/client";
-import {
-  OwnershipContext,
-  buildOwnershipFilter,
-} from "@ringee/platform";
+import { Prisma, Contact, CallOutcome } from "@prisma/client";
+import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
 
 /** A contact row with the multi-value email/phone relations needed for dedup. */
 export type ContactDedupMatch = Prisma.ContactGetPayload<{
   include: { emails: true; phones: true };
 }>;
 
+/** A contact row with its single most-recent call (outcome + time) attached. */
+export type ContactWithLastCall = Prisma.ContactGetPayload<{
+  include: { calls: { select: { outcome: true; createdAt: true } } };
+}>;
+
 @Injectable()
 export class ContactRepository {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(
     ctx: OwnershipContext,
@@ -34,15 +36,15 @@ export class ContactRepository {
     return this.prisma.contact.findFirst({
       where: { id, deletedAt: null },
       include: {
-        notes: { where: { deletedAt: null }, orderBy: { createdAt: 'desc' } },
-        calls: { orderBy: { createdAt: 'desc' }, take: 20 },
-        meetings: { orderBy: { scheduledAt: 'desc' } },
+        notes: { where: { deletedAt: null }, orderBy: { createdAt: "desc" } },
+        calls: { orderBy: { createdAt: "desc" }, take: 20 },
+        meetings: { orderBy: { scheduledAt: "desc" } },
         tags: { include: { tag: true } },
-        phones: { orderBy: { isPrimary: 'desc' } },
-        emails: { orderBy: { isPrimary: 'desc' } },
+        phones: { orderBy: { isPrimary: "desc" } },
+        emails: { orderBy: { isPrimary: "desc" } },
         affiliations: {
           include: { company: true },
-          orderBy: { isPrimary: 'desc' },
+          orderBy: { isPrimary: "desc" },
         },
       },
     });
@@ -60,7 +62,13 @@ export class ContactRepository {
 
   async listByOwner(
     ctx: OwnershipContext,
-    options?: { search?: string; sort?: string; page?: number; limit?: number; tagIds?: string[] },
+    options?: {
+      search?: string;
+      sort?: string;
+      page?: number;
+      limit?: number;
+      tagIds?: string[];
+    },
   ): Promise<{
     data: Contact[];
     meta: { total: number; page: number; limit: number; totalPages: number };
@@ -76,29 +84,30 @@ export class ContactRepository {
     }
 
     const ownershipFilter = buildOwnershipFilter(ctx);
-    
+
     // Build tag filter
-    const tagFilter = tagIds && tagIds.length > 0
-      ? {
-          tags: {
-            some: {
-              tagId: { in: tagIds },
+    const tagFilter =
+      tagIds && tagIds.length > 0
+        ? {
+            tags: {
+              some: {
+                tagId: { in: tagIds },
+              },
             },
-          },
-        }
-      : {};
-    
+          }
+        : {};
+
     const where: Prisma.ContactWhereInput = {
       ...ownershipFilter,
       deletedAt: null,
       ...(search
         ? {
-          OR: [
-            { name: { contains: search, mode: "insensitive" } },
-            { phoneNumber: { contains: search, mode: "insensitive" } },
-            { email: { contains: search, mode: "insensitive" } },
-          ],
-        }
+            OR: [
+              { name: { contains: search, mode: "insensitive" } },
+              { phoneNumber: { contains: search, mode: "insensitive" } },
+              { email: { contains: search, mode: "insensitive" } },
+            ],
+          }
         : {}),
       ...tagFilter,
     };
@@ -132,6 +141,100 @@ export class ContactRepository {
         limit,
         totalPages: Math.ceil(total / limit),
       },
+    };
+  }
+
+  /**
+   * List contacts whose calls reached one of the given outcomes — the basis
+   * for ICP learning ("who already converted/engaged"). Read-only.
+   *
+   * - `match: "any"` (default): the contact has at least one call whose outcome
+   *   is in `outcomes`. Filtered and paginated entirely in the database.
+   * - `match: "last"`: only the contact's MOST RECENT call counts. Prisma
+   *   relation filters can't express "the latest related row matches", so we
+   *   first pick the latest call per in-scope contact (Postgres `DISTINCT ON`
+   *   via `distinct` + ordered `findMany`), keep those whose outcome is in
+   *   `outcomes`, then page over that id set.
+   *
+   * Contacts flagged `doNotCall`/`unsubscribed` are excluded unless
+   * `includeUnreachable` is set. Soft-deleted contacts are always excluded.
+   * Each row carries its single most-recent call so callers can surface
+   * `lastOutcome`/`lastCallAt`.
+   */
+  async listByCallOutcome(
+    ctx: OwnershipContext,
+    options: {
+      outcomes: CallOutcome[];
+      match?: "any" | "last";
+      includeUnreachable?: boolean;
+      page?: number;
+      limit?: number;
+    },
+  ): Promise<{
+    data: ContactWithLastCall[];
+    meta: { total: number; page: number; limit: number; totalPages: number };
+  }> {
+    const {
+      outcomes,
+      match = "any",
+      includeUnreachable = false,
+      page = 1,
+      limit = 10,
+    } = options;
+
+    const ownershipFilter = buildOwnershipFilter(ctx);
+    // Marketing-preference exclusions, applied unless explicitly overridden.
+    const reachableFilter: Prisma.ContactWhereInput = includeUnreachable
+      ? {}
+      : { doNotCall: false, unsubscribed: false };
+
+    const baseWhere: Prisma.ContactWhereInput = {
+      ...ownershipFilter,
+      deletedAt: null,
+      ...reachableFilter,
+    };
+
+    let where: Prisma.ContactWhereInput;
+
+    if (match === "last") {
+      // Latest call per in-scope contact, then keep the qualifying ones.
+      const latestCalls = await this.prisma.call.findMany({
+        where: { contact: { is: baseWhere } },
+        orderBy: [{ contactId: "asc" }, { createdAt: "desc" }],
+        distinct: ["contactId"],
+        select: { contactId: true, outcome: true },
+      });
+      const wanted = new Set<CallOutcome>(outcomes);
+      const matchingIds = latestCalls
+        .filter((c) => c.contactId && c.outcome && wanted.has(c.outcome))
+        .map((c) => c.contactId as string);
+      where = { ...baseWhere, id: { in: matchingIds } };
+    } else {
+      where = {
+        ...baseWhere,
+        calls: { some: { outcome: { in: outcomes } } },
+      };
+    }
+
+    const total = await this.prisma.contact.count({ where });
+
+    const data = await this.prisma.contact.findMany({
+      where,
+      orderBy: { lastCallAt: "desc" },
+      include: {
+        calls: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+          select: { outcome: true, createdAt: true },
+        },
+      },
+      skip: (page - 1) * limit,
+      take: limit,
+    });
+
+    return {
+      data,
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 
@@ -240,7 +343,9 @@ export class ContactRepository {
     const phones = expand(keys.phones);
     const linkedinUrls = expand(keys.linkedinUrls);
     const externalIds = [
-      ...new Set((keys.externalIds ?? []).map((v) => v?.trim()).filter(Boolean)),
+      ...new Set(
+        (keys.externalIds ?? []).map((v) => v?.trim()).filter(Boolean),
+      ),
     ] as string[];
 
     const or: Prisma.ContactWhereInput[] = [];
@@ -252,7 +357,9 @@ export class ContactRepository {
       or.push({ phoneNumber: { in: phones } });
       or.push({
         phones: {
-          some: { OR: [{ phone: { in: phones } }, { phoneE164: { in: phones } }] },
+          some: {
+            OR: [{ phone: { in: phones } }, { phoneE164: { in: phones } }],
+          },
         },
       });
     }
@@ -260,7 +367,9 @@ export class ContactRepository {
       or.push({ linkedinUrl: { in: linkedinUrls } });
     }
     for (const externalId of externalIds) {
-      or.push({ enrichmentMetadata: { path: ["externalId"], equals: externalId } });
+      or.push({
+        enrichmentMetadata: { path: ["externalId"], equals: externalId },
+      });
     }
     if (or.length === 0) return [];
 
