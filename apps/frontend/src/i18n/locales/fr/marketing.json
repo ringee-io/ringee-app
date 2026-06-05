@@ -16,7 +16,9 @@
       "findLeads": "Apollo.io et Prospeo.io — prospection intégrée.",
       "integrations": "Attio, Odoo — et d'autres en chemin.",
       "comparison": "Voyez comment nous nous comparons à la concurrence.",
-      "pricing": "Tarifs flexibles pour les équipes de toutes tailles."
+      "pricing": "Tarifs flexibles pour les équipes de toutes tailles.",
+      "liveDialer": "Composeur manuel, preview et progressif en action.",
+      "agentic": "Laissez ChatGPT, Claude ou tout agent MCP piloter Ringee."
     },
     "navItems": {
       "features": "Fonctionnalités",
@@ -24,7 +26,9 @@
       "findLeads": "Trouver et enrichir des leads",
       "integrations": "Intégrations CRM",
       "comparison": "Comparatif",
-      "pricing": "Tarifs"
+      "pricing": "Tarifs",
+      "liveDialer": "Démo du composeur",
+      "agentic": "Agentic et MCP"
     }
   },
   "hero": {
@@ -48,6 +52,15 @@
       "crmSync": "Sync Attio & Odoo",
       "recordings": "Enregistrements & transcriptions",
       "browserMobile": "Navigateur & mobile"
+    },
+    "toggle": {
+      "classic": "Produit",
+      "agentic": "Agentic"
+    },
+    "agentic": {
+      "headline": "Pilotez vos appels depuis <grad>ChatGPT</grad>",
+      "subcopy": "Connectez Ringee une fois via MCP et laissez ChatGPT, Claude ou tout agent rechercher des contacts, passer des appels et enregistrer les résultats — en langage naturel.",
+      "cta": "Découvrir le mode agentic"
     }
   },
   "features": {
@@ -83,10 +96,22 @@
     "title": "Ringee en action",
     "subtitle": "Inscrivez-vous et passez votre premier appel en moins d'une minute.",
     "cards": {
-      "quickSetup": { "title": "Setup rapide", "description": "Premier appel en moins de 60s" },
-      "recordCalls": { "title": "Enregistrez", "description": "Ne perdez aucun détail important" },
-      "countries": { "title": "180+ pays", "description": "Couverture mondiale, tarifs locaux" },
-      "cheaper": { "title": "50× moins cher", "description": "Tarification à l'usage" }
+      "quickSetup": {
+        "title": "Setup rapide",
+        "description": "Premier appel en moins de 60s"
+      },
+      "recordCalls": {
+        "title": "Enregistrez",
+        "description": "Ne perdez aucun détail important"
+      },
+      "countries": {
+        "title": "180+ pays",
+        "description": "Couverture mondiale, tarifs locaux"
+      },
+      "cheaper": {
+        "title": "50× moins cher",
+        "description": "Tarification à l'usage"
+      }
     }
   },
   "campaigns": {
@@ -144,7 +169,8 @@
         "title": "Analyses outbound en direct",
         "description": "Sessions d'agents, tentatives d'appel, taux de connexion et dispositions — diffusés en direct sur votre tableau de bord."
       }
-    }
+    },
+    "workspaceCaption": "Aperçu en direct du composeur de campagnes — file, softphone et disposition, avec des données d’exemple."
   },
   "findLeads": {
     "kicker": "Trouvez et enrichissez vos leads",
@@ -459,6 +485,193 @@
       "blog": "Blog",
       "privacy": "Confidentialité",
       "terms": "Conditions"
+    }
+  },
+  "liveDialer": {
+    "kicker": "Voyez-le composer",
+    "title": "Regardez le composeur à l’œuvre",
+    "subtitle": "Trois façons d’appeler — manuel, preview et progressif. C’est le flux exact que voit votre équipe, avec des données d’exemple.",
+    "modes": {
+      "manual": {
+        "name": "Manuel",
+        "tagline": "Composez n’importe quel numéro à la main — contrôle total, un appel à la fois."
+      },
+      "preview": {
+        "name": "Preview",
+        "tagline": "Voyez d’abord le contact et son contexte, puis appelez quand vous êtes prêt."
+      },
+      "progressive": {
+        "name": "Progressif",
+        "tagline": "Mains libres. Ringee passe au contact suivant automatiquement."
+      }
+    },
+    "manual": {
+      "window": "Composeur manuel",
+      "enterNumber": "Saisir un numéro",
+      "ready": "Prêt à appeler",
+      "calling": "Appel…",
+      "live": "En direct",
+      "hint": "Composez un numéro — l’écran d’appel s’ouvre automatiquement."
+    },
+    "preview": {
+      "window": "Composeur preview",
+      "upNext": "Suivant",
+      "warmLead": "Tiède",
+      "lastTouch": "Dernier contact",
+      "lastTouchValue": "Webinaire · il y a 2 j",
+      "script": "Script",
+      "scriptValue": "Suivi de démo",
+      "reviewing": "Examen du contact…",
+      "connecting": "Connexion…",
+      "onCall": "En appel",
+      "skip": "Passer",
+      "call": "Appeler"
+    },
+    "progressive": {
+      "window": "Composeur progressif",
+      "running": "Actif",
+      "paused": "En pause",
+      "stats": {
+        "dialed": "Composés",
+        "connected": "Connectés",
+        "remaining": "Restants"
+      },
+      "dialing": "Composition",
+      "queued": "En file",
+      "handsFree": "Mains libres — Ringee compose le contact suivant automatiquement.",
+      "handsFreeDone": "File terminée — chaque contact composé, chaque résultat enregistré."
+    },
+    "dispositions": {
+      "interested": "Intéressé",
+      "noAnswer": "Sans réponse",
+      "callback": "Rappel",
+      "voicemail": "Messagerie",
+      "demoBooked": "Démo planifiée"
+    },
+    "realBadge": "UI réelle de Ringee",
+    "openLiveCall": "Ouvrir l’appel"
+  },
+  "agentic": {
+    "kicker": "Mode agentic",
+    "title": "Votre assistant IA peut <grad>piloter Ringee</grad>",
+    "subtitle": "Connectez Ringee une fois via MCP et laissez Claude, ChatGPT, Cursor ou tout agent rechercher des contacts, passer des appels et enregistrer les résultats — en langage naturel.",
+    "demo": {
+      "windowTitle": "ChatGPT · Ringee",
+      "live": "En direct",
+      "userPrompt": "Trouve Ava Chen du webinaire d’hier, mets un appel en file et enregistre le résultat.",
+      "searching": "Recherche dans vos contacts…",
+      "foundLeads": "Ava Chen trouvée",
+      "ringing": "Envoi de l’appel vers votre appareil…",
+      "connected": "Connecté",
+      "ringingOn": "Sonne sur iPhone · app Ringee",
+      "talkTime": "Connecté · 00:41",
+      "outcomes": {
+        "interested": "Intéressé",
+        "demoBooked": "Démo planifiée · jeu. 14:00"
+      },
+      "summary": "Terminé — Ava mise en file, vous avez appelé via le lien magique, et j’ai enregistré « Intéressé » avec une démo de suivi jeudi. Vous voulez aussi un rappel ?",
+      "working": "En cours",
+      "pipeline": {
+        "title": "En coulisses",
+        "intent": "Comprendre l’intention",
+        "summarize": "Résumer les résultats",
+        "note": "Limité à l’organisation et aux permissions — les actions destructrices ont une double confirmation."
+      },
+      "sessionCreating": "Création d’une session à lien magique…",
+      "sessionReady": "Session d’appel prête",
+      "cards": {
+        "lastCall": "Dernier appel il y a 2 j",
+        "phone": "Téléphone",
+        "email": "E-mail",
+        "company": "Entreprise",
+        "queueCall": "Mettre en file",
+        "meeting": "Réunion",
+        "sessionTitle": "Appeler Ava Chen",
+        "expires": "Expire dans 7 jours",
+        "active": "active",
+        "progress": "Progression",
+        "queue": "File",
+        "done": "Faits",
+        "expiresShort": "Expire",
+        "copy": "Copier",
+        "shareOnce": "Partagez ce lien magique tel quel — impossible de le récupérer ensuite.",
+        "refresh": "Actualiser",
+        "revoke": "Révoquer",
+        "outcomeLogged": "Résultat enregistré",
+        "interested": "Intéressé",
+        "outcomeNote": "Démo de suivi planifiée jeudi 14:00. Budget confirmé."
+      },
+      "composer": "Écrire à ChatGPT…"
+    },
+    "clients": {
+      "title": "Compatible avec les agents que vous utilisez déjà",
+      "subtitle": "Un seul serveur MCP. Tout client compatible MCP — aujourd’hui et demain.",
+      "anyMcp": "Tout client MCP",
+      "footnote": "Claude, ChatGPT, Codex, Cursor, Hermes, OpenClaw — et tout ce qui parle le Model Context Protocol."
+    },
+    "channels": {
+      "title": "Quatre chemins vers le même moteur",
+      "subtitle": "Chat, ligne de commande, ChatGPT App ou webhooks — même auth, mêmes données, mêmes actions.",
+      "mcp": {
+        "tag": "MCP",
+        "title": "Serveur MCP",
+        "description": "Plus de 25 outils pour contacts, appels, rappels et réunions — exposés à tout client MCP."
+      },
+      "cli": {
+        "tag": "CLI",
+        "title": "CLI headless",
+        "description": "Automatisez appels et résultats depuis votre terminal, un cron ou la CI. Sans navigateur."
+      },
+      "chatgpt": {
+        "tag": "ChatGPT App",
+        "title": "ChatGPT App",
+        "description": "Fiches de contact et composition affichées directement dans ChatGPT."
+      },
+      "webhooks": {
+        "tag": "Webhooks + REST",
+        "title": "Webhooks et API sync",
+        "description": "Webhooks signés et idempotents plus une API REST pour synchroniser appels et contacts à votre façon."
+      }
+    },
+    "benefits": {
+      "title": "Agentic — à faible coût",
+      "subtitle": "Apportez le plan IA que vous payez déjà. Ringee est la couche d’outils ; vous payez les appels, pas des intermédiaires IA.",
+      "pill": "Pas de surcoût IA par utilisateur",
+      "items": {
+        "lowCost": {
+          "title": "Apportez votre IA",
+          "description": "Utilisez votre plan Claude ou ChatGPT existant — sans frais IA supplémentaires par utilisateur."
+        },
+        "ownData": {
+          "title": "Vos données, votre tenant",
+          "description": "Chaque outil est limité à l’organisation et aux permissions ; les suppressions ont une double confirmation."
+        },
+        "plainLanguage": {
+          "title": "Langage naturel, actions réelles",
+          "description": "De « appelle mes leads du webinaire » aux numéros composés et résultats enregistrés."
+        },
+        "headless": {
+          "title": "Headless ou en chat",
+          "description": "Lancez-le depuis un agent, un cron ou la CLI — un moteur, une auth."
+        }
+      }
+    },
+    "badges": {
+      "scoped": "Outils limités à l’organisation",
+      "guarded": "Suppressions à double confirmation",
+      "openSource": "Serveur MCP open source"
+    },
+    "flow": {
+      "title": "Le flux outbound, dans le chat",
+      "note": "Les mêmes cartes que l’app ChatGPT de Ringee affiche — chaque étape est un outil MCP, soutenu par le backend Ringee.",
+      "steps": {
+        "prospect": "Prospecter",
+        "contact": "Créer un contact",
+        "session": "Session d’appel",
+        "call": "Appeler",
+        "outcome": "Enregistrer le résultat",
+        "followup": "Rappel / Réunion"
+      }
     }
   }
 }

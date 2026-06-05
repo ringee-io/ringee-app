@@ -11,7 +11,7 @@ import OpenSourceSection from './open-source-section';
 import Campaigns from './campaigns';
 import FindLeadsEnrichment from './find-leads-enrichment';
 import CrmIntegrations from './crm-integrations';
-// import PromoBanner from './promo-banner';
+import DialerShowcase from './dialer-showcase';
 
 export default function LandingContent() {
   return (
@@ -23,6 +23,7 @@ export default function LandingContent() {
         <VideoDemo />
         <Features />
         <Campaigns />
+        <DialerShowcase />
         <FindLeadsEnrichment />
         <CrmIntegrations />
         <Pricing />

@@ -16,7 +16,9 @@
       "findLeads": "Apollo.io en Prospeo.io — prospecting ingebouwd.",
       "integrations": "Attio, Odoo — en meer onderweg.",
       "comparison": "Bekijk hoe we ons meten aan de concurrentie.",
-      "pricing": "Flexibele prijzen voor teams van elke omvang."
+      "pricing": "Flexibele prijzen voor teams van elke omvang.",
+      "liveDialer": "Handmatige, preview- en progressieve dialer in actie.",
+      "agentic": "Laat ChatGPT, Claude of een MCP-agent Ringee bedienen."
     },
     "navItems": {
       "features": "Features",
@@ -24,7 +26,9 @@
       "findLeads": "Leads vinden & verrijken",
       "integrations": "CRM-integraties",
       "comparison": "Vergelijking",
-      "pricing": "Prijzen"
+      "pricing": "Prijzen",
+      "liveDialer": "Dialer-demo",
+      "agentic": "Agentic & MCP"
     }
   },
   "hero": {
@@ -48,6 +52,15 @@
       "crmSync": "Attio- & Odoo-sync",
       "recordings": "Opnames & transcripties",
       "browserMobile": "Browser & mobiel"
+    },
+    "toggle": {
+      "classic": "Product",
+      "agentic": "Agentic"
+    },
+    "agentic": {
+      "headline": "Bedien je gesprekken vanuit <grad>ChatGPT</grad>",
+      "subcopy": "Koppel Ringee één keer via MCP en laat ChatGPT, Claude of een willekeurige agent contacten zoeken, bellen en uitkomsten loggen — in gewone taal.",
+      "cta": "Ontdek de agentic-modus"
     }
   },
   "features": {
@@ -83,10 +96,22 @@
     "title": "Ringee in actie",
     "subtitle": "Zie hoe je je registreert en binnen een minuut begint te bellen.",
     "cards": {
-      "quickSetup": { "title": "Snelle setup", "description": "Bel binnen 60 seconden" },
-      "recordCalls": { "title": "Neem op", "description": "Mis geen belangrijke details" },
-      "countries": { "title": "180+ landen", "description": "Wereldwijde dekking, lokale tarieven" },
-      "cheaper": { "title": "50× goedkoper", "description": "Pay-as-you-go-tarieven" }
+      "quickSetup": {
+        "title": "Snelle setup",
+        "description": "Bel binnen 60 seconden"
+      },
+      "recordCalls": {
+        "title": "Neem op",
+        "description": "Mis geen belangrijke details"
+      },
+      "countries": {
+        "title": "180+ landen",
+        "description": "Wereldwijde dekking, lokale tarieven"
+      },
+      "cheaper": {
+        "title": "50× goedkoper",
+        "description": "Pay-as-you-go-tarieven"
+      }
     }
   },
   "campaigns": {
@@ -144,7 +169,8 @@
         "title": "Live outbound analyses",
         "description": "Agentsessies, belpogingen, verbindingspercentage en disposities — live gestreamd naar je dashboard."
       }
-    }
+    },
+    "workspaceCaption": "Live voorbeeld van de campagne-dialer — wachtrij, softphone en dispositie, met voorbeelddata."
   },
   "findLeads": {
     "kicker": "Leads vinden & verrijken",
@@ -459,6 +485,193 @@
       "blog": "Blog",
       "privacy": "Privacy",
       "terms": "Voorwaarden"
+    }
+  },
+  "liveDialer": {
+    "kicker": "Zie het bellen",
+    "title": "Bekijk de dialer in actie",
+    "subtitle": "Drie manieren om te bellen — handmatig, preview en progressief. Precies de flow die je team ziet, met voorbeelddata.",
+    "modes": {
+      "manual": {
+        "name": "Handmatig",
+        "tagline": "Bel elk nummer met de hand — volledige controle, één gesprek tegelijk."
+      },
+      "preview": {
+        "name": "Preview",
+        "tagline": "Bekijk eerst het contact en de context, bel dan wanneer je klaar bent."
+      },
+      "progressive": {
+        "name": "Progressief",
+        "tagline": "Handsfree. Ringee gaat automatisch door naar het volgende contact."
+      }
+    },
+    "manual": {
+      "window": "Handmatige dialer",
+      "enterNumber": "Voer een nummer in",
+      "ready": "Klaar om te bellen",
+      "calling": "Bellen…",
+      "live": "Live",
+      "hint": "Bel een nummer — het belscherm opent automatisch."
+    },
+    "preview": {
+      "window": "Preview-dialer",
+      "upNext": "Volgende",
+      "warmLead": "Warm",
+      "lastTouch": "Laatste contact",
+      "lastTouchValue": "Webinar · 2 d geleden",
+      "script": "Script",
+      "scriptValue": "Demo-opvolging",
+      "reviewing": "Contact bekijken…",
+      "connecting": "Verbinden…",
+      "onCall": "In gesprek",
+      "skip": "Overslaan",
+      "call": "Bellen"
+    },
+    "progressive": {
+      "window": "Progressieve dialer",
+      "running": "Actief",
+      "paused": "Gepauzeerd",
+      "stats": {
+        "dialed": "Gebeld",
+        "connected": "Verbonden",
+        "remaining": "Resterend"
+      },
+      "dialing": "Bellen",
+      "queued": "In wachtrij",
+      "handsFree": "Handsfree — Ringee belt automatisch het volgende contact.",
+      "handsFreeDone": "Wachtrij voltooid — elk contact gebeld, elke uitkomst gelogd."
+    },
+    "dispositions": {
+      "interested": "Geïnteresseerd",
+      "noAnswer": "Geen antwoord",
+      "callback": "Terugbellen",
+      "voicemail": "Voicemail",
+      "demoBooked": "Demo geboekt"
+    },
+    "realBadge": "Echte Ringee-UI",
+    "openLiveCall": "Gesprek openen"
+  },
+  "agentic": {
+    "kicker": "Agentic-modus",
+    "title": "Je AI-assistent kan <grad>Ringee bedienen</grad>",
+    "subtitle": "Koppel Ringee één keer via MCP en laat Claude, ChatGPT, Cursor of een willekeurige agent contacten zoeken, bellen en uitkomsten loggen — in gewone taal.",
+    "demo": {
+      "windowTitle": "ChatGPT · Ringee",
+      "live": "Live",
+      "userPrompt": "Haal Ava Chen op uit het webinar van gisteren, zet een gesprek in de wachtrij en log de uitkomst.",
+      "searching": "Je contacten doorzoeken…",
+      "foundLeads": "Ava Chen gevonden",
+      "ringing": "Gesprek naar je apparaat sturen…",
+      "connected": "Verbonden",
+      "ringingOn": "Gaat over op iPhone · Ringee-app",
+      "talkTime": "Verbonden · 00:41",
+      "outcomes": {
+        "interested": "Geïnteresseerd",
+        "demoBooked": "Demo geboekt · do 14:00"
+      },
+      "summary": "Klaar — Ava in de wachtrij, je belde via de magic link, en ik logde het als “Geïnteresseerd” met een opvolgdemo op donderdag. Wil je ook een terugbel-herinnering?",
+      "working": "Bezig",
+      "pipeline": {
+        "title": "Achter de schermen",
+        "intent": "Intentie begrijpen",
+        "summarize": "Resultaten samenvatten",
+        "note": "Beperkt tot organisatie en rechten — destructieve acties zijn dubbel beveiligd."
+      },
+      "sessionCreating": "Een magic-link-sessie aanmaken…",
+      "sessionReady": "Belsessie klaar",
+      "cards": {
+        "lastCall": "Laatste gesprek 2 d geleden",
+        "phone": "Telefoon",
+        "email": "E-mail",
+        "company": "Bedrijf",
+        "queueCall": "In wachtrij zetten",
+        "meeting": "Meeting",
+        "sessionTitle": "Ava Chen bellen",
+        "expires": "Verloopt over 7 dagen",
+        "active": "actief",
+        "progress": "Voortgang",
+        "queue": "Wachtrij",
+        "done": "Klaar",
+        "expiresShort": "Verloopt",
+        "copy": "Kopiëren",
+        "shareOnce": "Deel deze magic link precies zo — hij kan later niet opnieuw worden opgehaald.",
+        "refresh": "Vernieuwen",
+        "revoke": "Intrekken",
+        "outcomeLogged": "Uitkomst gelogd",
+        "interested": "Geïnteresseerd",
+        "outcomeNote": "Opvolgdemo geboekt voor donderdag 14:00. Budget bevestigd."
+      },
+      "composer": "Bericht aan ChatGPT…"
+    },
+    "clients": {
+      "title": "Werkt met de agents die je al gebruikt",
+      "subtitle": "Eén MCP-server. Elke MCP-compatibele client — vandaag en morgen.",
+      "anyMcp": "Elke MCP-client",
+      "footnote": "Claude, ChatGPT, Codex, Cursor, Hermes, OpenClaw — en alles dat het Model Context Protocol spreekt."
+    },
+    "channels": {
+      "title": "Vier wegen naar dezelfde engine",
+      "subtitle": "Chat, command line, ChatGPT App of webhooks — zelfde auth, zelfde data, zelfde acties.",
+      "mcp": {
+        "tag": "MCP",
+        "title": "MCP-server",
+        "description": "25+ tools voor contacten, gesprekken, terugbelacties en meetings — beschikbaar voor elke MCP-client."
+      },
+      "cli": {
+        "tag": "CLI",
+        "title": "Headless CLI",
+        "description": "Script gesprekken en uitkomsten vanuit je terminal, een cronjob of CI. Geen browser nodig."
+      },
+      "chatgpt": {
+        "tag": "ChatGPT App",
+        "title": "ChatGPT App",
+        "description": "Contactkaarten en bellen direct in de ChatGPT-interface."
+      },
+      "webhooks": {
+        "tag": "Webhooks + REST",
+        "title": "Webhooks & API-sync",
+        "description": "Ondertekende, idempotente webhooks plus een REST-API om gesprekken en contacten op jouw manier te synchroniseren."
+      }
+    },
+    "benefits": {
+      "title": "Agentic — tegen lage kosten",
+      "subtitle": "Neem het AI-plan mee dat je al betaalt. Ringee is de tools-laag; je betaalt voor gesprekken, niet voor AI-tussenpersonen.",
+      "pill": "Geen AI-meerprijs per gebruiker",
+      "items": {
+        "lowCost": {
+          "title": "Neem je eigen AI mee",
+          "description": "Gebruik je bestaande Claude- of ChatGPT-plan — geen extra AI-kosten per gebruiker van ons."
+        },
+        "ownData": {
+          "title": "Jouw data, jouw tenant",
+          "description": "Elke tool is beperkt tot organisatie en rechten; verwijderingen zijn dubbel beveiligd."
+        },
+        "plainLanguage": {
+          "title": "Gewone taal, echte acties",
+          "description": "Van “bel mijn webinar-leads” naar gebelde nummers en gelogde uitkomsten."
+        },
+        "headless": {
+          "title": "Headless of in chat",
+          "description": "Draai het vanuit een agent, een cronjob of de CLI — één engine, één auth."
+        }
+      }
+    },
+    "badges": {
+      "scoped": "Tools beperkt tot organisatie",
+      "guarded": "Dubbel beveiligde verwijderingen",
+      "openSource": "Open-source MCP-server"
+    },
+    "flow": {
+      "title": "De outbound-flow, in chat",
+      "note": "Dezelfde kaarten die de Ringee ChatGPT App rendert — elke stap is één MCP-tool, ondersteund door de Ringee-backend.",
+      "steps": {
+        "prospect": "Prospecteren",
+        "contact": "Contact aanmaken",
+        "session": "Belsessie",
+        "call": "Bellen",
+        "outcome": "Uitkomst loggen",
+        "followup": "Terugbellen / Meeting"
+      }
     }
   }
 }

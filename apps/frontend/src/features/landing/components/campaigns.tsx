@@ -13,6 +13,16 @@ import {
 } from '@tabler/icons-react';
 import { ArrowRight, Sparkles } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import dynamic from 'next/dynamic';
+
+// Full campaign dialing workspace, mocked end-to-end (auto-plays a session).
+const MockCampaignWorkspace = dynamic(
+  () =>
+    import('./mock/mock-campaign-workspace').then(
+      (m) => m.MockCampaignWorkspace
+    ),
+  { ssr: false }
+);
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -143,6 +153,20 @@ export default function Campaigns() {
           {tCampaigns('subtitle')}
         </motion.p>
       </div>
+
+      {/* Full campaign workspace — the live operator view, on sample data */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        whileInView={{ opacity: 1, y: 0 }}
+        viewport={{ once: true, margin: '-80px' }}
+        transition={{ duration: 0.4 }}
+        className='mx-auto mt-12 max-w-screen-lg'
+      >
+        <MockCampaignWorkspace />
+        <p className='text-muted-foreground/80 mt-3 text-center text-xs'>
+          {tCampaigns('workspaceCaption')}
+        </p>
+      </motion.div>
 
       {/* Dialer modes */}
       <motion.div
