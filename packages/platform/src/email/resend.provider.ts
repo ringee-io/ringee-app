@@ -13,15 +13,18 @@ export class ResendProvider implements EmailInterface {
     html: string,
     emailFromName?: string,
     emailFromAddress?: string,
+    // @ts-ignore
     replyTo?: string,
   ) {
     try {
+      const sendReplyEmail = !emailFromAddress?.includes('no-reply') ? { replyTo: 'edisonpadilla.dev@gmail.com' } : false;
+
       const sends = await resend.emails.send({
         from: `${emailFromName || apiConfiguration.EMAIL_FROM_NAME} <${emailFromAddress || apiConfiguration.EMAIL_FROM_ADDRESS}>`,
         to,
         subject,
         html,
-        ...(replyTo && { replyTo: replyTo }),
+        ...(sendReplyEmail && sendReplyEmail),
       });
 
       return sends;
