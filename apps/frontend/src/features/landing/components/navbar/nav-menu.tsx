@@ -94,6 +94,9 @@ export const NavMenu = ({
                   <ListItem href='#find-leads' title={t('navItems.findLeads')}>
                     {t('navDescriptions.findLeads')}
                   </ListItem>
+                  <ListItem href='#mobile-app' title={t('navItems.mobileApp')}>
+                    {t('navDescriptions.mobileApp')}
+                  </ListItem>
                   <ListItem
                     href='#integrations'
                     title={t('navItems.integrations')}
@@ -132,6 +135,9 @@ export const NavMenu = ({
                 </Link>
                 <Link href='#find-leads' className='py-1 text-base font-medium'>
                   {t('navItems.findLeads')}
+                </Link>
+                <Link href='#mobile-app' className='py-1 text-base font-medium'>
+                  {t('navItems.mobileApp')}
                 </Link>
                 <Link
                   href='#integrations'

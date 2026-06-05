@@ -14,6 +14,7 @@
       "features": "Explore our core features and capabilities.",
       "campaigns": "Preview and progressive dialers for outbound teams.",
       "findLeads": "Apollo.io and Prospeo.io — prospecting, built in.",
+      "mobileApp": "Ringee on iPhone and iPad — the native dialer.",
       "integrations": "Attio, Odoo — and more on the way.",
       "comparison": "See how we compare against the competition.",
       "pricing": "Flexible pricing for teams of all sizes.",
@@ -24,6 +25,7 @@
       "features": "Features",
       "campaigns": "Campaigns",
       "findLeads": "Find leads & enrich",
+      "mobileApp": "Mobile app",
       "integrations": "CRM Integrations",
       "comparison": "Comparison",
       "pricing": "Pricing",
@@ -671,6 +673,42 @@
         "call": "Call",
         "outcome": "Log outcome",
         "followup": "Callback / Meeting"
+      }
+    }
+  },
+  "mobileApp": {
+    "kicker": "iOS app",
+    "title": "Ringee in your pocket",
+    "subtitle": "The full Ringee dialer — calls, contacts, callbacks and recordings — native on iPhone and iPad. Pick up right where your desk left off.",
+    "badge": {
+      "downloadOn": "Download on the",
+      "appStore": "App Store"
+    },
+    "rating": "Loved on the App Store",
+    "available": "Available for iPhone and iPad",
+    "devices": {
+      "iphone": "iPhone",
+      "ipad": "iPad"
+    },
+    "screens": {
+      "0": "Stay on top of every call with the native keypad",
+      "1": "Swipe any contact to call instantly",
+      "2": "Save the numbers that matter",
+      "3": "Every call, with the context that matters",
+      "4": "Track every callback so nothing slips"
+    },
+    "features": {
+      "nativeDialer": {
+        "title": "Native dialer",
+        "description": "A full keypad, recents and contacts — built for one-handed calling on the go."
+      },
+      "swipeToCall": {
+        "title": "Swipe to call",
+        "description": "Swipe any recent or contact to place a call the moment you think of it."
+      },
+      "callbacks": {
+        "title": "Callbacks & meetings",
+        "description": "Your callbacks, meetings and history travel with you — never miss a follow-up."
       }
     }
   }

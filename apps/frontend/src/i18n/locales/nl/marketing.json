@@ -14,6 +14,7 @@
       "features": "Ontdek onze kernfuncties en mogelijkheden.",
       "campaigns": "Preview- en progressive-dialers voor outbound-teams.",
       "findLeads": "Apollo.io en Prospeo.io — prospecting ingebouwd.",
+      "mobileApp": "Ringee op iPhone en iPad — de native dialer.",
       "integrations": "Attio, Odoo — en meer onderweg.",
       "comparison": "Bekijk hoe we ons meten aan de concurrentie.",
       "pricing": "Flexibele prijzen voor teams van elke omvang.",
@@ -24,6 +25,7 @@
       "features": "Features",
       "campaigns": "Campagnes",
       "findLeads": "Leads vinden & verrijken",
+      "mobileApp": "Mobiele app",
       "integrations": "CRM-integraties",
       "comparison": "Vergelijking",
       "pricing": "Prijzen",
@@ -671,6 +673,42 @@
         "call": "Bellen",
         "outcome": "Uitkomst loggen",
         "followup": "Terugbellen / Meeting"
+      }
+    }
+  },
+  "mobileApp": {
+    "kicker": "iOS-app",
+    "title": "Ringee in je zak",
+    "subtitle": "De volledige Ringee-dialer — gesprekken, contacten, terugbelverzoeken en opnames — native op iPhone en iPad. Ga verder waar je aan je bureau gebleven was.",
+    "badge": {
+      "downloadOn": "Download in de",
+      "appStore": "App Store"
+    },
+    "rating": "Geliefd in de App Store",
+    "available": "Beschikbaar voor iPhone en iPad",
+    "devices": {
+      "iphone": "iPhone",
+      "ipad": "iPad"
+    },
+    "screens": {
+      "0": "Houd elk gesprek in de gaten met het native toetsenblok",
+      "1": "Veeg over een contact om direct te bellen",
+      "2": "Bewaar de nummers die ertoe doen",
+      "3": "Elk gesprek, met de context die ertoe doet",
+      "4": "Volg elk terugbelverzoek zodat er niets verloren gaat"
+    },
+    "features": {
+      "nativeDialer": {
+        "title": "Native dialer",
+        "description": "Een volledig toetsenblok, recente gesprekken en contacten — gemaakt om onderweg met één hand te bellen."
+      },
+      "swipeToCall": {
+        "title": "Veeg om te bellen",
+        "description": "Veeg over een recent gesprek of contact om te bellen zodra je eraan denkt."
+      },
+      "callbacks": {
+        "title": "Terugbellen & meetings",
+        "description": "Je terugbelverzoeken, meetings en geschiedenis gaan met je mee — mis nooit een follow-up."
       }
     }
   }

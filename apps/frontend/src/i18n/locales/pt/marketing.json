@@ -14,6 +14,7 @@
       "features": "Explora as nossas funcionalidades e capacidades principais.",
       "campaigns": "Marcadores preview e progressivos para equipas outbound.",
       "findLeads": "Apollo.io e Prospeo.io — prospeção integrada.",
+      "mobileApp": "Ringee no iPhone e iPad — o dialer nativo.",
       "integrations": "Attio, Odoo — e mais a caminho.",
       "comparison": "Vê como nos comparamos com a concorrência.",
       "pricing": "Preços flexíveis para equipas de todas as dimensões.",
@@ -24,6 +25,7 @@
       "features": "Funcionalidades",
       "campaigns": "Campanhas",
       "findLeads": "Encontrar e enriquecer leads",
+      "mobileApp": "App móvel",
       "integrations": "Integrações de CRM",
       "comparison": "Comparativo",
       "pricing": "Preços",
@@ -671,6 +673,42 @@
         "call": "Ligar",
         "outcome": "Registrar resultado",
         "followup": "Retorno / Reunião"
+      }
+    }
+  },
+  "mobileApp": {
+    "kicker": "App para iOS",
+    "title": "Ringee no teu bolso",
+    "subtitle": "O dialer completo do Ringee — chamadas, contactos, retornos de chamada e gravações — nativo no iPhone e iPad. Continua exatamente de onde paraste na secretária.",
+    "badge": {
+      "downloadOn": "Descarregar na",
+      "appStore": "App Store"
+    },
+    "rating": "Adorado na App Store",
+    "available": "Disponível para iPhone e iPad",
+    "devices": {
+      "iphone": "iPhone",
+      "ipad": "iPad"
+    },
+    "screens": {
+      "0": "Fica a par de cada chamada com o teclado nativo",
+      "1": "Desliza num contacto para ligar de imediato",
+      "2": "Guarda os números que importam",
+      "3": "Cada chamada, com o contexto que importa",
+      "4": "Acompanha cada retorno de chamada para que nada escape"
+    },
+    "features": {
+      "nativeDialer": {
+        "title": "Dialer nativo",
+        "description": "Teclado completo, recentes e contactos — feito para ligar com uma só mão, em movimento."
+      },
+      "swipeToCall": {
+        "title": "Desliza para ligar",
+        "description": "Desliza num recente ou contacto para ligar no momento em que pensas nisso."
+      },
+      "callbacks": {
+        "title": "Retornos e reuniões",
+        "description": "Os teus retornos de chamada, reuniões e histórico acompanham-te — nunca percas um follow-up."
       }
     }
   }

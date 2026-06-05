@@ -14,6 +14,7 @@
       "features": "Esplora le nostre funzionalità e capacità principali.",
       "campaigns": "Dialer preview e progressivi per i team outbound.",
       "findLeads": "Apollo.io e Prospeo.io — prospecting integrato.",
+      "mobileApp": "Ringee su iPhone e iPad — il dialer nativo.",
       "integrations": "Attio, Odoo — e altri in arrivo.",
       "comparison": "Guarda come ci confrontiamo con la concorrenza.",
       "pricing": "Prezzi flessibili per team di tutte le dimensioni.",
@@ -24,6 +25,7 @@
       "features": "Funzioni",
       "campaigns": "Campagne",
       "findLeads": "Trova e arricchisci lead",
+      "mobileApp": "App mobile",
       "integrations": "Integrazioni CRM",
       "comparison": "Confronto",
       "pricing": "Prezzi",
@@ -671,6 +673,42 @@
         "call": "Chiama",
         "outcome": "Registra esito",
         "followup": "Richiamo / Riunione"
+      }
+    }
+  },
+  "mobileApp": {
+    "kicker": "App per iOS",
+    "title": "Ringee in tasca",
+    "subtitle": "Il dialer completo di Ringee — chiamate, contatti, richiami e registrazioni — nativo su iPhone e iPad. Riprendi da dove avevi lasciato alla scrivania.",
+    "badge": {
+      "downloadOn": "Scarica su",
+      "appStore": "App Store"
+    },
+    "rating": "Amato sull'App Store",
+    "available": "Disponibile per iPhone e iPad",
+    "devices": {
+      "iphone": "iPhone",
+      "ipad": "iPad"
+    },
+    "screens": {
+      "0": "Tieni sotto controllo ogni chiamata con il tastierino nativo",
+      "1": "Scorri su un contatto per chiamare all'istante",
+      "2": "Salva i numeri che contano",
+      "3": "Ogni chiamata, con il contesto che conta",
+      "4": "Tieni traccia di ogni richiamo così non sfugge nulla"
+    },
+    "features": {
+      "nativeDialer": {
+        "title": "Dialer nativo",
+        "description": "Tastierino completo, recenti e contatti — pensato per chiamare con una mano, in movimento."
+      },
+      "swipeToCall": {
+        "title": "Scorri per chiamare",
+        "description": "Scorri su un recente o un contatto per chiamare nel momento in cui ci pensi."
+      },
+      "callbacks": {
+        "title": "Richiami e riunioni",
+        "description": "I tuoi richiami, le riunioni e la cronologia ti seguono — non perdere mai un follow-up."
       }
     }
   }

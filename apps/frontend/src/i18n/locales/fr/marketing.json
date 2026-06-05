@@ -14,6 +14,7 @@
       "features": "Découvrez nos fonctionnalités et capacités principales.",
       "campaigns": "Dialers preview et progressifs pour les équipes outbound.",
       "findLeads": "Apollo.io et Prospeo.io — prospection intégrée.",
+      "mobileApp": "Ringee sur iPhone et iPad — le dialer natif.",
       "integrations": "Attio, Odoo — et d'autres en chemin.",
       "comparison": "Voyez comment nous nous comparons à la concurrence.",
       "pricing": "Tarifs flexibles pour les équipes de toutes tailles.",
@@ -24,6 +25,7 @@
       "features": "Fonctionnalités",
       "campaigns": "Campagnes",
       "findLeads": "Trouver et enrichir des leads",
+      "mobileApp": "App mobile",
       "integrations": "Intégrations CRM",
       "comparison": "Comparatif",
       "pricing": "Tarifs",
@@ -671,6 +673,42 @@
         "call": "Appeler",
         "outcome": "Enregistrer le résultat",
         "followup": "Rappel / Réunion"
+      }
+    }
+  },
+  "mobileApp": {
+    "kicker": "App iOS",
+    "title": "Ringee dans votre poche",
+    "subtitle": "Le dialer Ringee complet — appels, contacts, rappels et enregistrements — natif sur iPhone et iPad. Reprenez là où votre bureau s'est arrêté.",
+    "badge": {
+      "downloadOn": "Télécharger dans",
+      "appStore": "l'App Store"
+    },
+    "rating": "Plébiscité sur l'App Store",
+    "available": "Disponible pour iPhone et iPad",
+    "devices": {
+      "iphone": "iPhone",
+      "ipad": "iPad"
+    },
+    "screens": {
+      "0": "Gardez le contrôle de chaque appel avec le clavier natif",
+      "1": "Faites glisser un contact pour appeler instantanément",
+      "2": "Enregistrez les numéros qui comptent",
+      "3": "Chaque appel, avec le contexte qui compte",
+      "4": "Suivez chaque rappel pour ne rien laisser passer"
+    },
+    "features": {
+      "nativeDialer": {
+        "title": "Dialer natif",
+        "description": "Un clavier complet, les récents et les contacts — pensé pour appeler d'une main, en déplacement."
+      },
+      "swipeToCall": {
+        "title": "Glisser pour appeler",
+        "description": "Faites glisser un récent ou un contact pour appeler dès que vous y pensez."
+      },
+      "callbacks": {
+        "title": "Rappels et réunions",
+        "description": "Vos rappels, réunions et historique vous suivent — ne manquez jamais un suivi."
       }
     }
   }

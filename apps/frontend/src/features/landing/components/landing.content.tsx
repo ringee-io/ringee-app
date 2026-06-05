@@ -12,6 +12,7 @@ import Campaigns from './campaigns';
 import FindLeadsEnrichment from './find-leads-enrichment';
 import CrmIntegrations from './crm-integrations';
 import DialerShowcase from './dialer-showcase';
+import MobileApp from './mobile-app';
 
 export default function LandingContent() {
   return (
@@ -24,6 +25,7 @@ export default function LandingContent() {
         <Features />
         <Campaigns />
         <DialerShowcase />
+        <MobileApp />
         <FindLeadsEnrichment />
         <CrmIntegrations />
         <Pricing />

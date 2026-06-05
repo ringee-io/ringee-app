@@ -14,6 +14,7 @@
       "features": "Explora nuestras características y capacidades principales.",
       "campaigns": "Marcadores de vista previa y progresivos para equipos outbound.",
       "findLeads": "Apollo.io y Prospeo.io — prospección incorporada.",
+      "mobileApp": "Ringee en iPhone y iPad — el marcador nativo.",
       "integrations": "Attio, Odoo — y más en camino.",
       "comparison": "Mira cómo nos comparamos con la competencia.",
       "pricing": "Precios flexibles para equipos de todos los tamaños.",
@@ -24,6 +25,7 @@
       "features": "Funciones",
       "campaigns": "Campañas",
       "findLeads": "Encontrar y enriquecer leads",
+      "mobileApp": "App móvil",
       "integrations": "Integraciones de CRM",
       "comparison": "Comparativa",
       "pricing": "Precios",
@@ -671,6 +673,42 @@
         "call": "Llamar",
         "outcome": "Registrar resultado",
         "followup": "Callback / Reunión"
+      }
+    }
+  },
+  "mobileApp": {
+    "kicker": "App para iOS",
+    "title": "Ringee en tu bolsillo",
+    "subtitle": "El marcador completo de Ringee — llamadas, contactos, devoluciones de llamada y grabaciones — nativo en iPhone y iPad. Continúa justo donde dejaste tu escritorio.",
+    "badge": {
+      "downloadOn": "Descárgalo en el",
+      "appStore": "App Store"
+    },
+    "rating": "Con gran acogida en la App Store",
+    "available": "Disponible para iPhone y iPad",
+    "devices": {
+      "iphone": "iPhone",
+      "ipad": "iPad"
+    },
+    "screens": {
+      "0": "Mantente al tanto de cada llamada con el teclado nativo",
+      "1": "Desliza cualquier contacto para llamar al instante",
+      "2": "Guarda los números que importan",
+      "3": "Cada llamada, con el contexto que importa",
+      "4": "Registra cada devolución de llamada para que nada se escape"
+    },
+    "features": {
+      "nativeDialer": {
+        "title": "Marcador nativo",
+        "description": "Teclado completo, recientes y contactos — pensado para llamar con una sola mano."
+      },
+      "swipeToCall": {
+        "title": "Desliza para llamar",
+        "description": "Desliza cualquier reciente o contacto para llamar en el momento en que lo piensas."
+      },
+      "callbacks": {
+        "title": "Devoluciones y reuniones",
+        "description": "Tus devoluciones de llamada, reuniones e historial te acompañan — nunca pierdas un seguimiento."
       }
     }
   }

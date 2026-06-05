@@ -14,6 +14,7 @@
       "features": "Entdecken Sie unsere Kernfunktionen und Fähigkeiten.",
       "campaigns": "Preview- und Progressive-Dialer für Outbound-Teams.",
       "findLeads": "Apollo.io und Prospeo.io — Prospecting, eingebaut.",
+      "mobileApp": "Ringee auf iPhone und iPad — der native Dialer.",
       "integrations": "Attio, Odoo — und mehr auf dem Weg.",
       "comparison": "Sehen Sie, wie wir uns gegen den Wettbewerb vergleichen.",
       "pricing": "Flexible Preise für Teams jeder Größe.",
@@ -24,6 +25,7 @@
       "features": "Funktionen",
       "campaigns": "Kampagnen",
       "findLeads": "Leads finden & anreichern",
+      "mobileApp": "Mobile App",
       "integrations": "CRM-Integrationen",
       "comparison": "Vergleich",
       "pricing": "Preise",
@@ -671,6 +673,42 @@
         "call": "Anrufen",
         "outcome": "Ergebnis protokollieren",
         "followup": "Rückruf / Meeting"
+      }
+    }
+  },
+  "mobileApp": {
+    "kicker": "iOS-App",
+    "title": "Ringee in deiner Tasche",
+    "subtitle": "Der komplette Ringee-Dialer — Anrufe, Kontakte, Rückrufe und Aufnahmen — nativ auf iPhone und iPad. Mach genau da weiter, wo du am Schreibtisch aufgehört hast.",
+    "badge": {
+      "downloadOn": "Laden im",
+      "appStore": "App Store"
+    },
+    "rating": "Beliebt im App Store",
+    "available": "Verfügbar für iPhone und iPad",
+    "devices": {
+      "iphone": "iPhone",
+      "ipad": "iPad"
+    },
+    "screens": {
+      "0": "Behalte mit der nativen Tastatur jeden Anruf im Blick",
+      "1": "Wische über einen Kontakt, um sofort anzurufen",
+      "2": "Speichere die Nummern, die zählen",
+      "3": "Jeder Anruf, mit dem Kontext, der zählt",
+      "4": "Verfolge jeden Rückruf, damit nichts verloren geht"
+    },
+    "features": {
+      "nativeDialer": {
+        "title": "Nativer Dialer",
+        "description": "Volle Tastatur, letzte Anrufe und Kontakte — gemacht zum Telefonieren mit einer Hand unterwegs."
+      },
+      "swipeToCall": {
+        "title": "Wischen zum Anrufen",
+        "description": "Wische über einen letzten Anruf oder Kontakt, um sofort anzurufen, sobald du daran denkst."
+      },
+      "callbacks": {
+        "title": "Rückrufe & Meetings",
+        "description": "Deine Rückrufe, Meetings und dein Verlauf reisen mit — verpasse nie ein Follow-up."
       }
     }
   }
