@@ -115,7 +115,7 @@ export class McpChatgptController {
 
     // After the guard the object is a SignedIn session OR an authenticated
     // OAuth machine object — both expose `userId` (the Clerk user id).
-    const user = await this.userService.getByClerkId(auth.userId);
+    const user = await this.userService.getCachedByClerkId(auth.userId);
     if (!user) {
       return null;
     }

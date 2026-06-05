@@ -256,7 +256,7 @@ export class WhatsappController {
 
     const { u } = this.cryptoService.decrypt(hash);
 
-    const user = await this.userService.getUserById(u);
+    const user = await this.userService.getCachedUserById(u);
 
     if (!user) {
       return null;

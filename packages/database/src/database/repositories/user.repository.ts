@@ -176,7 +176,7 @@ export class UserRepository {
     });
   }
 
-  async deleteByClerkId(clerkId: string): Promise<void> {
+  async deleteByClerkId(clerkId: string): Promise<User> {
     const user = await this.findByClerkId(clerkId);
 
     if (!user) {
@@ -188,6 +188,8 @@ export class UserRepository {
     await this.prisma.user.delete({
       where: { clerkId },
     });
+
+    return user;
   }
 
   async bulkSync(users: ClerkUser[]): Promise<User[]> {

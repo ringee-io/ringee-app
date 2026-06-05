@@ -7,7 +7,12 @@ import {
   Call,
   RecordingRepository,
 } from "@ringee/database";
-import { NotificationService, WorkerService, OwnershipContext } from "@ringee/platform";
+import {
+  NotificationService,
+  WorkerService,
+  OwnershipContext,
+  TelephonyService,
+} from "@ringee/platform";
 import type {
   TelnyxWebhookEvent,
   CallTranscriptionPayload,
@@ -53,7 +58,48 @@ export class CallService {
     private readonly recordingRepository: RecordingRepository,
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
     private readonly callSessionRepository: CallSessionRepository,
+    private readonly telephonyService: TelephonyService,
   ) { }
+
+  /**
+   * Decide whether `ctx`'s owner may place/continue a call. An active free
+   * trial is always enough; otherwise a positive credit balance (user or
+   * organization, resolved from the context) is required. When neither holds
+   * the live call is hung up and `false` is returned so the caller stops
+   * processing the event.
+   *
+   * The user is read through {@link UserService.getCachedUserById} so this hot
+   * webhook path avoids a DB round-trip; the cache is invalidated whenever the
+   * free trial is consumed.
+   */
+  private async ensureCallAffordable(
+    ctx: OwnershipContext,
+    callControlId: string,
+  ): Promise<boolean> {
+    const user = await this.userService.getCachedUserById(ctx.userId);
+    if (user?.freeCallTrial) {
+      return true;
+    }
+
+    const balance = await this.creditService.getBalance(ctx);
+    if (balance > 0) {
+      return true;
+    }
+
+    this.logger.warn(
+      `⛔ Hanging up call ${callControlId}: no credit and no free trial ` +
+        `(userId=${ctx.userId} orgId=${ctx.organizationId})`,
+    );
+    await this.telephonyService
+      .hangupCall(callControlId)
+      .catch((err) =>
+        this.logger.error(
+          `Failed to hang up call ${callControlId}: ${err.message}`,
+          err.stack,
+        ),
+      );
+    return false;
+  }
 
   /**
    * Extract a custom header value from a Telnyx call.initiated payload.
@@ -174,7 +220,7 @@ export class CallService {
             return;
           }
 
-          const user = await this.userService.getUserById(number.userId!);
+          const user = await this.userService.getCachedUserById(number.userId!);
 
           if (!user) {
             this.logger.warn(
@@ -281,7 +327,7 @@ export class CallService {
           const organizationId = await this.getOrganizationIdFromHeaders(
             payload.custom_headers,
           );
-          const user = await this.userService.getByClerkId(userId);
+          const user = await this.userService.getCachedByClerkId(userId);
 
           if (!user) {
             this.logger.warn(`⚠️ User ${userId} not found`);
@@ -292,6 +338,13 @@ export class CallService {
             userId: user.id,
             organizationId: organizationId,
           };
+        }
+
+        // Credit/free-trial gate: an owner with no active free trial and no
+        // remaining credit cannot place calls — hang up before the call
+        // connects so no billable minutes are consumed.
+        if (!(await this.ensureCallAffordable(outboundCtx, callControlId))) {
+          return;
         }
 
         const contact = await this.contactService.findByPhone(
@@ -502,7 +555,7 @@ export class CallService {
             return;
           }
 
-          const user = await this.userService.getUserById(call.userId!);
+          const user = await this.userService.getCachedUserById(call.userId!);
 
           if (!user) {
             this.logger.warn(`⚠️ Usuario ${call.userId} no encontrado`);
@@ -520,6 +573,8 @@ export class CallService {
           };
 
           if (user.freeCallTrial) {
+            // consumeFreeCallTrial invalidates the cached user, so the next
+            // call re-validates against real credit instead of a stale trial.
             await this.userService.consumeFreeCallTrial(user.id);
           } else {
             await this.creditService.consumeCredits(callCtx, totalCost);

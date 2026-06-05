@@ -158,8 +158,8 @@ export class McpController {
       throw new HttpException("Invalid MCP url", 400);
     }
 
-    const user = await this.userService.getUserById(id);
-    
+    const user = await this.userService.getCachedUserById(id);
+
     if (user) {
       return { userId: user.id, organizationId: null };
     }
@@ -201,7 +201,7 @@ export class McpController {
     }
 
     const [user, org] = await Promise.all([
-      this.userService.getUserById(userId),
+      this.userService.getCachedUserById(userId),
       this.organizationService.getOrganizationById(organizationId),
     ]);
 

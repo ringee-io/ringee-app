@@ -33,7 +33,7 @@ export class DashboardController {
       return null;
 
     if (memberId.startsWith("user_")) {
-      const user = await this.userService.getByClerkId(memberId);
+      const user = await this.userService.getCachedByClerkId(memberId);
       return user?.id ?? null;
     }
     return memberId;

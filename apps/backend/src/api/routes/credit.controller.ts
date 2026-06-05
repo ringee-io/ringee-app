@@ -27,7 +27,7 @@ export class CreditController {
 
   @Get("balance")
   async getBalance(@CurrentUser() user: CurrentUserData) {
-    const dbUser = await this.userService.getUserById(user.id);
+    const dbUser = await this.userService.getCachedUserById(user.id);
 
     if (!dbUser?.id) {
       throw new NotFoundException("User not found");

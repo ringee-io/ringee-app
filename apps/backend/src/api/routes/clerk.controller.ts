@@ -3,7 +3,7 @@ import type { Request as ExpressRequest, Response } from "express";
 import { verifyWebhook, type WebhookEvent } from "@clerk/backend/webhooks";
 import { ClerkUserRepository, ClerkOrganizationRepository, Public } from "@ringee/platform";
 import { UserRepository, OrganizationRepository } from "@ringee/database";
-import { SubscriptionService } from "@ringee/services";
+import { SubscriptionService, UserService } from "@ringee/services";
 import { apiConfiguration } from "@ringee/configuration";
 import { TriggerLoopEventPublisher } from "../../triggerloop/services/triggerloop-event-publisher.service";
 
@@ -14,6 +14,7 @@ export class ClerkController {
     private readonly userRepository: UserRepository,
     private readonly organizationRepository: OrganizationRepository,
     private readonly subscriptionService: SubscriptionService,
+    private readonly userService: UserService,
     private readonly triggerLoop: TriggerLoopEventPublisher,
   ) { }
 
@@ -60,6 +61,7 @@ export class ClerkController {
             clientIp: ip,
             userAgent: userAgent,
           });
+          await this.userService.invalidateUserCache(user);
 
           await ClerkUserRepository.updateMetadata(userId, {
             privateMetadata: {
@@ -84,6 +86,7 @@ export class ClerkController {
             clientIp: ip,
             userAgent: userAgent,
           });
+          await this.userService.invalidateUserCache(user);
 
           const primary = clerkUser.emailAddresses?.find(
             (e) => e.id === clerkUser.primaryEmailAddressId,
@@ -96,7 +99,8 @@ export class ClerkController {
 
         case "user.deleted": {
           const userId = (evt.data as any).id;
-          await this.userRepository.deleteByClerkId(userId);
+          const deleted = await this.userRepository.deleteByClerkId(userId);
+          await this.userService.invalidateUserCache(deleted);
           break;
         }
 
@@ -145,10 +149,14 @@ export class ClerkController {
             const clerkUser = await ClerkUserRepository.findById(
               membership.public_user_data.user_id
             );
-            await this.userRepository.syncFromClerkUser(clerkUser, {
-              clientIp: ip,
-              userAgent: userAgent,
-            });
+            const syncedMember = await this.userRepository.syncFromClerkUser(
+              clerkUser,
+              {
+                clientIp: ip,
+                userAgent: userAgent,
+              },
+            );
+            await this.userService.invalidateUserCache(syncedMember);
           } catch (error) {
             // Usuario aún no existe (invitación pendiente), continuar sin error
             console.log(`User ${membership.public_user_data.user_id} not found in Clerk - pending invitation`);
