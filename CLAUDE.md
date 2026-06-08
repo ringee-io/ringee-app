@@ -14,8 +14,6 @@ pnpm workspaces monorepo (`pnpm@10.16.1`). Two workspace roots: `apps/*` and `pa
 - `apps/backend` — NestJS REST API (port 3000), global prefix `/api`, Clerk auth guard
 - `apps/worker` — NestJS background job processor (shares same packages)
 - `apps/frontend` — Next.js 15 B2B admin dashboard (port 4200, React 19, App Router)
-- `apps/frontend-b2c` — Next.js 15 B2C consumer app (port 4201)
-- `apps/twa` — Android Trusted Web App (Gradle)
 
 **Packages (shared libraries):**
 - `@ringee/database` — Prisma ORM client, schema, migrations (`packages/database/prisma/schema.prisma`)
@@ -45,7 +43,6 @@ pnpm dev
 # Individual app dev
 pnpm dev:backend          # NestJS watch mode with .env from root
 pnpm dev:frontend         # Next.js on :4200
-pnpm dev:frontend-b2c     # Next.js on :4201
 pnpm dev:worker           # Worker watch mode
 
 # Build

@@ -67,7 +67,7 @@ Full documentation: **https://docs.ringee.io**
 ## Tech Stack
 
 - **Monorepo:** pnpm workspaces  
-- **Frontend:** Next.js (React) — B2B admin + B2C consumer apps  
+- **Frontend:** Next.js (React) — B2B admin app  
 - **Backend:** NestJS (REST & Webhooks)  
 - **Worker:** NestJS background job processor  
 - **Database:** PostgreSQL + Prisma ORM  
@@ -96,7 +96,6 @@ docker-compose -f docker-compose.app.yml up --build -d
 
 Open:
 - Admin → http://localhost:4200  
-- Consumer → http://localhost:4201  
 
 ---
 

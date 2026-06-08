@@ -16,7 +16,6 @@
     "dev:backend": "rm -rf apps/backend/dist && pnpm --filter ./apps/backend run dev",
     "dev:worker": "rm -rf apps/worker/dist && pnpm --filter ./apps/worker run dev",
     "dev:attio": "rm -rf apps/attio/dist && pnpm --filter ./apps/attio run dev",
-    "dev:frontend-b2c": "rm -rf apps/frontend-b2c/.next && pnpm --filter ./apps/frontend-b2c run dev",
     "dev:agent-cli": "pnpm --filter ringee run dev",
     "dev:chatgpt-app": "rm -rf apps/chatgpt-app/.next && pnpm --filter ./apps/chatgpt-app run dev",
     "chatgpt-app:mcp": "pnpm --filter ./apps/chatgpt-app run mcp",

@@ -8,34 +8,6 @@ import { motion } from 'framer-motion';
 import { ArrowUpRight } from 'lucide-react';
 import Link from 'next/link';
 
-export const GooglePlayButton = () => (
-  <Tooltip>
-    <TooltipTrigger asChild>
-      <motion.a
-        href='https://play.google.com/store/apps/details?id=io.ringee.twa'
-        target='_blank'
-        rel='noopener noreferrer'
-        whileHover={{ scale: 1.04 }}
-        whileTap={{ scale: 0.98 }}
-        className={cn(
-          'relative flex h-12 items-center justify-center overflow-hidden',
-          'shadow-[0_0_20px_-5px_rgba(16,159,220,0.25)] transition-all duration-300 hover:shadow-[0_0_40px_-10px_rgba(16,159,220,0.35)]',
-          'cursor-pointer'
-        )}
-      >
-        <img
-          src='https://play.google.com/intl/en_us/badges/static/images/badges/en_badge_web_generic.png'
-          alt='Get it on Google Play'
-          className='pointer-events-none h-18 w-auto select-none'
-        />
-      </motion.a>
-    </TooltipTrigger>
-    <TooltipContent side='top' className='text-sm font-medium'>
-      Goi to play store 🚀
-    </TooltipContent>
-  </Tooltip>
-);
-
 export const WhatsAppButton = () => (
   <Tooltip>
     <TooltipTrigger asChild>
