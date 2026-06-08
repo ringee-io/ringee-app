@@ -30,7 +30,9 @@ import {
   Disc3 as RecordingPulse,
   Loader2,
   Clock,
-  X
+  X,
+  Captions,
+  CaptionsOff
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { PostCallView } from './post-call.view';
@@ -51,7 +53,13 @@ import { IconKeyboard } from '@tabler/icons-react';
 import { ContactActivities } from './contact-activities';
 import { InCallScript } from './in-call-script';
 import { InCallContactInfo } from './in-call-contact-info';
-import { LiveTranscriptPanel } from '@/features/transcription';
+import {
+  CallSubtitles,
+  LiveTranscriptPanel,
+  TranscriptDialog,
+  TranscribeCallButton,
+  useCallTranscription
+} from '@/features/transcription';
 
 type ActiveCallModalProps = {
   open: boolean;
@@ -113,9 +121,15 @@ export function ActiveCallModal({
   const [dtmfDigits, setDtmfDigits] = useState<string[]>([]);
   const { bookingPanelOpen, setBookingPanelOpen, meetingBooked, setMeetingBooked } =
     useCallStore();
+  const [showSubtitles, setShowSubtitles] = useState(true);
+  const [transcriptDialogOpen, setTranscriptDialogOpen] = useState(false);
   const [activeTab, setActiveTab] = useState<
     'activities' | 'booking' | 'script' | 'contact' | 'transcript'
   >('activities');
+  const { data: transcriptionData } = useCallTranscription(callId, {
+    live: open && !isPostCall,
+    enabled: open && !isPostCall
+  });
 
   useEffect(() => {
     if (bookingPanelOpen) setActiveTab('booking');
@@ -205,6 +219,15 @@ export function ActiveCallModal({
 
   return (
     <Dialog modal={false} open={open} onOpenChange={onClose}>
+      <TranscriptDialog
+        open={transcriptDialogOpen}
+        onOpenChange={setTranscriptDialogOpen}
+        callId={callId}
+      />
+      <CallSubtitles
+        data={transcriptionData}
+        show={open && !isPostCall && showSubtitles}
+      />
       <DialogContent
         onInteractOutside={(e) => e.preventDefault()}
         onEscapeKeyDown={(e) => e.preventDefault()}
@@ -381,6 +404,36 @@ export function ActiveCallModal({
                     {isRecordingLoading ? <Loader2 className='h-5 w-5 md:h-6 md:w-6 animate-spin' /> : isRecording ? <RecordingPulse className='h-5 w-5 md:h-6 md:w-6 animate-pulse' /> : <RecordIcon className='h-5 w-5 md:h-6 md:w-6 text-foreground/80' />}
                   </Button>
                 </TooltipTrigger><TooltipContent>{isRecording ? 'Stop Recording' : 'Record'}</TooltipContent></Tooltip></TooltipProvider>
+
+                {/* Transcribe */}
+                <TranscribeCallButton
+                  callId={callId}
+                  mode='active'
+                  size='sm'
+                  className='h-12 rounded px-3 text-xs md:h-14 md:px-4 md:text-sm'
+                  onView={() => setTranscriptDialogOpen(true)}
+                />
+
+                {/* Subtitles toggle */}
+                <TooltipProvider delayDuration={100}><Tooltip><TooltipTrigger asChild>
+                  <Button
+                    variant='ghost'
+                    size='icon'
+                    onClick={() => setShowSubtitles((prev) => !prev)}
+                    className={cn(
+                      'h-12 w-12 md:h-14 md:w-14 rounded transition-all',
+                      showSubtitles
+                        ? 'bg-primary/10 text-primary hover:bg-primary/20'
+                        : 'hover:bg-muted/50'
+                    )}
+                  >
+                    {showSubtitles ? (
+                      <Captions className='h-5 w-5 md:h-6 md:w-6' />
+                    ) : (
+                      <CaptionsOff className='h-5 w-5 md:h-6 md:w-6 text-foreground/80' />
+                    )}
+                  </Button>
+                </TooltipTrigger><TooltipContent>{showSubtitles ? 'Hide subtitles' : 'Show subtitles'}</TooltipContent></Tooltip></TooltipProvider>
                 
                 {/* Book Meeting (If no right panel) */}
                 {!(contactId || bookingPanelOpen) && (

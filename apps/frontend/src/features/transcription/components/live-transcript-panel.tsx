@@ -28,7 +28,6 @@ export function LiveTranscriptPanel({ callId, className }: Props) {
   );
   const bottomRef = useRef<HTMLDivElement>(null);
 
-  console.log({ data } , "anajaa");
   const realtime = data?.realtime;
   const segments = realtime?.segments ?? [];
   const partial = data?.livePartial;

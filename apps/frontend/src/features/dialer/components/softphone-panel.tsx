@@ -17,11 +17,17 @@ import {
   Circle,
   SkipForward,
   Grid3X3,
-  X
+  X,
+  Captions,
+  CaptionsOff
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
+  CallSubtitles,
   LiveTranscriptPanel,
+  TranscriptDialog,
+  TranscribeCallButton,
+  useCallTranscription,
   useCallIdBySession
 } from '@/features/transcription';
 
@@ -64,6 +70,8 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
   } = useDialerCall();
 
   const [showDTMF, setShowDTMF] = useState(false);
+  const [showSubtitles, setShowSubtitles] = useState(true);
+  const [transcriptDialogOpen, setTranscriptDialogOpen] = useState(false);
   const [localTimer, setLocalTimer] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -99,16 +107,20 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
 
   const displayDuration = callDuration > 0 ? callDuration : localTimer;
 
+  const isInCall =
+    isConnected || callStatus === 'answered' || callStatus === 'in_call';
+  const isDialing =
+    isDialingWebRTC || callStatus === 'dialing' || callStatus === 'ringing';
+
   // Resolve the Ringee callId from the Telnyx session for the Live Transcript.
   const telnyxSessionId = (activeCall as any)?.telnyxIDs?.telnyxSessionId as
     | string
     | undefined;
   const transcriptionCallId = useCallIdBySession(telnyxSessionId);
-
-  const isInCall =
-    isConnected || callStatus === 'answered' || callStatus === 'in_call';
-  const isDialing =
-    isDialingWebRTC || callStatus === 'dialing' || callStatus === 'ringing';
+  const { data: transcriptionData } = useCallTranscription(transcriptionCallId, {
+    live: isInCall,
+    enabled: isInCall
+  });
 
   // Attach the remote audio stream
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -185,6 +197,12 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
   return (
     <div className='flex flex-col items-center justify-center gap-6 p-8'>
       {remoteAudio}
+      <TranscriptDialog
+        open={transcriptDialogOpen}
+        onOpenChange={setTranscriptDialogOpen}
+        callId={transcriptionCallId}
+      />
+      <CallSubtitles data={transcriptionData} show={isInCall && showSubtitles} />
 
       {/* Call duration / status */}
       <div className='text-center'>
@@ -282,6 +300,28 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
 
             {/* Voicemail drop is not implemented yet — hidden until the
                 backend supports playbackStart. */}
+          </div>
+
+          <div className='flex flex-wrap items-center justify-center gap-2'>
+            <TranscribeCallButton
+              callId={transcriptionCallId}
+              mode='active'
+              className='h-10 rounded-full px-4'
+              onView={() => setTranscriptDialogOpen(true)}
+            />
+            <Button
+              variant={showSubtitles ? 'secondary' : 'outline'}
+              size='icon'
+              className='h-10 w-10 rounded-full'
+              onClick={() => setShowSubtitles((prev) => !prev)}
+              title={showSubtitles ? 'Hide subtitles' : 'Show subtitles'}
+            >
+              {showSubtitles ? (
+                <Captions className='h-4 w-4' />
+              ) : (
+                <CaptionsOff className='h-4 w-4' />
+              )}
+            </Button>
           </div>
 
           {/* Hangup button */}

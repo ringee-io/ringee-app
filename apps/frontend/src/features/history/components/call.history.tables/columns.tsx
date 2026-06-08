@@ -24,6 +24,7 @@ import {
 import { useQuickDialerCall } from '@/features/calls/hooks/use.quick.dialer.call';
 import { RecordingPlayButton } from '@/features/recordings/components/recordings.tables/recording-play-button';
 import { useTranslations } from 'next-intl';
+import { CallTranscriptionActions } from '@/features/transcription';
 
 type RecordingData = {
   id: string;
@@ -296,5 +297,13 @@ export const columns: ColumnDef<Call>[] = [
         </div>
       );
     }
+  },
+  {
+    id: 'transcript',
+    header: () => {
+      const t = useTranslations('calls.history.table');
+      return <>{t('transcript')}</>;
+    },
+    cell: ({ row }) => <CallTranscriptionActions callId={row.original.id} />
   }
 ];
