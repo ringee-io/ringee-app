@@ -66,7 +66,7 @@ export class DeepgramService {
     });
 
     try {
-      const { data } = await axios.post(
+      const { data, headers } = await axios.post(
         `${DEEPGRAM_REST_URL}?${params.toString()}`,
         { url },
         {
@@ -79,7 +79,10 @@ export class DeepgramService {
         },
       );
 
-      return this.normalizePrerecorded(data);
+      return this.normalizePrerecorded(
+        data,
+        headers as Record<string, string | string[] | undefined>,
+      );
     } catch (error: any) {
       const detail =
         error?.response?.data?.err_msg ||
@@ -91,7 +94,60 @@ export class DeepgramService {
     }
   }
 
-  private normalizePrerecorded(data: any): PrerecordedResult {
+  private parseCostCandidate(value: unknown): number | null {
+    if (typeof value === "number") {
+      return Number.isFinite(value) && value >= 0 ? value : null;
+    }
+    if (typeof value === "string") {
+      const n = Number.parseFloat(value);
+      return Number.isFinite(n) && n >= 0 ? n : null;
+    }
+    return null;
+  }
+
+  private extractPrerecordedCostUsd(
+    data: any,
+    headers: Record<string, string | string[] | undefined>,
+  ): number | null {
+    const headerCandidates = [
+      "dg-request-cost",
+      "x-dg-request-cost",
+      "deepgram-request-cost",
+      "request-cost",
+      "x-request-cost",
+    ];
+
+    for (const key of headerCandidates) {
+      const raw = headers[key];
+      const headerValue = Array.isArray(raw) ? raw[0] : raw;
+      const parsed = this.parseCostCandidate(headerValue);
+      if (parsed !== null) return parsed;
+    }
+
+    const payloadCandidates = [
+      data?.metadata?.summary?.total_cost,
+      data?.metadata?.summary?.request_cost,
+      data?.metadata?.request_cost,
+      data?.metadata?.cost,
+      data?.summary?.total_cost,
+      data?.summary?.request_cost,
+      data?.request_cost,
+      data?.total_cost,
+      data?.cost,
+    ];
+
+    for (const candidate of payloadCandidates) {
+      const parsed = this.parseCostCandidate(candidate);
+      if (parsed !== null) return parsed;
+    }
+
+    return null;
+  }
+
+  private normalizePrerecorded(
+    data: any,
+    headers: Record<string, string | string[] | undefined>,
+  ): PrerecordedResult {
     const channel = data?.results?.channels?.[0];
     const alt = channel?.alternatives?.[0];
     const utterances = data?.results?.utterances as any[] | undefined;
@@ -128,12 +184,14 @@ export class DeepgramService {
         .map((s) => s.text)
         .filter(Boolean)
         .join(" ");
+    const costUsd = this.extractPrerecordedCostUsd(data, headers);
 
     return {
       text,
       confidence: typeof alt?.confidence === "number" ? alt.confidence : null,
       language,
       durationMs,
+      costUsd,
       segments: segments.filter((s) => s.text.length > 0),
       raw: data,
     };

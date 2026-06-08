@@ -24,6 +24,7 @@ import {
   WorkerService,
 } from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
+import { CreditService } from "../credit.service";
 import {
   CallTranscriptionView,
   TranscriptionView,
@@ -42,6 +43,7 @@ export class TranscriptionService {
     private readonly deepgramService: DeepgramService,
     private readonly workerService: WorkerService,
     private readonly redisService: RedisService,
+    private readonly creditService: CreditService,
   ) {}
 
   // ── Access control ────────────────────────────────────────────────────
@@ -73,6 +75,104 @@ export class TranscriptionService {
 
   private ctxFromCall(call: Call): OwnershipContext {
     return { userId: call.userId!, organizationId: call.organizationId };
+  }
+
+  private getTranscriptionCreditsPerMinute(): number {
+    const unitCost = Math.max(
+      Number(apiConfiguration.TRANSCRIPTION_CREDIT_COST_PER_MINUTE) || 0,
+      0,
+    );
+    const margin = Math.max(
+      Number(apiConfiguration.TRANSCRIPTION_CREDIT_PROFIT_MARGIN) || 1,
+      1,
+    );
+    return unitCost * margin;
+  }
+
+  private getTranscriptionProfitMargin(): number {
+    return Math.max(
+      Number(apiConfiguration.TRANSCRIPTION_CREDIT_PROFIT_MARGIN) || 1,
+      1,
+    );
+  }
+
+  private computeCreditsFromProviderCost(costUsd: number): number {
+    if (!Number.isFinite(costUsd) || costUsd <= 0) return 0;
+    return Number((costUsd * this.getTranscriptionProfitMargin()).toFixed(6));
+  }
+
+  private parseNonNegativeNumber(value: unknown): number | null {
+    if (typeof value === "number") {
+      return Number.isFinite(value) && value >= 0 ? value : null;
+    }
+    if (typeof value === "string") {
+      const n = Number.parseFloat(value);
+      return Number.isFinite(n) && n >= 0 ? n : null;
+    }
+    return null;
+  }
+
+  private resolveDurationSeconds(call: Call): number {
+    if (
+      typeof call.durationSeconds === "number" &&
+      Number.isFinite(call.durationSeconds)
+    ) {
+      return Math.max(call.durationSeconds, 0);
+    }
+
+    if (call.startedAt && call.endedAt) {
+      return Math.max(
+        Math.floor((call.endedAt.getTime() - call.startedAt.getTime()) / 1000),
+        0,
+      );
+    }
+
+    return 0;
+  }
+
+  private computeCreditsForDuration(durationSeconds: number): number {
+    if (durationSeconds <= 0) return 0;
+    const credits = (durationSeconds / 60) * this.getTranscriptionCreditsPerMinute();
+    return Number(credits.toFixed(6));
+  }
+
+  private async assertTranscriptionCredits(
+    call: Call,
+    requiredCredits: number,
+  ): Promise<void> {
+    if (requiredCredits <= 0) return;
+
+    const balance = await this.creditService.getBalance(this.ctxFromCall(call));
+    if (balance < requiredCredits) {
+      throw new BadRequestException(
+        "Insufficient credits to start transcription",
+      );
+    }
+  }
+
+  private toMetadataObject(metadata: unknown): Record<string, unknown> {
+    if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+      return {};
+    }
+    return metadata as Record<string, unknown>;
+  }
+
+  private extractDeepgramCostFromMetadata(
+    metadata: Record<string, unknown>,
+  ): number | null {
+    const candidates: unknown[] = [
+      metadata.deepgramCostUsd,
+      metadata.requestCostUsd,
+      metadata.providerCostUsd,
+      this.toMetadataObject(metadata.deepgram).costUsd,
+    ];
+
+    for (const candidate of candidates) {
+      const parsed = this.parseNonNegativeNumber(candidate);
+      if (parsed !== null) return parsed;
+    }
+
+    return null;
   }
 
   /**
@@ -125,6 +225,11 @@ export class TranscriptionService {
     if (existing && activeStatuses.includes(existing.status)) {
       return existing;
     }
+
+    const estimatedStartCharge = this.computeCreditsForDuration(
+      Math.max(this.resolveDurationSeconds(call), 60),
+    );
+    await this.assertTranscriptionCredits(call, estimatedStartCharge);
 
     const header = await this.transcriptionRepo.upsertHeader({
       callId: call.id,
@@ -247,6 +352,11 @@ export class TranscriptionService {
       });
     }
 
+    const estimatedCharge = this.computeCreditsForDuration(
+      Math.max(this.resolveDurationSeconds(call), 60),
+    );
+    await this.assertTranscriptionCredits(call, estimatedCharge);
+
     const header = await this.transcriptionRepo.upsertHeader({
       callId: call.id,
       source: TranscriptionSource.recording,
@@ -264,6 +374,57 @@ export class TranscriptionService {
     });
 
     return header;
+  }
+
+  /**
+   * Debit realtime transcription credits once the call ends. Idempotent across
+   * duplicate hangup webhook deliveries.
+   */
+  async chargeRealtimeOnHangup(call: Call): Promise<void> {
+    const header = await this.transcriptionRepo.findHeaderByCallAndSource(
+      call.id,
+      TranscriptionSource.realtime,
+    );
+    if (!header) return;
+
+    if (
+      header.status === TranscriptionStatus.failed ||
+      header.status === TranscriptionStatus.unavailable
+    ) {
+      return;
+    }
+
+    const metadata = this.toMetadataObject(header.metadata);
+    if (metadata.chargedOnHangup === true) {
+      return;
+    }
+
+    const durationSeconds = this.resolveDurationSeconds(call);
+    const deepgramCostUsd = this.extractDeepgramCostFromMetadata(metadata);
+    const chargedCredits =
+      deepgramCostUsd !== null
+        ? this.computeCreditsFromProviderCost(deepgramCostUsd)
+        : this.computeCreditsForDuration(durationSeconds);
+    const chargeBasis =
+      deepgramCostUsd !== null ? "deepgram_cost" : "duration_fallback";
+
+    if (chargedCredits > 0) {
+      await this.assertTranscriptionCredits(call, chargedCredits);
+      await this.creditService.consumeCredits(this.ctxFromCall(call), chargedCredits);
+    }
+
+    await this.transcriptionRepo.updateHeader(header.id, {
+      metadata: {
+        ...metadata,
+        chargedOnHangup: true,
+        chargedCredits,
+        chargeBasis,
+        deepgramCostUsd,
+        chargedAt: new Date().toISOString(),
+        durationSeconds,
+        creditsPerMinute: this.getTranscriptionCreditsPerMinute(),
+      },
+    });
   }
 
   /**
@@ -299,6 +460,28 @@ export class TranscriptionService {
       );
 
       const result = await this.deepgramService.transcribeUrl(recordingUrl);
+      const deepgramCostUsd = this.parseNonNegativeNumber(result.costUsd);
+      const durationSeconds = Math.max((result.durationMs ?? 0) / 1000, 0);
+      const chargedCredits =
+        deepgramCostUsd !== null
+          ? this.computeCreditsFromProviderCost(deepgramCostUsd)
+          : this.computeCreditsForDuration(durationSeconds);
+
+      if (chargedCredits > 0 && header.userId) {
+        await this.creditService.consumeCredits(
+          {
+            userId: header.userId,
+            organizationId: header.organizationId,
+          },
+          chargedCredits,
+        );
+      }
+
+      if (chargedCredits > 0 && !header.userId) {
+        this.logger.warn(
+          `Skipping transcription credit debit for ${callId}: header has no userId`,
+        );
+      }
 
       await this.transcriptionRepo.completeWithSegments(header.id, callId, {
         text: result.text,
@@ -306,6 +489,15 @@ export class TranscriptionService {
         confidence: result.confidence,
         durationMs: result.durationMs,
         model: apiConfiguration.DEEPGRAM_MODEL,
+        metadata: {
+          deepgramCostUsd,
+          chargedCredits,
+          chargeBasis:
+            deepgramCostUsd !== null ? "deepgram_cost" : "duration_fallback",
+          transcriptionProfitMargin: this.getTranscriptionProfitMargin(),
+          chargedAt: new Date().toISOString(),
+          deepgramRaw: result.raw ?? null,
+        },
         segments: result.segments,
       });
 

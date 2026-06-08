@@ -21,6 +21,8 @@ export interface PrerecordedResult {
   confidence?: number | null;
   language?: string | null;
   durationMs?: number | null;
+  /** Provider-reported request cost in USD, when available. */
+  costUsd?: number | null;
   segments: TranscriptSegment[];
   /** Raw provider payload, persisted in metadata for debugging/audit. */
   raw?: unknown;

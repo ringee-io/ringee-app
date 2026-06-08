@@ -521,6 +521,13 @@ export class CallService {
           // Stop live transcription; recording-based auto transcription is
           // triggered later when the recordingUrl is available.
           await this.applyHangupAutomation(hangupCall);
+          await this.transcriptionOrchestrator
+            .chargeRealtimeOnHangup(hangupCall)
+            .catch((err: Error) =>
+              this.logger.warn(
+                `realtime transcription charge on hangup failed for call ${hangupCall.id}: ${err.message}`,
+              ),
+            );
         }
         if (hangupCall) {
           void this.crmCallLogService.handleCallCompleted(hangupCall);
