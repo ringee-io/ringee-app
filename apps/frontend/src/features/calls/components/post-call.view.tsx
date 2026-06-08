@@ -8,6 +8,7 @@ import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
+import { TranscribeCallButton } from '@/features/transcription';
 import {
   CalendarCheck,
   ThumbsUp,
@@ -294,6 +295,13 @@ export function PostCallView({ onClose }: PostCallViewProps) {
           onScheduled={handleCallbackScheduled}
           onCancel={() => setShowCallback(false)}
         />
+      )}
+
+      {/* Transcription */}
+      {callId && (
+        <div className='flex justify-start'>
+          <TranscribeCallButton callId={callId} mode='history' />
+        </div>
       )}
 
       {/* Note */}

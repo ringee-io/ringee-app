@@ -11,11 +11,19 @@ import {
 import { CreateNoteModal } from '@/features/contact/components/create.note.modal';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle
+} from '@ringee/frontend-shared/components/ui/dialog';
+import { FinalTranscript } from '@/features/transcription';
+import {
   IconEdit,
   IconDotsVertical,
   IconTrash,
   IconPhoneCall,
-  IconPlus
+  IconPlus,
+  IconFileText
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -45,7 +53,10 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const api = useApi();
   const router = useRouter();
   const [noteModalOpen, setNoteModalOpen] = useState(false);
+  const [transcriptOpen, setTranscriptOpen] = useState(false);
   const { handleRecall } = useQuickDialerCall();
+
+  const latestCallId = data.calls?.[0]?.id ?? null;
 
   const onConfirm = async () => {
     try {
@@ -78,6 +89,17 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         onConfirm={onConfirm}
         loading={loading}
       />
+
+      <Dialog open={transcriptOpen} onOpenChange={setTranscriptOpen}>
+        <DialogContent className='max-w-2xl'>
+          <DialogHeader>
+            <DialogTitle className='sr-only'>Transcript</DialogTitle>
+          </DialogHeader>
+          <div className='max-h-[70vh] overflow-y-auto'>
+            <FinalTranscript callId={latestCallId} />
+          </div>
+        </DialogContent>
+      </Dialog>
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button variant='ghost' className='h-8 w-8 p-0'>
@@ -97,6 +119,12 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           <DropdownMenuItem onClick={() => setNoteModalOpen(true)}>
             <IconPlus className='mr-2 h-4 w-4' /> Add Note
           </DropdownMenuItem>
+
+          {latestCallId && (
+            <DropdownMenuItem onClick={() => setTranscriptOpen(true)}>
+              <IconFileText className='mr-2 h-4 w-4' /> Transcript
+            </DropdownMenuItem>
+          )}
 
           <DropdownMenuItem
             onClick={() => router.push(`/dashboard/contact/${data.id}`)}

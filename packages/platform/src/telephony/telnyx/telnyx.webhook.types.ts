@@ -9,7 +9,10 @@ export type TelnyxEventType =
   | "call.recording.saved"
   | "call.recording.error"
   | "call.transcription"
-  | "call.cost";
+  | "call.cost"
+  | "streaming.started"
+  | "streaming.stopped"
+  | "streaming.failed";
 
 // ======================================================
 // ✅ BASE PAYLOAD
@@ -97,6 +100,12 @@ export interface CallCostPayload extends TelnyxBasePayload {
   status: "success";
   total_cost: string;
 }
+
+export interface StreamingPayload extends TelnyxBasePayload {
+  stream_id?: string;
+  /** Present on streaming.failed — why Telnyx could not stream the media. */
+  failure_reason?: string;
+}
 // ======================================================
 // ✅ ENVELOPE GENERAL
 // ======================================================
@@ -135,6 +144,15 @@ export type TelnyxWebhookEvent =
     })
   | (TelnyxWebhookEnvelope<CallCostPayload> & {
       event_type: "call.cost";
+    })
+  | (TelnyxWebhookEnvelope<StreamingPayload> & {
+      event_type: "streaming.started";
+    })
+  | (TelnyxWebhookEnvelope<StreamingPayload> & {
+      event_type: "streaming.stopped";
+    })
+  | (TelnyxWebhookEnvelope<StreamingPayload> & {
+      event_type: "streaming.failed";
     });
 // ======================================================
 // ✅ HELPER TYPE (Opcional)

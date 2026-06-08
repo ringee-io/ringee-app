@@ -111,6 +111,22 @@ export class TelephonyService implements TelephonyServiceInterface {
     return this.getServiceProvider().stopRecording(callControlId);
   }
 
+  startStreaming(
+    callControlId: string,
+    streamUrl: string,
+    track?: "both_tracks" | "inbound_track" | "outbound_track",
+  ): Promise<void> {
+    return this.getServiceProvider().startStreaming(
+      callControlId,
+      streamUrl,
+      track,
+    );
+  }
+
+  stopStreaming(callControlId: string): Promise<void> {
+    return this.getServiceProvider().stopStreaming(callControlId);
+  }
+
   downloadRecording(url: string): Promise<ArrayBuffer> {
     return this.getServiceProvider().downloadRecording(url);
   }

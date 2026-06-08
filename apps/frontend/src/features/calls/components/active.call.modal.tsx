@@ -51,6 +51,7 @@ import { IconKeyboard } from '@tabler/icons-react';
 import { ContactActivities } from './contact-activities';
 import { InCallScript } from './in-call-script';
 import { InCallContactInfo } from './in-call-contact-info';
+import { LiveTranscriptPanel } from '@/features/transcription';
 
 type ActiveCallModalProps = {
   open: boolean;
@@ -113,7 +114,7 @@ export function ActiveCallModal({
   const { bookingPanelOpen, setBookingPanelOpen, meetingBooked, setMeetingBooked } =
     useCallStore();
   const [activeTab, setActiveTab] = useState<
-    'activities' | 'booking' | 'script' | 'contact'
+    'activities' | 'booking' | 'script' | 'contact' | 'transcript'
   >('activities');
 
   useEffect(() => {
@@ -435,6 +436,12 @@ export function ActiveCallModal({
                         Guion
                       </TabsTrigger>
                       <TabsTrigger
+                        value='transcript'
+                        className='rounded-xl border border-transparent data-[state=active]:border-border/30 data-[state=active]:bg-foreground/5 shadow-none bg-transparent px-3 py-1.5 text-xs md:text-sm font-normal text-muted-foreground data-[state=active]:text-foreground transition-all'
+                      >
+                        Transcript
+                      </TabsTrigger>
+                      <TabsTrigger
                         value='booking'
                         className='rounded-xl border border-transparent data-[state=active]:border-border/30 data-[state=active]:bg-foreground/5 shadow-none bg-transparent px-3 py-1.5 text-xs md:text-sm font-normal text-muted-foreground data-[state=active]:text-foreground transition-all'
                       >
@@ -465,6 +472,9 @@ export function ActiveCallModal({
                     </TabsContent>
                     <TabsContent value='script' className='m-0 h-full flex-1 data-[state=inactive]:hidden focus:outline-none'>
                       <InCallScript />
+                    </TabsContent>
+                    <TabsContent value='transcript' className='m-0 h-full flex-1 data-[state=inactive]:hidden focus:outline-none p-4 md:p-6 overflow-y-auto'>
+                      <LiveTranscriptPanel callId={callId} />
                     </TabsContent>
                     <TabsContent value='booking' className='m-0 h-full flex-1 data-[state=inactive]:hidden focus:outline-none p-4 md:p-6 overflow-y-auto'>
                       <BookMeetingForm

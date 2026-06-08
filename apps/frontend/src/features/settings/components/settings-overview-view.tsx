@@ -11,6 +11,7 @@ import { ScriptEditor } from './script-editor';
 import { LanguageSelector } from '@/components/i18n/language-selector';
 import { ThemeSelector } from '@ringee/frontend-shared/components/theme-selector';
 import { ModeToggle } from '@/components/layout/ThemeToggle/theme-toggle';
+import { RecordingSettingsCard } from '@/features/transcription';
 
 export function SettingsOverviewView() {
   const t = useTranslations('settings');
@@ -19,12 +20,19 @@ export function SettingsOverviewView() {
     <Tabs defaultValue='script' className='w-full'>
       <TabsList>
         <TabsTrigger value='script'>{t('tabs.script')}</TabsTrigger>
+        <TabsTrigger value='recording'>{t('tabs.recording')}</TabsTrigger>
         <TabsTrigger value='language'>{t('tabs.language')}</TabsTrigger>
         <TabsTrigger value='appearance'>{t('tabs.appearance')}</TabsTrigger>
       </TabsList>
 
       <TabsContent value='script' className='mt-6'>
         <ScriptEditor />
+      </TabsContent>
+
+      <TabsContent value='recording' className='mt-6'>
+        <div className='max-w-2xl'>
+          <RecordingSettingsCard />
+        </div>
       </TabsContent>
 
       <TabsContent value='language' className='mt-6'>

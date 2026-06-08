@@ -80,7 +80,8 @@
     "notifications": "Notifications",
     "security": "Security",
     "appearance": "Appearance",
-    "script": "Script"
+    "script": "Script",
+    "recording": "Recording"
   },
   "overview": {
     "title": "Overview",

@@ -20,6 +20,10 @@ import {
   X
 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  LiveTranscriptPanel,
+  useCallIdBySession
+} from '@/features/transcription';
 
 function formatDuration(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -94,6 +98,12 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
   }, [isConnected, isDialingWebRTC]);
 
   const displayDuration = callDuration > 0 ? callDuration : localTimer;
+
+  // Resolve the Ringee callId from the Telnyx session for the Live Transcript.
+  const telnyxSessionId = (activeCall as any)?.telnyxIDs?.telnyxSessionId as
+    | string
+    | undefined;
+  const transcriptionCallId = useCallIdBySession(telnyxSessionId);
 
   const isInCall =
     isConnected || callStatus === 'answered' || callStatus === 'in_call';
@@ -312,6 +322,14 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
             </div>
           )}
         </>
+      )}
+
+      {/* Live Transcript */}
+      {isInCall && transcriptionCallId && (
+        <LiveTranscriptPanel
+          callId={transcriptionCallId}
+          className='w-full max-w-md'
+        />
       )}
     </div>
   );

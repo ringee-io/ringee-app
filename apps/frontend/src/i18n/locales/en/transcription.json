@@ -1,0 +1,45 @@
+{
+  "transcribe": "Transcribe call",
+  "transcribing": "Transcribing…",
+  "viewTranscript": "View transcript",
+  "retranscribe": "Retranscribe from recording",
+  "processing": "Processing transcript…",
+  "unavailable": "Transcript unavailable",
+  "tryAgain": "Try again",
+  "liveTitle": "Live Transcript",
+  "finalTitle": "Final Transcript",
+  "sourceRealtime": "Live",
+  "sourceRecording": "From recording",
+  "waitingForAudio": "Waiting for audio…",
+  "readyToTranscribe": "This call has a recording ready to transcribe.",
+  "speaker": {
+    "you": "You",
+    "contact": "Contact",
+    "unknown": "Speaker"
+  },
+  "status": {
+    "idle": "Idle",
+    "starting": "Starting…",
+    "transcribing": "Transcribing…",
+    "processing": "Processing…",
+    "completed": "Completed",
+    "failed": "Failed",
+    "unavailable": "Unavailable",
+    "stopped": "Stopped"
+  },
+  "errors": {
+    "startFailed": "Couldn't start transcription. Please try again.",
+    "transcribeFailed": "Couldn't transcribe this call. Please try again."
+  },
+  "settings": {
+    "title": "Call Recording & Transcription Settings",
+    "subtitle": "Control how calls are recorded and transcribed for this workspace.",
+    "recordAll": "Record all calls",
+    "recordAllDesc": "Automatically record every call in this context.",
+    "transcribeRealtime": "Transcribe calls in real time",
+    "transcribeRealtimeDesc": "Transcribe active calls live with Deepgram. Does not require recording.",
+    "transcribeRecordings": "Transcribe recordings automatically",
+    "transcribeRecordingsDesc": "Automatically transcribe recorded calls once the recording is available. Requires recording.",
+    "saveError": "Couldn't save settings. You may not have permission to change organization settings."
+  }
+}
