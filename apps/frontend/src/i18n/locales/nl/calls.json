@@ -50,7 +50,17 @@
       "unknown": "Onbekend",
       "callAgain": "Opnieuw bellen",
       "noRecording": "Geen opname",
-      "downloadRecording": "Opname downloaden"
+      "downloadRecording": "Opname downloaden",
+      "transcript": "Transcriptie"
+    },
+    "rowActions": {
+      "menu": "Acties",
+      "openMenu": "Menu openen",
+      "call": "Bellen",
+      "addNote": "Notitie toevoegen",
+      "transcript": "Transcriptie",
+      "update": "Bijwerken",
+      "delete": "Verwijderen"
     }
   },
   "recordings": {
@@ -73,7 +83,8 @@
       "unavailable": "Niet beschikbaar",
       "play": "Afspelen",
       "playRecording": "Opname afspelen",
-      "downloadRecording": "Opname downloaden"
+      "downloadRecording": "Opname downloaden",
+      "transcript": "Transcriptie"
     },
     "statusBadge": {
       "started": "Bezig",

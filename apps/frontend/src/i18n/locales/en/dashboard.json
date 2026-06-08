@@ -89,25 +89,82 @@
       "Table": "Table widgets"
     },
     "catalog": {
-      "kpi_total_calls": { "title": "Total Calls", "description": "Calls placed in the selected period." },
-      "kpi_answered_calls": { "title": "Answered Calls", "description": "Calls answered by a person." },
-      "kpi_meetings_booked": { "title": "Meetings Booked", "description": "Meetings on the calendar from this period." },
-      "kpi_sales": { "title": "Sales Made", "description": "Calls with outcome \"Sale\"." },
-      "kpi_interested": { "title": "Interested Leads", "description": "Calls with outcome \"Interested\"." },
-      "kpi_follow_ups": { "title": "Follow-ups", "description": "Calls flagged for follow-up." },
-      "kpi_no_answer": { "title": "No Answer", "description": "Calls that went unanswered." },
-      "kpi_voicemail": { "title": "Voicemail", "description": "Calls that hit voicemail." },
-      "kpi_wrong_number": { "title": "Wrong Number", "description": "Calls flagged as wrong number." },
-      "kpi_conversion_rate": { "title": "Conversion Rate", "description": "Sales / answered calls." },
-      "kpi_meeting_rate": { "title": "Meeting Rate", "description": "Meetings booked / answered calls." },
-      "kpi_positive_outcome_rate": { "title": "Positive Outcome Rate", "description": "(Sales + Meetings + Interested) / answered." },
-      "chart_outcome_funnel": { "title": "Outcome Funnel", "description": "Total → Answered → Interested → Meetings → Sales." },
-      "chart_outcomes_over_time": { "title": "Outcomes Over Time", "description": "Stacked outcomes by day/week/month." },
-      "chart_best_time_of_day": { "title": "Best Hours to Call", "description": "Hours that produce the most results." },
-      "chart_calls_by_outcome": { "title": "Calls by Outcome", "description": "Distribution of dispositions." },
-      "table_recent_high_value_calls": { "title": "High-Value Calls", "description": "Recent sales, meetings, interested, follow-ups." },
-      "table_upcoming_meetings": { "title": "Upcoming Meetings & Callbacks", "description": "Scheduled meetings and callbacks, soonest first." },
-      "table_agent_performance": { "title": "Agent Performance", "description": "Per-agent breakdown (org admins only)." }
+      "kpi_total_calls": {
+        "title": "Total Calls",
+        "description": "Calls placed in the selected period."
+      },
+      "kpi_answered_calls": {
+        "title": "Answered Calls",
+        "description": "Calls answered by a person."
+      },
+      "kpi_meetings_booked": {
+        "title": "Meetings Booked",
+        "description": "Meetings on the calendar from this period."
+      },
+      "kpi_sales": {
+        "title": "Sales Made",
+        "description": "Calls with outcome \"Sale\"."
+      },
+      "kpi_interested": {
+        "title": "Interested Leads",
+        "description": "Calls with outcome \"Interested\"."
+      },
+      "kpi_follow_ups": {
+        "title": "Follow-ups",
+        "description": "Calls flagged for follow-up."
+      },
+      "kpi_no_answer": {
+        "title": "No Answer",
+        "description": "Calls that went unanswered."
+      },
+      "kpi_voicemail": {
+        "title": "Voicemail",
+        "description": "Calls that hit voicemail."
+      },
+      "kpi_wrong_number": {
+        "title": "Wrong Number",
+        "description": "Calls flagged as wrong number."
+      },
+      "kpi_conversion_rate": {
+        "title": "Conversion Rate",
+        "description": "Sales / answered calls."
+      },
+      "kpi_meeting_rate": {
+        "title": "Meeting Rate",
+        "description": "Meetings booked / answered calls."
+      },
+      "kpi_positive_outcome_rate": {
+        "title": "Positive Outcome Rate",
+        "description": "(Sales + Meetings + Interested) / answered."
+      },
+      "chart_outcome_funnel": {
+        "title": "Outcome Funnel",
+        "description": "Total → Answered → Interested → Meetings → Sales."
+      },
+      "chart_outcomes_over_time": {
+        "title": "Outcomes Over Time",
+        "description": "Stacked outcomes by day/week/month."
+      },
+      "chart_best_time_of_day": {
+        "title": "Best Hours to Call",
+        "description": "Hours that produce the most results."
+      },
+      "chart_calls_by_outcome": {
+        "title": "Calls by Outcome",
+        "description": "Distribution of dispositions."
+      },
+      "table_recent_high_value_calls": {
+        "title": "High-Value Calls",
+        "description": "Recent sales, meetings, interested, follow-ups."
+      },
+      "table_upcoming_meetings": {
+        "title": "Upcoming Meetings & Callbacks",
+        "description": "Scheduled meetings and callbacks, soonest first."
+      },
+      "table_agent_performance": {
+        "title": "Agent Performance",
+        "description": "Per-agent breakdown (org admins only)."
+      }
     },
     "kpi": {
       "totalCalls": {
@@ -263,6 +320,48 @@
         "trend": "Steady performance increase",
         "subtitle": "Meets growth projections"
       }
+    },
+    "charts": {
+      "answered": "Answered",
+      "missed": "Missed",
+      "error": "Error",
+      "calls": "Calls",
+      "barTitle": "Total Calls per Day",
+      "barDescLong": "Activity over the last 3 months",
+      "barDescShort": "Last 3 months",
+      "areaTitle": "Monthly Call Trends",
+      "areaDesc": "Showing total calls over the last 6 months",
+      "areaTrendUp": "Trending up by {rate}% this month",
+      "areaTrendDown": "Trending down by {rate}% this month",
+      "areaFooter": "Last 6 months overview",
+      "pieTitle": "Call Traffic by Time of Day",
+      "pieDescLong": "Total calls by time of day for the last 6 months",
+      "pieDescShort": "By time of day",
+      "pieTotalCalls": "Total calls",
+      "pieLeads": "{period} leads with {percentage}%",
+      "pieBasedOn": "Based on data from {from} – {to} {year}",
+      "pieNoData": "Not enough data to display",
+      "periods": {
+        "morning": "Morning (06:00–12:00)",
+        "afternoon": "Afternoon (12:00–18:00)",
+        "evening": "Evening (18:00–24:00)",
+        "night": "Night (00:00–06:00)"
+      }
+    },
+    "recentCalls": {
+      "title": "Recent Calls",
+      "subtitle": "Last {count} calls",
+      "callAgain": "Call {number} again",
+      "empty": "No recent calls found.",
+      "route": "From: {from} → To: {to}"
+    },
+    "memberSelector": {
+      "loading": "Loading…",
+      "allMembers": "All Members",
+      "member": "Member",
+      "search": "Search members…",
+      "noMembers": "No members found.",
+      "unknown": "Unknown"
     }
   }
 }

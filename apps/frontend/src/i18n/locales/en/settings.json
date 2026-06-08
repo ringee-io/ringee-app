@@ -118,6 +118,17 @@
     "description": "Personalize the script your dialer reads on calls.",
     "tab": "Script",
     "addSection": "Add section",
-    "saveScript": "Save script"
+    "saveScript": "Save script",
+    "generalTitle": "General script",
+    "generalDescription": "Create the sections of your script. Drag to reorder them.",
+    "saving": "Saving…",
+    "loadError": "Couldn’t load your script. Reload the page to try again.",
+    "empty": "You don’t have any sections yet. Add the first one to start your script.",
+    "dragToReorder": "Drag to reorder",
+    "titleLabel": "Title",
+    "titlePlaceholder": "E.g. Introduction",
+    "bodyLabel": "Script",
+    "bodyPlaceholder": "What you’ll say in this part of the script…",
+    "removeSection": "Delete section"
   }
 }

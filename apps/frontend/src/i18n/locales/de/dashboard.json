@@ -89,25 +89,82 @@
       "Table": "Tabellen-Widgets"
     },
     "catalog": {
-      "kpi_total_calls": { "title": "Anrufe gesamt", "description": "Anrufe im gewählten Zeitraum." },
-      "kpi_answered_calls": { "title": "Angenommene Anrufe", "description": "Anrufe, die von einer Person beantwortet wurden." },
-      "kpi_meetings_booked": { "title": "Termine vereinbart", "description": "Termine im Kalender für diesen Zeitraum." },
-      "kpi_sales": { "title": "Abschlüsse", "description": "Anrufe mit Ergebnis „Verkauf“." },
-      "kpi_interested": { "title": "Interessierte Leads", "description": "Anrufe mit Ergebnis „Interessiert“." },
-      "kpi_follow_ups": { "title": "Follow-ups", "description": "Für Follow-up markierte Anrufe." },
-      "kpi_no_answer": { "title": "Keine Antwort", "description": "Anrufe, die nicht beantwortet wurden." },
-      "kpi_voicemail": { "title": "Mailbox", "description": "Anrufe, die auf der Mailbox landeten." },
-      "kpi_wrong_number": { "title": "Falsche Nummer", "description": "Als falsche Nummer markierte Anrufe." },
-      "kpi_conversion_rate": { "title": "Conversion Rate", "description": "Verkäufe / angenommene Anrufe." },
-      "kpi_meeting_rate": { "title": "Termin-Quote", "description": "Vereinbarte Termine / angenommene Anrufe." },
-      "kpi_positive_outcome_rate": { "title": "Positive-Outcome-Rate", "description": "(Verkäufe + Termine + Interessiert) / angenommen." },
-      "chart_outcome_funnel": { "title": "Ergebnis-Funnel", "description": "Gesamt → Angenommen → Interessiert → Termine → Verkäufe." },
-      "chart_outcomes_over_time": { "title": "Ergebnisse im Zeitverlauf", "description": "Gestapelte Ergebnisse pro Tag/Woche/Monat." },
-      "chart_best_time_of_day": { "title": "Beste Anrufzeiten", "description": "Stunden mit den meisten Ergebnissen." },
-      "chart_calls_by_outcome": { "title": "Anrufe nach Ergebnis", "description": "Verteilung der Ergebnisse." },
-      "table_recent_high_value_calls": { "title": "Hochwertige Anrufe", "description": "Aktuelle Verkäufe, Termine, Interessenten, Follow-ups." },
-      "table_upcoming_meetings": { "title": "Anstehende Termine & Rückrufe", "description": "Geplante Termine und Rückrufe, die nächsten zuerst." },
-      "table_agent_performance": { "title": "Agenten-Performance", "description": "Aufschlüsselung pro Agent (nur Org-Admins)." }
+      "kpi_total_calls": {
+        "title": "Anrufe gesamt",
+        "description": "Anrufe im gewählten Zeitraum."
+      },
+      "kpi_answered_calls": {
+        "title": "Angenommene Anrufe",
+        "description": "Anrufe, die von einer Person beantwortet wurden."
+      },
+      "kpi_meetings_booked": {
+        "title": "Termine vereinbart",
+        "description": "Termine im Kalender für diesen Zeitraum."
+      },
+      "kpi_sales": {
+        "title": "Abschlüsse",
+        "description": "Anrufe mit Ergebnis „Verkauf“."
+      },
+      "kpi_interested": {
+        "title": "Interessierte Leads",
+        "description": "Anrufe mit Ergebnis „Interessiert“."
+      },
+      "kpi_follow_ups": {
+        "title": "Follow-ups",
+        "description": "Für Follow-up markierte Anrufe."
+      },
+      "kpi_no_answer": {
+        "title": "Keine Antwort",
+        "description": "Anrufe, die nicht beantwortet wurden."
+      },
+      "kpi_voicemail": {
+        "title": "Mailbox",
+        "description": "Anrufe, die auf der Mailbox landeten."
+      },
+      "kpi_wrong_number": {
+        "title": "Falsche Nummer",
+        "description": "Als falsche Nummer markierte Anrufe."
+      },
+      "kpi_conversion_rate": {
+        "title": "Conversion Rate",
+        "description": "Verkäufe / angenommene Anrufe."
+      },
+      "kpi_meeting_rate": {
+        "title": "Termin-Quote",
+        "description": "Vereinbarte Termine / angenommene Anrufe."
+      },
+      "kpi_positive_outcome_rate": {
+        "title": "Positive-Outcome-Rate",
+        "description": "(Verkäufe + Termine + Interessiert) / angenommen."
+      },
+      "chart_outcome_funnel": {
+        "title": "Ergebnis-Funnel",
+        "description": "Gesamt → Angenommen → Interessiert → Termine → Verkäufe."
+      },
+      "chart_outcomes_over_time": {
+        "title": "Ergebnisse im Zeitverlauf",
+        "description": "Gestapelte Ergebnisse pro Tag/Woche/Monat."
+      },
+      "chart_best_time_of_day": {
+        "title": "Beste Anrufzeiten",
+        "description": "Stunden mit den meisten Ergebnissen."
+      },
+      "chart_calls_by_outcome": {
+        "title": "Anrufe nach Ergebnis",
+        "description": "Verteilung der Ergebnisse."
+      },
+      "table_recent_high_value_calls": {
+        "title": "Hochwertige Anrufe",
+        "description": "Aktuelle Verkäufe, Termine, Interessenten, Follow-ups."
+      },
+      "table_upcoming_meetings": {
+        "title": "Anstehende Termine & Rückrufe",
+        "description": "Geplante Termine und Rückrufe, die nächsten zuerst."
+      },
+      "table_agent_performance": {
+        "title": "Agenten-Performance",
+        "description": "Aufschlüsselung pro Agent (nur Org-Admins)."
+      }
     },
     "kpi": {
       "totalCalls": {
@@ -263,6 +320,48 @@
         "trend": "Stetige Performance-Steigerung",
         "subtitle": "Erfüllt die Wachstumsprognosen"
       }
+    },
+    "charts": {
+      "answered": "Angenommen",
+      "missed": "Verpasst",
+      "error": "Fehler",
+      "calls": "Anrufe",
+      "barTitle": "Anrufe pro Tag gesamt",
+      "barDescLong": "Aktivität der letzten 3 Monate",
+      "barDescShort": "Letzte 3 Monate",
+      "areaTitle": "Monatliche Anruftrends",
+      "areaDesc": "Gesamtanrufe der letzten 6 Monate",
+      "areaTrendUp": "Diesen Monat um {rate}% gestiegen",
+      "areaTrendDown": "Diesen Monat um {rate}% gesunken",
+      "areaFooter": "Übersicht der letzten 6 Monate",
+      "pieTitle": "Anrufaufkommen nach Tageszeit",
+      "pieDescLong": "Gesamtanrufe nach Tageszeit in den letzten 6 Monaten",
+      "pieDescShort": "Nach Tageszeit",
+      "pieTotalCalls": "Anrufe gesamt",
+      "pieLeads": "{period} führt mit {percentage}%",
+      "pieBasedOn": "Basierend auf Daten von {from} – {to} {year}",
+      "pieNoData": "Nicht genügend Daten zum Anzeigen",
+      "periods": {
+        "morning": "Morgen (06:00–12:00)",
+        "afternoon": "Nachmittag (12:00–18:00)",
+        "evening": "Abend (18:00–24:00)",
+        "night": "Nacht (00:00–06:00)"
+      }
+    },
+    "recentCalls": {
+      "title": "Letzte Anrufe",
+      "subtitle": "Letzte {count} Anrufe",
+      "callAgain": "{number} erneut anrufen",
+      "empty": "Keine aktuellen Anrufe gefunden.",
+      "route": "Von: {from} → An: {to}"
+    },
+    "memberSelector": {
+      "loading": "Wird geladen…",
+      "allMembers": "Alle Mitglieder",
+      "member": "Mitglied",
+      "search": "Mitglieder suchen…",
+      "noMembers": "Keine Mitglieder gefunden.",
+      "unknown": "Unbekannt"
     }
   }
 }

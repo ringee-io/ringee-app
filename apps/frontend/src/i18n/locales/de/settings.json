@@ -80,7 +80,8 @@
     "notifications": "Benachrichtigungen",
     "security": "Sicherheit",
     "appearance": "Darstellung",
-    "script": "Gesprächsleitfaden"
+    "script": "Gesprächsleitfaden",
+    "recording": "Aufzeichnung"
   },
   "overview": {
     "title": "Übersicht",
@@ -117,6 +118,17 @@
     "description": "Personalisieren Sie den Leitfaden, den Ihr Dialer während des Anrufs vorliest.",
     "tab": "Leitfaden",
     "addSection": "Abschnitt hinzufügen",
-    "saveScript": "Leitfaden speichern"
+    "saveScript": "Leitfaden speichern",
+    "generalTitle": "Allgemeiner Gesprächsleitfaden",
+    "generalDescription": "Erstellen Sie die Abschnitte Ihres Gesprächsleitfadens. Ziehen Sie sie, um sie neu anzuordnen.",
+    "saving": "Wird gespeichert…",
+    "loadError": "Ihr Gesprächsleitfaden konnte nicht geladen werden. Laden Sie die Seite neu, um es erneut zu versuchen.",
+    "empty": "Sie haben noch keine Abschnitte. Fügen Sie den ersten hinzu, um Ihren Gesprächsleitfaden zu beginnen.",
+    "dragToReorder": "Zum Neuanordnen ziehen",
+    "titleLabel": "Titel",
+    "titlePlaceholder": "z. B. Einleitung",
+    "bodyLabel": "Gesprächsleitfaden",
+    "bodyPlaceholder": "Was Sie in diesem Teil des Gesprächsleitfadens sagen…",
+    "removeSection": "Abschnitt löschen"
   }
 }

@@ -50,7 +50,17 @@
       "unknown": "Inconnu",
       "callAgain": "Rappeler",
       "noRecording": "Aucun enregistrement",
-      "downloadRecording": "Télécharger l'enregistrement"
+      "downloadRecording": "Télécharger l'enregistrement",
+      "transcript": "Transcription"
+    },
+    "rowActions": {
+      "menu": "Actions",
+      "openMenu": "Ouvrir le menu",
+      "call": "Appeler",
+      "addNote": "Ajouter une note",
+      "transcript": "Transcription",
+      "update": "Mettre à jour",
+      "delete": "Supprimer"
     }
   },
   "recordings": {
@@ -73,7 +83,8 @@
       "unavailable": "Indisponible",
       "play": "Lire",
       "playRecording": "Lire l'enregistrement",
-      "downloadRecording": "Télécharger l'enregistrement"
+      "downloadRecording": "Télécharger l'enregistrement",
+      "transcript": "Transcription"
     },
     "statusBadge": {
       "started": "En cours",

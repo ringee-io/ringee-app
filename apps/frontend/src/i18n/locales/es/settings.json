@@ -118,6 +118,17 @@
     "description": "Personaliza el guion que tu marcador lee en las llamadas.",
     "tab": "Guion",
     "addSection": "Añadir sección",
-    "saveScript": "Guardar guion"
+    "saveScript": "Guardar guion",
+    "generalTitle": "Guion general",
+    "generalDescription": "Crea las secciones de tu guion. Arrástralas para reordenarlas.",
+    "saving": "Guardando…",
+    "loadError": "No se pudo cargar tu guion. Recarga la página para intentarlo de nuevo.",
+    "empty": "Aún no tienes secciones. Agrega la primera para empezar tu guion.",
+    "dragToReorder": "Arrastrar para reordenar",
+    "titleLabel": "Título",
+    "titlePlaceholder": "Ej.: Introducción",
+    "bodyLabel": "Guion",
+    "bodyPlaceholder": "Lo que dirás en esta parte del guion…",
+    "removeSection": "Eliminar sección"
   }
 }

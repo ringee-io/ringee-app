@@ -62,6 +62,15 @@
       "callAgain": "Call again",
       "noRecording": "No recording",
       "downloadRecording": "Download recording"
+    },
+    "rowActions": {
+      "menu": "Actions",
+      "openMenu": "Open menu",
+      "call": "Call",
+      "addNote": "Add Note",
+      "transcript": "Transcript",
+      "update": "Update",
+      "delete": "Delete"
     }
   },
   "recordings": {

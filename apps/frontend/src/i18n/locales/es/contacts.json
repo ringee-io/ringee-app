@@ -164,5 +164,15 @@
     "description": "Gestiona tus leads de forma visual",
     "metaTitle": "Pipeline de ventas — Visualiza y organiza tus leads | Ringee",
     "metaDescription": "Gestiona tu pipeline de ventas de forma visual con Ringee. Organiza leads, registra llamadas y mueve oportunidades por cada etapa con claridad y eficiencia."
+  },
+  "rowActions": {
+    "menu": "Acciones",
+    "openMenu": "Abrir menú",
+    "view": "Ver",
+    "call": "Llamar",
+    "addNote": "Añadir nota",
+    "manageTags": "Gestionar etiquetas",
+    "edit": "Editar",
+    "delete": "Eliminar"
   }
 }

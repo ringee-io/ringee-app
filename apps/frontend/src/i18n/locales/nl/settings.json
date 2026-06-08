@@ -80,7 +80,8 @@
     "notifications": "Meldingen",
     "security": "Beveiliging",
     "appearance": "Weergave",
-    "script": "Belscript"
+    "script": "Belscript",
+    "recording": "Opname"
   },
   "overview": {
     "title": "Overzicht",
@@ -117,6 +118,17 @@
     "description": "Personaliseer het script dat je dialer voorleest tijdens gesprekken.",
     "tab": "Script",
     "addSection": "Sectie toevoegen",
-    "saveScript": "Script opslaan"
+    "saveScript": "Script opslaan",
+    "generalTitle": "Algemeen belscript",
+    "generalDescription": "Maak de secties van je belscript. Sleep om ze opnieuw te ordenen.",
+    "saving": "Bezig met opslaan…",
+    "loadError": "Kan je belscript niet laden. Herlaad de pagina om het opnieuw te proberen.",
+    "empty": "Je hebt nog geen secties. Voeg de eerste toe om je belscript te starten.",
+    "dragToReorder": "Sleep om opnieuw te ordenen",
+    "titleLabel": "Titel",
+    "titlePlaceholder": "Bijv. Inleiding",
+    "bodyLabel": "Belscript",
+    "bodyPlaceholder": "Wat je in dit deel van het belscript zegt…",
+    "removeSection": "Sectie verwijderen"
   }
 }

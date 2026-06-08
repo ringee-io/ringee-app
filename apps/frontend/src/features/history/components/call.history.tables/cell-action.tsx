@@ -27,6 +27,7 @@ import {
 } from '@tabler/icons-react';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { useQuickDialerCall } from '@/features/calls/hooks/use.quick.dialer.call';
 
 interface CellActionProps {
@@ -48,6 +49,7 @@ interface CellActionProps {
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
+  const t = useTranslations('calls.history.rowActions');
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const api = useApi();
@@ -93,7 +95,7 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       <Dialog open={transcriptOpen} onOpenChange={setTranscriptOpen}>
         <DialogContent className='max-w-2xl'>
           <DialogHeader>
-            <DialogTitle className='sr-only'>Transcript</DialogTitle>
+            <DialogTitle className='sr-only'>{t('transcript')}</DialogTitle>
           </DialogHeader>
           <div className='max-h-[70vh] overflow-y-auto'>
             <FinalTranscript callId={latestCallId} />
@@ -103,37 +105,35 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button variant='ghost' className='h-8 w-8 p-0'>
-            <span className='sr-only'>Open menu</span>
+            <span className='sr-only'>{t('openMenu')}</span>
             <IconDotsVertical className='h-4 w-4' />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align='end'>
-          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuLabel>{t('menu')}</DropdownMenuLabel>
 
-          <DropdownMenuItem
-            onClick={() => handleRecall(data.phoneNumber)}
-          >
-            <IconPhoneCall className='mr-2 h-4 w-4' /> Call
+          <DropdownMenuItem onClick={() => handleRecall(data.phoneNumber)}>
+            <IconPhoneCall className='mr-2 h-4 w-4' /> {t('call')}
           </DropdownMenuItem>
 
           <DropdownMenuItem onClick={() => setNoteModalOpen(true)}>
-            <IconPlus className='mr-2 h-4 w-4' /> Add Note
+            <IconPlus className='mr-2 h-4 w-4' /> {t('addNote')}
           </DropdownMenuItem>
 
           {latestCallId && (
             <DropdownMenuItem onClick={() => setTranscriptOpen(true)}>
-              <IconFileText className='mr-2 h-4 w-4' /> Transcript
+              <IconFileText className='mr-2 h-4 w-4' /> {t('transcript')}
             </DropdownMenuItem>
           )}
 
           <DropdownMenuItem
             onClick={() => router.push(`/dashboard/contact/${data.id}`)}
           >
-            <IconEdit className='mr-2 h-4 w-4' /> Update
+            <IconEdit className='mr-2 h-4 w-4' /> {t('update')}
           </DropdownMenuItem>
 
           <DropdownMenuItem onClick={() => setOpen(true)}>
-            <IconTrash className='mr-2 h-4 w-4' /> Delete
+            <IconTrash className='mr-2 h-4 w-4' /> {t('delete')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>

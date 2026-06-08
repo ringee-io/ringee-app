@@ -22,6 +22,7 @@ import {
 } from '@tabler/icons-react';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
+import { useTranslations } from 'next-intl';
 
 interface CellActionProps {
   data: {
@@ -42,6 +43,7 @@ interface CellActionProps {
 }
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
+  const t = useTranslations('contacts.rowActions');
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const router = useRouter();
@@ -90,17 +92,17 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button variant='ghost' className='h-8 w-8 p-0'>
-            <span className='sr-only'>Open menu</span>
+            <span className='sr-only'>{t('openMenu')}</span>
             <IconDotsVertical className='h-4 w-4' />
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align='end'>
-          <DropdownMenuLabel>Actions</DropdownMenuLabel>
+          <DropdownMenuLabel>{t('menu')}</DropdownMenuLabel>
 
           <DropdownMenuItem
             onClick={() => router.push(`/dashboard/contact/${data.id}`)}
           >
-            <IconEye className='mr-2 h-4 w-4' /> View
+            <IconEye className='mr-2 h-4 w-4' /> {t('view')}
           </DropdownMenuItem>
 
           <DropdownMenuItem
@@ -108,29 +110,28 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
               router.push(`/dashboard/call?phoneNumber=${data.phoneNumber}`)
             }
           >
-            <IconPhoneCall className='mr-2 h-4 w-4' /> Call
+            <IconPhoneCall className='mr-2 h-4 w-4' /> {t('call')}
           </DropdownMenuItem>
 
           <DropdownMenuItem onClick={() => setNoteModalOpen(true)}>
-            <IconPlus className='mr-2 h-4 w-4' /> Add Note
+            <IconPlus className='mr-2 h-4 w-4' /> {t('addNote')}
           </DropdownMenuItem>
 
           <DropdownMenuItem onClick={() => setTagsModalOpen(true)}>
-            <IconTag className='mr-2 h-4 w-4' /> Manage Tags
+            <IconTag className='mr-2 h-4 w-4' /> {t('manageTags')}
           </DropdownMenuItem>
 
           <DropdownMenuItem
             onClick={() => router.push(`/dashboard/contact/${data.id}/edit`)}
           >
-            <IconEdit className='mr-2 h-4 w-4' /> Edit
+            <IconEdit className='mr-2 h-4 w-4' /> {t('edit')}
           </DropdownMenuItem>
 
           <DropdownMenuItem onClick={() => setOpen(true)}>
-            <IconTrash className='mr-2 h-4 w-4' /> Delete
+            <IconTrash className='mr-2 h-4 w-4' /> {t('delete')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
     </>
   );
 };
-

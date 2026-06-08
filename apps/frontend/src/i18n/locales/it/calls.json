@@ -50,7 +50,17 @@
       "unknown": "Sconosciuto",
       "callAgain": "Richiama",
       "noRecording": "Nessuna registrazione",
-      "downloadRecording": "Scarica registrazione"
+      "downloadRecording": "Scarica registrazione",
+      "transcript": "Trascrizione"
+    },
+    "rowActions": {
+      "menu": "Azioni",
+      "openMenu": "Apri menu",
+      "call": "Chiama",
+      "addNote": "Aggiungi nota",
+      "transcript": "Trascrizione",
+      "update": "Aggiorna",
+      "delete": "Elimina"
     }
   },
   "recordings": {
@@ -73,7 +83,8 @@
       "unavailable": "Non disponibile",
       "play": "Riproduci",
       "playRecording": "Riproduci registrazione",
-      "downloadRecording": "Scarica registrazione"
+      "downloadRecording": "Scarica registrazione",
+      "transcript": "Trascrizione"
     },
     "statusBadge": {
       "started": "In elaborazione",

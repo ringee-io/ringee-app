@@ -1,0 +1,45 @@
+{
+  "transcribe": "Trascrivi chiamata",
+  "transcribing": "Trascrizione in corso…",
+  "viewTranscript": "Visualizza trascrizione",
+  "retranscribe": "Ritrascrivi dalla registrazione",
+  "processing": "Elaborazione della trascrizione…",
+  "unavailable": "Trascrizione non disponibile",
+  "tryAgain": "Riprova",
+  "liveTitle": "Trascrizione in tempo reale",
+  "finalTitle": "Trascrizione finale",
+  "sourceRealtime": "In diretta",
+  "sourceRecording": "Dalla registrazione",
+  "waitingForAudio": "In attesa dell'audio…",
+  "readyToTranscribe": "Questa chiamata ha una registrazione pronta per la trascrizione.",
+  "speaker": {
+    "you": "Tu",
+    "contact": "Contatto",
+    "unknown": "Interlocutore"
+  },
+  "status": {
+    "idle": "Inattivo",
+    "starting": "Avvio…",
+    "transcribing": "Trascrizione in corso…",
+    "processing": "Elaborazione…",
+    "completed": "Completata",
+    "failed": "Non riuscita",
+    "unavailable": "Non disponibile",
+    "stopped": "Interrotta"
+  },
+  "errors": {
+    "startFailed": "Impossibile avviare la trascrizione. Riprova.",
+    "transcribeFailed": "Impossibile trascrivere questa chiamata. Riprova."
+  },
+  "settings": {
+    "title": "Impostazioni di registrazione e trascrizione delle chiamate",
+    "subtitle": "Controlla come vengono registrate e trascritte le chiamate per questo spazio di lavoro.",
+    "recordAll": "Registra tutte le chiamate",
+    "recordAllDesc": "Registra automaticamente ogni chiamata in questo contesto.",
+    "transcribeRealtime": "Trascrivi le chiamate in tempo reale",
+    "transcribeRealtimeDesc": "Trascrivi le chiamate attive in tempo reale con Deepgram. Non richiede la registrazione.",
+    "transcribeRecordings": "Trascrivi automaticamente le registrazioni",
+    "transcribeRecordingsDesc": "Trascrivi automaticamente le chiamate registrate quando la registrazione è disponibile. Richiede la registrazione.",
+    "saveError": "Impossibile salvare le impostazioni. Potresti non avere l'autorizzazione per modificare le impostazioni dell'organizzazione."
+  }
+}

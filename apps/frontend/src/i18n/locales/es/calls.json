@@ -62,6 +62,15 @@
       "callAgain": "Llamar de nuevo",
       "noRecording": "Sin grabación",
       "downloadRecording": "Descargar grabación"
+    },
+    "rowActions": {
+      "menu": "Acciones",
+      "openMenu": "Abrir menú",
+      "call": "Llamar",
+      "addNote": "Añadir nota",
+      "transcript": "Transcripción",
+      "update": "Actualizar",
+      "delete": "Eliminar"
     }
   },
   "recordings": {

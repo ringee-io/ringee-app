@@ -1,0 +1,45 @@
+{
+  "transcribe": "Gesprek transcriberen",
+  "transcribing": "Bezig met transcriberen…",
+  "viewTranscript": "Transcriptie bekijken",
+  "retranscribe": "Opnieuw transcriberen vanaf opname",
+  "processing": "Transcriptie verwerken…",
+  "unavailable": "Transcriptie niet beschikbaar",
+  "tryAgain": "Opnieuw proberen",
+  "liveTitle": "Live-transcriptie",
+  "finalTitle": "Definitieve transcriptie",
+  "sourceRealtime": "Live",
+  "sourceRecording": "Vanaf opname",
+  "waitingForAudio": "Wachten op audio…",
+  "readyToTranscribe": "Dit gesprek heeft een opname die klaar is om te transcriberen.",
+  "speaker": {
+    "you": "Jij",
+    "contact": "Contact",
+    "unknown": "Spreker"
+  },
+  "status": {
+    "idle": "Inactief",
+    "starting": "Bezig met starten…",
+    "transcribing": "Bezig met transcriberen…",
+    "processing": "Bezig met verwerken…",
+    "completed": "Voltooid",
+    "failed": "Mislukt",
+    "unavailable": "Niet beschikbaar",
+    "stopped": "Gestopt"
+  },
+  "errors": {
+    "startFailed": "Kan transcriptie niet starten. Probeer het opnieuw.",
+    "transcribeFailed": "Kan dit gesprek niet transcriberen. Probeer het opnieuw."
+  },
+  "settings": {
+    "title": "Instellingen voor gespreksopname en transcriptie",
+    "subtitle": "Bepaal hoe gesprekken worden opgenomen en getranscribeerd voor deze werkruimte.",
+    "recordAll": "Alle gesprekken opnemen",
+    "recordAllDesc": "Neem automatisch elk gesprek in deze context op.",
+    "transcribeRealtime": "Gesprekken in realtime transcriberen",
+    "transcribeRealtimeDesc": "Transcribeer actieve gesprekken live met Deepgram. Vereist geen opname.",
+    "transcribeRecordings": "Opnames automatisch transcriberen",
+    "transcribeRecordingsDesc": "Transcribeer opgenomen gesprekken automatisch zodra de opname beschikbaar is. Vereist opname.",
+    "saveError": "Kan instellingen niet opslaan. Mogelijk heb je geen toestemming om organisatie-instellingen te wijzigen."
+  }
+}

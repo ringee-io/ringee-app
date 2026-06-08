@@ -1,0 +1,45 @@
+{
+  "transcribe": "Transcrever chamada",
+  "transcribing": "A transcrever…",
+  "viewTranscript": "Ver transcrição",
+  "retranscribe": "Transcrever novamente a partir da gravação",
+  "processing": "A processar a transcrição…",
+  "unavailable": "Transcrição indisponível",
+  "tryAgain": "Tentar novamente",
+  "liveTitle": "Transcrição em direto",
+  "finalTitle": "Transcrição final",
+  "sourceRealtime": "Em direto",
+  "sourceRecording": "A partir da gravação",
+  "waitingForAudio": "A aguardar áudio…",
+  "readyToTranscribe": "Esta chamada tem uma gravação pronta para transcrever.",
+  "speaker": {
+    "you": "Tu",
+    "contact": "Contacto",
+    "unknown": "Interlocutor"
+  },
+  "status": {
+    "idle": "Inativo",
+    "starting": "A iniciar…",
+    "transcribing": "A transcrever…",
+    "processing": "A processar…",
+    "completed": "Concluída",
+    "failed": "Falhou",
+    "unavailable": "Indisponível",
+    "stopped": "Parada"
+  },
+  "errors": {
+    "startFailed": "Não foi possível iniciar a transcrição. Tente novamente.",
+    "transcribeFailed": "Não foi possível transcrever esta chamada. Tente novamente."
+  },
+  "settings": {
+    "title": "Definições de gravação e transcrição de chamadas",
+    "subtitle": "Controle como as chamadas são gravadas e transcritas neste espaço de trabalho.",
+    "recordAll": "Gravar todas as chamadas",
+    "recordAllDesc": "Gravar automaticamente todas as chamadas neste contexto.",
+    "transcribeRealtime": "Transcrever chamadas em tempo real",
+    "transcribeRealtimeDesc": "Transcrever chamadas ativas em direto com o Deepgram. Não requer gravação.",
+    "transcribeRecordings": "Transcrever gravações automaticamente",
+    "transcribeRecordingsDesc": "Transcrever automaticamente as chamadas gravadas assim que a gravação estiver disponível. Requer gravação.",
+    "saveError": "Não foi possível guardar as definições. Poderá não ter permissão para alterar as definições da organização."
+  }
+}

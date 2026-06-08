@@ -164,5 +164,15 @@
     "description": "Manage your leads visually",
     "metaTitle": "Sales Pipeline — Visualize and Organize Leads | Ringee",
     "metaDescription": "Manage your sales pipeline visually with Ringee. Organize leads, track calls, and move deals through every stage with clarity and efficiency."
+  },
+  "rowActions": {
+    "menu": "Actions",
+    "openMenu": "Open menu",
+    "view": "View",
+    "call": "Call",
+    "addNote": "Add Note",
+    "manageTags": "Manage Tags",
+    "edit": "Edit",
+    "delete": "Delete"
   }
 }
