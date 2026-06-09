@@ -1,7 +1,34 @@
 import { Command } from "commander";
-import type { CallOutcome } from "@ringee-io/agent";
+import type { CallDetail, CallOutcome, CallStatus } from "@ringee-io/agent";
 import { getClient, run } from "../client.js";
-import { json, kv, ok, wantsJson } from "../ui.js";
+import { c, heading, json, kv, line, ok, wantsJson, warn } from "../ui.js";
+
+function printCall(call: CallDetail, opts: { full: boolean }): void {
+  const who = call.contact?.name || call.contact?.phoneNumber || call.toNumber;
+  const arrow = call.direction === "inbound" ? "←" : "→";
+  line(`${c.bold(`${arrow} ${who}`)}  ${c.gray(call.id)}`);
+  kv("from", call.fromNumber);
+  kv("to", call.toNumber);
+  kv("status", call.status);
+  kv("when", call.startedAt ?? call.createdAt);
+  kv("duration", call.duration);
+  kv("outcome", call.outcome);
+  kv("note", call.outcomeNote);
+  if (call.contact?.company) kv("company", call.contact.company);
+  kv("recording", call.recordingUrl);
+  if (call.transcription) {
+    if (opts.full) {
+      line(`  ${c.gray("transcript")}`);
+      call.transcription
+        .split("\n")
+        .forEach((l) => line(`    ${l}`));
+    } else {
+      const preview = call.transcription.replace(/\s+/g, " ").slice(0, 140);
+      const ellipsis = call.transcription.length > 140 ? "…" : "";
+      kv("transcript", `${preview}${ellipsis}`);
+    }
+  }
+}
 
 const OUTCOMES: CallOutcome[] = [
   "meeting_booked",
@@ -17,6 +44,49 @@ const OUTCOMES: CallOutcome[] = [
 ];
 
 export function registerActivity(program: Command): void {
+  program
+    .command("calls")
+    .description("Browse call history")
+    .command("list")
+    .description(
+      "List calls with full detail — outcome, transcription and recording URL",
+    )
+    .option("--contact <contactId>", "filter to one contact's calls")
+    .option(
+      "--outcome <outcomes...>",
+      `filter by outcome (one or more of: ${OUTCOMES.join(", ")})`,
+    )
+    .option("--status <statuses...>", "filter by status (e.g. completed)")
+    .option("--from <iso>", "only calls created at or after this ISO datetime")
+    .option("--to <iso>", "only calls created at or before this ISO datetime")
+    .option("--full", "print the full transcription instead of a preview")
+    .option("-p, --page <n>", "page number", (v) => parseInt(v, 10))
+    .option("-l, --limit <n>", "page size (max 50)", (v) => parseInt(v, 10))
+    .action((opts) =>
+      run(async () => {
+        const res = await getClient().listCalls({
+          contactId: opts.contact,
+          // Raw argv strings; the client's zod schema validates them.
+          outcome: opts.outcome as CallOutcome[] | undefined,
+          status: opts.status as CallStatus[] | undefined,
+          dateFrom: opts.from,
+          dateTo: opts.to,
+          page: opts.page,
+          limit: opts.limit,
+        });
+        if (wantsJson()) return json(res);
+        if (res.calls.length === 0) {
+          warn("No calls matched.");
+          return;
+        }
+        heading(`${res.total} call(s) — page ${res.page}/${res.totalPages}`);
+        res.calls.forEach((call) => {
+          line("");
+          printCall(call, { full: !!opts.full });
+        });
+      }),
+    );
+
   program
     .command("outcomes")
     .description("Log call outcomes")

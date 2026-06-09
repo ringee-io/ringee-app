@@ -6,4 +6,5 @@ export { CallSessionCard } from "./CallSessionCard";
 export { CallbackCard } from "./CallbackCard";
 export { MeetingCard } from "./MeetingCard";
 export { CallOutcomeCard } from "./CallOutcomeCard";
+export { CallListCard } from "./CallListCard";
 export { WorkspaceCard } from "./WorkspaceCard";

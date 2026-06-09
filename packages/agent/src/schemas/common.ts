@@ -33,3 +33,12 @@ export const callOutcomeEnum = z.enum([
 ]);
 
 export const calendarProviderEnum = z.enum(["google", "microsoft"]);
+
+export const callStatusEnum = z.enum([
+  "pending",
+  "ringing",
+  "answered",
+  "recording",
+  "completed",
+  "failed",
+]);

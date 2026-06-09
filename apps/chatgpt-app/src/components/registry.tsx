@@ -3,6 +3,7 @@ import type {
   ContactDetail,
   CreateCallbackResult,
   FindContactsByOutcomeResult,
+  ListCallsResult,
   ListWorkspacesResult,
   LogCallOutcomeResult,
   ScheduleMeetingResult,
@@ -10,6 +11,7 @@ import type {
   SearchLeadsResult,
 } from "@ringee-io/agent";
 import {
+  CallListCard,
   CallOutcomeCard,
   CallSessionCard,
   CallbackCard,
@@ -27,6 +29,7 @@ import {
 } from "@/components/skeletons";
 import {
   mockCallback,
+  mockCalls,
   mockContact,
   mockContactList,
   mockLeadSearch,
@@ -179,6 +182,17 @@ export const COMPONENTS: Record<string, ComponentEntry> = {
     ),
     skeleton: <GenericCardSkeleton />,
     mock: mockOutcome,
+  },
+
+  CallListCard: {
+    name: "CallListCard",
+    title: "Calls",
+    description:
+      "Call history with full detail — outcome, transcription and recording URL.",
+    tools: ["list_calls"],
+    render: (data) => <CallListCard data={data as ListCallsResult} />,
+    skeleton: <ListCardSkeleton />,
+    mock: mockCalls,
   },
 };
 

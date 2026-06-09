@@ -215,10 +215,12 @@ export class CallService {
       limit?: number;
       status?: CallStatus[];
       outcome?: CallOutcome[];
+      contactId?: string;
       dateFrom?: string;
       dateTo?: string;
       excludeCampaignCalls?: boolean;
       includeMeetings?: boolean;
+      includeTranscriptions?: boolean;
       orderBy?: "createdAt" | "startedAt" | "endedAt";
       sortDirection?: "asc" | "desc";
     } = {},

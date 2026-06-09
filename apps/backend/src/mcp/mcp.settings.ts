@@ -52,7 +52,12 @@ Guidelines:
     (e.g. sale, interested, meeting_booked) to find who already converted or
     engaged and learn the real ICP from them. Use match="last" to look only at
     each contact's most recent call.
-14. Keep responses concise and action-oriented.
+14. list_calls is read-only (no credits): it returns the FULL detail of each
+    call — direction, status, timing, duration, outcome/note, the transcription
+    and the recording URL when present. Filter by contactId (resolve it with
+    search_contacts first), outcome, status or a date range. Cost and low-level
+    telephony fields are not returned.
+15. Keep responses concise and action-oriented.
 
 UTC Current Date: __CURRENT_DATE__
 `.trim();

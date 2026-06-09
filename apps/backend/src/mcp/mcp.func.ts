@@ -16,8 +16,10 @@ import {
 } from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
 import {
+  Call,
   CallOutcome,
   CallSessionSource,
+  CallStatus,
   Contact,
   EnrichmentProviderType,
 } from "@ringee/database";
@@ -41,6 +43,8 @@ import {
   GetContactSchema,
   ImportLeadsInput,
   ImportLeadsSchema,
+  ListCallsInput,
+  ListCallsSchema,
   ListWorkspacesSchema,
   SwitchWorkspaceInput,
   SwitchWorkspaceSchema,
@@ -120,6 +124,63 @@ export class McpFunc {
       email: contact.email,
       company: contact.company,
       jobTitle: contact.jobTitle,
+    };
+  }
+
+  /** Human-readable mm:ss / h:mm:ss from a second count. */
+  private formatDuration(seconds: number | null | undefined): string | null {
+    if (seconds == null || seconds <= 0) return null;
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${m}:${pad(s)}`;
+  }
+
+  /**
+   * Build the full, human-facing detail of a call for list_calls: who/when,
+   * outcome, transcription and recording URL. Deliberately omits cost and
+   * low-level telephony plumbing (provider/control ids, client state, etc.) —
+   * those are not useful to the model or the end user.
+   */
+  private serializeCallDetail(
+    call: Call & {
+      contact?: Contact | null;
+      recordings?: { url: string | null; transcript: string | null }[];
+      callTranscriptions?: { text: string | null; status: string }[];
+    },
+  ) {
+    const recordingUrl =
+      call.recordings?.find((r) => r.url)?.url ?? null;
+
+    // Prefer the dedicated transcription text; fall back to a transcript stored
+    // on the recording itself.
+    const transcription =
+      call.callTranscriptions
+        ?.map((t) => t.text?.trim())
+        .find((t): t is string => !!t) ??
+      call.recordings?.map((r) => r.transcript?.trim()).find((t): t is string => !!t) ??
+      null;
+
+    return {
+      id: call.id,
+      direction: call.direction,
+      status: call.status,
+      fromNumber: call.fromNumber,
+      toNumber: call.toNumber,
+      startedAt: call.startedAt,
+      answeredAt: call.answeredAt,
+      endedAt: call.endedAt,
+      createdAt: call.createdAt,
+      durationSeconds: call.durationSeconds,
+      duration: this.formatDuration(call.durationSeconds),
+      outcome: call.outcome,
+      outcomeNote: call.outcomeNote,
+      contact: call.contact ? this.serializeContact(call.contact) : null,
+      recordingUrl,
+      hasRecording: !!recordingUrl,
+      transcription,
+      hasTranscription: !!transcription,
     };
   }
 
@@ -361,6 +422,51 @@ export class McpFunc {
           lastCallAt: lastCall?.createdAt ?? c.lastCallAt,
         };
       }),
+    });
+  }
+
+  @McpTool({
+    toolName: "list_calls",
+    description:
+      "List the user's (or organization's) calls with their FULL detail: who " +
+      "was called, direction, status, when it happened, how long it lasted, the " +
+      "logged outcome and note, plus the call transcription and the recording " +
+      "URL when available. Filter by contactId (resolve it with search_contacts " +
+      "first), outcome, status, or a created-at date range. Newest first. " +
+      "Read-only and spends no credits. Cost and low-level telephony fields are " +
+      "intentionally not returned.",
+    zod: ListCallsSchema,
+    annotations: {
+      title: "List calls",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  })
+  async listCalls(ctx: OwnershipContext, input: ListCallsInput) {
+    const { data, total, page, totalPages } =
+      await this.callService.listByOwnerPaginated(ctx, {
+        page: input.page ?? 1,
+        limit: input.limit ?? 10,
+        contactId: input.contactId,
+        outcome: input.outcome as CallOutcome[] | undefined,
+        status: input.status as CallStatus[] | undefined,
+        dateFrom: input.dateFrom,
+        dateTo: input.dateTo,
+        includeTranscriptions: true,
+      });
+
+    return text({
+      total,
+      page,
+      totalPages,
+      limit: input.limit ?? 10,
+      calls: data.map((call) =>
+        this.serializeCallDetail(
+          call as Parameters<typeof this.serializeCallDetail>[0],
+        ),
+      ),
     });
   }
 

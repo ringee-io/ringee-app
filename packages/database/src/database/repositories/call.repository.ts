@@ -155,10 +155,12 @@ export class CallRepository {
       limit?: number;
       status?: CallStatus[];
       outcome?: CallOutcome[];
+      contactId?: string;
       dateFrom?: string;
       dateTo?: string;
       excludeCampaignCalls?: boolean;
       includeMeetings?: boolean;
+      includeTranscriptions?: boolean;
       orderBy?: "createdAt" | "startedAt" | "endedAt";
       sortDirection?: "asc" | "desc";
     } = {},
@@ -173,10 +175,12 @@ export class CallRepository {
       limit = 20,
       status,
       outcome,
+      contactId,
       dateFrom,
       dateTo,
       excludeCampaignCalls,
       includeMeetings,
+      includeTranscriptions,
       orderBy = "createdAt",
       sortDirection = "desc",
     } = options;
@@ -188,6 +192,7 @@ export class CallRepository {
       ...ownershipFilter,
       ...(status ? { status: { in: status } } : {}),
       ...(outcome ? { outcome: { in: outcome } } : {}),
+      ...(contactId ? { contactId } : {}),
       ...(dateFrom || dateTo
         ? {
             createdAt: {
@@ -211,6 +216,7 @@ export class CallRepository {
             : true,
           user: true,
           recordings: true,
+          ...(includeTranscriptions ? { callTranscriptions: true } : {}),
           ...(includeMeetings ? { meetings: { orderBy: { scheduledAt: "desc" }, take: 1 } } : {}),
         },
       }),

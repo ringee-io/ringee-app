@@ -2,9 +2,30 @@ import { z } from "zod";
 import {
   calendarProviderEnum,
   callOutcomeEnum,
+  callStatusEnum,
   isoDateTime,
   uuid,
 } from "./common.js";
+
+export const ListCallsSchema = z.object({
+  contactId: uuid
+    .optional()
+    .describe("Filter to a single contact's calls (resolve it first)."),
+  outcome: z
+    .array(callOutcomeEnum)
+    .min(1)
+    .optional()
+    .describe("Only calls whose logged outcome is one of these."),
+  status: z
+    .array(callStatusEnum)
+    .min(1)
+    .optional()
+    .describe('Only calls in these states (e.g. ["completed"]).'),
+  dateFrom: isoDateTime.optional().describe("Only calls created at or after this."),
+  dateTo: isoDateTime.optional().describe("Only calls created at or before this."),
+  page: z.number().int().min(1).optional(),
+  limit: z.number().int().min(1).max(50).optional().describe("Default 10, max 50."),
+});
 
 export const LogCallOutcomeSchema = z.object({
   callId: uuid.describe("UUID of an existing call. Never invent ids."),
@@ -33,6 +54,7 @@ export const ScheduleMeetingSchema = z.object({
     .describe("Source call — sets that call's outcome to meeting_booked."),
 });
 
+export type ListCallsInput = z.infer<typeof ListCallsSchema>;
 export type LogCallOutcomeInput = z.infer<typeof LogCallOutcomeSchema>;
 export type CreateCallbackInput = z.infer<typeof CreateCallbackSchema>;
 export type ScheduleMeetingInput = z.infer<typeof ScheduleMeetingSchema>;

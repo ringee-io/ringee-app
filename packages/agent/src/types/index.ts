@@ -117,6 +117,50 @@ export interface DeleteContactResult {
 
 // ── Calls / outcomes / callbacks / meetings ───────────────────────────
 
+export type CallStatus =
+  | "pending"
+  | "ringing"
+  | "answered"
+  | "recording"
+  | "completed"
+  | "failed";
+
+/**
+ * Full, human-facing detail of a call as returned by list_calls. Mirrors
+ * `serializeCallDetail` in the backend MCP — deliberately omits cost and
+ * low-level telephony plumbing.
+ */
+export interface CallDetail {
+  id: string;
+  direction: string | null;
+  status: CallStatus | string;
+  fromNumber: string;
+  toNumber: string;
+  startedAt: string | null;
+  answeredAt: string | null;
+  endedAt: string | null;
+  createdAt: string;
+  durationSeconds: number | null;
+  /** Human-readable duration, e.g. "3:12" or "1:02:05". */
+  duration: string | null;
+  outcome: CallOutcome | null;
+  outcomeNote: string | null;
+  contact: ContactSummary | null;
+  recordingUrl: string | null;
+  hasRecording: boolean;
+  transcription: string | null;
+  hasTranscription: boolean;
+}
+
+export interface ListCallsResult {
+  total: number;
+  page: number;
+  totalPages: number;
+  /** Page size used for this result (echoed back for stable pagination). */
+  limit?: number;
+  calls: CallDetail[];
+}
+
 export interface LogCallOutcomeResult {
   ok: boolean;
   callId: string;

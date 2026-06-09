@@ -21,6 +21,19 @@ export const CALL_OUTCOME_VALUES = [
   "gatekeeper",
 ] as const;
 
+/**
+ * The CallStatus enum values (mirrors `enum CallStatus` in the Prisma schema).
+ * Used by list_calls to let the caller filter by call state.
+ */
+export const CALL_STATUS_VALUES = [
+  "pending",
+  "ringing",
+  "answered",
+  "recording",
+  "completed",
+  "failed",
+] as const;
+
 export const SearchContactsSchema = {
   query: z
     .string()
@@ -332,6 +345,54 @@ export type ImportLeadsInput = {
   [K in keyof typeof ImportLeadsSchema]: z.infer<(typeof ImportLeadsSchema)[K]>;
 };
 
+export const ListCallsSchema = {
+  contactId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe(
+      "Filter to a single contact's calls. Resolve the contactId with " +
+        "search_contacts first when the user names a person.",
+    ),
+  outcome: z
+    .array(z.enum(CALL_OUTCOME_VALUES))
+    .min(1)
+    .optional()
+    .describe(
+      'Only return calls whose logged outcome is one of these (e.g. ["sale","interested"]).',
+    ),
+  status: z
+    .array(z.enum(CALL_STATUS_VALUES))
+    .min(1)
+    .optional()
+    .describe(
+      'Only return calls in these states (e.g. ["completed"]). Most past calls are "completed".',
+    ),
+  dateFrom: z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .describe("ISO-8601 datetime (with timezone). Only calls created at or after this."),
+  dateTo: z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .describe("ISO-8601 datetime (with timezone). Only calls created at or before this."),
+  page: z
+    .number()
+    .int()
+    .min(1)
+    .optional()
+    .describe("1-based page number. Defaults to 1."),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(50)
+    .optional()
+    .describe("Page size. Defaults to 10, max 50."),
+};
+
 export const StartCallSchema = {
   contactId: z
     .string()
@@ -624,6 +685,9 @@ export type FindContactsByOutcomeInput = {
   [K in keyof typeof FindContactsByOutcomeSchema]: z.infer<
     (typeof FindContactsByOutcomeSchema)[K]
   >;
+};
+export type ListCallsInput = {
+  [K in keyof typeof ListCallsSchema]: z.infer<(typeof ListCallsSchema)[K]>;
 };
 export type StartCallInput = {
   [K in keyof typeof StartCallSchema]: z.infer<(typeof StartCallSchema)[K]>;

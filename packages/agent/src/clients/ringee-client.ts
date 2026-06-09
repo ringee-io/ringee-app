@@ -14,6 +14,7 @@ import {
   GetCallSessionSchema,
   GetContactSchema,
   ImportLeadsSchema,
+  ListCallsSchema,
   LogCallOutcomeSchema,
   RevealLeadSchema,
   ScheduleMeetingSchema,
@@ -30,6 +31,7 @@ import {
   type GetCallSessionInput,
   type GetContactInput,
   type ImportLeadsInput,
+  type ListCallsInput,
   type LogCallOutcomeInput,
   type RevealLeadInput,
   type ScheduleMeetingInput,
@@ -47,6 +49,7 @@ import type {
   DeleteContactResult,
   FindContactsByOutcomeResult,
   ImportLeadsResult,
+  ListCallsResult,
   LogCallOutcomeResult,
   MutateContactResult,
   RevealLeadResult,
@@ -146,6 +149,11 @@ export class RingeeClient {
   }
 
   // ── Call activity ───────────────────────────────────────────────────
+
+  /** List calls with full detail (transcription + recording URL). Read-only. */
+  listCalls(input: ListCallsInput = {}): Promise<ListCallsResult> {
+    return this.call("list_calls", ListCallsSchema.parse(input));
+  }
 
   logCallOutcome(input: LogCallOutcomeInput): Promise<LogCallOutcomeResult> {
     return this.call("log_call_outcome", LogCallOutcomeSchema.parse(input));

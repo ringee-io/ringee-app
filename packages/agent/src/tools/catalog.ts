@@ -178,6 +178,22 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
 
   // ── Call activity ─────────────────────────────────────────────────
   {
+    action: "calls.list",
+    tool: "list_calls",
+    title: "List calls",
+    summary:
+      "List calls with full detail — outcome, transcription and recording URL. Filter by contact, outcome, status or date.",
+    sensitivity: "read",
+    cli: "ringee calls list --contact <contactId> --outcome sale",
+    component: "CallListCard",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  {
     action: "outcomes.log",
     tool: "log_call_outcome",
     title: "Log call outcome",
