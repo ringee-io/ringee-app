@@ -148,14 +148,17 @@ export class CalendarController {
     return this.calendarService.disconnectCalendar(ctx, id);
   }
 
+  // TEMPORAL: por ahora siempre devolvemos todos los slots como disponibles,
+  // ignorando la disponibilidad real del calendario conectado. Lo dejamos así
+  // de momento; revertir a calendarService.getAvailability cuando se quiera
+  // volver a consultar el free/busy real del proveedor.
   @Get("availability")
   async getAvailability(
     @Query("date") date: string,
     @Query("provider") provider?: CalendarProvider,
     @CurrentUser() user?: CurrentUserData,
   ) {
-    const ctx = createOwnershipContext(user!);
-    return this.calendarService.getAvailability(ctx, { date, provider });
+    return this.calendarService.generateAllAvailableSlots(date);
   }
 
   @Post("event")

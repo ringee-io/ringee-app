@@ -610,7 +610,7 @@ export class CalendarService {
     return slots;
   }
 
-  private generateAllAvailableSlots(dateStr: string): AvailabilitySlot[] {
+  generateAllAvailableSlots(dateStr: string): AvailabilitySlot[] {
     const date = new Date(dateStr);
     const now = new Date();
     const isToday = date.toDateString() === now.toDateString();
