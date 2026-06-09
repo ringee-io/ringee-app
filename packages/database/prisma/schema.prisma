@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = "postgresql://ringee-user:ringee-password@localhost:5432/ringee-db-local?schema=public"
+  url      = env("DATABASE_URL")
 }
 
 enum EmailStatus {
