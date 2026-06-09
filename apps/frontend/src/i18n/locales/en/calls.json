@@ -57,10 +57,20 @@
       "duration": "Duration",
       "date": "Date",
       "recording": "Recording",
+      "transcript": "Transcript",
       "unknown": "Unknown",
       "callAgain": "Call again",
       "noRecording": "No recording",
       "downloadRecording": "Download recording"
+    },
+    "rowActions": {
+      "menu": "Actions",
+      "openMenu": "Open menu",
+      "call": "Call",
+      "addNote": "Add Note",
+      "transcript": "Transcript",
+      "update": "Update",
+      "delete": "Delete"
     }
   },
   "recordings": {
@@ -77,6 +87,7 @@
       "date": "Date",
       "status": "Status",
       "recording": "Recording",
+      "transcript": "Transcript",
       "unknown": "Unknown",
       "noRecording": "No recording",
       "processingShort": "Processing...",

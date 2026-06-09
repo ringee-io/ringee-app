@@ -28,3 +28,4 @@ export * from "./reminders";
 export * from "./ai-agents";
 export * from "./custom-integrations";
 export * from "./call-session";
+export * from "./transcription";

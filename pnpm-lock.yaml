@@ -204,7 +204,7 @@ importers:
         version: 3.0.2
       openai:
         specifier: ^6.2.0
-        version: 6.2.0(ws@8.20.0)(zod@4.1.12)
+        version: 6.2.0(ws@8.21.0)(zod@4.1.12)
       reflect-metadata:
         specifier: ~0.2.2
         version: 0.2.2
@@ -724,7 +724,7 @@ importers:
         version: 3.0.2
       openai:
         specifier: ^6.2.0
-        version: 6.2.0(ws@8.20.0)(zod@4.1.12)
+        version: 6.2.0(ws@8.21.0)(zod@4.1.12)
       reflect-metadata:
         specifier: ^0.1.13
         version: 0.1.14
@@ -1116,6 +1116,9 @@ importers:
       '@clerk/express':
         specifier: ^1.7.37
         version: 1.7.37(express@5.2.1)(react-dom@19.1.1(react@19.1.1))(react@19.1.1)
+      '@deepgram/sdk':
+        specifier: ^5.4.0
+        version: 5.4.0
       '@keyv/redis':
         specifier: ^5.1.2
         version: 5.1.2(keyv@5.5.3)
@@ -1175,7 +1178,7 @@ importers:
         version: 3.0.2
       openai:
         specifier: ^6.2.0
-        version: 6.2.0(ws@8.20.0)(zod@4.1.12)
+        version: 6.2.0(ws@8.21.0)(zod@4.1.12)
       reflect-metadata:
         specifier: ~0.2.2
         version: 0.2.2
@@ -1194,6 +1197,9 @@ importers:
       telnyx:
         specifier: ^4.2.1
         version: 4.2.1
+      ws:
+        specifier: ^8.21.0
+        version: 8.21.0
     devDependencies:
       '@nestjs/cli':
         specifier: ~11.0.0
@@ -1207,6 +1213,9 @@ importers:
       '@types/node':
         specifier: ~22.16.0
         version: 22.16.5
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       ts-node:
         specifier: ~10.9.0
         version: 10.9.2(@swc/core@1.15.33)(@types/node@22.16.5)(typescript@5.9.3)
@@ -1243,6 +1252,9 @@ importers:
       rxjs:
         specifier: ~7.8.0
         version: 7.8.2
+      ws:
+        specifier: ^8.21.0
+        version: 8.21.0
     devDependencies:
       '@nestjs/cli':
         specifier: ~11.0.0
@@ -1250,6 +1262,9 @@ importers:
       '@types/node':
         specifier: ~22.16.0
         version: 22.16.5
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
       ts-node:
         specifier: ~10.9.0
         version: 10.9.2(@swc/core@1.15.33)(@types/node@22.16.5)(typescript@5.9.3)
@@ -2121,6 +2136,10 @@ packages:
   '@cspotcode/source-map-support@0.8.1':
     resolution: {integrity: sha512-IchNf6dN4tHoMFIn/7OE8LWZ19Y6q/67Bmf6vnGREv8RSbBVb9LPJxEcnwrcwX6ixSvaiGoomAUvu4YSxXrVgw==}
     engines: {node: '>=12'}
+
+  '@deepgram/sdk@5.4.0':
+    resolution: {integrity: sha512-Xm0lB38VcyJgsXbABhhZWKXJN8jnAVk35YP186Qxiqbfz8GP4wgSEugoovWRhdMeKrbRhN7IVrcbHElVTNSHVw==}
+    engines: {node: '>=18.0.0'}
 
   '@developer-hub/liquid-glass@1.2.3':
     resolution: {integrity: sha512-x+GmNCf/ZYDDnqnz9Q8iS4KqoHBle+hRDgSgtA1CNBJnSoaX/Rq5PCxlt+fDZOheO22/2Kl4JxHa5GqJpu/TjQ==}
@@ -6194,6 +6213,9 @@ packages:
 
   '@types/validator@13.15.3':
     resolution: {integrity: sha512-7bcUmDyS6PN3EuD9SlGGOxM77F8WLVsrwkxyWxKnxzmXoequ6c7741QBrANq6htVRGOITJ7z72mTP6Z4XyuG+Q==}
+
+  '@types/ws@8.18.1':
+    resolution: {integrity: sha512-ThVF6DCVhA8kUGy+aazFQ4kXQ7E1Ty7A3ypFOe0IcJV8O/M511G99AW24irKrW56Wt44yG9+ij8FaqoBGkuBXg==}
 
   '@typescript-eslint/eslint-plugin@6.21.0':
     resolution: {integrity: sha512-oy9+hTPCUFpngkEZUSzbf9MxI65wbKFoQYsgPdILTfbUldp5ovUuphZVe4i30emU9M/kP+T64Di0mxl7dSw3MA==}
@@ -11676,8 +11698,8 @@ packages:
   wrappy@1.0.2:
     resolution: {integrity: sha512-l4Sp/DRseor9wL6EvV2+TuQn63dMkPjZ/sp9XkghTEbV9KlPS1xUsZ3u7/IQO4wxtcFB4bgpQPRcR3QCvezPcQ==}
 
-  ws@8.20.0:
-    resolution: {integrity: sha512-sAt8BhgNbzCtgGbt2OxmpuryO63ZoDk/sqaB/znQm94T4fCEsy/yV+7CdC1kJhOU9lboAEU7R3kquuycDoibVA==}
+  ws@8.21.0:
+    resolution: {integrity: sha512-Vsp28b7DRcimFQvrqu2Wek3z1iYxDCWqHYB8Qsnk/S4RfaCQzPGPyBNuVjJV3cd6UiKtUtp6sNM77gWvzcCH+g==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
@@ -13180,6 +13202,13 @@ snapshots:
   '@cspotcode/source-map-support@0.8.1':
     dependencies:
       '@jridgewell/trace-mapping': 0.3.9
+
+  '@deepgram/sdk@5.4.0':
+    dependencies:
+      ws: 8.21.0
+    transitivePeerDependencies:
+      - bufferutil
+      - utf-8-validate
 
   '@developer-hub/liquid-glass@1.2.3(react-dom@19.0.1(react@19.0.1))(react@19.0.1)':
     dependencies:
@@ -17616,6 +17645,10 @@ snapshots:
 
   '@types/validator@13.15.3': {}
 
+  '@types/ws@8.18.1':
+    dependencies:
+      '@types/node': 22.16.5
+
   '@typescript-eslint/eslint-plugin@6.21.0(@typescript-eslint/parser@8.44.1(eslint@8.48.0)(typescript@5.7.2))(eslint@8.48.0)(typescript@5.7.2)':
     dependencies:
       '@eslint-community/regexpp': 4.12.1
@@ -18062,7 +18095,7 @@ snapshots:
       fastestsmallesttextencoderdecoder: 1.0.22
       got: 11.8.6
       ulid: 2.4.0
-      ws: 8.20.0
+      ws: 8.21.0
     optionalDependencies:
       react: 19.1.0
       react-dom: 19.1.1(react@19.1.0)
@@ -21846,9 +21879,9 @@ snapshots:
       is-docker: 2.2.1
       is-wsl: 2.2.0
 
-  openai@6.2.0(ws@8.20.0)(zod@4.1.12):
+  openai@6.2.0(ws@8.21.0)(zod@4.1.12):
     optionalDependencies:
-      ws: 8.20.0
+      ws: 8.21.0
       zod: 4.1.12
 
   optionator@0.9.4:
@@ -24153,7 +24186,7 @@ snapshots:
 
   wrappy@1.0.2: {}
 
-  ws@8.20.0: {}
+  ws@8.21.0: {}
 
   xtend@4.0.2: {}
 

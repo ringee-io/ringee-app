@@ -50,7 +50,17 @@
       "unknown": "Unbekannt",
       "callAgain": "Erneut anrufen",
       "noRecording": "Keine Aufzeichnung",
-      "downloadRecording": "Aufzeichnung herunterladen"
+      "downloadRecording": "Aufzeichnung herunterladen",
+      "transcript": "Transkript"
+    },
+    "rowActions": {
+      "menu": "Aktionen",
+      "openMenu": "Menü öffnen",
+      "call": "Anrufen",
+      "addNote": "Notiz hinzufügen",
+      "transcript": "Transkript",
+      "update": "Aktualisieren",
+      "delete": "Löschen"
     }
   },
   "recordings": {
@@ -73,7 +83,8 @@
       "unavailable": "Nicht verfügbar",
       "play": "Abspielen",
       "playRecording": "Aufzeichnung abspielen",
-      "downloadRecording": "Aufzeichnung herunterladen"
+      "downloadRecording": "Aufzeichnung herunterladen",
+      "transcript": "Transkript"
     },
     "statusBadge": {
       "started": "Wird verarbeitet",

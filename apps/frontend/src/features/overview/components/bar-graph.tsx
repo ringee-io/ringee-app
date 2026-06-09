@@ -15,21 +15,7 @@ import {
   ChartTooltip,
   ChartTooltipContent
 } from '@ringee/frontend-shared/components/ui/chart';
-
-const chartConfig = {
-  answered: {
-    label: 'Answered',
-    color: 'var(--primary)'
-  },
-  missed: {
-    label: 'Missed',
-    color: 'var(--primary)'
-  },
-  error: {
-    label: 'Error',
-    color: 'var(--primary)'
-  }
-} satisfies ChartConfig;
+import { useTranslations } from 'next-intl';
 
 type ChartPoint = {
   date: string;
@@ -42,6 +28,14 @@ interface BarGraphProps {
 }
 
 export function BarGraph({ data }: BarGraphProps) {
+  const t = useTranslations('dashboard.overview.charts');
+
+  const chartConfig = {
+    answered: { label: t('answered'), color: 'var(--primary)' },
+    missed: { label: t('missed'), color: 'var(--primary)' },
+    error: { label: t('error'), color: 'var(--primary)' }
+  } satisfies ChartConfig;
+
   const [activeChart, setActiveChart] =
     React.useState<keyof typeof chartConfig>('answered');
 
@@ -57,12 +51,12 @@ export function BarGraph({ data }: BarGraphProps) {
     <Card className='@container/card !pt-3'>
       <CardHeader className='flex flex-col items-stretch space-y-0 border-b !p-0 sm:flex-row'>
         <div className='flex flex-1 flex-col justify-center gap-1 px-6 !py-0'>
-          <CardTitle>Total Calls per Day</CardTitle>
+          <CardTitle>{t('barTitle')}</CardTitle>
           <CardDescription>
             <span className='hidden @[540px]/card:block'>
-              Activity over the last 3 months
+              {t('barDescLong')}
             </span>
-            <span className='@[540px]/card:hidden'>Last 3 months</span>
+            <span className='@[540px]/card:hidden'>{t('barDescShort')}</span>
           </CardDescription>
         </div>
 

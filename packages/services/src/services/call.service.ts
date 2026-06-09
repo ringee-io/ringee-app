@@ -21,6 +21,8 @@ import type {
   CallCostPayload,
 } from "@ringee/platform";
 import { CallTranscriptionService } from "./call.transcription.service";
+import { TranscriptionService } from "./transcription/transcription.service";
+import { CallRecordingSettingsService } from "./transcription/call-recording-settings.service";
 import { UserService } from "./user.service";
 import { CreditService } from "./credit.service";
 import { ContactService } from "./contact.service";
@@ -59,7 +61,75 @@ export class CallService {
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
     private readonly callSessionRepository: CallSessionRepository,
     private readonly telephonyService: TelephonyService,
+    private readonly recordingSettingsService: CallRecordingSettingsService,
+    private readonly transcriptionOrchestrator: TranscriptionService,
   ) { }
+
+  /**
+   * Apply the call owner's recording/transcription settings when a call is
+   * answered. Both actions are best-effort: a transcription/recording failure
+   * must never break webhook processing of the live call.
+   *
+   * Resolution follows the context rule (org settings when the call has an
+   * organizationId, otherwise the user's settings).
+   */
+  private async applyAnswerAutomation(call: Call): Promise<void> {
+    if (!call.callControlId) return;
+    const ctx: OwnershipContext = {
+      userId: call.userId!,
+      organizationId: call.organizationId,
+    };
+
+    let settings;
+    try {
+      settings = await this.recordingSettingsService.resolve(ctx);
+    } catch (err) {
+      this.logger.warn(
+        `Could not resolve recording settings for call ${call.id}: ${(err as Error).message}`,
+      );
+      return;
+    }
+
+    if (settings.recordAllCalls) {
+      await this.telephonyService
+        .startRecording(call.callControlId)
+        .then(() =>
+          this.logger.log(`⏺️ Auto-recording started for call ${call.id}`),
+        )
+        .catch((err) =>
+          this.logger.error(
+            `Auto-recording failed for call ${call.id}: ${err.message}`,
+          ),
+        );
+    }
+
+    if (settings.transcribeRealtime) {
+      // Realtime transcription is independent of recording.
+      await this.transcriptionOrchestrator
+        .startRealtimeForCall(call)
+        .catch((err: Error) =>
+          this.logger.error(
+            `Auto realtime transcription failed for call ${call.id}: ${err.message}`,
+          ),
+        );
+    }
+  }
+
+  /**
+   * On hangup, stop any live transcription. The media bridge finalizes the
+   * realtime transcript status when Telnyx closes the stream. Automatic
+   * transcription from the recording is triggered later, in the worker, once
+   * the recordingUrl becomes available (see worker.processCallRecording).
+   */
+  private async applyHangupAutomation(call: Call): Promise<void> {
+    await this.transcriptionOrchestrator
+      .stopRealtimeForCall(call)
+      .catch((err: Error) =>
+        this.logger.warn(
+          `stopRealtime on hangup failed for call ${call.id}: ${err.message}`,
+        ),
+      );
+  }
 
   /**
    * Decide whether `ctx`'s owner may place/continue a call. An active free
@@ -412,15 +482,19 @@ export class CallService {
           CallStatus.answered,
         );
         const answeredAttemptId = this.extractCallAttemptId(payload);
-        const answeredCall = answeredAttemptId
-          ? await this.callRepository.findByControlId(callControlId)
-          : null;
+        const answeredCall = await this.callRepository.findByControlId(
+          callControlId,
+        );
         if (answeredAttemptId && answeredCall) {
           await this.callAttemptService.handleWebhookEvent(
             answeredAttemptId,
             event_type,
             answeredCall.id,
           );
+        }
+        // Apply Record all / Transcribe realtime settings once the call is up.
+        if (answeredCall) {
+          await this.applyAnswerAutomation(answeredCall);
         }
         break;
       }
@@ -442,6 +516,18 @@ export class CallService {
             event_type,
             hangupCall.id,
           );
+        }
+        if (hangupCall) {
+          // Stop live transcription; recording-based auto transcription is
+          // triggered later when the recordingUrl is available.
+          await this.applyHangupAutomation(hangupCall);
+          await this.transcriptionOrchestrator
+            .chargeRealtimeOnHangup(hangupCall)
+            .catch((err: Error) =>
+              this.logger.warn(
+                `realtime transcription charge on hangup failed for call ${hangupCall.id}: ${err.message}`,
+              ),
+            );
         }
         if (hangupCall) {
           void this.crmCallLogService.handleCallCompleted(hangupCall);
@@ -513,6 +599,28 @@ export class CallService {
           }
         } catch (error) {
           this.logger.error(`❌ Error processing call recording: ${JSON.stringify(error, null, 2)}`);
+        }
+        break;
+      }
+
+      case "streaming.failed": {
+        // Telnyx could not establish/keep the media stream → fail the realtime
+        // transcript so the UI can offer "Try again".
+        const failedCall = await this.callRepository.findByControlId(callControlId);
+        if (failedCall) {
+          const reason =
+            (payload as { failure_reason?: string }).failure_reason ||
+            "Telnyx media streaming failed";
+          await this.transcriptionOrchestrator
+            .markRealtimeFailed(failedCall, reason)
+            .catch((err: Error) =>
+              this.logger.warn(
+                `markRealtimeFailed failed for call ${failedCall.id}: ${err.message}`,
+              ),
+            );
+          this.logger.warn(
+            `⚠️ streaming.failed for call ${failedCall.id}: ${reason}`,
+          );
         }
         break;
       }

@@ -1,0 +1,45 @@
+{
+  "transcribe": "Transcrire l'appel",
+  "transcribing": "Transcription en cours…",
+  "viewTranscript": "Voir la transcription",
+  "retranscribe": "Retranscrire depuis l'enregistrement",
+  "processing": "Traitement de la transcription…",
+  "unavailable": "Transcription indisponible",
+  "tryAgain": "Réessayer",
+  "liveTitle": "Transcription en direct",
+  "finalTitle": "Transcription finale",
+  "sourceRealtime": "En direct",
+  "sourceRecording": "Depuis l'enregistrement",
+  "waitingForAudio": "En attente de l'audio…",
+  "readyToTranscribe": "Cet appel dispose d'un enregistrement prêt à être transcrit.",
+  "speaker": {
+    "you": "Vous",
+    "contact": "Contact",
+    "unknown": "Interlocuteur"
+  },
+  "status": {
+    "idle": "Inactif",
+    "starting": "Démarrage…",
+    "transcribing": "Transcription en cours…",
+    "processing": "Traitement…",
+    "completed": "Terminée",
+    "failed": "Échec",
+    "unavailable": "Indisponible",
+    "stopped": "Arrêtée"
+  },
+  "errors": {
+    "startFailed": "Impossible de démarrer la transcription. Veuillez réessayer.",
+    "transcribeFailed": "Impossible de transcrire cet appel. Veuillez réessayer."
+  },
+  "settings": {
+    "title": "Paramètres d'enregistrement et de transcription des appels",
+    "subtitle": "Définissez comment les appels sont enregistrés et transcrits pour cet espace de travail.",
+    "recordAll": "Enregistrer tous les appels",
+    "recordAllDesc": "Enregistrer automatiquement chaque appel dans ce contexte.",
+    "transcribeRealtime": "Transcrire les appels en temps réel",
+    "transcribeRealtimeDesc": "Transcrire les appels actifs en direct avec Deepgram. Ne nécessite pas d'enregistrement.",
+    "transcribeRecordings": "Transcrire automatiquement les enregistrements",
+    "transcribeRecordingsDesc": "Transcrire automatiquement les appels enregistrés dès que l'enregistrement est disponible. Nécessite un enregistrement.",
+    "saveError": "Impossible d'enregistrer les paramètres. Vous n'avez peut-être pas l'autorisation de modifier les paramètres de l'organisation."
+  }
+}

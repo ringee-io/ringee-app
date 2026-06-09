@@ -19,25 +19,7 @@ import {
   ChartTooltip,
   ChartTooltipContent
 } from '@ringee/frontend-shared/components/ui/chart';
-
-const chartConfig = {
-  morning: {
-    label: 'Morning (06:00–12:00)',
-    color: 'var(--primary)'
-  },
-  afternoon: {
-    label: 'Afternoon (12:00–18:00)',
-    color: 'var(--primary)'
-  },
-  evening: {
-    label: 'Evening (18:00–24:00)',
-    color: 'var(--primary)'
-  },
-  night: {
-    label: 'Night (00:00–06:00)',
-    color: 'var(--primary)'
-  }
-} satisfies ChartConfig;
+import { useTranslations } from 'next-intl';
 
 type ChartPoint = {
   period: 'morning' | 'afternoon' | 'evening' | 'night';
@@ -51,6 +33,15 @@ interface PieGraphProps {
 }
 
 export function PieGraph({ data, rangeStart, rangeEnd }: PieGraphProps) {
+  const t = useTranslations('dashboard.overview.charts');
+
+  const chartConfig = {
+    morning: { label: t('periods.morning'), color: 'var(--primary)' },
+    afternoon: { label: t('periods.afternoon'), color: 'var(--primary)' },
+    evening: { label: t('periods.evening'), color: 'var(--primary)' },
+    night: { label: t('periods.night'), color: 'var(--primary)' }
+  } satisfies ChartConfig;
+
   // Calcular rango de meses dinámico
   const now = new Date();
   const start = rangeStart ?? subMonths(now, 6);
@@ -78,12 +69,10 @@ export function PieGraph({ data, rangeStart, rangeEnd }: PieGraphProps) {
   return (
     <Card className='@container/card'>
       <CardHeader>
-        <CardTitle>Call Traffic by Time of Day</CardTitle>
+        <CardTitle>{t('pieTitle')}</CardTitle>
         <CardDescription>
-          <span className='hidden @[540px]/card:block'>
-            Total calls by time of day for the last 6 months
-          </span>
-          <span className='@[540px]/card:hidden'>Browser distribution</span>
+          <span className='hidden @[540px]/card:block'>{t('pieDescLong')}</span>
+          <span className='@[540px]/card:hidden'>{t('pieDescShort')}</span>
         </CardDescription>
       </CardHeader>
 
@@ -156,7 +145,7 @@ export function PieGraph({ data, rangeStart, rangeEnd }: PieGraphProps) {
                           y={(viewBox.cy || 0) + 24}
                           className='fill-muted-foreground text-sm'
                         >
-                          Total calls
+                          {t('pieTotalCalls')}
                         </tspan>
                       </text>
                     );
@@ -172,16 +161,23 @@ export function PieGraph({ data, rangeStart, rangeEnd }: PieGraphProps) {
         {leadingPeriod ? (
           <>
             <div className='flex items-center gap-2 leading-none font-medium'>
-              {chartConfig[leadingPeriod.period].label} leads with{' '}
-              {leadingPeriod.percentage}% <IconTrendingUp className='h-4 w-4' />
+              {t('pieLeads', {
+                period: chartConfig[leadingPeriod.period].label,
+                percentage: leadingPeriod.percentage
+              })}{' '}
+              <IconTrendingUp className='h-4 w-4' />
             </div>
             <div className='text-muted-foreground leading-none'>
-              Based on data from {fromLabel} – {toLabel} {format(end, 'yyyy')}
+              {t('pieBasedOn', {
+                from: fromLabel,
+                to: toLabel,
+                year: format(end, 'yyyy')
+              })}
             </div>
           </>
         ) : (
           <div className='text-muted-foreground w-full text-center'>
-            Not enough data to display
+            {t('pieNoData')}
           </div>
         )}
       </CardFooter>

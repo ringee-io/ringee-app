@@ -80,7 +80,8 @@
     "notifications": "Notificações",
     "security": "Segurança",
     "appearance": "Aparência",
-    "script": "Script"
+    "script": "Script",
+    "recording": "Gravação"
   },
   "overview": {
     "title": "Resumo",
@@ -117,6 +118,17 @@
     "description": "Personaliza o script lido pelo teu marcador durante as chamadas.",
     "tab": "Script",
     "addSection": "Adicionar secção",
-    "saveScript": "Guardar script"
+    "saveScript": "Guardar script",
+    "generalTitle": "Script geral",
+    "generalDescription": "Crie as secções do seu script. Arraste para as reordenar.",
+    "saving": "A guardar…",
+    "loadError": "Não foi possível carregar o seu script. Recarregue a página para tentar novamente.",
+    "empty": "Ainda não tem secções. Adicione a primeira para começar o seu script.",
+    "dragToReorder": "Arrastar para reordenar",
+    "titleLabel": "Título",
+    "titlePlaceholder": "Ex.: Introdução",
+    "bodyLabel": "Script",
+    "bodyPlaceholder": "O que vai dizer nesta parte do script…",
+    "removeSection": "Eliminar secção"
   }
 }

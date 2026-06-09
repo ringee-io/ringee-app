@@ -20,11 +20,13 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { IconPlus } from '@tabler/icons-react';
 import { Loader2 } from 'lucide-react';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
+import { useTranslations } from 'next-intl';
 import { useScriptStore } from '../store/script.store';
 import { useScriptSync } from '../hooks/use-script-sync';
 import { ScriptSectionItem } from './script-section-item';
 
 export function ScriptEditor() {
+  const t = useTranslations('settings.script');
   const { sections, status, saving } = useScriptSync();
   const addSection = useScriptStore((s) => s.addSection);
   const updateSection = useScriptStore((s) => s.updateSection);
@@ -54,16 +56,16 @@ export function ScriptEditor() {
     <div className='space-y-4'>
       <div className='flex items-center justify-between'>
         <div>
-          <h3 className='text-lg font-semibold'>Guion general</h3>
+          <h3 className='text-lg font-semibold'>{t('generalTitle')}</h3>
           <p className='text-muted-foreground text-sm'>
-            Crea las secciones de tu guion. Arrastra para reordenarlas.
+            {t('generalDescription')}
           </p>
         </div>
         <div className='flex items-center gap-3'>
           {saving && (
             <span className='text-muted-foreground inline-flex items-center gap-1.5 text-xs'>
               <Loader2 className='h-3 w-3 animate-spin' />
-              Guardando...
+              {t('saving')}
             </span>
           )}
           <Button
@@ -73,14 +75,14 @@ export function ScriptEditor() {
             disabled={isLoading}
           >
             <IconPlus className='mr-1 h-4 w-4' />
-            Agregar sección
+            {t('addSection')}
           </Button>
         </div>
       </div>
 
       {status === 'error' ? (
         <div className='border-destructive/40 text-destructive rounded-lg border border-dashed p-6 text-center text-sm'>
-          No se pudo cargar tu guion. Recarga la página para intentarlo de nuevo.
+          {t('loadError')}
         </div>
       ) : isLoading ? (
         <div className='space-y-3'>
@@ -89,7 +91,7 @@ export function ScriptEditor() {
         </div>
       ) : sections.length === 0 ? (
         <div className='border-border/50 text-muted-foreground rounded-lg border border-dashed p-8 text-center text-sm'>
-          Aún no tienes secciones. Agrega la primera para empezar tu guion.
+          {t('empty')}
         </div>
       ) : (
         <DndContext

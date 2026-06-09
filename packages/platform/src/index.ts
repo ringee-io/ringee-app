@@ -6,6 +6,7 @@ export * from "./ai-agents";
 export * from "./redis";
 export * from "./email";
 export * from "./telephony";
+export * from "./deepgram";
 export * from "./notification";
 export * from "./newsletter";
 

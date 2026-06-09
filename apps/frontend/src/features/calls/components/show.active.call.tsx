@@ -8,6 +8,7 @@ import { useFreeTrialTimer } from '../hooks/use.free.trial.timer';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useDialerSessionStore } from '@/features/dialer/store/dialer-session.store';
+import { useCallIdBySession } from '@/features/transcription';
 
 export function ShowActiveCall() {
   const dialerSessionId = useDialerSessionStore((s) => s.sessionId);
@@ -36,6 +37,24 @@ export function ShowActiveCall() {
   const [contactId, setContactId] = useState<string | null>(null);
   const [contactName, setContactName] = useState<string | undefined>(undefined);
   const resolvedNumberRef = useRef<string | null>(null);
+
+  // The Ringee callId is created server-side from the call.initiated webhook,
+  // so the WebRTC client only knows the Telnyx session id. Resolve the callId
+  // from it (same mapping the recording feature uses) and keep it across the
+  // active → post-call transition so the transcript stays visible.
+  const telnyxSessionId = (activeCall as any)?.telnyxIDs?.telnyxSessionId as
+    | string
+    | undefined;
+  const resolvedCallId = useCallIdBySession(telnyxSessionId);
+  const storeCallId = useCallStore((s) => s.callId);
+  const [callId, setCallId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (resolvedCallId) setCallId(resolvedCallId);
+  }, [resolvedCallId]);
+  useEffect(() => {
+    if (storeCallId) setCallId(storeCallId);
+  }, [storeCallId]);
 
   useEffect(() => {
     const destNumber = activeCall?.options?.destinationNumber;
@@ -72,6 +91,7 @@ export function ShowActiveCall() {
       resolvedNumberRef.current = null;
       setContactId(null);
       setContactName(undefined);
+      setCallId(null);
     }
   }, [activeCall, postCallPhase]);
 
@@ -115,7 +135,7 @@ export function ShowActiveCall() {
       isPostCall={postCallPhase}
       onPostCallClose={handlePostCallClose}
       contactId={contactId}
-      callId={useCallStore.getState().callId}
+      callId={callId}
     />
   );
 }

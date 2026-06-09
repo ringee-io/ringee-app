@@ -25,6 +25,29 @@ const apiConfiguration = {
   TELNYX_WEBHOOK_TOLERANCE_SECONDS: Number(
     process.env.TELNYX_WEBHOOK_TOLERANCE_SECONDS ?? 300,
   ),
+  // ── Call Recording & Transcription (Deepgram) ──
+  // Optional: when unset, recording still works but transcription is disabled
+  // and the service surfaces a clear error instead of crashing at boot.
+  DEEPGRAM_API_KEY: process.env.DEEPGRAM_API_KEY,
+  DEEPGRAM_MODEL: process.env.DEEPGRAM_MODEL || "nova-2",
+  // Deepgram language hint. "multi" enables multilingual transcription; set a
+  // concrete code (e.g. "en", "es") to lock the language.
+  DEEPGRAM_LANGUAGE: process.env.DEEPGRAM_LANGUAGE || "multi",
+  // Credits billed per transcribed minute before margin is applied.
+  TRANSCRIPTION_CREDIT_COST_PER_MINUTE: Number(
+    process.env.TRANSCRIPTION_CREDIT_COST_PER_MINUTE ?? 0.01,
+  ),
+  // Profit margin multiplier for transcription charges.
+  // 1 = charge provider-equivalent cost, 1.5 = +50%.
+  TRANSCRIPTION_CREDIT_PROFIT_MARGIN: Number(
+    process.env.TRANSCRIPTION_CREDIT_PROFIT_MARGIN ?? 1,
+  ),
+  // Public wss:// URL Telnyx dials for the live media stream. The bridge runs
+  // on the SAME host/port as the API (path /media-stream), so this is just the
+  // public API origin with wss:// + /media-stream, e.g.
+  // wss://api.example.com/media-stream. Required for realtime transcription.
+  TRANSCRIPTION_MEDIA_STREAM_PUBLIC_URL:
+    process.env.TRANSCRIPTION_MEDIA_STREAM_PUBLIC_URL,
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET!,
   TRIGGERLOOP_BASE_URL: process.env.TRIGGERLOOP_BASE_URL!,
@@ -110,6 +133,14 @@ if (
 
 if (!(apiConfiguration.AI_TOKEN_MARGIN >= 1)) {
   errors.push("AI_TOKEN_MARGIN must be a number >= 1");
+}
+
+if (!(apiConfiguration.TRANSCRIPTION_CREDIT_COST_PER_MINUTE >= 0)) {
+  errors.push("TRANSCRIPTION_CREDIT_COST_PER_MINUTE must be a number >= 0");
+}
+
+if (!(apiConfiguration.TRANSCRIPTION_CREDIT_PROFIT_MARGIN >= 1)) {
+  errors.push("TRANSCRIPTION_CREDIT_PROFIT_MARGIN must be a number >= 1");
 }
 
 if (!apiConfiguration.PUBLIC_BACKEND_URL) {

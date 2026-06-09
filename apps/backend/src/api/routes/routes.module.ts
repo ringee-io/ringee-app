@@ -8,7 +8,10 @@ import {
   TelephonyModule,
   StripeModule,
   NotificationModule,
+  DeepgramModule,
+  RedisModule,
 } from "@ringee/platform";
+import { TranscriptionMediaGateway } from "@ringee/services";
 import { ClerkController } from "./clerk.controller";
 import { CallController } from "./call.controller";
 import { WebRTCController } from "./webrtc.controller";
@@ -50,6 +53,8 @@ import { McpController } from "./mcp.controller";
 import { McpChatgptController } from "./mcp.chatgpt.controller";
 import { CallSessionController } from "./call-session.controller";
 import { WellKnownController } from "./well-known.controller";
+import { CallRecordingSettingsController } from "./call-recording-settings.controller";
+import { TranscriptionController } from "./transcription.controller";
 
 @Module({
   controllers: [
@@ -97,8 +102,12 @@ import { WellKnownController } from "./well-known.controller";
     McpController,
     CallSessionController,
     WellKnownController,
+    CallRecordingSettingsController,
+    TranscriptionController,
   ],
-  providers: [EnrichmentFeatureGuard],
+  // TranscriptionMediaGateway lives here (not in the shared ServicesModule) so
+  // the Telnyx media-stream WS server binds its port only in the API process.
+  providers: [EnrichmentFeatureGuard, TranscriptionMediaGateway],
   imports: [
     McpModule,
     ChatModule,
@@ -107,6 +116,8 @@ import { WellKnownController } from "./well-known.controller";
     StripeModule,
     NotificationModule,
     TriggerLoopModule,
+    DeepgramModule,
+    RedisModule,
   ],
 })
 export class RoutesModule { }

@@ -89,25 +89,82 @@
       "Table": "Tabel-widgets"
     },
     "catalog": {
-      "kpi_total_calls": { "title": "Totaal aantal gesprekken", "description": "Gesprekken in de geselecteerde periode." },
-      "kpi_answered_calls": { "title": "Beantwoorde gesprekken", "description": "Gesprekken die door een persoon beantwoord zijn." },
-      "kpi_meetings_booked": { "title": "Afspraken ingepland", "description": "Afspraken in de agenda voor deze periode." },
-      "kpi_sales": { "title": "Verkoop", "description": "Gesprekken met resultaat \"Verkoop\"." },
-      "kpi_interested": { "title": "Geïnteresseerde leads", "description": "Gesprekken met resultaat \"Geïnteresseerd\"." },
-      "kpi_follow_ups": { "title": "Opvolgingen", "description": "Gesprekken gemarkeerd voor opvolging." },
-      "kpi_no_answer": { "title": "Geen antwoord", "description": "Gesprekken die niet werden beantwoord." },
-      "kpi_voicemail": { "title": "Voicemail", "description": "Gesprekken die in de voicemail eindigden." },
-      "kpi_wrong_number": { "title": "Verkeerd nummer", "description": "Gesprekken gemarkeerd als verkeerd nummer." },
-      "kpi_conversion_rate": { "title": "Conversiepercentage", "description": "Verkopen / beantwoorde gesprekken." },
-      "kpi_meeting_rate": { "title": "Afspraakpercentage", "description": "Geboekte afspraken / beantwoorde gesprekken." },
-      "kpi_positive_outcome_rate": { "title": "Percentage positief resultaat", "description": "(Verkoop + Afspraken + Geïnteresseerd) / beantwoord." },
-      "chart_outcome_funnel": { "title": "Resultatenfunnel", "description": "Totaal → Beantwoord → Geïnteresseerd → Afspraken → Verkoop." },
-      "chart_outcomes_over_time": { "title": "Resultaten in de tijd", "description": "Gestapelde resultaten per dag/week/maand." },
-      "chart_best_time_of_day": { "title": "Beste beluren", "description": "Uren met de meeste resultaten." },
-      "chart_calls_by_outcome": { "title": "Gesprekken per resultaat", "description": "Verdeling van resultaten." },
-      "table_recent_high_value_calls": { "title": "Hoog-waardige gesprekken", "description": "Recente verkopen, afspraken, geïnteresseerden, opvolgingen." },
-      "table_upcoming_meetings": { "title": "Aankomende afspraken & terugbelafspraken", "description": "Geplande afspraken en terugbelafspraken, eerstvolgende eerst." },
-      "table_agent_performance": { "title": "Agentprestaties", "description": "Per-agent overzicht (alleen org-admins)." }
+      "kpi_total_calls": {
+        "title": "Totaal aantal gesprekken",
+        "description": "Gesprekken in de geselecteerde periode."
+      },
+      "kpi_answered_calls": {
+        "title": "Beantwoorde gesprekken",
+        "description": "Gesprekken die door een persoon beantwoord zijn."
+      },
+      "kpi_meetings_booked": {
+        "title": "Afspraken ingepland",
+        "description": "Afspraken in de agenda voor deze periode."
+      },
+      "kpi_sales": {
+        "title": "Verkoop",
+        "description": "Gesprekken met resultaat \"Verkoop\"."
+      },
+      "kpi_interested": {
+        "title": "Geïnteresseerde leads",
+        "description": "Gesprekken met resultaat \"Geïnteresseerd\"."
+      },
+      "kpi_follow_ups": {
+        "title": "Opvolgingen",
+        "description": "Gesprekken gemarkeerd voor opvolging."
+      },
+      "kpi_no_answer": {
+        "title": "Geen antwoord",
+        "description": "Gesprekken die niet werden beantwoord."
+      },
+      "kpi_voicemail": {
+        "title": "Voicemail",
+        "description": "Gesprekken die in de voicemail eindigden."
+      },
+      "kpi_wrong_number": {
+        "title": "Verkeerd nummer",
+        "description": "Gesprekken gemarkeerd als verkeerd nummer."
+      },
+      "kpi_conversion_rate": {
+        "title": "Conversiepercentage",
+        "description": "Verkopen / beantwoorde gesprekken."
+      },
+      "kpi_meeting_rate": {
+        "title": "Afspraakpercentage",
+        "description": "Geboekte afspraken / beantwoorde gesprekken."
+      },
+      "kpi_positive_outcome_rate": {
+        "title": "Percentage positief resultaat",
+        "description": "(Verkoop + Afspraken + Geïnteresseerd) / beantwoord."
+      },
+      "chart_outcome_funnel": {
+        "title": "Resultatenfunnel",
+        "description": "Totaal → Beantwoord → Geïnteresseerd → Afspraken → Verkoop."
+      },
+      "chart_outcomes_over_time": {
+        "title": "Resultaten in de tijd",
+        "description": "Gestapelde resultaten per dag/week/maand."
+      },
+      "chart_best_time_of_day": {
+        "title": "Beste beluren",
+        "description": "Uren met de meeste resultaten."
+      },
+      "chart_calls_by_outcome": {
+        "title": "Gesprekken per resultaat",
+        "description": "Verdeling van resultaten."
+      },
+      "table_recent_high_value_calls": {
+        "title": "Hoog-waardige gesprekken",
+        "description": "Recente verkopen, afspraken, geïnteresseerden, opvolgingen."
+      },
+      "table_upcoming_meetings": {
+        "title": "Aankomende afspraken & terugbelafspraken",
+        "description": "Geplande afspraken en terugbelafspraken, eerstvolgende eerst."
+      },
+      "table_agent_performance": {
+        "title": "Agentprestaties",
+        "description": "Per-agent overzicht (alleen org-admins)."
+      }
     },
     "kpi": {
       "totalCalls": {
@@ -263,6 +320,48 @@
         "trend": "Gestage prestatieverbetering",
         "subtitle": "Voldoet aan de groeiprognoses"
       }
+    },
+    "charts": {
+      "answered": "Beantwoord",
+      "missed": "Gemist",
+      "error": "Fout",
+      "calls": "Gesprekken",
+      "barTitle": "Totaal aantal gesprekken per dag",
+      "barDescLong": "Activiteit van de afgelopen 3 maanden",
+      "barDescShort": "Afgelopen 3 maanden",
+      "areaTitle": "Maandelijkse gesprekstrends",
+      "areaDesc": "Totaal aantal gesprekken van de afgelopen 6 maanden",
+      "areaTrendUp": "Deze maand met {rate}% gestegen",
+      "areaTrendDown": "Deze maand met {rate}% gedaald",
+      "areaFooter": "Overzicht van de afgelopen 6 maanden",
+      "pieTitle": "Gespreksverkeer per tijdstip van de dag",
+      "pieDescLong": "Totaal aantal gesprekken per tijdstip van de dag over de afgelopen 6 maanden",
+      "pieDescShort": "Per tijdstip van de dag",
+      "pieTotalCalls": "Totaal aantal gesprekken",
+      "pieLeads": "{period} loopt voorop met {percentage}%",
+      "pieBasedOn": "Op basis van gegevens van {from} – {to} {year}",
+      "pieNoData": "Onvoldoende gegevens om weer te geven",
+      "periods": {
+        "morning": "Ochtend (06:00–12:00)",
+        "afternoon": "Middag (12:00–18:00)",
+        "evening": "Avond (18:00–24:00)",
+        "night": "Nacht (00:00–06:00)"
+      }
+    },
+    "recentCalls": {
+      "title": "Recente gesprekken",
+      "subtitle": "Laatste {count} gesprekken",
+      "callAgain": "{number} opnieuw bellen",
+      "empty": "Geen recente gesprekken gevonden.",
+      "route": "Van: {from} → Naar: {to}"
+    },
+    "memberSelector": {
+      "loading": "Bezig met laden…",
+      "allMembers": "Alle leden",
+      "member": "Lid",
+      "search": "Leden zoeken…",
+      "noMembers": "Geen leden gevonden.",
+      "unknown": "Onbekend"
     }
   }
 }

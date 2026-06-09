@@ -3,6 +3,7 @@ export * from "./chat.auth.repository";
 export * from "./call.repository";
 export * from "./deleted.user.respository";
 export * from "./call.transcription.repository";
+export * from "./call-recording-settings.repository";
 export * from "./telnyx.rate.per.minute.repository";
 export * from "./number.purchased.repository";
 export * from "./contact.repository";

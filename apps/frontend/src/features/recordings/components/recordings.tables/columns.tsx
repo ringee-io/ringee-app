@@ -23,6 +23,7 @@ import {
 } from '@ringee/frontend-shared/components/ui/tooltip';
 import { RecordingPlayButton } from './recording-play-button';
 import { useTranslations } from 'next-intl';
+import { CallTranscriptionActions } from '@/features/transcription';
 
 type RecordingData = {
     id: string;
@@ -246,5 +247,13 @@ export const columns: ColumnDef<CallWithRecordings>[] = [
                 </div>
             );
         }
+    },
+    {
+        id: 'transcript',
+        header: () => {
+            const t = useTranslations('calls.recordings.table');
+            return <>{t('transcript')}</>;
+        },
+        cell: ({ row }) => <CallTranscriptionActions callId={row.original.id} />
     }
 ];

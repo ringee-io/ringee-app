@@ -11,6 +11,7 @@
     "@anthropic-ai/sdk": "^0.96.0",
     "@aws-sdk/client-s3": "^3.940.0",
     "@clerk/express": "^1.7.37",
+    "@deepgram/sdk": "^5.4.0",
     "@keyv/redis": "^5.1.2",
     "@nestjs/axios": "^4.0.1",
     "@nestjs/cache-manager": "^3.0.1",
@@ -36,13 +37,15 @@
     "rimraf": "~6.0.0",
     "rxjs": "~7.8.0",
     "stripe": "^19.1.0",
-    "telnyx": "^4.2.1"
+    "telnyx": "^4.2.1",
+    "ws": "^8.21.0"
   },
   "devDependencies": {
     "@nestjs/cli": "~11.0.0",
     "@types/bcrypt": "^6.0.0",
     "@types/mime-types": "^3.0.1",
     "@types/node": "~22.16.0",
+    "@types/ws": "^8.18.1",
     "ts-node": "~10.9.0",
     "tsconfig-paths": "~4.2.0",
     "typescript": "~5.9.0"

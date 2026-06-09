@@ -16,20 +16,7 @@ import {
   ChartTooltip,
   ChartTooltipContent
 } from '@ringee/frontend-shared/components/ui/chart';
-
-const chartConfig = {
-  calls: {
-    label: 'Calls'
-  },
-  answered: {
-    label: 'Answered',
-    color: 'var(--primary)'
-  },
-  missed: {
-    label: 'Missed',
-    color: 'var(--primary)'
-  }
-} satisfies ChartConfig;
+import { useTranslations } from 'next-intl';
 
 type ChartPoint = {
   month: string;
@@ -43,13 +30,19 @@ interface AreaGraphProps {
 }
 
 export function AreaGraph({ data, growthRate = 0 }: AreaGraphProps) {
+  const t = useTranslations('dashboard.overview.charts');
+
+  const chartConfig = {
+    calls: { label: t('calls') },
+    answered: { label: t('answered'), color: 'var(--primary)' },
+    missed: { label: t('missed'), color: 'var(--primary)' }
+  } satisfies ChartConfig;
+
   return (
     <Card className='@container/card'>
       <CardHeader>
-        <CardTitle>Monthly Call Trends</CardTitle>
-        <CardDescription>
-          Showing total calls over the last 6 months
-        </CardDescription>
+        <CardTitle>{t('areaTitle')}</CardTitle>
+        <CardDescription>{t('areaDesc')}</CardDescription>
       </CardHeader>
 
       <CardContent className='px-2 pt-4 sm:px-6 sm:pt-6'>
@@ -127,8 +120,11 @@ export function AreaGraph({ data, growthRate = 0 }: AreaGraphProps) {
         <div className='flex w-full items-start gap-2 text-sm'>
           <div className='grid gap-2'>
             <div className='flex items-center gap-2 leading-none font-medium'>
-              Trending {growthRate >= 0 ? 'up' : 'down'} by{' '}
-              {Math.abs(growthRate).toFixed(1)}% this month{' '}
+              {growthRate >= 0
+                ? t('areaTrendUp', { rate: Math.abs(growthRate).toFixed(1) })
+                : t('areaTrendDown', {
+                    rate: Math.abs(growthRate).toFixed(1)
+                  })}{' '}
               <IconTrendingUp
                 className={`h-4 w-4 ${
                   growthRate >= 0 ? 'text-green-500' : 'rotate-180 text-red-500'
@@ -136,7 +132,7 @@ export function AreaGraph({ data, growthRate = 0 }: AreaGraphProps) {
               />
             </div>
             <div className='text-muted-foreground flex items-center gap-2 leading-none'>
-              Last 6 months overview
+              {t('areaFooter')}
             </div>
           </div>
         </div>

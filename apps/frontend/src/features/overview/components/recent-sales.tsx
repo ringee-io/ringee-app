@@ -13,6 +13,7 @@ import {
   TooltipTrigger
 } from '@ringee/frontend-shared/components/ui/tooltip';
 import { IconHistory } from '@tabler/icons-react';
+import { useTranslations } from 'next-intl';
 import { useQuickDialerCall } from '@/features/calls/hooks/use.quick.dialer.call';
 
 type Call = {
@@ -46,19 +47,25 @@ function formatDuration(seconds?: number | null): string {
 }
 
 export function RecentSales({ data }: RecentSalesProps) {
+  const t = useTranslations('dashboard.overview.recentCalls');
   const { handleRecall } = useQuickDialerCall();
   return (
     <Card className='h-full'>
       <CardHeader>
-        <CardTitle>Recent Calls</CardTitle>
-        <CardDescription>Last {data?.length || 0} calls</CardDescription>
+        <CardTitle>{t('title')}</CardTitle>
+        <CardDescription>
+          {t('subtitle', { count: data?.length || 0 })}
+        </CardDescription>
       </CardHeader>
       <CardContent>
         {data?.length ? (
           <div className='space-y-8'>
             {data.map((call) => {
               const name = call.contact?.name || call.toNumber;
-              const email = `From: ${call.fromNumber} → To: ${call.toNumber}`;
+              const email = t('route', {
+                from: call.fromNumber,
+                to: call.toNumber
+              });
 
               const duration = formatDuration(call.durationSeconds);
 
@@ -74,7 +81,7 @@ export function RecentSales({ data }: RecentSalesProps) {
                         <IconHistory className='text-muted-foreground hover:text-primary h-9 w-9 transition-colors' />
                       </TooltipTrigger>
                       <TooltipContent>
-                        <p>Call {call.toNumber} again</p>
+                        <p>{t('callAgain', { number: call.toNumber })}</p>
                       </TooltipContent>
                     </Tooltip>
                   </div>
@@ -92,9 +99,7 @@ export function RecentSales({ data }: RecentSalesProps) {
             })}
           </div>
         ) : (
-          <p className='text-muted-foreground text-sm'>
-            No recent calls found.
-          </p>
+          <p className='text-muted-foreground text-sm'>{t('empty')}</p>
         )}
       </CardContent>
     </Card>

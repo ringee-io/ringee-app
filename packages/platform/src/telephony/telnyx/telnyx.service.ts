@@ -368,6 +368,49 @@ export class TelnyxService implements TelephonyService {
     return this.telnyxClient.download(url);
   }
 
+  /**
+   * Start Telnyx Media Streaming for a live call. Telnyx dials `streamUrl`
+   * (our WebSocket bridge) and pushes PCMU/8kHz audio frames for the requested
+   * track(s). This is independent of recording — realtime transcription does
+   * not require a recording to be active.
+   */
+  async startStreaming(
+    callControlId: string,
+    streamUrl: string,
+    track: "both_tracks" | "inbound_track" | "outbound_track" = "both_tracks",
+  ): Promise<void> {
+    try {
+      await this.telnyxClient.post(
+        `/calls/${callControlId}/actions/streaming_start`,
+        {
+          stream_url: streamUrl,
+          stream_track: track,
+          command_id: crypto.randomUUID(),
+          client_state: Buffer.from(
+            JSON.stringify({ action: "media_stream" }),
+          ).toString("base64"),
+        },
+      );
+    } catch (error: any) {
+      // Surface Telnyx's real validation detail (otherwise it's masked as a
+      // generic "Http Exception" upstream).
+      const body = error?.getResponse?.() ?? error?.response?.data;
+      this.logger.error(
+        `Telnyx streaming_start failed for ${callControlId} (stream_url=${streamUrl}): ${JSON.stringify(
+          body,
+        )}`,
+      );
+      throw error;
+    }
+  }
+
+  async stopStreaming(callControlId: string): Promise<void> {
+    await this.telnyxClient.post(
+      `/calls/${callControlId}/actions/streaming_stop`,
+      { command_id: crypto.randomUUID() },
+    );
+  }
+
   async playbackStart(
     callControlId: string,
     audioUrl: string

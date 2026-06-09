@@ -17,6 +17,8 @@ import {
   EnrichmentDrainService,
   ReminderService,
   CustomIntegrationDeliveryService,
+  TranscriptionService,
+  CallRecordingSettingsService,
 } from "@ringee/services";
 import {
   UserRepository,
@@ -65,6 +67,8 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     private readonly crmRecordingUpload: CrmRecordingUploadService,
     private readonly reminderService: ReminderService,
     private readonly customIntegrationsDelivery: CustomIntegrationDeliveryService,
+    private readonly transcriptionService: TranscriptionService,
+    private readonly recordingSettingsService: CallRecordingSettingsService,
   ) { }
 
   onModuleInit() {
@@ -229,7 +233,12 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
     switch (job.type) {
       case "process_call_recording":
         await this.processCallRecording(job.data)
-        // await this. 
+        // await this.
+        break;
+      case "transcribe_recording":
+        await this.transcriptionService.runRecordingTranscription(
+          job.data.callId,
+        );
         break;
       default:
         this.logger.warn(`Unknown job type: ${job.type}`);
@@ -363,6 +372,27 @@ export class WorkerService implements OnModuleInit, OnModuleDestroy {
       }
 
       this.logger.log(`Recording saved for call ${call.id} with encryption`);
+
+      // Automatic transcription from recording: once recordingUrl exists, kick
+      // off Deepgram pre-recorded transcription if the owner's settings ask for
+      // it. transcribeFromRecording dedups against an existing realtime
+      // transcript, so we never duplicate.
+      try {
+        const ctx = {
+          userId: call.userId!,
+          organizationId: call.organizationId,
+        };
+        const settings = await this.recordingSettingsService.resolve(ctx);
+        if (settings.transcribeRecordings) {
+          await this.transcriptionService.transcribeFromRecording(call, {
+            manual: false,
+          });
+        }
+      } catch (transcribeErr) {
+        this.logger.warn(
+          `Auto transcription enqueue failed for call ${call.id}: ${(transcribeErr as Error).message}`,
+        );
+      }
     } catch (error) {
       this.logger.error("Error processing recording:", error);
       throw error;

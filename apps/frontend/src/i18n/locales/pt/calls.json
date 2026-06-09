@@ -50,7 +50,17 @@
       "unknown": "Desconhecido",
       "callAgain": "Voltar a chamar",
       "noRecording": "Sem gravação",
-      "downloadRecording": "Transferir gravação"
+      "downloadRecording": "Transferir gravação",
+      "transcript": "Transcrição"
+    },
+    "rowActions": {
+      "menu": "Ações",
+      "openMenu": "Abrir menu",
+      "call": "Ligar",
+      "addNote": "Adicionar nota",
+      "transcript": "Transcrição",
+      "update": "Atualizar",
+      "delete": "Eliminar"
     }
   },
   "recordings": {
@@ -73,7 +83,8 @@
       "unavailable": "Indisponível",
       "play": "Reproduzir",
       "playRecording": "Reproduzir gravação",
-      "downloadRecording": "Transferir gravação"
+      "downloadRecording": "Transferir gravação",
+      "transcript": "Transcrição"
     },
     "statusBadge": {
       "started": "A processar",

@@ -10,6 +10,7 @@ import {
   CryptoModule,
   EnrichmentModule,
   AiAgentsPlatformModule,
+  DeepgramModule,
 } from "@ringee/platform";
 import { ChatAuthService } from "./chat.auth.service";
 import { CallTranscriptionService } from "./call.transcription.service";
@@ -103,6 +104,10 @@ import {
   CallSessionService,
   CallSessionAccessTokenService,
 } from "./call-session";
+import {
+  CallRecordingSettingsService,
+  TranscriptionService,
+} from "./transcription";
 
 const servicesProviders = [
   UserService,
@@ -193,6 +198,11 @@ const servicesProviders = [
   // Call Sessions (magic-link dialing)
   CallSessionService,
   CallSessionAccessTokenService,
+  // Call Recording & Transcription
+  // (TranscriptionMediaGateway is registered only in the backend app so the
+  //  Telnyx media WS server binds a single port — see RoutesModule.)
+  CallRecordingSettingsService,
+  TranscriptionService,
 ];
 
 const reminderChannelsProvider: Provider = {
@@ -211,7 +221,7 @@ const allProviders: Provider[] = [
 
 @Global()
 @Module({
-  imports: [AuthModule, NotificationModule, TelephonyModule, StripeModule, CrmModule, EnrichmentModule, RedisModule, CryptoModule, AiAgentsPlatformModule],
+  imports: [AuthModule, NotificationModule, TelephonyModule, StripeModule, CrmModule, EnrichmentModule, RedisModule, CryptoModule, AiAgentsPlatformModule, DeepgramModule],
   providers: allProviders,
   exports: [...allProviders, NotificationModule],
 })

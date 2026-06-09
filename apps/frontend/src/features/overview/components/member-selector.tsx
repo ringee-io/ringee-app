@@ -20,6 +20,7 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { useTranslations } from 'next-intl';
 
 interface MemberSelectorProps {
   value: string | null;
@@ -28,17 +29,18 @@ interface MemberSelectorProps {
 
 interface Member {
   id: string;
-  userId: string; 
+  userId: string;
   name: string;
   email: string;
   imageUrl?: string;
 }
 
 export function MemberSelector({ value, onChange }: MemberSelectorProps) {
+  const t = useTranslations('dashboard.overview.memberSelector');
   const [open, setOpen] = React.useState(false);
   const [members, setMembers] = React.useState<Member[]>([]);
   const [loading, setLoading] = React.useState(true);
-  const [error, setError] = React.useState(false);
+  const [, setError] = React.useState(false);
   const { organization, isLoaded: isOrgLoaded } = useOrganization();
   const { isOrgAdmin, hasOrg, isLoaded: isRoleLoaded } = useOrgRole();
   const api = useApi();
@@ -57,7 +59,8 @@ export function MemberSelector({ value, onChange }: MemberSelectorProps) {
     setLoading(true);
     setError(false);
 
-    organization.getMemberships()
+    organization
+      .getMemberships()
       .then(async (res) => {
         if (!active) return;
 
@@ -76,16 +79,20 @@ export function MemberSelector({ value, onChange }: MemberSelectorProps) {
 
         const clerkToDbId = new Map(dbUserMap.map((u) => [u.clerkId, u.id]));
 
-        setMembers(res.data.map((m) => {
-          const clerkUserId = m.publicUserData?.userId || '';
-          return {
-            id: m.id,
-            userId: clerkToDbId.get(clerkUserId) || '', 
-            name: `${m.publicUserData?.firstName || ''} ${m.publicUserData?.lastName || ''}`.trim() || 'Unknown',
-            email: m.publicUserData?.identifier || '',
-            imageUrl: m.publicUserData?.imageUrl
-          };
-        }));
+        setMembers(
+          res.data.map((m) => {
+            const clerkUserId = m.publicUserData?.userId || '';
+            return {
+              id: m.id,
+              userId: clerkToDbId.get(clerkUserId) || '',
+              name:
+                `${m.publicUserData?.firstName || ''} ${m.publicUserData?.lastName || ''}`.trim() ||
+                t('unknown'),
+              email: m.publicUserData?.identifier || '',
+              imageUrl: m.publicUserData?.imageUrl
+            };
+          })
+        );
       })
       .catch(() => {
         if (!active) return;
@@ -96,7 +103,9 @@ export function MemberSelector({ value, onChange }: MemberSelectorProps) {
         if (active) setLoading(false);
       });
 
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [orgId, isOrgLoaded, isRoleLoaded, hasOrg, isOrgAdmin, organization]);
 
   if (!hasOrg || !isOrgAdmin) {
@@ -116,13 +125,15 @@ export function MemberSelector({ value, onChange }: MemberSelectorProps) {
           disabled={loading}
         >
           {loading ? (
-            'Loading...'
+            t('loading')
           ) : value ? (
-            <span className='truncate'>{selectedMember?.name || 'Member'}</span>
+            <span className='truncate'>
+              {selectedMember?.name || t('member')}
+            </span>
           ) : (
             <>
               <Users className='mr-2 h-4 w-4' />
-              All Members
+              {t('allMembers')}
             </>
           )}
           <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
@@ -130,9 +141,9 @@ export function MemberSelector({ value, onChange }: MemberSelectorProps) {
       </PopoverTrigger>
       <PopoverContent className='w-[250px] p-0'>
         <Command>
-          <CommandInput placeholder='Search members...' />
+          <CommandInput placeholder={t('search')} />
           <CommandList>
-            <CommandEmpty>No members found.</CommandEmpty>
+            <CommandEmpty>{t('noMembers')}</CommandEmpty>
             <CommandGroup>
               <CommandItem
                 value='all'
@@ -148,7 +159,7 @@ export function MemberSelector({ value, onChange }: MemberSelectorProps) {
                   )}
                 />
                 <Users className='mr-2 h-4 w-4' />
-                All Members
+                {t('allMembers')}
               </CommandItem>
               {members.map((member) => (
                 <CommandItem
@@ -167,7 +178,7 @@ export function MemberSelector({ value, onChange }: MemberSelectorProps) {
                   />
                   <div className='flex flex-col'>
                     <span className='truncate'>{member.name}</span>
-                    <span className='text-xs text-muted-foreground truncate'>
+                    <span className='text-muted-foreground truncate text-xs'>
                       {member.email}
                     </span>
                   </div>

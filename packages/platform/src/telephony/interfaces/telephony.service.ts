@@ -25,6 +25,12 @@ export type TelephonyService = {
   hangupCall(callControlId: string, commandId?: string): Promise<void>;
   startRecording(callControlId: string): Promise<void>;
   stopRecording(callControlId: string): Promise<void>;
+  startStreaming(
+    callControlId: string,
+    streamUrl: string,
+    track?: "both_tracks" | "inbound_track" | "outbound_track",
+  ): Promise<void>;
+  stopStreaming(callControlId: string): Promise<void>;
   downloadRecording(url: string): Promise<ArrayBuffer>;
   playbackStart(callControlId: string, audioUrl: string): Promise<void>;
   sendMessage(params: {

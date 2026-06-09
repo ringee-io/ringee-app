@@ -4,6 +4,7 @@ import { UserRepository } from "./repositories/user.repository";
 import { ChatAuthRepository } from "./repositories/chat.auth.repository";
 import { DeletedUserRepository } from "./repositories/deleted.user.respository";
 import { CallTranscriptionRepository } from "./repositories/call.transcription.repository";
+import { CallRecordingSettingsRepository } from "./repositories/call-recording-settings.repository";
 import { CallRepository } from "./repositories/call.repository";
 import { TelnyxRatePerMinuteRepository } from "./repositories/telnyx.rate.per.minute.repository";
 import { NumberPurchasedRepository } from "./repositories/number.purchased.repository";
@@ -76,6 +77,7 @@ const databaseProviders = [
   DeletedUserRepository,
   CallRepository,
   CallTranscriptionRepository,
+  CallRecordingSettingsRepository,
   TelnyxRatePerMinuteRepository,
   NumberPurchasedRepository,
   ContactRepository,

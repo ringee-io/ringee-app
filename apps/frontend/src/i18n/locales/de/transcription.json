@@ -1,0 +1,45 @@
+{
+  "transcribe": "Anruf transkribieren",
+  "transcribing": "Wird transkribiert…",
+  "viewTranscript": "Transkript anzeigen",
+  "retranscribe": "Aus Aufzeichnung neu transkribieren",
+  "processing": "Transkript wird verarbeitet…",
+  "unavailable": "Transkript nicht verfügbar",
+  "tryAgain": "Erneut versuchen",
+  "liveTitle": "Live-Transkript",
+  "finalTitle": "Endgültiges Transkript",
+  "sourceRealtime": "Live",
+  "sourceRecording": "Aus Aufzeichnung",
+  "waitingForAudio": "Warte auf Audio…",
+  "readyToTranscribe": "Für diesen Anruf liegt eine Aufzeichnung zum Transkribieren bereit.",
+  "speaker": {
+    "you": "Sie",
+    "contact": "Kontakt",
+    "unknown": "Sprecher"
+  },
+  "status": {
+    "idle": "Inaktiv",
+    "starting": "Wird gestartet…",
+    "transcribing": "Wird transkribiert…",
+    "processing": "Wird verarbeitet…",
+    "completed": "Abgeschlossen",
+    "failed": "Fehlgeschlagen",
+    "unavailable": "Nicht verfügbar",
+    "stopped": "Gestoppt"
+  },
+  "errors": {
+    "startFailed": "Transkription konnte nicht gestartet werden. Bitte versuchen Sie es erneut.",
+    "transcribeFailed": "Dieser Anruf konnte nicht transkribiert werden. Bitte versuchen Sie es erneut."
+  },
+  "settings": {
+    "title": "Einstellungen für Anrufaufzeichnung und Transkription",
+    "subtitle": "Legen Sie fest, wie Anrufe in diesem Workspace aufgezeichnet und transkribiert werden.",
+    "recordAll": "Alle Anrufe aufzeichnen",
+    "recordAllDesc": "Jeden Anruf in diesem Kontext automatisch aufzeichnen.",
+    "transcribeRealtime": "Anrufe in Echtzeit transkribieren",
+    "transcribeRealtimeDesc": "Aktive Anrufe live mit Deepgram transkribieren. Keine Aufzeichnung erforderlich.",
+    "transcribeRecordings": "Aufzeichnungen automatisch transkribieren",
+    "transcribeRecordingsDesc": "Aufgezeichnete Anrufe automatisch transkribieren, sobald die Aufzeichnung verfügbar ist. Erfordert Aufzeichnung.",
+    "saveError": "Einstellungen konnten nicht gespeichert werden. Möglicherweise haben Sie keine Berechtigung, die Organisationseinstellungen zu ändern."
+  }
+}

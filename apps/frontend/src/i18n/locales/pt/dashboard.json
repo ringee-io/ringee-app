@@ -89,25 +89,82 @@
       "Table": "Widgets de tabela"
     },
     "catalog": {
-      "kpi_total_calls": { "title": "Total de chamadas", "description": "Chamadas efetuadas no período selecionado." },
-      "kpi_answered_calls": { "title": "Chamadas atendidas", "description": "Chamadas atendidas por uma pessoa." },
-      "kpi_meetings_booked": { "title": "Reuniões marcadas", "description": "Reuniões no calendário deste período." },
-      "kpi_sales": { "title": "Vendas concluídas", "description": "Chamadas com resultado \"Venda\"." },
-      "kpi_interested": { "title": "Leads interessados", "description": "Chamadas com resultado \"Interessado\"." },
-      "kpi_follow_ups": { "title": "Acompanhamentos", "description": "Chamadas marcadas para acompanhamento." },
-      "kpi_no_answer": { "title": "Sem resposta", "description": "Chamadas que ficaram sem resposta." },
-      "kpi_voicemail": { "title": "Correio de voz", "description": "Chamadas que caíram no correio de voz." },
-      "kpi_wrong_number": { "title": "Número errado", "description": "Chamadas marcadas como número errado." },
-      "kpi_conversion_rate": { "title": "Taxa de conversão", "description": "Vendas / chamadas atendidas." },
-      "kpi_meeting_rate": { "title": "Taxa de reuniões", "description": "Reuniões marcadas / chamadas atendidas." },
-      "kpi_positive_outcome_rate": { "title": "Taxa de resultado positivo", "description": "(Vendas + Reuniões + Interessados) / atendidas." },
-      "chart_outcome_funnel": { "title": "Funil de resultados", "description": "Total → Atendidas → Interessados → Reuniões → Vendas." },
-      "chart_outcomes_over_time": { "title": "Resultados ao longo do tempo", "description": "Resultados empilhados por dia/semana/mês." },
-      "chart_best_time_of_day": { "title": "Melhores horas para ligar", "description": "As horas que geram mais resultados." },
-      "chart_calls_by_outcome": { "title": "Chamadas por resultado", "description": "Distribuição dos resultados." },
-      "table_recent_high_value_calls": { "title": "Chamadas de alto valor", "description": "Vendas, reuniões, interessados e acompanhamentos recentes." },
-      "table_upcoming_meetings": { "title": "Próximas reuniões e retornos", "description": "Reuniões e retornos agendados, os mais próximos primeiro." },
-      "table_agent_performance": { "title": "Desempenho por agente", "description": "Detalhe por agente (apenas admins da organização)." }
+      "kpi_total_calls": {
+        "title": "Total de chamadas",
+        "description": "Chamadas efetuadas no período selecionado."
+      },
+      "kpi_answered_calls": {
+        "title": "Chamadas atendidas",
+        "description": "Chamadas atendidas por uma pessoa."
+      },
+      "kpi_meetings_booked": {
+        "title": "Reuniões marcadas",
+        "description": "Reuniões no calendário deste período."
+      },
+      "kpi_sales": {
+        "title": "Vendas concluídas",
+        "description": "Chamadas com resultado \"Venda\"."
+      },
+      "kpi_interested": {
+        "title": "Leads interessados",
+        "description": "Chamadas com resultado \"Interessado\"."
+      },
+      "kpi_follow_ups": {
+        "title": "Acompanhamentos",
+        "description": "Chamadas marcadas para acompanhamento."
+      },
+      "kpi_no_answer": {
+        "title": "Sem resposta",
+        "description": "Chamadas que ficaram sem resposta."
+      },
+      "kpi_voicemail": {
+        "title": "Correio de voz",
+        "description": "Chamadas que caíram no correio de voz."
+      },
+      "kpi_wrong_number": {
+        "title": "Número errado",
+        "description": "Chamadas marcadas como número errado."
+      },
+      "kpi_conversion_rate": {
+        "title": "Taxa de conversão",
+        "description": "Vendas / chamadas atendidas."
+      },
+      "kpi_meeting_rate": {
+        "title": "Taxa de reuniões",
+        "description": "Reuniões marcadas / chamadas atendidas."
+      },
+      "kpi_positive_outcome_rate": {
+        "title": "Taxa de resultado positivo",
+        "description": "(Vendas + Reuniões + Interessados) / atendidas."
+      },
+      "chart_outcome_funnel": {
+        "title": "Funil de resultados",
+        "description": "Total → Atendidas → Interessados → Reuniões → Vendas."
+      },
+      "chart_outcomes_over_time": {
+        "title": "Resultados ao longo do tempo",
+        "description": "Resultados empilhados por dia/semana/mês."
+      },
+      "chart_best_time_of_day": {
+        "title": "Melhores horas para ligar",
+        "description": "As horas que geram mais resultados."
+      },
+      "chart_calls_by_outcome": {
+        "title": "Chamadas por resultado",
+        "description": "Distribuição dos resultados."
+      },
+      "table_recent_high_value_calls": {
+        "title": "Chamadas de alto valor",
+        "description": "Vendas, reuniões, interessados e acompanhamentos recentes."
+      },
+      "table_upcoming_meetings": {
+        "title": "Próximas reuniões e retornos",
+        "description": "Reuniões e retornos agendados, os mais próximos primeiro."
+      },
+      "table_agent_performance": {
+        "title": "Desempenho por agente",
+        "description": "Detalhe por agente (apenas admins da organização)."
+      }
     },
     "kpi": {
       "totalCalls": {
@@ -263,6 +320,48 @@
         "trend": "Aumento sustentado de performance",
         "subtitle": "Cumpre as projeções de crescimento"
       }
+    },
+    "charts": {
+      "answered": "Atendidas",
+      "missed": "Perdidas",
+      "error": "Erro",
+      "calls": "Chamadas",
+      "barTitle": "Total de chamadas por dia",
+      "barDescLong": "Atividade dos últimos 3 meses",
+      "barDescShort": "Últimos 3 meses",
+      "areaTitle": "Tendências mensais de chamadas",
+      "areaDesc": "A mostrar o total de chamadas dos últimos 6 meses",
+      "areaTrendUp": "A subir {rate}% este mês",
+      "areaTrendDown": "A descer {rate}% este mês",
+      "areaFooter": "Resumo dos últimos 6 meses",
+      "pieTitle": "Tráfego de chamadas por hora do dia",
+      "pieDescLong": "Total de chamadas por hora do dia nos últimos 6 meses",
+      "pieDescShort": "Por hora do dia",
+      "pieTotalCalls": "Total de chamadas",
+      "pieLeads": "{period} lidera com {percentage}%",
+      "pieBasedOn": "Com base nos dados de {from} – {to} {year}",
+      "pieNoData": "Dados insuficientes para apresentar",
+      "periods": {
+        "morning": "Manhã (06:00–12:00)",
+        "afternoon": "Tarde (12:00–18:00)",
+        "evening": "Noite (18:00–24:00)",
+        "night": "Madrugada (00:00–06:00)"
+      }
+    },
+    "recentCalls": {
+      "title": "Chamadas recentes",
+      "subtitle": "Últimas {count} chamadas",
+      "callAgain": "Ligar novamente para {number}",
+      "empty": "Não foram encontradas chamadas recentes.",
+      "route": "De: {from} → Para: {to}"
+    },
+    "memberSelector": {
+      "loading": "A carregar…",
+      "allMembers": "Todos os membros",
+      "member": "Membro",
+      "search": "Procurar membros…",
+      "noMembers": "Nenhum membro encontrado.",
+      "unknown": "Desconhecido"
     }
   }
 }

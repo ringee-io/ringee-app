@@ -7,6 +7,7 @@ import { lastValueFrom } from "rxjs";
  */
 export enum JobType {
   PROCESS_CALL_RECORDING = "process_call_recording",
+  TRANSCRIBE_RECORDING = "transcribe_recording",
   RETRY_SCHEDULER = "retry_scheduler",
   CALLBACK_SCHEDULER = "callback_scheduler",
   AGENT_HEARTBEAT_CHECK = "agent_heartbeat_check",
@@ -133,6 +134,23 @@ export class WorkerService implements OnModuleInit {
   }): Promise<string> {
     return this.addJob({
       type: JobType.PROCESS_CALL_RECORDING,
+      data,
+      options: { priority: JobPriority.NORMAL },
+    });
+  }
+
+  /**
+   * Enqueue a background job to transcribe a finished call's recording with
+   * Deepgram's pre-recorded API. `manual` distinguishes a user-triggered
+   * "Retranscribe from recording" (always runs) from the automatic path
+   * (skipped when a realtime transcript already exists).
+   */
+  async processTranscribeRecording(data: {
+    callId: string;
+    manual?: boolean;
+  }): Promise<string> {
+    return this.addJob({
+      type: JobType.TRANSCRIBE_RECORDING,
       data,
       options: { priority: JobPriority.NORMAL },
     });

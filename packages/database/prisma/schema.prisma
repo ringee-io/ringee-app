@@ -4,7 +4,7 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = "postgresql://ringee-user:ringee-password@localhost:5432/ringee-db-local?schema=public"
 }
 
 enum EmailStatus {
@@ -416,6 +416,8 @@ model User {
   aiMessages              AiMessage[]
   customIntegrations      CustomIntegration[]
   callSessions            CallSession[]
+  callRecordingSettings   CallRecordingSettings?
+  callTranscriptions      CallTranscription[]
 
   @@index([clerkId])
 }
@@ -459,6 +461,8 @@ model Organization {
   aiConversations        AiConversation[]
   customIntegrations     CustomIntegration[]
   callSessions           CallSession[]
+  callRecordingSettings  CallRecordingSettings?
+  callTranscriptions     CallTranscription[]
 
   @@index([clerkId])
 }
@@ -582,6 +586,7 @@ model Call {
   user             User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
   organization     Organization?              @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   transcription    CallTranscriptionSegment[]
+  callTranscriptions CallTranscription[]
   recordings       Recording[]
   publicRecordings PublicRecording[]
   meetings         Meeting[]
@@ -600,15 +605,23 @@ model Call {
 }
 
 model CallTranscriptionSegment {
-  id        String   @id @default(uuid())
-  callId    String   @db.Uuid
-  text      String
-  speaker   Int?
-  track     String?
-  isFinal   Boolean  @default(false)
-  createdAt DateTime @default(now())
+  id              String   @id @default(uuid())
+  callId          String   @db.Uuid
+  transcriptionId String?  @db.Uuid
+  text            String
+  speaker         Int?
+  track           String?
+  confidence      Float?
+  startMs         Int?
+  endMs           Int?
+  isFinal         Boolean  @default(false)
+  createdAt       DateTime @default(now())
 
-  call Call @relation(fields: [callId], references: [id])
+  call          Call               @relation(fields: [callId], references: [id])
+  transcription CallTranscription? @relation(fields: [transcriptionId], references: [id], onDelete: Cascade)
+
+  @@index([callId])
+  @@index([transcriptionId])
 }
 
 model TelnyxRatePerMinute {
@@ -2699,4 +2712,99 @@ model CallSessionEvent {
 
   @@index([callSessionId, createdAt])
   @@index([type])
+}
+
+// ── Call Recording & Transcription ──
+
+// Lifecycle of a CallTranscription. Maps 1:1 to the frontend "Final Transcript"
+// state machine so UI copy and backend state never drift.
+enum TranscriptionStatus {
+  idle // no transcript exists yet
+  starting // realtime: media/Deepgram session is being set up
+  transcribing // realtime: receiving live results
+  processing // recording: background job is running
+  completed // a final transcript exists
+  failed // an attempt errored (retryable)
+  unavailable // recording transcription requested but no recordingUrl
+  stopped // realtime stopped before producing a final transcript
+}
+
+// Where a transcript came from. Realtime = Telnyx Media Streaming → Deepgram
+// live. Recording = Deepgram pre-recorded API over the stored recordingUrl.
+enum TranscriptionSource {
+  realtime
+  recording
+}
+
+// Per-context (organization OR user) recording & transcription preferences.
+// Exactly one of organizationId / userId is set. Resolution rule lives in the
+// service: if a call has an organizationId, the org row wins; otherwise the
+// user row is used. There is no override/merge between the two.
+model CallRecordingSettings {
+  id             String  @id @default(uuid()) @db.Uuid
+  userId         String? @unique @db.Uuid
+  organizationId String? @unique @db.Uuid
+
+  // Record every call automatically with Telnyx.
+  recordAllCalls Boolean @default(false)
+  // Transcribe active calls live (Telnyx Media Streaming → Deepgram). Does not
+  // require recording.
+  transcribeRealtime Boolean @default(false)
+  // Transcribe stored recordings automatically once recordingUrl is available.
+  // Requires recording.
+  transcribeRecordings Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+}
+
+// Aggregate transcript for a call from a single source. A call can have at most
+// one realtime transcript and one recording transcript (enforced by the
+// @@unique below). Individual utterances live in CallTranscriptionSegment.
+model CallTranscription {
+  id             String  @id @default(uuid()) @db.Uuid
+  callId         String  @db.Uuid
+  userId         String? @db.Uuid
+  organizationId String? @db.Uuid
+
+  source TranscriptionSource
+  status TranscriptionStatus @default(idle)
+
+  // Full concatenated text of all final segments.
+  text       String? @db.Text
+  language   String?
+  confidence Float?
+  provider   String  @default("deepgram")
+  model      String?
+
+  // Source recording (only for source = recording).
+  recordingId  String? @db.Uuid
+  recordingUrl String? @db.Text
+
+  errorMessage String? @db.Text
+  metadata     Json?
+
+  startedAt   DateTime?
+  completedAt DateTime?
+  durationMs  Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  call         Call                       @relation(fields: [callId], references: [id], onDelete: Cascade)
+  user         User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization Organization?              @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  segments     CallTranscriptionSegment[]
+
+  @@unique([callId, source])
+  @@index([callId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([status])
 }

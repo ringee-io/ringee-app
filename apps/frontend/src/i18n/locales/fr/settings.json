@@ -80,7 +80,8 @@
     "notifications": "Notifications",
     "security": "Sécurité",
     "appearance": "Apparence",
-    "script": "Script"
+    "script": "Script",
+    "recording": "Enregistrement"
   },
   "overview": {
     "title": "Aperçu",
@@ -117,6 +118,17 @@
     "description": "Personnalisez le script lu par votre dialer pendant les appels.",
     "tab": "Script",
     "addSection": "Ajouter une section",
-    "saveScript": "Enregistrer le script"
+    "saveScript": "Enregistrer le script",
+    "generalTitle": "Script général",
+    "generalDescription": "Créez les sections de votre script. Faites-les glisser pour les réorganiser.",
+    "saving": "Enregistrement…",
+    "loadError": "Impossible de charger votre script. Rechargez la page pour réessayer.",
+    "empty": "Vous n’avez pas encore de sections. Ajoutez la première pour commencer votre script.",
+    "dragToReorder": "Glisser pour réorganiser",
+    "titleLabel": "Titre",
+    "titlePlaceholder": "Ex. : Introduction",
+    "bodyLabel": "Script",
+    "bodyPlaceholder": "Ce que vous direz dans cette partie du script…",
+    "removeSection": "Supprimer la section"
   }
 }

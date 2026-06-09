@@ -50,5 +50,10 @@
   "kbar": {
     "navigation": "Navigazione",
     "goTo": "Vai a {page}"
+  },
+  "tabs": {
+    "dialer": "Dialer",
+    "contact": "Contatto",
+    "history": "Cronologia"
   }
 }
