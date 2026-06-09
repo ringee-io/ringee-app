@@ -55,5 +55,10 @@
   "kbar": {
     "navigation": "Navegación",
     "goTo": "Ir a {page}"
+  },
+  "communitySupport": {
+    "label": "Soporte de la comunidad",
+    "tooltipTitle": "Soporte de la comunidad",
+    "tooltipDescription": "Únete a la comunidad de Ringee en LinkedIn: recibe ayuda de nuestro equipo y conecta con otros usuarios."
   }
 }

@@ -4,8 +4,9 @@ import React from 'react';
 import { SidebarTrigger } from '@ringee/frontend-shared/components/ui/sidebar';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import { Breadcrumbs } from '@ringee/frontend-shared/components/breadcrumbs';
-import SearchInput from '@ringee/frontend-shared/components/search-input';
+// import SearchInput from '@ringee/frontend-shared/components/search-input';
 import { UserNav } from './user-nav';
+import { CommunitySupportButton } from './community-support-button';
 import { CreditPopover } from '@/features/credit/components/credit.popover';
 import { useIsMobile } from '@ringee/frontend-shared/hooks/use-mobile';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
@@ -35,13 +36,14 @@ export default function Header({ useMock }: { useMock?: boolean }) {
       )}
 
       <div className='flex items-center gap-4 px-4'>
+        <CommunitySupportButton />
         <AiAssistantLauncher />
         {!mobile && canAccessAdminFeatures && (
           <CreditPopover useMock={useMock} />
         )}
-        <div className='hidden sm:flex'>
+        {/* <div className='hidden sm:flex'>
           <SearchInput />
-        </div>
+        </div> */}
         <UserNav useMock={useMock} />
         <HeaderOnboardingButton />
       </div>

@@ -55,5 +55,10 @@
     "dialer": "Composeur",
     "contact": "Contact",
     "history": "Historique"
+  },
+  "communitySupport": {
+    "label": "Support communauté",
+    "tooltipTitle": "Support communauté",
+    "tooltipDescription": "Rejoignez la communauté Ringee sur LinkedIn : obtenez de l'aide de notre équipe et échangez avec d'autres utilisateurs."
   }
 }

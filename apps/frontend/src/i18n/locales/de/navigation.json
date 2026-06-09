@@ -55,5 +55,10 @@
     "dialer": "Dialer",
     "contact": "Kontakt",
     "history": "Verlauf"
+  },
+  "communitySupport": {
+    "label": "Community-Support",
+    "tooltipTitle": "Community-Support",
+    "tooltipDescription": "Tritt der Ringee-Community auf LinkedIn bei: Erhalte Hilfe von unserem Team und vernetze dich mit anderen Nutzern."
   }
 }

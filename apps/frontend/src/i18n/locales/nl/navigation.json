@@ -55,5 +55,10 @@
     "dialer": "Dialer",
     "contact": "Contact",
     "history": "Geschiedenis"
+  },
+  "communitySupport": {
+    "label": "Community-support",
+    "tooltipTitle": "Community-support",
+    "tooltipDescription": "Word lid van de Ringee-community op LinkedIn: krijg hulp van ons team en maak contact met andere gebruikers."
   }
 }
