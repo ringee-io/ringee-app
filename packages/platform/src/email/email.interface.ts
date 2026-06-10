@@ -2,7 +2,7 @@ export interface EmailInterface {
   name: string;
   validateEnvKeys: string[];
   sendEmail(
-    to: string,
+    to: string | string[],
     subject: string,
     html: string,
     emailFromName?: string,

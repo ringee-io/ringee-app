@@ -75,6 +75,29 @@ export class UpdateAutoReloadSettingsDto {
   autoReloadAmount?: number;
 }
 
+export class RequestCreditDto {
+  @IsOptional()
+  @IsNumber()
+  @Min(1)
+  amount?: number;
+
+  @IsOptional()
+  @IsString()
+  note?: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  workspace?: string;
+}
+
 export class CreatePhoneCheckoutDto {
   @IsString()
   numberId!: string;

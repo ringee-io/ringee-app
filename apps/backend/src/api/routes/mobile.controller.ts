@@ -31,6 +31,7 @@ import {
   CallStatus,
   CallbackStatus,
   MeetingStatus,
+  TranscriptionStatus,
 } from "@ringee/database";
 
 /**
@@ -149,8 +150,11 @@ export class MobileController {
     if (missedOnly === "true") {
       data = data.filter((c) => this.isMissedCall(c));
     }
+    const transcribed = await this.transcribedCallIds(data.map((c) => c.id));
     return {
-      data: data.map((c) => this.toCallDto(c)),
+      data: data.map((c) =>
+        this.toCallDto(c, { hasTranscription: transcribed.has(c.id) }),
+      ),
       total: missedOnly === "true" ? data.length : res.total,
       page: res.page,
       totalPages: res.totalPages,
@@ -450,7 +454,17 @@ export class MobileController {
     if (!visible) throw new NotFoundException("Not found");
   }
 
-  private toCallDto(c: any) {
+  /** Set of call IDs (from the given list) that have a completed transcription. */
+  private async transcribedCallIds(ids: string[]): Promise<Set<string>> {
+    if (ids.length === 0) return new Set();
+    const rows = await this.prisma.callTranscription.findMany({
+      where: { callId: { in: ids }, status: TranscriptionStatus.completed },
+      select: { callId: true },
+    });
+    return new Set(rows.map((r) => r.callId));
+  }
+
+  private toCallDto(c: any, opts?: { hasTranscription?: boolean }) {
     const inbound = c.direction === "inbound" || c.direction === "incoming";
     const phoneNumber = inbound ? c.fromNumber : c.toNumber;
     const recording = Array.isArray(c.recordings) ? c.recordings[0] : null;
@@ -473,6 +487,7 @@ export class MobileController {
       missed: this.isMissedCall(c),
       hasRecording: !!recording?.url,
       recordingUrl: recording?.url ?? null,
+      hasTranscription: opts?.hasTranscription ?? false,
     };
   }
 

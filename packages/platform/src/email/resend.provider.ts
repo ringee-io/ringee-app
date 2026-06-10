@@ -8,7 +8,7 @@ export class ResendProvider implements EmailInterface {
   name = "resend";
   validateEnvKeys = ["RESEND_API_KEY"];
   async sendEmail(
-    to: string,
+    to: string | string[],
     subject: string,
     html: string,
     emailFromName?: string,
