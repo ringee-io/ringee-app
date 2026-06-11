@@ -26,7 +26,7 @@ export interface SessionTelnyx {
  * scoped to the public page's lifetime.
  */
 export function useSessionTelnyx(
-  credential: TelephonyCredential | null,
+  credential: TelephonyCredential | null
 ): SessionTelnyx {
   const [client, setClient] = useState<TelnyxRTC | null>(null);
   const [status, setStatus] = useState<TelnyxClientStatus>('idle');
@@ -41,7 +41,7 @@ export function useSessionTelnyx(
       password: credential.sipPassword,
       ringbackFile: '/sounds/outbound-call.mp3',
       debug: false,
-      keepConnectionAliveOnSocketClose: true,
+      keepConnectionAliveOnSocketClose: true
     });
 
     const onReady = () => setStatus('registered');

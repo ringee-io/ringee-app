@@ -25,9 +25,7 @@ export class CallSessionRepository {
 
   // ── CallSession ──────────────────────────────────────────────
 
-  async create(
-    data: Prisma.CallSessionCreateInput,
-  ): Promise<CallSession> {
+  async create(data: Prisma.CallSessionCreateInput): Promise<CallSession> {
     return this.prisma.callSession.create({ data });
   }
 
@@ -49,7 +47,10 @@ export class CallSessionRepository {
     return this.prisma.callSession.update({ where: { id }, data });
   }
 
-  async softDelete(id: string, status: CallSessionStatus): Promise<CallSession> {
+  async softDelete(
+    id: string,
+    status: CallSessionStatus,
+  ): Promise<CallSession> {
     return this.prisma.callSession.update({
       where: { id },
       data: { status, deletedAt: new Date() },
@@ -59,7 +60,12 @@ export class CallSessionRepository {
   async listForOwner(
     ctx: OwnershipContext,
     options?: { page?: number; limit?: number; status?: CallSessionStatus },
-  ): Promise<{ data: CallSession[]; total: number; page: number; limit: number }> {
+  ): Promise<{
+    data: CallSession[];
+    total: number;
+    page: number;
+    limit: number;
+  }> {
     const page = options?.page ?? 1;
     const limit = options?.limit ?? 20;
     const where: Prisma.CallSessionWhereInput = {
@@ -186,9 +192,7 @@ export class CallSessionRepository {
     return Boolean(row);
   }
 
-  async revokeAccessTokensBySession(
-    sessionId: string,
-  ): Promise<number> {
+  async revokeAccessTokensBySession(sessionId: string): Promise<number> {
     const res = await this.prisma.callSessionAccessToken.updateMany({
       where: {
         callSessionId: sessionId,

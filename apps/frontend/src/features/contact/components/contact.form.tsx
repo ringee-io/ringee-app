@@ -9,8 +9,20 @@ import * as z from 'zod';
 import { FormInput } from '@ringee/frontend-shared/components/forms/form-input';
 import { FormTextarea } from '@ringee/frontend-shared/components/forms/form-textarea';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@ringee/frontend-shared/components/ui/card';
-import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@ringee/frontend-shared/components/ui/form';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle
+} from '@ringee/frontend-shared/components/ui/card';
+import {
+  Form,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormControl,
+  FormMessage
+} from '@ringee/frontend-shared/components/ui/form';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import { Trash, Plus, ArrowLeft } from 'lucide-react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
@@ -49,7 +61,9 @@ const formSchema = z.object({
   firstName: z.string().optional(),
   lastName: z.string().optional(),
   name: z.string().optional(),
-  email: z.union([z.literal(''), z.string().email('Invalid email format')]).optional(),
+  email: z
+    .union([z.literal(''), z.string().email('Invalid email format')])
+    .optional(),
   phoneNumber: z.string().min(5, 'Phone number is required'),
   organization: z
     .string()
@@ -125,29 +139,54 @@ export default function ContactForm({
   const [tags, setTags] = useState<Tag[]>([]);
 
   useEffect(() => {
-    api.get<Tag[]>('/tags').then(setTags).catch(() => setTags([]));
+    api
+      .get<Tag[]>('/tags')
+      .then(setTags)
+      .catch(() => setTags([]));
   }, [api]);
 
-  const handleCreateTag = useCallback(async (name: string, color?: string): Promise<Tag> => {
-    try {
-      const colors = ['#ef4444', '#f97316', '#f59e0b', '#22c55e', '#3b82f6', '#6366f1', '#a855f7', '#ec4899'];
-      const randomColor = color || colors[Math.floor(Math.random() * colors.length)];
+  const handleCreateTag = useCallback(
+    async (name: string, color?: string): Promise<Tag> => {
+      try {
+        const colors = [
+          '#ef4444',
+          '#f97316',
+          '#f59e0b',
+          '#22c55e',
+          '#3b82f6',
+          '#6366f1',
+          '#a855f7',
+          '#ec4899'
+        ];
+        const randomColor =
+          color || colors[Math.floor(Math.random() * colors.length)];
 
-      const newTag = await api.post<Tag>('/tags', { name, color: randomColor });
-      setTags(prev => [...prev.sort((a, b) => a.name.localeCompare(b.name)), newTag]);
-      return newTag;
-    } catch (err) {
-      toast.error(tCommon('somethingWentWrong'));
-      throw err;
-    }
-  }, [api, tCommon]);
+        const newTag = await api.post<Tag>('/tags', {
+          name,
+          color: randomColor
+        });
+        setTags((prev) => [
+          ...prev.sort((a, b) => a.name.localeCompare(b.name)),
+          newTag
+        ]);
+        return newTag;
+      } catch (err) {
+        toast.error(tCommon('somethingWentWrong'));
+        throw err;
+      }
+    },
+    [api, tCommon]
+  );
 
   async function onSubmit(values: ContactFormValues) {
     try {
       setLoading(true);
       const payload = {
         ...values,
-        name: values.name || [values.firstName, values.lastName].filter(Boolean).join(' ') || undefined,
+        name:
+          values.name ||
+          [values.firstName, values.lastName].filter(Boolean).join(' ') ||
+          undefined
       };
       if (!isEdit) await api.post('/contacts', payload);
       else await api.put(`/contacts/${initialData?.id}`, payload);
@@ -189,11 +228,7 @@ export default function ContactForm({
       <Card>
         <CardHeader>
           <div className='flex items-center gap-3'>
-            <Button
-              variant='ghost'
-              size='icon'
-              onClick={() => router.back()}
-            >
+            <Button variant='ghost' size='icon' onClick={() => router.back()}>
               <ArrowLeft className='h-4 w-4' />
             </Button>
             <CardTitle className='text-left text-2xl font-bold'>
@@ -245,7 +280,7 @@ export default function ContactForm({
                       // @ts-ignore
                       value={field.value}
                       onChange={field.onChange}
-                      className='border-input focus-within:ring-primary rounded-md border bg-transparent px-3 py-2 text-sm focus-within:ring-2 flex items-center min-h-[44px]'
+                      className='border-input focus-within:ring-primary flex min-h-[44px] items-center rounded-md border bg-transparent px-3 py-2 text-sm focus-within:ring-2'
                     />
                   )}
                 />
@@ -295,7 +330,9 @@ export default function ContactForm({
                         <option value=''>{t('selectSource')}</option>
                         {SOURCE_OPTIONS.map((src) => (
                           <option key={src} value={src}>
-                            {src.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                            {src
+                              .replace(/_/g, ' ')
+                              .replace(/\b\w/g, (c) => c.toUpperCase())}
                           </option>
                         ))}
                       </select>
@@ -307,7 +344,7 @@ export default function ContactForm({
 
               <FormField
                 control={form.control}
-                name="tagIds"
+                name='tagIds'
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>{t('tags')}</FormLabel>

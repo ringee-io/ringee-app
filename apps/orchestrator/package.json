@@ -1,10 +1,10 @@
 {
-  "name": "@ringee/worker",
+  "name": "@ringee/orchestrator",
   "version": "1.0.0",
   "private": true,
   "scripts": {
     "build": "nest build",
-    "start": "node ../../dist/apps/worker/main.js",
+    "start": "node dist/apps/orchestrator/src/main.js",
     "dev": "nest start --watch --env-file ../../.env"
   },
   "dependencies": {
@@ -18,12 +18,17 @@
     "@nestjs/common": "^11.1.9",
     "@nestjs/core": "^11.1.9",
     "@nestjs/jwt": "11.0.0",
-    "@nestjs/microservices": "^11.1.9",
     "@nestjs/platform-express": "~11.1.0",
     "@prisma/client": "^6.16.3",
+    "@ringee/configuration": "workspace:*",
     "@ringee/database": "workspace:*",
     "@ringee/platform": "workspace:*",
     "@ringee/services": "workspace:*",
+    "@temporalio/activity": "^1.13.0",
+    "@temporalio/client": "^1.13.0",
+    "@temporalio/common": "^1.13.0",
+    "@temporalio/worker": "^1.13.0",
+    "@temporalio/workflow": "^1.13.0",
     "axios": "^1.12.2",
     "bcrypt": "6.0.0",
     "cache-manager": "^5.4.0",
@@ -44,14 +49,13 @@
     "rxjs": "^7.8.1",
     "stripe": "^19.1.0",
     "telnyx": "^4.2.1",
+    "ws": "^8.21.0",
     "zod": "^4.1.12",
-    "zod-to-json-schema": "^3.24.6",
-    "ws": "^8.21.0"
+    "zod-to-json-schema": "^3.24.6"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.13",
     "@types/node": "^20.3.1",
-    "nodemon": "^3.1.11",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.1.3"

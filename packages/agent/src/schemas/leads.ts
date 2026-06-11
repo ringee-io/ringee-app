@@ -2,7 +2,9 @@ import { z } from "zod";
 import { providerEnum, uuid } from "./common.js";
 
 export const SearchLeadsSchema = z.object({
-  provider: providerEnum.optional().describe("Defaults to the connected provider (Apollo preferred)."),
+  provider: providerEnum
+    .optional()
+    .describe("Defaults to the connected provider (Apollo preferred)."),
   keywords: z.string().max(500).optional(),
   jobTitles: z.array(z.string().min(1).max(100)).max(20).optional(),
   jobTitlesExclude: z.array(z.string().min(1).max(100)).max(20).optional(),
@@ -25,7 +27,11 @@ export const SearchLeadsSchema = z.object({
 /** Consumes provider credits. Confirm intent before calling. */
 export const RevealLeadSchema = z.object({
   jobId: uuid.describe("Lead search job id from search_leads."),
-  externalId: z.string().min(1).max(200).describe("Candidate externalId to reveal."),
+  externalId: z
+    .string()
+    .min(1)
+    .max(200)
+    .describe("Candidate externalId to reveal."),
   revealPhone: z
     .boolean()
     .optional()

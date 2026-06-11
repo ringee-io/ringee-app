@@ -106,7 +106,6 @@ function loadWidgetAssets(): WidgetAssets {
   };
   const assets = { js: read("widget.js"), css: read("widget.css") };
   if (!assets.js) {
-    // eslint-disable-next-line no-console
     console.warn(
       `[ringee] widget bundle not found in ${dir}. Run \`pnpm --filter @ringee-io/chatgpt-app build:widgets\`. Components will render a placeholder.`,
     );

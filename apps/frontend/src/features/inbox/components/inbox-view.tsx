@@ -34,7 +34,7 @@ export function InboxView() {
   }, [reloadKey]);
 
   return (
-    <div className='flex h-full w-full overflow-hidden border-y bg-background'>
+    <div className='bg-background flex h-full w-full overflow-hidden border-y'>
       <ThreadList
         selectedThreadId={selected?.id ?? null}
         onSelect={(t) => {

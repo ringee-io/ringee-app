@@ -372,12 +372,16 @@ export const ListCallsSchema = {
     .string()
     .datetime({ offset: true })
     .optional()
-    .describe("ISO-8601 datetime (with timezone). Only calls created at or after this."),
+    .describe(
+      "ISO-8601 datetime (with timezone). Only calls created at or after this.",
+    ),
   dateTo: z
     .string()
     .datetime({ offset: true })
     .optional()
-    .describe("ISO-8601 datetime (with timezone). Only calls created at or before this."),
+    .describe(
+      "ISO-8601 datetime (with timezone). Only calls created at or before this.",
+    ),
   page: z
     .number()
     .int()

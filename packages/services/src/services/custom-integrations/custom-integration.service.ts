@@ -93,7 +93,9 @@ export class CustomIntegrationService {
     if (input.outboundUrl) {
       const trimmed = input.outboundUrl.trim();
       if (trimmed && !/^https?:\/\//i.test(trimmed)) {
-        throw new BadRequestException("outboundUrl must start with http:// or https://");
+        throw new BadRequestException(
+          "outboundUrl must start with http:// or https://",
+        );
       }
     }
 
@@ -137,7 +139,9 @@ export class CustomIntegrationService {
 
   /** Decrypt the stored webhook signing secret (for the worker, not exposed via API). */
   decryptSigningSecret(integration: CustomIntegration): string {
-    const obj = this.crypto.decrypt(integration.webhookSigningSecretCt) as { s: string };
+    const obj = this.crypto.decrypt(integration.webhookSigningSecretCt) as {
+      s: string;
+    };
     return obj.s;
   }
 
@@ -159,7 +163,8 @@ export class CustomIntegrationService {
     integration: CustomIntegration | null,
     ctx: OwnershipContext,
   ): void {
-    if (!integration) throw new NotFoundException("Custom integration not found");
+    if (!integration)
+      throw new NotFoundException("Custom integration not found");
     const expectedOrgId = ctx.organizationId ?? null;
     if (integration.organizationId !== expectedOrgId) {
       throw new ForbiddenException("Integration belongs to another workspace");

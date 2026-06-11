@@ -237,7 +237,9 @@ export default function ContactDetail({
     setLoading(true);
     try {
       await api.delete(`/contacts/${contact.id}`);
-      toast.success(t('deleteContact') + ' ' + tCommon('success') || 'Contact deleted');
+      toast.success(
+        t('deleteContact') + ' ' + tCommon('success') || 'Contact deleted'
+      );
       router.push('/dashboard/contact');
     } catch {
       toast.error(tCommon('somethingWentWrong') || 'Failed to delete contact');
@@ -309,7 +311,9 @@ export default function ContactDetail({
           {/* Basic Info */}
           <Card>
             <CardHeader>
-              <CardTitle className='text-base'>{t('contactInformation')}</CardTitle>
+              <CardTitle className='text-base'>
+                {t('contactInformation')}
+              </CardTitle>
             </CardHeader>
             <CardContent className='space-y-1'>
               <div className='flex items-start gap-3 py-2'>
@@ -331,7 +335,9 @@ export default function ContactDetail({
                 <div className='flex items-start gap-3 py-2'>
                   <Mail className='text-muted-foreground mt-0.5 h-4 w-4 shrink-0' />
                   <div className='flex-1'>
-                    <p className='text-muted-foreground text-xs'>{t('email')}</p>
+                    <p className='text-muted-foreground text-xs'>
+                      {t('email')}
+                    </p>
                     <p className='flex items-center gap-1.5 text-sm break-all'>
                       {contact.email}
                       {contact.emailVerified && (
@@ -376,7 +382,13 @@ export default function ContactDetail({
               {contact.lastEnrichedAt && (
                 <InfoRow
                   icon={Sparkles}
-                  label={contact.enrichmentMetadata?.provider ? t('lastEnrichedVia', { provider: contact.enrichmentMetadata.provider }) : t('lastEnriched')}
+                  label={
+                    contact.enrichmentMetadata?.provider
+                      ? t('lastEnrichedVia', {
+                          provider: contact.enrichmentMetadata.provider
+                        })
+                      : t('lastEnriched')
+                  }
                   value={new Date(contact.lastEnrichedAt).toLocaleString()}
                 />
               )}
@@ -388,10 +400,11 @@ export default function ContactDetail({
                       provider={contact.enrichmentMetadata.provider ?? null}
                       hasEmail={!!contact.email}
                       hasPhone={
-                        !contact.phoneNumber?.includes('***') || (!!contact.phoneNumber && 
-                        !/^(noPhone:|prospeo:|apollo:)/i.test(
-                          contact.phoneNumber
-                        ))
+                        !contact.phoneNumber?.includes('***') ||
+                        (!!contact.phoneNumber &&
+                          !/^(noPhone:|prospeo:|apollo:)/i.test(
+                            contact.phoneNumber
+                          ))
                       }
                       onRevealed={() => router.refresh()}
                     />
@@ -572,7 +585,9 @@ export default function ContactDetail({
             return (
               <Card>
                 <CardHeader>
-                  <CardTitle className='text-base'>{t('socialProfiles')}</CardTitle>
+                  <CardTitle className='text-base'>
+                    {t('socialProfiles')}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className='space-y-2'>
@@ -633,7 +648,9 @@ export default function ContactDetail({
           {contact.emails.length > 0 && (
             <Card>
               <CardHeader>
-                <CardTitle className='text-base'>{t('emailAddresses')}</CardTitle>
+                <CardTitle className='text-base'>
+                  {t('emailAddresses')}
+                </CardTitle>
               </CardHeader>
               <CardContent>
                 <div className='space-y-2'>

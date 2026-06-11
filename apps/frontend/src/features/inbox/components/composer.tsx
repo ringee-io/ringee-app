@@ -47,9 +47,8 @@ export function Composer({ thread, onAfterAction }: Props) {
       } else {
         if (!fromNumber) return;
 
-        const target =
-        thread.participantNumberE164 ?? thread.participantNumber;
-        
+        const target = thread.participantNumberE164 ?? thread.participantNumber;
+
         await actions.sendSms({
           fromNumber,
           toNumber: target,
@@ -76,7 +75,7 @@ export function Composer({ thread, onAfterAction }: Props) {
   )?.smsEnabled;
 
   return (
-    <div className='border-t bg-background'>
+    <div className='bg-background border-t'>
       <div className='flex items-center gap-2 px-3 pt-3'>
         <button
           type='button'
@@ -135,9 +134,7 @@ export function Composer({ thread, onAfterAction }: Props) {
           onKeyDown={onKey}
           rows={2}
           placeholder={
-            mode === 'note'
-              ? t('notePlaceholder')
-              : t('messagePlaceholder')
+            mode === 'note' ? t('notePlaceholder') : t('messagePlaceholder')
           }
           className={cn(
             'min-h-[60px] flex-1 resize-none',

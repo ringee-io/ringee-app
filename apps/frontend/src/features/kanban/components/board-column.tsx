@@ -6,10 +6,17 @@ import { cva } from 'class-variance-authority';
 import { IconGripVertical } from '@tabler/icons-react';
 import { useMemo } from 'react';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
-import { Card, CardContent, CardHeader } from '@ringee/frontend-shared/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader
+} from '@ringee/frontend-shared/components/ui/card';
 import { ColumnActions } from './column-action';
 import { TaskCard } from './task-card';
-import { ScrollArea, ScrollBar } from '@ringee/frontend-shared/components/ui/scroll-area';
+import {
+  ScrollArea,
+  ScrollBar
+} from '@ringee/frontend-shared/components/ui/scroll-area';
 
 export interface Column {
   id: UniqueIdentifier;

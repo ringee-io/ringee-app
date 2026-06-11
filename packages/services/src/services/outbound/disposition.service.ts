@@ -116,7 +116,7 @@ export class DispositionService {
 
   async seedDefaults(campaignId: string): Promise<number> {
     return this.dispositionRepo.createMany(
-      DEFAULT_DISPOSITIONS.map((d) => ({ ...d, campaignId }))
+      DEFAULT_DISPOSITIONS.map((d) => ({ ...d, campaignId })),
     );
   }
 
@@ -132,7 +132,7 @@ export class DispositionService {
 
   async create(
     campaignId: string,
-    dto: CreateDispositionDto
+    dto: CreateDispositionDto,
   ): Promise<Disposition> {
     return this.dispositionRepo.create({ ...dto, campaignId });
   }
@@ -151,7 +151,7 @@ export class DispositionService {
         | "triggersCallback"
         | "isActive"
       >
-    >
+    >,
   ): Promise<Disposition> {
     return this.dispositionRepo.update(id, data);
   }

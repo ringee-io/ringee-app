@@ -9,7 +9,7 @@ import {
   PhoneCall,
   ShieldCheck,
   Wallet,
-  Zap,
+  Zap
 } from 'lucide-react';
 import type { CallSessionPhase, DialerMode } from '../use-call-session';
 
@@ -20,7 +20,7 @@ const PHASE_LABELS: Record<CallSessionPhase, string> = {
   dialing: 'Dialing',
   in_call: 'In Call',
   wrap_up: 'Wrap Up',
-  completed: 'Completed',
+  completed: 'Completed'
 };
 
 const PHASE_COLORS: Record<CallSessionPhase, string> = {
@@ -30,7 +30,7 @@ const PHASE_COLORS: Record<CallSessionPhase, string> = {
   dialing: 'bg-orange-500',
   in_call: 'bg-red-500',
   wrap_up: 'bg-purple-500',
-  completed: 'bg-gray-400',
+  completed: 'bg-gray-400'
 };
 
 interface Props {
@@ -39,7 +39,13 @@ interface Props {
   creditsOk: boolean;
   creditBalance: number;
   expiresAt: string | null;
-  telnyxStatus: 'idle' | 'connecting' | 'registered' | 'reconnecting' | 'disconnected' | 'error';
+  telnyxStatus:
+    | 'idle'
+    | 'connecting'
+    | 'registered'
+    | 'reconnecting'
+    | 'disconnected'
+    | 'error';
   mode: DialerMode;
   onModeChange: (mode: DialerMode) => void;
   stats: {
@@ -73,7 +79,7 @@ export function SessionStatusBar({
   telnyxStatus,
   mode,
   onModeChange,
-  stats,
+  stats
 }: Props) {
   const expiresInMs = useExpiry(expiresAt);
 
@@ -87,66 +93,66 @@ export function SessionStatusBar({
   const canChangeMode = phase === 'preview' || phase === 'completed';
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-b bg-muted/30 px-4 py-2">
-      <div className="flex items-center gap-4">
-        <div className="flex items-center gap-2">
-          <div className="bg-primary flex h-7 w-7 items-center justify-center rounded-md text-sm font-semibold text-primary-foreground">
+    <div className='bg-muted/30 flex flex-wrap items-center justify-between gap-3 border-b px-4 py-2'>
+      <div className='flex items-center gap-4'>
+        <div className='flex items-center gap-2'>
+          <div className='bg-primary text-primary-foreground flex h-7 w-7 items-center justify-center rounded-md text-sm font-semibold'>
             R
           </div>
-          <div className="hidden text-sm font-semibold sm:inline">{title}</div>
+          <div className='hidden text-sm font-semibold sm:inline'>{title}</div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className='flex items-center gap-2'>
           <div className={`h-2.5 w-2.5 rounded-full ${PHASE_COLORS[phase]}`} />
-          <span className="text-sm font-medium">{PHASE_LABELS[phase]}</span>
+          <span className='text-sm font-medium'>{PHASE_LABELS[phase]}</span>
         </div>
 
-        <div className="hidden items-center gap-4 text-sm text-muted-foreground sm:flex">
-          <span className="flex items-center gap-1">
-            <Layers className="h-3.5 w-3.5" />
+        <div className='text-muted-foreground hidden items-center gap-4 text-sm sm:flex'>
+          <span className='flex items-center gap-1'>
+            <Layers className='h-3.5 w-3.5' />
             {stats.completed} / {stats.total}
           </span>
-          <span className="flex items-center gap-1">
-            <PhoneCall className="h-3.5 w-3.5" />
+          <span className='flex items-center gap-1'>
+            <PhoneCall className='h-3.5 w-3.5' />
             {stats.remaining} pending
           </span>
-          <span className="flex items-center gap-1">
-            <ShieldCheck className="h-3.5 w-3.5" />
+          <span className='flex items-center gap-1'>
+            <ShieldCheck className='h-3.5 w-3.5' />
             {stats.contactRate}% positive
           </span>
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
+      <div className='flex items-center gap-2'>
         {/* Dialer-mode segmented toggle */}
-        <div className="hidden items-center rounded-md border bg-background p-0.5 text-xs sm:flex">
+        <div className='bg-background hidden items-center rounded-md border p-0.5 text-xs sm:flex'>
           <Button
-            type="button"
-            size="sm"
+            type='button'
+            size='sm'
             variant={mode === 'preview' ? 'default' : 'ghost'}
-            className="h-7 rounded-sm px-2.5"
+            className='h-7 rounded-sm px-2.5'
             disabled={!canChangeMode}
             onClick={() => onModeChange('preview')}
-            title="Show contact, then click Dial"
+            title='Show contact, then click Dial'
           >
             Preview
           </Button>
           <Button
-            type="button"
-            size="sm"
+            type='button'
+            size='sm'
             variant={mode === 'progressive' ? 'default' : 'ghost'}
-            className="h-7 gap-1 rounded-sm px-2.5"
+            className='h-7 gap-1 rounded-sm px-2.5'
             disabled={!canChangeMode}
             onClick={() => onModeChange('progressive')}
-            title="Auto-dial the next contact after each outcome"
+            title='Auto-dial the next contact after each outcome'
           >
-            <Zap className="h-3 w-3" />
+            <Zap className='h-3 w-3' />
             Progressive
           </Button>
         </div>
 
         {/* Line status */}
-        <Badge variant="outline" className="gap-1">
+        <Badge variant='outline' className='gap-1'>
           <span className={`h-2 w-2 rounded-full ${lineDot}`} />
           Line {telnyxStatus}
         </Badge>
@@ -154,9 +160,9 @@ export function SessionStatusBar({
         {/* Credit balance */}
         <Badge
           variant={creditsOk ? 'secondary' : 'destructive'}
-          className="gap-1"
+          className='gap-1'
         >
-          <Wallet className="h-3 w-3" />
+          <Wallet className='h-3 w-3' />
           {formatCredits(creditBalance)}
         </Badge>
 
@@ -164,9 +170,9 @@ export function SessionStatusBar({
         {expiresInMs != null && (
           <Badge
             variant={expiresInMs < 5 * 60 * 1000 ? 'destructive' : 'secondary'}
-            className="gap-1"
+            className='gap-1'
           >
-            <Clock className="h-3 w-3" />
+            <Clock className='h-3 w-3' />
             {expiresInMs <= 0
               ? 'Expired'
               : `Expires in ${formatExpiry(expiresInMs)}`}

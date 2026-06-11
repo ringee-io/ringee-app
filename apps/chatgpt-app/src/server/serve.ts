@@ -1,4 +1,8 @@
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import {
+  createServer,
+  type IncomingMessage,
+  type ServerResponse,
+} from "node:http";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import type { RingeeClient } from "@ringee-io/agent";
 import { createRingeeAppServer } from "./mcp-server.js";
@@ -44,7 +48,8 @@ function text(res: ServerResponse, status: number, body: string): void {
  * token here. Configurable via `OPENAI_APPS_CHALLENGE_TOKEN_CHATGPT`; the
  * fallback is the value OpenAI issued for chatgpt.ringee.io.
  */
-const OPENAI_APPS_CHALLENGE_TOKEN = process.env.OPENAI_APPS_CHALLENGE_TOKEN_CHATGPT ?? "";
+const OPENAI_APPS_CHALLENGE_TOKEN =
+  process.env.OPENAI_APPS_CHALLENGE_TOKEN_CHATGPT ?? "";
 
 async function readBody(req: IncomingMessage): Promise<unknown> {
   const chunks: Buffer[] = [];
@@ -66,12 +71,18 @@ const httpServer = createServer(async (req, res) => {
 
   // OpenAI Apps SDK domain verification: serve the issued token verbatim at the
   // origin root, e.g. GET https://chatgpt.ringee.io/.well-known/openai-apps-challenge
-  if (req.method === "GET" && url.split("?")[0] === "/.well-known/openai-apps-challenge") {
+  if (
+    req.method === "GET" &&
+    url.split("?")[0] === "/.well-known/openai-apps-challenge"
+  ) {
     return text(res, 200, OPENAI_APPS_CHALLENGE_TOKEN);
   }
 
   // RFC 9728 — protected resource metadata (always exposed when auth is on).
-  if (req.method === "GET" && url.startsWith("/.well-known/oauth-protected-resource")) {
+  if (
+    req.method === "GET" &&
+    url.startsWith("/.well-known/oauth-protected-resource")
+  ) {
     if (!auth.enabled) return json(res, 404, { error: "Auth not enabled" });
     return json(res, 200, buildProtectedResourceMetadata(auth));
   }

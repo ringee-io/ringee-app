@@ -18,9 +18,7 @@ import {
   LeadSearchService,
 } from "../../enrichment";
 import { TagService } from "../../tag.service";
-import {
-  PastBuyerAnalyzerService,
-} from "../past-buyer-analyzer.service";
+import { PastBuyerAnalyzerService } from "../past-buyer-analyzer.service";
 import {
   LeadDedupSummary,
   LeadStatus,
@@ -41,9 +39,7 @@ import {
 type SearchIntent = "auto" | "next_page" | "refresh" | "reuse";
 
 function normalizeIntent(value: unknown): SearchIntent {
-  return value === "next_page" ||
-    value === "refresh" ||
-    value === "reuse"
+  return value === "next_page" || value === "refresh" || value === "reuse"
     ? value
     : "auto";
 }
@@ -691,7 +687,9 @@ export class ProspectingTools {
           await this.tagRepo
             .assignToContact(cid, [tag.id])
             .catch((err) =>
-              this.logger.warn(`failed to attach tag ${tag.id} to ${cid}: ${err}`),
+              this.logger.warn(
+                `failed to attach tag ${tag.id} to ${cid}: ${err}`,
+              ),
             );
         }
 
@@ -702,7 +700,12 @@ export class ProspectingTools {
           contactCount: ids.length,
         });
 
-        return { ok: true, tagId: tag.id, name: tag.name, contactCount: ids.length };
+        return {
+          ok: true,
+          tagId: tag.id,
+          name: tag.name,
+          contactCount: ids.length,
+        };
       },
     };
   }
@@ -798,8 +801,10 @@ function buildProspectDetails(c: LeadCandidate): ProspectDetails {
 
 function summarizeFilters(filters: LeadSearchFilters): string {
   const parts: string[] = [];
-  if (filters.jobTitles?.length) parts.push(`titles: ${filters.jobTitles.join(", ")}`);
-  if (filters.industries?.length) parts.push(`industries: ${filters.industries.join(", ")}`);
+  if (filters.jobTitles?.length)
+    parts.push(`titles: ${filters.jobTitles.join(", ")}`);
+  if (filters.industries?.length)
+    parts.push(`industries: ${filters.industries.join(", ")}`);
   if (filters.personCountries?.length)
     parts.push(`countries: ${filters.personCountries.join(", ")}`);
   if (filters.employeeCountRanges?.length)
@@ -808,4 +813,3 @@ function summarizeFilters(filters: LeadSearchFilters): string {
   if (parts.length === 0) return "no specific filters";
   return parts.join(" · ");
 }
-

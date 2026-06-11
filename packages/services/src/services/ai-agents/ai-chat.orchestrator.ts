@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-} from "@nestjs/common";
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import {
   AiConversationRepository,
@@ -177,7 +173,8 @@ export class AiChatOrchestrator {
         }
       }
 
-      const conversation = await this.conversationsRepo.findById(conversationId);
+      const conversation =
+        await this.conversationsRepo.findById(conversationId);
       if (!conversation) return;
 
       const built = await this.contextBuilder.build(
@@ -190,7 +187,9 @@ export class AiChatOrchestrator {
       // when the model goes straight to a tool call without prefacing text.
       // Wrap the slot in an object so TypeScript narrowing survives closure
       // mutation in ensureAssistantRow.
-      const slot: { row: { id: string; createdAt: Date } | null } = { row: null };
+      const slot: { row: { id: string; createdAt: Date } | null } = {
+        row: null,
+      };
       const ensureAssistantRow = async (): Promise<{
         id: string;
         createdAt: Date;
@@ -364,20 +363,21 @@ export class AiChatOrchestrator {
         let result: unknown;
         let ok = true;
         try {
-          const freshForTool = await this.conversationsRepo.findById(conversationId);
-          if (!freshForTool) throw new Error("Conversation disappeared mid-run");
+          const freshForTool =
+            await this.conversationsRepo.findById(conversationId);
+          if (!freshForTool)
+            throw new Error("Conversation disappeared mid-run");
           result = await tool.execute(first.arguments, {
             ctx,
             conversation: freshForTool,
             agent: agent.id,
-            emit: (event) => this.emitToolEvent(conversationId, toolCallMsg.id, event),
+            emit: (event) =>
+              this.emitToolEvent(conversationId, toolCallMsg.id, event),
           });
         } catch (err) {
           ok = false;
           result = { error: errorMessage(err) };
-          this.logger.warn(
-            `Tool ${first.name} failed: ${errorMessage(err)}`,
-          );
+          this.logger.warn(`Tool ${first.name} failed: ${errorMessage(err)}`);
         }
 
         // Persist the tool result so the next hop's context includes it.
@@ -459,7 +459,10 @@ export class AiChatOrchestrator {
 
       // Background summarization if context is getting big.
       const fresh = await this.conversationsRepo.findById(conversationId);
-      if (fresh && this.summarizer.shouldSummarize(built.estimatedTokens, fresh)) {
+      if (
+        fresh &&
+        this.summarizer.shouldSummarize(built.estimatedTokens, fresh)
+      ) {
         void this.summarizer.summarize(fresh).catch((err) => {
           this.logger.warn(
             `summarize failed for ${conversationId}: ${errorMessage(err)}`,
@@ -500,7 +503,9 @@ export class AiChatOrchestrator {
     );
     const event = await this.toolEvents.findById(confirmationId);
     if (!event || event.conversationId !== conversation.id) {
-      throw new BadRequestException("Confirmation not found for this conversation");
+      throw new BadRequestException(
+        "Confirmation not found for this conversation",
+      );
     }
     if (event.resolved) return;
 
@@ -676,4 +681,3 @@ function errorMessage(err: unknown): string {
   if (err instanceof Error) return err.message;
   return String(err);
 }
-

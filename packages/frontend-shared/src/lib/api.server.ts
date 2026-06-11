@@ -1,6 +1,6 @@
-import { auth } from '@clerk/nextjs/server';
-import { ApiClient } from './api';
-import { apiMocks } from './api.mocks';
+import { auth } from "@clerk/nextjs/server";
+import { ApiClient } from "./api";
+import { apiMocks } from "./api.mocks";
 
 export class ApiServer extends ApiClient {
   constructor() {
@@ -14,7 +14,7 @@ export class ApiServer extends ApiClient {
         }
       },
       mockDelayMs: 0,
-      mocks: apiMocks
+      mocks: apiMocks,
     });
   }
 }

@@ -1,27 +1,27 @@
-'use client';
+"use client";
 
-import { FieldPath, FieldValues } from 'react-hook-form';
+import { FieldPath, FieldValues } from "react-hook-form";
 import {
   FormControl,
   FormDescription,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
-} from '../ui/form';
-import { Checkbox } from '../ui/checkbox';
-import { BaseFormFieldProps } from '../../types/base-form';
+  FormMessage,
+} from "../ui/form";
+import { Checkbox } from "../ui/checkbox";
+import { BaseFormFieldProps } from "../../types/base-form";
 
 interface FormCheckboxProps<
   TFieldValues extends FieldValues = FieldValues,
-  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 > extends BaseFormFieldProps<TFieldValues, TName> {
   checkboxLabel?: string;
 }
 
 function FormCheckbox<
   TFieldValues extends FieldValues = FieldValues,
-  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 >({
   control,
   name,
@@ -30,7 +30,7 @@ function FormCheckbox<
   required,
   checkboxLabel,
   disabled,
-  className
+  className,
 }: FormCheckboxProps<TFieldValues, TName>) {
   return (
     <FormField
@@ -47,10 +47,10 @@ function FormCheckbox<
               disabled={disabled}
             />
           </FormControl>
-          <div className='space-y-1 leading-none'>
+          <div className="space-y-1 leading-none">
             <FormLabel>
               {checkboxLabel || label}
-              {required && <span className='ml-1 text-red-500'>*</span>}
+              {required && <span className="ml-1 text-red-500">*</span>}
             </FormLabel>
             {description && <FormDescription>{description}</FormDescription>}
           </div>

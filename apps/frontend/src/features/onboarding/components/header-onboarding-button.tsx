@@ -7,7 +7,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
-  TooltipTrigger,
+  TooltipTrigger
 } from '@ringee/frontend-shared/components/ui/tooltip';
 import { useTranslations } from 'next-intl';
 
@@ -17,7 +17,8 @@ import { useTranslations } from 'next-intl';
  */
 export function HeaderOnboardingButton() {
   const t = useTranslations('onboarding.headerProgress');
-  const { showHeaderButton, undismiss, completedCount, totalSteps, isLoading } = useOnboarding();
+  const { showHeaderButton, undismiss, completedCount, totalSteps, isLoading } =
+    useOnboarding();
 
   if (isLoading || !showHeaderButton) {
     return null;
@@ -25,7 +26,8 @@ export function HeaderOnboardingButton() {
 
   const progressPercent = (completedCount / totalSteps) * 100;
   const circumference = 2 * Math.PI * 8; // radius = 8 (smaller ring)
-  const strokeDashoffset = circumference - (progressPercent / 100) * circumference;
+  const strokeDashoffset =
+    circumference - (progressPercent / 100) * circumference;
 
   const handleClick = async () => {
     try {
@@ -41,56 +43,58 @@ export function HeaderOnboardingButton() {
         <TooltipTrigger asChild>
           <Button
             onClick={handleClick}
-            variant="outline"
-            size="sm"
+            variant='outline'
+            size='sm'
             className={cn(
-              "h-8 rounded-xl gap-2 pl-2 pr-3",
-              "border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/30",
-              "text-primary hover:text-primary",
-              "transition-all duration-300 shadow-sm cursor-pointer"
+              'h-8 gap-2 rounded-xl pr-3 pl-2',
+              'border-primary/20 bg-primary/5 hover:bg-primary/10 hover:border-primary/30',
+              'text-primary hover:text-primary',
+              'cursor-pointer shadow-sm transition-all duration-300'
             )}
           >
             {/* Circular progress indicator */}
-            <div className="relative h-4 w-4">
-              <svg className="h-4 w-4 -rotate-90" viewBox="0 0 20 20">
+            <div className='relative h-4 w-4'>
+              <svg className='h-4 w-4 -rotate-90' viewBox='0 0 20 20'>
                 {/* Background circle */}
                 <circle
-                  cx="10"
-                  cy="10"
-                  r="8"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  className="text-primary/20"
+                  cx='10'
+                  cy='10'
+                  r='8'
+                  fill='none'
+                  stroke='currentColor'
+                  strokeWidth='2.5'
+                  className='text-primary/20'
                 />
                 {/* Progress circle */}
                 <circle
-                  cx="10"
-                  cy="10"
-                  r="8"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  className="text-primary transition-all duration-500 ease-out"
+                  cx='10'
+                  cy='10'
+                  r='8'
+                  fill='none'
+                  stroke='currentColor'
+                  strokeWidth='2.5'
+                  strokeLinecap='round'
+                  className='text-primary transition-all duration-500 ease-out'
                   style={{
                     strokeDasharray: circumference,
-                    strokeDashoffset: strokeDashoffset,
+                    strokeDashoffset: strokeDashoffset
                   }}
                 />
               </svg>
             </div>
-            
-            <span className="text-xs font-semibold">
-              {t('label')} <span className="opacity-75 font-normal ml-0.5">• {Math.round(progressPercent)}%</span>
+
+            <span className='text-xs font-semibold'>
+              {t('label')}{' '}
+              <span className='ml-0.5 font-normal opacity-75'>
+                • {Math.round(progressPercent)}%
+              </span>
             </span>
           </Button>
         </TooltipTrigger>
-        <TooltipContent side="bottom" className="text-xs font-medium">
+        <TooltipContent side='bottom' className='text-xs font-medium'>
           {t('tooltip')}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   );
 }
-

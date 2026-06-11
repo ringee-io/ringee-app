@@ -63,7 +63,7 @@ export function BookMeetingForm({
           api.get(`/contacts/${contactId}`),
           api.get('/calendar/integrations')
         ]);
-        
+
         if (!mounted) return;
 
         if (contact.email) {
@@ -83,41 +83,46 @@ export function BookMeetingForm({
       }
     }
     init();
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+    };
   }, [contactId, api]);
 
-  const fetchAvailability = useCallback(async (date: Date, providerStr?: string) => {
-    setIsLoadingSlots(true);
-    try {
-      const dateStr = format(date, 'yyyy-MM-dd');
-      const url = providerStr 
-        ? `/calendar/availability?date=${dateStr}&provider=${providerStr}` 
-        : `/calendar/availability?date=${dateStr}`;
-      const data = await api.get<AvailabilitySlot[]>(url);
-      setSlots(data);
-    } catch {
-      // No calendar connected - generate all available slots client-side
-      const now = new Date();
-      const isDateToday = isSameDay(date, now);
-      const generated: AvailabilitySlot[] = [];
-      for (let h = 8; h < 20; h++) {
-        for (const m of [0, 30]) {
-          if (isDateToday) {
-            const slotTime = new Date(date);
-            slotTime.setHours(h, m, 0, 0);
-            if (slotTime <= now) continue;
+  const fetchAvailability = useCallback(
+    async (date: Date, providerStr?: string) => {
+      setIsLoadingSlots(true);
+      try {
+        const dateStr = format(date, 'yyyy-MM-dd');
+        const url = providerStr
+          ? `/calendar/availability?date=${dateStr}&provider=${providerStr}`
+          : `/calendar/availability?date=${dateStr}`;
+        const data = await api.get<AvailabilitySlot[]>(url);
+        setSlots(data);
+      } catch {
+        // No calendar connected - generate all available slots client-side
+        const now = new Date();
+        const isDateToday = isSameDay(date, now);
+        const generated: AvailabilitySlot[] = [];
+        for (let h = 8; h < 20; h++) {
+          for (const m of [0, 30]) {
+            if (isDateToday) {
+              const slotTime = new Date(date);
+              slotTime.setHours(h, m, 0, 0);
+              if (slotTime <= now) continue;
+            }
+            generated.push({
+              time: `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`,
+              available: true
+            });
           }
-          generated.push({
-            time: `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`,
-            available: true
-          });
         }
+        setSlots(generated);
+      } finally {
+        setIsLoadingSlots(false);
       }
-      setSlots(generated);
-    } finally {
-      setIsLoadingSlots(false);
-    }
-  }, [api]);
+    },
+    [api]
+  );
 
   useEffect(() => {
     if (!isInitializing) {
@@ -128,7 +133,7 @@ export function BookMeetingForm({
 
   const handleSubmit = async () => {
     if (!selectedTime) return;
-    
+
     if (isEmailMissing && !contactEmail) {
       toast.error('Please provide an email for the contact');
       return;
@@ -204,7 +209,9 @@ export function BookMeetingForm({
                 )}
               >
                 <span className='uppercase'>{format(day, 'EEE')}</span>
-                <span className='text-xs font-semibold'>{format(day, 'd')}</span>
+                <span className='text-xs font-semibold'>
+                  {format(day, 'd')}
+                </span>
               </button>
             );
           })}
@@ -223,7 +230,10 @@ export function BookMeetingForm({
         {isLoadingSlots || isInitializing ? (
           <div className='flex flex-col gap-1.5'>
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className='bg-muted/40 h-9 animate-pulse rounded-md' />
+              <div
+                key={i}
+                className='bg-muted/40 h-9 animate-pulse rounded-md'
+              />
             ))}
           </div>
         ) : slots.length === 0 ? (
@@ -240,7 +250,7 @@ export function BookMeetingForm({
                 className={cn(
                   'rounded-md border px-2 py-2 text-xs font-medium transition-all',
                   !slot.available &&
-                    'text-muted-foreground/50 cursor-not-allowed border-transparent bg-muted/20 line-through',
+                    'text-muted-foreground/50 bg-muted/20 cursor-not-allowed border-transparent line-through',
                   slot.available &&
                     selectedTime === slot.time &&
                     'border-emerald-500 bg-emerald-500/10 text-emerald-600 ring-1 ring-emerald-500/20',
@@ -258,7 +268,7 @@ export function BookMeetingForm({
 
       {/* Duration pills */}
       <div className='flex items-center gap-1.5'>
-        <span className='text-muted-foreground text-[10px] font-medium uppercase tracking-wider'>
+        <span className='text-muted-foreground text-[10px] font-medium tracking-wider uppercase'>
           Duration
         </span>
         <div className='flex gap-1'>
@@ -281,35 +291,35 @@ export function BookMeetingForm({
 
       {/* Dynamic Inputs */}
       {!isInitializing && (
-        <div className="flex flex-col gap-3">
+        <div className='flex flex-col gap-3'>
           {isEmailMissing && (
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground block">
+            <div className='space-y-1.5'>
+              <label className='text-muted-foreground block text-[10px] font-medium tracking-wider uppercase'>
                 Contact Email
               </label>
-              <Input 
-                type="email"
-                placeholder="Required for calendar invite" 
-                value={contactEmail} 
+              <Input
+                type='email'
+                placeholder='Required for calendar invite'
+                value={contactEmail}
                 onChange={(e) => setContactEmail(e.target.value)}
-                className="h-8 text-xs placeholder:text-muted-foreground/50 border-border/80"
+                className='placeholder:text-muted-foreground/50 border-border/80 h-8 text-xs'
               />
             </div>
           )}
 
           {integrations.length > 1 && (
-            <div className="space-y-1.5">
-              <label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground block">
+            <div className='space-y-1.5'>
+              <label className='text-muted-foreground block text-[10px] font-medium tracking-wider uppercase'>
                 Select Calendar
               </label>
-              <div className="flex gap-2">
+              <div className='flex gap-2'>
                 {integrations.map((i) => (
                   <button
                     key={i.id}
                     onClick={() => setSelectedProvider(i.provider)}
                     className={cn(
-                      "flex flex-1 items-center justify-center gap-2 rounded-md border text-xs font-medium transition-all h-8",
-                      selectedProvider === i.provider 
+                      'flex h-8 flex-1 items-center justify-center gap-2 rounded-md border text-xs font-medium transition-all',
+                      selectedProvider === i.provider
                         ? 'bg-primary text-primary-foreground border-transparent'
                         : 'bg-card border-border hover:bg-muted/50 text-muted-foreground'
                     )}

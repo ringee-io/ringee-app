@@ -28,7 +28,7 @@ export class TagController {
   @Post()
   async createTag(
     @Body() body: CreateTagDto,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     const ctx = createOwnershipContext(user);
     return this.tagService.createTag(ctx, body);
@@ -68,7 +68,7 @@ export class ContactTagController {
   @Post(":contactId/tags")
   async assignTags(
     @Param("contactId") contactId: string,
-    @Body() dto: AssignTagsDto
+    @Body() dto: AssignTagsDto,
   ) {
     return this.tagService.setContactTags(contactId, dto.tagIds);
   }
@@ -76,11 +76,11 @@ export class ContactTagController {
   @Delete(":contactId/tags")
   async removeTags(
     @Param("contactId") contactId: string,
-    @Body() dto: AssignTagsDto
+    @Body() dto: AssignTagsDto,
   ) {
     const count = await this.tagService.removeTagsFromContact(
       contactId,
-      dto.tagIds
+      dto.tagIds,
     );
     return { removed: count };
   }

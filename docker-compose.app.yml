@@ -19,10 +19,13 @@ services:
       REDIS_HOST: ringee-redis
       REDIS_PORT: "6379"
       REDIS_URL: "redis://ringee-redis:6379"
+      TEMPORAL_ADDRESS: "ringee-temporal:7233"
     depends_on:
       ringee-postgres:
         condition: service_healthy
       ringee-redis:
+        condition: service_healthy
+      ringee-temporal:
         condition: service_healthy
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://localhost:3000/api/health || exit 1"]
@@ -34,11 +37,11 @@ services:
     networks:
       - ringee-network
 
-  worker:
+  orchestrator:
     build:
       context: .
-      dockerfile: apps/worker/Dockerfile.compose
-    container_name: ringee-worker
+      dockerfile: apps/orchestrator/Dockerfile.compose
+    container_name: ringee-orchestrator
     env_file:
       - .env
     environment:
@@ -46,10 +49,13 @@ services:
       REDIS_HOST: ringee-redis
       REDIS_PORT: "6379"
       REDIS_URL: "redis://ringee-redis:6379"
+      TEMPORAL_ADDRESS: "ringee-temporal:7233"
     depends_on:
       ringee-postgres:
         condition: service_healthy
       ringee-redis:
+        condition: service_healthy
+      ringee-temporal:
         condition: service_healthy
     restart: unless-stopped
     networks:

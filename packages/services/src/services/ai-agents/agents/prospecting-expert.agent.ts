@@ -143,9 +143,7 @@ export const PROSPECTING_MODES: ProspectingMode[] = [
 ];
 
 export function isProspectingMode(value: unknown): value is ProspectingMode {
-  return (
-    value === "icp" || value === "customers" || value === "signals"
-  );
+  return value === "icp" || value === "customers" || value === "signals";
 }
 
 /**

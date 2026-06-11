@@ -231,7 +231,9 @@ export default function CrmIntegrations() {
                 strokeWidth={1.7}
               />
             </div>
-            <h3 className='mt-3 text-base font-semibold'>{tCRM('moreOnTheWay.title')}</h3>
+            <h3 className='mt-3 text-base font-semibold'>
+              {tCRM('moreOnTheWay.title')}
+            </h3>
             <p className='text-muted-foreground mt-2 text-sm leading-relaxed'>
               {tCRM('moreOnTheWay.description')}
             </p>

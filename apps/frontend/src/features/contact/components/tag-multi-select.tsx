@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useCallback } from 'react';
 import { toast } from 'sonner';
 import {
@@ -15,7 +14,10 @@ import {
   CommandList,
   CommandSeparator
 } from '@ringee/frontend-shared/components/ui/command';
-import { Button, buttonVariants } from '@ringee/frontend-shared/components/ui/button';
+import {
+  Button,
+  buttonVariants
+} from '@ringee/frontend-shared/components/ui/button';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import {
@@ -78,9 +80,7 @@ export function TagMultiSelect({
   const canCreateNew = useMemo(() => {
     if (!showCreateOption || !onCreateTag || !inputValue.trim()) return false;
     const lowerInput = inputValue.toLowerCase().trim();
-    return !availableTags.some(
-      (tag) => tag.name.toLowerCase() === lowerInput
-    );
+    return !availableTags.some((tag) => tag.name.toLowerCase() === lowerInput);
   }, [availableTags, inputValue, showCreateOption, onCreateTag]);
 
   const handleSelect = useCallback(
@@ -104,7 +104,7 @@ export function TagMultiSelect({
 
   const handleCreate = useCallback(async () => {
     if (!onCreateTag || !inputValue.trim()) return;
-    
+
     setIsCreating(true);
     try {
       // Assign a random color
@@ -116,7 +116,7 @@ export function TagMultiSelect({
         '#3b82f6', // blue
         '#6366f1', // indigo
         '#a855f7', // purple
-        '#ec4899', // pink
+        '#ec4899' // pink
       ];
       const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
@@ -140,46 +140,49 @@ export function TagMultiSelect({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <div
-          role="combobox"
+          role='combobox'
           aria-expanded={open}
           className={cn(
-            buttonVariants({ variant: "outline" }),
-            'min-h-11 w-full justify-between px-3 py-2 cursor-pointer h-auto',
+            buttonVariants({ variant: 'outline' }),
+            'h-auto min-h-11 w-full cursor-pointer justify-between px-3 py-2',
             !selectedTags.length && 'text-muted-foreground',
             disabled && 'pointer-events-none opacity-50',
             className
           )}
           onClick={() => !disabled && setOpen(!open)}
         >
-          <div className="flex flex-wrap gap-1">
+          <div className='flex flex-wrap gap-1'>
             {selectedTags.length > 0 ? (
               selectedTags.map((tag) => (
                 <Badge
                   key={tag.id}
-                  variant="secondary"
-                  className="flex items-center gap-1 px-2 py-0.5"
-                  style={{ backgroundColor: `${getTagColor(tag.color)}20`, color: getTagColor(tag.color) }}
+                  variant='secondary'
+                  className='flex items-center gap-1 px-2 py-0.5'
+                  style={{
+                    backgroundColor: `${getTagColor(tag.color)}20`,
+                    color: getTagColor(tag.color)
+                  }}
                 >
                   {tag.name}
                   <button
-                    type="button"
+                    type='button'
                     onClick={(e) => handleRemove(tag.id, e)}
-                    className="ml-0.5 rounded-full hover:bg-black/10 p-0.5"
+                    className='ml-0.5 rounded-full p-0.5 hover:bg-black/10'
                   >
-                    <IconX className="h-3 w-3" />
+                    <IconX className='h-3 w-3' />
                   </button>
                 </Badge>
               ))
             ) : (
-              <span className="flex items-center gap-2">
-                <IconTag className="h-4 w-4" />
+              <span className='flex items-center gap-2'>
+                <IconTag className='h-4 w-4' />
                 {placeholder || t('selectTags')}
               </span>
             )}
           </div>
         </div>
       </PopoverTrigger>
-      <PopoverContent className="w-[300px] p-0" align="start">
+      <PopoverContent className='w-[300px] p-0' align='start'>
         <Command shouldFilter={false}>
           <CommandInput
             placeholder={t('searchOrCreate')}
@@ -189,26 +192,26 @@ export function TagMultiSelect({
           <CommandList>
             <CommandEmpty>
               {canCreateNew ? (
-                <div className="text-muted-foreground py-2 text-sm">
+                <div className='text-muted-foreground py-2 text-sm'>
                   {t('pressEnter')}
                 </div>
               ) : (
                 t('noTagsFound')
               )}
             </CommandEmpty>
-            
+
             {canCreateNew && (
               <>
                 <CommandGroup heading={t('createNew')}>
                   <CommandItem
                     onSelect={handleCreate}
                     disabled={isCreating}
-                    className="flex items-center gap-2"
+                    className='flex items-center gap-2'
                   >
                     {isCreating ? (
-                      <IconLoader2 className="h-4 w-4 animate-spin" />
+                      <IconLoader2 className='h-4 w-4 animate-spin' />
                     ) : (
-                      <IconPlus className="h-4 w-4" />
+                      <IconPlus className='h-4 w-4' />
                     )}
                     {t('create', { name: inputValue })}
                   </CommandItem>
@@ -216,7 +219,7 @@ export function TagMultiSelect({
                 <CommandSeparator />
               </>
             )}
-            
+
             <CommandGroup heading={t('availableTags')}>
               {filteredTags.map((tag) => {
                 const isSelected = selectedTagIds.includes(tag.id);
@@ -224,7 +227,7 @@ export function TagMultiSelect({
                   <CommandItem
                     key={tag.id}
                     onSelect={() => handleSelect(tag.id)}
-                    className="flex items-center gap-2"
+                    className='flex items-center gap-2'
                   >
                     <div
                       className={cn(
@@ -234,10 +237,10 @@ export function TagMultiSelect({
                           : 'border-muted'
                       )}
                     >
-                      {isSelected && <IconCheck className="h-3 w-3" />}
+                      {isSelected && <IconCheck className='h-3 w-3' />}
                     </div>
                     <div
-                      className="h-3 w-3 rounded-full"
+                      className='h-3 w-3 rounded-full'
                       style={{ backgroundColor: getTagColor(tag.color) }}
                     />
                     <span>{tag.name}</span>
@@ -245,7 +248,7 @@ export function TagMultiSelect({
                 );
               })}
             </CommandGroup>
-            
+
             {onManageTagsClick && (
               <>
                 <CommandSeparator />
@@ -255,9 +258,9 @@ export function TagMultiSelect({
                       setOpen(false);
                       onManageTagsClick();
                     }}
-                    className="flex items-center gap-2 text-muted-foreground"
+                    className='text-muted-foreground flex items-center gap-2'
                   >
-                    <IconTag className="h-4 w-4" />
+                    <IconTag className='h-4 w-4' />
                     {t('manageAll')}
                   </CommandItem>
                 </CommandGroup>

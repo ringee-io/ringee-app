@@ -18,7 +18,7 @@ export function CallTranscriptionActions({ callId, className }: Props) {
     <>
       <TranscribeCallButton
         callId={callId}
-        mode="history"
+        mode='history'
         className={className}
         onView={() => setOpen(true)}
       />

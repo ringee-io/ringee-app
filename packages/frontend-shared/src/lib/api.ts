@@ -12,7 +12,7 @@ export class ApiError extends Error {
 
   constructor(message: string, status: number, data?: any) {
     super(message);
-    this.name = 'ApiError';
+    this.name = "ApiError";
     this.status = status;
     this.data = data;
   }
@@ -29,24 +29,26 @@ export class ApiClient {
     // API_INTERNAL_URL uses the Docker-internal service name (e.g. http://ringee-backend:3000/api)
     // and is NOT baked into the bundle at build time.
     // On the client (browser), we fall back to NEXT_PUBLIC_API_URL which IS baked at build time.
-    const isServer = typeof window === 'undefined';
+    const isServer = typeof window === "undefined";
     this.baseURL =
       options?.baseURL ||
       (isServer
-        ? process.env.API_INTERNAL_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api'
-        : process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api');
+        ? process.env.API_INTERNAL_URL ||
+          process.env.NEXT_PUBLIC_API_URL ||
+          "http://localhost:3000/api"
+        : process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000/api");
     this.headers = {
-      'Content-Type': 'application/json',
-      ...(options?.headers || {})
+      "Content-Type": "application/json",
+      ...(options?.headers || {}),
     };
     this.mocks = options?.mocks || {};
     this.mockDelayMs = options?.mockDelayMs ?? 0;
   }
 
   private buildUrl(endpoint: string) {
-    return endpoint.startsWith('http')
+    return endpoint.startsWith("http")
       ? endpoint
-      : `${this.baseURL}${endpoint.startsWith('/') ? endpoint : `/${endpoint}`}`;
+      : `${this.baseURL}${endpoint.startsWith("/") ? endpoint : `/${endpoint}`}`;
   }
 
   private async getAuthToken(): Promise<string | null> {
@@ -64,7 +66,7 @@ export class ApiClient {
     const token = await this.getAuthToken();
     return {
       ...this.headers,
-      ...(token ? { Authorization: `Bearer ${token}` } : {})
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
     };
   }
 
@@ -72,9 +74,9 @@ export class ApiClient {
     if (error instanceof ApiError) throw error;
     throw new ApiError(
       //@ts-ignore
-      error?.message ?? 'Unknown error occurred',
+      error?.message ?? "Unknown error occurred",
       //@ts-ignore
-      error?.statusCode ?? 500
+      error?.statusCode ?? 500,
     );
   }
 
@@ -85,7 +87,7 @@ export class ApiClient {
     try {
       data = text ? JSON.parse(text) : {};
     } catch {
-      throw new ApiError('❌ Error parsing server response', res.status);
+      throw new ApiError("❌ Error parsing server response", res.status);
     }
 
     if (!res.ok) {
@@ -99,12 +101,12 @@ export class ApiClient {
 
   private async maybeMock<T>(
     endpoint: string,
-    args?: { body?: any; params?: Record<string, any> }
+    args?: { body?: any; params?: Record<string, any> },
   ): Promise<T | undefined> {
     const token = await this.getAuthToken();
 
     const mock = Object.entries(this.mocks || {}).find(([key]) =>
-      endpoint.startsWith(key)
+      endpoint.startsWith(key),
     );
     if (!mock) return undefined;
 
@@ -120,7 +122,7 @@ export class ApiClient {
 
   async get<T = any>(
     endpoint: string,
-    params?: Record<string, any>
+    params?: Record<string, any>,
   ): Promise<T> {
     try {
       if (params?.mock === true) {
@@ -131,16 +133,16 @@ export class ApiClient {
       const url = new URL(this.buildUrl(endpoint));
       if (params) {
         Object.entries(params).forEach(([k, v]) => {
-          if (v !== undefined && v !== null && k !== 'mock') {
+          if (v !== undefined && v !== null && k !== "mock") {
             url.searchParams.append(k, String(v));
           }
         });
       }
 
       const res = await fetch(url.toString(), {
-        method: 'GET',
+        method: "GET",
         headers: await this.buildHeaders(),
-        credentials: 'include'
+        credentials: "include",
       });
       return await this.handleResponse<T>(res);
     } catch (error) {
@@ -154,10 +156,10 @@ export class ApiClient {
       if (mocked !== undefined) return mocked;
 
       const res = await fetch(this.buildUrl(endpoint), {
-        method: 'POST',
+        method: "POST",
         headers: await this.buildHeaders(),
         body: body ? JSON.stringify(body) : undefined,
-        credentials: 'include'
+        credentials: "include",
       });
       return await this.handleResponse<T>(res);
     } catch (error) {
@@ -171,10 +173,10 @@ export class ApiClient {
       if (mocked !== undefined) return mocked;
 
       const res = await fetch(this.buildUrl(endpoint), {
-        method: 'PUT',
+        method: "PUT",
         headers: await this.buildHeaders(),
         body: body ? JSON.stringify(body) : undefined,
-        credentials: 'include'
+        credentials: "include",
       });
       return await this.handleResponse<T>(res);
     } catch (error) {
@@ -188,10 +190,10 @@ export class ApiClient {
       if (mocked !== undefined) return mocked;
 
       const res = await fetch(this.buildUrl(endpoint), {
-        method: 'PATCH',
+        method: "PATCH",
         headers: await this.buildHeaders(),
         body: body ? JSON.stringify(body) : undefined,
-        credentials: 'include'
+        credentials: "include",
       });
       return await this.handleResponse<T>(res);
     } catch (error) {
@@ -205,10 +207,10 @@ export class ApiClient {
       if (mocked !== undefined) return mocked;
 
       const res = await fetch(this.buildUrl(endpoint), {
-        method: 'DELETE',
+        method: "DELETE",
         headers: await this.buildHeaders(),
         body: body ? JSON.stringify(body) : undefined,
-        credentials: 'include'
+        credentials: "include",
       });
       return await this.handleResponse<T>(res);
     } catch (error) {
@@ -221,15 +223,15 @@ export class ApiClient {
       const token = await this.getAuthToken();
       const headers: Record<string, string> = {};
       if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
+        headers["Authorization"] = `Bearer ${token}`;
       }
       // Don't set Content-Type - browser will set it with boundary for FormData
 
       const res = await fetch(this.buildUrl(endpoint), {
-        method: 'POST',
+        method: "POST",
         headers,
         body: formData,
-        credentials: 'include'
+        credentials: "include",
       });
       return await this.handleResponse<T>(res);
     } catch (error) {

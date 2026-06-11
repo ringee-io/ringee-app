@@ -11,7 +11,7 @@ export class UserRepository {
   constructor(
     private prisma: PrismaService,
     private deletedUserRepository: DeletedUserRepository,
-  ) { }
+  ) {}
 
   private generateEncryptionKey(): string {
     return randomBytes(32).toString("hex");
@@ -59,7 +59,9 @@ export class UserRepository {
     });
   }
 
-  async findByClerkIds(clerkIds: string[]): Promise<{ id: string; clerkId: string | null }[]> {
+  async findByClerkIds(
+    clerkIds: string[],
+  ): Promise<{ id: string; clerkId: string | null }[]> {
     return this.prisma.user.findMany({
       where: { clerkId: { in: clerkIds } },
       select: { id: true, clerkId: true },

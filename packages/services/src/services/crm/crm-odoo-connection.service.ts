@@ -77,9 +77,13 @@ export class CrmOdooConnectionService {
     // probe logic and reason-mapping.
     if (input.provider === "odoo_14_18") {
       const result = await this.odooLegacy.validateConnection(parsed.value);
-      if (!result.ok) return { ok: false, reason: result.reason, message: result.message };
+      if (!result.ok)
+        return { ok: false, reason: result.reason, message: result.message };
 
-      const blob = serializeOdooCredentials({ ...parsed.value, uid: result.uid });
+      const blob = serializeOdooCredentials({
+        ...parsed.value,
+        uid: result.uid,
+      });
       const connection = await this.persist(
         ctx,
         "odoo_14_18",
@@ -103,7 +107,8 @@ export class CrmOdooConnectionService {
     }
 
     const result = await this.odooJson2.validateConnection(parsed.value);
-    if (!result.ok) return { ok: false, reason: result.reason, message: result.message };
+    if (!result.ok)
+      return { ok: false, reason: result.reason, message: result.message };
 
     const blob = serializeOdooCredentials(parsed.value);
     const connection = await this.persist(

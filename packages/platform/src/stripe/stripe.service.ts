@@ -37,7 +37,9 @@ export class StripeService {
   }> {
     const msg = `You have added ${amountUsd} credits to your Ringee balance.`;
     const baseUrl = frontendOrigin || process.env.FRONTEND_URL!;
-    const callbackUrl = frontendOrigin ? baseUrl + "/call?" : baseUrl + "/dashboard/overview?";
+    const callbackUrl = frontendOrigin
+      ? baseUrl + "/call?"
+      : baseUrl + "/dashboard/overview?";
     const cancelUrl = callbackUrl + "payment=cancel";
     const successUrl =
       callbackUrl + `payment=success&msg=${msg}&amount=${amountUsd}`;
@@ -127,18 +129,18 @@ export class StripeService {
         },
         ...(upfrontCostUsd > 0
           ? [
-            {
-              price_data: {
-                currency: "usd",
-                product_data: {
-                  name: `Phone Number ${phoneNumber} (Setup Fee)`,
-                  description: "One-time activation fee for this number",
+              {
+                price_data: {
+                  currency: "usd",
+                  product_data: {
+                    name: `Phone Number ${phoneNumber} (Setup Fee)`,
+                    description: "One-time activation fee for this number",
+                  },
+                  unit_amount: Math.round(upfrontCostUsd * 100),
                 },
-                unit_amount: Math.round(upfrontCostUsd * 100),
+                quantity: 1,
               },
-              quantity: 1,
-            },
-          ]
+            ]
           : []),
       ],
       allow_promotion_codes: true,
@@ -185,7 +187,8 @@ export class StripeService {
             currency: "usd",
             product_data: {
               name: "Ringee Organization Plan",
-              description: "Monthly subscription to create and manage organizations",
+              description:
+                "Monthly subscription to create and manage organizations",
             },
             unit_amount: 2000, // $20.00
             recurring: { interval: "month" },

@@ -75,7 +75,9 @@ export class TranscriptionMediaGateway
     // noServer: we don't bind our own port; we handle upgrades on the app's
     // HTTP server (wired in onApplicationBootstrap).
     this.wss = new WebSocketServer({ noServer: true });
-    this.wss.on("connection", (socket, req) => this.handleConnection(socket, req));
+    this.wss.on("connection", (socket, req) =>
+      this.handleConnection(socket, req),
+    );
     this.wss.on("error", (err) =>
       this.logger.error(`Media stream server error: ${err.message}`),
     );
@@ -214,7 +216,10 @@ export class TranscriptionMediaGateway
     }
   }
 
-  private getOrCreateSession(state: BridgeState, track: string): DeepgramLiveSession {
+  private getOrCreateSession(
+    state: BridgeState,
+    track: string,
+  ): DeepgramLiveSession {
     const existing = state.sessions.get(track);
     if (existing) return existing;
 
@@ -230,7 +235,10 @@ export class TranscriptionMediaGateway
           if (!state.flippedTranscribing && state.transcriptionId) {
             state.flippedTranscribing = true;
             void this.transcriptionRepo
-              .markStatus(state.transcriptionId, TranscriptionStatus.transcribing)
+              .markStatus(
+                state.transcriptionId,
+                TranscriptionStatus.transcribing,
+              )
               .catch(() => undefined);
           }
         },
@@ -283,7 +291,9 @@ export class TranscriptionMediaGateway
     }
     state.sessions.clear();
 
-    void this.redisService.del(livePartialKey(state.callId)).catch(() => undefined);
+    void this.redisService
+      .del(livePartialKey(state.callId))
+      .catch(() => undefined);
 
     if (!state.transcriptionId) return;
     const finalStatus = state.hasFinal

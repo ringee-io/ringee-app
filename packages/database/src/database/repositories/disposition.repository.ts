@@ -35,7 +35,7 @@ export class DispositionRepository {
       triggersDnc?: boolean;
       triggersCallback?: boolean;
       isSystem?: boolean;
-    }[]
+    }[],
   ): Promise<number> {
     const result = await this.prisma.disposition.createMany({
       data: dispositions,
@@ -57,7 +57,7 @@ export class DispositionRepository {
 
   async findByCampaignAndCode(
     campaignId: string,
-    code: string
+    code: string,
   ): Promise<Disposition | null> {
     return this.prisma.disposition.findUnique({
       where: { campaignId_code: { campaignId, code } },
@@ -78,7 +78,7 @@ export class DispositionRepository {
         | "triggersCallback"
         | "isActive"
       >
-    >
+    >,
   ): Promise<Disposition> {
     return this.prisma.disposition.update({ where: { id }, data });
   }

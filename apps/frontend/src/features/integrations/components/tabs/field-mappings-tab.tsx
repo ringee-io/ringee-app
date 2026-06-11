@@ -11,7 +11,7 @@ import {
   RefreshCw,
   Sparkles,
   Settings2,
-  AlertCircle,
+  AlertCircle
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -21,18 +21,22 @@ import type { CrmConnectionSummary, CrmFieldMapping } from '../../types/crm';
 import { PROVIDER_META } from '../../types/crm';
 
 const DIRECTION_ICON: Record<string, React.ReactNode> = {
-  bidirectional: <ArrowLeftRight className="h-3 w-3 text-sky-500" />,
-  push: <ArrowRight className="h-3 w-3 text-emerald-500" />,
-  pull: <ArrowLeft className="h-3 w-3 text-violet-500" />,
+  bidirectional: <ArrowLeftRight className='h-3 w-3 text-sky-500' />,
+  push: <ArrowRight className='h-3 w-3 text-emerald-500' />,
+  pull: <ArrowLeft className='h-3 w-3 text-violet-500' />
 };
 
 const DIRECTION_LABEL: Record<string, string> = {
   bidirectional: 'Bidirectional',
   push: 'Push (Ringee → CRM)',
-  pull: 'Pull (CRM → Ringee)',
+  pull: 'Pull (CRM → Ringee)'
 };
 
-export function FieldMappingsTab({ connection }: { connection: CrmConnectionSummary }) {
+export function FieldMappingsTab({
+  connection
+}: {
+  connection: CrmConnectionSummary;
+}) {
   const api = useApi();
   const { mappings, loading, reload } = useFieldMappings(connection.id);
   const [seeding, setSeeding] = useState(false);
@@ -46,93 +50,104 @@ export function FieldMappingsTab({ connection }: { connection: CrmConnectionSumm
       toast.success('Default field mappings created');
       await reload();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to seed mappings');
+      toast.error(
+        err instanceof Error ? err.message : 'Failed to seed mappings'
+      );
     } finally {
       setSeeding(false);
     }
   };
 
-  const groupedByEntity = mappings.reduce<Record<string, CrmFieldMapping[]>>((acc, m) => {
-    const key = `${m.ringeeEntity} → ${m.externalEntity}`;
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(m);
-    return acc;
-  }, {});
+  const groupedByEntity = mappings.reduce<Record<string, CrmFieldMapping[]>>(
+    (acc, m) => {
+      const key = `${m.ringeeEntity} → ${m.externalEntity}`;
+      if (!acc[key]) acc[key] = [];
+      acc[key].push(m);
+      return acc;
+    },
+    {}
+  );
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex items-start justify-between gap-3">
+    <div className='flex flex-col gap-6'>
+      <div className='flex items-start justify-between gap-3'>
         <div>
-          <h3 className="text-sm font-semibold">Field Mappings</h3>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Control how Ringee fields map to {meta.name} fields when syncing contacts and companies.
+          <h3 className='text-sm font-semibold'>Field Mappings</h3>
+          <p className='text-muted-foreground mt-1 text-xs'>
+            Control how Ringee fields map to {meta.name} fields when syncing
+            contacts and companies.
           </p>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className='flex shrink-0 items-center gap-2'>
           <Button
-            variant="ghost"
-            size="sm"
+            variant='ghost'
+            size='sm'
             onClick={() => reload()}
             disabled={loading}
-            className="h-7"
+            className='h-7'
           >
-            <RefreshCw className={`mr-1.5 h-3 w-3 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw
+              className={`mr-1.5 h-3 w-3 ${loading ? 'animate-spin' : ''}`}
+            />
             Refresh
           </Button>
         </div>
       </div>
 
       {!isActive && (
-        <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs">
-          <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" />
+        <div className='flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs'>
+          <AlertCircle className='mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500' />
           <p>Reconnect to manage field mappings.</p>
         </div>
       )}
 
       {loading ? (
-        <div className="space-y-2">
+        <div className='space-y-2'>
           {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-16 w-full" />
+            <Skeleton key={i} className='h-16 w-full' />
           ))}
         </div>
       ) : mappings.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border border-dashed bg-muted/20 px-6 py-10 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-            <Settings2 className="h-5 w-5 text-muted-foreground" />
+        <div className='bg-muted/20 flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-10 text-center'>
+          <div className='bg-muted flex h-12 w-12 items-center justify-center rounded-full'>
+            <Settings2 className='text-muted-foreground h-5 w-5' />
           </div>
           <div>
-            <h4 className="text-sm font-semibold">No field mappings configured</h4>
-            <p className="mt-1 max-w-sm text-xs text-muted-foreground">
-              Seed the default mappings for {meta.name} to get started. You can customize them later.
+            <h4 className='text-sm font-semibold'>
+              No field mappings configured
+            </h4>
+            <p className='text-muted-foreground mt-1 max-w-sm text-xs'>
+              Seed the default mappings for {meta.name} to get started. You can
+              customize them later.
             </p>
           </div>
           <Button
             onClick={handleSeedDefaults}
             disabled={seeding || !isActive}
-            size="sm"
+            size='sm'
           >
             {seeding ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              <Loader2 className='mr-1.5 h-3.5 w-3.5 animate-spin' />
             ) : (
-              <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+              <Sparkles className='mr-1.5 h-3.5 w-3.5' />
             )}
             Seed Default Mappings
           </Button>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className='space-y-4'>
           {Object.entries(groupedByEntity).map(([entityKey, fields]) => (
-            <div key={entityKey} className="rounded-lg border">
-              <div className="flex items-center gap-2 border-b bg-muted/30 px-4 py-2.5">
-                <Settings2 className="h-3.5 w-3.5 text-muted-foreground" />
-                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+            <div key={entityKey} className='rounded-lg border'>
+              <div className='bg-muted/30 flex items-center gap-2 border-b px-4 py-2.5'>
+                <Settings2 className='text-muted-foreground h-3.5 w-3.5' />
+                <span className='text-muted-foreground text-xs font-semibold tracking-wide uppercase'>
                   {entityKey}
                 </span>
-                <Badge variant="outline" className="ml-auto text-[10px]">
+                <Badge variant='outline' className='ml-auto text-[10px]'>
                   {fields.length} field{fields.length !== 1 ? 's' : ''}
                 </Badge>
               </div>
-              <div className="divide-y">
+              <div className='divide-y'>
                 {fields.map((m) => (
                   <MappingRow key={m.id} mapping={m} />
                 ))}
@@ -140,17 +155,17 @@ export function FieldMappingsTab({ connection }: { connection: CrmConnectionSumm
             </div>
           ))}
 
-          <div className="flex justify-end">
+          <div className='flex justify-end'>
             <Button
-              variant="outline"
-              size="sm"
+              variant='outline'
+              size='sm'
               onClick={handleSeedDefaults}
               disabled={seeding || !isActive}
             >
               {seeding ? (
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                <Loader2 className='mr-1.5 h-3.5 w-3.5 animate-spin' />
               ) : (
-                <Sparkles className="mr-1.5 h-3.5 w-3.5" />
+                <Sparkles className='mr-1.5 h-3.5 w-3.5' />
               )}
               Re-seed Defaults
             </Button>
@@ -163,27 +178,31 @@ export function FieldMappingsTab({ connection }: { connection: CrmConnectionSumm
 
 function MappingRow({ mapping }: { mapping: CrmFieldMapping }) {
   const transformType = mapping.transform
-    ? (mapping.transform as Record<string, unknown>).type as string || 'custom'
+    ? ((mapping.transform as Record<string, unknown>).type as string) ||
+      'custom'
     : 'direct';
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5 text-sm">
-      <div className="flex-1 min-w-0">
-        <span className="font-mono text-xs">{mapping.ringeeField}</span>
+    <div className='flex items-center gap-3 px-4 py-2.5 text-sm'>
+      <div className='min-w-0 flex-1'>
+        <span className='font-mono text-xs'>{mapping.ringeeField}</span>
       </div>
 
-      <div className="flex items-center gap-1.5 shrink-0">
+      <div className='flex shrink-0 items-center gap-1.5'>
         {DIRECTION_ICON[mapping.direction]}
-        <span className="text-[10px] text-muted-foreground hidden sm:inline">
+        <span className='text-muted-foreground hidden text-[10px] sm:inline'>
           {DIRECTION_LABEL[mapping.direction]}
         </span>
       </div>
 
-      <div className="flex-1 min-w-0 text-right">
-        <span className="font-mono text-xs">{mapping.externalField}</span>
+      <div className='min-w-0 flex-1 text-right'>
+        <span className='font-mono text-xs'>{mapping.externalField}</span>
       </div>
 
-      <Badge variant="outline" className="shrink-0 text-[10px] font-normal ml-2">
+      <Badge
+        variant='outline'
+        className='ml-2 shrink-0 text-[10px] font-normal'
+      >
         {transformType}
       </Badge>
     </div>

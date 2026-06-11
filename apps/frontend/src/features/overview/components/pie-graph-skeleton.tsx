@@ -1,5 +1,9 @@
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
-import { Card, CardContent, CardHeader } from '@ringee/frontend-shared/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader
+} from '@ringee/frontend-shared/components/ui/card';
 
 export function PieGraphSkeleton() {
   return (

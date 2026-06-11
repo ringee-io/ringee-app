@@ -10,7 +10,7 @@ import type {
   CustomIntegrationStatus,
   CustomIntegrationSummary,
   CustomIntegrationWithSecrets,
-  TestWebhookResult,
+  TestWebhookResult
 } from '../types/custom-integrations';
 
 const BASE = '/integrations/custom';
@@ -28,7 +28,9 @@ export function useCustomIntegrations() {
       const res = await api.get<CustomIntegrationSummary[]>(BASE);
       setItems(res ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load integrations');
+      setError(
+        err instanceof Error ? err.message : 'Failed to load integrations'
+      );
     } finally {
       setLoading(false);
     }
@@ -44,7 +46,7 @@ export function useCustomIntegrations() {
       await load();
       return res;
     },
-    [api, load],
+    [api, load]
   );
 
   const update = useCallback(
@@ -55,13 +57,16 @@ export function useCustomIntegrations() {
         outboundUrl?: string | null;
         subscribedEvents?: CustomIntegrationEventType[];
         status?: CustomIntegrationStatus;
-      },
+      }
     ): Promise<CustomIntegrationSummary> => {
-      const res = await api.patch<CustomIntegrationSummary>(`${BASE}/${id}`, patch);
+      const res = await api.patch<CustomIntegrationSummary>(
+        `${BASE}/${id}`,
+        patch
+      );
       await load();
       return res;
     },
-    [api, load],
+    [api, load]
   );
 
   const remove = useCallback(
@@ -69,7 +74,7 @@ export function useCustomIntegrations() {
       await api.delete(`${BASE}/${id}`);
       await load();
     },
-    [api, load],
+    [api, load]
   );
 
   return { items, loading, error, reload: load, create, update, remove };
@@ -82,7 +87,7 @@ export function useCustomIntegrationActions(id: string | null) {
     if (!id) throw new Error('no id');
     return api.post<{ apiKey: string; apiKeyPrefix: string }>(
       `${BASE}/${id}/regenerate-api-key`,
-      {},
+      {}
     );
   }, [api, id]);
 
@@ -90,7 +95,7 @@ export function useCustomIntegrationActions(id: string | null) {
     if (!id) throw new Error('no id');
     return api.post<{ signingSecret: string }>(
       `${BASE}/${id}/regenerate-signing-secret`,
-      {},
+      {}
     );
   }, [api, id]);
 
@@ -99,14 +104,20 @@ export function useCustomIntegrationActions(id: string | null) {
     return api.post<TestWebhookResult>(`${BASE}/${id}/test-webhook`, {});
   }, [api, id]);
 
-  const getInboundLogs = useCallback(async (): Promise<CustomIntegrationInboundLog[]> => {
+  const getInboundLogs = useCallback(async (): Promise<
+    CustomIntegrationInboundLog[]
+  > => {
     if (!id) return [];
     return api.get<CustomIntegrationInboundLog[]>(`${BASE}/${id}/inbound-logs`);
   }, [api, id]);
 
-  const getOutboundLogs = useCallback(async (): Promise<CustomIntegrationDeliveryLog[]> => {
+  const getOutboundLogs = useCallback(async (): Promise<
+    CustomIntegrationDeliveryLog[]
+  > => {
     if (!id) return [];
-    return api.get<CustomIntegrationDeliveryLog[]>(`${BASE}/${id}/outbound-logs`);
+    return api.get<CustomIntegrationDeliveryLog[]>(
+      `${BASE}/${id}/outbound-logs`
+    );
   }, [api, id]);
 
   return {
@@ -114,7 +125,7 @@ export function useCustomIntegrationActions(id: string | null) {
     regenerateSigningSecret,
     testWebhook,
     getInboundLogs,
-    getOutboundLogs,
+    getOutboundLogs
   };
 }
 
@@ -127,7 +138,9 @@ export function useCustomIntegrationEventSpecs() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await api.get<CustomIntegrationEventSpec[]>(`${BASE}/event-specs`);
+        const res = await api.get<CustomIntegrationEventSpec[]>(
+          `${BASE}/event-specs`
+        );
         if (!cancelled) setSpecs(res ?? []);
       } finally {
         if (!cancelled) setLoading(false);

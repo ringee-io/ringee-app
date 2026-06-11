@@ -49,25 +49,71 @@ export const INBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     direction: "inbound",
     description:
       "Create or update a Contact in Ringee from the external system's current state.",
-    whenItFires: "Sent by the external system whenever a contact is created or modified.",
+    whenItFires:
+      "Sent by the external system whenever a contact is created or modified.",
     requiredFields: [
-      { name: "data.externalId", type: "string", description: "Stable ID of the contact in the external system." },
-      { name: "data.phoneNumber", type: "string", description: "Phone in any format; normalized to E.164 when possible." },
+      {
+        name: "data.externalId",
+        type: "string",
+        description: "Stable ID of the contact in the external system.",
+      },
+      {
+        name: "data.phoneNumber",
+        type: "string",
+        description: "Phone in any format; normalized to E.164 when possible.",
+      },
     ],
     optionalFields: [
       { name: "data.name", type: "string", description: "Display name." },
       { name: "data.firstName", type: "string", description: "Given name." },
       { name: "data.lastName", type: "string", description: "Family name." },
-      { name: "data.fullName", type: "string", description: "Pre-composed full name." },
+      {
+        name: "data.fullName",
+        type: "string",
+        description: "Pre-composed full name.",
+      },
       { name: "data.email", type: "string", description: "Primary email." },
-      { name: "data.companyExternalId", type: "string", description: "External company ID to link this contact to." },
-      { name: "data.companyName", type: "string", description: "Fallback company name if no externalId is provided." },
-      { name: "data.jobTitle", type: "string", description: "Position / title." },
-      { name: "data.ownerExternalId", type: "string", description: "External owner id (sales rep)." },
-      { name: "data.ownerEmail", type: "string", description: "Owner email — used to resolve a Ringee user when org-scoped." },
-      { name: "data.source", type: "string", description: "Lead source label." },
-      { name: "data.customFields", type: "object", description: "Arbitrary key/value pairs stored on the Contact." },
-      { name: "data.crmMetadata", type: "object", description: "Provider-specific metadata stored on the Contact." },
+      {
+        name: "data.companyExternalId",
+        type: "string",
+        description: "External company ID to link this contact to.",
+      },
+      {
+        name: "data.companyName",
+        type: "string",
+        description: "Fallback company name if no externalId is provided.",
+      },
+      {
+        name: "data.jobTitle",
+        type: "string",
+        description: "Position / title.",
+      },
+      {
+        name: "data.ownerExternalId",
+        type: "string",
+        description: "External owner id (sales rep).",
+      },
+      {
+        name: "data.ownerEmail",
+        type: "string",
+        description:
+          "Owner email — used to resolve a Ringee user when org-scoped.",
+      },
+      {
+        name: "data.source",
+        type: "string",
+        description: "Lead source label.",
+      },
+      {
+        name: "data.customFields",
+        type: "object",
+        description: "Arbitrary key/value pairs stored on the Contact.",
+      },
+      {
+        name: "data.crmMetadata",
+        type: "object",
+        description: "Provider-specific metadata stored on the Contact.",
+      },
     ],
     examplePayload: {
       event: "contact.upserted",
@@ -96,21 +142,46 @@ export const INBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     direction: "inbound",
     description:
       "Create or update a Company in Ringee from the external system's current state.",
-    whenItFires: "Sent by the external system whenever a company is created or modified.",
+    whenItFires:
+      "Sent by the external system whenever a company is created or modified.",
     requiredFields: [
-      { name: "data.externalId", type: "string", description: "Stable ID of the company in the external system." },
+      {
+        name: "data.externalId",
+        type: "string",
+        description: "Stable ID of the company in the external system.",
+      },
       { name: "data.name", type: "string", description: "Display name." },
     ],
     optionalFields: [
-      { name: "data.legalName", type: "string", description: "Registered legal name." },
-      { name: "data.domain", type: "string", description: "Primary web domain — used as a secondary dedup signal." },
+      {
+        name: "data.legalName",
+        type: "string",
+        description: "Registered legal name.",
+      },
+      {
+        name: "data.domain",
+        type: "string",
+        description: "Primary web domain — used as a secondary dedup signal.",
+      },
       { name: "data.industry", type: "string", description: "Industry label." },
-      { name: "data.size", type: "string", description: "Headcount band, e.g. \"11-50\"." },
+      {
+        name: "data.size",
+        type: "string",
+        description: 'Headcount band, e.g. "11-50".',
+      },
       { name: "data.phone", type: "string", description: "Main phone." },
       { name: "data.website", type: "string", description: "Homepage URL." },
       { name: "data.source", type: "string", description: "Source label." },
-      { name: "data.customFields", type: "object", description: "Arbitrary key/value pairs." },
-      { name: "data.crmMetadata", type: "object", description: "Provider-specific metadata." },
+      {
+        name: "data.customFields",
+        type: "object",
+        description: "Arbitrary key/value pairs.",
+      },
+      {
+        name: "data.crmMetadata",
+        type: "object",
+        description: "Provider-specific metadata.",
+      },
     ],
     examplePayload: {
       event: "company.upserted",
@@ -135,9 +206,14 @@ export const INBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     direction: "inbound",
     description:
       "Mark a contact as archived in Ringee. Ringee never deletes the underlying Contact — call history, notes, callbacks and meetings are preserved.",
-    whenItFires: "The contact was deleted, archived or deactivated in the external system.",
+    whenItFires:
+      "The contact was deleted, archived or deactivated in the external system.",
     requiredFields: [
-      { name: "data.externalId", type: "string", description: "External contact ID previously sent in contact.upserted." },
+      {
+        name: "data.externalId",
+        type: "string",
+        description: "External contact ID previously sent in contact.upserted.",
+      },
     ],
     optionalFields: [],
     examplePayload: {
@@ -156,9 +232,14 @@ export const INBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     direction: "inbound",
     description:
       "Mark a company as archived in Ringee. Historical relations are preserved.",
-    whenItFires: "The company was deleted, archived or deactivated in the external system.",
+    whenItFires:
+      "The company was deleted, archived or deactivated in the external system.",
     requiredFields: [
-      { name: "data.externalId", type: "string", description: "External company ID previously sent in company.upserted." },
+      {
+        name: "data.externalId",
+        type: "string",
+        description: "External company ID previously sent in company.upserted.",
+      },
     ],
     optionalFields: [],
     examplePayload: {
@@ -189,12 +270,15 @@ export const OUTBOUND_EVENT_NAME_TO_ENUM = {
 } as const;
 
 export type OutboundEventName = keyof typeof OUTBOUND_EVENT_NAME_TO_ENUM;
-export type OutboundEventEnum = (typeof OUTBOUND_EVENT_NAME_TO_ENUM)[OutboundEventName];
+export type OutboundEventEnum =
+  (typeof OUTBOUND_EVENT_NAME_TO_ENUM)[OutboundEventName];
 
-export const OUTBOUND_EVENT_ENUM_TO_NAME: Record<OutboundEventEnum, OutboundEventName> =
-  Object.fromEntries(
-    Object.entries(OUTBOUND_EVENT_NAME_TO_ENUM).map(([k, v]) => [v, k]),
-  ) as Record<OutboundEventEnum, OutboundEventName>;
+export const OUTBOUND_EVENT_ENUM_TO_NAME: Record<
+  OutboundEventEnum,
+  OutboundEventName
+> = Object.fromEntries(
+  Object.entries(OUTBOUND_EVENT_NAME_TO_ENUM).map(([k, v]) => [v, k]),
+) as Record<OutboundEventEnum, OutboundEventName>;
 
 const ENTITY_CONTACT = {
   name: "data.contact",
@@ -222,20 +306,56 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       "Fired the moment the telephony stack reports the call ended, regardless of whether the user has recorded an outcome yet.",
     requiredFields: [
       { name: "data.callId", type: "string", description: "Ringee call UUID." },
-      { name: "data.fromNumber", type: "string", description: "Originating E.164 number." },
-      { name: "data.toNumber", type: "string", description: "Destination E.164 number." },
-      { name: "data.status", type: "string", description: "Final call status reported by the carrier." },
-      { name: "data.direction", type: "string", description: "\"inbound\" or \"outbound\"." },
-      { name: "data.endedAt", type: "string (ISO-8601)", description: "When the call ended." },
+      {
+        name: "data.fromNumber",
+        type: "string",
+        description: "Originating E.164 number.",
+      },
+      {
+        name: "data.toNumber",
+        type: "string",
+        description: "Destination E.164 number.",
+      },
+      {
+        name: "data.status",
+        type: "string",
+        description: "Final call status reported by the carrier.",
+      },
+      {
+        name: "data.direction",
+        type: "string",
+        description: '"inbound" or "outbound".',
+      },
+      {
+        name: "data.endedAt",
+        type: "string (ISO-8601)",
+        description: "When the call ended.",
+      },
     ],
     optionalFields: [
       ENTITY_CONTACT,
       ENTITY_COMPANY,
       ENTITY_USER,
-      { name: "data.durationSeconds", type: "number", description: "Total billed duration." },
-      { name: "data.startedAt", type: "string (ISO-8601)", description: "When the call was initiated." },
-      { name: "data.answeredAt", type: "string (ISO-8601)", description: "When the call was answered." },
-      { name: "data.recordingStatus", type: "string", description: "pending | ready | unavailable" },
+      {
+        name: "data.durationSeconds",
+        type: "number",
+        description: "Total billed duration.",
+      },
+      {
+        name: "data.startedAt",
+        type: "string (ISO-8601)",
+        description: "When the call was initiated.",
+      },
+      {
+        name: "data.answeredAt",
+        type: "string (ISO-8601)",
+        description: "When the call was answered.",
+      },
+      {
+        name: "data.recordingStatus",
+        type: "string",
+        description: "pending | ready | unavailable",
+      },
     ],
     examplePayload: {
       event: "call.completed",
@@ -252,7 +372,11 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
         durationSeconds: 142,
         startedAt: "2026-05-23T14:39:56.000Z",
         endedAt: "2026-05-23T14:42:18.000Z",
-        contact: { id: "…", externalId: "ext_contact_42", phoneNumber: "+14155550123" },
+        contact: {
+          id: "…",
+          externalId: "ext_contact_42",
+          phoneNumber: "+14155550123",
+        },
       },
     },
     notes: [
@@ -268,11 +392,23 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       "Fired whenever a Ringee user sets or changes a call outcome — may happen well after call.completed.",
     requiredFields: [
       { name: "data.callId", type: "string", description: "Ringee call UUID." },
-      { name: "data.outcome", type: "string", description: "CallOutcome value." },
-      { name: "data.updatedAt", type: "string (ISO-8601)", description: "When the outcome was updated." },
+      {
+        name: "data.outcome",
+        type: "string",
+        description: "CallOutcome value.",
+      },
+      {
+        name: "data.updatedAt",
+        type: "string (ISO-8601)",
+        description: "When the outcome was updated.",
+      },
     ],
     optionalFields: [
-      { name: "data.outcomeNote", type: "string", description: "Free-text note attached to the outcome." },
+      {
+        name: "data.outcomeNote",
+        type: "string",
+        description: "Free-text note attached to the outcome.",
+      },
       ENTITY_CONTACT,
       ENTITY_COMPANY,
       ENTITY_USER,
@@ -304,9 +440,19 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       { name: "data.noteId", type: "string", description: "Ringee note UUID." },
       ENTITY_CONTACT,
       { name: "data.content", type: "string", description: "Note body." },
-      { name: "data.createdAt", type: "string (ISO-8601)", description: "Creation timestamp." },
+      {
+        name: "data.createdAt",
+        type: "string (ISO-8601)",
+        description: "Creation timestamp.",
+      },
     ],
-    optionalFields: [{ name: "data.createdBy", type: "object", description: "User reference." }],
+    optionalFields: [
+      {
+        name: "data.createdBy",
+        type: "object",
+        description: "User reference.",
+      },
+    ],
     examplePayload: {
       event: "note.created",
       eventId: "evt_…",
@@ -315,7 +461,11 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       integrationId: "ci_…",
       data: {
         noteId: "n_…",
-        contact: { id: "…", externalId: "ext_contact_42", phoneNumber: "+14155550123" },
+        contact: {
+          id: "…",
+          externalId: "ext_contact_42",
+          phoneNumber: "+14155550123",
+        },
         content: "Prefers email follow-up.",
         createdAt: "2026-05-23T15:00:00.000Z",
       },
@@ -326,16 +476,33 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     name: "callback.created",
     direction: "outbound",
     description: "A callback was scheduled.",
-    whenItFires: "Fired when a Ringee user (or automation) schedules a callback.",
+    whenItFires:
+      "Fired when a Ringee user (or automation) schedules a callback.",
     requiredFields: [
-      { name: "data.callbackId", type: "string", description: "Ringee callback UUID." },
+      {
+        name: "data.callbackId",
+        type: "string",
+        description: "Ringee callback UUID.",
+      },
       ENTITY_CONTACT,
-      { name: "data.scheduledAt", type: "string (ISO-8601)", description: "When the callback should happen." },
+      {
+        name: "data.scheduledAt",
+        type: "string (ISO-8601)",
+        description: "When the callback should happen.",
+      },
       { name: "data.status", type: "string", description: "Callback status." },
-      { name: "data.createdAt", type: "string (ISO-8601)", description: "Creation timestamp." },
+      {
+        name: "data.createdAt",
+        type: "string (ISO-8601)",
+        description: "Creation timestamp.",
+      },
     ],
     optionalFields: [
-      { name: "data.call", type: "object", description: "Originating call reference." },
+      {
+        name: "data.call",
+        type: "object",
+        description: "Originating call reference.",
+      },
       { name: "data.note", type: "string", description: "Free-text note." },
       ENTITY_USER,
     ],
@@ -347,7 +514,11 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       integrationId: "ci_…",
       data: {
         callbackId: "cb_…",
-        contact: { id: "…", externalId: "ext_contact_42", phoneNumber: "+14155550123" },
+        contact: {
+          id: "…",
+          externalId: "ext_contact_42",
+          phoneNumber: "+14155550123",
+        },
         scheduledAt: "2026-05-24T10:00:00.000Z",
         status: "pending",
         createdAt: "2026-05-23T15:05:00.000Z",
@@ -362,19 +533,47 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     whenItFires:
       "Fired when a Ringee user schedules a meeting. Independent of outcome: if the outcome is meeting_booked, both call.outcome.updated and meeting.created fire.",
     requiredFields: [
-      { name: "data.meetingId", type: "string", description: "Ringee meeting UUID." },
+      {
+        name: "data.meetingId",
+        type: "string",
+        description: "Ringee meeting UUID.",
+      },
       ENTITY_CONTACT,
-      { name: "data.scheduledAt", type: "string (ISO-8601)", description: "When the meeting starts." },
+      {
+        name: "data.scheduledAt",
+        type: "string (ISO-8601)",
+        description: "When the meeting starts.",
+      },
       { name: "data.status", type: "string", description: "Meeting status." },
-      { name: "data.createdAt", type: "string (ISO-8601)", description: "Creation timestamp." },
+      {
+        name: "data.createdAt",
+        type: "string (ISO-8601)",
+        description: "Creation timestamp.",
+      },
     ],
     optionalFields: [
-      { name: "data.call", type: "object", description: "Originating call reference." },
+      {
+        name: "data.call",
+        type: "object",
+        description: "Originating call reference.",
+      },
       { name: "data.title", type: "string", description: "Meeting title." },
-      { name: "data.duration", type: "number", description: "Duration in minutes." },
-      { name: "data.location", type: "string", description: "Physical location or link." },
+      {
+        name: "data.duration",
+        type: "number",
+        description: "Duration in minutes.",
+      },
+      {
+        name: "data.location",
+        type: "string",
+        description: "Physical location or link.",
+      },
       { name: "data.notes", type: "string", description: "Notes." },
-      { name: "data.externalEventId", type: "string", description: "Calendar provider event id, when synced." },
+      {
+        name: "data.externalEventId",
+        type: "string",
+        description: "Calendar provider event id, when synced.",
+      },
       ENTITY_USER,
     ],
     examplePayload: {
@@ -385,7 +584,11 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       integrationId: "ci_…",
       data: {
         meetingId: "m_…",
-        contact: { id: "…", externalId: "ext_contact_42", phoneNumber: "+14155550123" },
+        contact: {
+          id: "…",
+          externalId: "ext_contact_42",
+          phoneNumber: "+14155550123",
+        },
         scheduledAt: "2026-05-30T16:00:00.000Z",
         status: "scheduled",
         title: "Demo with Babbage Engines",
@@ -402,15 +605,39 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     whenItFires:
       "Fired when the recording has been processed and is downloadable. May arrive seconds or minutes after call.completed.",
     requiredFields: [
-      { name: "data.recordingId", type: "string", description: "Ringee recording UUID." },
+      {
+        name: "data.recordingId",
+        type: "string",
+        description: "Ringee recording UUID.",
+      },
       { name: "data.callId", type: "string", description: "Ringee call UUID." },
-      { name: "data.url", type: "string", description: "Signed URL to the recording." },
-      { name: "data.createdAt", type: "string (ISO-8601)", description: "When the recording was finalized." },
+      {
+        name: "data.url",
+        type: "string",
+        description: "Signed URL to the recording.",
+      },
+      {
+        name: "data.createdAt",
+        type: "string (ISO-8601)",
+        description: "When the recording was finalized.",
+      },
     ],
     optionalFields: [
-      { name: "data.format", type: "string", description: "Audio container, e.g. mp3, wav." },
-      { name: "data.durationSec", type: "number", description: "Duration in seconds." },
-      { name: "data.transcript", type: "string", description: "Plain-text transcript if available." },
+      {
+        name: "data.format",
+        type: "string",
+        description: "Audio container, e.g. mp3, wav.",
+      },
+      {
+        name: "data.durationSec",
+        type: "number",
+        description: "Duration in seconds.",
+      },
+      {
+        name: "data.transcript",
+        type: "string",
+        description: "Plain-text transcript if available.",
+      },
     ],
     examplePayload: {
       event: "recording.ready",
@@ -438,15 +665,31 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     whenItFires: "Fired when a call attempt arrives but no agent picks up.",
     requiredFields: [
       { name: "data.callId", type: "string", description: "Ringee call UUID." },
-      { name: "data.fromNumber", type: "string", description: "Originating E.164 number." },
-      { name: "data.toNumber", type: "string", description: "Destination E.164 number." },
-      { name: "data.occurredAt", type: "string (ISO-8601)", description: "When the call was missed." },
+      {
+        name: "data.fromNumber",
+        type: "string",
+        description: "Originating E.164 number.",
+      },
+      {
+        name: "data.toNumber",
+        type: "string",
+        description: "Destination E.164 number.",
+      },
+      {
+        name: "data.occurredAt",
+        type: "string (ISO-8601)",
+        description: "When the call was missed.",
+      },
     ],
     optionalFields: [
       ENTITY_CONTACT,
       ENTITY_COMPANY,
       ENTITY_USER,
-      { name: "data.reason", type: "string", description: "Carrier-provided reason." },
+      {
+        name: "data.reason",
+        type: "string",
+        description: "Carrier-provided reason.",
+      },
     ],
     examplePayload: {
       event: "call.missed",
@@ -471,16 +714,36 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       "Fired when the telephony stack reports a hard failure (busy, invalid number, network error).",
     requiredFields: [
       { name: "data.callId", type: "string", description: "Ringee call UUID." },
-      { name: "data.fromNumber", type: "string", description: "Originating E.164 number." },
-      { name: "data.toNumber", type: "string", description: "Destination E.164 number." },
-      { name: "data.occurredAt", type: "string (ISO-8601)", description: "When the failure was recorded." },
+      {
+        name: "data.fromNumber",
+        type: "string",
+        description: "Originating E.164 number.",
+      },
+      {
+        name: "data.toNumber",
+        type: "string",
+        description: "Destination E.164 number.",
+      },
+      {
+        name: "data.occurredAt",
+        type: "string (ISO-8601)",
+        description: "When the failure was recorded.",
+      },
     ],
     optionalFields: [
       ENTITY_CONTACT,
       ENTITY_COMPANY,
       ENTITY_USER,
-      { name: "data.errorCode", type: "string", description: "Carrier error code." },
-      { name: "data.errorMessage", type: "string", description: "Human-readable error description." },
+      {
+        name: "data.errorCode",
+        type: "string",
+        description: "Carrier error code.",
+      },
+      {
+        name: "data.errorMessage",
+        type: "string",
+        description: "Human-readable error description.",
+      },
     ],
     examplePayload: {
       event: "call.failed",
@@ -504,13 +767,25 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     description: "A phone number or contact was added to the Do Not Call list.",
     whenItFires: "Fired the moment a DNC entry is created in Ringee.",
     requiredFields: [
-      { name: "data.phoneNumber", type: "string", description: "The number being protected." },
-      { name: "data.createdAt", type: "string (ISO-8601)", description: "When the DNC entry was created." },
+      {
+        name: "data.phoneNumber",
+        type: "string",
+        description: "The number being protected.",
+      },
+      {
+        name: "data.createdAt",
+        type: "string (ISO-8601)",
+        description: "When the DNC entry was created.",
+      },
     ],
     optionalFields: [
       ENTITY_CONTACT,
       { name: "data.reason", type: "string", description: "Free-text reason." },
-      { name: "data.source", type: "string", description: "Channel that triggered the addition." },
+      {
+        name: "data.source",
+        type: "string",
+        description: "Channel that triggered the addition.",
+      },
       ENTITY_USER,
     ],
     examplePayload: {
@@ -519,7 +794,10 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       occurredAt: "2026-05-23T15:30:00.000Z",
       workspaceId: "org_…",
       integrationId: "ci_…",
-      data: { phoneNumber: "+14155550123", createdAt: "2026-05-23T15:30:00.000Z" },
+      data: {
+        phoneNumber: "+14155550123",
+        createdAt: "2026-05-23T15:30:00.000Z",
+      },
     },
     notes: ["Optional event — opt in via the outbound event selector."],
   },

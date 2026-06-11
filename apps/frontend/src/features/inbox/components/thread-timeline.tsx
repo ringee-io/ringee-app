@@ -66,7 +66,7 @@ export function ThreadTimeline({ thread, onChanged }: Props) {
 
   if (!thread) {
     return (
-      <div className='flex flex-1 items-center justify-center text-muted-foreground'>
+      <div className='text-muted-foreground flex flex-1 items-center justify-center'>
         <div className='text-center'>
           <InboxIcon className='mx-auto mb-3 h-10 w-10' />
           <p className='text-sm'>{t('timeline.selectConversation')}</p>
@@ -91,7 +91,7 @@ export function ThreadTimeline({ thread, onChanged }: Props) {
           <h2 className='truncate text-sm font-semibold'>
             {threadDisplayName(thread)}
           </h2>
-          <p className='truncate text-xs text-muted-foreground'>
+          <p className='text-muted-foreground truncate text-xs'>
             {thread.participantNumberE164 ?? thread.participantNumber}
             {thread.ringeeNumber
               ? ` · ${t('timeline.viaNumber', { number: thread.ringeeNumber })}`
@@ -149,17 +149,17 @@ export function ThreadTimeline({ thread, onChanged }: Props) {
         <div ref={scrollerRef} className='h-full'>
           <div className='space-y-3 p-4'>
             {loading && events.length === 0 ? (
-              <p className='text-center text-xs text-muted-foreground'>
+              <p className='text-muted-foreground text-center text-xs'>
                 {t('timeline.loading')}
               </p>
             ) : events.length === 0 ? (
-              <p className='text-center text-xs text-muted-foreground'>
+              <p className='text-muted-foreground text-center text-xs'>
                 {t('timeline.noActivity')}
               </p>
             ) : (
               groups.map((g) => (
                 <div key={g.day} className='space-y-3'>
-                  <div className='mx-auto w-fit rounded-full bg-muted px-3 py-0.5 text-[10px] uppercase tracking-wide text-muted-foreground'>
+                  <div className='bg-muted text-muted-foreground mx-auto w-fit rounded-full px-3 py-0.5 text-[10px] tracking-wide uppercase'>
                     {g.day}
                   </div>
                   {g.events.map((ev) => (

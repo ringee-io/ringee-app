@@ -38,7 +38,9 @@ function toE164(phone: string | null | undefined): string | null {
 
 function previewFor(kind: InboxEventKind, body?: string | null): string {
   if (body && body.trim().length > 0) {
-    return body.length > PREVIEW_MAX ? `${body.slice(0, PREVIEW_MAX - 1)}…` : body;
+    return body.length > PREVIEW_MAX
+      ? `${body.slice(0, PREVIEW_MAX - 1)}…`
+      : body;
   }
   switch (kind) {
     case InboxEventKind.missed_call:
@@ -95,7 +97,10 @@ export class InboxTimelineService {
     try {
       // Touches the table; throws P2021 if migration hasn't been applied.
       await this.threadRepo.listByOwner(
-        { userId: "00000000-0000-0000-0000-000000000000", organizationId: null },
+        {
+          userId: "00000000-0000-0000-0000-000000000000",
+          organizationId: null,
+        },
         { limit: 1 },
       );
       this.logger.log("✓ Inbox tables reachable");
@@ -146,7 +151,10 @@ export class InboxTimelineService {
       );
       for (const phone of candidates) {
         try {
-          const candidate = await this.contactRepo.findByPhone(input.ctx, phone);
+          const candidate = await this.contactRepo.findByPhone(
+            input.ctx,
+            phone,
+          );
           if (candidate) {
             contactId = candidate.id;
             break;
@@ -231,7 +239,9 @@ export class InboxTimelineService {
       ...(params.meetingId
         ? { meeting: { connect: { id: params.meetingId } } }
         : {}),
-      ...(params.callbackTaskId ? { callbackTaskId: params.callbackTaskId } : {}),
+      ...(params.callbackTaskId
+        ? { callbackTaskId: params.callbackTaskId }
+        : {}),
     });
 
     // Update the thread's snapshot fields atomically.
@@ -267,14 +277,17 @@ export class InboxTimelineService {
   async ensureThreadForCall(call: Call): Promise<InboxThread | null> {
     const ctx = InboxTimelineService.buildOwnershipFromCall(call);
     if (!ctx) return null;
-    const direction =
-    ['outgoing', "outbound"].includes(call.direction || '')
-        ? InboxEventDirection.outbound
-        : InboxEventDirection.inbound;
+    const direction = ["outgoing", "outbound"].includes(call.direction || "")
+      ? InboxEventDirection.outbound
+      : InboxEventDirection.inbound;
     const ringeeNumber =
-      direction === InboxEventDirection.outbound ? call.fromNumber : call.toNumber;
+      direction === InboxEventDirection.outbound
+        ? call.fromNumber
+        : call.toNumber;
     const participantNumber =
-      direction === InboxEventDirection.outbound ? call.toNumber : call.fromNumber;
+      direction === InboxEventDirection.outbound
+        ? call.toNumber
+        : call.fromNumber;
 
     return this.findOrCreateThread({
       ctx,
@@ -298,9 +311,13 @@ export class InboxTimelineService {
 
     // Decide which side is the participant vs the Ringee number.
     const ringeeNumber =
-      direction === InboxEventDirection.outbound ? call.fromNumber : call.toNumber;
+      direction === InboxEventDirection.outbound
+        ? call.fromNumber
+        : call.toNumber;
     const participantNumber =
-      direction === InboxEventDirection.outbound ? call.toNumber : call.fromNumber;
+      direction === InboxEventDirection.outbound
+        ? call.toNumber
+        : call.fromNumber;
 
     const thread = await this.findOrCreateThread({
       ctx,
@@ -314,7 +331,9 @@ export class InboxTimelineService {
       (call.durationSeconds ?? 0) === 0 &&
       direction === InboxEventDirection.inbound;
 
-    const kind = isMissed ? InboxEventKind.missed_call : InboxEventKind.call_completed;
+    const kind = isMissed
+      ? InboxEventKind.missed_call
+      : InboxEventKind.call_completed;
 
     if (await this.eventRepo.existsForCallEvent(thread.id, call.id, kind)) {
       return null;
@@ -491,7 +510,9 @@ export class InboxTimelineService {
     occurredAt?: Date;
     incrementUnread?: boolean;
   }): Promise<InboxEvent | null> {
-    if (await this.eventRepo.existsForMessage(params.threadId, params.messageId)) {
+    if (
+      await this.eventRepo.existsForMessage(params.threadId, params.messageId)
+    ) {
       return null;
     }
     return this.appendEvent({
@@ -525,7 +546,10 @@ export class InboxTimelineService {
     return this.threadRepo.listByOwner(ctx, options);
   }
 
-  async listEvents(threadId: string, options?: { kindIn?: InboxEventKind[]; page?: number; limit?: number }) {
+  async listEvents(
+    threadId: string,
+    options?: { kindIn?: InboxEventKind[]; page?: number; limit?: number },
+  ) {
     return this.eventRepo.listByThread(threadId, options);
   }
 
@@ -607,7 +631,11 @@ export class InboxTimelineService {
   async backfillFromCalls(
     ctx: OwnershipContext,
     calls: (Call & { contact?: Contact | null })[],
-  ): Promise<{ threadsTouched: number; eventsCreated: number; processed: number }> {
+  ): Promise<{
+    threadsTouched: number;
+    eventsCreated: number;
+    processed: number;
+  }> {
     const touchedThreadIds = new Set<string>();
     let eventsCreated = 0;
 
@@ -631,10 +659,10 @@ export class InboxTimelineService {
     };
   }
 
-  private markDirection (direction: string) {
-    const outbound = ["outgoing", "outbound"]; 
+  private markDirection(direction: string) {
+    const outbound = ["outgoing", "outbound"];
 
-    if(outbound.includes(direction)){
+    if (outbound.includes(direction)) {
       return InboxEventDirection.outbound;
     }
 

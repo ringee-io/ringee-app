@@ -1,6 +1,10 @@
 'use client';
 
-import { Alert, AlertDescription, AlertTitle } from '@ringee/frontend-shared/components/ui/alert';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle
+} from '@ringee/frontend-shared/components/ui/alert';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import {
   Dialog,
@@ -9,13 +13,13 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogTrigger
 } from '@ringee/frontend-shared/components/ui/dialog';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
 import {
   RadioGroup,
-  RadioGroupItem,
+  RadioGroupItem
 } from '@ringee/frontend-shared/components/ui/radio-group';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
@@ -26,7 +30,7 @@ import { toast } from 'sonner';
 import {
   ODOO_VALIDATION_MESSAGES,
   PROVIDER_META,
-  type CrmProviderType,
+  type CrmProviderType
 } from '../types/crm';
 
 type OdooProvider = Extract<CrmProviderType, 'odoo_14_18' | 'odoo_19_plus'>;
@@ -40,7 +44,11 @@ interface Props {
 type ConnectResponse =
   | {
       ok: true;
-      connection: { id: string; provider: OdooProvider; accountName: string | null };
+      connection: {
+        id: string;
+        provider: OdooProvider;
+        accountName: string | null;
+      };
     }
   | {
       ok: false;
@@ -52,7 +60,7 @@ type ConnectResponse =
 export function OdooConnectDialog({
   provider,
   alreadyConnected,
-  onConnected,
+  onConnected
 }: Props) {
   const api = useApi();
   const { organization } = useOrganization();
@@ -61,18 +69,20 @@ export function OdooConnectDialog({
 
   const [open, setOpen] = useState(false);
   const [scope, setScope] = useState<'personal' | 'organization'>(
-    organization ? 'organization' : 'personal',
+    organization ? 'organization' : 'personal'
   );
   const [form, setForm] = useState({
     baseUrl: '',
     database: '',
     login: '',
-    apiKey: '',
+    apiKey: ''
   });
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<{ title: string; body: string; field?: string } | null>(
-    null,
-  );
+  const [error, setError] = useState<{
+    title: string;
+    body: string;
+    field?: string;
+  } | null>(null);
 
   const canSubmit = useMemo(() => {
     if (!form.baseUrl.trim() || !form.database.trim() || !form.apiKey.trim()) {
@@ -91,10 +101,13 @@ export function OdooConnectDialog({
         database: form.database.trim(),
         login: form.login.trim() || undefined,
         apiKey: form.apiKey.trim(),
-        scope,
+        scope
       });
       if (!res) {
-        setError({ title: 'Unexpected response', body: 'Empty response from server.' });
+        setError({
+          title: 'Unexpected response',
+          body: 'Empty response from server.'
+        });
         return;
       }
       if (res.ok) {
@@ -105,16 +118,17 @@ export function OdooConnectDialog({
         return;
       }
       const hint =
-        ODOO_VALIDATION_MESSAGES[res.reason] ?? ODOO_VALIDATION_MESSAGES.unknown_odoo_error;
+        ODOO_VALIDATION_MESSAGES[res.reason] ??
+        ODOO_VALIDATION_MESSAGES.unknown_odoo_error;
       setError({
         title: titleForReason(res.reason),
         body: `${hint}${res.message ? ` — ${res.message}` : ''}`,
-        field: res.field,
+        field: res.field
       });
     } catch (err) {
       setError({
         title: 'Could not connect',
-        body: err instanceof Error ? err.message : 'Unknown error',
+        body: err instanceof Error ? err.message : 'Unknown error'
       });
     } finally {
       setSubmitting(false);
@@ -131,30 +145,30 @@ export function OdooConnectDialog({
     >
       <DialogTrigger asChild>
         <Button
-          size="sm"
+          size='sm'
           variant={alreadyConnected ? 'outline' : 'default'}
-          className="w-full"
+          className='w-full'
         >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          <Plus className='mr-1.5 h-3.5 w-3.5' />
           {alreadyConnected ? 'Add another' : `Connect ${meta.name}`}
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[520px]">
+      <DialogContent className='sm:max-w-[520px]'>
         <DialogHeader>
           <DialogTitle>Connect {meta.name}</DialogTitle>
           <DialogDescription>
             {provider === 'odoo_14_18'
-              ? 'Uses Odoo\'s legacy RPC compatibility. Compatible with versions 14 through 18.'
-              : 'Uses Odoo\'s modern JSON-2 API. Available from version 19.'}
+              ? "Uses Odoo's legacy RPC compatibility. Compatible with versions 14 through 18."
+              : "Uses Odoo's modern JSON-2 API. Available from version 19."}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-4 py-1">
-          <div className="flex flex-col gap-1.5">
+        <div className='flex flex-col gap-4 py-1'>
+          <div className='flex flex-col gap-1.5'>
             <Label htmlFor={`${provider}-url`}>Odoo URL</Label>
             <Input
               id={`${provider}-url`}
-              placeholder="https://mycompany.odoo.com"
+              placeholder='https://mycompany.odoo.com'
               value={form.baseUrl}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, baseUrl: e.target.value }))
@@ -163,11 +177,11 @@ export function OdooConnectDialog({
             />
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className='flex flex-col gap-1.5'>
             <Label htmlFor={`${provider}-db`}>Database name</Label>
             <Input
               id={`${provider}-db`}
-              placeholder="mycompany-main"
+              placeholder='mycompany-main'
               value={form.database}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, database: e.target.value }))
@@ -176,13 +190,13 @@ export function OdooConnectDialog({
             />
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className='flex flex-col gap-1.5'>
             <Label htmlFor={`${provider}-login`}>
               Login / Email {loginRequired ? '' : '(optional)'}
             </Label>
             <Input
               id={`${provider}-login`}
-              placeholder="sales@mycompany.com"
+              placeholder='sales@mycompany.com'
               value={form.login}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, login: e.target.value }))
@@ -190,55 +204,59 @@ export function OdooConnectDialog({
               aria-invalid={error?.field === 'login'}
             />
             {!loginRequired && (
-              <p className="text-[11px] text-muted-foreground">
+              <p className='text-muted-foreground text-[11px]'>
                 Only needed for owner mapping on leads/activities.
               </p>
             )}
           </div>
 
-          <div className="flex flex-col gap-1.5">
+          <div className='flex flex-col gap-1.5'>
             <Label htmlFor={`${provider}-apikey`}>API key</Label>
             <Input
               id={`${provider}-apikey`}
-              type="password"
-              placeholder="Odoo API key"
+              type='password'
+              placeholder='Odoo API key'
               value={form.apiKey}
               onChange={(e) =>
                 setForm((prev) => ({ ...prev, apiKey: e.target.value }))
               }
               aria-invalid={error?.field === 'apiKey'}
             />
-            <p className="text-[11px] text-muted-foreground">
-              Generate one from <strong>Odoo &rarr; Preferences &rarr; Account Security &rarr;
-              New API Key</strong>.
+            <p className='text-muted-foreground text-[11px]'>
+              Generate one from{' '}
+              <strong>
+                Odoo &rarr; Preferences &rarr; Account Security &rarr; New API
+                Key
+              </strong>
+              .
             </p>
           </div>
 
-          <div className="flex flex-col gap-2 pt-1">
-            <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+          <div className='flex flex-col gap-2 pt-1'>
+            <Label className='text-muted-foreground text-xs tracking-wide uppercase'>
               Workspace
             </Label>
             <RadioGroup
               value={scope}
               onValueChange={(v) => setScope(v as 'personal' | 'organization')}
-              className="gap-2"
+              className='gap-2'
             >
               <Label
                 htmlFor={`${provider}-scope-personal`}
                 className={cn(
                   'flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors',
-                  scope === 'personal' && 'border-primary bg-primary/5',
+                  scope === 'personal' && 'border-primary bg-primary/5'
                 )}
               >
                 <RadioGroupItem
-                  value="personal"
+                  value='personal'
                   id={`${provider}-scope-personal`}
                 />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <User className="h-3.5 w-3.5" /> Personal workspace
+                <div className='flex-1'>
+                  <div className='flex items-center gap-2 text-sm font-medium'>
+                    <User className='h-3.5 w-3.5' /> Personal workspace
                   </div>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
+                  <p className='text-muted-foreground mt-0.5 text-xs'>
                     Only your calls are logged. Your credentials stay on your
                     account.
                   </p>
@@ -251,22 +269,22 @@ export function OdooConnectDialog({
                   'flex items-start gap-3 rounded-lg border p-3 transition-colors',
                   !organization && 'cursor-not-allowed opacity-50',
                   organization && 'cursor-pointer',
-                  scope === 'organization' && 'border-primary bg-primary/5',
+                  scope === 'organization' && 'border-primary bg-primary/5'
                 )}
               >
                 <RadioGroupItem
-                  value="organization"
+                  value='organization'
                   id={`${provider}-scope-org`}
                   disabled={!organization}
                 />
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 text-sm font-medium">
-                    <Users className="h-3.5 w-3.5" />
+                <div className='flex-1'>
+                  <div className='flex items-center gap-2 text-sm font-medium'>
+                    <Users className='h-3.5 w-3.5' />
                     {organization
                       ? organization.name
                       : 'Organization (no active team)'}
                   </div>
-                  <p className="mt-0.5 text-xs text-muted-foreground">
+                  <p className='text-muted-foreground mt-0.5 text-xs'>
                     {organization
                       ? 'All teammates in this org share this connection.'
                       : 'Switch to an organization from the top-left to enable org-level sync.'}
@@ -277,8 +295,8 @@ export function OdooConnectDialog({
           </div>
 
           {error && (
-            <Alert variant="destructive">
-              <AlertCircle className="h-4 w-4" />
+            <Alert variant='destructive'>
+              <AlertCircle className='h-4 w-4' />
               <AlertTitle>{error.title}</AlertTitle>
               <AlertDescription>{error.body}</AlertDescription>
             </Alert>
@@ -287,7 +305,7 @@ export function OdooConnectDialog({
 
         <DialogFooter>
           <Button
-            variant="outline"
+            variant='outline'
             onClick={() => setOpen(false)}
             disabled={submitting}
           >

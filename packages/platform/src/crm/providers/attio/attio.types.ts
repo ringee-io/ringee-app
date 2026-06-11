@@ -9,20 +9,20 @@ export type AttioOAuthTokenResponse = {
 };
 
 export type AttioWorkspaceResponse = {
-  workspace_id: string
-  active: boolean,
-  scope: string,
-  client_id: string,
-  token_type: string,
-  exp: null,
-  iat: number,
-  sub: string,
-  aud: string,
-  iss: string,
-  authorized_by_workspace_member_id: string,
-  workspace_name: string,
-  workspace_slug: string,
-  workspace_logo_url: string
+  workspace_id: string;
+  active: boolean;
+  scope: string;
+  client_id: string;
+  token_type: string;
+  exp: null;
+  iat: number;
+  sub: string;
+  aud: string;
+  iss: string;
+  authorized_by_workspace_member_id: string;
+  workspace_name: string;
+  workspace_slug: string;
+  workspace_logo_url: string;
 };
 
 export type AttioAttributeValue =
@@ -84,7 +84,10 @@ export type AttioTaskRequest = {
       target_object: "people" | "companies";
       target_record_id: string;
     }>;
-    assignees: Array<{ referenced_actor_type: "workspace-member"; referenced_actor_id: string }>;
+    assignees: Array<{
+      referenced_actor_type: "workspace-member";
+      referenced_actor_id: string;
+    }>;
   };
 };
 
@@ -105,17 +108,18 @@ export type AttioCompanyRecord = {
       phone_number?: string;
       original_phone_number?: string;
     }>;
-    categories?: Array<{ option?: {
-      id: {
-
-        workspace_id: string;
-        object_id: string
-        attribute_id: string;
-        option_id: string
-      }
-      title: string
-      is_archived: boolean;
-    } }>;
+    categories?: Array<{
+      option?: {
+        id: {
+          workspace_id: string;
+          object_id: string;
+          attribute_id: string;
+          option_id: string;
+        };
+        title: string;
+        is_archived: boolean;
+      };
+    }>;
     team_size?: Array<{ value?: string }>;
   };
 };

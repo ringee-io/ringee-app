@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from "@nestjs/common";
 import { UserActivitySnapshotRepository } from "@ringee/database";
 import { TriggerLoopEventPublisher } from "./triggerloop-event-publisher.service";
 

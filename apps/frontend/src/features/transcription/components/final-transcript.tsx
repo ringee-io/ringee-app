@@ -23,7 +23,9 @@ interface Props {
 
 /** Pick the transcript to display: a completed one wins; otherwise whichever
  *  exists (recording over realtime, since it's the post-call source). */
-function pickPrimary(data: CallTranscriptionView | null): TranscriptionView | null {
+function pickPrimary(
+  data: CallTranscriptionView | null
+): TranscriptionView | null {
   if (!data) return null;
   const { realtime, recording } = data;
   if (recording?.status === 'completed') return recording;
@@ -33,13 +35,8 @@ function pickPrimary(data: CallTranscriptionView | null): TranscriptionView | nu
 
 export function FinalTranscript({ callId, className }: Props) {
   const t = useTranslations('transcription');
-  const {
-    data,
-    loading,
-    actionPending,
-    transcribeRecording,
-    retry
-  } = useCallTranscription(callId);
+  const { data, loading, actionPending, transcribeRecording, retry } =
+    useCallTranscription(callId);
 
   if (!callId) return null;
 
@@ -49,29 +46,29 @@ export function FinalTranscript({ callId, className }: Props) {
 
   return (
     <Card className={className}>
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-        <CardTitle className="flex items-center gap-2 text-base">
-          <FileText className="h-4 w-4" />
+      <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-3'>
+        <CardTitle className='flex items-center gap-2 text-base'>
+          <FileText className='h-4 w-4' />
           {t('finalTitle')}
         </CardTitle>
-        <div className="flex items-center gap-2">
+        <div className='flex items-center gap-2'>
           {primary ? <SourceBadge source={primary.source} t={t} /> : null}
           {primary ? <StatusBadge status={primary.status} t={t} /> : null}
         </div>
       </CardHeader>
-      <CardContent className="space-y-3">
+      <CardContent className='space-y-3'>
         {loading ? (
-          <div className="space-y-2">
-            <Skeleton className="h-4 w-full" />
-            <Skeleton className="h-4 w-5/6" />
-            <Skeleton className="h-4 w-4/6" />
+          <div className='space-y-2'>
+            <Skeleton className='h-4 w-full' />
+            <Skeleton className='h-4 w-5/6' />
+            <Skeleton className='h-4 w-4/6' />
           </div>
         ) : primary?.status === 'completed' ? (
           <Transcript transcript={primary} t={t} />
         ) : primary?.status === 'processing' ? (
-          <Empty icon="spin" text={t('processing')} />
+          <Empty icon='spin' text={t('processing')} />
         ) : primary?.status === 'failed' ? (
-          <div className="space-y-3">
+          <div className='space-y-3'>
             <Empty text={primary.errorMessage || t('status.failed')} />
           </div>
         ) : !enabled ? (
@@ -118,16 +115,16 @@ function Transcript({
 }) {
   if (transcript.segments.length === 0) {
     return (
-      <p className="whitespace-pre-wrap text-sm leading-relaxed">
+      <p className='text-sm leading-relaxed whitespace-pre-wrap'>
         {transcript.text || t('unavailable')}
       </p>
     );
   }
   return (
-    <div className="space-y-2">
+    <div className='space-y-2'>
       {transcript.segments.map((s) => (
-        <p key={s.id} className="text-sm leading-relaxed">
-          <span className="mr-1 font-medium text-muted-foreground">
+        <p key={s.id} className='text-sm leading-relaxed'>
+          <span className='text-muted-foreground mr-1 font-medium'>
             {speakerLabel(s.track, s.speaker, t)}:
           </span>
           {s.text}
@@ -163,42 +160,42 @@ function Actions({
   const isFailed = primary?.status === 'failed';
 
   return (
-    <div className="flex flex-wrap gap-2 pt-1">
+    <div className='flex flex-wrap gap-2 pt-1'>
       {isFailed ? (
         <Button
-          type="button"
-          size="sm"
-          variant="outline"
+          type='button'
+          size='sm'
+          variant='outline'
           disabled={pending}
           onClick={() => onRetry(primary?.source ?? 'recording')}
         >
-          {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          {pending ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : null}
           {t('tryAgain')}
         </Button>
       ) : null}
 
       {!isCompleted && !isProcessing && recordingAvailable ? (
         <Button
-          type="button"
-          size="sm"
-          variant="outline"
+          type='button'
+          size='sm'
+          variant='outline'
           disabled={pending}
           onClick={onTranscribe}
         >
-          {pending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+          {pending ? <Loader2 className='mr-2 h-4 w-4 animate-spin' /> : null}
           {t('transcribe')}
         </Button>
       ) : null}
 
       {isCompleted && recordingAvailable ? (
         <Button
-          type="button"
-          size="sm"
-          variant="ghost"
+          type='button'
+          size='sm'
+          variant='ghost'
           disabled={pending}
           onClick={onTranscribe}
         >
-          <RefreshCw className="mr-2 h-4 w-4" />
+          <RefreshCw className='mr-2 h-4 w-4' />
           {t('retranscribe')}
         </Button>
       ) : null}
@@ -208,8 +205,8 @@ function Actions({
 
 function Empty({ text, icon }: { text: string; icon?: 'spin' }) {
   return (
-    <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground">
-      {icon === 'spin' ? <Loader2 className="h-4 w-4 animate-spin" /> : null}
+    <div className='text-muted-foreground flex items-center justify-center gap-2 py-6 text-sm'>
+      {icon === 'spin' ? <Loader2 className='h-4 w-4 animate-spin' /> : null}
       {text}
     </div>
   );
@@ -223,7 +220,7 @@ function SourceBadge({
   t: ReturnType<typeof useTranslations>;
 }) {
   return (
-    <Badge variant="outline">
+    <Badge variant='outline'>
       {source === 'realtime' ? t('sourceRealtime') : t('sourceRecording')}
     </Badge>
   );

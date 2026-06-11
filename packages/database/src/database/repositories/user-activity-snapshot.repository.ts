@@ -16,13 +16,17 @@ export class UserActivitySnapshotRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   private get delegate() {
-    return (this.prisma as unknown as {
-      userActivitySnapshot: {
-        findUnique: (args: unknown) => Promise<UserActivitySnapshotRecord | null>;
-        findMany: (args: unknown) => Promise<UserActivitySnapshotRecord[]>;
-        upsert: (args: unknown) => Promise<UserActivitySnapshotRecord>;
-      };
-    }).userActivitySnapshot;
+    return (
+      this.prisma as unknown as {
+        userActivitySnapshot: {
+          findUnique: (
+            args: unknown,
+          ) => Promise<UserActivitySnapshotRecord | null>;
+          findMany: (args: unknown) => Promise<UserActivitySnapshotRecord[]>;
+          upsert: (args: unknown) => Promise<UserActivitySnapshotRecord>;
+        };
+      }
+    ).userActivitySnapshot;
   }
 
   findByUserId(userId: string): Promise<UserActivitySnapshotRecord | null> {

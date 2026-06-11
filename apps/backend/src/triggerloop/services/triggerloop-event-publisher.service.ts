@@ -94,17 +94,17 @@ export class TriggerLoopEventPublisher {
 
   // Convenience wrappers — encode Ringee's vocabulary, not TriggerLoop's.
   userRegistered(userId: string, data: { email?: string; plan?: string } = {}) {
-    return this.publish(
-      "user.registered",
-      { type: "user", id: userId },
-      data,
-    );
+    return this.publish("user.registered", { type: "user", id: userId }, data);
   }
 
   emailVerified(userId: string, email: string) {
-    return this.publish("user.emailVerified", { type: "user", id: userId }, {
-      email,
-    });
+    return this.publish(
+      "user.emailVerified",
+      { type: "user", id: userId },
+      {
+        email,
+      },
+    );
   }
 
   workspaceCreated(userId: string, organizationId: string) {
@@ -116,10 +116,14 @@ export class TriggerLoopEventPublisher {
   }
 
   creditsAdded(userId: string, amount: number, organizationId?: string) {
-    return this.publish("credits.added", { type: "user", id: userId }, {
-      amount,
-      organizationId,
-    });
+    return this.publish(
+      "credits.added",
+      { type: "user", id: userId },
+      {
+        amount,
+        organizationId,
+      },
+    );
   }
 
   phoneNumberAssigned(userId: string, phoneNumber: string) {
@@ -151,8 +155,12 @@ export class TriggerLoopEventPublisher {
   }
 
   userInactive(userId: string, lastActivityAt: Date) {
-    return this.publish("user.inactive", { type: "user", id: userId }, {
-      lastActivityAt: lastActivityAt.toISOString(),
-    });
+    return this.publish(
+      "user.inactive",
+      { type: "user", id: userId },
+      {
+        lastActivityAt: lastActivityAt.toISOString(),
+      },
+    );
   }
 }

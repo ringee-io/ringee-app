@@ -9,7 +9,7 @@ import {
 } from "@ringee/database";
 import {
   NotificationService,
-  WorkerService,
+  OrchestratorService,
   OwnershipContext,
   TelephonyService,
 } from "@ringee/platform";
@@ -52,7 +52,7 @@ export class CallService {
     private readonly numberPurchasedService: NumberPurchasedService,
     private readonly notificationService: NotificationService,
     private readonly userDeviceService: UserDeviceService,
-    private readonly workerService: WorkerService,
+    private readonly orchestratorService: OrchestratorService,
     private readonly organizationService: OrganizationService,
     private readonly callAttemptService: CallAttemptService,
     private readonly crmCallLogService: CrmCallLogService,
@@ -63,7 +63,7 @@ export class CallService {
     private readonly telephonyService: TelephonyService,
     private readonly recordingSettingsService: CallRecordingSettingsService,
     private readonly transcriptionOrchestrator: TranscriptionService,
-  ) { }
+  ) {}
 
   /**
    * Apply the call owner's recording/transcription settings when a call is
@@ -192,7 +192,9 @@ export class CallService {
   private extractCallAttemptId(payload: any): string | null {
     try {
       if (!payload.client_state) return null;
-      const decoded = Buffer.from(payload.client_state, "base64").toString("utf-8");
+      const decoded = Buffer.from(payload.client_state, "base64").toString(
+        "utf-8",
+      );
       const parsed = JSON.parse(decoded);
       return parsed.callAttemptId ?? null;
     } catch {
@@ -256,14 +258,16 @@ export class CallService {
 
   async getOrganizationIdFromHeaders(headers: any): Promise<string | null> {
     const clerkOrganizationId = Array.isArray(headers)
-      ? headers?.find((header: any) => header.name === "X-Organization-Id")?.value || null
+      ? headers?.find((header: any) => header.name === "X-Organization-Id")
+          ?.value || null
       : null;
 
     if (!clerkOrganizationId) {
       return null;
     }
 
-    const organization = await this.organizationService.getByClerkId(clerkOrganizationId);
+    const organization =
+      await this.organizationService.getByClerkId(clerkOrganizationId);
 
     return organization?.id || null;
   }
@@ -484,9 +488,8 @@ export class CallService {
           CallStatus.answered,
         );
         const answeredAttemptId = this.extractCallAttemptId(payload);
-        const answeredCall = await this.callRepository.findByControlId(
-          callControlId,
-        );
+        const answeredCall =
+          await this.callRepository.findByControlId(callControlId);
         if (answeredAttemptId && answeredCall) {
           await this.callAttemptService.handleWebhookEvent(
             answeredAttemptId,
@@ -510,7 +513,8 @@ export class CallService {
           hangupPayload.end_time!,
         );
 
-        const hangupCall = await this.callRepository.findByControlId(callControlId);
+        const hangupCall =
+          await this.callRepository.findByControlId(callControlId);
         const hangupAttemptId = this.extractCallAttemptId(payload);
         if (hangupAttemptId && hangupCall) {
           await this.callAttemptService.handleWebhookEvent(
@@ -569,9 +573,11 @@ export class CallService {
       }
 
       case "call.recording.saved": {
-        this.logger.debug(`💾 Recording saved payload: ${JSON.stringify(payload)}`);
+        this.logger.debug(
+          `💾 Recording saved payload: ${JSON.stringify(payload)}`,
+        );
         try {
-          await this.workerService.processCallRecording({
+          await this.orchestratorService.processCallRecording({
             callControlId,
             recording: {
               publicUrl: payload.recording_urls?.mp3,
@@ -584,14 +590,25 @@ export class CallService {
           // Inbox timeline hook: surface a voicemail when the call outcome
           // marks the recording as a voicemail. We avoid duplicating
           // call_completed by being explicit about voicemail-only.
-          const recordingCall = await this.callRepository.findByControlId(callControlId);
-          if (recordingCall && recordingCall.outcome === CallOutcome.voicemail) {
-            const recordings = await this.recordingRepository.findByCallId(recordingCall.id);
+          const recordingCall =
+            await this.callRepository.findByControlId(callControlId);
+          if (
+            recordingCall &&
+            recordingCall.outcome === CallOutcome.voicemail
+          ) {
+            const recordings = await this.recordingRepository.findByCallId(
+              recordingCall.id,
+            );
             const latest = recordings[recordings.length - 1];
-            const ctx = InboxTimelineService.buildOwnershipFromCall(recordingCall);
+            const ctx =
+              InboxTimelineService.buildOwnershipFromCall(recordingCall);
             if (latest && ctx) {
               void this.inboxTimelineService
-                .appendVoicemailEvent({ ctx, call: recordingCall, recording: latest })
+                .appendVoicemailEvent({
+                  ctx,
+                  call: recordingCall,
+                  recording: latest,
+                })
                 .catch((err) =>
                   this.logger.warn(
                     `Inbox appendVoicemailEvent failed: ${err.message}`,
@@ -600,7 +617,9 @@ export class CallService {
             }
           }
         } catch (error) {
-          this.logger.error(`❌ Error processing call recording: ${JSON.stringify(error, null, 2)}`);
+          this.logger.error(
+            `❌ Error processing call recording: ${JSON.stringify(error, null, 2)}`,
+          );
         }
         break;
       }
@@ -608,7 +627,8 @@ export class CallService {
       case "streaming.failed": {
         // Telnyx could not establish/keep the media stream → fail the realtime
         // transcript so the UI can offer "Try again".
-        const failedCall = await this.callRepository.findByControlId(callControlId);
+        const failedCall =
+          await this.callRepository.findByControlId(callControlId);
         if (failedCall) {
           const reason =
             (payload as { failure_reason?: string }).failure_reason ||
@@ -673,7 +693,9 @@ export class CallService {
           }
 
           const rawTotalCost = parseFloat(costPayload.total_cost);
-          const profitMargin = process.env.CALL_PROFIT_MARGIN ? parseFloat(process.env.CALL_PROFIT_MARGIN) : 0;
+          const profitMargin = process.env.CALL_PROFIT_MARGIN
+            ? parseFloat(process.env.CALL_PROFIT_MARGIN)
+            : 0;
           const totalCost = rawTotalCost * profitMargin;
 
           // Build context from call's ownership

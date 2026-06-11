@@ -12,7 +12,10 @@ import { PrismaService } from "../prisma.service";
 export class CrmCallSyncRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findByConnectionCall(connectionId: string, callId: string): Promise<CrmCallSync | null> {
+  findByConnectionCall(
+    connectionId: string,
+    callId: string,
+  ): Promise<CrmCallSync | null> {
     return this.prisma.crmCallSync.findUnique({
       where: { connectionId_callId: { connectionId, callId } },
     });
@@ -83,14 +86,22 @@ export class CrmCallSyncRepository {
     });
   }
 
-  scheduleRetry(id: string, nextAttemptAt: Date, error: string): Promise<CrmCallSync> {
+  scheduleRetry(
+    id: string,
+    nextAttemptAt: Date,
+    error: string,
+  ): Promise<CrmCallSync> {
     return this.prisma.crmCallSync.update({
       where: { id },
       data: { status: "pending", nextAttemptAt, lastError: error },
     });
   }
 
-  markStatus(id: string, status: CrmSyncStatus, error?: string | null): Promise<CrmCallSync> {
+  markStatus(
+    id: string,
+    status: CrmSyncStatus,
+    error?: string | null,
+  ): Promise<CrmCallSync> {
     return this.prisma.crmCallSync.update({
       where: { id },
       data: { status, lastError: error ?? null },
@@ -115,7 +126,9 @@ export class CrmCallSyncRepository {
     });
   }
 
-  countByConnection(connectionId: string): Promise<Record<CrmSyncStatus, number>> {
+  countByConnection(
+    connectionId: string,
+  ): Promise<Record<CrmSyncStatus, number>> {
     return this.prisma.crmCallSync
       .groupBy({
         by: ["status"],

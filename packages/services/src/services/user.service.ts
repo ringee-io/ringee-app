@@ -39,7 +39,7 @@ export class UserService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly redisService: RedisService,
-  ) { }
+  ) {}
 
   /**
    * Cache keys for a user. We mirror the same record under both its internal
@@ -108,9 +108,7 @@ export class UserService {
    * Drop every cached entry for a user. Call after any write that changes a
    * field other read paths rely on (free trial, customer id, profile, …).
    */
-  async invalidateUserCache(
-    user: Pick<User, "id" | "clerkId">,
-  ): Promise<void> {
+  async invalidateUserCache(user: Pick<User, "id" | "clerkId">): Promise<void> {
     const keys = [UserService.idKey(user.id)];
     if (user.clerkId) {
       keys.push(UserService.clerkKey(user.clerkId));
@@ -135,7 +133,9 @@ export class UserService {
     const current = await this.getNotificationPreferences(userId);
     const next: NotificationPreferences = {
       callbacks:
-        typeof patch.callbacks === "boolean" ? patch.callbacks : current.callbacks,
+        typeof patch.callbacks === "boolean"
+          ? patch.callbacks
+          : current.callbacks,
       meetings:
         typeof patch.meetings === "boolean" ? patch.meetings : current.meetings,
       missedCalls:
@@ -160,7 +160,9 @@ export class UserService {
     return this.userRepository.findByClerkId(clerkId);
   }
 
-  async getByClerkIds(clerkIds: string[]): Promise<{ id: string; clerkId: string | null }[]> {
+  async getByClerkIds(
+    clerkIds: string[],
+  ): Promise<{ id: string; clerkId: string | null }[]> {
     return this.userRepository.findByClerkIds(clerkIds);
   }
 

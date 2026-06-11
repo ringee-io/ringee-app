@@ -7,7 +7,7 @@ import type {
   CrmConnectionSummary,
   CrmFieldMapping,
   CrmListRef,
-  CrmOwnerRef,
+  CrmOwnerRef
 } from '../types/crm';
 
 export function useCrmConnections() {
@@ -23,7 +23,9 @@ export function useCrmConnections() {
       const res = await api.get<CrmConnectionSummary[]>('/crm/connections');
       setConnections(res);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load connections');
+      setError(
+        err instanceof Error ? err.message : 'Failed to load connections'
+      );
     } finally {
       setLoading(false);
     }
@@ -50,7 +52,7 @@ export function useConnectionSyncs(connectionId: string | null) {
     try {
       const res = await api.get<CrmCallSyncRow[]>(
         `/crm/connections/${connectionId}/syncs`,
-        { limit: 50 },
+        { limit: 50 }
       );
       setSyncs(res);
     } catch {
@@ -80,7 +82,7 @@ export function useFieldMappings(connectionId: string | null) {
     setLoading(true);
     try {
       const res = await api.get<CrmFieldMapping[]>(
-        `/crm/connections/${connectionId}/field-mappings`,
+        `/crm/connections/${connectionId}/field-mappings`
       );
       setMappings(res);
     } catch {
@@ -110,7 +112,7 @@ export function useCrmLists(connectionId: string | null) {
     setLoading(true);
     try {
       const res = await api.get<CrmListRef[]>(
-        `/crm/connections/${connectionId}/lists`,
+        `/crm/connections/${connectionId}/lists`
       );
       setLists(res);
     } catch {
@@ -140,7 +142,7 @@ export function useCrmMembers(connectionId: string | null) {
     setLoading(true);
     try {
       const res = await api.get<CrmOwnerRef[]>(
-        `/crm/connections/${connectionId}/members`,
+        `/crm/connections/${connectionId}/members`
       );
       setMembers(res);
     } catch {

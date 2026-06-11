@@ -40,9 +40,7 @@ export class CreditAutoReloadRepository {
     return this.prisma.creditAutoReload.create({
       data: {
         ...data,
-        user: ctx.organizationId
-          ? undefined
-          : { connect: { id: ctx.userId } },
+        user: ctx.organizationId ? undefined : { connect: { id: ctx.userId } },
         organization: ctx.organizationId
           ? { connect: { id: ctx.organizationId } }
           : undefined,

@@ -1,12 +1,20 @@
 import { Injectable } from "@nestjs/common";
-import { CrmCompanyLink, CrmProviderType, CrmRecordType, Prisma } from "@prisma/client";
+import {
+  CrmCompanyLink,
+  CrmProviderType,
+  CrmRecordType,
+  Prisma,
+} from "@prisma/client";
 import { PrismaService } from "../prisma.service";
 
 @Injectable()
 export class CrmCompanyLinkRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findByDomain(connectionId: string, domain: string): Promise<CrmCompanyLink | null> {
+  findByDomain(
+    connectionId: string,
+    domain: string,
+  ): Promise<CrmCompanyLink | null> {
     return this.prisma.crmCompanyLink.findFirst({
       where: { connectionId, domain: { equals: domain, mode: "insensitive" } },
     });
@@ -19,7 +27,11 @@ export class CrmCompanyLinkRepository {
   ): Promise<CrmCompanyLink | null> {
     return this.prisma.crmCompanyLink.findUnique({
       where: {
-        connectionId_externalType_externalId: { connectionId, externalType, externalId },
+        connectionId_externalType_externalId: {
+          connectionId,
+          externalType,
+          externalId,
+        },
       },
     });
   }
@@ -50,13 +62,17 @@ export class CrmCompanyLinkRepository {
         companyId: input.companyId ?? null,
         domain: input.domain ?? null,
         matchConfidence: input.matchConfidence ?? "domain_exact",
-        rawSnapshot: (input.rawSnapshot ?? undefined) as Prisma.InputJsonValue | undefined,
+        rawSnapshot: (input.rawSnapshot ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
       },
       update: {
         companyId: input.companyId ?? undefined,
         domain: input.domain ?? undefined,
         matchConfidence: input.matchConfidence ?? undefined,
-        rawSnapshot: (input.rawSnapshot ?? undefined) as Prisma.InputJsonValue | undefined,
+        rawSnapshot: (input.rawSnapshot ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
         lastSyncedAt: new Date(),
       },
     });

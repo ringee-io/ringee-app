@@ -46,7 +46,11 @@ export function WidgetShell({
 }: WidgetShellProps) {
   const t = useTranslations('dashboard.widgets.shell');
   return (
-    <Card className={['flex h-full flex-col overflow-hidden', className].filter(Boolean).join(' ')}>
+    <Card
+      className={['flex h-full flex-col overflow-hidden', className]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <CardHeader className='flex flex-row items-center justify-between space-y-0 px-4 py-3'>
         <div className='flex items-center gap-2'>
           {draggable && (
@@ -72,10 +76,7 @@ export function WidgetShell({
         )}
       </CardHeader>
       <CardContent
-        className={[
-          'flex-1 overflow-auto px-4 pb-4',
-          contentClassName
-        ]
+        className={['flex-1 overflow-auto px-4 pb-4', contentClassName]
           .filter(Boolean)
           .join(' ')}
       >

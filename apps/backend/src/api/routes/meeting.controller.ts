@@ -20,7 +20,7 @@ export class MeetingController {
   constructor(
     private readonly orgService: OrganizationService,
     private readonly meetingService: MeetingService,
-  ) { }
+  ) {}
 
   @Post()
   async createMeeting(
@@ -41,7 +41,9 @@ export class MeetingController {
     const ctx = createOwnershipContext(user);
 
     if (!dto.title) {
-      const org = ctx.organizationId && await this.orgService.getOrganizationById(ctx.organizationId!);
+      const org =
+        ctx.organizationId &&
+        (await this.orgService.getOrganizationById(ctx.organizationId!));
 
       if (org) {
         dto.title = `Meeting with ${org.name}`;

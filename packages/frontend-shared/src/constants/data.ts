@@ -1,4 +1,4 @@
-import { NavItem } from '../types';
+import { NavItem } from "../types";
 
 export type Product = {
   photo_url: string;
@@ -19,31 +19,31 @@ export interface NavGroup {
 //Info: The following data is used for the sidebar navigation and Cmd K bar.
 export const navGroups: NavGroup[] = [
   {
-    label: 'General',
+    label: "General",
     items: [
       {
-        title: 'Dashboard',
-        url: '/dashboard/overview',
-        icon: 'dashboard',
+        title: "Dashboard",
+        url: "/dashboard/overview",
+        icon: "dashboard",
         isActive: false,
-        shortcut: ['d', 'd'],
-        items: []
+        shortcut: ["d", "d"],
+        items: [],
       },
       {
-        title: 'Contacts',
-        url: '/dashboard/contact',
-        icon: 'user',
-        shortcut: ['c', 't'],
+        title: "Contacts",
+        url: "/dashboard/contact",
+        icon: "user",
+        shortcut: ["c", "t"],
         isActive: false,
-        items: []
+        items: [],
       },
       {
-        title: 'Activities',
-        url: '/dashboard/activities',
-        icon: 'activity',
-        shortcut: ['a', 'c'],
+        title: "Activities",
+        url: "/dashboard/activities",
+        icon: "activity",
+        shortcut: ["a", "c"],
         isActive: false,
-        items: []
+        items: [],
       },
       // {
       //   title: 'Ringee AI',
@@ -54,86 +54,86 @@ export const navGroups: NavGroup[] = [
       //   items: []
       // },
       {
-        title: 'Meetings',
-        url: '/dashboard/meetings',
-        icon: 'calendarCheck',
-        shortcut: ['m', 'm'],
+        title: "Meetings",
+        url: "/dashboard/meetings",
+        icon: "calendarCheck",
+        shortcut: ["m", "m"],
         isActive: false,
-        items: []
-      }
-    ]
+        items: [],
+      },
+    ],
   },
   {
-    label: 'Communication',
+    label: "Communication",
     items: [
       {
-        title: 'Call',
-        url: '/dashboard/call',
-        icon: 'phoneCall',
-        shortcut: ['c', 'c'],
+        title: "Call",
+        url: "/dashboard/call",
+        icon: "phoneCall",
+        shortcut: ["c", "c"],
         isActive: false,
-        items: []
+        items: [],
       },
       {
-        title: 'Inbox',
-        url: '/dashboard/inbox',
-        icon: 'inbox',
-        shortcut: ['i', 'b'],
+        title: "Inbox",
+        url: "/dashboard/inbox",
+        icon: "inbox",
+        shortcut: ["i", "b"],
         isActive: false,
-        items: []
-      }
-    ]
+        items: [],
+      },
+    ],
   },
   {
-    label: 'Outreach',
+    label: "Outreach",
     items: [
       {
-        title: 'Campaigns',
-        url: '/dashboard/campaigns',
-        icon: 'target',
-        shortcut: ['c', 'a'],
+        title: "Campaigns",
+        url: "/dashboard/campaigns",
+        icon: "target",
+        shortcut: ["c", "a"],
         isActive: false,
-        items: []
+        items: [],
       },
       {
-        title: 'Callbacks',
-        url: '/dashboard/callbacks',
-        icon: 'phoneIncoming',
-        shortcut: ['c', 'b'],
+        title: "Callbacks",
+        url: "/dashboard/callbacks",
+        icon: "phoneIncoming",
+        shortcut: ["c", "b"],
         isActive: false,
-        items: []
+        items: [],
       },
       {
-        title: 'DNC',
-        url: '/dashboard/dnc',
-        icon: 'shieldOff',
-        shortcut: ['d', 'n'],
+        title: "DNC",
+        url: "/dashboard/dnc",
+        icon: "shieldOff",
+        shortcut: ["d", "n"],
         isActive: false,
-        items: []
-      }
-    ]
+        items: [],
+      },
+    ],
   },
   {
-    label: 'Settings',
+    label: "Settings",
     items: [
       {
-        title: 'Overview',
-        url: '/dashboard/settings/overview',
-        icon: 'settings',
-        shortcut: ['s', 'o'],
+        title: "Overview",
+        url: "/dashboard/settings/overview",
+        icon: "settings",
+        shortcut: ["s", "o"],
         isActive: false,
-        items: []
+        items: [],
       },
       {
-        title: 'Integrations',
-        url: '/dashboard/settings/integrations',
-        icon: 'plug',
-        shortcut: ['i', 'n'],
+        title: "Integrations",
+        url: "/dashboard/settings/integrations",
+        icon: "plug",
+        shortcut: ["i", "n"],
         isActive: false,
-        items: []
-      }
-    ]
-  }
+        items: [],
+      },
+    ],
+  },
 ];
 
 // Legacy flat list derived from groups (for backward compatibility)
@@ -151,42 +151,42 @@ export interface SaleUser {
 export const recentSalesData: SaleUser[] = [
   {
     id: 1,
-    name: 'Olivia Martin',
-    email: 'olivia.martin@email.com',
-    amount: '+$1,999.00',
-    image: 'https://api.slingacademy.com/public/sample-users/1.png',
-    initials: 'OM'
+    name: "Olivia Martin",
+    email: "olivia.martin@email.com",
+    amount: "+$1,999.00",
+    image: "https://api.slingacademy.com/public/sample-users/1.png",
+    initials: "OM",
   },
   {
     id: 2,
-    name: 'Jackson Lee',
-    email: 'jackson.lee@email.com',
-    amount: '+$39.00',
-    image: 'https://api.slingacademy.com/public/sample-users/2.png',
-    initials: 'JL'
+    name: "Jackson Lee",
+    email: "jackson.lee@email.com",
+    amount: "+$39.00",
+    image: "https://api.slingacademy.com/public/sample-users/2.png",
+    initials: "JL",
   },
   {
     id: 3,
-    name: 'Isabella Nguyen',
-    email: 'isabella.nguyen@email.com',
-    amount: '+$299.00',
-    image: 'https://api.slingacademy.com/public/sample-users/3.png',
-    initials: 'IN'
+    name: "Isabella Nguyen",
+    email: "isabella.nguyen@email.com",
+    amount: "+$299.00",
+    image: "https://api.slingacademy.com/public/sample-users/3.png",
+    initials: "IN",
   },
   {
     id: 4,
-    name: 'William Kim',
-    email: 'will@email.com',
-    amount: '+$99.00',
-    image: 'https://api.slingacademy.com/public/sample-users/4.png',
-    initials: 'WK'
+    name: "William Kim",
+    email: "will@email.com",
+    amount: "+$99.00",
+    image: "https://api.slingacademy.com/public/sample-users/4.png",
+    initials: "WK",
   },
   {
     id: 5,
-    name: 'Sofia Davis',
-    email: 'sofia.davis@email.com',
-    amount: '+$39.00',
-    image: 'https://api.slingacademy.com/public/sample-users/5.png',
-    initials: 'SD'
-  }
+    name: "Sofia Davis",
+    email: "sofia.davis@email.com",
+    amount: "+$39.00",
+    image: "https://api.slingacademy.com/public/sample-users/5.png",
+    initials: "SD",
+  },
 ];

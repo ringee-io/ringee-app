@@ -40,7 +40,6 @@ export default getRequestConfig(async () => {
     onError(error) {
       // In dev, surface missing keys clearly. In prod, fall back silently.
       if (process.env.NODE_ENV !== 'production') {
-        // eslint-disable-next-line no-console
         console.warn('[i18n]', error.message);
       }
     },

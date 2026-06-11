@@ -39,12 +39,10 @@ export class OutboundAnalyticsRepository {
   async getCampaignSummary(
     campaignId: string,
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
   ): Promise<CampaignSummaryStats> {
     const dateFilter =
-      startDate && endDate
-        ? `AND "initiatedAt" BETWEEN $2 AND $3`
-        : "";
+      startDate && endDate ? `AND "initiatedAt" BETWEEN $2 AND $3` : "";
     const params: any[] = [campaignId];
     if (startDate && endDate) {
       params.push(startDate, endDate);
@@ -71,7 +69,7 @@ export class OutboundAnalyticsRepository {
         ROUND(COUNT(*) FILTER (WHERE "dispositionCode" IN ('meeting_booked','sale'))::numeric / NULLIF(COUNT(*), 0) * 100, 1) as conversion_rate
       FROM "CallAttempt"
       WHERE "campaignId" = $1::uuid ${dateFilter}`,
-      ...params
+      ...params,
     );
 
     const row = result[0];
@@ -89,12 +87,10 @@ export class OutboundAnalyticsRepository {
   async getAgentPerformance(
     campaignId: string,
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
   ): Promise<AgentPerformanceStats[]> {
     const dateFilter =
-      startDate && endDate
-        ? `AND "initiatedAt" BETWEEN $2 AND $3`
-        : "";
+      startDate && endDate ? `AND "initiatedAt" BETWEEN $2 AND $3` : "";
     const params: any[] = [campaignId];
     if (startDate && endDate) {
       params.push(startDate, endDate);
@@ -121,7 +117,7 @@ export class OutboundAnalyticsRepository {
       WHERE "campaignId" = $1::uuid ${dateFilter}
       GROUP BY "agentUserId"
       ORDER BY attempts DESC`,
-      ...params
+      ...params,
     );
 
     return results.map((r) => ({
@@ -137,12 +133,10 @@ export class OutboundAnalyticsRepository {
   async getDispositionDistribution(
     campaignId: string,
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
   ): Promise<DispositionDistribution[]> {
     const dateFilter =
-      startDate && endDate
-        ? `AND "initiatedAt" BETWEEN $2 AND $3`
-        : "";
+      startDate && endDate ? `AND "initiatedAt" BETWEEN $2 AND $3` : "";
     const params: any[] = [campaignId];
     if (startDate && endDate) {
       params.push(startDate, endDate);
@@ -165,7 +159,7 @@ export class OutboundAnalyticsRepository {
         ${dateFilter}
       GROUP BY "dispositionCode"
       ORDER BY count DESC`,
-      ...params
+      ...params,
     );
 
     return results.map((r) => ({
@@ -178,12 +172,10 @@ export class OutboundAnalyticsRepository {
   async getHourlyCallVolume(
     campaignId: string,
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
   ): Promise<HourlyCallVolume[]> {
     const dateFilter =
-      startDate && endDate
-        ? `AND "initiatedAt" BETWEEN $2 AND $3`
-        : "";
+      startDate && endDate ? `AND "initiatedAt" BETWEEN $2 AND $3` : "";
     const params: any[] = [campaignId];
     if (startDate && endDate) {
       params.push(startDate, endDate);
@@ -204,7 +196,7 @@ export class OutboundAnalyticsRepository {
       WHERE "campaignId" = $1::uuid ${dateFilter}
       GROUP BY hour
       ORDER BY hour`,
-      ...params
+      ...params,
     );
 
     return results.map((r) => ({
@@ -216,7 +208,7 @@ export class OutboundAnalyticsRepository {
 
   async getDispositionsByAgent(
     campaignId: string,
-    agentUserId?: string
+    agentUserId?: string,
   ): Promise<
     {
       agentUserId: string;
@@ -224,9 +216,7 @@ export class OutboundAnalyticsRepository {
       count: number;
     }[]
   > {
-    const agentFilter = agentUserId
-      ? `AND "agentUserId" = $2::uuid`
-      : "";
+    const agentFilter = agentUserId ? `AND "agentUserId" = $2::uuid` : "";
     const params: any[] = [campaignId];
     if (agentUserId) params.push(agentUserId);
 
@@ -248,7 +238,7 @@ export class OutboundAnalyticsRepository {
         ${agentFilter}
       GROUP BY "agentUserId", "dispositionCode"
       ORDER BY "agentUserId", count DESC`,
-      ...params
+      ...params,
     );
 
     return results.map((r) => ({
@@ -259,7 +249,7 @@ export class OutboundAnalyticsRepository {
   }
 
   async getLeadStatusCounts(
-    campaignId: string
+    campaignId: string,
   ): Promise<{ status: string; count: number }[]> {
     const results = await this.prisma.$queryRawUnsafe<
       { status: string; count: bigint }[]
@@ -269,7 +259,7 @@ export class OutboundAnalyticsRepository {
        WHERE "campaignId" = $1::uuid
        GROUP BY status
        ORDER BY count DESC`,
-      campaignId
+      campaignId,
     );
 
     return results.map((r) => ({

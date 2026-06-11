@@ -39,17 +39,14 @@ function MessageBubble({ event }: { event: InboxEvent }) {
 
   return (
     <div
-      className={cn(
-        'flex w-full',
-        outbound ? 'justify-end' : 'justify-start'
-      )}
+      className={cn('flex w-full', outbound ? 'justify-end' : 'justify-start')}
     >
       <div
         className={cn(
           'max-w-[75%] rounded-2xl px-4 py-2 text-sm shadow-sm',
           outbound
-            ? 'rounded-br-sm bg-primary text-primary-foreground'
-            : 'rounded-bl-sm bg-muted',
+            ? 'bg-primary text-primary-foreground rounded-br-sm'
+            : 'bg-muted rounded-bl-sm',
           failed && 'border border-red-400'
         )}
       >
@@ -75,7 +72,7 @@ function MessageBubble({ event }: { event: InboxEvent }) {
         >
           <span>{formatTime(event.occurredAt)}</span>
           {event.status && (
-            <span className='uppercase tracking-wide'>· {event.status}</span>
+            <span className='tracking-wide uppercase'>· {event.status}</span>
           )}
           {failed && <AlertCircle className='h-3 w-3' />}
         </div>
@@ -88,17 +85,13 @@ function CallCard({ event }: { event: InboxEvent }) {
   const t = useTranslations('inbox.events');
   const isMissed = event.kind === 'missed_call';
   const inbound = event.direction === 'inbound';
-  const Icon = isMissed
-    ? PhoneMissed
-    : inbound
-      ? PhoneIncoming
-      : PhoneOutgoing;
+  const Icon = isMissed ? PhoneMissed : inbound ? PhoneIncoming : PhoneOutgoing;
   const recording = event.call?.recordings?.[0];
 
   return (
     <div
       className={cn(
-        'mx-auto w-full max-w-md rounded-xl border bg-card p-3 shadow-sm',
+        'bg-card mx-auto w-full max-w-md rounded-xl border p-3 shadow-sm',
         isMissed && 'border-red-200 bg-red-50/30 dark:bg-red-950/20'
       )}
     >
@@ -122,16 +115,18 @@ function CallCard({ event }: { event: InboxEvent }) {
                   ? t('inboundCall')
                   : t('outboundCall')}
             </p>
-            <span className='text-xs text-muted-foreground'>
+            <span className='text-muted-foreground text-xs'>
               {formatTime(event.occurredAt)}
             </span>
           </div>
-          <div className='mt-0.5 text-xs text-muted-foreground'>
+          <div className='text-muted-foreground mt-0.5 text-xs'>
             {event.fromNumber} → {event.toNumber}
           </div>
           <div className='mt-1 flex flex-wrap items-center gap-2 text-xs'>
             {formatDuration(event.durationSec) && (
-              <Badge variant='outline'>{formatDuration(event.durationSec)}</Badge>
+              <Badge variant='outline'>
+                {formatDuration(event.durationSec)}
+              </Badge>
             )}
             {event.metadata?.outcome && (
               <Badge variant='secondary'>
@@ -140,7 +135,7 @@ function CallCard({ event }: { event: InboxEvent }) {
             )}
           </div>
           {event.body && (
-            <p className='mt-2 text-xs text-muted-foreground'>{event.body}</p>
+            <p className='text-muted-foreground mt-2 text-xs'>{event.body}</p>
           )}
           {recording?.url && <EncryptedAudio url={recording.url} />}
           {isMissed && event.fromNumber && (
@@ -178,16 +173,18 @@ function VoicemailCard({ event }: { event: InboxEvent }) {
         <div className='flex-1'>
           <div className='flex items-center gap-2'>
             <p className='text-sm font-medium'>{t('voicemailReceived')}</p>
-            <span className='text-xs text-muted-foreground'>
+            <span className='text-muted-foreground text-xs'>
               {formatTime(event.occurredAt)}
             </span>
             {formatDuration(event.durationSec) && (
-              <Badge variant='outline'>{formatDuration(event.durationSec)}</Badge>
+              <Badge variant='outline'>
+                {formatDuration(event.durationSec)}
+              </Badge>
             )}
           </div>
           {event.audioUrl && <EncryptedAudio url={event.audioUrl} />}
           {event.transcript && (
-            <p className='mt-2 text-xs italic text-muted-foreground'>
+            <p className='text-muted-foreground mt-2 text-xs italic'>
               “{event.transcript}”
             </p>
           )}
@@ -208,15 +205,17 @@ function VoiceDropCard({ event }: { event: InboxEvent }) {
         <div className='flex-1'>
           <div className='flex items-center gap-2'>
             <p className='text-sm font-medium'>{t('voicedropSent')}</p>
-            <span className='text-xs text-muted-foreground'>
+            <span className='text-muted-foreground text-xs'>
               {formatTime(event.occurredAt)}
             </span>
             {formatDuration(event.durationSec) && (
-              <Badge variant='outline'>{formatDuration(event.durationSec)}</Badge>
+              <Badge variant='outline'>
+                {formatDuration(event.durationSec)}
+              </Badge>
             )}
           </div>
           {event.body && (
-            <p className='mt-1 text-xs text-muted-foreground'>{event.body}</p>
+            <p className='text-muted-foreground mt-1 text-xs'>{event.body}</p>
           )}
           {event.audioUrl && <EncryptedAudio url={event.audioUrl} />}
         </div>
@@ -233,14 +232,14 @@ function NoteCard({ event }: { event: InboxEvent }) {
         <StickyNote className='mt-0.5 h-4 w-4 text-yellow-600' />
         <div className='flex-1'>
           <div className='flex items-center gap-2'>
-            <span className='text-xs font-medium uppercase text-yellow-700 dark:text-yellow-300'>
+            <span className='text-xs font-medium text-yellow-700 uppercase dark:text-yellow-300'>
               {t('internalNote')}
             </span>
-            <span className='text-xs text-muted-foreground'>
+            <span className='text-muted-foreground text-xs'>
               {formatTime(event.occurredAt)}
             </span>
           </div>
-          <p className='mt-1 whitespace-pre-wrap text-sm'>{event.body}</p>
+          <p className='mt-1 text-sm whitespace-pre-wrap'>{event.body}</p>
         </div>
       </div>
     </div>
@@ -268,10 +267,10 @@ function CallbackCard({ event }: { event: InboxEvent }) {
                 : t('callbackScheduled')}
           </p>
           {scheduled && (
-            <p className='text-xs text-muted-foreground'>{scheduled}</p>
+            <p className='text-muted-foreground text-xs'>{scheduled}</p>
           )}
           {event.body && (
-            <p className='mt-1 text-xs text-muted-foreground'>{event.body}</p>
+            <p className='text-muted-foreground mt-1 text-xs'>{event.body}</p>
           )}
         </div>
       </div>
@@ -304,11 +303,10 @@ export function EventBubble({ event }: { event: InboxEvent }) {
       return <CallbackCard event={event} />;
     default:
       return (
-        <div className='mx-auto text-xs text-muted-foreground'>
+        <div className='text-muted-foreground mx-auto text-xs'>
           <Phone className='mr-1 inline h-3 w-3' />
           {event.title ?? event.kind}
         </div>
       );
   }
 }
-

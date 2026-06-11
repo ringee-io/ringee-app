@@ -6,7 +6,7 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
+  CardTitle
 } from '@ringee/frontend-shared/components/ui/card';
 import { AlertCircle, Sparkles, Trash2 } from 'lucide-react';
 import { useState } from 'react';
@@ -14,7 +14,7 @@ import { toast } from 'sonner';
 import { useEnrichmentMutations } from '../hooks/use-enrichment-connections';
 import {
   ENRICHMENT_PROVIDER_META,
-  type EnrichmentConnectionSummary,
+  type EnrichmentConnectionSummary
 } from '../types/enrichment';
 
 interface Props {
@@ -42,11 +42,11 @@ export function EnrichmentConnectionCard({ connection, onChange }: Props) {
 
   return (
     <Card>
-      <CardHeader className="pb-2">
-        <CardTitle className="flex items-center justify-between text-base">
-          <span className="flex items-center gap-2">
+      <CardHeader className='pb-2'>
+        <CardTitle className='flex items-center justify-between text-base'>
+          <span className='flex items-center gap-2'>
             <span
-              className="inline-block h-2.5 w-2.5 rounded-full"
+              className='inline-block h-2.5 w-2.5 rounded-full'
               style={{ backgroundColor: meta.color }}
             />
             {meta.name}
@@ -54,41 +54,45 @@ export function EnrichmentConnectionCard({ connection, onChange }: Props) {
           <StatusBadge status={connection.status} />
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-3 text-sm">
-        <div className="text-muted-foreground">
+      <CardContent className='space-y-3 text-sm'>
+        <div className='text-muted-foreground'>
           {connection.externalAccountName ?? connection.externalAccountId}
         </div>
         {connection.status === 'error' && connection.lastErrorCode && (
-          <div className="flex items-center gap-2 text-amber-700">
-            <AlertCircle className="h-4 w-4" />
+          <div className='flex items-center gap-2 text-amber-700'>
+            <AlertCircle className='h-4 w-4' />
             <span>{connection.lastErrorCode}</span>
           </div>
         )}
-        <div className="flex flex-wrap gap-2 text-xs">
-          {connection.capabilities?.byEmail && <Badge variant="secondary">By email</Badge>}
+        <div className='flex flex-wrap gap-2 text-xs'>
+          {connection.capabilities?.byEmail && (
+            <Badge variant='secondary'>By email</Badge>
+          )}
           {connection.capabilities?.byLinkedIn && (
-            <Badge variant="secondary">By LinkedIn</Badge>
+            <Badge variant='secondary'>By LinkedIn</Badge>
           )}
           {connection.capabilities?.byNameCompany && (
-            <Badge variant="secondary">By name+company</Badge>
+            <Badge variant='secondary'>By name+company</Badge>
           )}
-          {connection.capabilities?.byDomain && <Badge variant="secondary">By domain</Badge>}
+          {connection.capabilities?.byDomain && (
+            <Badge variant='secondary'>By domain</Badge>
+          )}
           {connection.capabilities?.leadSearch && (
-            <Badge className="gap-1">
-              <Sparkles className="h-3 w-3" />
+            <Badge className='gap-1'>
+              <Sparkles className='h-3 w-3' />
               Lead search
             </Badge>
           )}
         </div>
-        <div className="flex justify-end pt-2">
+        <div className='flex justify-end pt-2'>
           <Button
-            size="sm"
-            variant="ghost"
+            size='sm'
+            variant='ghost'
             onClick={handleDisconnect}
             disabled={busy}
-            className="text-destructive hover:text-destructive"
+            className='text-destructive hover:text-destructive'
           >
-            <Trash2 className="mr-1 h-4 w-4" />
+            <Trash2 className='mr-1 h-4 w-4' />
             Disconnect
           </Button>
         </div>
@@ -97,13 +101,17 @@ export function EnrichmentConnectionCard({ connection, onChange }: Props) {
   );
 }
 
-function StatusBadge({ status }: { status: EnrichmentConnectionSummary['status'] }) {
+function StatusBadge({
+  status
+}: {
+  status: EnrichmentConnectionSummary['status'];
+}) {
   switch (status) {
     case 'active':
-      return <Badge variant="default">Active</Badge>;
+      return <Badge variant='default'>Active</Badge>;
     case 'error':
-      return <Badge variant="destructive">Error</Badge>;
+      return <Badge variant='destructive'>Error</Badge>;
     case 'disconnected':
-      return <Badge variant="outline">Disconnected</Badge>;
+      return <Badge variant='outline'>Disconnected</Badge>;
   }
 }

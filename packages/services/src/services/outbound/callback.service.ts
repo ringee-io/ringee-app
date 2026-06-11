@@ -1,4 +1,10 @@
-import { forwardRef, Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
+import {
+  forwardRef,
+  Inject,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import {
   CallbackTaskRepository,
   CampaignLeadRepository,
@@ -36,7 +42,9 @@ export class CallbackService {
     createdAt: Date;
     note: string | null;
   }) {
-    const contact = await this.contactRepo.findById(callback.contactId).catch(() => null);
+    const contact = await this.contactRepo
+      .findById(callback.contactId)
+      .catch(() => null);
     void this.customIntegrationOutbound.enqueue({
       ctx: { userId: callback.userId, organizationId: callback.organizationId },
       eventEnum: "callback_created",
@@ -53,7 +61,7 @@ export class CallbackService {
     userId: string,
     organizationId: string | null,
     callbackId: string,
-    scheduledAt: Date
+    scheduledAt: Date,
   ) {
     try {
       await this.reminderService.scheduleForSubject({
@@ -67,7 +75,7 @@ export class CallbackService {
       this.logger.warn(
         `Failed to schedule reminders for callback ${callbackId}: ${
           err instanceof Error ? err.message : String(err)
-        }`
+        }`,
       );
     }
   }
@@ -84,7 +92,7 @@ export class CallbackService {
     note?: string;
   }) {
     const lead = await this.campaignLeadRepo.findByIdWithContact(
-      data.campaignLeadId
+      data.campaignLeadId,
     );
     if (!lead) throw new NotFoundException("Campaign lead not found");
 
@@ -102,18 +110,18 @@ export class CallbackService {
     await this.campaignLeadRepo.updateStatus(
       data.campaignLeadId,
       CampaignLeadStatus.scheduled,
-      { lockedBy: null, lockedAt: null }
+      { lockedBy: null, lockedAt: null },
     );
 
     await this.scheduleReminders(
       data.userId,
       campaign?.organizationId ?? null,
       callback.id,
-      data.scheduledAt
+      data.scheduledAt,
     );
 
     this.logger.debug(
-      `Campaign callback scheduled for lead ${data.campaignLeadId} at ${data.scheduledAt.toISOString()}`
+      `Campaign callback scheduled for lead ${data.campaignLeadId} at ${data.scheduledAt.toISOString()}`,
     );
 
     await this.enqueueCallbackCreated(callback);
@@ -146,11 +154,11 @@ export class CallbackService {
       data.userId,
       data.organizationId ?? null,
       callback.id,
-      data.scheduledAt
+      data.scheduledAt,
     );
 
     this.logger.debug(
-      `Standalone callback ${callback.id} scheduled for contact ${data.contactId} at ${data.scheduledAt.toISOString()}`
+      `Standalone callback ${callback.id} scheduled for contact ${data.contactId} at ${data.scheduledAt.toISOString()}`,
     );
 
     await this.enqueueCallbackCreated(callback);
@@ -159,7 +167,7 @@ export class CallbackService {
 
   async listForOwner(
     owner: { userId: string; organizationId?: string | null },
-    options?: { status?: CallbackStatus; page?: number; limit?: number }
+    options?: { status?: CallbackStatus; page?: number; limit?: number },
   ) {
     return this.callbackRepo.listForOwner(owner, options);
   }
@@ -170,7 +178,7 @@ export class CallbackService {
    */
   async findOwnedById(
     id: string,
-    owner: { userId: string; organizationId?: string | null }
+    owner: { userId: string; organizationId?: string | null },
   ) {
     const callback = await this.callbackRepo.findById(id);
     if (!callback) throw new NotFoundException("Callback not found");
@@ -189,7 +197,7 @@ export class CallbackService {
 
     const updated = await this.callbackRepo.updateStatus(
       id,
-      CallbackStatus.cancelled
+      CallbackStatus.cancelled,
     );
     await this.silentlyCancelReminders(id);
     return updated;
@@ -216,7 +224,7 @@ export class CallbackService {
       this.logger.warn(
         `Failed to reschedule reminders for callback ${id}: ${
           err instanceof Error ? err.message : String(err)
-        }`
+        }`,
       );
     }
 
@@ -227,13 +235,13 @@ export class CallbackService {
     try {
       await this.reminderService.cancelForSubject(
         ReminderSubjectType.callback,
-        callbackId
+        callbackId,
       );
     } catch (err) {
       this.logger.warn(
         `Failed to cancel reminders for callback ${callbackId}: ${
           err instanceof Error ? err.message : String(err)
-        }`
+        }`,
       );
     }
   }
@@ -255,7 +263,7 @@ export class CallbackService {
         await this.campaignLeadRepo.updateStatus(
           callback.campaignLeadId,
           CampaignLeadStatus.queued,
-          { priority: 10, lockedBy: null, lockedAt: null }
+          { priority: 10, lockedBy: null, lockedAt: null },
         );
       }
 
@@ -270,7 +278,7 @@ export class CallbackService {
     const updated = await this.callbackRepo.updateStatus(
       id,
       CallbackStatus.completed,
-      new Date()
+      new Date(),
     );
     await this.silentlyCancelReminders(id);
     return updated;

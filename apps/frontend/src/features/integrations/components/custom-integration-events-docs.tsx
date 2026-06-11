@@ -4,7 +4,7 @@ import {
   Accordion,
   AccordionContent,
   AccordionItem,
-  AccordionTrigger,
+  AccordionTrigger
 } from '@ringee/frontend-shared/components/ui/accordion';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
@@ -17,9 +17,9 @@ export function CustomIntegrationEventsDocs() {
 
   if (loading) {
     return (
-      <div className="space-y-2">
+      <div className='space-y-2'>
         {Array.from({ length: 4 }).map((_, i) => (
-          <Skeleton key={i} className="h-10 w-full rounded-md" />
+          <Skeleton key={i} className='h-10 w-full rounded-md' />
         ))}
       </div>
     );
@@ -29,15 +29,15 @@ export function CustomIntegrationEventsDocs() {
   const outbound = specs.filter((s) => s.direction === 'outbound');
 
   return (
-    <div className="space-y-6">
+    <div className='space-y-6'>
       <Section
-        title="Inbound events"
-        subtitle="Your system sends these to Ringee."
+        title='Inbound events'
+        subtitle='Your system sends these to Ringee.'
         items={inbound}
       />
       <Section
-        title="Outbound events"
-        subtitle="Ringee sends these to your outbound webhook URL when you subscribe to them."
+        title='Outbound events'
+        subtitle='Ringee sends these to your outbound webhook URL when you subscribe to them.'
         items={outbound}
       />
     </div>
@@ -47,37 +47,37 @@ export function CustomIntegrationEventsDocs() {
 function Section({
   title,
   subtitle,
-  items,
+  items
 }: {
   title: string;
   subtitle: string;
   items: CustomIntegrationEventSpec[];
 }) {
   return (
-    <section className="space-y-3">
+    <section className='space-y-3'>
       <div>
-        <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+        <h3 className='text-muted-foreground text-sm font-semibold tracking-wide uppercase'>
           {title}
         </h3>
-        <p className="mt-1 text-xs text-muted-foreground">{subtitle}</p>
+        <p className='text-muted-foreground mt-1 text-xs'>{subtitle}</p>
       </div>
-      <Accordion type="multiple" className="space-y-2">
+      <Accordion type='multiple' className='space-y-2'>
         {items.map((spec) => (
           <AccordionItem
             key={spec.name}
             value={spec.name}
-            className="rounded-md border bg-card px-3"
+            className='bg-card rounded-md border px-3'
           >
-            <AccordionTrigger className="py-2.5 hover:no-underline">
-              <div className="flex items-center gap-3 text-left">
+            <AccordionTrigger className='py-2.5 hover:no-underline'>
+              <div className='flex items-center gap-3 text-left'>
                 <DirectionBadge direction={spec.direction} />
-                <code className="text-xs font-semibold">{spec.name}</code>
-                <span className="hidden text-xs text-muted-foreground sm:inline">
+                <code className='text-xs font-semibold'>{spec.name}</code>
+                <span className='text-muted-foreground hidden text-xs sm:inline'>
                   {spec.description}
                 </span>
               </div>
             </AccordionTrigger>
-            <AccordionContent className="pb-4">
+            <AccordionContent className='pb-4'>
               <EventDetails spec={spec} />
             </AccordionContent>
           </AccordionItem>
@@ -90,48 +90,54 @@ function Section({
 function DirectionBadge({ direction }: { direction: 'inbound' | 'outbound' }) {
   if (direction === 'inbound') {
     return (
-      <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-500">
-        <ArrowDownLeft className="mr-1 h-3 w-3" /> inbound
+      <Badge
+        variant='outline'
+        className='border-sky-500/30 bg-sky-500/10 text-sky-500'
+      >
+        <ArrowDownLeft className='mr-1 h-3 w-3' /> inbound
       </Badge>
     );
   }
   return (
-    <Badge variant="outline" className="border-violet-500/30 bg-violet-500/10 text-violet-500">
-      <ArrowUpRight className="mr-1 h-3 w-3" /> outbound
+    <Badge
+      variant='outline'
+      className='border-violet-500/30 bg-violet-500/10 text-violet-500'
+    >
+      <ArrowUpRight className='mr-1 h-3 w-3' /> outbound
     </Badge>
   );
 }
 
 function EventDetails({ spec }: { spec: CustomIntegrationEventSpec }) {
   return (
-    <div className="space-y-4 text-xs">
+    <div className='space-y-4 text-xs'>
       <div>
-        <p className="text-sm">{spec.description}</p>
-        <p className="mt-1 text-muted-foreground">{spec.whenItFires}</p>
+        <p className='text-sm'>{spec.description}</p>
+        <p className='text-muted-foreground mt-1'>{spec.whenItFires}</p>
       </div>
 
       {spec.requiredFields.length > 0 && (
-        <FieldTable title="Required" rows={spec.requiredFields} required />
+        <FieldTable title='Required' rows={spec.requiredFields} required />
       )}
       {spec.optionalFields.length > 0 && (
-        <FieldTable title="Optional" rows={spec.optionalFields} />
+        <FieldTable title='Optional' rows={spec.optionalFields} />
       )}
 
       <div>
-        <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <h4 className='text-muted-foreground mb-1.5 text-xs font-semibold tracking-wide uppercase'>
           Example payload
         </h4>
-        <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-[11px] leading-relaxed">
+        <pre className='bg-muted overflow-x-auto rounded-md p-3 font-mono text-[11px] leading-relaxed'>
           {JSON.stringify(spec.examplePayload, null, 2)}
         </pre>
       </div>
 
       {spec.notes.length > 0 && (
         <div>
-          <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          <h4 className='text-muted-foreground mb-1.5 text-xs font-semibold tracking-wide uppercase'>
             Notes
           </h4>
-          <ul className="list-disc space-y-1 pl-4 text-muted-foreground">
+          <ul className='text-muted-foreground list-disc space-y-1 pl-4'>
             {spec.notes.map((n, i) => (
               <li key={i}>{n}</li>
             ))}
@@ -145,7 +151,7 @@ function EventDetails({ spec }: { spec: CustomIntegrationEventSpec }) {
 function FieldTable({
   title,
   rows,
-  required,
+  required
 }: {
   title: string;
   rows: { name: string; type: string; description: string }[];
@@ -153,36 +159,42 @@ function FieldTable({
 }) {
   return (
     <div>
-      <h4 className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <h4 className='text-muted-foreground mb-1.5 text-xs font-semibold tracking-wide uppercase'>
         {title}
       </h4>
-      <div className="overflow-hidden rounded-md border">
-        <table className="w-full text-left">
-          <thead className="bg-muted/50">
+      <div className='overflow-hidden rounded-md border'>
+        <table className='w-full text-left'>
+          <thead className='bg-muted/50'>
             <tr>
-              <th className="px-3 py-1.5 text-[11px] font-medium text-muted-foreground">Field</th>
-              <th className="px-3 py-1.5 text-[11px] font-medium text-muted-foreground">Type</th>
-              <th className="px-3 py-1.5 text-[11px] font-medium text-muted-foreground">
+              <th className='text-muted-foreground px-3 py-1.5 text-[11px] font-medium'>
+                Field
+              </th>
+              <th className='text-muted-foreground px-3 py-1.5 text-[11px] font-medium'>
+                Type
+              </th>
+              <th className='text-muted-foreground px-3 py-1.5 text-[11px] font-medium'>
                 Description
               </th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
-              <tr key={r.name} className="border-t">
-                <td className="px-3 py-1.5">
-                  <code className="text-[11px]">{r.name}</code>
+              <tr key={r.name} className='border-t'>
+                <td className='px-3 py-1.5'>
+                  <code className='text-[11px]'>{r.name}</code>
                   {required && (
                     <Badge
-                      variant="outline"
-                      className="ml-1.5 border-red-500/30 bg-red-500/5 text-[10px] text-red-500"
+                      variant='outline'
+                      className='ml-1.5 border-red-500/30 bg-red-500/5 text-[10px] text-red-500'
                     >
                       required
                     </Badge>
                   )}
                 </td>
-                <td className="px-3 py-1.5 text-[11px] text-muted-foreground">{r.type}</td>
-                <td className="px-3 py-1.5 text-[11px]">{r.description}</td>
+                <td className='text-muted-foreground px-3 py-1.5 text-[11px]'>
+                  {r.type}
+                </td>
+                <td className='px-3 py-1.5 text-[11px]'>{r.description}</td>
               </tr>
             ))}
           </tbody>

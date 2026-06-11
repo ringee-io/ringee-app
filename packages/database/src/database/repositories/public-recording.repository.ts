@@ -6,7 +6,10 @@ import { PrismaService } from "../prisma.service";
 export class PublicRecordingRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: { callId: string; url: string }): Promise<PublicRecording> {
+  async create(data: {
+    callId: string;
+    url: string;
+  }): Promise<PublicRecording> {
     return this.prisma.publicRecording.create({ data });
   }
 

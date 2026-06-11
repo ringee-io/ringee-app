@@ -11,7 +11,7 @@ import {
 
 @Injectable()
 export class TelephonyService implements TelephonyServiceInterface {
-  constructor(private readonly telnyxService: TelnyxService) { }
+  constructor(private readonly telnyxService: TelnyxService) {}
 
   submitCallIdVerificationCode(
     phoneNumber: string,

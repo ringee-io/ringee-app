@@ -36,7 +36,9 @@ export interface ClickToCallResult {
 
 @Injectable()
 export class CustomIntegrationClickToCallService {
-  private readonly logger = new Logger(CustomIntegrationClickToCallService.name);
+  private readonly logger = new Logger(
+    CustomIntegrationClickToCallService.name,
+  );
 
   constructor(
     private readonly contactLinkRepo: CustomIntegrationContactLinkRepository,
@@ -57,7 +59,9 @@ export class CustomIntegrationClickToCallService {
 
     // 1) Resolve contact (optional) + destination number.
     let contactId: string | null = null;
-    let toNumber: string | null = input.phoneNumber ? normalizePhone(input.phoneNumber) : null;
+    let toNumber: string | null = input.phoneNumber
+      ? normalizePhone(input.phoneNumber)
+      : null;
 
     if (input.contactExternalId) {
       const link = await this.contactLinkRepo.findByExternalId(
@@ -83,7 +87,11 @@ export class CustomIntegrationClickToCallService {
     const agentUserId = await this.resolveAgent(ctx, input);
 
     // 3) Resolve fromNumber.
-    const fromNumber = await this.resolveFromNumber(ctx, agentUserId, input.fromNumber);
+    const fromNumber = await this.resolveFromNumber(
+      ctx,
+      agentUserId,
+      input.fromNumber,
+    );
 
     // 4) Build a signed dialer session — the agent's browser picks it up and
     // initiates the WebRTC leg (same pattern as Attio click-to-call).
@@ -100,10 +108,13 @@ export class CustomIntegrationClickToCallService {
       createdAt: Date.now(),
       expiresAt,
     };
-    const sessionToken = this.crypto.encrypt(payload as unknown as Record<string, unknown>);
+    const sessionToken = this.crypto.encrypt(
+      payload as unknown as Record<string, unknown>,
+    );
 
     const frontendUrl =
-      (apiConfiguration.FRONTEND_URL as string | undefined) ?? "http://localhost:4200";
+      (apiConfiguration.FRONTEND_URL as string | undefined) ??
+      "http://localhost:4200";
     const qs = new URLSearchParams({
       session: sessionToken,
       to: toNumber,
@@ -167,7 +178,9 @@ export class CustomIntegrationClickToCallService {
     const callerId = await this.prisma.callerId.findFirst({
       where: {
         userId: agentUserId,
-        ...(ctx.organizationId ? { organizationId: ctx.organizationId } : { organizationId: null }),
+        ...(ctx.organizationId
+          ? { organizationId: ctx.organizationId }
+          : { organizationId: null }),
         verified: true,
       },
       orderBy: { createdAt: "asc" },

@@ -1,10 +1,7 @@
 import { Body, Controller, Get, Param, Post } from "@nestjs/common";
 import { IsEnum } from "class-validator";
 import { CurrentUser, createOwnershipContext } from "@ringee/platform";
-import {
-  CallTranscription,
-  TranscriptionSource,
-} from "@ringee/database";
+import { CallTranscription, TranscriptionSource } from "@ringee/database";
 import { CallTranscriptionView, TranscriptionService } from "@ringee/services";
 
 interface CurrentUserData {

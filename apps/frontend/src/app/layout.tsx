@@ -68,8 +68,7 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://www.ringee.io',
-    title:
-      'Ringee — Open Source VoIP Platform | 50× Cheaper Global Calling',
+    title: 'Ringee — Open Source VoIP Platform | 50× Cheaper Global Calling',
     description:
       'The open source VoIP platform for global calling. 50× cheaper than traditional rates. Make and receive calls to 180+ countries from your browser. Self-host or use our cloud — built for sales teams and modern businesses.',
     siteName: 'Ringee.io',
@@ -133,7 +132,8 @@ export default async function RootLayout({
 }) {
   const DEFAULT_THEME = 'default-scaled';
   const cookieStore = await cookies();
-  const activeThemeValue = cookieStore.get('active_theme')?.value || DEFAULT_THEME;
+  const activeThemeValue =
+    cookieStore.get('active_theme')?.value || DEFAULT_THEME;
   const isScaled = activeThemeValue.endsWith('-scaled');
 
   const locale = await getLocale();

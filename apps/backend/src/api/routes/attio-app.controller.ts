@@ -18,7 +18,9 @@ export class AttioAppController {
 
   private extractToken(authHeader: string | undefined): string {
     if (!authHeader?.startsWith("Bearer ")) {
-      throw new UnauthorizedException("Missing or invalid Authorization header");
+      throw new UnauthorizedException(
+        "Missing or invalid Authorization header",
+      );
     }
     return authHeader.slice(7);
   }
@@ -65,9 +67,17 @@ export class AttioAppController {
     @Query("limit") limit: string | undefined,
   ) {
     const ctx = this.resolveContext(auth);
-    if (!phones) throw new BadRequestException("phones query parameter required");
-    const phoneList = phones.split(",").map((p) => p.trim()).filter(Boolean);
-    return this.attioApp.getCallHistory(ctx, phoneList, limit ? Number(limit) : 20);
+    if (!phones)
+      throw new BadRequestException("phones query parameter required");
+    const phoneList = phones
+      .split(",")
+      .map((p) => p.trim())
+      .filter(Boolean);
+    return this.attioApp.getCallHistory(
+      ctx,
+      phoneList,
+      limit ? Number(limit) : 20,
+    );
   }
 
   @Public()

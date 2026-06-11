@@ -1,7 +1,10 @@
 import KBar from '@ringee/frontend-shared/components/kbar';
 import AppMainSidebar from '@/components/layout/app.main.sidebar';
 import Header from '@/components/layout/header';
-import { SidebarInset, SidebarProvider } from '@ringee/frontend-shared/components/ui/sidebar';
+import {
+  SidebarInset,
+  SidebarProvider
+} from '@ringee/frontend-shared/components/ui/sidebar';
 import { DialerShortcutView } from '@/features/calls/components/dialer.shortcut.view';
 import { OnboardingGuideWrapper } from '@/features/onboarding/components/onboarding-guide-wrapper';
 import { cookies } from 'next/headers';
@@ -33,4 +36,3 @@ export default async function DashboardLayout({
     </KBar>
   );
 }
-

@@ -2,19 +2,16 @@
 
 import { useCallback, useEffect } from 'react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
-import type { OnboardingStatus, OnboardingStep } from '../types/onboarding.types';
+import type {
+  OnboardingStatus,
+  OnboardingStep
+} from '../types/onboarding.types';
 import { useOnboardingDataStore } from '../store/onboarding.store';
 
 export function useOnboarding() {
   const api = useApi();
-  const { 
-    status, 
-    isLoading, 
-    error, 
-    setStatus, 
-    setIsLoading, 
-    setError 
-  } = useOnboardingDataStore();
+  const { status, isLoading, error, setStatus, setIsLoading, setError } =
+    useOnboardingDataStore();
 
   const fetchStatus = useCallback(async () => {
     // If we already have status and aren't loading, we might want to skip or background refresh.
@@ -35,7 +32,9 @@ export function useOnboarding() {
   const completeStep = useCallback(
     async (step: OnboardingStep) => {
       try {
-        const data = await api.patch<OnboardingStatus>(`/onboarding/complete/${step}`);
+        const data = await api.patch<OnboardingStatus>(
+          `/onboarding/complete/${step}`
+        );
         setStatus(data);
         return data;
       } catch (err: any) {
@@ -65,7 +64,6 @@ export function useOnboarding() {
       throw err;
     }
   }, [api, setStatus, status]);
-
 
   const isStepComplete = useCallback(
     (step: OnboardingStep) => {
@@ -101,7 +99,6 @@ export function useOnboarding() {
     isComplete,
     progress: status?.progress || 0,
     completedCount: status?.completedSteps.length || 0,
-    totalSteps: status?.totalSteps || 4,
+    totalSteps: status?.totalSteps || 4
   };
 }
-

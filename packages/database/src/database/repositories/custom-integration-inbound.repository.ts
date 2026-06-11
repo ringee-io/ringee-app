@@ -69,9 +69,7 @@ export class CustomIntegrationInboundRepository {
       where: { integrationId },
       orderBy: { receivedAt: "desc" },
       take: limit,
-      ...(options.cursor
-        ? { cursor: { id: options.cursor }, skip: 1 }
-        : {}),
+      ...(options.cursor ? { cursor: { id: options.cursor }, skip: 1 } : {}),
     });
   }
 }

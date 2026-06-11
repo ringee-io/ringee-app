@@ -6,6 +6,6 @@ export * from "./database/repositories";
 export * from "@prisma/client";
 
 export type UserWithOrg = User & {
-    activeOrgId: string | null;
-    activeOrgRole: string | null;
+  activeOrgId: string | null;
+  activeOrgRole: string | null;
 };

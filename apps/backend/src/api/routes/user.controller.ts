@@ -15,7 +15,7 @@ export class UserController {
   constructor(
     private readonly userDeviceService: UserDeviceService,
     private readonly userService: UserService,
-  ) { }
+  ) {}
 
   @Patch("fcm-token")
   async updateFcmToken(
@@ -39,7 +39,10 @@ export class UserController {
       throw new BadRequestException("ids query parameter is required");
     }
 
-    const clerkIdArray = ids.split(",").map((id) => id.trim()).filter(Boolean);
+    const clerkIdArray = ids
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean);
 
     if (clerkIdArray.length === 0) {
       throw new BadRequestException("At least one id is required");

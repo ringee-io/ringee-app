@@ -11,22 +11,25 @@ export function DashboardHeader() {
   const { organization } = useOrganization();
   const searchParams = useSearchParams();
   const router = useRouter();
-  
+
   const memberId = searchParams.get('memberId');
   const memberName = searchParams.get('memberName');
 
-  const handleMemberChange = React.useCallback((newMemberId: string | null, newMemberName: string | null) => {
-    const url = new URL(window.location.href);
-    if (newMemberId && newMemberName) {
-      url.searchParams.set('memberId', newMemberId);
-      url.searchParams.set('memberName', newMemberName);
-    } else {
-      url.searchParams.delete('memberId');
-      url.searchParams.delete('memberName');
-    }
-    router.push(url.pathname + url.search);
-    router.refresh();
-  }, [router]);
+  const handleMemberChange = React.useCallback(
+    (newMemberId: string | null, newMemberName: string | null) => {
+      const url = new URL(window.location.href);
+      if (newMemberId && newMemberName) {
+        url.searchParams.set('memberId', newMemberId);
+        url.searchParams.set('memberName', newMemberName);
+      } else {
+        url.searchParams.delete('memberId');
+        url.searchParams.delete('memberName');
+      }
+      router.push(url.pathname + url.search);
+      router.refresh();
+    },
+    [router]
+  );
 
   if (!isLoaded || !hasOrg || !isOrgAdmin) {
     return (
@@ -36,17 +39,17 @@ export function DashboardHeader() {
     );
   }
 
-  const title = memberName 
+  const title = memberName
     ? `${memberName} Analytics 📊`
     : 'Organization Analytics 📊';
 
   return (
     <div className='flex items-center justify-between'>
       <h2 className='text-2xl font-bold tracking-tight'>{title}</h2>
-      <MemberSelector 
+      <MemberSelector
         key={organization?.id || 'no-org'}
-        value={memberId} 
-        onChange={handleMemberChange} 
+        value={memberId}
+        onChange={handleMemberChange}
       />
     </div>
   );

@@ -22,7 +22,7 @@ export class VoicemailDropAssetRepository {
   }
 
   async findByOrganization(
-    organizationId: string
+    organizationId: string,
   ): Promise<VoicemailDropAsset[]> {
     return this.prisma.voicemailDropAsset.findMany({
       where: { organizationId },
@@ -31,7 +31,7 @@ export class VoicemailDropAssetRepository {
   }
 
   async findDefault(
-    organizationId: string
+    organizationId: string,
   ): Promise<VoicemailDropAsset | null> {
     return this.prisma.voicemailDropAsset.findFirst({
       where: { organizationId, isDefault: true },
@@ -40,7 +40,7 @@ export class VoicemailDropAssetRepository {
 
   async update(
     id: string,
-    data: Partial<Pick<VoicemailDropAsset, "name" | "isDefault">>
+    data: Partial<Pick<VoicemailDropAsset, "name" | "isDefault">>,
   ): Promise<VoicemailDropAsset> {
     return this.prisma.voicemailDropAsset.update({ where: { id }, data });
   }

@@ -1,6 +1,11 @@
 import Link from 'next/link';
 import { searchParamsCache } from '@ringee/frontend-shared/lib/searchparams';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@ringee/frontend-shared/components/ui/tabs';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from '@ringee/frontend-shared/components/ui/tabs';
 import { redirect } from 'next/navigation';
 import { Suspense } from 'react';
 import { DataTableSkeleton } from '@ringee/frontend-shared/components/ui/table/data-table-skeleton';

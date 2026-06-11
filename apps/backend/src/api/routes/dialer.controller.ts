@@ -14,11 +14,7 @@ import {
 } from "@nestjs/common";
 import { Observable, merge, interval, map } from "rxjs";
 import { Request } from "express";
-import {
-  CurrentUser,
-  createOwnershipContext,
-  Public,
-} from "@ringee/platform";
+import { CurrentUser, createOwnershipContext, Public } from "@ringee/platform";
 import {
   AgentSessionService,
   DialerOrchestrationService,
@@ -67,7 +63,7 @@ export class DialerController {
   @Post("sessions")
   async startSession(
     @Body() body: { campaignId: string },
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     const orgId = this.requireOrg(user);
     const ctx = createOwnershipContext(user);
@@ -84,12 +80,10 @@ export class DialerController {
     if (!isAdmin) {
       const isMember = await this.campaignMemberRepo.isMember(
         body.campaignId,
-        ctx.userId
+        ctx.userId,
       );
       if (!isMember) {
-        throw new ForbiddenException(
-          "You are not assigned to this campaign"
-        );
+        throw new ForbiddenException("You are not assigned to this campaign");
       }
     }
 
@@ -103,62 +97,71 @@ export class DialerController {
   @Delete("sessions/:sessionId")
   async endSession(
     @Param("sessionId") sessionId: string,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
-    await this.agentSessionService.getByIdForOrg(sessionId, this.requireOrg(user));
+    await this.agentSessionService.getByIdForOrg(
+      sessionId,
+      this.requireOrg(user),
+    );
     return this.agentSessionService.endSession(sessionId);
   }
 
   @Patch("sessions/:sessionId/pause")
   async pause(
     @Param("sessionId") sessionId: string,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
-    await this.agentSessionService.getByIdForOrg(sessionId, this.requireOrg(user));
+    await this.agentSessionService.getByIdForOrg(
+      sessionId,
+      this.requireOrg(user),
+    );
     return this.agentSessionService.pause(sessionId);
   }
 
   @Patch("sessions/:sessionId/resume")
   async resume(
     @Param("sessionId") sessionId: string,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
-    await this.agentSessionService.getByIdForOrg(sessionId, this.requireOrg(user));
+    await this.agentSessionService.getByIdForOrg(
+      sessionId,
+      this.requireOrg(user),
+    );
     return this.agentSessionService.resume(sessionId);
   }
 
   @Post("sessions/:sessionId/heartbeat")
   async heartbeat(
     @Param("sessionId") sessionId: string,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
-    await this.agentSessionService.getByIdForOrg(sessionId, this.requireOrg(user));
+    await this.agentSessionService.getByIdForOrg(
+      sessionId,
+      this.requireOrg(user),
+    );
     return this.agentSessionService.heartbeat(sessionId);
   }
 
   @Post("dial")
   async manualDial(
     @Body() body: { sessionId: string; campaignId: string },
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     await this.agentSessionService.getByIdForOrg(
       body.sessionId,
-      this.requireOrg(user)
+      this.requireOrg(user),
     );
-    return this.dialerOrchestration.manualDial(
-      body.sessionId,
-      body.campaignId
-    );
+    return this.dialerOrchestration.manualDial(body.sessionId, body.campaignId);
   }
 
   @Post("skip")
   async skipLead(
     @Body() body: { sessionId: string },
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     await this.agentSessionService.getByIdForOrg(
       body.sessionId,
-      this.requireOrg(user)
+      this.requireOrg(user),
     );
     return this.dialerOrchestration.skipLead(body.sessionId);
   }
@@ -173,23 +176,27 @@ export class DialerController {
       callbackScheduledAt?: string;
       callbackNote?: string;
     },
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     const orgId = this.requireOrg(user);
 
     // Resolve the disposition by code from the attempt's campaign
-    const attempt = await this.callAttemptService.getAttemptById(body.callAttemptId);
+    const attempt = await this.callAttemptService.getAttemptById(
+      body.callAttemptId,
+    );
     if (!attempt) throw new BadRequestException("Attempt not found");
 
     const campaign = await this.campaignRepo.findById(attempt.campaignId);
     if (!campaign) throw new BadRequestException("Campaign not found");
     if (campaign.organizationId !== orgId) {
-      throw new ForbiddenException("Attempt does not belong to your organization");
+      throw new ForbiddenException(
+        "Attempt does not belong to your organization",
+      );
     }
 
     const disposition = await this.dispositionRepo.findByCampaignAndCode(
       attempt.campaignId,
-      body.dispositionCode
+      body.dispositionCode,
     );
     if (!disposition) throw new BadRequestException("Disposition not found");
 
@@ -224,17 +231,21 @@ export class DialerController {
   @Post("voicemail-drop")
   async voicemailDrop(
     @Body() body: { callAttemptId: string; assetId?: string },
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     const orgId = this.requireOrg(user);
     // For MVP, voicemail drop needs a callControlId. Get it from the attempt.
-    const attempt = await this.callAttemptService.getAttemptById(body.callAttemptId);
+    const attempt = await this.callAttemptService.getAttemptById(
+      body.callAttemptId,
+    );
     if (!attempt?.callId) {
       throw new BadRequestException("No active call for this attempt");
     }
     const campaign = await this.campaignRepo.findById(attempt.campaignId);
     if (!campaign || campaign.organizationId !== orgId) {
-      throw new ForbiddenException("Attempt does not belong to your organization");
+      throw new ForbiddenException(
+        "Attempt does not belong to your organization",
+      );
     }
     // TODO: resolve callControlId from Call and trigger playbackStart
     return { status: "voicemail_drop_requested" };
@@ -243,9 +254,12 @@ export class DialerController {
   @Get("sessions/:sessionId/state")
   async getSessionState(
     @Param("sessionId") sessionId: string,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
-    return this.agentSessionService.getByIdForOrg(sessionId, this.requireOrg(user));
+    return this.agentSessionService.getByIdForOrg(
+      sessionId,
+      this.requireOrg(user),
+    );
   }
 
   /**
@@ -258,18 +272,19 @@ export class DialerController {
   @Sse("sessions/:sessionId/events")
   events(@Param("sessionId") sessionId: string): Observable<MessageEvent> {
     // Merge real events from SSEBridge with a keepalive heartbeat every 15s
-    const realEvents = this.sseBridge.subscribe(`agent:${sessionId}`) as Observable<MessageEvent>;
+    const realEvents = this.sseBridge.subscribe(
+      `agent:${sessionId}`,
+    ) as Observable<MessageEvent>;
     const heartbeat = interval(15000).pipe(
       map(
-        (): MessageEvent =>
-          ({
-            data: JSON.stringify({
-              type: "heartbeat",
-              timestamp: new Date().toISOString(),
-            }),
+        (): MessageEvent => ({
+          data: JSON.stringify({
             type: "heartbeat",
-          })
-      )
+            timestamp: new Date().toISOString(),
+          }),
+          type: "heartbeat",
+        }),
+      ),
     );
 
     return merge(realEvents, heartbeat);

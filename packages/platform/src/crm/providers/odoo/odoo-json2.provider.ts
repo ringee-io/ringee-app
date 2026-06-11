@@ -57,7 +57,9 @@ export class OdooJson2Provider extends OdooBaseProvider {
     return this.client.call<T>(creds, model, method, args, kwargs);
   }
 
-  private async probeWriteAccess(creds: OdooCredentialPayload): Promise<boolean> {
+  private async probeWriteAccess(
+    creds: OdooCredentialPayload,
+  ): Promise<boolean> {
     try {
       await this.client.call(
         creds,
@@ -72,7 +74,9 @@ export class OdooJson2Provider extends OdooBaseProvider {
     }
   }
 
-  private async probeActivityAccess(creds: OdooCredentialPayload): Promise<boolean> {
+  private async probeActivityAccess(
+    creds: OdooCredentialPayload,
+  ): Promise<boolean> {
     try {
       await this.client.call(
         creds,
@@ -87,9 +91,7 @@ export class OdooJson2Provider extends OdooBaseProvider {
     }
   }
 
-  async validateConnection(
-    creds: OdooCredentialPayload,
-  ): Promise<
+  async validateConnection(creds: OdooCredentialPayload): Promise<
     | {
         ok: true;
         serverVersion: string | null;
@@ -121,7 +123,10 @@ export class OdooJson2Provider extends OdooBaseProvider {
         );
       }
       if (!probe.available && probe.status === 0) {
-        throw new OdooValidationError("invalid_base_url", "could not reach Odoo server");
+        throw new OdooValidationError(
+          "invalid_base_url",
+          "could not reach Odoo server",
+        );
       }
       if (!probe.available && (probe.status === 401 || probe.status === 403)) {
         throw new OdooValidationError(
@@ -142,7 +147,11 @@ export class OdooJson2Provider extends OdooBaseProvider {
         // /json/2/* with an HTML 404 or a generic "unknown model" error —
         // classify that as api_mode_not_available so the user is told
         // to use the 14–18 integration instead.
-        if (/json[_ -]?2|unknown (method|model)|not found|no such route/i.test(detail)) {
+        if (
+          /json[_ -]?2|unknown (method|model)|not found|no such route/i.test(
+            detail,
+          )
+        ) {
           throw new OdooValidationError(
             "api_mode_not_available",
             `Odoo server did not accept the JSON-2 request — ${detail}`,
@@ -188,7 +197,11 @@ export class OdooJson2Provider extends OdooBaseProvider {
       if (err instanceof OdooValidationError) {
         return { ok: false, reason: err.reason, message: err.message };
       }
-      return { ok: false, reason: mapToValidationReason(err), message: errorMessage(err) };
+      return {
+        ok: false,
+        reason: mapToValidationReason(err),
+        message: errorMessage(err),
+      };
     }
   }
 }

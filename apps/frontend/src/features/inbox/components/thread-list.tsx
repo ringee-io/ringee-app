@@ -47,7 +47,7 @@ function kindIcon(kind: InboxEventKind | null) {
     case 'meeting_booked':
       return <CalendarClock className='h-4 w-4 text-cyan-500' />;
     default:
-      return <InboxIcon className='h-4 w-4 text-muted-foreground' />;
+      return <InboxIcon className='text-muted-foreground h-4 w-4' />;
   }
 }
 
@@ -76,10 +76,11 @@ export function ThreadList({ selectedThreadId, onSelect }: Props) {
   async function runBackfill() {
     setBackfilling(true);
     try {
-      await api.post<{ threadsTouched: number; eventsCreated: number; processed: number }>(
-        '/inbox/backfill/calls',
-        { limit: 200 }
-      );
+      await api.post<{
+        threadsTouched: number;
+        eventsCreated: number;
+        processed: number;
+      }>('/inbox/backfill/calls', { limit: 200 });
       await reload();
     } catch {
       // surfaced by global error handling
@@ -90,9 +91,9 @@ export function ThreadList({ selectedThreadId, onSelect }: Props) {
 
   return (
     <div className='flex h-full w-80 flex-col border-r'>
-      <div className='border-b p-3 space-y-3'>
+      <div className='space-y-3 border-b p-3'>
         <div className='relative'>
-          <Search className='absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground' />
+          <Search className='text-muted-foreground absolute top-2.5 left-2.5 h-4 w-4' />
           <Input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -126,7 +127,7 @@ export function ThreadList({ selectedThreadId, onSelect }: Props) {
             ))}
           </div>
         ) : threads.length === 0 ? (
-          <div className='flex flex-col items-center px-6 py-12 text-center text-muted-foreground'>
+          <div className='text-muted-foreground flex flex-col items-center px-6 py-12 text-center'>
             <InboxIcon className='mb-3 h-10 w-10' />
             <p className='text-sm'>{t('threadList.noConversations')}</p>
             <p className='mt-1 text-xs'>{t('threadList.newWillAppear')}</p>
@@ -151,7 +152,7 @@ export function ThreadList({ selectedThreadId, onSelect }: Props) {
                   <button
                     onClick={() => onSelect(t)}
                     className={cn(
-                      'w-full px-3 py-3 text-left transition-colors hover:bg-muted/50',
+                      'hover:bg-muted/50 w-full px-3 py-3 text-left transition-colors',
                       selected && 'bg-muted'
                     )}
                   >
@@ -162,12 +163,12 @@ export function ThreadList({ selectedThreadId, onSelect }: Props) {
                           <span className='truncate text-sm font-medium'>
                             {threadDisplayName(t)}
                           </span>
-                          <span className='shrink-0 text-[11px] text-muted-foreground'>
+                          <span className='text-muted-foreground shrink-0 text-[11px]'>
                             {relativeTime(t.lastEventAt)}
                           </span>
                         </div>
                         <div className='mt-0.5 flex items-center gap-2'>
-                          <p className='truncate text-xs text-muted-foreground'>
+                          <p className='text-muted-foreground truncate text-xs'>
                             {t.lastPreview ?? '—'}
                           </p>
                           {t.unreadCount > 0 && (

@@ -18,7 +18,9 @@ export interface ResolvedApiKey {
 export class CustomIntegrationAuthService {
   constructor(private readonly repo: CustomIntegrationRepository) {}
 
-  async resolveApiKey(rawKey: string | undefined | null): Promise<ResolvedApiKey> {
+  async resolveApiKey(
+    rawKey: string | undefined | null,
+  ): Promise<ResolvedApiKey> {
     if (!isValidApiKeyShape(rawKey)) {
       throw new UnauthorizedException("Invalid API key format");
     }

@@ -11,13 +11,13 @@ import {
   SheetContent,
   SheetDescription,
   SheetHeader,
-  SheetTitle,
+  SheetTitle
 } from '@ringee/frontend-shared/components/ui/sheet';
 import {
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger,
+  TabsTrigger
 } from '@ringee/frontend-shared/components/ui/tabs';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { Switch } from '@ringee/frontend-shared/components/ui/switch';
@@ -27,19 +27,19 @@ import {
   Copy,
   Loader2,
   RefreshCw,
-  Send,
+  Send
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useCustomIntegrationActions,
-  useCustomIntegrations,
+  useCustomIntegrations
 } from '../hooks/use-custom-integrations';
 import {
   ALL_OUTBOUND_EVENTS,
   type CustomIntegrationDeliveryLog,
   type CustomIntegrationEventType,
   type CustomIntegrationInboundLog,
-  type CustomIntegrationSummary,
+  type CustomIntegrationSummary
 } from '../types/custom-integrations';
 import { CustomIntegrationEventsDocs } from './custom-integration-events-docs';
 
@@ -50,12 +50,21 @@ interface Props {
   apiBaseUrl: string;
 }
 
-export function CustomIntegrationDetailSheet({ item, open, onOpenChange, apiBaseUrl }: Props) {
+export function CustomIntegrationDetailSheet({
+  item,
+  open,
+  onOpenChange,
+  apiBaseUrl
+}: Props) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
+      <SheetContent className='w-full overflow-y-auto sm:max-w-3xl'>
         {item ? (
-          <Body item={item} apiBaseUrl={apiBaseUrl} onClose={() => onOpenChange(false)} />
+          <Body
+            item={item}
+            apiBaseUrl={apiBaseUrl}
+            onClose={() => onOpenChange(false)}
+          />
         ) : null}
       </SheetContent>
     </Sheet>
@@ -65,7 +74,7 @@ export function CustomIntegrationDetailSheet({ item, open, onOpenChange, apiBase
 function Body({
   item,
   apiBaseUrl,
-  onClose,
+  onClose
 }: {
   item: CustomIntegrationSummary;
   apiBaseUrl: string;
@@ -77,43 +86,57 @@ function Body({
   return (
     <>
       <SheetHeader>
-        <SheetTitle className="flex items-center gap-2">
+        <SheetTitle className='flex items-center gap-2'>
           {item.name}
-          <Badge variant="outline" className="text-[10px]">
+          <Badge variant='outline' className='text-[10px]'>
             {item.status}
           </Badge>
         </SheetTitle>
         <SheetDescription>
-          Custom integration created on {new Date(item.createdAt).toLocaleString()}.
+          Custom integration created on{' '}
+          {new Date(item.createdAt).toLocaleString()}.
         </SheetDescription>
       </SheetHeader>
 
-      <Tabs defaultValue="settings" className="mt-6 mx-4">
+      <Tabs defaultValue='settings' className='mx-4 mt-6'>
         <TabsList>
-          <TabsTrigger value="settings">Settings</TabsTrigger>
-          <TabsTrigger value="inbound">Inbound</TabsTrigger>
-          <TabsTrigger value="outbound">Outbound</TabsTrigger>
-          <TabsTrigger value="logs">Logs</TabsTrigger>
-          <TabsTrigger value="docs">Documentation</TabsTrigger>
+          <TabsTrigger value='settings'>Settings</TabsTrigger>
+          <TabsTrigger value='inbound'>Inbound</TabsTrigger>
+          <TabsTrigger value='outbound'>Outbound</TabsTrigger>
+          <TabsTrigger value='logs'>Logs</TabsTrigger>
+          <TabsTrigger value='docs'>Documentation</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="settings" className="mt-5 space-y-6">
-          <SettingsTab item={item} update={update} remove={remove} actions={actions} onClose={onClose} />
+        <TabsContent value='settings' className='mt-5 space-y-6'>
+          <SettingsTab
+            item={item}
+            update={update}
+            remove={remove}
+            actions={actions}
+            onClose={onClose}
+          />
         </TabsContent>
 
-        <TabsContent value="inbound" className="mt-5 space-y-4">
-          <InboundTab apiBaseUrl={apiBaseUrl} apiKeyPrefix={item.apiKeyPrefix} />
+        <TabsContent value='inbound' className='mt-5 space-y-4'>
+          <InboundTab
+            apiBaseUrl={apiBaseUrl}
+            apiKeyPrefix={item.apiKeyPrefix}
+          />
         </TabsContent>
 
-        <TabsContent value="outbound" className="mt-5 space-y-4">
-          <OutboundTab item={item} update={update} testWebhook={actions.testWebhook} />
+        <TabsContent value='outbound' className='mt-5 space-y-4'>
+          <OutboundTab
+            item={item}
+            update={update}
+            testWebhook={actions.testWebhook}
+          />
         </TabsContent>
 
-        <TabsContent value="logs" className="mt-5">
+        <TabsContent value='logs' className='mt-5'>
           <LogsTab actions={actions} />
         </TabsContent>
 
-        <TabsContent value="docs" className="mt-5">
+        <TabsContent value='docs' className='mt-5'>
           <CustomIntegrationEventsDocs />
         </TabsContent>
       </Tabs>
@@ -128,7 +151,7 @@ function SettingsTab({
   update,
   remove,
   actions,
-  onClose,
+  onClose
 }: {
   item: CustomIntegrationSummary;
   update: ReturnType<typeof useCustomIntegrations>['update'];
@@ -145,7 +168,7 @@ function SettingsTab({
     try {
       await update(item.id, {
         name,
-        status: active ? 'active' : 'disabled',
+        status: active ? 'active' : 'disabled'
       });
       toast.success('Settings saved');
     } catch (err) {
@@ -156,40 +179,46 @@ function SettingsTab({
   };
 
   return (
-    <div className="space-y-6">
-      <div className="space-y-2">
-        <Label htmlFor="ci-name">Name</Label>
-        <Input id="ci-name" value={name} onChange={(e) => setName(e.target.value)} />
+    <div className='space-y-6'>
+      <div className='space-y-2'>
+        <Label htmlFor='ci-name'>Name</Label>
+        <Input
+          id='ci-name'
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
       </div>
 
-      <div className="flex items-center justify-between rounded-md border p-3">
+      <div className='flex items-center justify-between rounded-md border p-3'>
         <div>
-          <p className="text-sm font-medium">Enabled</p>
-          <p className="text-xs text-muted-foreground">
-            When disabled, the API key stops accepting requests and no outbound events are delivered.
+          <p className='text-sm font-medium'>Enabled</p>
+          <p className='text-muted-foreground text-xs'>
+            When disabled, the API key stops accepting requests and no outbound
+            events are delivered.
           </p>
         </div>
         <Switch checked={active} onCheckedChange={setActive} />
       </div>
 
-      <div className="space-y-2">
-        <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+      <div className='space-y-2'>
+        <Label className='text-muted-foreground text-xs tracking-wide uppercase'>
           API Key prefix
         </Label>
-        <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2">
-          <code className="flex-1 text-xs font-mono">{item.apiKeyPrefix}…</code>
+        <div className='bg-muted/30 flex items-center gap-2 rounded-md border px-3 py-2'>
+          <code className='flex-1 font-mono text-xs'>{item.apiKeyPrefix}…</code>
         </div>
-        <p className="text-xs text-muted-foreground flex gap-1.5">
-          <AlertTriangle className="mt-0.5 h-3 w-3 text-amber-500" />
-          For security, only a prefix is shown after creation. Regenerate to get a new key.
+        <p className='text-muted-foreground flex gap-1.5 text-xs'>
+          <AlertTriangle className='mt-0.5 h-3 w-3 text-amber-500' />
+          For security, only a prefix is shown after creation. Regenerate to get
+          a new key.
         </p>
       </div>
 
       <RegenerateButtons actions={actions} />
 
-      <div className="flex justify-between border-t pt-4">
+      <div className='flex justify-between border-t pt-4'>
         <Button
-          variant="destructive"
+          variant='destructive'
           onClick={async () => {
             try {
               await remove(item.id);
@@ -211,11 +240,14 @@ function SettingsTab({
 }
 
 function RegenerateButtons({
-  actions,
+  actions
 }: {
   actions: ReturnType<typeof useCustomIntegrationActions>;
 }) {
-  const [revealed, setRevealed] = useState<{ label: string; value: string } | null>(null);
+  const [revealed, setRevealed] = useState<{
+    label: string;
+    value: string;
+  } | null>(null);
   const [busy, setBusy] = useState<'api' | 'secret' | null>(null);
 
   const rotateApi = async () => {
@@ -242,14 +274,22 @@ function RegenerateButtons({
   };
 
   return (
-    <div className="space-y-3">
-      <div className="flex gap-2">
-        <Button variant="outline" onClick={rotateApi} disabled={busy !== null}>
-          {busy === 'api' && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+    <div className='space-y-3'>
+      <div className='flex gap-2'>
+        <Button variant='outline' onClick={rotateApi} disabled={busy !== null}>
+          {busy === 'api' && (
+            <Loader2 className='mr-1.5 h-3.5 w-3.5 animate-spin' />
+          )}
           Regenerate API Key
         </Button>
-        <Button variant="outline" onClick={rotateSecret} disabled={busy !== null}>
-          {busy === 'secret' && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+        <Button
+          variant='outline'
+          onClick={rotateSecret}
+          disabled={busy !== null}
+        >
+          {busy === 'secret' && (
+            <Loader2 className='mr-1.5 h-3.5 w-3.5 animate-spin' />
+          )}
           Regenerate signing secret
         </Button>
       </div>
@@ -267,7 +307,7 @@ function RegenerateButtons({
 function CopyableSecret({
   label,
   value,
-  onDismiss,
+  onDismiss
 }: {
   label: string;
   value: string;
@@ -275,26 +315,26 @@ function CopyableSecret({
 }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-wide text-amber-500">
+    <div className='rounded-md border border-amber-500/30 bg-amber-500/5 p-3'>
+      <div className='flex items-center justify-between'>
+        <span className='text-xs font-semibold tracking-wide text-amber-500 uppercase'>
           {label}
         </span>
         {onDismiss && (
-          <Button size="sm" variant="ghost" onClick={onDismiss}>
+          <Button size='sm' variant='ghost' onClick={onDismiss}>
             Dismiss
           </Button>
         )}
       </div>
-      <p className="mt-1 text-xs text-muted-foreground">
+      <p className='text-muted-foreground mt-1 text-xs'>
         Copy this now — it will not be shown again.
       </p>
-      <div className="mt-2 flex items-center gap-2 rounded-md border bg-background px-3 py-2">
-        <code className="flex-1 truncate text-xs font-mono">{value}</code>
+      <div className='bg-background mt-2 flex items-center gap-2 rounded-md border px-3 py-2'>
+        <code className='flex-1 truncate font-mono text-xs'>{value}</code>
         <Button
-          size="icon"
-          variant="ghost"
-          className="h-7 w-7"
+          size='icon'
+          variant='ghost'
+          className='h-7 w-7'
           onClick={async () => {
             await navigator.clipboard.writeText(value);
             setCopied(true);
@@ -302,7 +342,11 @@ function CopyableSecret({
             toast.success('Copied');
           }}
         >
-          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? (
+            <Check className='h-3.5 w-3.5' />
+          ) : (
+            <Copy className='h-3.5 w-3.5' />
+          )}
         </Button>
       </div>
     </div>
@@ -313,32 +357,33 @@ function CopyableSecret({
 
 function InboundTab({
   apiBaseUrl,
-  apiKeyPrefix,
+  apiKeyPrefix
 }: {
   apiBaseUrl: string;
   apiKeyPrefix: string;
 }) {
   const url = `${apiBaseUrl}/api/integrations/custom/webhook`;
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
-        Send events from your system to this URL. Authenticate every request with your API key.
+    <div className='space-y-4'>
+      <p className='text-muted-foreground text-sm'>
+        Send events from your system to this URL. Authenticate every request
+        with your API key.
       </p>
-      <UrlBlock label="Webhook URL" value={url} />
-      <div className="space-y-1">
-        <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+      <UrlBlock label='Webhook URL' value={url} />
+      <div className='space-y-1'>
+        <Label className='text-muted-foreground text-xs tracking-wide uppercase'>
           Required header
         </Label>
-        <div className="rounded-md border bg-muted/30 px-3 py-2 text-xs font-mono">
+        <div className='bg-muted/30 rounded-md border px-3 py-2 font-mono text-xs'>
           X-Ringee-Api-Key: {apiKeyPrefix}…
         </div>
       </div>
-      <div className="space-y-1">
-        <Label className="text-xs uppercase tracking-wide text-muted-foreground">
+      <div className='space-y-1'>
+        <Label className='text-muted-foreground text-xs tracking-wide uppercase'>
           Example request
         </Label>
-        <pre className="overflow-x-auto rounded-md bg-muted p-3 font-mono text-[11px] leading-relaxed">
-{`curl -X POST ${url} \\
+        <pre className='bg-muted overflow-x-auto rounded-md p-3 font-mono text-[11px] leading-relaxed'>
+          {`curl -X POST ${url} \\
   -H "Content-Type: application/json" \\
   -H "X-Ringee-Api-Key: ${apiKeyPrefix}…" \\
   -d '{
@@ -353,13 +398,15 @@ function InboundTab({
   }'`}
         </pre>
       </div>
-      <p className="text-xs text-muted-foreground">
+      <p className='text-muted-foreground text-xs'>
         Supported inbound events:{' '}
-        <code className="rounded bg-muted px-1.5 py-0.5">contact.upserted</code>,{' '}
-        <code className="rounded bg-muted px-1.5 py-0.5">company.upserted</code>,{' '}
-        <code className="rounded bg-muted px-1.5 py-0.5">contact.deleted</code>,{' '}
-        <code className="rounded bg-muted px-1.5 py-0.5">company.deleted</code>. See the
-        Documentation tab for full schemas.
+        <code className='bg-muted rounded px-1.5 py-0.5'>contact.upserted</code>
+        ,{' '}
+        <code className='bg-muted rounded px-1.5 py-0.5'>company.upserted</code>
+        ,{' '}
+        <code className='bg-muted rounded px-1.5 py-0.5'>contact.deleted</code>,{' '}
+        <code className='bg-muted rounded px-1.5 py-0.5'>company.deleted</code>.
+        See the Documentation tab for full schemas.
       </p>
     </div>
   );
@@ -368,14 +415,16 @@ function InboundTab({
 function UrlBlock({ label, value }: { label: string; value: string }) {
   const [copied, setCopied] = useState(false);
   return (
-    <div className="space-y-1">
-      <Label className="text-xs uppercase tracking-wide text-muted-foreground">{label}</Label>
-      <div className="flex items-center gap-2 rounded-md border bg-muted/30 px-3 py-2">
-        <code className="flex-1 truncate text-xs font-mono">{value}</code>
+    <div className='space-y-1'>
+      <Label className='text-muted-foreground text-xs tracking-wide uppercase'>
+        {label}
+      </Label>
+      <div className='bg-muted/30 flex items-center gap-2 rounded-md border px-3 py-2'>
+        <code className='flex-1 truncate font-mono text-xs'>{value}</code>
         <Button
-          size="icon"
-          variant="ghost"
-          className="h-7 w-7"
+          size='icon'
+          variant='ghost'
+          className='h-7 w-7'
           onClick={async () => {
             await navigator.clipboard.writeText(value);
             setCopied(true);
@@ -383,7 +432,11 @@ function UrlBlock({ label, value }: { label: string; value: string }) {
             toast.success('Copied');
           }}
         >
-          {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+          {copied ? (
+            <Check className='h-3.5 w-3.5' />
+          ) : (
+            <Copy className='h-3.5 w-3.5' />
+          )}
         </Button>
       </div>
     </div>
@@ -395,19 +448,28 @@ function UrlBlock({ label, value }: { label: string; value: string }) {
 function OutboundTab({
   item,
   update,
-  testWebhook,
+  testWebhook
 }: {
   item: CustomIntegrationSummary;
   update: ReturnType<typeof useCustomIntegrations>['update'];
-  testWebhook: () => Promise<{ ok: boolean; statusCode?: number; latencyMs: number; error?: string }>;
+  testWebhook: () => Promise<{
+    ok: boolean;
+    statusCode?: number;
+    latencyMs: number;
+    error?: string;
+  }>;
 }) {
   const [url, setUrl] = useState(item.outboundUrl ?? '');
-  const [events, setEvents] = useState<CustomIntegrationEventType[]>(item.subscribedEvents);
+  const [events, setEvents] = useState<CustomIntegrationEventType[]>(
+    item.subscribedEvents
+  );
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
 
   const toggleEvent = (e: CustomIntegrationEventType) => {
-    setEvents((prev) => (prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e]));
+    setEvents((prev) =>
+      prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e]
+    );
   };
 
   const handleSave = async () => {
@@ -415,7 +477,7 @@ function OutboundTab({
     try {
       await update(item.id, {
         outboundUrl: url.trim() || null,
-        subscribedEvents: events,
+        subscribedEvents: events
       });
       toast.success('Outbound webhook updated');
     } catch (err) {
@@ -432,7 +494,9 @@ function OutboundTab({
       if (res.ok) {
         toast.success(`Webhook OK — ${res.statusCode} in ${res.latencyMs}ms`);
       } else {
-        toast.error(`Webhook failed — ${res.error ?? `HTTP ${res.statusCode}`}`);
+        toast.error(
+          `Webhook failed — ${res.error ?? `HTTP ${res.statusCode}`}`
+        );
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Test failed');
@@ -442,53 +506,61 @@ function OutboundTab({
   };
 
   return (
-    <div className="space-y-5">
-      <div className="space-y-2">
-        <Label htmlFor="ci-url">Destination URL</Label>
-        <div className="flex gap-2">
+    <div className='space-y-5'>
+      <div className='space-y-2'>
+        <Label htmlFor='ci-url'>Destination URL</Label>
+        <div className='flex gap-2'>
           <Input
-            id="ci-url"
+            id='ci-url'
             value={url}
-            placeholder="https://your-app.com/webhooks/ringee"
+            placeholder='https://your-app.com/webhooks/ringee'
             onChange={(e) => setUrl(e.target.value)}
           />
-          <Button variant="outline" onClick={handleTest} disabled={testing || !item.outboundUrl}>
+          <Button
+            variant='outline'
+            onClick={handleTest}
+            disabled={testing || !item.outboundUrl}
+          >
             {testing ? (
-              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              <Loader2 className='mr-1.5 h-3.5 w-3.5 animate-spin' />
             ) : (
-              <Send className="mr-1.5 h-3.5 w-3.5" />
+              <Send className='mr-1.5 h-3.5 w-3.5' />
             )}
             Test
           </Button>
         </div>
-        <p className="text-xs text-muted-foreground">
+        <p className='text-muted-foreground text-xs'>
           Ringee signs each request with your signing secret. The header{' '}
-          <code className="rounded bg-muted px-1 py-0.5">Ringee-Signature</code> contains{' '}
-          <code className="rounded bg-muted px-1 py-0.5">t=&lt;unixSec&gt;,v1=&lt;hex&gt;</code>.
+          <code className='bg-muted rounded px-1 py-0.5'>Ringee-Signature</code>{' '}
+          contains{' '}
+          <code className='bg-muted rounded px-1 py-0.5'>
+            t=&lt;unixSec&gt;,v1=&lt;hex&gt;
+          </code>
+          .
         </p>
       </div>
 
-      <div className="space-y-2">
+      <div className='space-y-2'>
         <Label>Subscribed events</Label>
-        <div className="grid grid-cols-2 gap-2">
+        <div className='grid grid-cols-2 gap-2'>
           {ALL_OUTBOUND_EVENTS.map((evt) => (
             <label
               key={evt.value}
-              className="flex items-start gap-2 rounded-md border p-2.5 cursor-pointer hover:bg-muted/30"
+              className='hover:bg-muted/30 flex cursor-pointer items-start gap-2 rounded-md border p-2.5'
             >
               <Checkbox
                 checked={events.includes(evt.value)}
                 onCheckedChange={() => toggleEvent(evt.value)}
               />
-              <div className="min-w-0">
-                <code className="text-xs">{evt.label}</code>
+              <div className='min-w-0'>
+                <code className='text-xs'>{evt.label}</code>
               </div>
             </label>
           ))}
         </div>
       </div>
 
-      <div className="flex justify-end border-t pt-4">
+      <div className='flex justify-end border-t pt-4'>
         <Button onClick={handleSave} disabled={saving}>
           {saving ? 'Saving…' : 'Save'}
         </Button>
@@ -500,27 +572,31 @@ function OutboundTab({
 // ── Logs ─────────────────────────────────────────────────────────────
 
 function LogsTab({
-  actions,
+  actions
 }: {
   actions: ReturnType<typeof useCustomIntegrationActions>;
 }) {
   return (
-    <Tabs defaultValue="inbound">
+    <Tabs defaultValue='inbound'>
       <TabsList>
-        <TabsTrigger value="inbound">Inbound</TabsTrigger>
-        <TabsTrigger value="outbound">Outbound</TabsTrigger>
+        <TabsTrigger value='inbound'>Inbound</TabsTrigger>
+        <TabsTrigger value='outbound'>Outbound</TabsTrigger>
       </TabsList>
-      <TabsContent value="inbound" className="mt-4">
+      <TabsContent value='inbound' className='mt-4'>
         <InboundLogsList getLogs={actions.getInboundLogs} />
       </TabsContent>
-      <TabsContent value="outbound" className="mt-4">
+      <TabsContent value='outbound' className='mt-4'>
         <OutboundLogsList getLogs={actions.getOutboundLogs} />
       </TabsContent>
     </Tabs>
   );
 }
 
-function InboundLogsList({ getLogs }: { getLogs: () => Promise<CustomIntegrationInboundLog[]> }) {
+function InboundLogsList({
+  getLogs
+}: {
+  getLogs: () => Promise<CustomIntegrationInboundLog[]>;
+}) {
   const [rows, setRows] = useState<CustomIntegrationInboundLog[] | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -538,15 +614,24 @@ function InboundLogsList({ getLogs }: { getLogs: () => Promise<CustomIntegration
   }, [refresh]);
 
   return (
-    <LogsListShell loading={loading} empty={!rows || rows.length === 0} onRefresh={refresh}>
+    <LogsListShell
+      loading={loading}
+      empty={!rows || rows.length === 0}
+      onRefresh={refresh}
+    >
       {rows?.map((r) => (
-        <li key={r.id} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
-          <div className="flex items-center gap-3 min-w-0">
+        <li
+          key={r.id}
+          className='flex items-center justify-between gap-3 px-3 py-2 text-xs'
+        >
+          <div className='flex min-w-0 items-center gap-3'>
             <StatusBadge status={r.status} />
-            <code className="truncate">{r.eventType}</code>
-            <span className="text-muted-foreground truncate">{r.externalEventId}</span>
+            <code className='truncate'>{r.eventType}</code>
+            <span className='text-muted-foreground truncate'>
+              {r.externalEventId}
+            </span>
           </div>
-          <span className="shrink-0 text-muted-foreground">
+          <span className='text-muted-foreground shrink-0'>
             {new Date(r.receivedAt).toLocaleString()}
           </span>
         </li>
@@ -556,7 +641,7 @@ function InboundLogsList({ getLogs }: { getLogs: () => Promise<CustomIntegration
 }
 
 function OutboundLogsList({
-  getLogs,
+  getLogs
 }: {
   getLogs: () => Promise<CustomIntegrationDeliveryLog[]>;
 }) {
@@ -577,15 +662,24 @@ function OutboundLogsList({
   }, [refresh]);
 
   return (
-    <LogsListShell loading={loading} empty={!rows || rows.length === 0} onRefresh={refresh}>
+    <LogsListShell
+      loading={loading}
+      empty={!rows || rows.length === 0}
+      onRefresh={refresh}
+    >
       {rows?.map((r) => (
-        <li key={r.id} className="flex items-center justify-between gap-3 px-3 py-2 text-xs">
-          <div className="flex items-center gap-3 min-w-0">
+        <li
+          key={r.id}
+          className='flex items-center justify-between gap-3 px-3 py-2 text-xs'
+        >
+          <div className='flex min-w-0 items-center gap-3'>
             <StatusBadge status={r.status} />
-            <code className="truncate">{r.eventType}</code>
-            <span className="text-muted-foreground">attempts={r.attemptCount}</span>
+            <code className='truncate'>{r.eventType}</code>
+            <span className='text-muted-foreground'>
+              attempts={r.attemptCount}
+            </span>
           </div>
-          <span className="shrink-0 text-muted-foreground">
+          <span className='text-muted-foreground shrink-0'>
             {new Date(r.createdAt).toLocaleString()}
           </span>
         </li>
@@ -598,7 +692,7 @@ function LogsListShell({
   loading,
   empty,
   onRefresh,
-  children,
+  children
 }: {
   loading: boolean;
   empty: boolean;
@@ -607,19 +701,27 @@ function LogsListShell({
 }) {
   return (
     <div>
-      <div className="mb-2 flex justify-end">
-        <Button size="sm" variant="ghost" onClick={onRefresh} disabled={loading}>
-          <RefreshCw className={`mr-1 h-3 w-3 ${loading ? 'animate-spin' : ''}`} /> Refresh
+      <div className='mb-2 flex justify-end'>
+        <Button
+          size='sm'
+          variant='ghost'
+          onClick={onRefresh}
+          disabled={loading}
+        >
+          <RefreshCw
+            className={`mr-1 h-3 w-3 ${loading ? 'animate-spin' : ''}`}
+          />{' '}
+          Refresh
         </Button>
       </div>
       {loading && !empty ? (
-        <Skeleton className="h-32 w-full rounded-md" />
+        <Skeleton className='h-32 w-full rounded-md' />
       ) : empty ? (
-        <div className="rounded-md border border-dashed py-8 text-center text-xs text-muted-foreground">
+        <div className='text-muted-foreground rounded-md border border-dashed py-8 text-center text-xs'>
           No events yet.
         </div>
       ) : (
-        <ul className="divide-y rounded-md border">{children}</ul>
+        <ul className='divide-y rounded-md border'>{children}</ul>
       )}
     </div>
   );
@@ -640,7 +742,7 @@ function StatusBadge({ status }: { status: string }) {
     }
   }, [status]);
   return (
-    <Badge variant="outline" className={`text-[10px] ${className}`}>
+    <Badge variant='outline' className={`text-[10px] ${className}`}>
       {status}
     </Badge>
   );

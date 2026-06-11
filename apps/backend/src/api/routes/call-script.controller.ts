@@ -1,13 +1,5 @@
-import {
-  Body,
-  Controller,
-  Get,
-  Put,
-} from "@nestjs/common";
-import {
-  CurrentUser,
-  createOwnershipContext,
-} from "@ringee/platform";
+import { Body, Controller, Get, Put } from "@nestjs/common";
+import { CurrentUser, createOwnershipContext } from "@ringee/platform";
 import { CallScriptService, ScriptSectionDto } from "@ringee/services";
 
 interface CurrentUserData {

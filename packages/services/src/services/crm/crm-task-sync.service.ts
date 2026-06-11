@@ -37,7 +37,10 @@ export class CrmTaskSyncService {
       const now = Date.now();
 
       for (const connection of connections) {
-        const capabilities = connection.capabilities as Record<string, unknown> | null;
+        const capabilities = connection.capabilities as Record<
+          string,
+          unknown
+        > | null;
         if (capabilities && capabilities.supportsTasks === false) continue;
 
         const link = links.find((l) => l.connectionId === connection.id);
@@ -49,7 +52,9 @@ export class CrmTaskSyncService {
         }
 
         const idempotencyKey = createHash("sha1")
-          .update(`${connection.id}|task|${input.contactId}|${input.title}|${now}`)
+          .update(
+            `${connection.id}|task|${input.contactId}|${input.title}|${now}`,
+          )
           .digest("hex");
 
         await this.outbox.enqueue({

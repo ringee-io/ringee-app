@@ -82,7 +82,9 @@ export class AiConversationService {
   assertAccess(ctx: OwnershipContext, conv: AiConversation): void {
     if (conv.organizationId) {
       if (conv.organizationId !== ctx.organizationId) {
-        throw new ForbiddenException("Conversation belongs to another organization");
+        throw new ForbiddenException(
+          "Conversation belongs to another organization",
+        );
       }
       return;
     }

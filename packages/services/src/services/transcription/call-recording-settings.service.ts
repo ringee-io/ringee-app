@@ -59,7 +59,9 @@ export class CallRecordingSettingsService {
    * Read the raw settings row for the context for the settings UI. Returns the
    * effective defaults when no row exists yet.
    */
-  async getForContext(ctx: OwnershipContext): Promise<EffectiveRecordingSettings> {
+  async getForContext(
+    ctx: OwnershipContext,
+  ): Promise<EffectiveRecordingSettings> {
     return this.resolve(ctx);
   }
 

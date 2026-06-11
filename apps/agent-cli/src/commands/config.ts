@@ -11,7 +11,9 @@ import { getClient, run } from "../client.js";
 import { c, fail, heading, info, kv, line, ok, sensitivityTag } from "../ui.js";
 
 export function registerConfig(program: Command): void {
-  const config = program.command("config").description("Connection config and diagnostics");
+  const config = program
+    .command("config")
+    .description("Connection config and diagnostics");
 
   config
     .command("show")
@@ -54,7 +56,9 @@ export function registerConfig(program: Command): void {
       heading("Ringee agent capabilities");
       TOOL_CATALOG.forEach((t) => {
         line("");
-        line(`${c.bold(t.action)} ${sensitivityTag(t.sensitivity)} ${c.gray(`→ ${t.tool}`)}`);
+        line(
+          `${c.bold(t.action)} ${sensitivityTag(t.sensitivity)} ${c.gray(`→ ${t.tool}`)}`,
+        );
         line(`  ${t.summary}`);
         line(`  ${c.dim(t.cli)}`);
       });

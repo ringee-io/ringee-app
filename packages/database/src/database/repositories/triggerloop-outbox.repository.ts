@@ -24,15 +24,17 @@ export class TriggerLoopOutboxRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   private get delegate() {
-    return (this.prisma as unknown as {
-      triggerLoopOutboxEvent: {
-        create: (args: unknown) => Promise<TriggerLoopOutboxRecord>;
-        findMany: (args: unknown) => Promise<TriggerLoopOutboxRecord[]>;
-        update: (args: unknown) => Promise<TriggerLoopOutboxRecord>;
-        updateMany: (args: unknown) => Promise<{ count: number }>;
-        count: (args: unknown) => Promise<number>;
-      };
-    }).triggerLoopOutboxEvent;
+    return (
+      this.prisma as unknown as {
+        triggerLoopOutboxEvent: {
+          create: (args: unknown) => Promise<TriggerLoopOutboxRecord>;
+          findMany: (args: unknown) => Promise<TriggerLoopOutboxRecord[]>;
+          update: (args: unknown) => Promise<TriggerLoopOutboxRecord>;
+          updateMany: (args: unknown) => Promise<{ count: number }>;
+          count: (args: unknown) => Promise<number>;
+        };
+      }
+    ).triggerLoopOutboxEvent;
   }
 
   enqueue(input: {

@@ -38,8 +38,8 @@ export function mapAttioPersonToMatch(
   const matchedOn: "phone_exact" | "phone_suffix" = exact
     ? "phone_exact"
     : normalizedPhones.some((p) => phoneMatchesSuffix(p, targetPhoneE164))
-    ? "phone_suffix"
-    : "phone_exact";
+      ? "phone_suffix"
+      : "phone_exact";
 
   return {
     externalId: record.id.record_id,
@@ -83,7 +83,9 @@ export function buildCallLogNote(input: CrmCallLogInput): {
     lines.push("");
     lines.push("**Insights**");
     for (const [key, val] of Object.entries(input.insights)) {
-      const label = key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+      const label = key
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
       lines.push(`- **${label}:** ${String(val)}`);
     }
   }
@@ -116,12 +118,15 @@ export function attioIdempotencyTag(key: string): string {
   return `[ringee:${key}]`;
 }
 
-export function mapAttioPersonToSyncResult(record: AttioPersonRecord): CrmContactSyncResult {
+export function mapAttioPersonToSyncResult(
+  record: AttioPersonRecord,
+): CrmContactSyncResult {
   const nameVal = record.values.name?.[0];
   const firstName = nameVal?.first_name ?? null;
   const lastName = nameVal?.last_name ?? null;
   const assembledName = [firstName, lastName].filter(Boolean).join(" ").trim();
-  const displayName = nameVal?.full_name ?? nameVal?.value ?? (assembledName || null);
+  const displayName =
+    nameVal?.full_name ?? nameVal?.value ?? (assembledName || null);
 
   const rawPhones =
     record.values.phone_numbers?.map(
@@ -131,7 +136,8 @@ export function mapAttioPersonToSyncResult(record: AttioPersonRecord): CrmContac
     .map((p) => normalizePhoneE164(p))
     .filter((p): p is string => Boolean(p));
 
-  const emails = record.values.email_addresses?.map((e) => e.email_address) ?? [];
+  const emails =
+    record.values.email_addresses?.map((e) => e.email_address) ?? [];
 
   return {
     contact: { externalId: record.id.record_id, externalType: "person" },
@@ -153,7 +159,9 @@ export function mapAttioCompanyToMatch(
   targetDomain: string,
 ): CrmCompanyMatch {
   const name = record.values.name?.[0]?.value ?? "Unnamed company";
-  const domains = record.values.domains?.map((d) => d.domain).filter(Boolean) as string[];
+  const domains = record.values.domains
+    ?.map((d) => d.domain)
+    .filter(Boolean) as string[];
   const domain = domains[0] ?? null;
   const matchedOn = domains.some(
     (d) => d?.toLowerCase() === targetDomain.toLowerCase(),
@@ -171,14 +179,20 @@ export function mapAttioCompanyToMatch(
   };
 }
 
-export function mapAttioCompanyToSyncResult(record: AttioCompanyRecord): CrmCompanySyncResult {
+export function mapAttioCompanyToSyncResult(
+  record: AttioCompanyRecord,
+): CrmCompanySyncResult {
   const name = record.values.name?.[0]?.value ?? "Unnamed company";
-  const domains = record.values.domains?.map((d) => d.domain).filter(Boolean) as string[];
+  const domains = record.values.domains
+    ?.map((d) => d.domain)
+    .filter(Boolean) as string[];
   const rawPhones =
     record.values.phone_numbers?.map(
       (p) => p.original_phone_number ?? p.phone_number ?? "",
     ) ?? [];
-  const phone = rawPhones[0] ? (normalizePhoneE164(rawPhones[0]) ?? rawPhones[0]) : null;
+  const phone = rawPhones[0]
+    ? (normalizePhoneE164(rawPhones[0]) ?? rawPhones[0])
+    : null;
 
   return {
     company: { externalId: record.id.record_id, externalType: "company" },
@@ -194,8 +208,12 @@ export function mapAttioCompanyToSyncResult(record: AttioCompanyRecord): CrmComp
   };
 }
 
-export function mapAttioMemberToOwnerRef(member: AttioWorkspaceMember): CrmOwnerRef {
-  const name = [member.first_name, member.last_name].filter(Boolean).join(" ").trim() || null;
+export function mapAttioMemberToOwnerRef(
+  member: AttioWorkspaceMember,
+): CrmOwnerRef {
+  const name =
+    [member.first_name, member.last_name].filter(Boolean).join(" ").trim() ||
+    null;
   return {
     externalId: member.id.workspace_member_id,
     email: member.email_address,
@@ -209,9 +227,7 @@ export function buildMeetingNote(input: CrmMeetingInput): {
 } {
   const startStr = input.startAt.toISOString();
   const endStr = input.endAt.toISOString();
-  const lines: string[] = [
-    `**Meeting scheduled** — ${startStr}`,
-  ];
+  const lines: string[] = [`**Meeting scheduled** — ${startStr}`];
   lines.push("");
   lines.push(`**Title:** ${input.title}`);
   lines.push(`**Start:** ${startStr}`);
@@ -234,7 +250,8 @@ export function buildMeetingNote(input: CrmMeetingInput): {
 
   const links: string[] = [];
   if (input.meetingUrl) links.push(`[Join meeting](${input.meetingUrl})`);
-  if (input.ringeeMeetingUrl) links.push(`[View in Ringee](${input.ringeeMeetingUrl})`);
+  if (input.ringeeMeetingUrl)
+    links.push(`[View in Ringee](${input.ringeeMeetingUrl})`);
   if (input.sourceCallUrl) links.push(`[Source call](${input.sourceCallUrl})`);
   if (input.recordingUrl) links.push(`[Recording](${input.recordingUrl})`);
   if (links.length > 0) {
@@ -245,8 +262,10 @@ export function buildMeetingNote(input: CrmMeetingInput): {
   if (input.calendarProvider || input.calendarEventId) {
     lines.push("");
     const calParts: string[] = [];
-    if (input.calendarProvider) calParts.push(`Provider: ${input.calendarProvider}`);
-    if (input.calendarEventId) calParts.push(`Event ID: ${input.calendarEventId}`);
+    if (input.calendarProvider)
+      calParts.push(`Provider: ${input.calendarProvider}`);
+    if (input.calendarEventId)
+      calParts.push(`Event ID: ${input.calendarEventId}`);
     lines.push(`_Calendar: ${calParts.join(" · ")}_`);
   }
 

@@ -8,13 +8,13 @@ import {
 export class OutboundAnalyticsService {
   constructor(
     private readonly analyticsRepo: OutboundAnalyticsRepository,
-    private readonly campaignLeadRepo: CampaignLeadRepository
+    private readonly campaignLeadRepo: CampaignLeadRepository,
   ) {}
 
   async getCampaignSummary(
     campaignId: string,
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
   ) {
     const [stats, leadCounts] = await Promise.all([
       this.analyticsRepo.getCampaignSummary(campaignId, startDate, endDate),
@@ -27,24 +27,24 @@ export class OutboundAnalyticsService {
   async getAgentPerformance(
     campaignId: string,
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
   ) {
     return this.analyticsRepo.getAgentPerformance(
       campaignId,
       startDate,
-      endDate
+      endDate,
     );
   }
 
   async getDispositionDistribution(
     campaignId: string,
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
   ) {
     return this.analyticsRepo.getDispositionDistribution(
       campaignId,
       startDate,
-      endDate
+      endDate,
     );
   }
 
@@ -55,12 +55,12 @@ export class OutboundAnalyticsService {
   async getHourlyCallVolume(
     campaignId: string,
     startDate?: Date,
-    endDate?: Date
+    endDate?: Date,
   ) {
     return this.analyticsRepo.getHourlyCallVolume(
       campaignId,
       startDate,
-      endDate
+      endDate,
     );
   }
 }

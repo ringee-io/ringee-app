@@ -69,7 +69,9 @@ export function WorkspaceCard({ data }: { data: ListWorkspacesResult }) {
   const [pendingId, setPendingId] = useState<string | null>(null);
 
   const current = override ?? data;
-  const workspaces = Array.isArray(current.workspaces) ? current.workspaces : [];
+  const workspaces = Array.isArray(current.workspaces)
+    ? current.workspaces
+    : [];
 
   async function switchTo(ws: Workspace) {
     if (pendingId || ws.active) return;
@@ -86,8 +88,7 @@ export function WorkspaceCard({ data }: { data: ListWorkspacesResult }) {
     }
   }
 
-  const activeName =
-    workspaces.find((w) => w.active)?.name ?? "Personal";
+  const activeName = workspaces.find((w) => w.active)?.name ?? "Personal";
 
   return (
     <Card className="w-full max-w-md overflow-hidden">
@@ -97,7 +98,9 @@ export function WorkspaceCard({ data }: { data: ListWorkspacesResult }) {
             <div className="flex size-8 items-center justify-center rounded-lg bg-secondary text-secondary-foreground">
               <Building2 className="size-4" />
             </div>
-            <h3 className="text-base font-semibold leading-tight">Workspaces</h3>
+            <h3 className="text-base font-semibold leading-tight">
+              Workspaces
+            </h3>
           </div>
           <span className="shrink-0 text-xs text-muted-foreground">
             Active: {activeName}

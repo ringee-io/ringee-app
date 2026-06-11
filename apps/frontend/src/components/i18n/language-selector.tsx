@@ -35,7 +35,11 @@ type Props = {
  * Persists to a cookie (server-readable for SSR) and to localStorage
  * (client-readable for offline / first-paint hints).
  */
-export function LanguageSelector({ compact = false, className, onChange }: Props) {
+export function LanguageSelector({
+  compact = false,
+  className,
+  onChange
+}: Props) {
   const locale = useLocale();
   const t = useTranslations('settings.language');
   const tToast = useTranslations('toasts');

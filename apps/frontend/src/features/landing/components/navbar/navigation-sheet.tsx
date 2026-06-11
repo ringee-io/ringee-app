@@ -1,5 +1,9 @@
 import { Button } from '@ringee/frontend-shared/components/ui/button';
-import { Sheet, SheetContent, SheetTrigger } from '@ringee/frontend-shared/components/ui/sheet';
+import {
+  Sheet,
+  SheetContent,
+  SheetTrigger
+} from '@ringee/frontend-shared/components/ui/sheet';
 import { Menu } from 'lucide-react';
 import { Logo } from './logo';
 import { NavMenu } from './nav-menu';
@@ -13,27 +17,30 @@ export const NavigationSheet = () => {
     <Sheet>
       <SheetTrigger asChild>
         <Button variant='ghost' size='icon' className='rounded-full'>
-          <Menu className="h-6 w-6" />
+          <Menu className='h-6 w-6' />
         </Button>
       </SheetTrigger>
-      <SheetContent side="right" className="flex flex-col w-[300px] sm:w-[350px] p-6 pr-8 border-l border-border/40">
-        <div className="flex items-center justify-between pb-6 border-b border-border/40">
+      <SheetContent
+        side='right'
+        className='border-border/40 flex w-[300px] flex-col border-l p-6 pr-8 sm:w-[350px]'
+      >
+        <div className='border-border/40 flex items-center justify-between border-b pb-6'>
           <Logo />
           {/* ThemeToggle included for mobile user convenience */}
           <ThemeToggle />
         </div>
-        
-        <div className="flex-1 overflow-y-auto py-6">
+
+        <div className='flex-1 overflow-y-auto py-6'>
           <NavMenu orientation='vertical' className='w-full' />
         </div>
 
-        <div className='mt-auto flex flex-col gap-3 pt-6 border-t border-border/40'>
-          <Link href='/auth/sign-in' className="w-full">
+        <div className='border-border/40 mt-auto flex flex-col gap-3 border-t pt-6'>
+          <Link href='/auth/sign-in' className='w-full'>
             <Button variant='outline' className='w-full'>
               {t('signIn')}
             </Button>
           </Link>
-          <Link href='/auth/sign-up' className="w-full">
+          <Link href='/auth/sign-up' className='w-full'>
             <Button className='w-full'>{t('getStarted')}</Button>
           </Link>
         </div>

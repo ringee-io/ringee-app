@@ -17,10 +17,7 @@ import {
   createOwnershipContext,
   Public,
 } from "@ringee/platform";
-import {
-  CallSessionService,
-  CreateCallSessionInput,
-} from "@ringee/services";
+import { CallSessionService, CreateCallSessionInput } from "@ringee/services";
 import {
   CallOutcome,
   CallSessionActorSource,
@@ -154,10 +151,7 @@ export class CallSessionController {
   }
 
   @Get(":id")
-  async detail(
-    @CurrentUser() user: CurrentUserData,
-    @Param("id") id: string,
-  ) {
+  async detail(@CurrentUser() user: CurrentUserData, @Param("id") id: string) {
     const ctx = createOwnershipContext(user);
     const { session, items, hasActiveToken } =
       await this.service.getOwnedSessionWithItems(ctx, id);
@@ -214,10 +208,7 @@ export class CallSessionController {
   }
 
   @Delete(":id")
-  async revoke(
-    @CurrentUser() user: CurrentUserData,
-    @Param("id") id: string,
-  ) {
+  async revoke(@CurrentUser() user: CurrentUserData, @Param("id") id: string) {
     const ctx = createOwnershipContext(user);
     const session = await this.service.revokeSession(ctx, id, {
       source: CallSessionActorSource.dashboard,

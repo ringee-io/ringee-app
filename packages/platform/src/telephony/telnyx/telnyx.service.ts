@@ -17,7 +17,7 @@ const telnyx = new Telnyx({
   apiKey: apiConfiguration.TELNYX_API_KEY,
 });
 
-process.env.NUMBER_PROFIT_MARGIN = '1.0'
+process.env.NUMBER_PROFIT_MARGIN = "1.0";
 
 @Injectable()
 export class TelnyxService implements TelephonyService {
@@ -411,19 +411,16 @@ export class TelnyxService implements TelephonyService {
     );
   }
 
-  async playbackStart(
-    callControlId: string,
-    audioUrl: string
-  ): Promise<void> {
+  async playbackStart(callControlId: string, audioUrl: string): Promise<void> {
     await this.telnyxClient.post(
       `/calls/${callControlId}/actions/playback_start`,
       {
         audio_url: audioUrl,
         client_state: Buffer.from(
-          JSON.stringify({ action: "voicemail_drop" })
+          JSON.stringify({ action: "voicemail_drop" }),
         ).toString("base64"),
         command_id: crypto.randomUUID(),
-      }
+      },
     );
   }
 

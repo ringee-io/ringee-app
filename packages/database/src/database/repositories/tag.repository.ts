@@ -1,10 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import { Tag } from "@prisma/client";
-import {
-  OwnershipContext,
-  buildOwnershipFilter,
-} from "@ringee/platform";
+import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
 
 @Injectable()
 export class TagRepository {
@@ -12,7 +9,7 @@ export class TagRepository {
 
   async create(
     ctx: OwnershipContext,
-    data: { name: string; color?: string }
+    data: { name: string; color?: string },
   ): Promise<Tag> {
     return this.prisma.tag.create({
       data: {
@@ -43,7 +40,7 @@ export class TagRepository {
 
   async update(
     id: string,
-    data: { name?: string; color?: string }
+    data: { name?: string; color?: string },
   ): Promise<Tag> {
     return this.prisma.tag.update({
       where: { id },
@@ -56,17 +53,14 @@ export class TagRepository {
     await this.prisma.contactTag.deleteMany({
       where: { tagId: id },
     });
-    
+
     return this.prisma.tag.update({
       where: { id },
       data: { deletedAt: new Date() },
     });
   }
 
-  async assignToContact(
-    contactId: string,
-    tagIds: string[]
-  ): Promise<number> {
+  async assignToContact(contactId: string, tagIds: string[]): Promise<number> {
     if (tagIds.length === 0) return 0;
 
     const data = tagIds.map((tagId) => ({
@@ -84,7 +78,7 @@ export class TagRepository {
 
   async removeFromContact(
     contactId: string,
-    tagIds: string[]
+    tagIds: string[],
   ): Promise<number> {
     if (tagIds.length === 0) return 0;
 
@@ -128,7 +122,7 @@ export class TagRepository {
 
   async assignTagsToContacts(
     contactIds: string[],
-    tagIds: string[]
+    tagIds: string[],
   ): Promise<number> {
     if (contactIds.length === 0 || tagIds.length === 0) return 0;
 

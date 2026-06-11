@@ -16,7 +16,7 @@ export class EmailReminderChannel implements ReminderChannel {
   async send(recipient: ReminderRecipient, content: ReminderContent) {
     if (!recipient.email) {
       throw new Error(
-        `EmailReminderChannel: recipient ${recipient.userId} has no email`
+        `EmailReminderChannel: recipient ${recipient.userId} has no email`,
       );
     }
 
@@ -25,11 +25,11 @@ export class EmailReminderChannel implements ReminderChannel {
       content.subject,
       content.bodyHtml,
       "no-reply",
-      "no-reply@notifications.ringee.io"
+      "no-reply@notifications.ringee.io",
     );
 
     this.logger.debug(
-      `Reminder email dispatched to ${recipient.email}: ${content.subject}`
+      `Reminder email dispatched to ${recipient.email}: ${content.subject}`,
     );
 
     // ResendProvider swallows errors and returns { sent: false }; surface that

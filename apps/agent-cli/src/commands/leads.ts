@@ -1,10 +1,27 @@
 import { Command } from "commander";
 import type { LeadCandidate } from "@ringee-io/agent";
 import { getClient, run } from "../client.js";
-import { c, fail, heading, info, json, kv, line, ok, sensitivityTag, wantsJson, warn } from "../ui.js";
+import {
+  c,
+  fail,
+  heading,
+  info,
+  json,
+  kv,
+  line,
+  ok,
+  sensitivityTag,
+  wantsJson,
+  warn,
+} from "../ui.js";
 
 const list = (v: string, acc: string[] = []) => {
-  acc.push(...v.split(",").map((s) => s.trim()).filter(Boolean));
+  acc.push(
+    ...v
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
+  );
   return acc;
 };
 
@@ -27,11 +44,15 @@ function printCandidate(ld: LeadCandidate, i: number): void {
 export function registerLeads(program: Command): void {
   const leads = program
     .command("leads")
-    .description("Prospect leads (Apollo/Prospeo) and convert them to contacts");
+    .description(
+      "Prospect leads (Apollo/Prospeo) and convert them to contacts",
+    );
 
   leads
     .command("search")
-    .description("Search for leads — returns a jobId. Candidates are NOT contacts yet.")
+    .description(
+      "Search for leads — returns a jobId. Candidates are NOT contacts yet.",
+    )
     .option("--provider <name>", "apollo | prospeo")
     .option("--keywords <text>")
     .option("--title <t>", "job title (repeatable / comma-separated)", list)
@@ -45,7 +66,9 @@ export function registerLeads(program: Command): void {
     .option("--has-email", "only leads with an email")
     .option("--has-phone", "only leads with a phone")
     .option("--page <n>", "page", (v) => parseInt(v, 10))
-    .option("--per-page <n>", "results per page (max 25)", (v) => parseInt(v, 10))
+    .option("--per-page <n>", "results per page (max 25)", (v) =>
+      parseInt(v, 10),
+    )
     .action((opts) =>
       run(async () => {
         const res = await getClient().searchLeads({
@@ -65,7 +88,9 @@ export function registerLeads(program: Command): void {
           perPage: opts.perPage,
         });
         if (wantsJson()) return json(res);
-        heading(`${res.total} lead(s) via ${res.provider}${res.cached ? c.gray(" (cached)") : ""}`);
+        heading(
+          `${res.total} lead(s) via ${res.provider}${res.cached ? c.gray(" (cached)") : ""}`,
+        );
         info(`jobId: ${res.jobId}  —  use it to reveal or import`);
         if (res.results.length === 0) {
           warn("No candidates on this page.");
@@ -81,13 +106,17 @@ export function registerLeads(program: Command): void {
 
   leads
     .command("reveal <jobId> <externalId>")
-    .description(`${sensitivityTag("sensitive")} Unlock email/phone for one candidate (spends credits)`)
+    .description(
+      `${sensitivityTag("sensitive")} Unlock email/phone for one candidate (spends credits)`,
+    )
     .option("--phone", "also reveal a mobile phone (extra credits)")
     .option("-y, --yes", "confirm the credit spend")
     .action((jobId: string, externalId: string, opts) =>
       run(async () => {
         if (!opts.yes) {
-          fail("Revealing a lead spends provider credits. Re-run with --yes to confirm.");
+          fail(
+            "Revealing a lead spends provider credits. Re-run with --yes to confirm.",
+          );
           process.exitCode = 1;
           return;
         }
@@ -97,7 +126,9 @@ export function registerLeads(program: Command): void {
           revealPhone: Boolean(opts.phone),
         });
         if (wantsJson()) return json(res);
-        ok(`Revealed ${res.person.fullName || "lead"} → contact ${res.contactId}`);
+        ok(
+          `Revealed ${res.person.fullName || "lead"} → contact ${res.contactId}`,
+        );
         kv("emails", res.person.emails.join(", "));
         kv("phones", res.person.phones.join(", "));
         kv("email new", res.emailRevealed);
@@ -110,7 +141,10 @@ export function registerLeads(program: Command): void {
     .description("Bulk-import selected candidates as contacts (phone dedup)")
     .action((jobId: string, externalIds: string[]) =>
       run(async () => {
-        const res = await getClient().importLeadsAsContacts({ jobId, externalIds });
+        const res = await getClient().importLeadsAsContacts({
+          jobId,
+          externalIds,
+        });
         if (wantsJson()) return json(res);
         if (!res.ok) {
           fail(res.error || "Import failed.");
@@ -118,7 +152,8 @@ export function registerLeads(program: Command): void {
         }
         ok(`Imported ${res.imported} contact(s).`);
         if (res.duplicates) kv("duplicates", res.duplicates);
-        if (res.contactIds.length) line(c.dim(`  ${res.contactIds.join(", ")}`));
+        if (res.contactIds.length)
+          line(c.dim(`  ${res.contactIds.join(", ")}`));
       }),
     );
 }

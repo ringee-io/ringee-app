@@ -24,7 +24,8 @@ const nextConfig = {
           { key: "X-Frame-Options", value: "ALLOWALL" },
           {
             key: "Content-Security-Policy",
-            value: "frame-ancestors 'self' https://chatgpt.com https://*.openai.com",
+            value:
+              "frame-ancestors 'self' https://chatgpt.com https://*.openai.com",
           },
         ],
       },

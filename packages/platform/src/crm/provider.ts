@@ -62,29 +62,58 @@ export interface CrmProvider {
   ): Promise<CrmCompanyMatch[]>;
 
   // Upsert
-  upsertPerson(creds: CrmCredentials, input: CrmPersonInput): Promise<CrmRecordRef>;
-  upsertCompany?(creds: CrmCredentials, input: CrmCompanyInput): Promise<CrmRecordRef>;
+  upsertPerson(
+    creds: CrmCredentials,
+    input: CrmPersonInput,
+  ): Promise<CrmRecordRef>;
+  upsertCompany?(
+    creds: CrmCredentials,
+    input: CrmCompanyInput,
+  ): Promise<CrmRecordRef>;
 
   // Logging
   logCall(creds: CrmCredentials, input: CrmCallLogInput): Promise<CrmRecordRef>;
   addNote(creds: CrmCredentials, input: CrmNoteInput): Promise<CrmRecordRef>;
 
   // Tasks (optional)
-  createTask?(creds: CrmCredentials, input: CrmTaskInput): Promise<CrmRecordRef>;
+  createTask?(
+    creds: CrmCredentials,
+    input: CrmTaskInput,
+  ): Promise<CrmRecordRef>;
 
   // Meetings (optional)
-  upsertMeeting?(creds: CrmCredentials, input: CrmMeetingInput): Promise<CrmMeetingSyncResult>;
+  upsertMeeting?(
+    creds: CrmCredentials,
+    input: CrmMeetingInput,
+  ): Promise<CrmMeetingSyncResult>;
 
   // Recording file upload (optional)
-  uploadRecording?(creds: CrmCredentials, input: CrmRecordingUploadInput): Promise<CrmRecordingUploadResult>;
+  uploadRecording?(
+    creds: CrmCredentials,
+    input: CrmRecordingUploadInput,
+  ): Promise<CrmRecordingUploadResult>;
 
   // Record fetch (inbound sync)
-  fetchPerson?(creds: CrmCredentials, externalId: string): Promise<CrmContactSyncResult>;
-  fetchCompany?(creds: CrmCredentials, externalId: string): Promise<CrmCompanySyncResult>;
+  fetchPerson?(
+    creds: CrmCredentials,
+    externalId: string,
+  ): Promise<CrmContactSyncResult>;
+  fetchCompany?(
+    creds: CrmCredentials,
+    externalId: string,
+  ): Promise<CrmCompanySyncResult>;
 
   // Bulk listing (paginated)
-  listPersons?(creds: CrmCredentials, pageToken?: string | null, limit?: number): Promise<CrmPagedResult<CrmContactSyncResult>>;
-  listCompanies?(creds: CrmCredentials, pageToken?: string | null, limit?: number): Promise<CrmPagedResult<CrmCompanySyncResult>>;
+  listPersons?(
+    creds: CrmCredentials,
+    pageToken?: string | null,
+    limit?: number,
+  ): Promise<CrmPagedResult<CrmContactSyncResult>>;
+  listCompanies?(
+    creds: CrmCredentials,
+    pageToken?: string | null,
+    limit?: number,
+  ): Promise<CrmPagedResult<CrmCompanySyncResult>>;
 
   // Lists/segments
   listLists?(creds: CrmCredentials): Promise<CrmListRef[]>;

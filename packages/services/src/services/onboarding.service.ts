@@ -47,7 +47,10 @@ export class OnboardingService {
     };
   }
 
-  async completeStep(userId: string, step: OnboardingStep): Promise<OnboardingStatusDto> {
+  async completeStep(
+    userId: string,
+    step: OnboardingStep,
+  ): Promise<OnboardingStatusDto> {
     if (!ALL_STEPS.includes(step)) {
       throw new NotFoundException(`Invalid step: ${step}`);
     }

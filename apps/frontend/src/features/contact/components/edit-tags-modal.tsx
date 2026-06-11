@@ -58,7 +58,7 @@ const DEFAULT_COLORS = [
   '#8B5CF6', // Purple
   '#EC4899', // Pink
   '#06B6D4', // Cyan
-  '#F97316', // Orange
+  '#F97316' // Orange
 ];
 
 interface ColorPickerButtonProps {
@@ -67,31 +67,35 @@ interface ColorPickerButtonProps {
   className?: string;
 }
 
-function ColorPickerButton({ color, onChange, className }: ColorPickerButtonProps) {
+function ColorPickerButton({
+  color,
+  onChange,
+  className
+}: ColorPickerButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className={cn("relative", className)}>
+    <div className={cn('relative', className)}>
       <button
-        type="button"
+        type='button'
         onClick={() => inputRef.current?.click()}
-        className="group relative flex h-8 w-8 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 transition-all hover:border-gray-400 hover:scale-110 dark:border-gray-600 dark:hover:border-gray-500"
+        className='group relative flex h-8 w-8 items-center justify-center rounded-lg border-2 border-dashed border-gray-300 transition-all hover:scale-110 hover:border-gray-400 dark:border-gray-600 dark:hover:border-gray-500'
         style={{
           background: `linear-gradient(135deg, ${color} 0%, ${adjustBrightness(color, -30)} 100%)`,
           borderStyle: 'solid',
           borderColor: 'transparent'
         }}
-        title="Choose custom color"
+        title='Choose custom color'
       >
-        <div className="absolute inset-0 rounded-lg bg-black/0 transition-all group-hover:bg-black/10" />
-        <IconPalette className="h-4 w-4 text-white drop-shadow-md transition-transform group-hover:scale-110" />
+        <div className='absolute inset-0 rounded-lg bg-black/0 transition-all group-hover:bg-black/10' />
+        <IconPalette className='h-4 w-4 text-white drop-shadow-md transition-transform group-hover:scale-110' />
       </button>
       <input
         ref={inputRef}
-        type="color"
+        type='color'
         value={color}
         onChange={(e) => onChange(e.target.value)}
-        className="sr-only"
+        className='sr-only'
       />
     </div>
   );
@@ -100,8 +104,8 @@ function ColorPickerButton({ color, onChange, className }: ColorPickerButtonProp
 function adjustBrightness(hex: string, percent: number): string {
   const num = parseInt(hex.replace('#', ''), 16);
   const r = Math.min(255, Math.max(0, (num >> 16) + percent));
-  const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00FF) + percent));
-  const b = Math.min(255, Math.max(0, (num & 0x0000FF) + percent));
+  const g = Math.min(255, Math.max(0, ((num >> 8) & 0x00ff) + percent));
+  const b = Math.min(255, Math.max(0, (num & 0x0000ff) + percent));
   return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, '0')}`;
 }
 
@@ -145,7 +149,7 @@ export function EditTagsModal({
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
-    
+
     setSaving(true);
     try {
       const tag = await api.post<Tag>('/tags', {
@@ -154,7 +158,9 @@ export function EditTagsModal({
       });
       setTags([...tags, tag]);
       setNewName('');
-      setNewColor(DEFAULT_COLORS[Math.floor(Math.random() * DEFAULT_COLORS.length)]);
+      setNewColor(
+        DEFAULT_COLORS[Math.floor(Math.random() * DEFAULT_COLORS.length)]
+      );
       setIsCreating(false);
       toast.success(tCommon('success') || 'Tag created');
       onTagsUpdated?.();
@@ -179,7 +185,7 @@ export function EditTagsModal({
 
   const handleSaveEdit = async () => {
     if (!editingId || !editName.trim()) return;
-    
+
     setSaving(true);
     try {
       const updated = await api.put<Tag>(`/tags/${editingId}`, {
@@ -204,7 +210,7 @@ export function EditTagsModal({
 
   const confirmDelete = async () => {
     if (!tagToDelete) return;
-    
+
     try {
       await api.delete(`/tags/${tagToDelete.id}`);
       setTags(tags.filter((t) => t.id !== tagToDelete.id));
@@ -220,243 +226,246 @@ export function EditTagsModal({
 
   return (
     <>
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <IconTag className="h-5 w-5" />
-            {t('title')}
-          </DialogTitle>
-          <DialogDescription>
-            {t('description')}
-          </DialogDescription>
-        </DialogHeader>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className='max-w-md'>
+          <DialogHeader>
+            <DialogTitle className='flex items-center gap-2'>
+              <IconTag className='h-5 w-5' />
+              {t('title')}
+            </DialogTitle>
+            <DialogDescription>{t('description')}</DialogDescription>
+          </DialogHeader>
 
-        <div className="space-y-4">
-          {/* Create new tag section */}
-          {isCreating ? (
-            <div className="space-y-3 rounded-lg border p-3">
-              <div className="space-y-2">
-                <Label>{t('tagName')}</Label>
-                <Input
-                  placeholder={t('enterTagName')}
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  autoFocus
-                />
-              </div>
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <IconColorPicker className="h-4 w-4" />
-                  {t('color')}
-                </Label>
-                <div className="flex flex-wrap items-center gap-2">
-                  {DEFAULT_COLORS.map((color) => (
-                    <button
-                      key={color}
-                      onClick={() => setNewColor(color)}
-                      className={cn(
-                        'h-8 w-8 rounded-lg border-2 transition-all hover:scale-110',
-                        newColor === color
-                          ? 'border-foreground ring-2 ring-offset-2 ring-foreground/20'
-                          : 'border-transparent hover:border-gray-300'
-                      )}
-                      style={{ 
-                        background: `linear-gradient(135deg, ${color} 0%, ${adjustBrightness(color, -30)} 100%)`
-                      }}
-                    />
-                  ))}
-                  <ColorPickerButton
-                    color={newColor}
-                    onChange={setNewColor}
+          <div className='space-y-4'>
+            {/* Create new tag section */}
+            {isCreating ? (
+              <div className='space-y-3 rounded-lg border p-3'>
+                <div className='space-y-2'>
+                  <Label>{t('tagName')}</Label>
+                  <Input
+                    placeholder={t('enterTagName')}
+                    value={newName}
+                    onChange={(e) => setNewName(e.target.value)}
+                    autoFocus
                   />
                 </div>
-                {/* Color preview */}
-                <div className="flex items-center gap-2 mt-2">
-                  <span className="text-sm text-muted-foreground">{t('preview')}:</span>
-                  <Badge
-                    variant="secondary"
-                    style={{
-                      backgroundColor: `${newColor}20`,
-                      color: newColor,
-                      borderColor: newColor
-                    }}
-                    className="border"
+                <div className='space-y-2'>
+                  <Label className='flex items-center gap-2'>
+                    <IconColorPicker className='h-4 w-4' />
+                    {t('color')}
+                  </Label>
+                  <div className='flex flex-wrap items-center gap-2'>
+                    {DEFAULT_COLORS.map((color) => (
+                      <button
+                        key={color}
+                        onClick={() => setNewColor(color)}
+                        className={cn(
+                          'h-8 w-8 rounded-lg border-2 transition-all hover:scale-110',
+                          newColor === color
+                            ? 'border-foreground ring-foreground/20 ring-2 ring-offset-2'
+                            : 'border-transparent hover:border-gray-300'
+                        )}
+                        style={{
+                          background: `linear-gradient(135deg, ${color} 0%, ${adjustBrightness(color, -30)} 100%)`
+                        }}
+                      />
+                    ))}
+                    <ColorPickerButton
+                      color={newColor}
+                      onChange={setNewColor}
+                    />
+                  </div>
+                  {/* Color preview */}
+                  <div className='mt-2 flex items-center gap-2'>
+                    <span className='text-muted-foreground text-sm'>
+                      {t('preview')}:
+                    </span>
+                    <Badge
+                      variant='secondary'
+                      style={{
+                        backgroundColor: `${newColor}20`,
+                        color: newColor,
+                        borderColor: newColor
+                      }}
+                      className='border'
+                    >
+                      {newName || t('tagName')}
+                    </Badge>
+                  </div>
+                </div>
+                <div className='flex gap-2'>
+                  <Button
+                    size='sm'
+                    onClick={handleCreate}
+                    disabled={saving || !newName.trim()}
                   >
-                    {newName || t('tagName')}
-                  </Badge>
+                    {saving ? (
+                      <IconLoader2 className='h-4 w-4 animate-spin' />
+                    ) : (
+                      <IconCheck className='h-4 w-4' />
+                    )}
+                    {t('create')}
+                  </Button>
+                  <Button
+                    variant='ghost'
+                    size='sm'
+                    onClick={() => setIsCreating(false)}
+                  >
+                    {t('cancel')}
+                  </Button>
                 </div>
               </div>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  onClick={handleCreate}
-                  disabled={saving || !newName.trim()}
-                >
-                  {saving ? (
-                    <IconLoader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <IconCheck className="h-4 w-4" />
-                  )}
-                  {t('create')}
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={() => setIsCreating(false)}
-                >
-                  {t('cancel')}
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => setIsCreating(true)}
-            >
-              <IconPlus className="mr-2 h-4 w-4" />
-              {t('createNewTag')}
-            </Button>
-          )}
-
-          {/* Tags list */}
-          <div className="space-y-2 max-h-[300px] overflow-y-auto">
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <IconLoader2 className="h-6 w-6 animate-spin" />
-              </div>
-            ) : tags.length === 0 ? (
-              <div className="text-muted-foreground py-8 text-center text-sm">
-                {t('noTagsYet')}
-              </div>
             ) : (
-              tags.map((tag) =>
-                editingId === tag.id ? (
-                  <div
-                    key={tag.id}
-                    className="flex items-center gap-2 rounded-lg border p-2"
-                  >
-                    <Input
-                      value={editName}
-                      onChange={(e) => setEditName(e.target.value)}
-                      className="h-8 flex-1"
-                      autoFocus
-                    />
-                    <div className="flex items-center gap-1">
-                      {DEFAULT_COLORS.slice(0, 4).map((color) => (
-                        <button
-                          key={color}
-                          onClick={() => setEditColor(color)}
-                          className={cn(
-                            'h-6 w-6 rounded-md border transition-all hover:scale-110',
-                            editColor === color
-                              ? 'border-foreground ring-1 ring-foreground/20'
-                              : 'border-transparent'
-                          )}
-                          style={{ 
-                            background: `linear-gradient(135deg, ${color} 0%, ${adjustBrightness(color, -30)} 100%)`
+              <Button
+                variant='outline'
+                className='w-full'
+                onClick={() => setIsCreating(true)}
+              >
+                <IconPlus className='mr-2 h-4 w-4' />
+                {t('createNewTag')}
+              </Button>
+            )}
+
+            {/* Tags list */}
+            <div className='max-h-[300px] space-y-2 overflow-y-auto'>
+              {loading ? (
+                <div className='flex items-center justify-center py-8'>
+                  <IconLoader2 className='h-6 w-6 animate-spin' />
+                </div>
+              ) : tags.length === 0 ? (
+                <div className='text-muted-foreground py-8 text-center text-sm'>
+                  {t('noTagsYet')}
+                </div>
+              ) : (
+                tags.map((tag) =>
+                  editingId === tag.id ? (
+                    <div
+                      key={tag.id}
+                      className='flex items-center gap-2 rounded-lg border p-2'
+                    >
+                      <Input
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        className='h-8 flex-1'
+                        autoFocus
+                      />
+                      <div className='flex items-center gap-1'>
+                        {DEFAULT_COLORS.slice(0, 4).map((color) => (
+                          <button
+                            key={color}
+                            onClick={() => setEditColor(color)}
+                            className={cn(
+                              'h-6 w-6 rounded-md border transition-all hover:scale-110',
+                              editColor === color
+                                ? 'border-foreground ring-foreground/20 ring-1'
+                                : 'border-transparent'
+                            )}
+                            style={{
+                              background: `linear-gradient(135deg, ${color} 0%, ${adjustBrightness(color, -30)} 100%)`
+                            }}
+                          />
+                        ))}
+                        <ColorPickerButton
+                          color={editColor}
+                          onChange={setEditColor}
+                          className='ml-1'
+                        />
+                      </div>
+                      <Button
+                        size='icon'
+                        variant='ghost'
+                        className='h-7 w-7'
+                        onClick={handleSaveEdit}
+                        disabled={saving}
+                      >
+                        <IconCheck className='h-4 w-4' />
+                      </Button>
+                      <Button
+                        size='icon'
+                        variant='ghost'
+                        className='h-7 w-7'
+                        onClick={handleCancelEdit}
+                      >
+                        <IconX className='h-4 w-4' />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div
+                      key={tag.id}
+                      className='hover:bg-muted/50 flex items-center justify-between rounded-lg border p-2 transition-colors'
+                    >
+                      <div className='flex items-center gap-2'>
+                        <div
+                          className='h-4 w-4 rounded-full shadow-sm'
+                          style={{
+                            background: `linear-gradient(135deg, ${tag.color || DEFAULT_COLORS[0]} 0%, ${adjustBrightness(tag.color || DEFAULT_COLORS[0], -30)} 100%)`
                           }}
                         />
-                      ))}
-                      <ColorPickerButton
-                        color={editColor}
-                        onChange={setEditColor}
-                        className="ml-1"
-                      />
+                        <Badge
+                          variant='secondary'
+                          className='border'
+                          style={{
+                            backgroundColor: `${tag.color || DEFAULT_COLORS[0]}20`,
+                            color: tag.color || DEFAULT_COLORS[0],
+                            borderColor: `${tag.color || DEFAULT_COLORS[0]}40`
+                          }}
+                        >
+                          {tag.name}
+                        </Badge>
+                      </div>
+                      <div className='flex gap-1'>
+                        <Button
+                          size='icon'
+                          variant='ghost'
+                          className='h-7 w-7'
+                          onClick={() => handleStartEdit(tag)}
+                        >
+                          <IconPencil className='h-4 w-4' />
+                        </Button>
+                        <Button
+                          size='icon'
+                          variant='ghost'
+                          className='text-destructive hover:text-destructive h-7 w-7'
+                          onClick={() => handleDeleteClick(tag)}
+                        >
+                          <IconTrash className='h-4 w-4' />
+                        </Button>
+                      </div>
                     </div>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7"
-                      onClick={handleSaveEdit}
-                      disabled={saving}
-                    >
-                      <IconCheck className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-7 w-7"
-                      onClick={handleCancelEdit}
-                    >
-                      <IconX className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ) : (
-                  <div
-                    key={tag.id}
-                    className="flex items-center justify-between rounded-lg border p-2 hover:bg-muted/50 transition-colors"
-                  >
-                    <div className="flex items-center gap-2">
-                      <div
-                        className="h-4 w-4 rounded-full shadow-sm"
-                        style={{
-                          background: `linear-gradient(135deg, ${tag.color || DEFAULT_COLORS[0]} 0%, ${adjustBrightness(tag.color || DEFAULT_COLORS[0], -30)} 100%)`
-                        }}
-                      />
-                      <Badge
-                        variant="secondary"
-                        className="border"
-                        style={{
-                          backgroundColor: `${tag.color || DEFAULT_COLORS[0]}20`,
-                          color: tag.color || DEFAULT_COLORS[0],
-                          borderColor: `${tag.color || DEFAULT_COLORS[0]}40`
-                        }}
-                      >
-                        {tag.name}
-                      </Badge>
-                    </div>
-                    <div className="flex gap-1">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="h-7 w-7"
-                        onClick={() => handleStartEdit(tag)}
-                      >
-                        <IconPencil className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        className="text-destructive hover:text-destructive h-7 w-7"
-                        onClick={() => handleDeleteClick(tag)}
-                      >
-                        <IconTrash className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
+                  )
                 )
-              )
-            )}
+              )}
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="sm:max-w-[400px]">
-          <AlertDialogHeader className="flex flex-col items-center gap-4 pt-4">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
-              <IconTrash className="h-8 w-8 text-red-600 dark:text-red-400" />
+        <AlertDialogContent className='sm:max-w-[400px]'>
+          <AlertDialogHeader className='flex flex-col items-center gap-4 pt-4'>
+            <div className='flex h-16 w-16 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30'>
+              <IconTrash className='h-8 w-8 text-red-600 dark:text-red-400' />
             </div>
-            <AlertDialogTitle className="text-center text-xl">{t('deleteTitle')}</AlertDialogTitle>
-            <AlertDialogDescription className="text-center">
+            <AlertDialogTitle className='text-center text-xl'>
+              {t('deleteTitle')}
+            </AlertDialogTitle>
+            <AlertDialogDescription className='text-center'>
               {t('deleteDescription', { name: tagToDelete?.name || '' })}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter className="flex-col gap-2 sm:flex-col sm:space-x-0 pt-4">
+          <AlertDialogFooter className='flex-col gap-2 pt-4 sm:flex-col sm:space-x-0'>
             <AlertDialogAction
               onClick={confirmDelete}
-              className="w-full bg-gradient-to-r from-red-600 to-red-500 text-white hover:from-red-700 hover:to-red-600 shadow-lg shadow-red-500/20"
+              className='w-full bg-gradient-to-r from-red-600 to-red-500 text-white shadow-lg shadow-red-500/20 hover:from-red-700 hover:to-red-600'
             >
               {t('deleteConfirm')}
             </AlertDialogAction>
-            <AlertDialogCancel className="w-full">{t('cancel')}</AlertDialogCancel>
+            <AlertDialogCancel className='w-full'>
+              {t('cancel')}
+            </AlertDialogCancel>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
   );
 }
-

@@ -142,7 +142,7 @@ export function ContactActivities({ contactId }: ContactActivitiesProps) {
           {contact.tags.map((t) => (
             <span
               key={t.tag.id}
-              className='inline-flex items-center gap-1 rounded-full bg-muted/60 px-2 py-0.5 text-[10px] font-medium'
+              className='bg-muted/60 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium'
             >
               <span
                 className='h-1.5 w-1.5 rounded-full'
@@ -180,8 +180,8 @@ function ActivityRow({ activity }: { activity: ContactActivity }) {
       : '--:--';
 
     return (
-      <div className='flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs hover:bg-muted/30'>
-        <div className='bg-blue-500/10 flex h-6 w-6 shrink-0 items-center justify-center rounded-md'>
+      <div className='hover:bg-muted/30 flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs'>
+        <div className='flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-blue-500/10'>
           {call.direction === 'inbound' ? (
             <PhoneIncoming className='h-3 w-3 text-blue-500' />
           ) : (
@@ -189,7 +189,9 @@ function ActivityRow({ activity }: { activity: ContactActivity }) {
           )}
         </div>
         <div className='min-w-0 flex-1'>
-          <span className='font-medium capitalize'>{call.direction || 'outbound'} call</span>
+          <span className='font-medium capitalize'>
+            {call.direction || 'outbound'} call
+          </span>
           {call.outcome && (
             <span className='text-muted-foreground ml-1.5'>
               &middot; {call.outcome.replace(/_/g, ' ')}
@@ -209,8 +211,8 @@ function ActivityRow({ activity }: { activity: ContactActivity }) {
 
   if (activity.type === 'note') {
     return (
-      <div className='flex items-start gap-2.5 rounded-md px-2 py-1.5 text-xs hover:bg-muted/30'>
-        <div className='bg-amber-500/10 flex h-6 w-6 shrink-0 items-center justify-center rounded-md'>
+      <div className='hover:bg-muted/30 flex items-start gap-2.5 rounded-md px-2 py-1.5 text-xs'>
+        <div className='flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-500/10'>
           <FileText className='h-3 w-3 text-amber-500' />
         </div>
         <div className='min-w-0 flex-1'>
@@ -226,24 +228,36 @@ function ActivityRow({ activity }: { activity: ContactActivity }) {
   if (activity.type === 'meeting') {
     const meeting = activity.data;
     return (
-      <div className='flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs hover:bg-muted/30'>
-        <div className={cn(
-          'flex h-6 w-6 shrink-0 items-center justify-center rounded-md',
-          meeting.status === 'scheduled' ? 'bg-emerald-500/10' : 
-          meeting.status === 'completed' ? 'bg-blue-500/10' : 
-          meeting.status === 'cancelled' ? 'bg-red-500/10' :
-          'bg-amber-500/10'
-        )}>
-          <CalendarDays className={cn(
-            'h-3 w-3',
-            meeting.status === 'scheduled' ? 'text-emerald-500' : 
-            meeting.status === 'completed' ? 'text-blue-500' : 
-            meeting.status === 'cancelled' ? 'text-red-500' :
-            'text-amber-500'
-          )} />
+      <div className='hover:bg-muted/30 flex items-center gap-2.5 rounded-md px-2 py-1.5 text-xs'>
+        <div
+          className={cn(
+            'flex h-6 w-6 shrink-0 items-center justify-center rounded-md',
+            meeting.status === 'scheduled'
+              ? 'bg-emerald-500/10'
+              : meeting.status === 'completed'
+                ? 'bg-blue-500/10'
+                : meeting.status === 'cancelled'
+                  ? 'bg-red-500/10'
+                  : 'bg-amber-500/10'
+          )}
+        >
+          <CalendarDays
+            className={cn(
+              'h-3 w-3',
+              meeting.status === 'scheduled'
+                ? 'text-emerald-500'
+                : meeting.status === 'completed'
+                  ? 'text-blue-500'
+                  : meeting.status === 'cancelled'
+                    ? 'text-red-500'
+                    : 'text-amber-500'
+            )}
+          />
         </div>
         <div className='min-w-0 flex-1'>
-          <span className='font-medium capitalize'>Meeting {meeting.status}</span>
+          <span className='font-medium capitalize'>
+            Meeting {meeting.status}
+          </span>
           {meeting.title && (
             <span className='text-muted-foreground ml-1.5 truncate'>
               &middot; {meeting.title}
@@ -254,7 +268,7 @@ function ActivityRow({ activity }: { activity: ContactActivity }) {
           <Clock className='h-3 w-3' />
           {meeting.duration}m
         </div>
-        <span className='text-muted-foreground shrink-0 w-12 text-right'>
+        <span className='text-muted-foreground w-12 shrink-0 text-right'>
           {format(new Date(activity.date), 'MMM d')}
         </span>
       </div>

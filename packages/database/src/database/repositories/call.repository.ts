@@ -5,7 +5,7 @@ import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
 
 @Injectable()
 export class CallRepository {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async createCall(
     ctx: OwnershipContext,
@@ -77,12 +77,12 @@ export class CallRepository {
       (endedAtDate.getTime() - startedAtDate.getTime()) / 1000,
     );
 
-   const call =  await this.findByControlId(callControlId);
+    const call = await this.findByControlId(callControlId);
 
-   if(!call) {
-      console.log(call, "CALL NOT FOUND")
-     return call as unknown as Call 
-   }
+    if (!call) {
+      console.log(call, "CALL NOT FOUND");
+      return call as unknown as Call;
+    }
 
     return this.prisma.call.update({
       where: { callControlId },
@@ -212,12 +212,18 @@ export class CallRepository {
         orderBy: { [orderBy]: sortDirection },
         include: {
           contact: includeMeetings
-            ? { include: { meetings: { orderBy: { scheduledAt: "desc" }, take: 1 } } }
+            ? {
+                include: {
+                  meetings: { orderBy: { scheduledAt: "desc" }, take: 1 },
+                },
+              }
             : true,
           user: true,
           recordings: true,
           ...(includeTranscriptions ? { callTranscriptions: true } : {}),
-          ...(includeMeetings ? { meetings: { orderBy: { scheduledAt: "desc" }, take: 1 } } : {}),
+          ...(includeMeetings
+            ? { meetings: { orderBy: { scheduledAt: "desc" }, take: 1 } }
+            : {}),
         },
       }),
       this.prisma.call.count({ where }),

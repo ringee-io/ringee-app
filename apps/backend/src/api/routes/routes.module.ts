@@ -120,4 +120,4 @@ import { TranscriptionController } from "./transcription.controller";
     RedisModule,
   ],
 })
-export class RoutesModule { }
+export class RoutesModule {}

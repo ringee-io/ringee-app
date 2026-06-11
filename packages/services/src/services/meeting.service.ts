@@ -43,7 +43,10 @@ export class MeetingService {
   ) {}
 
   private async enqueueMeetingCreated(meeting: Meeting): Promise<void> {
-    const ctx = { userId: meeting.userId, organizationId: meeting.organizationId };
+    const ctx = {
+      userId: meeting.userId,
+      organizationId: meeting.organizationId,
+    };
     const contact = await this.contactRepo.findById(meeting.contactId);
     void this.customIntegrationOutbound.enqueue({
       ctx,
@@ -98,7 +101,10 @@ export class MeetingService {
     if (dto.callId) {
       const call = await this.callRepo.findById(dto.callId);
       if (call) {
-        const updated = await this.callRepo.updateOutcome(call.id, CallOutcome.meeting_booked);
+        const updated = await this.callRepo.updateOutcome(
+          call.id,
+          CallOutcome.meeting_booked,
+        );
         await this.enqueueOutcomeUpdated(updated);
       }
     }
@@ -107,7 +113,8 @@ export class MeetingService {
     await this.enqueueMeetingCreated(meeting);
 
     // Best-effort: push to external calendar (Google/Microsoft)
-    let calendarResult: { externalEventId: string; meetLink?: string } | null = null;
+    let calendarResult: { externalEventId: string; meetLink?: string } | null =
+      null;
     try {
       calendarResult = await this.calendarService.createCalendarEvent(ctx, {
         meetingId: meeting.id,
@@ -263,7 +270,7 @@ export class MeetingService {
       outcome: CallOutcome;
       outcomeNote?: string;
     },
-  ) : Promise<Call> {
+  ): Promise<Call> {
     const call = await this.callRepo.findById(callId);
     if (!call) throw new NotFoundException("Call not found");
 
@@ -274,7 +281,11 @@ export class MeetingService {
       throw new ForbiddenException("Access denied");
     }
 
-    const updated = await this.callRepo.updateOutcome(callId, dto.outcome, dto.outcomeNote);
+    const updated = await this.callRepo.updateOutcome(
+      callId,
+      dto.outcome,
+      dto.outcomeNote,
+    );
     await this.enqueueOutcomeUpdated(updated);
     return updated;
   }

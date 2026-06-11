@@ -34,12 +34,16 @@ export class TriggerLoopActionExecutionRepository {
 
   private get delegate() {
     // Cast to the generated delegate shape once.
-    return (this.prisma as unknown as {
-      triggerLoopActionExecution: {
-        findUnique: (args: unknown) => Promise<TriggerLoopActionExecutionRecord | null>;
-        upsert: (args: unknown) => Promise<TriggerLoopActionExecutionRecord>;
-      };
-    }).triggerLoopActionExecution;
+    return (
+      this.prisma as unknown as {
+        triggerLoopActionExecution: {
+          findUnique: (
+            args: unknown,
+          ) => Promise<TriggerLoopActionExecutionRecord | null>;
+          upsert: (args: unknown) => Promise<TriggerLoopActionExecutionRecord>;
+        };
+      }
+    ).triggerLoopActionExecution;
   }
 
   findByKey(
@@ -99,7 +103,7 @@ export class TriggerLoopActionExecutionRepository {
         // success back to failure just because TriggerLoop re-delivered.
         success: input.success ? true : undefined,
         externalReference: input.success
-          ? input.externalReference ?? undefined
+          ? (input.externalReference ?? undefined)
           : undefined,
         errorMessage: input.success ? null : input.errorMessage,
         attemptCount: { increment: 1 },

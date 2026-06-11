@@ -43,8 +43,12 @@ export class AiSummarizerService {
     private readonly credits: CreditService,
   ) {}
 
-  shouldSummarize(estimatedTokens: number, conversation: AiConversation): boolean {
-    if (estimatedTokens < apiConfiguration.AI_SUMMARY_TRIGGER_TOKENS) return false;
+  shouldSummarize(
+    estimatedTokens: number,
+    conversation: AiConversation,
+  ): boolean {
+    if (estimatedTokens < apiConfiguration.AI_SUMMARY_TRIGGER_TOKENS)
+      return false;
     // Re-summarize at most every 10 messages to avoid loops.
     return true;
   }

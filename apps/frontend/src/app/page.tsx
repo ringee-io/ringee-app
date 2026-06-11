@@ -12,7 +12,10 @@ import { Suspense } from 'react';
 import PageContainer from '@/components/layout/page-container';
 import { apiServer } from '@ringee/frontend-shared/lib/api.server';
 import LandingPageView from '@/features/landing/components/landing.page.view';
-import { SidebarInset, SidebarProvider } from '@ringee/frontend-shared/components/ui/sidebar';
+import {
+  SidebarInset,
+  SidebarProvider
+} from '@ringee/frontend-shared/components/ui/sidebar';
 import KBar from '@ringee/frontend-shared/components/kbar';
 import Header from '@/components/layout/header';
 import AppMainSidebar from '@/components/layout/app.main.sidebar';

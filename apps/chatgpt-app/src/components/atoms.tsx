@@ -51,9 +51,21 @@ export function StatusPill({
 export function SensitivityBadge({ level }: { level: Sensitivity }) {
   if (level === "read") return null;
   const map = {
-    write: { variant: "info" as const, icon: ShieldCheck, label: "Normal action" },
-    sensitive: { variant: "warning" as const, icon: Sparkles, label: "Sensitive" },
-    destructive: { variant: "destructive" as const, icon: Trash2, label: "Destructive" },
+    write: {
+      variant: "info" as const,
+      icon: ShieldCheck,
+      label: "Normal action",
+    },
+    sensitive: {
+      variant: "warning" as const,
+      icon: Sparkles,
+      label: "Sensitive",
+    },
+    destructive: {
+      variant: "destructive" as const,
+      icon: Trash2,
+      label: "Destructive",
+    },
   };
   const cfg = map[level];
   const Icon = cfg.icon;
@@ -73,7 +85,8 @@ export function GuardNote({
   level: Exclude<Sensitivity, "read" | "write">;
   children: React.ReactNode;
 }) {
-  const color = level === "destructive" ? "var(--destructive)" : "var(--warning)";
+  const color =
+    level === "destructive" ? "var(--destructive)" : "var(--warning)";
   return (
     <div
       className="flex items-start gap-2 rounded-lg border px-3 py-2 text-xs"

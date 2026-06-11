@@ -38,56 +38,64 @@ const OUTCOMES: {
     label: 'Meeting Booked',
     icon: CalendarCheck,
     color: 'text-emerald-500',
-    bgActive: 'bg-emerald-500/10 border-emerald-500 text-emerald-600 ring-1 ring-emerald-500/20'
+    bgActive:
+      'bg-emerald-500/10 border-emerald-500 text-emerald-600 ring-1 ring-emerald-500/20'
   },
   {
     id: 'sale',
     label: 'Sale',
     icon: DollarSign,
     color: 'text-green-500',
-    bgActive: 'bg-green-500/10 border-green-500 text-green-600 ring-1 ring-green-500/20'
+    bgActive:
+      'bg-green-500/10 border-green-500 text-green-600 ring-1 ring-green-500/20'
   },
   {
     id: 'interested',
     label: 'Interested',
     icon: ThumbsUp,
     color: 'text-blue-500',
-    bgActive: 'bg-blue-500/10 border-blue-500 text-blue-600 ring-1 ring-blue-500/20'
+    bgActive:
+      'bg-blue-500/10 border-blue-500 text-blue-600 ring-1 ring-blue-500/20'
   },
   {
     id: 'follow_up',
     label: 'Follow Up',
     icon: Clock,
     color: 'text-amber-500',
-    bgActive: 'bg-amber-500/10 border-amber-500 text-amber-600 ring-1 ring-amber-500/20'
+    bgActive:
+      'bg-amber-500/10 border-amber-500 text-amber-600 ring-1 ring-amber-500/20'
   },
   {
     id: 'callback_scheduled',
     label: 'Schedule Callback',
     icon: PhoneCall,
     color: 'text-amber-500',
-    bgActive: 'bg-amber-500/10 border-amber-500 text-amber-600 ring-1 ring-amber-500/20'
+    bgActive:
+      'bg-amber-500/10 border-amber-500 text-amber-600 ring-1 ring-amber-500/20'
   },
   {
     id: 'not_interested',
     label: 'Not Interested',
     icon: ThumbsDown,
     color: 'text-slate-400',
-    bgActive: 'bg-slate-500/10 border-slate-400 text-slate-500 ring-1 ring-slate-400/20'
+    bgActive:
+      'bg-slate-500/10 border-slate-400 text-slate-500 ring-1 ring-slate-400/20'
   },
   {
     id: 'no_answer',
     label: 'No Answer',
     icon: PhoneMissed,
     color: 'text-gray-400',
-    bgActive: 'bg-gray-500/10 border-gray-400 text-gray-500 ring-1 ring-gray-400/20'
+    bgActive:
+      'bg-gray-500/10 border-gray-400 text-gray-500 ring-1 ring-gray-400/20'
   },
   {
     id: 'voicemail',
     label: 'Voicemail',
     icon: Voicemail,
     color: 'text-purple-400',
-    bgActive: 'bg-purple-500/10 border-purple-400 text-purple-500 ring-1 ring-purple-400/20'
+    bgActive:
+      'bg-purple-500/10 border-purple-400 text-purple-500 ring-1 ring-purple-400/20'
   },
   {
     id: 'wrong_number',
@@ -101,7 +109,8 @@ const OUTCOMES: {
     label: 'Gatekeeper',
     icon: ShieldAlert,
     color: 'text-orange-400',
-    bgActive: 'bg-orange-500/10 border-orange-400 text-orange-500 ring-1 ring-orange-400/20'
+    bgActive:
+      'bg-orange-500/10 border-orange-400 text-orange-500 ring-1 ring-orange-400/20'
   }
 ];
 
@@ -187,7 +196,9 @@ export function PostCallView({ onClose }: PostCallViewProps) {
         <div className='bg-muted/50 mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full'>
           <Check className='h-5 w-5 text-emerald-500' />
         </div>
-        <h3 className='text-base font-semibold tracking-tight'>How did it go?</h3>
+        <h3 className='text-base font-semibold tracking-tight'>
+          How did it go?
+        </h3>
         <p className='text-muted-foreground mt-0.5 text-sm'>
           {callContactName || 'Unknown'} &middot; {durationLabel}
         </p>
@@ -214,10 +225,14 @@ export function PostCallView({ onClose }: PostCallViewProps) {
       )}
 
       {/* Outcomes */}
-      <div className='flex flex-col gap-3 mb-2'>
-        <p className='text-xs font-medium uppercase tracking-wider text-muted-foreground'>Successful Outcomes</p>
+      <div className='mb-2 flex flex-col gap-3'>
+        <p className='text-muted-foreground text-xs font-medium tracking-wider uppercase'>
+          Successful Outcomes
+        </p>
         <div className='grid grid-cols-2 gap-2.5'>
-          {OUTCOMES.filter(o => ['sale', 'meeting_booked'].includes(o.id)).map(o => {
+          {OUTCOMES.filter((o) =>
+            ['sale', 'meeting_booked'].includes(o.id)
+          ).map((o) => {
             const Icon = o.icon;
             const isSelected = outcome === o.id;
             return (
@@ -227,22 +242,31 @@ export function PostCallView({ onClose }: PostCallViewProps) {
                 className={cn(
                   'flex items-center gap-3 rounded-xl border p-3 text-sm font-semibold transition-all duration-200 active:scale-95',
                   isSelected
-                    ? cn(o.bgActive, 'shadow-md scale-[1.02]')
+                    ? cn(o.bgActive, 'scale-[1.02] shadow-md')
                     : 'border-border/60 bg-card hover:border-border hover:bg-muted/30 hover:shadow-sm'
                 )}
               >
-                <div className={cn('flex items-center justify-center rounded-lg p-2 transition-colors', isSelected ? 'bg-background/50' : 'bg-muted/50')}>
+                <div
+                  className={cn(
+                    'flex items-center justify-center rounded-lg p-2 transition-colors',
+                    isSelected ? 'bg-background/50' : 'bg-muted/50'
+                  )}
+                >
                   <Icon className={cn('h-5 w-5', isSelected ? '' : o.color)} />
                 </div>
                 <span>{o.label}</span>
               </button>
-            )
+            );
           })}
         </div>
-        
-        <p className='text-xs font-medium uppercase tracking-wider text-muted-foreground mt-2'>Other Dispositions</p>
+
+        <p className='text-muted-foreground mt-2 text-xs font-medium tracking-wider uppercase'>
+          Other Dispositions
+        </p>
         <div className='grid grid-cols-3 gap-2'>
-          {OUTCOMES.filter(o => !['sale', 'meeting_booked'].includes(o.id)).map(o => {
+          {OUTCOMES.filter(
+            (o) => !['sale', 'meeting_booked'].includes(o.id)
+          ).map((o) => {
             const Icon = o.icon;
             const isSelected = outcome === o.id;
             return (
@@ -256,8 +280,10 @@ export function PostCallView({ onClose }: PostCallViewProps) {
                     : 'border-border/50 bg-card hover:border-border hover:bg-muted/20'
                 )}
               >
-                <Icon className={cn('h-4 w-4 mb-0.5', isSelected ? '' : o.color)} />
-                <span className='leading-tight text-center'>
+                <Icon
+                  className={cn('mb-0.5 h-4 w-4', isSelected ? '' : o.color)}
+                />
+                <span className='text-center leading-tight'>
                   {o.id === 'callback_scheduled' ? t('disposition') : o.label}
                 </span>
               </button>
@@ -317,7 +343,7 @@ export function PostCallView({ onClose }: PostCallViewProps) {
       <div className='flex items-center gap-3'>
         <button
           onClick={onClose}
-          className='text-muted-foreground flex-shrink-0 text-xs transition-colors hover:text-foreground'
+          className='text-muted-foreground hover:text-foreground flex-shrink-0 text-xs transition-colors'
         >
           Skip
         </button>

@@ -9,10 +9,10 @@ const VideoDemo = () => {
   return (
     <section className='mx-auto max-w-6xl px-6 py-16'>
       <div className='text-center'>
-        <h2 className='text-3xl xs:text-4xl font-bold tracking-tight sm:text-5xl'>
+        <h2 className='xs:text-4xl text-3xl font-bold tracking-tight sm:text-5xl'>
           {t('title')}
         </h2>
-        <p className='mx-auto mt-3 max-w-xl text-md text-gray-600 dark:text-gray-400'>
+        <p className='text-md mx-auto mt-3 max-w-xl text-gray-600 dark:text-gray-400'>
           {t('subtitle')}
         </p>
       </div>
@@ -35,7 +35,10 @@ const VideoDemo = () => {
         {/* Video container */}
         <div className='group relative w-full max-w-2xl'>
           <div className='relative overflow-hidden rounded-xl border border-white/10 bg-black shadow-2xl'>
-            <div className='relative w-full' style={{ paddingBottom: '56.25%' }}>
+            <div
+              className='relative w-full'
+              style={{ paddingBottom: '56.25%' }}
+            >
               <iframe
                 className='absolute inset-0 h-full w-full'
                 src='https://www.youtube.com/embed/WiHE9RFmECc'
@@ -75,9 +78,13 @@ const FeatureCard = ({
   description: string;
 }) => (
   <div className='flex w-44 flex-col items-center rounded-xl border border-gray-200 bg-gray-100/50 p-4 text-center backdrop-blur-sm transition-all hover:border-gray-300 hover:bg-gray-100 dark:border-white/10 dark:bg-white/5 dark:hover:border-white/20 dark:hover:bg-white/10'>
-    <div className='mb-2 rounded-full bg-gray-200 p-2 dark:bg-white/10'>{icon}</div>
+    <div className='mb-2 rounded-full bg-gray-200 p-2 dark:bg-white/10'>
+      {icon}
+    </div>
     <h3 className='font-semibold'>{title}</h3>
-    <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>{description}</p>
+    <p className='mt-1 text-xs text-gray-500 dark:text-gray-400'>
+      {description}
+    </p>
   </div>
 );
 

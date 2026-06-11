@@ -6,12 +6,7 @@ import { Textarea } from '@ringee/frontend-shared/components/ui/textarea';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
-import {
-  Calendar,
-  CalendarClock,
-  ClipboardList,
-  Loader2,
-} from 'lucide-react';
+import { Calendar, CalendarClock, ClipboardList, Loader2 } from 'lucide-react';
 import type { CallOutcome, SessionItemDto } from '../api';
 import type { CallSessionPhase } from '../use-call-session';
 
@@ -24,16 +19,31 @@ interface OutcomeMeta {
 }
 
 const OUTCOMES: OutcomeMeta[] = [
-  { value: 'meeting_booked', label: 'Meeting booked', tone: 'positive', triggersMeeting: true },
+  {
+    value: 'meeting_booked',
+    label: 'Meeting booked',
+    tone: 'positive',
+    triggersMeeting: true
+  },
   { value: 'sale', label: 'Sale', tone: 'positive' },
   { value: 'interested', label: 'Interested', tone: 'positive' },
-  { value: 'follow_up', label: 'Follow up', tone: 'neutral', triggersCallback: true },
-  { value: 'callback_scheduled', label: 'Callback scheduled', tone: 'neutral', triggersCallback: true },
+  {
+    value: 'follow_up',
+    label: 'Follow up',
+    tone: 'neutral',
+    triggersCallback: true
+  },
+  {
+    value: 'callback_scheduled',
+    label: 'Callback scheduled',
+    tone: 'neutral',
+    triggersCallback: true
+  },
   { value: 'not_interested', label: 'Not interested', tone: 'negative' },
   { value: 'no_answer', label: 'No answer', tone: 'neutral' },
   { value: 'voicemail', label: 'Voicemail', tone: 'neutral' },
   { value: 'wrong_number', label: 'Wrong number', tone: 'negative' },
-  { value: 'gatekeeper', label: 'Gatekeeper', tone: 'neutral' },
+  { value: 'gatekeeper', label: 'Gatekeeper', tone: 'neutral' }
 ];
 
 interface Props {
@@ -52,7 +62,7 @@ interface Props {
         attendeeEmail?: string;
       };
     },
-    action: 'continue' | 'stop',
+    action: 'continue' | 'stop'
   ) => void | Promise<void>;
 }
 
@@ -81,10 +91,10 @@ export function SessionDispositionPanel(props: Props) {
 
   if (phase !== 'wrap_up') {
     return (
-      <div className="flex h-full flex-col items-center justify-center p-6 text-center">
-        <ClipboardList className="mb-3 h-10 w-10 text-muted-foreground" />
-        <h3 className="font-semibold">Disposition</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
+      <div className='flex h-full flex-col items-center justify-center p-6 text-center'>
+        <ClipboardList className='text-muted-foreground mb-3 h-10 w-10' />
+        <h3 className='font-semibold'>Disposition</h3>
+        <p className='text-muted-foreground mt-1 text-sm'>
           {phase === 'preview'
             ? 'Select a call outcome after each call.'
             : phase === 'completed'
@@ -111,7 +121,7 @@ export function SessionDispositionPanel(props: Props) {
           meetingTitle.trim() ||
           `Meeting with ${activeItem?.displayName ?? 'contact'}`,
         duration: meetingDuration,
-        attendeeEmail: meetingEmail.trim() || undefined,
+        attendeeEmail: meetingEmail.trim() || undefined
       };
     }
     void onSave(selected.value, body, action);
@@ -122,13 +132,13 @@ export function SessionDispositionPanel(props: Props) {
   const canSubmit = !!selected && !busy && !callbackMissing && !meetingMissing;
 
   return (
-    <div className="flex h-full flex-col p-4">
-      <h3 className="mb-1 text-sm font-semibold">Select disposition</h3>
-      <p className="mb-3 text-xs text-muted-foreground">
+    <div className='flex h-full flex-col p-4'>
+      <h3 className='mb-1 text-sm font-semibold'>Select disposition</h3>
+      <p className='text-muted-foreground mb-3 text-xs'>
         Outcome is required before continuing to the next contact.
       </p>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className='grid grid-cols-2 gap-2'>
         {OUTCOMES.map((o) => {
           const isSelected = selected?.value === o.value;
           const toneCls =
@@ -147,7 +157,7 @@ export function SessionDispositionPanel(props: Props) {
             <Button
               key={o.value}
               variant={isSelected ? 'default' : 'outline'}
-              size="sm"
+              size='sm'
               className={'justify-start ' + toneCls}
               onClick={() => setSelected(o)}
             >
@@ -157,16 +167,16 @@ export function SessionDispositionPanel(props: Props) {
         })}
       </div>
 
-      <Separator className="my-4" />
+      <Separator className='my-4' />
 
-      <div className="space-y-3">
-        <div className="space-y-1">
-          <Label htmlFor="dispo-note" className="text-xs">
+      <div className='space-y-3'>
+        <div className='space-y-1'>
+          <Label htmlFor='dispo-note' className='text-xs'>
             Notes (optional)
           </Label>
           <Textarea
-            id="dispo-note"
-            placeholder="Add notes from the call..."
+            id='dispo-note'
+            placeholder='Add notes from the call...'
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={3}
@@ -176,18 +186,18 @@ export function SessionDispositionPanel(props: Props) {
         {selected?.triggersCallback && (
           <>
             <Separator />
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <CalendarClock className="h-4 w-4" />
+            <div className='space-y-2'>
+              <div className='flex items-center gap-2 text-sm font-medium'>
+                <CalendarClock className='h-4 w-4' />
                 Schedule callback
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="callback-at" className="text-xs">
+              <div className='space-y-1'>
+                <Label htmlFor='callback-at' className='text-xs'>
                   Date &amp; time
                 </Label>
                 <Input
-                  id="callback-at"
-                  type="datetime-local"
+                  id='callback-at'
+                  type='datetime-local'
                   value={callbackAt}
                   onChange={(e) => setCallbackAt(e.target.value)}
                 />
@@ -199,30 +209,30 @@ export function SessionDispositionPanel(props: Props) {
         {selected?.triggersMeeting && (
           <>
             <Separator />
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Calendar className="h-4 w-4" />
+            <div className='space-y-2'>
+              <div className='flex items-center gap-2 text-sm font-medium'>
+                <Calendar className='h-4 w-4' />
                 Book meeting
               </div>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                <div className="space-y-1">
-                  <Label htmlFor="meeting-at" className="text-xs">
+              <div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
+                <div className='space-y-1'>
+                  <Label htmlFor='meeting-at' className='text-xs'>
                     Date &amp; time
                   </Label>
                   <Input
-                    id="meeting-at"
-                    type="datetime-local"
+                    id='meeting-at'
+                    type='datetime-local'
                     value={meetingAt}
                     onChange={(e) => setMeetingAt(e.target.value)}
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="meeting-duration" className="text-xs">
+                <div className='space-y-1'>
+                  <Label htmlFor='meeting-duration' className='text-xs'>
                     Duration (min)
                   </Label>
                   <Input
-                    id="meeting-duration"
-                    type="number"
+                    id='meeting-duration'
+                    type='number'
                     min={5}
                     max={480}
                     value={meetingDuration}
@@ -231,26 +241,26 @@ export function SessionDispositionPanel(props: Props) {
                     }
                   />
                 </div>
-                <div className="space-y-1 sm:col-span-2">
-                  <Label htmlFor="meeting-title" className="text-xs">
+                <div className='space-y-1 sm:col-span-2'>
+                  <Label htmlFor='meeting-title' className='text-xs'>
                     Title
                   </Label>
                   <Input
-                    id="meeting-title"
-                    type="text"
+                    id='meeting-title'
+                    type='text'
                     placeholder={`Meeting with ${activeItem?.displayName ?? 'contact'}`}
                     value={meetingTitle}
                     onChange={(e) => setMeetingTitle(e.target.value)}
                   />
                 </div>
-                <div className="space-y-1 sm:col-span-2">
-                  <Label htmlFor="meeting-email" className="text-xs">
+                <div className='space-y-1 sm:col-span-2'>
+                  <Label htmlFor='meeting-email' className='text-xs'>
                     Attendee email (optional)
                   </Label>
                   <Input
-                    id="meeting-email"
-                    type="email"
-                    placeholder="prospect@example.com"
+                    id='meeting-email'
+                    type='email'
+                    placeholder='prospect@example.com'
                     value={meetingEmail}
                     onChange={(e) => setMeetingEmail(e.target.value)}
                   />
@@ -261,13 +271,13 @@ export function SessionDispositionPanel(props: Props) {
         )}
       </div>
 
-      <div className="mt-auto flex flex-col gap-2 pt-4">
+      <div className='mt-auto flex flex-col gap-2 pt-4'>
         <Button onClick={() => submit('continue')} disabled={!canSubmit}>
-          {busy && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+          {busy && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
           Save outcome &amp; continue
         </Button>
         <Button
-          variant="outline"
+          variant='outline'
           onClick={() => submit('stop')}
           disabled={!canSubmit}
         >

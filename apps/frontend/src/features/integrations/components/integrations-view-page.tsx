@@ -1,13 +1,17 @@
 'use client';
 
-import { Alert, AlertDescription, AlertTitle } from '@ringee/frontend-shared/components/ui/alert';
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle
+} from '@ringee/frontend-shared/components/ui/alert';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import {
   Tabs,
   TabsContent,
   TabsList,
-  TabsTrigger,
+  TabsTrigger
 } from '@ringee/frontend-shared/components/ui/tabs';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import {
@@ -17,7 +21,7 @@ import {
   PlugZap,
   RefreshCw,
   Sparkles,
-  Users,
+  Users
 } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
@@ -41,7 +45,8 @@ export default function IntegrationsViewPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { connections, loading, error, reload } = useCrmConnections();
-  const [manageConnection, setManageConnection] = useState<CrmConnectionSummary | null>(null);
+  const [manageConnection, setManageConnection] =
+    useState<CrmConnectionSummary | null>(null);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
   const [syncingId, setSyncingId] = useState<string | null>(null);
   const notifiedRef = useRef<string | null>(null);
@@ -55,11 +60,13 @@ export default function IntegrationsViewPage() {
     if (notifiedRef.current === key) return;
     notifiedRef.current = key;
     if (crm === 'connected' && provider) {
-      toast.success(`${PROVIDER_META[provider as CrmProviderType]?.name ?? provider} connected`);
+      toast.success(
+        `${PROVIDER_META[provider as CrmProviderType]?.name ?? provider} connected`
+      );
       reload();
     } else if (crm === 'error') {
       toast.error(
-        `Connection failed${reason ? `: ${reason}` : ''}. Please try again.`,
+        `Connection failed${reason ? `: ${reason}` : ''}. Please try again.`
       );
     }
     const url = new URL(window.location.href);
@@ -72,13 +79,13 @@ export default function IntegrationsViewPage() {
 
   const handleConnect = async (
     provider: CrmProviderType,
-    scope: 'personal' | 'organization',
+    scope: 'personal' | 'organization'
   ) => {
     // Odoo uses credential-based auth (not OAuth) — we show a hint and let
     // the user re-enter credentials via the dialog in the catalog below.
     if (provider === 'odoo_14_18' || provider === 'odoo_19_plus') {
       toast.info(
-        'Use the Odoo card below to re-enter your credentials and reconnect.',
+        'Use the Odoo card below to re-enter your credentials and reconnect.'
       );
       return;
     }
@@ -89,7 +96,7 @@ export default function IntegrationsViewPage() {
           : undefined;
       const res = await api.get<{ url: string }>(
         `/crm/${provider}/oauth/start`,
-        { scope, ...(current ? { redirect: current } : {}) },
+        { scope, ...(current ? { redirect: current } : {}) }
       );
       if (res?.url) {
         window.location.href = res.url;
@@ -151,51 +158,51 @@ export default function IntegrationsViewPage() {
         new Set(
           connections
             .filter((c) => c.status === 'active')
-            .map((c) => c.provider),
-        ),
+            .map((c) => c.provider)
+        )
       ),
-    [connections],
+    [connections]
   );
 
   const needsAttention = connections.filter(
-    (c) => c.status === 'error' || c.status === 'revoked',
+    (c) => c.status === 'error' || c.status === 'revoked'
   );
 
   return (
-    <Tabs defaultValue="crm" className="w-full">
+    <Tabs defaultValue='crm' className='w-full'>
       <TabsList>
-        <TabsTrigger value="crm">{t('tabs.crm')}</TabsTrigger>
-        <TabsTrigger value="enrichment" className="gap-1.5">
-          <Sparkles className="h-3.5 w-3.5" /> {t('tabs.enrichment')}
+        <TabsTrigger value='crm'>{t('tabs.crm')}</TabsTrigger>
+        <TabsTrigger value='enrichment' className='gap-1.5'>
+          <Sparkles className='h-3.5 w-3.5' /> {t('tabs.enrichment')}
         </TabsTrigger>
-        <TabsTrigger value="leads" className="gap-1.5">
-          <Users className="h-3.5 w-3.5" /> {t('tabs.leads')}
+        <TabsTrigger value='leads' className='gap-1.5'>
+          <Users className='h-3.5 w-3.5' /> {t('tabs.leads')}
         </TabsTrigger>
-        <TabsTrigger value="custom" className="gap-1.5">
-          <PlugZap className="h-3.5 w-3.5" /> Custom Integrations
+        <TabsTrigger value='custom' className='gap-1.5'>
+          <PlugZap className='h-3.5 w-3.5' /> Custom Integrations
         </TabsTrigger>
-        <TabsTrigger value="connectors" className="gap-1.5">
-          <Bot className="h-3.5 w-3.5" /> Connectors
+        <TabsTrigger value='connectors' className='gap-1.5'>
+          <Bot className='h-3.5 w-3.5' /> Connectors
         </TabsTrigger>
       </TabsList>
 
-      <TabsContent value="enrichment" className="mt-6">
+      <TabsContent value='enrichment' className='mt-6'>
         <EnrichmentTab />
       </TabsContent>
 
-      <TabsContent value="leads" className="mt-6">
+      <TabsContent value='leads' className='mt-6'>
         <LeadSearchPanel />
       </TabsContent>
 
-      <TabsContent value="custom" className="mt-6">
+      <TabsContent value='custom' className='mt-6'>
         <CustomIntegrationsTab />
       </TabsContent>
 
-      <TabsContent value="connectors" className="mt-6">
+      <TabsContent value='connectors' className='mt-6'>
         <ConnectorsTab />
       </TabsContent>
 
-      <TabsContent value="crm" className="mt-6">
+      <TabsContent value='crm' className='mt-6'>
         <CrmTabContent
           loading={loading}
           error={error}
@@ -234,7 +241,10 @@ interface CrmTabContentProps {
   disconnectingId: string | null;
   syncingId: string | null;
   onReload: () => void;
-  onConnect: (provider: CrmProviderType, scope: 'personal' | 'organization') => Promise<void>;
+  onConnect: (
+    provider: CrmProviderType,
+    scope: 'personal' | 'organization'
+  ) => Promise<void>;
   onDisconnect: (id: string) => Promise<void>;
   onForget: (id: string) => Promise<void>;
   onManage: (id: string) => void;
@@ -256,13 +266,13 @@ function CrmTabContent({
   onForget,
   onManage,
   onSync,
-  t,
+  t
 }: CrmTabContentProps) {
   return (
-    <div className="flex flex-col gap-8">
+    <div className='flex flex-col gap-8'>
       {needsAttention.length > 0 && (
-        <Alert className="border-amber-500/30 bg-amber-500/5">
-          <AlertCircle className="h-4 w-4 text-amber-500" />
+        <Alert className='border-amber-500/30 bg-amber-500/5'>
+          <AlertCircle className='h-4 w-4 text-amber-500' />
           <AlertTitle>
             {t('connections.needsAttention', { count: needsAttention.length })}
           </AlertTitle>
@@ -272,19 +282,19 @@ function CrmTabContent({
         </Alert>
       )}
 
-      <section className="flex flex-col gap-4">
-        <div className="flex items-center justify-between">
+      <section className='flex flex-col gap-4'>
+        <div className='flex items-center justify-between'>
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+            <h2 className='text-muted-foreground text-sm font-semibold tracking-wide uppercase'>
               {t('connections.yourConnections')}
             </h2>
           </div>
           <Button
-            variant="ghost"
-            size="sm"
+            variant='ghost'
+            size='sm'
             onClick={() => onReload()}
             disabled={loading}
-            className="h-8"
+            className='h-8'
           >
             <RefreshCw
               className={`mr-1.5 h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`}
@@ -294,21 +304,21 @@ function CrmTabContent({
         </div>
 
         {loading ? (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className='grid grid-cols-1 gap-3 md:grid-cols-2'>
             {Array.from({ length: 2 }).map((_, i) => (
-              <Skeleton key={i} className="h-52 w-full rounded-xl" />
+              <Skeleton key={i} className='h-52 w-full rounded-xl' />
             ))}
           </div>
         ) : error ? (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
+          <Alert variant='destructive'>
+            <AlertCircle className='h-4 w-4' />
             <AlertTitle>{t('connections.loadError')}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : connections.length === 0 ? (
           <EmptyState t={t} />
         ) : (
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+          <div className='grid grid-cols-1 gap-3 md:grid-cols-2'>
             {connections.map((c) => (
               <CrmConnectionCard
                 key={c.id}
@@ -329,12 +339,12 @@ function CrmTabContent({
 
       <AttioAppTokenSection />
 
-      <section className="flex flex-col gap-4">
+      <section className='flex flex-col gap-4'>
         <div>
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+          <h2 className='text-muted-foreground text-sm font-semibold tracking-wide uppercase'>
             {t('connections.available')}
           </h2>
-          <p className="mt-1 text-xs text-muted-foreground">
+          <p className='text-muted-foreground mt-1 text-xs'>
             {t('connections.availableDescription')}
           </p>
         </div>
@@ -350,12 +360,14 @@ function CrmTabContent({
 
 function EmptyState({ t }: { t: TFunc }) {
   return (
-    <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed bg-muted/20 px-6 py-12 text-center">
-      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-        <Plug className="h-5 w-5 text-muted-foreground" />
+    <div className='bg-muted/20 flex flex-col items-center gap-2 rounded-xl border border-dashed px-6 py-12 text-center'>
+      <div className='bg-muted flex h-12 w-12 items-center justify-center rounded-full'>
+        <Plug className='text-muted-foreground h-5 w-5' />
       </div>
-      <h3 className="mt-2 text-sm font-semibold">{t('connections.noConnections')}</h3>
-      <p className="max-w-sm text-xs text-muted-foreground">
+      <h3 className='mt-2 text-sm font-semibold'>
+        {t('connections.noConnections')}
+      </h3>
+      <p className='text-muted-foreground max-w-sm text-xs'>
         {t('connections.noConnectionsDescription')}
       </p>
     </div>

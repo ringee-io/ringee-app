@@ -4,17 +4,14 @@ import {
   ForbiddenException,
   BadRequestException,
 } from "@nestjs/common";
-import {
-  CampaignRepository,
-  CampaignMemberRepository,
-} from "@ringee/database";
+import { CampaignRepository, CampaignMemberRepository } from "@ringee/database";
 import { OwnershipContext } from "@ringee/platform";
 
 @Injectable()
 export class CampaignMemberService {
   constructor(
     private readonly campaignRepo: CampaignRepository,
-    private readonly memberRepo: CampaignMemberRepository
+    private readonly memberRepo: CampaignMemberRepository,
   ) {}
 
   private async getCampaignWithAuth(ctx: OwnershipContext, campaignId: string) {
@@ -38,12 +35,12 @@ export class CampaignMemberService {
     ctx: OwnershipContext,
     campaignId: string,
     userId: string,
-    role = "agent"
+    role = "agent",
   ) {
     const campaign = await this.getCampaignWithAuth(ctx, campaignId);
     if (campaign.status === "completed") {
       throw new BadRequestException(
-        "Cannot add members to a completed campaign"
+        "Cannot add members to a completed campaign",
       );
     }
     return this.memberRepo.addMember(campaignId, userId, role);
@@ -52,12 +49,12 @@ export class CampaignMemberService {
   async removeMember(
     ctx: OwnershipContext,
     campaignId: string,
-    userId: string
+    userId: string,
   ) {
     const campaign = await this.getCampaignWithAuth(ctx, campaignId);
     if (campaign.status === "completed") {
       throw new BadRequestException(
-        "Cannot remove members from a completed campaign"
+        "Cannot remove members from a completed campaign",
       );
     }
     return this.memberRepo.removeMember(campaignId, userId);

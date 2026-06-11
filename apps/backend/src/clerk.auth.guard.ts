@@ -14,7 +14,7 @@ export class ClerkAuthGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
     private readonly organizationService: OrganizationService,
-  ) { }
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [

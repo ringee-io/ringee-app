@@ -34,7 +34,7 @@ export function TranscriptDialog({
         <DialogHeader>
           <DialogTitle>{t('finalTitle')}</DialogTitle>
         </DialogHeader>
-        <ScrollArea className="max-h-[70vh] pr-2">
+        <ScrollArea className='max-h-[70vh] pr-2'>
           <FinalTranscript callId={callId} />
         </ScrollArea>
       </DialogContent>

@@ -63,7 +63,6 @@ export const OpenInBrowserButton = () => (
           d='M14 3h7v7m0 0L10 21l-7-7L21 3z'
         />
       </svg> */}
-
       Try a Free Call
       <ArrowUpRight className='h-5 w-5' />
     </motion.div>

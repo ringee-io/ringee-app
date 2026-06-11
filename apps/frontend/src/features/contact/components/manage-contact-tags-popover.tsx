@@ -58,7 +58,7 @@ export function ManageContactTagsModal({
 
   const handleSelectionChange = async (newTagIds: string[]) => {
     setSelectedTagIds(newTagIds);
-    
+
     try {
       await api.post(`/contacts/${contactId}/tags`, { tagIds: newTagIds });
       onTagsUpdated?.();
@@ -76,10 +76,10 @@ export function ManageContactTagsModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[340px]">
+      <DialogContent className='sm:max-w-[340px]'>
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <IconTag className="h-5 w-5" />
+          <DialogTitle className='flex items-center gap-2'>
+            <IconTag className='h-5 w-5' />
             Manage Tags
           </DialogTitle>
           <DialogDescription>
@@ -87,10 +87,10 @@ export function ManageContactTagsModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
+        <div className='py-4'>
           {loading ? (
-            <div className="flex items-center justify-center py-8">
-              <IconLoader2 className="h-6 w-6 animate-spin" />
+            <div className='flex items-center justify-center py-8'>
+              <IconLoader2 className='h-6 w-6 animate-spin' />
             </div>
           ) : (
             <TagMultiSelect
@@ -98,7 +98,7 @@ export function ManageContactTagsModal({
               selectedTagIds={selectedTagIds}
               onSelectionChange={handleSelectionChange}
               onCreateTag={handleCreateTag}
-              placeholder="Select tags..."
+              placeholder='Select tags...'
               showCreateOption={true}
             />
           )}

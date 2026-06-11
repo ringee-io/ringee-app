@@ -15,16 +15,14 @@ interface CurrentUserData {
 
 @Controller("campaigns/:campaignId/analytics")
 export class OutboundAnalyticsController {
-  constructor(
-    private readonly analyticsService: OutboundAnalyticsService
-  ) {}
+  constructor(private readonly analyticsService: OutboundAnalyticsService) {}
 
   @Get("summary")
   async summary(
     @Param("campaignId") campaignId: string,
     @CurrentUser() user: CurrentUserData,
     @Query("startDate") startDate?: string,
-    @Query("endDate") endDate?: string
+    @Query("endDate") endDate?: string,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Organization required");
@@ -32,7 +30,7 @@ export class OutboundAnalyticsController {
     return this.analyticsService.getCampaignSummary(
       campaignId,
       startDate ? new Date(startDate) : undefined,
-      endDate ? new Date(endDate) : undefined
+      endDate ? new Date(endDate) : undefined,
     );
   }
 
@@ -41,7 +39,7 @@ export class OutboundAnalyticsController {
     @Param("campaignId") campaignId: string,
     @CurrentUser() user: CurrentUserData,
     @Query("startDate") startDate?: string,
-    @Query("endDate") endDate?: string
+    @Query("endDate") endDate?: string,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Organization required");
@@ -49,7 +47,7 @@ export class OutboundAnalyticsController {
     return this.analyticsService.getDispositionDistribution(
       campaignId,
       startDate ? new Date(startDate) : undefined,
-      endDate ? new Date(endDate) : undefined
+      endDate ? new Date(endDate) : undefined,
     );
   }
 
@@ -58,7 +56,7 @@ export class OutboundAnalyticsController {
     @Param("campaignId") campaignId: string,
     @CurrentUser() user: CurrentUserData,
     @Query("startDate") startDate?: string,
-    @Query("endDate") endDate?: string
+    @Query("endDate") endDate?: string,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Organization required");
@@ -66,7 +64,7 @@ export class OutboundAnalyticsController {
     return this.analyticsService.getAgentPerformance(
       campaignId,
       startDate ? new Date(startDate) : undefined,
-      endDate ? new Date(endDate) : undefined
+      endDate ? new Date(endDate) : undefined,
     );
   }
 
@@ -74,12 +72,15 @@ export class OutboundAnalyticsController {
   async dispositionsByAgent(
     @Param("campaignId") campaignId: string,
     @CurrentUser() user: CurrentUserData,
-    @Query("agentUserId") agentUserId?: string
+    @Query("agentUserId") agentUserId?: string,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Organization required");
     }
-    return this.analyticsService.getDispositionsByAgent(campaignId, agentUserId);
+    return this.analyticsService.getDispositionsByAgent(
+      campaignId,
+      agentUserId,
+    );
   }
 
   @Get("hourly")
@@ -87,7 +88,7 @@ export class OutboundAnalyticsController {
     @Param("campaignId") campaignId: string,
     @CurrentUser() user: CurrentUserData,
     @Query("startDate") startDate?: string,
-    @Query("endDate") endDate?: string
+    @Query("endDate") endDate?: string,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Organization required");
@@ -95,7 +96,7 @@ export class OutboundAnalyticsController {
     return this.analyticsService.getHourlyCallVolume(
       campaignId,
       startDate ? new Date(startDate) : undefined,
-      endDate ? new Date(endDate) : undefined
+      endDate ? new Date(endDate) : undefined,
     );
   }
 }

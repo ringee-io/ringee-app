@@ -1,20 +1,20 @@
-'use client';
+"use client";
 
-import { FieldPath, FieldValues } from 'react-hook-form';
+import { FieldPath, FieldValues } from "react-hook-form";
 import {
   FormControl,
   FormDescription,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
-} from '../ui/form';
-import { Slider } from '../ui/slider';
-import { BaseFormFieldProps, SliderConfig } from '../../types/base-form';
+  FormMessage,
+} from "../ui/form";
+import { Slider } from "../ui/slider";
+import { BaseFormFieldProps, SliderConfig } from "../../types/base-form";
 
 interface FormSliderProps<
   TFieldValues extends FieldValues = FieldValues,
-  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 > extends BaseFormFieldProps<TFieldValues, TName> {
   config: SliderConfig;
   showValue?: boolean;
@@ -22,7 +22,7 @@ interface FormSliderProps<
 
 function FormSlider<
   TFieldValues extends FieldValues = FieldValues,
-  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 >({
   control,
   name,
@@ -32,7 +32,7 @@ function FormSlider<
   config,
   showValue = true,
   disabled,
-  className
+  className,
 }: FormSliderProps<TFieldValues, TName>) {
   const { min, max, step = 1, formatValue } = config;
 
@@ -45,11 +45,11 @@ function FormSlider<
           {label && (
             <FormLabel>
               {label}
-              {required && <span className='ml-1 text-red-500'>*</span>}
+              {required && <span className="ml-1 text-red-500">*</span>}
             </FormLabel>
           )}
           <FormControl>
-            <div className='px-3'>
+            <div className="px-3">
               <Slider
                 min={min}
                 max={max}
@@ -59,7 +59,7 @@ function FormSlider<
                 disabled={disabled}
               />
               {showValue && (
-                <div className='text-muted-foreground mt-1 flex justify-between text-sm'>
+                <div className="text-muted-foreground mt-1 flex justify-between text-sm">
                   <span>{formatValue ? formatValue(min) : min}</span>
                   <span>
                     {formatValue

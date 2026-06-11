@@ -34,7 +34,7 @@ export class CampaignListRepository {
   }
 
   async findByCampaignWithCounts(
-    campaignId: string
+    campaignId: string,
   ): Promise<(CampaignList & { _count: { leads: number } })[]> {
     return this.prisma.campaignList.findMany({
       where: { campaignId },

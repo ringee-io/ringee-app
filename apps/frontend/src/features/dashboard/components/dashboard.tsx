@@ -26,10 +26,15 @@ interface DashboardPageInnerProps {
 
 const SAVE_DEBOUNCE_MS = 600;
 
-function DashboardPageInner({ initialLayout, initialScope }: DashboardPageInnerProps) {
+function DashboardPageInner({
+  initialLayout,
+  initialScope
+}: DashboardPageInnerProps) {
   const t = useTranslations('dashboard.page');
   const api = useApi();
-  const [widgets, setWidgets] = React.useState<DashboardWidget[]>(initialLayout.widgets);
+  const [widgets, setWidgets] = React.useState<DashboardWidget[]>(
+    initialLayout.widgets
+  );
   const [editing, setEditing] = React.useState(false);
   const [saving, setSaving] = React.useState(false);
   const dirtyRef = React.useRef(false);
@@ -107,7 +112,9 @@ function DashboardPageInner({ initialLayout, initialScope }: DashboardPageInnerP
         <DashboardHeader saving={saving} />
         <DashboardFilters />
         <div className='flex items-center justify-end gap-2'>
-          {editing && <AddWidgetMenu onAdd={handleAdd} existingTypes={existingTypes} />}
+          {editing && (
+            <AddWidgetMenu onAdd={handleAdd} existingTypes={existingTypes} />
+          )}
           <Button
             variant={editing ? 'default' : 'outline'}
             size='sm'
@@ -145,14 +152,13 @@ function DashboardHeader({ saving }: { saving: boolean }) {
         <h1 className='text-2xl font-bold tracking-tight'>
           {hasOrg ? t('headerOrg') : t('headerSolo')}
         </h1>
-        <p className='text-muted-foreground text-sm'>
-          {t('subtitle')}
-        </p>
+        <p className='text-muted-foreground text-sm'>{t('subtitle')}</p>
       </div>
       <div className='flex items-center gap-2'>
         {saving && (
           <span className='text-muted-foreground flex items-center gap-1 text-xs'>
-            <IconAdjustments className='animate-spin' size={12} /> {t('savingLayout')}
+            <IconAdjustments className='animate-spin' size={12} />{' '}
+            {t('savingLayout')}
           </span>
         )}
       </div>
@@ -160,10 +166,17 @@ function DashboardHeader({ saving }: { saving: boolean }) {
   );
 }
 
-export function Dashboard({ initialLayout }: { initialLayout: DashboardLayoutResponse }) {
+export function Dashboard({
+  initialLayout
+}: {
+  initialLayout: DashboardLayoutResponse;
+}) {
   return (
     <DashboardFiltersProvider defaultScope={initialLayout.scope}>
-      <DashboardPageInner initialLayout={initialLayout} initialScope={initialLayout.scope} />
+      <DashboardPageInner
+        initialLayout={initialLayout}
+        initialScope={initialLayout.scope}
+      />
     </DashboardFiltersProvider>
   );
 }

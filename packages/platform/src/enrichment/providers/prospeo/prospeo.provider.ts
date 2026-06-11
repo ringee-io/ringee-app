@@ -873,7 +873,9 @@ function uniqueStrings(input: string[] | undefined): string[] {
 }
 
 function collectLocations(values: (string | null | undefined)[]): string[] {
-  return uniqueStrings(values.filter((v): v is string => !!v && v.trim().length > 0));
+  return uniqueStrings(
+    values.filter((v): v is string => !!v && v.trim().length > 0),
+  );
 }
 
 // ISO 3166-1 alpha-2 → country name for the codes most likely to come from
@@ -957,7 +959,8 @@ function hasGroup(
       return !!f.company?.names?.include?.length;
     case "company_industry":
       return !!(
-        f.company_industry?.include?.length || f.company_industry?.exclude?.length
+        f.company_industry?.include?.length ||
+        f.company_industry?.exclude?.length
       );
     case "company_location_search":
       return !!f.company_location_search?.include?.length;
@@ -980,7 +983,8 @@ function hasGroup(
       return !!f.person_location_search?.include?.length;
     case "person_job_title":
       return !!(
-        f.person_job_title?.include?.length || f.person_job_title?.exclude?.length
+        f.person_job_title?.include?.length ||
+        f.person_job_title?.exclude?.length
       );
     case "person_department":
       return !!f.person_department?.include?.length;
@@ -1026,9 +1030,15 @@ function dropFilterGroup(
 
 function hasAnyFilter(f: ProspeoSearchPersonRequest["filters"]): boolean {
   const company = f.company;
-  if (company && (company.websites?.include?.length || company.names?.include?.length))
+  if (
+    company &&
+    (company.websites?.include?.length || company.names?.include?.length)
+  )
     return true;
-  if (f.company_industry?.include?.length || f.company_industry?.exclude?.length)
+  if (
+    f.company_industry?.include?.length ||
+    f.company_industry?.exclude?.length
+  )
     return true;
   if (f.company_location_search?.include?.length) return true;
   if (f.company_headcount_range?.length) return true;
@@ -1041,7 +1051,10 @@ function hasAnyFilter(f: ProspeoSearchPersonRequest["filters"]): boolean {
   )
     return true;
   if (f.person_location_search?.include?.length) return true;
-  if (f.person_job_title?.include?.length || f.person_job_title?.exclude?.length)
+  if (
+    f.person_job_title?.include?.length ||
+    f.person_job_title?.exclude?.length
+  )
     return true;
   if (f.person_department?.include?.length) return true;
   return false;

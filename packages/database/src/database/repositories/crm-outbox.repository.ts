@@ -1,5 +1,10 @@
 import { Injectable } from "@nestjs/common";
-import { CrmOutboxEvent, CrmOutboxStatus, CrmProviderType, Prisma } from "@prisma/client";
+import {
+  CrmOutboxEvent,
+  CrmOutboxStatus,
+  CrmProviderType,
+  Prisma,
+} from "@prisma/client";
 import { PrismaService } from "../prisma.service";
 
 @Injectable()
@@ -74,7 +79,11 @@ export class CrmOutboxRepository {
     });
   }
 
-  scheduleRetry(id: string, nextAttemptAt: Date, error: string): Promise<CrmOutboxEvent> {
+  scheduleRetry(
+    id: string,
+    nextAttemptAt: Date,
+    error: string,
+  ): Promise<CrmOutboxEvent> {
     return this.prisma.crmOutboxEvent.update({
       where: { id },
       data: {

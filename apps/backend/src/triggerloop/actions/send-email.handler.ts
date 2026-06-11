@@ -90,8 +90,9 @@ export class SendEmailActionHandler implements ActionHandler {
 
     const user = await this.userRepository.findById(payload.userId);
     const primary =
-      (user as unknown as { emails?: { email: string; isPrimary: boolean }[] })
-        ?.emails?.find((e) => e.isPrimary) ??
+      (
+        user as unknown as { emails?: { email: string; isPrimary: boolean }[] }
+      )?.emails?.find((e) => e.isPrimary) ??
       (user as unknown as { emails?: { email: string }[] })?.emails?.[0];
     return primary?.email ?? null;
   }

@@ -44,7 +44,10 @@ interface CallState {
 
   // Sync contact & call ID from ShowActiveCall
   setCallId: (id: string | null) => void;
-  setCallContact: (contactId: string | null, contactName: string | null) => void;
+  setCallContact: (
+    contactId: string | null,
+    contactName: string | null
+  ) => void;
 
   // Post-call actions
   enterPostCallPhase: (data: {

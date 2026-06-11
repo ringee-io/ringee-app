@@ -16,7 +16,13 @@ import type { DashboardWidget } from '../lib/types';
 
 type Breakpoint = 'lg' | 'md' | 'sm' | 'xs' | 'xxs';
 
-const COLS: Record<Breakpoint, number> = { lg: 12, md: 12, sm: 6, xs: 4, xxs: 2 };
+const COLS: Record<Breakpoint, number> = {
+  lg: 12,
+  md: 12,
+  sm: 6,
+  xs: 4,
+  xxs: 2
+};
 const BREAKPOINTS: Record<Breakpoint, number> = {
   lg: 1200,
   md: 996,
@@ -88,7 +94,12 @@ export function WidgetGrid({
   // dragConfig / resizeConfig replace the old flat isDraggable/isResizable/
   // draggableHandle props in v2.
   const dragConfig = React.useMemo(
-    () => ({ enabled: editable, handle: '.widget-drag-handle', threshold: 3, bounded: false }),
+    () => ({
+      enabled: editable,
+      handle: '.widget-drag-handle',
+      threshold: 3,
+      bounded: false
+    }),
     [editable]
   );
   const resizeConfig = React.useMemo(
@@ -97,7 +108,7 @@ export function WidgetGrid({
   );
 
   return (
-   // @ts-ignore
+    // @ts-ignore
     <div ref={containerRef} className='dashboard-grid'>
       {mounted && width > 0 && (
         // @ts-ignore
@@ -114,15 +125,17 @@ export function WidgetGrid({
           onLayoutChange={handleLayoutChange}
         >
           {widgets.map((w) => (
-            // @ts-ignore 
+            // @ts-ignore
             <div key={w.id} className='dashboard-widget'>
               {renderWidget({
                 type: w.type,
                 title: w.title,
                 onRemove:
-                  editable && onRemoveWidget ? () => onRemoveWidget(w.id) : undefined
+                  editable && onRemoveWidget
+                    ? () => onRemoveWidget(w.id)
+                    : undefined
               })}
-            {/* @ts-ignore  */}
+              {/* @ts-ignore  */}
             </div>
           ))}
         </Responsive>

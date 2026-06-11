@@ -54,7 +54,8 @@ export class CustomIntegrationInboundService {
 
     if (!event) throw new BadRequestException("event is required");
     if (!eventId) throw new BadRequestException("eventId is required");
-    if (!envelope.occurredAt) throw new BadRequestException("occurredAt is required");
+    if (!envelope.occurredAt)
+      throw new BadRequestException("occurredAt is required");
     if (!data || typeof data !== "object") {
       throw new BadRequestException("data must be an object");
     }
@@ -132,7 +133,9 @@ export class CustomIntegrationInboundService {
         const co = await this.companyRepo.findById(companyLink.companyId);
         if (co && !companyName) companyName = co.name;
       } else if (companyName) {
-        const created = await this.companyRepo.create(ctx, { name: companyName });
+        const created = await this.companyRepo.create(ctx, {
+          name: companyName,
+        });
         await this.companyLinkRepo.upsert({
           integrationId: integration.id,
           externalId: companyExternalId,
@@ -144,7 +147,10 @@ export class CustomIntegrationInboundService {
     }
 
     // Resolve existing contact: link → externalId, fallback → phone within workspace.
-    const link = await this.contactLinkRepo.findByExternalId(integration.id, externalId);
+    const link = await this.contactLinkRepo.findByExternalId(
+      integration.id,
+      externalId,
+    );
     let contact: Contact | null = link?.contactId
       ? await this.contactRepo.findById(link.contactId)
       : null;
@@ -166,7 +172,10 @@ export class CustomIntegrationInboundService {
         ...writeFields,
       } as unknown as Prisma.ContactCreateInput);
     } else if (Object.keys(writeFields).length > 0) {
-      await this.contactRepo.update(contact.id, writeFields as Prisma.ContactUpdateInput);
+      await this.contactRepo.update(
+        contact.id,
+        writeFields as Prisma.ContactUpdateInput,
+      );
     }
 
     await this.contactLinkRepo.upsert({
@@ -205,8 +214,10 @@ export class CustomIntegrationInboundService {
       jobTitle: pickString(data, "jobTitle"),
       source: pickString(data, "source"),
       ownerId: overrides.ownerId ?? undefined,
-      customFields: (customFields as Prisma.InputJsonValue | undefined) ?? undefined,
-      crmMetadata: (crmMetadata as Prisma.InputJsonValue | undefined) ?? undefined,
+      customFields:
+        (customFields as Prisma.InputJsonValue | undefined) ?? undefined,
+      crmMetadata:
+        (crmMetadata as Prisma.InputJsonValue | undefined) ?? undefined,
     };
   }
 
@@ -240,7 +251,10 @@ export class CustomIntegrationInboundService {
     const externalId = requireString(data, "externalId");
     const name = requireString(data, "name");
 
-    const link = await this.companyLinkRepo.findByExternalId(integration.id, externalId);
+    const link = await this.companyLinkRepo.findByExternalId(
+      integration.id,
+      externalId,
+    );
     let company: Company | null = link?.companyId
       ? await this.companyRepo.findById(link.companyId)
       : null;
@@ -260,8 +274,12 @@ export class CustomIntegrationInboundService {
       phone: pickString(data, "phone"),
       website: pickString(data, "website"),
       source: pickString(data, "source"),
-      customFields: (pickObject(data, "customFields") as Prisma.InputJsonValue | undefined),
-      crmMetadata: (pickObject(data, "crmMetadata") as Prisma.InputJsonValue | undefined),
+      customFields: pickObject(data, "customFields") as
+        | Prisma.InputJsonValue
+        | undefined,
+      crmMetadata: pickObject(data, "crmMetadata") as
+        | Prisma.InputJsonValue
+        | undefined,
     }) as Prisma.CompanyUpdateInput;
 
     if (!company) {
@@ -296,7 +314,10 @@ export class CustomIntegrationInboundService {
     data: Record<string, unknown>,
   ): Promise<void> {
     const externalId = requireString(data, "externalId");
-    const link = await this.contactLinkRepo.findByExternalId(integration.id, externalId);
+    const link = await this.contactLinkRepo.findByExternalId(
+      integration.id,
+      externalId,
+    );
     if (!link) return; // nothing to archive
     await this.contactLinkRepo.markArchived(link.id);
   }
@@ -308,7 +329,10 @@ export class CustomIntegrationInboundService {
     data: Record<string, unknown>,
   ): Promise<void> {
     const externalId = requireString(data, "externalId");
-    const link = await this.companyLinkRepo.findByExternalId(integration.id, externalId);
+    const link = await this.companyLinkRepo.findByExternalId(
+      integration.id,
+      externalId,
+    );
     if (!link) return;
     await this.companyLinkRepo.markArchived(link.id);
   }
@@ -331,7 +355,10 @@ function pickString(data: Record<string, unknown>, key: string): string | null {
   return trimmed === "" ? null : trimmed;
 }
 
-function pickObject(data: Record<string, unknown>, key: string): Record<string, unknown> | null {
+function pickObject(
+  data: Record<string, unknown>,
+  key: string,
+): Record<string, unknown> | null {
   const v = data[key];
   if (!v || typeof v !== "object" || Array.isArray(v)) return null;
   return v as Record<string, unknown>;

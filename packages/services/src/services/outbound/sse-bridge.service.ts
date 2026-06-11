@@ -47,8 +47,8 @@ export class SSEBridgeService implements OnModuleDestroy {
           ({
             data: JSON.stringify({ ...e.data, _event: e.event }),
             type: e.event,
-          }) as SSEMessageEvent
-      )
+          }) as SSEMessageEvent,
+      ),
     );
   }
 }

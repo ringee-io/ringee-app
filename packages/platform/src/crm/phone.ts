@@ -1,6 +1,8 @@
 const DIGITS_ONLY = /[^\d+]/g;
 
-export function normalizePhoneE164(raw: string | null | undefined): string | null {
+export function normalizePhoneE164(
+  raw: string | null | undefined,
+): string | null {
   if (!raw) return null;
   const trimmed = raw.trim();
   if (!trimmed) return null;

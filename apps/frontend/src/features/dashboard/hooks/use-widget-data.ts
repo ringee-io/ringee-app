@@ -15,10 +15,16 @@ export interface WidgetState<T> {
  * Fetch a dashboard endpoint with the current filters. Re-fetches whenever
  * the query changes.
  */
-export function useWidgetData<T>(endpoint: string, extra?: Record<string, string>): WidgetState<T> {
+export function useWidgetData<T>(
+  endpoint: string,
+  extra?: Record<string, string>
+): WidgetState<T> {
   const api = useApi();
   const { toQuery } = useDashboardFilters();
-  const query = React.useMemo(() => ({ ...toQuery(), ...extra }), [toQuery, extra]);
+  const query = React.useMemo(
+    () => ({ ...toQuery(), ...extra }),
+    [toQuery, extra]
+  );
   const queryKey = JSON.stringify(query);
 
   const [data, setData] = React.useState<T | null>(null);

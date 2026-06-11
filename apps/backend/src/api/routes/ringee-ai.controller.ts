@@ -148,7 +148,9 @@ export class RingeeAiController {
     // public. The conversation id is a UUID and acts as an unguessable
     // access token — same security model as the dialer SSE channel.
     const channel = this.orchestrator.channel(id);
-    const realEvents = this.sse.subscribe(channel) as Observable<SseMessageEvent>;
+    const realEvents = this.sse.subscribe(
+      channel,
+    ) as Observable<SseMessageEvent>;
     const heartbeat = interval(15000).pipe(
       map(
         (): SseMessageEvent => ({

@@ -1,20 +1,20 @@
-'use client';
+"use client";
 
-import { IconX, IconUpload } from '@tabler/icons-react';
-import Image from 'next/image';
-import * as React from 'react';
+import { IconX, IconUpload } from "@tabler/icons-react";
+import Image from "next/image";
+import * as React from "react";
 import Dropzone, {
   type DropzoneProps,
-  type FileRejection
-} from 'react-dropzone';
-import { toast } from 'sonner';
-import { useTranslations } from 'next-intl';
+  type FileRejection,
+} from "react-dropzone";
+import { toast } from "sonner";
+import { useTranslations } from "next-intl";
 
-import { Button } from './ui/button';
-import { Progress } from './ui/progress';
-import { ScrollArea } from './ui/scroll-area';
-import { useControllableState } from '../hooks/use-controllable-state';
-import { cn, formatBytes } from '../lib/utils';
+import { Button } from "./ui/button";
+import { Progress } from "./ui/progress";
+import { ScrollArea } from "./ui/scroll-area";
+import { useControllableState } from "../hooks/use-controllable-state";
+import { cn, formatBytes } from "../lib/utils";
 
 export interface FileUploaderProps
   extends React.HTMLAttributes<HTMLDivElement> {
@@ -59,7 +59,7 @@ export interface FileUploaderProps
    * ```
    * @example accept={["image/png", "image/jpeg"]}
    */
-  accept?: DropzoneProps['accept'];
+  accept?: DropzoneProps["accept"];
 
   /**
    * Maximum file size for the uploader.
@@ -67,7 +67,7 @@ export interface FileUploaderProps
    * @default 1024 * 1024 * 2 // 2MB
    * @example maxSize={1024 * 1024 * 2} // 2MB
    */
-  maxSize?: DropzoneProps['maxSize'];
+  maxSize?: DropzoneProps["maxSize"];
 
   /**
    * Maximum number of files for the uploader.
@@ -75,7 +75,7 @@ export interface FileUploaderProps
    * @default 1
    * @example maxFiles={5}
    */
-  maxFiles?: DropzoneProps['maxFiles'];
+  maxFiles?: DropzoneProps["maxFiles"];
 
   /**
    * Whether the uploader should accept multiple files.
@@ -100,7 +100,7 @@ export function FileUploader(props: FileUploaderProps) {
     onValueChange,
     onUpload,
     progresses,
-    accept = { 'image/*': [] },
+    accept = { "image/*": [] },
     maxSize = 1024 * 1024 * 2,
     maxFiles = 1,
     multiple = false,
@@ -109,30 +109,30 @@ export function FileUploader(props: FileUploaderProps) {
     ...dropzoneProps
   } = props;
 
-  const t = useTranslations('common.fileUpload');
-  const tCommon = useTranslations('common');
+  const t = useTranslations("common.fileUpload");
+  const tCommon = useTranslations("common");
 
   const [files, setFiles] = useControllableState({
     prop: valueProp,
-    onChange: onValueChange
+    onChange: onValueChange,
   });
 
   const onDrop = React.useCallback(
     (acceptedFiles: File[], rejectedFiles: FileRejection[]) => {
       if (!multiple && maxFiles === 1 && acceptedFiles.length > 1) {
-        toast.error(t('cannotUploadMore', { count: 1 }));
+        toast.error(t("cannotUploadMore", { count: 1 }));
         return;
       }
 
       if ((files?.length ?? 0) + acceptedFiles.length > maxFiles) {
-        toast.error(t('cannotUploadMore', { count: maxFiles }));
+        toast.error(t("cannotUploadMore", { count: maxFiles }));
         return;
       }
 
       const newFiles = acceptedFiles.map((file) =>
         Object.assign(file, {
-          preview: URL.createObjectURL(file)
-        })
+          preview: URL.createObjectURL(file),
+        }),
       );
 
       const updatedFiles = files ? [...files, ...newFiles] : newFiles;
@@ -141,7 +141,7 @@ export function FileUploader(props: FileUploaderProps) {
 
       if (rejectedFiles.length > 0) {
         rejectedFiles.forEach(({ file }) => {
-          toast.error(t('fileRejected', { name: file.name }));
+          toast.error(t("fileRejected", { name: file.name }));
         });
       }
 
@@ -152,21 +152,21 @@ export function FileUploader(props: FileUploaderProps) {
       ) {
         const target =
           updatedFiles.length > 0
-            ? t('files', { count: updatedFiles.length })
-            : t('file');
+            ? t("files", { count: updatedFiles.length })
+            : t("file");
 
         toast.promise(onUpload(updatedFiles), {
-          loading: t('uploadingFiles', { target }),
+          loading: t("uploadingFiles", { target }),
           success: () => {
             setFiles([]);
-            return t('uploaded', { target });
+            return t("uploaded", { target });
           },
-          error: t('failedToUpload', { target })
+          error: t("failedToUpload", { target }),
         });
       }
     },
 
-    [files, maxFiles, multiple, onUpload, setFiles, t]
+    [files, maxFiles, multiple, onUpload, setFiles, t],
   );
 
   function onRemove(index: number) {
@@ -192,7 +192,7 @@ export function FileUploader(props: FileUploaderProps) {
   const isDisabled = disabled || (files?.length ?? 0) >= maxFiles;
 
   return (
-    <div className='relative flex flex-col gap-6 overflow-hidden'>
+    <div className="relative flex flex-col gap-6 overflow-hidden">
       <Dropzone
         onDrop={onDrop}
         accept={accept}
@@ -205,45 +205,50 @@ export function FileUploader(props: FileUploaderProps) {
           <div
             {...getRootProps()}
             className={cn(
-              'group border-muted-foreground/25 hover:bg-muted/25 relative grid h-52 w-full cursor-pointer place-items-center rounded-lg border-2 border-dashed px-5 py-2.5 text-center transition',
-              'ring-offset-background focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden',
-              isDragActive && 'border-muted-foreground/50',
-              isDisabled && 'pointer-events-none opacity-60',
-              className
+              "group border-muted-foreground/25 hover:bg-muted/25 relative grid h-52 w-full cursor-pointer place-items-center rounded-lg border-2 border-dashed px-5 py-2.5 text-center transition",
+              "ring-offset-background focus-visible:ring-ring focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-hidden",
+              isDragActive && "border-muted-foreground/50",
+              isDisabled && "pointer-events-none opacity-60",
+              className,
             )}
             {...dropzoneProps}
           >
             <input {...getInputProps()} />
             {isDragActive ? (
-              <div className='flex flex-col items-center justify-center gap-4 sm:px-5'>
-                <div className='rounded-full border border-dashed p-3'>
+              <div className="flex flex-col items-center justify-center gap-4 sm:px-5">
+                <div className="rounded-full border border-dashed p-3">
                   <IconUpload
-                    className='text-muted-foreground size-7'
-                    aria-hidden='true'
+                    className="text-muted-foreground size-7"
+                    aria-hidden="true"
                   />
                 </div>
-                <p className='text-muted-foreground font-medium'>
-                  {t('dropHere')}
+                <p className="text-muted-foreground font-medium">
+                  {t("dropHere")}
                 </p>
               </div>
             ) : (
-              <div className='flex flex-col items-center justify-center gap-4 sm:px-5'>
-                <div className='rounded-full border border-dashed p-3'>
+              <div className="flex flex-col items-center justify-center gap-4 sm:px-5">
+                <div className="rounded-full border border-dashed p-3">
                   <IconUpload
-                    className='text-muted-foreground size-7'
-                    aria-hidden='true'
+                    className="text-muted-foreground size-7"
+                    aria-hidden="true"
                   />
                 </div>
-                <div className='space-y-px'>
-                  <p className='text-muted-foreground font-medium'>
-                    {t('dragAndDrop')}
+                <div className="space-y-px">
+                  <p className="text-muted-foreground font-medium">
+                    {t("dragAndDrop")}
                   </p>
-                  <p className='text-muted-foreground/70 text-sm'>
+                  <p className="text-muted-foreground/70 text-sm">
                     {maxFiles > 1
-                      ? (maxFiles === Infinity
-                        ? t('uploadMultipleUnlimited', { maxSize: formatBytes(maxSize) })
-                        : t('uploadMultiple', { count: maxFiles, maxSize: formatBytes(maxSize) }))
-                      : t('uploadSingle', { maxSize: formatBytes(maxSize) })}
+                      ? maxFiles === Infinity
+                        ? t("uploadMultipleUnlimited", {
+                            maxSize: formatBytes(maxSize),
+                          })
+                        : t("uploadMultiple", {
+                            count: maxFiles,
+                            maxSize: formatBytes(maxSize),
+                          })
+                      : t("uploadSingle", { maxSize: formatBytes(maxSize) })}
                   </p>
                 </div>
               </div>
@@ -252,8 +257,8 @@ export function FileUploader(props: FileUploaderProps) {
         )}
       </Dropzone>
       {files?.length ? (
-        <ScrollArea className='h-fit w-full px-3'>
-          <div className='max-h-48 space-y-4'>
+        <ScrollArea className="h-fit w-full px-3">
+          <div className="max-h-48 space-y-4">
             {files?.map((file, index) => (
               <FileCard
                 key={index}
@@ -276,43 +281,43 @@ interface FileCardProps {
 }
 
 function FileCard({ file, progress, onRemove }: FileCardProps) {
-  const t = useTranslations('common');
+  const t = useTranslations("common");
   return (
-    <div className='relative flex items-center space-x-4'>
-      <div className='flex flex-1 space-x-4'>
+    <div className="relative flex items-center space-x-4">
+      <div className="flex flex-1 space-x-4">
         {isFileWithPreview(file) ? (
           <Image
             src={file.preview}
             alt={file.name}
             width={48}
             height={48}
-            loading='lazy'
-            className='aspect-square shrink-0 rounded-md object-cover'
+            loading="lazy"
+            className="aspect-square shrink-0 rounded-md object-cover"
           />
         ) : null}
-        <div className='flex w-full flex-col gap-2'>
-          <div className='space-y-px'>
-            <p className='text-foreground/80 line-clamp-1 text-sm font-medium'>
+        <div className="flex w-full flex-col gap-2">
+          <div className="space-y-px">
+            <p className="text-foreground/80 line-clamp-1 text-sm font-medium">
               {file.name}
             </p>
-            <p className='text-muted-foreground text-xs'>
+            <p className="text-muted-foreground text-xs">
               {formatBytes(file.size)}
             </p>
           </div>
           {progress ? <Progress value={progress} /> : null}
         </div>
       </div>
-      <div className='flex items-center gap-2'>
+      <div className="flex items-center gap-2">
         <Button
-          type='button'
-          variant='ghost'
-          size='icon'
+          type="button"
+          variant="ghost"
+          size="icon"
           onClick={onRemove}
           disabled={progress !== undefined && progress < 100}
-          className='size-8 rounded-full'
+          className="size-8 rounded-full"
         >
-          <IconX className='text-muted-foreground' />
-          <span className='sr-only'>{t('removeFile')}</span>
+          <IconX className="text-muted-foreground" />
+          <span className="sr-only">{t("removeFile")}</span>
         </Button>
       </div>
     </div>
@@ -320,5 +325,5 @@ function FileCard({ file, progress, onRemove }: FileCardProps) {
 }
 
 function isFileWithPreview(file: File): file is File & { preview: string } {
-  return 'preview' in file && typeof file.preview === 'string';
+  return "preview" in file && typeof file.preview === "string";
 }

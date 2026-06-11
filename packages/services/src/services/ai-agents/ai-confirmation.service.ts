@@ -1,12 +1,5 @@
-import {
-  BadRequestException,
-  Injectable,
-  Logger,
-} from "@nestjs/common";
-import {
-  AiMessageRepository,
-  AiToolEventRepository,
-} from "@ringee/database";
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
+import { AiMessageRepository, AiToolEventRepository } from "@ringee/database";
 import { OwnershipContext } from "@ringee/platform";
 import { LeadSearchService } from "../enrichment/lead-search.service";
 import { AiConversationService } from "./ai-conversation.service";
@@ -44,7 +37,10 @@ export class AiConfirmationService {
     if (event.resolved) {
       return { status: "already_resolved" };
     }
-    const conversation = await this.conversations.getByIdScoped(ctx, conversationId);
+    const conversation = await this.conversations.getByIdScoped(
+      ctx,
+      conversationId,
+    );
     if (!conversation) throw new BadRequestException("Conversation not found");
 
     const payload = unwrapConfirmationPayload(
@@ -67,7 +63,10 @@ export class AiConfirmationService {
         throw new BadRequestException(`Unknown confirmation action: ${action}`);
     }
 
-    await this.toolEvents.resolve(confirmationId, { accepted: true, ...result });
+    await this.toolEvents.resolve(confirmationId, {
+      accepted: true,
+      ...result,
+    });
     // Inject the result back as a tool-style message so the agent can keep
     // going on its own loop on the next user turn.
     await this.messages.create({
@@ -105,7 +104,11 @@ export class AiConfirmationService {
       role: "user",
       content: "[user declined the requested action]",
     });
-    this.orchestrator.emitConfirmationResolved(conversationId, confirmationId, false);
+    this.orchestrator.emitConfirmationResolved(
+      conversationId,
+      confirmationId,
+      false,
+    );
   }
 
   private async executeReveal(
@@ -121,8 +124,14 @@ export class AiConfirmationService {
       (overrides.revealPhone as boolean | undefined) ??
       (payload.revealPhone as boolean | undefined) ??
       false;
-    if (!jobId || !Array.isArray(externalIdsInput) || externalIdsInput.length === 0) {
-      throw new BadRequestException("jobId + externalIds are required to reveal");
+    if (
+      !jobId ||
+      !Array.isArray(externalIdsInput) ||
+      externalIdsInput.length === 0
+    ) {
+      throw new BadRequestException(
+        "jobId + externalIds are required to reveal",
+      );
     }
 
     const revealed: Array<{
@@ -133,9 +142,14 @@ export class AiConfirmationService {
     }> = [];
     for (const externalId of externalIdsInput) {
       try {
-        const r = await this.leadSearch.revealCandidate(ctx, jobId, externalId, {
-          revealPhone,
-        });
+        const r = await this.leadSearch.revealCandidate(
+          ctx,
+          jobId,
+          externalId,
+          {
+            revealPhone,
+          },
+        );
         revealed.push({
           externalId,
           contactId: r.contactId,
@@ -169,9 +183,14 @@ export class AiConfirmationService {
     const saved: Array<{ externalId: string; contactId: string | null }> = [];
     for (const externalId of externalIds) {
       try {
-        const r = await this.leadSearch.revealCandidate(ctx, jobId, externalId, {
-          revealPhone: false,
-        });
+        const r = await this.leadSearch.revealCandidate(
+          ctx,
+          jobId,
+          externalId,
+          {
+            revealPhone: false,
+          },
+        );
         saved.push({ externalId, contactId: r.contactId });
       } catch (err) {
         this.logger.warn(

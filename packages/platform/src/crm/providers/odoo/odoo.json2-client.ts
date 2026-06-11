@@ -22,7 +22,9 @@ export class OdooJson2Client {
   private readonly logger = new Logger(OdooJson2Client.name);
   private readonly timeoutMs = 20_000;
 
-  async version(baseUrl: string): Promise<{ server_version?: string; server_serie?: string } | null> {
+  async version(
+    baseUrl: string,
+  ): Promise<{ server_version?: string; server_serie?: string } | null> {
     try {
       return await this.raw<{ server_version?: string; server_serie?: string }>(
         baseUrl,
@@ -59,7 +61,9 @@ export class OdooJson2Client {
    * conclude the server does not expose the JSON-2 surface (i.e. Odoo
    * < 19, or 19+ with the endpoint disabled).
    */
-  async probe(creds: OdooCredentialPayload): Promise<{ available: boolean; status: number }> {
+  async probe(
+    creds: OdooCredentialPayload,
+  ): Promise<{ available: boolean; status: number }> {
     try {
       await this.raw<unknown>(
         creds.baseUrl,
@@ -77,8 +81,8 @@ export class OdooJson2Client {
           typeof details?.status === "number"
             ? details.status
             : err.code === "NOT_FOUND"
-            ? 404
-            : 500;
+              ? 404
+              : 500;
         return { available: err.code !== "NOT_FOUND", status };
       }
       return { available: false, status: 0 };
@@ -120,10 +124,18 @@ export class OdooJson2Client {
       clearTimeout(timer);
       const name = (err as { name?: string }).name;
       if (name === "AbortError") {
-        throw new CrmError("TRANSIENT", true, `odoo json-2 timeout after ${this.timeoutMs}ms`);
+        throw new CrmError(
+          "TRANSIENT",
+          true,
+          `odoo json-2 timeout after ${this.timeoutMs}ms`,
+        );
       }
       const msg = err instanceof Error ? err.message : String(err);
-      throw new CrmError("TRANSIENT", true, `odoo json-2 network error: ${msg}`);
+      throw new CrmError(
+        "TRANSIENT",
+        true,
+        `odoo json-2 network error: ${msg}`,
+      );
     }
     clearTimeout(timer);
 
@@ -139,7 +151,7 @@ export class OdooJson2Client {
       // distinguish 404 (api not available) from 401 (bad creds).
       const err = classifyOdooError(res.status, parsed);
       (err.providerDetails as Record<string, unknown>) = {
-        ...(err.providerDetails as Record<string, unknown> | null ?? {}),
+        ...((err.providerDetails as Record<string, unknown> | null) ?? {}),
         status: res.status,
       };
       throw err;

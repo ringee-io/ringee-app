@@ -1,26 +1,26 @@
-'use client';
+"use client";
 
-import { FieldPath, FieldValues } from 'react-hook-form';
+import { FieldPath, FieldValues } from "react-hook-form";
 import {
   FormControl,
   FormDescription,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
-} from '../ui/form';
+  FormMessage,
+} from "../ui/form";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
-  SelectValue
-} from '../ui/select';
-import { BaseFormFieldProps, FormOption } from '../../types/base-form';
+  SelectValue,
+} from "../ui/select";
+import { BaseFormFieldProps, FormOption } from "../../types/base-form";
 
 interface FormSelectProps<
   TFieldValues extends FieldValues = FieldValues,
-  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 > extends BaseFormFieldProps<TFieldValues, TName> {
   options: FormOption[];
   placeholder?: string;
@@ -29,7 +29,7 @@ interface FormSelectProps<
 
 function FormSelect<
   TFieldValues extends FieldValues = FieldValues,
-  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 >({
   control,
   name,
@@ -37,9 +37,9 @@ function FormSelect<
   description,
   required,
   options,
-  placeholder = 'Select an option',
+  placeholder = "Select an option",
   disabled,
-  className
+  className,
 }: FormSelectProps<TFieldValues, TName>) {
   return (
     <FormField
@@ -50,7 +50,7 @@ function FormSelect<
           {label && (
             <FormLabel>
               {label}
-              {required && <span className='ml-1 text-red-500'>*</span>}
+              {required && <span className="ml-1 text-red-500">*</span>}
             </FormLabel>
           )}
           <Select

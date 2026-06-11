@@ -98,9 +98,7 @@ export class McpChatgptController {
    * token. Returns null when the caller is unauthenticated or has no matching
    * Ringee account (the handler then emits the OAuth challenge).
    */
-  private async resolveContext(
-    req: Request,
-  ): Promise<OwnershipContext | null> {
+  private async resolveContext(req: Request): Promise<OwnershipContext | null> {
     // ChatGPT authenticates with a Clerk OAuth access token; first-party
     // callers (e.g. the dashboard) use a session token. getAuth() defaults to
     // accepting session tokens ONLY, so an OAuth token would always come back

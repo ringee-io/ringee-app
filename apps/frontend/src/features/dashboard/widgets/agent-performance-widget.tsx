@@ -25,7 +25,9 @@ export function AgentPerformanceWidget({
   onRemove?: () => void;
 }) {
   const t = useTranslations('dashboard.widgets.agentPerformance');
-  const { data, loading, error } = useWidgetData<AgentRow[]>('/dashboard/agent-performance');
+  const { data, loading, error } = useWidgetData<AgentRow[]>(
+    '/dashboard/agent-performance'
+  );
   const empty = !data || data.length === 0;
 
   return (
@@ -43,24 +45,51 @@ export function AgentPerformanceWidget({
           <thead>
             <tr className='border-border text-muted-foreground border-b text-left text-xs'>
               <th className='px-4 py-2 font-medium'>{t('headers.agent')}</th>
-              <th className='px-3 py-2 text-right font-medium'>{t('headers.calls')}</th>
-              <th className='px-3 py-2 text-right font-medium'>{t('headers.answered')}</th>
-              <th className='px-3 py-2 text-right font-medium'>{t('headers.meetings')}</th>
-              <th className='px-3 py-2 text-right font-medium'>{t('headers.sales')}</th>
-              <th className='px-3 py-2 text-right font-medium'>{t('headers.interested')}</th>
-              <th className='px-3 py-2 text-right font-medium'>{t('headers.conversion')}</th>
-              <th className='px-3 py-2 text-right font-medium'>{t('headers.meetRate')}</th>
+              <th className='px-3 py-2 text-right font-medium'>
+                {t('headers.calls')}
+              </th>
+              <th className='px-3 py-2 text-right font-medium'>
+                {t('headers.answered')}
+              </th>
+              <th className='px-3 py-2 text-right font-medium'>
+                {t('headers.meetings')}
+              </th>
+              <th className='px-3 py-2 text-right font-medium'>
+                {t('headers.sales')}
+              </th>
+              <th className='px-3 py-2 text-right font-medium'>
+                {t('headers.interested')}
+              </th>
+              <th className='px-3 py-2 text-right font-medium'>
+                {t('headers.conversion')}
+              </th>
+              <th className='px-3 py-2 text-right font-medium'>
+                {t('headers.meetRate')}
+              </th>
             </tr>
           </thead>
           <tbody>
             {data?.map((row) => (
-              <tr key={row.userId} className='border-border border-b last:border-0'>
+              <tr
+                key={row.userId}
+                className='border-border border-b last:border-0'
+              >
                 <td className='px-4 py-2 font-medium'>{row.name}</td>
-                <td className='px-3 py-2 text-right tabular-nums'>{row.totalCalls}</td>
-                <td className='px-3 py-2 text-right tabular-nums'>{row.answeredCalls}</td>
-                <td className='px-3 py-2 text-right tabular-nums'>{row.meetingsBooked}</td>
-                <td className='px-3 py-2 text-right tabular-nums'>{row.sales}</td>
-                <td className='px-3 py-2 text-right tabular-nums'>{row.interested}</td>
+                <td className='px-3 py-2 text-right tabular-nums'>
+                  {row.totalCalls}
+                </td>
+                <td className='px-3 py-2 text-right tabular-nums'>
+                  {row.answeredCalls}
+                </td>
+                <td className='px-3 py-2 text-right tabular-nums'>
+                  {row.meetingsBooked}
+                </td>
+                <td className='px-3 py-2 text-right tabular-nums'>
+                  {row.sales}
+                </td>
+                <td className='px-3 py-2 text-right tabular-nums'>
+                  {row.interested}
+                </td>
                 <td className='px-3 py-2 text-right tabular-nums'>
                   {row.conversionRate.toFixed(1)}%
                 </td>

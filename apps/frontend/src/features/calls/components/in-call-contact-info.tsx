@@ -154,7 +154,7 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
       <div className='flex flex-col gap-4 p-4 md:p-6'>
         <div className='flex items-center justify-between'>
           <div>
-            <h3 className='text-base md:text-lg font-bold'>{displayName}</h3>
+            <h3 className='text-base font-bold md:text-lg'>{displayName}</h3>
             <p className='text-muted-foreground text-xs'>
               {contact.phoneNumber}
             </p>
@@ -261,7 +261,7 @@ function Field({
 }) {
   return (
     <div className='space-y-1.5'>
-      <Label className='text-muted-foreground text-xs uppercase tracking-wider'>
+      <Label className='text-muted-foreground text-xs tracking-wider uppercase'>
         {label}
       </Label>
       <Input

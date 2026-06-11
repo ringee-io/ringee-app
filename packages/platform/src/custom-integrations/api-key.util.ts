@@ -27,7 +27,9 @@ export function hashApiKey(plaintext: string): string {
   return createHash("sha256").update(plaintext).digest("hex");
 }
 
-export function isValidApiKeyShape(value: string | undefined | null): value is string {
+export function isValidApiKeyShape(
+  value: string | undefined | null,
+): value is string {
   if (!value) return false;
   if (!value.startsWith(API_KEY_PREFIX)) return false;
   return value.length === API_KEY_PREFIX.length + SECRET_HEX_LENGTH;

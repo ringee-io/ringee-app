@@ -1,6 +1,9 @@
 import { useCallback, useRef } from 'react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
-import type { OnboardingStep, OnboardingStatus } from '../types/onboarding.types';
+import type {
+  OnboardingStep,
+  OnboardingStatus
+} from '../types/onboarding.types';
 import { useOnboardingDataStore } from '../store/onboarding.store';
 
 /**
@@ -26,7 +29,9 @@ export function useOnboardingComplete() {
 
       try {
         completedRef.current.add(step);
-        const data = await api.patch<OnboardingStatus>(`/onboarding/complete/${step}`);
+        const data = await api.patch<OnboardingStatus>(
+          `/onboarding/complete/${step}`
+        );
         setStatus(data);
         console.log(`✅ Onboarding step completed: ${step}`);
       } catch (err) {
@@ -40,4 +45,3 @@ export function useOnboardingComplete() {
 
   return { completeStep };
 }
-

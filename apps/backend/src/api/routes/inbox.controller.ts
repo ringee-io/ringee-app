@@ -19,10 +19,7 @@ import {
   MessageService,
   CallService,
 } from "@ringee/services";
-import {
-  InboxThreadStatus,
-  InboxEventKind,
-} from "@ringee/database";
+import { InboxThreadStatus, InboxEventKind } from "@ringee/database";
 
 @Controller("inbox")
 export class InboxController {
@@ -132,28 +129,19 @@ export class InboxController {
   }
 
   @Post("threads/:id/resolve")
-  async resolve(
-    @CurrentUser() user: CurrentUserData,
-    @Param("id") id: string,
-  ) {
+  async resolve(@CurrentUser() user: CurrentUserData, @Param("id") id: string) {
     const ctx = createOwnershipContext(user);
     return this.timeline.resolveThread(ctx, id);
   }
 
   @Post("threads/:id/archive")
-  async archive(
-    @CurrentUser() user: CurrentUserData,
-    @Param("id") id: string,
-  ) {
+  async archive(@CurrentUser() user: CurrentUserData, @Param("id") id: string) {
     const ctx = createOwnershipContext(user);
     return this.timeline.archiveThread(ctx, id);
   }
 
   @Post("threads/:id/reopen")
-  async reopen(
-    @CurrentUser() user: CurrentUserData,
-    @Param("id") id: string,
-  ) {
+  async reopen(@CurrentUser() user: CurrentUserData, @Param("id") id: string) {
     const ctx = createOwnershipContext(user);
     return this.timeline.reopenThread(ctx, id);
   }
@@ -218,11 +206,15 @@ export class InboxController {
 
     const text = typeof body.text === "string" ? body.text.trim() : undefined;
     const mediaUrls = Array.isArray(body.mediaUrls)
-      ? body.mediaUrls.map((u) => (typeof u === "string" ? u.trim() : "")).filter(Boolean)
+      ? body.mediaUrls
+          .map((u) => (typeof u === "string" ? u.trim() : ""))
+          .filter(Boolean)
       : [];
 
     if (!text && mediaUrls.length === 0) {
-      throw new BadRequestException("Message must have text or at least one media URL");
+      throw new BadRequestException(
+        "Message must have text or at least one media URL",
+      );
     }
     if (text && text.length > MAX_SMS_TEXT_LENGTH) {
       throw new BadRequestException(
@@ -240,7 +232,9 @@ export class InboxController {
       }
     }
     if (body.idempotencyKey && body.idempotencyKey.length > 128) {
-      throw new BadRequestException("idempotencyKey is too long (max 128 chars)");
+      throw new BadRequestException(
+        "idempotencyKey is too long (max 128 chars)",
+      );
     }
 
     const ctx = createOwnershipContext(user);

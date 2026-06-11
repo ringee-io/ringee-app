@@ -69,7 +69,10 @@ export class RingeeMcpClient {
         eventSourceInit: headers
           ? {
               fetch: (input: string | URL | Request, init?: RequestInit) =>
-                fetch(input, { ...init, headers: { ...init?.headers, ...headers } }),
+                fetch(input, {
+                  ...init,
+                  headers: { ...init?.headers, ...headers },
+                }),
             }
           : undefined,
         // Auth header on the POST /messages calls.

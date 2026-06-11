@@ -17,7 +17,9 @@ export class ResendProvider implements EmailInterface {
     replyTo?: string,
   ) {
     try {
-      const sendReplyEmail = !emailFromAddress?.includes('no-reply') ? { replyTo: 'edisonpadilla.dev@gmail.com' } : false;
+      const sendReplyEmail = !emailFromAddress?.includes("no-reply")
+        ? { replyTo: "edisonpadilla.dev@gmail.com" }
+        : false;
 
       const sends = await resend.emails.send({
         from: `${emailFromName || apiConfiguration.EMAIL_FROM_NAME} <${emailFromAddress || apiConfiguration.EMAIL_FROM_ADDRESS}>`,

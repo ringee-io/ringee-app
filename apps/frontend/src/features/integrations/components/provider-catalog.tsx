@@ -9,11 +9,11 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogTrigger
 } from '@ringee/frontend-shared/components/ui/dialog';
 import {
   RadioGroup,
-  RadioGroupItem,
+  RadioGroupItem
 } from '@ringee/frontend-shared/components/ui/radio-group';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
 import { cn } from '@ringee/frontend-shared/lib/utils';
@@ -28,7 +28,7 @@ import { OdooConnectDialog } from './odoo-connect-dialog';
 interface Props {
   onConnect: (
     provider: CrmProviderType,
-    scope: 'personal' | 'organization',
+    scope: 'personal' | 'organization'
   ) => void;
   connectedProviders: CrmProviderType[];
   onReload?: () => void;
@@ -39,12 +39,16 @@ const PROVIDER_ORDER: CrmProviderType[] = [
   'odoo_14_18',
   'odoo_19_plus',
   'hubspot',
-  'salesforce',
+  'salesforce'
 ];
 
-export function ProviderCatalog({ onConnect, connectedProviders, onReload }: Props) {
+export function ProviderCatalog({
+  onConnect,
+  connectedProviders,
+  onReload
+}: Props) {
   return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+    <div className='grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3'>
       {PROVIDER_ORDER.map((provider) => {
         const meta = PROVIDER_META[provider];
         const alreadyConnected = connectedProviders.includes(provider);
@@ -52,16 +56,18 @@ export function ProviderCatalog({ onConnect, connectedProviders, onReload }: Pro
           <div
             key={provider}
             className={cn(
-              'relative flex flex-col gap-3 rounded-xl border bg-card p-4 transition-colors',
-              meta.available && !alreadyConnected && 'hover:border-foreground/20',
-              !meta.available && 'opacity-70',
+              'bg-card relative flex flex-col gap-3 rounded-xl border p-4 transition-colors',
+              meta.available &&
+                !alreadyConnected &&
+                'hover:border-foreground/20',
+              !meta.available && 'opacity-70'
             )}
           >
-            <div className="flex items-center gap-3">
+            <div className='flex items-center gap-3'>
               <div
                 className={cn(
                   'flex h-10 w-10 items-center justify-center rounded-lg border p-2',
-                  meta.color,
+                  meta.color
                 )}
               >
                 <Image
@@ -71,30 +77,30 @@ export function ProviderCatalog({ onConnect, connectedProviders, onReload }: Pro
                   height={24}
                   className={cn(
                     'h-5 w-5 object-contain',
-                    meta.logoDarkInvert && 'dark:invert',
+                    meta.logoDarkInvert && 'dark:invert'
                   )}
                 />
               </div>
-              <div className="flex-1">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-sm font-semibold">{meta.name}</h4>
+              <div className='flex-1'>
+                <div className='flex items-center gap-2'>
+                  <h4 className='text-sm font-semibold'>{meta.name}</h4>
                   {meta.subtitle && (
-                    <Badge variant="outline" className="text-[10px]">
+                    <Badge variant='outline' className='text-[10px]'>
                       {meta.subtitle}
                     </Badge>
                   )}
                   {!meta.available && (
-                    <Badge variant="outline" className="text-[10px]">
-                      <Sparkles className="mr-0.5 h-2.5 w-2.5" /> Soon
+                    <Badge variant='outline' className='text-[10px]'>
+                      <Sparkles className='mr-0.5 h-2.5 w-2.5' /> Soon
                     </Badge>
                   )}
                 </div>
               </div>
             </div>
-            <p className="text-xs leading-relaxed text-muted-foreground">
+            <p className='text-muted-foreground text-xs leading-relaxed'>
               {meta.description}
             </p>
-            <div className="mt-auto pt-2">
+            <div className='mt-auto pt-2'>
               {meta.available ? (
                 meta.authKind === 'odoo_credentials' ? (
                   <OdooConnectDialog
@@ -110,7 +116,7 @@ export function ProviderCatalog({ onConnect, connectedProviders, onReload }: Pro
                   />
                 )
               ) : (
-                <Button variant="outline" size="sm" disabled className="w-full">
+                <Button variant='outline' size='sm' disabled className='w-full'>
                   Notify me
                 </Button>
               )}
@@ -125,19 +131,19 @@ export function ProviderCatalog({ onConnect, connectedProviders, onReload }: Pro
 function ConnectButton({
   provider,
   onConnect,
-  alreadyConnected,
+  alreadyConnected
 }: {
   provider: CrmProviderType;
   onConnect: (
     provider: CrmProviderType,
-    scope: 'personal' | 'organization',
+    scope: 'personal' | 'organization'
   ) => void;
   alreadyConnected: boolean;
 }) {
   const { organization } = useOrganization();
   const [open, setOpen] = useState(false);
   const [scope, setScope] = useState<'personal' | 'organization'>(
-    organization ? 'organization' : 'personal',
+    organization ? 'organization' : 'personal'
   );
 
   const meta = PROVIDER_META[provider];
@@ -146,11 +152,11 @@ function ConnectButton({
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <Button
-          size="sm"
+          size='sm'
           variant={alreadyConnected ? 'outline' : 'default'}
-          className="w-full"
+          className='w-full'
         >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
+          <Plus className='mr-1.5 h-3.5 w-3.5' />
           {alreadyConnected ? 'Add another' : `Connect ${meta.name}`}
         </Button>
       </DialogTrigger>
@@ -167,21 +173,21 @@ function ConnectButton({
         <RadioGroup
           value={scope}
           onValueChange={(v) => setScope(v as 'personal' | 'organization')}
-          className="gap-2"
+          className='gap-2'
         >
           <Label
-            htmlFor="scope-personal"
+            htmlFor='scope-personal'
             className={cn(
               'flex cursor-pointer items-start gap-3 rounded-lg border p-3 transition-colors',
-              scope === 'personal' && 'border-primary bg-primary/5',
+              scope === 'personal' && 'border-primary bg-primary/5'
             )}
           >
-            <RadioGroupItem value="personal" id="scope-personal" />
-            <div className="flex-1">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <User className="h-3.5 w-3.5" /> Personal workspace
+            <RadioGroupItem value='personal' id='scope-personal' />
+            <div className='flex-1'>
+              <div className='flex items-center gap-2 text-sm font-medium'>
+                <User className='h-3.5 w-3.5' /> Personal workspace
               </div>
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <p className='text-muted-foreground mt-0.5 text-xs'>
                 Only your calls are logged. Your token and data stay on your
                 account.
               </p>
@@ -189,27 +195,27 @@ function ConnectButton({
           </Label>
 
           <Label
-            htmlFor="scope-org"
+            htmlFor='scope-org'
             className={cn(
               'flex items-start gap-3 rounded-lg border p-3 transition-colors',
               !organization && 'cursor-not-allowed opacity-50',
               organization && 'cursor-pointer',
-              scope === 'organization' && 'border-primary bg-primary/5',
+              scope === 'organization' && 'border-primary bg-primary/5'
             )}
           >
             <RadioGroupItem
-              value="organization"
-              id="scope-org"
+              value='organization'
+              id='scope-org'
               disabled={!organization}
             />
-            <div className="flex-1">
-              <div className="flex items-center gap-2 text-sm font-medium">
-                <Users className="h-3.5 w-3.5" />
+            <div className='flex-1'>
+              <div className='flex items-center gap-2 text-sm font-medium'>
+                <Users className='h-3.5 w-3.5' />
                 {organization
                   ? organization.name
                   : 'Organization (no active team)'}
               </div>
-              <p className="mt-0.5 text-xs text-muted-foreground">
+              <p className='text-muted-foreground mt-0.5 text-xs'>
                 {organization
                   ? 'All teammates in this org share this connection. Calls from anyone in the org get logged.'
                   : 'Switch to an organization from the top-left to enable org-level sync.'}
@@ -219,7 +225,7 @@ function ConnectButton({
         </RadioGroup>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)}>
+          <Button variant='outline' onClick={() => setOpen(false)}>
             Cancel
           </Button>
           <Button

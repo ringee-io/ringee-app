@@ -2,11 +2,18 @@
 
 import * as React from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import type { DashboardFilters, DashboardRangeKey, DashboardScope } from './types';
+import type {
+  DashboardFilters,
+  DashboardRangeKey,
+  DashboardScope
+} from './types';
 
 interface DashboardFiltersContextValue {
   filters: DashboardFilters;
-  setRange: (range: DashboardRangeKey, custom?: { from: string; to: string }) => void;
+  setRange: (
+    range: DashboardRangeKey,
+    custom?: { from: string; to: string }
+  ) => void;
   setScope: (scope: DashboardScope) => void;
   setMemberId: (id: string | null) => void;
   setCampaignId: (id: string | null) => void;
@@ -17,7 +24,8 @@ interface DashboardFiltersContextValue {
   toQuery: () => Record<string, string>;
 }
 
-const DashboardFiltersContext = React.createContext<DashboardFiltersContextValue | null>(null);
+const DashboardFiltersContext =
+  React.createContext<DashboardFiltersContextValue | null>(null);
 
 const SCOPE_VALUES: DashboardScope[] = ['personal', 'organization'];
 const RANGE_VALUES: DashboardRangeKey[] = [
@@ -44,10 +52,14 @@ export function DashboardFiltersProvider({
     const rangeParam = searchParams.get('range') as DashboardRangeKey | null;
     const scopeParam = searchParams.get('scope') as DashboardScope | null;
     return {
-      range: rangeParam && RANGE_VALUES.includes(rangeParam) ? rangeParam : '30d',
+      range:
+        rangeParam && RANGE_VALUES.includes(rangeParam) ? rangeParam : '30d',
       from: searchParams.get('from') ?? undefined,
       to: searchParams.get('to') ?? undefined,
-      scope: scopeParam && SCOPE_VALUES.includes(scopeParam) ? scopeParam : defaultScope,
+      scope:
+        scopeParam && SCOPE_VALUES.includes(scopeParam)
+          ? scopeParam
+          : defaultScope,
       memberId: searchParams.get('memberId'),
       campaignId: searchParams.get('campaignId'),
       outcome: searchParams.get('outcome')
@@ -58,7 +70,8 @@ export function DashboardFiltersProvider({
     (changes: Record<string, string | null | undefined>) => {
       const url = new URL(window.location.href);
       for (const [k, v] of Object.entries(changes)) {
-        if (v === null || v === undefined || v === '') url.searchParams.delete(k);
+        if (v === null || v === undefined || v === '')
+          url.searchParams.delete(k);
         else url.searchParams.set(k, v);
       }
       router.replace(url.pathname + url.search, { scroll: false });
@@ -95,13 +108,17 @@ export function DashboardFiltersProvider({
   };
 
   return (
-    <DashboardFiltersContext.Provider value={value}>{children}</DashboardFiltersContext.Provider>
+    <DashboardFiltersContext.Provider value={value}>
+      {children}
+    </DashboardFiltersContext.Provider>
   );
 }
 
 export function useDashboardFilters() {
   const ctx = React.useContext(DashboardFiltersContext);
   if (!ctx)
-    throw new Error('useDashboardFilters must be used inside DashboardFiltersProvider');
+    throw new Error(
+      'useDashboardFilters must be used inside DashboardFiltersProvider'
+    );
   return ctx;
 }

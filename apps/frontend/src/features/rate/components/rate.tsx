@@ -145,7 +145,9 @@ export function RateClient({ initialRates }: { initialRates: RateType[] }) {
             <h3 className='text-foreground text-4xl font-bold tracking-tight'>
               {selected.currency} ${rate.toFixed(3)}
             </h3>
-            <p className='text-muted-foreground mt-1 text-sm'>{t('perMinute')}</p>
+            <p className='text-muted-foreground mt-1 text-sm'>
+              {t('perMinute')}
+            </p>
             {/* <p className='text-muted-foreground mt-3 text-xs tracking-wider uppercase'>
               Provider: {selected.provider}
             </p> */}

@@ -24,27 +24,37 @@ export function buildOdooMeetingLog(input: CrmMeetingInput): {
   lines.push(`<li><strong>Start:</strong> ${escapeHtml(startStr)}</li>`);
   lines.push(`<li><strong>End:</strong> ${escapeHtml(endStr)}</li>`);
   if (input.timezone) {
-    lines.push(`<li><strong>Timezone:</strong> ${escapeHtml(input.timezone)}</li>`);
+    lines.push(
+      `<li><strong>Timezone:</strong> ${escapeHtml(input.timezone)}</li>`,
+    );
   }
   if (input.ownerName) {
-    lines.push(`<li><strong>Organizer:</strong> ${escapeHtml(input.ownerName)}</li>`);
+    lines.push(
+      `<li><strong>Organizer:</strong> ${escapeHtml(input.ownerName)}</li>`,
+    );
   }
   if (input.calendarProvider) {
-    lines.push(`<li><strong>Calendar:</strong> ${escapeHtml(input.calendarProvider)}</li>`);
+    lines.push(
+      `<li><strong>Calendar:</strong> ${escapeHtml(input.calendarProvider)}</li>`,
+    );
   }
   lines.push("</ul>");
 
   if (input.attendees.length > 0) {
     lines.push(`<p><strong>Attendees</strong></p><ul>`);
     for (const a of input.attendees) {
-      const parts = [a.name, a.email].filter(Boolean).map((v) => escapeHtml(v!));
+      const parts = [a.name, a.email]
+        .filter(Boolean)
+        .map((v) => escapeHtml(v!));
       lines.push(`<li>${parts.join(" — ") || "Unknown"}</li>`);
     }
     lines.push("</ul>");
   }
 
   if (input.description && input.description.trim()) {
-    lines.push(`<p><strong>Description</strong></p><p>${escapeHtml(input.description.trim())}</p>`);
+    lines.push(
+      `<p><strong>Description</strong></p><p>${escapeHtml(input.description.trim())}</p>`,
+    );
   }
 
   const linkParts: string[] = [];
@@ -87,10 +97,7 @@ export function buildOdooMeetingLog(input: CrmMeetingInput): {
 }
 
 function escapeHtml(v: string): string {
-  return v
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function escapeAttr(v: string): string {

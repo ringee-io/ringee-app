@@ -1,7 +1,10 @@
 'use client';
 
 import { Card } from '@ringee/frontend-shared/components/ui/card';
-import { Avatar, AvatarFallback } from '@ringee/frontend-shared/components/ui/avatar';
+import {
+  Avatar,
+  AvatarFallback
+} from '@ringee/frontend-shared/components/ui/avatar';
 
 export function ContactSuggestions({
   matches,

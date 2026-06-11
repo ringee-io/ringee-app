@@ -1,4 +1,8 @@
-import { Card, CardContent, CardHeader } from '@ringee/frontend-shared/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader
+} from '@ringee/frontend-shared/components/ui/card';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 
 export function AreaGraphSkeleton() {

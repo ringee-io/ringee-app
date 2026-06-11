@@ -9,7 +9,7 @@ import {
   Phone,
   PhoneOff,
   SkipForward,
-  Users,
+  Users
 } from 'lucide-react';
 import type { SessionItemDto } from '../api';
 import type { CallSessionPhase } from '../use-call-session';
@@ -19,7 +19,7 @@ const STATUS_ICON = {
   calling: Phone,
   completed: CheckCircle2,
   skipped: SkipForward,
-  failed: PhoneOff,
+  failed: PhoneOff
 } as const;
 
 const OUTCOME_LABELS: Record<string, string> = {
@@ -32,10 +32,13 @@ const OUTCOME_LABELS: Record<string, string> = {
   no_answer: 'No answer',
   voicemail: 'Voicemail',
   wrong_number: 'Wrong number',
-  gatekeeper: 'Gatekeeper',
+  gatekeeper: 'Gatekeeper'
 };
 
-const OUTCOME_TONE: Record<string, 'default' | 'secondary' | 'destructive' | 'outline'> = {
+const OUTCOME_TONE: Record<
+  string,
+  'default' | 'secondary' | 'destructive' | 'outline'
+> = {
   meeting_booked: 'default',
   sale: 'default',
   interested: 'default',
@@ -45,7 +48,7 @@ const OUTCOME_TONE: Record<string, 'default' | 'secondary' | 'destructive' | 'ou
   no_answer: 'outline',
   voicemail: 'outline',
   wrong_number: 'destructive',
-  gatekeeper: 'outline',
+  gatekeeper: 'outline'
 };
 
 interface Props {
@@ -55,13 +58,18 @@ interface Props {
   onSelect: (id: string) => void;
 }
 
-export function SessionLeadPanel({ items, activeItem, phase, onSelect }: Props) {
+export function SessionLeadPanel({
+  items,
+  activeItem,
+  phase,
+  onSelect
+}: Props) {
   if (items.length === 0) {
     return (
-      <div className="flex h-full flex-col items-center justify-center p-6 text-center">
-        <Users className="mb-3 h-10 w-10 text-muted-foreground" />
-        <h3 className="font-semibold">No contacts in this session</h3>
-        <p className="mt-1 text-sm text-muted-foreground">
+      <div className='flex h-full flex-col items-center justify-center p-6 text-center'>
+        <Users className='text-muted-foreground mb-3 h-10 w-10' />
+        <h3 className='font-semibold'>No contacts in this session</h3>
+        <p className='text-muted-foreground mt-1 text-sm'>
           The owner can add contacts and re-share the link.
         </p>
       </div>
@@ -69,43 +77,43 @@ export function SessionLeadPanel({ items, activeItem, phase, onSelect }: Props) 
   }
 
   return (
-    <div className="flex h-full flex-col">
+    <div className='flex h-full flex-col'>
       {/* Active contact card */}
       {activeItem ? (
-        <div className="space-y-3 p-4">
-          <div className="flex items-center gap-3">
-            <div className="bg-primary flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold text-primary-foreground">
+        <div className='space-y-3 p-4'>
+          <div className='flex items-center gap-3'>
+            <div className='bg-primary text-primary-foreground flex h-12 w-12 items-center justify-center rounded-full text-lg font-bold'>
               {(activeItem.displayName || '?').charAt(0).toUpperCase()}
             </div>
-            <div className="min-w-0">
-              <h2 className="truncate text-lg font-semibold">
+            <div className='min-w-0'>
+              <h2 className='truncate text-lg font-semibold'>
                 {activeItem.displayName || 'Unknown contact'}
               </h2>
-              <Badge variant="secondary" className="text-xs capitalize">
+              <Badge variant='secondary' className='text-xs capitalize'>
                 {phase.replace('_', ' ')}
               </Badge>
             </div>
           </div>
 
-          <div className="space-y-2 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Phone className="h-4 w-4" />
-              <span className="font-mono">{activeItem.phoneNumberMasked}</span>
+          <div className='space-y-2 text-sm'>
+            <div className='text-muted-foreground flex items-center gap-2'>
+              <Phone className='h-4 w-4' />
+              <span className='font-mono'>{activeItem.phoneNumberMasked}</span>
             </div>
             {activeItem.company && (
-              <div className="flex items-center gap-2 text-muted-foreground">
-                <Building2 className="h-4 w-4" />
+              <div className='text-muted-foreground flex items-center gap-2'>
+                <Building2 className='h-4 w-4' />
                 <span>{activeItem.company}</span>
               </div>
             )}
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Hash className="h-4 w-4" />
+            <div className='text-muted-foreground flex items-center gap-2'>
+              <Hash className='h-4 w-4' />
               <span>Position #{activeItem.positionIndex + 1}</span>
             </div>
           </div>
         </div>
       ) : (
-        <div className="space-y-3 p-4 text-center text-sm text-muted-foreground">
+        <div className='text-muted-foreground space-y-3 p-4 text-center text-sm'>
           Select a pending contact from the queue.
         </div>
       )}
@@ -113,11 +121,11 @@ export function SessionLeadPanel({ items, activeItem, phase, onSelect }: Props) 
       <Separator />
 
       {/* Queue */}
-      <div className="flex-1 overflow-y-auto p-2">
-        <div className="px-2 pb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className='flex-1 overflow-y-auto p-2'>
+        <div className='text-muted-foreground px-2 pb-2 text-xs font-semibold tracking-wide uppercase'>
           Queue
         </div>
-        <ul className="space-y-1">
+        <ul className='space-y-1'>
           {items.map((item) => {
             const Icon = STATUS_ICON[item.status];
             const isActive = activeItem?.id === item.id;
@@ -125,17 +133,18 @@ export function SessionLeadPanel({ items, activeItem, phase, onSelect }: Props) 
               item.status === 'completed' ||
               item.status === 'skipped' ||
               item.status === 'failed';
-            const clickable = phase === 'preview' && !terminal && item.status !== 'calling';
+            const clickable =
+              phase === 'preview' && !terminal && item.status !== 'calling';
             return (
               <li key={item.id}>
                 <button
-                  type="button"
+                  type='button'
                   disabled={!clickable}
                   onClick={() => clickable && onSelect(item.id)}
                   className={
                     'flex w-full items-center gap-2 rounded-md px-2 py-2 text-left text-sm transition-colors ' +
                     (isActive
-                      ? 'bg-primary/10 ring-1 ring-primary/30'
+                      ? 'bg-primary/10 ring-primary/30 ring-1'
                       : clickable
                         ? 'hover:bg-muted'
                         : 'opacity-70')
@@ -145,7 +154,7 @@ export function SessionLeadPanel({ items, activeItem, phase, onSelect }: Props) 
                     className={
                       'h-4 w-4 shrink-0 ' +
                       (item.status === 'calling'
-                        ? 'text-orange-500 animate-pulse'
+                        ? 'animate-pulse text-orange-500'
                         : item.status === 'completed'
                           ? 'text-emerald-600'
                           : item.status === 'failed'
@@ -153,11 +162,11 @@ export function SessionLeadPanel({ items, activeItem, phase, onSelect }: Props) 
                             : 'text-muted-foreground')
                     }
                   />
-                  <div className="min-w-0 flex-1">
-                    <div className="truncate font-medium">
+                  <div className='min-w-0 flex-1'>
+                    <div className='truncate font-medium'>
                       {item.displayName || 'Unknown contact'}
                     </div>
-                    <div className="truncate text-xs text-muted-foreground">
+                    <div className='text-muted-foreground truncate text-xs'>
                       {item.company ? `${item.company} · ` : ''}
                       {item.phoneNumberMasked}
                     </div>
@@ -165,7 +174,7 @@ export function SessionLeadPanel({ items, activeItem, phase, onSelect }: Props) 
                   {item.outcome && (
                     <Badge
                       variant={OUTCOME_TONE[item.outcome] ?? 'outline'}
-                      className="ml-auto whitespace-nowrap text-[10px]"
+                      className='ml-auto text-[10px] whitespace-nowrap'
                     >
                       {OUTCOME_LABELS[item.outcome] ?? item.outcome}
                     </Badge>

@@ -49,7 +49,7 @@ export class CallAttemptService {
   async handleWebhookEvent(
     callAttemptId: string,
     eventType: string,
-    callId: string
+    callId: string,
   ): Promise<void> {
     const attempt = await this.attemptRepo.findById(callAttemptId);
     if (!attempt) {
@@ -78,20 +78,20 @@ export class CallAttemptService {
         await this.attemptRepo.updateStatus(
           callAttemptId,
           CallAttemptStatus.answered,
-          { answeredAt: new Date() }
+          { answeredAt: new Date() },
         );
         await this.campaignLeadRepo.updateStatus(
           attempt.campaignLeadId,
-          CampaignLeadStatus.in_call
+          CampaignLeadStatus.in_call,
         );
         if (attempt.agentSessionId) {
           await this.agentSessionService.transitionTo(
             attempt.agentSessionId,
-            AgentSessionStatus.in_call
+            AgentSessionStatus.in_call,
           );
           await this.agentSessionService.incrementStats(
             attempt.agentSessionId,
-            { callsConnected: 1 }
+            { callsConnected: 1 },
           );
           this.sseBridge.emit(`agent:${attempt.agentSessionId}`, "call.state", {
             status: "in_call",
@@ -107,29 +107,29 @@ export class CallAttemptService {
         await this.attemptRepo.updateStatus(
           callAttemptId,
           CallAttemptStatus.ended,
-          { endedAt: new Date() }
+          { endedAt: new Date() },
         );
 
         // Increment lead attempts
         await this.campaignLeadRepo.incrementAttempt(attempt.campaignLeadId);
         await this.campaignLeadRepo.updateStatus(
           attempt.campaignLeadId,
-          CampaignLeadStatus.wrap_up
+          CampaignLeadStatus.wrap_up,
         );
 
         if (attempt.agentSessionId) {
           await this.agentSessionService.transitionTo(
             attempt.agentSessionId,
-            AgentSessionStatus.wrap_up
+            AgentSessionStatus.wrap_up,
           );
           await this.agentSessionService.incrementStats(
             attempt.agentSessionId,
-            { callsAttempted: 1 }
+            { callsAttempted: 1 },
           );
 
           // Load dispositions and emit disposition.required via SSE
           const dispositions = await this.dispositionService.listByCampaign(
-            attempt.campaignId
+            attempt.campaignId,
           );
           this.sseBridge.emit(`agent:${attempt.agentSessionId}`, "call.state", {
             status: "ended",
@@ -148,11 +148,15 @@ export class CallAttemptService {
                 color: d.color,
                 triggersCallback: d.triggersCallback,
               })),
-            }
+            },
           );
-          this.sseBridge.emit(`agent:${attempt.agentSessionId}`, "session.state", {
-            status: "wrap_up",
-          });
+          this.sseBridge.emit(
+            `agent:${attempt.agentSessionId}`,
+            "session.state",
+            {
+              status: "wrap_up",
+            },
+          );
         }
         break;
     }
@@ -171,7 +175,7 @@ export class CallAttemptService {
     organizationId: string;
   }): Promise<{ action: string }> {
     const disposition = await this.dispositionService.getById(
-      data.dispositionId
+      data.dispositionId,
     );
 
     // WebRTC calls are placed from the frontend, so the backend never receives
@@ -181,40 +185,40 @@ export class CallAttemptService {
     if (!current) {
       throw new NotFoundException("Call attempt not found");
     }
-    if (current.status !== CallAttemptStatus.ended && current.status !== CallAttemptStatus.dispositioned) {
+    if (
+      current.status !== CallAttemptStatus.ended &&
+      current.status !== CallAttemptStatus.dispositioned
+    ) {
       await this.attemptRepo.updateStatus(
         data.callAttemptId,
         CallAttemptStatus.ended,
-        { endedAt: new Date() }
+        { endedAt: new Date() },
       );
       // Also ensure the lead is in wrap_up
       await this.campaignLeadRepo.updateStatus(
         current.campaignLeadId,
-        CampaignLeadStatus.wrap_up
+        CampaignLeadStatus.wrap_up,
       );
       // Increment lead attempts if not yet done
       await this.campaignLeadRepo.incrementAttempt(current.campaignLeadId);
     }
 
-    const attempt = await this.attemptRepo.setDisposition(
-      data.callAttemptId,
-      {
-        dispositionId: data.dispositionId,
-        dispositionCode: disposition.code,
-        dispositionNote: data.note,
-      }
-    );
+    const attempt = await this.attemptRepo.setDisposition(data.callAttemptId, {
+      dispositionId: data.dispositionId,
+      dispositionCode: disposition.code,
+      dispositionNote: data.note,
+    });
 
     if (!attempt) {
       throw new NotFoundException(
-        "Call attempt not in valid state for disposition"
+        "Call attempt not in valid state for disposition",
       );
     }
 
     // Mark lead as dispositioned first
     await this.campaignLeadRepo.updateStatus(
       attempt.campaignLeadId,
-      CampaignLeadStatus.dispositioned
+      CampaignLeadStatus.dispositioned,
     );
 
     let action = "dispositioned";
@@ -223,17 +227,17 @@ export class CallAttemptService {
     if (disposition.triggersCompletion) {
       await this.campaignLeadRepo.updateStatus(
         attempt.campaignLeadId,
-        CampaignLeadStatus.completed
+        CampaignLeadStatus.completed,
       );
       action = "completed";
     } else if (disposition.triggersDnc) {
       await this.campaignLeadRepo.updateStatus(
         attempt.campaignLeadId,
-        CampaignLeadStatus.dnc
+        CampaignLeadStatus.dnc,
       );
       // Add to DNC list
       const leadData = await this.attemptRepo.findByIdWithRelations(
-        data.callAttemptId
+        data.callAttemptId,
       );
       if (leadData) {
         await this.complianceService.addToDNC({
@@ -246,10 +250,7 @@ export class CallAttemptService {
         });
       }
       action = "dnc";
-    } else if (
-      disposition.triggersCallback &&
-      data.callback?.scheduledAt
-    ) {
+    } else if (disposition.triggersCallback && data.callback?.scheduledAt) {
       await this.callbackService.scheduleFromCampaign({
         campaignLeadId: attempt.campaignLeadId,
         userId: attempt.agentUserId,
@@ -263,7 +264,7 @@ export class CallAttemptService {
         attempt.campaignLeadId,
         disposition.category,
         attempt.attemptNumber,
-        data.campaignDefaults
+        data.campaignDefaults,
       );
       action = retryResult;
     } else {
@@ -279,7 +280,7 @@ export class CallAttemptService {
       } else {
         await this.campaignLeadRepo.updateStatus(
           attempt.campaignLeadId,
-          CampaignLeadStatus.completed
+          CampaignLeadStatus.completed,
         );
         action = "completed";
       }
@@ -290,12 +291,12 @@ export class CallAttemptService {
       await this.agentSessionService.transitionTo(
         attempt.agentSessionId,
         AgentSessionStatus.ready,
-        null
+        null,
       );
     }
 
     this.logger.log(
-      `Disposition '${disposition.code}' submitted for attempt ${data.callAttemptId}, action: ${action}`
+      `Disposition '${disposition.code}' submitted for attempt ${data.callAttemptId}, action: ${action}`,
     );
 
     return { action };

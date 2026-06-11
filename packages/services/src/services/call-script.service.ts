@@ -51,7 +51,9 @@ export class CallScriptService {
     return this.toResponse(script);
   }
 
-  private toResponse(script: CallScriptWithSections | null): CallScriptResponse {
+  private toResponse(
+    script: CallScriptWithSections | null,
+  ): CallScriptResponse {
     if (!script) return { sections: [] };
     return {
       sections: script.sections.map((s) => ({

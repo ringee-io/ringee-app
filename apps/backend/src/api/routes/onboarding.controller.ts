@@ -1,4 +1,10 @@
-import { Controller, Get, Patch, Param, NotFoundException } from "@nestjs/common";
+import {
+  Controller,
+  Get,
+  Patch,
+  Param,
+  NotFoundException,
+} from "@nestjs/common";
 import { OnboardingService, OnboardingStep } from "@ringee/services";
 import { CurrentUser } from "@ringee/platform";
 

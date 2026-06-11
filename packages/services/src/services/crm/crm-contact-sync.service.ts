@@ -85,8 +85,11 @@ export class CrmContactSyncService {
       ? await this.contactRepo.findByPhone(ctx, primaryPhone)
       : null;
 
-    const existingContactId = existingByPhone?.id
-      ?? (primaryEmail ? (await this.findContactByEmail(ctx, primaryEmail))?.id : null);
+    const existingContactId =
+      existingByPhone?.id ??
+      (primaryEmail
+        ? (await this.findContactByEmail(ctx, primaryEmail))?.id
+        : null);
 
     if (existingContactId) {
       await this.updateExistingContact(existingContactId, result);
@@ -113,7 +116,10 @@ export class CrmContactSyncService {
       email: primaryEmail ?? undefined,
       jobTitle: result.jobTitle ?? undefined,
       source: `crm:${connection.provider}`,
-      crmMetadata: { lastSyncedFrom: connection.provider, externalId: result.contact.externalId } as unknown as Prisma.InputJsonValue,
+      crmMetadata: {
+        lastSyncedFrom: connection.provider,
+        externalId: result.contact.externalId,
+      } as unknown as Prisma.InputJsonValue,
     });
 
     await this.syncPhones(contact.id, result.phones);

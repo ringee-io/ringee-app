@@ -131,7 +131,9 @@ export function ScheduleCallbackForm({
                 )}
               >
                 <span className='uppercase'>{format(day, 'EEE')}</span>
-                <span className='text-xs font-semibold'>{format(day, 'd')}</span>
+                <span className='text-xs font-semibold'>
+                  {format(day, 'd')}
+                </span>
               </button>
             );
           })}
@@ -148,7 +150,7 @@ export function ScheduleCallbackForm({
 
       {/* Time */}
       <div className='space-y-1.5'>
-        <label className='text-muted-foreground block text-[10px] font-medium uppercase tracking-wider'>
+        <label className='text-muted-foreground block text-[10px] font-medium tracking-wider uppercase'>
           {t('timeLabel')}
         </label>
         <Input
@@ -161,7 +163,7 @@ export function ScheduleCallbackForm({
 
       {/* Note */}
       <div className='space-y-1.5'>
-        <label className='text-muted-foreground block text-[10px] font-medium uppercase tracking-wider'>
+        <label className='text-muted-foreground block text-[10px] font-medium tracking-wider uppercase'>
           {t('noteLabel')}
         </label>
         <Textarea

@@ -36,12 +36,20 @@ const COLORS = [
   '#fb923c'
 ];
 
-export function CallsByOutcomeWidget({ title, onRemove }: { title: string; onRemove?: () => void }) {
+export function CallsByOutcomeWidget({
+  title,
+  onRemove
+}: {
+  title: string;
+  onRemove?: () => void;
+}) {
   const t = useTranslations('dashboard.widgets.byOutcome');
   const tOutcomes = useTranslations('dashboard.outcomes');
   const localizeOutcome = (outcome: string) =>
     KNOWN_OUTCOMES.has(outcome) ? tOutcomes(outcome as never) : outcome;
-  const { data, loading, error } = useWidgetData<OutcomeRow[]>('/dashboard/calls-by-outcome');
+  const { data, loading, error } = useWidgetData<OutcomeRow[]>(
+    '/dashboard/calls-by-outcome'
+  );
   const empty = !data || data.length === 0;
 
   return (
@@ -58,8 +66,14 @@ export function CallsByOutcomeWidget({ title, onRemove }: { title: string; onRem
           <ResponsiveContainer width='100%' height='100%'>
             <PieChart>
               <Tooltip
-                formatter={(v: number, _n, p) => [v, localizeOutcome(p.payload.outcome)]}
-                contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)' }}
+                formatter={(v: number, _n, p) => [
+                  v,
+                  localizeOutcome(p.payload.outcome)
+                ]}
+                contentStyle={{
+                  background: 'var(--popover)',
+                  border: '1px solid var(--border)'
+                }}
               />
               <Pie
                 data={data ?? []}
@@ -78,7 +92,10 @@ export function CallsByOutcomeWidget({ title, onRemove }: { title: string; onRem
         </div>
         <div className='grid grid-cols-1 gap-1 text-xs'>
           {data?.slice(0, 6).map((row, i) => (
-            <div key={row.outcome} className='flex items-center justify-between gap-2'>
+            <div
+              key={row.outcome}
+              className='flex items-center justify-between gap-2'
+            >
               <span className='flex items-center gap-2 truncate'>
                 <span
                   className='inline-block h-2 w-2 rounded-full'
@@ -86,7 +103,9 @@ export function CallsByOutcomeWidget({ title, onRemove }: { title: string; onRem
                 />
                 <span className='truncate'>{localizeOutcome(row.outcome)}</span>
               </span>
-              <span className='text-muted-foreground tabular-nums'>{row.count}</span>
+              <span className='text-muted-foreground tabular-nums'>
+                {row.count}
+              </span>
             </div>
           ))}
         </div>

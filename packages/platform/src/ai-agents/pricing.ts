@@ -87,7 +87,9 @@ const KEYS_BY_SPECIFICITY = Object.keys(PRICING).sort(
 );
 
 /** Resolve a pricing row for a model id, or null if it's not in the table. */
-export function resolveModelPricing(model?: string | null): ModelPricing | null {
+export function resolveModelPricing(
+  model?: string | null,
+): ModelPricing | null {
   if (!model) return null;
   const id = model.toLowerCase().trim();
   if (PRICING[id]) return PRICING[id];

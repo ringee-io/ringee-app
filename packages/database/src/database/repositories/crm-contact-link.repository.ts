@@ -1,15 +1,28 @@
 import { Injectable } from "@nestjs/common";
-import { CrmContactLink, CrmProviderType, CrmRecordType, Prisma } from "@prisma/client";
+import {
+  CrmContactLink,
+  CrmProviderType,
+  CrmRecordType,
+  Prisma,
+} from "@prisma/client";
 import { PrismaService } from "../prisma.service";
 
 @Injectable()
 export class CrmContactLinkRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  findByPhone(connectionId: string, phoneE164: string): Promise<CrmContactLink | null> {
+  findByPhone(
+    connectionId: string,
+    phoneE164: string,
+  ): Promise<CrmContactLink | null> {
     if (!phoneE164) return Promise.resolve(null);
     return this.prisma.crmContactLink.findUnique({
-      where: { connectionId_phoneNumberE164: { connectionId, phoneNumberE164: phoneE164 } },
+      where: {
+        connectionId_phoneNumberE164: {
+          connectionId,
+          phoneNumberE164: phoneE164,
+        },
+      },
     });
   }
 
@@ -20,7 +33,11 @@ export class CrmContactLinkRepository {
   ): Promise<CrmContactLink | null> {
     return this.prisma.crmContactLink.findUnique({
       where: {
-        connectionId_externalType_externalId: { connectionId, externalType, externalId },
+        connectionId_externalType_externalId: {
+          connectionId,
+          externalType,
+          externalId,
+        },
       },
     });
   }
@@ -36,7 +53,9 @@ export class CrmContactLinkRepository {
     rawSnapshot?: Record<string, unknown> | null;
   }): Promise<CrmContactLink> {
     // Normalize empty/whitespace phone to null so multiple phoneless links can coexist.
-    const rawPhone = input.phoneNumberE164?.trim() ? input.phoneNumberE164.trim() : null;
+    const rawPhone = input.phoneNumberE164?.trim()
+      ? input.phoneNumberE164.trim()
+      : null;
 
     // If another link in this connection already owns this phone (different externalId),
     // we cannot set it on this row without violating the (connectionId, phoneNumberE164)
@@ -55,7 +74,8 @@ export class CrmContactLinkRepository {
       });
       if (
         owner &&
-        (owner.externalId !== input.externalId || owner.externalType !== input.externalType)
+        (owner.externalId !== input.externalId ||
+          owner.externalType !== input.externalType)
       ) {
         phoneNumberE164 = null;
       }
@@ -77,13 +97,17 @@ export class CrmContactLinkRepository {
         phoneNumberE164,
         contactId: input.contactId ?? null,
         matchConfidence: input.matchConfidence ?? "phone_exact",
-        rawSnapshot: (input.rawSnapshot ?? undefined) as Prisma.InputJsonValue | undefined,
+        rawSnapshot: (input.rawSnapshot ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
       },
       update: {
         phoneNumberE164,
         contactId: input.contactId ?? undefined,
         matchConfidence: input.matchConfidence ?? undefined,
-        rawSnapshot: (input.rawSnapshot ?? undefined) as Prisma.InputJsonValue | undefined,
+        rawSnapshot: (input.rawSnapshot ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
         lastSyncedAt: new Date(),
       },
     });

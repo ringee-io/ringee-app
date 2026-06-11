@@ -7,7 +7,10 @@ import { useWidgetData } from '../hooks/use-widget-data';
 import type { KpisData, WidgetType } from '../lib/types';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 
-type KpiTranslator = (key: string, values?: Record<string, string | number>) => string;
+type KpiTranslator = (
+  key: string,
+  values?: Record<string, string | number>
+) => string;
 
 interface KpiSpec {
   /** Translation key under `dashboard.widgets.kpi.<key>` */
@@ -68,13 +71,18 @@ const KPI_SPECS: Partial<Record<WidgetType, KpiSpec>> = {
     key: 'conversionRate',
     value: (k) => k.conversionRate,
     format: (n) => `${n.toFixed(1)}%`,
-    hint: (k, t) => t('conversionRate.hint', { sales: k.sales, answered: k.answeredCalls })
+    hint: (k, t) =>
+      t('conversionRate.hint', { sales: k.sales, answered: k.answeredCalls })
   },
   kpi_meeting_rate: {
     key: 'meetingRate',
     value: (k) => k.meetingRate,
     format: (n) => `${n.toFixed(1)}%`,
-    hint: (k, t) => t('meetingRate.hint', { meetings: k.meetingsBooked, answered: k.answeredCalls })
+    hint: (k, t) =>
+      t('meetingRate.hint', {
+        meetings: k.meetingsBooked,
+        answered: k.answeredCalls
+      })
   },
   kpi_positive_outcome_rate: {
     key: 'positiveOutcomeRate',
@@ -101,7 +109,9 @@ export function KpiWidget({
   if (!spec) {
     return (
       <WidgetShell title={title} onRemove={onRemove}>
-        <div className='text-muted-foreground text-sm'>{tShell('unknownKpi', { type })}</div>
+        <div className='text-muted-foreground text-sm'>
+          {tShell('unknownKpi', { type })}
+        </div>
       </WidgetShell>
     );
   }
@@ -125,7 +135,10 @@ export function KpiWidget({
       <div className='flex flex-col gap-1'>
         <span className='text-3xl font-semibold tabular-nums'>{formatted}</span>
         {spec.hint && data && (
-          <Badge variant='secondary' className='text-muted-foreground w-fit text-xs'>
+          <Badge
+            variant='secondary'
+            className='text-muted-foreground w-fit text-xs'
+          >
             {spec.hint(data, t as KpiTranslator)}
           </Badge>
         )}

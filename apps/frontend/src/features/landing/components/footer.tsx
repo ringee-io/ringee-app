@@ -34,11 +34,10 @@ const Footer = () => {
                 </li>
               ))}
             </ul>
-
           </div>
 
           <div>
-            <h6 className='font-semibold mb-2'>{t('featuredOn')}</h6>
+            <h6 className='mb-2 font-semibold'>{t('featuredOn')}</h6>
             <div className='flex items-center gap-3'>
               <a
                 href='https://www.producthunt.com/products/ringee-io?embed=true&utm_source=badge-featured&utm_medium=badge&utm_campaign=badge-ringee-io'
@@ -63,7 +62,11 @@ const Footer = () => {
                 />
               </a>
 
-              <a href='https://www.tinylaunch.com/launch/7675' target='_blank' rel='noopener'>
+              <a
+                href='https://www.tinylaunch.com/launch/7675'
+                target='_blank'
+                rel='noopener'
+              >
                 <img
                   src='https://tinylaunch.com/tinylaunch_badge_3.svg'
                   alt='TinyLaunch Badge'

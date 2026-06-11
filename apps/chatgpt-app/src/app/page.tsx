@@ -36,9 +36,24 @@ function ComponentFrame({
 }
 
 const SENSITIVITY_LEGEND = [
-  { icon: ShieldCheck, label: "Read / Write", tone: "var(--info)", note: "Safe — normal intent." },
-  { icon: Sparkles, label: "Sensitive", tone: "var(--warning)", note: "Spends credits or mints magic links — confirm." },
-  { icon: Trash2, label: "Destructive", tone: "var(--destructive)", note: "Deletes or revokes — strict confirmation." },
+  {
+    icon: ShieldCheck,
+    label: "Read / Write",
+    tone: "var(--info)",
+    note: "Safe — normal intent.",
+  },
+  {
+    icon: Sparkles,
+    label: "Sensitive",
+    tone: "var(--warning)",
+    note: "Spends credits or mints magic links — confirm.",
+  },
+  {
+    icon: Trash2,
+    label: "Destructive",
+    tone: "var(--destructive)",
+    note: "Deletes or revokes — strict confirmation.",
+  },
 ];
 
 export default function HomePage() {
@@ -72,11 +87,11 @@ export default function HomePage() {
             Outbound sales, operated from chat.
           </h1>
           <p className="text-muted-foreground max-w-2xl text-sm">
-            These are the visual components the Ringee ChatGPT App renders on top
-            of the existing Ringee backend/MCP. The data here is sample data — in
-            ChatGPT each card is driven by real tool output. Every surface is
-            built to match the Ringee dashboard: clear hierarchy, real states,
-            and risk-aware actions.
+            These are the visual components the Ringee ChatGPT App renders on
+            top of the existing Ringee backend/MCP. The data here is sample data
+            — in ChatGPT each card is driven by real tool output. Every surface
+            is built to match the Ringee dashboard: clear hierarchy, real
+            states, and risk-aware actions.
           </p>
         </section>
 
@@ -149,12 +164,18 @@ export default function HomePage() {
         <section className="space-y-5">
           <h2 className="text-lg font-semibold">States</h2>
           <div className="grid gap-8 md:grid-cols-3">
-            <ComponentFrame title="Loading" description="Skeleton while a tool runs.">
+            <ComponentFrame
+              title="Loading"
+              description="Skeleton while a tool runs."
+            >
               <div className="w-full max-w-sm">
                 <LoadingState label="Searching contacts…" />
               </div>
             </ComponentFrame>
-            <ComponentFrame title="Empty" description="No results, with a way forward.">
+            <ComponentFrame
+              title="Empty"
+              description="No results, with a way forward."
+            >
               <div className="w-full max-w-sm">
                 <EmptyState
                   title="No contacts found"
@@ -162,7 +183,10 @@ export default function HomePage() {
                 />
               </div>
             </ComponentFrame>
-            <ComponentFrame title="Error" description="A failed tool call, explained.">
+            <ComponentFrame
+              title="Error"
+              description="A failed tool call, explained."
+            >
               <div className="w-full max-w-sm">
                 <ErrorState description="The enrichment provider isn't connected. Connect Apollo or Prospeo in Settings." />
               </div>
@@ -212,7 +236,10 @@ export default function HomePage() {
 }
 
 function RiskBadge({ level }: { level: string }) {
-  const map: Record<string, { variant: "default" | "info" | "warning" | "destructive"; label: string }> = {
+  const map: Record<
+    string,
+    { variant: "default" | "info" | "warning" | "destructive"; label: string }
+  > = {
     read: { variant: "default", label: "read" },
     write: { variant: "info", label: "write" },
     sensitive: { variant: "warning", label: "sensitive" },

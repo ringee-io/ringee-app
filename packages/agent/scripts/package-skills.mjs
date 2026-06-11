@@ -32,4 +32,6 @@ for (const name of skills) {
 }
 
 console.log(`\n${skills.length} skill zip(s) → ${outDir}`);
-console.log("Upload each at claude.ai → Settings → Customize → Skills → Upload skill.");
+console.log(
+  "Upload each at claude.ai → Settings → Customize → Skills → Upload skill.",
+);

@@ -41,8 +41,7 @@ export class MessagingWebhookController {
     // The raw body is required to verify the Ed25519 signature.
     // Nest's NestFactory.create({ rawBody: true }) (set in main.ts) puts it
     // on req.rawBody for every route.
-    const raw =
-      req.rawBody ?? Buffer.from(JSON.stringify(body ?? {}), "utf-8");
+    const raw = req.rawBody ?? Buffer.from(JSON.stringify(body ?? {}), "utf-8");
 
     const ok = this.verifier.verify(signature, timestamp, raw);
     if (!ok) {

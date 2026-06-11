@@ -38,7 +38,9 @@ const KNOWN_OUTCOMES = new Set([
   'gatekeeper'
 ]);
 
-function fullName(p?: { firstName: string | null; lastName: string | null } | null) {
+function fullName(
+  p?: { firstName: string | null; lastName: string | null } | null
+) {
   if (!p) return '';
   return [p.firstName, p.lastName].filter(Boolean).join(' ').trim();
 }
@@ -71,7 +73,9 @@ export function RecentHighValueWidget({
 }) {
   const t = useTranslations('dashboard.widgets.recentHighValue');
   const tOutcomes = useTranslations('dashboard.outcomes');
-  const { data, loading, error } = useWidgetData<RecentCall[]>('/dashboard/recent-high-value');
+  const { data, loading, error } = useWidgetData<RecentCall[]>(
+    '/dashboard/recent-high-value'
+  );
   const empty = !data || data.length === 0;
 
   return (
@@ -86,17 +90,23 @@ export function RecentHighValueWidget({
     >
       <div className='divide-border divide-y'>
         {data?.map((call) => {
-          const className = OUTCOME_VARIANT[call.outcome] ?? 'bg-muted text-foreground';
+          const className =
+            OUTCOME_VARIANT[call.outcome] ?? 'bg-muted text-foreground';
           const label = KNOWN_OUTCOMES.has(call.outcome)
             ? tOutcomes(call.outcome as never)
             : call.outcome;
           const contact = fullName(call.contact) || call.toNumber;
           const agent = fullName(call.user);
           return (
-            <div key={call.id} className='flex items-start justify-between gap-3 px-4 py-3'>
+            <div
+              key={call.id}
+              className='flex items-start justify-between gap-3 px-4 py-3'
+            >
               <div className='min-w-0 flex-1'>
                 <div className='flex items-center gap-2'>
-                  <span className='truncate text-sm font-medium'>{contact}</span>
+                  <span className='truncate text-sm font-medium'>
+                    {contact}
+                  </span>
                   <Badge className={className}>{label}</Badge>
                 </div>
                 <div className='text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-0.5 text-xs'>

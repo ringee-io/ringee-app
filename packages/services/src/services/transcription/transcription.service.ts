@@ -18,10 +18,10 @@ import {
 } from "@ringee/database";
 import {
   DeepgramService,
+  OrchestratorService,
   OwnershipContext,
   RedisService,
   TelephonyService,
-  WorkerService,
 } from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
 import { CreditService } from "../credit.service";
@@ -41,7 +41,7 @@ export class TranscriptionService {
     private readonly publicRecordingRepo: PublicRecordingRepository,
     private readonly telephonyService: TelephonyService,
     private readonly deepgramService: DeepgramService,
-    private readonly workerService: WorkerService,
+    private readonly orchestratorService: OrchestratorService,
     private readonly redisService: RedisService,
     private readonly creditService: CreditService,
   ) {}
@@ -66,7 +66,10 @@ export class TranscriptionService {
     }
   }
 
-  private async loadCallForCtx(ctx: OwnershipContext, callId: string): Promise<Call> {
+  private async loadCallForCtx(
+    ctx: OwnershipContext,
+    callId: string,
+  ): Promise<Call> {
     const call = await this.callRepo.findById(callId);
     if (!call) throw new NotFoundException("Call not found");
     this.assertCallAccess(ctx, call);
@@ -132,7 +135,8 @@ export class TranscriptionService {
 
   private computeCreditsForDuration(durationSeconds: number): number {
     if (durationSeconds <= 0) return 0;
-    const credits = (durationSeconds / 60) * this.getTranscriptionCreditsPerMinute();
+    const credits =
+      (durationSeconds / 60) * this.getTranscriptionCreditsPerMinute();
     return Number(credits.toFixed(6));
   }
 
@@ -252,9 +256,13 @@ export class TranscriptionService {
       this.logger.log(`▶️ Realtime transcription started for call ${call.id}`);
     } catch (err) {
       const detail = this.describeError(err);
-      await this.transcriptionRepo.markStatus(header.id, TranscriptionStatus.failed, {
-        errorMessage: detail,
-      });
+      await this.transcriptionRepo.markStatus(
+        header.id,
+        TranscriptionStatus.failed,
+        {
+          errorMessage: detail,
+        },
+      );
       this.logger.error(
         `Failed to start media streaming for call ${call.id} ` +
           `(streamUrl=${streamUrl}): ${detail}`,
@@ -298,9 +306,13 @@ export class TranscriptionService {
       TranscriptionStatus.transcribing,
     ];
     if (!header || !inFlight.includes(header.status)) return;
-    await this.transcriptionRepo.markStatus(header.id, TranscriptionStatus.failed, {
-      errorMessage: reason || "Telnyx media streaming failed",
-    });
+    await this.transcriptionRepo.markStatus(
+      header.id,
+      TranscriptionStatus.failed,
+      {
+        errorMessage: reason || "Telnyx media streaming failed",
+      },
+    );
     await this.redisService.del(livePartialKey(call.id)).catch(() => undefined);
   }
 
@@ -339,7 +351,9 @@ export class TranscriptionService {
       }
     }
 
-    const recording = await this.publicRecordingRepo.findLatestByCallId(call.id);
+    const recording = await this.publicRecordingRepo.findLatestByCallId(
+      call.id,
+    );
 
     if (!recording?.url) {
       // No recordingUrl yet → mark unavailable so the UI shows the right state.
@@ -368,7 +382,7 @@ export class TranscriptionService {
       model: apiConfiguration.DEEPGRAM_MODEL,
     });
 
-    await this.workerService.processTranscribeRecording({
+    await this.orchestratorService.processTranscribeRecording({
       callId: call.id,
       manual: opts.manual,
     });
@@ -410,7 +424,10 @@ export class TranscriptionService {
 
     if (chargedCredits > 0) {
       await this.assertTranscriptionCredits(call, chargedCredits);
-      await this.creditService.consumeCredits(this.ctxFromCall(call), chargedCredits);
+      await this.creditService.consumeCredits(
+        this.ctxFromCall(call),
+        chargedCredits,
+      );
     }
 
     await this.transcriptionRepo.updateHeader(header.id, {
@@ -522,7 +539,10 @@ export class TranscriptionService {
    * Start live transcription on demand (the "Transcribe call" button during an
    * active call).
    */
-  async startRealtime(ctx: OwnershipContext, callId: string): Promise<CallTranscription> {
+  async startRealtime(
+    ctx: OwnershipContext,
+    callId: string,
+  ): Promise<CallTranscription> {
     const call = await this.loadCallForCtx(ctx, callId);
     return this.startRealtimeForCall(call);
   }
@@ -554,7 +574,11 @@ export class TranscriptionService {
     source: TranscriptionSource,
   ): Promise<CallTranscription> {
     const call = await this.loadCallForCtx(ctx, callId);
-    if (source === TranscriptionSource.realtime && call.callControlId && !call.endedAt) {
+    if (
+      source === TranscriptionSource.realtime &&
+      call.callControlId &&
+      !call.endedAt
+    ) {
       return this.startRealtimeForCall(call);
     }
     return this.transcribeFromRecording(call, { manual: true });

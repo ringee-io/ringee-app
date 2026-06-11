@@ -33,9 +33,7 @@ export function MeetingsThisWeek() {
 
   useEffect(() => {
     api
-      .get<{ count: number; meetings: MeetingPreview[] }>(
-        '/meetings/this-week'
-      )
+      .get<{ count: number; meetings: MeetingPreview[] }>('/meetings/this-week')
       .then(setData)
       .catch(() => setData({ count: 0, meetings: [] }))
       .finally(() => setIsLoading(false));
@@ -72,7 +70,7 @@ export function MeetingsThisWeek() {
               {data.meetings.map((m) => (
                 <div
                   key={m.id}
-                  className='flex items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/40'
+                  className='hover:bg-muted/40 flex items-center gap-3 rounded-md px-2 py-1.5 text-sm transition-colors'
                 >
                   <span className='h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500' />
                   <span className='min-w-0 flex-1 truncate'>

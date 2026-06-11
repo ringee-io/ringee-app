@@ -26,10 +26,7 @@ export class MessageRepository {
     });
   }
 
-  async update(
-    id: string,
-    data: Prisma.MessageUpdateInput,
-  ): Promise<Message> {
+  async update(id: string, data: Prisma.MessageUpdateInput): Promise<Message> {
     return this.prisma.message.update({ where: { id }, data });
   }
 

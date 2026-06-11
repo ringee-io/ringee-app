@@ -85,9 +85,7 @@ export class CrmFieldMappingService {
     }
   }
 
-  private getDefaultMappings(
-    provider: CrmFieldMapping["provider"],
-  ): Array<{
+  private getDefaultMappings(provider: CrmFieldMapping["provider"]): Array<{
     ringeeEntity: string;
     ringeeField: string;
     externalEntity: string;
@@ -96,28 +94,136 @@ export class CrmFieldMappingService {
   }> {
     if (provider === "attio") {
       return [
-        { ringeeEntity: "contact", ringeeField: "firstName", externalEntity: "people", externalField: "name.first_name", direction: "bidirectional" },
-        { ringeeEntity: "contact", ringeeField: "lastName", externalEntity: "people", externalField: "name.last_name", direction: "bidirectional" },
-        { ringeeEntity: "contact", ringeeField: "phoneNumber", externalEntity: "people", externalField: "phone_numbers", direction: "bidirectional" },
-        { ringeeEntity: "contact", ringeeField: "email", externalEntity: "people", externalField: "email_addresses", direction: "bidirectional" },
-        { ringeeEntity: "company", ringeeField: "name", externalEntity: "companies", externalField: "name", direction: "bidirectional" },
-        { ringeeEntity: "company", ringeeField: "domain", externalEntity: "companies", externalField: "domains", direction: "bidirectional" },
-        { ringeeEntity: "company", ringeeField: "industry", externalEntity: "companies", externalField: "categories", direction: "pull" },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "firstName",
+          externalEntity: "people",
+          externalField: "name.first_name",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "lastName",
+          externalEntity: "people",
+          externalField: "name.last_name",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "phoneNumber",
+          externalEntity: "people",
+          externalField: "phone_numbers",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "email",
+          externalEntity: "people",
+          externalField: "email_addresses",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "company",
+          ringeeField: "name",
+          externalEntity: "companies",
+          externalField: "name",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "company",
+          ringeeField: "domain",
+          externalEntity: "companies",
+          externalField: "domains",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "company",
+          ringeeField: "industry",
+          externalEntity: "companies",
+          externalField: "categories",
+          direction: "pull",
+        },
       ];
     }
     if (provider === "odoo_14_18" || provider === "odoo_19_plus") {
       return [
-        { ringeeEntity: "contact", ringeeField: "displayName", externalEntity: "res.partner", externalField: "name", direction: "bidirectional" },
-        { ringeeEntity: "contact", ringeeField: "phoneNumber", externalEntity: "res.partner", externalField: "phone", direction: "bidirectional" },
-        { ringeeEntity: "contact", ringeeField: "mobile", externalEntity: "res.partner", externalField: "mobile", direction: "bidirectional" },
-        { ringeeEntity: "contact", ringeeField: "email", externalEntity: "res.partner", externalField: "email", direction: "bidirectional" },
-        { ringeeEntity: "contact", ringeeField: "jobTitle", externalEntity: "res.partner", externalField: "function", direction: "bidirectional" },
-        { ringeeEntity: "company", ringeeField: "name", externalEntity: "res.partner", externalField: "name", direction: "bidirectional" },
-        { ringeeEntity: "company", ringeeField: "domain", externalEntity: "res.partner", externalField: "website", direction: "bidirectional" },
-        { ringeeEntity: "company", ringeeField: "industry", externalEntity: "res.partner", externalField: "industry_id", direction: "pull" },
-        { ringeeEntity: "call", ringeeField: "disposition", externalEntity: "mail.activity", externalField: "summary", direction: "push" },
-        { ringeeEntity: "call", ringeeField: "recordingUrl", externalEntity: "mail.message", externalField: "body", direction: "push" },
-        { ringeeEntity: "call", ringeeField: "transcript", externalEntity: "mail.message", externalField: "body", direction: "push" },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "displayName",
+          externalEntity: "res.partner",
+          externalField: "name",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "phoneNumber",
+          externalEntity: "res.partner",
+          externalField: "phone",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "mobile",
+          externalEntity: "res.partner",
+          externalField: "mobile",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "email",
+          externalEntity: "res.partner",
+          externalField: "email",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "contact",
+          ringeeField: "jobTitle",
+          externalEntity: "res.partner",
+          externalField: "function",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "company",
+          ringeeField: "name",
+          externalEntity: "res.partner",
+          externalField: "name",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "company",
+          ringeeField: "domain",
+          externalEntity: "res.partner",
+          externalField: "website",
+          direction: "bidirectional",
+        },
+        {
+          ringeeEntity: "company",
+          ringeeField: "industry",
+          externalEntity: "res.partner",
+          externalField: "industry_id",
+          direction: "pull",
+        },
+        {
+          ringeeEntity: "call",
+          ringeeField: "disposition",
+          externalEntity: "mail.activity",
+          externalField: "summary",
+          direction: "push",
+        },
+        {
+          ringeeEntity: "call",
+          ringeeField: "recordingUrl",
+          externalEntity: "mail.message",
+          externalField: "body",
+          direction: "push",
+        },
+        {
+          ringeeEntity: "call",
+          ringeeField: "transcript",
+          externalEntity: "mail.message",
+          externalField: "body",
+          direction: "push",
+        },
       ];
     }
     return [];
@@ -133,7 +239,10 @@ export class CrmFieldMappingService {
     return null;
   }
 
-  private applyTransform(value: unknown, transform: MappingTransform | null): unknown {
+  private applyTransform(
+    value: unknown,
+    transform: MappingTransform | null,
+  ): unknown {
     if (!transform || transform.type === "direct") return value;
     if (transform.type === "map") {
       return transform.values[String(value)] ?? value;
@@ -144,10 +253,15 @@ export class CrmFieldMappingService {
     return value;
   }
 
-  private applyReverseTransform(value: unknown, transform: MappingTransform | null): unknown {
+  private applyReverseTransform(
+    value: unknown,
+    transform: MappingTransform | null,
+  ): unknown {
     if (!transform || transform.type === "direct") return value;
     if (transform.type === "map") {
-      const reverse = Object.entries(transform.values).find(([, v]) => v === String(value));
+      const reverse = Object.entries(transform.values).find(
+        ([, v]) => v === String(value),
+      );
       return reverse ? reverse[0] : value;
     }
     if (transform.type === "boolean") {

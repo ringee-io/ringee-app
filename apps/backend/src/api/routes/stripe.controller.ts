@@ -12,7 +12,12 @@ import {
 } from "@nestjs/common";
 import { Response, Request } from "express";
 import Stripe from "stripe";
-import { createOwnershipContext, CurrentUser, Public, StripeService } from "@ringee/platform";
+import {
+  createOwnershipContext,
+  CurrentUser,
+  Public,
+  StripeService,
+} from "@ringee/platform";
 import {
   NumberPurchasedService,
   CreditService,
@@ -47,12 +52,14 @@ export class StripeController {
     private readonly organizationService: OrganizationService,
     private readonly subscriptionService: SubscriptionService,
     private readonly triggerLoop: TriggerLoopEventPublisher,
-  ) { }
+  ) {}
 
   private async getOrCreateCustomer(user: CurrentUserData): Promise<string> {
     // If user is in an organization context, use/create organization customer
     if (user.activeOrgId) {
-      const org = await this.organizationService.getOrganizationById(user.activeOrgId);
+      const org = await this.organizationService.getOrganizationById(
+        user.activeOrgId,
+      );
 
       if (!org) {
         throw new NotFoundException("Organization not found");
@@ -104,7 +111,7 @@ export class StripeController {
       customerId,
       body.amount,
       body.description ||
-      "Add more credits to your Ringee account to keep making calls, and using advanced features without interruption.",
+        "Add more credits to your Ringee account to keep making calls, and using advanced features without interruption.",
       user.activeOrgId, // Pass organizationId
       body.frontendOrigin, // Pass frontendOrigin
     );
@@ -182,9 +189,7 @@ export class StripeController {
   }
 
   @Post("checkout/organization")
-  async createOrganizationCheckout(
-    @CurrentUser() user: CurrentUserData,
-  ) {
+  async createOrganizationCheckout(@CurrentUser() user: CurrentUserData) {
     if (!user) {
       throw new NotFoundException("User not found");
     }
@@ -235,7 +240,8 @@ export class StripeController {
           const fn = session.metadata?.fn;
 
           if (
-            (fn === "createOneTimePaymentSession" || fn === "autoReloadSetup") &&
+            (fn === "createOneTimePaymentSession" ||
+              fn === "autoReloadSetup") &&
             session.mode === "payment" &&
             userId &&
             amountUsd > 0
@@ -331,7 +337,9 @@ export class StripeController {
             );
           } else if (metadata.type === "organization" && userId) {
             // Organization subscription
-            console.log(`🏢 Organization subscription created for user ${userId}`);
+            console.log(
+              `🏢 Organization subscription created for user ${userId}`,
+            );
             await this.subscriptionService.createFromStripe(
               subscription.id,
               subscription.customer as string,
@@ -348,7 +356,7 @@ export class StripeController {
           const invoice = event.data.object as Stripe.Invoice;
           const sub = invoice.parent?.subscription_details?.subscription;
           const subscriptionId =
-            typeof sub === "string" ? sub : sub?.id ?? null;
+            typeof sub === "string" ? sub : (sub?.id ?? null);
 
           if (subscriptionId) {
             // Check if this is a monthly credit fund subscription
@@ -356,7 +364,11 @@ export class StripeController {
               await this.creditService.findSettingsByStripeSubscription(
                 subscriptionId,
               );
-            if (settings && settings.monthlyFundEnabled && settings.monthlyFundAmount) {
+            if (
+              settings &&
+              settings.monthlyFundEnabled &&
+              settings.monthlyFundAmount
+            ) {
               // Skip if this is the first invoice (already credited in checkout.session.completed)
               const billingReason = (invoice as any).billing_reason;
               if (billingReason === "subscription_cycle") {
@@ -383,8 +395,7 @@ export class StripeController {
         }
 
         case "payment_intent.succeeded": {
-          const paymentIntent = event.data
-            .object as Stripe.PaymentIntent;
+          const paymentIntent = event.data.object as Stripe.PaymentIntent;
           const metadata = paymentIntent.metadata || {};
 
           if (metadata.fn === "autoReloadCharge" && metadata.userId) {

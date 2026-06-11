@@ -11,10 +11,10 @@ export const metadata = {
 export default function DNCPage() {
   return (
     <PageContainer scrollable>
-      <div className="flex flex-1 flex-col space-y-4">
+      <div className='flex flex-1 flex-col space-y-4'>
         <Heading
-          title="Do Not Call"
-          description="Manage numbers that should never be dialed"
+          title='Do Not Call'
+          description='Manage numbers that should never be dialed'
         />
         <Separator />
         <DNCList />

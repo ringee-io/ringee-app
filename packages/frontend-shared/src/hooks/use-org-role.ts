@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useOrganization } from '@clerk/nextjs';
+import { useOrganization } from "@clerk/nextjs";
 
 /**
  * Hook for checking organization role-based permissions.
- * 
+ *
  * Rules:
  * - Users without an organization are NOT restricted
  * - Only organization members are subject to role restrictions
@@ -15,8 +15,8 @@ export function useOrgRole() {
 
   const hasOrg = !!organization;
   const orgRole = membership?.role ?? null;
-  const isOrgAdmin = hasOrg && orgRole === 'org:admin';
-  const isOrgMember = hasOrg && orgRole === 'org:member';
+  const isOrgAdmin = hasOrg && orgRole === "org:admin";
+  const isOrgMember = hasOrg && orgRole === "org:member";
 
   /**
    * Check if the current user can access admin-only features.
@@ -29,11 +29,7 @@ export function useOrgRole() {
   /**
    * Items to hide from org:member users
    */
-  const hiddenForMember = [
-    'Rate',
-    'Buy Number',
-    'Recordings'
-  ];
+  const hiddenForMember = ["Rate", "Buy Number", "Recordings"];
 
   return {
     isLoaded,

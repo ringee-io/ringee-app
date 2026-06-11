@@ -83,9 +83,9 @@ const VARIANTS: Record<string, Variant[]> = {
       body: [
         "Three days ago you signed up for Ringee, and the account is still untouched.",
         "",
-        "I would rather hear what got in the way than keep sending reminders. A one-line reply is enough — \"too busy\", \"wrong tool\", \"pricing\", whatever it is.",
+        'I would rather hear what got in the way than keep sending reminders. A one-line reply is enough — "too busy", "wrong tool", "pricing", whatever it is.',
         "",
-        "If the answer is \"I will get to it next week\", say that and I will mute these until then.",
+        'If the answer is "I will get to it next week", say that and I will mute these until then.',
       ],
     },
     {
@@ -242,7 +242,7 @@ const VARIANTS: Record<string, Variant[]> = {
         "You have made enough calls to know how Ringee works. The next leverage is structure.",
         "",
         "• Campaigns: feed in a list, Ringee dials and retries. You spend the time talking, not picking the next row.",
-        "• Callbacks: \"call me back at 3pm\" becomes a scheduled task instead of a sticky note.",
+        '• Callbacks: "call me back at 3pm" becomes a scheduled task instead of a sticky note.',
         "• DNC: once someone says do not call, they are never accidentally dialed again.",
         "",
         "Pick the one that matches the friction you feel today.",
@@ -261,7 +261,7 @@ const VARIANTS: Record<string, Variant[]> = {
     {
       subject: "Stop forgetting promised follow-ups",
       body: [
-        "If you have ever ended a call with \"I will call you back tomorrow\" and then did not — callbacks fix exactly that.",
+        'If you have ever ended a call with "I will call you back tomorrow" and then did not — callbacks fix exactly that.',
         "",
         "Set the time during the call. Ringee surfaces it back to you (or a teammate) when it is due.",
         "",
@@ -331,7 +331,7 @@ const VARIANTS: Record<string, Variant[]> = {
         "",
         "Honest question: is Ringee still in your plan, or did the project shift?",
         "",
-        "Either answer is useful — \"yes, just delayed\" means I mute these for a while; \"no, moved on\" means I can close the loop properly.",
+        'Either answer is useful — "yes, just delayed" means I mute these for a while; "no, moved on" means I can close the loop properly.',
       ],
     },
     {

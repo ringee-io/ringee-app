@@ -10,6 +10,12 @@ const apiConfiguration = {
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!,
   PUBLIC_BACKEND_URL: process.env.PUBLIC_BACKEND_URL!,
   REDIS_URL: process.env.REDIS_URL!,
+  // ── Temporal (durable background jobs / orchestrator) ──
+  // Plain gRPC address of the self-hosted Temporal frontend. For local dev,
+  // `docker-compose up -d` starts it, or use `temporal server start-dev`.
+  TEMPORAL_ADDRESS: process.env.TEMPORAL_ADDRESS || "localhost:7233",
+  TEMPORAL_NAMESPACE: process.env.TEMPORAL_NAMESPACE || "default",
+  TEMPORAL_TASK_QUEUE: process.env.TEMPORAL_TASK_QUEUE || "ringee",
   RESEND_API_KEY: process.env.RESEND_API_KEY!,
   EMAIL_FROM_NAME: process.env.EMAIL_FROM_NAME!,
   EMAIL_FROM_ADDRESS: process.env.EMAIL_FROM_ADDRESS!,
@@ -64,25 +70,32 @@ const apiConfiguration = {
   ATTIO_API_BASE_URL: process.env.ATTIO_API_BASE_URL || "https://api.attio.com",
   CRM_DRY_RUN: process.env.CRM_DRY_RUN === "true",
   // ── Data Enrichment & Lead Search ──
-  ENRICHMENT_FEATURE_ENABLED: process.env.ENRICHMENT_FEATURE_ENABLED !== "false",
+  ENRICHMENT_FEATURE_ENABLED:
+    process.env.ENRICHMENT_FEATURE_ENABLED !== "false",
   ENRICHMENT_DRY_RUN: process.env.ENRICHMENT_DRY_RUN === "true",
-  ENRICHMENT_DEDUP_TTL_DAYS: Number(process.env.ENRICHMENT_DEDUP_TTL_DAYS ?? 30),
+  ENRICHMENT_DEDUP_TTL_DAYS: Number(
+    process.env.ENRICHMENT_DEDUP_TTL_DAYS ?? 30,
+  ),
   ENRICHMENT_COST_PROSPEO: Number(process.env.ENRICHMENT_COST_PROSPEO ?? 5),
   ENRICHMENT_COST_APOLLO: Number(process.env.ENRICHMENT_COST_APOLLO ?? 3),
-  ENRICHMENT_COST_LEAD_SEARCH: Number(process.env.ENRICHMENT_COST_LEAD_SEARCH ?? 1),
-  ENRICHMENT_COST_LEAD_IMPORT: Number(process.env.ENRICHMENT_COST_LEAD_IMPORT ?? 5),
-  PROSPEO_API_BASE_URL: process.env.PROSPEO_API_BASE_URL || "https://api.prospeo.io",
-  APOLLO_API_BASE_URL: process.env.APOLLO_API_BASE_URL || "https://api.apollo.io",
+  ENRICHMENT_COST_LEAD_SEARCH: Number(
+    process.env.ENRICHMENT_COST_LEAD_SEARCH ?? 1,
+  ),
+  ENRICHMENT_COST_LEAD_IMPORT: Number(
+    process.env.ENRICHMENT_COST_LEAD_IMPORT ?? 5,
+  ),
+  PROSPEO_API_BASE_URL:
+    process.env.PROSPEO_API_BASE_URL || "https://api.prospeo.io",
+  APOLLO_API_BASE_URL:
+    process.env.APOLLO_API_BASE_URL || "https://api.apollo.io",
   // ── Ringee AI ──
   AI_PROVIDER: (process.env.AI_PROVIDER || "openai") as
     | "openai"
     | "anthropic"
     | "google"
     | "groq",
-  OPENAI_DEFAULT_MODEL:
-    process.env.OPENAI_DEFAULT_MODEL || "gpt-5.4-mini",
-  OPENAI_SUMMARY_MODEL:
-    process.env.OPENAI_SUMMARY_MODEL || "gpt-5.4-mini",
+  OPENAI_DEFAULT_MODEL: process.env.OPENAI_DEFAULT_MODEL || "gpt-5.4-mini",
+  OPENAI_SUMMARY_MODEL: process.env.OPENAI_SUMMARY_MODEL || "gpt-5.4-mini",
   ANTHROPIC_DEFAULT_MODEL:
     process.env.ANTHROPIC_DEFAULT_MODEL || "claude-haiku-4-5",
   ANTHROPIC_SUMMARY_MODEL:
@@ -128,7 +141,9 @@ if (
   apiConfiguration.AI_PROVIDER === "anthropic" &&
   !apiConfiguration.ANTHROPIC_API_KEY
 ) {
-  errors.push("ANTHROPIC_API_KEY is not defined (required when AI_PROVIDER=anthropic)");
+  errors.push(
+    "ANTHROPIC_API_KEY is not defined (required when AI_PROVIDER=anthropic)",
+  );
 }
 
 if (!(apiConfiguration.AI_TOKEN_MARGIN >= 1)) {

@@ -15,7 +15,9 @@ interface WidgetGridProps {
 function GridLoader() {
   const t = useTranslations('dashboard.widgets.shell');
   return (
-    <div className='text-muted-foreground py-8 text-center text-sm'>{t('loading')}</div>
+    <div className='text-muted-foreground py-8 text-center text-sm'>
+      {t('loading')}
+    </div>
   );
 }
 
@@ -30,7 +32,10 @@ function GridLoader() {
  * See: https://github.com/react-grid-layout/react-grid-layout#installation
  */
 export const WidgetGrid = dynamic<WidgetGridProps>(
-  () => import('./widget-grid').then((m) => m.WidgetGrid as ComponentType<WidgetGridProps>),
+  () =>
+    import('./widget-grid').then(
+      (m) => m.WidgetGrid as ComponentType<WidgetGridProps>
+    ),
   {
     ssr: false,
     loading: () => <GridLoader />

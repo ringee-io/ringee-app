@@ -140,7 +140,8 @@ export class CrmOAuthService {
 
     const ctx: OwnershipContext = {
       userId: state.userId,
-      organizationId: state.scope === "organization" ? state.organizationId : null,
+      organizationId:
+        state.scope === "organization" ? state.organizationId : null,
     };
 
     const connection = await this.connections.upsertFromOAuth(ctx, provider, {
@@ -151,7 +152,10 @@ export class CrmOAuthService {
       externalAccountId: workspace.accountId,
       externalAccountName: workspace.accountName,
       providerMetadata: workspace.metadata ?? null,
-      capabilities: (workspace.capabilities ?? null) as Record<string, unknown> | null,
+      capabilities: (workspace.capabilities ?? null) as Record<
+        string,
+        unknown
+      > | null,
     });
 
     return {

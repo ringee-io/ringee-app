@@ -1,10 +1,10 @@
-import { FileUploaderProps } from '../components/file-uploader';
-import { Control, FieldPath, FieldValues } from 'react-hook-form';
+import { FileUploaderProps } from "../components/file-uploader";
+import { Control, FieldPath, FieldValues } from "react-hook-form";
 
 // Base props that all form components will share
 export interface BaseFormFieldProps<
   TFieldValues extends FieldValues = FieldValues,
-  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 > {
   control: Control<TFieldValues>;
   name: TName;
@@ -62,5 +62,5 @@ export interface TextareaConfig {
   maxLength?: number;
   showCharCount?: boolean;
   rows?: number;
-  resize?: 'none' | 'vertical' | 'horizontal' | 'both';
+  resize?: "none" | "vertical" | "horizontal" | "both";
 }

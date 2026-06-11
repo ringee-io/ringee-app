@@ -2,7 +2,11 @@
 
 import 'react-phone-number-input/style.css';
 import { useEffect, useState } from 'react';
-import { Card, CardHeader, CardContent } from '@ringee/frontend-shared/components/ui/card';
+import {
+  Card,
+  CardHeader,
+  CardContent
+} from '@ringee/frontend-shared/components/ui/card';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import { Circle, Clock } from 'lucide-react';
 import PhoneInput from 'react-phone-number-input';
@@ -171,7 +175,9 @@ export function Dialer({
               onDelete={() => setNumber(number.slice(0, -1))}
               onCall={async () => await attemptCall(number)}
               isCalling={isCalling || checkingDnc}
-              showCreditPopover={canAccessAdminFeatures && !freeCallTrial && balance <= 0}
+              showCreditPopover={
+                canAccessAdminFeatures && !freeCallTrial && balance <= 0
+              }
             />
           </CardContent>
         </Card>

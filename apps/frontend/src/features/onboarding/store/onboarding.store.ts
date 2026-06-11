@@ -23,11 +23,12 @@ export const useOnboardingUIStore = create<OnboardingUIStore>()(
 
       toggleExpanded: () => set((state) => ({ isExpanded: !state.isExpanded })),
       setExpanded: (expanded) => set({ isExpanded: expanded }),
-      toggleMinimized: () => set((state) => ({ isMinimized: !state.isMinimized })),
-      setMinimized: (minimized) => set({ isMinimized: minimized }),
+      toggleMinimized: () =>
+        set((state) => ({ isMinimized: !state.isMinimized })),
+      setMinimized: (minimized) => set({ isMinimized: minimized })
     }),
     {
-      name: 'ringee-onboarding-ui',
+      name: 'ringee-onboarding-ui'
     }
   )
 );
@@ -39,7 +40,9 @@ interface OnboardingDataStore {
   isLoading: boolean;
   error: string | null;
 
-  setStatus: (status: import('../types/onboarding.types').OnboardingStatus | null) => void;
+  setStatus: (
+    status: import('../types/onboarding.types').OnboardingStatus | null
+  ) => void;
   setIsLoading: (isLoading: boolean) => void;
   setError: (error: string | null) => void;
 }
@@ -51,5 +54,5 @@ export const useOnboardingDataStore = create<OnboardingDataStore>((set) => ({
 
   setStatus: (status) => set({ status }),
   setIsLoading: (isLoading) => set({ isLoading }),
-  setError: (error) => set({ error }),
+  setError: (error) => set({ error })
 }));

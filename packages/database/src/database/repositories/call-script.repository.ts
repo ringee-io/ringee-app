@@ -1,10 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import { CallScript, CallScriptSection, Prisma } from "@prisma/client";
-import {
-  OwnershipContext,
-  buildOwnershipFilter,
-} from "@ringee/platform";
+import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
 
 export type CallScriptWithSections = CallScript & {
   sections: CallScriptSection[];
@@ -21,7 +18,7 @@ export class CallScriptRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findByOwner(
-    ctx: OwnershipContext
+    ctx: OwnershipContext,
   ): Promise<CallScriptWithSections | null> {
     const ownership = buildOwnershipFilter(ctx);
     return this.prisma.callScript.findFirst({
@@ -36,7 +33,7 @@ export class CallScriptRepository {
 
   async upsertWithSections(
     ctx: OwnershipContext,
-    sections: ScriptSectionInput[]
+    sections: ScriptSectionInput[],
   ): Promise<CallScriptWithSections> {
     return this.prisma.$transaction(async (tx) => {
       const ownership = buildOwnershipFilter(ctx);

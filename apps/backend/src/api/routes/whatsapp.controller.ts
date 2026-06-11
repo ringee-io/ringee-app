@@ -33,7 +33,7 @@ export class WhatsappController {
     private readonly chatAuthService: ChatAuthService,
     private readonly cryptoService: CryptoService,
     private readonly userService: UserService,
-  ) { }
+  ) {}
 
   @Get("webhook")
   verifyWebhook(
@@ -206,8 +206,9 @@ export class WhatsappController {
 
       case "location":
         const { latitude, longitude, name, address } = message.location || {};
-        return `Location: ${name || "Unknown"} (${latitude}, ${longitude}) ${address || ""
-          }`.trim();
+        return `Location: ${name || "Unknown"} (${latitude}, ${longitude}) ${
+          address || ""
+        }`.trim();
 
       case "image":
         return message.image?.caption?.trim() || "Sent an image 📷";

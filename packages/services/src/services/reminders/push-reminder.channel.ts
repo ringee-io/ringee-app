@@ -26,7 +26,9 @@ export class PushReminderChannel implements ReminderChannel {
   ) {}
 
   async send(recipient: ReminderRecipient, content: ReminderContent) {
-    const devices = await this.userDeviceRepo.findActiveByUser(recipient.userId);
+    const devices = await this.userDeviceRepo.findActiveByUser(
+      recipient.userId,
+    );
     if (devices.length === 0) {
       throw new Error(
         `PushReminderChannel: no active devices for user ${recipient.userId}`,

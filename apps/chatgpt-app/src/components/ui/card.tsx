@@ -14,7 +14,10 @@ export function Card({ className, ...props }: React.ComponentProps<"div">) {
   );
 }
 
-export function CardHeader({ className, ...props }: React.ComponentProps<"div">) {
+export function CardHeader({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
   return (
     <div
       className={cn("flex items-start gap-3 p-4 sm:p-5", className)}
@@ -23,11 +26,19 @@ export function CardHeader({ className, ...props }: React.ComponentProps<"div">)
   );
 }
 
-export function CardContent({ className, ...props }: React.ComponentProps<"div">) {
-  return <div className={cn("px-4 pb-4 sm:px-5 sm:pb-5", className)} {...props} />;
+export function CardContent({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
+  return (
+    <div className={cn("px-4 pb-4 sm:px-5 sm:pb-5", className)} {...props} />
+  );
 }
 
-export function CardFooter({ className, ...props }: React.ComponentProps<"div">) {
+export function CardFooter({
+  className,
+  ...props
+}: React.ComponentProps<"div">) {
   return (
     <div
       className={cn(

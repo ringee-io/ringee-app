@@ -18,10 +18,19 @@ import Link from 'next/link';
 const SUPPORT_EMAIL = 'hello@ringee.io';
 
 const screenshots = [
-  { src: '/assets/app-screenshots/ios_1_1.png', caption: 'Track Every Callback' },
+  {
+    src: '/assets/app-screenshots/ios_1_1.png',
+    caption: 'Track Every Callback'
+  },
   { src: '/assets/app-screenshots/ios_1_2.png', caption: 'Calls That Matter' },
-  { src: '/assets/app-screenshots/ios_1_3.png', caption: 'Key Calls — Save Them' },
-  { src: '/assets/app-screenshots/ios_1_4.png', caption: 'Stay On Top of Every Call' },
+  {
+    src: '/assets/app-screenshots/ios_1_3.png',
+    caption: 'Key Calls — Save Them'
+  },
+  {
+    src: '/assets/app-screenshots/ios_1_4.png',
+    caption: 'Stay On Top of Every Call'
+  },
   { src: '/assets/app-screenshots/ios_1_5.png', caption: 'Just Swipe to Call' }
 ];
 
@@ -97,7 +106,7 @@ export default function SupportPageView() {
           {screenshots.map((shot) => (
             <div
               key={shot.src}
-              className='snap-center shrink-0 basis-[260px] sm:basis-[300px]'
+              className='shrink-0 basis-[260px] snap-center sm:basis-[300px]'
             >
               <div className='from-primary/15 via-background to-background relative overflow-hidden rounded-3xl border bg-gradient-to-b p-3 shadow-sm'>
                 <div className='relative aspect-[9/19] overflow-hidden rounded-2xl'>

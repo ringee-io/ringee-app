@@ -5,7 +5,7 @@ import { Cache } from "cache-manager";
 export class RedisService {
   private readonly logger = new Logger(RedisService.name);
 
-  constructor(@Inject('REDIS_CLIENT') private cacheManager: Cache) { }
+  constructor(@Inject("REDIS_CLIENT") private cacheManager: Cache) {}
 
   /**
    * Set a value in Redis with optional TTL
@@ -15,7 +15,8 @@ export class RedisService {
    */
   async set<T>(key: string, value: T, ttl?: number): Promise<void> {
     try {
-      const serialized = typeof value === 'string' ? value : JSON.stringify(value);
+      const serialized =
+        typeof value === "string" ? value : JSON.stringify(value);
       await this.cacheManager.set(key, serialized, ttl);
     } catch (error) {
       this.logger.error(`Error setting cache for key ${key}:`, error);
@@ -32,7 +33,7 @@ export class RedisService {
     try {
       const raw = await this.cacheManager.get<string>(key);
       if (raw === undefined || raw === null) return undefined;
-      if (typeof raw === 'string') {
+      if (typeof raw === "string") {
         try {
           return JSON.parse(raw) as T;
         } catch {
@@ -41,7 +42,10 @@ export class RedisService {
       }
       return raw as unknown as T;
     } catch (error) {
-      this.logger.error(`Error getting cache for key ${key}:`, JSON.stringify(error, null, 2));
+      this.logger.error(
+        `Error getting cache for key ${key}:`,
+        JSON.stringify(error, null, 2),
+      );
       throw error;
     }
   }
