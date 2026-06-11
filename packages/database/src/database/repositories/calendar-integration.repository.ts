@@ -62,10 +62,7 @@ export class CalendarIntegrationRepository {
     return this.prisma.calendarIntegration.findMany({
       where: {
         isActive: true,
-        OR: [
-          { userId },
-          ...(organizationId ? [{ organizationId }] : []),
-        ],
+        OR: [{ userId }, ...(organizationId ? [{ organizationId }] : [])],
       },
     });
   }

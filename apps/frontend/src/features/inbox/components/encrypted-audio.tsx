@@ -60,7 +60,7 @@ export function EncryptedAudio({ url, className }: EncryptedAudioProps) {
     return (
       <div
         className={cn(
-          'mt-2 flex items-center gap-2 text-xs text-muted-foreground',
+          'text-muted-foreground mt-2 flex items-center gap-2 text-xs',
           className
         )}
       >
@@ -74,7 +74,7 @@ export function EncryptedAudio({ url, className }: EncryptedAudioProps) {
     return (
       <div
         className={cn(
-          'mt-2 flex items-center gap-2 text-xs text-destructive',
+          'text-destructive mt-2 flex items-center gap-2 text-xs',
           className
         )}
       >

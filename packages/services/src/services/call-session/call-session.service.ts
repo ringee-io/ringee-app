@@ -105,10 +105,7 @@ export class CallSessionService {
     };
   }
 
-  private assertOwnsSession(
-    session: CallSession,
-    ctx: OwnershipContext,
-  ): void {
+  private assertOwnsSession(session: CallSession, ctx: OwnershipContext): void {
     if (ctx.organizationId) {
       if (session.organizationId !== ctx.organizationId) {
         throw new ForbiddenException("Access denied");
@@ -166,7 +163,7 @@ export class CallSessionService {
 
     const resolved: ResolvedContact[] = [];
     for (const row of rows) {
-      let contactId = row.contactId ?? null;
+      const contactId = row.contactId ?? null;
       let displayName = row.name ?? null;
       let company = row.company ?? null;
       let phoneNumber: string | null = row.phoneNumber ?? null;
@@ -230,9 +227,11 @@ export class CallSessionService {
 
   // ── Lifecycle ──────────────────────────────────────────────
 
-  async createSession(
-    input: CreateCallSessionInput,
-  ): Promise<{ session: CallSession; items: CallSessionItem[]; rawToken: string }> {
+  async createSession(input: CreateCallSessionInput): Promise<{
+    session: CallSession;
+    items: CallSessionItem[];
+    rawToken: string;
+  }> {
     const ctx: OwnershipContext = {
       userId: input.userId,
       organizationId: input.organizationId ?? null,
@@ -246,7 +245,8 @@ export class CallSessionService {
 
     const items = await this.resolveContacts(ctx, input.contacts);
 
-    const expiresInMinutes = input.expiresInMinutes ?? DEFAULT_EXPIRES_IN_MINUTES;
+    const expiresInMinutes =
+      input.expiresInMinutes ?? DEFAULT_EXPIRES_IN_MINUTES;
     if (expiresInMinutes < 1 || expiresInMinutes > 60 * 24 * 30) {
       throw new BadRequestException(
         "expiresInMinutes must be between 1 minute and 30 days",
@@ -294,7 +294,10 @@ export class CallSessionService {
       type: CallSessionEventType.session_created,
       actorUserId: input.actorUserId ?? input.userId,
       actorSource: sourceToActor(input.source),
-      payload: { contactsCount: items.length, campaignId: input.campaignId ?? null },
+      payload: {
+        contactsCount: items.length,
+        campaignId: input.campaignId ?? null,
+      },
     });
 
     const createdItems = await this.repo.findItemsBySession(session.id);
@@ -321,7 +324,10 @@ export class CallSessionService {
         update.campaign = { connect: { id: input.campaignId } };
       }
     }
-    if (input.expiresInMinutes !== undefined && input.expiresInMinutes !== null) {
+    if (
+      input.expiresInMinutes !== undefined &&
+      input.expiresInMinutes !== null
+    ) {
       if (input.expiresInMinutes < 1 || input.expiresInMinutes > 60 * 24 * 30) {
         throw new BadRequestException(
           "expiresInMinutes must be between 1 minute and 30 days",
@@ -582,9 +588,7 @@ export class CallSessionService {
         actorSource: CallSessionActorSource.magic_link,
         payload: { balance },
       });
-      throw new BadRequestException(
-        "Insufficient credits to start the call",
-      );
+      throw new BadRequestException("Insufficient credits to start the call");
     }
 
     await this.repo.updateItem(item.id, {
@@ -749,7 +753,10 @@ export class CallSessionService {
       item.contactId
     ) {
       const scheduledAt = new Date(dto.callbackAt);
-      if (!Number.isNaN(scheduledAt.getTime()) && scheduledAt.getTime() > Date.now()) {
+      if (
+        !Number.isNaN(scheduledAt.getTime()) &&
+        scheduledAt.getTime() > Date.now()
+      ) {
         try {
           const cb = await this.callbackService.scheduleFromContact({
             userId: ctx.userId,
@@ -813,9 +820,8 @@ export class CallSessionService {
       },
     });
 
-    const sessionCompleted = await this.maybeMarkSessionCompleted(
-      updatedSession,
-    );
+    const sessionCompleted =
+      await this.maybeMarkSessionCompleted(updatedSession);
 
     return {
       itemId: item.id,
@@ -908,7 +914,9 @@ export class CallSessionService {
       item.status === CallSessionItemStatus.completed ||
       item.status === CallSessionItemStatus.skipped
     ) {
-      throw new BadRequestException(`Item cannot be skipped from ${item.status}`);
+      throw new BadRequestException(
+        `Item cannot be skipped from ${item.status}`,
+      );
     }
 
     await this.repo.updateItem(item.id, {

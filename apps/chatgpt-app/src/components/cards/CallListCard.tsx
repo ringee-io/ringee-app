@@ -1,7 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { CallDetail, CallOutcome, ListCallsResult } from "@ringee-io/agent";
+import type {
+  CallDetail,
+  CallOutcome,
+  ListCallsResult,
+} from "@ringee-io/agent";
 import {
   ChevronLeft,
   ChevronRight,
@@ -70,7 +74,9 @@ function statusVariant(
 
 function CallRow({ call }: { call: CallDetail }) {
   const [showTranscript, setShowTranscript] = useState(false);
-  const name = call.contact ? displayName(call.contact) : formatPhone(call.toNumber);
+  const name = call.contact
+    ? displayName(call.contact)
+    : formatPhone(call.toNumber);
   const phone = call.contact?.phoneNumber ?? call.toNumber;
   const subtitle = [call.contact?.jobTitle, call.contact?.company]
     .filter(Boolean)
@@ -110,7 +116,10 @@ function CallRow({ call }: { call: CallDetail }) {
               <span className="truncate">{name}</span>
             </span>
             {call.outcome ? (
-              <Badge variant={outcomeVariant(call.outcome)} className="shrink-0">
+              <Badge
+                variant={outcomeVariant(call.outcome)}
+                className="shrink-0"
+              >
                 {titleCase(call.outcome)}
               </Badge>
             ) : (
@@ -151,7 +160,7 @@ function CallRow({ call }: { call: CallDetail }) {
         </p>
       ) : null}
 
-      {(call.hasRecording || call.hasTranscription) ? (
+      {call.hasRecording || call.hasTranscription ? (
         <div className="mt-1.5 flex flex-wrap items-center gap-2 pl-12">
           {call.recordingUrl ? (
             <a

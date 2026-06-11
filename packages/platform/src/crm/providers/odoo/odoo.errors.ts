@@ -46,10 +46,7 @@ type OdooLikeBody = {
  * HTTP 200 with a JSON body whose `error` field carries the real error —
  * status-based classification is a last resort.
  */
-export function classifyOdooError(
-  status: number,
-  body: unknown,
-): CrmError {
+export function classifyOdooError(status: number, body: unknown): CrmError {
   const b = (body ?? {}) as OdooLikeBody;
   const name = b.error?.data?.name ?? "";
   const msg = b.error?.data?.message ?? b.error?.message ?? "";
@@ -63,21 +60,66 @@ export function classifyOdooError(
     // On Odoo, "session expired" or bad login is not really an OAuth-style
     // expiry — we surface it as AUTH_REVOKED because re-auth requires the
     // user to verify credentials again.
-    return new CrmError("AUTH_REVOKED", false, msg || "odoo access denied", undefined, body);
+    return new CrmError(
+      "AUTH_REVOKED",
+      false,
+      msg || "odoo access denied",
+      undefined,
+      body,
+    );
   }
   if (name.includes("UserError") || name.includes("ValidationError")) {
-    return new CrmError("VALIDATION", false, msg || "odoo validation error", undefined, body);
+    return new CrmError(
+      "VALIDATION",
+      false,
+      msg || "odoo validation error",
+      undefined,
+      body,
+    );
   }
   if (name.includes("MissingError")) {
-    return new CrmError("NOT_FOUND", false, msg || "odoo record missing", undefined, body);
+    return new CrmError(
+      "NOT_FOUND",
+      false,
+      msg || "odoo record missing",
+      undefined,
+      body,
+    );
   }
 
   if (status === 401 || status === 403) {
-    return new CrmError("AUTH_REVOKED", false, msg || `odoo http ${status}`, undefined, body);
+    return new CrmError(
+      "AUTH_REVOKED",
+      false,
+      msg || `odoo http ${status}`,
+      undefined,
+      body,
+    );
   }
-  if (status === 404) return new CrmError("NOT_FOUND", false, msg || "odoo not found", undefined, body);
-  if (status === 429) return new CrmError("RATE_LIMITED", true, msg || "odoo rate limited", undefined, body);
-  if (status >= 500) return new CrmError("TRANSIENT", true, msg || `odoo server ${status}`, undefined, body);
+  if (status === 404)
+    return new CrmError(
+      "NOT_FOUND",
+      false,
+      msg || "odoo not found",
+      undefined,
+      body,
+    );
+  if (status === 429)
+    return new CrmError(
+      "RATE_LIMITED",
+      true,
+      msg || "odoo rate limited",
+      undefined,
+      body,
+    );
+  if (status >= 500)
+    return new CrmError(
+      "TRANSIENT",
+      true,
+      msg || `odoo server ${status}`,
+      undefined,
+      body,
+    );
   if (msg) return new CrmError("UNKNOWN", false, msg, undefined, body);
   return new CrmError("UNKNOWN", false, `odoo http ${status}`, undefined, body);
 }
@@ -121,7 +163,8 @@ export function mapToValidationReason(err: unknown): OdooValidationReason {
     }
     if (err.code === "NOT_FOUND") return "database_not_found";
     if (err.code === "VALIDATION" && name.includes("UserError")) {
-      if (/module.+not installed|crm/i.test(message)) return "crm_module_missing";
+      if (/module.+not installed|crm/i.test(message))
+        return "crm_module_missing";
       return "unknown_odoo_error";
     }
     if (err.code === "TRANSIENT") return "invalid_base_url";

@@ -10,7 +10,7 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogTrigger
 } from '@ringee/frontend-shared/components/ui/dialog';
 import {
   Command,
@@ -18,13 +18,13 @@ import {
   CommandGroup,
   CommandInput,
   CommandItem,
-  CommandList,
-} from "@ringee/frontend-shared/components/ui/command"
+  CommandList
+} from '@ringee/frontend-shared/components/ui/command';
 import {
   Popover,
   PopoverContent,
-  PopoverTrigger,
-} from "@ringee/frontend-shared/components/ui/popover"
+  PopoverTrigger
+} from '@ringee/frontend-shared/components/ui/popover';
 import { ScrollArea } from '@ringee/frontend-shared/components/ui/scroll-area';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { toast } from 'sonner';
@@ -32,7 +32,10 @@ import { useRouter } from 'next/navigation';
 import { Tag } from './tag-multi-select';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
-import { Avatar, AvatarFallback } from '@ringee/frontend-shared/components/ui/avatar';
+import {
+  Avatar,
+  AvatarFallback
+} from '@ringee/frontend-shared/components/ui/avatar';
 
 interface ContactPreview {
   id: string;
@@ -46,12 +49,12 @@ export function ContactsBulkDelete() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchingPreview, setFetchingPreview] = useState(false);
-  
+
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTag, setSelectedTag] = useState<Tag | null>(null);
   const [previewContacts, setPreviewContacts] = useState<ContactPreview[]>([]);
   const [totalContacts, setTotalContacts] = useState(0);
-  
+
   const [tagOpen, setTagOpen] = useState(false);
 
   const api = useApi();
@@ -60,7 +63,10 @@ export function ContactsBulkDelete() {
   useEffect(() => {
     if (open) {
       // Fetch tags when modal opens
-      api.get<Tag[]>('/tags').then(setTags).catch(() => setTags([]));
+      api
+        .get<Tag[]>('/tags')
+        .then(setTags)
+        .catch(() => setTags([]));
     }
   }, [open, api]);
 
@@ -68,8 +74,11 @@ export function ContactsBulkDelete() {
     if (selectedTag) {
       setFetchingPreview(true);
       // Fetch preview contacts
-      api.get<{ data: ContactPreview[], meta: { total: number } }>(`/contacts?tags=${selectedTag.id}&limit=50`)
-        .then(res => {
+      api
+        .get<{ data: ContactPreview[]; meta: { total: number } }>(
+          `/contacts?tags=${selectedTag.id}&limit=50`
+        )
+        .then((res) => {
           setPreviewContacts(res.data);
           setTotalContacts(res.meta.total);
         })
@@ -86,7 +95,7 @@ export function ContactsBulkDelete() {
 
   const handleDelete = async () => {
     if (!selectedTag) return;
-    
+
     setLoading(true);
     try {
       await api.delete('/contacts/by-tags', { tagIds: [selectedTag.id] });
@@ -104,51 +113,52 @@ export function ContactsBulkDelete() {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="outline" size="sm" className="ml-0 sm:ml-2">
-          <Trash2 className="h-4 w-4 sm:mr-2" />
-          <span className="hidden sm:inline">Delete by Tag</span>
+        <Button variant='outline' size='sm' className='ml-0 sm:ml-2'>
+          <Trash2 className='h-4 w-4 sm:mr-2' />
+          <span className='hidden sm:inline'>Delete by Tag</span>
         </Button>
       </DialogTrigger>
-      <DialogContent className="w-[95vw] max-w-[600px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className='max-h-[90vh] w-[95vw] max-w-[600px] overflow-y-auto'>
         <DialogHeader>
           <DialogTitle>Delete Contacts by Tag</DialogTitle>
           <DialogDescription>
-            Select a tag to delete all associated contacts. This will remove the contacts permanently but keep the tag.
+            Select a tag to delete all associated contacts. This will remove the
+            contacts permanently but keep the tag.
           </DialogDescription>
         </DialogHeader>
-        
-        <div className="py-4 space-y-4">
-          <div className="flex flex-col gap-2">
-            <label className="text-sm font-medium">Select Tag</label>
+
+        <div className='space-y-4 py-4'>
+          <div className='flex flex-col gap-2'>
+            <label className='text-sm font-medium'>Select Tag</label>
             <Popover open={tagOpen} onOpenChange={setTagOpen}>
               <PopoverTrigger asChild>
                 <Button
-                  variant="outline"
-                  role="combobox"
+                  variant='outline'
+                  role='combobox'
                   aria-expanded={tagOpen}
-                  className="w-full justify-between"
+                  className='w-full justify-between'
                 >
                   {selectedTag ? (
-                    <div className="flex items-center gap-2">
-                      <Badge 
-                        variant="secondary"
+                    <div className='flex items-center gap-2'>
+                      <Badge
+                        variant='secondary'
                         style={{
                           backgroundColor: `${selectedTag.color || '#3B82F6'}20`,
-                          color: selectedTag.color || '#3B82F6',
+                          color: selectedTag.color || '#3B82F6'
                         }}
                       >
                         {selectedTag.name}
                       </Badge>
                     </div>
                   ) : (
-                    "Select tag..."
+                    'Select tag...'
                   )}
-                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-[calc(100vw-2rem)] max-w-[400px] p-0">
+              <PopoverContent className='w-[calc(100vw-2rem)] max-w-[400px] p-0'>
                 <Command>
-                  <CommandInput placeholder="Search tag..." />
+                  <CommandInput placeholder='Search tag...' />
                   <CommandList>
                     <CommandEmpty>No tag found.</CommandEmpty>
                     <CommandGroup>
@@ -163,15 +173,17 @@ export function ContactsBulkDelete() {
                         >
                           <Check
                             className={cn(
-                              "mr-2 h-4 w-4",
-                              selectedTag?.id === tag.id ? "opacity-100" : "opacity-0"
+                              'mr-2 h-4 w-4',
+                              selectedTag?.id === tag.id
+                                ? 'opacity-100'
+                                : 'opacity-0'
                             )}
                           />
-                          <Badge 
-                            variant="secondary"
+                          <Badge
+                            variant='secondary'
                             style={{
                               backgroundColor: `${tag.color || '#3B82F6'}20`,
-                              color: tag.color || '#3B82F6',
+                              color: tag.color || '#3B82F6'
                             }}
                           >
                             {tag.name}
@@ -186,32 +198,42 @@ export function ContactsBulkDelete() {
           </div>
 
           {selectedTag && (
-            <div className="space-y-2 border rounded-md p-4 bg-slate-50 dark:bg-slate-900/50">
-              <div className="flex items-center justify-between">
-                <h4 className="font-medium text-sm flex items-center gap-2">
-                  Contacts Preview 
-                  <span className="text-muted-foreground font-normal">
-                    ({fetchingPreview ? 'Loading...' : `${totalContacts} found`})
+            <div className='space-y-2 rounded-md border bg-slate-50 p-4 dark:bg-slate-900/50'>
+              <div className='flex items-center justify-between'>
+                <h4 className='flex items-center gap-2 text-sm font-medium'>
+                  Contacts Preview
+                  <span className='text-muted-foreground font-normal'>
+                    ({fetchingPreview ? 'Loading...' : `${totalContacts} found`}
+                    )
                   </span>
                 </h4>
               </div>
 
               {fetchingPreview ? (
-                <div className="h-[200px] flex items-center justify-center">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <div className='flex h-[200px] items-center justify-center'>
+                  <Loader2 className='text-muted-foreground h-6 w-6 animate-spin' />
                 </div>
               ) : previewContacts.length > 0 ? (
-                <ScrollArea className="h-[300px] pr-4">
-                  <div className="space-y-3">
-                    {previewContacts.map(contact => (
-                      <div key={contact.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-                        <Avatar className="h-8 w-8">
-                          <AvatarFallback>{contact.name.charAt(0).toUpperCase()}</AvatarFallback>
+                <ScrollArea className='h-[300px] pr-4'>
+                  <div className='space-y-3'>
+                    {previewContacts.map((contact) => (
+                      <div
+                        key={contact.id}
+                        className='flex items-start gap-3 rounded-lg p-2 transition-colors hover:bg-slate-100 dark:hover:bg-slate-800'
+                      >
+                        <Avatar className='h-8 w-8'>
+                          <AvatarFallback>
+                            {contact.name.charAt(0).toUpperCase()}
+                          </AvatarFallback>
                         </Avatar>
-                        <div className="grid gap-0.5 text-xs">
-                          <div className="font-medium text-sm">{contact.name}</div>
-                          <div className="text-muted-foreground">{contact.email}</div>
-                          <div className="text-muted-foreground flex gap-2">
+                        <div className='grid gap-0.5 text-xs'>
+                          <div className='text-sm font-medium'>
+                            {contact.name}
+                          </div>
+                          <div className='text-muted-foreground'>
+                            {contact.email}
+                          </div>
+                          <div className='text-muted-foreground flex gap-2'>
                             <span>{contact.phoneNumber}</span>
                             {contact.company && (
                               <>
@@ -224,14 +246,14 @@ export function ContactsBulkDelete() {
                       </div>
                     ))}
                     {totalContacts > 50 && (
-                      <p className="text-xs text-center text-muted-foreground py-2">
+                      <p className='text-muted-foreground py-2 text-center text-xs'>
                         And {totalContacts - 50} more...
                       </p>
                     )}
                   </div>
                 </ScrollArea>
               ) : (
-                <div className="h-[100px] flex items-center justify-center text-sm text-muted-foreground">
+                <div className='text-muted-foreground flex h-[100px] items-center justify-center text-sm'>
                   No contacts found with this tag.
                 </div>
               )}
@@ -239,15 +261,25 @@ export function ContactsBulkDelete() {
           )}
         </div>
 
-        <DialogFooter className="flex-col gap-2 sm:flex-row">
-          <Button variant="outline" onClick={() => setOpen(false)} className="w-full sm:w-auto">Cancel</Button>
-          <Button 
-            variant="destructive" 
-            onClick={handleDelete} 
-            disabled={!selectedTag || loading || totalContacts === 0}
-            className="w-full sm:w-auto"
+        <DialogFooter className='flex-col gap-2 sm:flex-row'>
+          <Button
+            variant='outline'
+            onClick={() => setOpen(false)}
+            className='w-full sm:w-auto'
           >
-            {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
+            Cancel
+          </Button>
+          <Button
+            variant='destructive'
+            onClick={handleDelete}
+            disabled={!selectedTag || loading || totalContacts === 0}
+            className='w-full sm:w-auto'
+          >
+            {loading ? (
+              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
+            ) : (
+              <Trash2 className='mr-2 h-4 w-4' />
+            )}
             Delete {totalContacts} Contacts
           </Button>
         </DialogFooter>

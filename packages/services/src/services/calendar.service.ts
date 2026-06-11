@@ -42,7 +42,8 @@ export class CalendarService {
 
   getGoogleOAuthUrl(redirectUri: string, state: string): string {
     const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
-    if (!clientId) throw new BadRequestException("Google Calendar not configured");
+    if (!clientId)
+      throw new BadRequestException("Google Calendar not configured");
 
     const params = new URLSearchParams({
       client_id: clientId,
@@ -59,13 +60,15 @@ export class CalendarService {
 
   getMicrosoftOAuthUrl(redirectUri: string, state: string): string {
     const clientId = process.env.MICROSOFT_CALENDAR_CLIENT_ID;
-    if (!clientId) throw new BadRequestException("Microsoft Calendar not configured");
+    if (!clientId)
+      throw new BadRequestException("Microsoft Calendar not configured");
 
     const params = new URLSearchParams({
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: "code",
-      scope: "offline_access Calendars.ReadWrite OnlineMeetings.ReadWrite User.Read",
+      scope:
+        "offline_access Calendars.ReadWrite OnlineMeetings.ReadWrite User.Read",
       state,
     });
 
@@ -75,10 +78,16 @@ export class CalendarService {
   async exchangeGoogleCode(
     code: string,
     redirectUri: string,
-  ): Promise<{ accessToken: string; refreshToken?: string; expiresAt?: Date; email?: string }> {
+  ): Promise<{
+    accessToken: string;
+    refreshToken?: string;
+    expiresAt?: Date;
+    email?: string;
+  }> {
     const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
-    if (!clientId || !clientSecret) throw new BadRequestException("Google Calendar not configured");
+    if (!clientId || !clientSecret)
+      throw new BadRequestException("Google Calendar not configured");
 
     const res = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
@@ -94,7 +103,9 @@ export class CalendarService {
 
     if (!res.ok) {
       const errorBody = await res.text();
-      throw new BadRequestException(`Google token exchange failed: ${errorBody}`);
+      throw new BadRequestException(
+        `Google token exchange failed: ${errorBody}`,
+      );
     }
 
     const data = await res.json();
@@ -102,19 +113,26 @@ export class CalendarService {
     // Fetch user email
     let email: string | undefined;
     try {
-      const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
-        headers: { Authorization: `Bearer ${data.access_token}` },
-      });
+      const userRes = await fetch(
+        "https://www.googleapis.com/oauth2/v2/userinfo",
+        {
+          headers: { Authorization: `Bearer ${data.access_token}` },
+        },
+      );
       if (userRes.ok) {
         const userData = await userRes.json();
         email = userData.email;
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     return {
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
-      expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : undefined,
+      expiresAt: data.expires_in
+        ? new Date(Date.now() + data.expires_in * 1000)
+        : undefined,
       email,
     };
   }
@@ -122,10 +140,16 @@ export class CalendarService {
   async exchangeMicrosoftCode(
     code: string,
     redirectUri: string,
-  ): Promise<{ accessToken: string; refreshToken?: string; expiresAt?: Date; email?: string }> {
+  ): Promise<{
+    accessToken: string;
+    refreshToken?: string;
+    expiresAt?: Date;
+    email?: string;
+  }> {
     const clientId = process.env.MICROSOFT_CALENDAR_CLIENT_ID;
     const clientSecret = process.env.MICROSOFT_CALENDAR_CLIENT_SECRET;
-    if (!clientId || !clientSecret) throw new BadRequestException("Microsoft Calendar not configured");
+    if (!clientId || !clientSecret)
+      throw new BadRequestException("Microsoft Calendar not configured");
 
     const res = await fetch(
       "https://login.microsoftonline.com/common/oauth2/v2.0/token",
@@ -138,14 +162,17 @@ export class CalendarService {
           client_secret: clientSecret,
           redirect_uri: redirectUri,
           grant_type: "authorization_code",
-          scope: "offline_access Calendars.ReadWrite OnlineMeetings.ReadWrite User.Read",
+          scope:
+            "offline_access Calendars.ReadWrite OnlineMeetings.ReadWrite User.Read",
         }),
       },
     );
 
     if (!res.ok) {
       const errorBody = await res.text();
-      throw new BadRequestException(`Microsoft token exchange failed: ${errorBody}`);
+      throw new BadRequestException(
+        `Microsoft token exchange failed: ${errorBody}`,
+      );
     }
 
     const data = await res.json();
@@ -160,12 +187,16 @@ export class CalendarService {
         const userData = await userRes.json();
         email = userData.mail || userData.userPrincipalName;
       }
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
 
     return {
       accessToken: data.access_token,
       refreshToken: data.refresh_token,
-      expiresAt: data.expires_in ? new Date(Date.now() + data.expires_in * 1000) : undefined,
+      expiresAt: data.expires_in
+        ? new Date(Date.now() + data.expires_in * 1000)
+        : undefined,
       email,
     };
   }
@@ -191,9 +222,7 @@ export class CalendarService {
     });
   }
 
-  async getIntegrations(
-    ctx: OwnershipContext,
-  ): Promise<CalendarIntegration[]> {
+  async getIntegrations(ctx: OwnershipContext): Promise<CalendarIntegration[]> {
     return this.calendarRepo.findByUserOrOrg(ctx.userId, ctx.organizationId);
   }
 
@@ -294,7 +323,12 @@ export class CalendarService {
     endOfDay.setHours(23, 59, 59, 999);
 
     if (integration.provider === "google") {
-      return this.googleFreeBusy(accessToken, integration.calendarId || "primary", startOfDay, endOfDay);
+      return this.googleFreeBusy(
+        accessToken,
+        integration.calendarId || "primary",
+        startOfDay,
+        endOfDay,
+      );
     } else {
       return this.microsoftFreeBusy(accessToken, startOfDay, endOfDay);
     }
@@ -306,21 +340,18 @@ export class CalendarService {
     timeMin: Date,
     timeMax: Date,
   ): Promise<FreeBusySlot[]> {
-    const res = await fetch(
-      "https://www.googleapis.com/calendar/v3/freeBusy",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          timeMin: timeMin.toISOString(),
-          timeMax: timeMax.toISOString(),
-          items: [{ id: calendarId }],
-        }),
+    const res = await fetch("https://www.googleapis.com/calendar/v3/freeBusy", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify({
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+        items: [{ id: calendarId }],
+      }),
+    });
 
     if (!res.ok) throw new Error(`Google Calendar API error: ${res.status}`);
     const data = await res.json();
@@ -379,9 +410,7 @@ export class CalendarService {
     },
   ): Promise<CalendarEvent> {
     const accessToken = await this.ensureValidToken(integration);
-    const end = new Date(
-      dto.start.getTime() + dto.durationMinutes * 60 * 1000,
-    );
+    const end = new Date(dto.start.getTime() + dto.durationMinutes * 60 * 1000);
 
     if (integration.provider === "google") {
       return this.googleCreateEvent(
@@ -429,7 +458,8 @@ export class CalendarService {
       },
     );
 
-    if (!res.ok) throw new Error(`Google Calendar create event error: ${res.status}`);
+    if (!res.ok)
+      throw new Error(`Google Calendar create event error: ${res.status}`);
     const data = await res.json();
     return {
       id: data.id,
@@ -462,19 +492,17 @@ export class CalendarService {
       ];
     }
 
-    const res = await fetch(
-      "https://graph.microsoft.com/v1.0/me/events",
-      {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
+    const res = await fetch("https://graph.microsoft.com/v1.0/me/events", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
       },
-    );
+      body: JSON.stringify(body),
+    });
 
-    if (!res.ok) throw new Error(`Microsoft Graph create event error: ${res.status}`);
+    if (!res.ok)
+      throw new Error(`Microsoft Graph create event error: ${res.status}`);
     const data = await res.json();
     return {
       id: data.id,

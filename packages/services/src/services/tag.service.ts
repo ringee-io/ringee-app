@@ -3,12 +3,13 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Tag, TagRepository, UserRepository, OrganizationRepository } from "@ringee/database";
 import {
-  CreateTagDto,
-  UpdateTagDto,
-  OwnershipContext,
-} from "@ringee/platform";
+  Tag,
+  TagRepository,
+  UserRepository,
+  OrganizationRepository,
+} from "@ringee/database";
+import { CreateTagDto, UpdateTagDto, OwnershipContext } from "@ringee/platform";
 
 @Injectable()
 export class TagService {
@@ -19,26 +20,31 @@ export class TagService {
   ) {}
 
   async createTag(ctx: OwnershipContext, dto: CreateTagDto): Promise<Tag> {
-    console.log('[TagService] createTag called with ctx:', JSON.stringify(ctx));
-    
+    console.log("[TagService] createTag called with ctx:", JSON.stringify(ctx));
+
     if (!ctx.userId) {
       throw new BadRequestException("User ID is required to create a tag");
     }
 
     // Map Clerk IDs to DB UUIDs
     const dbUserId = await this.resolveUserId(ctx.userId);
-    const dbOrgId = ctx.organizationId 
+    const dbOrgId = ctx.organizationId
       ? await this.resolveOrgId(ctx.organizationId)
       : null;
 
-    console.log('[TagService] Resolved IDs - userId:', dbUserId, 'orgId:', dbOrgId);
+    console.log(
+      "[TagService] Resolved IDs - userId:",
+      dbUserId,
+      "orgId:",
+      dbOrgId,
+    );
 
     return this.repo.create(
       { userId: dbUserId, organizationId: dbOrgId },
       {
         name: dto.name.trim(),
         color: dto.color,
-      }
+      },
     );
   }
 
@@ -51,7 +57,7 @@ export class TagService {
   async listTags(ctx: OwnershipContext): Promise<Tag[]> {
     // Map Clerk IDs to DB UUIDs for filtering
     const dbUserId = await this.resolveUserId(ctx.userId);
-    const dbOrgId = ctx.organizationId 
+    const dbOrgId = ctx.organizationId
       ? await this.resolveOrgId(ctx.organizationId)
       : null;
 
@@ -73,14 +79,14 @@ export class TagService {
 
   async assignTagsToContact(
     contactId: string,
-    tagIds: string[]
+    tagIds: string[],
   ): Promise<number> {
     return this.repo.assignToContact(contactId, tagIds);
   }
 
   async removeTagsFromContact(
     contactId: string,
-    tagIds: string[]
+    tagIds: string[],
   ): Promise<number> {
     return this.repo.removeFromContact(contactId, tagIds);
   }
@@ -95,7 +101,7 @@ export class TagService {
 
   async assignTagsToContacts(
     contactIds: string[],
-    tagIds: string[]
+    tagIds: string[],
   ): Promise<number> {
     return this.repo.assignTagsToContacts(contactIds, tagIds);
   }
@@ -108,21 +114,29 @@ export class TagService {
 
   private async resolveUserId(clerkOrDbId: string): Promise<string> {
     // If it starts with 'user_', it's a Clerk ID - look up by clerkId
-    if (clerkOrDbId.startsWith('user_')) {
+    if (clerkOrDbId.startsWith("user_")) {
       const user = await this.userRepo.findByClerkId(clerkOrDbId);
       if (!user) throw new BadRequestException("User not found");
       return user.id;
     }
-    
+
     // It's a UUID - verify it exists in the database
     const user = await this.userRepo.findById(clerkOrDbId);
     if (!user) {
-      console.error(`[TagService] User UUID ${clerkOrDbId} not found in database!`);
-      console.error(`[TagService] This means Clerk privateMetadata.userId is out of sync with local DB`);
-      console.error(`[TagService] Run: UPDATE "User" SET id = '${clerkOrDbId}' WHERE id = (SELECT id FROM "User" LIMIT 1);`);
-      console.error(`[TagService] Or update Clerk privateMetadata.userId to match an existing user`);
+      console.error(
+        `[TagService] User UUID ${clerkOrDbId} not found in database!`,
+      );
+      console.error(
+        `[TagService] This means Clerk privateMetadata.userId is out of sync with local DB`,
+      );
+      console.error(
+        `[TagService] Run: UPDATE "User" SET id = '${clerkOrDbId}' WHERE id = (SELECT id FROM "User" LIMIT 1);`,
+      );
+      console.error(
+        `[TagService] Or update Clerk privateMetadata.userId to match an existing user`,
+      );
       throw new BadRequestException(
-        `User not found in database. The Clerk privateMetadata.userId (${clerkOrDbId}) doesn't match any local user. Please sync your Clerk user with local database.`
+        `User not found in database. The Clerk privateMetadata.userId (${clerkOrDbId}) doesn't match any local user. Please sync your Clerk user with local database.`,
       );
     }
     return user.id;
@@ -130,7 +144,7 @@ export class TagService {
 
   private async resolveOrgId(clerkOrDbId: string): Promise<string> {
     // If it starts with 'org_', it's a Clerk ID
-    if (clerkOrDbId.startsWith('org_')) {
+    if (clerkOrDbId.startsWith("org_")) {
       const org = await this.orgRepo.findByClerkId(clerkOrDbId);
       if (!org) throw new BadRequestException("Organization not found");
       return org.id;
@@ -139,4 +153,3 @@ export class TagService {
     return clerkOrDbId;
   }
 }
-

@@ -26,13 +26,21 @@ export function callOwnershipFromCall(call: Call): OwnershipContext | null {
 export function pickCallTerminalEvent(call: Call): CustomIntegrationEventType {
   if (call.status === CallStatus.failed) return "call_failed";
   // No answered timestamp + inbound direction => the call rang and was missed.
-  if (!call.answeredAt && (call.direction === "inbound" || call.direction === "incoming")) {
+  if (
+    !call.answeredAt &&
+    (call.direction === "inbound" || call.direction === "incoming")
+  ) {
     return "call_missed";
   }
   return "call_completed";
 }
 
-export function contactRef(contact: Pick<Contact, "id" | "phoneNumber" | "fullName" | "email"> | null | undefined) {
+export function contactRef(
+  contact:
+    | Pick<Contact, "id" | "phoneNumber" | "fullName" | "email">
+    | null
+    | undefined,
+) {
   if (!contact) return undefined;
   return {
     id: contact.id,
@@ -42,14 +50,22 @@ export function contactRef(contact: Pick<Contact, "id" | "phoneNumber" | "fullNa
   };
 }
 
-export function companyRef(company: Pick<Company, "id" | "name"> | null | undefined) {
+export function companyRef(
+  company: Pick<Company, "id" | "name"> | null | undefined,
+) {
   if (!company) return undefined;
   return { id: company.id, name: company.name };
 }
 
-export function userRef(user: Pick<User, "id" | "firstName" | "lastName"> | null | undefined, email?: string | null) {
+export function userRef(
+  user: Pick<User, "id" | "firstName" | "lastName"> | null | undefined,
+  email?: string | null,
+) {
   if (!user) return undefined;
-  const fullName = [user.firstName, user.lastName].filter(Boolean).join(" ").trim();
+  const fullName = [user.firstName, user.lastName]
+    .filter(Boolean)
+    .join(" ")
+    .trim();
   return {
     id: user.id,
     email: email ?? undefined,

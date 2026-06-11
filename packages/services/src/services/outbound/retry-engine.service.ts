@@ -15,7 +15,7 @@ export class RetryEngine {
 
   constructor(
     private readonly retryRuleRepo: RetryRuleRepository,
-    private readonly campaignLeadRepo: CampaignLeadRepository
+    private readonly campaignLeadRepo: CampaignLeadRepository,
   ) {}
 
   /**
@@ -28,11 +28,11 @@ export class RetryEngine {
     campaignLeadId: string,
     dispositionCategory: DispositionCategory,
     currentAttempts: number,
-    campaignDefaults: { maxAttempts: number; retryDelayMin: number }
+    campaignDefaults: { maxAttempts: number; retryDelayMin: number },
   ): Promise<"retried" | "exhausted" | "no_rule"> {
     const rule = await this.retryRuleRepo.findByCampaignAndCategory(
       campaignId,
-      dispositionCategory
+      dispositionCategory,
     );
 
     const maxAttempts = rule?.maxAttempts ?? campaignDefaults.maxAttempts;
@@ -42,7 +42,7 @@ export class RetryEngine {
     if (currentAttempts >= maxAttempts) {
       await this.campaignLeadRepo.markAsDead(campaignLeadId);
       this.logger.debug(
-        `Lead ${campaignLeadId} exhausted after ${currentAttempts} attempts`
+        `Lead ${campaignLeadId} exhausted after ${currentAttempts} attempts`,
       );
       return "exhausted";
     }
@@ -55,11 +55,11 @@ export class RetryEngine {
     await this.campaignLeadRepo.updateStatus(
       campaignLeadId,
       CampaignLeadStatus.queued,
-      { nextCallAt, lockedBy: null, lockedAt: null }
+      { nextCallAt, lockedBy: null, lockedAt: null },
     );
 
     this.logger.debug(
-      `Lead ${campaignLeadId} scheduled for retry at ${nextCallAt.toISOString()} (delay: ${Math.round(backoffDelay)}min)`
+      `Lead ${campaignLeadId} scheduled for retry at ${nextCallAt.toISOString()} (delay: ${Math.round(backoffDelay)}min)`,
     );
     return "retried";
   }

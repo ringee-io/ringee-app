@@ -21,16 +21,25 @@ import { cn } from "@/lib/utils";
 function Confidence({ value }: { value: number | null }) {
   const pct = Math.round((value ?? 0) * 100);
   const color =
-    pct >= 80 ? "var(--success)" : pct >= 60 ? "var(--warning)" : "var(--muted-foreground)";
+    pct >= 80
+      ? "var(--success)"
+      : pct >= 60
+        ? "var(--warning)"
+        : "var(--muted-foreground)";
   return (
-    <div className="flex items-center gap-1.5" title={`Match confidence ${pct}%`}>
+    <div
+      className="flex items-center gap-1.5"
+      title={`Match confidence ${pct}%`}
+    >
       <div className="h-1.5 w-12 overflow-hidden rounded-full bg-muted">
         <div
           className="h-full rounded-full"
           style={{ width: `${pct}%`, background: color }}
         />
       </div>
-      <span className="text-[11px] tabular-nums text-muted-foreground">{pct}%</span>
+      <span className="text-[11px] tabular-nums text-muted-foreground">
+        {pct}%
+      </span>
     </div>
   );
 }
@@ -106,7 +115,11 @@ function DataChip({ available, label }: { available: boolean; label: string }) {
           : "bg-muted text-muted-foreground",
       )}
     >
-      {available ? <CheckCircle2 className="size-3" /> : <XCircle className="size-3" />}
+      {available ? (
+        <CheckCircle2 className="size-3" />
+      ) : (
+        <XCircle className="size-3" />
+      )}
       {label}
     </span>
   );
@@ -132,7 +145,8 @@ export function LeadSearchResults({ data }: { data: SearchLeadsResult }) {
         </div>
         <GuardNote level="sensitive">
           These are <strong>candidates, not contacts</strong>. Revealing unlocks
-          email/phone and <strong>spends credits</strong> — confirm before revealing.
+          email/phone and <strong>spends credits</strong> — confirm before
+          revealing.
           <SensitivityBadge level="sensitive" />
         </GuardNote>
       </CardHeader>

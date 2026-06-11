@@ -9,7 +9,7 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
+  CardTitle
 } from '@ringee/frontend-shared/components/ui/card';
 import {
   Table,
@@ -17,7 +17,7 @@ import {
   TableCell,
   TableHead,
   TableHeader,
-  TableRow,
+  TableRow
 } from '@ringee/frontend-shared/components/ui/table';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { CalendarClock, X } from 'lucide-react';
@@ -52,7 +52,7 @@ const STATUS_COLORS: Record<string, string> = {
   in_progress: 'bg-yellow-100 text-yellow-700',
   completed: 'bg-green-100 text-green-700',
   missed: 'bg-red-100 text-red-700',
-  cancelled: 'bg-gray-100 text-gray-700',
+  cancelled: 'bg-gray-100 text-gray-700'
 };
 
 export function CallbackList() {
@@ -95,17 +95,18 @@ export function CallbackList() {
       </CardHeader>
       <CardContent>
         {loading ? (
-          <div className="space-y-2">
+          <div className='space-y-2'>
             {Array.from({ length: 5 }).map((_, i) => (
-              <Skeleton key={i} className="h-12 w-full" />
+              <Skeleton key={i} className='h-12 w-full' />
             ))}
           </div>
         ) : callbacks.length === 0 ? (
-          <div className="flex flex-col items-center py-12 text-center">
-            <CalendarClock className="mb-4 h-12 w-12 text-muted-foreground" />
-            <h3 className="text-lg font-semibold">No callbacks scheduled</h3>
-            <p className="mt-1 text-sm text-muted-foreground">
-              When agents schedule callbacks during calls, they will appear here.
+          <div className='flex flex-col items-center py-12 text-center'>
+            <CalendarClock className='text-muted-foreground mb-4 h-12 w-12' />
+            <h3 className='text-lg font-semibold'>No callbacks scheduled</h3>
+            <p className='text-muted-foreground mt-1 text-sm'>
+              When agents schedule callbacks during calls, they will appear
+              here.
             </p>
           </div>
         ) : (
@@ -113,11 +114,11 @@ export function CallbackList() {
             <TableHeader>
               <TableRow>
                 <TableHead>Contact</TableHead>
-                <TableHead className="hidden md:table-cell">Campaign</TableHead>
+                <TableHead className='hidden md:table-cell'>Campaign</TableHead>
                 <TableHead>Scheduled</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="hidden sm:table-cell">Note</TableHead>
-                <TableHead className="w-[60px]"></TableHead>
+                <TableHead className='hidden sm:table-cell'>Note</TableHead>
+                <TableHead className='w-[60px]'></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -125,15 +126,15 @@ export function CallbackList() {
                 <TableRow key={cb.id}>
                   <TableCell>
                     <div>
-                      <div className="font-medium">
+                      <div className='font-medium'>
                         {cb.contact.name || 'Unknown'}
                       </div>
-                      <div className="text-xs text-muted-foreground">
+                      <div className='text-muted-foreground text-xs'>
                         {cb.contact.phoneNumber}
                       </div>
                     </div>
                   </TableCell>
-                  <TableCell className="hidden md:table-cell">
+                  <TableCell className='hidden md:table-cell'>
                     {cb.campaignLead?.campaign?.name || '—'}
                   </TableCell>
                   <TableCell>
@@ -141,26 +142,26 @@ export function CallbackList() {
                   </TableCell>
                   <TableCell>
                     <Badge
-                      variant="secondary"
+                      variant='secondary'
                       className={STATUS_COLORS[cb.status] || ''}
                     >
                       {cb.status.replace(/_/g, ' ')}
                     </Badge>
                   </TableCell>
-                  <TableCell className="hidden sm:table-cell">
-                    <span className="line-clamp-1 text-sm text-muted-foreground">
+                  <TableCell className='hidden sm:table-cell'>
+                    <span className='text-muted-foreground line-clamp-1 text-sm'>
                       {cb.note || '—'}
                     </span>
                   </TableCell>
                   <TableCell>
                     {(cb.status === 'scheduled' || cb.status === 'due') && (
                       <Button
-                        variant="ghost"
-                        size="icon"
+                        variant='ghost'
+                        size='icon'
                         onClick={() => handleCancel(cb.id)}
-                        title="Cancel callback"
+                        title='Cancel callback'
                       >
-                        <X className="h-4 w-4 text-muted-foreground" />
+                        <X className='text-muted-foreground h-4 w-4' />
                       </Button>
                     )}
                   </TableCell>

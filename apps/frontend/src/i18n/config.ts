@@ -74,7 +74,9 @@ export function isSupportedLocale(locale: unknown): locale is SupportedLocale {
  * `Accept-Language`, or a Clerk profile field) into a `SupportedLocale`.
  * Tries exact match, then base-language match, then falls back to English.
  */
-export function normalizeLocale(input: string | null | undefined): SupportedLocale {
+export function normalizeLocale(
+  input: string | null | undefined
+): SupportedLocale {
   if (!input) return DEFAULT_LOCALE;
 
   const candidate = input.replace('_', '-');
@@ -103,7 +105,9 @@ export function getLocaleFlag(locale: SupportedLocale): string {
  * Returns the next locale in the fallback chain, or `null` if `locale`
  * is the root of the chain.
  */
-export function getLocaleFallback(locale: SupportedLocale): SupportedLocale | null {
+export function getLocaleFallback(
+  locale: SupportedLocale
+): SupportedLocale | null {
   if (locale === DEFAULT_LOCALE) return null;
   return FALLBACK_MAP[locale] ?? DEFAULT_LOCALE;
 }

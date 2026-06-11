@@ -149,7 +149,9 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
   }
 
   // ── Primitive (subclass-provided) ────────────────────────────────────
-  protected abstract authenticate(creds: OdooCredentialPayload): Promise<number>;
+  protected abstract authenticate(
+    creds: OdooCredentialPayload,
+  ): Promise<number>;
 
   protected abstract callModel<T = unknown>(
     creds: OdooCredentialPayload,
@@ -200,8 +202,14 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
       fields: ["id", "name", "login", "company_id"],
     });
     const user = info?.[0];
-    const companyId = user?.company_id && Array.isArray(user.company_id) ? user.company_id[0] : null;
-    const companyName = user?.company_id && Array.isArray(user.company_id) ? user.company_id[1] : null;
+    const companyId =
+      user?.company_id && Array.isArray(user.company_id)
+        ? user.company_id[0]
+        : null;
+    const companyName =
+      user?.company_id && Array.isArray(user.company_id)
+        ? user.company_id[1]
+        : null;
 
     return {
       accountId: `${odooCreds.baseUrl}#${odooCreds.database}`,
@@ -268,19 +276,24 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
       odooCreds,
       "res.partner",
       "search_read",
-      [[
-        ["is_company", "=", true],
-        "|",
-        ["website", "ilike", domain],
-        ["website", "=", `https://${domain}`],
-      ]],
+      [
+        [
+          ["is_company", "=", true],
+          "|",
+          ["website", "ilike", domain],
+          ["website", "=", `https://${domain}`],
+        ],
+      ],
       { fields, limit: 10 },
     );
     return (records ?? []).map((r) => mapOdooCompanyToMatch(r, domain));
   }
 
   // ── Upsert ───────────────────────────────────────────────────────────
-  async upsertPerson(creds: CrmCredentials, input: CrmPersonInput): Promise<CrmRecordRef> {
+  async upsertPerson(
+    creds: CrmCredentials,
+    input: CrmPersonInput,
+  ): Promise<CrmRecordRef> {
     const odooCreds = parseOdooCredentials(creds);
     await this.authenticate(odooCreds);
     const available = await this.getModelFields(odooCreds, "res.partner");
@@ -292,16 +305,21 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
         odooCreds,
         "res.partner",
         "search",
-        [[
-          ["email", "=ilike", input.email],
-          ["is_company", "=", false],
-        ]],
+        [
+          [
+            ["email", "=ilike", input.email],
+            ["is_company", "=", false],
+          ],
+        ],
         { limit: 1 },
       );
       existingId = found?.[0] ?? null;
     }
     if (!existingId) {
-      const phoneDomain = await this.buildPhoneDomain(odooCreds, input.phoneE164);
+      const phoneDomain = await this.buildPhoneDomain(
+        odooCreds,
+        input.phoneE164,
+      );
       if (phoneDomain) {
         const found = await this.callModel<number[]>(
           odooCreds,
@@ -324,7 +342,10 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
       .trim();
     const emailLocal = input.email ? input.email.split("@")[0] : "";
     const humanName =
-      (input.displayName && input.displayName.trim()) || composed || emailLocal || "";
+      (input.displayName && input.displayName.trim()) ||
+      composed ||
+      emailLocal ||
+      "";
 
     if (existingId) {
       // Write path: only touch fields where we have better data — never
@@ -333,12 +354,16 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
       const vals: Record<string, unknown> = {};
       if (humanName) vals.name = humanName;
       if (input.email && has("email")) vals.email = input.email;
-      if (input.company && has("company_name")) vals.company_name = input.company;
+      if (input.company && has("company_name"))
+        vals.company_name = input.company;
       // Phone is intentionally not written on update — existing Odoo users
       // often hand-curate partner numbers and we'd rather append via a
       // separate workflow than clobber.
       if (Object.keys(vals).length > 0) {
-        await this.callModel(odooCreds, "res.partner", "write", [[existingId], vals]);
+        await this.callModel(odooCreds, "res.partner", "write", [
+          [existingId],
+          vals,
+        ]);
       }
       return { externalId: String(existingId), externalType: "person" };
     }
@@ -354,11 +379,19 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
     if (input.email) vals.email = input.email;
     if (input.company && has("company_name")) vals.company_name = input.company;
 
-    const created = await this.callModel<number>(odooCreds, "res.partner", "create", [vals]);
+    const created = await this.callModel<number>(
+      odooCreds,
+      "res.partner",
+      "create",
+      [vals],
+    );
     return { externalId: String(created), externalType: "person" };
   }
 
-  async upsertCompany(creds: CrmCredentials, input: CrmCompanyInput): Promise<CrmRecordRef> {
+  async upsertCompany(
+    creds: CrmCredentials,
+    input: CrmCompanyInput,
+  ): Promise<CrmRecordRef> {
     const odooCreds = parseOdooCredentials(creds);
     await this.authenticate(odooCreds);
     const available = await this.getModelFields(odooCreds, "res.partner");
@@ -380,10 +413,12 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
         odooCreds,
         "res.partner",
         "search",
-        [[
-          ["is_company", "=", true],
-          ["website", "ilike", input.domain],
-        ]],
+        [
+          [
+            ["is_company", "=", true],
+            ["website", "ilike", input.domain],
+          ],
+        ],
         { limit: 1 },
       );
       existingId = found?.[0] ?? null;
@@ -393,10 +428,12 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
         odooCreds,
         "res.partner",
         "search",
-        [[
-          ["is_company", "=", true],
-          ["name", "=ilike", nameTrimmed],
-        ]],
+        [
+          [
+            ["is_company", "=", true],
+            ["name", "=ilike", nameTrimmed],
+          ],
+        ],
         { limit: 1 },
       );
       existingId = found?.[0] ?? null;
@@ -406,9 +443,13 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
       // Write path: only populate fields we actually have new data for.
       const vals: Record<string, unknown> = {};
       if (nameTrimmed) vals.name = nameTrimmed;
-      if (input.domain && has("website")) vals.website = `https://${input.domain}`;
+      if (input.domain && has("website"))
+        vals.website = `https://${input.domain}`;
       if (Object.keys(vals).length > 0) {
-        await this.callModel(odooCreds, "res.partner", "write", [[existingId], vals]);
+        await this.callModel(odooCreds, "res.partner", "write", [
+          [existingId],
+          vals,
+        ]);
       }
       return { externalId: String(existingId), externalType: "company" };
     }
@@ -417,15 +458,24 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
       is_company: true,
       name: resolvedName,
     };
-    if (input.domain && has("website")) vals.website = `https://${input.domain}`;
+    if (input.domain && has("website"))
+      vals.website = `https://${input.domain}`;
     if (input.phoneE164 && has("phone")) vals.phone = input.phoneE164;
 
-    const created = await this.callModel<number>(odooCreds, "res.partner", "create", [vals]);
+    const created = await this.callModel<number>(
+      odooCreds,
+      "res.partner",
+      "create",
+      [vals],
+    );
     return { externalId: String(created), externalType: "company" };
   }
 
   // ── Logging ──────────────────────────────────────────────────────────
-  async logCall(creds: CrmCredentials, input: CrmCallLogInput): Promise<CrmRecordRef> {
+  async logCall(
+    creds: CrmCredentials,
+    input: CrmCallLogInput,
+  ): Promise<CrmRecordRef> {
     const odooCreds = parseOdooCredentials(creds);
     await this.authenticate(odooCreds);
 
@@ -440,10 +490,15 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
       });
     }
     if (!target) {
-      throw new CrmError("NOT_FOUND", false, "no linked record and no creation data");
+      throw new CrmError(
+        "NOT_FOUND",
+        false,
+        "no linked record and no creation data",
+      );
     }
 
-    const resModel = target.externalType === "company" ? "res.partner" : "res.partner";
+    const resModel =
+      target.externalType === "company" ? "res.partner" : "res.partner";
     const resId = Number(target.externalId);
     const { body, activitySummary, activityNote } = buildOdooCallLog(input);
 
@@ -494,7 +549,10 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
     return target;
   }
 
-  async addNote(creds: CrmCredentials, input: CrmNoteInput): Promise<CrmRecordRef> {
+  async addNote(
+    creds: CrmCredentials,
+    input: CrmNoteInput,
+  ): Promise<CrmRecordRef> {
     const odooCreds = parseOdooCredentials(creds);
     await this.authenticate(odooCreds);
     const resId = Number(input.recordId);
@@ -513,13 +571,20 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
     return { externalId: input.recordId, externalType: input.recordType };
   }
 
-  async createTask(creds: CrmCredentials, input: CrmTaskInput): Promise<CrmRecordRef> {
+  async createTask(
+    creds: CrmCredentials,
+    input: CrmTaskInput,
+  ): Promise<CrmRecordRef> {
     const odooCreds = parseOdooCredentials(creds);
     await this.authenticate(odooCreds);
 
     const target = input.linkedRecords[0];
     if (!target) {
-      throw new CrmError("VALIDATION", false, "odoo task requires at least one linked record");
+      throw new CrmError(
+        "VALIDATION",
+        false,
+        "odoo task requires at least one linked record",
+      );
     }
     const resModel = "res.partner";
     const resId = Number(target.externalId);
@@ -551,18 +616,30 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
       }
     }
 
-    const created = await this.callModel<number>(odooCreds, "mail.activity", "create", [vals]);
+    const created = await this.callModel<number>(
+      odooCreds,
+      "mail.activity",
+      "create",
+      [vals],
+    );
     return { externalId: String(created), externalType: target.externalType };
   }
 
   // ── Meeting ──────────────────────────────────────────────────────────────────
-  async upsertMeeting(creds: CrmCredentials, input: CrmMeetingInput): Promise<CrmMeetingSyncResult> {
+  async upsertMeeting(
+    creds: CrmCredentials,
+    input: CrmMeetingInput,
+  ): Promise<CrmMeetingSyncResult> {
     const odooCreds = parseOdooCredentials(creds);
     await this.authenticate(odooCreds);
 
     const target = input.linkedRecords[0];
     if (!target) {
-      throw new CrmError("VALIDATION", false, "meeting sync requires at least one linked record");
+      throw new CrmError(
+        "VALIDATION",
+        false,
+        "meeting sync requires at least one linked record",
+      );
     }
 
     const resModel = "res.partner";
@@ -576,11 +653,13 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
         odooCreds,
         "mail.message",
         "search",
-        [[
-          ["model", "=", resModel],
-          ["res_id", "=", resId],
-          ["body", "ilike", idempotencyTag],
-        ]],
+        [
+          [
+            ["model", "=", resModel],
+            ["res_id", "=", resId],
+            ["body", "ilike", idempotencyTag],
+          ],
+        ],
         { limit: 1 },
       );
       if (existing && existing.length > 0) {
@@ -643,13 +722,20 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
   }
 
   // ── Recording file upload ───────────────────────────────────────────────
-  async uploadRecording(creds: CrmCredentials, input: CrmRecordingUploadInput): Promise<CrmRecordingUploadResult> {
+  async uploadRecording(
+    creds: CrmCredentials,
+    input: CrmRecordingUploadInput,
+  ): Promise<CrmRecordingUploadResult> {
     const odooCreds = parseOdooCredentials(creds);
     await this.authenticate(odooCreds);
 
     const target = input.linkedRecords[0];
     if (!target) {
-      throw new CrmError("VALIDATION", false, "recording upload requires at least one linked record");
+      throw new CrmError(
+        "VALIDATION",
+        false,
+        "recording upload requires at least one linked record",
+      );
     }
 
     const resModel = "res.partner";
@@ -661,11 +747,13 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
         odooCreds,
         "ir.attachment",
         "search",
-        [[
-          ["name", "=", input.fileName],
-          ["res_model", "=", resModel],
-          ["res_id", "=", resId],
-        ]],
+        [
+          [
+            ["name", "=", input.fileName],
+            ["res_model", "=", resModel],
+            ["res_id", "=", resId],
+          ],
+        ],
         { limit: 1 },
       );
       if (existing && existing.length > 0) {
@@ -684,14 +772,16 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
       odooCreds,
       "ir.attachment",
       "create",
-      [{
-        name: input.fileName,
-        datas: input.fileBuffer.toString("base64"),
-        res_model: resModel,
-        res_id: resId,
-        mimetype: input.fileMimeType,
-        type: "binary",
-      }],
+      [
+        {
+          name: input.fileName,
+          datas: input.fileBuffer.toString("base64"),
+          res_model: resModel,
+          res_id: resId,
+          mimetype: input.fileMimeType,
+          type: "binary",
+        },
+      ],
     );
 
     return {
@@ -702,7 +792,10 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
   }
 
   // ── Fetch & bulk ─────────────────────────────────────────────────────
-  async fetchPerson(creds: CrmCredentials, externalId: string): Promise<CrmContactSyncResult> {
+  async fetchPerson(
+    creds: CrmCredentials,
+    externalId: string,
+  ): Promise<CrmContactSyncResult> {
     const odooCreds = parseOdooCredentials(creds);
     await this.authenticate(odooCreds);
     const fields = await this.resolvePartnerFields(odooCreds);
@@ -714,12 +807,19 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
       { fields },
     );
     if (!records?.[0]) {
-      throw new CrmError("NOT_FOUND", false, `odoo partner ${externalId} not found`);
+      throw new CrmError(
+        "NOT_FOUND",
+        false,
+        `odoo partner ${externalId} not found`,
+      );
     }
     return mapOdooPartnerToSyncResult(records[0]);
   }
 
-  async fetchCompany(creds: CrmCredentials, externalId: string): Promise<CrmCompanySyncResult> {
+  async fetchCompany(
+    creds: CrmCredentials,
+    externalId: string,
+  ): Promise<CrmCompanySyncResult> {
     const odooCreds = parseOdooCredentials(creds);
     await this.authenticate(odooCreds);
     const fields = await this.resolvePartnerFields(odooCreds);
@@ -731,7 +831,11 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
       { fields },
     );
     if (!records?.[0]) {
-      throw new CrmError("NOT_FOUND", false, `odoo partner ${externalId} not found`);
+      throw new CrmError(
+        "NOT_FOUND",
+        false,
+        `odoo partner ${externalId} not found`,
+      );
     }
     return mapOdooCompanyToSyncResult(records[0]);
   }
@@ -869,10 +973,7 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
 }
 
 function escapeHtml(s: string): string {
-  return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function escapeAttr(s: string): string {

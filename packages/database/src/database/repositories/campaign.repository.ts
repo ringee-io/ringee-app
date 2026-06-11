@@ -13,7 +13,7 @@ export class CampaignRepository {
   async create(
     userId: string,
     organizationId: string,
-    data: { name: string; description?: string }
+    data: { name: string; description?: string },
   ): Promise<Campaign> {
     return this.prisma.campaign.create({
       data: {
@@ -37,7 +37,7 @@ export class CampaignRepository {
 
   async findByIdWithLeads(
     id: string,
-    options?: { page?: number; limit?: number }
+    options?: { page?: number; limit?: number },
   ): Promise<{
     campaign: Campaign | null;
     leads: Array<{
@@ -45,7 +45,12 @@ export class CampaignRepository {
       attempts: number;
       lastCallAt: Date | null;
       nextCallAt: Date | null;
-      contact: { id: string; name: string | null; phoneNumber: string; email: string | null };
+      contact: {
+        id: string;
+        name: string | null;
+        phoneNumber: string;
+        email: string | null;
+      };
     }>;
     meta: { total: number; page: number; limit: number; totalPages: number };
   }> {
@@ -109,12 +114,18 @@ export class CampaignRepository {
        * Used to hide campaigns from non-admin members who aren't assigned.
        */
       memberUserId?: string;
-    }
+    },
   ): Promise<{
     data: CampaignWithLeadsCount[];
     meta: { total: number; page: number; limit: number; totalPages: number };
   }> {
-    const { search, status, page = 1, limit = 10, memberUserId } = options || {};
+    const {
+      search,
+      status,
+      page = 1,
+      limit = 10,
+      memberUserId,
+    } = options || {};
 
     const where: Prisma.CampaignWhereInput = {
       organizationId,
@@ -185,7 +196,7 @@ export class CampaignRepository {
         | "wrapUpTimeSec"
         | "retryDelayMin"
       >
-    >
+    >,
   ): Promise<Campaign> {
     return this.prisma.campaign.update({
       where: { id },

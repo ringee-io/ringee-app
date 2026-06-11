@@ -10,41 +10,38 @@ import { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
 
 export async function generateMetadata(): Promise<Metadata> {
-    const t = await getTranslations('calls.recordings');
-    return {
-        title: t('metaTitle'),
-        description: t('metaDescription')
-    };
+  const t = await getTranslations('calls.recordings');
+  return {
+    title: t('metaTitle'),
+    description: t('metaDescription')
+  };
 }
 
 export default async function RecordingsPage({
-    searchParams
+  searchParams
 }: {
-    searchParams: Promise<SearchParams>;
+  searchParams: Promise<SearchParams>;
 }) {
-    const searchParamss = await searchParams;
-    searchParamsCache.parse(searchParamss);
-    const t = await getTranslations('calls.recordings');
+  const searchParamss = await searchParams;
+  searchParamsCache.parse(searchParamss);
+  const t = await getTranslations('calls.recordings');
 
-    return (
-        <PageContainer scrollable={true}>
-            <div className="flex flex-1 flex-col space-y-4">
-                <div className="flex items-start justify-between">
-                    <Heading
-                        title={t('title')}
-                        description={t('description')}
-                    />
-                </div>
-                <Separator />
+  return (
+    <PageContainer scrollable={true}>
+      <div className='flex flex-1 flex-col space-y-4'>
+        <div className='flex items-start justify-between'>
+          <Heading title={t('title')} description={t('description')} />
+        </div>
+        <Separator />
 
-                <Suspense
-                    fallback={
-                        <DataTableSkeleton columnCount={7} rowCount={8} filterCount={2} />
-                    }
-                >
-                    <RecordingsListing />
-                </Suspense>
-            </div>
-        </PageContainer>
-    );
+        <Suspense
+          fallback={
+            <DataTableSkeleton columnCount={7} rowCount={8} filterCount={2} />
+          }
+        >
+          <RecordingsListing />
+        </Suspense>
+      </div>
+    </PageContainer>
+  );
 }

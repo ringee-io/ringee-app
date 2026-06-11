@@ -3,8 +3,9 @@ import { CallSessionWorkspace } from '@/features/dialer-session/components/call-
 
 export const metadata: Metadata = {
   title: 'Ringee Call Session',
-  description: 'Open call session — dial contacts one by one and record outcomes.',
-  robots: { index: false, follow: false },
+  description:
+    'Open call session — dial contacts one by one and record outcomes.',
+  robots: { index: false, follow: false }
 };
 
 interface PageProps {

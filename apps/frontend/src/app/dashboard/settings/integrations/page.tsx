@@ -5,16 +5,16 @@ import IntegrationsViewPage from '@/features/integrations/components/integration
 
 export const metadata = {
   title: 'Integrations | Ringee',
-  description: 'Connect your CRM and other tools to Ringee.',
+  description: 'Connect your CRM and other tools to Ringee.'
 };
 
 export default function Page() {
   return (
     <PageContainer scrollable>
-      <div className="flex flex-1 flex-col space-y-4">
+      <div className='flex flex-1 flex-col space-y-4'>
         <Heading
-          title="Integrations"
-          description="Sync Ringee call activity to the tools your team already uses."
+          title='Integrations'
+          description='Sync Ringee call activity to the tools your team already uses.'
         />
         <Separator />
         <IntegrationsViewPage />

@@ -23,10 +23,7 @@ function parseDuplicateNotice(
 ): DuplicateSearchNotice | null {
   const match = payload.match as DuplicateSearchMatch | undefined;
   const relationship = payload.relationship;
-  if (
-    !match ||
-    (relationship !== 'identical' && relationship !== 'similar')
-  ) {
+  if (!match || (relationship !== 'identical' && relationship !== 'similar')) {
     return null;
   }
   return {
@@ -106,12 +103,15 @@ export function useAiConversation(conversationId: string | null) {
         .map((e) => ({
           toolEventId: e.id,
           jobId: String((e.payload as Record<string, unknown>)?.jobId ?? ''),
-          provider: String((e.payload as Record<string, unknown>)?.provider ?? ''),
+          provider: String(
+            (e.payload as Record<string, unknown>)?.provider ?? ''
+          ),
           filtersSummary: String(
             (e.payload as Record<string, unknown>)?.filtersSummary ?? ''
           ),
           results:
-            ((e.payload as Record<string, unknown>)?.results as ProspectPreview[]) ?? []
+            ((e.payload as Record<string, unknown>)
+              ?.results as ProspectPreview[]) ?? []
         }));
 
       // A duplicate-search prompt is "active" only while it is the most
@@ -154,13 +154,18 @@ export function useAiConversation(conversationId: string | null) {
         .filter((e) => !shadowedConfirmationIds.has(e.id))
         .map((e) => ({
           confirmationId: e.id,
-          action: ((e.payload as Record<string, unknown>)?.action as PendingConfirmation['action']) ?? 'reveal',
-          summary: String((e.payload as Record<string, unknown>)?.summary ?? ''),
+          action:
+            ((e.payload as Record<string, unknown>)
+              ?.action as PendingConfirmation['action']) ?? 'reveal',
+          summary: String(
+            (e.payload as Record<string, unknown>)?.summary ?? ''
+          ),
           payload: (e.payload as Record<string, unknown>) ?? {},
           estimatedCreditCost: null,
           resolved: e.resolved,
           accepted:
-            (e.resolutionData as Record<string, unknown> | null)?.accepted === true
+            (e.resolutionData as Record<string, unknown> | null)?.accepted ===
+            true
         }));
 
       setState((s) => ({
@@ -211,10 +216,7 @@ export function useAiConversation(conversationId: string | null) {
         const store = useCreditStore.getState();
         store.setBalance(Math.max(0, store.balance - cost));
       }
-    } else if (
-      event.type === 'error' &&
-      event.code === 'insufficient_credit'
-    ) {
+    } else if (event.type === 'error' && event.code === 'insufficient_credit') {
       useCreditStore.getState().setBalance(0);
     }
 
@@ -263,7 +265,9 @@ export function useAiConversation(conversationId: string | null) {
                 : m
             ),
             streamingAssistantId:
-              prev.streamingAssistantId === id ? null : prev.streamingAssistantId
+              prev.streamingAssistantId === id
+                ? null
+                : prev.streamingAssistantId
           };
         }
         case 'tool_event': {
@@ -359,7 +363,11 @@ export function useAiConversation(conversationId: string | null) {
           return { ...prev, busy: false, streamingAssistantId: null };
         }
         case 'error': {
-          return { ...prev, error: String(event.message ?? 'Unknown error'), busy: false };
+          return {
+            ...prev,
+            error: String(event.message ?? 'Unknown error'),
+            busy: false
+          };
         }
         default:
           return prev;
@@ -387,7 +395,9 @@ export function useAiConversation(conversationId: string | null) {
         error: null
       }));
       try {
-        await api.post(`/ai/conversations/${conversationId}/messages`, { text });
+        await api.post(`/ai/conversations/${conversationId}/messages`, {
+          text
+        });
       } catch (err) {
         const code =
           err instanceof ApiError

@@ -85,7 +85,10 @@ export class CrmCompanySyncService {
       phone: result.phone,
       website: result.website,
       source: `crm:${connection.provider}`,
-      crmMetadata: { lastSyncedFrom: connection.provider, externalId: result.company.externalId },
+      crmMetadata: {
+        lastSyncedFrom: connection.provider,
+        externalId: result.company.externalId,
+      },
     });
 
     await this.touchLink(connection, result, company.id);
@@ -105,7 +108,10 @@ export class CrmCompanySyncService {
     });
   }
 
-  private async updateExisting(companyId: string, result: CrmCompanySyncResult): Promise<void> {
+  private async updateExisting(
+    companyId: string,
+    result: CrmCompanySyncResult,
+  ): Promise<void> {
     await this.companyRepo.update(companyId, {
       name: result.name,
       domain: result.domain ?? undefined,

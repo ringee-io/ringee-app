@@ -17,7 +17,11 @@ export interface SignedRequest {
  * Verifier must recompute `HMAC_SHA256(secret, "<timestamp>.<body>")` and
  * compare in constant time.
  */
-export function signOutboundEvent(body: string, secret: string, now: Date = new Date()): SignedRequest {
+export function signOutboundEvent(
+  body: string,
+  secret: string,
+  now: Date = new Date(),
+): SignedRequest {
   const timestamp = Math.floor(now.getTime() / 1000).toString();
   const signature = createHmac("sha256", secret)
     .update(`${timestamp}.${body}`)
@@ -40,5 +44,8 @@ export function verifyOutboundSignature(
     .update(`${timestamp}.${body}`)
     .digest("hex");
   if (expected.length !== signature.length) return false;
-  return timingSafeEqual(Buffer.from(expected, "hex"), Buffer.from(signature, "hex"));
+  return timingSafeEqual(
+    Buffer.from(expected, "hex"),
+    Buffer.from(signature, "hex"),
+  );
 }

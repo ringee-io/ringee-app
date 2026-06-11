@@ -365,7 +365,7 @@ function AutoReloadTab({
       <div>
         <Label htmlFor='threshold'>{t('autoReload.thresholdLabel')}</Label>
         <div className='relative mt-1'>
-          <span className='text-muted-foreground absolute left-3 top-1/2 -translate-y-1/2 text-sm'>
+          <span className='text-muted-foreground absolute top-1/2 left-3 -translate-y-1/2 text-sm'>
             $
           </span>
           <Input
@@ -381,7 +381,7 @@ function AutoReloadTab({
 
       <div>
         <Label htmlFor='reload-amount'>{t('autoReload.amountLabel')}</Label>
-        <div className='flex flex-wrap gap-2 mt-1'>
+        <div className='mt-1 flex flex-wrap gap-2'>
           {[10, 25, 50, 100].map((val) => (
             <Button
               key={val}
@@ -418,7 +418,7 @@ function AutoReloadTab({
         )}
       </div>
 
-      <div className='rounded-lg border border-border/50 bg-muted/30 p-3 text-xs text-muted-foreground'>
+      <div className='border-border/50 bg-muted/30 text-muted-foreground rounded-lg border p-3 text-xs'>
         {t.rich('autoReload.summary', {
           amount: reloadAmount.toFixed(2),
           threshold: threshold.toFixed(2),

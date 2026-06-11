@@ -93,7 +93,10 @@ export class MessageService {
   async sendSms(input: SendSmsInput): Promise<Message> {
     const { ctx } = input;
 
-    if (!input.text?.trim() && !(input.mediaUrls && input.mediaUrls.length > 0)) {
+    if (
+      !input.text?.trim() &&
+      !(input.mediaUrls && input.mediaUrls.length > 0)
+    ) {
       throw new BadRequestException("Message must have text or media");
     }
 
@@ -262,7 +265,9 @@ export class MessageService {
           eventType,
           payload: envelope.data as any,
           occurredAt: new Date(envelope.data.occurred_at),
-          ...(messageRow ? { message: { connect: { id: messageRow.id } } } : {}),
+          ...(messageRow
+            ? { message: { connect: { id: messageRow.id } } }
+            : {}),
         });
 
     try {
@@ -272,9 +277,15 @@ export class MessageService {
           break;
         case "message.sent":
           if (messageRow) {
-            await this.messageRepo.updateStatus(messageRow.id, MessageStatus.sent, {
-              sentAt: payload.sent_at ? new Date(payload.sent_at) : new Date(),
-            });
+            await this.messageRepo.updateStatus(
+              messageRow.id,
+              MessageStatus.sent,
+              {
+                sentAt: payload.sent_at
+                  ? new Date(payload.sent_at)
+                  : new Date(),
+              },
+            );
           }
           break;
         case "message.finalized":
@@ -362,7 +373,9 @@ export class MessageService {
     messageRow: Message,
     payload: TelnyxMessagePayload,
   ): Promise<void> {
-    const rawAmount = payload.cost?.amount ? parseFloat(payload.cost.amount) : 0;
+    const rawAmount = payload.cost?.amount
+      ? parseFloat(payload.cost.amount)
+      : 0;
     if (!Number.isFinite(rawAmount) || rawAmount <= 0) {
       return;
     }
@@ -458,7 +471,9 @@ export class MessageService {
         toNumber: ringeeNumber,
         text: payload.text ?? null,
         mediaUrls: persistedMediaUrls,
-        receivedAt: payload.received_at ? new Date(payload.received_at) : new Date(),
+        receivedAt: payload.received_at
+          ? new Date(payload.received_at)
+          : new Date(),
         rawPayload: payload as any,
       });
     } else {
@@ -476,7 +491,9 @@ export class MessageService {
       mediaUrls: persistedMediaUrls,
       fromNumber: participantNumber,
       toNumber: ringeeNumber,
-      occurredAt: payload.received_at ? new Date(payload.received_at) : new Date(),
+      occurredAt: payload.received_at
+        ? new Date(payload.received_at)
+        : new Date(),
       incrementUnread: true,
     });
   }

@@ -56,7 +56,9 @@ export function AddWidgetMenu({ onAdd, existingTypes }: AddWidgetMenuProps) {
                 >
                   <div className='flex flex-col'>
                     <span className='text-sm font-medium'>{title}</span>
-                    <span className='text-muted-foreground text-xs'>{description}</span>
+                    <span className='text-muted-foreground text-xs'>
+                      {description}
+                    </span>
                   </div>
                 </DropdownMenuItem>
               );

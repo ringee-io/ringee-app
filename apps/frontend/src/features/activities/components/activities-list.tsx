@@ -244,7 +244,9 @@ export function ActivitiesList() {
   };
 
   const outcomeLabel = (id: CallOutcome) =>
-    t(`outcomes.${id === 'meeting_booked' ? 'meetingBooked' : id === 'follow_up' ? 'followUp' : id === 'callback_scheduled' ? 'callbackScheduled' : id === 'not_interested' ? 'notInterested' : id === 'no_answer' ? 'noAnswer' : id === 'wrong_number' ? 'wrongNumber' : id}`);
+    t(
+      `outcomes.${id === 'meeting_booked' ? 'meetingBooked' : id === 'follow_up' ? 'followUp' : id === 'callback_scheduled' ? 'callbackScheduled' : id === 'not_interested' ? 'notInterested' : id === 'no_answer' ? 'noAnswer' : id === 'wrong_number' ? 'wrongNumber' : id}`
+    );
 
   return (
     <div className='flex flex-col gap-4'>
@@ -309,7 +311,7 @@ export function ActivitiesList() {
                     <Icon className={cn('h-4 w-4', OUTCOME_COLORS[id])} />
                     <span className='flex-1 text-left'>{outcomeLabel(id)}</span>
                     {isSelected && (
-                      <span className='h-2 w-2 rounded-full bg-primary' />
+                      <span className='bg-primary h-2 w-2 rounded-full' />
                     )}
                   </button>
                 );
@@ -317,7 +319,7 @@ export function ActivitiesList() {
               {selectedOutcomes.length > 0 && (
                 <button
                   onClick={clearOutcomes}
-                  className='mt-1 flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs text-muted-foreground hover:text-foreground'
+                  className='text-muted-foreground hover:text-foreground mt-1 flex items-center gap-2 rounded-md px-2.5 py-1.5 text-xs'
                 >
                   <X className='h-3 w-3' />
                   {t('filters.clearFilters')}
@@ -343,7 +345,7 @@ export function ActivitiesList() {
               {outcomeLabel(id)}
               <button
                 onClick={() => toggleOutcome(id)}
-                className='ml-0.5 rounded-full p-0.5 hover:bg-background/50'
+                className='hover:bg-background/50 ml-0.5 rounded-full p-0.5'
               >
                 <X className='h-3 w-3' />
               </button>
@@ -352,7 +354,7 @@ export function ActivitiesList() {
         })}
 
         {/* Total count */}
-        <span className='ml-auto text-sm text-muted-foreground'>
+        <span className='text-muted-foreground ml-auto text-sm'>
           {isLoading ? '...' : t('callCount', { count: total })}
         </span>
       </div>
@@ -365,15 +367,19 @@ export function ActivitiesList() {
           ))}
         </div>
       ) : calls.length === 0 ? (
-        <div className='flex flex-col items-center justify-center rounded-lg border bg-card py-20 text-center shadow-sm'>
-          <div className='mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted'>
-            <Phone className='h-8 w-8 text-muted-foreground/50' />
+        <div className='bg-card flex flex-col items-center justify-center rounded-lg border py-20 text-center shadow-sm'>
+          <div className='bg-muted mb-4 flex h-16 w-16 items-center justify-center rounded-full'>
+            <Phone className='text-muted-foreground/50 h-8 w-8' />
           </div>
           <h3 className='text-base font-semibold'>{t('noCallsFound')}</h3>
-          <p className='mt-1 max-w-xs text-sm text-muted-foreground'>
+          <p className='text-muted-foreground mt-1 max-w-xs text-sm'>
             {selectedOutcomes.length > 0
-              ? t('noCallsWithFilters', { date: format(selectedDate, 'MMMM d, yyyy') })
-              : t('noCallsDescription', { date: format(selectedDate, 'MMMM d, yyyy') })}
+              ? t('noCallsWithFilters', {
+                  date: format(selectedDate, 'MMMM d, yyyy')
+                })
+              : t('noCallsDescription', {
+                  date: format(selectedDate, 'MMMM d, yyyy')
+                })}
           </p>
         </div>
       ) : (
@@ -406,7 +412,7 @@ export function ActivitiesList() {
           >
             {t('pagination.previous')}
           </Button>
-          <span className='text-sm text-muted-foreground'>
+          <span className='text-muted-foreground text-sm'>
             {t('pagination.page', { page, totalPages })}
           </span>
           <Button
@@ -457,12 +463,12 @@ function ActivityCallCard({
     call.direction === 'inbound' ? call.fromNumber : call.toNumber;
 
   return (
-    <div className='rounded-lg border bg-card p-4 shadow-sm transition-colors hover:bg-card/80'>
+    <div className='bg-card hover:bg-card/80 rounded-lg border p-4 shadow-sm transition-colors'>
       <div className='flex items-start gap-4'>
         {/* Direction icon */}
         <div
           className={cn(
-            'flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-muted/50'
+            'bg-muted/50 flex h-10 w-10 shrink-0 items-center justify-center rounded-full'
           )}
         >
           <DirectionIcon className={cn('h-5 w-5', directionColor)} />
@@ -476,18 +482,18 @@ function ActivityCallCard({
                 {call.contact?.name || phoneNumber}
               </p>
               {call.contact?.name && (
-                <p className='text-xs text-muted-foreground font-mono'>
+                <p className='text-muted-foreground font-mono text-xs'>
                   {phoneNumber}
                 </p>
               )}
               {call.contact?.company && (
-                <p className='text-xs text-muted-foreground'>
+                <p className='text-muted-foreground text-xs'>
                   {call.contact.company}
                 </p>
               )}
             </div>
 
-            <div className='flex items-center gap-2 shrink-0'>
+            <div className='flex shrink-0 items-center gap-2'>
               {/* Outcome badge */}
               {call.outcome && (
                 <Badge
@@ -497,7 +503,10 @@ function ActivityCallCard({
                     OUTCOME_BADGE_CLASSES[call.outcome]
                   )}
                 >
-                  {(() => { const Icon = OUTCOME_ICONS[call.outcome!]; return <Icon className='h-3 w-3' />; })()}
+                  {(() => {
+                    const Icon = OUTCOME_ICONS[call.outcome!];
+                    return <Icon className='h-3 w-3' />;
+                  })()}
                   {outcomeLabel(call.outcome)}
                 </Badge>
               )}
@@ -515,7 +524,7 @@ function ActivityCallCard({
           </div>
 
           {/* Meta row */}
-          <div className='mt-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground'>
+          <div className='text-muted-foreground mt-2 flex flex-wrap items-center gap-3 text-xs'>
             <span className='capitalize'>{call.direction}</span>
             {durationLabel && (
               <span className='flex items-center gap-1'>
@@ -524,12 +533,10 @@ function ActivityCallCard({
               </span>
             )}
             {call.startedAt && (
-              <span>
-                {format(new Date(call.startedAt), 'h:mm a')}
-              </span>
+              <span>{format(new Date(call.startedAt), 'h:mm a')}</span>
             )}
             {call.outcomeNote && (
-              <span className='truncate max-w-[200px]' title={call.outcomeNote}>
+              <span className='max-w-[200px] truncate' title={call.outcomeNote}>
                 &ldquo;{call.outcomeNote}&rdquo;
               </span>
             )}

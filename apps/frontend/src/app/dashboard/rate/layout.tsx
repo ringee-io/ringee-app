@@ -3,7 +3,10 @@ import { Heading } from '@ringee/frontend-shared/components/ui/heading';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { IconPlus } from '@tabler/icons-react';
-import { Button, buttonVariants } from '@ringee/frontend-shared/components/ui/button';
+import {
+  Button,
+  buttonVariants
+} from '@ringee/frontend-shared/components/ui/button';
 import { CreditPopover } from '@/features/credit/components/credit.popover';
 
 export default function RateLayout({

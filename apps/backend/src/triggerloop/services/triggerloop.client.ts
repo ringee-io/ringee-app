@@ -87,9 +87,7 @@ export class TriggerLoopClient {
     };
   }
 
-  buildCancelWorkflowBody(
-    input: CancelWorkflowInput,
-  ): Record<string, unknown> {
+  buildCancelWorkflowBody(input: CancelWorkflowInput): Record<string, unknown> {
     return {
       projectKey: this.projectKey,
       workflowInstanceId: input.workflowInstanceId,

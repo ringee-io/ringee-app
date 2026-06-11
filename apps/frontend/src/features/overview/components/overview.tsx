@@ -8,7 +8,12 @@ import {
   CardTitle,
   CardAction
 } from '@ringee/frontend-shared/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@ringee/frontend-shared/components/ui/tabs';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger
+} from '@ringee/frontend-shared/components/ui/tabs';
 import { AreaGraph } from './area-graph';
 import { BarGraph } from './bar-graph';
 import { PieGraph } from './pie-graph';

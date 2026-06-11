@@ -33,7 +33,9 @@ export class CrmStatusService {
     private readonly syncRepo: CrmCallSyncRepository,
   ) {}
 
-  async listConnections(ctx: OwnershipContext): Promise<CrmConnectionSummary[]> {
+  async listConnections(
+    ctx: OwnershipContext,
+  ): Promise<CrmConnectionSummary[]> {
     const conns = await this.connections.listVisible(ctx);
     return Promise.all(
       conns.map(async (c) => {

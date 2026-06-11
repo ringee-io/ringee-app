@@ -2,11 +2,7 @@ import "reflect-metadata";
 import { Injectable, Logger } from "@nestjs/common";
 import { OwnershipContext } from "@ringee/platform";
 import { McpFunc } from "./mcp.func";
-import {
-  MCP_TOOL_METADATA,
-  McpToolEntry,
-  McpToolMeta,
-} from "./mcp.tools";
+import { MCP_TOOL_METADATA, McpToolEntry, McpToolMeta } from "./mcp.tools";
 
 @Injectable()
 export class McpToolsRepository {

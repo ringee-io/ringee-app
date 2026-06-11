@@ -29,7 +29,7 @@ export class ReminderController {
     @CurrentUser() user: CurrentUserData,
     @Query("subjectType") subjectType?: string,
     @Query("page") page = "1",
-    @Query("limit") limit = "20"
+    @Query("limit") limit = "20",
   ) {
     const ctx = createOwnershipContext(user);
 
@@ -38,7 +38,7 @@ export class ReminderController {
       const allowed = Object.values(ReminderSubjectType) as string[];
       if (!allowed.includes(subjectType)) {
         throw new BadRequestException(
-          `subjectType must be one of: ${allowed.join(", ")}`
+          `subjectType must be one of: ${allowed.join(", ")}`,
         );
       }
       typed = subjectType as ReminderSubjectType;
@@ -52,10 +52,7 @@ export class ReminderController {
   }
 
   @Patch(":id/snooze")
-  async snooze(
-    @Param("id") id: string,
-    @Body() body: { minutes?: number }
-  ) {
+  async snooze(@Param("id") id: string, @Body() body: { minutes?: number }) {
     const minutes = Number.isFinite(body.minutes) ? Number(body.minutes) : 10;
     if (minutes <= 0 || minutes > 24 * 60) {
       throw new BadRequestException("minutes must be in (0, 1440]");

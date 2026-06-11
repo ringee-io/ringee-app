@@ -1,6 +1,17 @@
 import { Command } from "commander";
 import { getClient, run } from "../client.js";
-import { c, fail, heading, info, json, kv, line, ok, sensitivityTag, wantsJson } from "../ui.js";
+import {
+  c,
+  fail,
+  heading,
+  info,
+  json,
+  kv,
+  line,
+  ok,
+  sensitivityTag,
+  wantsJson,
+} from "../ui.js";
 
 const collect = (v: string, acc: string[] = []) => {
   acc.push(v);
@@ -14,19 +25,35 @@ export function registerSessions(program: Command): void {
 
   sessions
     .command("create")
-    .description(`${sensitivityTag("sensitive")} Create a session and magic link`)
-    .option("--contact <contactId>", "contact in the queue (repeatable)", collect)
+    .description(
+      `${sensitivityTag("sensitive")} Create a session and magic link`,
+    )
+    .option(
+      "--contact <contactId>",
+      "contact in the queue (repeatable)",
+      collect,
+    )
     .option("--phone <e164>", "raw phone in the queue (repeatable)", collect)
     .option("--title <title>", "session title")
     .option("--campaign <campaignId>", "attribute to a campaign")
-    .option("--expires <minutes>", "link validity in minutes (default 60)", (v) => parseInt(v, 10))
-    .option("--max-calls <n>", "auto-complete after N calls", (v) => parseInt(v, 10))
+    .option(
+      "--expires <minutes>",
+      "link validity in minutes (default 60)",
+      (v) => parseInt(v, 10),
+    )
+    .option("--max-calls <n>", "auto-complete after N calls", (v) =>
+      parseInt(v, 10),
+    )
     .option("-y, --yes", "confirm minting a shareable magic link")
     .action((opts) =>
       run(async () => {
         const queue = [
-          ...((opts.contact as string[] | undefined) ?? []).map((contactId) => ({ contactId })),
-          ...((opts.phone as string[] | undefined) ?? []).map((phoneNumber) => ({ phoneNumber })),
+          ...((opts.contact as string[] | undefined) ?? []).map(
+            (contactId) => ({ contactId }),
+          ),
+          ...((opts.phone as string[] | undefined) ?? []).map(
+            (phoneNumber) => ({ phoneNumber }),
+          ),
         ];
         if (queue.length === 0) {
           fail("Provide at least one --contact <id> or --phone <e164>.");
@@ -34,7 +61,9 @@ export function registerSessions(program: Command): void {
           return;
         }
         if (!opts.yes) {
-          fail("Creating a session mints a shareable magic link. Re-run with --yes to confirm.");
+          fail(
+            "Creating a session mints a shareable magic link. Re-run with --yes to confirm.",
+          );
           info(`Queue size: ${queue.length}`);
           process.exitCode = 1;
           return;
@@ -52,7 +81,9 @@ export function registerSessions(program: Command): void {
         kv("status", res.status);
         kv("expires", res.expiresAt);
         line("");
-        line(`${c.bold("Magic link")} ${c.gray("(share exactly — cannot be re-fetched)")}`);
+        line(
+          `${c.bold("Magic link")} ${c.gray("(share exactly — cannot be re-fetched)")}`,
+        );
         line(`  ${c.cyan(res.joinUrl)}`);
       }),
     );
@@ -77,7 +108,9 @@ export function registerSessions(program: Command): void {
 
   sessions
     .command("update <callSessionId>")
-    .description(`${sensitivityTag("sensitive")} Update title, campaign or expiry`)
+    .description(
+      `${sensitivityTag("sensitive")} Update title, campaign or expiry`,
+    )
     .option("--title <title>")
     .option("--campaign <campaignId>", "set campaign (use 'null' to detach)")
     .option("--expires <minutes>", "extend validity", (v) => parseInt(v, 10))
@@ -102,12 +135,16 @@ export function registerSessions(program: Command): void {
 
   sessions
     .command("revoke <callSessionId>")
-    .description(`${sensitivityTag("destructive")} Revoke the magic link (history preserved)`)
+    .description(
+      `${sensitivityTag("destructive")} Revoke the magic link (history preserved)`,
+    )
     .option("-y, --yes", "confirm the link will stop working immediately")
     .action((callSessionId: string, opts) =>
       run(async () => {
         if (!opts.yes) {
-          fail("Revoking disables the magic link immediately. Re-run with --yes to confirm.");
+          fail(
+            "Revoking disables the magic link immediately. Re-run with --yes to confirm.",
+          );
           process.exitCode = 1;
           return;
         }

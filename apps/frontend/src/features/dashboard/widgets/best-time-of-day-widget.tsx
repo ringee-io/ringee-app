@@ -23,11 +23,19 @@ function formatHour(hour: number) {
   return `${h}${ampm}`;
 }
 
-export function BestTimeOfDayWidget({ title, onRemove }: { title: string; onRemove?: () => void }) {
+export function BestTimeOfDayWidget({
+  title,
+  onRemove
+}: {
+  title: string;
+  onRemove?: () => void;
+}) {
   const t = useTranslations('dashboard.widgets.bestTime');
   const [metric, setMetric] = React.useState<Metric>('meetings');
-  const { data, loading, error } = useWidgetData<HourBucket[]>('/dashboard/best-time-of-day');
-  const max = Math.max(...((data ?? []).map((d) => d[metric])), 1);
+  const { data, loading, error } = useWidgetData<HourBucket[]>(
+    '/dashboard/best-time-of-day'
+  );
+  const max = Math.max(...(data ?? []).map((d) => d[metric]), 1);
   const empty = !!data && data.every((d) => d[metric] === 0);
 
   return (
@@ -65,8 +73,13 @@ export function BestTimeOfDayWidget({ title, onRemove }: { title: string; onRemo
                 <div className='bg-muted relative h-full w-full overflow-hidden rounded'>
                   <div
                     className='bg-primary absolute right-0 bottom-0 left-0'
-                    style={{ height: `${Math.max(pct, b[metric] > 0 ? 6 : 0)}%` }}
-                    title={t('tooltip', { count: b[metric], hour: formatHour(b.hour) })}
+                    style={{
+                      height: `${Math.max(pct, b[metric] > 0 ? 6 : 0)}%`
+                    }}
+                    title={t('tooltip', {
+                      count: b[metric],
+                      hour: formatHour(b.hour)
+                    })}
                   />
                 </div>
                 <span className='text-muted-foreground text-[10px] tabular-nums'>

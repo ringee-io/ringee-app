@@ -18,9 +18,17 @@ const FUNNEL_LABEL_KEYS: Record<string, string> = {
   Sales: 'sales'
 };
 
-export function OutcomeFunnelWidget({ title, onRemove }: { title: string; onRemove?: () => void }) {
+export function OutcomeFunnelWidget({
+  title,
+  onRemove
+}: {
+  title: string;
+  onRemove?: () => void;
+}) {
   const t = useTranslations('dashboard.widgets.outcomeFunnel');
-  const { data, loading, error } = useWidgetData<FunnelStep[]>('/dashboard/outcome-funnel');
+  const { data, loading, error } = useWidgetData<FunnelStep[]>(
+    '/dashboard/outcome-funnel'
+  );
   const max = Math.max(...(data?.map((d) => d.value) ?? [0]), 1);
   const empty = !!data && data.every((d) => d.value === 0);
   const localizeLabel = (label: string) => {
@@ -42,7 +50,9 @@ export function OutcomeFunnelWidget({ title, onRemove }: { title: string; onRemo
           const pct = (step.value / max) * 100;
           const prev = i > 0 ? data[i - 1].value : null;
           const conversion =
-            prev && prev > 0 ? `${((step.value / prev) * 100).toFixed(0)}%` : null;
+            prev && prev > 0
+              ? `${((step.value / prev) * 100).toFixed(0)}%`
+              : null;
           return (
             <div key={step.label} className='flex flex-col gap-1'>
               <div className='flex items-baseline justify-between text-xs'>
@@ -50,7 +60,9 @@ export function OutcomeFunnelWidget({ title, onRemove }: { title: string; onRemo
                 <span className='tabular-nums'>
                   {step.value.toLocaleString()}
                   {conversion && (
-                    <span className='text-muted-foreground ml-2'>{conversion}</span>
+                    <span className='text-muted-foreground ml-2'>
+                      {conversion}
+                    </span>
                   )}
                 </span>
               </div>

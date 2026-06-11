@@ -47,7 +47,11 @@ type Call = {
 
 const statusConfig: Record<
   string,
-  { label: string; variant: 'default' | 'secondary' | 'destructive' | 'outline'; icon: typeof CheckCircle2 }
+  {
+    label: string;
+    variant: 'default' | 'secondary' | 'destructive' | 'outline';
+    icon: typeof CheckCircle2;
+  }
 > = {
   started: {
     label: 'Processing',
@@ -82,7 +86,10 @@ export const columns: ColumnDef<Call>[] = [
       const t = useTranslations('calls.history.table');
       const direction = row.original.direction;
       const Icon = direction === 'inbound' ? PhoneIncoming : PhoneOutgoing;
-      const phoneNumber = direction === 'inbound' ? row.original.fromNumber : row.original.toNumber;
+      const phoneNumber =
+        direction === 'inbound'
+          ? row.original.fromNumber
+          : row.original.toNumber;
 
       const { isQuickDialerOpen, handleRecall } = useQuickDialerCall();
 
@@ -98,9 +105,7 @@ export const columns: ColumnDef<Call>[] = [
                 <Icon
                   className={cn(
                     'h-4 w-4',
-                    direction === 'inbound'
-                      ? 'text-green-500'
-                      : 'text-blue-500'
+                    direction === 'inbound' ? 'text-green-500' : 'text-blue-500'
                   )}
                 />
                 <span className='capitalize'>{direction}</span>
@@ -128,7 +133,10 @@ export const columns: ColumnDef<Call>[] = [
     cell: ({ row }) => {
       const t = useTranslations('calls.history.table');
       const name = row.original.contact?.name || t('unknown');
-      const phoneNumber = row.original.direction === 'inbound' ? row.original.fromNumber : row.original.toNumber;
+      const phoneNumber =
+        row.original.direction === 'inbound'
+          ? row.original.fromNumber
+          : row.original.toNumber;
       const { handleRecall } = useQuickDialerCall();
 
       return name !== t('unknown') ? (
@@ -247,10 +255,12 @@ export const columns: ColumnDef<Call>[] = [
       const t = useTranslations('calls.history.table');
       const tStatus = useTranslations('calls.statusValues');
       const recordings = row.original.recordings || [];
-      
+
       if (recordings.length === 0) {
         return (
-          <span className='text-muted-foreground text-xs'>{t('noRecording')}</span>
+          <span className='text-muted-foreground text-xs'>
+            {t('noRecording')}
+          </span>
         );
       }
 
@@ -268,7 +278,9 @@ export const columns: ColumnDef<Call>[] = [
             <StatusIcon
               className={cn(
                 'h-3 w-3',
-                status === 'started' || status === 'processing' ? 'animate-spin' : ''
+                status === 'started' || status === 'processing'
+                  ? 'animate-spin'
+                  : ''
               )}
             />
             {tStatus(status as any) || config.label}

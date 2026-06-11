@@ -28,7 +28,13 @@ function formatDuration(seconds?: number | null): string {
   return `${s}s`;
 }
 
-export async function OverviewCards({ useMock, memberId }: { useMock?: boolean; memberId?: string }) {
+export async function OverviewCards({
+  useMock,
+  memberId
+}: {
+  useMock?: boolean;
+  memberId?: string;
+}) {
   const t = await getTranslations('dashboard.overview.cards');
   const {
     total,
@@ -76,7 +82,9 @@ export async function OverviewCards({ useMock, memberId }: { useMock?: boolean; 
               className='flex items-center gap-1 text-green-600'
             >
               <IconPhoneCall size={14} />{' '}
-              {t('totalCalls.answered', { rate: answerRate?.toFixed(1) ?? '0' })}
+              {t('totalCalls.answered', {
+                rate: answerRate?.toFixed(1) ?? '0'
+              })}
             </Badge>
             <Badge
               variant='secondary'
@@ -99,8 +107,9 @@ export async function OverviewCards({ useMock, memberId }: { useMock?: boolean; 
           <CardAction>
             <Badge
               variant='outline'
-              className={`flex items-center gap-1 ${durationPositive ? 'text-green-600' : 'text-red-600'
-                }`}
+              className={`flex items-center gap-1 ${
+                durationPositive ? 'text-green-600' : 'text-red-600'
+              }`}
             >
               {durationPositive ? (
                 <>
@@ -122,7 +131,9 @@ export async function OverviewCards({ useMock, memberId }: { useMock?: boolean; 
             </div>
           ) : (
             <div className='flex gap-2 font-medium text-red-600'>
-              {t('averageDuration.down', { rate: Math.abs(durationChange).toFixed(1) })}{' '}
+              {t('averageDuration.down', {
+                rate: Math.abs(durationChange).toFixed(1)
+              })}{' '}
               <IconTrendingDown className='size-4' />
             </div>
           )}
@@ -197,7 +208,9 @@ export async function OverviewCards({ useMock, memberId }: { useMock?: boolean; 
           <div className='flex gap-2 font-medium'>
             {t('growthRate.trend')} <IconTrendingUp className='size-4' />
           </div>
-          <div className='text-muted-foreground'>{t('growthRate.subtitle')}</div>
+          <div className='text-muted-foreground'>
+            {t('growthRate.subtitle')}
+          </div>
         </CardFooter>
       </Card>
     </div>

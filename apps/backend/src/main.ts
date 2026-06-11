@@ -17,16 +17,16 @@ async function bootstrap() {
   app.enableCors({
     origin: [
       apiConfiguration.FRONTEND_URL,
-      'https://phone.ringee.io',
-      'http://localhost:4201',
-      'http://localhost:4200',
-      'http://localhost:8081',
-      'http://localhost:19006',
+      "https://phone.ringee.io",
+      "http://localhost:4201",
+      "http://localhost:4200",
+      "http://localhost:8081",
+      "http://localhost:19006",
       // MCP connectors (claude.ai, chatgpt.com) — needed if their UI ever
       // makes a browser-side request to our /api/mcp endpoints.
-      'https://api.claude.ai',
-      'https://chatgpt.com',
-      'https://api.chatgpt.com',
+      "https://api.claude.ai",
+      "https://chatgpt.com",
+      "https://api.chatgpt.com",
     ],
     credentials: true,
   });

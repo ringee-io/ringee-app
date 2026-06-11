@@ -19,9 +19,7 @@ function printCall(call: CallDetail, opts: { full: boolean }): void {
   if (call.transcription) {
     if (opts.full) {
       line(`  ${c.gray("transcript")}`);
-      call.transcription
-        .split("\n")
-        .forEach((l) => line(`    ${l}`));
+      call.transcription.split("\n").forEach((l) => line(`    ${l}`));
     } else {
       const preview = call.transcription.replace(/\s+/g, " ").slice(0, 140);
       const ellipsis = call.transcription.length > 140 ? "…" : "";
@@ -111,7 +109,9 @@ export function registerActivity(program: Command): void {
     .command("callbacks")
     .description("Schedule callbacks")
     .command("create <contactId> <scheduledAt>")
-    .description("Schedule a callback (scheduledAt = ISO-8601 with offset, future)")
+    .description(
+      "Schedule a callback (scheduledAt = ISO-8601 with offset, future)",
+    )
     .option("--call <callId>", "source call id")
     .option("--note <note>")
     .action((contactId: string, scheduledAt: string, opts) =>
@@ -138,8 +138,14 @@ export function registerActivity(program: Command): void {
     .option("--title <title>")
     .option("--duration <minutes>", "default 30", (v) => parseInt(v, 10))
     .option("--location <location>", "address or video URL")
-    .option("--email <attendeeEmail>", "external attendee (sends invite if calendar connected)")
-    .option("--call <callId>", "source call id (sets outcome to meeting_booked)")
+    .option(
+      "--email <attendeeEmail>",
+      "external attendee (sends invite if calendar connected)",
+    )
+    .option(
+      "--call <callId>",
+      "source call id (sets outcome to meeting_booked)",
+    )
     .option("--notes <notes>")
     .action((contactId: string, scheduledAt: string, opts) =>
       run(async () => {

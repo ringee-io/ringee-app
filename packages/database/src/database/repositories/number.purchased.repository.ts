@@ -9,7 +9,7 @@ import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
 
 @Injectable()
 export class NumberPurchasedRepository {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(
     ctx: OwnershipContext,
@@ -173,7 +173,12 @@ export class NumberPurchasedRepository {
 
   async updateMessagingForUserNumbers(
     numberId: string,
-    data: { canSendSms?: boolean; canReceiveSms?: boolean; canSendMms?: boolean; canReceiveMms?: boolean },
+    data: {
+      canSendSms?: boolean;
+      canReceiveSms?: boolean;
+      canSendMms?: boolean;
+      canReceiveMms?: boolean;
+    },
   ): Promise<void> {
     await this.prisma.userNumber.updateMany({
       where: { numberId },

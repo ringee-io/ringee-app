@@ -150,8 +150,7 @@ export class McpFunc {
       callTranscriptions?: { text: string | null; status: string }[];
     },
   ) {
-    const recordingUrl =
-      call.recordings?.find((r) => r.url)?.url ?? null;
+    const recordingUrl = call.recordings?.find((r) => r.url)?.url ?? null;
 
     // Prefer the dedicated transcription text; fall back to a transcript stored
     // on the recording itself.
@@ -159,7 +158,9 @@ export class McpFunc {
       call.callTranscriptions
         ?.map((t) => t.text?.trim())
         .find((t): t is string => !!t) ??
-      call.recordings?.map((r) => r.transcript?.trim()).find((t): t is string => !!t) ??
+      call.recordings
+        ?.map((r) => r.transcript?.trim())
+        .find((t): t is string => !!t) ??
       null;
 
     return {

@@ -162,7 +162,8 @@ const STATUS_META: Record<Exclude<LeadStatus, 'new'>, StatusMeta> = {
   seen_before: {
     key: 'statusSeenBefore',
     icon: IconHistory,
-    className: 'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300'
+    className:
+      'border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300'
   },
   already_saved: {
     key: 'statusAlreadySaved',
@@ -177,8 +178,7 @@ const STATUS_META: Record<Exclude<LeadStatus, 'new'>, StatusMeta> = {
   on_dnc: {
     key: 'statusOnDnc',
     icon: IconBan,
-    className:
-      'border-destructive/50 bg-destructive/10 text-destructive'
+    className: 'border-destructive/50 bg-destructive/10 text-destructive'
   },
   duplicate_provider: {
     key: 'statusDuplicate',

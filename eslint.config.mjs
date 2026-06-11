@@ -12,8 +12,8 @@ export default tsEslint.config(
       "!.*",
       "**/dist",
       "**/build",
-      "apps/frontend/.next",
-      "apps/frontend/next-env.d.ts",
+      "**/.next",
+      "**/next-env.d.ts",
     ],
   },
 

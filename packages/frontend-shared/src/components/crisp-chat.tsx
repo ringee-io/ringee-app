@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect } from 'react';
+import { useEffect } from "react";
 
 declare global {
   interface Window {
@@ -19,11 +19,11 @@ export const CrispChat = () => {
 
     (function () {
       const d = document;
-      const s = d.createElement('script');
+      const s = d.createElement("script");
 
-      s.src = 'https://client.crisp.chat/l.js';
+      s.src = "https://client.crisp.chat/l.js";
       s.async = true;
-      d.getElementsByTagName('head')[0].appendChild(s);
+      d.getElementsByTagName("head")[0].appendChild(s);
     })();
   }, []);
 

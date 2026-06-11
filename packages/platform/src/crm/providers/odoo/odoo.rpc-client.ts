@@ -69,7 +69,9 @@ export class OdooRpcClient {
     return legacyUid;
   }
 
-  async version(baseUrl: string): Promise<{ server_version?: string; server_serie?: string } | null> {
+  async version(
+    baseUrl: string,
+  ): Promise<{ server_version?: string; server_serie?: string } | null> {
     try {
       return await this.jsonRpc<{
         server_version?: string;
@@ -142,7 +144,11 @@ export class OdooRpcClient {
       clearTimeout(timer);
       const name = (err as { name?: string }).name;
       if (name === "AbortError") {
-        throw new CrmError("TRANSIENT", true, `odoo timeout after ${this.timeoutMs}ms`);
+        throw new CrmError(
+          "TRANSIENT",
+          true,
+          `odoo timeout after ${this.timeoutMs}ms`,
+        );
       }
       const msg = err instanceof Error ? err.message : String(err);
       throw new CrmError("TRANSIENT", true, `odoo network error: ${msg}`);

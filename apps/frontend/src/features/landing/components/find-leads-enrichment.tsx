@@ -220,7 +220,9 @@ export default function FindLeadsEnrichment() {
                       className={`mt-0.5 h-4 w-4 shrink-0 ${p.iconColor}`}
                       strokeWidth={2.2}
                     />
-                    <span>{tFL(`providers.${p.key}.capabilities.${c.capKey}`)}</span>
+                    <span>
+                      {tFL(`providers.${p.key}.capabilities.${c.capKey}`)}
+                    </span>
                   </li>
                 ))}
               </ul>

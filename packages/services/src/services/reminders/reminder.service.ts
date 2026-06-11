@@ -1,9 +1,4 @@
-import {
-  Inject,
-  Injectable,
-  Logger,
-  NotFoundException,
-} from "@nestjs/common";
+import { Inject, Injectable, Logger, NotFoundException } from "@nestjs/common";
 import {
   CallbackStatus,
   CallbackTaskRepository,
@@ -75,7 +70,7 @@ export class ReminderService {
     private readonly meetingRepo: MeetingRepository,
     private readonly contactRepo: ContactRepository,
     @Inject(REMINDER_CHANNELS)
-    private readonly channels: ReminderChannel[]
+    private readonly channels: ReminderChannel[],
   ) {}
 
   /**
@@ -114,10 +109,7 @@ export class ReminderService {
    * Cancel every pending/snoozed reminder for a subject. Called when the
    * subject is cancelled or completed (callback completed, meeting cancelled).
    */
-  async cancelForSubject(
-    subjectType: ReminderSubjectType,
-    subjectId: string
-  ) {
+  async cancelForSubject(subjectType: ReminderSubjectType, subjectId: string) {
     return this.reminderRepo.cancelForSubject(subjectType, subjectId);
   }
 
@@ -143,7 +135,7 @@ export class ReminderService {
       subjectType?: ReminderSubjectType;
       page?: number;
       limit?: number;
-    }
+    },
   ) {
     return this.reminderRepo.listUpcomingForOwner(owner, options);
   }
@@ -169,13 +161,13 @@ export class ReminderService {
       try {
         const subjectCtx = await this.loadSubjectContext(
           reminder.subjectType,
-          reminder.subjectId
+          reminder.subjectId,
         );
 
         if (!subjectCtx) {
           await this.reminderRepo.cancelForSubject(
             reminder.subjectType,
-            reminder.subjectId
+            reminder.subjectId,
           );
           continue;
         }
@@ -183,7 +175,7 @@ export class ReminderService {
         const user = await this.userRepo.findById(reminder.userId);
         const prefs = parsePrefs(
           (user as { notificationPreferences?: unknown } | null)
-            ?.notificationPreferences
+            ?.notificationPreferences,
         );
 
         // Preferences only gate push notifications — email is always sent
@@ -198,7 +190,7 @@ export class ReminderService {
         const content = this.buildContent(
           reminder.subjectType,
           subjectCtx,
-          reminder.fireAt
+          reminder.fireAt,
         );
 
         // Attach a route hint so the push channel can deep-link the user
@@ -240,13 +232,13 @@ export class ReminderService {
         } else {
           await this.reminderRepo.markFailed(
             reminder.id,
-            errors.join("; ") || "no channels delivered"
+            errors.join("; ") || "no channels delivered",
           );
         }
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
         this.logger.error(
-          `Reminder ${reminder.id} delivery failed: ${message}`
+          `Reminder ${reminder.id} delivery failed: ${message}`,
         );
         await this.reminderRepo.markFailed(reminder.id, message);
       }
@@ -257,7 +249,7 @@ export class ReminderService {
 
   private async loadSubjectContext(
     subjectType: ReminderSubjectType,
-    subjectId: string
+    subjectId: string,
   ): Promise<{
     scheduledAt: Date;
     note?: string | null;
@@ -327,8 +319,7 @@ export class ReminderService {
     const primary =
       emails.find((e) => e.isPrimary)?.email ?? emails[0]?.email ?? null;
     const name =
-      [user.firstName, user.lastName].filter(Boolean).join(" ").trim() ||
-      null;
+      [user.firstName, user.lastName].filter(Boolean).join(" ").trim() || null;
     return { userId, email: primary, name };
   }
 
@@ -337,7 +328,7 @@ export class ReminderService {
     subjectCtx: NonNullable<
       Awaited<ReturnType<ReminderService["loadSubjectContext"]>>
     >,
-    fireAt: Date
+    fireAt: Date,
   ): ReminderContent {
     const when = subjectCtx.scheduledAt.toLocaleString(undefined, {
       dateStyle: "medium",
@@ -345,7 +336,9 @@ export class ReminderService {
     });
     const minutesUntil = Math.max(
       1,
-      Math.round((subjectCtx.scheduledAt.getTime() - fireAt.getTime()) / 60_000)
+      Math.round(
+        (subjectCtx.scheduledAt.getTime() - fireAt.getTime()) / 60_000,
+      ),
     );
     const subjectTimeLabel = `${this.formatClock(subjectCtx.scheduledAt)}(in ${minutesUntil} min)`;
     const contactLine = subjectCtx.contact
@@ -404,9 +397,6 @@ export class ReminderService {
     const escaped = text.replace(/\n/g, "<br>");
     if (!this.isLikelyUrl(maybeUrl)) return escaped;
     const url = (maybeUrl as string).trim();
-    return escaped.replace(
-      url,
-      `<a href="${url}">${url}</a>`
-    );
+    return escaped.replace(url, `<a href="${url}">${url}</a>`);
   }
 }

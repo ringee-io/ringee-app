@@ -55,19 +55,53 @@ export abstract class AbstractCrmProvider implements CrmProvider {
     phoneE164: string,
     opts?: { limit?: number },
   ): Promise<CrmRecordMatch[]>;
-  abstract upsertPerson(creds: CrmCredentials, input: CrmPersonInput): Promise<CrmRecordRef>;
-  abstract logCall(creds: CrmCredentials, input: CrmCallLogInput): Promise<CrmRecordRef>;
-  abstract addNote(creds: CrmCredentials, input: CrmNoteInput): Promise<CrmRecordRef>;
+  abstract upsertPerson(
+    creds: CrmCredentials,
+    input: CrmPersonInput,
+  ): Promise<CrmRecordRef>;
+  abstract logCall(
+    creds: CrmCredentials,
+    input: CrmCallLogInput,
+  ): Promise<CrmRecordRef>;
+  abstract addNote(
+    creds: CrmCredentials,
+    input: CrmNoteInput,
+  ): Promise<CrmRecordRef>;
 
-  upsertCompany?(creds: CrmCredentials, input: CrmCompanyInput): Promise<CrmRecordRef>;
-  createTask?(creds: CrmCredentials, input: CrmTaskInput): Promise<CrmRecordRef>;
-  upsertMeeting?(creds: CrmCredentials, input: CrmMeetingInput): Promise<CrmMeetingSyncResult>;
-  uploadRecording?(creds: CrmCredentials, input: CrmRecordingUploadInput): Promise<CrmRecordingUploadResult>;
+  upsertCompany?(
+    creds: CrmCredentials,
+    input: CrmCompanyInput,
+  ): Promise<CrmRecordRef>;
+  createTask?(
+    creds: CrmCredentials,
+    input: CrmTaskInput,
+  ): Promise<CrmRecordRef>;
+  upsertMeeting?(
+    creds: CrmCredentials,
+    input: CrmMeetingInput,
+  ): Promise<CrmMeetingSyncResult>;
+  uploadRecording?(
+    creds: CrmCredentials,
+    input: CrmRecordingUploadInput,
+  ): Promise<CrmRecordingUploadResult>;
   revoke?(token: string): Promise<void>;
-  searchByEmail?(creds: CrmCredentials, email: string, opts?: { limit?: number }): Promise<CrmRecordMatch[]>;
-  searchCompanyByDomain?(creds: CrmCredentials, domain: string): Promise<CrmCompanyMatch[]>;
-  fetchPerson?(creds: CrmCredentials, externalId: string): Promise<CrmContactSyncResult>;
-  fetchCompany?(creds: CrmCredentials, externalId: string): Promise<CrmCompanySyncResult>;
+  searchByEmail?(
+    creds: CrmCredentials,
+    email: string,
+    opts?: { limit?: number },
+  ): Promise<CrmRecordMatch[]>;
+  searchCompanyByDomain?(
+    creds: CrmCredentials,
+    domain: string,
+  ): Promise<CrmCompanyMatch[]>;
+  fetchPerson?(
+    creds: CrmCredentials,
+    externalId: string,
+  ): Promise<CrmContactSyncResult>;
+  fetchCompany?(
+    creds: CrmCredentials,
+    externalId: string,
+  ): Promise<CrmCompanySyncResult>;
   listLists?(creds: CrmCredentials): Promise<CrmListRef[]>;
   listMembers?(creds: CrmCredentials): Promise<CrmOwnerRef[]>;
 
@@ -82,7 +116,9 @@ export abstract class AbstractCrmProvider implements CrmProvider {
       headers: {
         "User-Agent": "ringee/1.0",
         Accept: "application/json",
-        ...(req.body !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...(req.body !== undefined
+          ? { "Content-Type": "application/json" }
+          : {}),
         ...(req.headers ?? {}),
       },
       signal: controller.signal,
@@ -109,7 +145,11 @@ export abstract class AbstractCrmProvider implements CrmProvider {
       } catch {
         parsed = await res.text().catch(() => undefined);
       }
-      throw this.classifyHttpError(res.status, parsed, res.headers.get("retry-after"));
+      throw this.classifyHttpError(
+        res.status,
+        parsed,
+        res.headers.get("retry-after"),
+      );
     }
 
     if (res.status === 204) return undefined as unknown as T;
@@ -220,7 +260,11 @@ export abstract class AbstractCrmProvider implements CrmProvider {
       } catch {
         parsed = await res.text().catch(() => undefined);
       }
-      throw this.classifyHttpError(res.status, parsed, res.headers.get("retry-after"));
+      throw this.classifyHttpError(
+        res.status,
+        parsed,
+        res.headers.get("retry-after"),
+      );
     }
 
     if (res.status === 204) return undefined as unknown as T;

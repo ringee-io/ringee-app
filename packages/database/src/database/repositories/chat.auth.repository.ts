@@ -5,7 +5,7 @@ import { OwnershipContext } from "@ringee/platform";
 
 @Injectable()
 export class ChatAuthRepository {
-  constructor(private prisma: PrismaService) { }
+  constructor(private prisma: PrismaService) {}
 
   async createChatAuth(
     ctx: OwnershipContext,

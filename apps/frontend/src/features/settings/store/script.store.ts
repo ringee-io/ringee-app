@@ -24,7 +24,10 @@ type ScriptState = {
   hydrate: (sections: ScriptSection[]) => void;
 
   addSection: (input?: { title?: string; body?: string }) => string;
-  updateSection: (id: string, patch: Partial<Omit<ScriptSection, 'id'>>) => void;
+  updateSection: (
+    id: string,
+    patch: Partial<Omit<ScriptSection, 'id'>>
+  ) => void;
   removeSection: (id: string) => void;
   reorderSections: (orderedIds: string[]) => void;
 };

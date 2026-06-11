@@ -77,7 +77,10 @@ export function OutcomesOverTimeWidget({
       contentClassName='pb-4'
     >
       <ResponsiveContainer width='100%' height='100%'>
-        <BarChart data={points} margin={{ left: 0, right: 8, top: 8, bottom: 8 }}>
+        <BarChart
+          data={points}
+          margin={{ left: 0, right: 8, top: 8, bottom: 8 }}
+        >
           <CartesianGrid strokeDasharray='3 3' vertical={false} />
           <XAxis
             dataKey='bucket'
@@ -88,8 +91,13 @@ export function OutcomesOverTimeWidget({
           />
           <YAxis fontSize={11} tickLine={false} axisLine={false} width={28} />
           <Tooltip
-            labelFormatter={(v) => formatBucket(v as string, data?.granularity ?? 'day')}
-            contentStyle={{ background: 'var(--popover)', border: '1px solid var(--border)' }}
+            labelFormatter={(v) =>
+              formatBucket(v as string, data?.granularity ?? 'day')
+            }
+            contentStyle={{
+              background: 'var(--popover)',
+              border: '1px solid var(--border)'
+            }}
           />
           <Legend wrapperStyle={{ fontSize: 11 }} />
           {SERIES.map((s) => (

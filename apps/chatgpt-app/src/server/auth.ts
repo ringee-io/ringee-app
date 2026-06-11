@@ -43,7 +43,9 @@ export function getAuthConfig(
     jwksUrl: env.RINGEE_OAUTH_JWKS_URL,
     audience: env.RINGEE_OAUTH_AUDIENCE || resource,
     issuer,
-    scopes: (env.RINGEE_OAUTH_SCOPES || "ringee:use").split(/[ ,]+/).filter(Boolean),
+    scopes: (env.RINGEE_OAUTH_SCOPES || "ringee:use")
+      .split(/[ ,]+/)
+      .filter(Boolean),
   };
 }
 
@@ -102,7 +104,9 @@ export async function verifyAccessToken(
     ) => Promise<{ payload: Record<string, unknown> }>;
   }
   const jose = (await import("jose" as string).catch(() => {
-    throw new Error("Missing dependency `jose`. Run `pnpm add jose` to enable auth.");
+    throw new Error(
+      "Missing dependency `jose`. Run `pnpm add jose` to enable auth.",
+    );
   })) as JoseLike;
 
   const JWKS = jose.createRemoteJWKSet(new URL(cfg.jwksUrl));

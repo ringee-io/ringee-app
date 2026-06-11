@@ -41,26 +41,29 @@ export const columns: ColumnDef<ContactRow>[] = [
     ),
     cell: ({ row }) => {
       const contact = row.original;
-      const displayName = contact.name || [contact.firstName, contact.lastName].filter(Boolean).join(' ') || 'Unknown';
+      const displayName =
+        contact.name ||
+        [contact.firstName, contact.lastName].filter(Boolean).join(' ') ||
+        'Unknown';
       const initial = displayName.charAt(0)?.toUpperCase() || '?';
       const router = useRouter();
 
       return (
         <button
-          className='flex items-center gap-2 text-left hover:underline cursor-pointer'
+          className='flex cursor-pointer items-center gap-2 text-left hover:underline'
           onClick={() => router.push(`/dashboard/contact/${contact.id}`)}
         >
           <div className='flex items-center justify-center'>
-            <div
-              className='bg-primary flex h-10 w-10 items-center justify-center rounded-full font-semibold text-white'
-            >
+            <div className='bg-primary flex h-10 w-10 items-center justify-center rounded-full font-semibold text-white'>
               {initial}
             </div>
           </div>
           <div>
             <div className='font-medium'>{displayName}</div>
             {contact.jobTitle && (
-              <div className='text-muted-foreground text-xs'>{contact.jobTitle}</div>
+              <div className='text-muted-foreground text-xs'>
+                {contact.jobTitle}
+              </div>
             )}
           </div>
         </button>
@@ -93,7 +96,8 @@ export const columns: ColumnDef<ContactRow>[] = [
     meta: { className: 'hidden xl:table-cell' },
     cell: ({ cell }) => {
       const source = cell.getValue<string | null>();
-      if (!source) return <span className='text-muted-foreground text-xs'>--</span>;
+      if (!source)
+        return <span className='text-muted-foreground text-xs'>--</span>;
       return (
         <Badge variant='outline' className='text-xs font-normal'>
           {source.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}

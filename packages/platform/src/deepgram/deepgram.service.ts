@@ -166,14 +166,16 @@ export class DeepgramService {
         speaker: typeof u.speaker === "number" ? u.speaker : null,
         track: typeof u.channel === "number" ? `channel_${u.channel}` : null,
         confidence: typeof u.confidence === "number" ? u.confidence : null,
-        startMs: typeof u.start === "number" ? Math.round(u.start * 1000) : null,
+        startMs:
+          typeof u.start === "number" ? Math.round(u.start * 1000) : null,
         endMs: typeof u.end === "number" ? Math.round(u.end * 1000) : null,
       }));
     } else if (alt?.transcript) {
       segments = [
         {
           text: String(alt.transcript).trim(),
-          confidence: typeof alt.confidence === "number" ? alt.confidence : null,
+          confidence:
+            typeof alt.confidence === "number" ? alt.confidence : null,
         },
       ];
     }

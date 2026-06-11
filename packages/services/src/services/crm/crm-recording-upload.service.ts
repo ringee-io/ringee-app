@@ -18,11 +18,12 @@ import { buildRecordingEventData } from "../custom-integrations/custom-integrati
  * with a dash, collapses consecutive dashes, and trims dashes from ends.
  */
 function sanitizePathSegment(s: string): string {
-  return s
-    .replace(/[^a-zA-Z0-9._-]/g, "-")
-    .replace(/-{2,}/g, "-")
-    .replace(/^-+|-+$/g, "")
-    || "unknown";
+  return (
+    s
+      .replace(/[^a-zA-Z0-9._-]/g, "-")
+      .replace(/-{2,}/g, "-")
+      .replace(/^-+|-+$/g, "") || "unknown"
+  );
 }
 
 function buildRecordingFileName(
@@ -48,7 +49,7 @@ export class CrmRecordingUploadService {
     private readonly userRepo: UserRepository,
     private readonly recordingRepo: RecordingRepository,
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
-  ) { }
+  ) {}
 
   async enqueueRecordingUpload(
     callId: string,
@@ -86,7 +87,11 @@ export class CrmRecordingUploadService {
 
       // Resolve caller identity for folder naming
       let callerName: string | null = null;
-      const callerPhone = ["outbound", "outgoing"].includes(call.direction ?? "") ? call.toNumber : call.fromNumber;
+      const callerPhone = ["outbound", "outgoing"].includes(
+        call.direction ?? "",
+      )
+        ? call.toNumber
+        : call.fromNumber;
 
       try {
         const user = await this.userRepo.findById(call.userId);
@@ -149,7 +154,8 @@ export class CrmRecordingUploadService {
       }
     } catch (err) {
       this.logger.error(
-        `recording upload enqueue failed for call=${callId}: ${err instanceof Error ? err.message : String(err)
+        `recording upload enqueue failed for call=${callId}: ${
+          err instanceof Error ? err.message : String(err)
         }`,
       );
     }

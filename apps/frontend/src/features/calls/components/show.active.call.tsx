@@ -27,11 +27,10 @@ export function ShowActiveCall() {
     handleSendDTMF
   } = useCall(activeCall);
 
-  const {
-    isFreeTrialCall,
-    remainingSeconds,
-    totalSeconds
-  } = useFreeTrialTimer(activeCall, handleHangup);
+  const { isFreeTrialCall, remainingSeconds, totalSeconds } = useFreeTrialTimer(
+    activeCall,
+    handleHangup
+  );
 
   // Contact resolution from phone number
   const [contactId, setContactId] = useState<string | null>(null);

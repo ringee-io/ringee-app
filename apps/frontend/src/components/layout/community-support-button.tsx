@@ -25,12 +25,7 @@ export function CommunitySupportButton() {
     <TooltipProvider delayDuration={300}>
       <Tooltip>
         <TooltipTrigger asChild>
-          <Button
-            asChild
-            variant='link'
-            size='sm'
-            className='cursor-pointer'
-          >
+          <Button asChild variant='link' size='sm' className='cursor-pointer'>
             <a href={COMMUNITY_URL} target='_blank' rel='noopener noreferrer'>
               <IconBrandLinkedin size={15} />
               <span className='hidden text-xs font-semibold sm:inline'>

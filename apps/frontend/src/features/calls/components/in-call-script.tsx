@@ -30,7 +30,7 @@ export function InCallScript() {
   if (status === 'idle' || status === 'loading') {
     return (
       <div className='flex h-full w-full'>
-        <aside className='border-border/10 w-[140px] md:w-[180px] shrink-0 border-r p-2'>
+        <aside className='border-border/10 w-[140px] shrink-0 border-r p-2 md:w-[180px]'>
           <Skeleton className='mb-2 h-8 w-full' />
           <Skeleton className='mb-2 h-8 w-full' />
           <Skeleton className='h-8 w-full' />
@@ -56,7 +56,7 @@ export function InCallScript() {
         </p>
         <Link
           href='/dashboard/settings/overview'
-          className='text-emerald-500 text-xs font-semibold hover:underline'
+          className='text-xs font-semibold text-emerald-500 hover:underline'
         >
           Ir a configurar guion
         </Link>
@@ -66,7 +66,7 @@ export function InCallScript() {
 
   return (
     <div className='flex h-full w-full'>
-      <aside className='border-border/10 w-[140px] md:w-[180px] shrink-0 border-r'>
+      <aside className='border-border/10 w-[140px] shrink-0 border-r md:w-[180px]'>
         <ScrollArea className='h-full'>
           <ul className='flex flex-col gap-0.5 p-2'>
             {sections.map((section) => (
@@ -75,9 +75,9 @@ export function InCallScript() {
                   type='button'
                   onClick={() => setSelectedId(section.id)}
                   className={cn(
-                    'w-full truncate rounded-lg px-2.5 py-2 text-left text-xs md:text-sm transition-colors',
+                    'w-full truncate rounded-lg px-2.5 py-2 text-left text-xs transition-colors md:text-sm',
                     selectedId === section.id
-                      ? 'bg-foreground/5 text-foreground border border-border/30'
+                      ? 'bg-foreground/5 text-foreground border-border/30 border'
                       : 'text-muted-foreground hover:bg-foreground/5 hover:text-foreground border border-transparent'
                   )}
                   title={section.title}
@@ -90,14 +90,14 @@ export function InCallScript() {
         </ScrollArea>
       </aside>
 
-      <div className='flex-1 min-w-0'>
+      <div className='min-w-0 flex-1'>
         <ScrollArea className='h-full'>
           {current ? (
             <div className='flex flex-col gap-3 p-4 md:p-6'>
-              <h3 className='text-base md:text-lg font-bold text-foreground'>
+              <h3 className='text-foreground text-base font-bold md:text-lg'>
                 {current.title || 'Sin título'}
               </h3>
-              <p className='text-foreground/90 whitespace-pre-wrap text-sm leading-relaxed'>
+              <p className='text-foreground/90 text-sm leading-relaxed whitespace-pre-wrap'>
                 {current.body || (
                   <span className='text-muted-foreground italic'>
                     (Sin contenido)

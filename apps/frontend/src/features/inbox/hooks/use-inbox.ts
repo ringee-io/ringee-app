@@ -175,7 +175,8 @@ export function threadDisplayName(t: InboxThread): string {
         [c.firstName, c.lastName].filter(Boolean).join(' ') ||
         c.name ||
         c.phoneNumber ||
-        t.participantNumber) ?? t.participantNumber
+        t.participantNumber) ??
+      t.participantNumber
     );
   }
   return t.participantNumberE164 ?? t.participantNumber;
@@ -186,7 +187,5 @@ export function statusLabel(s: InboxThreadStatus) {
 }
 
 export function eventKindLabel(k: InboxEventKind) {
-  return k
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return k.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }

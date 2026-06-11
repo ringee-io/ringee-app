@@ -18,7 +18,10 @@ export class UserDeviceService {
     });
   }
 
-  async registerDevice(userId: string, fcmToken: string): Promise<UserDevice | null> {
+  async registerDevice(
+    userId: string,
+    fcmToken: string,
+  ): Promise<UserDevice | null> {
     const active = await this.userDeviceRepository.findActiveByUser(userId);
 
     if (active.some((d) => d.fcmToken === fcmToken)) {
@@ -35,4 +38,3 @@ export class UserDeviceService {
     return this.userDeviceRepository.create({ userId, fcmToken });
   }
 }
-

@@ -7,7 +7,6 @@ import { ClerkModule } from "./clerk/clerk.module";
   providers: [BcryptAuth],
   get exports() {
     return [...this.providers];
-
   },
 })
-export class AuthModule { }
+export class AuthModule {}

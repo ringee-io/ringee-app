@@ -189,9 +189,11 @@ export class ProspectDedupService {
     const requestedHash = hashFilters(input.filters);
     const requestedTokens = intentTokens(input.filters);
 
-    let best:
-      | { run: LeadSearchJob; kind: "identical" | "similar"; similarity: number }
-      | null = null;
+    let best: {
+      run: LeadSearchJob;
+      kind: "identical" | "similar";
+      similarity: number;
+    } | null = null;
 
     for (const run of runs) {
       if (run.provider !== input.provider) continue;
@@ -453,7 +455,11 @@ export class ProspectDedupService {
       info.ringeeHasPhone = contactHasRealPhone(match);
 
       if (match.lastCallAt) {
-        upgrade(info, "already_called", "Already a Ringee contact you've called");
+        upgrade(
+          info,
+          "already_called",
+          "Already a Ringee contact you've called",
+        );
       } else {
         upgrade(info, "already_saved", "Already saved as a Ringee contact");
       }
@@ -621,7 +627,8 @@ function contactKeys(contact: ContactDedupMatch): string[] {
   const linkedin = normalizeLinkedin(contact.linkedinUrl);
   if (linkedin) keys.push(`linkedin:${linkedin}`);
   const meta = contact.enrichmentMetadata as Record<string, unknown> | null;
-  const ext = meta && typeof meta.externalId === "string" ? meta.externalId : null;
+  const ext =
+    meta && typeof meta.externalId === "string" ? meta.externalId : null;
   const provider =
     meta && typeof meta.provider === "string" ? meta.provider : null;
   if (ext && provider) keys.push(`ext:${provider}:${ext}`);
@@ -649,12 +656,18 @@ const STATUS_RANK: Record<LeadStatus, number> = {
 };
 
 /** Raise a lead's status only when the new status outranks the current one. */
-function upgrade(info: LeadDedupInfo, status: LeadStatus, reason: string): void {
+function upgrade(
+  info: LeadDedupInfo,
+  status: LeadStatus,
+  reason: string,
+): void {
   if (!info.reasons.includes(reason)) info.reasons.push(reason);
   if (STATUS_RANK[status] > STATUS_RANK[info.status]) info.status = status;
 }
 
-function summarize(byExternalId: Record<string, LeadDedupInfo>): LeadDedupSummary {
+function summarize(
+  byExternalId: Record<string, LeadDedupInfo>,
+): LeadDedupSummary {
   const s: LeadDedupSummary = {
     total: 0,
     new: 0,
@@ -731,9 +744,7 @@ function nameCompanyKey(c: LeadCandidate): string | null {
     ?.trim()
     .toLowerCase();
   if (!name) return null;
-  const company = (c.company?.domain ?? c.company?.name)
-    ?.trim()
-    .toLowerCase();
+  const company = (c.company?.domain ?? c.company?.name)?.trim().toLowerCase();
   if (!company) return null;
   const title = c.person?.jobTitle?.trim().toLowerCase() ?? "";
   return `${name}|${company}|${title}`;
@@ -800,7 +811,8 @@ function summarizeFilters(filters: LeadSearchFilters): string {
     ...(filters.personCountries ?? []),
     ...(filters.companyCountries ?? []),
   ];
-  if (countries.length) parts.push(`countries: ${countries.slice(0, 4).join(", ")}`);
+  if (countries.length)
+    parts.push(`countries: ${countries.slice(0, 4).join(", ")}`);
   if (filters.employeeCountRanges?.length)
     parts.push(`size: ${filters.employeeCountRanges.join(", ")}`);
   if (filters.keywords) parts.push(`keywords: ${filters.keywords}`);

@@ -164,10 +164,7 @@ function mapToolChoice(
   return { type: "auto" };
 }
 
-function toAnthropicTool(
-  t: AiToolDefinition,
-  cache: boolean,
-): Anthropic.Tool {
+function toAnthropicTool(t: AiToolDefinition, cache: boolean): Anthropic.Tool {
   return {
     name: t.name,
     description: t.description,

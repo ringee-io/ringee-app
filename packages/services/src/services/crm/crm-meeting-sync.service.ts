@@ -47,7 +47,8 @@ export class CrmMeetingSyncService {
         meeting.scheduledAt.getTime() + (meeting.duration ?? 30) * 60 * 1000,
       );
 
-      const attendees: Array<{ email?: string | null; name?: string | null }> = [];
+      const attendees: Array<{ email?: string | null; name?: string | null }> =
+        [];
       if (opts.attendeeEmail) {
         attendees.push({ email: opts.attendeeEmail, name: null });
       }
@@ -77,7 +78,8 @@ export class CrmMeetingSyncService {
           meetingUrl: opts.meetingUrl ?? meeting.location ?? null,
           ringeeMeetingUrl: opts.ringeeMeetingUrl ?? null,
           calendarProvider: opts.calendarProvider ?? null,
-          calendarEventId: opts.calendarEventId ?? meeting.externalEventId ?? null,
+          calendarEventId:
+            opts.calendarEventId ?? meeting.externalEventId ?? null,
           recordingUrl: opts.recordingUrl ?? null,
           sourceCallUrl: opts.sourceCallUrl ?? null,
           attendees,

@@ -18,7 +18,9 @@ export interface LivePartial {
 
 /** Stable speaker index per Telnyx track, used when not relying on Deepgram
  * diarization. Outbound (the agent) = 0, inbound (the contact) = 1. */
-export const trackToSpeaker = (track: string | null | undefined): number | null => {
+export const trackToSpeaker = (
+  track: string | null | undefined,
+): number | null => {
   if (track === "outbound") return 0;
   if (track === "inbound") return 1;
   return null;

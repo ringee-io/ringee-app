@@ -4,7 +4,9 @@ import { uuid } from "./common.js";
 const MAX_EXPIRY_MIN = 60 * 24 * 30; // 30 days
 
 export const CallSessionContactSchema = z.object({
-  contactId: uuid.optional().describe("Existing contact; name/phone looked up server-side."),
+  contactId: uuid
+    .optional()
+    .describe("Existing contact; name/phone looked up server-side."),
   phoneNumber: z
     .string()
     .min(3)

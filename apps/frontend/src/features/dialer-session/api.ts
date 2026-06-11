@@ -1,8 +1,7 @@
 // Lightweight, fetch-based client for the public Call Session endpoints.
 // All calls use a magic-link `token` for auth — there is no Clerk session.
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
 
 export type ItemStatus =
   | 'pending'
@@ -87,23 +86,23 @@ export interface CreditResponse {
 }
 
 export class SessionApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public status: number,
+    message: string
+  ) {
     super(message);
     this.name = 'SessionApiError';
   }
 }
 
-async function request<T>(
-  path: string,
-  init: RequestInit = {},
-): Promise<T> {
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const res = await fetch(`${API_URL}${path}`, {
     ...init,
     headers: {
       'Content-Type': 'application/json',
-      ...(init.headers ?? {}),
+      ...(init.headers ?? {})
     },
-    cache: 'no-store',
+    cache: 'no-store'
   });
   if (!res.ok) {
     let message = `Request failed (${res.status})`;
@@ -128,24 +127,24 @@ async function request<T>(
 export const sessionApi = {
   validate: (token: string) =>
     request<ValidateResponse>(
-      `/call-sessions/join/validate?token=${encodeURIComponent(token)}`,
+      `/call-sessions/join/validate?token=${encodeURIComponent(token)}`
     ),
 
   credit: (token: string) =>
     request<CreditResponse>(
-      `/call-sessions/join/credit?token=${encodeURIComponent(token)}`,
+      `/call-sessions/join/credit?token=${encodeURIComponent(token)}`
     ),
 
   startCall: (sessionId: string, itemId: string, token: string) =>
     request<StartCallResponse>(
       `/call-sessions/${sessionId}/items/${itemId}/start-call`,
-      { method: 'POST', body: JSON.stringify({ token }) },
+      { method: 'POST', body: JSON.stringify({ token }) }
     ),
 
   endCall: (sessionId: string, itemId: string, token: string) =>
     request<{ itemId: string; callId: string | null }>(
       `/call-sessions/${sessionId}/items/${itemId}/end-call`,
-      { method: 'POST', body: JSON.stringify({ token }) },
+      { method: 'POST', body: JSON.stringify({ token }) }
     ),
 
   saveOutcome: (
@@ -164,7 +163,7 @@ export const sessionApi = {
         notes?: string;
         attendeeEmail?: string;
       } | null;
-    },
+    }
   ) =>
     request<{
       itemId: string;
@@ -174,37 +173,32 @@ export const sessionApi = {
       meetingId: string | null;
     }>(`/call-sessions/${sessionId}/items/${itemId}/outcome`, {
       method: 'POST',
-      body: JSON.stringify({ token, ...body }),
+      body: JSON.stringify({ token, ...body })
     }),
 
-  skip: (
-    sessionId: string,
-    itemId: string,
-    token: string,
-    reason?: string,
-  ) =>
+  skip: (sessionId: string, itemId: string, token: string, reason?: string) =>
     request<{ itemId: string; sessionCompleted: boolean }>(
       `/call-sessions/${sessionId}/items/${itemId}/skip`,
       {
         method: 'POST',
-        body: JSON.stringify({ token, reason: reason ?? null }),
-      },
+        body: JSON.stringify({ token, reason: reason ?? null })
+      }
     ),
 
   startRecording: (sessionId: string, itemId: string, token: string) =>
     request<{ recordingId: string; callId: string }>(
       `/call-sessions/${sessionId}/items/${itemId}/recording/start`,
-      { method: 'POST', body: JSON.stringify({ token }) },
+      { method: 'POST', body: JSON.stringify({ token }) }
     ),
 
   stopRecording: (
     sessionId: string,
     itemId: string,
     token: string,
-    recordingId: string,
+    recordingId: string
   ) =>
     request<{ recordingId: string }>(
       `/call-sessions/${sessionId}/items/${itemId}/recording/stop`,
-      { method: 'POST', body: JSON.stringify({ token, recordingId }) },
-    ),
+      { method: 'POST', body: JSON.stringify({ token, recordingId }) }
+    )
 };

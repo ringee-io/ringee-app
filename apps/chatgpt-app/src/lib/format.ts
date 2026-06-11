@@ -66,7 +66,5 @@ export function relativeTime(iso?: string | null): string {
 
 export function titleCase(value?: string | null): string {
   if (!value) return "";
-  return value
-    .replace(/[_-]+/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return value.replace(/[_-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }

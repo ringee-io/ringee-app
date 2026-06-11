@@ -347,13 +347,17 @@ const INDUSTRY_ALIASES: Record<string, string | string[]> = {
   "video games": "Computer Games",
   // Aliases for old comma-less names (our vocabulary previously omitted commas)
   "technology information and internet": "Technology, Information and Internet",
-  "transportation logistics supply chain and storage": "Transportation, Logistics, Supply Chain and Storage",
+  "transportation logistics supply chain and storage":
+    "Transportation, Logistics, Supply Chain and Storage",
   "oil gas and mining": "Oil, Gas, and Mining",
-  "appliances electrical and electronics manufacturing": "Appliances, Electrical, and Electronics Manufacturing",
+  "appliances electrical and electronics manufacturing":
+    "Appliances, Electrical, and Electronics Manufacturing",
   "museums historical sites and zoos": "Museums, Historical Sites, and Zoos",
   "investment funds and trusts": "Investment, Funds and Trusts",
-  "glass ceramics and concrete manufacturing": "Glass, Ceramics and Concrete Manufacturing",
-  "agriculture construction mining machinery manufacturing": "Agriculture, Construction, Mining Machinery Manufacturing",
+  "glass ceramics and concrete manufacturing":
+    "Glass, Ceramics and Concrete Manufacturing",
+  "agriculture construction mining machinery manufacturing":
+    "Agriculture, Construction, Mining Machinery Manufacturing",
 };
 
 export function normalizeIndustries(input: string[] | undefined): string[] {
@@ -683,7 +687,7 @@ const DEPARTMENT_ALIASES: Record<string, string | string[]> = {
   sdr: "Sales Development",
   bdr: "Sales Development",
   "business development": "Sales Development",
-  "business_development": "Sales Development",
+  business_development: "Sales Development",
   marketing: "Marketing",
   "demand generation": "Growth & Demand Generation",
   growth: "Growth & Demand Generation",

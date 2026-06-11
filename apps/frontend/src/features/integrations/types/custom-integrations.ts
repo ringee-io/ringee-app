@@ -94,7 +94,10 @@ export interface TestWebhookResult {
   error?: string;
 }
 
-export const ALL_OUTBOUND_EVENTS: { value: CustomIntegrationEventType; label: string }[] = [
+export const ALL_OUTBOUND_EVENTS: {
+  value: CustomIntegrationEventType;
+  label: string;
+}[] = [
   { value: 'call_completed', label: 'call.completed' },
   { value: 'call_outcome_updated', label: 'call.outcome.updated' },
   { value: 'note_created', label: 'note.created' },
@@ -103,5 +106,5 @@ export const ALL_OUTBOUND_EVENTS: { value: CustomIntegrationEventType; label: st
   { value: 'recording_ready', label: 'recording.ready' },
   { value: 'call_missed', label: 'call.missed' },
   { value: 'call_failed', label: 'call.failed' },
-  { value: 'dnc_created', label: 'dnc.created' },
+  { value: 'dnc_created', label: 'dnc.created' }
 ];

@@ -134,7 +134,8 @@ export class TriggerLoopSignalService {
     // lastActivityAt: prefer the most recent completed call's endedAt.
     // Fall back to firstCompletedCall only when lastCall is the same record
     // (i.e. user has exactly one completed call).
-    const lastActivityAt = lastCall?.endedAt ?? firstCompletedCall?.endedAt ?? null;
+    const lastActivityAt =
+      lastCall?.endedAt ?? firstCompletedCall?.endedAt ?? null;
 
     const active = lastActivityAt ? lastActivityAt >= activeSince : false;
 

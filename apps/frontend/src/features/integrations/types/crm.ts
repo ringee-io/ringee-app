@@ -6,7 +6,11 @@ export type CrmProviderType =
   | 'odoo_19_plus';
 export type CrmAuthKind = 'oauth' | 'odoo_credentials';
 export type CrmConnectionScope = 'personal' | 'organization';
-export type CrmConnectionStatus = 'active' | 'error' | 'revoked' | 'disconnected';
+export type CrmConnectionStatus =
+  | 'active'
+  | 'error'
+  | 'revoked'
+  | 'disconnected';
 export type CrmSyncStatus =
   | 'pending'
   | 'in_progress'
@@ -108,7 +112,7 @@ export const PROVIDER_META: Record<
     available: true,
     logo: '/companies/attio.svg',
     logoDarkInvert: true,
-    authKind: 'oauth',
+    authKind: 'oauth'
   },
   odoo_14_18: {
     name: 'Odoo 14–18',
@@ -119,7 +123,7 @@ export const PROVIDER_META: Record<
     logo: '/companies/odoo.svg',
     logoDarkInvert: false,
     authKind: 'odoo_credentials',
-    subtitle: 'Legacy RPC',
+    subtitle: 'Legacy RPC'
   },
   odoo_19_plus: {
     name: 'Odoo 19+',
@@ -130,7 +134,7 @@ export const PROVIDER_META: Record<
     logo: '/companies/odoo.svg',
     logoDarkInvert: false,
     authKind: 'odoo_credentials',
-    subtitle: 'JSON-2 API',
+    subtitle: 'JSON-2 API'
   },
   hubspot: {
     name: 'HubSpot',
@@ -139,7 +143,7 @@ export const PROVIDER_META: Record<
     available: false,
     logo: '/companies/hubspot.svg',
     logoDarkInvert: false,
-    authKind: 'oauth',
+    authKind: 'oauth'
   },
   salesforce: {
     name: 'Salesforce',
@@ -148,8 +152,8 @@ export const PROVIDER_META: Record<
     available: false,
     logo: '/companies/salesforce.svg',
     logoDarkInvert: false,
-    authKind: 'oauth',
-  },
+    authKind: 'oauth'
+  }
 };
 
 export const ODOO_VALIDATION_MESSAGES: Record<string, string> = {
@@ -157,8 +161,7 @@ export const ODOO_VALIDATION_MESSAGES: Record<string, string> = {
     'The login or API key was rejected. Double-check the API key and — for Odoo 14–18 — your login/email.',
   database_not_found:
     'The database name could not be found on this Odoo server.',
-  invalid_base_url:
-    'The Odoo URL is unreachable. Check the URL and try again.',
+  invalid_base_url: 'The Odoo URL is unreachable. Check the URL and try again.',
   unsupported_version:
     'This Odoo version is older than 14 and is not supported.',
   api_mode_not_available:
@@ -169,8 +172,7 @@ export const ODOO_VALIDATION_MESSAGES: Record<string, string> = {
     'This API key does not have permission to modify res.partner.',
   partner_access_denied:
     'This API key cannot read res.partner on the selected database.',
-  activity_access_denied:
-    'This API key cannot create mail.activity records.',
+  activity_access_denied: 'This API key cannot create mail.activity records.',
   unknown_odoo_error:
-    'Odoo returned an error we couldn\'t map. Check the server logs.',
+    "Odoo returned an error we couldn't map. Check the server logs."
 };

@@ -56,19 +56,19 @@ export function TranscribeCallButton({
 
   return (
     <Button
-      type="button"
+      type='button'
       size={size}
-      variant="outline"
+      variant='outline'
       className={className}
       disabled={state.disabled || actionPending}
       onClick={state.onClick}
     >
       {state.busy || actionPending ? (
-        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+        <Loader2 className='mr-2 h-4 w-4 animate-spin' />
       ) : state.icon === 'mic' ? (
-        <Mic className="mr-2 h-4 w-4" />
+        <Mic className='mr-2 h-4 w-4' />
       ) : state.icon === 'file' ? (
-        <FileText className="mr-2 h-4 w-4" />
+        <FileText className='mr-2 h-4 w-4' />
       ) : null}
       {state.label}
     </Button>
@@ -101,13 +101,23 @@ function deriveState({
   };
 }): ButtonState {
   if (data && !data.transcriptionEnabled) {
-    return { label: t('unavailable'), disabled: true, busy: false, icon: 'none' };
+    return {
+      label: t('unavailable'),
+      disabled: true,
+      busy: false,
+      icon: 'none'
+    };
   }
 
   if (mode === 'active') {
     const status = data?.realtime?.status;
     if (status === 'starting' || status === 'transcribing') {
-      return { label: t('transcribing'), disabled: true, busy: true, icon: 'none' };
+      return {
+        label: t('transcribing'),
+        disabled: true,
+        busy: true,
+        icon: 'none'
+      };
     }
     if (status === 'failed') {
       return {

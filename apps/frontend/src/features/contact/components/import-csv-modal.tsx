@@ -63,7 +63,7 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
-  
+
   // Tag selection state
   const [tags, setTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -73,7 +73,10 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
   // Fetch tags when modal opens
   useEffect(() => {
     if (open) {
-      api.get<Tag[]>('/tags').then(setTags).catch(() => setTags([]));
+      api
+        .get<Tag[]>('/tags')
+        .then(setTags)
+        .catch(() => setTags([]));
     }
   }, [open, api]);
 
@@ -99,7 +102,9 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
       return t('onlyCsv');
     }
     if (file.size > CSV_CONFIG.MAX_FILE_SIZE) {
-      return t('fileTooLarge', { size: CSV_CONFIG.MAX_FILE_SIZE / (1024 * 1024) });
+      return t('fileTooLarge', {
+        size: CSV_CONFIG.MAX_FILE_SIZE / (1024 * 1024)
+      });
     }
     return null;
   };
@@ -137,14 +142,17 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
   }, []);
 
   const handleTagToggle = (tagId: string) => {
-    setSelectedTagIds(prev => 
+    setSelectedTagIds((prev) =>
       prev.includes(tagId)
-        ? prev.filter(id => id !== tagId)
+        ? prev.filter((id) => id !== tagId)
         : [...prev, tagId]
     );
   };
 
-  const handleCreateTag = async (name: string, color?: string): Promise<Tag> => {
+  const handleCreateTag = async (
+    name: string,
+    color?: string
+  ): Promise<Tag> => {
     try {
       // Assign a random color if not provided
       const colors = [
@@ -155,16 +163,20 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
         '#3b82f6', // blue
         '#6366f1', // indigo
         '#a855f7', // purple
-        '#ec4899', // pink
+        '#ec4899' // pink
       ];
       // Use color from argument or random fallback
-      const randomColor = color || colors[Math.floor(Math.random() * colors.length)];
-      
-      const newTag = await api.post<Tag>('/tags', { 
+      const randomColor =
+        color || colors[Math.floor(Math.random() * colors.length)];
+
+      const newTag = await api.post<Tag>('/tags', {
         name,
         color: randomColor
       });
-      setTags(prev => [...prev.sort((a, b) => a.name.localeCompare(b.name)), newTag]);
+      setTags((prev) => [
+        ...prev.sort((a, b) => a.name.localeCompare(b.name)),
+        newTag
+      ]);
       // Search value is cleared inside TagMultiSelect
       return newTag;
     } catch (err) {
@@ -182,7 +194,7 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
     try {
       const formData = new FormData();
       formData.append('file', file);
-      
+
       // Add selected tags to form data
       if (selectedTagIds.length > 0) {
         formData.append('tagIds', JSON.stringify(selectedTagIds));
@@ -192,7 +204,9 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
 
       setSummary(response.summary);
       setState('success');
-      toast.success(t('successfullyImported', { count: response.summary.inserted }));
+      toast.success(
+        t('successfullyImported', { count: response.summary.inserted })
+      );
     } catch (err: any) {
       setError(err.message || t('importFailed'));
       setState('error');
@@ -217,17 +231,15 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className='w-[95vw] max-w-lg max-h-[90vh] overflow-y-auto'>
+      <DialogContent className='max-h-[90vh] w-[95vw] max-w-lg overflow-y-auto'>
         <DialogHeader>
           <DialogTitle>{t('titleExtended')}</DialogTitle>
-          <DialogDescription>
-            {t('descriptionExtended')}
-          </DialogDescription>
+          <DialogDescription>{t('descriptionExtended')}</DialogDescription>
         </DialogHeader>
 
         {state === 'success' && summary ? (
           <div className='space-y-4'>
-            <div className='bg-green-500/10 border-green-500/20 rounded-lg border p-4'>
+            <div className='rounded-lg border border-green-500/20 bg-green-500/10 p-4'>
               <div className='flex items-center gap-2 text-green-500'>
                 <IconCheck className='h-5 w-5' />
                 <span className='font-medium'>{t('importComplete')}</span>
@@ -246,7 +258,9 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
                 </div>
               </div>
               <div className='bg-muted rounded-lg p-3'>
-                <div className='text-muted-foreground'>{t('duplicatesSkipped')}</div>
+                <div className='text-muted-foreground'>
+                  {t('duplicatesSkipped')}
+                </div>
                 <div className='text-xl font-semibold text-yellow-500'>
                   {summary.duplicatesSkipped}
                 </div>
@@ -314,12 +328,15 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
               ) : (
                 <>
                   <IconUpload className='text-muted-foreground mb-2 h-10 w-10' />
-                  <span className='font-medium'>
-                    {t('dropzoneAlt')}
-                  </span>
+                  <span className='font-medium'>{t('dropzoneAlt')}</span>
                   <span className='text-muted-foreground text-sm'>
-                    {t('maxSize', { size: CSV_CONFIG.MAX_FILE_SIZE / (1024 * 1024) })} •{' '}
-                    {t('maxRows', { count: CSV_CONFIG.MAX_ROWS.toLocaleString() })}
+                    {t('maxSize', {
+                      size: CSV_CONFIG.MAX_FILE_SIZE / (1024 * 1024)
+                    })}{' '}
+                    •{' '}
+                    {t('maxRows', {
+                      count: CSV_CONFIG.MAX_ROWS.toLocaleString()
+                    })}
                   </span>
                 </>
               )}
@@ -333,7 +350,7 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
                 onSelectionChange={setSelectedTagIds}
                 onCreateTag={handleCreateTag}
                 placeholder={t('assignTagsPlaceholder')}
-                className="w-full"
+                className='w-full'
               />
             )}
             {/* Error Message */}
@@ -401,4 +418,3 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
     </Dialog>
   );
 }
-

@@ -8,9 +8,12 @@ export class ChatAuthService {
   constructor(
     private readonly chatAuthRepository: ChatAuthRepository,
     private readonly userRepository: UserRepository,
-  ) { }
+  ) {}
 
-  async createChatAuth(ctx: OwnershipContext, data: CreateChatAuthDto): Promise<void> {
+  async createChatAuth(
+    ctx: OwnershipContext,
+    data: CreateChatAuthDto,
+  ): Promise<void> {
     const user = await this.userRepository.findById(ctx.userId);
 
     if (!user) {

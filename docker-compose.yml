@@ -41,6 +41,46 @@ services:
     networks:
       - ringee-network
 
+  # Temporal server (durable background jobs). auto-setup creates the
+  # `temporal` and `temporal_visibility` databases on the shared Postgres.
+  ringee-temporal:
+    image: temporalio/auto-setup:1.25
+    container_name: ringee-temporal
+    ports:
+      - "${TEMPORAL_PORT:-7233}:7233"
+    environment:
+      DB: postgres12
+      DB_PORT: "5432"
+      POSTGRES_SEEDS: ringee-postgres
+      POSTGRES_USER: ${POSTGRES_USER:-ringee-user}
+      POSTGRES_PWD: ${POSTGRES_PASSWORD:-ringee-password}
+    depends_on:
+      ringee-postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "127.0.0.1:7233"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+      - ringee-network
+
+  ringee-temporal-ui:
+    image: temporalio/ui:2.31.2
+    container_name: ringee-temporal-ui
+    ports:
+      - "${TEMPORAL_UI_PORT:-8080}:8080"
+    environment:
+      TEMPORAL_ADDRESS: ringee-temporal:7233
+      TEMPORAL_CORS_ORIGINS: http://localhost:8080
+    depends_on:
+      - ringee-temporal
+    restart: unless-stopped
+    networks:
+      - ringee-network
+
 volumes:
   ringee_pg_data:
   ringee_redis_data:

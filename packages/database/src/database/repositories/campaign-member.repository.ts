@@ -10,7 +10,11 @@ export class CampaignMemberRepository {
       where: { campaignId_userId: { campaignId, userId } },
       update: { role },
       create: { campaignId, userId, role },
-      include: { user: { select: { id: true, firstName: true, lastName: true, clerkId: true } } },
+      include: {
+        user: {
+          select: { id: true, firstName: true, lastName: true, clerkId: true },
+        },
+      },
     });
   }
 

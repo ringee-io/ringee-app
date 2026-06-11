@@ -146,4 +146,4 @@ const databaseProviders = [
   providers: databaseProviders,
   exports: databaseProviders,
 })
-export class DatabaseModule { }
+export class DatabaseModule {}

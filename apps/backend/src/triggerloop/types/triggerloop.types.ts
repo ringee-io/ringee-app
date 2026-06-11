@@ -1,5 +1,9 @@
-export const TRIGGERLOOP_WEBHOOK_OPERATIONS = ["evaluate", "executeAction"] as const;
-export type TriggerLoopOperation = (typeof TRIGGERLOOP_WEBHOOK_OPERATIONS)[number];
+export const TRIGGERLOOP_WEBHOOK_OPERATIONS = [
+  "evaluate",
+  "executeAction",
+] as const;
+export type TriggerLoopOperation =
+  (typeof TRIGGERLOOP_WEBHOOK_OPERATIONS)[number];
 
 export const TRIGGERLOOP_SUBJECT_TYPES = ["user", "organization"] as const;
 export type TriggerLoopSubjectType = (typeof TRIGGERLOOP_SUBJECT_TYPES)[number];

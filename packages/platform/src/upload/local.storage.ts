@@ -5,7 +5,7 @@ import { mkdirSync, unlink, writeFileSync } from "fs";
 import axios from "axios";
 
 export class LocalStorage implements IUploadProvider {
-  constructor(private uploadDirectory: string) { }
+  constructor(private uploadDirectory: string) {}
 
   uploadBuffer(
     path: string,
@@ -24,7 +24,7 @@ export class LocalStorage implements IUploadProvider {
 
     // @ts-ignore
     // const findExtension = mime.extension(contentType)!;
-    const findExtension = '';
+    const findExtension = "";
 
     const now = new Date();
     const year = now.getFullYear();

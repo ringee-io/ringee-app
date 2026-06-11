@@ -15,17 +15,25 @@ import { CrmProviderRegistry } from "./registry";
         new AttioProvider({
           clientId: apiConfiguration.ATTIO_OAUTH_CLIENT_ID ?? "",
           clientSecret: apiConfiguration.ATTIO_OAUTH_CLIENT_SECRET ?? "",
-          apiBaseUrl: apiConfiguration.ATTIO_API_BASE_URL ?? "https://api.attio.com",
+          apiBaseUrl:
+            apiConfiguration.ATTIO_API_BASE_URL ?? "https://api.attio.com",
           authorizeUrl:
-            apiConfiguration.ATTIO_OAUTH_AUTHORIZE_URL ?? "https://app.attio.com/authorize",
+            apiConfiguration.ATTIO_OAUTH_AUTHORIZE_URL ??
+            "https://app.attio.com/authorize",
           tokenUrl:
-            apiConfiguration.ATTIO_OAUTH_TOKEN_URL ?? "https://app.attio.com/oauth/token",
+            apiConfiguration.ATTIO_OAUTH_TOKEN_URL ??
+            "https://app.attio.com/oauth/token",
         }),
     },
     OdooLegacyProvider,
     OdooJson2Provider,
   ],
-  exports: [CrmProviderRegistry, AttioProvider, OdooLegacyProvider, OdooJson2Provider],
+  exports: [
+    CrmProviderRegistry,
+    AttioProvider,
+    OdooLegacyProvider,
+    OdooJson2Provider,
+  ],
 })
 export class CrmModule implements OnModuleInit {
   constructor(

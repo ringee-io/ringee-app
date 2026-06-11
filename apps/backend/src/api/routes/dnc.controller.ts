@@ -29,7 +29,7 @@ export class DNCController {
     @CurrentUser() user: CurrentUserData,
     @Query("search") search?: string,
     @Query("page") page = "1",
-    @Query("limit") limit = "20"
+    @Query("limit") limit = "20",
   ) {
     const ctx = createOwnershipContext(user);
     return this.complianceService.listDNC(ctx, {
@@ -42,7 +42,7 @@ export class DNCController {
   @Post()
   async addToDNC(
     @Body() body: { phoneNumber: string; reason?: string },
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!body.phoneNumber) {
       throw new BadRequestException("phoneNumber is required");
@@ -61,7 +61,7 @@ export class DNCController {
   @Post("import")
   async bulkImport(
     @Body() body: { phoneNumbers: string[]; reason?: string },
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!Array.isArray(body.phoneNumbers) || body.phoneNumbers.length === 0) {
       throw new BadRequestException("phoneNumbers must be a non-empty array");
@@ -75,14 +75,14 @@ export class DNCController {
         reason: body.reason,
         source: "import",
         addedByUserId: ctx.userId,
-      }))
+      })),
     );
   }
 
   @Get("check/:phoneNumber")
   async checkDNC(
     @Param("phoneNumber") phoneNumber: string,
-    @CurrentUser() user: CurrentUserData
+    @CurrentUser() user: CurrentUserData,
   ) {
     const ctx = createOwnershipContext(user);
     const entry = await this.complianceService.findOnDNC(ctx, phoneNumber);

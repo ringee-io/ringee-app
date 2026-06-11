@@ -43,7 +43,9 @@ export class SendNotificationActionHandler implements ActionHandler {
     // can decide to retry or skip.
     const list = (
       this.devices as unknown as {
-        findActiveByUser?: (id: string) => Promise<{ fcmToken?: string | null }[]>;
+        findActiveByUser?: (
+          id: string,
+        ) => Promise<{ fcmToken?: string | null }[]>;
       }
     ).findActiveByUser;
     if (!list) {
@@ -54,7 +56,9 @@ export class SendNotificationActionHandler implements ActionHandler {
     }
 
     const devices = await list.call(this.devices, userId);
-    const tokens = devices.map((d) => d.fcmToken).filter((t): t is string => !!t);
+    const tokens = devices
+      .map((d) => d.fcmToken)
+      .filter((t): t is string => !!t);
 
     if (tokens.length === 0) {
       return { success: false, error: "no device tokens for user" };

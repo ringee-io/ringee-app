@@ -1,7 +1,11 @@
 import { Controller, Post, Req, Res, HttpStatus } from "@nestjs/common";
 import type { Request as ExpressRequest, Response } from "express";
 import { verifyWebhook, type WebhookEvent } from "@clerk/backend/webhooks";
-import { ClerkUserRepository, ClerkOrganizationRepository, Public } from "@ringee/platform";
+import {
+  ClerkUserRepository,
+  ClerkOrganizationRepository,
+  Public,
+} from "@ringee/platform";
 import { UserRepository, OrganizationRepository } from "@ringee/database";
 import { SubscriptionService, UserService } from "@ringee/services";
 import { apiConfiguration } from "@ringee/configuration";
@@ -16,7 +20,7 @@ export class ClerkController {
     private readonly subscriptionService: SubscriptionService,
     private readonly userService: UserService,
     private readonly triggerLoop: TriggerLoopEventPublisher,
-  ) { }
+  ) {}
 
   @Post("clerk")
   async handle(@Req() req: ExpressRequest, @Res() res: Response) {
@@ -82,10 +86,13 @@ export class ClerkController {
           const userId = (evt.data as any).id;
 
           const clerkUser = await ClerkUserRepository.findById(userId);
-          const user = await this.userRepository.updateFromClerkUser(clerkUser, {
-            clientIp: ip,
-            userAgent: userAgent,
-          });
+          const user = await this.userRepository.updateFromClerkUser(
+            clerkUser,
+            {
+              clientIp: ip,
+              userAgent: userAgent,
+            },
+          );
           await this.userService.invalidateUserCache(user);
 
           const primary = clerkUser.emailAddresses?.find(
@@ -109,13 +116,19 @@ export class ClerkController {
           const createdBy = (evt.data as any).created_by;
 
           const clerkOrg = await ClerkOrganizationRepository.findById(orgId);
-          const org = await this.organizationRepository.syncFromClerkOrganization(clerkOrg);
+          const org =
+            await this.organizationRepository.syncFromClerkOrganization(
+              clerkOrg,
+            );
 
           // Find user's unassigned subscription and assign it to this org
           if (createdBy) {
             const user = await this.userRepository.findByClerkId(createdBy);
             if (user) {
-              await this.subscriptionService.assignToOrganization(user.id, org.id);
+              await this.subscriptionService.assignToOrganization(
+                user.id,
+                org.id,
+              );
               await this.triggerLoop.workspaceCreated(user.id, org.id);
             }
           }
@@ -125,7 +138,9 @@ export class ClerkController {
         case "organization.updated": {
           const orgId = (evt.data as any).id;
           const clerkOrg = await ClerkOrganizationRepository.findById(orgId);
-          await this.organizationRepository.updateFromClerkOrganization(clerkOrg);
+          await this.organizationRepository.updateFromClerkOrganization(
+            clerkOrg,
+          );
           break;
         }
 
@@ -140,14 +155,14 @@ export class ClerkController {
 
           // Sincronizar organización (upsert maneja si existe o no)
           const clerkOrg = await ClerkOrganizationRepository.findById(
-            membership.organization.id
+            membership.organization.id,
           );
           await this.organizationRepository.syncFromClerkOrganization(clerkOrg);
 
           // Sincronizar usuario si existe en Clerk (upsert maneja si existe o no)
           try {
             const clerkUser = await ClerkUserRepository.findById(
-              membership.public_user_data.user_id
+              membership.public_user_data.user_id,
             );
             const syncedMember = await this.userRepository.syncFromClerkUser(
               clerkUser,
@@ -159,7 +174,9 @@ export class ClerkController {
             await this.userService.invalidateUserCache(syncedMember);
           } catch (error) {
             // Usuario aún no existe (invitación pendiente), continuar sin error
-            console.log(`User ${membership.public_user_data.user_id} not found in Clerk - pending invitation`);
+            console.log(
+              `User ${membership.public_user_data.user_id} not found in Clerk - pending invitation`,
+            );
           }
 
           // Crear la membresía

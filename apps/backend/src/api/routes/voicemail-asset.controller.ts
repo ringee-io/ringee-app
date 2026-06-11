@@ -17,9 +17,7 @@ interface CurrentUserData {
 
 @Controller("voicemail-assets")
 export class VoicemailAssetController {
-  constructor(
-    private readonly voicemailDropService: VoicemailDropService
-  ) {}
+  constructor(private readonly voicemailDropService: VoicemailDropService) {}
 
   @Get()
   async list(@CurrentUser() user: CurrentUserData) {
@@ -32,8 +30,14 @@ export class VoicemailAssetController {
 
   @Post()
   async create(
-    @Body() body: { name: string; fileUrl: string; durationSec?: number; isDefault?: boolean },
-    @CurrentUser() user: CurrentUserData
+    @Body()
+    body: {
+      name: string;
+      fileUrl: string;
+      durationSec?: number;
+      isDefault?: boolean;
+    },
+    @CurrentUser() user: CurrentUserData,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Organization required");

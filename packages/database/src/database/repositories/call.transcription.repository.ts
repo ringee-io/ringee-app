@@ -55,7 +55,9 @@ export class CallTranscriptionRepository {
     return result.count;
   }
 
-  async deleteSegmentsByTranscription(transcriptionId: string): Promise<number> {
+  async deleteSegmentsByTranscription(
+    transcriptionId: string,
+  ): Promise<number> {
     const result = await this.prisma.callTranscriptionSegment.deleteMany({
       where: { transcriptionId },
     });
@@ -214,7 +216,9 @@ export class CallTranscriptionRepository {
     },
   ): Promise<CallTranscription> {
     return this.prisma.$transaction(async (tx) => {
-      await tx.callTranscriptionSegment.deleteMany({ where: { transcriptionId } });
+      await tx.callTranscriptionSegment.deleteMany({
+        where: { transcriptionId },
+      });
 
       if (result.segments.length > 0) {
         await tx.callTranscriptionSegment.createMany({
@@ -272,7 +276,10 @@ export class CallTranscriptionRepository {
     limit = 25,
   ): Promise<CallTranscription[]> {
     return this.prisma.callTranscription.findMany({
-      where: { status: TranscriptionStatus.processing, updatedAt: { lt: olderThan } },
+      where: {
+        status: TranscriptionStatus.processing,
+        updatedAt: { lt: olderThan },
+      },
       take: limit,
     });
   }

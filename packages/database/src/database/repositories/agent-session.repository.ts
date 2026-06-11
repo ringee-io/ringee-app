@@ -42,7 +42,7 @@ export class AgentSessionRepository {
 
   async findByCampaignAndUser(
     campaignId: string,
-    userId: string
+    userId: string,
   ): Promise<AgentSession | null> {
     return this.prisma.agentSession.findUnique({
       where: { campaignId_userId: { campaignId, userId } },
@@ -70,7 +70,7 @@ export class AgentSessionRepository {
   async updateStatus(
     id: string,
     status: AgentSessionStatus,
-    extra?: Partial<Pick<AgentSession, "currentLeadId" | "endedAt">>
+    extra?: Partial<Pick<AgentSession, "currentLeadId" | "endedAt">>,
   ): Promise<AgentSession> {
     return this.prisma.agentSession.update({
       where: { id },
@@ -91,7 +91,7 @@ export class AgentSessionRepository {
       callsAttempted?: number;
       callsConnected?: number;
       totalTalkSec?: number;
-    }
+    },
   ): Promise<AgentSession> {
     return this.prisma.agentSession.update({
       where: { id },

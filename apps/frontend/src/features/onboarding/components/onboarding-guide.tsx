@@ -8,12 +8,12 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import {
   Card,
   CardContent,
-  CardHeader,
+  CardHeader
 } from '@ringee/frontend-shared/components/ui/card';
 import {
   Collapsible,
   CollapsibleContent,
-  CollapsibleTrigger,
+  CollapsibleTrigger
 } from '@ringee/frontend-shared/components/ui/collapsible';
 import {
   X,
@@ -21,21 +21,28 @@ import {
   ChevronUp,
   Minimize2,
   Maximize2,
-  Sparkles,
+  Sparkles
 } from 'lucide-react';
 
 import { useOnboarding } from '../hooks/use.onboarding';
 import { useOnboardingUIStore } from '../store/onboarding.store';
 import { OnboardingStepItem } from './onboarding-step';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
-import type { OnboardingStep, OnboardingStepConfig } from '../types/onboarding.types';
+import type {
+  OnboardingStep,
+  OnboardingStepConfig
+} from '../types/onboarding.types';
 import { useTranslations } from 'next-intl';
 
 export function OnboardingGuide() {
   const router = useRouter();
   const t = useTranslations('onboarding.guide');
   const tSteps = useTranslations('onboarding.guideSteps');
-  const { canAccessAdminFeatures, hasOrg, isLoaded: isOrgLoaded } = useOrgRole();
+  const {
+    canAccessAdminFeatures,
+    hasOrg,
+    isLoaded: isOrgLoaded
+  } = useOrgRole();
   const {
     status,
     isLoading,
@@ -45,10 +52,11 @@ export function OnboardingGuide() {
     totalSteps,
     completeStep,
     dismiss,
-    isStepComplete,
+    isStepComplete
   } = useOnboarding();
-  
-  const { isExpanded, isMinimized, toggleExpanded, toggleMinimized } = useOnboardingUIStore();
+
+  const { isExpanded, isMinimized, toggleExpanded, toggleMinimized } =
+    useOnboardingUIStore();
   const [isDismissing, setIsDismissing] = useState(false);
 
   // Define step configurations with actions
@@ -61,7 +69,7 @@ export function OnboardingGuide() {
         icon: 'phone',
         action: () => {
           router.push('/dashboard/call');
-        },
+        }
       },
       {
         id: 'recording' as OnboardingStep,
@@ -70,7 +78,7 @@ export function OnboardingGuide() {
         icon: 'mic',
         action: () => {
           router.push('/dashboard/recordings');
-        },
+        }
       },
       {
         id: 'check_numbers' as OnboardingStep,
@@ -79,7 +87,7 @@ export function OnboardingGuide() {
         icon: 'hash',
         action: () => {
           router.push('/dashboard/buy-number');
-        },
+        }
       },
       {
         id: 'buy_credits' as OnboardingStep,
@@ -89,8 +97,8 @@ export function OnboardingGuide() {
         requiresAdmin: true,
         action: () => {
           router.push('/dashboard/overview');
-        },
-      },
+        }
+      }
     ],
     [router, completeStep, tSteps]
   );
@@ -128,81 +136,87 @@ export function OnboardingGuide() {
     return (
       <Button
         onClick={toggleMinimized}
-        variant="outline"
-        size="sm"
-        className="fixed bottom-[100px] right-4 z-50 gap-2 shadow-lg hover:shadow-xl transition-all duration-200"
+        variant='outline'
+        size='sm'
+        className='fixed right-4 bottom-[100px] z-50 gap-2 shadow-lg transition-all duration-200 hover:shadow-xl'
       >
-        <Sparkles className="h-4 w-4 text-primary" />
-        <span className="text-xs font-medium">
-          {t('completedSummary', { completed: completedCount, total: visibleSteps.length })}
+        <Sparkles className='text-primary h-4 w-4' />
+        <span className='text-xs font-medium'>
+          {t('completedSummary', {
+            completed: completedCount,
+            total: visibleSteps.length
+          })}
         </span>
-        <Maximize2 className="h-3.5 w-3.5" />
+        <Maximize2 className='h-3.5 w-3.5' />
       </Button>
     );
   }
 
   return (
-    <Card className="fixed bottom-[100px] right-4 z-50  shadow-2xl border-border/50 bg-background/95 backdrop-blur-sm">
+    <Card className='border-border/50 bg-background/95 fixed right-4 bottom-[100px] z-50 shadow-2xl backdrop-blur-sm'>
       {/* Header */}
-      <CardHeader className="pb-2 pt-3 px-4">
-        <div className="flex items-center justify-between mb-2">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <span className="font-semibold text-sm">{t('title')}</span>
+      <CardHeader className='px-4 pt-3 pb-2'>
+        <div className='mb-2 flex items-center justify-between'>
+          <div className='flex items-center gap-2'>
+            <Sparkles className='text-primary h-4 w-4' />
+            <span className='text-sm font-semibold'>{t('title')}</span>
           </div>
-          <div className="flex items-center gap-1">
+          <div className='flex items-center gap-1'>
             <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
+              variant='ghost'
+              size='icon'
+              className='h-7 w-7'
               onClick={toggleMinimized}
               title={t('minimize')}
             >
-              <Minimize2 className="h-3.5 w-3.5" />
+              <Minimize2 className='h-3.5 w-3.5' />
             </Button>
             <Button
-              variant="ghost"
-              size="icon"
-              className="h-7 w-7"
+              variant='ghost'
+              size='icon'
+              className='h-7 w-7'
               onClick={handleDismiss}
               disabled={isDismissing}
               title={t('close')}
             >
-              <X className="h-3.5 w-3.5" />
+              <X className='h-3.5 w-3.5' />
             </Button>
           </div>
         </div>
 
         {/* Progress bar */}
-        <div className="space-y-1.5">
-          <Progress value={progress} className="h-1.5" />
-          <p className="text-xs text-muted-foreground">
-            {t('stepsCompleted', { completed: completedCount, total: visibleSteps.length })}
+        <div className='space-y-1.5'>
+          <Progress value={progress} className='h-1.5' />
+          <p className='text-muted-foreground text-xs'>
+            {t('stepsCompleted', {
+              completed: completedCount,
+              total: visibleSteps.length
+            })}
           </p>
         </div>
       </CardHeader>
 
       {/* Steps list */}
-      <CardContent className="px-2 pb-3">
+      <CardContent className='px-2 pb-3'>
         <Collapsible open={isExpanded} onOpenChange={toggleExpanded}>
           <CollapsibleTrigger asChild>
             <Button
-              variant="ghost"
-              size="sm"
-              className="w-full justify-between mb-1 text-muted-foreground hover:text-foreground"
+              variant='ghost'
+              size='sm'
+              className='text-muted-foreground hover:text-foreground mb-1 w-full justify-between'
             >
-              <span className="text-xs">
+              <span className='text-xs'>
                 {isExpanded ? t('hideSteps') : t('showSteps')}
               </span>
               {isExpanded ? (
-                <ChevronUp className="h-3.5 w-3.5" />
+                <ChevronUp className='h-3.5 w-3.5' />
               ) : (
-                <ChevronDown className="h-3.5 w-3.5" />
+                <ChevronDown className='h-3.5 w-3.5' />
               )}
             </Button>
           </CollapsibleTrigger>
 
-          <CollapsibleContent className="space-y-1">
+          <CollapsibleContent className='space-y-1'>
             {visibleSteps.map((stepConfig, index) => (
               <OnboardingStepItem
                 key={stepConfig.id}

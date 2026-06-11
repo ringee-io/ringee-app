@@ -52,9 +52,7 @@ export class OdooLegacyProvider extends OdooBaseProvider {
    * probes against the Odoo server and returns a structured result
    * whose `reason` maps one-to-one to UI error strings.
    */
-  async validateConnection(
-    creds: OdooCredentialPayload,
-  ): Promise<
+  async validateConnection(creds: OdooCredentialPayload): Promise<
     | {
         ok: true;
         uid: number;
@@ -68,7 +66,10 @@ export class OdooLegacyProvider extends OdooBaseProvider {
       // 1) Base URL reachability + version (also tells us the series).
       const version = await this.rpc.version(creds.baseUrl);
       if (!version) {
-        throw new OdooValidationError("invalid_base_url", "odoo server did not respond");
+        throw new OdooValidationError(
+          "invalid_base_url",
+          "odoo server did not respond",
+        );
       }
 
       const series = version.server_serie ?? null;
@@ -121,8 +122,18 @@ export class OdooLegacyProvider extends OdooBaseProvider {
       // 4) Write + activity access are non-fatal: we store them as
       //    capability flags so the connection still succeeds with reduced
       //    functionality (e.g. read-only CRM, no task sync).
-      const supportsContactWrite = await this.probeAccess(creds, uid, "res.partner", "write");
-      const supportsTasks = await this.probeAccess(creds, uid, "mail.activity", "create");
+      const supportsContactWrite = await this.probeAccess(
+        creds,
+        uid,
+        "res.partner",
+        "write",
+      );
+      const supportsTasks = await this.probeAccess(
+        creds,
+        uid,
+        "mail.activity",
+        "create",
+      );
 
       return {
         ok: true,
@@ -135,7 +146,11 @@ export class OdooLegacyProvider extends OdooBaseProvider {
       if (err instanceof OdooValidationError) {
         return { ok: false, reason: err.reason, message: err.message };
       }
-      return { ok: false, reason: mapToValidationReason(err), message: errorMessage(err) };
+      return {
+        ok: false,
+        reason: mapToValidationReason(err),
+        message: errorMessage(err),
+      };
     }
   }
 

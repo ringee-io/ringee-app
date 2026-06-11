@@ -15,7 +15,9 @@ export const uuid = z.string().uuid();
 export const isoDateTime = z
   .string()
   .datetime({ offset: true })
-  .describe("ISO-8601 datetime with timezone offset (e.g. 2026-05-23T14:30:00-04:00).");
+  .describe(
+    "ISO-8601 datetime with timezone offset (e.g. 2026-05-23T14:30:00-04:00).",
+  );
 
 export const providerEnum = z.enum(["apollo", "prospeo"]);
 

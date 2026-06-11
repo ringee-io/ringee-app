@@ -55,7 +55,8 @@ export const useNumbersStore = create<NumbersState>()(
         let restored: NumberPurchased | null = null;
 
         if (savedId && savedId !== 'public') {
-          restored = list.find((n: NumberPurchased) => n.id === savedId) ?? null;
+          restored =
+            list.find((n: NumberPurchased) => n.id === savedId) ?? null;
         }
 
         set({

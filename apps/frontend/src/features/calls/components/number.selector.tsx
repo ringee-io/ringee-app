@@ -25,8 +25,13 @@ export function NumberSelector({ useMock }: { useMock?: boolean }) {
   const api = useApi();
   const router = useRouter();
 
-  const { numbers: rawNumbers, selectedNumber, fetchNumbers, selectNumber, status } =
-    useNumbersStore();
+  const {
+    numbers: rawNumbers,
+    selectedNumber,
+    fetchNumbers,
+    selectNumber,
+    status
+  } = useNumbersStore();
 
   useEffect(() => {
     if (!useMock) {
@@ -35,7 +40,9 @@ export function NumberSelector({ useMock }: { useMock?: boolean }) {
   }, [useMock]);
 
   const isLoading = status === 'loading';
-  const numbers = rawNumbers.filter(item => !(['pending', 'inactive'].includes(item.status ?? '')))
+  const numbers = rawNumbers.filter(
+    (item) => !['pending', 'inactive'].includes(item.status ?? '')
+  );
   const hasNumbers = numbers.length > 0;
 
   return (

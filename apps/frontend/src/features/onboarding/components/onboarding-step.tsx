@@ -8,9 +8,12 @@ import {
   CreditCard,
   Check,
   ChevronRight,
-  Lock,
+  Lock
 } from 'lucide-react';
-import type { OnboardingStep, OnboardingStepConfig } from '../types/onboarding.types';
+import type {
+  OnboardingStep,
+  OnboardingStepConfig
+} from '../types/onboarding.types';
 
 interface OnboardingStepItemProps {
   config: OnboardingStepConfig;
@@ -24,7 +27,7 @@ const iconMap = {
   phone: Phone,
   mic: Mic,
   hash: Hash,
-  'credit-card': CreditCard,
+  'credit-card': CreditCard
 };
 
 export function OnboardingStepItem({
@@ -32,7 +35,7 @@ export function OnboardingStepItem({
   isCompleted,
   isLocked = false,
   isActive = false,
-  onClick,
+  onClick
 }: OnboardingStepItemProps) {
   const Icon = iconMap[config.icon];
 
@@ -61,32 +64,32 @@ export function OnboardingStepItem({
         )}
       >
         {isCompleted ? (
-          <Check className="h-4 w-4" />
+          <Check className='h-4 w-4' />
         ) : isLocked ? (
-          <Lock className="h-3.5 w-3.5" />
+          <Lock className='h-3.5 w-3.5' />
         ) : (
-          <Icon className="h-4 w-4" />
+          <Icon className='h-4 w-4' />
         )}
       </div>
 
       {/* Content */}
-      <div className="flex-1 min-w-0">
+      <div className='min-w-0 flex-1'>
         <p
           className={cn(
-            'text-sm font-medium truncate',
-            isCompleted && 'line-through text-muted-foreground'
+            'truncate text-sm font-medium',
+            isCompleted && 'text-muted-foreground line-through'
           )}
         >
           {config.title}
         </p>
-        <p className="text-xs text-muted-foreground truncate">
+        <p className='text-muted-foreground truncate text-xs'>
           {config.description}
         </p>
       </div>
 
       {/* Arrow indicator */}
       {!isCompleted && !isLocked && (
-        <ChevronRight className="h-4 w-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+        <ChevronRight className='text-muted-foreground h-4 w-4 opacity-0 transition-opacity group-hover:opacity-100' />
       )}
     </button>
   );

@@ -9,7 +9,10 @@ import {
   Post,
   Query,
 } from "@nestjs/common";
-import { CustomIntegrationEventType, CustomIntegrationStatus } from "@ringee/database";
+import {
+  CustomIntegrationEventType,
+  CustomIntegrationStatus,
+} from "@ringee/database";
 import {
   ALL_EVENT_SPECS,
   CurrentUser,
@@ -53,10 +56,7 @@ export class CustomIntegrationsController {
   }
 
   @Post()
-  async create(
-    @CurrentUser() user: CurrentUserData,
-    @Body() body: CreateBody,
-  ) {
+  async create(@CurrentUser() user: CurrentUserData, @Body() body: CreateBody) {
     if (!body?.name?.trim()) throw new BadRequestException("name is required");
     const ctx = createOwnershipContext(user);
     return this.integrations.create(ctx, { name: body.name });
@@ -68,10 +68,7 @@ export class CustomIntegrationsController {
   }
 
   @Get(":id")
-  async get(
-    @CurrentUser() user: CurrentUserData,
-    @Param("id") id: string,
-  ) {
+  async get(@CurrentUser() user: CurrentUserData, @Param("id") id: string) {
     const ctx = createOwnershipContext(user);
     const integration = await this.integrations.get(ctx, id);
     return this.integrations.toSummary(integration);
@@ -88,10 +85,7 @@ export class CustomIntegrationsController {
   }
 
   @Delete(":id")
-  async delete(
-    @CurrentUser() user: CurrentUserData,
-    @Param("id") id: string,
-  ) {
+  async delete(@CurrentUser() user: CurrentUserData, @Param("id") id: string) {
     const ctx = createOwnershipContext(user);
     await this.integrations.delete(ctx, id);
     return { deleted: true };
@@ -155,4 +149,3 @@ export class CustomIntegrationsController {
     });
   }
 }
-

@@ -8,48 +8,13 @@ const DAY = 24 * HOUR;
  * for the NEW step starts over at index 0.
  */
 export const STEP_SCHEDULES: Record<string, readonly number[]> = {
-  firstCallFollowup: [
-    10 * MINUTE,
-    6 * HOUR,
-    24 * HOUR,
-    3 * DAY,
-    7 * DAY,
-  ],
-  creditsFollowup: [
-    1 * HOUR,
-    24 * HOUR,
-    4 * DAY,
-    7 * DAY,
-  ],
-  numberPurchaseFollowup: [
-    1 * DAY,
-    3 * DAY,
-    7 * DAY,
-    10 * DAY,
-  ],
-  contactsImportFollowup: [
-    1 * DAY,
-    3 * DAY,
-    5 * DAY,
-    7 * DAY,
-  ],
-  campaignsCallbacksAdoptionFollowup: [
-    5 * DAY,
-    8 * DAY,
-    12 * DAY,
-    14 * DAY,
-  ],
-  teamSetupFollowup: [
-    7 * DAY,
-    10 * DAY,
-    14 * DAY,
-  ],
-  reactivationFollowup: [
-    7 * DAY,
-    14 * DAY,
-    21 * DAY,
-    30 * DAY,
-  ],
+  firstCallFollowup: [10 * MINUTE, 6 * HOUR, 24 * HOUR, 3 * DAY, 7 * DAY],
+  creditsFollowup: [1 * HOUR, 24 * HOUR, 4 * DAY, 7 * DAY],
+  numberPurchaseFollowup: [1 * DAY, 3 * DAY, 7 * DAY, 10 * DAY],
+  contactsImportFollowup: [1 * DAY, 3 * DAY, 5 * DAY, 7 * DAY],
+  campaignsCallbacksAdoptionFollowup: [5 * DAY, 8 * DAY, 12 * DAY, 14 * DAY],
+  teamSetupFollowup: [7 * DAY, 10 * DAY, 14 * DAY],
+  reactivationFollowup: [7 * DAY, 14 * DAY, 21 * DAY, 30 * DAY],
 };
 
 /**

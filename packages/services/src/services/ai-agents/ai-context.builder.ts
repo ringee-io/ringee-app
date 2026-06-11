@@ -124,9 +124,11 @@ function readToolCallRef(m: AiMessage): string {
   const payload = m.toolPayload as
     | (Record<string, unknown> & { _toolCallMessageId?: string })
     | null;
-  return (payload && typeof payload._toolCallMessageId === "string"
-    ? payload._toolCallMessageId
-    : null) ?? m.id;
+  return (
+    (payload && typeof payload._toolCallMessageId === "string"
+      ? payload._toolCallMessageId
+      : null) ?? m.id
+  );
 }
 
 function summarizeAgentState(conversation: AiConversation): string | null {
@@ -173,7 +175,10 @@ function summarizeAgentState(conversation: AiConversation): string | null {
 function toAiInputMessage(m: AiMessage): AiMessageInput {
   if (m.role === "tool" && m.toolName) {
     const payload = m.toolPayload as
-      | (Record<string, unknown> & { _toolCallMessageId?: string; result?: unknown })
+      | (Record<string, unknown> & {
+          _toolCallMessageId?: string;
+          result?: unknown;
+        })
       | null;
     // The tool_call_id sent to OpenAI MUST match an id present in the
     // preceding assistant message's tool_calls. The orchestrator writes that
@@ -183,7 +188,9 @@ function toAiInputMessage(m: AiMessage): AiMessageInput {
         ? payload._toolCallMessageId
         : null) ?? m.id;
     const content =
-      payload && "result" in payload ? payload.result : payload ?? m.content ?? null;
+      payload && "result" in payload
+        ? payload.result
+        : (payload ?? m.content ?? null);
     return {
       role: "tool",
       toolCallId: callId,
@@ -216,7 +223,8 @@ function toAiInputMessage(m: AiMessage): AiMessageInput {
 function estimateTokens(system: string, messages: AiMessageInput[]): number {
   let chars = system.length;
   for (const m of messages) {
-    if ("content" in m && typeof m.content === "string") chars += m.content.length;
+    if ("content" in m && typeof m.content === "string")
+      chars += m.content.length;
     if ("content" in m && m.content && typeof m.content !== "string") {
       chars += JSON.stringify(m.content).length;
     }

@@ -1,6 +1,6 @@
-import * as React from 'react';
+import * as React from "react";
 
-import { useCallbackRef } from './use-callback-ref';
+import { useCallbackRef } from "./use-callback-ref";
 
 /**
  * @see https://github.com/radix-ui/primitives/blob/main/packages/react/use-controllable-state/src/useControllableState.tsx
@@ -17,11 +17,11 @@ type SetStateFn<T> = (prevState?: T) => T;
 function useControllableState<T>({
   prop,
   defaultProp,
-  onChange = () => {}
+  onChange = () => {},
 }: UseControllableStateParams<T>) {
   const [uncontrolledProp, setUncontrolledProp] = useUncontrolledState({
     defaultProp,
-    onChange
+    onChange,
   });
   const isControlled = prop !== undefined;
   const value = isControlled ? prop : uncontrolledProp;
@@ -33,13 +33,13 @@ function useControllableState<T>({
         if (isControlled) {
           const setter = nextValue as SetStateFn<T>;
           const value =
-            typeof nextValue === 'function' ? setter(prop) : nextValue;
+            typeof nextValue === "function" ? setter(prop) : nextValue;
           if (value !== prop) handleChange(value as T);
         } else {
           setUncontrolledProp(nextValue);
         }
       },
-      [isControlled, prop, setUncontrolledProp, handleChange]
+      [isControlled, prop, setUncontrolledProp, handleChange],
     );
 
   return [value, setValue] as const;
@@ -47,8 +47,8 @@ function useControllableState<T>({
 
 function useUncontrolledState<T>({
   defaultProp,
-  onChange
-}: Omit<UseControllableStateParams<T>, 'prop'>) {
+  onChange,
+}: Omit<UseControllableStateParams<T>, "prop">) {
   const uncontrolledState = React.useState<T | undefined>(defaultProp);
   const [value] = uncontrolledState;
   const prevValueRef = React.useRef(value);

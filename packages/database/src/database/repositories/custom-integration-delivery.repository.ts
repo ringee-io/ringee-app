@@ -49,7 +49,10 @@ export class CustomIntegrationDeliveryRepository {
     });
   }
 
-  async claimDueBatch(now: Date, batchSize: number): Promise<CustomIntegrationDelivery[]> {
+  async claimDueBatch(
+    now: Date,
+    batchSize: number,
+  ): Promise<CustomIntegrationDelivery[]> {
     const due = await this.prisma.customIntegrationDelivery.findMany({
       where: { status: "pending", nextAttemptAt: { lte: now } },
       orderBy: { nextAttemptAt: "asc" },
@@ -111,7 +114,11 @@ export class CustomIntegrationDeliveryRepository {
 
   list(
     integrationId: string,
-    options: { limit?: number; cursor?: string; status?: CustomIntegrationDeliveryStatus } = {},
+    options: {
+      limit?: number;
+      cursor?: string;
+      status?: CustomIntegrationDeliveryStatus;
+    } = {},
   ): Promise<CustomIntegrationDelivery[]> {
     const limit = Math.min(options.limit ?? 50, 200);
     return this.prisma.customIntegrationDelivery.findMany({

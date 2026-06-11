@@ -46,7 +46,7 @@ export interface SessionCallHandle {
  */
 export function useSessionCall(
   client: TelnyxRTC | null,
-  notification: INotification | null,
+  notification: INotification | null
 ): SessionCallHandle {
   const callRef = useRef<Call | null>(null);
   const [call, setCall] = useState<Call | null>(null);
@@ -63,7 +63,7 @@ export function useSessionCall(
   useEffect(() => {
     if (typeof document === 'undefined') return;
     let el = document.getElementById(
-      'ringee-session-audio',
+      'ringee-session-audio'
     ) as HTMLAudioElement | null;
     if (!el) {
       el = document.createElement('audio');
@@ -131,21 +131,27 @@ export function useSessionCall(
       const callerId = callerIdNumber || '+10000000000';
       const headers = [
         { name: 'From', value: `sip:${callerId}@sip.telnyx.com` },
-        { name: 'P-Asserted-Identity', value: `sip:${callerId}@sip.telnyx.com` },
-        { name: 'P-Preferred-Identity', value: `sip:${callerId}@sip.telnyx.com` },
-        ...customHeaders,
+        {
+          name: 'P-Asserted-Identity',
+          value: `sip:${callerId}@sip.telnyx.com`
+        },
+        {
+          name: 'P-Preferred-Identity',
+          value: `sip:${callerId}@sip.telnyx.com`
+        },
+        ...customHeaders
       ];
       client.newCall({
         callerNumber: callerId,
         destinationNumber,
         audio: true,
         customHeaders: headers,
-        keepConnectionAliveOnSocketClose: true,
+        keepConnectionAliveOnSocketClose: true
       } as Parameters<TelnyxRTC['newCall']>[0]);
       setCallState('dialing');
       setTelnyxSessionId(null);
     },
-    [client],
+    [client]
   );
 
   const hangup = useCallback(async () => {
@@ -199,7 +205,7 @@ export function useSessionCall(
     async ({
       sessionId,
       itemId,
-      token,
+      token
     }: {
       sessionId: string;
       itemId: string;
@@ -225,7 +231,7 @@ export function useSessionCall(
         setIsRecordingLoading(false);
       }
     },
-    [isRecording, recordingId],
+    [isRecording, recordingId]
   );
 
   const sendDTMF = useCallback((digit: string) => {
@@ -252,6 +258,6 @@ export function useSessionCall(
     toggleMute,
     toggleHold,
     toggleRecording,
-    sendDTMF,
+    sendDTMF
   };
 }

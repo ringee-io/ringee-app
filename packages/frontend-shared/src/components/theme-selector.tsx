@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import { useThemeConfig } from './active-theme';
-import { Label } from './ui/label';
+import { useThemeConfig } from "./active-theme";
+import { Label } from "./ui/label";
 import {
   Select,
   SelectContent,
@@ -10,9 +10,9 @@ import {
   SelectLabel,
   // SelectSeparator,
   SelectTrigger,
-  SelectValue
-} from './ui/select';
-import { useTranslations } from 'next-intl';
+  SelectValue,
+} from "./ui/select";
+import { useTranslations } from "next-intl";
 
 // const DEFAULT_THEMES = [
 //   {
@@ -35,9 +35,9 @@ import { useTranslations } from 'next-intl';
 
 const SCALED_THEMES = [
   {
-    name: 'Default',
-    value: 'default-scaled'
-  }
+    name: "Default",
+    value: "default-scaled",
+  },
   // {
   //   name: 'Blue',
   //   value: 'blue-scaled'
@@ -46,32 +46,34 @@ const SCALED_THEMES = [
 
 const MONO_THEMES = [
   {
-    name: 'Mono',
-    value: 'mono-scaled'
-  }
+    name: "Mono",
+    value: "mono-scaled",
+  },
 ];
 
 export function ThemeSelector() {
   const { activeTheme, setActiveTheme } = useThemeConfig();
-  const t = useTranslations('common');
+  const t = useTranslations("common");
 
   return (
-    <div className='flex items-center gap-2'>
-      <Label htmlFor='theme-selector' className='sr-only'>
-        {t('theme')}
+    <div className="flex items-center gap-2">
+      <Label htmlFor="theme-selector" className="sr-only">
+        {t("theme")}
       </Label>
       <Select value={activeTheme} onValueChange={setActiveTheme}>
         <SelectTrigger
-          id='theme-selector'
-          className='justify-start *:data-[slot=select-value]:w-12'
+          id="theme-selector"
+          className="justify-start *:data-[slot=select-value]:w-12"
         >
-          <span className='text-muted-foreground hidden sm:block'>
-            {t('selectTheme')}
+          <span className="text-muted-foreground hidden sm:block">
+            {t("selectTheme")}
           </span>
-          <span className='text-muted-foreground block sm:hidden'>{t('theme')}</span>
-          <SelectValue placeholder={t('selectThemePlaceholder')} />
+          <span className="text-muted-foreground block sm:hidden">
+            {t("theme")}
+          </span>
+          <SelectValue placeholder={t("selectThemePlaceholder")} />
         </SelectTrigger>
-        <SelectContent align='end'>
+        <SelectContent align="end">
           {/* <SelectGroup>
             <SelectLabel>Default</SelectLabel>
             {DEFAULT_THEMES.map((theme) => (

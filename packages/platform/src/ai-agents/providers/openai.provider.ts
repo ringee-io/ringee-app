@@ -12,8 +12,7 @@ import type {
   AiUsage,
 } from "../types";
 
-type ChatMessage =
-  OpenAI.Chat.Completions.ChatCompletionMessageParam;
+type ChatMessage = OpenAI.Chat.Completions.ChatCompletionMessageParam;
 
 @Injectable()
 export class OpenAiProvider implements AiProvider {
@@ -72,9 +71,7 @@ export class OpenAiProvider implements AiProvider {
     let finishReason: AiStreamEvent extends { type: "completed" }
       ? "stop" | "tool_calls" | "length" | "error" | "cancelled"
       : never = "stop" as never;
-    let usage:
-      | OpenAI.Completions.CompletionUsage
-      | undefined;
+    let usage: OpenAI.Completions.CompletionUsage | undefined;
 
     try {
       for await (const chunk of stream) {
@@ -224,7 +221,9 @@ function toOpenAiMessage(m: AiMessageInput): ChatMessage {
   };
 }
 
-function toOpenAiTool(t: AiToolDefinition): OpenAI.Chat.Completions.ChatCompletionTool {
+function toOpenAiTool(
+  t: AiToolDefinition,
+): OpenAI.Chat.Completions.ChatCompletionTool {
   return {
     type: "function",
     function: {

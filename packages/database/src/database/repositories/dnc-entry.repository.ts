@@ -61,17 +61,14 @@ export class DNCEntryRepository {
 
   async findByPhone(
     owner: DNCOwnerScope,
-    phoneNumber: string
+    phoneNumber: string,
   ): Promise<DNCEntry | null> {
     return this.prisma.dNCEntry.findFirst({
       where: { ...this.ownerWhere(owner), phoneNumber },
     });
   }
 
-  async isOnDNC(
-    owner: DNCOwnerScope,
-    phoneNumber: string
-  ): Promise<boolean> {
+  async isOnDNC(owner: DNCOwnerScope, phoneNumber: string): Promise<boolean> {
     const count = await this.prisma.dNCEntry.count({
       where: { ...this.ownerWhere(owner), phoneNumber },
     });
@@ -80,7 +77,7 @@ export class DNCEntryRepository {
 
   async listForOwner(
     owner: DNCOwnerScope,
-    options?: { search?: string; page?: number; limit?: number }
+    options?: { search?: string; page?: number; limit?: number },
   ): Promise<{
     data: DNCEntry[];
     meta: { total: number; page: number; limit: number; totalPages: number };
@@ -112,7 +109,7 @@ export class DNCEntryRepository {
 
   async deleteByPhone(
     owner: DNCOwnerScope,
-    phoneNumber: string
+    phoneNumber: string,
   ): Promise<number> {
     const result = await this.prisma.dNCEntry.deleteMany({
       where: { ...this.ownerWhere(owner), phoneNumber },

@@ -17,18 +17,23 @@ export class CustomIntegrationContactLinkRepository {
     rawSnapshot?: Record<string, unknown> | null;
     clearArchived?: boolean;
   }): Promise<CustomIntegrationContactLink> {
-    const { integrationId, externalId, contactId, rawSnapshot, clearArchived } = input;
+    const { integrationId, externalId, contactId, rawSnapshot, clearArchived } =
+      input;
     return this.prisma.customIntegrationContactLink.upsert({
       where: { integrationId_externalId: { integrationId, externalId } },
       create: {
         integrationId,
         externalId,
         contactId,
-        rawSnapshot: (rawSnapshot ?? undefined) as Prisma.InputJsonValue | undefined,
+        rawSnapshot: (rawSnapshot ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
       },
       update: {
         contactId,
-        rawSnapshot: (rawSnapshot ?? undefined) as Prisma.InputJsonValue | undefined,
+        rawSnapshot: (rawSnapshot ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
         archivedAt: clearArchived ? null : undefined,
       },
     });
@@ -62,18 +67,23 @@ export class CustomIntegrationCompanyLinkRepository {
     rawSnapshot?: Record<string, unknown> | null;
     clearArchived?: boolean;
   }): Promise<CustomIntegrationCompanyLink> {
-    const { integrationId, externalId, companyId, rawSnapshot, clearArchived } = input;
+    const { integrationId, externalId, companyId, rawSnapshot, clearArchived } =
+      input;
     return this.prisma.customIntegrationCompanyLink.upsert({
       where: { integrationId_externalId: { integrationId, externalId } },
       create: {
         integrationId,
         externalId,
         companyId,
-        rawSnapshot: (rawSnapshot ?? undefined) as Prisma.InputJsonValue | undefined,
+        rawSnapshot: (rawSnapshot ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
       },
       update: {
         companyId,
-        rawSnapshot: (rawSnapshot ?? undefined) as Prisma.InputJsonValue | undefined,
+        rawSnapshot: (rawSnapshot ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
         archivedAt: clearArchived ? null : undefined,
       },
     });

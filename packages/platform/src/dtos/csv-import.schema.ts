@@ -30,7 +30,7 @@ export const OPTIONAL_CSV_FIELDS: CsvFieldName[] = Object.entries(CSV_FIELDS)
   .map(([field]) => field as CsvFieldName);
 
 export const ALL_CSV_FIELDS: CsvFieldName[] = Object.keys(
-  CSV_FIELDS
+  CSV_FIELDS,
 ) as CsvFieldName[];
 
 // Import row types
@@ -61,18 +61,20 @@ export interface CsvImportResult {
 }
 
 // Validation helpers
-export function validateCsvHeaders(
-  headers: string[]
-): { valid: boolean; missingRequired: string[]; unknownHeaders: string[] } {
+export function validateCsvHeaders(headers: string[]): {
+  valid: boolean;
+  missingRequired: string[];
+  unknownHeaders: string[];
+} {
   const normalizedHeaders = headers.map((h) => h.trim().toLowerCase());
   const validFields = ALL_CSV_FIELDS.map((f) => f.toLowerCase());
 
   const missingRequired = REQUIRED_CSV_FIELDS.filter(
-    (field) => !normalizedHeaders.includes(field.toLowerCase())
+    (field) => !normalizedHeaders.includes(field.toLowerCase()),
   );
 
   const unknownHeaders = headers.filter(
-    (h) => !validFields.includes(h.trim().toLowerCase())
+    (h) => !validFields.includes(h.trim().toLowerCase()),
   );
 
   return {
@@ -84,7 +86,7 @@ export function validateCsvHeaders(
 
 export function validateCsvRow(
   row: Record<string, string>,
-  rowIndex: number
+  rowIndex: number,
 ): { valid: boolean; data?: CsvContactRow; errors: CsvRowError[] } {
   const errors: CsvRowError[] = [];
 

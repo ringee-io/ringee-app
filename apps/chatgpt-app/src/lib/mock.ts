@@ -304,13 +304,18 @@ export const mockCalls: ListCallsResult = {
       fromNumber: "+14155550100",
       toNumber: "+14155552671",
       startedAt: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
-      answeredAt: new Date(Date.now() - 1000 * 60 * 60 * 26 + 8000).toISOString(),
-      endedAt: new Date(Date.now() - 1000 * 60 * 60 * 26 + 200000).toISOString(),
+      answeredAt: new Date(
+        Date.now() - 1000 * 60 * 60 * 26 + 8000,
+      ).toISOString(),
+      endedAt: new Date(
+        Date.now() - 1000 * 60 * 60 * 26 + 200000,
+      ).toISOString(),
       createdAt: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
       durationSeconds: 192,
       duration: "3:12",
       outcome: "meeting_booked",
-      outcomeNote: "Booked a 30-min demo for Thursday. Send the deck beforehand.",
+      outcomeNote:
+        "Booked a 30-min demo for Thursday. Send the deck beforehand.",
       contact: {
         id: "c1",
         name: "Jordan Rivera",
@@ -363,7 +368,9 @@ export const mockCalls: ListCallsResult = {
       fromNumber: "+13125550144",
       toNumber: "+14155550100",
       startedAt: new Date(Date.now() - 1000 * 60 * 60 * 50).toISOString(),
-      answeredAt: new Date(Date.now() - 1000 * 60 * 60 * 50 + 4000).toISOString(),
+      answeredAt: new Date(
+        Date.now() - 1000 * 60 * 60 * 50 + 4000,
+      ).toISOString(),
       endedAt: new Date(Date.now() - 1000 * 60 * 60 * 50 + 95000).toISOString(),
       createdAt: new Date(Date.now() - 1000 * 60 * 60 * 50).toISOString(),
       durationSeconds: 91,

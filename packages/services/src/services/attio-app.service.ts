@@ -67,7 +67,9 @@ export class AttioAppService {
 
   validateToken(token: string): AttioAppContext {
     try {
-      const payload = this.crypto.decrypt(token) as unknown as AttioAppTokenPayload;
+      const payload = this.crypto.decrypt(
+        token,
+      ) as unknown as AttioAppTokenPayload;
       if (payload.v !== 1 || !payload.userId) {
         throw new UnauthorizedException("Invalid integration token");
       }
@@ -172,12 +174,12 @@ export class AttioAppService {
         select: { id: true, phoneNumber: true, verified: true, status: true },
       }),
       this.prisma.numberPurchased.findMany({
-        where: { 
-          ...ownerFilter, 
-              status: {
-                in: ["active", "assigned"],
-              },
-         },
+        where: {
+          ...ownerFilter,
+          status: {
+            in: ["active", "assigned"],
+          },
+        },
         select: { id: true, phoneNumber: true, status: true },
       }),
     ]);
@@ -216,7 +218,8 @@ export class AttioAppService {
     },
   ): CallSessionResult {
     const frontendUrl =
-      (apiConfiguration.FRONTEND_URL as string | undefined) ?? "http://localhost:4200";
+      (apiConfiguration.FRONTEND_URL as string | undefined) ??
+      "http://localhost:4200";
 
     const expiresAt = Date.now() + 5 * 60 * 1000;
     const sessionPayload = {
@@ -258,7 +261,10 @@ export class AttioAppService {
     fromNumber: string;
   } {
     try {
-      const payload = this.crypto.decrypt(sessionToken) as Record<string, unknown>;
+      const payload = this.crypto.decrypt(sessionToken) as Record<
+        string,
+        unknown
+      >;
       if (
         payload.type !== "attio_call_session" ||
         !payload.userId ||
@@ -267,7 +273,10 @@ export class AttioAppService {
       ) {
         throw new UnauthorizedException("Invalid call session");
       }
-      if (typeof payload.expiresAt === "number" && payload.expiresAt < Date.now()) {
+      if (
+        typeof payload.expiresAt === "number" &&
+        payload.expiresAt < Date.now()
+      ) {
         throw new UnauthorizedException("Call session expired");
       }
       return {

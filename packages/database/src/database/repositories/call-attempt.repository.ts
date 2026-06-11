@@ -1,10 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
-import {
-  CallAttempt,
-  CallAttemptStatus,
-  Prisma,
-} from "@prisma/client";
+import { CallAttempt, CallAttemptStatus, Prisma } from "@prisma/client";
 
 export interface CallAttemptWithRelations extends CallAttempt {
   campaignLead: {
@@ -54,7 +50,7 @@ export class CallAttemptRepository {
   }
 
   async findByIdWithRelations(
-    id: string
+    id: string,
   ): Promise<CallAttemptWithRelations | null> {
     return this.prisma.callAttempt.findFirst({
       where: { id },
@@ -96,9 +92,13 @@ export class CallAttemptRepository {
     extra?: Partial<
       Pick<
         CallAttempt,
-        "ringStartedAt" | "answeredAt" | "endedAt" | "hangupCause" | "durationSec"
+        | "ringStartedAt"
+        | "answeredAt"
+        | "endedAt"
+        | "hangupCause"
+        | "durationSec"
       >
-    >
+    >,
   ): Promise<CallAttempt> {
     return this.prisma.callAttempt.update({
       where: { id },
@@ -116,7 +116,7 @@ export class CallAttemptRepository {
       dispositionId: string;
       dispositionCode: string;
       dispositionNote?: string;
-    }
+    },
   ): Promise<CallAttempt | null> {
     const result = await this.prisma.callAttempt.updateMany({
       where: { id: attemptId, status: CallAttemptStatus.ended },

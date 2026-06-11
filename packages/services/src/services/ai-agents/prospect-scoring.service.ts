@@ -30,7 +30,10 @@ export interface ScoredProspect {
  */
 @Injectable()
 export class ProspectScoringService {
-  score(candidate: LeadCandidate, signals: BuyerSignals | null): ScoredProspect {
+  score(
+    candidate: LeadCandidate,
+    signals: BuyerSignals | null,
+  ): ScoredProspect {
     const reasons: string[] = [];
     let score = 0;
 
@@ -51,7 +54,9 @@ export class ProspectScoringService {
       const hit = signals?.titles.find((t) => titleLc.includes(t));
       if (hit) {
         score += 25;
-        reasons.push(`Title matches past winners: "${candidate.person.jobTitle}"`);
+        reasons.push(
+          `Title matches past winners: "${candidate.person.jobTitle}"`,
+        );
       }
     }
 
@@ -73,7 +78,9 @@ export class ProspectScoringService {
     // Geography fit
     if (countryLc && signals?.countries.includes(countryLc)) {
       score += 10;
-      reasons.push(`Located in ${candidate.person.location?.country ?? countryLc} — a known winning market`);
+      reasons.push(
+        `Located in ${candidate.person.location?.country ?? countryLc} — a known winning market`,
+      );
     }
 
     // Size fit
@@ -100,7 +107,9 @@ export class ProspectScoringService {
     if (typeof candidate.confidence === "number") {
       score += Math.round(candidate.confidence * 5);
       if (candidate.confidence > 0.8) {
-        reasons.push(`High provider confidence (${Math.round(candidate.confidence * 100)}%)`);
+        reasons.push(
+          `High provider confidence (${Math.round(candidate.confidence * 100)}%)`,
+        );
       }
     }
 

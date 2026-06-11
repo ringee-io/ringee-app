@@ -45,14 +45,18 @@ export class ContactAffiliationRepository {
         isPrimary: input.isPrimary ?? false,
         startDate: input.startDate ?? null,
         endDate: input.endDate ?? null,
-        crmMetadata: (input.crmMetadata ?? undefined) as Prisma.InputJsonValue | undefined,
+        crmMetadata: (input.crmMetadata ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
       },
       update: {
         role: input.role ?? undefined,
         isPrimary: input.isPrimary ?? undefined,
         startDate: input.startDate ?? undefined,
         endDate: input.endDate ?? undefined,
-        crmMetadata: (input.crmMetadata ?? undefined) as Prisma.InputJsonValue | undefined,
+        crmMetadata: (input.crmMetadata ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
       },
     });
   }
@@ -61,7 +65,10 @@ export class ContactAffiliationRepository {
     return this.prisma.contactAffiliation.delete({ where: { id } });
   }
 
-  removeByContactAndCompany(contactId: string, companyId: string): Promise<ContactAffiliation> {
+  removeByContactAndCompany(
+    contactId: string,
+    companyId: string,
+  ): Promise<ContactAffiliation> {
     return this.prisma.contactAffiliation.delete({
       where: { contactId_companyId: { contactId, companyId } },
     });

@@ -13,7 +13,7 @@ export class ClerkUserRepository {
       publicMetadata?: Record<string, any>;
       privateMetadata?: Record<string, any>;
       unsafeMetadata?: Record<string, any>;
-    }
+    },
   ) {
     return clerkClient.users.updateUser(clerkUserId, metadata);
   }

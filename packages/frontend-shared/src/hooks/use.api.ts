@@ -1,8 +1,8 @@
-'use client';
+"use client";
 
-import { useMemo } from 'react';
-import { useAuth } from '@clerk/nextjs';
-import { ApiClient } from '../lib/api';
+import { useMemo } from "react";
+import { useAuth } from "@clerk/nextjs";
+import { ApiClient } from "../lib/api";
 
 export function useApi() {
   const { getToken } = useAuth();
@@ -14,13 +14,13 @@ export function useApi() {
       },
       mockDelayMs: 10,
       mocks: {
-        '/credits/balance': async () => {
+        "/credits/balance": async () => {
           return {
             balance: 146,
-            freeCallTrial: false
+            freeCallTrial: false,
           };
-        }
-      }
+        },
+      },
     });
   }, [getToken]);
 }

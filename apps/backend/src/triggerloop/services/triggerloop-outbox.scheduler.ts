@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleInit, OnModuleDestroy } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  OnModuleInit,
+  OnModuleDestroy,
+} from "@nestjs/common";
 import { TriggerLoopOutboxService } from "./triggerloop-outbox.service";
 
 const DRAIN_INTERVAL_MS = 15_000;
@@ -11,7 +16,9 @@ const BATCH_SIZE = 50;
  * without changing the service it calls.
  */
 @Injectable()
-export class TriggerLoopOutboxScheduler implements OnModuleInit, OnModuleDestroy {
+export class TriggerLoopOutboxScheduler
+  implements OnModuleInit, OnModuleDestroy
+{
   private readonly logger = new Logger(TriggerLoopOutboxScheduler.name);
   private timer: NodeJS.Timeout | null = null;
   private draining = false;

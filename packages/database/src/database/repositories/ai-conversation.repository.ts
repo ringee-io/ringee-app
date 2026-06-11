@@ -1,9 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import {
-  AiAgentType,
-  AiConversation,
-  Prisma,
-} from "@prisma/client";
+import { AiAgentType, AiConversation, Prisma } from "@prisma/client";
 import { PrismaService } from "../prisma.service";
 
 @Injectable()
@@ -23,9 +19,7 @@ export class AiConversationRepository {
         organizationId: input.organizationId ?? null,
         agent: input.agent,
         title: input.title ?? null,
-        ...(input.agentState != null
-          ? { agentState: input.agentState }
-          : {}),
+        ...(input.agentState != null ? { agentState: input.agentState } : {}),
       },
     });
   }
@@ -100,7 +94,10 @@ export class AiConversationRepository {
     });
   }
 
-  touchLastMessageAt(id: string, at: Date = new Date()): Promise<AiConversation> {
+  touchLastMessageAt(
+    id: string,
+    at: Date = new Date(),
+  ): Promise<AiConversation> {
     return this.prisma.aiConversation.update({
       where: { id },
       data: { lastMessageAt: at },

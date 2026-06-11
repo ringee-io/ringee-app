@@ -44,7 +44,7 @@ export class RetryRuleRepository {
 
   async findByCampaignAndCategory(
     campaignId: string,
-    dispositionCategory: DispositionCategory
+    dispositionCategory: DispositionCategory,
   ): Promise<RetryRule | null> {
     return this.prisma.retryRule.findUnique({
       where: {

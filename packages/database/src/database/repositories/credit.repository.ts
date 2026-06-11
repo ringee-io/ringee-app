@@ -5,7 +5,7 @@ import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
 
 @Injectable()
 export class CreditRepository {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async getOrCreateCredit(ctx: OwnershipContext): Promise<Credit> {
     const ownershipFilter = buildOwnershipFilter(ctx);
@@ -17,7 +17,9 @@ export class CreditRepository {
       credit = await this.prisma.credit.create({
         data: {
           amount: 0,
-          user: ctx.organizationId ? undefined : { connect: { id: ctx.userId } },
+          user: ctx.organizationId
+            ? undefined
+            : { connect: { id: ctx.userId } },
           organization: ctx.organizationId
             ? { connect: { id: ctx.organizationId } }
             : undefined,
@@ -39,9 +41,9 @@ export class CreditRepository {
         amount: newBalance,
         ...(amount > 0
           ? {
-            lastPurchaseDate: new Date(),
-            lastPurchaseAmount: existing.amount,
-          }
+              lastPurchaseDate: new Date(),
+              lastPurchaseAmount: existing.amount,
+            }
           : {}),
       },
     });

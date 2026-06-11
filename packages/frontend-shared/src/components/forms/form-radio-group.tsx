@@ -1,29 +1,29 @@
-'use client';
+"use client";
 
-import { FieldPath, FieldValues } from 'react-hook-form';
+import { FieldPath, FieldValues } from "react-hook-form";
 import {
   FormControl,
   FormDescription,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
-} from '../ui/form';
-import { RadioGroup, RadioGroupItem } from '../ui/radio-group';
-import { Label } from '../ui/label';
-import { BaseFormFieldProps, RadioGroupOption } from '../../types/base-form';
+  FormMessage,
+} from "../ui/form";
+import { RadioGroup, RadioGroupItem } from "../ui/radio-group";
+import { Label } from "../ui/label";
+import { BaseFormFieldProps, RadioGroupOption } from "../../types/base-form";
 
 interface FormRadioGroupProps<
   TFieldValues extends FieldValues = FieldValues,
-  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 > extends BaseFormFieldProps<TFieldValues, TName> {
   options: RadioGroupOption[];
-  orientation?: 'horizontal' | 'vertical';
+  orientation?: "horizontal" | "vertical";
 }
 
 function FormRadioGroup<
   TFieldValues extends FieldValues = FieldValues,
-  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 >({
   control,
   name,
@@ -31,9 +31,9 @@ function FormRadioGroup<
   description,
   required,
   options,
-  orientation = 'vertical',
+  orientation = "vertical",
   disabled,
-  className
+  className,
 }: FormRadioGroupProps<TFieldValues, TName>) {
   return (
     <FormField
@@ -44,7 +44,7 @@ function FormRadioGroup<
           {label && (
             <FormLabel>
               {label}
-              {required && <span className='ml-1 text-red-500'>*</span>}
+              {required && <span className="ml-1 text-red-500">*</span>}
             </FormLabel>
           )}
           {description && <FormDescription>{description}</FormDescription>}
@@ -54,13 +54,13 @@ function FormRadioGroup<
               value={field.value}
               disabled={disabled}
               className={
-                orientation === 'horizontal'
-                  ? 'flex flex-row space-x-6'
-                  : 'space-y-2'
+                orientation === "horizontal"
+                  ? "flex flex-row space-x-6"
+                  : "space-y-2"
               }
             >
               {options.map((option) => (
-                <div key={option.value} className='flex items-center space-x-2'>
+                <div key={option.value} className="flex items-center space-x-2">
                   <RadioGroupItem
                     value={option.value}
                     id={`${name}-${option.value}`}
@@ -68,7 +68,7 @@ function FormRadioGroup<
                   />
                   <Label
                     htmlFor={`${name}-${option.value}`}
-                    className='text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70'
+                    className="text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                   >
                     {option.label}
                   </Label>

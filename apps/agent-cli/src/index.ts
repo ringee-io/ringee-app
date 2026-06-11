@@ -21,8 +21,8 @@ program
     "after",
     `\nExamples:\n` +
       `  ${c.dim("ringee contacts search acme")}\n` +
-      `  ${c.dim("ringee leads search --title \"VP Sales\" --country US")}\n` +
-      `  ${c.dim("ringee sessions create --contact <id> --title \"Tue outbound\" --yes")}\n` +
+      `  ${c.dim('ringee leads search --title "VP Sales" --country US')}\n` +
+      `  ${c.dim('ringee sessions create --contact <id> --title "Tue outbound" --yes')}\n` +
       `  ${c.dim("ringee config check")}\n\n` +
       `Configure with RINGEE_MCP_URL (or RINGEE_BACKEND_URL + RINGEE_USER_ID).`,
   );

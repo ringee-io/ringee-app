@@ -23,8 +23,7 @@ export class WellKnownController {
   @Public()
   @Get(".well-known/openai-apps-challenge")
   openaiAppsChallenge(@Res() res: Response): void {
-    const token =
-      process.env.OPENAI_APPS_CHALLENGE_TOKEN;
+    const token = process.env.OPENAI_APPS_CHALLENGE_TOKEN;
 
     res.type("text/plain").send(token);
   }

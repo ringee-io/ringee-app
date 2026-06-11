@@ -64,7 +64,12 @@ export type ProspeoSearchPersonFilters = {
   company_industry?: { include?: string[]; exclude?: string[] };
   company_location_search?: { include?: string[]; exclude?: string[] };
   company_headcount_range?: string[];
-  company_funding?: { stage?: string[]; funding_date?: number; last_funding?: { min?: string; max?: string }; total_funding?: { min?: string; max?: string } };
+  company_funding?: {
+    stage?: string[];
+    funding_date?: number;
+    last_funding?: { min?: string; max?: string };
+    total_funding?: { min?: string; max?: string };
+  };
   company_technology?: { include?: string[]; exclude?: string[] };
   company_email_provider?: { include?: string[]; exclude?: string[] };
   person_seniority?: { include?: string[]; exclude?: string[] };

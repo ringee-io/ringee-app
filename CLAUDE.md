@@ -12,7 +12,7 @@ pnpm workspaces monorepo (`pnpm@10.16.1`). Two workspace roots: `apps/*` and `pa
 
 **Apps:**
 - `apps/backend` — NestJS REST API (port 3000), global prefix `/api`, Clerk auth guard
-- `apps/worker` — NestJS background job processor (shares same packages)
+- `apps/orchestrator` — Temporal worker (durable background jobs + schedules; NestJS app context for DI)
 - `apps/frontend` — Next.js 15 B2B admin dashboard (port 4200, React 19, App Router)
 
 **Packages (shared libraries):**
@@ -28,7 +28,7 @@ pnpm workspaces monorepo (`pnpm@10.16.1`). Two workspace roots: `apps/*` and `pa
 # Install dependencies
 pnpm install
 
-# Start infrastructure (PostgreSQL 17 + Redis 7.4)
+# Start infrastructure (PostgreSQL 17 + Redis 7.4 + Temporal + Temporal UI on :8080)
 docker-compose up -d
 
 # Run database migrations
@@ -43,7 +43,7 @@ pnpm dev
 # Individual app dev
 pnpm dev:backend          # NestJS watch mode with .env from root
 pnpm dev:frontend         # Next.js on :4200
-pnpm dev:worker           # Worker watch mode
+pnpm dev:orchestrator     # Temporal worker watch mode
 
 # Build
 pnpm build                # Build all packages and apps
@@ -62,6 +62,8 @@ pnpm start:frontend       # next start --port 4200
 ## Architecture Details
 
 **Request flow:** Frontend (Next.js) -> `/api/*` (NestJS backend) -> `@ringee/services` (domain logic) -> `@ringee/database` (Prisma/PostgreSQL). Platform modules (`@ringee/platform`) provide cross-cutting concerns injected via NestJS DI.
+
+**Background jobs (Temporal):** The backend starts durable workflows via `OrchestratorService` (`packages/platform/src/temporal/`); `apps/orchestrator` runs the Temporal Worker that executes them (activities delegate to `@ringee/services`) and owns the periodic Schedules (drains, retry/callback/reminder pollers). Workflow names/inputs are shared via `packages/platform/src/temporal/contracts.ts` (zero-import file; workflows.ts may only use type-only imports). Config: `TEMPORAL_ADDRESS`/`TEMPORAL_NAMESPACE`/`TEMPORAL_TASK_QUEUE`.
 
 **Backend API:** Controllers in `apps/backend/src/api/routes/` delegate to services in `packages/services/src/services/`. Global Clerk auth middleware + `ClerkAuthGuard` protect all routes. Raw body parsing enabled for `/webhooks/clerk` (Clerk webhook verification). CORS configured for frontend origins.
 

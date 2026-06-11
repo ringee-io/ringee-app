@@ -1,13 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { CampaignLeadRepository, CampaignLeadWithContact } from "@ringee/database";
+import {
+  CampaignLeadRepository,
+  CampaignLeadWithContact,
+} from "@ringee/database";
 
 @Injectable()
 export class LeadQueueService {
   private readonly logger = new Logger(LeadQueueService.name);
 
-  constructor(
-    private readonly campaignLeadRepo: CampaignLeadRepository
-  ) {}
+  constructor(private readonly campaignLeadRepo: CampaignLeadRepository) {}
 
   /**
    * Select and atomically lock the next eligible lead for a campaign.
@@ -17,18 +18,18 @@ export class LeadQueueService {
     campaignId: string,
     agentSessionId: string,
     maxAttempts: number,
-    organizationId: string
+    organizationId: string,
   ): Promise<CampaignLeadWithContact | null> {
     const lead = await this.campaignLeadRepo.lockNextLead(
       campaignId,
       agentSessionId,
       maxAttempts,
-      organizationId
+      organizationId,
     );
 
     if (lead) {
       this.logger.debug(
-        `Locked lead ${lead.id} (contact: ${lead.contact.phoneNumber}) for session ${agentSessionId}`
+        `Locked lead ${lead.id} (contact: ${lead.contact.phoneNumber}) for session ${agentSessionId}`,
       );
     }
 

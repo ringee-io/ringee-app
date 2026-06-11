@@ -101,15 +101,12 @@ export function useCallTranscription(
 
   const stopRealtime = useCallback(
     () =>
-      runAction(() =>
-        api.post(`/transcription/calls/${callId}/realtime/stop`)
-      ),
+      runAction(() => api.post(`/transcription/calls/${callId}/realtime/stop`)),
     [api, callId, runAction]
   );
 
   const transcribeRecording = useCallback(
-    () =>
-      runAction(() => api.post(`/transcription/calls/${callId}/recording`)),
+    () => runAction(() => api.post(`/transcription/calls/${callId}/recording`)),
     [api, callId, runAction]
   );
 

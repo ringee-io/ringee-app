@@ -56,7 +56,7 @@ export class CampaignConfigService {
     private readonly dispositionRepo: DispositionRepository,
     private readonly numberPurchasedRepo: NumberPurchasedRepository,
     private readonly dispositionService: DispositionService,
-    private readonly leadQueueService: LeadQueueService
+    private readonly leadQueueService: LeadQueueService,
   ) {}
 
   private ensureOrganization(ctx: OwnershipContext): void {
@@ -71,7 +71,7 @@ export class CampaignConfigService {
    */
   private async ensureNumberPurchasedOwnership(
     ctx: OwnershipContext,
-    numberPurchasedId?: string | null
+    numberPurchasedId?: string | null,
   ): Promise<void> {
     if (!numberPurchasedId) return;
     const number = await this.numberPurchasedRepo.findById(numberPurchasedId);
@@ -79,7 +79,9 @@ export class CampaignConfigService {
       throw new NotFoundException("Phone number not found");
     }
     if (number.organizationId !== ctx.organizationId) {
-      throw new ForbiddenException("Phone number does not belong to your organization");
+      throw new ForbiddenException(
+        "Phone number does not belong to your organization",
+      );
     }
   }
 
@@ -94,7 +96,7 @@ export class CampaignConfigService {
 
   async createCampaign(
     ctx: OwnershipContext,
-    dto: CreateCampaignFullDto
+    dto: CreateCampaignFullDto,
   ): Promise<Campaign> {
     this.ensureOrganization(ctx);
     await this.ensureNumberPurchasedOwnership(ctx, dto.numberPurchasedId);
@@ -102,7 +104,7 @@ export class CampaignConfigService {
     const campaign = await this.campaignRepo.create(
       ctx.userId,
       ctx.organizationId!,
-      { name: dto.name, description: dto.description }
+      { name: dto.name, description: dto.description },
     );
 
     // Apply additional settings if provided
@@ -131,7 +133,7 @@ export class CampaignConfigService {
   async updateSettings(
     ctx: OwnershipContext,
     campaignId: string,
-    dto: UpdateCampaignSettingsDto
+    dto: UpdateCampaignSettingsDto,
   ): Promise<Campaign> {
     this.ensureOrganization(ctx);
     const campaign = await this.getCampaignWithAuth(ctx, campaignId);
@@ -154,11 +156,11 @@ export class CampaignConfigService {
       ];
       const attemptedChanges = Object.keys(dto);
       const disallowed = attemptedChanges.filter(
-        (k) => !allowedWhileActive.includes(k) && (dto as any)[k] !== undefined
+        (k) => !allowedWhileActive.includes(k) && (dto as any)[k] !== undefined,
       );
       if (disallowed.length > 0) {
         throw new BadRequestException(
-          `Cannot change ${disallowed.join(", ")} while campaign is active`
+          `Cannot change ${disallowed.join(", ")} while campaign is active`,
         );
       }
     }
@@ -172,7 +174,7 @@ export class CampaignConfigService {
   async transitionStatus(
     ctx: OwnershipContext,
     campaignId: string,
-    newStatus: string
+    newStatus: string,
   ): Promise<Campaign> {
     this.ensureOrganization(ctx);
     const campaign = await this.getCampaignWithAuth(ctx, campaignId);
@@ -188,7 +190,7 @@ export class CampaignConfigService {
     const allowed = validTransitions[campaign.status] || [];
     if (!allowed.includes(newStatus)) {
       throw new BadRequestException(
-        `Cannot transition from ${campaign.status} to ${newStatus}`
+        `Cannot transition from ${campaign.status} to ${newStatus}`,
       );
     }
 
@@ -197,16 +199,15 @@ export class CampaignConfigService {
       const leadCount = campaign._count?.leads ?? 0;
       if (leadCount === 0) {
         throw new BadRequestException(
-          "Campaign must have at least 1 lead to activate"
+          "Campaign must have at least 1 lead to activate",
         );
       }
 
-      const dispositions = await this.dispositionRepo.findByCampaign(
-        campaignId
-      );
+      const dispositions =
+        await this.dispositionRepo.findByCampaign(campaignId);
       if (dispositions.length === 0) {
         throw new BadRequestException(
-          "Campaign must have at least 1 disposition configured"
+          "Campaign must have at least 1 disposition configured",
         );
       }
 
@@ -221,7 +222,7 @@ export class CampaignConfigService {
         });
         if (!purchasedNumber) {
           throw new BadRequestException(
-            "Campaign must have a phone number or caller ID to dial from"
+            "Campaign must have a phone number or caller ID to dial from",
           );
         }
       }
@@ -248,7 +249,7 @@ export class CampaignConfigService {
   async createList(
     ctx: OwnershipContext,
     campaignId: string,
-    data: { name: string; description?: string; source?: string }
+    data: { name: string; description?: string; source?: string },
   ) {
     this.ensureOrganization(ctx);
     await this.getCampaignWithAuth(ctx, campaignId);

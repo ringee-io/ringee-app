@@ -117,10 +117,13 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
     | string
     | undefined;
   const transcriptionCallId = useCallIdBySession(telnyxSessionId);
-  const { data: transcriptionData } = useCallTranscription(transcriptionCallId, {
-    live: isInCall,
-    enabled: isInCall
-  });
+  const { data: transcriptionData } = useCallTranscription(
+    transcriptionCallId,
+    {
+      live: isInCall,
+      enabled: isInCall
+    }
+  );
 
   // Attach the remote audio stream
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -202,7 +205,10 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
         onOpenChange={setTranscriptDialogOpen}
         callId={transcriptionCallId}
       />
-      <CallSubtitles data={transcriptionData} show={isInCall && showSubtitles} />
+      <CallSubtitles
+        data={transcriptionData}
+        show={isInCall && showSubtitles}
+      />
 
       {/* Call duration / status */}
       <div className='text-center'>

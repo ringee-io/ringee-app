@@ -33,7 +33,7 @@ export class ContactController {
   constructor(
     private readonly contactService: ContactService,
     private readonly triggerLoop: TriggerLoopEventPublisher,
-  ) { }
+  ) {}
 
   @Post()
   async createContact(
@@ -55,7 +55,7 @@ export class ContactController {
           cb(null, true);
         }
       },
-    })
+    }),
   )
   async importContacts(
     @UploadedFile() file: { buffer: Buffer; originalname: string },
@@ -68,17 +68,20 @@ export class ContactController {
 
     const ctx = createOwnershipContext(user);
     const csvContent = file.buffer.toString("utf-8");
-    
+
     // Parse tagIds from form data (can be comma-separated or JSON array)
     let tagIds: string[] | undefined;
     if (tagIdsRaw) {
       try {
         tagIds = JSON.parse(tagIdsRaw);
       } catch {
-        tagIds = tagIdsRaw.split(",").map((t) => t.trim()).filter(Boolean);
+        tagIds = tagIdsRaw
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean);
       }
     }
-    
+
     const result = await this.contactService.importContacts(
       ctx,
       csvContent,
@@ -123,17 +126,20 @@ export class ContactController {
     @Query("tags") tagsRaw?: string | string[],
   ) {
     const ctx = createOwnershipContext(user);
-    
+
     // Parse tags from query param
     let tagIds: string[] | undefined;
     if (tagsRaw) {
       if (Array.isArray(tagsRaw)) {
         tagIds = tagsRaw;
       } else {
-        tagIds = tagsRaw.split(",").map((t) => t.trim()).filter(Boolean);
+        tagIds = tagsRaw
+          .split(",")
+          .map((t) => t.trim())
+          .filter(Boolean);
       }
     }
-    
+
     return this.contactService.listContacts(
       ctx,
       search,
@@ -145,10 +151,7 @@ export class ContactController {
   }
 
   @Put(":id")
-  async updateContact(
-    @Param("id") id: string,
-    @Body() dto: UpdateContactDto,
-  ) {
+  async updateContact(@Param("id") id: string, @Body() dto: UpdateContactDto) {
     return this.contactService.updateContact(id, {
       organization: dto.organization,
       name: dto.name,

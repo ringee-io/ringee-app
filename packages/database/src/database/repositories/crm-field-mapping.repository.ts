@@ -39,14 +39,18 @@ export class CrmFieldMappingRepository {
         ringeeField: input.ringeeField,
         externalEntity: input.externalEntity,
         externalField: input.externalField,
-        transform: (input.transform ?? undefined) as Prisma.InputJsonValue | undefined,
+        transform: (input.transform ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
         direction: input.direction ?? "push",
         enabled: input.enabled ?? true,
       },
       update: {
         externalEntity: input.externalEntity,
         externalField: input.externalField,
-        transform: (input.transform ?? undefined) as Prisma.InputJsonValue | undefined,
+        transform: (input.transform ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
         direction: input.direction ?? undefined,
         enabled: input.enabled ?? undefined,
       },

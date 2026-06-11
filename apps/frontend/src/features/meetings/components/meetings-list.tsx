@@ -22,7 +22,11 @@ import {
 import { DataTable } from '@ringee/frontend-shared/components/ui/table/data-table';
 import { DataTableSkeleton } from '@ringee/frontend-shared/components/ui/table/data-table-skeleton';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
-import { useReactTable, getCoreRowModel, ColumnDef } from '@tanstack/react-table';
+import {
+  useReactTable,
+  getCoreRowModel,
+  ColumnDef
+} from '@tanstack/react-table';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import {
   format,
@@ -165,18 +169,18 @@ export function MeetingsList() {
     <div className='flex flex-col gap-4'>
       {/* Top bar */}
       <div className='flex items-center gap-3'>
-        <div className='relative flex-1 max-w-sm'>
-          <Search className='text-muted-foreground absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2' />
+        <div className='relative max-w-sm flex-1'>
+          <Search className='text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2' />
           <Input
             placeholder={t('searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className='pl-9 h-9'
+            className='h-9 pl-9'
           />
           {search && (
             <button
               onClick={() => setSearch('')}
-              className='absolute right-3 top-1/2 -translate-y-1/2'
+              className='absolute top-1/2 right-3 -translate-y-1/2'
             >
               <X className='text-muted-foreground h-3.5 w-3.5' />
             </button>
@@ -207,25 +211,37 @@ export function MeetingsList() {
         {/* Upcoming tab */}
         <TabsContent value='upcoming' className='mt-4'>
           {isLoading ? (
-            <DataTableSkeleton columnCount={5} rowCount={5} withPagination={false} />
+            <DataTableSkeleton
+              columnCount={5}
+              rowCount={5}
+              withPagination={false}
+            />
           ) : upcoming.length === 0 ? (
             <EmptyState t={t} />
           ) : (
-            <MeetingRows meetings={upcoming} onSelect={setSelectedMeeting} t={t} />
+            <MeetingRows
+              meetings={upcoming}
+              onSelect={setSelectedMeeting}
+              t={t}
+            />
           )}
         </TabsContent>
 
         {/* All tab */}
         <TabsContent value='all' className='mt-4'>
           {isLoading ? (
-            <DataTableSkeleton columnCount={5} rowCount={7} withPagination={false} />
+            <DataTableSkeleton
+              columnCount={5}
+              rowCount={7}
+              withPagination={false}
+            />
           ) : meetings.length === 0 ? (
             <EmptyState t={t} />
           ) : (
             <div className='space-y-6'>
               {upcoming.length > 0 && (
                 <div>
-                  <p className='text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wider'>
+                  <p className='text-muted-foreground mb-2 text-xs font-medium tracking-wider uppercase'>
                     {t('sections.upcoming')}
                   </p>
                   <MeetingRows
@@ -237,10 +253,14 @@ export function MeetingsList() {
               )}
               {past.length > 0 && (
                 <div>
-                  <p className='text-muted-foreground mb-2 text-xs font-medium uppercase tracking-wider'>
+                  <p className='text-muted-foreground mb-2 text-xs font-medium tracking-wider uppercase'>
                     {t('sections.past')}
                   </p>
-                  <MeetingRows meetings={past} onSelect={setSelectedMeeting} t={t} />
+                  <MeetingRows
+                    meetings={past}
+                    onSelect={setSelectedMeeting}
+                    t={t}
+                  />
                 </div>
               )}
             </div>
@@ -308,7 +328,7 @@ function MeetingDetail({
       <div className='mt-6 space-y-5'>
         {/* Date & time */}
         <div className='flex items-start gap-3'>
-          <div className='bg-emerald-500/10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg'>
+          <div className='flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10'>
             <CalendarCheck className='h-4 w-4 text-emerald-500' />
           </div>
           <div>
@@ -326,7 +346,7 @@ function MeetingDetail({
 
         {/* Contact */}
         <div className='flex items-start gap-3'>
-          <div className='bg-blue-500/10 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg'>
+          <div className='flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-blue-500/10'>
             <User className='h-4 w-4 text-blue-500' />
           </div>
           <div>
@@ -353,7 +373,7 @@ function MeetingDetail({
                 <MapPin className='text-muted-foreground h-4 w-4' />
               </div>
               <div>
-                <p className='text-muted-foreground text-xs uppercase tracking-wider'>
+                <p className='text-muted-foreground text-xs tracking-wider uppercase'>
                   {t('location')}
                 </p>
                 <p className='text-sm'>{meeting.location}</p>
@@ -371,7 +391,7 @@ function MeetingDetail({
                 <FileText className='text-muted-foreground h-4 w-4' />
               </div>
               <div>
-                <p className='text-muted-foreground text-xs uppercase tracking-wider'>
+                <p className='text-muted-foreground text-xs tracking-wider uppercase'>
                   {t('fields.notes')}
                 </p>
                 <p className='mt-0.5 text-sm'>{meeting.notes}</p>
@@ -390,7 +410,12 @@ function MeetingDetail({
               </div>
               <div>
                 <p className='text-muted-foreground text-xs'>
-                  {t('fromCall', { date: format(new Date(meeting.call.createdAt), 'MMM d, yyyy') })}
+                  {t('fromCall', {
+                    date: format(
+                      new Date(meeting.call.createdAt),
+                      'MMM d, yyyy'
+                    )
+                  })}
                 </p>
                 {meeting.call.durationSeconds != null && (
                   <p className='text-muted-foreground text-xs'>
@@ -429,7 +454,10 @@ function MeetingDetail({
   );
 }
 
-function getColumns(onSelect: (m: Meeting) => void, t: TFunc): ColumnDef<Meeting>[] {
+function getColumns(
+  onSelect: (m: Meeting) => void,
+  t: TFunc
+): ColumnDef<Meeting>[] {
   return [
     {
       accessorKey: 'statusDot',
@@ -498,7 +526,8 @@ function getColumns(onSelect: (m: Meeting) => void, t: TFunc): ColumnDef<Meeting
         return (
           <div className='text-muted-foreground flex items-center gap-1 text-xs'>
             <Clock className='h-3 w-3' />
-            {m.duration}{t('min')}
+            {m.duration}
+            {t('min')}
           </div>
         );
       }
@@ -516,7 +545,11 @@ function getColumns(onSelect: (m: Meeting) => void, t: TFunc): ColumnDef<Meeting
       id: 'actions',
       cell: ({ row }) => (
         <div className='flex justify-end'>
-          <Button variant='ghost' size='sm' onClick={() => onSelect(row.original)}>
+          <Button
+            variant='ghost'
+            size='sm'
+            onClick={() => onSelect(row.original)}
+          >
             {t('viewDetails')}
           </Button>
         </div>
@@ -562,7 +595,7 @@ function StatusBadge({
 
 function EmptyState({ t }: { t: TFunc }) {
   return (
-    <div className='flex flex-col items-center justify-center py-20 text-center border rounded-md bg-card shadow-sm'>
+    <div className='bg-card flex flex-col items-center justify-center rounded-md border py-20 text-center shadow-sm'>
       <div className='bg-muted mb-4 flex h-16 w-16 items-center justify-center rounded-full'>
         <CalendarCheck className='text-muted-foreground/50 h-8 w-8' />
       </div>
@@ -617,21 +650,25 @@ function FullCalendarView({
   const hours = Array.from({ length: 24 }).map((_, i) => i);
 
   return (
-    <div className='flex flex-col rounded-xl border bg-card shadow-sm'>
+    <div className='bg-card flex flex-col rounded-xl border shadow-sm'>
       {/* Header */}
       <div className='flex items-center justify-between border-b p-4 sm:p-5'>
         <div className='flex items-center gap-4'>
-          <h2 className='text-lg font-semibold tracking-tight w-[160px]'>
-            {view === 'day' ? format(currentDate, 'MMMM d, yyyy') : format(currentDate, 'MMMM yyyy')}
+          <h2 className='w-[160px] text-lg font-semibold tracking-tight'>
+            {view === 'day'
+              ? format(currentDate, 'MMMM d, yyyy')
+              : format(currentDate, 'MMMM yyyy')}
           </h2>
-          <div className='flex items-center gap-1 bg-muted/40 p-1 rounded-lg'>
-            {(['month', 'week', 'day'] as const).map(v => (
+          <div className='bg-muted/40 flex items-center gap-1 rounded-lg p-1'>
+            {(['month', 'week', 'day'] as const).map((v) => (
               <button
                 key={v}
                 onClick={() => setView(v)}
                 className={cn(
-                  'px-3 py-1.5 text-xs font-bold capitalize rounded-md transition-all',
-                  view === v ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                  'rounded-md px-3 py-1.5 text-xs font-bold capitalize transition-all',
+                  view === v
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
                 )}
               >
                 {t(`calendar.${v}`)}
@@ -640,10 +677,20 @@ function FullCalendarView({
           </div>
         </div>
         <div className='flex items-center gap-1.5'>
-          <Button variant='outline' size='icon' onClick={handlePrev} className='h-8 w-8'>
+          <Button
+            variant='outline'
+            size='icon'
+            onClick={handlePrev}
+            className='h-8 w-8'
+          >
             <ChevronLeft className='h-4 w-4' />
           </Button>
-          <Button variant='outline' size='icon' onClick={handleNext} className='h-8 w-8'>
+          <Button
+            variant='outline'
+            size='icon'
+            onClick={handleNext}
+            className='h-8 w-8'
+          >
             <ChevronRight className='h-4 w-4' />
           </Button>
         </div>
@@ -652,30 +699,39 @@ function FullCalendarView({
       {/* Grid Based on View */}
       {view === 'month' && (
         <>
-          <div className='grid grid-cols-7 border-b bg-muted/10'>
+          <div className='bg-muted/10 grid grid-cols-7 border-b'>
             {weekDaysLabels.map((day) => (
-              <div key={day} className='border-r p-2.5 text-center text-xs font-semibold uppercase tracking-wider text-muted-foreground last:border-r-0'>
+              <div
+                key={day}
+                className='text-muted-foreground border-r p-2.5 text-center text-xs font-semibold tracking-wider uppercase last:border-r-0'
+              >
                 {day}
               </div>
             ))}
           </div>
-          <div className='grid grid-cols-7 auto-rows-[minmax(120px,auto)]'>
+          <div className='grid auto-rows-[minmax(120px,auto)] grid-cols-7'>
             {calendarDays.map((day, i) => {
-              const dayMeetings = meetings.filter((m) => isSameDay(new Date(m.scheduledAt), day));
+              const dayMeetings = meetings.filter((m) =>
+                isSameDay(new Date(m.scheduledAt), day)
+              );
               return (
                 <div
                   key={day.toISOString()}
                   className={cn(
-                    'min-h-[120px] border-r border-b p-2 transition-colors hover:bg-muted/5',
-                    !isSameMonth(day, monthStart) && 'bg-muted/5 text-muted-foreground/60',
+                    'hover:bg-muted/5 min-h-[120px] border-r border-b p-2 transition-colors',
+                    !isSameMonth(day, monthStart) &&
+                      'bg-muted/5 text-muted-foreground/60',
                     i % 7 === 6 && 'border-r-0'
                   )}
                 >
                   <div className='flex items-center justify-between'>
-                    <span className={cn(
-                      'text-[13px] font-semibold',
-                      isToday(day) && 'flex h-6 w-6 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-sm'
-                    )}>
+                    <span
+                      className={cn(
+                        'text-[13px] font-semibold',
+                        isToday(day) &&
+                          'bg-primary text-primary-foreground flex h-6 w-6 items-center justify-center rounded-full shadow-sm'
+                      )}
+                    >
                       {format(day, 'd')}
                     </span>
                     {dayMeetings.length > 0 && (
@@ -690,17 +746,20 @@ function FullCalendarView({
                         key={m.id}
                         onClick={() => onSelectMeeting(m)}
                         className={cn(
-                          'flex flex-col items-start gap-0.5 truncate rounded px-2 py-1.5 text-left transition-all hover:opacity-80 hover:shadow-sm focus:ring-1 focus:outline-none w-full bg-zinc-950',
-                          m.status === 'scheduled' ? 'text-emerald-400 font-medium border border-emerald-500/30 shadow-[inset_0_0_10px_rgba(16,185,129,0.05)]' :
-                          m.status === 'completed' ? 'text-blue-400 border border-blue-500/30 shadow-[inset_0_0_10px_rgba(59,130,246,0.05)]' :
-                          m.status === 'cancelled' ? 'text-red-400 border border-red-500/30 line-through opacity-70 shadow-[inset_0_0_10px_rgba(239,68,68,0.05)]' :
-                          'text-amber-400 border border-amber-500/30 shadow-[inset_0_0_10px_rgba(245,158,11,0.05)]'
+                          'flex w-full flex-col items-start gap-0.5 truncate rounded bg-zinc-950 px-2 py-1.5 text-left transition-all hover:opacity-80 hover:shadow-sm focus:ring-1 focus:outline-none',
+                          m.status === 'scheduled'
+                            ? 'border border-emerald-500/30 font-medium text-emerald-400 shadow-[inset_0_0_10px_rgba(16,185,129,0.05)]'
+                            : m.status === 'completed'
+                              ? 'border border-blue-500/30 text-blue-400 shadow-[inset_0_0_10px_rgba(59,130,246,0.05)]'
+                              : m.status === 'cancelled'
+                                ? 'border border-red-500/30 text-red-400 line-through opacity-70 shadow-[inset_0_0_10px_rgba(239,68,68,0.05)]'
+                                : 'border border-amber-500/30 text-amber-400 shadow-[inset_0_0_10px_rgba(245,158,11,0.05)]'
                         )}
                       >
-                        <span className='text-[10px] font-bold uppercase tracking-wider opacity-80'>
+                        <span className='text-[10px] font-bold tracking-wider uppercase opacity-80'>
                           {format(new Date(m.scheduledAt), 'h:mm a')}
                         </span>
-                        <span className='truncate w-full text-[11px] font-semibold'>
+                        <span className='w-full truncate text-[11px] font-semibold'>
                           {m.title || m.contact.name || m.contact.phoneNumber}
                         </span>
                       </button>
@@ -715,56 +774,93 @@ function FullCalendarView({
 
       {view === 'week' && (
         <div className='flex flex-1 flex-col overflow-hidden'>
-          <div className='flex border-b bg-muted/10'>
-            <div className='w-14 sm:w-16 shrink-0 border-r' />
+          <div className='bg-muted/10 flex border-b'>
+            <div className='w-14 shrink-0 border-r sm:w-16' />
             <div className='grid flex-1 grid-cols-7'>
               {weekDaysDates.map((day) => (
-                <div key={day.toISOString()} className='border-r p-2 text-center last:border-r-0'>
-                  <div className='text-[10px] sm:text-xs font-semibold uppercase text-muted-foreground'>{format(day, 'EEE')}</div>
-                  <div className={cn('text-sm mt-1 mx-auto w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full', isToday(day) && 'bg-primary text-primary-foreground')}>{format(day, 'd')}</div>
+                <div
+                  key={day.toISOString()}
+                  className='border-r p-2 text-center last:border-r-0'
+                >
+                  <div className='text-muted-foreground text-[10px] font-semibold uppercase sm:text-xs'>
+                    {format(day, 'EEE')}
+                  </div>
+                  <div
+                    className={cn(
+                      'mx-auto mt-1 flex h-6 w-6 items-center justify-center rounded-full text-sm sm:h-7 sm:w-7',
+                      isToday(day) && 'bg-primary text-primary-foreground'
+                    )}
+                  >
+                    {format(day, 'd')}
+                  </div>
                 </div>
               ))}
             </div>
           </div>
-          <div className='flex flex-1 overflow-y-auto relative h-[500px] sm:h-[600px]'>
-            <div className='w-14 sm:w-16 shrink-0 border-r bg-muted/5'>
-              {hours.map(hour => (
-                <div key={hour} className='h-16 border-b text-[10px] sm:text-xs text-muted-foreground text-right pr-2 pt-1 font-medium'>
-                  {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+          <div className='relative flex h-[500px] flex-1 overflow-y-auto sm:h-[600px]'>
+            <div className='bg-muted/5 w-14 shrink-0 border-r sm:w-16'>
+              {hours.map((hour) => (
+                <div
+                  key={hour}
+                  className='text-muted-foreground h-16 border-b pt-1 pr-2 text-right text-[10px] font-medium sm:text-xs'
+                >
+                  {hour === 0
+                    ? '12 AM'
+                    : hour < 12
+                      ? `${hour} AM`
+                      : hour === 12
+                        ? '12 PM'
+                        : `${hour - 12} PM`}
                 </div>
               ))}
             </div>
-            <div className='relative flex-1 grid grid-cols-7'>
+            <div className='relative grid flex-1 grid-cols-7'>
               {weekDaysDates.map((day) => (
-                <div key={day.toISOString()} className='relative border-r last:border-r-0'>
-                  {hours.map(hour => (
-                    <div key={hour} className='h-16 border-b border-border/20' />
+                <div
+                  key={day.toISOString()}
+                  className='relative border-r last:border-r-0'
+                >
+                  {hours.map((hour) => (
+                    <div
+                      key={hour}
+                      className='border-border/20 h-16 border-b'
+                    />
                   ))}
-                  {meetings.filter(m => isSameDay(new Date(m.scheduledAt), day)).map(m => {
-                    const date = new Date(m.scheduledAt);
-                    const startHour = date.getHours() + date.getMinutes() / 60;
-                    const durationHours = m.duration / 60;
-                    return (
-                      <button
-                        key={m.id}
-                        onClick={() => onSelectMeeting(m)}
-                        className={cn(
-                          'absolute left-1 right-1 rounded border p-1 sm:p-1.5 text-left transition-all hover:shadow-md overflow-hidden flex flex-col hover:z-10 bg-zinc-950',
-                          m.status === 'scheduled' ? 'text-emerald-400 border-emerald-500/40 shadow-[inset_0_0_12px_rgba(16,185,129,0.1)] shadow-[0_4px_12px_rgba(16,185,129,0.05)]' :
-                          m.status === 'completed' ? 'text-blue-400 border-blue-500/30 shadow-[inset_0_0_12px_rgba(59,130,246,0.1)]' :
-                          m.status === 'cancelled' ? 'text-red-400 border-red-500/30 line-through opacity-90 shadow-[inset_0_0_12px_rgba(239,68,68,0.05)]' :
-                          'text-amber-400 border-amber-500/30 shadow-[inset_0_0_12px_rgba(245,158,11,0.1)]'
-                        )}
-                        style={{
-                          top: `${startHour * 4}rem`,
-                          height: `${Math.max(durationHours * 4, 1.5)}rem`
-                        }}
-                      >
-                        <div className='text-[10px] sm:text-[11px] font-bold opacity-80'>{format(date, 'h:mm a')}</div>
-                        <div className='truncate text-[10px] sm:text-xs font-semibold leading-tight mt-0.5'>{m.title || m.contact.name || m.contact.phoneNumber}</div>
-                      </button>
-                    );
-                  })}
+                  {meetings
+                    .filter((m) => isSameDay(new Date(m.scheduledAt), day))
+                    .map((m) => {
+                      const date = new Date(m.scheduledAt);
+                      const startHour =
+                        date.getHours() + date.getMinutes() / 60;
+                      const durationHours = m.duration / 60;
+                      return (
+                        <button
+                          key={m.id}
+                          onClick={() => onSelectMeeting(m)}
+                          className={cn(
+                            'absolute right-1 left-1 flex flex-col overflow-hidden rounded border bg-zinc-950 p-1 text-left transition-all hover:z-10 hover:shadow-md sm:p-1.5',
+                            m.status === 'scheduled'
+                              ? 'border-emerald-500/40 text-emerald-400 shadow-[0_4px_12px_rgba(16,185,129,0.05)] shadow-[inset_0_0_12px_rgba(16,185,129,0.1)]'
+                              : m.status === 'completed'
+                                ? 'border-blue-500/30 text-blue-400 shadow-[inset_0_0_12px_rgba(59,130,246,0.1)]'
+                                : m.status === 'cancelled'
+                                  ? 'border-red-500/30 text-red-400 line-through opacity-90 shadow-[inset_0_0_12px_rgba(239,68,68,0.05)]'
+                                  : 'border-amber-500/30 text-amber-400 shadow-[inset_0_0_12px_rgba(245,158,11,0.1)]'
+                          )}
+                          style={{
+                            top: `${startHour * 4}rem`,
+                            height: `${Math.max(durationHours * 4, 1.5)}rem`
+                          }}
+                        >
+                          <div className='text-[10px] font-bold opacity-80 sm:text-[11px]'>
+                            {format(date, 'h:mm a')}
+                          </div>
+                          <div className='mt-0.5 truncate text-[10px] leading-tight font-semibold sm:text-xs'>
+                            {m.title || m.contact.name || m.contact.phoneNumber}
+                          </div>
+                        </button>
+                      );
+                    })}
                 </div>
               ))}
             </div>
@@ -774,26 +870,46 @@ function FullCalendarView({
 
       {view === 'day' && (
         <div className='flex flex-1 flex-col overflow-hidden'>
-          <div className='flex border-b bg-muted/10'>
-            <div className='w-14 sm:w-16 shrink-0 border-r' />
+          <div className='bg-muted/10 flex border-b'>
+            <div className='w-14 shrink-0 border-r sm:w-16' />
             <div className='flex-1 border-r p-2 text-center'>
-              <div className='text-[10px] sm:text-xs font-semibold uppercase text-muted-foreground'>{format(currentDate, 'EEEE')}</div>
-              <div className={cn('text-sm mt-1 mx-auto w-6 h-6 sm:w-7 sm:h-7 flex items-center justify-center rounded-full', isToday(currentDate) && 'bg-primary text-primary-foreground')}>{format(currentDate, 'd')}</div>
+              <div className='text-muted-foreground text-[10px] font-semibold uppercase sm:text-xs'>
+                {format(currentDate, 'EEEE')}
+              </div>
+              <div
+                className={cn(
+                  'mx-auto mt-1 flex h-6 w-6 items-center justify-center rounded-full text-sm sm:h-7 sm:w-7',
+                  isToday(currentDate) && 'bg-primary text-primary-foreground'
+                )}
+              >
+                {format(currentDate, 'd')}
+              </div>
             </div>
           </div>
-          <div className='flex flex-1 overflow-y-auto relative h-[500px] sm:h-[600px]'>
-            <div className='w-14 sm:w-16 shrink-0 border-r bg-muted/5'>
-              {hours.map(hour => (
-                <div key={hour} className='h-16 border-b text-[10px] sm:text-xs text-muted-foreground text-right pr-2 pt-1 font-medium'>
-                  {hour === 0 ? '12 AM' : hour < 12 ? `${hour} AM` : hour === 12 ? '12 PM' : `${hour - 12} PM`}
+          <div className='relative flex h-[500px] flex-1 overflow-y-auto sm:h-[600px]'>
+            <div className='bg-muted/5 w-14 shrink-0 border-r sm:w-16'>
+              {hours.map((hour) => (
+                <div
+                  key={hour}
+                  className='text-muted-foreground h-16 border-b pt-1 pr-2 text-right text-[10px] font-medium sm:text-xs'
+                >
+                  {hour === 0
+                    ? '12 AM'
+                    : hour < 12
+                      ? `${hour} AM`
+                      : hour === 12
+                        ? '12 PM'
+                        : `${hour - 12} PM`}
                 </div>
               ))}
             </div>
             <div className='relative flex-1 border-r'>
-              {hours.map(hour => (
-                <div key={hour} className='h-16 border-b border-border/20' />
+              {hours.map((hour) => (
+                <div key={hour} className='border-border/20 h-16 border-b' />
               ))}
-              {meetings.filter(m => isSameDay(new Date(m.scheduledAt), currentDate)).map(m => {
+              {meetings
+                .filter((m) => isSameDay(new Date(m.scheduledAt), currentDate))
+                .map((m) => {
                   const date = new Date(m.scheduledAt);
                   const startHour = date.getHours() + date.getMinutes() / 60;
                   const durationHours = m.duration / 60;
@@ -802,19 +918,26 @@ function FullCalendarView({
                       key={m.id}
                       onClick={() => onSelectMeeting(m)}
                       className={cn(
-                        'absolute left-2 right-4 rounded-md border p-2 text-left transition-all hover:shadow-md overflow-hidden flex flex-col hover:z-10 bg-zinc-950',
-                        m.status === 'scheduled' ? 'text-emerald-400 border-emerald-500/40 shadow-[inset_0_0_15px_rgba(16,185,129,0.15)] shadow-[0_4px_12px_rgba(16,185,129,0.05)]' :
-                        m.status === 'completed' ? 'text-blue-400 border-blue-500/30 shadow-[inset_0_0_15px_rgba(59,130,246,0.1)]' :
-                        m.status === 'cancelled' ? 'text-red-400 border-red-500/30 line-through opacity-90 shadow-[inset_0_0_15px_rgba(239,68,68,0.05)]' :
-                        'text-amber-400 border-amber-500/30 shadow-[inset_0_0_15px_rgba(245,158,11,0.1)]'
+                        'absolute right-4 left-2 flex flex-col overflow-hidden rounded-md border bg-zinc-950 p-2 text-left transition-all hover:z-10 hover:shadow-md',
+                        m.status === 'scheduled'
+                          ? 'border-emerald-500/40 text-emerald-400 shadow-[0_4px_12px_rgba(16,185,129,0.05)] shadow-[inset_0_0_15px_rgba(16,185,129,0.15)]'
+                          : m.status === 'completed'
+                            ? 'border-blue-500/30 text-blue-400 shadow-[inset_0_0_15px_rgba(59,130,246,0.1)]'
+                            : m.status === 'cancelled'
+                              ? 'border-red-500/30 text-red-400 line-through opacity-90 shadow-[inset_0_0_15px_rgba(239,68,68,0.05)]'
+                              : 'border-amber-500/30 text-amber-400 shadow-[inset_0_0_15px_rgba(245,158,11,0.1)]'
                       )}
                       style={{
                         top: `${startHour * 4}rem`,
                         height: `${Math.max(durationHours * 4, 1.5)}rem`
                       }}
                     >
-                      <div className='text-xs sm:text-sm font-bold opacity-80'>{format(date, 'h:mm a')}</div>
-                      <div className='truncate text-xs sm:text-sm font-semibold mt-0.5'>{m.title || m.contact.name || m.contact.phoneNumber}</div>
+                      <div className='text-xs font-bold opacity-80 sm:text-sm'>
+                        {format(date, 'h:mm a')}
+                      </div>
+                      <div className='mt-0.5 truncate text-xs font-semibold sm:text-sm'>
+                        {m.title || m.contact.name || m.contact.phoneNumber}
+                      </div>
                     </button>
                   );
                 })}

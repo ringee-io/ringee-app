@@ -4,7 +4,7 @@ import { PrismaService } from "../prisma.service";
 
 @Injectable()
 export class RecordingRepository {
-  constructor(private readonly prisma: PrismaService) { }
+  constructor(private readonly prisma: PrismaService) {}
 
   async create(data: Prisma.RecordingCreateInput): Promise<Recording> {
     return this.prisma.recording.create({

@@ -28,7 +28,7 @@ export function useAttioAppToken() {
     setError(null);
     try {
       const res = await api.post<GenerateTokenResponse>(
-        '/integrations/attio/generate-token',
+        '/integrations/attio/generate-token'
       );
       setToken(res.token);
       setContext(res.context);

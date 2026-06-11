@@ -15,7 +15,7 @@ export const metadata: Metadata = {
     'Ringee CRM sync',
     'Attio record action',
     'sales calling CRM',
-    'VoIP CRM integration',
+    'VoIP CRM integration'
   ],
   openGraph: {
     title: 'Attio Integration — Call from your CRM | Ringee',
@@ -29,17 +29,17 @@ export const metadata: Metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Ringee + Attio Integration',
-      },
-    ],
+        alt: 'Ringee + Attio Integration'
+      }
+    ]
   },
   twitter: {
     card: 'summary_large_image',
     title: 'Attio Integration — Call from your CRM | Ringee',
     description:
       'Start calls from Attio records. Call activity, recordings, and notes sync back automatically.',
-    images: ['/og-image.png'],
-  },
+    images: ['/og-image.png']
+  }
 };
 
 export default function AttioDocsPage() {

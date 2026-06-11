@@ -43,9 +43,9 @@ import {
   IconInbox,
   IconActivity,
   IconPlug,
-  IconSparkles
-} from '@tabler/icons-react';
-import { MoreHorizontal } from 'lucide-react';
+  IconSparkles,
+} from "@tabler/icons-react";
+import { MoreHorizontal } from "lucide-react";
 
 export type Icon = React.ComponentType<IconProps>;
 
@@ -94,6 +94,5 @@ export const Icons = {
   inbox: IconInbox,
   activity: IconActivity,
   plug: IconPlug,
-  sparkles: IconSparkles
+  sparkles: IconSparkles,
 };
-

@@ -1,6 +1,10 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import { NumberPurchased, NumberPurchasedRepository } from "@ringee/database";
-import { TelephonyService, CostInformation, OwnershipContext } from "@ringee/platform";
+import {
+  TelephonyService,
+  CostInformation,
+  OwnershipContext,
+} from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
 
 @Injectable()
@@ -10,13 +14,16 @@ export class NumberPurchasedService {
   constructor(
     private readonly numberPurchasedRepository: NumberPurchasedRepository,
     private telephonyService: TelephonyService,
-  ) { }
+  ) {}
 
   release(id: string): Promise<NumberPurchased> {
     return this.numberPurchasedRepository.release(id);
   }
 
-  assignToOwner(numberId: string, ctx: OwnershipContext): Promise<NumberPurchased> {
+  assignToOwner(
+    numberId: string,
+    ctx: OwnershipContext,
+  ): Promise<NumberPurchased> {
     return this.numberPurchasedRepository.assignToOwner(numberId, ctx);
   }
 
@@ -42,7 +49,8 @@ export class NumberPurchasedService {
   async refreshMessagingCapabilities(
     numberPurchasedId: string,
   ): Promise<NumberPurchased | null> {
-    const number = await this.numberPurchasedRepository.findById(numberPurchasedId);
+    const number =
+      await this.numberPurchasedRepository.findById(numberPurchasedId);
     if (!number) throw new NotFoundException("Number not found");
 
     let features: {

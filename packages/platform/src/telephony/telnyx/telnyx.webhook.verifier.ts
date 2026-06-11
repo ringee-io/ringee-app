@@ -49,10 +49,7 @@ export class TelnyxWebhookVerifier {
     }
 
     const body = Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody);
-    const signed = Buffer.concat([
-      Buffer.from(`${timestampHeader}|`),
-      body,
-    ]);
+    const signed = Buffer.concat([Buffer.from(`${timestampHeader}|`), body]);
 
     let signature: Buffer;
     try {
@@ -65,7 +62,9 @@ export class TelnyxWebhookVerifier {
       // crypto.verify with `null` algorithm uses the key's algorithm (Ed25519).
       return cryptoVerify(null, signed, key, signature);
     } catch (err) {
-      this.logger.warn(`Telnyx signature verify error: ${(err as Error).message}`);
+      this.logger.warn(
+        `Telnyx signature verify error: ${(err as Error).message}`,
+      );
       return false;
     }
   }
@@ -84,10 +83,7 @@ export class TelnyxWebhookVerifier {
       if (decoded.length === 32) {
         // Wrap raw 32-byte key into SPKI/DER for Ed25519.
         // SPKI prefix for Ed25519 (id-Ed25519 = 1.3.101.112).
-        const spkiPrefix = Buffer.from(
-          "302a300506032b6570032100",
-          "hex",
-        );
+        const spkiPrefix = Buffer.from("302a300506032b6570032100", "hex");
         const der = Buffer.concat([spkiPrefix, decoded]);
         this.cachedKey = createPublicKey({
           key: der,

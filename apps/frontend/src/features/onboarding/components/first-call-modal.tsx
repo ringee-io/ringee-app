@@ -8,7 +8,7 @@ import {
   Dialog,
   DialogContent,
   DialogHeader,
-  DialogTitle,
+  DialogTitle
 } from '@ringee/frontend-shared/components/ui/dialog';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Phone, Mic, Sparkles, X, ArrowRight } from 'lucide-react';
@@ -29,7 +29,12 @@ export function FirstCallModal() {
 
   // Show modal when first_call step is not complete
   useEffect(() => {
-    if (!isLoading && status && !isStepComplete('first_call') && !hasDismissed) {
+    if (
+      !isLoading &&
+      status &&
+      !isStepComplete('first_call') &&
+      !hasDismissed
+    ) {
       // Small delay to let the page load first
       const timer = setTimeout(() => {
         setIsOpen(true);
@@ -55,21 +60,22 @@ export function FirstCallModal() {
 
   return (
     <Dialog open={isOpen} onOpenChange={(open) => !open && handleDismiss()}>
-      <DialogContent className="sm:max-w-md md:max-w-[550px] p-0 overflow-hidden border-0 shadow-2xl bg-background/95 backdrop-blur-md">
-        
+      <DialogContent className='bg-background/95 overflow-hidden border-0 p-0 shadow-2xl backdrop-blur-md sm:max-w-md md:max-w-[550px]'>
         {/* Decorative gradient background opacity */}
-        <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-primary/10 to-transparent pointer-events-none" />
+        <div className='from-primary/10 pointer-events-none absolute top-0 right-0 left-0 h-32 bg-gradient-to-b to-transparent' />
 
-        <div className="p-6 relative z-10">
-          <DialogHeader className="text-left mb-6">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 ring-1 ring-primary/20 shadow-sm">
-                  <Sparkles className="h-6 w-6 text-primary" />
+        <div className='relative z-10 p-6'>
+          <DialogHeader className='mb-6 text-left'>
+            <div className='flex items-center justify-between'>
+              <div className='flex items-center gap-3'>
+                <div className='bg-primary/10 ring-primary/20 flex h-12 w-12 items-center justify-center rounded-xl shadow-sm ring-1'>
+                  <Sparkles className='text-primary h-6 w-6' />
                 </div>
                 <div>
-                  <DialogTitle className="text-2xl font-bold tracking-tight">{t('title')}</DialogTitle>
-                  <p className="text-sm text-muted-foreground font-medium">
+                  <DialogTitle className='text-2xl font-bold tracking-tight'>
+                    {t('title')}
+                  </DialogTitle>
+                  <p className='text-muted-foreground text-sm font-medium'>
                     {t('subtitle')}
                   </p>
                 </div>
@@ -85,38 +91,42 @@ export function FirstCallModal() {
             </div>
           </DialogHeader>
 
-          <div className="space-y-6">
+          <div className='space-y-6'>
             {/* Steps Container */}
-            <div className="grid gap-4">
-              <motion.div 
+            <div className='grid gap-4'>
+              <motion.div
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 }}
-                className="flex items-start gap-4 p-4 rounded-xl bg-muted/40 border border-border/40 hover:bg-muted/60 transition-colors"
+                className='bg-muted/40 border-border/40 hover:bg-muted/60 flex items-start gap-4 rounded-xl border p-4 transition-colors'
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 dark:bg-blue-500/20 shadow-sm">
-                  <Phone className="h-5 w-5" />
+                <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-blue-500/10 text-blue-600 shadow-sm dark:bg-blue-500/20 dark:text-blue-400'>
+                  <Phone className='h-5 w-5' />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-sm mb-1">{t('step1Title')}</h4>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
+                  <h4 className='mb-1 text-sm font-semibold'>
+                    {t('step1Title')}
+                  </h4>
+                  <p className='text-muted-foreground text-xs leading-relaxed'>
                     {t('step1Description')}
                   </p>
                 </div>
               </motion.div>
 
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 }}
-                className="flex items-start gap-4 p-4 rounded-xl bg-muted/40 border border-border/40 hover:bg-muted/60 transition-colors"
+                className='bg-muted/40 border-border/40 hover:bg-muted/60 flex items-start gap-4 rounded-xl border p-4 transition-colors'
               >
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-500/10 text-rose-600 dark:text-rose-400 dark:bg-rose-500/20 shadow-sm">
-                  <Mic className="h-5 w-5" />
+                <div className='flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-rose-500/10 text-rose-600 shadow-sm dark:bg-rose-500/20 dark:text-rose-400'>
+                  <Mic className='h-5 w-5' />
                 </div>
                 <div>
-                  <h4 className="font-semibold text-sm mb-1">{t('step2Title')}</h4>
-                  <p className="text-xs text-muted-foreground leading-relaxed">
+                  <h4 className='mb-1 text-sm font-semibold'>
+                    {t('step2Title')}
+                  </h4>
+                  <p className='text-muted-foreground text-xs leading-relaxed'>
                     {t('step2Description')}
                   </p>
                 </div>
@@ -124,50 +134,50 @@ export function FirstCallModal() {
             </div>
 
             {/* Recording visual hint */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
-              className="relative rounded-xl overflow-hidden border border-border shadow-lg group"
+              className='border-border group relative overflow-hidden rounded-xl border shadow-lg'
             >
-              <div className="absolute top-3 left-3 z-10 px-2.5 py-1.5 bg-background/95 backdrop-blur rounded-md shadow-sm border border-border/50 flex items-center gap-2">
-                <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-rose-500"></span>
+              <div className='bg-background/95 border-border/50 absolute top-3 left-3 z-10 flex items-center gap-2 rounded-md border px-2.5 py-1.5 shadow-sm backdrop-blur'>
+                <span className='relative flex h-2 w-2'>
+                  <span className='absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75'></span>
+                  <span className='relative inline-flex h-2 w-2 rounded-full bg-rose-500'></span>
                 </span>
-                <p className="text-[10px] font-semibold text-foreground/80 uppercase tracking-wider">
+                <p className='text-foreground/80 text-[10px] font-semibold tracking-wider uppercase'>
                   {t('recordingButton')}
                 </p>
               </div>
-              
+
               {/* Overlay gradient for depth */}
-              <div className="absolute inset-0 bg-gradient-to-t from-background/20 to-transparent pointer-events-none" />
-              
+              <div className='from-background/20 pointer-events-none absolute inset-0 bg-gradient-to-t to-transparent' />
+
               <Image
-                src="/start-recording-cap.png"
+                src='/start-recording-cap.png'
                 alt={t('recordingAlt')}
                 width={550}
                 height={300}
-                className="w-full h-auto object-cover transform group-hover:scale-105 transition-transform duration-700 ease-out"
+                className='h-auto w-full transform object-cover transition-transform duration-700 ease-out group-hover:scale-105'
                 priority
               />
             </motion.div>
 
             {/* CTA buttons */}
-            <div className="flex gap-3 pt-2">
+            <div className='flex gap-3 pt-2'>
               <Button
-                variant="ghost"
-                className="flex-1 text-muted-foreground hover:text-foreground"
+                variant='ghost'
+                className='text-muted-foreground hover:text-foreground flex-1'
                 onClick={handleDismiss}
               >
                 {t('maybeLater')}
               </Button>
               <Button
-                className="cursor-pointer flex-[2] gap-2 h-11 text-base shadow-primary/25 hover:shadow-primary/40 shadow-lg transition-all hover:scale-[1.02]"
+                className='shadow-primary/25 hover:shadow-primary/40 h-11 flex-[2] cursor-pointer gap-2 text-base shadow-lg transition-all hover:scale-[1.02]'
                 onClick={handleStartCall}
               >
                 {t('startCalling')}
-                <ArrowRight className="h-4 w-4" />
+                <ArrowRight className='h-4 w-4' />
               </Button>
             </div>
           </div>
@@ -176,4 +186,3 @@ export function FirstCallModal() {
     </Dialog>
   );
 }
-

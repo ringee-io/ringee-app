@@ -36,7 +36,8 @@ import type { Response } from "express";
 
 function frontendUrl(): string {
   return (
-    (apiConfiguration.FRONTEND_URL as string | undefined) || "http://localhost:4200"
+    (apiConfiguration.FRONTEND_URL as string | undefined) ||
+    "http://localhost:4200"
   );
 }
 
@@ -77,10 +78,7 @@ export class CrmController {
   }
 
   @Post("connections/:id/forget")
-  async forget(
-    @Param("id") id: string,
-    @CurrentUser() user: CurrentUserData,
-  ) {
+  async forget(@Param("id") id: string, @CurrentUser() user: CurrentUserData) {
     const ctx = createOwnershipContext(user);
     await this.connections.remove(ctx, id);
     return { ok: true };
@@ -108,7 +106,11 @@ export class CrmController {
     @Query("redirect") redirect: string | undefined,
     @CurrentUser() user: CurrentUserData,
   ): Promise<{ url: string }> {
-    const validProviders: CrmProviderType[] = ["attio", "hubspot", "salesforce"];
+    const validProviders: CrmProviderType[] = [
+      "attio",
+      "hubspot",
+      "salesforce",
+    ];
     if (!validProviders.includes(provider as CrmProviderType)) {
       throw new BadRequestException(
         `unknown or non-oauth provider: ${provider}`,
@@ -410,7 +412,11 @@ export class CrmController {
     const conn = await this.connections.findById(connectionId);
     if (!conn) throw new BadRequestException("connection not found");
     await this.connections.assertAccess(ctx, conn);
-    return this.fieldMappings.getMappings(connectionId, "contact", "bidirectional");
+    return this.fieldMappings.getMappings(
+      connectionId,
+      "contact",
+      "bidirectional",
+    );
   }
 
   @Post("connections/:id/field-mappings/seed")

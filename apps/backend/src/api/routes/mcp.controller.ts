@@ -45,10 +45,7 @@ export class McpController {
       throw new HttpException("Unauthorized", 401);
     }
 
-    const baseUrl = (apiConfiguration.BACKEND_URL || "").replace(
-      /\/+$/,
-      "",
-    );
+    const baseUrl = (apiConfiguration.BACKEND_URL || "").replace(/\/+$/, "");
 
     if (user.activeOrgId) {
       return {
@@ -75,10 +72,7 @@ export class McpController {
 
   @Public()
   @Get(":id/sse")
-  async sse(
-    @Param("id") id: string,
-    @Res() res: Response,
-  ) {
+  async sse(@Param("id") id: string, @Res() res: Response) {
     const ctx = await this.resolveContextById(id);
     await this.mcpService.openSseSession(
       ctx,
@@ -212,15 +206,13 @@ export class McpController {
       throw new HttpException("Organization not found", 404);
     }
 
-    const members = (org as unknown as { members?: { userId: string | null }[] })
-      .members;
+    const members = (
+      org as unknown as { members?: { userId: string | null }[] }
+    ).members;
     const isMember = members?.some((m) => m.userId === user.id) ?? false;
 
     if (!isMember) {
-      throw new HttpException(
-        "User is not a member of the organization",
-        403,
-      );
+      throw new HttpException("User is not a member of the organization", 403);
     }
 
     return { userId: user.id, organizationId: org.id };

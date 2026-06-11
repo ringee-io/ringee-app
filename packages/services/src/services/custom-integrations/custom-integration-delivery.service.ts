@@ -39,7 +39,9 @@ export class CustomIntegrationDeliveryService {
 
   /** Send a single delivery row. Schedules retry on failure. */
   private async process(delivery: CustomIntegrationDelivery): Promise<void> {
-    const integration = await this.integrations.findById(delivery.integrationId);
+    const integration = await this.integrations.findById(
+      delivery.integrationId,
+    );
     if (!integration) {
       await this.deliveries.markFailed(delivery.id, "integration not found");
       return;
@@ -53,7 +55,12 @@ export class CustomIntegrationDeliveryService {
     const body = JSON.stringify(delivery.payload);
     const signed = signOutboundEvent(body, secret);
 
-    const result = await this.send(delivery.destinationUrl, body, signed.signatureHeader, signed.timestampHeader);
+    const result = await this.send(
+      delivery.destinationUrl,
+      body,
+      signed.signatureHeader,
+      signed.timestampHeader,
+    );
 
     if (result.ok) {
       await this.deliveries.markSent(delivery.id, signed.signature);
@@ -66,7 +73,10 @@ export class CustomIntegrationDeliveryService {
       await this.deliveries.markFailed(delivery.id, errMsg);
       return;
     }
-    const backoff = Math.min(BASE_BACKOFF_MS * 2 ** delivery.attemptCount, MAX_BACKOFF_MS);
+    const backoff = Math.min(
+      BASE_BACKOFF_MS * 2 ** delivery.attemptCount,
+      MAX_BACKOFF_MS,
+    );
     const nextAttemptAt = new Date(Date.now() + backoff);
     await this.deliveries.scheduleRetry(delivery.id, nextAttemptAt, errMsg);
   }
@@ -87,7 +97,12 @@ export class CustomIntegrationDeliveryService {
       data: { message: "Hello from Ringee custom integrations." },
     });
     const signed = signOutboundEvent(body, secret);
-    return this.send(integration.outboundUrl, body, signed.signatureHeader, signed.timestampHeader);
+    return this.send(
+      integration.outboundUrl,
+      body,
+      signed.signatureHeader,
+      signed.timestampHeader,
+    );
   }
 
   private async send(

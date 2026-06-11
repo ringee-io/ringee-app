@@ -20,10 +20,7 @@ export class ComplianceService {
    * never queried together. A freelancer placing a call only consults their
    * personal DNC; an org member only consults the org DNC.
    */
-  async isOnDNC(
-    owner: DNCOwnerScope,
-    phoneNumber: string
-  ): Promise<boolean> {
+  async isOnDNC(owner: DNCOwnerScope, phoneNumber: string): Promise<boolean> {
     return this.dncRepo.isOnDNC(owner, phoneNumber);
   }
 
@@ -38,7 +35,10 @@ export class ComplianceService {
   async addToDNC(data: DNCCreateInput) {
     const entry = await this.dncRepo.create(data);
     void this.customIntegrationOutbound.enqueue({
-      ctx: { userId: entry.userId, organizationId: entry.organizationId ?? null },
+      ctx: {
+        userId: entry.userId,
+        organizationId: entry.organizationId ?? null,
+      },
       eventEnum: "dnc_created",
       subjectId: entry.id,
       data: buildDncEventData(entry),
@@ -56,7 +56,7 @@ export class ComplianceService {
 
   async listDNC(
     owner: DNCOwnerScope,
-    options?: { search?: string; page?: number; limit?: number }
+    options?: { search?: string; page?: number; limit?: number },
   ) {
     return this.dncRepo.listForOwner(owner, options);
   }
@@ -87,11 +87,11 @@ export class ComplianceService {
     const parts = formatter.formatToParts(now);
     const hour = parseInt(
       parts.find((p) => p.type === "hour")?.value ?? "0",
-      10
+      10,
     );
     const minute = parseInt(
       parts.find((p) => p.type === "minute")?.value ?? "0",
-      10
+      10,
     );
     const weekday = parts.find((p) => p.type === "weekday")?.value ?? "";
 
@@ -112,8 +112,7 @@ export class ComplianceService {
     }
 
     return (
-      currentMin >= campaign.workStartMin &&
-      currentMin < campaign.workEndMin
+      currentMin >= campaign.workStartMin && currentMin < campaign.workEndMin
     );
   }
 }

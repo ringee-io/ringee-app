@@ -30,7 +30,7 @@ export class AgentSessionService {
     const session = await this.sessionRepo.upsert(data);
 
     this.logger.log(
-      `Agent ${data.userId} started session ${session.id} for campaign ${data.campaignId}`
+      `Agent ${data.userId} started session ${session.id} for campaign ${data.campaignId}`,
     );
     return session;
   }
@@ -54,7 +54,7 @@ export class AgentSessionService {
       session.status !== AgentSessionStatus.wrap_up
     ) {
       throw new ConflictException(
-        `Cannot pause session in ${session.status} state`
+        `Cannot pause session in ${session.status} state`,
       );
     }
 
@@ -68,10 +68,7 @@ export class AgentSessionService {
       throw new ConflictException("Session is not paused");
     }
 
-    return this.sessionRepo.updateStatus(
-      sessionId,
-      AgentSessionStatus.ready
-    );
+    return this.sessionRepo.updateStatus(sessionId, AgentSessionStatus.ready);
   }
 
   async heartbeat(sessionId: string) {
@@ -81,7 +78,7 @@ export class AgentSessionService {
   async transitionTo(
     sessionId: string,
     status: AgentSessionStatus,
-    currentLeadId?: string | null
+    currentLeadId?: string | null,
   ) {
     // Distinguish "leave unchanged" (param omitted → undefined) from "clear"
     // (explicit null). Prisma ignores `undefined` but applies `null`, so only
@@ -102,7 +99,7 @@ export class AgentSessionService {
       callsAttempted?: number;
       callsConnected?: number;
       totalTalkSec?: number;
-    }
+    },
   ) {
     return this.sessionRepo.incrementStats(sessionId, stats);
   }
@@ -128,7 +125,7 @@ export class AgentSessionService {
     const session = await this.getSession(sessionId);
     if (session.organizationId !== organizationId) {
       throw new ForbiddenException(
-        "Session does not belong to your organization"
+        "Session does not belong to your organization",
       );
     }
     return session;
@@ -154,7 +151,7 @@ export class AgentSessionService {
       await this.sessionRepo.markOffline(session.id);
       count++;
       this.logger.warn(
-        `Stale session ${session.id} for agent ${session.userId} marked offline`
+        `Stale session ${session.id} for agent ${session.userId} marked offline`,
       );
     }
 

@@ -13,10 +13,7 @@ export class CompanyRepository {
     });
   }
 
-  findByDomain(
-    ctx: OwnershipContext,
-    domain: string,
-  ): Promise<Company | null> {
+  findByDomain(ctx: OwnershipContext, domain: string): Promise<Company | null> {
     return this.prisma.company.findFirst({
       where: {
         ...buildOwnershipFilter(ctx),
@@ -26,10 +23,7 @@ export class CompanyRepository {
     });
   }
 
-  findByName(
-    ctx: OwnershipContext,
-    name: string,
-  ): Promise<Company | null> {
+  findByName(ctx: OwnershipContext, name: string): Promise<Company | null> {
     return this.prisma.company.findFirst({
       where: {
         ...buildOwnershipFilter(ctx),
@@ -85,8 +79,12 @@ export class CompanyRepository {
         phone: data.phone ?? null,
         website: data.website ?? null,
         source: data.source ?? null,
-        crmMetadata: (data.crmMetadata ?? undefined) as Prisma.InputJsonValue | undefined,
-        customFields: (data.customFields ?? undefined) as Prisma.InputJsonValue | undefined,
+        crmMetadata: (data.crmMetadata ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
+        customFields: (data.customFields ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
         userId: ctx.userId,
         organizationId: ctx.organizationId ?? null,
       },

@@ -4,7 +4,7 @@ import { CreateRecordingDto, UpdateRecordingDto } from "@ringee/platform";
 
 @Injectable()
 export class RecordingService {
-  constructor(private readonly repository: RecordingRepository) { }
+  constructor(private readonly repository: RecordingRepository) {}
 
   async createRecording(dto: CreateRecordingDto): Promise<Recording> {
     return this.repository.create({

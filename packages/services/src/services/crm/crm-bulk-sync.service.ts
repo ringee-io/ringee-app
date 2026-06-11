@@ -1,8 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import {
-  CrmConnection,
-  CrmConnectionRepository,
-} from "@ringee/database";
+import { CrmConnection, CrmConnectionRepository } from "@ringee/database";
 import {
   CrmProviderRegistry,
   OwnershipContext,
@@ -53,7 +50,8 @@ export class CrmBulkSyncService {
     const provider = this.registry.get(connection.provider);
     const ctx = this.buildOwnershipContext(connection);
 
-    let decrypted = await this.connectionService.getValidCredentials(connection);
+    let decrypted =
+      await this.connectionService.getValidCredentials(connection);
     let creds = {
       accessToken: decrypted.accessToken,
       refreshToken: decrypted.refreshToken,
@@ -66,7 +64,9 @@ export class CrmBulkSyncService {
         return await fn();
       } catch (err) {
         if (err instanceof CrmError && err.code === "AUTH_EXPIRED") {
-          decrypted = await this.connectionService.forceRefresh(decrypted.connection);
+          decrypted = await this.connectionService.forceRefresh(
+            decrypted.connection,
+          );
           creds = {
             accessToken: decrypted.accessToken,
             refreshToken: decrypted.refreshToken,
@@ -85,7 +85,9 @@ export class CrmBulkSyncService {
     };
 
     if (provider.listCompanies) {
-      this.logger.log(`BulkSync: syncing companies for connection ${connection.id}`);
+      this.logger.log(
+        `BulkSync: syncing companies for connection ${connection.id}`,
+      );
       let pageToken: string | null = null;
       let pages = 0;
 
@@ -96,7 +98,11 @@ export class CrmBulkSyncService {
           );
           for (const companyResult of page.data) {
             try {
-              const r = await this.companySync.upsertCompany(connection, companyResult, ctx);
+              const r = await this.companySync.upsertCompany(
+                connection,
+                companyResult,
+                ctx,
+              );
               result.companies.synced++;
               if (r.created) result.companies.created++;
             } catch (err) {
@@ -117,7 +123,9 @@ export class CrmBulkSyncService {
     }
 
     if (provider.listPersons) {
-      this.logger.log(`BulkSync: syncing contacts for connection ${connection.id}`);
+      this.logger.log(
+        `BulkSync: syncing contacts for connection ${connection.id}`,
+      );
       let pageToken: string | null = null;
       let pages = 0;
 
@@ -128,7 +136,11 @@ export class CrmBulkSyncService {
           );
           for (const contactResult of page.data) {
             try {
-              const r = await this.contactSync.upsertContact(connection, contactResult, ctx);
+              const r = await this.contactSync.upsertContact(
+                connection,
+                contactResult,
+                ctx,
+              );
               result.contacts.synced++;
               if (r.created) result.contacts.created++;
             } catch (err) {
@@ -173,8 +185,14 @@ export class CrmBulkSyncService {
       err instanceof CrmError &&
       (err.code === "AUTH_REVOKED" || err.code === "AUTH_EXPIRED")
     ) {
-      await this.connectionService.markStatus(connection.id, "revoked", err.code);
-      this.logger.error(`BulkSync: connection ${connection.id} revoked (${err.code})`);
+      await this.connectionService.markStatus(
+        connection.id,
+        "revoked",
+        err.code,
+      );
+      this.logger.error(
+        `BulkSync: connection ${connection.id} revoked (${err.code})`,
+      );
     } else {
       this.logger.error(
         `BulkSync page error for ${connection.id}: ${err instanceof Error ? err.message : err}`,

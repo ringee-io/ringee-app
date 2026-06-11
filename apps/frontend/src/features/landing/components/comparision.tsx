@@ -39,32 +39,28 @@ export default function Comparison() {
   }));
 
   return (
-    <div id="comparison" className="xs:py-20 w-full px-6 py-12">
-      <h2 className="xs:text-4xl text-center text-3xl font-bold tracking-tight sm:text-5xl">
+    <div id='comparison' className='xs:py-20 w-full px-6 py-12'>
+      <h2 className='xs:text-4xl text-center text-3xl font-bold tracking-tight sm:text-5xl'>
         {t('title')}
       </h2>
-      <p className="text-muted-foreground mt-3 text-center text-sm md:text-base">
+      <p className='text-muted-foreground mt-3 text-center text-sm md:text-base'>
         {t('subtitle')}
       </p>
 
       {/* Scrollable wrapper */}
-      <div className="bg-background/50 mx-auto mt-12 w-full max-w-screen-lg overflow-x-auto rounded-xl border">
-        <div className="min-w-[700px]">
-          <table className="w-full text-sm md:text-base">
+      <div className='bg-background/50 mx-auto mt-12 w-full max-w-screen-lg overflow-x-auto rounded-xl border'>
+        <div className='min-w-[700px]'>
+          <table className='w-full text-sm md:text-base'>
             <thead>
-              <tr className="bg-muted/40 text-muted-foreground">
-                <th className="text-foreground/90 px-4 py-4 text-left font-semibold">
+              <tr className='bg-muted/40 text-muted-foreground'>
+                <th className='text-foreground/90 px-4 py-4 text-left font-semibold'>
                   {t('table.featuresHeader')}
                 </th>
-                <th className="text-primary px-4 py-4 text-left font-semibold">
+                <th className='text-primary px-4 py-4 text-left font-semibold'>
                   Ringee.io
                 </th>
-                <th className="px-4 py-4 text-left font-semibold">
-                  Adversus
-                </th>
-                <th className="px-4 py-4 text-left font-semibold">
-                  Genesys
-                </th>
+                <th className='px-4 py-4 text-left font-semibold'>Adversus</th>
+                <th className='px-4 py-4 text-left font-semibold'>Genesys</th>
               </tr>
             </thead>
             <tbody>
@@ -77,28 +73,28 @@ export default function Comparison() {
                   )}
                 >
                   {/* Feature */}
-                  <td className="text-muted-foreground px-4 py-4 font-medium">
+                  <td className='text-muted-foreground px-4 py-4 font-medium'>
                     {item.feature}
                   </td>
 
                   {/* Ringee (always check + text) */}
-                  <td className="text-foreground px-4 py-4">
-                    <div className="flex items-start gap-2">
-                      <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-green-600" />
+                  <td className='text-foreground px-4 py-4'>
+                    <div className='flex items-start gap-2'>
+                      <CheckCircle2 className='mt-0.5 h-4 w-4 shrink-0 text-green-600' />
                       <span>{item.ringee}</span>
                     </div>
                   </td>
 
                   {/* Adversus */}
-                  <td className="text-foreground px-4 py-4">
+                  <td className='text-foreground px-4 py-4'>
                     {item.adversus === true ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <CheckCircle2 className='h-4 w-4 text-green-600' />
                     ) : item.adversus === false ? (
-                      <XCircle className="h-4 w-4 text-red-500" />
+                      <XCircle className='h-4 w-4 text-red-500' />
                     ) : (
-                      <div className="flex items-center gap-2 text-yellow-500">
-                        <AlertTriangle className="h-8 w-8" />
-                        <span className="text-[13px] text-foreground/80">
+                      <div className='flex items-center gap-2 text-yellow-500'>
+                        <AlertTriangle className='h-8 w-8' />
+                        <span className='text-foreground/80 text-[13px]'>
                           {item.adversus}
                         </span>
                       </div>
@@ -106,15 +102,15 @@ export default function Comparison() {
                   </td>
 
                   {/* Genesys */}
-                  <td className="text-foreground px-4 py-4">
+                  <td className='text-foreground px-4 py-4'>
                     {item.genesys === true ? (
-                      <CheckCircle2 className="h-4 w-4 text-green-600" />
+                      <CheckCircle2 className='h-4 w-4 text-green-600' />
                     ) : item.genesys === false ? (
-                      <XCircle className="h-4 w-4 text-red-500" />
+                      <XCircle className='h-4 w-4 text-red-500' />
                     ) : (
-                      <div className="flex items-center gap-2 text-yellow-500">
-                        <AlertTriangle className="h-8 w-8" />
-                        <span className="text-[13px] text-foreground/80">
+                      <div className='flex items-center gap-2 text-yellow-500'>
+                        <AlertTriangle className='h-8 w-8' />
+                        <span className='text-foreground/80 text-[13px]'>
                           {item.genesys}
                         </span>
                       </div>
@@ -127,7 +123,7 @@ export default function Comparison() {
         </div>
       </div>
 
-      <p className="text-muted-foreground mt-8 mb-5 text-center text-xs md:text-sm">
+      <p className='text-muted-foreground mt-8 mb-5 text-center text-xs md:text-sm'>
         {t('table.footerNote')}
       </p>
     </div>

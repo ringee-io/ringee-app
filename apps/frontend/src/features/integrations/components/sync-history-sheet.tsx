@@ -8,7 +8,7 @@ import {
   SheetContent,
   SheetDescription,
   SheetHeader,
-  SheetTitle,
+  SheetTitle
 } from '@ringee/frontend-shared/components/ui/sheet';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { cn } from '@ringee/frontend-shared/lib/utils';
@@ -19,7 +19,7 @@ import {
   HelpCircle,
   Loader2,
   RefreshCw,
-  XCircle,
+  XCircle
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
@@ -34,12 +34,12 @@ interface Props {
 }
 
 const STATUS_ICON: Record<CrmSyncStatus, React.ReactNode> = {
-  done: <CheckCircle2 className="h-4 w-4 text-emerald-500" />,
-  pending: <Clock className="h-4 w-4 text-muted-foreground" />,
-  in_progress: <Loader2 className="h-4 w-4 animate-spin text-sky-500" />,
-  failed: <XCircle className="h-4 w-4 text-red-500" />,
-  skipped: <AlertCircle className="h-4 w-4 text-muted-foreground" />,
-  needs_resolution: <HelpCircle className="h-4 w-4 text-amber-500" />,
+  done: <CheckCircle2 className='h-4 w-4 text-emerald-500' />,
+  pending: <Clock className='text-muted-foreground h-4 w-4' />,
+  in_progress: <Loader2 className='h-4 w-4 animate-spin text-sky-500' />,
+  failed: <XCircle className='h-4 w-4 text-red-500' />,
+  skipped: <AlertCircle className='text-muted-foreground h-4 w-4' />,
+  needs_resolution: <HelpCircle className='h-4 w-4 text-amber-500' />
 };
 
 const STATUS_LABEL: Record<CrmSyncStatus, string> = {
@@ -48,13 +48,13 @@ const STATUS_LABEL: Record<CrmSyncStatus, string> = {
   in_progress: 'Running',
   failed: 'Failed',
   skipped: 'Skipped',
-  needs_resolution: 'Needs review',
+  needs_resolution: 'Needs review'
 };
 
 export function SyncHistorySheet({ connectionId, open, onOpenChange }: Props) {
   const api = useApi();
   const { syncs, loading, reload } = useConnectionSyncs(
-    open ? connectionId : null,
+    open ? connectionId : null
   );
   const [retryingId, setRetryingId] = useState<string | null>(null);
 
@@ -73,55 +73,52 @@ export function SyncHistorySheet({ connectionId, open, onOpenChange }: Props) {
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent className="w-full sm:max-w-xl">
+      <SheetContent className='w-full sm:max-w-xl'>
         <SheetHeader>
           <SheetTitle>Sync history</SheetTitle>
           <SheetDescription>
-            The last 50 call-log sync attempts for this connection. Failed
-            syncs can be retried manually.
+            The last 50 call-log sync attempts for this connection. Failed syncs
+            can be retried manually.
           </SheetDescription>
         </SheetHeader>
 
-        <div className="mt-4 flex h-[calc(100vh-8rem)] flex-col">
-          <div className="mb-3 flex items-center justify-between">
-            <span className="text-xs text-muted-foreground">
+        <div className='mt-4 flex h-[calc(100vh-8rem)] flex-col'>
+          <div className='mb-3 flex items-center justify-between'>
+            <span className='text-muted-foreground text-xs'>
               {loading ? 'Loading…' : `${syncs.length} events`}
             </span>
             <Button
-              variant="ghost"
-              size="sm"
+              variant='ghost'
+              size='sm'
               onClick={() => reload()}
               disabled={loading}
-              className="h-7"
+              className='h-7'
             >
               <RefreshCw
-                className={cn(
-                  'mr-1.5 h-3 w-3',
-                  loading && 'animate-spin',
-                )}
+                className={cn('mr-1.5 h-3 w-3', loading && 'animate-spin')}
               />
               Refresh
             </Button>
           </div>
 
-          <ScrollArea className="flex-1 pr-3">
+          <ScrollArea className='flex-1 pr-3'>
             {loading ? (
-              <div className="space-y-2">
+              <div className='space-y-2'>
                 {Array.from({ length: 6 }).map((_, i) => (
-                  <Skeleton key={i} className="h-20 w-full" />
+                  <Skeleton key={i} className='h-20 w-full' />
                 ))}
               </div>
             ) : syncs.length === 0 ? (
-              <div className="flex h-64 flex-col items-center justify-center text-center">
-                <Clock className="h-10 w-10 text-muted-foreground/40" />
-                <p className="mt-3 text-sm font-medium">No activity yet</p>
-                <p className="mt-1 max-w-xs text-xs text-muted-foreground">
+              <div className='flex h-64 flex-col items-center justify-center text-center'>
+                <Clock className='text-muted-foreground/40 h-10 w-10' />
+                <p className='mt-3 text-sm font-medium'>No activity yet</p>
+                <p className='text-muted-foreground mt-1 max-w-xs text-xs'>
                   Call syncs will appear here as soon as your first call is
                   logged to the CRM.
                 </p>
               </div>
             ) : (
-              <div className="space-y-2">
+              <div className='space-y-2'>
                 {syncs.map((s) => (
                   <SyncRow
                     key={s.id}
@@ -142,7 +139,7 @@ export function SyncHistorySheet({ connectionId, open, onOpenChange }: Props) {
 function SyncRow({
   sync,
   onRetry,
-  retrying,
+  retrying
 }: {
   sync: CrmCallSyncRow;
   onRetry: () => void;
@@ -151,33 +148,33 @@ function SyncRow({
   const canRetry =
     sync.status === 'failed' || sync.status === 'needs_resolution';
   return (
-    <div className="rounded-md border bg-card p-3 text-sm">
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex items-start gap-2">
-          <div className="mt-0.5">{STATUS_ICON[sync.status]}</div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
+    <div className='bg-card rounded-md border p-3 text-sm'>
+      <div className='flex items-start justify-between gap-2'>
+        <div className='flex items-start gap-2'>
+          <div className='mt-0.5'>{STATUS_ICON[sync.status]}</div>
+          <div className='min-w-0'>
+            <div className='flex items-center gap-2'>
               <Badge
-                variant="outline"
-                className="h-5 px-1.5 text-[10px] font-normal"
+                variant='outline'
+                className='h-5 px-1.5 text-[10px] font-normal'
               >
                 {STATUS_LABEL[sync.status]}
               </Badge>
-              <span className="text-xs text-muted-foreground">
+              <span className='text-muted-foreground text-xs'>
                 attempt {sync.attemptCount}
               </span>
             </div>
-            <p className="mt-1 font-mono text-[11px] text-muted-foreground truncate">
+            <p className='text-muted-foreground mt-1 truncate font-mono text-[11px]'>
               call {sync.callId.slice(0, 8)}… ·{' '}
               {new Date(sync.updatedAt).toLocaleString()}
             </p>
             {sync.externalActivityId && (
-              <p className="mt-0.5 font-mono text-[11px] text-emerald-600/80">
+              <p className='mt-0.5 font-mono text-[11px] text-emerald-600/80'>
                 Activity: {sync.externalActivityId.slice(0, 24)}…
               </p>
             )}
             {sync.lastError && (
-              <p className="mt-1.5 rounded bg-red-500/5 p-1.5 text-[11px] text-red-600">
+              <p className='mt-1.5 rounded bg-red-500/5 p-1.5 text-[11px] text-red-600'>
                 {sync.lastError}
               </p>
             )}
@@ -185,16 +182,16 @@ function SyncRow({
         </div>
         {canRetry && (
           <Button
-            variant="outline"
-            size="sm"
-            className="h-7 shrink-0"
+            variant='outline'
+            size='sm'
+            className='h-7 shrink-0'
             onClick={onRetry}
             disabled={retrying}
           >
             {retrying ? (
-              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+              <Loader2 className='mr-1 h-3 w-3 animate-spin' />
             ) : (
-              <RefreshCw className="mr-1 h-3 w-3" />
+              <RefreshCw className='mr-1 h-3 w-3' />
             )}
             Retry
           </Button>

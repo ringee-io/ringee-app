@@ -143,7 +143,7 @@ export class ReminderRepository {
    */
   async cancelForSubject(
     subjectType: ReminderSubjectType,
-    subjectId: string
+    subjectId: string,
   ): Promise<number> {
     const result = await this.prisma.reminder.updateMany({
       where: {
@@ -162,7 +162,7 @@ export class ReminderRepository {
       subjectType?: ReminderSubjectType;
       page?: number;
       limit?: number;
-    }
+    },
   ): Promise<{
     data: Reminder[];
     meta: { total: number; page: number; limit: number; totalPages: number };

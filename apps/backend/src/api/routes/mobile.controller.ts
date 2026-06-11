@@ -162,10 +162,7 @@ export class MobileController {
   }
 
   @Get("calls/:id")
-  async getCall(
-    @CurrentUser() user: CurrentUserData,
-    @Param("id") id: string,
-  ) {
+  async getCall(@CurrentUser() user: CurrentUserData, @Param("id") id: string) {
     const ctx = createOwnershipContext(user);
     const call = await this.prisma.call.findUnique({
       where: { id },
@@ -328,7 +325,9 @@ export class MobileController {
         meetings: {
           where: {
             scheduledAt: { gte: new Date() },
-            status: { in: [MeetingStatus.scheduled, MeetingStatus.rescheduled] },
+            status: {
+              in: [MeetingStatus.scheduled, MeetingStatus.rescheduled],
+            },
           },
           orderBy: { scheduledAt: "asc" },
           take: 1,

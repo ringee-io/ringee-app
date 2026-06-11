@@ -16,9 +16,7 @@ const MIN_DURATION_SECONDS = 3;
 
 function outcomeLabel(outcome?: CallOutcome | null): string | null {
   if (!outcome) return null;
-  return outcome
-    .replace(/_/g, " ")
-    .replace(/\b\w/g, (c) => c.toUpperCase());
+  return outcome.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
 @Injectable()
@@ -79,11 +77,14 @@ export class CrmCallLogService {
     const connections = await this.connections.listActive(ctx);
     if (connections.length === 0) return;
 
-    const direction: "inbound" | "outbound" =
-      [ "inbound", "incoming"].includes(call.direction ?? "") ? "inbound" : "outbound";
+    const direction: "inbound" | "outbound" = ["inbound", "incoming"].includes(
+      call.direction ?? "",
+    )
+      ? "inbound"
+      : "outbound";
 
-
-    const counterpartPhone = direction === "outbound" ? call.toNumber : call.fromNumber;
+    const counterpartPhone =
+      direction === "outbound" ? call.toNumber : call.fromNumber;
 
     // If Ringee already has a contact for this call, propagate its
     // name/email to the CRM so the partner gets created with real data
@@ -93,7 +94,10 @@ export class CrmCallLogService {
       : null;
 
     for (const connection of connections) {
-      const matchResult = await this.matching.resolveByPhone(connection, counterpartPhone);
+      const matchResult = await this.matching.resolveByPhone(
+        connection,
+        counterpartPhone,
+      );
 
       const linkedRecords = matchResult.link
         ? [
@@ -185,12 +189,19 @@ export class CrmCallLogService {
     });
   }
 
-  async enqueueRecordingNote(callId: string, recordingUrl: string): Promise<void> {
+  async enqueueRecordingNote(
+    callId: string,
+    recordingUrl: string,
+  ): Promise<void> {
     const syncs = await this.syncRepo.listByCall(callId);
     if (!syncs || syncs.length === 0) return;
 
     for (const sync of syncs) {
-      if (sync.status === "pending" || sync.status === "needs_resolution" || sync.status === "failed") {
+      if (
+        sync.status === "pending" ||
+        sync.status === "needs_resolution" ||
+        sync.status === "failed"
+      ) {
         const currentPayload = sync.payloadSnapshot as any;
         currentPayload.recordingUrl = recordingUrl;
         await this.syncRepo.upsertPending({

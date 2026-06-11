@@ -49,7 +49,8 @@ export class CustomIntegrationOutboundService {
       );
       if (integrations.length === 0) return;
 
-      const eventName = OUTBOUND_EVENT_ENUM_TO_NAME[input.eventEnum as OutboundEventEnum];
+      const eventName =
+        OUTBOUND_EVENT_ENUM_TO_NAME[input.eventEnum as OutboundEventEnum];
       const occurredAt = (input.occurredAt ?? new Date()).toISOString();
 
       for (const integration of integrations) {

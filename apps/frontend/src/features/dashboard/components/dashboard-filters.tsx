@@ -10,7 +10,11 @@ import {
   SelectTrigger,
   SelectValue
 } from '@ringee/frontend-shared/components/ui/select';
-import { Popover, PopoverContent, PopoverTrigger } from '@ringee/frontend-shared/components/ui/popover';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from '@ringee/frontend-shared/components/ui/popover';
 import {
   Command,
   CommandEmpty,
@@ -53,26 +57,42 @@ const OUTCOME_VALUES = [
 
 export function DashboardFilters() {
   const t = useTranslations('dashboard');
-  const { filters, setRange, setScope, setMemberId, setCampaignId, setOutcome } =
-    useDashboardFilters();
+  const {
+    filters,
+    setRange,
+    setScope,
+    setMemberId,
+    setCampaignId,
+    setOutcome
+  } = useDashboardFilters();
   const { hasOrg, isOrgAdmin } = useOrgRole();
 
   return (
     <div className='flex flex-wrap items-center gap-2'>
       <RangeSelector />
       {hasOrg && (
-        <Select value={filters.scope} onValueChange={(v) => setScope(v as 'personal' | 'organization')}>
+        <Select
+          value={filters.scope}
+          onValueChange={(v) => setScope(v as 'personal' | 'organization')}
+        >
           <SelectTrigger className='h-9 w-[160px]'>
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value='organization'>{t('filters.scope.organization')}</SelectItem>
-            <SelectItem value='personal'>{t('filters.scope.personal')}</SelectItem>
+            <SelectItem value='organization'>
+              {t('filters.scope.organization')}
+            </SelectItem>
+            <SelectItem value='personal'>
+              {t('filters.scope.personal')}
+            </SelectItem>
           </SelectContent>
         </Select>
       )}
       {hasOrg && isOrgAdmin && filters.scope === 'organization' && (
-        <MemberSelectorCompact value={filters.memberId ?? null} onChange={setMemberId} />
+        <MemberSelectorCompact
+          value={filters.memberId ?? null}
+          onChange={setMemberId}
+        />
       )}
       <CampaignSelector
         value={filters.campaignId ?? null}
@@ -152,19 +172,37 @@ function RangeSelector() {
         </PopoverTrigger>
         <PopoverContent className='w-auto p-0' align='start'>
           <div className='p-3'>
-            <p className='text-muted-foreground mb-2 text-xs'>{t('filters.customRange.title')}</p>
+            <p className='text-muted-foreground mb-2 text-xs'>
+              {t('filters.customRange.title')}
+            </p>
             <div className='flex gap-3'>
               <div>
-                <p className='text-xs font-medium'>{t('filters.customRange.from')}</p>
-                <Calendar mode='single' selected={tempFrom} onSelect={setTempFrom} />
+                <p className='text-xs font-medium'>
+                  {t('filters.customRange.from')}
+                </p>
+                <Calendar
+                  mode='single'
+                  selected={tempFrom}
+                  onSelect={setTempFrom}
+                />
               </div>
               <div>
-                <p className='text-xs font-medium'>{t('filters.customRange.to')}</p>
-                <Calendar mode='single' selected={tempTo} onSelect={setTempTo} />
+                <p className='text-xs font-medium'>
+                  {t('filters.customRange.to')}
+                </p>
+                <Calendar
+                  mode='single'
+                  selected={tempTo}
+                  onSelect={setTempTo}
+                />
               </div>
             </div>
             <div className='mt-2 flex justify-end gap-2'>
-              <Button variant='outline' size='sm' onClick={() => setOpen(false)}>
+              <Button
+                variant='outline'
+                size='sm'
+                onClick={() => setOpen(false)}
+              >
                 {tCommon('cancel')}
               </Button>
               <Button
@@ -200,7 +238,9 @@ function MemberSelectorCompact({
   const { organization } = useOrganization();
   const api = useApi();
   const [open, setOpen] = React.useState(false);
-  const [members, setMembers] = React.useState<{ id: string; name: string }[]>([]);
+  const [members, setMembers] = React.useState<{ id: string; name: string }[]>(
+    []
+  );
 
   React.useEffect(() => {
     if (!organization) return;
@@ -257,7 +297,12 @@ function MemberSelectorCompact({
                   setOpen(false);
                 }}
               >
-                <Check className={cn('mr-2 h-4 w-4', value === null ? 'opacity-100' : 'opacity-0')} />
+                <Check
+                  className={cn(
+                    'mr-2 h-4 w-4',
+                    value === null ? 'opacity-100' : 'opacity-0'
+                  )}
+                />
                 {t('allMembers')}
               </CommandItem>
               {members.map((m) => (
@@ -295,7 +340,9 @@ function CampaignSelector({
 }) {
   const t = useTranslations('dashboard.filters');
   const api = useApi();
-  const [campaigns, setCampaigns] = React.useState<{ id: string; name: string }[] | null>(null);
+  const [campaigns, setCampaigns] = React.useState<
+    { id: string; name: string }[] | null
+  >(null);
 
   React.useEffect(() => {
     let active = true;
@@ -316,7 +363,10 @@ function CampaignSelector({
   if (!campaigns || campaigns.length === 0) return null;
 
   return (
-    <Select value={value ?? 'all'} onValueChange={(v) => onChange(v === 'all' ? null : v)}>
+    <Select
+      value={value ?? 'all'}
+      onValueChange={(v) => onChange(v === 'all' ? null : v)}
+    >
       <SelectTrigger className='h-9 w-[200px]'>
         <SelectValue placeholder={t('allCampaigns')} />
       </SelectTrigger>

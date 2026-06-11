@@ -15,8 +15,7 @@ export async function generateMetadata() {
 export const dynamic = 'force-dynamic';
 
 export default async function DashboardOverviewPage() {
-  const initialLayout = await apiServer.get<DashboardLayoutResponse>(
-    '/dashboard/layout'
-  );
+  const initialLayout =
+    await apiServer.get<DashboardLayoutResponse>('/dashboard/layout');
   return <Dashboard initialLayout={initialLayout} />;
 }

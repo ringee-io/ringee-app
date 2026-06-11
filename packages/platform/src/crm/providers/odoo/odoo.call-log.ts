@@ -31,24 +31,36 @@ export function buildOdooCallLog(input: CrmCallLogInput): {
     lines.push(`<li><strong>Duration:</strong> ${durationMin} min</li>`);
   }
   if (input.outcomeLabel) {
-    lines.push(`<li><strong>Outcome:</strong> ${escapeHtml(input.outcomeLabel)}</li>`);
+    lines.push(
+      `<li><strong>Outcome:</strong> ${escapeHtml(input.outcomeLabel)}</li>`,
+    );
   }
   if (input.agentName) {
-    lines.push(`<li><strong>Agent:</strong> ${escapeHtml(input.agentName)}</li>`);
+    lines.push(
+      `<li><strong>Agent:</strong> ${escapeHtml(input.agentName)}</li>`,
+    );
   }
   lines.push("</ul>");
 
   if (input.notes && input.notes.trim()) {
-    lines.push(`<p><strong>Notes</strong></p><p>${escapeHtml(input.notes.trim())}</p>`);
+    lines.push(
+      `<p><strong>Notes</strong></p><p>${escapeHtml(input.notes.trim())}</p>`,
+    );
   }
   if (input.summary && input.summary.trim()) {
-    lines.push(`<p><strong>Summary</strong></p><p>${escapeHtml(input.summary.trim())}</p>`);
+    lines.push(
+      `<p><strong>Summary</strong></p><p>${escapeHtml(input.summary.trim())}</p>`,
+    );
   }
   if (input.insights && Object.keys(input.insights).length > 0) {
     lines.push(`<p><strong>Insights</strong></p><ul>`);
     for (const [key, val] of Object.entries(input.insights)) {
-      const label = key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-      lines.push(`<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(String(val))}</li>`);
+      const label = key
+        .replace(/_/g, " ")
+        .replace(/\b\w/g, (c) => c.toUpperCase());
+      lines.push(
+        `<li><strong>${escapeHtml(label)}:</strong> ${escapeHtml(String(val))}</li>`,
+      );
     }
     lines.push(`</ul>`);
   }
@@ -84,10 +96,7 @@ export function buildOdooCallLog(input: CrmCallLogInput): {
 }
 
 function escapeHtml(v: string): string {
-  return v
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;");
+  return v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function escapeAttr(v: string): string {

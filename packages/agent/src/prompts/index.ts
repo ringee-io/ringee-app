@@ -25,9 +25,7 @@ export function renderToolCatalog(): string {
  * The shared system prompt for any agent operating Ringee. Used by the Claude
  * Skills, the ChatGPT App server, and as a reference for slash commands.
  */
-export function buildSystemPrompt(
-  opts: { currentDate?: string } = {},
-): string {
+export function buildSystemPrompt(opts: { currentDate?: string } = {}): string {
   const date = opts.currentDate ?? new Date().toISOString();
   return [
     "You operate Ringee — an outbound calling platform (contacts, leads,",

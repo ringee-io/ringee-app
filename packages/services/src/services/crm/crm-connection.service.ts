@@ -98,7 +98,9 @@ export class CrmConnectionService {
     },
   ): Promise<CrmConnection> {
     const { scope, organizationId } = this.resolveScope(ctx);
-    const accessTokenCiphertext = this.crypto.encrypt({ t: input.credentialBlob });
+    const accessTokenCiphertext = this.crypto.encrypt({
+      t: input.credentialBlob,
+    });
 
     return this.repo.upsertConnection({
       ctx: {
@@ -158,9 +160,15 @@ export class CrmConnectionService {
 
   async updateTokens(
     id: string,
-    tokens: { accessToken: string; refreshToken?: string | null; expiresAt?: Date | null },
+    tokens: {
+      accessToken: string;
+      refreshToken?: string | null;
+      expiresAt?: Date | null;
+    },
   ): Promise<CrmConnection> {
-    const accessTokenCiphertext = this.crypto.encrypt({ t: tokens.accessToken });
+    const accessTokenCiphertext = this.crypto.encrypt({
+      t: tokens.accessToken,
+    });
     const refreshTokenCiphertext = tokens.refreshToken
       ? this.crypto.encrypt({ t: tokens.refreshToken })
       : undefined;
@@ -184,14 +192,18 @@ export class CrmConnectionService {
   }
 
   async decrypt(connection: CrmConnection): Promise<DecryptedCrmCredentials> {
-    const accessTokenPayload = this.crypto.decrypt(connection.accessTokenCiphertext);
+    const accessTokenPayload = this.crypto.decrypt(
+      connection.accessTokenCiphertext,
+    );
     const accessToken = (accessTokenPayload as { t?: string }).t;
     if (!accessToken) {
       throw new BadRequestException("corrupt access token for connection");
     }
     let refreshToken: string | null = null;
     if (connection.refreshTokenCiphertext) {
-      const refreshPayload = this.crypto.decrypt(connection.refreshTokenCiphertext);
+      const refreshPayload = this.crypto.decrypt(
+        connection.refreshTokenCiphertext,
+      );
       refreshToken = (refreshPayload as { t?: string }).t ?? null;
     }
     return { connection, accessToken, refreshToken };
@@ -201,7 +213,9 @@ export class CrmConnectionService {
    * Returns credentials with a non-expired access token, refreshing
    * via OAuth if the current one is expired (or within REFRESH_SKEW_MS of expiry).
    */
-  async getValidCredentials(connection: CrmConnection): Promise<DecryptedCrmCredentials> {
+  async getValidCredentials(
+    connection: CrmConnection,
+  ): Promise<DecryptedCrmCredentials> {
     const decrypted = await this.decrypt(connection);
     if (!this.isTokenExpired(connection)) return decrypted;
     return this.refreshTokens(connection, decrypted);
@@ -211,7 +225,9 @@ export class CrmConnectionService {
    * Forces a token refresh regardless of expiry — used as the reactive path
    * when a provider call returns AUTH_EXPIRED.
    */
-  async forceRefresh(connection: CrmConnection): Promise<DecryptedCrmCredentials> {
+  async forceRefresh(
+    connection: CrmConnection,
+  ): Promise<DecryptedCrmCredentials> {
     const decrypted = await this.decrypt(connection);
     return this.refreshTokens(connection, decrypted);
   }
@@ -286,14 +302,23 @@ export class CrmConnectionService {
     }
   }
 
-  async assertAccess(ctx: OwnershipContext, connection: CrmConnection): Promise<void> {
+  async assertAccess(
+    ctx: OwnershipContext,
+    connection: CrmConnection,
+  ): Promise<void> {
     if (connection.scope === "organization") {
-      if (!ctx.organizationId || connection.organizationId !== ctx.organizationId) {
+      if (
+        !ctx.organizationId ||
+        connection.organizationId !== ctx.organizationId
+      ) {
         throw new NotFoundException("connection not found");
       }
       return;
     }
-    if (connection.userId !== ctx.userId || connection.organizationId !== null) {
+    if (
+      connection.userId !== ctx.userId ||
+      connection.organizationId !== null
+    ) {
       throw new NotFoundException("connection not found");
     }
   }

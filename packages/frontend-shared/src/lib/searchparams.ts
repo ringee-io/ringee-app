@@ -5,8 +5,8 @@ import {
   parseAsString,
   parseAsJson,
   parseAsStringEnum,
-  parseAsArrayOf
-} from 'nuqs/server';
+  parseAsArrayOf,
+} from "nuqs/server";
 
 export const searchParams = {
   page: parseAsInteger.withDefault(1),
@@ -19,20 +19,20 @@ export const searchParams = {
       if (Array.isArray(value))
         return value as Array<{ id: string; desc: boolean }>;
       return null;
-    }
+    },
   ).withDefault([]),
   search: parseAsString,
-  tab: parseAsString.withDefault(''),
-  country: parseAsString.withDefault('US'),
+  tab: parseAsString.withDefault(""),
+  country: parseAsString.withDefault("US"),
   areaCode: parseAsString,
-  countryCode: parseAsString.withDefault('US'),
-  numberType: parseAsStringEnum(['local', 'toll_free']).withDefault('local'),
+  countryCode: parseAsString.withDefault("US"),
+  numberType: parseAsStringEnum(["local", "toll_free"]).withDefault("local"),
   features: parseAsArrayOf(parseAsString).withDefault([]),
   // Date filters for recordings
   dateFrom: parseAsString,
   dateTo: parseAsString,
   // Tag filtering for contacts
-  tags: parseAsArrayOf(parseAsString).withDefault([])
+  tags: parseAsArrayOf(parseAsString).withDefault([]),
   // advanced filter
   // filters: getFiltersStateParser().withDefault([]),
   // joinOperator: parseAsStringEnum(['and', 'or']).withDefault('and')

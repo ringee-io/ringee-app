@@ -38,12 +38,12 @@ export function RecordingSettingsCard({ className }: { className?: string }) {
         <CardTitle>{t('settings.title')}</CardTitle>
         <CardDescription>{t('settings.subtitle')}</CardDescription>
       </CardHeader>
-      <CardContent className="space-y-1">
+      <CardContent className='space-y-1'>
         {loading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-12 w-full" />
+          <div className='space-y-4'>
+            <Skeleton className='h-12 w-full' />
+            <Skeleton className='h-12 w-full' />
+            <Skeleton className='h-12 w-full' />
           </div>
         ) : (
           <>
@@ -89,10 +89,10 @@ function Row({
   onCheckedChange: (value: boolean) => void;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b py-4 last:border-b-0">
-      <div className="space-y-0.5">
-        <p className="text-sm font-medium">{title}</p>
-        <p className="text-sm text-muted-foreground">{description}</p>
+    <div className='flex items-center justify-between gap-4 border-b py-4 last:border-b-0'>
+      <div className='space-y-0.5'>
+        <p className='text-sm font-medium'>{title}</p>
+        <p className='text-muted-foreground text-sm'>{description}</p>
       </div>
       <Switch
         checked={checked}

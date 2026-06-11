@@ -11,6 +11,7 @@ import {
   EnrichmentModule,
   AiAgentsPlatformModule,
   DeepgramModule,
+  TemporalModule,
 } from "@ringee/platform";
 import { ChatAuthService } from "./chat.auth.service";
 import { CallTranscriptionService } from "./call.transcription.service";
@@ -23,6 +24,7 @@ import { DashboardService } from "./dashboard.service";
 import { DashboardLayoutService } from "./dashboard-layout.service";
 import { UserDeviceService } from "./user.device.service";
 import { RecordingService } from "./recording.service";
+import { RecordingProcessingService } from "./recording-processing.service";
 import { OrganizationService } from "./organization.service";
 import { SubscriptionService } from "./subscription.service";
 import { CampaignService } from "./campaign.service";
@@ -203,6 +205,9 @@ const servicesProviders = [
   //  Telnyx media WS server binds a single port — see RoutesModule.)
   CallRecordingSettingsService,
   TranscriptionService,
+  // Recording post-processing pipeline (runs as a Temporal activity in
+  // apps/orchestrator)
+  RecordingProcessingService,
 ];
 
 const reminderChannelsProvider: Provider = {
@@ -221,8 +226,20 @@ const allProviders: Provider[] = [
 
 @Global()
 @Module({
-  imports: [AuthModule, NotificationModule, TelephonyModule, StripeModule, CrmModule, EnrichmentModule, RedisModule, CryptoModule, AiAgentsPlatformModule, DeepgramModule],
+  imports: [
+    AuthModule,
+    NotificationModule,
+    TelephonyModule,
+    StripeModule,
+    CrmModule,
+    EnrichmentModule,
+    RedisModule,
+    CryptoModule,
+    AiAgentsPlatformModule,
+    DeepgramModule,
+    TemporalModule,
+  ],
   providers: allProviders,
   exports: [...allProviders, NotificationModule],
 })
-export class ServicesModule { }
+export class ServicesModule {}

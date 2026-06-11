@@ -52,19 +52,19 @@ export function CallSubtitles({ data, show, holdMs = 6000 }: Props) {
   if (!mounted || !show) return null;
 
   return createPortal(
-    <div className="pointer-events-none fixed inset-0 z-[100]">
-      <div className="absolute inset-x-0 top-6 flex justify-center px-4 md:top-8">
+    <div className='pointer-events-none fixed inset-0 z-[100]'>
+      <div className='absolute inset-x-0 top-6 flex justify-center px-4 md:top-8'>
         <Caption
-          side="you"
+          side='you'
           label={t('speaker.you')}
           text={youText}
           live={youLive}
           visible={youVisible}
         />
       </div>
-      <div className="absolute inset-x-0 bottom-8 flex justify-center px-4 md:bottom-10">
+      <div className='absolute inset-x-0 bottom-8 flex justify-center px-4 md:bottom-10'>
         <Caption
-          side="contact"
+          side='contact'
           label={t('speaker.contact')}
           text={contactText}
           live={contactLive}
@@ -94,9 +94,7 @@ function Caption({
     <div
       className={cn(
         'max-w-3xl rounded-2xl bg-black/75 px-5 py-3 text-center shadow-2xl ring-1 ring-white/10 backdrop-blur-sm transition-all duration-300',
-        side === 'you'
-          ? 'slide-in-from-top-2'
-          : 'slide-in-from-bottom-2',
+        side === 'you' ? 'slide-in-from-top-2' : 'slide-in-from-bottom-2',
         visible
           ? 'animate-in fade-in-0 opacity-100'
           : 'pointer-events-none translate-y-1 opacity-0'
@@ -104,18 +102,18 @@ function Caption({
     >
       <span
         className={cn(
-          'mb-1 inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest',
+          'mb-1 inline-flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase',
           side === 'you' ? 'text-emerald-400' : 'text-sky-400'
         )}
       >
         {live && (
-          <span className="inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-current" />
+          <span className='inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-current' />
         )}
         {label}
       </span>
       <p
         className={cn(
-          'line-clamp-3 text-lg font-medium leading-snug text-white drop-shadow-md md:text-2xl',
+          'line-clamp-3 text-lg leading-snug font-medium text-white drop-shadow-md md:text-2xl',
           live && 'text-white/85'
         )}
       >

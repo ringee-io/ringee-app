@@ -1,20 +1,20 @@
-'use client';
+"use client";
 
-import { FieldPath, FieldValues } from 'react-hook-form';
+import { FieldPath, FieldValues } from "react-hook-form";
 import {
   FormControl,
   FormDescription,
   FormField,
   FormItem,
   FormLabel,
-  FormMessage
-} from '../ui/form';
-import { Textarea } from '../ui/textarea';
-import { BaseFormFieldProps, TextareaConfig } from '../../types/base-form';
+  FormMessage,
+} from "../ui/form";
+import { Textarea } from "../ui/textarea";
+import { BaseFormFieldProps, TextareaConfig } from "../../types/base-form";
 
 interface FormTextareaProps<
   TFieldValues extends FieldValues = FieldValues,
-  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 > extends BaseFormFieldProps<TFieldValues, TName> {
   placeholder?: string;
   config?: TextareaConfig;
@@ -22,7 +22,7 @@ interface FormTextareaProps<
 
 function FormTextarea<
   TFieldValues extends FieldValues = FieldValues,
-  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>
+  TName extends FieldPath<TFieldValues> = FieldPath<TFieldValues>,
 >({
   control,
   name,
@@ -32,13 +32,13 @@ function FormTextarea<
   placeholder,
   config = {},
   disabled,
-  className
+  className,
 }: FormTextareaProps<TFieldValues, TName>) {
   const {
     maxLength,
     showCharCount = true,
     rows = 4,
-    resize = 'vertical'
+    resize = "vertical",
   } = config;
 
   return (
@@ -50,11 +50,11 @@ function FormTextarea<
           {label && (
             <FormLabel>
               {label}
-              {required && <span className='ml-1 text-red-500'>*</span>}
+              {required && <span className="ml-1 text-red-500">*</span>}
             </FormLabel>
           )}
           <FormControl>
-            <div className='space-y-2'>
+            <div className="space-y-2">
               <Textarea
                 placeholder={placeholder}
                 disabled={disabled}
@@ -64,7 +64,7 @@ function FormTextarea<
                 {...field}
               />
               {showCharCount && maxLength && (
-                <div className='text-muted-foreground text-right text-sm'>
+                <div className="text-muted-foreground text-right text-sm">
                   {field.value?.length || 0} / {maxLength}
                 </div>
               )}

@@ -33,7 +33,11 @@ export function validateCredentialInput(
   try {
     new URL(baseUrl);
   } catch {
-    return { ok: false, field: "baseUrl", message: "baseUrl is not a valid URL" };
+    return {
+      ok: false,
+      field: "baseUrl",
+      message: "baseUrl is not a valid URL",
+    };
   }
 
   const database = (input.database ?? "").trim();
@@ -71,7 +75,9 @@ export function parseOdooCredentials(
   creds: CrmCredentials,
 ): OdooCredentialPayload {
   try {
-    const parsed = JSON.parse(creds.accessToken) as Partial<OdooCredentialPayload> & {
+    const parsed = JSON.parse(
+      creds.accessToken,
+    ) as Partial<OdooCredentialPayload> & {
       v?: number;
     };
     if (!parsed.baseUrl || !parsed.database || !parsed.apiKey) {

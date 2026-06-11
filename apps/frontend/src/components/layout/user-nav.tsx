@@ -58,7 +58,7 @@ export function UserNav({ useMock }: { useMock?: boolean }) {
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator />
-          
+
           <DropdownMenuGroup>
             <DropdownMenuItem onClick={() => router.push('/dashboard/profile')}>
               {/* @ts-ignore */}
@@ -70,7 +70,9 @@ export function UserNav({ useMock }: { useMock?: boolean }) {
               <Icons.history className='mr-2 h-4 w-4' />
               {t('history')}
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => router.push('/dashboard/recordings')}>
+            <DropdownMenuItem
+              onClick={() => router.push('/dashboard/recordings')}
+            >
               {/* @ts-ignore */}
               <Icons.mic className='mr-2 h-4 w-4' />
               {t('recordings')}
@@ -81,7 +83,9 @@ export function UserNav({ useMock }: { useMock?: boolean }) {
             <>
               <DropdownMenuSeparator />
               <DropdownMenuGroup>
-                <DropdownMenuItem onClick={() => router.push('/dashboard/rate')}>
+                <DropdownMenuItem
+                  onClick={() => router.push('/dashboard/rate')}
+                >
                   {/* @ts-ignore */}
                   <Icons.star className='mr-2 h-4 w-4' />
                   {t('rate')}

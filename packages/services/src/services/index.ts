@@ -11,6 +11,7 @@ export * from "./dashboard.service";
 export * from "./dashboard-layout.service";
 export * from "./user.device.service";
 export * from "./recording.service";
+export * from "./recording-processing.service";
 export * from "./organization.service";
 export * from "./subscription.service";
 export * from "./campaign.service";

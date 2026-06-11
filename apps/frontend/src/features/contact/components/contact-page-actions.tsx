@@ -2,7 +2,10 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import { Button, buttonVariants } from '@ringee/frontend-shared/components/ui/button';
+import {
+  Button,
+  buttonVariants
+} from '@ringee/frontend-shared/components/ui/button';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { IconPlus, IconUpload, IconTag } from '@tabler/icons-react';
 import { ImportCsvModal } from './import-csv-modal';
@@ -16,7 +19,7 @@ export function ContactPageActions() {
 
   return (
     <>
-      <div className='flex items-center gap-2 flex-wrap'>
+      <div className='flex flex-wrap items-center gap-2'>
         <Button
           variant='outline'
           size='sm'
@@ -57,5 +60,3 @@ export function ContactPageActions() {
     </>
   );
 }
-
-

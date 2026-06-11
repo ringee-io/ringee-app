@@ -1,20 +1,16 @@
-'use client';
+"use client";
 
-import type { Column } from '@tanstack/react-table';
-import * as React from 'react';
+import type { Column } from "@tanstack/react-table";
+import * as React from "react";
 
-import { Button } from '../button';
-import { Input } from '../input';
-import { Label } from '../label';
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger
-} from '../popover';
-import { Separator } from '../separator';
-import { Slider } from '../slider';
-import { cn } from '../../../lib/utils';
-import { PlusCircle, XCircle } from 'lucide-react';
+import { Button } from "../button";
+import { Input } from "../input";
+import { Label } from "../label";
+import { Popover, PopoverContent, PopoverTrigger } from "../popover";
+import { Separator } from "../separator";
+import { Slider } from "../slider";
+import { cn } from "../../../lib/utils";
+import { PlusCircle, XCircle } from "lucide-react";
 
 interface Range {
   min: number;
@@ -27,8 +23,8 @@ function getIsValidRange(value: unknown): value is RangeValue {
   return (
     Array.isArray(value) &&
     value.length === 2 &&
-    typeof value[0] === 'number' &&
-    typeof value[1] === 'number'
+    typeof value[0] === "number" &&
+    typeof value[1] === "number"
   );
 }
 
@@ -39,7 +35,7 @@ interface DataTableSliderFilterProps<TData> {
 
 export function DataTableSliderFilter<TData>({
   column,
-  title
+  title,
 }: DataTableSliderFilterProps<TData>) {
   const id = React.useId();
 
@@ -61,8 +57,8 @@ export function DataTableSliderFilter<TData>({
       if (values && Array.isArray(values) && values.length === 2) {
         const [facetMinValue, facetMaxValue] = values;
         if (
-          typeof facetMinValue === 'number' &&
-          typeof facetMaxValue === 'number'
+          typeof facetMinValue === "number" &&
+          typeof facetMaxValue === "number"
         ) {
           minValue = facetMinValue;
           maxValue = facetMaxValue;
@@ -96,7 +92,7 @@ export function DataTableSliderFilter<TData>({
         column.setFilterValue([numValue, range[1]]);
       }
     },
-    [column, min, range]
+    [column, min, range],
   );
 
   const onToInputChange = React.useCallback(
@@ -106,7 +102,7 @@ export function DataTableSliderFilter<TData>({
         column.setFilterValue([range[0], numValue]);
       }
     },
-    [column, max, range]
+    [column, max, range],
   );
 
   const onSliderValueChange = React.useCallback(
@@ -115,7 +111,7 @@ export function DataTableSliderFilter<TData>({
         column.setFilterValue(value);
       }
     },
-    [column]
+    [column],
   );
 
   const onReset = React.useCallback(
@@ -125,19 +121,19 @@ export function DataTableSliderFilter<TData>({
       }
       column.setFilterValue(undefined);
     },
-    [column]
+    [column],
   );
 
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button variant='outline' size='sm' className='border-dashed'>
+        <Button variant="outline" size="sm" className="border-dashed">
           {columnFilterValue ? (
             <div
-              role='button'
+              role="button"
               aria-label={`Clear ${title} filter`}
               tabIndex={0}
-              className='focus-visible:ring-ring rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-1 focus-visible:outline-none'
+              className="focus-visible:ring-ring rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-1 focus-visible:outline-none"
               onClick={onReset}
             >
               <XCircle />
@@ -149,72 +145,72 @@ export function DataTableSliderFilter<TData>({
           {columnFilterValue ? (
             <>
               <Separator
-                orientation='vertical'
-                className='mx-0.5 data-[orientation=vertical]:h-4'
+                orientation="vertical"
+                className="mx-0.5 data-[orientation=vertical]:h-4"
               />
-              {formatValue(columnFilterValue[0])} -{' '}
+              {formatValue(columnFilterValue[0])} -{" "}
               {formatValue(columnFilterValue[1])}
-              {unit ? ` ${unit}` : ''}
+              {unit ? ` ${unit}` : ""}
             </>
           ) : null}
         </Button>
       </PopoverTrigger>
-      <PopoverContent align='start' className='flex w-auto flex-col gap-4'>
-        <div className='flex flex-col gap-3'>
-          <p className='leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70'>
+      <PopoverContent align="start" className="flex w-auto flex-col gap-4">
+        <div className="flex flex-col gap-3">
+          <p className="leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
             {title}
           </p>
-          <div className='flex items-center gap-4'>
-            <Label htmlFor={`${id}-from`} className='sr-only'>
+          <div className="flex items-center gap-4">
+            <Label htmlFor={`${id}-from`} className="sr-only">
               From
             </Label>
-            <div className='relative'>
+            <div className="relative">
               <Input
                 id={`${id}-from`}
-                type='number'
+                type="number"
                 aria-valuemin={min}
                 aria-valuemax={max}
-                inputMode='numeric'
-                pattern='[0-9]*'
+                inputMode="numeric"
+                pattern="[0-9]*"
                 placeholder={min.toString()}
                 min={min}
                 max={max}
                 value={range[0]?.toString()}
                 onChange={onFromInputChange}
-                className={cn('h-8 w-24', unit && 'pr-8')}
+                className={cn("h-8 w-24", unit && "pr-8")}
               />
               {unit && (
-                <span className='bg-accent text-muted-foreground absolute top-0 right-0 bottom-0 flex items-center rounded-r-md px-2 text-sm'>
+                <span className="bg-accent text-muted-foreground absolute top-0 right-0 bottom-0 flex items-center rounded-r-md px-2 text-sm">
                   {unit}
                 </span>
               )}
             </div>
-            <Label htmlFor={`${id}-to`} className='sr-only'>
+            <Label htmlFor={`${id}-to`} className="sr-only">
               to
             </Label>
-            <div className='relative'>
+            <div className="relative">
               <Input
                 id={`${id}-to`}
-                type='number'
+                type="number"
                 aria-valuemin={min}
                 aria-valuemax={max}
-                inputMode='numeric'
-                pattern='[0-9]*'
+                inputMode="numeric"
+                pattern="[0-9]*"
                 placeholder={max.toString()}
                 min={min}
                 max={max}
                 value={range[1]?.toString()}
                 onChange={onToInputChange}
-                className={cn('h-8 w-24', unit && 'pr-8')}
+                className={cn("h-8 w-24", unit && "pr-8")}
               />
               {unit && (
-                <span className='bg-accent text-muted-foreground absolute top-0 right-0 bottom-0 flex items-center rounded-r-md px-2 text-sm'>
+                <span className="bg-accent text-muted-foreground absolute top-0 right-0 bottom-0 flex items-center rounded-r-md px-2 text-sm">
                   {unit}
                 </span>
               )}
             </div>
           </div>
-          <Label htmlFor={`${id}-slider`} className='sr-only'>
+          <Label htmlFor={`${id}-slider`} className="sr-only">
             {title} slider
           </Label>
           <Slider
@@ -228,8 +224,8 @@ export function DataTableSliderFilter<TData>({
         </div>
         <Button
           aria-label={`Clear ${title} filter`}
-          variant='outline'
-          size='sm'
+          variant="outline"
+          size="sm"
           onClick={onReset}
         >
           Clear

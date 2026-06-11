@@ -14,7 +14,8 @@ type NumberInput = number | null | undefined;
 
 function toDate(value: DateInput): Date | null {
   if (value == null) return null;
-  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  if (value instanceof Date)
+    return Number.isNaN(value.getTime()) ? null : value;
   const d = new Date(value);
   return Number.isNaN(d.getTime()) ? null : d;
 }

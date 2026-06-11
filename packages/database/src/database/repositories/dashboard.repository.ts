@@ -52,7 +52,9 @@ function buildMeetingFilter(ctx: DashboardContext): Prisma.MeetingWhereInput {
   return { userId: ctx.userId, organizationId: ctx.organizationId };
 }
 
-function buildCallbackFilter(ctx: DashboardContext): Prisma.CallbackTaskWhereInput {
+function buildCallbackFilter(
+  ctx: DashboardContext,
+): Prisma.CallbackTaskWhereInput {
   if (!ctx.organizationId || ctx.scope === "personal") {
     return { userId: ctx.userId, organizationId: null };
   }
@@ -85,7 +87,10 @@ function callCampaignWhere(ctx: DashboardContext): Prisma.CallWhereInput {
  * campaign. Used by the $queryRaw aggregations. Returns Prisma.empty when no
  * campaign is selected.
  */
-function callCampaignSql(ctx: DashboardContext, callIdColumn: Prisma.Sql): Prisma.Sql {
+function callCampaignSql(
+  ctx: DashboardContext,
+  callIdColumn: Prisma.Sql,
+): Prisma.Sql {
   if (!ctx.campaignId) return Prisma.empty;
   return Prisma.sql`AND EXISTS (
     SELECT 1 FROM "CallAttempt" ca
@@ -106,7 +111,8 @@ function rawOwnerFilters(
   userCol: Prisma.Sql,
   orgCol: Prisma.Sql,
 ): { userFilter: Prisma.Sql; orgFilter: Prisma.Sql } {
-  const userId = "userId" in owner ? (owner.userId as string | undefined) : undefined;
+  const userId =
+    "userId" in owner ? (owner.userId as string | undefined) : undefined;
   const userFilter = userId
     ? Prisma.sql`AND ${userCol} = ${userId}::uuid`
     : Prisma.empty;
@@ -235,15 +241,15 @@ export class DashboardRepository {
       }),
     ]);
 
-    const conversionRate = answeredCalls > 0 ? (sales / answeredCalls) * 100 : 0;
+    const conversionRate =
+      answeredCalls > 0 ? (sales / answeredCalls) * 100 : 0;
     const meetingRate =
       answeredCalls > 0 ? (meetingsScheduled / answeredCalls) * 100 : 0;
     const positiveOutcomeRate =
       answeredCalls > 0
         ? ((sales + meetingBooked + interested) / answeredCalls) * 100
         : 0;
-    const answerRate =
-      totalCalls > 0 ? (answeredCalls / totalCalls) * 100 : 0;
+    const answerRate = totalCalls > 0 ? (answeredCalls / totalCalls) * 100 : 0;
 
     return {
       totalCalls,
@@ -299,11 +305,7 @@ export class DashboardRepository {
       days <= 31 ? "day" : days <= 120 ? "week" : "month";
 
     const trunc =
-      granularity === "day"
-        ? "day"
-        : granularity === "week"
-          ? "week"
-          : "month";
+      granularity === "day" ? "day" : granularity === "week" ? "week" : "month";
 
     const { userFilter, orgFilter } = rawOwnerFilters(
       owner,

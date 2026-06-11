@@ -14,10 +14,7 @@ import type {
   CrmRecordingUploadInput,
   CrmTaskInput,
 } from "@ringee/platform";
-import {
-  CrmError,
-  CrmProviderRegistry,
-} from "@ringee/platform";
+import { CrmError, CrmProviderRegistry } from "@ringee/platform";
 import { CrmConnectionService } from "./crm-connection.service";
 
 const MAX_OUTBOX_ATTEMPTS = 10;
@@ -94,7 +91,10 @@ export class CrmSyncService {
 
     const connection = await this.connections.findById(sync.connectionId);
     if (!connection || connection.status !== "active") {
-      await this.outbox.markFailed(event.id, `connection ${sync.connectionId} not active`);
+      await this.outbox.markFailed(
+        event.id,
+        `connection ${sync.connectionId} not active`,
+      );
       return;
     }
 
@@ -114,8 +114,10 @@ export class CrmSyncService {
 
       await this.syncRepo.markDone(sync.id, {
         externalActivityId: result.externalId,
-        externalRecordId: logInput.linkedRecords[0]?.externalId ?? result.externalId,
-        externalRecordType: logInput.linkedRecords[0]?.externalType ?? result.externalType,
+        externalRecordId:
+          logInput.linkedRecords[0]?.externalId ?? result.externalId,
+        externalRecordType:
+          logInput.linkedRecords[0]?.externalType ?? result.externalType,
       });
       await this.connections.touchLastSync(connection.id);
       await this.outbox.markSent(event.id);
@@ -188,7 +190,10 @@ export class CrmSyncService {
 
     const provider = this.registry.get(connection.provider);
     if (!provider.createTask) {
-      await this.outbox.markFailed(event.id, `${connection.provider} does not support tasks`);
+      await this.outbox.markFailed(
+        event.id,
+        `${connection.provider} does not support tasks`,
+      );
       return;
     }
 
@@ -212,7 +217,10 @@ export class CrmSyncService {
   private async processMeetingSync(event: CrmOutboxEvent): Promise<void> {
     const payload = event.payload as Record<string, unknown> | null;
     if (!payload?.ringeeMeetingId) {
-      await this.outbox.markFailed(event.id, "missing ringeeMeetingId in payload");
+      await this.outbox.markFailed(
+        event.id,
+        "missing ringeeMeetingId in payload",
+      );
       return;
     }
     if (!event.connectionId) {
@@ -228,7 +236,10 @@ export class CrmSyncService {
 
     const provider = this.registry.get(connection.provider);
     if (!provider.upsertMeeting) {
-      await this.outbox.markFailed(event.id, `${connection.provider} does not support meetings`);
+      await this.outbox.markFailed(
+        event.id,
+        `${connection.provider} does not support meetings`,
+      );
       return;
     }
 
@@ -251,7 +262,10 @@ export class CrmSyncService {
   private async processRecordingUpload(event: CrmOutboxEvent): Promise<void> {
     const payload = event.payload as Record<string, unknown> | null;
     if (!payload?.publicRecordingUrl || !payload?.fileName) {
-      await this.outbox.markFailed(event.id, "missing publicRecordingUrl or fileName in payload");
+      await this.outbox.markFailed(
+        event.id,
+        "missing publicRecordingUrl or fileName in payload",
+      );
       return;
     }
     if (!event.connectionId) {
@@ -267,7 +281,10 @@ export class CrmSyncService {
 
     const provider = this.registry.get(connection.provider);
     if (!provider.uploadRecording) {
-      await this.outbox.markFailed(event.id, `${connection.provider} does not support recording upload`);
+      await this.outbox.markFailed(
+        event.id,
+        `${connection.provider} does not support recording upload`,
+      );
       return;
     }
 
@@ -327,13 +344,20 @@ export class CrmSyncService {
         await this.outbox.markFailed(event.id, message);
         return;
       }
-      if (err.code === "VALIDATION" || err.code === "CONFLICT" || err.code === "NOT_FOUND") {
+      if (
+        err.code === "VALIDATION" ||
+        err.code === "CONFLICT" ||
+        err.code === "NOT_FOUND"
+      ) {
         await this.syncRepo.markStatus(sync.id, "failed", message);
         await this.outbox.markFailed(event.id, message);
         return;
       }
       if (err.retryable && event.attemptCount + 1 < MAX_OUTBOX_ATTEMPTS) {
-        const nextAttemptAt = this.computeBackoff(event.attemptCount + 1, err.retryAfterMs);
+        const nextAttemptAt = this.computeBackoff(
+          event.attemptCount + 1,
+          err.retryAfterMs,
+        );
         await this.syncRepo.scheduleRetry(sync.id, nextAttemptAt, message);
         await this.outbox.scheduleRetry(event.id, nextAttemptAt, message);
         return;
@@ -354,7 +378,10 @@ export class CrmSyncService {
     await this.outbox.markFailed(event.id, message);
   }
 
-  private async handleFailure(event: CrmOutboxEvent, err: unknown): Promise<void> {
+  private async handleFailure(
+    event: CrmOutboxEvent,
+    err: unknown,
+  ): Promise<void> {
     const message = err instanceof Error ? err.message : String(err);
     this.logger.error(`outbox event ${event.id} failed: ${message}`);
 

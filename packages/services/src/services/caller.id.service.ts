@@ -11,7 +11,7 @@ export class CallerIdService {
   constructor(
     private readonly repo: CallerIdRepository,
     private readonly telephonyService: TelephonyService,
-  ) { }
+  ) {}
 
   async requestVerification(
     ctx: OwnershipContext,

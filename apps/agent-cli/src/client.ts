@@ -22,10 +22,18 @@ export function getClient(): RingeeClient {
       fail("Ringee is not configured.");
       line("");
       line(`  Set ${c.bold("RINGEE_MCP_URL")} to your MCP SSE URL, or set`);
-      line(`  ${c.bold("RINGEE_BACKEND_URL")} + ${c.bold("RINGEE_USER_ID")} (and optionally RINGEE_ORG_ID).`);
+      line(
+        `  ${c.bold("RINGEE_BACKEND_URL")} + ${c.bold("RINGEE_USER_ID")} (and optionally RINGEE_ORG_ID).`,
+      );
       line("");
-      line(c.dim("  Find these in the dashboard: Settings → MCP / Integrations"));
-      line(c.dim("  (GET /api/mcp/connection-info). Then run `ringee config show`."));
+      line(
+        c.dim("  Find these in the dashboard: Settings → MCP / Integrations"),
+      );
+      line(
+        c.dim(
+          "  (GET /api/mcp/connection-info). Then run `ringee config show`.",
+        ),
+      );
       process.exit(1);
     }
     throw err;
@@ -39,8 +47,7 @@ export async function run(fn: () => Promise<void>): Promise<void> {
   try {
     await fn();
   } catch (err) {
-    const message =
-      err instanceof Error ? err.message : "Unexpected error";
+    const message = err instanceof Error ? err.message : "Unexpected error";
     fail(message);
     process.exitCode = 1;
   } finally {

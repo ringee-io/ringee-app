@@ -5,7 +5,11 @@ import {
   BadRequestException,
   Res,
 } from "@nestjs/common";
-import { CreateChatAuthDto, CurrentUser, createOwnershipContext } from "@ringee/platform";
+import {
+  CreateChatAuthDto,
+  CurrentUser,
+  createOwnershipContext,
+} from "@ringee/platform";
 import { ChatAuthService } from "@ringee/services";
 import { CryptoService } from "@ringee/platform";
 import { UserRepository } from "@ringee/database";
@@ -23,7 +27,7 @@ export class ChatAuthController {
     private readonly chatAuthService: ChatAuthService,
     private readonly cryptoService: CryptoService,
     private readonly userRepository: UserRepository,
-  ) { }
+  ) {}
 
   @Post("connect")
   async connectWhatsapp(
@@ -37,7 +41,10 @@ export class ChatAuthController {
   }
 
   @Post()
-  async connectChat(@CurrentUser() user: CurrentUserData, @Res() res: Response) {
+  async connectChat(
+    @CurrentUser() user: CurrentUserData,
+    @Res() res: Response,
+  ) {
     const e = this.cryptoService.encrypt({
       u: user.id,
     });

@@ -53,7 +53,11 @@ export function useFreeTrialTimer(
     if (timerStartedRef.current) return;
 
     const callState = activeCall?.state;
-    if (callState === 'active' || callState === 'connected' || callState === 'recording') {
+    if (
+      callState === 'active' ||
+      callState === 'connected' ||
+      callState === 'recording'
+    ) {
       timerStartedRef.current = true;
       hasHungUpRef.current = false;
       setRemainingSeconds(FREE_TRIAL_DURATION);
@@ -68,7 +72,7 @@ export function useFreeTrialTimer(
             if (!hasHungUpRef.current) {
               hasHungUpRef.current = true;
               toast.info('⏱ Free trial call ended — 1 minute limit reached', {
-                duration: 6000,
+                duration: 6000
               });
               onHangupRef.current();
               consumeFreeTrial();
@@ -88,7 +92,10 @@ export function useFreeTrialTimer(
 
   // Reset everything when the call ends or disappears
   useEffect(() => {
-    const isCallEnded = !activeCall || activeCall.state === 'destroying' || activeCall.state === 'destroyed';
+    const isCallEnded =
+      !activeCall ||
+      activeCall.state === 'destroying' ||
+      activeCall.state === 'destroyed';
 
     if (isCallEnded) {
       if (timerStartedRef.current && !hasHungUpRef.current) {
@@ -111,7 +118,6 @@ export function useFreeTrialTimer(
     isFreeTrialCall,
     remainingSeconds,
     totalSeconds: FREE_TRIAL_DURATION,
-    timerStarted: timerStartedRef.current,
+    timerStarted: timerStartedRef.current
   };
 }
-

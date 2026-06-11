@@ -40,18 +40,18 @@ export function LiveTranscriptPanel({ callId, className }: Props) {
   if (!callId) return null;
 
   return (
-    <div className={cn('flex flex-col rounded-lg border bg-card', className)}>
-      <div className="flex items-center justify-between border-b px-3 py-2">
-        <div className="flex items-center gap-2">
-          <Mic className="h-4 w-4 text-muted-foreground" />
-          <span className="text-sm font-medium">{t('liveTitle')}</span>
+    <div className={cn('bg-card flex flex-col rounded-lg border', className)}>
+      <div className='flex items-center justify-between border-b px-3 py-2'>
+        <div className='flex items-center gap-2'>
+          <Mic className='text-muted-foreground h-4 w-4' />
+          <span className='text-sm font-medium'>{t('liveTitle')}</span>
         </div>
         <StatusBadge status={status} t={t} />
       </div>
 
-      <ScrollArea className="h-48 px-3 py-2">
+      <ScrollArea className='h-48 px-3 py-2'>
         {segments.length === 0 && !partial ? (
-          <p className="py-6 text-center text-sm text-muted-foreground">
+          <p className='text-muted-foreground py-6 text-center text-sm'>
             {status === 'failed'
               ? t('status.failed')
               : data && !data.transcriptionEnabled
@@ -59,18 +59,18 @@ export function LiveTranscriptPanel({ callId, className }: Props) {
                 : t('waitingForAudio')}
           </p>
         ) : (
-          <div className="space-y-2">
+          <div className='space-y-2'>
             {segments.map((s) => (
-              <p key={s.id} className="text-sm leading-relaxed">
-                <span className="mr-1 font-medium text-muted-foreground">
+              <p key={s.id} className='text-sm leading-relaxed'>
+                <span className='text-muted-foreground mr-1 font-medium'>
                   {speakerLabel(s.track, s.speaker, t)}:
                 </span>
                 {s.text}
               </p>
             ))}
             {partial?.text ? (
-              <p className="text-sm italic leading-relaxed text-muted-foreground">
-                <span className="mr-1 font-medium">
+              <p className='text-muted-foreground text-sm leading-relaxed italic'>
+                <span className='mr-1 font-medium'>
                   {speakerLabel(partial.track, null, t)}:
                 </span>
                 {partial.text}
@@ -81,20 +81,25 @@ export function LiveTranscriptPanel({ callId, className }: Props) {
         )}
       </ScrollArea>
 
-      {status === 'failed' || !status || status === 'idle' || status === 'stopped' ? (
-        <div className="border-t px-3 py-2">
+      {status === 'failed' ||
+      !status ||
+      status === 'idle' ||
+      status === 'stopped' ? (
+        <div className='border-t px-3 py-2'>
           <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            className="w-full"
-            disabled={actionPending || (data && !data.transcriptionEnabled) || false}
+            type='button'
+            size='sm'
+            variant='outline'
+            className='w-full'
+            disabled={
+              actionPending || (data && !data.transcriptionEnabled) || false
+            }
             onClick={() =>
               status === 'failed' ? retry('realtime') : startRealtime()
             }
           >
             {actionPending ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              <Loader2 className='mr-2 h-4 w-4 animate-spin' />
             ) : null}
             {status === 'failed' ? t('tryAgain') : t('transcribe')}
           </Button>
@@ -113,20 +118,20 @@ function StatusBadge({
 }) {
   if (status === 'transcribing') {
     return (
-      <Badge variant="secondary" className="gap-1">
-        <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+      <Badge variant='secondary' className='gap-1'>
+        <span className='h-2 w-2 animate-pulse rounded-full bg-red-500' />
         {t('transcribing')}
       </Badge>
     );
   }
   if (status === 'starting') {
-    return <Badge variant="secondary">{t('status.starting')}</Badge>;
+    return <Badge variant='secondary'>{t('status.starting')}</Badge>;
   }
   if (status === 'failed') {
-    return <Badge variant="destructive">{t('status.failed')}</Badge>;
+    return <Badge variant='destructive'>{t('status.failed')}</Badge>;
   }
   if (status === 'completed' || status === 'stopped') {
-    return <Badge variant="outline">{t(`status.${status}`)}</Badge>;
+    return <Badge variant='outline'>{t(`status.${status}`)}</Badge>;
   }
   return null;
 }

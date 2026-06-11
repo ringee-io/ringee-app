@@ -1,5 +1,9 @@
 import { Button } from '@ringee/frontend-shared/components/ui/button';
-import { Card, CardContent, CardHeader } from '@ringee/frontend-shared/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader
+} from '@ringee/frontend-shared/components/ui/card';
 import { Task } from '../utils/store';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';

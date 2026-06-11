@@ -45,9 +45,7 @@ export class TelnyxRatePerMinuteRepository {
   }
 
   private isMobile(description: string): boolean {
-    return (
-      description.includes("mobile") || description.includes("cellular")
-    );
+    return description.includes("mobile") || description.includes("cellular");
   }
 
   private isLandline(description: string): boolean {
@@ -84,7 +82,8 @@ export class TelnyxRatePerMinuteRepository {
 
     const min = Math.min(...adjusted);
     const max = Math.max(...adjusted);
-    const avg = adjusted.reduce((sum, value) => sum + value, 0) / adjusted.length;
+    const avg =
+      adjusted.reduce((sum, value) => sum + value, 0) / adjusted.length;
 
     return {
       min: parseFloat(min.toFixed(4)),

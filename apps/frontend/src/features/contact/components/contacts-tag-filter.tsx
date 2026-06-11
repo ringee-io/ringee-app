@@ -26,7 +26,9 @@ export function ContactsTagFilter() {
   // shallow: false triggers full page navigation which re-runs the Server Component
   const [selectedTags, setSelectedTags] = useQueryState(
     'tags',
-    parseAsArrayOf(parseAsString).withDefault([]).withOptions({ shallow: false })
+    parseAsArrayOf(parseAsString)
+      .withDefault([])
+      .withOptions({ shallow: false })
   );
 
   const fetchTags = useCallback(async () => {
@@ -48,7 +50,7 @@ export function ContactsTagFilter() {
 
   const handleTagToggle = (tagId: string) => {
     const newTags = selectedTags.includes(tagId)
-      ? selectedTags.filter(id => id !== tagId)
+      ? selectedTags.filter((id) => id !== tagId)
       : [...selectedTags, tagId];
     // Just update the query state - shallow:false will trigger navigation
     setSelectedTags(newTags.length > 0 ? newTags : null);
@@ -66,7 +68,7 @@ export function ContactsTagFilter() {
   const formatLabel = () => {
     if (!hasValue) return 'Filter by tags';
     // If tags loaded, show name(s); otherwise show count
-    const selected = tags.filter(t => selectedTags.includes(t.id));
+    const selected = tags.filter((t) => selectedTags.includes(t.id));
     if (selected.length === 1) return selected[0].name;
     if (selected.length > 0) return `${selected.length} tags`;
     // Tags not loaded yet, show count from URL
@@ -77,52 +79,49 @@ export function ContactsTagFilter() {
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button
-          variant="outline"
-          size="sm"
-          className={cn('border-dashed min-w-0', hasValue && 'border-primary')}
+          variant='outline'
+          size='sm'
+          className={cn('min-w-0 border-dashed', hasValue && 'border-primary')}
         >
           {hasValue ? (
             <div
-              role="button"
-              aria-label="Clear tag filter"
+              role='button'
+              aria-label='Clear tag filter'
               tabIndex={0}
               onClick={handleClear}
-              className="focus-visible:ring-ring rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-1 focus-visible:outline-none"
+              className='focus-visible:ring-ring rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-1 focus-visible:outline-none'
             >
-              <IconX className="h-4 w-4" />
+              <IconX className='h-4 w-4' />
             </div>
           ) : (
-            <IconFilter className="h-4 w-4" />
+            <IconFilter className='h-4 w-4' />
           )}
-          <span className="ml-2 truncate sm:max-w-none">{formatLabel()}</span>
+          <span className='ml-2 truncate sm:max-w-none'>{formatLabel()}</span>
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-[200px] p-3" align="start">
-        <div className="space-y-2 max-h-[200px] overflow-y-auto">
+      <PopoverContent className='w-[200px] p-3' align='start'>
+        <div className='max-h-[200px] space-y-2 overflow-y-auto'>
           {tags.map((tag) => (
             <label
               key={tag.id}
-              className="flex items-center gap-2 cursor-pointer hover:bg-muted/50 p-1 rounded"
+              className='hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded p-1'
             >
               <Checkbox
                 checked={selectedTags.includes(tag.id)}
                 onCheckedChange={() => handleTagToggle(tag.id)}
               />
               <div
-                className="h-3 w-3 rounded-full"
+                className='h-3 w-3 rounded-full'
                 style={{ backgroundColor: getTagColor(tag.color) }}
               />
-              <span className="text-sm">{tag.name}</span>
+              <span className='text-sm'>{tag.name}</span>
             </label>
           ))}
           {tags.length === 0 && (
-            <p className="text-sm text-muted-foreground py-2">No tags</p>
+            <p className='text-muted-foreground py-2 text-sm'>No tags</p>
           )}
         </div>
       </PopoverContent>
     </Popover>
   );
 }
-
-
-

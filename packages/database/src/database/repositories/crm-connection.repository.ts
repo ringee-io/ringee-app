@@ -50,7 +50,10 @@ export class CrmConnectionRepository {
     });
   }
 
-  listVisibleTo(ctx: { userId: string; organizationId?: string | null }): Promise<CrmConnection[]> {
+  listVisibleTo(ctx: {
+    userId: string;
+    organizationId?: string | null;
+  }): Promise<CrmConnection[]> {
     if (ctx.organizationId) {
       return this.listForOrganization(ctx.organizationId);
     }
@@ -82,10 +85,21 @@ export class CrmConnectionRepository {
 
     const findWhere: Prisma.CrmConnectionWhereInput =
       ctx.scope === "organization"
-        ? { scope: ctx.scope, organizationId: ctx.organizationId, provider: ctx.provider }
-        : { scope: ctx.scope, userId: ctx.userId, provider: ctx.provider, organizationId: null };
+        ? {
+            scope: ctx.scope,
+            organizationId: ctx.organizationId,
+            provider: ctx.provider,
+          }
+        : {
+            scope: ctx.scope,
+            userId: ctx.userId,
+            provider: ctx.provider,
+            organizationId: null,
+          };
 
-    const existing = await this.prisma.crmConnection.findFirst({ where: findWhere });
+    const existing = await this.prisma.crmConnection.findFirst({
+      where: findWhere,
+    });
 
     if (existing) {
       return this.prisma.crmConnection.update({
@@ -97,8 +111,12 @@ export class CrmConnectionRepository {
           refreshTokenCiphertext: refreshTokenCiphertext ?? null,
           tokenExpiresAt: tokenExpiresAt ?? null,
           scopes: scopes ?? [],
-          providerMetadata: (providerMetadata ?? undefined) as Prisma.InputJsonValue | undefined,
-          capabilities: (capabilities ?? undefined) as Prisma.InputJsonValue | undefined,
+          providerMetadata: (providerMetadata ?? undefined) as
+            | Prisma.InputJsonValue
+            | undefined,
+          capabilities: (capabilities ?? undefined) as
+            | Prisma.InputJsonValue
+            | undefined,
           status: "active",
           lastErrorCode: null,
           lastErrorAt: null,
@@ -111,15 +129,20 @@ export class CrmConnectionRepository {
         provider: ctx.provider,
         scope: ctx.scope,
         userId: ctx.userId,
-        organizationId: ctx.scope === "organization" ? ctx.organizationId ?? null : null,
+        organizationId:
+          ctx.scope === "organization" ? (ctx.organizationId ?? null) : null,
         externalAccountId,
         externalAccountName: externalAccountName ?? null,
         accessTokenCiphertext,
         refreshTokenCiphertext: refreshTokenCiphertext ?? null,
         tokenExpiresAt: tokenExpiresAt ?? null,
         scopes: scopes ?? [],
-        providerMetadata: (providerMetadata ?? undefined) as Prisma.InputJsonValue | undefined,
-        capabilities: (capabilities ?? undefined) as Prisma.InputJsonValue | undefined,
+        providerMetadata: (providerMetadata ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
+        capabilities: (capabilities ?? undefined) as
+          | Prisma.InputJsonValue
+          | undefined,
         status: "active",
       },
     });
@@ -186,9 +209,21 @@ export class CrmConnectionRepository {
     organizationId?: string | null;
   }): Promise<CrmConnection[]> {
     const where: Prisma.CrmConnectionWhereInput = ctx.organizationId
-      ? { status: "active", scope: "organization", organizationId: ctx.organizationId }
-      : { status: "active", scope: "personal", userId: ctx.userId, organizationId: null };
-    return this.prisma.crmConnection.findMany({ where, orderBy: { createdAt: "asc" } });
+      ? {
+          status: "active",
+          scope: "organization",
+          organizationId: ctx.organizationId,
+        }
+      : {
+          status: "active",
+          scope: "personal",
+          userId: ctx.userId,
+          organizationId: null,
+        };
+    return this.prisma.crmConnection.findMany({
+      where,
+      orderBy: { createdAt: "asc" },
+    });
   }
 
   remove(id: string): Promise<CrmConnection> {

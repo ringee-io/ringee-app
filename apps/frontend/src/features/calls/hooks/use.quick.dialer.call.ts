@@ -26,6 +26,6 @@ export function useQuickDialerCall() {
 
   return {
     isQuickDialerOpen,
-    handleRecall,
+    handleRecall
   };
 }
