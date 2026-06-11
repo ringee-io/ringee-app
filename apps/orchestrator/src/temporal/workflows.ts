@@ -36,9 +36,13 @@ const transcriptionJobs = proxyActivities<Activities>({
  * Periodic drains/pollers: a single attempt per schedule tick — the next tick
  * is the retry (combined with the schedules' SKIP overlap policy this also
  * replaces the old in-flight guards).
+ *
+ * The timeout must cover the drains' real worst case: outbox drains deliver
+ * HTTP webhooks/API calls with a 15s per-request timeout over batches of 25,
+ * so a batch full of dead endpoints can legitimately take several minutes.
  */
 const periodicJobs = proxyActivities<Activities>({
-  startToCloseTimeout: "2 minutes",
+  startToCloseTimeout: "8 minutes",
   retry: { maximumAttempts: 1 },
 });
 

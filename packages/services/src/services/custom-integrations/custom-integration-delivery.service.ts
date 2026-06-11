@@ -11,6 +11,10 @@ const MAX_ATTEMPTS = 10;
 const BASE_BACKOFF_MS = 2_000;
 const MAX_BACKOFF_MS = 5 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15_000;
+// Deliveries are independent rows, so send them in small parallel waves: a
+// batch of 25 against dead endpoints (15s timeout each) drops from ~6min
+// sequential to ~1.5min, keeping the drain well inside its activity timeout.
+const DRAIN_CONCURRENCY = 5;
 
 export interface DeliveryAttemptResult {
   ok: boolean;
@@ -31,8 +35,18 @@ export class CustomIntegrationDeliveryService {
 
   async drain(batchSize = 20): Promise<number> {
     const batch = await this.deliveries.claimDueBatch(new Date(), batchSize);
-    for (const delivery of batch) {
-      await this.process(delivery);
+    for (let i = 0; i < batch.length; i += DRAIN_CONCURRENCY) {
+      const wave = batch.slice(i, i + DRAIN_CONCURRENCY);
+      const results = await Promise.allSettled(
+        wave.map((delivery) => this.process(delivery)),
+      );
+      for (const [j, result] of results.entries()) {
+        if (result.status === "rejected") {
+          this.logger.error(
+            `Delivery ${wave[j].id} processing threw: ${result.reason}`,
+          );
+        }
+      }
     }
     return batch.length;
   }
