@@ -1,6 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
-import { Prisma, Organization, OrganizationMembership } from "@prisma/client";
+import {
+  Prisma,
+  Organization,
+  OrganizationMembership,
+  User,
+  UserEmail,
+} from "@prisma/client";
 import { ClerkOrganization } from "@ringee/platform";
 import { randomBytes } from "crypto";
 
@@ -38,6 +44,27 @@ export class OrganizationRepository {
       include: { organization: true },
       orderBy: { organization: { name: "asc" } },
     });
+  }
+
+  /**
+   * Resolved admin memberships of an organization, with each admin's user row
+   * and emails. Used to notify the organization about operational failures.
+   * Matches both Clerk-style ("org:admin") and plain ("admin") role values.
+   */
+  async findAdminMembersWithEmails(
+    organizationId: string,
+  ): Promise<Array<User & { emails: UserEmail[] }>> {
+    const memberships = await this.prisma.organizationMembership.findMany({
+      where: {
+        organizationId,
+        userId: { not: null },
+        role: { contains: "admin" },
+      },
+      include: { user: { include: { emails: true } } },
+    });
+    return memberships
+      .map((m) => m.user)
+      .filter((u): u is User & { emails: UserEmail[] } => u !== null);
   }
 
   /** True when the user has a resolved membership in the organization. */

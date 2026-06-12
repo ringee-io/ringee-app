@@ -100,6 +100,7 @@ import {
   CustomIntegrationInboundService,
   CustomIntegrationOutboundService,
   CustomIntegrationDeliveryService,
+  CustomIntegrationFailureNotifierService,
   CustomIntegrationClickToCallService,
 } from "./custom-integrations";
 import {
@@ -196,6 +197,7 @@ const servicesProviders = [
   CustomIntegrationInboundService,
   CustomIntegrationOutboundService,
   CustomIntegrationDeliveryService,
+  CustomIntegrationFailureNotifierService,
   CustomIntegrationClickToCallService,
   // Call Sessions (magic-link dialing)
   CallSessionService,

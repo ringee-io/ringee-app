@@ -28,7 +28,8 @@ import {
   TranscriptDialog,
   TranscribeCallButton,
   useCallTranscription,
-  useCallIdBySession
+  useCallIdBySession,
+  useRecordingSettings
 } from '@/features/transcription';
 
 function formatDuration(sec: number): string {
@@ -71,6 +72,9 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
 
   const [showDTMF, setShowDTMF] = useState(false);
   const [showSubtitles, setShowSubtitles] = useState(true);
+  // When auto-record / auto-transcribe is enforced by the workspace settings,
+  // the manual toggles are disabled (the backend starts them on answer).
+  const { settings: recordingSettings } = useRecordingSettings();
   const [transcriptDialogOpen, setTranscriptDialogOpen] = useState(false);
   const [localTimer, setLocalTimer] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -284,8 +288,18 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
               size='icon'
               className='h-12 w-12 rounded-full'
               onClick={toggleRecord}
-              disabled={!isInCall || isRecordingLoading}
-              title={isRecording ? 'Stop recording' : 'Start recording'}
+              disabled={
+                !isInCall ||
+                isRecordingLoading ||
+                recordingSettings.recordAllCalls
+              }
+              title={
+                recordingSettings.recordAllCalls
+                  ? 'Auto-recording is on for all calls'
+                  : isRecording
+                    ? 'Stop recording'
+                    : 'Start recording'
+              }
             >
               <Circle
                 className={`h-5 w-5 ${isRecording ? 'fill-white' : ''}`}
@@ -312,6 +326,7 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
             <TranscribeCallButton
               callId={transcriptionCallId}
               mode='active'
+              autoTranscribeEnabled={recordingSettings.transcribeRealtime}
               className='h-10 rounded-full px-4'
               onView={() => setTranscriptDialogOpen(true)}
             />

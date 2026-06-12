@@ -76,6 +76,7 @@ export function useCallSession(token: string) {
   const [creditsOk, setCreditsOk] = useState(true);
   const [creditBalance, setCreditBalance] = useState<number>(0);
   const [callerIdNumber, setCallerIdNumber] = useState<string | null>(null);
+  const [recordAllCalls, setRecordAllCalls] = useState(false);
   const [telephony, setTelephony] = useState<TelephonyCredential | null>(null);
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -102,6 +103,7 @@ export function useCallSession(token: string) {
       setCreditsOk(res.creditsOk);
       setCreditBalance(res.creditBalance);
       setCallerIdNumber(res.callerIdNumber);
+      setRecordAllCalls(res.recordAllCalls ?? false);
       setTelephony(res.telephony);
       const firstPending = res.session.items.find(
         (i) => i.status === 'pending'
@@ -429,6 +431,7 @@ export function useCallSession(token: string) {
     creditsOk,
     creditBalance,
     callerIdNumber,
+    recordAllCalls,
     items,
     activeItem,
     busy,

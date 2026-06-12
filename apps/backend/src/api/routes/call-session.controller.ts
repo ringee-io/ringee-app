@@ -239,6 +239,7 @@ export class CallSessionController {
       creditsOk,
       creditBalance,
       callerIdNumber,
+      recordAllCalls,
       telephony,
     } = await this.service.openWithToken(token, {
       ipAddress: ip ?? null,
@@ -258,6 +259,7 @@ export class CallSessionController {
       creditsOk,
       creditBalance,
       callerIdNumber,
+      recordAllCalls,
       telephony,
       session: {
         id: session.id,

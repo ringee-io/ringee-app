@@ -41,6 +41,8 @@ interface Props {
     | 'disconnected'
     | 'error';
   callerIdNumber: string | null;
+  /** True when the owner's workspace auto-records every call. */
+  recordAllCalls?: boolean;
   onDial: () => void | Promise<void>;
   onSkip: () => void | Promise<void>;
   onHangup: () => void | Promise<void>;
@@ -72,6 +74,7 @@ export function SessionSoftphonePanel(props: Props) {
     creditsOk,
     telnyxStatus,
     callerIdNumber,
+    recordAllCalls = false,
     onDial,
     onSkip,
     onHangup,
@@ -275,8 +278,14 @@ export function SessionSoftphonePanel(props: Props) {
             size='icon'
             className='h-12 w-12 rounded-full'
             onClick={onToggleRecording}
-            disabled={!inCall || call.isRecordingLoading}
-            title={call.isRecording ? 'Stop recording' : 'Start recording'}
+            disabled={!inCall || call.isRecordingLoading || recordAllCalls}
+            title={
+              recordAllCalls
+                ? 'Auto-recording is on for all calls'
+                : call.isRecording
+                  ? 'Stop recording'
+                  : 'Start recording'
+            }
           >
             {call.isRecordingLoading ? (
               <Loader2 className='h-5 w-5 animate-spin' />

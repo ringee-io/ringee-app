@@ -1,6 +1,7 @@
 {
   "transcribe": "Anruf transkribieren",
   "transcribing": "Wird transkribiert…",
+  "autoEnabled": "Automatische Transkription aktiv",
   "viewTranscript": "Transkript anzeigen",
   "retranscribe": "Aus Aufzeichnung neu transkribieren",
   "processing": "Transkript wird verarbeitet…",

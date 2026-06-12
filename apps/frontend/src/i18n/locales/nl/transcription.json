@@ -1,6 +1,7 @@
 {
   "transcribe": "Gesprek transcriberen",
   "transcribing": "Bezig met transcriberen…",
+  "autoEnabled": "Automatische transcriptie actief",
   "viewTranscript": "Transcriptie bekijken",
   "retranscribe": "Opnieuw transcriberen vanaf opname",
   "processing": "Transcriptie verwerken…",

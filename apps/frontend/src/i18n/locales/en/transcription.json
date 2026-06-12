@@ -1,6 +1,7 @@
 {
   "transcribe": "Transcribe call",
   "transcribing": "Transcribing…",
+  "autoEnabled": "Auto transcription on",
   "viewTranscript": "View transcript",
   "retranscribe": "Retranscribe from recording",
   "processing": "Processing transcript…",

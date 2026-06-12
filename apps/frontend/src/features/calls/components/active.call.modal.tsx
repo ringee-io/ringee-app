@@ -61,7 +61,8 @@ import {
   LiveTranscriptPanel,
   TranscriptDialog,
   TranscribeCallButton,
-  useCallTranscription
+  useCallTranscription,
+  useRecordingSettings
 } from '@/features/transcription';
 
 type ActiveCallModalProps = {
@@ -137,6 +138,9 @@ export function ActiveCallModal({
     live: open && !isPostCall,
     enabled: open && !isPostCall
   });
+  // Workspace-level recording settings: when auto-record / auto-transcribe is
+  // enforced, the manual toggles are disabled (the backend starts them itself).
+  const { settings: recordingSettings } = useRecordingSettings();
 
   useEffect(() => {
     if (bookingPanelOpen) setActiveTab('booking');
@@ -537,28 +541,35 @@ export function ActiveCallModal({
                 <TooltipProvider delayDuration={100}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        onClick={onToggleRecording}
-                        className={cn(
-                          'h-12 w-12 rounded transition-all md:h-14 md:w-14',
-                          isRecording
-                            ? 'bg-rose-500/15 text-rose-600 hover:bg-rose-500/25'
-                            : 'hover:bg-muted/50'
-                        )}
-                      >
-                        {isRecordingLoading ? (
-                          <Loader2 className='h-5 w-5 animate-spin md:h-6 md:w-6' />
-                        ) : isRecording ? (
-                          <RecordingPulse className='h-5 w-5 animate-pulse md:h-6 md:w-6' />
-                        ) : (
-                          <RecordIcon className='text-foreground/80 h-5 w-5 md:h-6 md:w-6' />
-                        )}
-                      </Button>
+                      <span className='inline-flex'>
+                        <Button
+                          variant='ghost'
+                          size='icon'
+                          onClick={onToggleRecording}
+                          disabled={recordingSettings.recordAllCalls}
+                          className={cn(
+                            'h-12 w-12 rounded transition-all md:h-14 md:w-14',
+                            isRecording
+                              ? 'bg-rose-500/15 text-rose-600 hover:bg-rose-500/25'
+                              : 'hover:bg-muted/50'
+                          )}
+                        >
+                          {isRecordingLoading ? (
+                            <Loader2 className='h-5 w-5 animate-spin md:h-6 md:w-6' />
+                          ) : isRecording ? (
+                            <RecordingPulse className='h-5 w-5 animate-pulse md:h-6 md:w-6' />
+                          ) : (
+                            <RecordIcon className='text-foreground/80 h-5 w-5 md:h-6 md:w-6' />
+                          )}
+                        </Button>
+                      </span>
                     </TooltipTrigger>
                     <TooltipContent>
-                      {isRecording ? 'Stop Recording' : 'Record'}
+                      {recordingSettings.recordAllCalls
+                        ? 'Auto-recording is on for all calls'
+                        : isRecording
+                          ? 'Stop Recording'
+                          : 'Record'}
                     </TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
@@ -568,6 +579,7 @@ export function ActiveCallModal({
                   callId={callId}
                   mode='active'
                   size='sm'
+                  autoTranscribeEnabled={recordingSettings.transcribeRealtime}
                   className='h-12 rounded px-3 text-xs md:h-14 md:px-4 md:text-sm'
                   onView={() => setTranscriptDialogOpen(true)}
                 />

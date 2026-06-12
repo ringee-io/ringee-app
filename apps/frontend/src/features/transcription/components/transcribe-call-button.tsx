@@ -21,6 +21,12 @@ interface Props {
   mode: 'active' | 'history';
   /** Invoked when the user clicks "View transcript". */
   onView?: () => void;
+  /**
+   * When the workspace's "transcribe in real time" setting is on, transcription
+   * starts automatically server-side, so the manual start action is disabled.
+   * Viewing/retrying an existing transcript stays available.
+   */
+  autoTranscribeEnabled?: boolean;
   size?: 'sm' | 'default';
   className?: string;
 }
@@ -29,6 +35,7 @@ export function TranscribeCallButton({
   callId,
   mode,
   onView,
+  autoTranscribeEnabled = false,
   size = 'sm',
   className
 }: Props) {
@@ -39,6 +46,7 @@ export function TranscribeCallButton({
   const state = deriveState({
     data,
     mode,
+    autoTranscribeEnabled,
     t,
     actions: {
       startRealtime: () => withToast(startRealtime, t('errors.startFailed')),
@@ -86,11 +94,13 @@ async function withToast(fn: () => Promise<unknown>, message: string) {
 function deriveState({
   data,
   mode,
+  autoTranscribeEnabled,
   t,
   actions
 }: {
   data: CallTranscriptionView | null;
   mode: 'active' | 'history';
+  autoTranscribeEnabled: boolean;
   t: ReturnType<typeof useTranslations>;
   actions: {
     startRealtime: () => void;
@@ -135,6 +145,14 @@ function deriveState({
         disabled: !actions.view,
         busy: false,
         icon: 'file'
+      };
+    }
+    if (autoTranscribeEnabled) {
+      return {
+        label: t('autoEnabled'),
+        disabled: true,
+        busy: false,
+        icon: 'mic'
       };
     }
     return {

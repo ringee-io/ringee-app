@@ -6,6 +6,7 @@ import {
 } from "@ringee/database";
 import { signOutboundEvent } from "@ringee/platform";
 import { CustomIntegrationService } from "./custom-integration.service";
+import { CustomIntegrationFailureNotifierService } from "./custom-integration-failure-notifier.service";
 
 const MAX_ATTEMPTS = 10;
 const BASE_BACKOFF_MS = 2_000;
@@ -31,6 +32,7 @@ export class CustomIntegrationDeliveryService {
     private readonly deliveries: CustomIntegrationDeliveryRepository,
     private readonly integrations: CustomIntegrationRepository,
     private readonly integrationSvc: CustomIntegrationService,
+    private readonly failureNotifier: CustomIntegrationFailureNotifierService,
   ) {}
 
   async drain(batchSize = 20): Promise<number> {
@@ -85,6 +87,12 @@ export class CustomIntegrationDeliveryService {
     const errMsg = result.error ?? `HTTP ${result.statusCode}`;
     if (attempts >= MAX_ATTEMPTS) {
       await this.deliveries.markFailed(delivery.id, errMsg);
+      // Retries are exhausted — tell the workspace their endpoint is down.
+      await this.failureNotifier.notifyDeliveryFailed(
+        integration,
+        delivery,
+        errMsg,
+      );
       return;
     }
     const backoff = Math.min(

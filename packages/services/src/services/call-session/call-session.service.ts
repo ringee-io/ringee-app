@@ -32,6 +32,7 @@ import { CallbackService } from "../outbound/callback.service";
 import { MeetingService } from "../meeting.service";
 import { UserDeviceService } from "../user.device.service";
 import { RecordingService } from "../recording.service";
+import { CallRecordingSettingsService } from "../transcription";
 import { CallRepository } from "@ringee/database";
 import { CallSessionAccessTokenService } from "./call-session-access-token.service";
 
@@ -94,6 +95,7 @@ export class CallSessionService {
     private readonly notificationService: NotificationService,
     private readonly telephonyService: TelephonyService,
     private readonly recordingService: RecordingService,
+    private readonly recordingSettingsService: CallRecordingSettingsService,
   ) {}
 
   // ── Ownership & access ──────────────────────────────────────
@@ -424,6 +426,7 @@ export class CallSessionService {
     creditsOk: boolean;
     creditBalance: number;
     callerIdNumber: string | null;
+    recordAllCalls: boolean;
     telephony: {
       sipUsername: string;
       sipPassword: string;
@@ -440,6 +443,13 @@ export class CallSessionService {
     const creditsOk = balance > MIN_CREDIT_BALANCE_TO_CALL;
 
     const callerIdNumber = await this.resolvePrimaryCallerIdNumber(ctx);
+
+    // When the owner's workspace enforces auto-recording, the magic-link
+    // dialer disables its manual record toggle (recording starts on answer).
+    const recordAllCalls = await this.recordingSettingsService
+      .resolve(ctx)
+      .then((s) => s.recordAllCalls)
+      .catch(() => false);
 
     // Mint an ephemeral SIP credential so the unauthenticated browser can
     // place real WebRTC calls. Telnyx caps lifetime at 1h — that matches
@@ -486,6 +496,7 @@ export class CallSessionService {
       creditsOk,
       creditBalance: balance,
       callerIdNumber,
+      recordAllCalls,
       telephony,
     };
   }

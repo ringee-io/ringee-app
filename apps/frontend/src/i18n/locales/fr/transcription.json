@@ -1,6 +1,7 @@
 {
   "transcribe": "Transcrire l'appel",
   "transcribing": "Transcription en cours…",
+  "autoEnabled": "Transcription automatique activée",
   "viewTranscript": "Voir la transcription",
   "retranscribe": "Retranscrire depuis l'enregistrement",
   "processing": "Traitement de la transcription…",
