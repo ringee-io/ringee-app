@@ -93,7 +93,7 @@ export class StripeService {
   }> {
     const msg = `Your phone number ${phoneNumber} has been added to your account.`;
     const baseUrl = frontendOrigin || process.env.FRONTEND_URL!;
-    const callbackUrl = baseUrl + "/buy-numbers";
+    const callbackUrl = baseUrl + "/dashboard/buy-number";
     const cancelUrl = callbackUrl + "?tab=buy&payment=cancel";
     const successUrl =
       callbackUrl +
