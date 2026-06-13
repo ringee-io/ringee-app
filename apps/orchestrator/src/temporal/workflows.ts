@@ -103,3 +103,7 @@ export async function reminderSchedulerWorkflow(): Promise<void> {
 export async function customIntegrationsDrainWorkflow(): Promise<void> {
   await periodicJobs.drainCustomIntegrations();
 }
+
+export async function numberVerificationCheckWorkflow(): Promise<void> {
+  await periodicJobs.reconcileNumberVerifications();
+}

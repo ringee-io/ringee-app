@@ -65,12 +65,57 @@
         "monthlyCost": "Coût mensuel",
         "upfrontCost": "Coût initial",
         "unknown": "Inconnu",
-        "na": "N/D"
+        "na": "N/D",
+        "actions": "Actions"
       },
       "status": {
         "assigned": "attribué",
         "inactive": "inactif",
-        "pending": "en attente"
+        "pending": "en attente",
+        "rejected": "rejeté",
+        "expired": "expiré"
+      }
+    },
+    "verify": {
+      "cta": "Compléter la vérification",
+      "ctaFix": "Corriger et renvoyer",
+      "title": "Vérifier {phone}",
+      "subtitle": "Le pays de ce numéro exige une vérification de documents. Fournissez les éléments ci-dessous et nous les soumettrons à l'opérateur pour examen.",
+      "underReview": "Vos documents ont été soumis et sont en cours d'examen par l'opérateur. Cela prend généralement quelques jours ouvrés.",
+      "rejectedBanner": "L'opérateur n'a pas approuvé certains éléments. Corrigez ceux marqués en rouge ci-dessous et renvoyez-les.",
+      "rejectedReason": "Motif",
+      "rejectedGeneric": "Cet élément n'a pas été accepté — veuillez le corriger et le renvoyer.",
+      "none": "Aucune exigence en attente pour ce numéro.",
+      "loadError": "Impossible de charger les exigences de vérification. Veuillez réessayer.",
+      "cancel": "Annuler",
+      "submit": "Soumettre pour vérification",
+      "submitOk": "Documents soumis — l'opérateur les examine. Vous recevrez un e-mail de confirmation.",
+      "submitError": "Impossible de soumettre les documents. Veuillez vérifier les valeurs et réessayer.",
+      "chooseFile": "Choisir un fichier (PDF ou image)",
+      "uploading": "Téléversement…",
+      "uploaded": "Document téléversé",
+      "uploadOk": "Document téléversé",
+      "uploadError": "Impossible de téléverser le document. Veuillez réessayer.",
+      "valuePlaceholder": "Saisissez la valeur demandée",
+      "example": "Exemple",
+      "statusHint": "Statut d'examen actuel de l'opérateur",
+      "fieldType": {
+        "textual": "Texte",
+        "document": "Document",
+        "address": "Adresse"
+      },
+      "address": {
+        "hint": "Saisissez une adresse complète et distribuable, exactement telle qu'elle figure sur les documents officiels. L'opérateur la valide strictement.",
+        "businessName": "Nom de l'entreprise",
+        "firstName": "Prénom",
+        "lastName": "Nom",
+        "phoneNumber": "Téléphone",
+        "streetAddress": "Adresse (rue et numéro)",
+        "extendedAddress": "Appartement / étage",
+        "locality": "Ville",
+        "administrativeArea": "État / région",
+        "postalCode": "Code postal",
+        "countryCode": "Code pays (ISO, p. ex. GB)"
       }
     }
   },

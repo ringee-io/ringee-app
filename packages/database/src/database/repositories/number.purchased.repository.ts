@@ -185,4 +185,37 @@ export class NumberPurchasedRepository {
       data,
     });
   }
+
+  /**
+   * Pending numbers awaiting regulatory approval that still have a provider
+   * order to reconcile against. Used by the orchestrator poller.
+   */
+  async findPendingProviderOrders(): Promise<NumberPurchased[]> {
+    return this.prisma.numberPurchased.findMany({
+      where: {
+        status: "pending",
+        providerNumberId: { not: null },
+      },
+      orderBy: { createdAt: "asc" },
+    });
+  }
+
+  /**
+   * Enables the UserNumber rows for a number once its order is provisioned, so
+   * it becomes usable (callable) for the owner.
+   */
+  async enableUserNumbersOnProvision(
+    numberId: string,
+    isPrimary: boolean,
+  ): Promise<void> {
+    await this.prisma.userNumber.updateMany({
+      where: { numberId },
+      data: {
+        enabled: true,
+        canCall: true,
+        canReceive: true,
+        isPrimary,
+      },
+    });
+  }
 }

@@ -4,8 +4,16 @@ import { TelnyxClient } from "./telnyx.client";
 import {
   AssignedNumber,
   AvailableNumber,
+  NumberOrderRequirementItem,
+  NumberOrderRequirements,
   PurchaseNumbers,
+  RegulatoryRequirement,
+  RegulatoryRequirementsQuery,
+  RegulatoryRequirementsResult,
+  RegulatoryRequirementValue,
   SearchAvailableParams,
+  TelnyxAddressInput,
+  UploadedDocument,
 } from "../interfaces/available.number";
 import { apiConfiguration } from "@ringee/configuration";
 import { TelephonyService } from "../interfaces/telephony.service";
@@ -192,7 +200,7 @@ export class TelnyxService implements TelephonyService {
 
     const { data } = await this.telnyxClient.post("/number_orders", payload);
 
-    const response = {
+    const response: PurchaseNumbers = {
       billingGroupId: data.billing_group_id,
       orderId: data.id,
       phoneNumbersCount: data.phone_numbers_count,
@@ -206,6 +214,9 @@ export class TelnyxService implements TelephonyService {
         countryCode: number.country_code,
         requirementsStatus: number.requirements_status,
         requirementsMet: number.requirements_met,
+        regulatoryRequirements: this.mapRegulatoryRequirements(
+          number.regulatory_requirements,
+        ),
         connectionId: "",
         connectionName: "",
         billingGroupId: data.billing_group_id,
@@ -213,6 +224,19 @@ export class TelnyxService implements TelephonyService {
     };
 
     for (const phoneNumber of response.phoneNumbers) {
+      // Numbers from countries that require document verification come back
+      // with `requirements_met === false` and stay in a pending order until the
+      // documents are submitted and approved. They are NOT yet provisioned, so
+      // assigning them to a connection (PATCH /phone_numbers/{number}) would
+      // 404. Skip assignment for those; the caller persists them as `pending`.
+      if (phoneNumber.requirementsMet === false) {
+        this.logger.warn(
+          `Number ${phoneNumber.phoneNumber} (order ${response.orderId}) requires regulatory verification ` +
+            `(${phoneNumber.regulatoryRequirements.length} requirement(s)); leaving unassigned until requirements are met.`,
+        );
+        continue;
+      }
+
       const assignedNumber = await this.assignNumberToConnection(
         phoneNumber.phoneNumber,
       );
@@ -222,6 +246,225 @@ export class TelnyxService implements TelephonyService {
     }
 
     return response;
+  }
+
+  private mapRegulatoryRequirements(raw: any): RegulatoryRequirement[] {
+    if (!Array.isArray(raw)) return [];
+    return raw.map((req: any) => ({
+      id: req?.requirement_id ?? req?.id,
+      name: req?.name ?? req?.requirement_id ?? req?.id ?? "Requirement",
+      description: req?.description,
+      fieldType: req?.field_type ?? req?.type ?? "textual",
+      acceptanceCriteria: req?.acceptance_criteria ?? null,
+      example: req?.example ?? null,
+    }));
+  }
+
+  async getRegulatoryRequirements(
+    query: RegulatoryRequirementsQuery,
+  ): Promise<RegulatoryRequirementsResult> {
+    const phoneNumberType = query.phoneNumberType ?? "local";
+    const action = query.action ?? "ordering";
+
+    const params = new URLSearchParams({
+      "filter[country_code]": query.countryCode,
+      "filter[phone_number_type]": phoneNumberType,
+      "filter[action]": action,
+    });
+
+    try {
+      const { data } = await this.telnyxClient.get(
+        `/requirements?${params.toString()}`,
+      );
+
+      const records: any[] = Array.isArray(data) ? data : [];
+      const requirements: RegulatoryRequirement[] = [];
+      const seen = new Set<string>();
+
+      for (const record of records) {
+        const types: any[] = Array.isArray(record?.requirement_types)
+          ? record.requirement_types
+          : [];
+
+        for (const type of types) {
+          // Entries may be full objects or bare requirement-type id strings.
+          const id = typeof type === "string" ? type : (type?.id ?? type?.uuid);
+          if (!id || seen.has(id)) continue;
+          seen.add(id);
+
+          requirements.push({
+            id,
+            name: typeof type === "string" ? id : (type?.name ?? id),
+            description:
+              typeof type === "string" ? undefined : type?.description,
+            fieldType:
+              typeof type === "string"
+                ? "textual"
+                : (type?.type ?? type?.field_type ?? "textual"),
+            acceptanceCriteria:
+              typeof type === "string"
+                ? null
+                : (type?.acceptance_criteria ?? null),
+            example: typeof type === "string" ? null : (type?.example ?? null),
+          });
+        }
+      }
+
+      return {
+        countryCode: query.countryCode,
+        phoneNumberType,
+        action,
+        requirementsMet: requirements.length === 0,
+        requirements,
+      };
+    } catch (error: any) {
+      this.logger.error(
+        `Failed to fetch regulatory requirements for ${query.countryCode}/${phoneNumberType}: ${error?.message}`,
+      );
+      throw error;
+    }
+  }
+
+  async getNumberOrderRequirements(
+    numberOrderPhoneNumberId: string,
+  ): Promise<NumberOrderRequirements> {
+    const { data } = await this.telnyxClient.get(
+      `/number_order_phone_numbers/${numberOrderPhoneNumberId}`,
+    );
+
+    const countryCode: string = data?.country_code ?? "";
+    const phoneNumberType: string = data?.phone_number_type ?? "local";
+
+    // Enrich the bare requirement ids attached to this number with the
+    // human-readable details for the country/type combination so the UI can be
+    // descriptive about what each document/field is.
+    const details = new Map<string, RegulatoryRequirement>();
+    if (countryCode) {
+      try {
+        const catalog = await this.getRegulatoryRequirements({
+          countryCode,
+          phoneNumberType:
+            phoneNumberType as RegulatoryRequirementsQuery["phoneNumberType"],
+          action: "ordering",
+        });
+        for (const req of catalog.requirements) details.set(req.id, req);
+      } catch (err: any) {
+        this.logger.warn(
+          `Could not enrich requirement details for ${countryCode}/${phoneNumberType}: ${err?.message}`,
+        );
+      }
+    }
+
+    const rawReqs: any[] = Array.isArray(data?.regulatory_requirements)
+      ? data.regulatory_requirements
+      : [];
+
+    const requirements: NumberOrderRequirementItem[] = rawReqs.map((req) => {
+      const id: string = req?.requirement_id ?? req?.field_type ?? "";
+      const detail = details.get(id);
+      return {
+        id,
+        name: detail?.name ?? req?.name ?? id,
+        description: detail?.description,
+        fieldType: detail?.fieldType ?? req?.field_type ?? "textual",
+        acceptanceCriteria: detail?.acceptanceCriteria ?? null,
+        example: detail?.example ?? null,
+        status: req?.status ?? null,
+        reason:
+          req?.reason ??
+          req?.declined_reason ??
+          req?.rejection_reason ??
+          req?.requirement_status_reason ??
+          null,
+        fieldValue: req?.field_value ?? null,
+      };
+    });
+
+    return {
+      numberOrderPhoneNumberId: data?.id ?? numberOrderPhoneNumberId,
+      phoneNumber: data?.phone_number ?? "",
+      countryCode,
+      phoneNumberType,
+      requirementsStatus: data?.requirements_status ?? "pending",
+      requirementsMet: !!data?.requirements_met,
+      requirements,
+    };
+  }
+
+  async uploadDocument(file: {
+    buffer: Buffer;
+    filename: string;
+    contentType: string;
+  }): Promise<UploadedDocument> {
+    const data = await this.telnyxClient.uploadFile("/documents", file);
+    const documentId: string = data?.data?.id ?? data?.id;
+
+    if (!documentId) {
+      throw new HttpException("Telnyx did not return a document id", 502);
+    }
+
+    return { documentId, filename: file.filename };
+  }
+
+  async createAddress(
+    input: TelnyxAddressInput,
+  ): Promise<{ addressId: string }> {
+    if (!input.businessName && !(input.firstName && input.lastName)) {
+      throw new HttpException(
+        "An address needs either a business name or a first and last name",
+        422,
+      );
+    }
+
+    const payload: Record<string, unknown> = {
+      business_name: input.businessName,
+      first_name: input.firstName,
+      last_name: input.lastName,
+      phone_number: input.phoneNumber,
+      street_address: input.streetAddress,
+      extended_address: input.extendedAddress,
+      locality: input.locality,
+      administrative_area: input.administrativeArea,
+      neighborhood: input.neighborhood,
+      borough: input.borough,
+      postal_code: input.postalCode,
+      country_code: input.countryCode,
+      // Telnyx is strict about regulatory addresses: ask it to validate so a
+      // bad address fails here instead of silently blocking the order.
+      validate_address: true,
+    };
+
+    for (const key of Object.keys(payload)) {
+      if (payload[key] === undefined || payload[key] === "") {
+        delete payload[key];
+      }
+    }
+
+    const { data } = await this.telnyxClient.post("/addresses", payload);
+    const addressId: string = data?.id;
+
+    if (!addressId) {
+      throw new HttpException("Telnyx did not return an address id", 502);
+    }
+
+    return { addressId };
+  }
+
+  async submitNumberOrderRequirements(
+    numberOrderPhoneNumberId: string,
+    requirements: RegulatoryRequirementValue[],
+  ): Promise<NumberOrderRequirements> {
+    await this.telnyxClient.patch(
+      `/number_order_phone_numbers/${numberOrderPhoneNumberId}`,
+      {
+        regulatory_requirements: requirements.map((req) => ({
+          requirement_id: req.requirementId,
+          field_value: req.fieldValue,
+        })),
+      },
+    );
+
+    return this.getNumberOrderRequirements(numberOrderPhoneNumberId);
   }
 
   async assignNumberToConnection(

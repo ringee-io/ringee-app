@@ -6,6 +6,7 @@ import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { format } from 'date-fns';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useTranslations } from 'next-intl';
+import { VerifyNumberCell } from './verify.number.cell';
 
 export type NumberPurchased = {
   id: string;
@@ -74,11 +75,19 @@ export const columns: ColumnDef<NumberPurchased>[] = [
       const variants: Record<string, string> = {
         assigned: 'default',
         inactive: 'secondary',
-        pending: 'default'
+        pending: 'default',
+        rejected: 'destructive',
+        expired: 'destructive'
       };
 
       const variant = variants[status] as any;
-      const knownStatuses = ['assigned', 'inactive', 'pending'];
+      const knownStatuses = [
+        'assigned',
+        'inactive',
+        'pending',
+        'rejected',
+        'expired'
+      ];
       const label = status
         ? knownStatuses.includes(status)
           ? tStatus(status as any)
@@ -87,7 +96,11 @@ export const columns: ColumnDef<NumberPurchased>[] = [
 
       return (
         <Badge
-          className={cn(status == 'pending' && 'bg-orange-500 text-white')}
+          className={cn(
+            status == 'pending' && 'bg-orange-500 text-white',
+            (status == 'rejected' || status == 'expired') &&
+              'bg-red-500 text-white'
+          )}
           variant={variant}
         >
           {label}
@@ -135,5 +148,13 @@ export const columns: ColumnDef<NumberPurchased>[] = [
       const val = cell.getValue<number | null>();
       return val ? `$${val.toFixed(2)}` : '-';
     }
+  },
+  {
+    id: 'verify',
+    header: () => {
+      const t = useTranslations('settings.numbers.my.table');
+      return <>{t('actions')}</>;
+    },
+    cell: ({ row }) => <VerifyNumberCell data={row.original} />
   }
 ];

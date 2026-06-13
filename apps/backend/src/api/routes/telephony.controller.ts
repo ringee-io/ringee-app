@@ -8,7 +8,10 @@ import {
   Post,
   Query,
   ParseIntPipe,
+  UseInterceptors,
+  UploadedFile,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import {
   AvailableNumber,
   CurrentUser,
@@ -21,6 +24,7 @@ import { TelephonyCountryRate } from "@ringee/platform";
 import { CallerIdService, NumberPurchasedService } from "@ringee/services";
 import {
   RequestCallerIdVerificationDto,
+  SubmitRequirementsDto,
   VerifyCallerIdDto,
 } from "@ringee/platform";
 import {
@@ -85,6 +89,25 @@ export class TelephonyController {
     });
   }
 
+  @Public()
+  @Get("numbers/requirements/:country")
+  async getNumberRequirements(
+    @Param("country") country: string,
+    @Query("numberType")
+    numberType?: "local" | "toll_free" | "mobile" | "national",
+    @Query("action") action?: "ordering" | "porting",
+  ) {
+    if (!country) {
+      throw new BadRequestException("Country is required");
+    }
+
+    return this.telephonyService.getRegulatoryRequirements({
+      countryCode: country,
+      phoneNumberType: numberType,
+      action,
+    });
+  }
+
   @Get("caller-ids")
   async getCallerIds(@CurrentUser() user: CurrentUserData) {
     const ctx = createOwnershipContext(user);
@@ -124,6 +147,66 @@ export class TelephonyController {
   @Post("phone-numbers/:id/refresh-messaging")
   async refreshMessaging(@Param("id") id: string) {
     return this.numberPurchasedService.refreshMessagingCapabilities(id);
+  }
+
+  @Get("phone-numbers/:id/requirements")
+  async getPendingNumberRequirements(@Param("id") id: string) {
+    return this.numberPurchasedService.getNumberRequirements(id);
+  }
+
+  @Post("phone-numbers/:id/requirements/documents")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      // Telnyx caps documents at 20 MB.
+      limits: { fileSize: 20 * 1024 * 1024 },
+      fileFilter: (_req, file, cb) => {
+        const allowed = [
+          "application/pdf",
+          "image/png",
+          "image/jpeg",
+          "image/jpg",
+          "image/webp",
+          "image/heic",
+        ];
+        if (allowed.includes(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(
+            new BadRequestException(
+              "Only PDF or image files (PNG, JPG, WEBP, HEIC) are allowed",
+            ),
+            false,
+          );
+        }
+      },
+    }),
+  )
+  async uploadRequirementDocument(
+    @Param("id") id: string,
+    @UploadedFile()
+    file: { buffer: Buffer; originalname: string; mimetype: string },
+  ) {
+    if (!file) {
+      throw new BadRequestException("No file uploaded");
+    }
+
+    void id;
+    return this.numberPurchasedService.uploadRequirementDocument({
+      buffer: file.buffer,
+      filename: file.originalname,
+      contentType: file.mimetype,
+    });
+  }
+
+  @Post("phone-numbers/:id/requirements/submit")
+  async submitNumberRequirements(
+    @Param("id") id: string,
+    @Body() body: SubmitRequirementsDto,
+  ) {
+    return this.numberPurchasedService.submitNumberRequirements(
+      id,
+      body.requirements,
+    );
   }
 
   @Get("calls")

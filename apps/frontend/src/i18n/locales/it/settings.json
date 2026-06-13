@@ -65,12 +65,57 @@
         "monthlyCost": "Costo mensile",
         "upfrontCost": "Costo iniziale",
         "unknown": "Sconosciuto",
-        "na": "N/D"
+        "na": "N/D",
+        "actions": "Azioni"
       },
       "status": {
         "assigned": "assegnato",
         "inactive": "inattivo",
-        "pending": "in attesa"
+        "pending": "in attesa",
+        "rejected": "rifiutato",
+        "expired": "scaduto"
+      }
+    },
+    "verify": {
+      "cta": "Completa la verifica",
+      "ctaFix": "Correggi e invia di nuovo",
+      "title": "Verifica {phone}",
+      "subtitle": "Il paese di questo numero richiede la verifica dei documenti. Fornisci gli elementi sottostanti e li invieremo all'operatore per la revisione.",
+      "underReview": "I tuoi documenti sono stati inviati e sono in fase di revisione da parte dell'operatore. Di solito richiede un paio di giorni lavorativi.",
+      "rejectedBanner": "L'operatore non ha approvato alcuni elementi. Correggi quelli evidenziati in rosso qui sotto e inviali di nuovo.",
+      "rejectedReason": "Motivo",
+      "rejectedGeneric": "Questo elemento non è stato accettato — correggilo e invialo di nuovo.",
+      "none": "Nessun requisito in sospeso per questo numero.",
+      "loadError": "Impossibile caricare i requisiti di verifica. Riprova.",
+      "cancel": "Annulla",
+      "submit": "Invia per la verifica",
+      "submitOk": "Documenti inviati — l'operatore li sta esaminando. Riceverai un'email di conferma.",
+      "submitError": "Impossibile inviare i documenti. Controlla i valori e riprova.",
+      "chooseFile": "Scegli un file (PDF o immagine)",
+      "uploading": "Caricamento…",
+      "uploaded": "Documento caricato",
+      "uploadOk": "Documento caricato",
+      "uploadError": "Impossibile caricare il documento. Riprova.",
+      "valuePlaceholder": "Inserisci il valore richiesto",
+      "example": "Esempio",
+      "statusHint": "Stato di revisione attuale dell'operatore",
+      "fieldType": {
+        "textual": "Testo",
+        "document": "Documento",
+        "address": "Indirizzo"
+      },
+      "address": {
+        "hint": "Inserisci un indirizzo completo e recapitabile, esattamente come appare nei documenti ufficiali. L'operatore lo verifica in modo rigoroso.",
+        "businessName": "Nome dell'azienda",
+        "firstName": "Nome",
+        "lastName": "Cognome",
+        "phoneNumber": "Telefono",
+        "streetAddress": "Indirizzo (via e numero)",
+        "extendedAddress": "Interno / piano",
+        "locality": "Città",
+        "administrativeArea": "Stato / regione",
+        "postalCode": "Codice postale",
+        "countryCode": "Codice paese (ISO, es. GB)"
       }
     }
   },

@@ -65,12 +65,57 @@
         "monthlyCost": "Monatliche Kosten",
         "upfrontCost": "Einmalige Kosten",
         "unknown": "Unbekannt",
-        "na": "k.A."
+        "na": "k.A.",
+        "actions": "Aktionen"
       },
       "status": {
         "assigned": "zugewiesen",
         "inactive": "inaktiv",
-        "pending": "ausstehend"
+        "pending": "ausstehend",
+        "rejected": "abgelehnt",
+        "expired": "abgelaufen"
+      }
+    },
+    "verify": {
+      "cta": "Verifizierung abschließen",
+      "ctaFix": "Korrigieren & erneut senden",
+      "title": "{phone} verifizieren",
+      "subtitle": "Das Land dieser Nummer erfordert eine Dokumentenprüfung. Geben Sie die folgenden Angaben an, und wir übermitteln sie dem Anbieter zur Prüfung.",
+      "underReview": "Ihre Dokumente wurden übermittelt und werden vom Anbieter geprüft. Dies dauert in der Regel einige Werktage.",
+      "rejectedBanner": "Der Anbieter hat einige Angaben nicht akzeptiert. Korrigieren Sie die unten rot markierten Punkte und senden Sie sie erneut.",
+      "rejectedReason": "Grund",
+      "rejectedGeneric": "Dieser Punkt wurde nicht akzeptiert – bitte korrigieren und erneut senden.",
+      "none": "Für diese Nummer sind keine Anforderungen offen.",
+      "loadError": "Die Verifizierungsanforderungen konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+      "cancel": "Abbrechen",
+      "submit": "Zur Verifizierung senden",
+      "submitOk": "Dokumente übermittelt – der Anbieter prüft sie nun. Sie erhalten eine Bestätigungs-E-Mail.",
+      "submitError": "Die Dokumente konnten nicht übermittelt werden. Bitte prüfen Sie die Angaben und versuchen Sie es erneut.",
+      "chooseFile": "Datei auswählen (PDF oder Bild)",
+      "uploading": "Wird hochgeladen…",
+      "uploaded": "Dokument hochgeladen",
+      "uploadOk": "Dokument hochgeladen",
+      "uploadError": "Das Dokument konnte nicht hochgeladen werden. Bitte versuchen Sie es erneut.",
+      "valuePlaceholder": "Geforderten Wert eingeben",
+      "example": "Beispiel",
+      "statusHint": "Aktueller Prüfstatus des Anbieters",
+      "fieldType": {
+        "textual": "Text",
+        "document": "Dokument",
+        "address": "Adresse"
+      },
+      "address": {
+        "hint": "Geben Sie eine vollständige, zustellbare Adresse genau wie in offiziellen Unterlagen an. Der Anbieter prüft sie streng.",
+        "businessName": "Firmenname",
+        "firstName": "Vorname",
+        "lastName": "Nachname",
+        "phoneNumber": "Telefonnummer",
+        "streetAddress": "Straße und Hausnummer",
+        "extendedAddress": "Wohnung / Etage",
+        "locality": "Stadt",
+        "administrativeArea": "Bundesland / Region",
+        "postalCode": "Postleitzahl",
+        "countryCode": "Ländercode (ISO, z. B. GB)"
       }
     }
   },

@@ -65,12 +65,57 @@
         "monthlyCost": "Coste mensual",
         "upfrontCost": "Coste inicial",
         "unknown": "Desconocido",
-        "na": "N/D"
+        "na": "N/D",
+        "actions": "Acciones"
       },
       "status": {
         "assigned": "asignado",
         "inactive": "inactivo",
-        "pending": "pendiente"
+        "pending": "pendiente",
+        "rejected": "rechazado",
+        "expired": "expirado"
+      }
+    },
+    "verify": {
+      "cta": "Completar verificación",
+      "ctaFix": "Corregir y reenviar",
+      "title": "Verificar {phone}",
+      "subtitle": "El país de este número requiere verificación de documentos. Proporciona los elementos siguientes y los enviaremos al operador para su revisión.",
+      "underReview": "Tus documentos se han enviado y el operador los está revisando. Esto suele tardar un par de días hábiles.",
+      "rejectedBanner": "El operador no aprobó algunos elementos. Corrige los marcados en rojo abajo y vuelve a enviarlos.",
+      "rejectedReason": "Motivo",
+      "rejectedGeneric": "Este elemento no fue aceptado — corrígelo y vuelve a enviarlo.",
+      "none": "No hay requisitos pendientes para este número.",
+      "loadError": "No se pudieron cargar los requisitos de verificación. Inténtalo de nuevo.",
+      "cancel": "Cancelar",
+      "submit": "Enviar para verificación",
+      "submitOk": "Documentos enviados — el operador los está revisando. Recibirás un correo de confirmación.",
+      "submitError": "No se pudieron enviar los documentos. Revisa los valores e inténtalo de nuevo.",
+      "chooseFile": "Elige un archivo (PDF o imagen)",
+      "uploading": "Subiendo…",
+      "uploaded": "Documento subido",
+      "uploadOk": "Documento subido",
+      "uploadError": "No se pudo subir el documento. Inténtalo de nuevo.",
+      "valuePlaceholder": "Introduce el valor solicitado",
+      "example": "Ejemplo",
+      "statusHint": "Estado de revisión actual del operador",
+      "fieldType": {
+        "textual": "Texto",
+        "document": "Documento",
+        "address": "Dirección"
+      },
+      "address": {
+        "hint": "Introduce una dirección completa y válida tal como aparece en los registros oficiales. El operador la valida de forma estricta.",
+        "businessName": "Nombre de empresa",
+        "firstName": "Nombre",
+        "lastName": "Apellidos",
+        "phoneNumber": "Teléfono",
+        "streetAddress": "Dirección (calle y número)",
+        "extendedAddress": "Apto / piso / planta",
+        "locality": "Ciudad",
+        "administrativeArea": "Estado / provincia / región",
+        "postalCode": "Código postal",
+        "countryCode": "Código de país (ISO, p. ej. GB)"
       }
     }
   },
