@@ -250,7 +250,7 @@ export function VerifyNumberScreen({ numberId }: { numberId: string }) {
   };
 
   return (
-    <div className='mx-auto w-full max-w-5xl space-y-6'>
+    <div className='space-y-6'>
       <BackLink label={t('back')} />
 
       {loading ? (
