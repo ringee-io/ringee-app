@@ -40,7 +40,7 @@ import {
 import { cn } from '@ringee/frontend-shared/lib/utils';
 
 const MY_NUMBERS_HREF = '/dashboard/buy-number?tab=my-numbers';
-const SUPPORT_EMAIL = 'hello@ringe.io';
+const SUPPORT_EMAIL = 'hello@ringee.io';
 
 type RequirementFieldType = 'textual' | 'document' | 'address' | string;
 
