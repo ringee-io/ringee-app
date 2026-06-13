@@ -81,6 +81,14 @@ const SCHEDULES: ScheduleDef[] = [
     every: "15s",
     catchupWindow: "1m",
   },
+  {
+    // Carriers review regulatory documents over hours/days, so a slow cadence
+    // is plenty; this reconciles pending number orders → approved/rejected.
+    id: "ringee.number-verification-check",
+    workflow: WORKFLOW_NAMES.numberVerificationCheck,
+    every: "5m",
+    catchupWindow: "30m",
+  },
 ];
 
 /**

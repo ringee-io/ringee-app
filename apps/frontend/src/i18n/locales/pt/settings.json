@@ -65,12 +65,57 @@
         "monthlyCost": "Custo mensal",
         "upfrontCost": "Custo inicial",
         "unknown": "Desconhecido",
-        "na": "N/D"
+        "na": "N/D",
+        "actions": "Ações"
       },
       "status": {
         "assigned": "atribuído",
         "inactive": "inativo",
-        "pending": "pendente"
+        "pending": "pendente",
+        "rejected": "rejeitado",
+        "expired": "expirado"
+      }
+    },
+    "verify": {
+      "cta": "Concluir verificação",
+      "ctaFix": "Corrigir e reenviar",
+      "title": "Verificar {phone}",
+      "subtitle": "O país deste número exige verificação de documentos. Forneça os itens abaixo e nós os enviaremos à operadora para análise.",
+      "underReview": "Os seus documentos foram enviados e estão a ser analisados pela operadora. Normalmente demora alguns dias úteis.",
+      "rejectedBanner": "A operadora não aprovou alguns itens. Corrija os marcados a vermelho abaixo e reenvie.",
+      "rejectedReason": "Motivo",
+      "rejectedGeneric": "Este item não foi aceite — corrija-o e reenvie.",
+      "none": "Não há requisitos pendentes para este número.",
+      "loadError": "Não foi possível carregar os requisitos de verificação. Tente novamente.",
+      "cancel": "Cancelar",
+      "submit": "Enviar para verificação",
+      "submitOk": "Documentos enviados — a operadora está a analisá-los. Receberá um e-mail de confirmação.",
+      "submitError": "Não foi possível enviar os documentos. Verifique os valores e tente novamente.",
+      "chooseFile": "Escolher um ficheiro (PDF ou imagem)",
+      "uploading": "A enviar…",
+      "uploaded": "Documento enviado",
+      "uploadOk": "Documento enviado",
+      "uploadError": "Não foi possível enviar o documento. Tente novamente.",
+      "valuePlaceholder": "Introduza o valor solicitado",
+      "example": "Exemplo",
+      "statusHint": "Estado de análise atual da operadora",
+      "fieldType": {
+        "textual": "Texto",
+        "document": "Documento",
+        "address": "Endereço"
+      },
+      "address": {
+        "hint": "Introduza um endereço completo e entregável, exatamente como aparece nos registos oficiais. A operadora valida-o de forma rigorosa.",
+        "businessName": "Nome da empresa",
+        "firstName": "Nome",
+        "lastName": "Apelido",
+        "phoneNumber": "Telefone",
+        "streetAddress": "Morada (rua e número)",
+        "extendedAddress": "Apartamento / andar",
+        "locality": "Cidade",
+        "administrativeArea": "Distrito / região",
+        "postalCode": "Código postal",
+        "countryCode": "Código do país (ISO, p. ex. GB)"
       }
     }
   },

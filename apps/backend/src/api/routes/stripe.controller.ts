@@ -331,10 +331,19 @@ export class StripeController {
                 upfrontCost: upfrontCostUsd,
               },
             );
-            await this.triggerLoop.phoneNumberAssigned(
-              userId,
-              purchased.phoneNumber,
-            );
+
+            // Numbers awaiting document verification are persisted as `pending`
+            // and are not yet usable, so don't announce them as assigned.
+            if (purchased.status === "pending") {
+              console.log(
+                `🪪 ${purchased.phoneNumber} ordered but pending regulatory verification for ${userId}`,
+              );
+            } else {
+              await this.triggerLoop.phoneNumberAssigned(
+                userId,
+                purchased.phoneNumber,
+              );
+            }
           } else if (metadata.type === "organization" && userId) {
             // Organization subscription
             console.log(

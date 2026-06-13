@@ -40,6 +40,7 @@ export const WORKFLOW_NAMES = {
   enrichmentDrain: "enrichmentDrainWorkflow",
   reminderScheduler: "reminderSchedulerWorkflow",
   customIntegrationsDrain: "customIntegrationsDrainWorkflow",
+  numberVerificationCheck: "numberVerificationCheckWorkflow",
 } as const;
 
 export type WorkflowName = (typeof WORKFLOW_NAMES)[keyof typeof WORKFLOW_NAMES];

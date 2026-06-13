@@ -65,12 +65,57 @@
         "monthlyCost": "Maandelijkse kosten",
         "upfrontCost": "Eenmalige kosten",
         "unknown": "Onbekend",
-        "na": "N.v.t."
+        "na": "N.v.t.",
+        "actions": "Acties"
       },
       "status": {
         "assigned": "toegewezen",
         "inactive": "inactief",
-        "pending": "in afwachting"
+        "pending": "in afwachting",
+        "rejected": "afgewezen",
+        "expired": "verlopen"
+      }
+    },
+    "verify": {
+      "cta": "Verificatie voltooien",
+      "ctaFix": "Corrigeren en opnieuw indienen",
+      "title": "{phone} verifiëren",
+      "subtitle": "Het land van dit nummer vereist documentverificatie. Lever de onderstaande gegevens aan en wij dienen ze ter beoordeling in bij de provider.",
+      "underReview": "Uw documenten zijn ingediend en worden door de provider beoordeeld. Dit duurt meestal enkele werkdagen.",
+      "rejectedBanner": "De provider heeft sommige items niet goedgekeurd. Corrigeer de hieronder rood gemarkeerde items en dien ze opnieuw in.",
+      "rejectedReason": "Reden",
+      "rejectedGeneric": "Dit item is niet geaccepteerd — corrigeer het en dien het opnieuw in.",
+      "none": "Geen openstaande vereisten voor dit nummer.",
+      "loadError": "Kon de verificatievereisten niet laden. Probeer het opnieuw.",
+      "cancel": "Annuleren",
+      "submit": "Indienen voor verificatie",
+      "submitOk": "Documenten ingediend — de provider beoordeelt ze nu. U ontvangt een bevestigingsmail.",
+      "submitError": "Kon de documenten niet indienen. Controleer de waarden en probeer het opnieuw.",
+      "chooseFile": "Kies een bestand (PDF of afbeelding)",
+      "uploading": "Uploaden…",
+      "uploaded": "Document geüpload",
+      "uploadOk": "Document geüpload",
+      "uploadError": "Kon het document niet uploaden. Probeer het opnieuw.",
+      "valuePlaceholder": "Voer de gevraagde waarde in",
+      "example": "Voorbeeld",
+      "statusHint": "Huidige beoordelingsstatus van de provider",
+      "fieldType": {
+        "textual": "Tekst",
+        "document": "Document",
+        "address": "Adres"
+      },
+      "address": {
+        "hint": "Voer een volledig, bezorgbaar adres in, precies zoals het op officiële documenten staat. De provider valideert het streng.",
+        "businessName": "Bedrijfsnaam",
+        "firstName": "Voornaam",
+        "lastName": "Achternaam",
+        "phoneNumber": "Telefoonnummer",
+        "streetAddress": "Straat en huisnummer",
+        "extendedAddress": "Appartement / verdieping",
+        "locality": "Plaats",
+        "administrativeArea": "Provincie / regio",
+        "postalCode": "Postcode",
+        "countryCode": "Landcode (ISO, bijv. GB)"
       }
     }
   },

@@ -51,6 +51,49 @@ export class TelnyxClient {
     }
   }
 
+  /**
+   * Uploads a file as multipart/form-data. The shared axios instance forces
+   * `Content-Type: application/json`, so this uses fetch with a native FormData
+   * boundary instead.
+   */
+  async uploadFile<T = any>(
+    path: string,
+    file: { buffer: Buffer; filename: string; contentType: string },
+    fields: Record<string, string> = {},
+  ): Promise<T> {
+    const form = new FormData();
+    for (const [key, value] of Object.entries(fields)) {
+      form.append(key, value);
+    }
+    form.append(
+      "file",
+      new Blob([new Uint8Array(file.buffer)], { type: file.contentType }),
+      file.filename,
+    );
+
+    const res = await fetch(`https://api.telnyx.com/v2${path}`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiConfiguration.TELNYX_API_KEY}`,
+      },
+      body: form,
+    });
+
+    const text = await res.text();
+    let json: any;
+    try {
+      json = text ? JSON.parse(text) : {};
+    } catch {
+      json = { raw: text };
+    }
+
+    if (!res.ok) {
+      throw new HttpException(json, res.status || HttpStatus.BAD_GATEWAY);
+    }
+
+    return json;
+  }
+
   async download(path: string): Promise<ArrayBuffer> {
     try {
       const fetchResponse = await fetch(path);

@@ -65,12 +65,57 @@
         "monthlyCost": "Monthly Cost",
         "upfrontCost": "Upfront Cost",
         "unknown": "unknown",
-        "na": "N/A"
+        "na": "N/A",
+        "actions": "Actions"
       },
       "status": {
         "assigned": "assigned",
         "inactive": "inactive",
-        "pending": "pending"
+        "pending": "pending",
+        "rejected": "rejected",
+        "expired": "expired"
+      }
+    },
+    "verify": {
+      "cta": "Complete verification",
+      "ctaFix": "Fix & resubmit",
+      "title": "Verify {phone}",
+      "subtitle": "This number's country requires document verification. Provide the items below and we'll submit them to the carrier for review.",
+      "underReview": "Your documents have been submitted and are being reviewed by the carrier. This usually takes a couple of business days.",
+      "rejectedBanner": "The carrier did not approve some items. Fix the ones marked in red below and resubmit.",
+      "rejectedReason": "Reason",
+      "rejectedGeneric": "This item was not accepted — please correct it and resubmit.",
+      "none": "No outstanding requirements for this number.",
+      "loadError": "Could not load the verification requirements. Please try again.",
+      "cancel": "Cancel",
+      "submit": "Submit for verification",
+      "submitOk": "Documents submitted — the carrier is now reviewing them. You'll get a confirmation email.",
+      "submitError": "Could not submit the documents. Please check the values and try again.",
+      "chooseFile": "Choose a file (PDF or image)",
+      "uploading": "Uploading…",
+      "uploaded": "Document uploaded",
+      "uploadOk": "Document uploaded",
+      "uploadError": "Could not upload the document. Please try again.",
+      "valuePlaceholder": "Enter the requested value",
+      "example": "Example",
+      "statusHint": "Current review status from the carrier",
+      "fieldType": {
+        "textual": "Text",
+        "document": "Document",
+        "address": "Address"
+      },
+      "address": {
+        "hint": "Enter a complete, deliverable address exactly as it appears on official records. The carrier validates it strictly.",
+        "businessName": "Business name",
+        "firstName": "First name",
+        "lastName": "Last name",
+        "phoneNumber": "Phone number",
+        "streetAddress": "Street address",
+        "extendedAddress": "Apt / suite / floor",
+        "locality": "City",
+        "administrativeArea": "State / province / region",
+        "postalCode": "Postal code",
+        "countryCode": "Country code (ISO, e.g. GB)"
       }
     }
   },

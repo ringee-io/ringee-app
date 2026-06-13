@@ -7,6 +7,12 @@ import {
   PurchaseNumbers,
   AssignedNumber,
   AvailableNumber,
+  NumberOrderRequirements,
+  RegulatoryRequirementsQuery,
+  RegulatoryRequirementsResult,
+  RegulatoryRequirementValue,
+  TelnyxAddressInput,
+  UploadedDocument,
 } from "./interfaces/available.number";
 
 @Injectable()
@@ -67,6 +73,42 @@ export class TelephonyService implements TelephonyServiceInterface {
     return this.getServiceProvider().assignNumberToConnection(
       phoneNumber,
       connectionId,
+    );
+  }
+
+  getRegulatoryRequirements(
+    query: RegulatoryRequirementsQuery,
+  ): Promise<RegulatoryRequirementsResult> {
+    return this.getServiceProvider().getRegulatoryRequirements(query);
+  }
+
+  getNumberOrderRequirements(
+    numberOrderPhoneNumberId: string,
+  ): Promise<NumberOrderRequirements> {
+    return this.getServiceProvider().getNumberOrderRequirements(
+      numberOrderPhoneNumberId,
+    );
+  }
+
+  uploadDocument(file: {
+    buffer: Buffer;
+    filename: string;
+    contentType: string;
+  }): Promise<UploadedDocument> {
+    return this.getServiceProvider().uploadDocument(file);
+  }
+
+  createAddress(input: TelnyxAddressInput): Promise<{ addressId: string }> {
+    return this.getServiceProvider().createAddress(input);
+  }
+
+  submitNumberOrderRequirements(
+    numberOrderPhoneNumberId: string,
+    requirements: RegulatoryRequirementValue[],
+  ): Promise<NumberOrderRequirements> {
+    return this.getServiceProvider().submitNumberOrderRequirements(
+      numberOrderPhoneNumberId,
+      requirements,
     );
   }
 
