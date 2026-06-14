@@ -89,27 +89,35 @@ function ProductMenu() {
         )}
       >
         <div className='border-border/70 bg-popover/95 w-[min(58rem,calc(100vw-1.5rem))] overflow-hidden rounded-2xl border shadow-2xl backdrop-blur-md'>
-          <div className='grid gap-6 p-6 sm:grid-cols-2 lg:grid-cols-3'>
+          <div className='grid max-h-[calc(100dvh-6rem)] gap-x-8 gap-y-7 overflow-y-auto p-6 sm:grid-cols-2 lg:grid-cols-3'>
             {PRODUCT_MENU.map((group) => {
               const Icon = GROUP_ICONS[group.title] ?? PhoneOutgoing;
               return (
                 <div key={group.title}>
-                  <div className='flex items-center gap-2'>
+                  <div className='border-border/50 flex items-center gap-2 border-b pb-2.5'>
                     <span className='flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400'>
                       <Icon className='h-4 w-4' />
                     </span>
-                    <span className='text-foreground text-sm font-semibold'>
+                    <span className='text-foreground text-xs font-semibold tracking-wide uppercase'>
                       {group.title}
                     </span>
                   </div>
-                  <ul className='mt-2.5 flex flex-col'>
+                  <ul className='mt-2 flex flex-col gap-0.5'>
                     {group.links.map((link) => (
                       <li key={`${group.title}-${link.label}`}>
                         <Link
                           href={link.href}
-                          className='text-muted-foreground hover:text-foreground hover:bg-accent/60 -mx-2 block rounded-md px-2 py-1.5 text-sm transition-colors'
+                          className='group/item hover:bg-accent/60 -mx-2 block rounded-lg px-2 py-1.5 transition-colors'
                         >
-                          {link.label}
+                          <span className='text-foreground flex items-center gap-1 text-sm font-medium'>
+                            {link.label}
+                            <ArrowRight className='h-3 w-3 -translate-x-1 text-emerald-600 opacity-0 transition-all group-hover/item:translate-x-0 group-hover/item:opacity-100 dark:text-emerald-400' />
+                          </span>
+                          {link.description ? (
+                            <span className='text-muted-foreground mt-0.5 block text-xs leading-snug'>
+                              {link.description}
+                            </span>
+                          ) : null}
                         </Link>
                       </li>
                     ))}
@@ -244,6 +252,10 @@ export function MarketingNavbar() {
   return (
     <header className='border-border/40 bg-background/80 sticky top-0 z-50 border-b backdrop-blur-md'>
       {/* Green accent line, echoing the original landing gradient. */}
+      {/* <div
+        aria-hidden
+        className='pointer-events-none absolute inset-x-0 bottom-0 h-px bg-gradient-to-r from-transparent via-emerald-500/40 to-transparent'
+      /> */}
       <nav
         aria-label='Primary'
         className='mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6 lg:px-8'

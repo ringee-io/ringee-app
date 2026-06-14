@@ -57,54 +57,150 @@ export const PRODUCT_MENU: ProductMenuGroup[] = [
     title: 'Communicate',
     blurb: 'Calls, campaigns, outcomes, callbacks, and meetings.',
     links: [
-      { label: 'Outbound calling', href: '/features/outbound-calling' },
-      { label: 'Campaigns', href: '/features/campaigns' },
-      { label: 'Call outcomes', href: '/features/call-outcomes' },
-      { label: 'Callbacks', href: '/features/callbacks' },
-      { label: 'Meetings', href: '/features/meetings' }
+      {
+        label: 'Outbound calling',
+        href: '/features/outbound-calling',
+        description: 'Browser-based international dialing'
+      },
+      {
+        label: 'Campaigns',
+        href: '/features/campaigns',
+        description: 'Run shared team calling campaigns'
+      },
+      {
+        label: 'Call outcomes',
+        href: '/features/call-outcomes',
+        description: 'Log a result on every call'
+      },
+      {
+        label: 'Callbacks',
+        href: '/features/callbacks',
+        description: 'Never miss a scheduled call-back'
+      },
+      {
+        label: 'Meetings',
+        href: '/features/meetings',
+        description: 'Book and sync demos instantly'
+      }
     ]
   },
   {
     title: 'Record & Learn',
     blurb: 'Record calls, transcribe conversations, review history.',
     links: [
-      { label: 'Call recording', href: '/features/call-recording' },
-      { label: 'Call transcription', href: '/features/call-transcription' },
-      { label: 'Call history', href: '/features/call-recording' },
-      { label: 'Conversation review', href: '/features/call-transcription' }
+      {
+        label: 'Call recording',
+        href: '/features/call-recording',
+        description: 'Capture every conversation'
+      },
+      {
+        label: 'Call transcription',
+        href: '/features/call-transcription',
+        description: 'Accurate, searchable transcripts'
+      },
+      {
+        label: 'Call history',
+        href: '/features/call-recording',
+        description: 'Replay and audit past calls'
+      },
+      {
+        label: 'Conversation review',
+        href: '/features/call-transcription',
+        description: 'Coach reps with real calls'
+      }
     ]
   },
   {
     title: 'Automate',
     blurb: 'Drive outbound from ChatGPT, Claude, MCP agents, and the CLI.',
     links: [
-      { label: 'AI call automation', href: '/features/ai-call-automation' },
-      { label: 'ChatGPT workflows', href: '/integrations/chatgpt' },
-      { label: 'Claude workflows', href: '/integrations/claude' },
-      { label: 'MCP-compatible agents', href: '/integrations/mcp' },
-      { label: 'CLI workflows', href: '/integrations/cli' }
+      {
+        label: 'AI call automation',
+        href: '/features/ai-call-automation',
+        description: 'Let agents drive your outbound'
+      },
+      {
+        label: 'ChatGPT workflows',
+        href: '/integrations/chatgpt',
+        description: 'Dial straight from ChatGPT'
+      },
+      {
+        label: 'Claude workflows',
+        href: '/integrations/claude',
+        description: 'Run Ringee inside Claude'
+      },
+      {
+        label: 'MCP-compatible agents',
+        href: '/integrations/mcp',
+        description: 'Connect any MCP-based agent'
+      },
+      {
+        label: 'CLI workflows',
+        href: '/integrations/cli',
+        description: 'Script calls from your terminal'
+      }
     ]
   },
   {
     title: 'Sync',
     blurb: 'Connect lead sources, CRMs, and your calendar to your calling.',
     links: [
-      { label: 'CRM sync', href: '/features/crm-sync' },
-      { label: 'Apollo', href: '/integrations/apollo' },
-      { label: 'Prospeo', href: '/integrations/prospeo' },
-      { label: 'Attio', href: '/integrations/attio' },
-      { label: 'Odoo', href: '/integrations/odoo' },
-      { label: 'Google Calendar', href: '/integrations/google-calendar' }
+      {
+        label: 'CRM sync',
+        href: '/features/crm-sync',
+        description: 'Keep your CRM in step'
+      },
+      {
+        label: 'Apollo',
+        href: '/integrations/apollo',
+        description: 'Pull and enrich Apollo leads'
+      },
+      {
+        label: 'Prospeo',
+        href: '/integrations/prospeo',
+        description: 'Enrich contacts with Prospeo'
+      },
+      {
+        label: 'Attio',
+        href: '/integrations/attio',
+        description: 'Two-way Attio sync'
+      },
+      {
+        label: 'Odoo',
+        href: '/integrations/odoo',
+        description: 'Connect your Odoo CRM'
+      },
+      {
+        label: 'Google Calendar',
+        href: '/integrations/google-calendar',
+        description: 'Sync meetings to your calendar'
+      }
     ]
   },
   {
     title: 'Control',
     blurb: 'Manage workspaces, teams, security, and hosting.',
     links: [
-      { label: 'Workspace management', href: '/security#workspace-access' },
-      { label: 'Team access', href: '/security#account-security' },
-      { label: 'Security', href: '/security' },
-      { label: 'Self-hosted option', href: '/self-hosted' }
+      {
+        label: 'Workspace management',
+        href: '/security#workspace-access',
+        description: 'Personal and team workspaces'
+      },
+      {
+        label: 'Team access',
+        href: '/security#account-security',
+        description: 'Control who can see what'
+      },
+      {
+        label: 'Security',
+        href: '/security',
+        description: 'Encryption and access controls'
+      },
+      {
+        label: 'Self-hosted option',
+        href: '/self-hosted',
+        description: 'Run Ringee on your own infra'
+      }
     ]
   }
 ];

@@ -8,18 +8,21 @@ import { MarketingNavbar } from '@/features/marketing/components/navbar';
  * `overflow-hidden` for the dashboard shell, so we re-enable normal document
  * scrolling here (the dashboard manages its own scroll containers instead).
  */
-export default function MarketingLayout({
-  children
-}: {
-  children: ReactNode;
-}) {
+export default function MarketingLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <style
         // Re-enable native page scrolling for marketing routes only.
+        //
+        // The dashboard root layout sets `body { overflow: hidden }`. Simply
+        // flipping body to `overflow: auto` re-enables scrolling but turns the
+        // body into a scroll container, which breaks `position: sticky` on the
+        // navbar (it anchors to the body's scrollport instead of the viewport
+        // and scrolls away). Instead we make `html` the scroll container and
+        // keep `body` at `overflow: visible` so sticky anchors to the viewport.
         dangerouslySetInnerHTML={{
           __html:
-            'html,body{overflow:auto!important;overscroll-behavior:auto!important;height:auto!important}'
+            'html{height:auto!important;overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior:auto!important}body{height:auto!important;overflow:visible!important}'
         }}
       />
       <div className='bg-background text-foreground relative flex min-h-dvh flex-col'>
