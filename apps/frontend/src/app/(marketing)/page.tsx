@@ -211,7 +211,7 @@ export default async function HomePage() {
         <Container className='grid gap-12 lg:grid-cols-2'>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>
-              Built for outbound teams
+              Built for outbound freelancers and teams
             </h2>
             <p className='text-muted-foreground mt-2'>
               SDRs, recruiters, agencies, freelancers, and founders run their
