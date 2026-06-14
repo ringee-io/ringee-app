@@ -133,7 +133,14 @@
         "locality": "Ciudad",
         "administrativeArea": "Estado / provincia / región",
         "postalCode": "Código postal",
-        "countryCode": "Código de país (ISO, p. ej. GB)"
+        "countryCode": "Código de país (ISO, p. ej. GB)",
+        "validate": "Validar dirección",
+        "validateHint": "La comprobamos con los registros del operador.",
+        "validated": "Dirección validada por el operador.",
+        "invalid": "El operador no pudo validar esta dirección. Revisa los campos.",
+        "suggestionTitle": "El operador sugiere esta dirección:",
+        "useSuggestion": "Usar dirección sugerida",
+        "validateError": "No se pudo validar la dirección. Inténtalo de nuevo."
       },
       "selectDocument": "Seleccionar documento",
       "selectedDocument": "Documento seleccionado",
@@ -154,7 +161,8 @@
         "deleteError": "No se pudo eliminar el documento. Inténtalo de nuevo.",
         "cancel": "Cancelar",
         "use": "Usar documento"
-      }
+      },
+      "submitAddressInvalid": "No pudimos validar la dirección con el operador. Abre el paso de dirección y usa «Validar dirección» para corregirla."
     }
   },
   "tabs": {

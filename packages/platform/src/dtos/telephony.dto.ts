@@ -119,6 +119,33 @@ export class SubmitRequirementsDto {
   requirements!: SubmitRequirementItemDto[];
 }
 
+/** Address to validate — Telnyx requires country, postal code and street. */
+export class ValidateAddressDto {
+  @IsString()
+  @IsNotEmpty()
+  countryCode!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  postalCode!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  streetAddress!: string;
+
+  @IsString()
+  @IsOptional()
+  locality?: string;
+
+  @IsString()
+  @IsOptional()
+  administrativeArea?: string;
+
+  @IsString()
+  @IsOptional()
+  extendedAddress?: string;
+}
+
 /** Address while editing — every field optional so partial autosave passes. */
 export class PartialTelnyxAddressDto {
   @IsString() @IsOptional() businessName?: string;

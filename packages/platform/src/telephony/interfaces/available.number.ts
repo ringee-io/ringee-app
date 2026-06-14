@@ -176,6 +176,35 @@ export interface UploadedDocument {
   filename: string;
 }
 
+/** Minimal address fields Telnyx's validator needs (country/postal/street). */
+export interface AddressValidationInput {
+  countryCode: string;
+  postalCode: string;
+  streetAddress: string;
+  locality?: string;
+  administrativeArea?: string;
+  extendedAddress?: string;
+}
+
+/** Telnyx's normalized (deliverable) version of a submitted address. */
+export interface AddressSuggestion {
+  streetAddress?: string;
+  extendedAddress?: string;
+  locality?: string;
+  administrativeArea?: string;
+  postalCode?: string;
+  countryCode?: string;
+}
+
+/** Result of validating an address against Telnyx's address validator. */
+export interface AddressValidationResult {
+  result: "valid" | "invalid";
+  /** Normalized address Telnyx recommends using, when available. */
+  suggested?: AddressSuggestion;
+  /** Per-field problems Telnyx reported (field is the JSON pointer field). */
+  errors?: { field?: string; message?: string }[];
+}
+
 /** A single regulatory requirement value the user is submitting. */
 export interface RegulatoryRequirementValue {
   requirementId: string;

@@ -2,6 +2,8 @@ import { HttpException, Injectable, Logger } from "@nestjs/common";
 import { TelephonyCountryRate } from "../interfaces/telephony.rate";
 import { TelnyxClient } from "./telnyx.client";
 import {
+  AddressValidationInput,
+  AddressValidationResult,
   AssignedNumber,
   AvailableNumber,
   NumberOrderRequirementItem,
@@ -26,6 +28,18 @@ const telnyx = new Telnyx({
 });
 
 process.env.NUMBER_PROFIT_MARGIN = "1.0";
+
+/**
+ * Normalizes a phone number to strict E.164 for Telnyx. Strips spaces, dashes
+ * and parentheses; returns `undefined` when the result isn't a valid E.164
+ * number (leading `+` and 7–15 digits) so the caller can omit the optional
+ * field instead of having Telnyx reject the whole request.
+ */
+function sanitizeE164(raw?: string): string | undefined {
+  if (!raw) return undefined;
+  const cleaned = raw.replace(/[^\d+]/g, "");
+  return /^\+[1-9]\d{6,14}$/.test(cleaned) ? cleaned : undefined;
+}
 
 @Injectable()
 export class TelnyxService implements TelephonyService {
@@ -406,6 +420,57 @@ export class TelnyxService implements TelephonyService {
     return { documentId, filename: file.filename };
   }
 
+  /**
+   * Validates an address against Telnyx's address validator
+   * (`POST /addresses/actions/validate`). Returns whether it's deliverable plus
+   * Telnyx's normalized "suggested" version, which the UI can offer to apply.
+   */
+  async validateAddress(
+    input: AddressValidationInput,
+  ): Promise<AddressValidationResult> {
+    const payload: Record<string, unknown> = {
+      country_code: input.countryCode,
+      postal_code: input.postalCode,
+      street_address: input.streetAddress,
+      administrative_area: input.administrativeArea,
+      extended_address: input.extendedAddress,
+      locality: input.locality,
+    };
+    for (const key of Object.keys(payload)) {
+      if (payload[key] === undefined || payload[key] === "") {
+        delete payload[key];
+      }
+    }
+
+    const { data } = await this.telnyxClient.post(
+      "/addresses/actions/validate",
+      payload,
+    );
+
+    const s = data?.suggested;
+    const suggested = s
+      ? {
+          streetAddress: s.street_address,
+          extendedAddress: s.extended_address,
+          locality: s.locality,
+          administrativeArea: s.administrative_area,
+          postalCode: s.postal_code,
+          countryCode: s.country_code,
+        }
+      : undefined;
+
+    return {
+      result: data?.result === "valid" ? "valid" : "invalid",
+      suggested,
+      errors: (data?.errors ?? []).map((e: Record<string, any>) => ({
+        field: e?.source?.pointer
+          ? String(e.source.pointer).replace(/^\//, "")
+          : undefined,
+        message: e?.detail || e?.title || undefined,
+      })),
+    };
+  }
+
   async createAddress(
     input: TelnyxAddressInput,
   ): Promise<{ addressId: string }> {
@@ -420,7 +485,10 @@ export class TelnyxService implements TelephonyService {
       business_name: input.businessName,
       first_name: input.firstName,
       last_name: input.lastName,
-      phone_number: input.phoneNumber,
+      // Telnyx validates the address phone as strict E.164. Strip formatting
+      // and drop anything that isn't a valid E.164 number (it's optional) so a
+      // national-format value can't fail the whole address/order submission.
+      phone_number: sanitizeE164(input.phoneNumber),
       street_address: input.streetAddress,
       extended_address: input.extendedAddress,
       locality: input.locality,
@@ -440,7 +508,29 @@ export class TelnyxService implements TelephonyService {
       }
     }
 
-    const { data } = await this.telnyxClient.post("/addresses", payload);
+    let data: any;
+    try {
+      ({ data } = await this.telnyxClient.post("/addresses", payload));
+    } catch (err) {
+      // When Telnyx rejects the address with field-level "Suggestion" entries,
+      // surface a clear, actionable error (code-tagged) so the UI can point the
+      // user at the "Validate address" tool instead of a raw provider blob.
+      const body =
+        err instanceof HttpException ? (err.getResponse() as any) : undefined;
+      if (Array.isArray(body?.errors) && body.errors.length > 0) {
+        throw new HttpException(
+          {
+            message:
+              "The carrier could not validate this address. Use “Validate address” to review and apply the suggested corrections.",
+            code: "ADDRESS_VALIDATION_FAILED",
+            errors: body.errors,
+          },
+          422,
+        );
+      }
+      throw err;
+    }
+
     const addressId: string = data?.id;
 
     if (!addressId) {

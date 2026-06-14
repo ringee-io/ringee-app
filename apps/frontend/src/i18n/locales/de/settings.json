@@ -133,7 +133,14 @@
         "locality": "Stadt",
         "administrativeArea": "Bundesland / Region",
         "postalCode": "Postleitzahl",
-        "countryCode": "Ländercode (ISO, z. B. GB)"
+        "countryCode": "Ländercode (ISO, z. B. GB)",
+        "validate": "Adresse prüfen",
+        "validateHint": "Wir gleichen sie mit den Daten des Anbieters ab.",
+        "validated": "Adresse vom Anbieter bestätigt.",
+        "invalid": "Der Anbieter konnte diese Adresse nicht bestätigen. Bitte überprüfen Sie die Felder.",
+        "suggestionTitle": "Der Anbieter schlägt diese Adresse vor:",
+        "useSuggestion": "Vorgeschlagene Adresse übernehmen",
+        "validateError": "Die Adresse konnte nicht geprüft werden. Bitte versuchen Sie es erneut."
       },
       "selectDocument": "Dokument auswählen",
       "selectedDocument": "Ausgewähltes Dokument",
@@ -154,7 +161,8 @@
         "deleteError": "Das Dokument konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
         "cancel": "Abbrechen",
         "use": "Dokument verwenden"
-      }
+      },
+      "submitAddressInvalid": "Wir konnten die Adresse beim Anbieter nicht bestätigen. Öffnen Sie den Adressschritt und nutzen Sie „Adresse prüfen“, um sie zu korrigieren."
     }
   },
   "tabs": {

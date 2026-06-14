@@ -1,4 +1,6 @@
 import {
+  AddressValidationInput,
+  AddressValidationResult,
   AssignedNumber,
   AvailableNumber,
   NumberOrderRequirements,
@@ -44,6 +46,14 @@ export interface TelephonyNumbersService {
     filename: string;
     contentType: string;
   }): Promise<UploadedDocument>;
+
+  /**
+   * Validates an address against the provider's address validator, returning
+   * whether it is deliverable plus a normalized suggestion when available.
+   */
+  validateAddress(
+    input: AddressValidationInput,
+  ): Promise<AddressValidationResult>;
 
   /**
    * Creates a validated address with the provider and returns its id, to be

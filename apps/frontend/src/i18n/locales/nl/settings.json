@@ -133,7 +133,14 @@
         "locality": "Plaats",
         "administrativeArea": "Provincie / regio",
         "postalCode": "Postcode",
-        "countryCode": "Landcode (ISO, bijv. GB)"
+        "countryCode": "Landcode (ISO, bijv. GB)",
+        "validate": "Adres valideren",
+        "validateHint": "We controleren het bij de provider.",
+        "validated": "Adres gevalideerd door de provider.",
+        "invalid": "De provider kon dit adres niet valideren. Controleer de velden.",
+        "suggestionTitle": "De provider stelt dit adres voor:",
+        "useSuggestion": "Voorgesteld adres gebruiken",
+        "validateError": "Kon het adres niet valideren. Probeer het opnieuw."
       },
       "selectDocument": "Document selecteren",
       "selectedDocument": "Geselecteerd document",
@@ -154,7 +161,8 @@
         "deleteError": "Kon het document niet verwijderen. Probeer het opnieuw.",
         "cancel": "Annuleren",
         "use": "Document gebruiken"
-      }
+      },
+      "submitAddressInvalid": "We konden het adres niet valideren bij de provider. Open de adresstap en gebruik ‘Adres valideren’ om het te corrigeren."
     }
   },
   "tabs": {

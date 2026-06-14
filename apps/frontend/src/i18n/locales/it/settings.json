@@ -133,7 +133,14 @@
         "locality": "Città",
         "administrativeArea": "Stato / regione",
         "postalCode": "Codice postale",
-        "countryCode": "Codice paese (ISO, es. GB)"
+        "countryCode": "Codice paese (ISO, es. GB)",
+        "validate": "Valida indirizzo",
+        "validateHint": "Lo confrontiamo con i dati dell'operatore.",
+        "validated": "Indirizzo validato dall'operatore.",
+        "invalid": "L'operatore non ha potuto validare questo indirizzo. Controlla i campi.",
+        "suggestionTitle": "L'operatore suggerisce questo indirizzo:",
+        "useSuggestion": "Usa l'indirizzo suggerito",
+        "validateError": "Impossibile validare l'indirizzo. Riprova."
       },
       "selectDocument": "Seleziona documento",
       "selectedDocument": "Documento selezionato",
@@ -154,7 +161,8 @@
         "deleteError": "Impossibile eliminare il documento. Riprova.",
         "cancel": "Annulla",
         "use": "Usa documento"
-      }
+      },
+      "submitAddressInvalid": "Non siamo riusciti a validare l'indirizzo con l'operatore. Apri il passaggio indirizzo e usa «Valida indirizzo» per correggerlo."
     }
   },
   "tabs": {

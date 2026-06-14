@@ -32,6 +32,7 @@ import {
   RequestCallerIdVerificationDto,
   SaveRequirementsDraftDto,
   SubmitRequirementsDto,
+  ValidateAddressDto,
   VerifyCallerIdDto,
 } from "@ringee/platform";
 import {
@@ -223,6 +224,12 @@ export class TelephonyController {
       id,
     );
     return { success: true };
+  }
+
+  /** Validates an address against the carrier's strict address validator. */
+  @Post("addresses/validate")
+  async validateAddress(@Body() body: ValidateAddressDto) {
+    return this.telephonyService.validateAddress(body);
   }
 
   /** Autosaves the verification form so a reload restores it. */

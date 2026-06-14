@@ -133,7 +133,14 @@
         "locality": "Cidade",
         "administrativeArea": "Distrito / região",
         "postalCode": "Código postal",
-        "countryCode": "Código do país (ISO, p. ex. GB)"
+        "countryCode": "Código do país (ISO, p. ex. GB)",
+        "validate": "Validar morada",
+        "validateHint": "Verificamos junto da operadora.",
+        "validated": "Morada validada pela operadora.",
+        "invalid": "A operadora não conseguiu validar esta morada. Verifique os campos.",
+        "suggestionTitle": "A operadora sugere esta morada:",
+        "useSuggestion": "Usar morada sugerida",
+        "validateError": "Não foi possível validar a morada. Tente novamente."
       },
       "selectDocument": "Selecionar documento",
       "selectedDocument": "Documento selecionado",
@@ -154,7 +161,8 @@
         "deleteError": "Não foi possível eliminar o documento. Tente novamente.",
         "cancel": "Cancelar",
         "use": "Usar documento"
-      }
+      },
+      "submitAddressInvalid": "Não conseguimos validar a morada junto da operadora. Abra o passo da morada e use «Validar morada» para a corrigir."
     }
   },
   "tabs": {

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
+  IconAlertTriangle,
   IconArrowLeft,
   IconCircleCheck,
   IconCircleDashed,
@@ -13,6 +14,7 @@ import {
   IconLoader2,
   IconLock,
   IconMail,
+  IconMapPinCheck,
   IconPaperclip,
   IconShieldCheck
 } from '@tabler/icons-react';
@@ -38,6 +40,11 @@ import {
   AlertTitle
 } from '@ringee/frontend-shared/components/ui/alert';
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import PhoneInput, {
+  type Country,
+  type Value as PhoneValue
+} from 'react-phone-number-input';
+import 'react-phone-number-input/style.css';
 import { DocumentPickerModal } from './document.picker.modal';
 
 const MY_NUMBERS_HREF = '/dashboard/buy-number?tab=my-numbers';
@@ -290,8 +297,13 @@ export function VerifyNumberScreen({ numberId }: { numberId: string }) {
       toast.success(t('submitOk'));
       router.push(MY_NUMBERS_HREF);
       router.refresh();
-    } catch {
-      toast.error(t('submitError'));
+    } catch (err) {
+      const code = (err as { data?: { code?: string } })?.data?.code;
+      toast.error(
+        code === 'ADDRESS_VALIDATION_FAILED'
+          ? t('submitAddressInvalid')
+          : t('submitError')
+      );
     } finally {
       setSubmitting(false);
     }
@@ -723,6 +735,16 @@ function AddressFields({
   onChange: (patch: Partial<AddressForm>) => void;
 }) {
   const t = useTranslations('settings.numbers.verify.address');
+  const api = useApi();
+
+  const [validating, setValidating] = useState(false);
+  const [feedback, setFeedback] = useState<AddressFeedback>(null);
+
+  // Editing any field invalidates a previous validation result.
+  const handleChange = (patch: Partial<AddressForm>) => {
+    setFeedback(null);
+    onChange(patch);
+  };
 
   const field = (key: keyof AddressForm, label: string, required = false) => (
     <div className='space-y-1'>
@@ -733,18 +755,81 @@ function AddressFields({
       <Input
         value={address[key]}
         onChange={(e) =>
-          onChange({ [key]: e.target.value } as Partial<AddressForm>)
+          handleChange({ [key]: e.target.value } as Partial<AddressForm>)
         }
       />
     </div>
   );
+
+  const defaultCountry = /^[A-Za-z]{2}$/.test(address.countryCode)
+    ? (address.countryCode.toUpperCase() as Country)
+    : undefined;
+
+  const phoneField = (
+    <div className='space-y-1'>
+      <Label className='text-xs'>{t('phoneNumber')}</Label>
+      <PhoneInput
+        international
+        defaultCountry={defaultCountry}
+        value={(address.phoneNumber || undefined) as PhoneValue | undefined}
+        onChange={(value) => handleChange({ phoneNumber: value ?? '' })}
+        className='border-input focus-within:ring-primary flex h-9 items-center rounded-md border bg-transparent px-3 text-sm focus-within:ring-2'
+      />
+    </div>
+  );
+
+  const canValidate =
+    !!address.streetAddress.trim() &&
+    !!address.postalCode.trim() &&
+    !!address.countryCode.trim();
+
+  const validate = async () => {
+    setValidating(true);
+    setFeedback(null);
+    try {
+      const res = await api.post<AddressValidationResponse>(
+        '/telephony/addresses/validate',
+        {
+          countryCode: address.countryCode,
+          postalCode: address.postalCode,
+          streetAddress: address.streetAddress,
+          locality: address.locality || undefined,
+          administrativeArea: address.administrativeArea || undefined,
+          extendedAddress: address.extendedAddress || undefined
+        }
+      );
+      if (res.result === 'valid') {
+        setFeedback({ type: 'valid' });
+      } else if (res.suggested && hasSuggestion(res.suggested)) {
+        setFeedback({ type: 'suggestion', suggested: res.suggested });
+      } else {
+        setFeedback({ type: 'invalid' });
+      }
+    } catch {
+      toast.error(t('validateError'));
+    } finally {
+      setValidating(false);
+    }
+  };
+
+  const applySuggestion = (s: AddressSuggestion) => {
+    const patch: Partial<AddressForm> = {};
+    if (s.streetAddress) patch.streetAddress = s.streetAddress;
+    if (s.extendedAddress) patch.extendedAddress = s.extendedAddress;
+    if (s.locality) patch.locality = s.locality;
+    if (s.administrativeArea) patch.administrativeArea = s.administrativeArea;
+    if (s.postalCode) patch.postalCode = s.postalCode;
+    if (s.countryCode) patch.countryCode = s.countryCode;
+    onChange(patch);
+    setFeedback({ type: 'valid' });
+  };
 
   return (
     <div className='space-y-3'>
       <p className='text-muted-foreground text-xs'>{t('hint')}</p>
       <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
         {field('businessName', t('businessName'))}
-        {field('phoneNumber', t('phoneNumber'))}
+        {phoneField}
         {field('firstName', t('firstName'))}
         {field('lastName', t('lastName'))}
       </div>
@@ -757,6 +842,118 @@ function AddressFields({
         {field('postalCode', t('postalCode'))}
         {field('countryCode', t('countryCode'), true)}
       </div>
+
+      <div className='flex items-center gap-3 pt-1'>
+        <Button
+          type='button'
+          variant='outline'
+          size='sm'
+          onClick={validate}
+          disabled={!canValidate || validating}
+        >
+          {validating ? (
+            <IconLoader2 className='mr-2 h-4 w-4 animate-spin' />
+          ) : (
+            <IconMapPinCheck className='mr-2 h-4 w-4' />
+          )}
+          {t('validate')}
+        </Button>
+        <span className='text-muted-foreground text-xs'>
+          {t('validateHint')}
+        </span>
+      </div>
+
+      <AddressValidationFeedback
+        feedback={feedback}
+        onApply={applySuggestion}
+      />
+    </div>
+  );
+}
+
+interface AddressSuggestion {
+  streetAddress?: string;
+  extendedAddress?: string;
+  locality?: string;
+  administrativeArea?: string;
+  postalCode?: string;
+  countryCode?: string;
+}
+
+interface AddressValidationResponse {
+  result: 'valid' | 'invalid';
+  suggested?: AddressSuggestion;
+  errors?: { field?: string; message?: string }[];
+}
+
+type AddressFeedback =
+  | null
+  | { type: 'valid' }
+  | { type: 'invalid' }
+  | { type: 'suggestion'; suggested: AddressSuggestion };
+
+function hasSuggestion(s: AddressSuggestion): boolean {
+  return Object.values(s).some((v) => typeof v === 'string' && v.trim() !== '');
+}
+
+function AddressValidationFeedback({
+  feedback,
+  onApply
+}: {
+  feedback: AddressFeedback;
+  onApply: (s: AddressSuggestion) => void;
+}) {
+  const t = useTranslations('settings.numbers.verify.address');
+  if (!feedback) return null;
+
+  if (feedback.type === 'valid') {
+    return (
+      <div className='flex items-center gap-2 rounded-md border border-green-300 bg-green-50 px-3 py-2 text-xs text-green-700 dark:border-green-900 dark:bg-green-950/20 dark:text-green-400'>
+        <IconCircleCheck className='h-4 w-4 shrink-0' />
+        {t('validated')}
+      </div>
+    );
+  }
+
+  if (feedback.type === 'invalid') {
+    return (
+      <div className='flex items-start gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-900 dark:bg-amber-950/20 dark:text-amber-500'>
+        <IconAlertTriangle className='mt-0.5 h-4 w-4 shrink-0' />
+        {t('invalid')}
+      </div>
+    );
+  }
+
+  const s = feedback.suggested;
+  const line = [
+    s.streetAddress,
+    s.extendedAddress,
+    s.locality,
+    s.administrativeArea,
+    s.postalCode,
+    s.countryCode
+  ]
+    .filter(Boolean)
+    .join(', ');
+
+  return (
+    <div className='space-y-2 rounded-md border border-amber-300 bg-amber-50 p-3 dark:border-amber-900 dark:bg-amber-950/20'>
+      <div className='flex items-start gap-2 text-xs text-amber-700 dark:text-amber-500'>
+        <IconAlertTriangle className='mt-0.5 h-4 w-4 shrink-0' />
+        <div className='space-y-1'>
+          <p className='font-medium'>{t('suggestionTitle')}</p>
+          <p className='text-amber-800 dark:text-amber-300'>{line}</p>
+        </div>
+      </div>
+      <Button
+        type='button'
+        size='sm'
+        variant='outline'
+        className='border-amber-400 text-amber-800 hover:bg-amber-100 dark:text-amber-300'
+        onClick={() => onApply(s)}
+      >
+        {t('useSuggestion')}
+      </Button>
     </div>
   );
 }

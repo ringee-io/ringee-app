@@ -3,6 +3,8 @@ import { TelephonyCountryRate } from "./interfaces/telephony.rate";
 import { TelephonyService as TelephonyServiceInterface } from "./interfaces/telephony.service";
 import { TelnyxService } from "./telnyx";
 import {
+  AddressValidationInput,
+  AddressValidationResult,
   SearchAvailableParams,
   PurchaseNumbers,
   AssignedNumber,
@@ -96,6 +98,12 @@ export class TelephonyService implements TelephonyServiceInterface {
     contentType: string;
   }): Promise<UploadedDocument> {
     return this.getServiceProvider().uploadDocument(file);
+  }
+
+  validateAddress(
+    input: AddressValidationInput,
+  ): Promise<AddressValidationResult> {
+    return this.getServiceProvider().validateAddress(input);
   }
 
   createAddress(input: TelnyxAddressInput): Promise<{ addressId: string }> {
