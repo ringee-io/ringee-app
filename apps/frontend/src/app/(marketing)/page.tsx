@@ -67,7 +67,14 @@ export default async function HomePage() {
             </Link>
 
             <h1 className='text-4xl font-bold tracking-tight text-balance sm:text-5xl md:text-6xl'>
-              The outbound dialer built for the AI era
+              {/* A modern low-cost outbound dialer built for modern sales teams */}
+
+              {/* Low-cost outbound dialing for freelancers and teams */}
+
+              Modern, low-cost outbound dialing software
+
+              
+              {/* The outbound dialer built for the AI era */}
             </h1>
 
             <p className='text-muted-foreground mt-6 max-w-xl text-lg text-pretty'>
