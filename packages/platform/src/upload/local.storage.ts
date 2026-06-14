@@ -1,5 +1,6 @@
 import { IUploadProvider } from "./upload.interface";
-import { mkdirSync, unlink, writeFileSync } from "fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "fs";
+import { dirname, join } from "path";
 
 // import mime from "mime";
 import axios from "axios";
@@ -7,13 +8,22 @@ import axios from "axios";
 export class LocalStorage implements IUploadProvider {
   constructor(private uploadDirectory: string) {}
 
-  uploadBuffer(
+  /** Writes a buffer to `<uploadDirectory>/<path>` and returns a public URL. */
+  async uploadBuffer(
     path: string,
     buffer: Buffer,
-    contentType: string,
-    extension: string,
+    _contentType: string,
+    _extension: string,
   ): Promise<string> {
-    throw new Error("Method not implemented.");
+    const filePath = join(this.uploadDirectory, path);
+    mkdirSync(dirname(filePath), { recursive: true });
+    writeFileSync(filePath, buffer);
+    return `${process.env.FRONTEND_URL}/uploads/${path}`;
+  }
+
+  /** Reads back a previously stored object by its key (path). */
+  async downloadBuffer(key: string): Promise<Buffer> {
+    return readFileSync(join(this.uploadDirectory, key));
   }
 
   async uploadSimple(path: string) {
@@ -48,16 +58,8 @@ export class LocalStorage implements IUploadProvider {
     return process.env.FRONTEND_URL + "/uploads" + publicPath;
   }
 
-  async removeFile(filePath: string): Promise<void> {
-    // Logic to remove the file from the filesystem goes here
-    return new Promise((resolve, reject) => {
-      unlink(filePath, (err) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
-    });
+  /** Removes a stored object by its key (path), no-op if already gone. */
+  async removeFile(key: string): Promise<void> {
+    rmSync(join(this.uploadDirectory, key), { force: true });
   }
 }

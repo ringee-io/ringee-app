@@ -64,3 +64,5 @@ export * from "./custom-integration-link.repository";
 export * from "./custom-integration-inbound.repository";
 export * from "./custom-integration-delivery.repository";
 export * from "./call-session.repository";
+export * from "./regulatory-document.repository";
+export * from "./number-requirement-value.repository";

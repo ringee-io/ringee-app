@@ -134,6 +134,26 @@
         "administrativeArea": "État / région",
         "postalCode": "Code postal",
         "countryCode": "Code pays (ISO, p. ex. GB)"
+      },
+      "selectDocument": "Sélectionner un document",
+      "selectedDocument": "Document sélectionné",
+      "change": "Modifier",
+      "savingDraft": "Enregistrement…",
+      "savedDraft": "Enregistré",
+      "picker": {
+        "title": "Vos documents",
+        "subtitle": "Choisissez un document déjà téléversé ou ajoutez-en un nouveau.",
+        "uploadNew": "Téléverser un nouveau document",
+        "uploading": "Téléversement…",
+        "uploaded": "Document téléversé",
+        "uploadError": "Impossible de téléverser le document. Veuillez réessayer.",
+        "empty": "Aucun document pour l'instant. Téléversez le premier ci-dessus.",
+        "loadError": "Impossible de charger vos documents. Veuillez réessayer.",
+        "delete": "Supprimer",
+        "deleted": "Document supprimé",
+        "deleteError": "Impossible de supprimer le document. Veuillez réessayer.",
+        "cancel": "Annuler",
+        "use": "Utiliser le document"
       }
     }
   },

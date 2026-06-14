@@ -5,6 +5,7 @@ import {
   IsIn,
   IsArray,
   ArrayNotEmpty,
+  IsUUID,
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
@@ -99,9 +100,10 @@ export class SubmitRequirementItemDto {
   @IsOptional()
   textValue?: string;
 
-  @IsString()
+  /** Id of a RegulatoryDocument stored in Ringee's bucket (document fields). */
+  @IsUUID()
   @IsOptional()
-  documentId?: string;
+  regulatoryDocumentId?: string;
 
   @ValidateNested()
   @Type(() => TelnyxAddressDto)
@@ -115,4 +117,55 @@ export class SubmitRequirementsDto {
   @ValidateNested({ each: true })
   @Type(() => SubmitRequirementItemDto)
   requirements!: SubmitRequirementItemDto[];
+}
+
+/** Address while editing — every field optional so partial autosave passes. */
+export class PartialTelnyxAddressDto {
+  @IsString() @IsOptional() businessName?: string;
+  @IsString() @IsOptional() firstName?: string;
+  @IsString() @IsOptional() lastName?: string;
+  @IsString() @IsOptional() phoneNumber?: string;
+  @IsString() @IsOptional() streetAddress?: string;
+  @IsString() @IsOptional() extendedAddress?: string;
+  @IsString() @IsOptional() locality?: string;
+  @IsString() @IsOptional() administrativeArea?: string;
+  @IsString() @IsOptional() neighborhood?: string;
+  @IsString() @IsOptional() borough?: string;
+  @IsString() @IsOptional() postalCode?: string;
+  @IsString() @IsOptional() countryCode?: string;
+}
+
+export class DraftRequirementItemDto {
+  @IsString()
+  @IsNotEmpty()
+  requirementId!: string;
+
+  @IsString()
+  @IsIn(["textual", "document", "address"])
+  fieldType!: "textual" | "document" | "address";
+
+  @IsString()
+  @IsOptional()
+  textValue?: string;
+
+  @IsUUID()
+  @IsOptional()
+  regulatoryDocumentId?: string;
+
+  @ValidateNested()
+  @Type(() => PartialTelnyxAddressDto)
+  @IsOptional()
+  address?: PartialTelnyxAddressDto;
+}
+
+/**
+ * Autosave payload — same items as a submission but the array may be empty and
+ * individual values (including address fields) may be missing while the user is
+ * still filling the form.
+ */
+export class SaveRequirementsDraftDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => DraftRequirementItemDto)
+  requirements!: DraftRequirementItemDto[];
 }

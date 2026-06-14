@@ -7,6 +7,8 @@ import {
 import {
   NumberPurchased,
   NumberPurchasedRepository,
+  NumberRequirementValueRepository,
+  RequirementValueWithDocument,
   UserRepository,
 } from "@ringee/database";
 import {
@@ -16,12 +18,14 @@ import {
   PurchaseNumbers,
   NumberOrderRequirements,
   NumberVerificationOutcome,
+  DraftRegulatoryRequirementInput,
   RegulatoryRequirementValue,
+  RequirementDraft,
   ResendProvider,
   SubmitRegulatoryRequirementInput,
-  UploadedDocument,
 } from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
+import { RegulatoryDocumentService } from "./regulatory-document.service";
 
 /** Internal address copied on every regulatory-submission follow-up email. */
 const REGULATORY_FOLLOWUP_CC = "edisonpadilla.dev@gmail.com";
@@ -36,6 +40,8 @@ export class NumberPurchasedService {
     private readonly numberPurchasedRepository: NumberPurchasedRepository,
     private telephonyService: TelephonyService,
     private readonly userRepository: UserRepository,
+    private readonly requirementValueRepository: NumberRequirementValueRepository,
+    private readonly regulatoryDocumentService: RegulatoryDocumentService,
   ) {}
 
   release(id: string): Promise<NumberPurchased> {
@@ -341,27 +347,112 @@ export class NumberPurchasedService {
       );
     }
 
-    return this.telephonyService.getNumberOrderRequirements(
+    const result = await this.telephonyService.getNumberOrderRequirements(
       number.providerNumberId,
     );
+
+    // Merge locally-saved form values so the UI can prefill on reload.
+    const saved = await this.requirementValueRepository.findByNumber(
+      number.id,
+    );
+    const draftByRequirement = new Map<string, RequirementDraft>();
+    for (const value of saved) {
+      draftByRequirement.set(value.requirementId, this.toDraft(value));
+    }
+
+    return {
+      ...result,
+      requirements: result.requirements.map((req) => ({
+        ...req,
+        draft: draftByRequirement.get(req.id) ?? null,
+      })),
+    };
   }
 
-  /** Uploads a single requirement document to the provider. */
-  uploadRequirementDocument(file: {
-    buffer: Buffer;
-    filename: string;
-    contentType: string;
-  }): Promise<UploadedDocument> {
-    return this.telephonyService.uploadDocument(file);
+  /** Maps a persisted requirement value into the draft shape the UI expects. */
+  private toDraft(value: RequirementValueWithDocument): RequirementDraft {
+    if (value.fieldType === "document") {
+      return { document: value.regulatoryDocument };
+    }
+    if (value.fieldType === "address") {
+      return {
+        address: (value.addressJson as Record<string, unknown> | null) ?? null,
+      };
+    }
+    return { textValue: value.textValue };
   }
 
   /**
-   * Resolves each submitted requirement into a provider field_value (creating
-   * addresses as needed), submits them to the provider, then emails a
+   * Persists the verification form as the user fills it (autosave), without
+   * contacting the provider. Document selections are validated to belong to the
+   * caller's workspace before they are linked.
+   */
+  async saveRequirementDraft(
+    ctx: OwnershipContext,
+    numberPurchasedId: string,
+    inputs: DraftRegulatoryRequirementInput[],
+  ): Promise<{ saved: number }> {
+    const number =
+      await this.numberPurchasedRepository.findById(numberPurchasedId);
+    if (!number) throw new NotFoundException("Number not found");
+
+    for (const input of inputs) {
+      if (!input.requirementId) continue;
+
+      if (input.fieldType === "document") {
+        if (input.regulatoryDocumentId) {
+          await this.regulatoryDocumentService.assertOwned(
+            ctx,
+            input.regulatoryDocumentId,
+          );
+        }
+        await this.requirementValueRepository.upsert(
+          number.id,
+          input.requirementId,
+          {
+            fieldType: "document",
+            regulatoryDocumentId: input.regulatoryDocumentId ?? null,
+            textValue: null,
+            addressJson: null,
+          },
+        );
+      } else if (input.fieldType === "address") {
+        await this.requirementValueRepository.upsert(
+          number.id,
+          input.requirementId,
+          {
+            fieldType: "address",
+            addressJson: input.address ?? null,
+            textValue: null,
+            regulatoryDocumentId: null,
+          },
+        );
+      } else {
+        await this.requirementValueRepository.upsert(
+          number.id,
+          input.requirementId,
+          {
+            fieldType: "textual",
+            textValue: input.textValue ?? null,
+            addressJson: null,
+            regulatoryDocumentId: null,
+          },
+        );
+      }
+    }
+
+    return { saved: inputs.length };
+  }
+
+  /**
+   * Resolves each submitted requirement into a provider field_value (uploading
+   * stored documents to the provider and creating addresses as needed),
+   * persists the values, submits them to the provider, then emails a
    * descriptive follow-up to the client (CC the internal inbox) so any further
    * communication with the provider can happen in that thread.
    */
   async submitNumberRequirements(
+    ctx: OwnershipContext,
     numberPurchasedId: string,
     inputs: SubmitRegulatoryRequirementInput[],
   ): Promise<NumberOrderRequirements> {
@@ -377,9 +468,11 @@ export class NumberPurchasedService {
       throw new BadRequestException("No requirements provided");
     }
 
-    // Track a human-readable summary per requirement for the follow-up email.
+    // Track a human-readable summary per requirement for the follow-up email,
+    // and the persisted form value so a reload reflects what was submitted.
     const summaries: { requirementId: string; summary: string }[] = [];
     const values: RegulatoryRequirementValue[] = [];
+    const now = new Date();
 
     for (const input of inputs) {
       if (!input.requirementId) {
@@ -403,20 +496,48 @@ export class NumberPurchasedService {
           requirementId: input.requirementId,
           summary: `Address: ${this.formatAddress(input.address)} (Telnyx address ${addressId})`,
         });
+        await this.requirementValueRepository.upsert(
+          number.id,
+          input.requirementId,
+          {
+            fieldType: "address",
+            addressJson: input.address,
+            textValue: null,
+            regulatoryDocumentId: null,
+            submittedAt: now,
+          },
+        );
       } else if (input.fieldType === "document") {
-        if (!input.documentId) {
+        if (!input.regulatoryDocumentId) {
           throw new BadRequestException(
-            `Requirement ${input.requirementId} needs an uploaded document`,
+            `Requirement ${input.requirementId} needs a document`,
           );
         }
+        const doc = await this.regulatoryDocumentService.getOwnedOrThrow(
+          ctx,
+          input.regulatoryDocumentId,
+        );
+        const telnyxDocumentId =
+          await this.regulatoryDocumentService.resolveTelnyxDocumentId(doc);
         values.push({
           requirementId: input.requirementId,
-          fieldValue: input.documentId,
+          fieldValue: telnyxDocumentId,
         });
         summaries.push({
           requirementId: input.requirementId,
-          summary: `Document uploaded (Telnyx document ${input.documentId})`,
+          summary: `Document "${doc.filename}" (Telnyx document ${telnyxDocumentId})`,
         });
+        await this.requirementValueRepository.upsert(
+          number.id,
+          input.requirementId,
+          {
+            fieldType: "document",
+            regulatoryDocumentId: doc.id,
+            textValue: null,
+            addressJson: null,
+            submittedAt: now,
+          },
+        );
       } else {
         const text = input.textValue?.trim();
         if (!text) {
@@ -429,6 +550,17 @@ export class NumberPurchasedService {
           requirementId: input.requirementId,
           summary: text,
         });
+        await this.requirementValueRepository.upsert(
+          number.id,
+          input.requirementId,
+          {
+            fieldType: "textual",
+            textValue: text,
+            addressJson: null,
+            regulatoryDocumentId: null,
+            submittedAt: now,
+          },
+        );
       }
     }
 

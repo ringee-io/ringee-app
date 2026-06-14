@@ -126,6 +126,15 @@ export interface NumberOrderRequirementItem extends RegulatoryRequirement {
   reason?: string | null;
   /** Value already submitted for this requirement, if any. */
   fieldValue?: string | null;
+  /** Locally-persisted form value (autosave), so the UI can prefill on reload. */
+  draft?: RequirementDraft | null;
+}
+
+/** What the user has saved (not necessarily submitted) for one requirement. */
+export interface RequirementDraft {
+  textValue?: string | null;
+  address?: Record<string, unknown> | null;
+  document?: { id: string; filename: string } | null;
 }
 
 /** Coarse outcome of reconciling a pending order line against the provider. */
@@ -184,10 +193,22 @@ export interface SubmitRegulatoryRequirementInput {
   fieldType: RequirementFieldType;
   /** For `textual` requirements. */
   textValue?: string;
-  /** For `document` requirements — an already-uploaded document id. */
-  documentId?: string;
+  /** For `document` requirements — id of a RegulatoryDocument in Ringee's bucket. */
+  regulatoryDocumentId?: string;
   /** For `address` requirements — created with the provider then referenced. */
   address?: TelnyxAddressInput;
+}
+
+/**
+ * Autosave variant of {@link SubmitRegulatoryRequirementInput}: every value is
+ * optional and the address may be partial while the user is still typing.
+ */
+export interface DraftRegulatoryRequirementInput {
+  requirementId: string;
+  fieldType: RequirementFieldType;
+  textValue?: string;
+  regulatoryDocumentId?: string;
+  address?: Partial<TelnyxAddressInput>;
 }
 
 export type NumberFeature =

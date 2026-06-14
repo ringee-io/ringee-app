@@ -1,4 +1,9 @@
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from "@aws-sdk/client-s3";
 import mime from "mime-types";
 import { IUploadProvider } from "./upload.interface";
 
@@ -102,10 +107,32 @@ export class CloudflareStorage implements IUploadProvider {
   }
 
   /**
-   * 🗑️ Borrar archivo (Opcional)
+   * Reads an object back into memory by its key (the path used on upload).
    */
-  async removeFile(filePath: string): Promise<void> {
-    // Si necesitas delete, lo habilito aquí.
-    throw new Error("Method not implemented.");
+  async downloadBuffer(key: string): Promise<Buffer> {
+    const command = new GetObjectCommand({
+      Bucket: this._bucketName,
+      Key: key,
+    });
+
+    const response = await this._client.send(command);
+    const body = response.Body as
+      | { transformToByteArray?: () => Promise<Uint8Array> }
+      | undefined;
+
+    if (!body?.transformToByteArray) {
+      throw new Error(`Could not read object ${key} from storage`);
+    }
+
+    return Buffer.from(await body.transformToByteArray());
+  }
+
+  /**
+   * 🗑️ Borrar archivo por su key.
+   */
+  async removeFile(key: string): Promise<void> {
+    await this._client.send(
+      new DeleteObjectCommand({ Bucket: this._bucketName, Key: key }),
+    );
   }
 }

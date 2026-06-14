@@ -134,6 +134,26 @@
         "administrativeArea": "Bundesland / Region",
         "postalCode": "Postleitzahl",
         "countryCode": "Ländercode (ISO, z. B. GB)"
+      },
+      "selectDocument": "Dokument auswählen",
+      "selectedDocument": "Ausgewähltes Dokument",
+      "change": "Ändern",
+      "savingDraft": "Wird gespeichert…",
+      "savedDraft": "Gespeichert",
+      "picker": {
+        "title": "Ihre Dokumente",
+        "subtitle": "Wählen Sie ein bereits hochgeladenes Dokument oder fügen Sie ein neues hinzu.",
+        "uploadNew": "Neues Dokument hochladen",
+        "uploading": "Wird hochgeladen…",
+        "uploaded": "Dokument hochgeladen",
+        "uploadError": "Das Dokument konnte nicht hochgeladen werden. Bitte versuchen Sie es erneut.",
+        "empty": "Noch keine Dokumente. Laden Sie oben Ihr erstes hoch.",
+        "loadError": "Ihre Dokumente konnten nicht geladen werden. Bitte versuchen Sie es erneut.",
+        "delete": "Löschen",
+        "deleted": "Dokument gelöscht",
+        "deleteError": "Das Dokument konnte nicht gelöscht werden. Bitte versuchen Sie es erneut.",
+        "cancel": "Abbrechen",
+        "use": "Dokument verwenden"
       }
     }
   },

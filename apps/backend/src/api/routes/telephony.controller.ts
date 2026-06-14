@@ -1,11 +1,13 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   BadRequestException,
   NotFoundException,
   Param,
   Post,
+  Put,
   Query,
   ParseIntPipe,
   UseInterceptors,
@@ -21,9 +23,14 @@ import {
   createOwnershipContext,
 } from "@ringee/platform";
 import { TelephonyCountryRate } from "@ringee/platform";
-import { CallerIdService, NumberPurchasedService } from "@ringee/services";
+import {
+  CallerIdService,
+  NumberPurchasedService,
+  RegulatoryDocumentService,
+} from "@ringee/services";
 import {
   RequestCallerIdVerificationDto,
+  SaveRequirementsDraftDto,
   SubmitRequirementsDto,
   VerifyCallerIdDto,
 } from "@ringee/platform";
@@ -51,6 +58,7 @@ export class TelephonyController {
     private readonly callService: CallService,
     private readonly ratePerMinuteRepository: TelnyxRatePerMinuteRepository,
     private readonly recordingService: RecordingService,
+    private readonly regulatoryDocumentService: RegulatoryDocumentService,
   ) {}
 
   @Public()
@@ -154,7 +162,14 @@ export class TelephonyController {
     return this.numberPurchasedService.getNumberRequirements(id);
   }
 
-  @Post("phone-numbers/:id/requirements/documents")
+  /** Lists the workspace's reusable regulatory-document bucket. */
+  @Get("regulatory-documents")
+  async listRegulatoryDocuments(@CurrentUser() user: CurrentUserData) {
+    return this.regulatoryDocumentService.list(createOwnershipContext(user));
+  }
+
+  /** Uploads a document to the workspace bucket (not sent to Telnyx yet). */
+  @Post("regulatory-documents")
   @UseInterceptors(
     FileInterceptor("file", {
       // Telnyx caps documents at 20 MB.
@@ -181,8 +196,8 @@ export class TelephonyController {
       },
     }),
   )
-  async uploadRequirementDocument(
-    @Param("id") id: string,
+  async uploadRegulatoryDocument(
+    @CurrentUser() user: CurrentUserData,
     @UploadedFile()
     file: { buffer: Buffer; originalname: string; mimetype: string },
   ) {
@@ -190,20 +205,48 @@ export class TelephonyController {
       throw new BadRequestException("No file uploaded");
     }
 
-    void id;
-    return this.numberPurchasedService.uploadRequirementDocument({
+    return this.regulatoryDocumentService.upload(createOwnershipContext(user), {
       buffer: file.buffer,
       filename: file.originalname,
       contentType: file.mimetype,
     });
   }
 
+  /** Removes a document from the workspace bucket. */
+  @Delete("regulatory-documents/:id")
+  async deleteRegulatoryDocument(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id") id: string,
+  ) {
+    await this.regulatoryDocumentService.delete(
+      createOwnershipContext(user),
+      id,
+    );
+    return { success: true };
+  }
+
+  /** Autosaves the verification form so a reload restores it. */
+  @Put("phone-numbers/:id/requirements/draft")
+  async saveNumberRequirementsDraft(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id") id: string,
+    @Body() body: SaveRequirementsDraftDto,
+  ) {
+    return this.numberPurchasedService.saveRequirementDraft(
+      createOwnershipContext(user),
+      id,
+      body.requirements,
+    );
+  }
+
   @Post("phone-numbers/:id/requirements/submit")
   async submitNumberRequirements(
+    @CurrentUser() user: CurrentUserData,
     @Param("id") id: string,
     @Body() body: SubmitRequirementsDto,
   ) {
     return this.numberPurchasedService.submitNumberRequirements(
+      createOwnershipContext(user),
       id,
       body.requirements,
     );

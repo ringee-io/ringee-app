@@ -418,6 +418,7 @@ model User {
   callSessions            CallSession[]
   callRecordingSettings   CallRecordingSettings?
   callTranscriptions      CallTranscription[]
+  regulatoryDocuments     RegulatoryDocument[]
 
   @@index([clerkId])
 }
@@ -463,6 +464,7 @@ model Organization {
   callSessions           CallSession[]
   callRecordingSettings  CallRecordingSettings?
   callTranscriptions     CallTranscription[]
+  regulatoryDocuments    RegulatoryDocument[]
 
   @@index([clerkId])
 }
@@ -583,18 +585,18 @@ model Call {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user             User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  organization     Organization?              @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  transcription    CallTranscriptionSegment[]
+  user               User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization       Organization?              @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  transcription      CallTranscriptionSegment[]
   callTranscriptions CallTranscription[]
-  recordings       Recording[]
-  publicRecordings PublicRecording[]
-  meetings         Meeting[]
-  callAttempts     CallAttempt[]
-  crmSyncs         CrmCallSync[]
-  inboxEvents      InboxEvent[]
-  callbacks        CallbackTask[]
-  callSessionItems CallSessionItem[]
+  recordings         Recording[]
+  publicRecordings   PublicRecording[]
+  meetings           Meeting[]
+  callAttempts       CallAttempt[]
+  crmSyncs           CrmCallSync[]
+  inboxEvents        InboxEvent[]
+  callbacks          CallbackTask[]
+  callSessionItems   CallSessionItem[]
 
   @@index([userId])
   @@index([organizationId])
@@ -705,16 +707,69 @@ model NumberPurchased {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  userNumbers  UserNumber[]
-  campaigns    Campaign[]    @relation("campaignNumberPurchased")
+  user              User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization      Organization?            @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  userNumbers       UserNumber[]
+  campaigns         Campaign[]               @relation("campaignNumberPurchased")
+  requirementValues NumberRequirementValue[]
 
   @@index([isoCountry])
   @@index([provider])
   @@index([providerConnectionId])
   @@index([organizationId])
   @@index([providerMessagingProfileId])
+}
+
+/// Reusable regulatory document stored in Ringee's own bucket, scoped to a
+/// workspace (organization if active, otherwise the user). The file lives at
+/// `storageKey`; that same key is used as the filename when the document is
+/// later uploaded to Telnyx, and `telnyxDocumentId` caches that upload so a
+/// document reused across number requests is only sent to the carrier once.
+model RegulatoryDocument {
+  id               String  @id @default(uuid()) @db.Uuid
+  filename         String
+  contentType      String
+  size             Int
+  storageKey       String
+  url              String?
+  telnyxDocumentId String?
+  userId           String? @db.Uuid
+  organizationId   String? @db.Uuid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user              User?                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization      Organization?            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requirementValues NumberRequirementValue[]
+
+  @@index([userId])
+  @@index([organizationId])
+}
+
+/// Persisted form value for one regulatory requirement of a purchased number.
+/// Stored as the user fills the verification form (autosave) so a reload
+/// restores everything; `submittedAt` is set once the value is sent to Telnyx.
+/// Exactly one of textValue / addressJson / regulatoryDocumentId is set,
+/// matching `fieldType`.
+model NumberRequirementValue {
+  id                   String    @id @default(uuid()) @db.Uuid
+  numberPurchasedId    String    @db.Uuid
+  requirementId        String
+  fieldType            String
+  textValue            String?   @db.Text
+  addressJson          Json?
+  regulatoryDocumentId String?   @db.Uuid
+  submittedAt          DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  numberPurchased    NumberPurchased     @relation(fields: [numberPurchasedId], references: [id], onDelete: Cascade)
+  regulatoryDocument RegulatoryDocument? @relation(fields: [regulatoryDocumentId], references: [id], onDelete: SetNull)
+
+  @@unique([numberPurchasedId, requirementId])
+  @@index([numberPurchasedId])
 }
 
 model Contact {
@@ -796,25 +851,25 @@ model Contact {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  user              User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization      Organization?             @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  calls             Call[]
-  notes             ContactNote[]
-  campaignLeads     CampaignLead[]
-  tags              ContactTag[]
-  meetings          Meeting[]
-  crmLinks          CrmContactLink[]
-  phones            ContactPhone[]
-  emails            ContactEmail[]
-  affiliations      ContactAffiliation[]
-  socialLinks       ContactSocialLink[]
-  customFieldValues ContactCustomFieldValue[]
-  enrichmentJobs    EnrichmentJob[]
-  inboxThreads      InboxThread[]
-  messages          Message[]
-  callbacks         CallbackTask[]
+  user                   User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization           Organization?                  @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  calls                  Call[]
+  notes                  ContactNote[]
+  campaignLeads          CampaignLead[]
+  tags                   ContactTag[]
+  meetings               Meeting[]
+  crmLinks               CrmContactLink[]
+  phones                 ContactPhone[]
+  emails                 ContactEmail[]
+  affiliations           ContactAffiliation[]
+  socialLinks            ContactSocialLink[]
+  customFieldValues      ContactCustomFieldValue[]
+  enrichmentJobs         EnrichmentJob[]
+  inboxThreads           InboxThread[]
+  messages               Message[]
+  callbacks              CallbackTask[]
   customIntegrationLinks CustomIntegrationContactLink[]
-  callSessionItems  CallSessionItem[]
+  callSessionItems       CallSessionItem[]
 
   @@unique([userId, phoneNumber, deletedAt])
   @@index([userId])
@@ -957,12 +1012,12 @@ model Company {
   updatedAt DateTime  @updatedAt
   deletedAt DateTime?
 
-  user              User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization      Organization?             @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  affiliations      ContactAffiliation[]
-  crmLinks          CrmCompanyLink[]
-  socialLinks       CompanySocialLink[]
-  customFieldValues CompanyCustomFieldValue[]
+  user                   User                           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization           Organization?                  @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  affiliations           ContactAffiliation[]
+  crmLinks               CrmCompanyLink[]
+  socialLinks            CompanySocialLink[]
+  customFieldValues      CompanyCustomFieldValue[]
   customIntegrationLinks CustomIntegrationCompanyLink[]
 
   @@index([userId])
@@ -1157,11 +1212,11 @@ model Campaign {
   status      String  @default("draft") // draft | active | paused | completed
 
   // Dialer configuration
-  dialerMode  DialerMode @default(progressive)
-  callerIdId  String?    @db.Uuid
+  dialerMode        DialerMode @default(progressive)
+  callerIdId        String?    @db.Uuid
   // Purchased number used as the outbound caller ID for this campaign's calls
-  numberPurchasedId String? @db.Uuid
-  maxAttempts Int        @default(3)
+  numberPurchasedId String?    @db.Uuid
+  maxAttempts       Int        @default(3)
 
   // Working hours (minutes from midnight in campaign timezone)
   timezone     String @default("America/New_York")
@@ -1179,18 +1234,18 @@ model Campaign {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user          User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization  Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  callerId      CallerId?        @relation("campaignCallerId", fields: [callerIdId], references: [id])
+  user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  callerId        CallerId?        @relation("campaignCallerId", fields: [callerIdId], references: [id])
   numberPurchased NumberPurchased? @relation("campaignNumberPurchased", fields: [numberPurchasedId], references: [id], onDelete: SetNull)
-  members       CampaignMember[]
-  leads         CampaignLead[]
-  lists         CampaignList[]
-  dispositions  Disposition[]
-  retryRules    RetryRule[]
-  callAttempts  CallAttempt[]
-  agentSessions AgentSession[]
-  callSessions  CallSession[]
+  members         CampaignMember[]
+  leads           CampaignLead[]
+  lists           CampaignList[]
+  dispositions    Disposition[]
+  retryRules      RetryRule[]
+  callAttempts    CallAttempt[]
+  agentSessions   AgentSession[]
+  callSessions    CallSession[]
 
   @@index([userId])
   @@index([organizationId])
@@ -1813,8 +1868,8 @@ model CustomIntegration {
 
   // Public prefix shown in UI (e.g. "cik_live_a1b2c3d4"); the full key
   // is only revealed once at creation/regeneration.
-  apiKeyPrefix     String  @unique
-  apiKeyHash       String  @unique
+  apiKeyPrefix     String    @unique
+  apiKeyHash       String    @unique
   apiKeyLastUsedAt DateTime?
 
   // AES-256-GCM ciphertext of the HMAC signing secret (encrypted with
@@ -1830,10 +1885,10 @@ model CustomIntegration {
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  contactLinks    CustomIntegrationContactLink[]
-  companyLinks    CustomIntegrationCompanyLink[]
-  inboundEvents   CustomIntegrationInboundEvent[]
-  deliveryEvents  CustomIntegrationDelivery[]
+  contactLinks   CustomIntegrationContactLink[]
+  companyLinks   CustomIntegrationCompanyLink[]
+  inboundEvents  CustomIntegrationInboundEvent[]
+  deliveryEvents CustomIntegrationDelivery[]
 
   @@index([userId])
   @@index([organizationId])
@@ -1874,14 +1929,14 @@ model CustomIntegrationCompanyLink {
 }
 
 model CustomIntegrationInboundEvent {
-  id              String                        @id @default(uuid()) @db.Uuid
-  integrationId   String                        @db.Uuid
+  id              String                         @id @default(uuid()) @db.Uuid
+  integrationId   String                         @db.Uuid
   eventType       String
   externalEventId String
   status          CustomIntegrationInboundStatus @default(received)
-  receivedAt      DateTime                      @default(now())
+  receivedAt      DateTime                       @default(now())
   processedAt     DateTime?
-  errorMessage    String?                       @db.Text
+  errorMessage    String?                        @db.Text
   rawPayload      Json
 
   integration CustomIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
@@ -1892,21 +1947,21 @@ model CustomIntegrationInboundEvent {
 }
 
 model CustomIntegrationDelivery {
-  id             String                         @id @default(uuid()) @db.Uuid
-  integrationId  String                         @db.Uuid
+  id             String                          @id @default(uuid()) @db.Uuid
+  integrationId  String                          @db.Uuid
   eventType      CustomIntegrationEventType
   subjectId      String?
   destinationUrl String
   payload        Json
   signature      String?
   status         CustomIntegrationDeliveryStatus @default(pending)
-  attemptCount   Int                            @default(0)
-  lastError      String?                        @db.Text
-  nextAttemptAt  DateTime                       @default(now())
+  attemptCount   Int                             @default(0)
+  lastError      String?                         @db.Text
+  nextAttemptAt  DateTime                        @default(now())
   sentAt         DateTime?
-  dedupeKey      String                         @unique
-  createdAt      DateTime                       @default(now())
-  updatedAt      DateTime                       @updatedAt
+  dedupeKey      String                          @unique
+  createdAt      DateTime                        @default(now())
+  updatedAt      DateTime                        @updatedAt
 
   integration CustomIntegration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
 
@@ -2592,19 +2647,19 @@ model AiToolEvent {
 // can step through the queue and capture outcomes per call.
 
 model CallSession {
-  id             String                @id @default(uuid()) @db.Uuid
-  userId         String                @db.Uuid
-  organizationId String?               @db.Uuid
-  campaignId     String?               @db.Uuid
+  id             String  @id @default(uuid()) @db.Uuid
+  userId         String  @db.Uuid
+  organizationId String? @db.Uuid
+  campaignId     String? @db.Uuid
 
   title      String?
   status     CallSessionStatus     @default(ready)
   source     CallSessionSource     @default(api)
   accessMode CallSessionAccessMode @default(magic_link)
 
-  expiresAt   DateTime?
-  maxCalls    Int?
-  callsCompleted Int @default(0)
+  expiresAt      DateTime?
+  maxCalls       Int?
+  callsCompleted Int       @default(0)
 
   startedAt   DateTime?
   completedAt DateTime?
@@ -2632,13 +2687,13 @@ model CallSession {
 }
 
 model CallSessionItem {
-  id            String                @id @default(uuid()) @db.Uuid
-  callSessionId String                @db.Uuid
-  contactId     String?               @db.Uuid
+  id            String  @id @default(uuid()) @db.Uuid
+  callSessionId String  @db.Uuid
+  contactId     String? @db.Uuid
 
-  phoneNumber   String                @db.VarChar(20)
-  displayName   String?
-  company       String?
+  phoneNumber String  @db.VarChar(20)
+  displayName String?
+  company     String?
 
   positionIndex Int
   status        CallSessionItemStatus @default(pending)
@@ -2648,7 +2703,7 @@ model CallSessionItem {
   outcomeNote String?      @db.Text
 
   callbackAt DateTime?
-  meetingId  String?  @db.Uuid
+  meetingId  String?   @db.Uuid
 
   startedAt DateTime?
   endedAt   DateTime?
@@ -2670,18 +2725,18 @@ model CallSessionItem {
 // Magic-link tokens are stored as opaque high-entropy strings. The raw value
 // is shown to the caller once at issue time; we only persist tokenHash.
 model CallSessionAccessToken {
-  id            String                       @id @default(uuid()) @db.Uuid
-  callSessionId String                       @db.Uuid
+  id            String @id @default(uuid()) @db.Uuid
+  callSessionId String @db.Uuid
 
-  tokenHash String                          @unique
-  type      CallSessionAccessTokenType      @default(magic_link)
-  status    CallSessionAccessTokenStatus    @default(active)
+  tokenHash String                       @unique
+  type      CallSessionAccessTokenType   @default(magic_link)
+  status    CallSessionAccessTokenStatus @default(active)
 
-  expiresAt   DateTime
-  lastUsedAt  DateTime?
+  expiresAt  DateTime
+  lastUsedAt DateTime?
 
-  createdByUserId String?              @db.Uuid
-  createdBySource CallSessionSource    @default(api)
+  createdByUserId String?           @db.Uuid
+  createdBySource CallSessionSource @default(api)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2695,8 +2750,8 @@ model CallSessionAccessToken {
 // Auditable trail of session activity. Especially important for magic-link
 // access, where the actor is unauthenticated.
 model CallSessionEvent {
-  id            String                  @id @default(uuid()) @db.Uuid
-  callSessionId String                  @db.Uuid
+  id            String @id @default(uuid()) @db.Uuid
+  callSessionId String @db.Uuid
 
   type        CallSessionEventType
   actorUserId String?                 @db.Uuid
@@ -2746,10 +2801,10 @@ model CallRecordingSettings {
   organizationId String? @unique @db.Uuid
 
   // Record every call automatically with Telnyx.
-  recordAllCalls Boolean @default(false)
+  recordAllCalls       Boolean @default(false)
   // Transcribe active calls live (Telnyx Media Streaming → Deepgram). Does not
   // require recording.
-  transcribeRealtime Boolean @default(false)
+  transcribeRealtime   Boolean @default(false)
   // Transcribe stored recordings automatically once recordingUrl is available.
   // Requires recording.
   transcribeRecordings Boolean @default(false)

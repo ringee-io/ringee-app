@@ -134,6 +134,26 @@
         "administrativeArea": "Distrito / região",
         "postalCode": "Código postal",
         "countryCode": "Código do país (ISO, p. ex. GB)"
+      },
+      "selectDocument": "Selecionar documento",
+      "selectedDocument": "Documento selecionado",
+      "change": "Alterar",
+      "savingDraft": "A guardar…",
+      "savedDraft": "Guardado",
+      "picker": {
+        "title": "Os seus documentos",
+        "subtitle": "Escolha um documento já carregado ou adicione um novo.",
+        "uploadNew": "Carregar um novo documento",
+        "uploading": "A carregar…",
+        "uploaded": "Documento carregado",
+        "uploadError": "Não foi possível carregar o documento. Tente novamente.",
+        "empty": "Ainda não tem documentos. Carregue o primeiro acima.",
+        "loadError": "Não foi possível carregar os seus documentos. Tente novamente.",
+        "delete": "Eliminar",
+        "deleted": "Documento eliminado",
+        "deleteError": "Não foi possível eliminar o documento. Tente novamente.",
+        "cancel": "Cancelar",
+        "use": "Usar documento"
       }
     }
   },

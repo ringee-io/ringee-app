@@ -134,6 +134,26 @@
         "administrativeArea": "Provincie / regio",
         "postalCode": "Postcode",
         "countryCode": "Landcode (ISO, bijv. GB)"
+      },
+      "selectDocument": "Document selecteren",
+      "selectedDocument": "Geselecteerd document",
+      "change": "Wijzigen",
+      "savingDraft": "Opslaan…",
+      "savedDraft": "Opgeslagen",
+      "picker": {
+        "title": "Uw documenten",
+        "subtitle": "Kies een eerder geüpload document of voeg een nieuwe toe.",
+        "uploadNew": "Nieuw document uploaden",
+        "uploading": "Uploaden…",
+        "uploaded": "Document geüpload",
+        "uploadError": "Kon het document niet uploaden. Probeer het opnieuw.",
+        "empty": "Nog geen documenten. Upload hierboven je eerste.",
+        "loadError": "Kon uw documenten niet laden. Probeer het opnieuw.",
+        "delete": "Verwijderen",
+        "deleted": "Document verwijderd",
+        "deleteError": "Kon het document niet verwijderen. Probeer het opnieuw.",
+        "cancel": "Annuleren",
+        "use": "Document gebruiken"
       }
     }
   },

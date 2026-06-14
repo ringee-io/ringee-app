@@ -6,6 +6,7 @@ export * from "./call.transcription.service";
 export * from "./contact.service";
 export * from "./caller.id.service";
 export * from "./number.purchased.service";
+export * from "./regulatory-document.service";
 export * from "./credit.service";
 export * from "./dashboard.service";
 export * from "./dashboard-layout.service";

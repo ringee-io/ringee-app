@@ -17,6 +17,7 @@ import { ChatAuthService } from "./chat.auth.service";
 import { CallTranscriptionService } from "./call.transcription.service";
 import { CallService } from "./call.service";
 import { NumberPurchasedService } from "./number.purchased.service";
+import { RegulatoryDocumentService } from "./regulatory-document.service";
 import { ContactService } from "./contact.service";
 import { CallerIdService } from "./caller.id.service";
 import { CreditService } from "./credit.service";
@@ -118,6 +119,7 @@ const servicesProviders = [
   CallTranscriptionService,
   CallService,
   NumberPurchasedService,
+  RegulatoryDocumentService,
   ContactService,
   CallerIdService,
   CreditService,

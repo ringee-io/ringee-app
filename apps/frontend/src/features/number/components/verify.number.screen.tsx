@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -9,12 +9,12 @@ import {
   IconArrowLeft,
   IconCircleCheck,
   IconCircleDashed,
-  IconFileCheck,
+  IconFileText,
   IconLoader2,
   IconLock,
   IconMail,
-  IconShieldCheck,
-  IconUpload
+  IconPaperclip,
+  IconShieldCheck
 } from '@tabler/icons-react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
@@ -38,11 +38,18 @@ import {
   AlertTitle
 } from '@ringee/frontend-shared/components/ui/alert';
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import { DocumentPickerModal } from './document.picker.modal';
 
 const MY_NUMBERS_HREF = '/dashboard/buy-number?tab=my-numbers';
 const SUPPORT_EMAIL = 'hello@ringee.io';
 
 type RequirementFieldType = 'textual' | 'document' | 'address' | string;
+
+interface RequirementDraft {
+  textValue?: string | null;
+  address?: Record<string, unknown> | null;
+  document?: { id: string; filename: string } | null;
+}
 
 interface RequirementItem {
   id: string;
@@ -54,6 +61,7 @@ interface RequirementItem {
   status?: string | null;
   reason?: string | null;
   fieldValue?: string | null;
+  draft?: RequirementDraft | null;
 }
 
 function isRejectedStatus(status?: string | null): boolean {
@@ -85,10 +93,31 @@ interface AddressForm {
 
 interface RequirementValueState {
   text: string;
-  documentId?: string;
-  filename?: string;
-  uploading?: boolean;
+  regulatoryDocumentId?: string;
+  documentFilename?: string;
   address: AddressForm;
+}
+
+function addressFromDraft(
+  draft: Record<string, unknown> | null | undefined,
+  countryCode: string
+): AddressForm {
+  const base = emptyAddress(countryCode);
+  if (!draft) return base;
+  const str = (key: keyof AddressForm) =>
+    typeof draft[key] === 'string' ? (draft[key] as string) : base[key];
+  return {
+    businessName: str('businessName'),
+    firstName: str('firstName'),
+    lastName: str('lastName'),
+    phoneNumber: str('phoneNumber'),
+    streetAddress: str('streetAddress'),
+    extendedAddress: str('extendedAddress'),
+    locality: str('locality'),
+    administrativeArea: str('administrativeArea'),
+    postalCode: str('postalCode'),
+    countryCode: str('countryCode') || countryCode
+  };
 }
 
 function emptyAddress(countryCode: string): AddressForm {
@@ -114,24 +143,35 @@ export function VerifyNumberScreen({ numberId }: { numberId: string }) {
   const [loading, setLoading] = useState(true);
   const [errored, setErrored] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [savedDraft, setSavedDraft] = useState(false);
   const [reqs, setReqs] = useState<NumberRequirements | null>(null);
+  const [pickerFor, setPickerFor] = useState<string | null>(null);
   const [values, setValues] = useState<Record<string, RequirementValueState>>(
     {}
   );
+
+  // Skips the autosave that the initial prefill would otherwise trigger.
+  const hydratedRef = useRef(false);
+  const autosaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = async () => {
     try {
       setLoading(true);
       setErrored(false);
+      hydratedRef.current = false;
       const res = await api.get<NumberRequirements>(
         `/telephony/phone-numbers/${numberId}/requirements`
       );
       setReqs(res);
       const initial: Record<string, RequirementValueState> = {};
       for (const r of res.requirements) {
+        const draft = r.draft ?? null;
         initial[r.id] = {
-          text: r.fieldType === 'textual' ? (r.fieldValue ?? '') : '',
-          address: emptyAddress(res.countryCode)
+          text: draft?.textValue ?? '',
+          regulatoryDocumentId: draft?.document?.id,
+          documentFilename: draft?.document?.filename,
+          address: addressFromDraft(draft?.address, res.countryCode)
         };
       }
       setValues(initial);
@@ -157,31 +197,74 @@ export function VerifyNumberScreen({ numberId }: { numberId: string }) {
       [id]: { ...prev[id], address: { ...prev[id].address, ...patch } }
     }));
 
-  const uploadDocument = async (id: string, file: File) => {
-    setValue(id, { uploading: true });
-    try {
-      const fd = new FormData();
-      fd.append('file', file);
-      const res = await api.upload<{ documentId: string; filename: string }>(
-        `/telephony/phone-numbers/${numberId}/requirements/documents`,
-        fd
-      );
-      setValue(id, {
-        documentId: res.documentId,
-        filename: res.filename,
-        uploading: false
-      });
-      toast.success(t('uploadOk'));
-    } catch {
-      setValue(id, { uploading: false });
-      toast.error(t('uploadError'));
+  /** Builds the requirement payload shared by autosave (draft) and submit. */
+  const buildItems = () =>
+    (reqs?.requirements ?? []).map((r) => {
+      const v = values[r.id];
+      if (r.fieldType === 'document') {
+        return {
+          requirementId: r.id,
+          fieldType: 'document' as const,
+          regulatoryDocumentId: v?.regulatoryDocumentId
+        };
+      }
+      if (r.fieldType === 'address') {
+        const a = v.address;
+        return {
+          requirementId: r.id,
+          fieldType: 'address' as const,
+          address: {
+            businessName: a.businessName || undefined,
+            firstName: a.firstName || undefined,
+            lastName: a.lastName || undefined,
+            phoneNumber: a.phoneNumber || undefined,
+            streetAddress: a.streetAddress || undefined,
+            extendedAddress: a.extendedAddress || undefined,
+            locality: a.locality || undefined,
+            administrativeArea: a.administrativeArea || undefined,
+            postalCode: a.postalCode || undefined,
+            countryCode: a.countryCode || undefined
+          }
+        };
+      }
+      return {
+        requirementId: r.id,
+        fieldType: 'textual' as const,
+        textValue: v.text
+      };
+    });
+
+  // Silent debounced autosave so a reload restores everything the user typed.
+  useEffect(() => {
+    if (!reqs) return;
+    if (!hydratedRef.current) {
+      hydratedRef.current = true;
+      return;
     }
-  };
+    setSavedDraft(false);
+    if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    autosaveTimer.current = setTimeout(() => {
+      setSavingDraft(true);
+      api
+        .put(`/telephony/phone-numbers/${numberId}/requirements/draft`, {
+          requirements: buildItems()
+        })
+        .then(() => setSavedDraft(true))
+        .catch(() => {
+          /* autosave is best-effort; never interrupt the user */
+        })
+        .finally(() => setSavingDraft(false));
+    }, 800);
+    return () => {
+      if (autosaveTimer.current) clearTimeout(autosaveTimer.current);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [values]);
 
   const isComplete = (r: RequirementItem): boolean => {
     const v = values[r.id];
     if (!v) return false;
-    if (r.fieldType === 'document') return !!v.documentId;
+    if (r.fieldType === 'document') return !!v.regulatoryDocumentId;
     if (r.fieldType === 'address') {
       const a = v.address;
       const hasName = !!a.businessName || (!!a.firstName && !!a.lastName);
@@ -198,46 +281,11 @@ export function VerifyNumberScreen({ numberId }: { numberId: string }) {
     if (!reqs) return;
     setSubmitting(true);
     try {
-      const payload = {
-        requirements: reqs.requirements.map((r) => {
-          const v = values[r.id];
-          if (r.fieldType === 'document') {
-            return {
-              requirementId: r.id,
-              fieldType: 'document',
-              documentId: v.documentId
-            };
-          }
-          if (r.fieldType === 'address') {
-            const a = v.address;
-            return {
-              requirementId: r.id,
-              fieldType: 'address',
-              address: {
-                businessName: a.businessName || undefined,
-                firstName: a.firstName || undefined,
-                lastName: a.lastName || undefined,
-                phoneNumber: a.phoneNumber || undefined,
-                streetAddress: a.streetAddress,
-                extendedAddress: a.extendedAddress || undefined,
-                locality: a.locality,
-                administrativeArea: a.administrativeArea || undefined,
-                postalCode: a.postalCode || undefined,
-                countryCode: a.countryCode
-              }
-            };
-          }
-          return {
-            requirementId: r.id,
-            fieldType: 'textual',
-            textValue: v.text.trim()
-          };
-        })
-      };
-
       await api.post(
         `/telephony/phone-numbers/${numberId}/requirements/submit`,
-        payload
+        {
+          requirements: buildItems()
+        }
       );
       toast.success(t('submitOk'));
       router.push(MY_NUMBERS_HREF);
@@ -278,7 +326,7 @@ export function VerifyNumberScreen({ numberId }: { numberId: string }) {
                   complete={isComplete(r)}
                   onText={(text) => setValue(r.id, { text })}
                   onAddress={(patch) => setAddress(r.id, patch)}
-                  onUpload={(file) => uploadDocument(r.id, file)}
+                  onPickDocument={() => setPickerFor(r.id)}
                 />
               ))}
             </div>
@@ -289,10 +337,30 @@ export function VerifyNumberScreen({ numberId }: { numberId: string }) {
                 total={total}
                 canSubmit={canSubmit}
                 submitting={submitting}
+                savingDraft={savingDraft}
+                savedDraft={savedDraft}
                 onSubmit={submit}
               />
             </div>
           </div>
+
+          <DocumentPickerModal
+            open={pickerFor !== null}
+            onOpenChange={(open) => {
+              if (!open) setPickerFor(null);
+            }}
+            selectedDocumentId={
+              pickerFor ? values[pickerFor]?.regulatoryDocumentId : undefined
+            }
+            onSelect={(doc) => {
+              if (pickerFor) {
+                setValue(pickerFor, {
+                  regulatoryDocumentId: doc.id,
+                  documentFilename: doc.filename
+                });
+              }
+            }}
+          />
         </>
       )}
     </div>
@@ -379,12 +447,16 @@ function SummaryPanel({
   total,
   canSubmit,
   submitting,
+  savingDraft,
+  savedDraft,
   onSubmit
 }: {
   completed: number;
   total: number;
   canSubmit: boolean;
   submitting: boolean;
+  savingDraft: boolean;
+  savedDraft: boolean;
   onSubmit: () => void;
 }) {
   const t = useTranslations('settings.numbers.verify');
@@ -414,6 +486,19 @@ function SummaryPanel({
             )}
             {t('submit')}
           </Button>
+          <div className='flex h-4 items-center justify-center'>
+            {savingDraft ? (
+              <span className='text-muted-foreground flex items-center gap-1.5 text-xs'>
+                <IconLoader2 className='h-3 w-3 animate-spin' />
+                {t('savingDraft')}
+              </span>
+            ) : savedDraft ? (
+              <span className='text-muted-foreground flex items-center gap-1.5 text-xs'>
+                <IconCircleCheck className='h-3 w-3' />
+                {t('savedDraft')}
+              </span>
+            ) : null}
+          </div>
           <div className='text-muted-foreground flex items-start gap-2 text-xs'>
             <IconLock className='mt-0.5 h-3.5 w-3.5 shrink-0' />
             <span>{t('secureNote')}</span>
@@ -466,7 +551,7 @@ function RequirementRow({
   complete,
   onText,
   onAddress,
-  onUpload
+  onPickDocument
 }: {
   index: number;
   req: RequirementItem;
@@ -474,7 +559,7 @@ function RequirementRow({
   complete: boolean;
   onText: (text: string) => void;
   onAddress: (patch: Partial<AddressForm>) => void;
-  onUpload: (file: File) => void;
+  onPickDocument: () => void;
 }) {
   const t = useTranslations('settings.numbers.verify');
   const rejected = isRejectedStatus(req.status);
@@ -537,7 +622,7 @@ function RequirementRow({
 
       <div className='mt-3'>
         {req.fieldType === 'document' ? (
-          <DocumentField value={value} onUpload={onUpload} />
+          <DocumentField value={value} onPick={onPickDocument} />
         ) : req.fieldType === 'address' ? (
           <AddressFields address={value.address} onChange={onAddress} />
         ) : (
@@ -595,43 +680,38 @@ function CriteriaHint({
 
 function DocumentField({
   value,
-  onUpload
+  onPick
 }: {
   value: RequirementValueState;
-  onUpload: (file: File) => void;
+  onPick: () => void;
 }) {
   const t = useTranslations('settings.numbers.verify');
 
-  if (value.documentId) {
+  if (value.regulatoryDocumentId) {
     return (
-      <div className='flex items-center gap-2 rounded-md border border-green-300 bg-green-50 px-3 py-2.5 text-sm text-green-700 dark:border-green-900 dark:bg-green-950/20 dark:text-green-400'>
-        <IconFileCheck className='h-4 w-4 shrink-0' />
-        <span className='truncate'>{value.filename ?? t('uploaded')}</span>
-      </div>
+      <button
+        type='button'
+        onClick={onPick}
+        className='flex w-full items-center gap-2 rounded-md border border-green-300 bg-green-50 px-3 py-2.5 text-left text-sm text-green-700 transition-colors hover:bg-green-100 dark:border-green-900 dark:bg-green-950/20 dark:text-green-400 dark:hover:bg-green-950/40'
+      >
+        <IconFileText className='h-4 w-4 shrink-0' />
+        <span className='flex-1 truncate'>
+          {value.documentFilename ?? t('selectedDocument')}
+        </span>
+        <span className='text-xs font-medium underline'>{t('change')}</span>
+      </button>
     );
   }
 
   return (
-    <label className='border-muted-foreground/30 hover:border-muted-foreground/60 hover:bg-muted/50 flex cursor-pointer items-center gap-2 rounded-md border border-dashed px-3 py-4 text-sm transition-colors'>
-      {value.uploading ? (
-        <IconLoader2 className='h-4 w-4 animate-spin' />
-      ) : (
-        <IconUpload className='h-4 w-4' />
-      )}
-      <span className='text-muted-foreground'>
-        {value.uploading ? t('uploading') : t('chooseFile')}
-      </span>
-      <input
-        type='file'
-        className='hidden'
-        accept='.pdf,.png,.jpg,.jpeg,.webp,.heic'
-        disabled={value.uploading}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) onUpload(file);
-        }}
-      />
-    </label>
+    <button
+      type='button'
+      onClick={onPick}
+      className='border-muted-foreground/30 hover:border-muted-foreground/60 hover:bg-muted/50 flex w-full items-center gap-2 rounded-md border border-dashed px-3 py-4 text-sm transition-colors'
+    >
+      <IconPaperclip className='h-4 w-4' />
+      <span className='text-muted-foreground'>{t('selectDocument')}</span>
+    </button>
   );
 }
 

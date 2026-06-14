@@ -134,6 +134,26 @@
         "administrativeArea": "State / province / region",
         "postalCode": "Postal code",
         "countryCode": "Country code (ISO, e.g. GB)"
+      },
+      "selectDocument": "Select document",
+      "selectedDocument": "Selected document",
+      "change": "Change",
+      "savingDraft": "Saving…",
+      "savedDraft": "Saved",
+      "picker": {
+        "title": "Your documents",
+        "subtitle": "Pick a document you've already uploaded, or add a new one.",
+        "uploadNew": "Upload a new document",
+        "uploading": "Uploading…",
+        "uploaded": "Document uploaded",
+        "uploadError": "Could not upload the document. Please try again.",
+        "empty": "No documents yet. Upload your first one above.",
+        "loadError": "Could not load your documents. Please try again.",
+        "delete": "Delete",
+        "deleted": "Document deleted",
+        "deleteError": "Could not delete the document. Please try again.",
+        "cancel": "Cancel",
+        "use": "Use document"
       }
     }
   },

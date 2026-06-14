@@ -69,6 +69,8 @@ import {
 import { CustomIntegrationInboundRepository } from "./repositories/custom-integration-inbound.repository";
 import { CustomIntegrationDeliveryRepository } from "./repositories/custom-integration-delivery.repository";
 import { CallSessionRepository } from "./repositories/call-session.repository";
+import { RegulatoryDocumentRepository } from "./repositories/regulatory-document.repository";
+import { NumberRequirementValueRepository } from "./repositories/number-requirement-value.repository";
 
 const databaseProviders = [
   PrismaService,
@@ -139,6 +141,8 @@ const databaseProviders = [
   CustomIntegrationInboundRepository,
   CustomIntegrationDeliveryRepository,
   CallSessionRepository,
+  RegulatoryDocumentRepository,
+  NumberRequirementValueRepository,
 ];
 
 @Global()
