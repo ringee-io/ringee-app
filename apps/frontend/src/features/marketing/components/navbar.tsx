@@ -244,7 +244,6 @@ export function MarketingNavbar() {
   return (
     <header className='border-border/40 bg-background/80 sticky top-0 z-50 border-b backdrop-blur-md'>
       {/* Green accent line, echoing the original landing gradient. */}
-      <div className='h-0.5 w-full bg-gradient-to-r from-teal-400 via-emerald-500 to-lime-400' />
       <nav
         aria-label='Primary'
         className='mx-auto flex h-16 w-full max-w-6xl items-center justify-between px-6 lg:px-8'

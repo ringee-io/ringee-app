@@ -160,7 +160,7 @@ export default function DialerShowcase() {
       id='live-dialer'
       className='border-border/40 relative w-full overflow-hidden border-t px-6 py-16 sm:py-20'
     >
-      <GlowBackground gradient='from-cyan-500/10 via-violet-500/5 to-transparent' />
+      {/* <GlowBackground gradient='from-cyan-500/10 via-violet-500/5 to-transparent' /> */}
 
       {/* Header */}
       <div className='mx-auto max-w-5xl text-center'>

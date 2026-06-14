@@ -118,9 +118,9 @@ export default function Campaigns() {
       className='border-border/40 relative w-full overflow-hidden border-t px-6 py-16 sm:py-20'
     >
       {/* subtle background glow */}
-      <div className='pointer-events-none absolute inset-0 -z-10'>
+      {/* <div className='pointer-events-none absolute inset-0 -z-10'>
         <div className='absolute top-0 left-1/2 h-[320px] w-[720px] -translate-x-1/2 rounded-lg bg-gradient-to-b from-amber-500/10 via-violet-500/5 to-transparent blur-3xl' />
-      </div>
+      </div> */}
 
       {/* Header */}
       <div className='mx-auto max-w-5xl text-center'>
