@@ -1,4 +1,3 @@
-import PageContainer from '@/components/layout/page-container';
 import PrivacyPageView from '@/features/landing/components/privacy.page.view';
 import { Metadata } from 'next';
 
@@ -11,10 +10,12 @@ export const metadata: Metadata = {
     'data protection',
     'user privacy',
     'VoIP app privacy',
-    'GDPR compliance',
     'data security',
     'Ringee.io'
   ],
+  alternates: {
+    canonical: 'https://www.ringee.io/privacy'
+  },
   robots: {
     index: true,
     follow: true
@@ -23,7 +24,7 @@ export const metadata: Metadata = {
     title: 'Privacy Policy — Ringee',
     description:
       'Read how Ringee ensures your data privacy and security while using our communication and calling services.',
-    url: 'https://ringee.io/privacy',
+    url: 'https://www.ringee.io/privacy',
     type: 'article',
     siteName: 'Ringee.io',
     images: [
@@ -45,11 +46,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return (
-    <PageContainer scrollable>
-      <div className='w-full'>
-        <PrivacyPageView />
-      </div>
-    </PageContainer>
-  );
+  return <PrivacyPageView />;
 }

@@ -21,43 +21,32 @@ const META_THEME_COLORS = {
 
 export const metadata: Metadata = {
   title: {
-    default: 'Ringee — Open Source Global Calling Platform',
+    default: 'Ringee — Affordable Outbound Calling Software for Modern Teams',
     template: '%s | Ringee'
   },
   description:
-    'Ringee is the open source VoIP platform that makes global calling 50× cheaper. Make and receive crystal-clear calls to 180+ countries from your browser or mobile. Self-host or use our cloud — perfect for sales teams, cold callers, and businesses that value transparency and control.',
+    'Ringee is affordable outbound calling software for SDR teams, recruiters, agencies, freelancers, and outbound operators. Call more leads, track outcomes, record and transcribe calls, sync your CRM, and automate outbound with AI — without expensive per-seat pricing.',
   keywords: [
     'Ringee',
     'Ringee.io',
-    'open source VoIP',
-    'open source calling platform',
-    'open source phone system',
-    'open source sales dialer',
-    'open source cold calling',
-    'self-hosted VoIP',
-    'self-hosted phone system',
-    'open source business phone',
-    'free open source calling',
-    'open source communication tool',
-    'open source call recording',
-    'open source CRM calling',
-    'open source telephony',
-    'VoIP open source alternative',
-    'open source twilio alternative',
-    'VoIP app',
-    'cold calling software',
+    'outbound calling software',
+    'outbound dialer',
     'sales dialer',
+    'cold calling software',
+    'SDR calling software',
+    'recruiter calling software',
     'browser calling',
-    'international calls',
-    'receive calls online',
-    'make calls online',
-    'buy phone number',
-    'virtual number',
     'call recording',
-    'sales calling tool',
-    'outbound calls',
-    'inbound calls',
-    'business phone system'
+    'call transcription',
+    'callbacks',
+    'call outcomes',
+    'CRM sync',
+    'AI call automation',
+    'MCP calling',
+    'open source VoIP',
+    'self-hosted calling',
+    'affordable calling software',
+    'unlimited users calling'
   ],
   authors: [{ name: 'Ringee.io', url: 'https://www.ringee.io' }],
   metadataBase: new URL('https://www.ringee.io'),
@@ -68,16 +57,16 @@ export const metadata: Metadata = {
     type: 'website',
     locale: 'en_US',
     url: 'https://www.ringee.io',
-    title: 'Ringee — Open Source VoIP Platform | 50× Cheaper Global Calling',
+    title: 'Ringee — Affordable Outbound Calling Software for Modern Teams',
     description:
-      'The open source VoIP platform for global calling. 50× cheaper than traditional rates. Make and receive calls to 180+ countries from your browser. Self-host or use our cloud — built for sales teams and modern businesses.',
+      'Outbound calling software for SDR teams, recruiters, agencies, freelancers, and outbound operators. Call more leads, track outcomes, record and transcribe calls, sync your CRM, and automate with AI — without per-seat pricing.',
     siteName: 'Ringee.io',
     images: [
       {
         url: 'https://www.ringee.io/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Ringee — Open source global calling platform'
+        alt: 'Ringee — affordable outbound calling software'
       }
     ]
   },
@@ -85,9 +74,9 @@ export const metadata: Metadata = {
     card: 'summary_large_image',
     site: '@ringeeio',
     creator: '@ringeeio',
-    title: 'Ringee — Open Source Global Calling Platform',
+    title: 'Ringee — Affordable Outbound Calling Software',
     description:
-      'The open source VoIP platform that makes global calling 50× cheaper. Call, record, and manage contacts across 180+ countries. Self-host or use our cloud — built for sales teams and global businesses.',
+      'Call more leads, track outcomes, record and transcribe calls, sync your CRM, and automate outbound with AI tools like ChatGPT and Claude — without expensive per-seat pricing.',
     images: ['https://www.ringee.io/og-image.png']
   },
   manifest: '/manifest.webmanifest',
@@ -187,23 +176,27 @@ export default async function RootLayout({
               '@context': 'https://schema.org',
               '@type': 'SoftwareApplication',
               name: 'Ringee',
-              applicationCategory: 'CommunicationApplication',
-              operatingSystem: 'Web, Android',
+              applicationCategory: 'BusinessApplication',
+              operatingSystem: 'Web, iOS',
               url: 'https://www.ringee.io',
               description:
-                'Ringee is the open source VoIP platform for global calling — 50× cheaper than traditional rates. Make and receive calls to 180+ countries from your browser or mobile. Self-host or use our cloud. Record calls, manage contacts, and grow your business.',
+                'Affordable outbound calling software for SDR teams, recruiters, agencies, freelancers, and outbound operators. Call leads, run campaigns, record and transcribe calls, sync your CRM, and automate outbound with AI. Open source and self-hostable.',
               isAccessibleForFree: true,
               license: 'https://opensource.org/licenses/MIT',
-              offers: {
-                '@type': 'Offer',
-                price: '0',
-                priceCurrency: 'USD'
-              },
-              aggregateRating: {
-                '@type': 'AggregateRating',
-                ratingValue: '4.9',
-                reviewCount: '320'
-              },
+              offers: [
+                {
+                  '@type': 'Offer',
+                  name: 'Freelancer',
+                  price: '0',
+                  priceCurrency: 'USD'
+                },
+                {
+                  '@type': 'Offer',
+                  name: 'Organization',
+                  price: '20',
+                  priceCurrency: 'USD'
+                }
+              ],
               publisher: {
                 '@type': 'Organization',
                 name: 'Ringee.io',
@@ -226,7 +219,7 @@ export default async function RootLayout({
               sameAs: [
                 'https://x.com/ringeeio',
                 'https://www.linkedin.com/company/ringee-io',
-                'https://github.com/ringee-co'
+                'https://github.com/ringee-io/ringee-app'
               ],
               contactPoint: {
                 '@type': 'ContactPoint',

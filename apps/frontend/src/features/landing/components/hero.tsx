@@ -80,7 +80,7 @@ const Hero = () => {
     { icon: CreditCard, label: t('trust.noCard') },
     { icon: Globe2, label: t('trust.countries') },
     { icon: Zap, label: t('trust.firstCall') },
-    { icon: ShieldCheck, label: t('trust.soc2') }
+    { icon: ShieldCheck, label: 'Open source & self-hostable' }
   ];
 
   const [mode, setMode] = useState<'classic' | 'agentic'>('classic');

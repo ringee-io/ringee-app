@@ -1,7 +1,5 @@
 'use client';
 
-import Footer from '@/features/landing/components/footer';
-import { Navbar } from '@/features/landing/components/navbar';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import {
@@ -68,8 +66,6 @@ const faqs = [
 export default function SupportPageView() {
   return (
     <>
-      <Navbar />
-
       <section className='relative mx-auto max-w-6xl px-6 pt-20 pb-12'>
         <div className='mx-auto max-w-3xl text-center'>
           <div className='bg-primary/10 text-primary mb-6 inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium'>
@@ -219,8 +215,6 @@ export default function SupportPageView() {
           </div>
         </div>
       </section>
-
-      <Footer />
     </>
   );
 }
