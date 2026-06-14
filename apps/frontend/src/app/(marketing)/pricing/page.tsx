@@ -13,7 +13,7 @@ import { Breadcrumbs } from '@/features/marketing/components/breadcrumbs';
 import { CtaSection } from '@/features/marketing/components/cta-section';
 import { FaqSection } from '@/features/marketing/components/faq';
 import { JsonLd } from '@/features/marketing/components/json-ld';
-import { PricingCalculator } from '@/features/marketing/components/pricing-calculator';
+import { ScalabilityCalculator } from '@/features/marketing/components/scalability-calculator';
 import { PRICING, SIGN_UP_URL, SITE_URL } from '@/features/marketing/site';
 
 export const metadata: Metadata = buildMetadata({
@@ -195,7 +195,7 @@ export default function PricingPage() {
             description='Per-seat tools get expensive fast as you add users. Ringee stays flat.'
           />
           <div className='mt-10'>
-            <PricingCalculator />
+            <ScalabilityCalculator />
           </div>
         </Container>
       </Section>
