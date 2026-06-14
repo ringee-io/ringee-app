@@ -1,0 +1,71 @@
+# Ringee
+
+> Ringee is low-cost, pay-as-you-go outbound calling software built for the AI era. It helps freelancers, SDR teams, recruiters, agencies, startups, and outbound operators call leads worldwide, follow up faster, track outcomes, record and transcribe conversations in real time, book meetings to Google Calendar, sync activity with CRMs, and automate outbound from Claude, ChatGPT, MCP-compatible agents, and the CLI — without expensive per-seat pricing.
+
+## Key facts
+
+- Call leads worldwide from the browser or the Ringee iOS app — no special hardware.
+- Low-cost and pay-as-you-go: calling credits are billed separately, from $0.020/min, so you only pay for the minutes you use.
+- Pricing: Freelancer plan is $0/month; Organization plan is $20/month per organization.
+- The Freelancer plan includes every feature for one person; the Organization plan adds an organization, unlimited invited members, and calling campaigns.
+- The Organization plan includes unlimited users (no per-seat pricing).
+- Agentic by design: drive Ringee from ChatGPT, Claude, any MCP-compatible agent, the CLI, or your own AI automation framework. Agents prepare the work; humans take the calls.
+- Real-time call transcription works with or without recording — you can transcribe a call even when you do not store the audio.
+- Meetings: connect Google Calendar to schedule meetings from a call and keep them in sync automatically.
+- Calls are connected through Telnyx. Authentication is handled by Clerk; payments by Stripe.
+- Ringee is open source and can be self-hosted.
+- Ringee has not completed SOC 2 or ISO certifications and does not claim them.
+
+## Features
+
+- Outbound calling: https://www.ringee.io/features/outbound-calling
+- Campaigns: https://www.ringee.io/features/campaigns
+- Call outcomes and notes: https://www.ringee.io/features/call-outcomes
+- Callbacks: https://www.ringee.io/features/callbacks
+- Meetings (Google Calendar): https://www.ringee.io/features/meetings
+- Call recording: https://www.ringee.io/features/call-recording
+- Real-time call transcription: https://www.ringee.io/features/call-transcription
+- CRM sync: https://www.ringee.io/features/crm-sync
+- AI call automation: https://www.ringee.io/features/ai-call-automation
+
+## Integrations
+
+- Lead sources: Apollo (https://www.ringee.io/integrations/apollo), Prospeo (https://www.ringee.io/integrations/prospeo)
+- CRMs: Attio (https://www.ringee.io/integrations/attio), Odoo (https://www.ringee.io/integrations/odoo)
+- Calendar: Google Calendar (https://www.ringee.io/integrations/google-calendar)
+- AI tools: ChatGPT (https://www.ringee.io/integrations/chatgpt), Claude (https://www.ringee.io/integrations/claude), MCP (https://www.ringee.io/integrations/mcp), CLI (https://www.ringee.io/integrations/cli)
+
+## Use cases
+
+- SDR teams: https://www.ringee.io/use-cases/sdr-teams
+- Recruiters: https://www.ringee.io/use-cases/recruiters
+- Agencies: https://www.ringee.io/use-cases/agencies
+- Freelancers: https://www.ringee.io/use-cases/freelancers
+- Startups: https://www.ringee.io/use-cases/startups
+- Outbound sales: https://www.ringee.io/use-cases/outbound-sales
+
+## Pricing summary
+
+- Freelancer: $0/month — every feature for one person (manual dialer, recording, real-time transcription, meetings, prospecting, CRM sync, and AI automation). Pay only for calling credits.
+- Organization: $20/month per organization — adds an organization, unlimited invited members, and calling campaigns. Calling credits billed separately.
+- Calling is pay-as-you-go, from $0.020/min. No per-seat pricing on any plan.
+- Pricing details: https://www.ringee.io/pricing
+
+## Main pages
+
+- Home: https://www.ringee.io/
+- Pricing: https://www.ringee.io/pricing
+- Features: https://www.ringee.io/features
+- Integrations: https://www.ringee.io/integrations
+- Use cases: https://www.ringee.io/use-cases
+- Security: https://www.ringee.io/security
+- Open source: https://www.ringee.io/open-source
+- Self-hosted: https://www.ringee.io/self-hosted
+
+## Resources
+
+- Developer documentation: https://docs.ringee.io
+- Blog: https://blog.ringee.io
+- Command-line interface (the `ringee` CLI on npm): https://www.npmjs.com/package/ringee
+- iOS app (Apple App Store): https://apps.apple.com/app/ringee-app/id6773448247
+- Source code (GitHub): https://github.com/ringee-io/ringee-app

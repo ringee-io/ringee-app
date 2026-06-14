@@ -1,14 +1,10 @@
 'use client';
 
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
-import { Navbar } from '@/features/landing/components/navbar';
-import Footer from './footer';
 
 export default function TermsPageView() {
   return (
-    <>
-      <Navbar />
-      <section className='text-muted-foreground mx-auto max-w-4xl px-6 py-16 text-base leading-relaxed'>
+    <section className='text-muted-foreground mx-auto max-w-4xl px-6 py-16 text-base leading-relaxed'>
         <h1 className='text-foreground mb-4 text-4xl font-bold'>
           Terms & Conditions
         </h1>
@@ -208,8 +204,6 @@ export default function TermsPageView() {
           Thank you for using Ringee.io — a smarter, more transparent way to
           connect.
         </p>
-      </section>
-      <Footer />
-    </>
+    </section>
   );
 }

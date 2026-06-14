@@ -1,14 +1,10 @@
 'use client';
 
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
-import Footer from '@/features/landing/components/footer';
-import { Navbar } from '@/features/landing/components/navbar';
 
 export default function PrivacyPageView() {
   return (
-    <>
-      <Navbar />
-      <section className='text-muted-foreground mx-auto max-w-4xl px-6 py-16 text-base leading-relaxed'>
+    <section className='text-muted-foreground mx-auto max-w-4xl px-6 py-16 text-base leading-relaxed'>
         <h1 className='text-foreground mb-4 text-4xl font-bold'>
           Privacy Policy
         </h1>
@@ -265,8 +261,6 @@ export default function PrivacyPageView() {
           Thank you for trusting Ringee.io — we’re committed to keeping your
           communications secure and transparent.
         </p>
-      </section>
-      <Footer />
-    </>
+    </section>
   );
 }

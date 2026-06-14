@@ -1,4 +1,3 @@
-import PageContainer from '@/components/layout/page-container';
 import SupportPageView from '@/features/landing/components/support.page.view';
 import { Metadata } from 'next';
 
@@ -47,11 +46,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return (
-    <PageContainer scrollable>
-      <div className='w-full'>
-        <SupportPageView />
-      </div>
-    </PageContainer>
-  );
+  return <SupportPageView />;
 }
