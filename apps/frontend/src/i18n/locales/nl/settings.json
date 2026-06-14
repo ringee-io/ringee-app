@@ -129,7 +129,7 @@
         "lastName": "Achternaam",
         "phoneNumber": "Telefoonnummer",
         "streetAddress": "Straat en huisnummer",
-        "extendedAddress": "Appartement / verdieping",
+        "extendedAddress": "Adresregel 2 (apt, verdieping)",
         "locality": "Plaats",
         "administrativeArea": "Provincie / regio",
         "postalCode": "Postcode",
@@ -140,7 +140,8 @@
         "invalid": "De provider kon dit adres niet valideren. Controleer de velden.",
         "suggestionTitle": "De provider stelt dit adres voor:",
         "useSuggestion": "Voorgesteld adres gebruiken",
-        "validateError": "Kon het adres niet valideren. Probeer het opnieuw."
+        "validateError": "Kon het adres niet valideren. Probeer het opnieuw.",
+        "extendedAddressPlaceholder": "Appartement, verdieping, unit… (optioneel)"
       },
       "selectDocument": "Document selecteren",
       "selectedDocument": "Geselecteerd document",

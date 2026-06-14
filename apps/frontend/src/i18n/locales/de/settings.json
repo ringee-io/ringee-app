@@ -129,7 +129,7 @@
         "lastName": "Nachname",
         "phoneNumber": "Telefonnummer",
         "streetAddress": "Straße und Hausnummer",
-        "extendedAddress": "Wohnung / Etage",
+        "extendedAddress": "Adresszusatz (Wohnung, Etage)",
         "locality": "Stadt",
         "administrativeArea": "Bundesland / Region",
         "postalCode": "Postleitzahl",
@@ -140,7 +140,8 @@
         "invalid": "Der Anbieter konnte diese Adresse nicht bestätigen. Bitte überprüfen Sie die Felder.",
         "suggestionTitle": "Der Anbieter schlägt diese Adresse vor:",
         "useSuggestion": "Vorgeschlagene Adresse übernehmen",
-        "validateError": "Die Adresse konnte nicht geprüft werden. Bitte versuchen Sie es erneut."
+        "validateError": "Die Adresse konnte nicht geprüft werden. Bitte versuchen Sie es erneut.",
+        "extendedAddressPlaceholder": "Wohnung, Etage, Einheit… (optional)"
       },
       "selectDocument": "Dokument auswählen",
       "selectedDocument": "Ausgewähltes Dokument",

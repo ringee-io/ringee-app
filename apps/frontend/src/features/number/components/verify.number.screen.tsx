@@ -746,7 +746,12 @@ function AddressFields({
     onChange(patch);
   };
 
-  const field = (key: keyof AddressForm, label: string, required = false) => (
+  const field = (
+    key: keyof AddressForm,
+    label: string,
+    required = false,
+    placeholder?: string
+  ) => (
     <div className='space-y-1'>
       <Label className='text-xs'>
         {label}
@@ -754,6 +759,7 @@ function AddressFields({
       </Label>
       <Input
         value={address[key]}
+        placeholder={placeholder}
         onChange={(e) =>
           handleChange({ [key]: e.target.value } as Partial<AddressForm>)
         }
@@ -841,7 +847,12 @@ function AddressFields({
       </div>
       <Separator />
       {field('streetAddress', t('streetAddress'), true)}
-      {field('extendedAddress', t('extendedAddress'))}
+      {field(
+        'extendedAddress',
+        t('extendedAddress'),
+        false,
+        t('extendedAddressPlaceholder')
+      )}
       <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
         {field('locality', t('locality'), true)}
         {field('administrativeArea', t('administrativeArea'))}

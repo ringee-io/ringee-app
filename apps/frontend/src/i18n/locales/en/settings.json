@@ -129,7 +129,7 @@
         "lastName": "Last name",
         "phoneNumber": "Phone number",
         "streetAddress": "Street address",
-        "extendedAddress": "Apt / suite / floor",
+        "extendedAddress": "Address line 2 (apt, suite, floor)",
         "locality": "City",
         "administrativeArea": "State / province / region",
         "postalCode": "Postal code",
@@ -140,7 +140,8 @@
         "invalid": "The carrier couldn't validate this address. Please double-check the fields.",
         "suggestionTitle": "The carrier suggests this address:",
         "useSuggestion": "Use suggested address",
-        "validateError": "Could not validate the address. Please try again."
+        "validateError": "Could not validate the address. Please try again.",
+        "extendedAddressPlaceholder": "Apartment, suite, unit, floor… (optional)"
       },
       "selectDocument": "Select document",
       "selectedDocument": "Selected document",

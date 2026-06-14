@@ -129,7 +129,7 @@
         "lastName": "Nom",
         "phoneNumber": "Téléphone",
         "streetAddress": "Adresse (rue et numéro)",
-        "extendedAddress": "Appartement / étage",
+        "extendedAddress": "Complément d'adresse (apt, étage)",
         "locality": "Ville",
         "administrativeArea": "État / région",
         "postalCode": "Code postal",
@@ -140,7 +140,8 @@
         "invalid": "L'opérateur n'a pas pu valider cette adresse. Veuillez vérifier les champs.",
         "suggestionTitle": "L'opérateur suggère cette adresse :",
         "useSuggestion": "Utiliser l'adresse suggérée",
-        "validateError": "Impossible de valider l'adresse. Veuillez réessayer."
+        "validateError": "Impossible de valider l'adresse. Veuillez réessayer.",
+        "extendedAddressPlaceholder": "Appartement, étage, unité… (facultatif)"
       },
       "selectDocument": "Sélectionner un document",
       "selectedDocument": "Document sélectionné",

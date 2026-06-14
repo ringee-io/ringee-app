@@ -129,7 +129,7 @@
         "lastName": "Apelido",
         "phoneNumber": "Telefone",
         "streetAddress": "Morada (rua e número)",
-        "extendedAddress": "Apartamento / andar",
+        "extendedAddress": "Linha de morada 2 (apto, piso)",
         "locality": "Cidade",
         "administrativeArea": "Distrito / região",
         "postalCode": "Código postal",
@@ -140,7 +140,8 @@
         "invalid": "A operadora não conseguiu validar esta morada. Verifique os campos.",
         "suggestionTitle": "A operadora sugere esta morada:",
         "useSuggestion": "Usar morada sugerida",
-        "validateError": "Não foi possível validar a morada. Tente novamente."
+        "validateError": "Não foi possível validar a morada. Tente novamente.",
+        "extendedAddressPlaceholder": "Apartamento, andar, fração… (opcional)"
       },
       "selectDocument": "Selecionar documento",
       "selectedDocument": "Documento selecionado",

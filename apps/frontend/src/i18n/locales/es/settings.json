@@ -129,7 +129,7 @@
         "lastName": "Apellidos",
         "phoneNumber": "Teléfono",
         "streetAddress": "Dirección (calle y número)",
-        "extendedAddress": "Apto / piso / planta",
+        "extendedAddress": "Dirección línea 2 (apto, piso, planta)",
         "locality": "Ciudad",
         "administrativeArea": "Estado / provincia / región",
         "postalCode": "Código postal",
@@ -140,7 +140,8 @@
         "invalid": "El operador no pudo validar esta dirección. Revisa los campos.",
         "suggestionTitle": "El operador sugiere esta dirección:",
         "useSuggestion": "Usar dirección sugerida",
-        "validateError": "No se pudo validar la dirección. Inténtalo de nuevo."
+        "validateError": "No se pudo validar la dirección. Inténtalo de nuevo.",
+        "extendedAddressPlaceholder": "Apartamento, suite, unidad, planta… (opcional)"
       },
       "selectDocument": "Seleccionar documento",
       "selectedDocument": "Documento seleccionado",
