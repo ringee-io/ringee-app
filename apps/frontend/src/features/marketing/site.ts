@@ -27,14 +27,15 @@ export const PRICING = {
     name: 'Freelancer',
     price: 0,
     period: 'month',
-    blurb: 'For solo operators calling on their own — no team, no campaigns.'
+    blurb:
+      'Every Ringee feature for one person — automation, integrations, and AI included. No team, no campaigns.'
   },
   organization: {
     name: 'Organization',
     price: 20,
     period: 'month',
     blurb:
-      'Work as a team and run calling campaigns. Unlimited users, one flat price.'
+      'Everything in Freelancer plus a team: unlimited members and calling campaigns, one flat price.'
   }
 } as const;
 
@@ -54,13 +55,13 @@ export type ProductMenuGroup = {
 export const PRODUCT_MENU: ProductMenuGroup[] = [
   {
     title: 'Communicate',
-    blurb: 'Calls, campaigns, outcomes, notes, and callbacks.',
+    blurb: 'Calls, campaigns, outcomes, callbacks, and meetings.',
     links: [
       { label: 'Outbound calling', href: '/features/outbound-calling' },
       { label: 'Campaigns', href: '/features/campaigns' },
       { label: 'Call outcomes', href: '/features/call-outcomes' },
-      { label: 'Notes', href: '/features/call-outcomes' },
-      { label: 'Callbacks', href: '/features/callbacks' }
+      { label: 'Callbacks', href: '/features/callbacks' },
+      { label: 'Meetings', href: '/features/meetings' }
     ]
   },
   {
@@ -86,13 +87,14 @@ export const PRODUCT_MENU: ProductMenuGroup[] = [
   },
   {
     title: 'Sync',
-    blurb: 'Connect lead sources and CRMs to your calling.',
+    blurb: 'Connect lead sources, CRMs, and your calendar to your calling.',
     links: [
       { label: 'CRM sync', href: '/features/crm-sync' },
       { label: 'Apollo', href: '/integrations/apollo' },
       { label: 'Prospeo', href: '/integrations/prospeo' },
       { label: 'Attio', href: '/integrations/attio' },
-      { label: 'Odoo', href: '/integrations/odoo' }
+      { label: 'Odoo', href: '/integrations/odoo' },
+      { label: 'Google Calendar', href: '/integrations/google-calendar' }
     ]
   },
   {
@@ -127,6 +129,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: 'Call recording', href: '/features/call-recording' },
       { label: 'Call transcription', href: '/features/call-transcription' },
       { label: 'Callbacks', href: '/features/callbacks' },
+      { label: 'Meetings', href: '/features/meetings' },
       { label: 'AI call automation', href: '/features/ai-call-automation' },
       { label: 'All features', href: '/features' }
     ]
@@ -138,6 +141,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: 'Prospeo', href: '/integrations/prospeo' },
       { label: 'Attio', href: '/integrations/attio' },
       { label: 'Odoo', href: '/integrations/odoo' },
+      { label: 'Google Calendar', href: '/integrations/google-calendar' },
       { label: 'ChatGPT', href: '/integrations/chatgpt' },
       { label: 'Claude', href: '/integrations/claude' },
       { label: 'All integrations', href: '/integrations' }

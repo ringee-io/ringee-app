@@ -67,8 +67,7 @@ export const USE_CASES: UseCaseContent[] = [
       },
       {
         title: 'Follow-ups locked in',
-        description:
-          'Schedule callbacks on the call so no warm lead goes cold.'
+        description: 'Schedule callbacks on the call so no warm lead goes cold.'
       }
     ],
     recommendedFeatures: [
@@ -76,6 +75,7 @@ export const USE_CASES: UseCaseContent[] = [
       'campaigns',
       'call-outcomes',
       'callbacks',
+      'meetings',
       'crm-sync'
     ],
     workflow: [
@@ -131,8 +131,7 @@ export const USE_CASES: UseCaseContent[] = [
       },
       {
         title: 'Fast dispositioning',
-        description:
-          'Log outcomes in a tap and keep moving through your list.'
+        description: 'Log outcomes in a tap and keep moving through your list.'
       },
       {
         title: 'Affordable for any desk size',
@@ -143,6 +142,7 @@ export const USE_CASES: UseCaseContent[] = [
     recommendedFeatures: [
       'outbound-calling',
       'callbacks',
+      'meetings',
       'call-outcomes',
       'call-recording',
       'crm-sync'
@@ -242,60 +242,67 @@ export const USE_CASES: UseCaseContent[] = [
     icon: User,
     tagline:
       'Start calling for free, keep your follow-ups tight, and only pay for minutes.',
-    metaTitle: 'Ringee for Freelancers | Free Outbound Calling',
+    metaTitle: 'Ringee for Freelancers | Free, Full-Featured Outbound Calling',
     metaDescription:
-      'Freelancers start calling for free with Ringee. Make calls from your browser, capture notes and callbacks, and pay only for the minutes you use.',
-    h1: 'Free outbound calling for freelancers',
+      'Freelancers get every Ringee feature for free — manual dialer, recording, real-time transcription, meetings, prospecting, CRM sync, and AI automation. Pay only for the minutes you use.',
+    h1: 'Free, full-featured outbound calling for freelancers',
     intro: [
-      'When you are a team of one, you need a calling tool that is cheap, simple, and reliable. Ringee’s Freelancer plan is free to start — open your browser, call your prospects, and keep your follow-ups tight without a monthly seat fee.',
-      'You only pay for the calling minutes you use, so your costs scale with your work, not with a subscription tier.'
+      'When you are a team of one, you need a calling tool that is cheap, complete, and reliable. Ringee’s Freelancer plan is free to start and unlocks every feature — manual dialer, recording, real-time transcription, meetings, lead prospecting, CRM sync, and full AI automation — with nothing held back for a team tier.',
+      'You only pay for the calling minutes you use, so your costs scale with your work, not with a subscription. The only things reserved for the Organization plan are the things that actually need a team: an organization, invited members, and campaigns.'
     ],
     painPoints: [
       'Monthly seat fees are hard to justify solo',
+      'Tools lock the good features behind a team plan',
       'Follow-ups slip when you wear every hat',
-      'Context lives in scattered notes',
-      'Enterprise tools are overkill'
+      'Doing all the prep yourself eats calling time'
     ],
     solutions: [
       {
         title: 'Free to start',
         description:
-          'The Freelancer plan costs $0/month — you only pay for calling credits.'
+          'The Freelancer plan costs $0/month — you only pay, pay-as-you-go, for calling credits.'
+      },
+      {
+        title: 'Every feature, solo',
+        description:
+          'Recording, real-time transcription, meetings, prospecting, CRM sync, and AI automation — nothing is locked behind a team plan.'
       },
       {
         title: 'Tight follow-ups',
         description:
-          'Schedule callbacks on the call so nothing slips while you juggle everything.'
+          'Schedule callbacks and meetings on the call so nothing slips while you juggle everything.'
       },
       {
-        title: 'Notes in one place',
+        title: 'Driven by your AI',
         description:
-          'Keep every conversation attached to the contact, not in a side document.'
-      },
-      {
-        title: 'No bloat',
-        description:
-          'A clean dialer and the essentials, without enterprise complexity.'
+          'Run prospecting and admin from ChatGPT, Claude, MCP, or the CLI so a team of one moves like a team.'
       }
     ],
     recommendedFeatures: [
       'outbound-calling',
+      'call-recording',
+      'call-transcription',
+      'meetings',
       'callbacks',
-      'call-outcomes',
       'ai-call-automation'
     ],
     workflow: [
       'Sign up for the free Freelancer plan.',
       'Add a few credits for calling minutes.',
-      'Call your prospects from the browser.',
-      'Log outcomes and schedule callbacks.',
-      'Let AI tools handle the repetitive prep.'
+      'Prospect with Apollo or Prospeo, or let your AI build the list.',
+      'Call from the browser and book meetings to Google Calendar.',
+      'Let ChatGPT, Claude, or the CLI handle the repetitive prep.'
     ],
     faqs: [
       {
         question: 'Is the Freelancer plan really free?',
         answer:
-          'Yes. The Freelancer plan is $0/month. You only pay for the calling credits you use to place calls.'
+          'Yes. The Freelancer plan is $0/month. You only pay, pay-as-you-go, for the calling credits you use to place calls.'
+      },
+      {
+        question: 'Do freelancers get fewer features?',
+        answer:
+          'No. The Freelancer plan includes every Ringee feature for one person — recording, real-time transcription, meetings, lead prospecting, CRM sync, and full AI automation. The Organization plan only adds team features: an organization, invited members, and campaigns.'
       },
       {
         question: 'Can I upgrade later?',
@@ -420,6 +427,7 @@ export const USE_CASES: UseCaseContent[] = [
       'campaigns',
       'call-recording',
       'call-outcomes',
+      'meetings',
       'crm-sync',
       'ai-call-automation'
     ],

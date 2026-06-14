@@ -17,9 +17,9 @@ import { PricingCalculator } from '@/features/marketing/components/pricing-calcu
 import { PRICING, SIGN_UP_URL, SITE_URL } from '@/features/marketing/site';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Pricing — $0 Freelancer, $20/mo Organization | Ringee',
+  title: 'Pricing — Free Freelancer, $20/mo Organization | Ringee',
   description:
-    'Simple, affordable pricing. Freelancer is $0/month. The Organization plan is $20/month per organization with unlimited users. Calling credits billed separately. No per-seat pricing.',
+    'Low-cost, pay-as-you-go pricing. Freelancer is $0/month with every feature for one person. The Organization plan is $20/month per organization with unlimited users and campaigns. Calling credits billed separately. No per-seat pricing.',
   path: '/pricing'
 });
 
@@ -31,15 +31,17 @@ const PLANS = [
     description: PRICING.freelancer.blurb,
     cta: 'Start calling for free',
     highlighted: false,
-    tagline: 'For one person, working solo.',
+    tagline: 'For one person — every feature, just no team.',
     features: [
-      'Single user — solo calling workspace',
-      'Outbound calling from your browser and iOS',
+      'Single user — your own solo workspace',
+      'Manual dialer — call from your browser and iOS',
       'Contacts, notes, and call outcomes',
-      'Callbacks and follow-ups',
-      'Call recording',
-      'AI automation via ChatGPT, Claude, MCP, and CLI',
-      'Pay only for calling credits'
+      'Callbacks and meeting scheduling (Google Calendar)',
+      'Call recording and real-time transcription',
+      'Lead prospecting with Apollo and Prospeo',
+      'CRM sync with Attio and Odoo',
+      'Full AI automation — ChatGPT, Claude, MCP, CLI, and webhooks',
+      'Pay only for the calling credits you use'
     ]
   },
   {
@@ -52,12 +54,11 @@ const PLANS = [
     tagline: 'For teams that run outbound together.',
     features: [
       'Everything in Freelancer, plus:',
-      'Unlimited team members — work as a team',
+      'Create an organization for your team',
+      'Unlimited team members — invite and call together',
       'Calling campaigns',
-      'Shared contacts and call activity',
-      'Call transcription',
-      'CRM sync with Attio and Odoo',
-      'Lead sourcing with Apollo and Prospeo'
+      // 'Shared contacts and call activity',
+      // 'Team-wide recording and transcription settings'
     ]
   }
 ];
@@ -76,12 +77,12 @@ const PRICING_FAQS = [
   {
     question: 'How are calling credits billed?',
     answer:
-      'Calling minutes are paid separately from your subscription as credits. Per-minute rates depend on the destination you call. You only pay for the calls you place.'
+      'Calling is pay-as-you-go. Minutes are paid separately from your subscription as credits, and per-minute rates depend on the destination you call. You only pay for the calls you place.'
   },
   {
     question: 'What is the difference between Freelancer and Organization?',
     answer:
-      'Freelancer is for one person working solo and is free to start. The Organization plan is what you upgrade to when you want to work as a team and run calling campaigns — it adds unlimited team members, shared contacts and activity, campaigns, and CRM sync, all for a flat $20/month.'
+      'Freelancer gives one person every Ringee feature — manual dialer, recording and real-time transcription, meetings with Google Calendar, lead prospecting, CRM sync, and full AI automation via ChatGPT, Claude, MCP, and the CLI — for free. The Organization plan adds only what a team needs: an organization, unlimited members you can invite, and calling campaigns, all for a flat $20/month.'
   },
   {
     question: 'Can I start for free?',
@@ -110,9 +111,10 @@ export default function PricingPage() {
             Affordable pricing, no per-seat fees
           </h1>
           <p className='text-muted-foreground mt-6 text-lg text-pretty'>
-            Start free as a freelancer, or run your whole team on a flat $20 per
-            month per organization with unlimited users. Calling credits are
-            billed separately, so you only pay for the minutes you use.
+            Start free as a freelancer with every feature, or run your whole
+            team on a flat $20 per month per organization with unlimited users.
+            Calling is pay-as-you-go — credits are billed separately, so you
+            only pay for the minutes you use.
           </p>
         </Container>
       </Section>
@@ -177,8 +179,9 @@ export default function PricingPage() {
             ))}
           </div>
           <p className='text-muted-foreground mx-auto mt-6 max-w-2xl text-center text-sm'>
-            Calling credits are billed separately on both plans. There is no
-            expensive per-seat pricing — add as many users as you need on the
+            Both plans are pay-as-you-go — calling credits are billed
+            separately, so you only pay for the minutes you use. There is no
+            expensive per-seat pricing; add as many users as you need on the
             Organization plan.
           </p>
         </Container>
@@ -215,7 +218,9 @@ export default function PricingPage() {
               name: 'Freelancer',
               price: '0',
               priceCurrency: 'USD',
-              url: `${SITE_URL}/pricing`
+              url: `${SITE_URL}/pricing`,
+              description:
+                'Every Ringee feature for one person. Pay only for calling credits.'
             },
             {
               '@type': 'Offer',

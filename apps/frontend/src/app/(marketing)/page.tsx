@@ -9,9 +9,11 @@ import { buildMetadata } from '@/features/marketing/seo';
 import {
   Container,
   CtaButtons,
-  Section
+  Section,
+  SectionHeading
 } from '@/features/marketing/components/primitives';
 import { CtaSection } from '@/features/marketing/components/cta-section';
+import { ScalabilityCalculator } from '@/features/marketing/components/scalability-calculator';
 import {
   JsonLd,
   softwareAppJsonLd
@@ -19,16 +21,16 @@ import {
 import { SITE_URL } from '@/features/marketing/site';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Ringee — Affordable Outbound Calling Software for Modern Teams',
+  title: 'Ringee — Affordable, Agentic Outbound Calling Software',
   description:
-    'Ringee is affordable outbound calling software for SDR teams, recruiters, agencies, freelancers, and outbound operators. Call more leads, track outcomes, record and transcribe calls, sync your CRM, and automate with AI — without expensive per-seat pricing.',
+    'Ringee is low-cost, pay-as-you-go outbound calling software for freelancers and teams. Call leads worldwide from your browser, record and transcribe calls in real time, book meetings to Google Calendar, sync your CRM, and drive it all from Claude, ChatGPT, MCP agents, and the CLI. Open source, no per-seat pricing.',
   path: '/'
 });
 
 const PROOF_POINTS = [
-  'Unlimited users on the Organization plan',
-  '$20/month per organization',
-  'Call from your browser or iOS app'
+  'Free for freelancers, $20/mo for teams',
+  'Pay-as-you-go from $0.020/min',
+  'Drive it from Claude, ChatGPT, MCP & CLI'
 ];
 
 export default async function HomePage() {
@@ -51,11 +53,13 @@ export default async function HomePage() {
             </Link>
 
             <h1 className='text-4xl font-bold tracking-tight text-balance sm:text-5xl md:text-6xl'>
-              Outbound calling that scales with usage, not headcount
+              The outbound dialer built for the AI era
             </h1>
 
             <p className='text-muted-foreground mt-6 max-w-xl text-lg text-pretty'>
-                Open source, $0.020/min, no per-seat tax. Built to be driven by your team and your AI.
+              Open source and pay-as-you-go from $0.020/min — no per-seat tax.
+              Built for freelancers and teams, and driven by your AI: Claude,
+              ChatGPT, MCP, and the CLI.
             </p>
 
             <CtaButtons className='mt-9 items-center justify-center lg:justify-start' />
@@ -94,13 +98,27 @@ export default async function HomePage() {
         </Container>
       </Section>
 
+      {/* Scalability cost calculator */}
+      <Section className='bg-muted/20 py-16 sm:py-20'>
+        <Container>
+          <SectionHeading
+            eyebrow='Built to scale'
+            title='Grow your team, not your bill'
+            description='Per-seat tools punish you for hiring. Ringee is one flat price for the whole organization — so scaling from 1 to 20 costs the same.'
+          />
+          <div className='mt-10'>
+            <ScalabilityCalculator />
+          </div>
+        </Container>
+      </Section>
+
       <CtaSection />
 
       <JsonLd
         data={softwareAppJsonLd({
           name: 'Ringee',
           description:
-            'Affordable outbound calling software for SDR teams, recruiters, agencies, freelancers, and outbound operators. Call leads, run campaigns, record and transcribe calls, sync your CRM, and automate outbound with AI.',
+            'Low-cost, pay-as-you-go outbound calling software for freelancers, SDR teams, recruiters, agencies, and startups. Call leads worldwide, run campaigns, record and transcribe calls in real time, book meetings to Google Calendar, sync your CRM, and automate outbound with Claude, ChatGPT, MCP agents, and the CLI. Open source and self-hostable.',
           url: SITE_URL
         })}
       />

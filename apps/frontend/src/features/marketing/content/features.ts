@@ -1,5 +1,6 @@
 import {
   Bot,
+  CalendarCheck,
   CalendarClock,
   ClipboardList,
   type LucideIcon,
@@ -53,7 +54,7 @@ export const FEATURE_CATEGORIES: CategoryMeta[] = [
   },
   {
     name: 'Record & Learn',
-    blurb: 'Record calls, transcribe conversations, and review history.',
+    blurb: 'Record calls, transcribe conversations live, and review history.',
     icon: Mic
   },
   {
@@ -64,7 +65,8 @@ export const FEATURE_CATEGORIES: CategoryMeta[] = [
   },
   {
     name: 'Sync',
-    blurb: 'Connect Ringee with Apollo, Prospeo, Attio, Odoo, and CRM workflows.',
+    blurb:
+      'Connect Ringee with Apollo, Prospeo, Attio, Odoo, and CRM workflows.',
     icon: RefreshCw
   },
   {
@@ -201,8 +203,7 @@ export const FEATURES: FeatureContent[] = [
     name: 'Call outcomes',
     category: 'Communicate',
     icon: ClipboardList,
-    tagline:
-      'Log how each call went and capture notes the moment you hang up.',
+    tagline: 'Log how each call went and capture notes the moment you hang up.',
     metaTitle: 'Call Outcomes & Notes Tracking | Ringee',
     metaDescription:
       'Track call outcomes and notes in Ringee. Record how every outbound call went, capture context, and feed clean activity data into your CRM.',
@@ -298,7 +299,7 @@ export const FEATURES: FeatureContent[] = [
       'Reduce no-shows and dropped deals',
       'Less manual reminder management'
     ],
-    related: ['call-outcomes', 'outbound-calling', 'campaigns', 'crm-sync'],
+    related: ['meetings', 'call-outcomes', 'outbound-calling', 'campaigns'],
     faqs: [
       {
         question: 'What happens when a callback is due?',
@@ -309,6 +310,74 @@ export const FEATURES: FeatureContent[] = [
         question: 'Can I reschedule a callback?',
         answer:
           'Yes. If a lead asks for a different time, update the callback and it moves with the contact.'
+      }
+    ]
+  },
+  {
+    slug: 'meetings',
+    name: 'Meetings',
+    category: 'Communicate',
+    icon: CalendarCheck,
+    tagline:
+      'Book meetings on the call and sync them straight to Google Calendar — no back-and-forth.',
+    metaTitle: 'Meeting Scheduling with Google Calendar | Ringee',
+    metaDescription:
+      'Schedule meetings from Ringee and sync them to Google Calendar automatically. Book the next step while you are still on the call — no copy-paste, no double entry.',
+    h1: 'Book meetings without leaving the call',
+    intro: [
+      'The goal of most outbound calls is the next meeting. Ringee lets you schedule it the moment a lead says yes — pick a time and the meeting is created and synced to your connected Google Calendar automatically.',
+      'Connect Google Calendar once and every meeting you book in Ringee shows up where you already plan your day, with the contact and call context attached. Your AI agent can book meetings too, through the same tools that drive the rest of your outbound.'
+    ],
+    whoFor: [
+      'SDRs booking demos and discovery calls',
+      'Recruiters scheduling interviews with candidates',
+      'Freelancers and consultants booking discovery calls',
+      'Anyone whose calls end in a scheduled next step'
+    ],
+    howItWorks: [
+      {
+        title: 'Connect Google Calendar',
+        description:
+          'Link your Google Calendar to Ringee once from your workspace settings.'
+      },
+      {
+        title: 'Book on the call',
+        description:
+          'When a lead agrees to meet, schedule the meeting before you hang up — or have your AI agent do it for you.'
+      },
+      {
+        title: 'It syncs automatically',
+        description:
+          'The meeting is created on your Google Calendar with the contact and call context attached.'
+      }
+    ],
+    benefits: [
+      'Turn a call into a booked meeting in seconds',
+      'Meetings sync to Google Calendar automatically',
+      'No copy-paste between your dialer and your calendar',
+      'AI agents can schedule meetings through MCP'
+    ],
+    related: [
+      'callbacks',
+      'outbound-calling',
+      'ai-call-automation',
+      'call-outcomes'
+    ],
+    faqs: [
+      {
+        question: 'Which calendar does Ringee connect to?',
+        answer:
+          'Ringee connects to Google Calendar. Once linked, meetings you book in Ringee are created and kept in sync on your calendar automatically.'
+      },
+      {
+        question: 'Can AI book meetings for me?',
+        answer:
+          'Yes. Through Ringee’s MCP tools, ChatGPT, Claude, or any MCP-compatible agent can schedule a meeting for a contact — the same way you would from the app.'
+      },
+      {
+        question: 'What is the difference between a callback and a meeting?',
+        answer:
+          'A callback is a reminder to dial a contact again. A meeting is a scheduled event on your Google Calendar — use it when you and the lead agree to meet at a set time.'
       }
     ]
   },
@@ -381,31 +450,31 @@ export const FEATURES: FeatureContent[] = [
     category: 'Record & Learn',
     icon: Mic,
     tagline:
-      'Turn recorded conversations into searchable text you can scan in seconds.',
-    metaTitle: 'Call Transcription Software | Ringee',
+      'Transcribe conversations in real time — with or without recording — into searchable text.',
+    metaTitle: 'Real-Time Call Transcription Software | Ringee',
     metaDescription:
-      'Transcribe outbound calls in Ringee. Convert conversations into searchable text so you can review calls faster and capture the details that matter.',
-    h1: 'Call transcription that turns talk into text',
+      'Transcribe outbound calls in Ringee in real time, whether or not you record them. Convert conversations into searchable text so you can review calls faster and capture the details that matter.',
+    h1: 'Real-time call transcription that turns talk into text',
     intro: [
-      'Reading is faster than re-listening. Ringee transcribes calls so you can scan a conversation, find the moment that matters, and capture the details without replaying the whole recording.',
-      'Transcripts pair with recordings and outcomes to give every conversation a clear, reviewable record — useful for coaching, handoffs, and keeping context across a long sales cycle.'
+      'Reading is faster than re-listening. Ringee transcribes your calls into searchable text — live as the conversation happens — so you can scan what was said, find the moment that matters, and capture details without replaying anything.',
+      'Transcription does not require recording. Ringee streams call audio to its transcription engine in real time, so you get a transcript even when you choose not to store the recording — ideal for teams that want the text but not the audio. Transcripts pair with outcomes (and recordings, when you keep them) to give every conversation a clear, reviewable record.'
     ],
     whoFor: [
       'Managers reviewing many calls quickly',
       'Reps capturing details without re-listening',
-      'Teams handing off leads between people',
+      'Teams that want transcripts but not stored audio',
       'Operators who want searchable call history'
     ],
     howItWorks: [
       {
-        title: 'Record the call',
+        title: 'Turn on transcription',
         description:
-          'Transcription works from your recorded calls, so it follows your recording settings.'
+          'Enable transcription at the organization or user level — independently of whether you record the call.'
       },
       {
-        title: 'Get the transcript',
+        title: 'Audio is transcribed live',
         description:
-          'The conversation is converted to text and attached to the call.'
+          'Ringee streams the call audio to its transcription engine in real time and converts the conversation to text on the call.'
       },
       {
         title: 'Scan and act',
@@ -415,16 +484,16 @@ export const FEATURES: FeatureContent[] = [
     ],
     benefits: [
       'Review calls far faster than re-listening',
+      'Real-time transcription, recorded or not',
       'Searchable text attached to each call',
-      'Better handoffs with full context',
       'Capture details you would otherwise miss'
     ],
     related: ['call-recording', 'call-outcomes', 'ai-call-automation'],
     faqs: [
       {
-        question: 'Does transcription require recording?',
+        question: 'Does transcription require recording the call?',
         answer:
-          'Yes. Transcripts are generated from recorded calls, so transcription follows the same recording controls.'
+          'No. Ringee transcribes call audio in real time, so you get a transcript even when you choose not to store the recording. Recording and transcription are configured independently.'
       },
       {
         question: 'Can I search transcripts?',
@@ -562,6 +631,8 @@ export function getFeature(slug: string): FeatureContent | undefined {
   return FEATURE_BY_SLUG.get(slug);
 }
 
-export function featuresByCategory(category: FeatureCategory): FeatureContent[] {
+export function featuresByCategory(
+  category: FeatureCategory
+): FeatureContent[] {
   return FEATURES.filter((f) => f.category === category);
 }

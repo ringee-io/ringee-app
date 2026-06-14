@@ -1,6 +1,7 @@
 import {
   Bot,
   Building2,
+  CalendarCheck,
   Database,
   type LucideIcon,
   Sparkles,
@@ -12,7 +13,11 @@ import {
 
 import type { Faq } from '../components/faq';
 
-export type IntegrationCategory = 'Lead sources' | 'CRMs' | 'AI tools';
+export type IntegrationCategory =
+  | 'Lead sources'
+  | 'CRMs'
+  | 'Calendar'
+  | 'AI tools';
 
 export type IntegrationContent = {
   slug: string;
@@ -50,6 +55,11 @@ export const INTEGRATION_CATEGORIES: IntegrationCategoryMeta[] = [
     name: 'CRMs',
     blurb: 'Keep your system of record in sync with every call.',
     icon: Database
+  },
+  {
+    name: 'Calendar',
+    blurb: 'Connect Google Calendar and book meetings straight from a call.',
+    icon: CalendarCheck
   },
   {
     name: 'AI tools',
@@ -248,6 +258,54 @@ export const INTEGRATIONS: IntegrationContent[] = [
     ]
   },
   {
+    slug: 'google-calendar',
+    name: 'Google Calendar',
+    category: 'Calendar',
+    icon: CalendarCheck,
+    tagline:
+      'Book meetings from a call and sync them to Google Calendar automatically.',
+    metaTitle: 'Google Calendar Integration | Ringee',
+    metaDescription:
+      'Connect Google Calendar to Ringee to schedule meetings from a call and keep them in sync automatically — no copy-paste between your dialer and your calendar.',
+    h1: 'Google Calendar + Ringee: book the meeting on the call',
+    intro: [
+      'Most outbound calls aim at one thing: the next meeting. Connect Google Calendar to Ringee and you can book that meeting while you are still on the call — Ringee creates the event and keeps it in sync on your calendar automatically.',
+      'Because Ringee exposes meeting scheduling through its MCP tools, your AI agent can book meetings too. Ask ChatGPT or Claude to schedule the next step and it lands on your Google Calendar like any meeting you booked yourself.'
+    ],
+    enables: [
+      'Schedule meetings from Ringee without leaving a call',
+      'Sync booked meetings to Google Calendar automatically',
+      'Let AI agents schedule meetings through MCP',
+      'Keep contact and call context attached to each meeting'
+    ],
+    workflow: [
+      'Connect your Google Calendar to Ringee.',
+      'Call your contact as usual.',
+      'When they agree to meet, schedule it on the call.',
+      'The meeting syncs to your Google Calendar automatically.',
+      'Your AI agent can book follow-up meetings the same way.'
+    ],
+    benefits: [
+      'Turn calls into booked meetings in seconds',
+      'No copy-paste between dialer and calendar',
+      'AI-assisted scheduling through MCP',
+      'One source of truth for your day'
+    ],
+    related: ['chatgpt', 'claude', 'mcp'],
+    faqs: [
+      {
+        question: 'Which calendar providers are supported?',
+        answer:
+          'Ringee connects to Google Calendar. Once linked, meetings you book in Ringee are created and kept in sync there automatically.'
+      },
+      {
+        question: 'Can AI agents schedule meetings?',
+        answer:
+          'Yes. Ringee exposes meeting scheduling over MCP, so ChatGPT, Claude, or any MCP-compatible agent can book a meeting that syncs to your Google Calendar.'
+      }
+    ]
+  },
+  {
     slug: 'chatgpt',
     name: 'ChatGPT',
     category: 'AI tools',
@@ -346,8 +404,7 @@ export const INTEGRATIONS: IntegrationContent[] = [
     name: 'MCP',
     category: 'AI tools',
     icon: Workflow,
-    tagline:
-      'Connect any MCP-compatible agent to Ringee’s outbound toolset.',
+    tagline: 'Connect any MCP-compatible agent to Ringee’s outbound toolset.',
     metaTitle: 'MCP Integration for AI Agents | Ringee',
     metaDescription:
       'Ringee ships an MCP server so any MCP-compatible agent can prospect, manage contacts, start calls, and schedule follow-ups with built-in safety guardrails.',
@@ -401,8 +458,8 @@ export const INTEGRATIONS: IntegrationContent[] = [
       'Drive Ringee outbound workflows from the command line. Script prospecting, contact management, and follow-ups for repeatable, developer-friendly automation.',
     h1: 'CLI workflows for developer-driven outbound',
     intro: [
-      'Ringee is built to be automated, not just clicked. Its MCP-based tooling lets you drive outbound workflows from the command line and your own scripts — ideal for developers and technical operators who want repeatable, version-controlled automation.',
-      'Wire Ringee into the tools you already run so prospecting, contact management, and follow-up become part of your normal developer workflow.'
+      'Ringee is built to be automated, not just clicked. Its MCP-based tooling lets you drive outbound workflows from the command line, your own scripts, and AI automation frameworks — ideal for developers and technical operators who want repeatable, version-controlled automation.',
+      'Wire Ringee into the agents and tools you already run so prospecting, contact management, meeting scheduling, and follow-up become part of your normal developer workflow.'
     ],
     enables: [
       'Run outbound tasks from the terminal',
