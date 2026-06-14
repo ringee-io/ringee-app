@@ -19,8 +19,10 @@ const format = (value: number) =>
 
 /**
  * Scalability cost comparison for the homepage. As the team grows toward 20
- * members a per-seat tool's bill climbs linearly, while Ringee's flat
- * Organization plan stays put. The per-seat assumption is adjustable, like the
+ * members a per-seat tool's bill climbs linearly, while Ringee stays flat: a
+ * solo user pays no subscription (Freelancer), and a whole team is a flat
+ * Organization price no matter how many you add — you only pay for the minutes
+ * you use. The per-seat assumption is adjustable, like the
  * pricing-page calculator. This is plain arithmetic — it names no competitor and
  * excludes calling credits, which are billed separately on Ringee.
  */
@@ -31,8 +33,15 @@ export function ScalabilityCalculator() {
   const safeSeats = Math.max(0, seats);
   const safePerSeat = Math.max(0, perSeat);
 
+  // Solo (one seat) is the Freelancer plan — no subscription, pay only for
+  // minutes; a team is the flat Organization price for unlimited members.
+  const isSolo = safeSeats <= 1;
+  const ringeePlan = isSolo
+    ? PRICING.freelancer.name
+    : PRICING.organization.name;
+  const ringeeMonthly = isSolo ? PRICING.freelancer.price : RINGEE_ORG_PRICE;
+
   const perSeatMonthly = safeSeats * safePerSeat;
-  const ringeeMonthly = RINGEE_ORG_PRICE;
   const monthlySavings = Math.max(0, perSeatMonthly - ringeeMonthly);
   const annualSavings = monthlySavings * 12;
 
@@ -47,11 +56,13 @@ export function ScalabilityCalculator() {
       <div className='flex flex-wrap items-end justify-between gap-4'>
         <div>
           <h3 className='text-xl font-semibold'>
-            Scale to 20, pay like it's one
+            The most economical way to scale
           </h3>
           <p className='text-muted-foreground mt-1 text-sm'>
-            Per-seat tools bill you for every new hire. Ringee is a flat{' '}
-            {format(RINGEE_ORG_PRICE)}/month, unlimited users.
+            Per-seat tools bill you for every new hire. On Ringee a solo user
+            pays no subscription, and a whole team is a flat{' '}
+            {format(RINGEE_ORG_PRICE)}/month for unlimited members — you only
+            pay for the minutes you use.
           </p>
         </div>
         <div className='text-right'>
@@ -119,7 +130,7 @@ export function ScalabilityCalculator() {
 
         <div>
           <div className='flex items-baseline justify-between text-sm'>
-            <span className='font-medium'>Ringee Organization</span>
+            <span className='font-medium'>Ringee {ringeePlan}</span>
             <span className='font-semibold tabular-nums'>
               {format(ringeeMonthly)}
               <span className='text-muted-foreground font-normal'>/mo</span>
@@ -132,7 +143,9 @@ export function ScalabilityCalculator() {
             />
           </div>
           <p className='text-muted-foreground mt-1 text-xs'>
-            Flat price · unlimited members
+            {isSolo
+              ? 'No subscription · pay only for minutes'
+              : 'Flat price · unlimited members'}
           </p>
         </div>
       </div>

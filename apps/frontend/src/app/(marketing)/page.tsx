@@ -99,12 +99,12 @@ export default async function HomePage() {
       </Section>
 
       {/* Scalability cost calculator */}
-      <Section className='bg-muted/20 py-16 sm:py-20'>
+      <Section className='py-16 sm:py-20'>
         <Container>
           <SectionHeading
-            eyebrow='Built to scale'
+            eyebrow='Kings of cost-efficiency'
             title='Grow your team, not your bill'
-            description='Per-seat tools punish you for hiring. Ringee is one flat price for the whole organization — so scaling from 1 to 20 costs the same.'
+            description='Per-seat tools punish you for hiring. On Ringee a solo user pays no subscription, and a whole team is one flat price — you only pay for the minutes you use, so scaling from 1 to 20 barely moves the bill. Nobody scales outbound cheaper.'
           />
           <div className='mt-10'>
             <ScalabilityCalculator />
