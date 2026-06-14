@@ -800,7 +800,13 @@ function AddressFields({
       );
       if (res.result === 'valid') {
         setFeedback({ type: 'valid' });
-      } else if (res.suggested && hasSuggestion(res.suggested)) {
+      } else if (
+        res.suggested &&
+        hasSuggestion(res.suggested) &&
+        suggestionDiffers(res.suggested, address)
+      ) {
+        // Only offer the suggestion when it would actually change something —
+        // Telnyx echoes the input back when it has no real correction.
         setFeedback({ type: 'suggestion', suggested: res.suggested });
       } else {
         setFeedback({ type: 'invalid' });
@@ -894,6 +900,22 @@ type AddressFeedback =
 
 function hasSuggestion(s: AddressSuggestion): boolean {
   return Object.values(s).some((v) => typeof v === 'string' && v.trim() !== '');
+}
+
+const norm = (v?: string) => (v ?? '').trim().toLowerCase();
+
+/** True when the suggestion would actually change any current address field. */
+function suggestionDiffers(s: AddressSuggestion, a: AddressForm): boolean {
+  return (
+    (!!s.streetAddress && norm(s.streetAddress) !== norm(a.streetAddress)) ||
+    (!!s.extendedAddress &&
+      norm(s.extendedAddress) !== norm(a.extendedAddress)) ||
+    (!!s.locality && norm(s.locality) !== norm(a.locality)) ||
+    (!!s.administrativeArea &&
+      norm(s.administrativeArea) !== norm(a.administrativeArea)) ||
+    (!!s.postalCode && norm(s.postalCode) !== norm(a.postalCode)) ||
+    (!!s.countryCode && norm(s.countryCode) !== norm(a.countryCode))
+  );
 }
 
 function AddressValidationFeedback({

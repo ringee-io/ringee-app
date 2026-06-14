@@ -442,11 +442,24 @@ export class TelnyxService implements TelephonyService {
       }
     }
 
-    const { data } = await this.telnyxClient.post(
-      "/addresses/actions/validate",
-      payload,
-    );
+    // Telnyx returns the validation result for an *invalid* address with a
+    // non-2xx status: the `{ data: { result, suggested } }` payload sits next to
+    // a top-level `errors` array. Recover that body from the thrown exception
+    // instead of surfacing it as a failure, so the UI can show the verdict.
+    let body: any;
+    try {
+      body = await this.telnyxClient.post(
+        "/addresses/actions/validate",
+        payload,
+      );
+    } catch (err) {
+      body = err instanceof HttpException ? err.getResponse() : undefined;
+      if (!body || typeof body !== "object" || !("data" in body)) {
+        throw err;
+      }
+    }
 
+    const data = body?.data;
     const s = data?.suggested;
     const suggested = s
       ? {
@@ -462,7 +475,7 @@ export class TelnyxService implements TelephonyService {
     return {
       result: data?.result === "valid" ? "valid" : "invalid",
       suggested,
-      errors: (data?.errors ?? []).map((e: Record<string, any>) => ({
+      errors: (body?.errors ?? []).map((e: Record<string, any>) => ({
         field: e?.source?.pointer
           ? String(e.source.pointer).replace(/^\//, "")
           : undefined,
