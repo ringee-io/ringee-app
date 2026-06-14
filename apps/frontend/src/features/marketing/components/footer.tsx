@@ -1,5 +1,9 @@
 import Link from 'next/link';
-import { IconBrandGithub, IconBrandReddit, IconBrandX } from '@tabler/icons-react';
+import {
+  IconBrandGithub,
+  IconBrandReddit,
+  IconBrandX
+} from '@tabler/icons-react';
 
 import { Container } from './primitives';
 import { FOOTER_COLUMNS, GITHUB_URL, SITE_NAME } from '../site';
@@ -9,8 +13,8 @@ export function MarketingFooter() {
   return (
     <footer className='border-border/40 mt-8 border-t'>
       <Container className='py-14'>
-        <div className='grid grid-cols-2 gap-10 md:grid-cols-5'>
-          <div className='col-span-2 md:col-span-1'>
+        <div className='grid grid-cols-2 gap-10 md:grid-cols-3 lg:grid-cols-6'>
+          <div className='col-span-2 md:col-span-3 lg:col-span-1'>
             <Link
               href='/'
               className='text-lg font-bold tracking-tight'
@@ -28,16 +32,22 @@ export function MarketingFooter() {
             <nav key={column.title} aria-label={column.title}>
               <h2 className='text-sm font-semibold'>{column.title}</h2>
               <ul className='mt-4 flex flex-col gap-2.5'>
-                {column.links.map((link) => (
-                  <li key={link.href + link.label}>
-                    <Link
-                      href={link.href}
-                      className='text-muted-foreground hover:text-foreground text-sm'
-                    >
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
+                {column.links.map((link) => {
+                  const external = link.href.startsWith('http');
+                  return (
+                    <li key={link.href + link.label}>
+                      <Link
+                        href={link.href}
+                        className='text-muted-foreground hover:text-foreground text-sm'
+                        {...(external
+                          ? { target: '_blank', rel: 'noreferrer noopener' }
+                          : {})}
+                      >
+                        {link.label}
+                      </Link>
+                    </li>
+                  );
+                })}
               </ul>
             </nav>
           ))}

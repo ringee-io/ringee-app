@@ -11,6 +11,10 @@ export const SITE_URL = 'https://www.ringee.io';
 export const SITE_NAME = 'Ringee';
 export const GITHUB_URL = 'https://github.com/ringee-io/ringee-app';
 export const IOS_APP_URL = 'https://apps.apple.com/app/ringee-app/id6773448247';
+/** Public developer + content resources (live on their own subdomains). */
+export const DOCS_URL = 'https://docs.ringee.io';
+export const BLOG_URL = 'https://blog.ringee.io';
+export const CLI_NPM_URL = 'https://www.npmjs.com/package/ringee';
 export const SIGN_IN_URL = '/auth/sign-in';
 export const SIGN_UP_URL = '/auth/sign-up';
 
@@ -252,6 +256,16 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: 'Freelancers', href: '/use-cases/freelancers' },
       { label: 'Startups', href: '/use-cases/startups' },
       { label: 'Outbound sales', href: '/use-cases/outbound-sales' }
+    ]
+  },
+  {
+    title: 'Resources',
+    links: [
+      { label: 'Developer docs', href: DOCS_URL },
+      { label: 'Blog', href: BLOG_URL },
+      { label: 'CLI on npm', href: CLI_NPM_URL },
+      { label: 'iOS app', href: IOS_APP_URL },
+      { label: 'GitHub', href: GITHUB_URL }
     ]
   },
   {

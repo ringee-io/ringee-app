@@ -3,12 +3,15 @@ import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Metadata } from 'next';
-import { Check, Github } from 'lucide-react';
+import { ArrowRight, Check, Github } from 'lucide-react';
 
 import { buildMetadata } from '@/features/marketing/seo';
 import {
+  ButtonLink,
+  Card,
   Container,
   CtaButtons,
+  Eyebrow,
   Section,
   SectionHeading
 } from '@/features/marketing/components/primitives';
@@ -18,7 +21,13 @@ import {
   JsonLd,
   softwareAppJsonLd
 } from '@/features/marketing/components/json-ld';
-import { SITE_URL } from '@/features/marketing/site';
+import { DOCS_URL, SITE_URL } from '@/features/marketing/site';
+import { FEATURES } from '@/features/marketing/content/features';
+import {
+  INTEGRATIONS,
+  integrationsByCategory
+} from '@/features/marketing/content/integrations';
+import { USE_CASES } from '@/features/marketing/content/use-cases';
 
 export const metadata: Metadata = buildMetadata({
   title: 'Ringee — Affordable, Agentic Outbound Calling Software',
@@ -32,6 +41,11 @@ const PROOF_POINTS = [
   'Pay-as-you-go from $0.020/min',
   'Drive it from Claude, ChatGPT, MCP & CLI'
 ];
+
+const AI_TOOLS = integrationsByCategory('AI tools');
+
+const chip =
+  'border-border/70 bg-card hover:border-foreground/30 inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors';
 
 export default async function HomePage() {
   const { userId } = await auth();
@@ -79,8 +93,8 @@ export default async function HomePage() {
             <Image
               src='/hero/white.png'
               alt='Ringee dialer and call workspace'
-              width={3022}
-              height={1538}
+              width={3024}
+              height={1964}
               priority
               sizes='(min-width: 1024px) 50vw, 100vw'
               className='block h-auto w-full dark:hidden'
@@ -88,12 +102,92 @@ export default async function HomePage() {
             <Image
               src='/hero/dark.png'
               alt='Ringee dialer and call workspace'
-              width={3016}
-              height={2528}
+              width={3024}
+              height={1964}
               priority
               sizes='(min-width: 1024px) 50vw, 100vw'
-              className='hidden w-full dark:block'
+              className='hidden h-auto w-full dark:block'
             />
+          </div>
+        </Container>
+      </Section>
+
+      {/* Full feature catalog — internal linking from the home page */}
+      <Section className='py-16 sm:py-20'>
+        <Container>
+          <SectionHeading
+            eyebrow='Everything outbound'
+            title='One tool for the entire outbound loop'
+            description='Call, record, transcribe, follow up, sync your CRM, and automate the busywork with AI — without stitching together a stack of expensive point tools.'
+          />
+          <div className='mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3'>
+            {FEATURES.map((feature) => (
+              <Link key={feature.slug} href={`/features/${feature.slug}`}>
+                <Card className='hover:border-foreground/30 flex h-full flex-col transition-colors'>
+                  <div className='flex items-center justify-between gap-2'>
+                    <feature.icon className='text-primary h-6 w-6' />
+                    <ArrowRight className='text-muted-foreground h-4 w-4' />
+                  </div>
+                  <h3 className='mt-4 text-lg font-semibold'>{feature.name}</h3>
+                  <p className='text-muted-foreground mt-2 text-sm'>
+                    {feature.tagline}
+                  </p>
+                </Card>
+              </Link>
+            ))}
+          </div>
+          <div className='mt-8 text-center'>
+            <Link
+              href='/features'
+              className='inline-flex items-center gap-1 text-sm font-semibold text-emerald-600 hover:underline dark:text-emerald-400'
+            >
+              Explore all features <ArrowRight className='h-4 w-4' />
+            </Link>
+          </div>
+        </Container>
+      </Section>
+
+      {/* Agentic differentiator — text-rich for AI search engines (GEO) */}
+      <Section className='bg-muted/20 py-16 sm:py-20'>
+        <Container className='grid items-center gap-12 lg:grid-cols-2'>
+          <div>
+            <Eyebrow>Agentic by design</Eyebrow>
+            <h2 className='mt-4 text-3xl font-bold tracking-tight text-balance sm:text-4xl'>
+              Drive outbound from the AI you already use
+            </h2>
+            <p className='text-muted-foreground mt-5 text-lg text-pretty'>
+              Ringee ships a Model Context Protocol (MCP) server, so Claude,
+              ChatGPT, any MCP-compatible agent, or the command line can
+              prospect leads, build call lists, log outcomes, and book
+              follow-ups for you. Agents handle the busywork; a human always
+              takes the call.
+            </p>
+            <div className='mt-8 flex flex-wrap gap-3'>
+              <ButtonLink href='/features/ai-call-automation' withArrow>
+                See AI automation
+              </ButtonLink>
+              <ButtonLink
+                href={DOCS_URL}
+                variant='secondary'
+                external
+                withArrow
+              >
+                Developer docs
+              </ButtonLink>
+            </div>
+          </div>
+          <div className='grid grid-cols-2 gap-4'>
+            {AI_TOOLS.map((tool) => (
+              <Link key={tool.slug} href={`/integrations/${tool.slug}`}>
+                <Card className='hover:border-foreground/30 flex h-full flex-col transition-colors'>
+                  <tool.icon className='text-primary h-6 w-6' />
+                  <h3 className='mt-3 font-semibold'>{tool.name}</h3>
+                  <p className='text-muted-foreground mt-1 text-sm'>
+                    {tool.tagline}
+                  </p>
+                </Card>
+              </Link>
+            ))}
           </div>
         </Container>
       </Section>
@@ -108,6 +202,52 @@ export default async function HomePage() {
           />
           <div className='mt-10'>
             <ScalabilityCalculator />
+          </div>
+        </Container>
+      </Section>
+
+      {/* Use cases + integrations — more internal links to money pages */}
+      <Section className='py-16 sm:py-20'>
+        <Container className='grid gap-12 lg:grid-cols-2'>
+          <div>
+            <h2 className='text-2xl font-bold tracking-tight'>
+              Built for outbound teams
+            </h2>
+            <p className='text-muted-foreground mt-2'>
+              SDRs, recruiters, agencies, freelancers, and founders run their
+              calling on Ringee.
+            </p>
+            <div className='mt-6 flex flex-wrap gap-2.5'>
+              {USE_CASES.map((useCase) => (
+                <Link
+                  key={useCase.slug}
+                  href={`/use-cases/${useCase.slug}`}
+                  className={chip}
+                >
+                  {useCase.name}
+                </Link>
+              ))}
+            </div>
+          </div>
+          <div>
+            <h2 className='text-2xl font-bold tracking-tight'>
+              Connects to your stack
+            </h2>
+            <p className='text-muted-foreground mt-2'>
+              Pull leads, keep your CRM in sync, and book meetings to your
+              calendar — Ringee fits the tools you already use.
+            </p>
+            <div className='mt-6 flex flex-wrap gap-2.5'>
+              {INTEGRATIONS.map((integration) => (
+                <Link
+                  key={integration.slug}
+                  href={`/integrations/${integration.slug}`}
+                  className={chip}
+                >
+                  {integration.name}
+                </Link>
+              ))}
+            </div>
           </div>
         </Container>
       </Section>

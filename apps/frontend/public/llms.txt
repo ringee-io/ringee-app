@@ -61,3 +61,11 @@
 - Security: https://www.ringee.io/security
 - Open source: https://www.ringee.io/open-source
 - Self-hosted: https://www.ringee.io/self-hosted
+
+## Resources
+
+- Developer documentation: https://docs.ringee.io
+- Blog: https://blog.ringee.io
+- Command-line interface (the `ringee` CLI on npm): https://www.npmjs.com/package/ringee
+- iOS app (Apple App Store): https://apps.apple.com/app/ringee-app/id6773448247
+- Source code (GitHub): https://github.com/ringee-io/ringee-app

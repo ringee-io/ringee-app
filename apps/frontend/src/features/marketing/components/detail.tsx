@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, X } from 'lucide-react';
 
 import {
   Card,
@@ -183,7 +183,17 @@ export function ProblemSolution({
         <div className='grid gap-12 lg:grid-cols-2'>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>The challenge</h2>
-            <CheckList items={painPoints} className='mt-6' />
+            <ul className='mt-6 flex flex-col gap-3'>
+              {painPoints.map((item) => (
+                <li key={item} className='flex items-start gap-3'>
+                  <X
+                    className='mt-0.5 h-5 w-5 shrink-0 text-rose-500/80 dark:text-rose-400/80'
+                    aria-hidden
+                  />
+                  <span className='text-muted-foreground'>{item}</span>
+                </li>
+              ))}
+            </ul>
           </div>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>

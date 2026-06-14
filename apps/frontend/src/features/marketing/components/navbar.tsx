@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useTheme } from 'next-themes';
@@ -23,7 +24,7 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 
 import { Logo } from '@/features/landing/components/navbar/logo';
-import { CTA, MAIN_NAV, PRODUCT_MENU } from '../site';
+import { CTA, DOCS_URL, MAIN_NAV, PRODUCT_MENU } from '../site';
 
 const GROUP_ICONS: Record<string, LucideIcon> = {
   Communicate: PhoneOutgoing,
@@ -143,6 +144,14 @@ function ProductMenu() {
               >
                 Integrations <ArrowRight className='h-3.5 w-3.5' />
               </Link>
+              <Link
+                href={DOCS_URL}
+                target='_blank'
+                rel='noreferrer noopener'
+                className='inline-flex items-center gap-1 text-emerald-600 hover:underline dark:text-emerald-400'
+              >
+                Developer docs <ArrowRight className='h-3.5 w-3.5' />
+              </Link>
             </div>
           </div>
         </div>
@@ -153,6 +162,9 @@ function ProductMenu() {
 
 function MobileMenu() {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => setMounted(true), []);
 
   useEffect(() => {
     if (open) document.documentElement.style.overflow = 'hidden';
@@ -173,76 +185,81 @@ function MobileMenu() {
         <Menu className='h-5 w-5' />
       </button>
 
-      {open ? (
-        <div className='bg-background fixed inset-0 z-[60] flex flex-col overflow-y-auto'>
-          <div className='border-border/40 flex items-center justify-between border-b px-6 py-4'>
-            <Link href='/' onClick={() => setOpen(false)}>
-              <Logo />
-            </Link>
-            <button
-              type='button'
-              aria-label='Close menu'
-              onClick={() => setOpen(false)}
-              className='border-border/70 inline-flex h-9 w-9 items-center justify-center rounded-lg border'
-            >
-              <X className='h-5 w-5' />
-            </button>
-          </div>
-
-          <div className='flex flex-col gap-6 px-6 py-6'>
-            {PRODUCT_MENU.map((group) => {
-              const Icon = GROUP_ICONS[group.title] ?? PhoneOutgoing;
-              return (
-                <div key={group.title}>
-                  <p className='text-muted-foreground flex items-center gap-2 text-xs font-semibold tracking-wide uppercase'>
-                    <Icon className='h-4 w-4 text-emerald-600 dark:text-emerald-400' />
-                    {group.title}
-                  </p>
-                  <ul className='border-border/50 mt-2 ml-2 flex flex-col gap-1.5 border-l pl-4'>
-                    {group.links.map((link) => (
-                      <li key={`${group.title}-${link.label}`}>
-                        <Link
-                          href={link.href}
-                          onClick={() => setOpen(false)}
-                          className='block py-0.5 text-base font-medium'
-                        >
-                          {link.label}
-                        </Link>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              );
-            })}
-
-            <div className='border-border/50 flex flex-col gap-3 border-t pt-5'>
-              {MAIN_NAV.map((link) => (
-                <Link
-                  key={link.href}
-                  href={link.href}
-                  onClick={() => setOpen(false)}
-                  className='text-base font-medium'
-                >
-                  {link.label}
+      {/* Rendered through a portal so `fixed` resolves against the viewport
+          and not the navbar's backdrop-filter containing block. */}
+      {open && mounted
+        ? createPortal(
+            <div className='bg-background fixed inset-0 z-[60] flex flex-col overflow-y-auto'>
+              <div className='border-border/40 flex items-center justify-between border-b px-6 py-4'>
+                <Link href='/' onClick={() => setOpen(false)}>
+                  <Logo />
                 </Link>
-              ))}
-            </div>
+                <button
+                  type='button'
+                  aria-label='Close menu'
+                  onClick={() => setOpen(false)}
+                  className='border-border/70 inline-flex h-9 w-9 items-center justify-center rounded-lg border'
+                >
+                  <X className='h-5 w-5' />
+                </button>
+              </div>
 
-            <div className='mt-2 flex flex-col gap-3'>
-              <Link href={CTA.login.href} onClick={() => setOpen(false)}>
-                <Button variant='outline' className='w-full'>
-                  {CTA.login.label}
-                </Button>
-              </Link>
-              <Link href={CTA.primary.href} onClick={() => setOpen(false)}>
-                <Button className='w-full bg-emerald-600 text-white hover:bg-emerald-600/90'>
-                  {CTA.primary.label}
-                </Button>
-              </Link>
-            </div>
-          </div>
-        </div>
-      ) : null}
+              <div className='flex flex-col gap-6 px-6 py-6'>
+                {PRODUCT_MENU.map((group) => {
+                  const Icon = GROUP_ICONS[group.title] ?? PhoneOutgoing;
+                  return (
+                    <div key={group.title}>
+                      <p className='text-muted-foreground flex items-center gap-2 text-xs font-semibold tracking-wide uppercase'>
+                        <Icon className='h-4 w-4 text-emerald-600 dark:text-emerald-400' />
+                        {group.title}
+                      </p>
+                      <ul className='border-border/50 mt-2 ml-2 flex flex-col gap-1.5 border-l pl-4'>
+                        {group.links.map((link) => (
+                          <li key={`${group.title}-${link.label}`}>
+                            <Link
+                              href={link.href}
+                              onClick={() => setOpen(false)}
+                              className='block py-0.5 text-base font-medium'
+                            >
+                              {link.label}
+                            </Link>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  );
+                })}
+
+                <div className='border-border/50 flex flex-col gap-3 border-t pt-5'>
+                  {MAIN_NAV.map((link) => (
+                    <Link
+                      key={link.href}
+                      href={link.href}
+                      onClick={() => setOpen(false)}
+                      className='text-base font-medium'
+                    >
+                      {link.label}
+                    </Link>
+                  ))}
+                </div>
+
+                <div className='mt-2 flex flex-col gap-3'>
+                  <Link href={CTA.login.href} onClick={() => setOpen(false)}>
+                    <Button variant='outline' className='w-full'>
+                      {CTA.login.label}
+                    </Button>
+                  </Link>
+                  <Link href={CTA.primary.href} onClick={() => setOpen(false)}>
+                    <Button className='w-full bg-emerald-600 text-white hover:bg-emerald-600/90'>
+                      {CTA.primary.label}
+                    </Button>
+                  </Link>
+                </div>
+              </div>
+            </div>,
+            document.body
+          )
+        : null}
     </div>
   );
 }

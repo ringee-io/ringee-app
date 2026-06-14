@@ -1,6 +1,14 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { Bot, Github, ServerCog, Terminal, Workflow } from 'lucide-react';
+import {
+  BookText,
+  Bot,
+  Github,
+  Package,
+  ServerCog,
+  Terminal,
+  Workflow
+} from 'lucide-react';
 
 import { buildMetadata } from '@/features/marketing/seo';
 import {
@@ -13,7 +21,7 @@ import {
 import { Breadcrumbs } from '@/features/marketing/components/breadcrumbs';
 import { CtaSection } from '@/features/marketing/components/cta-section';
 import { FaqSection } from '@/features/marketing/components/faq';
-import { GITHUB_URL } from '@/features/marketing/site';
+import { CLI_NPM_URL, DOCS_URL, GITHUB_URL } from '@/features/marketing/site';
 
 export const metadata: Metadata = buildMetadata({
   title: 'Open Source Outbound Calling | Ringee',
@@ -129,19 +137,38 @@ export default function OpenSourcePage() {
               <div>
                 <h2 className='text-xl font-semibold'>Explore the project</h2>
                 <p className='text-muted-foreground mt-2 max-w-2xl text-sm'>
-                  See how Ringee is built, open issues, and follow development on
+                  Read the developer docs, install the <code>ringee</code> CLI
+                  from npm, see how Ringee is built, and follow development on
                   GitHub.
                 </p>
               </div>
             </div>
-            <Link
-              href={GITHUB_URL}
-              target='_blank'
-              rel='noreferrer noopener'
-              className='inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-neutral-900 px-6 text-sm font-semibold text-white dark:bg-white dark:text-neutral-900'
-            >
-              <Github className='h-4 w-4' /> Open GitHub
-            </Link>
+            <div className='flex flex-wrap items-center gap-3'>
+              <Link
+                href={DOCS_URL}
+                target='_blank'
+                rel='noreferrer noopener'
+                className='border-border/80 hover:bg-muted/60 inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border px-5 text-sm font-semibold'
+              >
+                <BookText className='h-4 w-4' /> Docs
+              </Link>
+              <Link
+                href={CLI_NPM_URL}
+                target='_blank'
+                rel='noreferrer noopener'
+                className='border-border/80 hover:bg-muted/60 inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl border px-5 text-sm font-semibold'
+              >
+                <Package className='h-4 w-4' /> CLI on npm
+              </Link>
+              <Link
+                href={GITHUB_URL}
+                target='_blank'
+                rel='noreferrer noopener'
+                className='inline-flex h-11 shrink-0 items-center justify-center gap-2 rounded-xl bg-neutral-900 px-5 text-sm font-semibold text-white dark:bg-white dark:text-neutral-900'
+              >
+                <Github className='h-4 w-4' /> GitHub
+              </Link>
+            </div>
           </Card>
         </Container>
       </Section>

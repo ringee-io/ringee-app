@@ -98,13 +98,16 @@ export function SectionHeading({
 /** A bordered card surface. */
 export function Card({
   children,
-  className
+  className,
+  id
 }: {
   children: ReactNode;
   className?: string;
+  id?: string;
 }) {
   return (
     <div
+      id={id}
       className={cn(
         'border-border/70 bg-card text-card-foreground rounded-2xl border p-6 shadow-sm',
         className
