@@ -120,7 +120,7 @@ export default async function HomePage() {
       </Section>
 
       {/* Full feature catalog — internal linking from the home page */}
-      <Section className='py-16 sm:py-20'>
+      {/* <Section className='py-16 sm:py-20'>
         <Container>
           <SectionHeading
             eyebrow='Everything outbound'
@@ -152,10 +152,10 @@ export default async function HomePage() {
             </Link>
           </div>
         </Container>
-      </Section>
+      </Section> */}
 
       {/* Agentic differentiator — text-rich for AI search engines (GEO) */}
-      <Section className='bg-muted/20 py-16 sm:py-20'>
+      {/* <Section className='bg-muted/20 py-16 sm:py-20'>
         <Container className='grid items-center gap-12 lg:grid-cols-2'>
           <div>
             <Eyebrow>Agentic by design</Eyebrow>
@@ -197,7 +197,7 @@ export default async function HomePage() {
             ))}
           </div>
         </Container>
-      </Section>
+      </Section> */}
 
       {/* Scalability cost calculator */}
       <Section className='py-16 sm:py-20'>
@@ -214,7 +214,7 @@ export default async function HomePage() {
       </Section>
 
       {/* Use cases + integrations — more internal links to money pages */}
-      <Section className='py-16 sm:py-20'>
+      {/* <Section className='py-16 sm:py-20'>
         <Container className='grid gap-12 lg:grid-cols-2'>
           <div>
             <h2 className='text-2xl font-bold tracking-tight'>
@@ -257,7 +257,7 @@ export default async function HomePage() {
             </div>
           </div>
         </Container>
-      </Section>
+      </Section> */}
 
       <CtaSection />
 
