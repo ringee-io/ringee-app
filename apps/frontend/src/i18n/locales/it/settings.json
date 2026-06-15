@@ -50,6 +50,10 @@
         "confirmDescription": "{phone} — {currency} {monthly}/mese",
         "confirm": "Acquista",
         "cancel": "Annulla",
+        "continue": "Continua",
+        "requirementsTitle": "Documenti richiesti per questo numero",
+        "requirementsDescription": "{phone} ({country}) richiede una verifica normativa. Dopo l'acquisto dovrai fornire quanto segue prima che il numero possa essere attivato:",
+        "requirementsNote": "Puoi inviare questi documenti in qualsiasi momento dopo l'acquisto dalla scheda I miei numeri.",
         "success": "Numero acquistato",
         "error": "Impossibile acquistare il numero"
       }

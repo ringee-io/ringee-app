@@ -50,6 +50,10 @@
         "confirmDescription": "{phone} — {currency} {monthly}/Monat",
         "confirm": "Kaufen",
         "cancel": "Abbrechen",
+        "continue": "Weiter",
+        "requirementsTitle": "Für diese Nummer erforderliche Dokumente",
+        "requirementsDescription": "{phone} ({country}) erfordert eine behördliche Überprüfung. Nach dem Kauf müssen Sie Folgendes bereitstellen, bevor die Nummer aktiviert werden kann:",
+        "requirementsNote": "Sie können diese Dokumente jederzeit nach dem Kauf über den Tab „Meine Nummern“ einreichen.",
         "success": "Nummer gekauft",
         "error": "Nummer konnte nicht gekauft werden"
       }

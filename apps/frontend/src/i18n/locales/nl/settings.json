@@ -50,6 +50,10 @@
         "confirmDescription": "{phone} — {currency} {monthly}/maand",
         "confirm": "Kopen",
         "cancel": "Annuleren",
+        "continue": "Doorgaan",
+        "requirementsTitle": "Vereiste documenten voor dit nummer",
+        "requirementsDescription": "{phone} ({country}) vereist een wettelijke verificatie. Na aankoop moet je het volgende aanleveren voordat het nummer kan worden geactiveerd:",
+        "requirementsNote": "Je kunt deze documenten op elk moment na aankoop indienen via het tabblad Mijn nummers.",
         "success": "Nummer gekocht",
         "error": "Kon het nummer niet kopen"
       }

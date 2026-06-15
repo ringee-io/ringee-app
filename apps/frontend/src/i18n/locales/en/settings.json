@@ -50,6 +50,10 @@
         "confirmDescription": "{phone} — {currency} {monthly}/month",
         "confirm": "Buy",
         "cancel": "Cancel",
+        "continue": "Continue",
+        "requirementsTitle": "Documents required for this number",
+        "requirementsDescription": "{phone} ({country}) requires regulatory verification. After purchasing, you will need to provide the following before the number can be activated:",
+        "requirementsNote": "You can submit these documents anytime after purchase from the My Numbers tab.",
         "success": "Number purchased",
         "error": "Could not purchase the number"
       }
