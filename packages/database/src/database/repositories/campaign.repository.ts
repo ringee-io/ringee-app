@@ -10,6 +10,25 @@ export interface CampaignWithLeadsCount extends Campaign {
 export class CampaignRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Minimal campaign list scoped to an ownership context, for the AI pipeline
+   * activation tables. Org context returns the org's campaigns; personal
+   * context returns the user's campaigns with no organization.
+   */
+  async listForPipelineOwner(owner: {
+    userId: string;
+    organizationId?: string | null;
+  }): Promise<{ id: string; name: string; organizationId: string | null }[]> {
+    const where: Prisma.CampaignWhereInput = owner.organizationId
+      ? { organizationId: owner.organizationId }
+      : { userId: owner.userId, organizationId: null };
+    return this.prisma.campaign.findMany({
+      where,
+      select: { id: true, name: true, organizationId: true },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
   async create(
     userId: string,
     organizationId: string,

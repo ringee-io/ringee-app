@@ -26,6 +26,7 @@ import {
   buildMeetingEventData,
   callOwnershipFromCall,
 } from "./custom-integrations/custom-integration-event-builders";
+import { PipelineFanoutService } from "./ai-pipeline";
 
 @Injectable()
 export class MeetingService {
@@ -40,6 +41,7 @@ export class MeetingService {
     private readonly reminderService: ReminderService,
     private readonly contactRepo: ContactRepository,
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
+    private readonly pipelineFanout: PipelineFanoutService,
   ) {}
 
   private async enqueueMeetingCreated(meeting: Meeting): Promise<void> {
@@ -57,6 +59,10 @@ export class MeetingService {
   }
 
   private async enqueueOutcomeUpdated(call: Call): Promise<void> {
+    // AI Pipeline: fan out the finalized outcome to enabled pipelines (counters
+    // + Layer 1 rule actions). Fire-and-forget; never blocks the outcome write.
+    this.pipelineFanout.handleCallFinalized(call.id);
+
     const ctx = callOwnershipFromCall(call);
     if (!ctx) return;
     void this.customIntegrationOutbound.enqueue({

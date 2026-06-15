@@ -2863,3 +2863,207 @@ model CallTranscription {
   @@index([organizationId])
   @@index([status])
 }
+
+// ── AI Pipeline & Pending Actions ──
+// Configuration + intelligence layer. Each pipeline is independent and every
+// result/counter belongs to exactly one (pipeline, context). Context is one of:
+// a campaign, an organization's calls outside any campaign, or a single user's
+// personal calls. Precedence is campaign > organization_outside_campaign >
+// personal. See packages/services/src/services/ai-pipeline for the resolver.
+
+enum AiPipelineType {
+  follow_up_recommendations
+  script_optimization
+  objection_intelligence
+}
+
+enum AiPipelineContextType {
+  campaign
+  organization_outside_campaign
+  personal
+}
+
+enum AiConfidenceLevel {
+  low
+  medium
+  high
+}
+
+enum AiPipelineRunStatus {
+  running
+  completed
+  failed
+}
+
+enum AiPipelineRunTrigger {
+  manual
+  scheduled
+}
+
+enum PendingActionType {
+  send_follow_up
+  create_callback
+  book_meeting
+  ask_for_referral
+  send_pricing_or_info
+  update_crm
+  add_to_nurture
+  mark_not_interested
+  review_call
+  review_script_suggestion
+  approve_script_version
+  review_objection_response
+  add_objection_response_to_script
+  review_campaign_insight
+}
+
+enum PendingActionStatus {
+  pending
+  completed
+  dismissed
+  snoozed
+}
+
+enum PendingActionPriority {
+  low
+  medium
+  high
+}
+
+enum PendingActionSource {
+  rule
+  ai
+  manual
+}
+
+// One activation row per (pipelineType, contextKey). `enabled` gates whether the
+// pipeline counts calls and runs analysis for that context. Counters here drive
+// the cadence decision and the UI; they are denormalized and made idempotent by
+// CallAnalysis.countedPipelines.
+model AiPipelineActivation {
+  id           String                @id @default(uuid()) @db.Uuid
+  pipelineType AiPipelineType
+  contextType  AiPipelineContextType
+  contextKey   String
+
+  // Denormalized owners for scoping/listing (which one is set depends on
+  // contextType). campaignId is the campaign; organizationId is the campaign's
+  // org for campaign context, or the org for organization_outside_campaign.
+  campaignId     String? @db.Uuid
+  organizationId String? @db.Uuid
+  userId         String? @db.Uuid
+
+  enabled                 Boolean            @default(false)
+  lastRunAt               DateTime?
+  newEligibleSinceLastRun Int                @default(0)
+  pendingActionCount      Int                @default(0)
+  lastConfidence          AiConfidenceLevel?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([pipelineType, contextKey])
+  @@index([contextKey])
+  @@index([campaignId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+// One run record per analysis invocation. At most one row with status=running
+// per (pipelineType, contextKey) — enforced by a partial unique index created in
+// the migration (Prisma cannot express a WHERE clause on @@unique).
+model AiPipelineRun {
+  id            String               @id @default(uuid()) @db.Uuid
+  pipelineType  AiPipelineType
+  contextKey    String
+  status        AiPipelineRunStatus  @default(running)
+  trigger       AiPipelineRunTrigger
+  eligibleCount Int                  @default(0)
+  confidence    AiConfidenceLevel?
+  resultJson    Json?
+  error         String?              @db.Text
+  startedAt     DateTime             @default(now())
+  finishedAt    DateTime?
+
+  @@index([pipelineType, contextKey, status])
+  @@index([contextKey])
+}
+
+// One structured extraction per call, computed once and read by every pipeline
+// (pipelines never re-parse a transcript). contextKey is the resolved pipeline
+// context for the call, stored so batch runs can enumerate eligible calls
+// cheaply. Add only because no equivalent analysis model existed.
+model CallAnalysis {
+  id     String @id @default(uuid()) @db.Uuid
+  callId String @unique @db.Uuid
+
+  contextType AiPipelineContextType?
+  contextKey  String?
+
+  outcomeClass        String?
+  durationBucket      String? // too_short | short | normal | long
+  hasUsableTranscript Boolean @default(false)
+  objections          Json? // [{ type, evidenceExcerpt }]
+  intentSignals       Json? // string[]
+  notablePhrases      Json? // string[]
+  language            String?
+  model               String?
+
+  // Idempotency for the call-finalized fan-out: pipelines that have already
+  // counted this call toward newEligibleSinceLastRun. Guards against the
+  // outcome event firing more than once for the same call.
+  countedPipelines AiPipelineType[] @default([])
+
+  analyzedAt DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([contextKey])
+}
+
+// The user's execution center. An action belongs to exactly one (pipeline,
+// context). FK columns are unenforced (idiomatic here — see CallSessionItem);
+// the repository enriches contact/call/campaign for display.
+model PendingAction {
+  id String @id @default(uuid()) @db.Uuid
+
+  type     PendingActionType
+  status   PendingActionStatus   @default(pending)
+  priority PendingActionPriority @default(medium)
+  source   PendingActionSource
+
+  title            String
+  reason           String?   @db.Text
+  suggestedMessage String?   @db.Text
+  nextBestAction   String?   @db.Text
+  dueAt            DateTime?
+
+  snoozedUntil      DateTime?
+  expiresAt         DateTime?
+  countsTowardBadge Boolean   @default(true)
+
+  // Traceability + scoping
+  pipelineType   AiPipelineType?
+  contextType    AiPipelineContextType
+  contextKey     String
+  campaignId     String?               @db.Uuid
+  organizationId String?               @db.Uuid
+  userId         String                @db.Uuid
+  contactId      String?               @db.Uuid
+  callId         String?               @db.Uuid
+
+  // Dedupe grouped actions. Partial-unique on non-null values is created in the
+  // migration so re-firing the same rule does not duplicate an action.
+  groupKey String?
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  completedAt DateTime?
+
+  @@index([userId, status])
+  @@index([contextKey, status])
+  @@index([status, priority, dueAt])
+  @@index([campaignId])
+  @@index([organizationId])
+  @@index([contactId])
+  @@index([callId])
+}

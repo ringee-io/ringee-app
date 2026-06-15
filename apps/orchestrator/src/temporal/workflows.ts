@@ -107,3 +107,7 @@ export async function customIntegrationsDrainWorkflow(): Promise<void> {
 export async function numberVerificationCheckWorkflow(): Promise<void> {
   await periodicJobs.reconcileNumberVerifications();
 }
+
+export async function pipelineSchedulerWorkflow(): Promise<void> {
+  await periodicJobs.runDuePipelines();
+}

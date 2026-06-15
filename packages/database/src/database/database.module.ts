@@ -71,6 +71,10 @@ import { CustomIntegrationDeliveryRepository } from "./repositories/custom-integ
 import { CallSessionRepository } from "./repositories/call-session.repository";
 import { RegulatoryDocumentRepository } from "./repositories/regulatory-document.repository";
 import { NumberRequirementValueRepository } from "./repositories/number-requirement-value.repository";
+import { AiPipelineActivationRepository } from "./repositories/ai-pipeline-activation.repository";
+import { AiPipelineRunRepository } from "./repositories/ai-pipeline-run.repository";
+import { CallAnalysisRepository } from "./repositories/call-analysis.repository";
+import { PendingActionRepository } from "./repositories/pending-action.repository";
 
 const databaseProviders = [
   PrismaService,
@@ -143,6 +147,10 @@ const databaseProviders = [
   CallSessionRepository,
   RegulatoryDocumentRepository,
   NumberRequirementValueRepository,
+  AiPipelineActivationRepository,
+  AiPipelineRunRepository,
+  CallAnalysisRepository,
+  PendingActionRepository,
 ];
 
 @Global()

@@ -30,6 +30,11 @@ export class CallRepository {
     return this.prisma.call.findUnique({ where: { callControlId } });
   }
 
+  async findManyByIds(ids: string[]): Promise<Call[]> {
+    if (ids.length === 0) return [];
+    return this.prisma.call.findMany({ where: { id: { in: ids } } });
+  }
+
   async findBySessionId(callSessionId: string): Promise<Call[]> {
     return this.prisma.call.findMany({ where: { callSessionId } });
   }

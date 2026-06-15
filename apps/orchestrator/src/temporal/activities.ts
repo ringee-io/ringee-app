@@ -7,6 +7,7 @@ import {
   CustomIntegrationDeliveryService,
   EnrichmentDrainService,
   NumberPurchasedService,
+  PipelineRunService,
   RecordingProcessingService,
   ReminderService,
   RetryEngine,
@@ -44,6 +45,7 @@ export function createActivities(app: INestApplicationContext) {
   const reminderService = app.get(ReminderService);
   const customIntegrationsDelivery = app.get(CustomIntegrationDeliveryService);
   const numberPurchasedService = app.get(NumberPurchasedService);
+  const pipelineRunService = app.get(PipelineRunService);
 
   return {
     // ── Event-driven jobs (started by the backend via OrchestratorService) ──
@@ -131,6 +133,12 @@ export function createActivities(app: INestApplicationContext) {
         await numberPurchasedService.reconcilePendingVerifications();
       if (count > 0)
         logger.debug(`NumberVerification: ${count} numbers transitioned`);
+    },
+
+    async runDuePipelines() {
+      const count = await pipelineRunService.runDueScheduled();
+      if (count > 0)
+        logger.debug(`PipelineScheduler: ${count} pipeline runs triggered`);
     },
   };
 }

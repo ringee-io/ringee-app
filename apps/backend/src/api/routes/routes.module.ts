@@ -55,6 +55,8 @@ import { CallSessionController } from "./call-session.controller";
 import { WellKnownController } from "./well-known.controller";
 import { CallRecordingSettingsController } from "./call-recording-settings.controller";
 import { TranscriptionController } from "./transcription.controller";
+import { AiPipelineController } from "./ai-pipeline.controller";
+import { PendingActionController } from "./pending-action.controller";
 
 @Module({
   controllers: [
@@ -104,6 +106,8 @@ import { TranscriptionController } from "./transcription.controller";
     WellKnownController,
     CallRecordingSettingsController,
     TranscriptionController,
+    AiPipelineController,
+    PendingActionController,
   ],
   // TranscriptionMediaGateway lives here (not in the shared ServicesModule) so
   // the Telnyx media-stream WS server binds its port only in the API process.

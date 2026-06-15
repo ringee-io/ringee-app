@@ -48,6 +48,7 @@ import { useDialerStore } from '@/features/calls/store/dialer.store';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import { usePendingActionsBadge } from '@/features/pending-actions/hooks/use-pending-actions-badge';
 
 /** Groups that require an active organization session */
 const ORG_ONLY_GROUPS = [''];
@@ -142,6 +143,7 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
   const hasActiveOrg = !!activeOrg;
   const { state: sidebarState } = useSidebar();
   const isCollapsed = sidebarState === 'collapsed';
+  const pendingActionsBadge = usePendingActionsBadge();
 
   return (
     <Sidebar collapsible='icon'>
@@ -247,6 +249,14 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                           {/* @ts-ignore */}
                           <Icon />
                           <span>{itemTitle}</span>
+                          {item.url === '/dashboard/pending-actions' &&
+                            pendingActionsBadge > 0 && (
+                              <span className='bg-primary text-primary-foreground ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums'>
+                                {pendingActionsBadge > 99
+                                  ? '99+'
+                                  : pendingActionsBadge}
+                              </span>
+                            )}
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
