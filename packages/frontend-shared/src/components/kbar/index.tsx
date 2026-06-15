@@ -33,6 +33,7 @@ const ITEM_TITLE_KEYS: Record<string, string> = {
   Campaigns: "items.campaigns",
   Callbacks: "items.callbacks",
   DNC: "items.dnc",
+  "AI Agents": "items.aiAgents",
   Overview: "items.overview",
   Integrations: "items.integrations",
 };

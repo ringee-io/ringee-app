@@ -32,6 +32,7 @@ export function UserNav({ useMock }: { useMock?: boolean }) {
     ? { canAccessAdminFeatures: true }
     : useOrgRole();
   const t = useTranslations('navigation.userMenu');
+  const tNavigation = useTranslations('navigation');
 
   if (user) {
     return (
@@ -76,6 +77,20 @@ export function UserNav({ useMock }: { useMock?: boolean }) {
               {/* @ts-ignore */}
               <Icons.mic className='mr-2 h-4 w-4' />
               {t('recordings')}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => router.push('/dashboard/settings/overview')}
+            >
+              {/* @ts-ignore */}
+              <Icons.settings className='mr-2 h-4 w-4' />
+              {tNavigation('groups.settings')}
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => router.push('/dashboard/settings/integrations')}
+            >
+              {/* @ts-ignore */}
+              <Icons.plug className='mr-2 h-4 w-4' />
+              {tNavigation('items.integrations')}
             </DropdownMenuItem>
           </DropdownMenuGroup>
 

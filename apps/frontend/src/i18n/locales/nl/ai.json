@@ -1,9 +1,9 @@
 {
   "launcher": {
-    "label": "AI Assistant",
+    "label": "AI Agents",
     "beta": "Bèta",
     "version": "v{version}",
-    "tooltipTitle": "AI Assistant",
+    "tooltipTitle": "AI Agents",
     "tooltipBeta": "Bèta · v{version}",
     "tooltipDescription": "Je AI-assistent voor prospecting — beschrijf je ideale klant en hij vindt, scoort en bewaart gekwalificeerde leads voor je. Meer agents (campagnes, CRM, gesprekscoaching en analytics) zijn onderweg."
   },
@@ -110,9 +110,9 @@
   },
   "outOfCredit": {
     "compactTitle": "Je credits zijn op",
-    "compactDescription": "Voeg credits toe om verder te chatten met de AI Assistant.",
+    "compactDescription": "Voeg credits toe om verder te chatten met de AI Agents.",
     "title": "Je hebt geen credits meer",
-    "description": "De AI Assistant wordt afgerekend per gebruikt token. Vul je saldo aan om een nieuw gesprek te starten en je prospecting-agent draaiende te houden.",
+    "description": "De AI Agents wordt afgerekend per gebruikt token. Vul je saldo aan om een nieuw gesprek te starten en je prospecting-agent draaiende te houden.",
     "addCredit": "Credits toevoegen"
   },
   "prospect": {

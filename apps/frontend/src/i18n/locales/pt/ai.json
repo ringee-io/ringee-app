@@ -1,9 +1,9 @@
 {
   "launcher": {
-    "label": "AI Assistant",
+    "label": "AI Agents",
     "beta": "Beta",
     "version": "v{version}",
-    "tooltipTitle": "AI Assistant",
+    "tooltipTitle": "AI Agents",
     "tooltipBeta": "Beta · v{version}",
     "tooltipDescription": "O seu assistente de IA para prospeção — descreva o seu cliente ideal e ele encontra, pontua e guarda leads qualificados por si. Mais agentes (campanhas, CRM, coaching de chamadas e análise) estão a caminho."
   },
@@ -110,9 +110,9 @@
   },
   "outOfCredit": {
     "compactTitle": "Ficou sem crédito",
-    "compactDescription": "Adicione crédito para continuar a conversar com o AI Assistant.",
+    "compactDescription": "Adicione crédito para continuar a conversar com o AI Agents.",
     "title": "Está sem crédito",
-    "description": "O AI Assistant é cobrado por token utilizado. Recarregue o seu saldo para iniciar uma nova conversa e manter o seu agente de prospeção ativo.",
+    "description": "O AI Agents é cobrado por token utilizado. Recarregue o seu saldo para iniciar uma nova conversa e manter o seu agente de prospeção ativo.",
     "addCredit": "Adicionar crédito"
   },
   "prospect": {

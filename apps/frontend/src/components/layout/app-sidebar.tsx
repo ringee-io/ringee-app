@@ -48,7 +48,6 @@ import { useDialerStore } from '@/features/calls/store/dialer.store';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { cn } from '@ringee/frontend-shared/lib/utils';
-import { usePendingActionsBadge } from '@/features/pending-actions/hooks/use-pending-actions-badge';
 
 /** Groups that require an active organization session */
 const ORG_ONLY_GROUPS = [''];
@@ -71,6 +70,7 @@ const ITEM_TITLE_KEYS: Record<string, string> = {
   Campaigns: 'items.campaigns',
   Callbacks: 'items.callbacks',
   DNC: 'items.dnc',
+  'AI Agents': 'items.aiAgents',
   Overview: 'items.overview',
   Integrations: 'items.integrations'
 };
@@ -143,7 +143,10 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
   const hasActiveOrg = !!activeOrg;
   const { state: sidebarState } = useSidebar();
   const isCollapsed = sidebarState === 'collapsed';
-  const pendingActionsBadge = usePendingActionsBadge();
+  const sidebarNavGroups = React.useMemo(
+    () => navGroups.filter((group) => group.label !== 'Settings'),
+    []
+  );
 
   return (
     <Sidebar collapsible='icon'>
@@ -160,7 +163,7 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
       </SidebarHeader>
 
       <SidebarContent className='overflow-x-hidden'>
-        {navGroups.map((group) => {
+        {sidebarNavGroups.map((group) => {
           const isOrgOnly = ORG_ONLY_GROUPS.includes(group.label);
           const isLocked = isOrgOnly && !hasActiveOrg;
           const groupKey = GROUP_LABEL_KEYS[group.label];
@@ -249,14 +252,6 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                           {/* @ts-ignore */}
                           <Icon />
                           <span>{itemTitle}</span>
-                          {item.url === '/dashboard/pending-actions' &&
-                            pendingActionsBadge > 0 && (
-                              <span className='bg-primary text-primary-foreground ml-auto rounded-full px-1.5 py-0.5 text-[10px] font-semibold tabular-nums'>
-                                {pendingActionsBadge > 99
-                                  ? '99+'
-                                  : pendingActionsBadge}
-                              </span>
-                            )}
                         </Link>
                       </SidebarMenuButton>
                     </SidebarMenuItem>
@@ -330,6 +325,22 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                     {/* @ts-ignore */}
                     <Icons.mic className='mr-2 h-4 w-4' />
                     {tNav('userMenu.recordings')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() => router.push('/dashboard/settings/overview')}
+                  >
+                    {/* @ts-ignore */}
+                    <Icons.settings className='mr-2 h-4 w-4' />
+                    {tNav('groups.settings')}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem
+                    onClick={() =>
+                      router.push('/dashboard/settings/integrations')
+                    }
+                  >
+                    {/* @ts-ignore */}
+                    <Icons.plug className='mr-2 h-4 w-4' />
+                    {tNav('items.integrations')}
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
 
