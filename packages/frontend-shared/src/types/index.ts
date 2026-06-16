@@ -3,6 +3,8 @@ import { Icons } from "../components/icons";
 export interface NavItem {
   title: string;
   url: string;
+  /** Hidden from org members; visible to org admins and freelancers (no org). */
+  adminOnly?: boolean;
   disabled?: boolean;
   external?: boolean;
   shortcut?: [string, string];

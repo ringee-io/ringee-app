@@ -89,6 +89,15 @@ const SCHEDULES: ScheduleDef[] = [
     every: "5m",
     catchupWindow: "30m",
   },
+  {
+    // AI pipeline batch cadence. The per-(pipeline,context) gating (every 4h OR
+    // 25 new eligible, min 5) is decided inside PipelineRunService; the poller
+    // just ticks often enough to honor that without much lag.
+    id: "ringee.ai-pipeline-scheduler",
+    workflow: WORKFLOW_NAMES.pipelineScheduler,
+    every: "15m",
+    catchupWindow: "1h",
+  },
 ];
 
 /**

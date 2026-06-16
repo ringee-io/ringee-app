@@ -57,6 +57,26 @@
   "selectThemePlaceholder": "Seleccionar tema",
   "platform": "Plataforma",
   "projects": "Proyectos",
+  "accessRestricted": {
+    "title": "Acceso restringido",
+    "description": "No tienes acceso a esta función. Contacta a un administrador de la organización si la necesitas."
+  },
+  "memberFilter": {
+    "all": "Todos los miembros",
+    "search": "Buscar miembros…",
+    "noMembers": "No se encontraron miembros",
+    "member": "Miembro"
+  },
+  "dateFilter": {
+    "filterByDate": "Filtrar por fecha",
+    "from": "Desde {date}",
+    "to": "Hasta {date}",
+    "clear": "Limpiar filtro de fecha"
+  },
+  "scope": {
+    "mine": "Míos",
+    "all": "Todos"
+  },
   "fileUpload": {
     "dropHere": "Suelta los archivos aquí",
     "dragAndDrop": "Arrastra y suelta archivos aquí, o haz clic para seleccionar",

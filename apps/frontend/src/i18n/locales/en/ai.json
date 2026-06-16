@@ -1,9 +1,9 @@
 {
   "launcher": {
-    "label": "AI Assistant",
+    "label": "AI Agents",
     "beta": "Beta",
     "version": "v{version}",
-    "tooltipTitle": "AI Assistant",
+    "tooltipTitle": "AI Agents",
     "tooltipBeta": "Beta · v{version}",
     "tooltipDescription": "Your AI assistant for prospecting — describe your ideal customer and it finds, scores and saves qualified leads for you. More agents (campaigns, CRM, call coaching and analytics) are on the way."
   },
@@ -110,9 +110,9 @@
   },
   "outOfCredit": {
     "compactTitle": "You've run out of credit",
-    "compactDescription": "Add credit to keep chatting with the AI Assistant.",
+    "compactDescription": "Add credit to keep chatting with the AI Agents.",
     "title": "You're out of credit",
-    "description": "The AI Assistant is billed per token used. Top up your balance to start a new conversation and keep your prospecting agent running.",
+    "description": "The AI Agents is billed per token used. Top up your balance to start a new conversation and keep your prospecting agent running.",
     "addCredit": "Add credit"
   },
   "prospect": {

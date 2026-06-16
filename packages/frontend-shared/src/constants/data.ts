@@ -114,6 +114,28 @@ export const navGroups: NavGroup[] = [
     ],
   },
   {
+    label: "Intelligence",
+    items: [
+      {
+        title: "AI Pipeline",
+        url: "/dashboard/ai-pipeline",
+        icon: "sparkles",
+        shortcut: ["a", "p"],
+        adminOnly: true,
+        isActive: false,
+        items: [],
+      },
+      {
+        title: "AI Agents",
+        url: "/dashboard/ai",
+        icon: "activity",
+        shortcut: ["a", "i"],
+        isActive: false,
+        items: [],
+      },
+    ],
+  },
+  {
     label: "Settings",
     items: [
       {

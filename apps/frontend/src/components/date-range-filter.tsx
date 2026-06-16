@@ -14,8 +14,13 @@ import { format } from 'date-fns';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useTranslations } from 'next-intl';
 
-export function RecordingsDateFilter() {
-  const t = useTranslations('calls.recordings.dateFilter');
+/**
+ * Shared `dateFrom`/`dateTo` range filter backed by URL query state, read by the
+ * server listings (history, recordings). Available to every role — date scoping
+ * is orthogonal to the admin-only member filter.
+ */
+export function DateRangeFilter() {
+  const t = useTranslations('common.dateFilter');
   const [dateFrom, setDateFrom] = useQueryState(
     'dateFrom',
     parseAsString.withDefault('')

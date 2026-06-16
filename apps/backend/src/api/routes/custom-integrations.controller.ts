@@ -18,6 +18,7 @@ import {
   CurrentUser,
   CurrentUserData,
   createOwnershipContext,
+  OrgAdminOnly,
 } from "@ringee/platform";
 import {
   CustomIntegrationDeliveryService,
@@ -40,6 +41,7 @@ interface UpdateBody {
 }
 
 @Controller("integrations/custom")
+@OrgAdminOnly()
 export class CustomIntegrationsController {
   constructor(
     private readonly integrations: CustomIntegrationService,

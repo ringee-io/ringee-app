@@ -107,12 +107,6 @@
       "callTitle": "Llamada: {from} → {to}",
       "decrypting": "Descifrando grabación…",
       "errorLoad": "No se pudo cargar la grabación. Inténtalo de nuevo."
-    },
-    "dateFilter": {
-      "filterByDate": "Filtrar por fecha",
-      "from": "Desde {date}",
-      "to": "Hasta {date}",
-      "clear": "Limpiar filtro de fecha"
     }
   },
   "callbacks": {

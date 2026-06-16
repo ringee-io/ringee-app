@@ -12,6 +12,7 @@ import { CreditService, UserService } from "@ringee/services";
 import {
   CurrentUser,
   createOwnershipContext,
+  OrgAdminOnly,
   UpdateAutoReloadSettingsDto,
   RequestCreditDto,
   ResendProvider,
@@ -134,6 +135,7 @@ export class CreditController {
   }
 
   @Get("auto-reload-settings")
+  @OrgAdminOnly()
   async getAutoReloadSettings(@CurrentUser() user: CurrentUserData) {
     const ctx = createOwnershipContext(user);
     const settings = await this.creditService.getAutoReloadSettings(ctx);
@@ -148,6 +150,7 @@ export class CreditController {
   }
 
   @Patch("auto-reload-settings")
+  @OrgAdminOnly()
   async updateAutoReloadSettings(
     @CurrentUser() user: CurrentUserData,
     @Body() body: UpdateAutoReloadSettingsDto,
@@ -166,6 +169,7 @@ export class CreditController {
   }
 
   @Delete("monthly-fund")
+  @OrgAdminOnly()
   async cancelMonthlyFund(@CurrentUser() user: CurrentUserData) {
     const ctx = createOwnershipContext(user);
     await this.creditService.disableMonthlyFund(ctx);

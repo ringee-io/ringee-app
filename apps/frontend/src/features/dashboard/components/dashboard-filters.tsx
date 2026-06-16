@@ -70,7 +70,7 @@ export function DashboardFilters() {
   return (
     <div className='flex flex-wrap items-center gap-2'>
       <RangeSelector />
-      {hasOrg && (
+      {hasOrg && isOrgAdmin && (
         <Select
           value={filters.scope}
           onValueChange={(v) => setScope(v as 'personal' | 'organization')}
@@ -259,14 +259,18 @@ function MemberSelectorCompact({
       if (!active) return;
       const lookup = new Map(map.map((u) => [u.clerkId, u.id]));
       setMembers(
-        res.data.map((m) => {
-          const clerkId = m.publicUserData?.userId || '';
-          const name =
-            `${m.publicUserData?.firstName || ''} ${m.publicUserData?.lastName || ''}`.trim() ||
-            m.publicUserData?.identifier ||
-            t('memberFallback');
-          return { id: lookup.get(clerkId) || '', name };
-        })
+        res.data
+          .map((m) => {
+            const clerkId = m.publicUserData?.userId || '';
+            const name =
+              `${m.publicUserData?.firstName || ''} ${m.publicUserData?.lastName || ''}`.trim() ||
+              m.publicUserData?.identifier ||
+              t('memberFallback');
+            return { id: lookup.get(clerkId) || '', name };
+          })
+          // Drop members whose DB user couldn't be resolved — an empty id
+          // produces duplicate empty React keys (and can't be filtered on).
+          .filter((m) => m.id)
       );
     });
     return () => {

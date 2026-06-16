@@ -51,9 +51,14 @@ const CATEGORY_COLORS: Record<DispositionCategory, string> = {
 
 interface Props {
   campaignId: string;
+  /** Org admins (and freelancers) can add/delete dispositions; members are read-only. */
+  canManage?: boolean;
 }
 
-export function CampaignDispositionsTab({ campaignId }: Props) {
+export function CampaignDispositionsTab({
+  campaignId,
+  canManage = false
+}: Props) {
   const api = useApi();
   const [dispositions, setDispositions] = useState<Disposition[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,12 +142,14 @@ export function CampaignDispositionsTab({ campaignId }: Props) {
             </CardDescription>
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-            <DialogTrigger asChild>
-              <Button size='sm'>
-                <Plus className='mr-2 h-4 w-4' />
-                Add Disposition
-              </Button>
-            </DialogTrigger>
+            {canManage && (
+              <DialogTrigger asChild>
+                <Button size='sm'>
+                  <Plus className='mr-2 h-4 w-4' />
+                  Add Disposition
+                </Button>
+              </DialogTrigger>
+            )}
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Create Disposition</DialogTitle>
@@ -347,7 +354,7 @@ export function CampaignDispositionsTab({ campaignId }: Props) {
                     </div>
                   </TableCell>
                   <TableCell>
-                    {!d.isSystem && (
+                    {canManage && !d.isSystem && (
                       <Button
                         variant='ghost'
                         size='icon'

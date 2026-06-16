@@ -35,6 +35,7 @@ import { RecordingService } from "../recording.service";
 import { CallRecordingSettingsService } from "../transcription";
 import { CallRepository } from "@ringee/database";
 import { CallSessionAccessTokenService } from "./call-session-access-token.service";
+import { PipelineFanoutService } from "../ai-pipeline";
 
 const MIN_CREDIT_BALANCE_TO_CALL = 0.01;
 const DEFAULT_EXPIRES_IN_MINUTES = 60;
@@ -96,6 +97,7 @@ export class CallSessionService {
     private readonly telephonyService: TelephonyService,
     private readonly recordingService: RecordingService,
     private readonly recordingSettingsService: CallRecordingSettingsService,
+    private readonly pipelineFanout: PipelineFanoutService,
   ) {}
 
   // ── Ownership & access ──────────────────────────────────────
@@ -748,6 +750,8 @@ export class CallSessionService {
             `Failed to persist outcome on Call ${callId}: ${(err as Error).message}`,
           ),
         );
+      // AI Pipeline: fan out the finalized outcome (magic-link path).
+      this.pipelineFanout.handleCallFinalized(callId);
     }
 
     const itemUpdates: Prisma.CallSessionItemUpdateInput = {

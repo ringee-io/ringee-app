@@ -112,6 +112,18 @@ import {
   CallRecordingSettingsService,
   TranscriptionService,
 } from "./transcription";
+import {
+  PIPELINE_DEFINITIONS,
+  PipelineContextResolver,
+  CallAnalysisService,
+  PipelineRegistry,
+  PipelineActivationService,
+  PipelineRunService,
+  PendingActionService,
+  PipelineFanoutService,
+  FollowUpAiBatchService,
+  FollowUpRecommendationsPipeline,
+} from "./ai-pipeline";
 
 const servicesProviders = [
   UserService,
@@ -212,7 +224,28 @@ const servicesProviders = [
   // Recording post-processing pipeline (runs as a Temporal activity in
   // apps/orchestrator)
   RecordingProcessingService,
+  // AI Pipeline & Pending Actions
+  PipelineContextResolver,
+  CallAnalysisService,
+  PipelineRegistry,
+  PipelineActivationService,
+  PipelineRunService,
+  PendingActionService,
+  PipelineFanoutService,
+  FollowUpAiBatchService,
+  FollowUpRecommendationsPipeline,
 ];
+
+/**
+ * Pipeline registry source of truth. Adding a pipeline = implement its
+ * AiPipelineDefinition, add the class to servicesProviders, and add it here
+ * (one line). Nothing in the pipeline core changes.
+ */
+const pipelineDefinitionsProvider: Provider = {
+  provide: PIPELINE_DEFINITIONS,
+  useFactory: (followUp: FollowUpRecommendationsPipeline) => [followUp],
+  inject: [FollowUpRecommendationsPipeline],
+};
 
 const reminderChannelsProvider: Provider = {
   provide: REMINDER_CHANNELS,
@@ -226,6 +259,7 @@ const reminderChannelsProvider: Provider = {
 const allProviders: Provider[] = [
   ...servicesProviders,
   reminderChannelsProvider,
+  pipelineDefinitionsProvider,
 ];
 
 @Global()

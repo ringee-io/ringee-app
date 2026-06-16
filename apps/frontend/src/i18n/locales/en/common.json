@@ -59,6 +59,26 @@
   "toggleSidebar": "Toggle Sidebar",
   "platform": "Platform",
   "projects": "Projects",
+  "accessRestricted": {
+    "title": "Access restricted",
+    "description": "You don't have access to this feature. Contact an organization admin if you need it."
+  },
+  "memberFilter": {
+    "all": "All members",
+    "search": "Search members…",
+    "noMembers": "No members found",
+    "member": "Member"
+  },
+  "dateFilter": {
+    "filterByDate": "Filter by date",
+    "from": "From {date}",
+    "to": "To {date}",
+    "clear": "Clear date filter"
+  },
+  "scope": {
+    "mine": "Mine",
+    "all": "All"
+  },
   "fileUpload": {
     "dropHere": "Drop the files here",
     "dragAndDrop": "Drag 'n' drop files here, or click to select files",

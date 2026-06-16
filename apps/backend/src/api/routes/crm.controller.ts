@@ -29,6 +29,7 @@ import {
   CrmProviderRegistry,
   CurrentUser,
   CurrentUserData,
+  OrgAdminOnly,
   Public,
 } from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
@@ -42,6 +43,7 @@ function frontendUrl(): string {
 }
 
 @Controller("crm")
+@OrgAdminOnly()
 export class CrmController {
   constructor(
     private readonly oauth: CrmOAuthService,

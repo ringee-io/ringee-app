@@ -66,3 +66,7 @@ export * from "./custom-integration-delivery.repository";
 export * from "./call-session.repository";
 export * from "./regulatory-document.repository";
 export * from "./number-requirement-value.repository";
+export * from "./ai-pipeline-activation.repository";
+export * from "./ai-pipeline-run.repository";
+export * from "./call-analysis.repository";
+export * from "./pending-action.repository";

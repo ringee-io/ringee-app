@@ -1,9 +1,9 @@
 {
   "launcher": {
-    "label": "AI Assistant",
+    "label": "AI Agents",
     "beta": "Beta",
     "version": "v{version}",
-    "tooltipTitle": "AI Assistant",
+    "tooltipTitle": "AI Agents",
     "tooltipBeta": "Beta · v{version}",
     "tooltipDescription": "Dein KI-Assistent für die Akquise — beschreibe deinen idealen Kunden, und er findet, bewertet und speichert qualifizierte Leads für dich. Weitere Agenten (Kampagnen, CRM, Gesprächscoaching und Analytik) folgen in Kürze."
   },
@@ -110,9 +110,9 @@
   },
   "outOfCredit": {
     "compactTitle": "Dein Guthaben ist aufgebraucht",
-    "compactDescription": "Lade Guthaben auf, um weiter mit dem AI Assistant zu chatten.",
+    "compactDescription": "Lade Guthaben auf, um weiter mit dem AI Agents zu chatten.",
     "title": "Kein Guthaben mehr",
-    "description": "Der AI Assistant wird pro verbrauchtem Token abgerechnet. Lade dein Guthaben auf, um eine neue Unterhaltung zu starten und deinen Akquise-Agenten am Laufen zu halten.",
+    "description": "Der AI Agents wird pro verbrauchtem Token abgerechnet. Lade dein Guthaben auf, um eine neue Unterhaltung zu starten und deinen Akquise-Agenten am Laufen zu halten.",
     "addCredit": "Guthaben aufladen"
   },
   "prospect": {

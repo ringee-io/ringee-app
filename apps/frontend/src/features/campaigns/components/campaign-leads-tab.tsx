@@ -89,12 +89,15 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
 interface Props {
   campaignId: string;
   campaignStatus: CampaignStatus;
+  /** Org admins (and freelancers) can import/add/delete leads; members are read-only. */
+  canManage?: boolean;
   onLeadsChanged?: () => void;
 }
 
 export function CampaignLeadsTab({
   campaignId,
   campaignStatus,
+  canManage = false,
   onLeadsChanged
 }: Props) {
   const api = useApi();
@@ -163,11 +166,12 @@ export function CampaignLeadsTab({
 
   const totalPages = Math.ceil(total / limit);
   const canImport =
-    campaignStatus === 'draft' ||
-    campaignStatus === 'active' ||
-    campaignStatus === 'paused';
-  // Leads can be removed in any non-completed campaign.
-  const canManageLeads = campaignStatus !== 'completed';
+    canManage &&
+    (campaignStatus === 'draft' ||
+      campaignStatus === 'active' ||
+      campaignStatus === 'paused');
+  // Leads can be removed in any non-completed campaign — admins only.
+  const canManageLeads = canManage && campaignStatus !== 'completed';
 
   return (
     <>

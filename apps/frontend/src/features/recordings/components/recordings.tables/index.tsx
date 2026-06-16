@@ -1,11 +1,15 @@
 'use client';
 
+import * as React from 'react';
 import { DataTable } from '@ringee/frontend-shared/components/ui/table/data-table';
 import { DataTableViewOptions } from '@ringee/frontend-shared/components/ui/table/data-table-view-options';
+import { DataTableFacetedFilter } from '@ringee/frontend-shared/components/ui/table/data-table-faceted-filter';
 import { useDataTable } from '@ringee/frontend-shared/hooks/use-data-table';
 import { ColumnDef } from '@tanstack/react-table';
 import { parseAsInteger, useQueryState } from 'nuqs';
-import { RecordingsDateFilter } from '../recordings-date-filter';
+import { useTranslations } from 'next-intl';
+import { DateRangeFilter } from '@/components/date-range-filter';
+import { useMemberFilterColumn } from '@/components/use-member-filter-column';
 
 interface RecordingsTableParams<TData, TValue> {
   data: TData[];
@@ -19,22 +23,47 @@ export function RecordingsTable<TData, TValue>({
   columns
 }: RecordingsTableParams<TData, TValue>) {
   const [pageSize] = useQueryState('perPage', parseAsInteger.withDefault(10));
+  const t = useTranslations('common.memberFilter');
 
   const pageCount = Math.ceil(totalItems / pageSize);
 
+  // Admin-only "Member" faceted filter (hidden filter-only column). This table
+  // uses a custom toolbar, so the filter is rendered manually below.
+  const { column: memberColumn, options: memberOptions } =
+    useMemberFilterColumn<TData>();
+  const tableColumns = React.useMemo(
+    () =>
+      memberColumn
+        ? [...columns, memberColumn as ColumnDef<TData, TValue>]
+        : columns,
+    [columns, memberColumn]
+  );
+
   const { table } = useDataTable({
     data,
-    columns,
+    columns: tableColumns,
     pageCount: pageCount,
     shallow: false,
-    debounceMs: 500
+    debounceMs: 500,
+    initialState: { columnVisibility: { memberId: false } }
   });
+
+  const memberTableColumn = memberColumn
+    ? table.getColumn('memberId')
+    : undefined;
 
   return (
     <DataTable table={table}>
       <div className='flex w-full items-center justify-between gap-2 p-1'>
         <div className='flex flex-1 flex-wrap items-center gap-2'>
-          <RecordingsDateFilter />
+          <DateRangeFilter />
+          {memberTableColumn && (
+            <DataTableFacetedFilter
+              column={memberTableColumn}
+              title={t('member')}
+              options={memberOptions}
+            />
+          )}
         </div>
         <div className='flex items-center gap-2'>
           <DataTableViewOptions table={table} />

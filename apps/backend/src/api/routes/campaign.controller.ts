@@ -20,6 +20,8 @@ import {
   CurrentUser,
   createOwnershipContext,
   CSV_IMPORT_CONFIG,
+  OrgAdminOnly,
+  AllowOrgMember,
 } from "@ringee/platform";
 import {
   CampaignService,
@@ -36,7 +38,10 @@ interface CurrentUserData {
   activeOrgRole?: string | null;
 }
 
+// Members can view their assigned campaigns (GET endpoints are @AllowOrgMember);
+// every mutation is admin-only via the controller-level guard.
 @Controller("campaigns")
+@OrgAdminOnly()
 export class CampaignController {
   constructor(
     private readonly campaignService: CampaignService,
@@ -59,6 +64,7 @@ export class CampaignController {
   }
 
   @Get()
+  @AllowOrgMember()
   async listCampaigns(
     @CurrentUser() user: CurrentUserData,
     @Query("search") search?: string,
@@ -82,6 +88,7 @@ export class CampaignController {
   }
 
   @Get(":id")
+  @AllowOrgMember()
   async getCampaign(
     @Param("id") id: string,
     @CurrentUser() user: CurrentUserData,
@@ -138,6 +145,7 @@ export class CampaignController {
   // ── Disposition endpoints ──
 
   @Get(":id/dispositions")
+  @AllowOrgMember()
   async listDispositions(
     @Param("id") campaignId: string,
     @CurrentUser() user: CurrentUserData,
@@ -197,6 +205,7 @@ export class CampaignController {
   // ── Retry rule endpoints ──
 
   @Get(":id/retry-rules")
+  @AllowOrgMember()
   async listRetryRules(
     @Param("id") campaignId: string,
     @CurrentUser() user: CurrentUserData,
@@ -239,6 +248,7 @@ export class CampaignController {
   // ── Member management endpoints ──
 
   @Get(":id/members")
+  @AllowOrgMember()
   async listMembers(
     @Param("id") campaignId: string,
     @CurrentUser() user: CurrentUserData,
@@ -297,6 +307,7 @@ export class CampaignController {
   }
 
   @Get(":id/lists")
+  @AllowOrgMember()
   async listLists(
     @Param("id") campaignId: string,
     @CurrentUser() user: CurrentUserData,
@@ -365,6 +376,7 @@ export class CampaignController {
   }
 
   @Get(":id/leads")
+  @AllowOrgMember()
   async getCampaignLeads(
     @Param("id") campaignId: string,
     @CurrentUser() user: CurrentUserData,

@@ -10,12 +10,15 @@ export default async function RecordingsListing({}: RecordingsListingProps) {
   const pageLimit = searchParamsCache.get('perPage');
   const dateFrom = searchParamsCache.get('dateFrom');
   const dateTo = searchParamsCache.get('dateTo');
+  const memberId = searchParamsCache.get('memberId');
 
   const params = new URLSearchParams();
   params.set('page', String(page));
   params.set('limit', String(pageLimit));
   if (dateFrom) params.set('dateFrom', dateFrom);
   if (dateTo) params.set('dateTo', dateTo);
+  // Admin member filter — backend re-applies role scoping for non-admins.
+  if (memberId) params.set('memberId', memberId);
 
   const data = await apiServer.get(`/recordings?${params.toString()}`);
 

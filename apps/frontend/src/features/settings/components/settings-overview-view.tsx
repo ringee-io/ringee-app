@@ -7,6 +7,7 @@ import {
   TabsTrigger
 } from '@ringee/frontend-shared/components/ui/tabs';
 import { useTranslations } from 'next-intl';
+import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { ScriptEditor } from './script-editor';
 import { LanguageSelector } from '@/components/i18n/language-selector';
 import { ThemeSelector } from '@ringee/frontend-shared/components/theme-selector';
@@ -15,12 +16,17 @@ import { RecordingSettingsCard } from '@/features/transcription';
 
 export function SettingsOverviewView() {
   const t = useTranslations('settings');
+  // Recording settings are org-wide parameters — admin-only (freelancers count
+  // as admin). Members keep Script / Language / Appearance.
+  const { canAccessAdminFeatures } = useOrgRole();
 
   return (
     <Tabs defaultValue='script' className='w-full'>
       <TabsList>
         <TabsTrigger value='script'>{t('tabs.script')}</TabsTrigger>
-        <TabsTrigger value='recording'>{t('tabs.recording')}</TabsTrigger>
+        {canAccessAdminFeatures && (
+          <TabsTrigger value='recording'>{t('tabs.recording')}</TabsTrigger>
+        )}
         <TabsTrigger value='language'>{t('tabs.language')}</TabsTrigger>
         <TabsTrigger value='appearance'>{t('tabs.appearance')}</TabsTrigger>
       </TabsList>
@@ -29,11 +35,13 @@ export function SettingsOverviewView() {
         <ScriptEditor />
       </TabsContent>
 
-      <TabsContent value='recording' className='mt-6'>
-        <div className='max-w-2xl'>
-          <RecordingSettingsCard />
-        </div>
-      </TabsContent>
+      {canAccessAdminFeatures && (
+        <TabsContent value='recording' className='mt-6'>
+          <div className='max-w-2xl'>
+            <RecordingSettingsCard />
+          </div>
+        </TabsContent>
+      )}
 
       <TabsContent value='language' className='mt-6'>
         <div className='max-w-md space-y-3'>

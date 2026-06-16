@@ -60,9 +60,15 @@ interface OrgMember {
 interface Props {
   campaignId: string;
   campaignStatus: CampaignStatus;
+  /** Org admins (and freelancers) can add/remove members; members are read-only. */
+  canManage?: boolean;
 }
 
-export function CampaignMembersTab({ campaignId, campaignStatus }: Props) {
+export function CampaignMembersTab({
+  campaignId,
+  campaignStatus,
+  canManage = false
+}: Props) {
   const api = useApi();
   const { organization, isLoaded: isOrgLoaded } = useOrganization();
 
@@ -192,7 +198,7 @@ export function CampaignMembersTab({ campaignId, campaignStatus }: Props) {
 
   return (
     <div className='space-y-6'>
-      {!isCompleted && (
+      {canManage && !isCompleted && (
         <Card>
           <CardHeader>
             <CardTitle>Add Member</CardTitle>
@@ -281,7 +287,7 @@ export function CampaignMembersTab({ campaignId, campaignStatus }: Props) {
                       )}
                     </div>
                   </div>
-                  {!isCompleted && (
+                  {canManage && !isCompleted && (
                     <AlertDialog>
                       <AlertDialogTrigger asChild>
                         <Button

@@ -68,6 +68,30 @@ export function buildOwnershipData(ctx: OwnershipContext): {
 }
 
 /**
+ * Resolve the effective `userId` constraint for a member-scoped list endpoint
+ * (pending actions, recordings, call history). Returns the userId that results
+ * should be narrowed to, or `undefined` for no extra narrowing.
+ *
+ * - Freelancer (no org): `undefined` — the ownership context already restricts
+ *   results to the user's own personal data.
+ * - Org admin: the requested `memberId`, or `undefined` to see the whole org.
+ * - Org member: forced to their own `user.id` regardless of any requested id.
+ */
+export function resolveMemberFilter(
+  user: CurrentUserData,
+  memberId?: string | null,
+): string | undefined {
+  if (!user.activeOrgId) return undefined;
+  const isOrgAdmin = user.activeOrgRole === "org:admin";
+  if (isOrgAdmin) {
+    return memberId && memberId !== "null" && memberId !== "undefined"
+      ? memberId
+      : undefined;
+  }
+  return user.id;
+}
+
+/**
  * Dashboard context extends ownership with role for analytics filtering
  */
 export interface DashboardContext extends OwnershipContext {

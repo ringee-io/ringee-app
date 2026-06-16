@@ -555,7 +555,7 @@
   },
   "agentic": {
     "kicker": "Agentic mode",
-    "title": "Your AI assistant can <grad>run Ringee</grad>",
+    "title": "Your AI agents can <grad>run Ringee</grad>",
     "subtitle": "Connect Ringee once over MCP and let Claude, ChatGPT, Cursor or any agent search contacts, place calls and log outcomes — all in plain language.",
     "demo": {
       "windowTitle": "ChatGPT · Ringee",

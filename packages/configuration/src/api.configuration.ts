@@ -109,6 +109,10 @@ const apiConfiguration = {
     process.env.AI_SUMMARY_TRIGGER_TOKENS ?? 6000,
   ),
   AI_PROMPT_CACHE_ENABLED: process.env.AI_PROMPT_CACHE_ENABLED !== "false",
+  // AI Pipeline — Follow-up Recommendations Layer 2 (AI batch enrichment).
+  // Off by default: Layer 1 (rule-based, no AI) ships fully; the AI batch is
+  // wired but gated so it can be enabled without a code change.
+  AI_FOLLOWUP_AI_ENABLED: process.env.AI_FOLLOWUP_AI_ENABLED === "true",
 };
 
 const errors = [];
