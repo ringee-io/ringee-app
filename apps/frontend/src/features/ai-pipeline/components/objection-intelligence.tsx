@@ -7,6 +7,7 @@ import {
   useMemo,
   useState
 } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
@@ -55,11 +56,14 @@ import {
   allRows,
   insightLabel
 } from '../types';
+import { mockRunPreview, mockSummary, mockView } from '../mock-objections';
 
 const PIPELINE = 'objection_intelligence';
 
 export function ObjectionIntelligence() {
   const api = useApi();
+  // Demo mode: `?mock=1` renders the screen with fixtures, no backend/AI run.
+  const mock = useSearchParams().get('mock') === '1';
   const [summary, setSummary] = useState<ActivationSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -82,6 +86,14 @@ export function ObjectionIntelligence() {
   );
 
   const loadSummary = useCallback(async () => {
+    if (mock) {
+      setSummary(mockSummary);
+      setSelectedId(
+        (prev) => prev ?? allRows(mockSummary)[0]?.contextKey ?? null
+      );
+      setLoadingSummary(false);
+      return;
+    }
     setLoadingSummary(true);
     try {
       const data = await api.get<ActivationSummary>(`/ai-pipeline/${PIPELINE}`);
@@ -93,13 +105,19 @@ export function ObjectionIntelligence() {
     } finally {
       setLoadingSummary(false);
     }
-  }, []);
+  }, [mock]);
 
   useEffect(() => {
     loadSummary();
   }, [loadSummary]);
 
   const loadResults = useCallback(async () => {
+    if (mock) {
+      // Only the high-confidence campaign carries demo data; others read empty.
+      setView(selectedId === 'campaign:demo-q3' ? mockView : null);
+      setLoadingResults(false);
+      return;
+    }
     if (!selectedRow) return;
     setLoadingResults(true);
     try {
@@ -113,13 +131,30 @@ export function ObjectionIntelligence() {
     } finally {
       setLoadingResults(false);
     }
-  }, [selectedRow]);
+  }, [selectedRow, selectedId, mock]);
 
   useEffect(() => {
     loadResults();
   }, [loadResults]);
 
   const toggle = async (row: ActivationRow, enabled: boolean) => {
+    if (mock) {
+      setSummary((s) =>
+        s
+          ? {
+              ...s,
+              campaigns: s.campaigns.map((c) =>
+                c.contextKey === row.contextKey ? { ...c, enabled } : c
+              ),
+              organization:
+                s.organization?.contextKey === row.contextKey
+                  ? { ...s.organization, enabled }
+                  : s.organization
+            }
+          : s
+      );
+      return;
+    }
     try {
       await api.post(`/ai-pipeline/${PIPELINE}/activation`, {
         ...row.descriptor,
@@ -137,6 +172,10 @@ export function ObjectionIntelligence() {
     setRunOpen(true);
     setRunMessage(null);
     setRunPreview(null);
+    if (mock) {
+      setRunPreview(mockRunPreview);
+      return;
+    }
     try {
       const preview = await api.post<RunPreview>(
         `/ai-pipeline/${PIPELINE}/run/preview`,
@@ -150,6 +189,10 @@ export function ObjectionIntelligence() {
 
   const confirmRun = async () => {
     if (!runContext) return;
+    if (mock) {
+      setRunMessage('Demo — analysis would run here (142 eligible calls).');
+      return;
+    }
     setRunBusy(true);
     setRunMessage(null);
     try {
@@ -178,7 +221,23 @@ export function ObjectionIntelligence() {
       ? { ...selectedRow.descriptor, contextType: selectedRow.contextType }
       : {};
 
+  const patchInsight = (id: string, patch: Partial<ObjectionInsight>) =>
+    setView((v) =>
+      v
+        ? {
+            ...v,
+            insights: v.insights.map((i) =>
+              i.id === id ? { ...i, ...patch } : i
+            )
+          }
+        : v
+    );
+
   const saveResponse = async (insight: ObjectionInsight, response: string) => {
+    if (mock) {
+      patchInsight(insight.id, { savedResponse: response, status: 'saved' });
+      return;
+    }
     await api.post(`/objection-insights/${insight.id}/save`, {
       ...descriptorBody(),
       response
@@ -187,6 +246,10 @@ export function ObjectionIntelligence() {
   };
 
   const insightAction = async (insight: ObjectionInsight, path: string) => {
+    if (mock) {
+      if (path === 'dismiss') patchInsight(insight.id, { status: 'dismissed' });
+      return;
+    }
     await api.post(
       `/objection-insights/${insight.id}/${path}`,
       descriptorBody()
