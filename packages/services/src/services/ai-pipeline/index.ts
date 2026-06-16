@@ -10,3 +10,7 @@ export * from "./pending-action.service";
 export * from "./pipeline-fanout.service";
 export * from "./pipelines/follow-up-ai-batch.service";
 export * from "./pipelines/follow-up-recommendations.pipeline";
+export * from "./pipelines/objection-intelligence/objection-taxonomy";
+export * from "./pipelines/objection-intelligence/objection-ai-batch.service";
+export * from "./pipelines/objection-intelligence/objection-intelligence.pipeline";
+export * from "./pipelines/objection-intelligence/objection-insight.service";

@@ -123,6 +123,9 @@ import {
   PipelineFanoutService,
   FollowUpAiBatchService,
   FollowUpRecommendationsPipeline,
+  ObjectionAiBatchService,
+  ObjectionIntelligencePipeline,
+  ObjectionInsightService,
 } from "./ai-pipeline";
 
 const servicesProviders = [
@@ -234,6 +237,10 @@ const servicesProviders = [
   PipelineFanoutService,
   FollowUpAiBatchService,
   FollowUpRecommendationsPipeline,
+  // AI Pipeline — Objection Intelligence
+  ObjectionAiBatchService,
+  ObjectionIntelligencePipeline,
+  ObjectionInsightService,
 ];
 
 /**
@@ -243,8 +250,11 @@ const servicesProviders = [
  */
 const pipelineDefinitionsProvider: Provider = {
   provide: PIPELINE_DEFINITIONS,
-  useFactory: (followUp: FollowUpRecommendationsPipeline) => [followUp],
-  inject: [FollowUpRecommendationsPipeline],
+  useFactory: (
+    followUp: FollowUpRecommendationsPipeline,
+    objection: ObjectionIntelligencePipeline,
+  ) => [followUp, objection],
+  inject: [FollowUpRecommendationsPipeline, ObjectionIntelligencePipeline],
 };
 
 const reminderChannelsProvider: Provider = {

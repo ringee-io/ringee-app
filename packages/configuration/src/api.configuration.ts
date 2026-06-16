@@ -113,6 +113,11 @@ const apiConfiguration = {
   // Off by default: Layer 1 (rule-based, no AI) ships fully; the AI batch is
   // wired but gated so it can be enabled without a code change.
   AI_FOLLOWUP_AI_ENABLED: process.env.AI_FOLLOWUP_AI_ENABLED === "true",
+  // AI Pipeline — Objection Intelligence Step B (curated analytical pass).
+  // Off by default: Step A (code-measured top objections + counts) always
+  // runs; the AI reasoning/recommendations + their review actions are gated so
+  // they can be enabled without a code change.
+  AI_OBJECTION_AI_ENABLED: process.env.AI_OBJECTION_AI_ENABLED === "true",
 };
 
 const errors = [];
