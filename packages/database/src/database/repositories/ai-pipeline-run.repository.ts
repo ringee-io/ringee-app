@@ -52,6 +52,27 @@ export class AiPipelineRunRepository {
   }
 
   /**
+   * Most recent completed runs for a context (newest first). Read-only helper
+   * that drives the result-screen trend, sourced from each run's resultJson
+   * snapshot. Does not touch run creation, completion or the running-lock.
+   */
+  findRecentCompleted(
+    pipelineType: AiPipelineType,
+    contextKey: string,
+    take = 12,
+  ): Promise<AiPipelineRun[]> {
+    return this.prisma.aiPipelineRun.findMany({
+      where: {
+        pipelineType,
+        contextKey,
+        status: AiPipelineRunStatus.completed,
+      },
+      orderBy: { startedAt: "desc" },
+      take,
+    });
+  }
+
+  /**
    * Insert a running row. Throws Prisma P2002 if a run is already in progress
    * for this (pipelineType, contextKey) (partial unique index) — the caller
    * surfaces the running status instead of starting a second run.

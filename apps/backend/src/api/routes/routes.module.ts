@@ -56,6 +56,7 @@ import { WellKnownController } from "./well-known.controller";
 import { CallRecordingSettingsController } from "./call-recording-settings.controller";
 import { TranscriptionController } from "./transcription.controller";
 import { AiPipelineController } from "./ai-pipeline.controller";
+import { ObjectionInsightController } from "./objection-insight.controller";
 import { PendingActionController } from "./pending-action.controller";
 
 @Module({
@@ -107,6 +108,7 @@ import { PendingActionController } from "./pending-action.controller";
     CallRecordingSettingsController,
     TranscriptionController,
     AiPipelineController,
+    ObjectionInsightController,
     PendingActionController,
   ],
   // TranscriptionMediaGateway lives here (not in the shared ServicesModule) so

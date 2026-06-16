@@ -3067,3 +3067,54 @@ model PendingAction {
   @@index([contactId])
   @@index([callId])
 }
+
+enum ObjectionInsightStatus {
+  new
+  saved
+  dismissed
+}
+
+// Pipeline-specific result store for Objection Intelligence (the template for
+// "pipeline results with user state"). One row per (contextKey, objectionType):
+// the latest code-measured counts + AI-analyzed reasoning, plus the user's
+// state (saved/dismissed and the edited/accepted response). The trend is
+// sourced from AiPipelineRun.resultJson snapshots; this table holds the current
+// state and is scoped exactly like every other pipeline row (contextKey +
+// denormalized owner columns).
+model ObjectionInsight {
+  id String @id @default(uuid()) @db.Uuid
+
+  contextType    AiPipelineContextType
+  contextKey     String
+  campaignId     String? @db.Uuid
+  organizationId String? @db.Uuid
+  userId         String? @db.Uuid
+
+  objectionType  String // canonical bucket, or `dynamic:<slug>` when discovered
+  // Display label for AI-discovered (dynamic) objections; null for canonical
+  // buckets (the UI derives their label from the taxonomy).
+  label          String?
+  // True for objections the AI discovered outside the canonical taxonomy.
+  dynamic        Boolean @default(false)
+  count          Int     @default(0)
+  appearanceRate Float   @default(0)
+  convertedRate  Float? // null until medium/high confidence (correlational)
+
+  underlyingObjection String? @db.Text
+  winningPattern      String? @db.Text
+  losingPattern       String? @db.Text
+  recommendedResponse String? @db.Text
+  savedResponse       String? @db.Text // user-edited / accepted version
+  examples            Json? // [{ excerpt, outcome }]
+
+  status     ObjectionInsightStatus @default(new)
+  confidence AiConfidenceLevel
+  lastRunId  String?                @db.Uuid
+  updatedAt  DateTime               @updatedAt
+  createdAt  DateTime               @default(now())
+
+  @@unique([contextKey, objectionType])
+  @@index([contextKey, status])
+  @@index([campaignId])
+  @@index([organizationId])
+}

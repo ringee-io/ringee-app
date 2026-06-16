@@ -70,3 +70,4 @@ export * from "./ai-pipeline-activation.repository";
 export * from "./ai-pipeline-run.repository";
 export * from "./call-analysis.repository";
 export * from "./pending-action.repository";
+export * from "./objection-insight.repository";
