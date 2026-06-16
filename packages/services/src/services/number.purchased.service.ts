@@ -659,7 +659,7 @@ export class NumberPurchasedService {
         <table style="border-collapse:collapse;margin:12px 0;">
           <tr><td style="padding:4px 12px;color:#737373;">Phone number</td><td style="padding:4px 12px;"><strong>${escapeHtml(number.phoneNumber)}</strong></td></tr>
           <tr><td style="padding:4px 12px;color:#737373;">Country</td><td style="padding:4px 12px;">${escapeHtml(number.isoCountry)} (${escapeHtml(number.phoneNumberType ?? "local")})</td></tr>
-          <tr><td style="padding:4px 12px;color:#737373;">Telnyx order</td><td style="padding:4px 12px;">${escapeHtml(number.providerOrderId ?? "")}</td></tr>
+          <tr><td style="padding:4px 12px;color:#737373;">Order</td><td style="padding:4px 12px;">${escapeHtml(number.providerOrderId ?? "")}</td></tr>
           <tr><td style="padding:4px 12px;color:#737373;">Status</td><td style="padding:4px 12px;">${escapeHtml(result.requirementsStatus)}</td></tr>
         </table>
         <h3 style="margin:16px 0 4px;">Submitted requirements</h3>
@@ -869,7 +869,7 @@ export class NumberPurchasedService {
         <table style="border-collapse:collapse;margin:12px 0;">
           <tr><td style="padding:4px 12px;color:#737373;">Phone number</td><td style="padding:4px 12px;"><strong>${escapeHtml(number.phoneNumber)}</strong></td></tr>
           <tr><td style="padding:4px 12px;color:#737373;">Country</td><td style="padding:4px 12px;">${escapeHtml(number.isoCountry)} (${escapeHtml(number.phoneNumberType ?? "local")})</td></tr>
-          <tr><td style="padding:4px 12px;color:#737373;">Telnyx order</td><td style="padding:4px 12px;">${escapeHtml(number.providerOrderId ?? "")}</td></tr>
+          <tr><td style="padding:4px 12px;color:#737373;">Order</td><td style="padding:4px 12px;">${escapeHtml(number.providerOrderId ?? "")}</td></tr>
         </table>
         <p style="margin-top:16px;color:#737373;">Reply to this email if you need anything — the Ringee team is on this thread.</p>
       </div>
@@ -913,7 +913,7 @@ export class NumberPurchasedService {
         <table style="border-collapse:collapse;margin:12px 0;">
           <tr><td style="padding:4px 12px;color:#737373;">Phone number</td><td style="padding:4px 12px;"><strong>${escapeHtml(number.phoneNumber)}</strong></td></tr>
           <tr><td style="padding:4px 12px;color:#737373;">Country</td><td style="padding:4px 12px;">${escapeHtml(number.isoCountry)} (${escapeHtml(number.phoneNumberType ?? "local")})</td></tr>
-          <tr><td style="padding:4px 12px;color:#737373;">Telnyx order</td><td style="padding:4px 12px;">${escapeHtml(number.providerOrderId ?? "")}</td></tr>
+          <tr><td style="padding:4px 12px;color:#737373;">Order</td><td style="padding:4px 12px;">${escapeHtml(number.providerOrderId ?? "")}</td></tr>
         </table>
         <h3 style="margin:16px 0 4px;">${outcome === "expired" ? "Documents to resubmit" : "What needs attention"}</h3>
         <table style="border-collapse:collapse;width:100%;">${rows}</table>
