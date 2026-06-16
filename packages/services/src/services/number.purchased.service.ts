@@ -760,10 +760,22 @@ export class NumberPurchasedService {
       connectionId = assigned.connectionId;
       connectionName = assigned.connectionName;
     } catch (err) {
+      // The provider PATCH fails permanently when the number's order was
+      // deleted on Telnyx (the phone number no longer exists there), so the
+      // assignment would never succeed and the number would loop in `pending`
+      // forever. Fall back to the configured default connection so we can
+      // still finish provisioning locally.
+      const fallbackConnectionId = apiConfiguration.TELNYX_CONNECTION_ID;
+      if (!fallbackConnectionId) {
+        this.logger.warn(
+          `Approved number ${number.phoneNumber} could not be assigned to a connection yet: ${(err as Error).message}`,
+        );
+        return false;
+      }
       this.logger.warn(
-        `Approved number ${number.phoneNumber} could not be assigned to a connection yet: ${(err as Error).message}`,
+        `Approved number ${number.phoneNumber} could not be assigned via the provider (${(err as Error).message}); falling back to TELNYX_CONNECTION_ID`,
       );
-      return false;
+      connectionId = fallbackConnectionId;
     }
 
     let features: {
