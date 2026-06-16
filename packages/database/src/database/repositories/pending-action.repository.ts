@@ -187,6 +187,8 @@ export class PendingActionRepository {
       filter?: PendingActionFilterKey;
       status?: PendingActionStatus;
       contextKey?: string;
+      /** Narrow org-wide results to a single member (admin filter / member self). */
+      memberUserId?: string;
       page?: number;
       limit?: number;
     },
@@ -198,6 +200,7 @@ export class PendingActionRepository {
       filter = "all",
       status,
       contextKey,
+      memberUserId,
       page = 1,
       limit = 50,
     } = options || {};
@@ -208,6 +211,7 @@ export class PendingActionRepository {
         this.filterWhere(filter),
         status ? { status } : {},
         contextKey ? { contextKey } : {},
+        memberUserId ? { userId: memberUserId } : {},
       ],
     };
 
@@ -235,11 +239,15 @@ export class PendingActionRepository {
    * Badge predicate (4.6): pending, counts toward badge, not snoozed, not
    * expired, AND (high priority OR due-today/overdue OR a review-type action).
    */
-  badgeWhere(owner: PendingActionOwnerFilter): Prisma.PendingActionWhereInput {
+  badgeWhere(
+    owner: PendingActionOwnerFilter,
+    memberUserId?: string,
+  ): Prisma.PendingActionWhereInput {
     const now = new Date();
     return {
       AND: [
         this.ownerWhere(owner),
+        memberUserId ? { userId: memberUserId } : {},
         { status: PendingActionStatus.pending },
         { countsTowardBadge: true },
         { OR: [{ snoozedUntil: null }, { snoozedUntil: { lt: now } }] },
@@ -255,8 +263,13 @@ export class PendingActionRepository {
     };
   }
 
-  badgeCount(owner: PendingActionOwnerFilter): Promise<number> {
-    return this.prisma.pendingAction.count({ where: this.badgeWhere(owner) });
+  badgeCount(
+    owner: PendingActionOwnerFilter,
+    memberUserId?: string,
+  ): Promise<number> {
+    return this.prisma.pendingAction.count({
+      where: this.badgeWhere(owner, memberUserId),
+    });
   }
 
   updateStatus(

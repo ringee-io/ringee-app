@@ -121,6 +121,7 @@ export const navGroups: NavGroup[] = [
         url: "/dashboard/ai-pipeline",
         icon: "sparkles",
         shortcut: ["a", "p"],
+        adminOnly: true,
         isActive: false,
         items: [],
       },

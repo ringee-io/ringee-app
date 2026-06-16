@@ -27,9 +27,10 @@ export function useOrgRole() {
   const canAccessAdminFeatures = !hasOrg || isOrgAdmin;
 
   /**
-   * Items to hide from org:member users
+   * Items to hide from org:member users. Recordings stays visible — members can
+   * see their own recordings (scoped server-side); only admins can filter by member.
    */
-  const hiddenForMember = ["Rate", "Buy Number", "Recordings"];
+  const hiddenForMember = ["Rate", "Buy Number"];
 
   return {
     isLoaded,

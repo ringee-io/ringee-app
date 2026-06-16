@@ -5,6 +5,9 @@ import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Card, CardContent } from '@ringee/frontend-shared/components/ui/card';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
+import { MemberFilter } from '@ringee/frontend-shared/components/member-filter';
+import { useTranslations } from 'next-intl';
 import { ClipboardCheck } from 'lucide-react';
 import { PendingActionsTable } from './pending-actions-table';
 import { PaginatedActions } from '../types';
@@ -27,15 +30,32 @@ const FILTERS: { key: string; label: string }[] = [
 
 export function PendingActionsList() {
   const api = useApi();
+  const tScope = useTranslations('common.scope');
+  const { isOrgAdmin, hasOrg } = useOrgRole();
   const [filter, setFilter] = useState('all');
+  // Admin-only scope: 'mine' (default) or 'all' (+ optional member narrowing).
+  const [scope, setScope] = useState<'mine' | 'all'>('mine');
+  const [memberId, setMemberId] = useState<string | null>(null);
   const [result, setResult] = useState<PaginatedActions | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Context chips only make sense for the workspace the user is actually in.
+  const visibleFilters = FILTERS.filter((f) => {
+    if (f.key === 'personal') return !hasOrg;
+    if (f.key === 'organization') return hasOrg;
+    return true;
+  });
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
+      const params = new URLSearchParams({ filter });
+      if (isOrgAdmin) {
+        if (memberId) params.set('memberId', memberId);
+        else params.set('scope', scope);
+      }
       const data = await api.get<PaginatedActions>(
-        `/pending-actions?filter=${filter}`
+        `/pending-actions?${params.toString()}`
       );
       setResult(data);
     } catch {
@@ -43,7 +63,7 @@ export function PendingActionsList() {
     } finally {
       setLoading(false);
     }
-  }, [filter]);
+  }, [filter, isOrgAdmin, scope, memberId]);
 
   useEffect(() => {
     load();
@@ -62,8 +82,35 @@ export function PendingActionsList() {
 
   return (
     <div className='space-y-4'>
+      {isOrgAdmin && (
+        <div className='flex flex-wrap items-center gap-2'>
+          <div className='inline-flex rounded-md border p-0.5'>
+            {(['mine', 'all'] as const).map((s) => (
+              <button
+                key={s}
+                onClick={() => {
+                  setScope(s);
+                  if (s === 'mine') setMemberId(null);
+                }}
+                className={cn(
+                  'rounded px-3 py-1 text-sm transition-colors',
+                  scope === s && !memberId
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-muted'
+                )}
+              >
+                {tScope(s)}
+              </button>
+            ))}
+          </div>
+          {scope === 'all' && (
+            <MemberFilter value={memberId} onChange={(id) => setMemberId(id)} />
+          )}
+        </div>
+      )}
+
       <div className='flex flex-wrap gap-2'>
-        {FILTERS.map((f) => (
+        {visibleFilters.map((f) => (
           <button
             key={f.key}
             onClick={() => setFilter(f.key)}

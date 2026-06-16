@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import {
@@ -71,6 +72,8 @@ interface Props {
 export function CampaignDetail({ campaignId }: Props) {
   const api = useApi();
   const router = useRouter();
+  // Members get read-only access; only admins can manage the campaign.
+  const { isOrgAdmin } = useOrgRole();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
   const [loading, setLoading] = useState(true);
   const [transitioning, setTransitioning] = useState(false);
@@ -190,7 +193,7 @@ export function CampaignDetail({ campaignId }: Props) {
         </div>
 
         <div className='flex items-center gap-2'>
-          {campaign.status === 'draft' && (
+          {isOrgAdmin && campaign.status === 'draft' && (
             <Button
               onClick={() => transitionStatus('active')}
               disabled={transitioning}
@@ -203,7 +206,7 @@ export function CampaignDetail({ campaignId }: Props) {
               Activate
             </Button>
           )}
-          {campaign.status === 'active' && (
+          {isOrgAdmin && campaign.status === 'active' && (
             <>
               <Button
                 variant='outline'
@@ -249,7 +252,7 @@ export function CampaignDetail({ campaignId }: Props) {
               </AlertDialog>
             </>
           )}
-          {campaign.status === 'paused' && (
+          {isOrgAdmin && campaign.status === 'paused' && (
             <>
               <Button
                 onClick={() => transitionStatus('active')}
@@ -389,16 +392,19 @@ export function CampaignDetail({ campaignId }: Props) {
             <BarChart3 className='mr-2 h-4 w-4' />
             Analytics
           </TabsTrigger>
-          <TabsTrigger value='settings'>
-            <Settings className='mr-2 h-4 w-4' />
-            Settings
-          </TabsTrigger>
+          {isOrgAdmin && (
+            <TabsTrigger value='settings'>
+              <Settings className='mr-2 h-4 w-4' />
+              Settings
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value='leads' className='mt-4'>
           <CampaignLeadsTab
             campaignId={campaignId}
             campaignStatus={campaign.status}
+            canManage={isOrgAdmin}
             onLeadsChanged={loadCampaign}
           />
         </TabsContent>
@@ -407,20 +413,26 @@ export function CampaignDetail({ campaignId }: Props) {
           <CampaignMembersTab
             campaignId={campaignId}
             campaignStatus={campaign.status}
+            canManage={isOrgAdmin}
           />
         </TabsContent>
 
         <TabsContent value='dispositions' className='mt-4'>
-          <CampaignDispositionsTab campaignId={campaignId} />
+          <CampaignDispositionsTab
+            campaignId={campaignId}
+            canManage={isOrgAdmin}
+          />
         </TabsContent>
 
         <TabsContent value='analytics' className='mt-4'>
           <CampaignAnalytics campaignId={campaignId} />
         </TabsContent>
 
-        <TabsContent value='settings' className='mt-4'>
-          <CampaignSettingsTab campaign={campaign} onUpdated={loadCampaign} />
-        </TabsContent>
+        {isOrgAdmin && (
+          <TabsContent value='settings' className='mt-4'>
+            <CampaignSettingsTab campaign={campaign} onUpdated={loadCampaign} />
+          </TabsContent>
+        )}
       </Tabs>
     </div>
   );

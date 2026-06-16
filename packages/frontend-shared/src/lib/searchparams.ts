@@ -31,6 +31,8 @@ export const searchParams = {
   // Date filters for recordings
   dateFrom: parseAsString,
   dateTo: parseAsString,
+  // Admin member filter (history / recordings) — DB userId
+  memberId: parseAsString,
   // Tag filtering for contacts
   tags: parseAsArrayOf(parseAsString).withDefault([]),
   // advanced filter

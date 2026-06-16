@@ -6,10 +6,12 @@ import {
   NotFoundException,
   Param,
   Post,
+  UseGuards,
 } from "@nestjs/common";
 import {
   CurrentUser,
   CurrentUserData,
+  OrgAdminGuard,
   createOwnershipContext,
 } from "@ringee/platform";
 import {
@@ -60,6 +62,7 @@ function parseDescriptor(body: DescriptorBody | undefined): ContextDescriptor {
 }
 
 @Controller("ai-pipeline")
+@UseGuards(OrgAdminGuard)
 export class AiPipelineController {
   constructor(
     private readonly activationService: PipelineActivationService,

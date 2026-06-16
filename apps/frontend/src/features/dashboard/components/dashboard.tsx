@@ -32,6 +32,7 @@ function DashboardPageInner({
 }: DashboardPageInnerProps) {
   const t = useTranslations('dashboard.page');
   const api = useApi();
+  const { canAccessAdminFeatures } = useOrgRole();
   const [widgets, setWidgets] = React.useState<DashboardWidget[]>(
     initialLayout.widgets
   );
@@ -111,32 +112,35 @@ function DashboardPageInner({
       <div className='flex w-full flex-1 flex-col gap-4'>
         <DashboardHeader saving={saving} />
         <DashboardFilters />
-        <div className='flex items-center justify-end gap-2'>
-          {editing && (
-            <AddWidgetMenu onAdd={handleAdd} existingTypes={existingTypes} />
-          )}
-          <Button
-            variant={editing ? 'default' : 'outline'}
-            size='sm'
-            onClick={() => setEditing((v) => !v)}
-            className='gap-1'
-          >
-            {editing ? (
-              <>
-                <IconLock size={14} /> {t('doneEditing')}
-              </>
-            ) : (
-              <>
-                <IconPencil size={14} /> {t('customize')}
-              </>
+        {/* Widget customization is admin-only (freelancers count as admin). */}
+        {canAccessAdminFeatures && (
+          <div className='flex items-center justify-end gap-2'>
+            {editing && (
+              <AddWidgetMenu onAdd={handleAdd} existingTypes={existingTypes} />
             )}
-          </Button>
-        </div>
+            <Button
+              variant={editing ? 'default' : 'outline'}
+              size='sm'
+              onClick={() => setEditing((v) => !v)}
+              className='gap-1'
+            >
+              {editing ? (
+                <>
+                  <IconLock size={14} /> {t('doneEditing')}
+                </>
+              ) : (
+                <>
+                  <IconPencil size={14} /> {t('customize')}
+                </>
+              )}
+            </Button>
+          </div>
+        )}
         <WidgetGrid
           widgets={widgets}
           onLayoutChange={handleLayoutChange}
           onRemoveWidget={handleRemove}
-          editable={editing}
+          editable={canAccessAdminFeatures && editing}
         />
       </div>
     </PageContainer>

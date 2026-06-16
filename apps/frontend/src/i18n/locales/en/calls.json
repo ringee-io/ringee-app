@@ -107,12 +107,6 @@
       "callTitle": "Call: {from} → {to}",
       "decrypting": "Decrypting recording...",
       "errorLoad": "Failed to load recording. Please try again."
-    },
-    "dateFilter": {
-      "filterByDate": "Filter by date",
-      "from": "From {date}",
-      "to": "To {date}",
-      "clear": "Clear date filter"
     }
   },
   "callbacks": {

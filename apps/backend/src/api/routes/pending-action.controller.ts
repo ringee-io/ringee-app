@@ -35,12 +35,18 @@ const VALID_FILTERS: PendingActionFilterKey[] = [
 export class PendingActionController {
   constructor(private readonly service: PendingActionService) {}
 
-  /** The execution center list, workspace-scoped + filtered. */
+  /**
+   * The execution center list. Defaults to the caller's own actions. Org admins
+   * may widen to the whole organization (`scope=all`) or narrow to a specific
+   * member (`memberId`). Org members are always restricted to their own actions.
+   */
   @Get()
   async list(
     @CurrentUser() user: CurrentUserData,
     @Query("filter") filter?: string,
     @Query("status") status?: string,
+    @Query("memberId") memberId?: string,
+    @Query("scope") scope?: string,
     @Query("page") page = "1",
     @Query("limit") limit = "50",
   ) {
@@ -52,9 +58,29 @@ export class PendingActionController {
     return this.service.list(ctx, {
       filter: filterKey,
       status: status as PendingActionStatus | undefined,
+      memberUserId: this.resolvePendingMemberScope(user, memberId, scope),
       page: Number(page) || 1,
       limit: Math.min(Number(limit) || 50, 100),
     });
+  }
+
+  /**
+   * Resolve which member's actions to show. Members are pinned to themselves;
+   * admins default to "mine" and may opt into a specific member or the whole org.
+   */
+  private resolvePendingMemberScope(
+    user: CurrentUserData,
+    memberId?: string,
+    scope?: string,
+  ): string | undefined {
+    if (!user.activeOrgId) return undefined; // freelancer: ctx already personal
+    const isAdmin = user.activeOrgRole === "org:admin";
+    if (!isAdmin) return user.id; // member: always own
+    if (memberId && memberId !== "null" && memberId !== "undefined") {
+      return memberId; // admin: specific member
+    }
+    if (scope === "all") return undefined; // admin: whole organization
+    return user.id; // admin default: mine
   }
 
   /** Live badge count for the sidebar (4.6 predicate). */

@@ -1,6 +1,10 @@
 import { Body, Controller, Get, Put } from "@nestjs/common";
 import { IsBoolean, IsOptional } from "class-validator";
-import { CurrentUser, createOwnershipContext } from "@ringee/platform";
+import {
+  CurrentUser,
+  createOwnershipContext,
+  OrgAdminOnly,
+} from "@ringee/platform";
 import {
   CallRecordingSettingsService,
   EffectiveRecordingSettings,
@@ -44,6 +48,7 @@ export class CallRecordingSettingsController {
   }
 
   @Put()
+  @OrgAdminOnly()
   async update(
     @CurrentUser() user: CurrentUserData,
     @Body() dto: UpdateRecordingSettingsDto,

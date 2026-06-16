@@ -81,7 +81,10 @@ export function FollowUpRecommendations() {
     try {
       const data = await api.get<ActivationSummary>(`/ai-pipeline/${PIPELINE}`);
       setSummary(data);
-      setSelectedId((prev) => prev ?? data.personal.contextKey);
+      // Default to the first available context (org-first inside an org, else
+      // personal for freelancers). personal is null inside an organization.
+      const first = allRows(data)[0];
+      setSelectedId((prev) => prev ?? first?.contextKey ?? null);
     } catch {
       // handled
     } finally {

@@ -166,6 +166,8 @@ export class CallRepository {
       excludeCampaignCalls?: boolean;
       includeMeetings?: boolean;
       includeTranscriptions?: boolean;
+      /** Narrow org-wide results to a single member (admin filter / member self). */
+      userId?: string;
       orderBy?: "createdAt" | "startedAt" | "endedAt";
       sortDirection?: "asc" | "desc";
     } = {},
@@ -186,6 +188,7 @@ export class CallRepository {
       excludeCampaignCalls,
       includeMeetings,
       includeTranscriptions,
+      userId,
       orderBy = "createdAt",
       sortDirection = "desc",
     } = options;
@@ -195,6 +198,7 @@ export class CallRepository {
     const ownershipFilter = buildOwnershipFilter(ctx);
     const where: Prisma.CallWhereInput = {
       ...ownershipFilter,
+      ...(userId ? { userId } : {}),
       ...(status ? { status: { in: status } } : {}),
       ...(outcome ? { outcome: { in: outcome } } : {}),
       ...(contactId ? { contactId } : {}),
@@ -262,18 +266,28 @@ export class CallRepository {
     dateTo?: Date;
     page?: number;
     limit?: number;
+    /** Narrow org-wide results to a single member (admin filter / member self). */
+    filterUserId?: string;
   }): Promise<{
     data: Call[];
     total: number;
     page: number;
     totalPages: number;
   }> {
-    const { ctx, dateFrom, dateTo, page = 1, limit = 20 } = params;
+    const {
+      ctx,
+      dateFrom,
+      dateTo,
+      page = 1,
+      limit = 20,
+      filterUserId,
+    } = params;
     const skip = (Number(page) - 1) * Number(limit);
 
     const ownershipFilter = buildOwnershipFilter(ctx);
     const where: Prisma.CallWhereInput = {
       ...ownershipFilter,
+      ...(filterUserId ? { userId: filterUserId } : {}),
       createdAt: {
         gte: dateFrom,
         lte: dateTo,

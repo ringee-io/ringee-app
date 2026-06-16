@@ -223,6 +223,7 @@ export class CallService {
       excludeCampaignCalls?: boolean;
       includeMeetings?: boolean;
       includeTranscriptions?: boolean;
+      userId?: string;
       orderBy?: "createdAt" | "startedAt" | "endedAt";
       sortDirection?: "asc" | "desc";
     } = {},
@@ -241,6 +242,7 @@ export class CallService {
     dateTo?: Date;
     page?: number;
     limit?: number;
+    filterUserId?: string;
   }): Promise<{
     data: Call[];
     total: number;

@@ -13,6 +13,7 @@ import {
 import {
   CurrentUser,
   CurrentUserData,
+  OrgAdminOnly,
   createOwnershipContext,
 } from "@ringee/platform";
 import { DashboardLayoutService } from "@ringee/services";
@@ -95,6 +96,7 @@ export class DashboardLayoutController {
   }
 
   @Put("widgets")
+  @OrgAdminOnly()
   async replaceWidgets(
     @CurrentUser() user: CurrentUserData,
     @Body() body: { scope?: string; widgets: WidgetDto[] },
@@ -112,6 +114,7 @@ export class DashboardLayoutController {
   }
 
   @Post("widgets")
+  @OrgAdminOnly()
   async addWidget(
     @CurrentUser() user: CurrentUserData,
     @Body() body: { scope?: string; widget: WidgetDto },
@@ -123,6 +126,7 @@ export class DashboardLayoutController {
   }
 
   @Patch("widgets/:id")
+  @OrgAdminOnly()
   async updateWidget(
     @CurrentUser() user: CurrentUserData,
     @Param("id") id: string,
@@ -133,6 +137,7 @@ export class DashboardLayoutController {
   }
 
   @Delete("widgets/:id")
+  @OrgAdminOnly()
   async deleteWidget(
     @CurrentUser() user: CurrentUserData,
     @Param("id") id: string,

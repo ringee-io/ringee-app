@@ -15,6 +15,7 @@ import Stripe from "stripe";
 import {
   createOwnershipContext,
   CurrentUser,
+  OrgAdminOnly,
   Public,
   StripeService,
 } from "@ringee/platform";
@@ -94,6 +95,7 @@ export class StripeController {
   }
 
   @Post("checkout/credit")
+  @OrgAdminOnly()
   async createCreditCheckout(
     @Body() body: CreateCreditCheckoutDto,
     @CurrentUser() user: CurrentUserData,
@@ -118,6 +120,7 @@ export class StripeController {
   }
 
   @Post("checkout/phone")
+  @OrgAdminOnly()
   async createPhoneCheckout(
     @Body()
     body: CreatePhoneCheckoutDto,
@@ -141,6 +144,7 @@ export class StripeController {
   }
 
   @Post("checkout/credit-subscription")
+  @OrgAdminOnly()
   async createCreditSubscription(
     @Body() body: CreateMonthlyCreditSubscriptionDto,
     @CurrentUser() user: CurrentUserData,
@@ -161,6 +165,7 @@ export class StripeController {
   }
 
   @Post("checkout/auto-reload-setup")
+  @OrgAdminOnly()
   async createAutoReloadSetup(
     @Body() body: CreateAutoReloadSetupDto,
     @CurrentUser() user: CurrentUserData,
@@ -189,6 +194,7 @@ export class StripeController {
   }
 
   @Post("checkout/organization")
+  @OrgAdminOnly()
   async createOrganizationCheckout(@CurrentUser() user: CurrentUserData) {
     if (!user) {
       throw new NotFoundException("User not found");

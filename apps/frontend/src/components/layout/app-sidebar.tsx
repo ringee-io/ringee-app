@@ -201,62 +201,66 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                     : ''
                 }
               >
-                {group.items.map((item: NavItem) => {
-                  // @ts-ignore
-                  const Icon = item.icon ? Icons[item.icon] : Icons.logo;
-                  const itemKey = ITEM_TITLE_KEYS[item.title];
-                  const itemTitle = itemKey ? tNav(itemKey) : item.title;
+                {group.items
+                  .filter(
+                    (item: NavItem) => canAccessAdminFeatures || !item.adminOnly
+                  )
+                  .map((item: NavItem) => {
+                    // @ts-ignore
+                    const Icon = item.icon ? Icons[item.icon] : Icons.logo;
+                    const itemKey = ITEM_TITLE_KEYS[item.title];
+                    const itemTitle = itemKey ? tNav(itemKey) : item.title;
 
-                  if (item.disabled) {
+                    if (item.disabled) {
+                      return (
+                        <SidebarMenuItem key={item.title}>
+                          <Tooltip>
+                            {/* span wrapper needed — disabled button swallows pointer events */}
+                            <TooltipTrigger asChild>
+                              <span className='block w-full'>
+                                <SidebarMenuButton
+                                  disabled
+                                  className='w-full cursor-default opacity-50'
+                                >
+                                  {/* @ts-ignore */}
+                                  <Icon />
+                                  <span>{itemTitle}</span>
+                                  <span className='bg-muted text-muted-foreground ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-semibold tracking-wide uppercase'>
+                                    {tCommon('comingSoon')}
+                                  </span>
+                                </SidebarMenuButton>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side='right' className='max-w-52'>
+                              <p className='text-xs font-semibold'>
+                                {tNav('inboxTooltip.title')}
+                              </p>
+                              <p className='text-muted-foreground mt-0.5 text-[11px]'>
+                                {tNav('inboxTooltip.description')}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </SidebarMenuItem>
+                      );
+                    }
+
                     return (
                       <SidebarMenuItem key={item.title}>
-                        <Tooltip>
-                          {/* span wrapper needed — disabled button swallows pointer events */}
-                          <TooltipTrigger asChild>
-                            <span className='block w-full'>
-                              <SidebarMenuButton
-                                disabled
-                                className='w-full cursor-default opacity-50'
-                              >
-                                {/* @ts-ignore */}
-                                <Icon />
-                                <span>{itemTitle}</span>
-                                <span className='bg-muted text-muted-foreground ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-semibold tracking-wide uppercase'>
-                                  {tCommon('comingSoon')}
-                                </span>
-                              </SidebarMenuButton>
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side='right' className='max-w-52'>
-                            <p className='text-xs font-semibold'>
-                              {tNav('inboxTooltip.title')}
-                            </p>
-                            <p className='text-muted-foreground mt-0.5 text-[11px]'>
-                              {tNav('inboxTooltip.description')}
-                            </p>
-                          </TooltipContent>
-                        </Tooltip>
+                        <SidebarMenuButton
+                          asChild
+                          tooltip={itemTitle}
+                          isActive={pathname === item.url}
+                        >
+                          {/* @ts-ignore */}
+                          <Link href={item.url}>
+                            {/* @ts-ignore */}
+                            <Icon />
+                            <span>{itemTitle}</span>
+                          </Link>
+                        </SidebarMenuButton>
                       </SidebarMenuItem>
                     );
-                  }
-
-                  return (
-                    <SidebarMenuItem key={item.title}>
-                      <SidebarMenuButton
-                        asChild
-                        tooltip={itemTitle}
-                        isActive={pathname === item.url}
-                      >
-                        {/* @ts-ignore */}
-                        <Link href={item.url}>
-                          {/* @ts-ignore */}
-                          <Icon />
-                          <span>{itemTitle}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  );
-                })}
+                  })}
               </SidebarMenu>
             </SidebarGroup>
           );

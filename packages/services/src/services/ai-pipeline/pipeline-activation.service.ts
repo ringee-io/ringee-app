@@ -80,8 +80,15 @@ export class PipelineActivationService {
           organizationId: ctx.organizationId,
         };
       }
-      case "personal":
+      case "personal": {
+        // The personal context is freelancer-only; inside an org it is hidden.
+        if (ctx.organizationId) {
+          throw new ForbiddenException(
+            "Personal context is not available inside an organization",
+          );
+        }
         return { type: "personal", userId: ctx.userId };
+      }
     }
   }
 
@@ -172,9 +179,14 @@ export class PipelineActivationService {
             { type: "organization_outside_campaign" },
           )
         : null,
-      personal: row(personalKey, "personal", "Personal calls", {
-        type: "personal",
-      }),
+      // Inside an organization the personal context is intentionally hidden —
+      // an org workspace only reports org + campaign contexts. Freelancers
+      // (no active org) keep the personal context.
+      personal: ctx.organizationId
+        ? null
+        : row(personalKey, "personal", "Personal calls", {
+            type: "personal",
+          }),
     };
   }
 
@@ -192,7 +204,8 @@ export class PipelineActivationService {
     const keys = [
       ...campaigns.map((c) => `campaign:${c.id}`),
       ctx.organizationId ? `org_no_campaign:${ctx.organizationId}` : null,
-      `personal:${ctx.userId}`,
+      // Personal context only exists for freelancers (see getActivationSummary).
+      ctx.organizationId ? null : `personal:${ctx.userId}`,
     ].filter((k): k is string => !!k);
 
     return Promise.all(

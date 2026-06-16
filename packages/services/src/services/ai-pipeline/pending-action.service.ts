@@ -109,6 +109,8 @@ export class PendingActionService {
       filter?: PendingActionFilterKey;
       status?: PendingActionStatus;
       contextKey?: string;
+      /** Narrow org-wide results to a single member (admin filter / member self). */
+      memberUserId?: string;
       page?: number;
       limit?: number;
     },
@@ -119,11 +121,12 @@ export class PendingActionService {
     );
   }
 
+  /** The sidebar badge always reflects the caller's own actionable items. */
   badgeCount(ctx: OwnershipContext): Promise<number> {
-    return this.repo.badgeCount({
-      userId: ctx.userId,
-      organizationId: ctx.organizationId ?? null,
-    });
+    return this.repo.badgeCount(
+      { userId: ctx.userId, organizationId: ctx.organizationId ?? null },
+      ctx.userId,
+    );
   }
 
   async complete(ctx: OwnershipContext, id: string): Promise<PendingAction> {

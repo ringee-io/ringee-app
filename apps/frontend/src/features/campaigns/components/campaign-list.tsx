@@ -22,6 +22,7 @@ import {
 } from '@ringee/frontend-shared/components/ui/select';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { Plus, Search, Target, Users, Phone, Clock } from 'lucide-react';
+import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import type {
   Campaign,
   CampaignListResponse,
@@ -108,6 +109,8 @@ function CampaignListSkeleton() {
 export function CampaignList() {
   const api = useApi();
   const router = useRouter();
+  // Only org admins can create/manage campaigns; members get read-only access.
+  const { isOrgAdmin } = useOrgRole();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -175,10 +178,12 @@ export function CampaignList() {
             <SelectItem value='completed'>Completed</SelectItem>
           </SelectContent>
         </Select>
-        <Button onClick={() => router.push('/dashboard/campaigns/new')}>
-          <Plus className='mr-2 h-4 w-4' />
-          New Campaign
-        </Button>
+        {isOrgAdmin && (
+          <Button onClick={() => router.push('/dashboard/campaigns/new')}>
+            <Plus className='mr-2 h-4 w-4' />
+            New Campaign
+          </Button>
+        )}
       </div>
 
       {loading ? (
@@ -189,15 +194,19 @@ export function CampaignList() {
             <Target className='text-muted-foreground mb-4 h-12 w-12' />
             <h3 className='text-lg font-semibold'>No campaigns yet</h3>
             <p className='text-muted-foreground mt-1 text-sm'>
-              Create your first outbound campaign to get started.
+              {isOrgAdmin
+                ? 'Create your first outbound campaign to get started.'
+                : 'You have not been added to any campaigns yet.'}
             </p>
-            <Button
-              className='mt-4'
-              onClick={() => router.push('/dashboard/campaigns/new')}
-            >
-              <Plus className='mr-2 h-4 w-4' />
-              Create Campaign
-            </Button>
+            {isOrgAdmin && (
+              <Button
+                className='mt-4'
+                onClick={() => router.push('/dashboard/campaigns/new')}
+              >
+                <Plus className='mr-2 h-4 w-4' />
+                Create Campaign
+              </Button>
+            )}
           </CardContent>
         </Card>
       ) : (

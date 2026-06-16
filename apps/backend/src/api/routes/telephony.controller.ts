@@ -21,6 +21,7 @@ import {
   Public,
   TelephonyService,
   createOwnershipContext,
+  resolveMemberFilter,
 } from "@ringee/platform";
 import { TelephonyCountryRate } from "@ringee/platform";
 import {
@@ -47,6 +48,7 @@ import { UserService, RecordingService, CallService } from "@ringee/services";
 interface CurrentUserData {
   id: string;
   activeOrgId?: string | null;
+  activeOrgRole?: string | null;
 }
 
 @Controller("telephony")
@@ -289,12 +291,14 @@ export class TelephonyController {
         : [query.outcome]
       : undefined;
 
-    if (query.userId === "me") {
-      query.userId = ctx.userId;
-    }
+    // Role-based member scoping: members are pinned to their own calls; admins
+    // may request a specific member (or all); freelancers see their own.
+    const requestedUserId = query.userId === "me" ? ctx.userId : query.userId;
+    const memberUserId = resolveMemberFilter(user, requestedUserId);
 
     return this.callService.listByOwnerPaginated(ctx, {
       ...query,
+      userId: memberUserId,
       outcome,
       excludeCampaignCalls: query.excludeCampaignCalls === "true",
       includeMeetings: query.includeMeetings === "true",

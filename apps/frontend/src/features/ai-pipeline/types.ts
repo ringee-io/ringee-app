@@ -25,7 +25,8 @@ export interface ActivationSummary {
   };
   campaigns: ActivationRow[];
   organization: ActivationRow | null;
-  personal: ActivationRow;
+  // null inside an organization — personal context is freelancer-only.
+  personal: ActivationRow | null;
 }
 
 export interface RunPreview {
@@ -42,6 +43,6 @@ export function allRows(summary: ActivationSummary): ActivationRow[] {
   return [
     ...summary.campaigns,
     ...(summary.organization ? [summary.organization] : []),
-    summary.personal
+    ...(summary.personal ? [summary.personal] : [])
   ];
 }

@@ -21,6 +21,7 @@ import {
   CurrentUserData,
   EnrichmentProviderRegistry,
   LeadSearchFilters,
+  OrgAdminOnly,
 } from "@ringee/platform";
 import { EnrichmentFeatureGuard } from "../guards/enrichment-feature.guard";
 
@@ -77,6 +78,7 @@ export class EnrichmentController {
   }
 
   @Delete("connections/:id")
+  @OrgAdminOnly()
   async disconnect(
     @Param("id") id: string,
     @CurrentUser() user: CurrentUserData,
@@ -87,6 +89,7 @@ export class EnrichmentController {
   }
 
   @Post("connections/:id/forget")
+  @OrgAdminOnly()
   async forget(@Param("id") id: string, @CurrentUser() user: CurrentUserData) {
     const ctx = createOwnershipContext(user);
     await this.connections.forget(ctx, id);
@@ -120,6 +123,7 @@ export class EnrichmentController {
   // ── Connect / validate ─────────────────────────────────────────────
 
   @Post(":provider/validate")
+  @OrgAdminOnly()
   async validate(
     @Param("provider") provider: string,
     @Body() body: { apiKey: string; metadata?: Record<string, unknown> },
@@ -134,6 +138,7 @@ export class EnrichmentController {
   }
 
   @Post(":provider/connect")
+  @OrgAdminOnly()
   async connect(
     @Param("provider") provider: string,
     @Body() body: { apiKey: string; metadata?: Record<string, unknown> },

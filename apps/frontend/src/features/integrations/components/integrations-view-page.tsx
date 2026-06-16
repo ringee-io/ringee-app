@@ -26,6 +26,7 @@ import {
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
+import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { toast } from 'sonner';
 import { useCrmConnections } from '../hooks/use-crm-connections';
 import type { CrmConnectionSummary, CrmProviderType } from '../types/crm';
@@ -45,6 +46,9 @@ export default function IntegrationsViewPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { connections, loading, error, reload } = useCrmConnections();
+  // CRM, Data Enrichment and Custom Integrations are admin-only (freelancers
+  // count as admin). Members keep the Leads (prospecting) tab.
+  const { canAccessAdminFeatures } = useOrgRole();
   const [manageConnection, setManageConnection] =
     useState<CrmConnectionSummary | null>(null);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
@@ -169,57 +173,76 @@ export default function IntegrationsViewPage() {
   );
 
   return (
-    <Tabs defaultValue='crm' className='w-full'>
+    <Tabs
+      defaultValue={canAccessAdminFeatures ? 'crm' : 'leads'}
+      className='w-full'
+    >
       <TabsList>
-        <TabsTrigger value='crm'>{t('tabs.crm')}</TabsTrigger>
-        <TabsTrigger value='enrichment' className='gap-1.5'>
-          <Sparkles className='h-3.5 w-3.5' /> {t('tabs.enrichment')}
-        </TabsTrigger>
+        {canAccessAdminFeatures && (
+          <TabsTrigger value='crm'>{t('tabs.crm')}</TabsTrigger>
+        )}
+        {canAccessAdminFeatures && (
+          <TabsTrigger value='enrichment' className='gap-1.5'>
+            <Sparkles className='h-3.5 w-3.5' /> {t('tabs.enrichment')}
+          </TabsTrigger>
+        )}
         <TabsTrigger value='leads' className='gap-1.5'>
           <Users className='h-3.5 w-3.5' /> {t('tabs.leads')}
         </TabsTrigger>
-        <TabsTrigger value='custom' className='gap-1.5'>
-          <PlugZap className='h-3.5 w-3.5' /> Custom Integrations
-        </TabsTrigger>
-        <TabsTrigger value='connectors' className='gap-1.5'>
-          <Bot className='h-3.5 w-3.5' /> Connectors
-        </TabsTrigger>
+        {canAccessAdminFeatures && (
+          <TabsTrigger value='custom' className='gap-1.5'>
+            <PlugZap className='h-3.5 w-3.5' /> Custom Integrations
+          </TabsTrigger>
+        )}
+        {/* {canAccessAdminFeatures && ( */}
+          <TabsTrigger value='connectors' className='gap-1.5'>
+            <Bot className='h-3.5 w-3.5' /> Connectors
+          </TabsTrigger>
+        {/* )} */}
       </TabsList>
 
-      <TabsContent value='enrichment' className='mt-6'>
-        <EnrichmentTab />
-      </TabsContent>
+      {canAccessAdminFeatures && (
+        <TabsContent value='enrichment' className='mt-6'>
+          <EnrichmentTab />
+        </TabsContent>
+      )}
 
       <TabsContent value='leads' className='mt-6'>
         <LeadSearchPanel />
       </TabsContent>
 
-      <TabsContent value='custom' className='mt-6'>
-        <CustomIntegrationsTab />
-      </TabsContent>
+      {canAccessAdminFeatures && (
+        <TabsContent value='custom' className='mt-6'>
+          <CustomIntegrationsTab />
+        </TabsContent>
+      )}
 
-      <TabsContent value='connectors' className='mt-6'>
-        <ConnectorsTab />
-      </TabsContent>
+      {/* {canAccessAdminFeatures && ( */}
+        <TabsContent value='connectors' className='mt-6'>
+          <ConnectorsTab />
+        </TabsContent>
+      {/* )} */}
 
-      <TabsContent value='crm' className='mt-6'>
-        <CrmTabContent
-          loading={loading}
-          error={error}
-          connections={connections}
-          needsAttention={needsAttention}
-          connectedProviders={connectedProviders}
-          disconnectingId={disconnectingId}
-          syncingId={syncingId}
-          onReload={reload}
-          onConnect={handleConnect}
-          onDisconnect={handleDisconnect}
-          onForget={handleForget}
-          onManage={handleManage}
-          onSync={handleSync}
-          t={t}
-        />
-      </TabsContent>
+      {canAccessAdminFeatures && (
+        <TabsContent value='crm' className='mt-6'>
+          <CrmTabContent
+            loading={loading}
+            error={error}
+            connections={connections}
+            needsAttention={needsAttention}
+            connectedProviders={connectedProviders}
+            disconnectingId={disconnectingId}
+            syncingId={syncingId}
+            onReload={reload}
+            onConnect={handleConnect}
+            onDisconnect={handleDisconnect}
+            onForget={handleForget}
+            onManage={handleManage}
+            onSync={handleSync}
+            t={t}
+          />
+        </TabsContent>
+      )}
 
       <ConnectionManagementSheet
         connection={manageConnection}
