@@ -11,10 +11,6 @@ import {
   Section
 } from '@/features/marketing/components/primitives';
 import {
-  JsonLd,
-  breadcrumbJsonLd
-} from '@/features/marketing/components/json-ld';
-import {
   DetailHero,
   RelatedLinks,
   WorkflowList
@@ -93,13 +89,6 @@ export default async function IntegrationDetailPage({ params }: Params) {
       <RelatedLinks title='Related integrations' items={related} />
       <FaqSection faqs={integration.faqs} />
       <CtaSection />
-      <JsonLd
-        data={breadcrumbJsonLd([
-          { name: 'Home', href: '/' },
-          { name: 'Integrations', href: '/integrations' },
-          { name: integration.name, href: path }
-        ])}
-      />
     </>
   );
 }

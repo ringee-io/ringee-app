@@ -32,7 +32,7 @@ import { USE_CASES } from '@/features/marketing/content/use-cases';
 export const metadata: Metadata = buildMetadata({
   title: 'Ringee — Affordable, Agentic Outbound Calling Software',
   description:
-    'Ringee is low-cost, pay-as-you-go outbound calling software for freelancers and teams. Call leads worldwide from your browser, record and transcribe calls in real time, book meetings to Google Calendar, sync your CRM, and drive it all from Claude, ChatGPT, MCP agents, and the CLI. Open source, no per-seat pricing.',
+    'Open-source, pay-as-you-go outbound calling software. Call leads worldwide, record and transcribe calls, and drive it from Claude, ChatGPT and the CLI.',
   path: '/'
 });
 
@@ -203,9 +203,9 @@ export default async function HomePage() {
       <Section className='py-16 sm:py-20'>
         <Container>
           <SectionHeading
-            eyebrow='Kings of cost-efficiency'
+            eyebrow='Cost efficiency'
             title='Grow your team, not your bill'
-            description='Per-seat tools punish you for hiring. On Ringee a solo user pays no subscription, and a whole team is one flat price — you only pay for the minutes you use, so scaling from 1 to 20 barely moves the bill. Nobody scales outbound cheaper.'
+            description='Per-seat tools punish you for hiring. On Ringee a solo user pays no subscription, and a whole team is one flat $20/month — you only pay for the minutes you use. A 12-person team pays $20/month flat instead of roughly $360/month on a typical ~$30/seat tool: about $4,080 saved per year.'
           />
           <div className='mt-10'>
             <ScalabilityCalculator />

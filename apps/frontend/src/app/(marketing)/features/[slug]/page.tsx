@@ -6,17 +6,12 @@ import { Breadcrumbs } from '@/features/marketing/components/breadcrumbs';
 import { CtaSection } from '@/features/marketing/components/cta-section';
 import { FaqSection } from '@/features/marketing/components/faq';
 import {
-  JsonLd,
-  softwareAppJsonLd
-} from '@/features/marketing/components/json-ld';
-import {
   DetailHero,
   HowItWorksSteps,
   RelatedLinks,
   WhoForAndBenefits
 } from '@/features/marketing/components/detail';
 import { FEATURES, getFeature } from '@/features/marketing/content/features';
-import { SITE_URL } from '@/features/marketing/site';
 
 type Params = { params: Promise<{ slug: string }> };
 
@@ -70,13 +65,6 @@ export default async function FeatureDetailPage({ params }: Params) {
       <RelatedLinks title='Related features' items={related} />
       <FaqSection faqs={feature.faqs} />
       <CtaSection />
-      <JsonLd
-        data={softwareAppJsonLd({
-          name: `Ringee ${feature.name}`,
-          description: feature.metaDescription,
-          url: `${SITE_URL}${path}`
-        })}
-      />
     </>
   );
 }

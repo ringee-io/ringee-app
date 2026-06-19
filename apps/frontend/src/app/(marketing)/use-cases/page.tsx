@@ -13,7 +13,7 @@ import { CtaSection } from '@/features/marketing/components/cta-section';
 import { USE_CASES } from '@/features/marketing/content/use-cases';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Use Cases — Outbound Calling for SDRs, Recruiters & Agencies | Ringee',
+  title: 'Outbound Use Cases — SDRs, Recruiters & Agencies | Ringee',
   description:
     'See how SDR teams, recruiters, agencies, freelancers, startups, and outbound sales teams use Ringee to call more leads and follow up faster — affordably.',
   path: '/use-cases'

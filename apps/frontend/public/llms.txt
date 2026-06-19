@@ -9,63 +9,85 @@
 - Pricing: Freelancer plan is $0/month; Organization plan is $20/month per organization.
 - The Freelancer plan includes every feature for one person; the Organization plan adds an organization, unlimited invited members, and calling campaigns.
 - The Organization plan includes unlimited users (no per-seat pricing).
+- Cost example: a 12-person team pays $20/month flat instead of roughly $360/month on a typical ~$30/seat tool — about $4,080 saved per year.
 - Agentic by design: drive Ringee from ChatGPT, Claude, any MCP-compatible agent, the CLI, or your own AI automation framework. Agents prepare the work; humans take the calls.
 - Real-time call transcription works with or without recording — you can transcribe a call even when you do not store the audio.
 - Meetings: connect Google Calendar to schedule meetings from a call and keep them in sync automatically.
 - Calls are connected through Telnyx. Authentication is handled by Clerk; payments by Stripe.
-- Ringee is open source and can be self-hosted.
+- Ringee is open source (MIT) and can be self-hosted.
 - Ringee has not completed SOC 2 or ISO certifications and does not claim them.
 
 ## Features
 
-- Outbound calling: https://www.ringee.io/features/outbound-calling
-- Campaigns: https://www.ringee.io/features/campaigns
-- Call outcomes and notes: https://www.ringee.io/features/call-outcomes
-- Callbacks: https://www.ringee.io/features/callbacks
-- Meetings (Google Calendar): https://www.ringee.io/features/meetings
-- Call recording: https://www.ringee.io/features/call-recording
-- Real-time call transcription: https://www.ringee.io/features/call-transcription
-- CRM sync: https://www.ringee.io/features/crm-sync
-- AI call automation: https://www.ringee.io/features/ai-call-automation
+- [Outbound calling](https://www.ringee.io/features/outbound-calling): Browser- and iOS-based international dialing.
+- [Campaigns](https://www.ringee.io/features/campaigns): Run shared team calling campaigns.
+- [Call outcomes and notes](https://www.ringee.io/features/call-outcomes): Log a result and notes on every call.
+- [Callbacks](https://www.ringee.io/features/callbacks): Schedule and never miss a call-back.
+- [Meetings (Google Calendar)](https://www.ringee.io/features/meetings): Book meetings from a call and keep them in sync.
+- [Call recording](https://www.ringee.io/features/call-recording): Capture every conversation.
+- [Real-time call transcription](https://www.ringee.io/features/call-transcription): Accurate, searchable transcripts, with or without recording.
+- [CRM sync](https://www.ringee.io/features/crm-sync): Keep your CRM in step with your calling.
+- [AI call automation](https://www.ringee.io/features/ai-call-automation): Let agents prospect, build lists, log outcomes, and book follow-ups.
 
 ## Integrations
 
-- Lead sources: Apollo (https://www.ringee.io/integrations/apollo), Prospeo (https://www.ringee.io/integrations/prospeo)
-- CRMs: Attio (https://www.ringee.io/integrations/attio), Odoo (https://www.ringee.io/integrations/odoo)
-- Calendar: Google Calendar (https://www.ringee.io/integrations/google-calendar)
-- AI tools: ChatGPT (https://www.ringee.io/integrations/chatgpt), Claude (https://www.ringee.io/integrations/claude), MCP (https://www.ringee.io/integrations/mcp), CLI (https://www.ringee.io/integrations/cli)
+- [Apollo](https://www.ringee.io/integrations/apollo): Pull and enrich Apollo leads.
+- [Prospeo](https://www.ringee.io/integrations/prospeo): Enrich contacts with Prospeo.
+- [Attio](https://www.ringee.io/integrations/attio): Two-way Attio CRM sync.
+- [Odoo](https://www.ringee.io/integrations/odoo): Connect your Odoo CRM.
+- [Google Calendar](https://www.ringee.io/integrations/google-calendar): Sync meetings to your calendar.
+- [ChatGPT](https://www.ringee.io/integrations/chatgpt): Dial and run outbound from ChatGPT.
+- [Claude](https://www.ringee.io/integrations/claude): Run Ringee inside Claude.
+- [MCP](https://www.ringee.io/integrations/mcp): Connect any MCP-compatible agent.
+- [CLI](https://www.ringee.io/integrations/cli): Script calls from your terminal.
 
 ## Use cases
 
-- SDR teams: https://www.ringee.io/use-cases/sdr-teams
-- Recruiters: https://www.ringee.io/use-cases/recruiters
-- Agencies: https://www.ringee.io/use-cases/agencies
-- Freelancers: https://www.ringee.io/use-cases/freelancers
-- Startups: https://www.ringee.io/use-cases/startups
-- Outbound sales: https://www.ringee.io/use-cases/outbound-sales
+- [SDR teams](https://www.ringee.io/use-cases/sdr-teams): Keep reps dialing and dispositioning without per-seat costs.
+- [Recruiters](https://www.ringee.io/use-cases/recruiters): Call candidates and track outcomes.
+- [Agencies](https://www.ringee.io/use-cases/agencies): Run outbound for multiple clients.
+- [Freelancers](https://www.ringee.io/use-cases/freelancers): Every feature, free, for one person.
+- [Startups](https://www.ringee.io/use-cases/startups): Affordable outbound that scales with the team.
+- [Outbound sales](https://www.ringee.io/use-cases/outbound-sales): Run the full outbound motion in one tool.
+
+## Comparisons
+
+- [Ringee alternatives](https://www.ringee.io/alternatives): How Ringee compares to per-seat calling tools.
+- [Ringee vs Aircall](https://www.ringee.io/compare/aircall): Flat team pricing and open source vs per-seat.
+- [Ringee vs JustCall](https://www.ringee.io/compare/justcall): Pay-as-you-go calling vs per-seat plans.
+- [Ringee vs Kixie](https://www.ringee.io/compare/kixie): Open-source, agentic outbound vs per-seat.
+- [Ringee vs Orum](https://www.ringee.io/compare/orum): Human-led, AI-assisted dialing vs parallel dialer.
 
 ## Pricing summary
 
 - Freelancer: $0/month — every feature for one person (manual dialer, recording, real-time transcription, meetings, prospecting, CRM sync, and AI automation). Pay only for calling credits.
 - Organization: $20/month per organization — adds an organization, unlimited invited members, and calling campaigns. Calling credits billed separately.
 - Calling is pay-as-you-go, from $0.020/min. No per-seat pricing on any plan.
-- Pricing details: https://www.ringee.io/pricing
+- [Pricing details](https://www.ringee.io/pricing)
 
 ## Main pages
 
-- Home: https://www.ringee.io/
-- Pricing: https://www.ringee.io/pricing
-- Features: https://www.ringee.io/features
-- Integrations: https://www.ringee.io/integrations
-- Use cases: https://www.ringee.io/use-cases
-- Security: https://www.ringee.io/security
-- Open source: https://www.ringee.io/open-source
-- Self-hosted: https://www.ringee.io/self-hosted
+- [Home](https://www.ringee.io/): Product overview and cost calculator.
+- [Pricing](https://www.ringee.io/pricing): Plans, flat team pricing, and pay-as-you-go calling.
+- [Features](https://www.ringee.io/features): Full feature catalog.
+- [Integrations](https://www.ringee.io/integrations): Lead sources, CRMs, calendar, and AI tools.
+- [Use cases](https://www.ringee.io/use-cases): Who Ringee is built for.
+- [Security](https://www.ringee.io/security): Data protection and an honest certification stance.
+- [Open source](https://www.ringee.io/open-source): MIT-licensed, auditable, self-hostable.
+- [Self-hosted](https://www.ringee.io/self-hosted): Run Ringee on your own infrastructure.
+- [About](https://www.ringee.io/about): What Ringee is and who builds it.
 
 ## Resources
 
-- Developer documentation: https://docs.ringee.io
-- Blog: https://blog.ringee.io
-- Command-line interface (the `ringee` CLI on npm): https://www.npmjs.com/package/ringee
-- iOS app (Apple App Store): https://apps.apple.com/app/ringee-app/id6773448247
-- Source code (GitHub): https://github.com/ringee-io/ringee-app
+- [Full text for LLMs](https://www.ringee.io/llms-full.txt): Concatenated long-form content for AI ingestion.
+- [Developer documentation](https://docs.ringee.io): Guides and API/MCP reference.
+- [Blog](https://blog.ringee.io): Outbound and product articles.
+- [Command-line interface](https://www.npmjs.com/package/ringee): The `ringee` CLI on npm.
+- [iOS app](https://apps.apple.com/app/ringee-app/id6773448247): Ringee on the Apple App Store.
+- [Source code](https://github.com/ringee-io): Ringee on GitHub.
+
+## Optional
+
+- [Privacy policy](https://www.ringee.io/privacy): How Ringee handles your data.
+- [Terms of service](https://www.ringee.io/terms): Terms governing use of Ringee.
+- [Support](https://www.ringee.io/support): Get help and contact the team.

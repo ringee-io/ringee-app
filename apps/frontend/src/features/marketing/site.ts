@@ -10,6 +10,8 @@
 export const SITE_URL = 'https://www.ringee.io';
 export const SITE_NAME = 'Ringee';
 export const GITHUB_URL = 'https://github.com/ringee-io/ringee-app';
+/** GitHub organization profile — used as an entity (sameAs) anchor. */
+export const GITHUB_ORG_URL = 'https://github.com/ringee-io';
 export const IOS_APP_URL = 'https://apps.apple.com/app/ringee-app/id6773448247';
 /** Public developer + content resources (live on their own subdomains). */
 export const DOCS_URL = 'https://docs.ringee.io';
@@ -17,6 +19,29 @@ export const BLOG_URL = 'https://blog.ringee.io';
 export const CLI_NPM_URL = 'https://www.npmjs.com/package/ringee';
 export const SIGN_IN_URL = '/auth/sign-in';
 export const SIGN_UP_URL = '/auth/sign-up';
+
+/**
+ * ISO timestamp used as a freshness signal across the site (schema
+ * `dateModified` and the `article:modified_time` meta). Evaluated once when the
+ * module loads, so it reflects the current build/deploy. Override with
+ * `NEXT_PUBLIC_SITE_LAST_MODIFIED` (YYYY-MM-DD) to pin a specific content date.
+ */
+export const SITE_LAST_MODIFIED =
+  process.env.NEXT_PUBLIC_SITE_LAST_MODIFIED ?? new Date().toISOString();
+
+/**
+ * Canonical off-site profiles for the Ringee entity. Used in `Organization`
+ * structured data (`sameAs`) so AI engines can reconcile mentions to one entity.
+ */
+export const SAME_AS = [
+  'https://x.com/ringeeio',
+  'https://www.linkedin.com/company/ringee-io',
+  GITHUB_ORG_URL,
+  'https://www.reddit.com/r/ringee/',
+  CLI_NPM_URL,
+  IOS_APP_URL,
+  BLOG_URL
+];
 
 /** Short, repeated calls to action. */
 export const CTA = {
@@ -271,7 +296,8 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     title: 'Company',
     links: [
-      { label: 'Pricing', href: '/pricing' },
+      { label: 'About', href: '/about' },
+      { label: 'Alternatives', href: '/alternatives' },
       { label: 'Security', href: '/security' },
       { label: 'Open source', href: '/open-source' },
       { label: 'Self-hosted', href: '/self-hosted' },

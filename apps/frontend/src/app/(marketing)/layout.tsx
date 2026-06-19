@@ -2,6 +2,11 @@ import type { ReactNode } from 'react';
 
 import { MarketingFooter } from '@/features/marketing/components/footer';
 import { MarketingNavbar } from '@/features/marketing/components/navbar';
+import {
+  JsonLd,
+  organizationJsonLd,
+  webSiteJsonLd
+} from '@/features/marketing/components/json-ld';
 
 /**
  * Layout for the public marketing site. The root layout sets the app body to
@@ -37,6 +42,11 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
           <MarketingFooter />
         </div>
       </div>
+
+      {/* Canonical entity anchors — one Organization + WebSite per marketing
+          page. Product/Software schema is declared on the homepage only. */}
+      <JsonLd data={organizationJsonLd()} />
+      <JsonLd data={webSiteJsonLd()} />
     </>
   );
 }

@@ -5,9 +5,35 @@ import withPWA from 'next-pwa' with { type: 'macro' };
 
 const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 
+// Security response headers applied to every route. HSTS, nosniff, framing,
+// referrer, and permissions are safe defaults. A full Content-Security-Policy
+// is intentionally NOT set here: the app loads Clerk, Stripe, Telnyx, GA,
+// Ahrefs, Crisp, Firebase and Sentry, so a CSP needs a carefully tested
+// allowlist and should be added/validated against production separately.
+const securityHeaders = [
+  {
+    key: 'Strict-Transport-Security',
+    value: 'max-age=63072000; includeSubDomains; preload'
+  },
+  { key: 'X-Content-Type-Options', value: 'nosniff' },
+  { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+  { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+  { key: 'X-DNS-Prefetch-Control', value: 'on' },
+  // The web dialer uses WebRTC, so the microphone is allowed on same-origin.
+  {
+    key: 'Permissions-Policy',
+    value: 'camera=(), microphone=(self), geolocation=(), browsing-topics=()'
+  }
+];
+
 // Define the base Next.js configuration
 const baseConfig: NextConfig = {
   output: 'standalone',
+  // Don't advertise the framework via the X-Powered-By header.
+  poweredByHeader: false,
+  async headers() {
+    return [{ source: '/:path*', headers: securityHeaders }];
+  },
   eslint: {
     ignoreDuringBuilds: true // ✅ Ignora errores de ESLint en el build
   },

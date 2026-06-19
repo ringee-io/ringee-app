@@ -110,6 +110,10 @@ export const metadata: Metadata = {
   }
 };
 
+// Single theme-color meta, defaulting to the app's default (dark) theme. The
+// inline script below re-syncs it to the active theme on load. (The app uses
+// class-based theming, not `prefers-color-scheme`, so media-scoped values would
+// not track the real theme.)
 export const viewport: Viewport = {
   themeColor: META_THEME_COLORS.dark
 };
@@ -146,8 +150,8 @@ export default async function RootLayout({
         />
         <link rel='apple-touch-icon' href='/apple-touch-icon.png' />
 
-        {/* App colors */}
-        <meta name='theme-color' content={META_THEME_COLORS.light} />
+        {/* App colors. theme-color is emitted once via `viewport.themeColor`
+            above; the script below toggles it to match the active theme. */}
         <meta name='msapplication-TileColor' content='#109FDC' />
         <meta name='application-name' content='Ringee' />
         <meta name='apple-mobile-web-app-title' content='Ringee' />
@@ -168,68 +172,10 @@ export default async function RootLayout({
           }}
         />
 
-        {/* Structured Data — SoftwareApplication */}
-        <script
-          type='application/ld+json'
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              '@context': 'https://schema.org',
-              '@type': 'SoftwareApplication',
-              name: 'Ringee',
-              applicationCategory: 'BusinessApplication',
-              operatingSystem: 'Web, iOS',
-              url: 'https://www.ringee.io',
-              description:
-                'Affordable outbound calling software for SDR teams, recruiters, agencies, freelancers, and outbound operators. Call leads, run campaigns, record and transcribe calls, sync your CRM, and automate outbound with AI. Open source and self-hostable.',
-              isAccessibleForFree: true,
-              license: 'https://opensource.org/licenses/MIT',
-              offers: [
-                {
-                  '@type': 'Offer',
-                  name: 'Freelancer',
-                  price: '0',
-                  priceCurrency: 'USD'
-                },
-                {
-                  '@type': 'Offer',
-                  name: 'Organization',
-                  price: '20',
-                  priceCurrency: 'USD'
-                }
-              ],
-              publisher: {
-                '@type': 'Organization',
-                name: 'Ringee.io',
-                url: 'https://www.ringee.io'
-              }
-            })
-          }}
-        />
-
-        {/* Structured Data — Organization */}
-        <script
-          type='application/ld+json'
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              '@context': 'https://schema.org',
-              '@type': 'Organization',
-              name: 'Ringee.io',
-              url: 'https://www.ringee.io',
-              logo: 'https://www.ringee.io/android-chrome-512x512.png',
-              sameAs: [
-                'https://x.com/ringeeio',
-                'https://www.linkedin.com/company/ringee-io',
-                'https://github.com/ringee-io/ringee-app'
-              ],
-              contactPoint: {
-                '@type': 'ContactPoint',
-                telephone: '+18094055531',
-                contactType: 'customer support',
-                availableLanguage: 'English'
-              }
-            })
-          }}
-        />
+        {/* SoftwareApplication, Organization, and WebSite structured data are
+            emitted once on the public marketing pages (see
+            src/app/(marketing)/layout.tsx and page.tsx) so there is a single
+            canonical entity per type — not duplicated on every app/auth route. */}
 
         {/* Google Analytics */}
         {process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID && (

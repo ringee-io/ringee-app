@@ -14,12 +14,17 @@ import { CtaSection } from '@/features/marketing/components/cta-section';
 import { FaqSection } from '@/features/marketing/components/faq';
 import { JsonLd } from '@/features/marketing/components/json-ld';
 import { ScalabilityCalculator } from '@/features/marketing/components/scalability-calculator';
-import { PRICING, SIGN_UP_URL, SITE_URL } from '@/features/marketing/site';
+import {
+  PRICING,
+  SIGN_UP_URL,
+  SITE_LAST_MODIFIED,
+  SITE_URL
+} from '@/features/marketing/site';
 
 export const metadata: Metadata = buildMetadata({
   title: 'Pricing — Free Freelancer, $20/mo Organization | Ringee',
   description:
-    'Low-cost, pay-as-you-go pricing. Freelancer is $0/month with every feature for one person. The Organization plan is $20/month per organization with unlimited users and campaigns. Calling credits billed separately. No per-seat pricing.',
+    'Ringee pricing: Freelancer is $0/month with every feature; Organization is $20/month with unlimited users. Pay-as-you-go calling, no per-seat fees.',
   path: '/pricing'
 });
 
@@ -212,12 +217,14 @@ export default function PricingPage() {
             'Affordable outbound calling software with flat, per-organization pricing and no per-seat fees.',
           url: `${SITE_URL}/pricing`,
           brand: { '@type': 'Brand', name: 'Ringee' },
+          dateModified: SITE_LAST_MODIFIED,
           offers: [
             {
               '@type': 'Offer',
               name: 'Freelancer',
               price: '0',
               priceCurrency: 'USD',
+              availability: 'https://schema.org/InStock',
               url: `${SITE_URL}/pricing`,
               description:
                 'Every Ringee feature for one person. Pay only for calling credits.'
@@ -227,6 +234,7 @@ export default function PricingPage() {
               name: 'Organization',
               price: '20',
               priceCurrency: 'USD',
+              availability: 'https://schema.org/InStock',
               url: `${SITE_URL}/pricing`,
               description: 'Per organization, per month. Unlimited users.'
             }

@@ -1,6 +1,6 @@
 import type { Metadata } from 'next';
 
-import { SITE_NAME, SITE_URL } from './site';
+import { SITE_LAST_MODIFIED, SITE_NAME, SITE_URL } from './site';
 
 /**
  * Builds a consistent Metadata object for a public marketing page:
@@ -28,8 +28,12 @@ export function buildMetadata({
     title,
     description,
     alternates: { canonical },
+    // Freshness signal for AI engines (Google AI Overviews, Perplexity, Gemini)
+    // and search crawlers. Reflects the current build/deploy.
+    other: { 'article:modified_time': SITE_LAST_MODIFIED },
     openGraph: {
       type: 'website',
+      locale: 'en_US',
       url: canonical,
       siteName: `${SITE_NAME}.io`,
       title: resolvedOgTitle,

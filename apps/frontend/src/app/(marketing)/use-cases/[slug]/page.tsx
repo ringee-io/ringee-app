@@ -6,10 +6,6 @@ import { Breadcrumbs } from '@/features/marketing/components/breadcrumbs';
 import { CtaSection } from '@/features/marketing/components/cta-section';
 import { FaqSection } from '@/features/marketing/components/faq';
 import {
-  JsonLd,
-  breadcrumbJsonLd
-} from '@/features/marketing/components/json-ld';
-import {
   DetailHero,
   ProblemSolution,
   RelatedLinks,
@@ -73,13 +69,6 @@ export default async function UseCaseDetailPage({ params }: Params) {
       <WorkflowList steps={useCase.workflow} />
       <FaqSection faqs={useCase.faqs} />
       <CtaSection />
-      <JsonLd
-        data={breadcrumbJsonLd([
-          { name: 'Home', href: '/' },
-          { name: 'Use Cases', href: '/use-cases' },
-          { name: useCase.name, href: path }
-        ])}
-      />
     </>
   );
 }

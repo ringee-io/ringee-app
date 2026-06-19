@@ -30,7 +30,9 @@ export function MarketingFooter() {
 
           {FOOTER_COLUMNS.map((column) => (
             <nav key={column.title} aria-label={column.title}>
-              <h2 className='text-sm font-semibold'>{column.title}</h2>
+              {/* Not a heading: keeps the per-page heading outline focused on
+                  page content. The nav's aria-label provides the group name. */}
+              <p className='text-sm font-semibold'>{column.title}</p>
               <ul className='mt-4 flex flex-col gap-2.5'>
                 {column.links.map((link) => {
                   const external = link.href.startsWith('http');

@@ -17,7 +17,7 @@ import {
 } from '@/features/marketing/content/integrations';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Integrations — Apollo, Prospeo, Attio, Odoo, ChatGPT, Claude | Ringee',
+  title: 'Integrations — Apollo, Attio, ChatGPT & Claude | Ringee',
   description:
     'Connect Ringee to your lead sources, CRMs, and AI tools. Integrations for Apollo, Prospeo, Attio, Odoo, ChatGPT, Claude, MCP-compatible agents, and CLI workflows.',
   path: '/integrations'

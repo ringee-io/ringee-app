@@ -1,0 +1,147 @@
+# Ringee — Full content for LLMs
+
+> Ringee is low-cost, pay-as-you-go outbound calling software built for the AI era. It helps freelancers, SDR teams, recruiters, agencies, startups, and outbound operators call leads worldwide, follow up faster, track outcomes, record and transcribe conversations in real time, book meetings to Google Calendar, sync activity with CRMs, and automate outbound from Claude, ChatGPT, MCP-compatible agents, and the CLI — without expensive per-seat pricing.
+
+This file concatenates the long-form content of the main Ringee marketing pages for AI ingestion. Canonical site: https://www.ringee.io
+
+---
+
+## Overview
+
+Ringee turns any browser into an outbound calling station. Open the dialer, work through your list, and place clear calls to leads in over 180 countries — no desk phone, SIP handset, or extra hardware required. Calls are connected through Telnyx, authentication is handled by Clerk, and payments by Stripe. Ringee is open source under the MIT license and can be self-hosted.
+
+What makes Ringee different:
+
+- Flat, no-per-seat pricing. Freelancer is free; a whole team is one flat $20/month.
+- Pay-as-you-go calling. Calling credits are billed separately, from $0.020/min — you only pay for the minutes you use.
+- Agentic by design. Ringee ships a Model Context Protocol (MCP) server so Claude, ChatGPT, any MCP-compatible agent, or the CLI can prepare the work. Humans take the calls.
+- Open source and self-hostable. Audit the code, run it on your own infrastructure, and keep full control of your data.
+- Honest trust posture. Ringee has not completed SOC 2 or ISO 27001 certification and does not claim to have.
+
+---
+
+## Pricing
+
+Ringee has two plans plus pay-as-you-go calling credits.
+
+- Freelancer — $0/month. Every Ringee feature for one person: manual dialer (browser and iOS), contacts, notes and call outcomes, callbacks and meeting scheduling (Google Calendar), call recording and real-time transcription, lead prospecting with Apollo and Prospeo, CRM sync with Attio and Odoo, and full AI automation via ChatGPT, Claude, MCP, CLI, and webhooks. No team, no campaigns. Pay only for the calling credits you use.
+- Organization — $20/month per organization. Everything in Freelancer plus a team: create an organization, invite unlimited team members, and run calling campaigns — all for one flat price, with no per-seat fees.
+- Calling credits — pay-as-you-go, from $0.020/min. Billed separately from your subscription; per-minute rates depend on the destination you call.
+
+Cost example: a 12-person team pays $20/month flat instead of roughly $360/month on a typical ~$30/seat tool — about $4,080 saved per year.
+
+### Pricing FAQ
+
+- How much does Ringee cost? The Freelancer plan is $0/month. The Organization plan is $20/month per organization and includes unlimited users. Calling credits are billed separately based on the minutes you use.
+- Do you charge per user? No. The Organization plan is a flat $20/month for the whole organization, with unlimited users. There is no per-seat pricing.
+- How are calling credits billed? Calling is pay-as-you-go. Minutes are paid separately from your subscription as credits, and per-minute rates depend on the destination. You only pay for the calls you place.
+- What is the difference between Freelancer and Organization? Freelancer gives one person every Ringee feature for free. The Organization plan adds an organization, unlimited members you can invite, and calling campaigns, for a flat $20/month.
+- Can I start for free? Yes. Create a Freelancer account at no cost and place your first call after adding calling credits. No credit card required to start.
+- Can I self-host instead? Yes. Ringee is open source, so you can self-host it and run it on your own infrastructure.
+
+---
+
+## Features
+
+### Outbound calling
+
+Ringee turns any browser into an outbound calling station. Open the dialer, work through your list, and place clear calls to leads in over 180 countries — no desk phone, SIP handset, or extra hardware required. Every call is connected through Telnyx, so audio quality stays high and you only pay for the minutes you use. Calling credits are billed separately from your subscription, which keeps your seat cost flat as your team grows.
+
+How it works: open the dialer in your browser or the iOS app and pick the number to call from; dial contacts manually or run a campaign that queues your leads; capture the outcome, add a note, and schedule a callback the moment the call ends.
+
+Benefits: call from anywhere with just a browser or your phone; flat per-organization pricing with unlimited users; calling credits billed separately so you only pay for minutes; notes, outcomes, and callbacks captured inline. Ringee supports outbound calling to more than 180 countries; per-minute rates vary by destination.
+
+### Campaigns
+
+Campaigns group a set of leads into a single, ordered calling queue. Instead of hunting for the next number, reps press call and keep moving — Ringee serves the next contact automatically. Each campaign keeps its own list, notes, outcomes, and progress, so you can see how a push is performing. Leads can be imported from CSV, added manually, or pulled from a connected lead source such as Apollo or Prospeo. Because the Organization plan supports unlimited users, your whole team can work shared campaigns.
+
+### Call outcomes and notes
+
+Every call needs a result. Ringee lets you log the outcome — connected, no answer, callback, not interested, converted, and more — the moment the call ends, while the conversation is still fresh. Outcomes pair with free-text notes so the next person to touch the lead has the full picture. That clean activity history is what makes follow-up, reporting, and CRM sync reliable. When you connect a CRM such as Attio or Odoo, call activity and outcomes can be reflected against the matching record.
+
+### Callbacks
+
+Most outbound deals are won on the follow-up, not the first call. Ringee lets you schedule a callback the instant a call ends, so the next touch is locked in before you move to the next lead. Callbacks stay tied to the contact and resurface when it is time to dial again, keeping your pipeline moving without scattered reminders. Callbacks can be rescheduled and move with the contact.
+
+### Meetings (Google Calendar)
+
+The goal of most outbound calls is the next meeting. Ringee lets you schedule it the moment a lead says yes — pick a time and the meeting is created and synced to your connected Google Calendar automatically. Connect Google Calendar once and every meeting you book in Ringee shows up where you already plan your day, with the contact and call context attached. AI agents can book meetings too, through the same MCP tools that drive the rest of your outbound. A callback is a reminder to dial a contact again; a meeting is a scheduled event on your Google Calendar.
+
+### Call recording
+
+Ringee can record your calls so you keep an accurate record of what was said. Recordings attach to the call and contact, giving managers material for coaching and teams a reference when details matter. Recording behavior is configurable at the organization or user level, so you can apply the policy that fits your workflow and the rules that apply to your region. Recordings are saved to your Ringee workspace; self-hosting lets you keep them in your own storage. Recording laws vary by country and region — Ringee gives you the controls; you are responsible for following the consent and notification rules that apply to your calls.
+
+### Real-time call transcription
+
+Reading is faster than re-listening. Ringee transcribes your calls into searchable text — live as the conversation happens — so you can scan what was said, find the moment that matters, and capture details without replaying anything. Transcription does not require recording: Ringee streams call audio to its transcription engine in real time, so you get a transcript even when you choose not to store the recording. Recording and transcription are configured independently. Transcripts are text attached to each call, so you can scan and search them.
+
+### CRM sync
+
+Outbound only works when your records stay current. Ringee connects to CRMs such as Attio and Odoo so your call activity, outcomes, and notes show up where your team already works. Instead of copying data by hand after every call, Ringee reflects what happened against the matching record, so your CRM is an accurate picture of your outbound effort. Ringee integrates with Attio and Odoo today, plus lead sources like Apollo and Prospeo for getting contacts into Ringee.
+
+### AI call automation
+
+Ringee exposes its outbound workflow through an MCP server, so AI assistants and agents can do the busywork: search and import leads, create contacts, start calls, log outcomes, and schedule callbacks and meetings. You can run outbound from the tools you already use — ChatGPT, Claude, any MCP-compatible agent, or the command line — instead of clicking through screens. The AI prepares the work; you make the human calls. Ringee does not place calls autonomously: automation prepares the work and sends a call to your active device, where a person takes the conversation. Safety rules guard sensitive and destructive actions.
+
+---
+
+## Integrations
+
+- Lead sources: Apollo (pull and enrich leads), Prospeo (enrich contacts).
+- CRMs: Attio (two-way sync), Odoo.
+- Calendar: Google Calendar (book and sync meetings).
+- AI tools: ChatGPT, Claude, MCP-compatible agents, and the `ringee` CLI.
+
+---
+
+## Use cases
+
+- SDR teams: keep reps dialing, dispositioning, and following up without per-seat costs. Unlimited users on a single $20/month organization plan means adding SDRs never raises your subscription.
+- Recruiters: work candidate and client lists, log outcomes, and schedule callbacks and interviews.
+- Agencies: run outbound for multiple clients with shared campaigns and clear activity reporting.
+- Freelancers: every Ringee feature, free, for one person — pay only for the minutes you call.
+- Startups: affordable outbound that scales with the team instead of punishing you per seat.
+- Outbound sales: run the full outbound motion — call, record, transcribe, disposition, follow up, sync — in one tool.
+
+---
+
+## Security and trust
+
+Ringee gives you controls over recording and data, supports self-hosting so you can keep data on your own infrastructure, and connects calls through Telnyx with authentication by Clerk and payments by Stripe. Ringee is intentionally honest about certification status: it has not completed SOC 2 or ISO 27001 certification and does not claim to have. Recording behavior is configurable at the organization or user level.
+
+---
+
+## Open source and self-hosting
+
+The entire Ringee stack is open source under the MIT license and lives on GitHub. You can audit the code, contribute back, and self-host Ringee on your own server to own your customer data and meet your own compliance requirements. Source code: https://github.com/ringee-io
+
+---
+
+## Comparisons
+
+Ringee competes with per-seat outbound calling tools. Its core differentiators are flat team pricing (no per-seat fees), pay-as-you-go calling, an open-source/self-hostable codebase, and native agentic control via an MCP server.
+
+- Ringee vs Aircall: https://www.ringee.io/compare/aircall
+- Ringee vs JustCall: https://www.ringee.io/compare/justcall
+- Ringee vs Kixie: https://www.ringee.io/compare/kixie
+- Ringee vs Orum: https://www.ringee.io/compare/orum
+- Alternatives overview: https://www.ringee.io/alternatives
+
+---
+
+## Resources
+
+- Home: https://www.ringee.io/
+- Pricing: https://www.ringee.io/pricing
+- Features: https://www.ringee.io/features
+- Integrations: https://www.ringee.io/integrations
+- Use cases: https://www.ringee.io/use-cases
+- Security: https://www.ringee.io/security
+- Open source: https://www.ringee.io/open-source
+- Self-hosted: https://www.ringee.io/self-hosted
+- About: https://www.ringee.io/about
+- Developer documentation: https://docs.ringee.io
+- Blog: https://blog.ringee.io
+- CLI on npm: https://www.npmjs.com/package/ringee
+- iOS app: https://apps.apple.com/app/ringee-app/id6773448247
+- Source code: https://github.com/ringee-io
