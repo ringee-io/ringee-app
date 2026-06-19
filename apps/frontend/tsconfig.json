@@ -18,7 +18,11 @@
       "@/*": ["./src/*"],
       "~/*": ["./public/*"],
       "@ringee/frontend-shared/*": ["../../packages/frontend-shared/src/*"],
-      "@ringee/frontend-shared": ["../../packages/frontend-shared/src/index.ts"]
+      "@ringee/frontend-shared": ["../../packages/frontend-shared/src/index.ts"],
+      "@ringee/dialer-core/*": ["../../packages/dialer-core/src/*"],
+      "@ringee/dialer-core": ["../../packages/dialer-core/src/index.ts"],
+      "@ringee/dialer-ui/*": ["../../packages/dialer-ui/src/*"],
+      "@ringee/dialer-ui": ["../../packages/dialer-ui/src/index.ts"]
     },
     "incremental": true,
     "plugins": [

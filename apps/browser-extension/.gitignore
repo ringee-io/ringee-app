@@ -1,0 +1,6 @@
+dist/
+releases/
+
+# Local secrets — env + the CRX signing private key (NEVER commit these).
+.env
+*.pem

@@ -1,0 +1,21 @@
+{
+  "extends": "../../tsconfig.build.json",
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "es2020",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "types": ["node"],
+    "jsx": "react-jsx",
+    "declaration": false,
+    "declarationMap": false,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "resolveJsonModule": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

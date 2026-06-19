@@ -57,16 +57,19 @@ export class MeetingRepository {
       search?: string;
       page?: number;
       limit?: number;
+      /** Narrow an org-wide list to a single member's meetings. */
+      userId?: string;
     },
   ): Promise<{
     data: Meeting[];
     meta: { total: number; page: number; limit: number; totalPages: number };
   }> {
-    const { status, upcoming, search, page = 1, limit = 20 } = options || {};
+    const { status, upcoming, search, page = 1, limit = 20, userId } = options || {};
 
     const ownershipFilter = buildOwnershipFilter(ctx);
     const where: Prisma.MeetingWhereInput = {
       ...ownershipFilter,
+      ...(userId ? { userId } : {}),
       ...(status ? { status } : {}),
       ...(upcoming
         ? { scheduledAt: { gte: new Date() }, status: MeetingStatus.scheduled }

@@ -29,9 +29,12 @@ interface NumbersState {
 
 const STORAGE_KEY = 'ringee:selected-number-id';
 
+// The shared "public" / free-trial caller ID is configuration, not a literal:
+// it comes from NEXT_PUBLIC_RINGEE_PUBLIC_CALLER_ID. When unset, no public line
+// is offered and calling requires a purchased number (resolved from backend).
 const publicNumber = {
   id: 'public',
-  phoneNumber: '+17869460882',
+  phoneNumber: process.env.NEXT_PUBLIC_RINGEE_PUBLIC_CALLER_ID || '',
   isoCountry: 'US'
 };
 

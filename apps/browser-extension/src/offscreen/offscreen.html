@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Ringee — Call engine</title>
+  </head>
+  <body>
+    <!-- Headless: the live WebRTC call + audio playback live here. The side
+         panel is just a remote control, so the remote party's audio MUST be
+         attached to an element in THIS document — the offscreen page is the only
+         context Chrome keeps alive for the AUDIO_PLAYBACK reason. -->
+    <audio id="ringee-remote-audio" autoplay></audio>
+    <script type="module" src="./offscreen.ts"></script>
+  </body>
+</html>

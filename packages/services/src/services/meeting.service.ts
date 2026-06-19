@@ -194,6 +194,7 @@ export class MeetingService {
       search?: string;
       page?: number;
       limit?: number;
+      userId?: string;
     },
   ) {
     return this.meetingRepo.listByOwner(ctx, options);

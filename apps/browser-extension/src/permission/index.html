@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ringee — Enable microphone</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+      }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family:
+          ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: #0b0b0f;
+        color: #f5f5f7;
+      }
+      .card {
+        max-width: 28rem;
+        padding: 2.5rem 2rem;
+        text-align: center;
+      }
+      h1 {
+        font-size: 1.25rem;
+        margin: 0 0 0.5rem;
+      }
+      p {
+        margin: 0 0 1.5rem;
+        line-height: 1.5;
+        color: #b8b8c0;
+        font-size: 0.95rem;
+      }
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 0.625rem;
+        padding: 0.75rem 1.5rem;
+        font-size: 0.95rem;
+        font-weight: 600;
+        cursor: pointer;
+        background: #6366f1;
+        color: white;
+      }
+      button:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+      .status {
+        margin-top: 1.25rem;
+        font-size: 0.875rem;
+        min-height: 1.25rem;
+      }
+      .ok {
+        color: #34d399;
+      }
+      .err {
+        color: #f87171;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Opened in a REAL TAB on purpose: Chrome only shows the microphone
+         permission prompt from a tab — never from the side panel, popup, or the
+         (headless) offscreen document. Once granted here, the grant persists for
+         the chrome-extension:// origin and the offscreen call engine can capture
+         the mic on every future call. -->
+    <main class="card">
+      <h1>Allow microphone to call with Ringee</h1>
+      <p>
+        Ringee places calls over WebRTC and needs your microphone. Click the
+        button below and choose <strong>Allow</strong> when Chrome asks. You only
+        have to do this once.
+      </p>
+      <button id="enable" type="button">Enable microphone</button>
+      <div id="status" class="status" role="status" aria-live="polite"></div>
+    </main>
+    <script type="module" src="./permission.ts"></script>
+  </body>
+</html>

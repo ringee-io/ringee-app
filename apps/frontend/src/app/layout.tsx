@@ -22,7 +22,7 @@ const META_THEME_COLORS = {
 export const metadata: Metadata = {
   title: {
     default: 'Ringee — Affordable Outbound Calling Software for Modern Teams',
-    template: '%s | Ringee'
+    template: '%s'
   },
   description:
     'Ringee is affordable outbound calling software for SDR teams, recruiters, agencies, freelancers, and outbound operators. Call more leads, track outcomes, record and transcribe calls, sync your CRM, and automate outbound with AI — without expensive per-seat pricing.',

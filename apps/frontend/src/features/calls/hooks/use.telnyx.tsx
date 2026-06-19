@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { TelnyxRTC } from '@telnyx/webrtc';
+import { createTelnyxClient, TELNYX_EVENTS } from '@ringee/dialer-core';
 import { useTelnyxStore } from '../store/telnyx.store';
 
 export function useTelnyxClient() {
@@ -11,16 +11,15 @@ export function useTelnyxClient() {
   useEffect(() => {
     if (useTelnyxStore.getState().client) return;
 
-    const telnyx = new TelnyxRTC({
+    // The Telnyx client (and `keepConnectionAliveOnSocketClose`, so an
+    // in-progress call survives transient socket drops) is created by the
+    // shared engine — identical to how the extension's offscreen document
+    // builds it.
+    const telnyx = createTelnyxClient({
       login: process.env.NEXT_PUBLIC_TELNYX_LOGIN || '',
       password: process.env.NEXT_PUBLIC_TELNYX_PASSWORD || '',
       ringbackFile: '/sounds/outbound-call.mp3',
-      // ringtoneFile: '/sounds/inbound-call.mp3',
-      debug: false,
-      // Required so an in-progress call survives transient socket drops
-      // (network change, sleep/wake, brief packet loss). Without this the
-      // session is allowed to purge calls on socket close.
-      keepConnectionAliveOnSocketClose: true
+      debug: false
     });
 
     const handleReady = () => setStatus('registered');
@@ -39,24 +38,24 @@ export function useTelnyxClient() {
     // Attach listeners BEFORE calling connect() — otherwise `telnyx.ready`
     // (and any early socket events) can fire before the handlers exist
     // and the status stays stuck on "connecting".
-    telnyx.on('telnyx.ready', handleReady);
-    telnyx.on('telnyx.error', handleError);
-    telnyx.on('telnyx.socket.open', handleSocketOpen);
-    telnyx.on('telnyx.socket.close', handleSocketClose);
-    telnyx.on('telnyx.socket.error', handleError);
-    telnyx.on('telnyx.socket.message', handleSocketMsg);
+    telnyx.on(TELNYX_EVENTS.ready, handleReady);
+    telnyx.on(TELNYX_EVENTS.error, handleError);
+    telnyx.on(TELNYX_EVENTS.socketOpen, handleSocketOpen);
+    telnyx.on(TELNYX_EVENTS.socketClose, handleSocketClose);
+    telnyx.on(TELNYX_EVENTS.socketError, handleError);
+    telnyx.on(TELNYX_EVENTS.socketMessage, handleSocketMsg);
 
     setStatus('connecting');
     setClient(telnyx);
     telnyx.connect();
 
     return () => {
-      telnyx.off('telnyx.ready', handleReady);
-      telnyx.off('telnyx.error', handleError);
-      telnyx.off('telnyx.socket.open', handleSocketOpen);
-      telnyx.off('telnyx.socket.close', handleSocketClose);
-      telnyx.off('telnyx.socket.error', handleError);
-      telnyx.off('telnyx.socket.message', handleSocketMsg);
+      telnyx.off(TELNYX_EVENTS.ready, handleReady);
+      telnyx.off(TELNYX_EVENTS.error, handleError);
+      telnyx.off(TELNYX_EVENTS.socketOpen, handleSocketOpen);
+      telnyx.off(TELNYX_EVENTS.socketClose, handleSocketClose);
+      telnyx.off(TELNYX_EVENTS.socketError, handleError);
+      telnyx.off(TELNYX_EVENTS.socketMessage, handleSocketMsg);
       telnyx.disconnect();
       // Clear the client from the store so a remount creates a fresh one.
       // Without this, after a StrictMode/dev double-mount or layout

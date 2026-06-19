@@ -1,0 +1,184 @@
+/* Ringee in-page UI: a subtle marker under each detected phone number, and an
+   animated popover anchored above it offering "Call with Ringee" / "Hide".
+   Everything is scoped via data attributes and `all: revert` resets so the page
+   can never bleed styles into our UI, and we never re-scan our own nodes. */
+
+/* The detected number itself — a quiet emerald underline so it reads as actionable. */
+[data-ringee-anchor] {
+  border-bottom: 1.5px dotted #10b981 !important;
+  cursor: pointer !important;
+  border-radius: 1px;
+}
+
+/* Full-screen, click-through layer that hosts the floating popovers. */
+#ringee-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 2147483646;
+  pointer-events: none;
+}
+
+/* Positioner — placed at the number's viewport coords; centers + lifts the card. */
+.ringee-pop {
+  position: fixed;
+  transform: translate(-50%, calc(-100% - 10px));
+  pointer-events: none;
+}
+
+/* The visible card — own colors so it's legible over any page. */
+.ringee-pop__card {
+  all: revert;
+  pointer-events: auto;
+  position: relative;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 200px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow:
+    0 10px 30px rgba(0, 0, 0, 0.18),
+    0 2px 6px rgba(0, 0, 0, 0.08);
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  color: #0a0a0a;
+  animation: ringee-pop-in 0.16s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Downward caret. */
+.ringee-pop__card::after {
+  content: "";
+  position: absolute;
+  bottom: -7px;
+  left: 50%;
+  transform: translateX(-50%) rotate(45deg);
+  width: 12px;
+  height: 12px;
+  background: #ffffff;
+  border-right: 1px solid rgba(0, 0, 0, 0.08);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.ringee-pop__head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.ringee-pop__icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 5px;
+  flex: 0 0 auto;
+  object-fit: cover;
+  display: block;
+}
+
+.ringee-pop__brand {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: #0a0a0a;
+}
+
+.ringee-pop__num {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: #404040;
+  white-space: nowrap;
+}
+
+.ringee-pop__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.ringee-pop__btn {
+  all: unset;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background 0.12s ease,
+    opacity 0.12s ease,
+    transform 0.08s ease;
+}
+
+.ringee-pop__btn--call {
+  flex: 1;
+  background: #10b981;
+  color: #fff;
+}
+.ringee-pop__btn--call:hover {
+  background: #059669;
+}
+.ringee-pop__btn--call:active {
+  transform: scale(0.98);
+}
+
+.ringee-pop__btn--hide {
+  background: transparent;
+  color: #6b7280;
+}
+.ringee-pop__btn--hide:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #111827;
+}
+
+.ringee-pop--calling .ringee-pop__btn--call {
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+@keyframes ringee-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(5px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  .ringee-pop__card {
+    background: #1c1c1f;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #f5f5f5;
+  }
+  .ringee-pop__card::after {
+    background: #1c1c1f;
+    border-color: rgba(255, 255, 255, 0.1);
+  }
+  .ringee-pop__brand {
+    color: #f5f5f5;
+  }
+  .ringee-pop__num {
+    color: #a3a3a3;
+  }
+  .ringee-pop__btn--hide {
+    color: #a3a3a3;
+  }
+  .ringee-pop__btn--hide:hover {
+    background: rgba(255, 255, 255, 0.08);
+    color: #fff;
+  }
+}

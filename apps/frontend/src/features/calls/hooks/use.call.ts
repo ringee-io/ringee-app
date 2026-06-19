@@ -1,7 +1,14 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import type { Call } from '@telnyx/webrtc';
+import {
+  type Call,
+  placeCall,
+  muteCall,
+  holdCall,
+  hangupCall,
+  sendDtmf
+} from '@ringee/dialer-core';
 import { useCallStore } from '../store/call.store';
 import { useTelnyxStore } from '../store/telnyx.store';
 import { useAuth } from '@clerk/nextjs';
@@ -34,11 +41,7 @@ export function useCall(call?: Call | null) {
     async (mute: boolean) => {
       try {
         if (!call) return;
-        if (mute) {
-          if (typeof call.muteAudio === 'function') await call.muteAudio();
-        } else {
-          if (typeof call.unmuteAudio === 'function') await call.unmuteAudio();
-        }
+        await muteCall(call, mute);
         setIsMuted(mute);
       } catch (err) {
         console.error('❌ Mute error:', err);
@@ -50,8 +53,7 @@ export function useCall(call?: Call | null) {
   const handleHold = useCallback(async () => {
     try {
       if (!call) return;
-      if (!isOnHold && typeof call.hold === 'function') await call.hold();
-      if (isOnHold && typeof call.unhold === 'function') await call.unhold();
+      await holdCall(call, !isOnHold);
       setIsOnHold(!isOnHold);
     } catch (err) {
       console.error('❌ Hold error:', err);
@@ -105,7 +107,7 @@ export function useCall(call?: Call | null) {
 
   const handleHangup = useCallback(async () => {
     try {
-      await call?.hangup?.();
+      await hangupCall(call ?? null);
       // Don't reset() here — the hangup notification will trigger
       // enterPostCallPhase which needs callId/contactId from the store.
       // The full reset happens in handlePostCallClose after the user
@@ -118,10 +120,7 @@ export function useCall(call?: Call | null) {
   const handleSendDTMF = useCallback(
     (digit: string) => {
       try {
-        if (!call) return console.warn('⚠️ No active call');
-        if (call.state !== 'active') return console.warn('⚠️ Call not active');
-
-        call.dtmf?.(digit);
+        sendDtmf(call ?? null, digit);
       } catch (err) {
         console.error('❌ DTMF error:', err);
       }
@@ -132,34 +131,23 @@ export function useCall(call?: Call | null) {
   const handleCall = async (number: string) => {
     if (!client) return console.warn('⚠️ Telnyx client not ready');
 
-    let callerId = '+17869460882';
-
-    if (selectedNumber?.id === 'public') {
-      callerId = '+17869460882';
-    } else if (selectedNumber?.phoneNumber) {
-      callerId = selectedNumber.phoneNumber;
+    // Caller ID is never hardcoded: it comes from the user's selected number,
+    // which the number store resolves from the backend (purchased numbers, or
+    // the configured public/free-trial line). No literal numbers here.
+    const callerId = selectedNumber?.phoneNumber;
+    if (!callerId) {
+      return console.warn(
+        '⚠️ No caller ID available — pick a number in the dialer first'
+      );
     }
 
-    await client.newCall({
-      callerNumber: callerId,
-      destinationNumber: number,
-      audio: true,
-      customHeaders: [
-        { name: 'From', value: `sip:${callerId}@sip.telnyx.com` },
-        {
-          name: 'P-Asserted-Identity',
-          value: `sip:${callerId}@sip.telnyx.com`
-        },
-        {
-          name: 'P-Preferred-Identity',
-          value: `sip:${callerId}@sip.telnyx.com`
-        },
-        { name: 'X-User-Id', value: userId! },
-        ...(orgId ? [{ name: 'X-Organization-Id', value: orgId! }] : [])
-      ],
-      keepConnectionAliveOnSocketClose: true,
-      debug: process.env.NODE_ENV === 'development',
-      debugOutput: 'socket'
+    placeCall({
+      client,
+      callerId,
+      destination: number,
+      userId: userId!,
+      organizationId: orgId ?? undefined,
+      debug: process.env.NODE_ENV === 'development'
     });
 
     analytics.trackNewCall(`${callerId}-${number}`);

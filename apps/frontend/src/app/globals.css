@@ -1,5 +1,6 @@
 @import 'tailwindcss';
 @source '../../../../packages/frontend-shared/src';
+@source '../../../../packages/dialer-ui/src';
 
 @import 'tw-animate-css';
 
