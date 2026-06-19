@@ -3,6 +3,7 @@ import { Heading } from '@ringee/frontend-shared/components/ui/heading';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import { RoleGuard } from '@ringee/frontend-shared/components/role-guard';
 import { FollowUpRecommendations } from '@/features/ai-pipeline/components/follow-up-recommendations';
+import { PipelineIntro } from '@/features/ai-pipeline/components/pipeline-intro';
 
 export const metadata = {
   title: 'Follow-up Recommendations',
@@ -19,6 +20,7 @@ export default function FollowUpRecommendationsPage() {
             description='Turn every call outcome into the next best action — analyzed independently per context.'
           />
           <Separator />
+          <PipelineIntro type='follow_up_recommendations' />
           <FollowUpRecommendations />
         </div>
       </RoleGuard>

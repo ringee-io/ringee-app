@@ -192,5 +192,77 @@
     "whenMinutes": "{count} min geleden",
     "whenHours": "{count} u geleden",
     "whenDays": "{count} d geleden"
+  },
+  "pipelineIntro": {
+    "heading": "Wat deze pipeline doet",
+    "howItWorks": "Hoe het werkt",
+    "whatYouGet": "Wat je krijgt",
+    "bestFor": "Ideaal voor",
+    "whatItNeeds": "Wat het nodig heeft",
+    "modelBadge": "Claude Opus 4.8",
+    "poweredBy": "Mogelijk gemaakt door Claude Opus 4.8, het krachtigste AI-model van Anthropic."
+  },
+  "pipelineCard": {
+    "active": "{count} actief",
+    "notEnabled": "Niet ingeschakeld",
+    "comingSoon": "Binnenkort",
+    "pending": "in behandeling",
+    "newEligible": "nieuw in aanmerking",
+    "unavailable": "Deze pipeline is nog niet beschikbaar.",
+    "viewDetails": "Details bekijken & inschakelen"
+  },
+  "pipelines": {
+    "follow_up_recommendations": {
+      "tagline": "Zet elke gespreksuitkomst om in de beste volgende actie.",
+      "summary": "Na elk relevant gesprek zet het de uitkomst om in een concrete volgende stap — wie je terugbelt, wanneer en wat je zegt — zodat een warme lead nooit afkoelt terwijl jij doorgaat naar het volgende gesprek.",
+      "howItWorks": [
+        {
+          "title": "Directe, op regels gebaseerde actie",
+          "description": "Zodra je een uitkomst registreert zoals geïnteresseerd, follow-up, terugbellen, afspraak gepland of verkoop, maakt Ringee de beste volgende actie aan met een passende prioriteit en deadline — zonder AI en zonder wachten."
+        },
+        {
+          "title": "Optionele AI-verfijning",
+          "description": "Een batchanalyse scherpt elke aanbeveling aan: ze past de prioriteit aan, schrijft de reden en een voorgesteld bericht, kiest de beste volgende actie en ruimt op wat er niet meer toe doet."
+        },
+        {
+          "title": "Per context geanalyseerd",
+          "description": "Campagne-, organisatie- en persoonlijke gesprekken worden onafhankelijk geanalyseerd, zodat een drukke campagne je andere follow-ups nooit overschaduwt."
+        }
+      ],
+      "benefits": [
+        "Een geprioriteerde follow-upwachtrij in plaats van verspreide notities",
+        "Een voorgesteld bericht en de beste volgende actie voor elke lead",
+        "Deadlines en verval zodat je handelt terwijl de lead nog warm is",
+        "Niets glipt er nog doorheen na een goed gesprek"
+      ],
+      "bestFor": "Vertegenwoordigers en outbound-teams die over meerdere contactmomenten sluiten in plaats van in één gesprek.",
+      "dataNote": "Werkt vanaf je eerste geregistreerde uitkomst. Aanbevelingen worden scherper naarmate er meer gesprekken worden geanalyseerd; heel korte gesprekken worden overgeslagen."
+    },
+    "objection_intelligence": {
+      "tagline": "Ontdek wat je prospects tegenhoudt en hoe je reageert.",
+      "summary": "Het leest je echte gesprekken om te onthullen wat je prospects het vaakst van een aankoop weerhoudt — en geeft je voor elk bezwaar een geteste, bewerkbare reactie, zodat het hele team het op dezelfde succesvolle manier aanpakt.",
+      "howItWorks": [
+        {
+          "title": "Code meet de cijfers",
+          "description": "Ringee telt elk bezwaar in je geanalyseerde gesprekken, hoe vaak het voorkomt en hoe vaak het gesprek toch converteerde — zodat de cijfers betrouwbaar zijn en netjes een trend volgen over runs heen."
+        },
+        {
+          "title": "AI legt uit en beveelt aan",
+          "description": "Op een samengestelde steekproef onthult AI wat elk bezwaar echt betekent, de patronen die winnen versus die de deal om zeep helpen, en een aanbevolen reactie — en ontdekt zelfs bezwaren die je nooit vooraf hebt gedefinieerd."
+        },
+        {
+          "title": "Gerangschikt, met een betrouwbaarheidsniveau",
+          "description": "Bezwaren worden per context gerangschikt op prevalentie, met een betrouwbaarheidsbadge die stijgt naarmate er meer gesprekken worden geanalyseerd."
+        }
+      ],
+      "benefits": [
+        "Een ranglijst van wat je deals echt tegenhoudt",
+        "Het \"wat ze echt bedoelen\" plus de winnende en verliezende patronen uit je eigen gesprekken",
+        "Een kant-en-klare reactie die je kunt bewerken, opslaan of aan je script toevoegen",
+        "Nieuwe bezwaren die door AI zijn ontdekt en waar je niet aan had gedacht"
+      ],
+      "bestFor": "Teams die willen dat elke vertegenwoordiger de lastigste bezwaren aanpakt met de reactie die al werkt.",
+      "dataNote": "Vereist echte gesprekken met bruikbare transcripties. Ongeveer 25+ geanalyseerde gesprekken per context ontgrendelen inzichten met hogere betrouwbaarheid."
+    }
   }
 }

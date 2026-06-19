@@ -192,5 +192,77 @@
     "whenMinutes": "{count}m ago",
     "whenHours": "{count}h ago",
     "whenDays": "{count}d ago"
+  },
+  "pipelineIntro": {
+    "heading": "What this pipeline does",
+    "howItWorks": "How it works",
+    "whatYouGet": "What you get",
+    "bestFor": "Best for",
+    "whatItNeeds": "What it needs",
+    "modelBadge": "Claude Opus 4.8",
+    "poweredBy": "Powered by Claude Opus 4.8 — Anthropic's most powerful AI model."
+  },
+  "pipelineCard": {
+    "active": "{count} active",
+    "notEnabled": "Not enabled",
+    "comingSoon": "Coming soon",
+    "pending": "pending",
+    "newEligible": "new eligible",
+    "unavailable": "This pipeline isn't available yet.",
+    "viewDetails": "View details & enable"
+  },
+  "pipelines": {
+    "follow_up_recommendations": {
+      "tagline": "Turn every call outcome into the next best action.",
+      "summary": "After every meaningful call, it turns the outcome into a concrete next step — who to call back, when, and what to say — so a warm lead never goes cold while you move on to the next dial.",
+      "howItWorks": [
+        {
+          "title": "Instant, rule-based action",
+          "description": "The moment you log an outcome like interested, follow-up, callback, meeting booked or sale, Ringee creates the next-best action with a sensible priority and due date — no AI required, no waiting."
+        },
+        {
+          "title": "Optional AI refinement",
+          "description": "A batch pass sharpens each recommendation: it adjusts the priority, writes the reason and a suggested message, picks the next best action, and clears out the ones that no longer matter."
+        },
+        {
+          "title": "Analyzed per context",
+          "description": "Campaign, organization and personal calls are analyzed independently, so a busy campaign never drowns out your other follow-ups."
+        }
+      ],
+      "benefits": [
+        "A prioritized follow-up queue instead of scattered notes",
+        "A suggested message and next best action for each lead",
+        "Due dates and decay so you act while the lead is still warm",
+        "Nothing slips through the cracks after a good call"
+      ],
+      "bestFor": "Reps and teams running outbound who close over several touches rather than one call.",
+      "dataNote": "Works from your first logged outcome. Recommendations get sharper as more calls are analyzed; very short calls are skipped."
+    },
+    "objection_intelligence": {
+      "tagline": "Discover what blocks your prospects and how to respond.",
+      "summary": "It reads your real conversations to reveal what most often stops prospects from buying — and gives you a tested, editable response for each objection, so the whole team can handle it the same winning way.",
+      "howItWorks": [
+        {
+          "title": "Code measures the numbers",
+          "description": "Ringee counts every objection across your analyzed calls, how often each one appears, and how often the call still converted — so the numbers are trustworthy and trend cleanly across runs."
+        },
+        {
+          "title": "AI explains and recommends",
+          "description": "On a curated sample, AI surfaces what each objection really means, the patterns that win versus the ones that kill the deal, and a recommended response — and even discovers objections you never predefined."
+        },
+        {
+          "title": "Ranked, with a confidence level",
+          "description": "Objections are ranked by prevalence per context, with a confidence badge that rises as more conversations are analyzed."
+        }
+      ],
+      "benefits": [
+        "A ranked leaderboard of what actually blocks your deals",
+        "\"What they really mean\" plus winning and losing patterns from your own calls",
+        "A ready-to-use response you can edit, save, or add to your script",
+        "New objections discovered by AI that you had not thought of"
+      ],
+      "bestFor": "Teams who want every rep handling the toughest objections with the response that already works.",
+      "dataNote": "Needs real conversations with usable transcripts. Around 25+ analyzed calls per context unlock higher-confidence insights."
+    }
   }
 }
