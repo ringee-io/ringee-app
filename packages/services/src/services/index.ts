@@ -32,3 +32,4 @@ export * from "./custom-integrations";
 export * from "./call-session";
 export * from "./transcription";
 export * from "./ai-pipeline";
+export * from "./backoffice.service";

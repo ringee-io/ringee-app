@@ -76,6 +76,7 @@ import { AiPipelineRunRepository } from "./repositories/ai-pipeline-run.reposito
 import { CallAnalysisRepository } from "./repositories/call-analysis.repository";
 import { PendingActionRepository } from "./repositories/pending-action.repository";
 import { ObjectionInsightRepository } from "./repositories/objection-insight.repository";
+import { BackofficeRepository } from "./repositories/backoffice.repository";
 
 const databaseProviders = [
   PrismaService,
@@ -153,6 +154,7 @@ const databaseProviders = [
   CallAnalysisRepository,
   PendingActionRepository,
   ObjectionInsightRepository,
+  BackofficeRepository,
 ];
 
 @Global()

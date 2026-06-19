@@ -127,6 +127,7 @@ import {
   ObjectionIntelligencePipeline,
   ObjectionInsightService,
 } from "./ai-pipeline";
+import { BackofficeService } from "./backoffice.service";
 
 const servicesProviders = [
   UserService,
@@ -241,6 +242,8 @@ const servicesProviders = [
   ObjectionAiBatchService,
   ObjectionIntelligencePipeline,
   ObjectionInsightService,
+  // Backoffice (super admin)
+  BackofficeService,
 ];
 
 /**

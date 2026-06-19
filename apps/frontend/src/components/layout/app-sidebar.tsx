@@ -35,8 +35,10 @@ import { useUser, useOrganization } from '@clerk/nextjs';
 import {
   IconChevronsDown,
   IconLogout,
-  IconPhoneCalling
+  IconPhoneCalling,
+  IconShieldLock
 } from '@tabler/icons-react';
+import { isSuperAdminEmail } from '@/features/backoffice/lib/super-admins';
 
 import { SignOutButton } from '@clerk/nextjs';
 import Link from 'next/link';
@@ -130,6 +132,10 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
     : useUser();
 
   const router = useRouter();
+
+  const isSuperAdmin = !!user?.emailAddresses?.some(
+    (e: { emailAddress: string }) => isSuperAdminEmail(e.emailAddress)
+  );
 
   const { canAccessAdminFeatures } = useMock
     ? { canAccessAdminFeatures: true }
@@ -368,6 +374,19 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                         {tNav('userMenu.buyNumber')}
                       </DropdownMenuItem>
                     </DropdownMenuGroup>
+                  </>
+                )}
+
+                {/* Super admin (backoffice) — gated by email allowlist */}
+                {isSuperAdmin && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => router.push('/backoffice')}
+                    >
+                      <IconShieldLock className='mr-2 h-4 w-4' />
+                      Backoffice
+                    </DropdownMenuItem>
                   </>
                 )}
 

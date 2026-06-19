@@ -59,6 +59,7 @@ import { AiPipelineController } from "./ai-pipeline.controller";
 import { ObjectionInsightController } from "./objection-insight.controller";
 import { PendingActionController } from "./pending-action.controller";
 import { ExtensionController } from "./extension.controller";
+import { BackofficeController } from "./backoffice.controller";
 
 @Module({
   controllers: [
@@ -112,6 +113,7 @@ import { ExtensionController } from "./extension.controller";
     ObjectionInsightController,
     PendingActionController,
     ExtensionController,
+    BackofficeController,
   ],
   // TranscriptionMediaGateway lives here (not in the shared ServicesModule) so
   // the Telnyx media-stream WS server binds its port only in the API process.

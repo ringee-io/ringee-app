@@ -118,6 +118,11 @@ const apiConfiguration = {
   // runs; the AI reasoning/recommendations + their review actions are gated so
   // they can be enabled without a code change.
   AI_OBJECTION_AI_ENABLED: process.env.AI_OBJECTION_AI_ENABLED === "true",
+  // ── Backoffice (super admin) ──
+  // Comma-separated email allowlist for the internal super-admin area. When
+  // unset, the backend falls back to DEFAULT_SUPER_ADMIN_EMAILS (see the
+  // SuperAdminGuard) so the module works out of the box for the founders.
+  BACKOFFICE_SUPER_ADMIN_EMAILS: process.env.BACKOFFICE_SUPER_ADMIN_EMAILS,
 };
 
 const errors = [];
