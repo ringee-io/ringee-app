@@ -17,6 +17,7 @@ import {
   SidebarRail,
   SidebarTrigger
 } from '@ringee/frontend-shared/components/ui/sidebar';
+import { ScrollArea } from '@ringee/frontend-shared/components/ui/scroll-area';
 import {
   IconArrowLeft,
   IconLayoutDashboard,
@@ -90,13 +91,18 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
       </Sidebar>
 
       <SidebarInset>
-        <header className='flex h-14 items-center gap-2 border-b px-4'>
+        <header className='flex h-14 shrink-0 items-center gap-2 border-b px-4'>
           <SidebarTrigger />
           <span className='text-muted-foreground text-sm font-medium'>
             Ringee Backoffice
           </span>
         </header>
-        <div className='p-4 md:p-6'>{children}</div>
+        {/* Body is overflow-hidden globally, so the scroll lives here (mirrors
+            the dashboard's PageContainer). Height = viewport minus the 56px
+            header; pb gives mobile breathing room above the browser chrome. */}
+        <ScrollArea className='h-[calc(100dvh-56px)]'>
+          <div className='p-4 pb-16 md:p-6'>{children}</div>
+        </ScrollArea>
       </SidebarInset>
     </SidebarProvider>
   );
