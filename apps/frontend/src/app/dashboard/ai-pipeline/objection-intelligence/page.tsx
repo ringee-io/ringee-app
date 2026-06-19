@@ -5,6 +5,7 @@ import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { RoleGuard } from '@ringee/frontend-shared/components/role-guard';
 import { ObjectionIntelligence } from '@/features/ai-pipeline/components/objection-intelligence';
+import { PipelineIntro } from '@/features/ai-pipeline/components/pipeline-intro';
 
 export const metadata = {
   title: 'Objection Intelligence',
@@ -21,6 +22,7 @@ export default function ObjectionIntelligencePage() {
             description='Discover what blocks your prospects and how to respond — analyzed independently per context.'
           />
           <Separator />
+          <PipelineIntro type='objection_intelligence' />
           <Suspense fallback={<Skeleton className='h-96 w-full rounded-xl' />}>
             <ObjectionIntelligence />
           </Suspense>

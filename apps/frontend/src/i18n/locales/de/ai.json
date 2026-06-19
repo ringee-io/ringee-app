@@ -192,5 +192,77 @@
     "whenMinutes": "vor {count} Min.",
     "whenHours": "vor {count} Std.",
     "whenDays": "vor {count} T."
+  },
+  "pipelineIntro": {
+    "heading": "Was diese Pipeline macht",
+    "howItWorks": "So funktioniert es",
+    "whatYouGet": "Das bekommst du",
+    "bestFor": "Ideal für",
+    "whatItNeeds": "Was sie braucht",
+    "modelBadge": "Claude Opus 4.8",
+    "poweredBy": "Angetrieben von Claude Opus 4.8, dem leistungsstärksten KI-Modell von Anthropic."
+  },
+  "pipelineCard": {
+    "active": "{count} aktiv",
+    "notEnabled": "Nicht aktiviert",
+    "comingSoon": "Demnächst",
+    "pending": "ausstehend",
+    "newEligible": "neu infrage kommend",
+    "unavailable": "Diese Pipeline ist noch nicht verfügbar.",
+    "viewDetails": "Details ansehen & aktivieren"
+  },
+  "pipelines": {
+    "follow_up_recommendations": {
+      "tagline": "Mach aus jedem Anrufergebnis die nächste beste Aktion.",
+      "summary": "Nach jedem relevanten Anruf wird das Ergebnis in einen konkreten nächsten Schritt verwandelt — wen du wann zurückrufst und was du sagst — damit ein heißer Lead nie abkühlt, während du zum nächsten Anruf übergehst.",
+      "howItWorks": [
+        {
+          "title": "Sofortige, regelbasierte Aktion",
+          "description": "Sobald du ein Ergebnis wie interessiert, Follow-up, Rückruf, Termin vereinbart oder Verkauf erfasst, erstellt Ringee die nächste beste Aktion mit sinnvoller Priorität und Fälligkeit — ohne KI und ohne Wartezeit."
+        },
+        {
+          "title": "Optionale KI-Verfeinerung",
+          "description": "Ein Batch-Durchlauf schärft jede Empfehlung: Er passt die Priorität an, formuliert den Grund und eine vorgeschlagene Nachricht, wählt die nächste beste Aktion und sortiert aus, was nicht mehr relevant ist."
+        },
+        {
+          "title": "Pro Kontext analysiert",
+          "description": "Kampagnen-, Organisations- und persönliche Anrufe werden unabhängig analysiert, sodass eine geschäftige Kampagne deine anderen Follow-ups nie überlagert."
+        }
+      ],
+      "benefits": [
+        "Eine priorisierte Follow-up-Liste statt verstreuter Notizen",
+        "Eine vorgeschlagene Nachricht und die nächste beste Aktion für jeden Lead",
+        "Fälligkeiten und Verfall, damit du handelst, solange der Lead noch heiß ist",
+        "Nach einem guten Anruf geht nichts mehr verloren"
+      ],
+      "bestFor": "Vertriebler und Outbound-Teams, die über mehrere Kontakte statt in einem einzigen Anruf abschließen.",
+      "dataNote": "Funktioniert ab deinem ersten erfassten Ergebnis. Die Empfehlungen werden besser, je mehr Anrufe analysiert werden; sehr kurze Anrufe werden übersprungen."
+    },
+    "objection_intelligence": {
+      "tagline": "Erkenne, was deine Interessenten blockiert — und wie du reagierst.",
+      "summary": "Es liest deine echten Gespräche, um zu zeigen, was deine Interessenten am häufigsten vom Kauf abhält — und liefert dir für jeden Einwand eine erprobte, anpassbare Antwort, damit das ganze Team ihn auf dieselbe erfolgreiche Weise behandelt.",
+      "howItWorks": [
+        {
+          "title": "Code misst die Zahlen",
+          "description": "Ringee zählt jeden Einwand über deine analysierten Anrufe, wie oft er auftritt und wie oft der Anruf trotzdem konvertiert hat — damit die Zahlen verlässlich sind und über Durchläufe hinweg sauber im Trend liegen."
+        },
+        {
+          "title": "KI erklärt und empfiehlt",
+          "description": "Anhand einer kuratierten Stichprobe zeigt die KI, was jeder Einwand wirklich bedeutet, welche Muster gewinnen und welche den Abschluss zunichtemachen, und eine empfohlene Antwort — und entdeckt sogar Einwände, die du nie vordefiniert hast."
+        },
+        {
+          "title": "Gerankt, mit Konfidenzniveau",
+          "description": "Einwände werden pro Kontext nach Häufigkeit gerankt, mit einem Konfidenz-Abzeichen, das steigt, je mehr Gespräche analysiert werden."
+        }
+      ],
+      "benefits": [
+        "Eine Rangliste dessen, was deine Deals wirklich blockiert",
+        "Das „was sie wirklich meinen\" plus die gewinnenden und verlierenden Muster aus deinen eigenen Anrufen",
+        "Eine einsatzbereite Antwort, die du bearbeiten, speichern oder zu deinem Skript hinzufügen kannst",
+        "Neue, von der KI entdeckte Einwände, an die du nicht gedacht hast"
+      ],
+      "bestFor": "Teams, die wollen, dass jeder Vertriebler die schwierigsten Einwände mit der Antwort meistert, die bereits funktioniert.",
+      "dataNote": "Benötigt echte Gespräche mit verwertbaren Transkripten. Rund 25+ analysierte Anrufe pro Kontext schalten Erkenntnisse mit höherer Konfidenz frei."
+    }
   }
 }

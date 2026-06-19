@@ -18,6 +18,22 @@ export class CallTranscriptionRepository {
 
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Canonical chronological ordering for transcript segments. We sort by the
+   * segment's position in the audio (`startMs`) first — `createdAt` is the DB
+   * write time, which is wrong for two cases:
+   *   - recording (pre-recorded) transcripts insert every segment in one
+   *     `createMany`, so they share a `createdAt` and come back in arbitrary
+   *     order;
+   *   - realtime transcripts finalize an utterance only after the speaker
+   *     pauses, so a long sentence that started first can be written AFTER a
+   *     short reply that started later.
+   * `createdAt` stays as the tiebreaker (and the fallback for any segment that
+   * never got a `startMs`).
+   */
+  private static readonly SEGMENT_ORDER: Prisma.CallTranscriptionSegmentOrderByWithRelationInput[] =
+    [{ startMs: { sort: "asc", nulls: "last" } }, { createdAt: "asc" }];
+
   // ── Segments ──────────────────────────────────────────────────────────
 
   async createSegment(
@@ -32,7 +48,7 @@ export class CallTranscriptionRepository {
   async getSegmentsByCall(callId: string): Promise<CallTranscriptionSegment[]> {
     return this.prisma.callTranscriptionSegment.findMany({
       where: { callId },
-      orderBy: { createdAt: "asc" },
+      orderBy: CallTranscriptionRepository.SEGMENT_ORDER,
     });
   }
 
@@ -41,7 +57,7 @@ export class CallTranscriptionRepository {
   ): Promise<CallTranscriptionSegment[]> {
     return this.prisma.callTranscriptionSegment.findMany({
       where: { transcriptionId },
-      orderBy: { createdAt: "asc" },
+      orderBy: CallTranscriptionRepository.SEGMENT_ORDER,
     });
   }
 
@@ -90,7 +106,9 @@ export class CallTranscriptionRepository {
   ): Promise<CallTranscriptionWithSegments[]> {
     return this.prisma.callTranscription.findMany({
       where: { callId },
-      include: { segments: { orderBy: { createdAt: "asc" } } },
+      include: {
+        segments: { orderBy: CallTranscriptionRepository.SEGMENT_ORDER },
+      },
       orderBy: { createdAt: "asc" },
     });
   }
@@ -175,7 +193,7 @@ export class CallTranscriptionRepository {
 
       const segments = await tx.callTranscriptionSegment.findMany({
         where: { transcriptionId },
-        orderBy: { createdAt: "asc" },
+        orderBy: CallTranscriptionRepository.SEGMENT_ORDER,
       });
       const text = segments
         .map((s) => s.text.trim())

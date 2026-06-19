@@ -2,6 +2,7 @@
 
 import { useCall } from '../hooks/use.call';
 import { ActiveCallModal } from './active.call.modal';
+import { FrontendDialerProvider } from './dialer-provider';
 import { useTelnyxStore } from '../store/telnyx.store';
 import { useCallStore } from '../store/call.store';
 import { useFreeTrialTimer } from '../hooks/use.free.trial.timer';
@@ -112,8 +113,9 @@ export function ShowActiveCall() {
   const isOpen = !!activeCall || postCallPhase;
 
   return (
-    <ActiveCallModal
-      open={isOpen}
+    <FrontendDialerProvider>
+      <ActiveCallModal
+        open={isOpen}
       isMuted={isMuted}
       isOnHold={isOnHold}
       isRecording={isRecording}
@@ -133,8 +135,9 @@ export function ShowActiveCall() {
       remoteStream={activeCall?.remoteStream ?? null}
       isPostCall={postCallPhase}
       onPostCallClose={handlePostCallClose}
-      contactId={contactId}
-      callId={callId}
-    />
+        contactId={contactId}
+        callId={callId}
+      />
+    </FrontendDialerProvider>
   );
 }

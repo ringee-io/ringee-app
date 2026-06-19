@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import {
@@ -13,7 +14,12 @@ import {
   CardTitle
 } from '@ringee/frontend-shared/components/ui/card';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Check } from 'lucide-react';
+import {
+  getPipelineIcon,
+  hasPipelineContent,
+  type PipelineContent
+} from '../pipeline-content';
 
 interface PipelineOverview {
   type: string;
@@ -64,18 +70,23 @@ export function AiPipelineCards() {
 }
 
 function PipelineCard({ pipeline }: { pipeline: PipelineOverview }) {
+  const t = useTranslations('ai');
+  const Icon = getPipelineIcon(pipeline.type);
+  const content = hasPipelineContent(pipeline.type)
+    ? (t.raw(`pipelines.${pipeline.type}`) as PipelineContent)
+    : null;
   const body = (
     <Card
       className={
         pipeline.implemented
-          ? 'hover:border-primary/50 h-full transition-colors'
-          : 'h-full opacity-70'
+          ? 'hover:border-primary/50 flex h-full flex-col transition-colors'
+          : 'flex h-full flex-col opacity-70'
       }
     >
       <CardHeader>
         <div className='flex items-center justify-between'>
           <div className='bg-primary/10 text-primary flex h-9 w-9 items-center justify-center rounded-lg'>
-            <Sparkles className='h-5 w-5' />
+            <Icon className='h-5 w-5' />
           </div>
           {pipeline.implemented ? (
             pipeline.enabledContexts > 0 ? (
@@ -83,46 +94,58 @@ function PipelineCard({ pipeline }: { pipeline: PipelineOverview }) {
                 variant='secondary'
                 className='bg-green-100 text-green-700'
               >
-                {pipeline.enabledContexts} active
+                {t('pipelineCard.active', { count: pipeline.enabledContexts })}
               </Badge>
             ) : (
-              <Badge variant='outline'>Not enabled</Badge>
+              <Badge variant='outline'>{t('pipelineCard.notEnabled')}</Badge>
             )
           ) : (
             <Badge variant='secondary' className='uppercase'>
-              Coming soon
+              {t('pipelineCard.comingSoon')}
             </Badge>
           )}
         </div>
         <CardTitle className='mt-3'>{pipeline.name}</CardTitle>
-        <CardDescription>{pipeline.valueProposition}</CardDescription>
+        <CardDescription>
+          {content?.summary ?? pipeline.valueProposition}
+        </CardDescription>
       </CardHeader>
-      <CardContent>
+      <CardContent className='flex-1 space-y-4'>
+        {content && (
+          <ul className='space-y-1.5'>
+            {content.benefits.slice(0, 3).map((benefit, i) => (
+              <li key={i} className='text-muted-foreground flex gap-2 text-sm'>
+                <Check className='mt-0.5 h-4 w-4 shrink-0 text-green-600' />
+                <span>{benefit}</span>
+              </li>
+            ))}
+          </ul>
+        )}
         {pipeline.implemented ? (
           <div className='text-muted-foreground flex gap-4 text-sm'>
             <span>
               <span className='text-foreground font-semibold'>
                 {pipeline.totalPendingActions}
               </span>{' '}
-              pending
+              {t('pipelineCard.pending')}
             </span>
             <span>
               <span className='text-foreground font-semibold'>
                 {pipeline.totalNewEligible}
               </span>{' '}
-              new eligible
+              {t('pipelineCard.newEligible')}
             </span>
           </div>
         ) : (
           <p className='text-muted-foreground text-sm'>
-            This pipeline isn&apos;t available yet.
+            {t('pipelineCard.unavailable')}
           </p>
         )}
       </CardContent>
       {pipeline.implemented && (
         <CardFooter>
           <span className='text-primary flex items-center gap-1 text-sm font-medium'>
-            Open <ArrowRight className='h-4 w-4' />
+            {t('pipelineCard.viewDetails')} <ArrowRight className='h-4 w-4' />
           </span>
         </CardFooter>
       )}

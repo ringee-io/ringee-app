@@ -167,7 +167,12 @@ export class CallbackService {
 
   async listForOwner(
     owner: { userId: string; organizationId?: string | null },
-    options?: { status?: CallbackStatus; page?: number; limit?: number },
+    options?: {
+      status?: CallbackStatus;
+      page?: number;
+      limit?: number;
+      userId?: string;
+    },
   ) {
     return this.callbackRepo.listForOwner(owner, options);
   }

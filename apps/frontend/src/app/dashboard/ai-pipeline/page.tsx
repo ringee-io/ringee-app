@@ -17,7 +17,7 @@ export default function AiPipelinePage() {
         <div className='flex flex-1 flex-col space-y-4'>
           <Heading
             title='AI Pipeline'
-            description='Independent pipelines that analyze your calls by context. Enable a pipeline to start turning outcomes into actions.'
+            description='Independent pipelines that analyze your calls by context. Open one to see exactly what it does and the value it brings before you enable it.'
           />
           <Separator />
           <AiPipelineCards />

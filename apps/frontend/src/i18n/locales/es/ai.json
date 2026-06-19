@@ -192,5 +192,77 @@
     "whenMinutes": "hace {count} min",
     "whenHours": "hace {count} h",
     "whenDays": "hace {count} d"
+  },
+  "pipelineIntro": {
+    "heading": "Qué hace este pipeline",
+    "howItWorks": "Cómo funciona",
+    "whatYouGet": "Qué obtienes",
+    "bestFor": "Ideal para",
+    "whatItNeeds": "Qué necesita",
+    "modelBadge": "Claude Opus 4.8",
+    "poweredBy": "Impulsado por Claude Opus 4.8, el modelo de IA más potente de Anthropic."
+  },
+  "pipelineCard": {
+    "active": "{count} activos",
+    "notEnabled": "Sin activar",
+    "comingSoon": "Próximamente",
+    "pending": "pendientes",
+    "newEligible": "nuevas elegibles",
+    "unavailable": "Este pipeline aún no está disponible.",
+    "viewDetails": "Ver detalles y activar"
+  },
+  "pipelines": {
+    "follow_up_recommendations": {
+      "tagline": "Convierte el resultado de cada llamada en la mejor acción siguiente.",
+      "summary": "Después de cada llamada relevante, convierte el resultado en un siguiente paso concreto —a quién volver a llamar, cuándo y qué decir— para que un lead caliente nunca se enfríe mientras pasas a la siguiente marcación.",
+      "howItWorks": [
+        {
+          "title": "Acción instantánea basada en reglas",
+          "description": "En cuanto registras un resultado como interesado, seguimiento, devolver llamada, reunión agendada o venta, Ringee crea la mejor acción siguiente con una prioridad y fecha límite razonables: sin IA y sin esperas."
+        },
+        {
+          "title": "Refinamiento opcional con IA",
+          "description": "Un análisis por lotes afina cada recomendación: ajusta la prioridad, redacta el motivo y un mensaje sugerido, elige la mejor acción siguiente y descarta las que ya no importan."
+        },
+        {
+          "title": "Analizado por contexto",
+          "description": "Las llamadas de campaña, de la organización y personales se analizan de forma independiente, para que una campaña con mucho volumen nunca opaque tus otros seguimientos."
+        }
+      ],
+      "benefits": [
+        "Una cola de seguimientos priorizada en lugar de notas dispersas",
+        "Un mensaje sugerido y la mejor acción siguiente para cada lead",
+        "Fechas límite y caducidad para que actúes mientras el lead sigue caliente",
+        "Que nada se te escape después de una buena llamada"
+      ],
+      "bestFor": "Vendedores y equipos de outbound que cierran en varios contactos y no en una sola llamada.",
+      "dataNote": "Funciona desde tu primer resultado registrado. Las recomendaciones mejoran a medida que se analizan más llamadas; las llamadas muy cortas se omiten."
+    },
+    "objection_intelligence": {
+      "tagline": "Descubre qué frena a tus prospectos y cómo responder.",
+      "summary": "Lee tus conversaciones reales para revelar qué es lo que más frena la compra de tus prospectos, y te entrega una respuesta probada y editable para cada objeción, de modo que todo el equipo la maneje de la misma forma ganadora.",
+      "howItWorks": [
+        {
+          "title": "El código mide los números",
+          "description": "Ringee cuenta cada objeción en tus llamadas analizadas, con qué frecuencia aparece y cuántas veces la llamada igual convirtió, para que los números sean confiables y mantengan una tendencia clara entre ejecuciones."
+        },
+        {
+          "title": "La IA explica y recomienda",
+          "description": "Sobre una muestra curada, la IA revela qué significa realmente cada objeción, los patrones que ganan frente a los que matan el trato y una respuesta recomendada, e incluso descubre objeciones que nunca predefiniste."
+        },
+        {
+          "title": "Ordenadas, con un nivel de confianza",
+          "description": "Las objeciones se ordenan por prevalencia en cada contexto, con una insignia de confianza que sube a medida que se analizan más conversaciones."
+        }
+      ],
+      "benefits": [
+        "Un ranking de lo que realmente frena tus tratos",
+        "El \"qué quieren decir en realidad\" más los patrones que ganan y pierden, sacados de tus propias llamadas",
+        "Una respuesta lista para usar que puedes editar, guardar o añadir a tu guion",
+        "Nuevas objeciones descubiertas por la IA en las que no habías pensado"
+      ],
+      "bestFor": "Equipos que quieren que cada vendedor maneje las objeciones más difíciles con la respuesta que ya funciona.",
+      "dataNote": "Necesita conversaciones reales con transcripciones utilizables. Alrededor de 25+ llamadas analizadas por contexto desbloquean insights de mayor confianza."
+    }
   }
 }

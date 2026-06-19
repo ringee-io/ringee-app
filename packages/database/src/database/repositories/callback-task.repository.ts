@@ -64,17 +64,24 @@ export class CallbackTaskRepository {
    */
   async listForOwner(
     owner: CallbackOwnerFilter,
-    options?: { status?: CallbackStatus; page?: number; limit?: number },
+    options?: {
+      status?: CallbackStatus;
+      page?: number;
+      limit?: number;
+      /** Narrow an org-wide list to a single member's callbacks. */
+      userId?: string;
+    },
   ): Promise<{
     data: CallbackTaskWithContext[];
     meta: { total: number; page: number; limit: number; totalPages: number };
   }> {
-    const { status, page = 1, limit = 20 } = options || {};
+    const { status, page = 1, limit = 20, userId } = options || {};
 
     const where: Prisma.CallbackTaskWhereInput = {
       ...(owner.organizationId
         ? { organizationId: owner.organizationId }
         : { userId: owner.userId, organizationId: null }),
+      ...(userId ? { userId } : {}),
       ...(status ? { status } : {}),
     };
 

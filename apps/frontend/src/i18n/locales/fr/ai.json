@@ -192,5 +192,77 @@
     "whenMinutes": "il y a {count} min",
     "whenHours": "il y a {count} h",
     "whenDays": "il y a {count} j"
+  },
+  "pipelineIntro": {
+    "heading": "Ce que fait ce pipeline",
+    "howItWorks": "Comment ça marche",
+    "whatYouGet": "Ce que vous obtenez",
+    "bestFor": "Idéal pour",
+    "whatItNeeds": "Ce qu'il lui faut",
+    "modelBadge": "Claude Opus 4.8",
+    "poweredBy": "Propulsé par Claude Opus 4.8, le modèle d'IA le plus puissant d'Anthropic."
+  },
+  "pipelineCard": {
+    "active": "{count} actifs",
+    "notEnabled": "Non activé",
+    "comingSoon": "Bientôt disponible",
+    "pending": "en attente",
+    "newEligible": "nouvelles éligibles",
+    "unavailable": "Ce pipeline n'est pas encore disponible.",
+    "viewDetails": "Voir les détails et activer"
+  },
+  "pipelines": {
+    "follow_up_recommendations": {
+      "tagline": "Transformez chaque résultat d'appel en la meilleure action suivante.",
+      "summary": "Après chaque appel important, il transforme le résultat en une étape concrète — qui rappeler, quand et quoi dire — pour qu'un prospect chaud ne refroidisse jamais pendant que vous passez à l'appel suivant.",
+      "howItWorks": [
+        {
+          "title": "Action immédiate, basée sur des règles",
+          "description": "Dès que vous enregistrez un résultat comme intéressé, relance, rappel, rendez-vous pris ou vente, Ringee crée la meilleure action suivante avec une priorité et une échéance pertinentes — sans IA et sans attente."
+        },
+        {
+          "title": "Affinage optionnel par l'IA",
+          "description": "Une analyse par lots affine chaque recommandation : elle ajuste la priorité, rédige la raison et un message suggéré, choisit la meilleure action suivante et écarte celles qui n'ont plus d'intérêt."
+        },
+        {
+          "title": "Analysé par contexte",
+          "description": "Les appels de campagne, d'organisation et personnels sont analysés indépendamment, afin qu'une campagne chargée n'éclipse jamais vos autres relances."
+        }
+      ],
+      "benefits": [
+        "Une file de relances priorisée plutôt que des notes éparpillées",
+        "Un message suggéré et la meilleure action suivante pour chaque prospect",
+        "Des échéances et une péremption pour agir tant que le prospect est encore chaud",
+        "Plus rien ne passe entre les mailles après un bon appel"
+      ],
+      "bestFor": "Commerciaux et équipes d'outbound qui closent en plusieurs contacts plutôt qu'en un seul appel.",
+      "dataNote": "Fonctionne dès votre premier résultat enregistré. Les recommandations s'affinent à mesure que davantage d'appels sont analysés ; les appels très courts sont ignorés."
+    },
+    "objection_intelligence": {
+      "tagline": "Découvrez ce qui bloque vos prospects et comment y répondre.",
+      "summary": "Il lit vos conversations réelles pour révéler ce qui empêche le plus souvent vos prospects d'acheter — et vous fournit une réponse testée et modifiable pour chaque objection, afin que toute l'équipe la traite de la même manière gagnante.",
+      "howItWorks": [
+        {
+          "title": "Le code mesure les chiffres",
+          "description": "Ringee compte chaque objection dans vos appels analysés, sa fréquence d'apparition et combien de fois l'appel a tout de même converti — pour que les chiffres soient fiables et suivent une tendance nette d'une exécution à l'autre."
+        },
+        {
+          "title": "L'IA explique et recommande",
+          "description": "Sur un échantillon sélectionné, l'IA révèle ce que chaque objection signifie vraiment, les schémas qui gagnent par rapport à ceux qui tuent l'affaire, et une réponse recommandée — et découvre même des objections que vous n'aviez jamais prédéfinies."
+        },
+        {
+          "title": "Classées, avec un niveau de confiance",
+          "description": "Les objections sont classées par prévalence dans chaque contexte, avec un badge de confiance qui augmente à mesure que davantage de conversations sont analysées."
+        }
+      ],
+      "benefits": [
+        "Un classement de ce qui bloque réellement vos affaires",
+        "Le « ce qu'ils veulent vraiment dire » ainsi que les schémas gagnants et perdants tirés de vos propres appels",
+        "Une réponse prête à l'emploi que vous pouvez modifier, enregistrer ou ajouter à votre script",
+        "De nouvelles objections découvertes par l'IA auxquelles vous n'aviez pas pensé"
+      ],
+      "bestFor": "Les équipes qui veulent que chaque commercial gère les objections les plus difficiles avec la réponse qui fonctionne déjà.",
+      "dataNote": "Nécessite de vraies conversations avec des transcriptions exploitables. Environ 25+ appels analysés par contexte débloquent des insights plus fiables."
+    }
   }
 }

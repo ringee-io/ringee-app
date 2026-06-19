@@ -1,5 +1,15 @@
 packages:
   - 'packages/**'
   - 'apps/**'
+  # Keep the prior-AI extension prototype as untouched reference, but exclude it
+  # from the workspace so its nested package.json isn't treated as a member.
+  - '!apps/browser-extension/files/**'
 
 strictPeerDependencies: false
+
+# Pin a single React types version across the workspace so shared React packages
+# (frontend-shared, dialer-ui) type-check against the same @types/react the apps
+# use. Without this, isolated typechecks resolve a second copy and JSX breaks.
+overrides:
+  '@types/react': '19.0.1'
+  '@types/react-dom': '19.0.2'

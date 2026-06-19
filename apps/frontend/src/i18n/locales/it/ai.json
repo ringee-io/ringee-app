@@ -192,5 +192,77 @@
     "whenMinutes": "{count} min fa",
     "whenHours": "{count} h fa",
     "whenDays": "{count} g fa"
+  },
+  "pipelineIntro": {
+    "heading": "Cosa fa questa pipeline",
+    "howItWorks": "Come funziona",
+    "whatYouGet": "Cosa ottieni",
+    "bestFor": "Ideale per",
+    "whatItNeeds": "Cosa serve",
+    "modelBadge": "Claude Opus 4.8",
+    "poweredBy": "Basato su Claude Opus 4.8, il modello di IA più potente di Anthropic."
+  },
+  "pipelineCard": {
+    "active": "{count} attivi",
+    "notEnabled": "Non attivato",
+    "comingSoon": "In arrivo",
+    "pending": "in sospeso",
+    "newEligible": "nuove idonee",
+    "unavailable": "Questa pipeline non è ancora disponibile.",
+    "viewDetails": "Vedi dettagli e attiva"
+  },
+  "pipelines": {
+    "follow_up_recommendations": {
+      "tagline": "Trasforma l'esito di ogni chiamata nella migliore azione successiva.",
+      "summary": "Dopo ogni chiamata significativa, trasforma l'esito in un passo concreto — chi richiamare, quando e cosa dire — così un lead caldo non si raffredda mai mentre passi alla chiamata successiva.",
+      "howItWorks": [
+        {
+          "title": "Azione immediata, basata su regole",
+          "description": "Nel momento in cui registri un esito come interessato, follow-up, richiamo, riunione fissata o vendita, Ringee crea la migliore azione successiva con una priorità e una scadenza sensate — senza IA e senza attese."
+        },
+        {
+          "title": "Perfezionamento opzionale con IA",
+          "description": "Un'analisi in batch affina ogni raccomandazione: regola la priorità, scrive la motivazione e un messaggio suggerito, sceglie la migliore azione successiva ed elimina quelle che non contano più."
+        },
+        {
+          "title": "Analizzato per contesto",
+          "description": "Le chiamate di campagna, dell'organizzazione e personali vengono analizzate in modo indipendente, così una campagna intensa non mette mai in ombra gli altri follow-up."
+        }
+      ],
+      "benefits": [
+        "Una coda di follow-up con priorità invece di note sparse",
+        "Un messaggio suggerito e la migliore azione successiva per ogni lead",
+        "Scadenze e decadimento per agire mentre il lead è ancora caldo",
+        "Niente sfugge dopo una buona chiamata"
+      ],
+      "bestFor": "Venditori e team outbound che chiudono in più contatti anziché in una sola chiamata.",
+      "dataNote": "Funziona dal tuo primo esito registrato. Le raccomandazioni migliorano man mano che vengono analizzate più chiamate; le chiamate molto brevi vengono saltate."
+    },
+    "objection_intelligence": {
+      "tagline": "Scopri cosa blocca i tuoi potenziali clienti e come rispondere.",
+      "summary": "Legge le tue conversazioni reali per rivelare ciò che più spesso impedisce ai potenziali clienti di comprare — e ti fornisce una risposta testata e modificabile per ogni obiezione, così tutto il team la gestisce nello stesso modo vincente.",
+      "howItWorks": [
+        {
+          "title": "Il codice misura i numeri",
+          "description": "Ringee conta ogni obiezione nelle tue chiamate analizzate, con quale frequenza compare e quante volte la chiamata ha comunque convertito — così i numeri sono affidabili e seguono un trend pulito tra le esecuzioni."
+        },
+        {
+          "title": "L'IA spiega e raccomanda",
+          "description": "Su un campione selezionato, l'IA rivela cosa significa davvero ogni obiezione, gli schemi che vincono rispetto a quelli che fanno saltare la trattativa, e una risposta consigliata — e scopre persino obiezioni che non avevi mai predefinito."
+        },
+        {
+          "title": "In classifica, con un livello di confidenza",
+          "description": "Le obiezioni sono ordinate per prevalenza in ogni contesto, con un badge di confidenza che cresce man mano che vengono analizzate più conversazioni."
+        }
+      ],
+      "benefits": [
+        "Una classifica di ciò che blocca davvero le tue trattative",
+        "Il \"cosa intendono davvero\" più gli schemi vincenti e perdenti tratti dalle tue chiamate",
+        "Una risposta pronta all'uso che puoi modificare, salvare o aggiungere al tuo script",
+        "Nuove obiezioni scoperte dall'IA a cui non avevi pensato"
+      ],
+      "bestFor": "Team che vogliono che ogni venditore gestisca le obiezioni più difficili con la risposta che funziona già.",
+      "dataNote": "Servono conversazioni reali con trascrizioni utilizzabili. Circa 25+ chiamate analizzate per contesto sbloccano insight a maggiore confidenza."
+    }
   }
 }
