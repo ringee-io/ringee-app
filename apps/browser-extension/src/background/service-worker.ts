@@ -32,7 +32,7 @@ import { DEFAULT_REGION } from "../lib/region";
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const SYNC_HOST =
-  import.meta.env.VITE_CLERK_SYNC_HOST ?? "https://app.ringee.io";
+  import.meta.env.VITE_CLERK_SYNC_HOST ?? "https://www.ringee.io";
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
 async function clerk() {

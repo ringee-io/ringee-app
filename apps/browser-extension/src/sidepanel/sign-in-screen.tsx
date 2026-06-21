@@ -2,7 +2,7 @@ import { ExternalLink, RefreshCw } from "lucide-react";
 import { RingeeLogo } from "./ringee-logo";
 
 const SYNC_HOST =
-  import.meta.env.VITE_CLERK_SYNC_HOST ?? "https://app.ringee.io";
+  import.meta.env.VITE_CLERK_SYNC_HOST ?? "https://www.ringee.io";
 
 /**
  * Signed-out state. The extension shares the Ringee web-app session via Clerk's

@@ -6,7 +6,7 @@ import "./theme.css";
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const SYNC_HOST =
-  import.meta.env.VITE_CLERK_SYNC_HOST ?? "https://app.ringee.io";
+  import.meta.env.VITE_CLERK_SYNC_HOST ?? "https://www.ringee.io";
 
 // Follow the OS light/dark preference so the panel matches the Ringee app's
 // theme (the shared tokens + logo swap on the `.dark` class).

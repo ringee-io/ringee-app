@@ -11,7 +11,7 @@ Make and receive calls worldwide, manage contacts, record conversations, and mon
 - Website: https://ringee.io  
 - Docs: https://docs.ringee.io  
 - Tutorials: https://www.youtube.com/watch?v=WiHE9RFmECc  
-- Register: https://app.ringee.io/auth/sign-up  
+- Register: https://www.ringee.io/auth/sign-up  
 - Issues: https://github.com/ringee-io/ringee/issues  
 
 ---

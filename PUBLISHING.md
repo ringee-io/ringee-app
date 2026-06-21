@@ -133,10 +133,10 @@ the `401 + WWW-Authenticate` challenge, and JWKS token verification. To enable:
 pnpm --filter @ringee-io/chatgpt-app add jose   # signature verification
 # .env:
 RINGEE_REQUIRE_AUTH=true
-RINGEE_PUBLIC_URL=https://app.ringee.io
+RINGEE_PUBLIC_URL=https://www.ringee.io
 RINGEE_OAUTH_ISSUER=https://auth.ringee.io
 RINGEE_OAUTH_JWKS_URL=https://auth.ringee.io/.well-known/jwks.json
-RINGEE_OAUTH_AUDIENCE=https://app.ringee.io/mcp
+RINGEE_OAUTH_AUDIENCE=https://www.ringee.io/mcp
 ```
 
 Use Clerk (already Ringee's IdP) or any OAuth 2.1 server that supports PKCE and

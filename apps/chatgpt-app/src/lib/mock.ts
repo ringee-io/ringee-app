@@ -267,7 +267,7 @@ export const mockSession: CallSessionInfo = {
 };
 
 export const mockSessionJoinUrl =
-  "https://app.ringee.io/dialer/session?token=ndk38fhskd92ksl";
+  "https://www.ringee.io/dialer/session?token=ndk38fhskd92ksl";
 
 export const mockCallback: CreateCallbackResult = {
   ok: true,

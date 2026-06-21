@@ -60,7 +60,7 @@ export default defineManifest((env) => {
   // configured Ringee web app / backend (e.g. localhost in dev). This is what
   // lets the Sync Host session-sharing and the backend calls actually work.
   const e = loadEnv(env.mode, process.cwd(), "");
-  const syncHost = e.VITE_CLERK_SYNC_HOST || "https://app.ringee.io";
+  const syncHost = e.VITE_CLERK_SYNC_HOST || "https://www.ringee.io";
   const apiUrl = e.VITE_RINGEE_API_URL || "https://api.ringee.io/api";
   // The Clerk Frontend API origin (e.g. https://clerk.ringee.io in production).
   // Required for Sync Host to read the signed-in session cookie — without it the
@@ -78,7 +78,7 @@ export default defineManifest((env) => {
     originPattern(apiUrl),
     clerkApi ? originPattern(clerkApi) : null,
     "https://api.ringee.io/*",
-    "https://app.ringee.io/*",
+    "https://www.ringee.io/*",
     "https://*.clerk.accounts.dev/*",
   ]);
 
@@ -88,7 +88,7 @@ export default defineManifest((env) => {
     originBase(apiUrl),
     clerkApi,
     "https://api.ringee.io",
-    "https://app.ringee.io",
+    "https://www.ringee.io",
     "https://*.clerk.accounts.dev",
     "https://clerk.ringee.io",
     "wss://*.telnyx.com",
