@@ -15,7 +15,13 @@
  * Usage:  pnpm package
  */
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, rmSync } from "node:fs";
+import {
+  existsSync,
+  mkdirSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -48,7 +54,8 @@ if (!skipBuild) {
 
 // 2) Version comes from the BUILT manifest (the single source of truth that
 //    Chrome actually loads), so the filename always matches what's published.
-const manifest = JSON.parse(readFileSync(join(dist, "manifest.json"), "utf8"));
+const manifestPath = join(dist, "manifest.json");
+const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
 const version = manifest.version ?? "0.0.0";
 const zipName = `ringee-extension-v${version}.zip`;
 const zipPath = join(outDir, zipName);
@@ -56,14 +63,35 @@ const zipPath = join(outDir, zipName);
 mkdirSync(outDir, { recursive: true });
 rmSync(zipPath, { force: true }); // a stale zip of the same name would be merged into
 
-// 3) Zip the CONTENTS of dist/ (cwd: dist) so manifest.json lands at the root.
-//    -r recurse, -X drop extra macOS attributes, exclude junk + (by default) maps.
-const excludes = ["*.DS_Store", "__MACOSX/*"];
-if (!withMaps) excludes.push("*.map");
-const excludeArgs = excludes.map((p) => `-x "${p}"`).join(" ");
+// 3) Strip the `key` field from the PUBLISHED package. `key` (from CRX_KEY)
+//    only exists to pin a stable extension ID for LOCAL unpacked development.
+//    The Chrome Web Store signs each item with its OWN key and records the
+//    resulting ID; uploading a package whose `key` derives a different ID than
+//    the store item is rejected with "The value of the 'key' field in the
+//    manifest does not match the current item." We remove it just for the zip,
+//    then restore dist/manifest.json so loading dist/ unpacked keeps its ID.
+const originalManifestText = readFileSync(manifestPath, "utf8");
+let manifestStripped = false;
+if (manifest.key !== undefined) {
+  const { key: _omit, ...withoutKey } = manifest;
+  writeFileSync(manifestPath, `${JSON.stringify(withoutKey, null, 2)}\n`);
+  manifestStripped = true;
+  console.log("🔑 stripped dev `key` field — the Chrome Web Store assigns the published ID\n");
+}
 
-console.log(`\n🗜  zipping dist/ → releases/${zipName}${withMaps ? " (with source maps)" : ""}\n`);
-run(`zip -r -X "${zipPath}" . ${excludeArgs}`, { cwd: dist });
+try {
+  // 4) Zip the CONTENTS of dist/ (cwd: dist) so manifest.json lands at the root.
+  //    -r recurse, -X drop extra macOS attributes, exclude junk + (by default) maps.
+  const excludes = ["*.DS_Store", "__MACOSX/*"];
+  if (!withMaps) excludes.push("*.map");
+  const excludeArgs = excludes.map((p) => `-x "${p}"`).join(" ");
+
+  console.log(`🗜  zipping dist/ → releases/${zipName}${withMaps ? " (with source maps)" : ""}\n`);
+  run(`zip -r -X "${zipPath}" . ${excludeArgs}`, { cwd: dist });
+} finally {
+  // Always put the unpacked dist/ manifest back the way it was built.
+  if (manifestStripped) writeFileSync(manifestPath, originalManifestText);
+}
 
 console.log(`\n✓ packaged releases/${zipName}`);
 console.log("  Upload it at https://chrome.google.com/webstore/devconsole\n");
