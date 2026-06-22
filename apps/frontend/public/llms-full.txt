@@ -129,6 +129,22 @@ Ringee competes with per-seat outbound calling tools. Its core differentiators a
 
 ---
 
+## Apps & platforms
+
+Page: https://www.ringee.io/apps
+
+Ringee runs wherever you work, all signed in to the same account so contacts, caller IDs, and call history stay in sync.
+
+- Chrome extension: call with one click without leaving the page you are on. The extension detects phone numbers on any site and dials them straight from your browser, running the same dialer as the web app inside the Chrome side panel. Install: https://chromewebstore.google.com/detail/ringee-%E2%80%94-low-cost-outboun/hmgbaielacnpemblmoahpfdlnfdlmeel
+- iPhone app: the full Ringee dialer on iOS — call, log outcomes, and book follow-ups on the go. Apple App Store: https://apps.apple.com/app/ringee-app/id6773448247
+- Android app: the full Ringee dialer on Android. Google Play: https://play.google.com/store/apps/details?id=io.ringee.twa
+- Web app: no install required — open Ringee in any modern browser at https://www.ringee.io and start calling.
+- AI tools: drive outbound from Claude and ChatGPT through Ringee's MCP server. Agents prospect leads, build call lists, start calls, and log outcomes; a human always takes the call. Demo (Ringee inside Claude): https://www.youtube.com/watch?v=5yjDOIjfBPM
+
+The apps and the extension are free to install; you only pay for your Ringee plan and pay-as-you-go calling credits.
+
+---
+
 ## Resources
 
 - Home: https://www.ringee.io/
@@ -143,5 +159,8 @@ Ringee competes with per-seat outbound calling tools. Its core differentiators a
 - Developer documentation: https://docs.ringee.io
 - Blog: https://blog.ringee.io
 - CLI on npm: https://www.npmjs.com/package/ringee
+- Apps & extensions: https://www.ringee.io/apps
+- Chrome extension: https://chromewebstore.google.com/detail/ringee-%E2%80%94-low-cost-outboun/hmgbaielacnpemblmoahpfdlnfdlmeel
 - iOS app: https://apps.apple.com/app/ringee-app/id6773448247
+- Android app: https://play.google.com/store/apps/details?id=io.ringee.twa
 - Source code: https://github.com/ringee-io

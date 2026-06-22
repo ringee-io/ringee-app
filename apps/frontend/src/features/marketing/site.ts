@@ -13,6 +13,13 @@ export const GITHUB_URL = 'https://github.com/ringee-io/ringee-app';
 /** GitHub organization profile — used as an entity (sameAs) anchor. */
 export const GITHUB_ORG_URL = 'https://github.com/ringee-io';
 export const IOS_APP_URL = 'https://apps.apple.com/app/ringee-app/id6773448247';
+export const ANDROID_APP_URL =
+  'https://play.google.com/store/apps/details?id=io.ringee.twa';
+export const CHROME_EXTENSION_URL =
+  'https://chromewebstore.google.com/detail/ringee-%E2%80%94-low-cost-outboun/hmgbaielacnpemblmoahpfdlnfdlmeel';
+/** Short demo: driving Ringee from Claude over the MCP server. */
+export const DEMO_VIDEO_ID = '5yjDOIjfBPM';
+export const DEMO_VIDEO_URL = `https://www.youtube.com/watch?v=${DEMO_VIDEO_ID}`;
 /** Public developer + content resources (live on their own subdomains). */
 export const DOCS_URL = 'https://docs.ringee.io';
 export const BLOG_URL = 'https://blog.ringee.io';
@@ -40,6 +47,8 @@ export const SAME_AS = [
   'https://www.reddit.com/r/ringee/',
   CLI_NPM_URL,
   IOS_APP_URL,
+  ANDROID_APP_URL,
+  CHROME_EXTENSION_URL,
   BLOG_URL
 ];
 
@@ -239,6 +248,7 @@ export const MAIN_NAV: NavLink[] = [
   { label: 'Pricing', href: '/pricing' },
   { label: 'Use Cases', href: '/use-cases' },
   { label: 'Integrations', href: '/integrations' },
+  { label: 'Apps', href: '/apps' },
   { label: 'Security', href: '/security' },
   { label: 'Open Source', href: '/open-source' }
 ];
@@ -256,6 +266,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: 'Callbacks', href: '/features/callbacks' },
       { label: 'Meetings', href: '/features/meetings' },
       { label: 'AI call automation', href: '/features/ai-call-automation' },
+      { label: 'Apps & extensions', href: '/apps' },
       { label: 'All features', href: '/features' }
     ]
   },
@@ -289,7 +300,9 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: 'Developer docs', href: DOCS_URL },
       { label: 'Blog', href: BLOG_URL },
       { label: 'CLI on npm', href: CLI_NPM_URL },
+      { label: 'Chrome extension', href: CHROME_EXTENSION_URL },
       { label: 'iOS app', href: IOS_APP_URL },
+      { label: 'Android app', href: ANDROID_APP_URL },
       { label: 'GitHub', href: GITHUB_URL }
     ]
   },

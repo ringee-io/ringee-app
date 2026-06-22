@@ -19,6 +19,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/pricing', priority: 0.9 },
     { path: '/features', priority: 0.8 },
     { path: '/integrations', priority: 0.8 },
+    { path: '/apps', priority: 0.8 },
     { path: '/use-cases', priority: 0.8 },
     { path: '/alternatives', priority: 0.8 },
     { path: '/security', priority: 0.7 },

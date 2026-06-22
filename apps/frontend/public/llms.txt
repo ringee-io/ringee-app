@@ -4,7 +4,8 @@
 
 ## Key facts
 
-- Call leads worldwide from the browser or the Ringee iOS app — no special hardware.
+- Call leads worldwide from the browser, the Ringee Chrome extension, or the Ringee iOS and Android apps — no special hardware.
+- The Chrome extension lets you call with one click without leaving the page you are on: it detects phone numbers on any site and dials them from your browser using the same dialer, contacts, and call history as the web app.
 - Low-cost and pay-as-you-go: calling credits are billed separately, from $0.020/min, so you only pay for the minutes you use.
 - Pricing: Freelancer plan is $0/month; Organization plan is $20/month per organization.
 - The Freelancer plan includes every feature for one person; the Organization plan adds an organization, unlimited invited members, and calling campaigns.
@@ -71,6 +72,7 @@
 - [Pricing](https://www.ringee.io/pricing): Plans, flat team pricing, and pay-as-you-go calling.
 - [Features](https://www.ringee.io/features): Full feature catalog.
 - [Integrations](https://www.ringee.io/integrations): Lead sources, CRMs, calendar, and AI tools.
+- [Apps & extensions](https://www.ringee.io/apps): Use Ringee from the Chrome extension, iPhone, Android, the web, and AI tools.
 - [Use cases](https://www.ringee.io/use-cases): Who Ringee is built for.
 - [Security](https://www.ringee.io/security): Data protection and an honest certification stance.
 - [Open source](https://www.ringee.io/open-source): MIT-licensed, auditable, self-hostable.
@@ -83,7 +85,9 @@
 - [Developer documentation](https://docs.ringee.io): Guides and API/MCP reference.
 - [Blog](https://blog.ringee.io): Outbound and product articles.
 - [Command-line interface](https://www.npmjs.com/package/ringee): The `ringee` CLI on npm.
+- [Chrome extension](https://chromewebstore.google.com/detail/ringee-%E2%80%94-low-cost-outboun/hmgbaielacnpemblmoahpfdlnfdlmeel): One-click outbound calling from your browser.
 - [iOS app](https://apps.apple.com/app/ringee-app/id6773448247): Ringee on the Apple App Store.
+- [Android app](https://play.google.com/store/apps/details?id=io.ringee.twa): Ringee on Google Play.
 - [Source code](https://github.com/ringee-io): Ringee on GitHub.
 
 ## Optional

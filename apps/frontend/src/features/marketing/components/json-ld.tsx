@@ -139,7 +139,7 @@ export function softwareAppJsonLd({
     '@type': 'SoftwareApplication',
     name,
     applicationCategory: 'BusinessApplication',
-    operatingSystem: 'Web, iOS',
+    operatingSystem: 'Web, iOS, Android',
     url,
     description,
     isAccessibleForFree: true,

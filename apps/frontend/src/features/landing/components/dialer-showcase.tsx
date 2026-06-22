@@ -13,12 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useTranslations } from 'next-intl';
 import { IconDialpad } from '@tabler/icons-react';
 import { Activity, Sparkles } from 'lucide-react';
-import {
-  WindowChrome,
-  Kicker,
-  GlowBackground,
-  useInViewRef
-} from './showcase-primitives';
+import { WindowChrome, Kicker, useInViewRef } from './showcase-primitives';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { DialPad } from '@/features/calls/components/dialer.pad';
 import type { MockCallContact } from './mock/mock-active-call-modal';
@@ -137,7 +132,9 @@ function useScriptedCall() {
 /* Section                                                             */
 /* ------------------------------------------------------------------ */
 
-export default function DialerShowcase() {
+export default function DialerShowcase({
+  embedded = false
+}: { embedded?: boolean } = {}) {
   const t = useTranslations('marketing.liveDialer');
   const [modeIdx, setModeIdx] = useState(0);
   const [pinned, setPinned] = useState(false);
@@ -158,41 +155,52 @@ export default function DialerShowcase() {
   return (
     <section
       id='live-dialer'
-      className='border-border/40 relative w-full overflow-hidden border-t px-6 py-16 sm:py-20'
+      className={cn(
+        'relative w-full overflow-hidden',
+        embedded ? '' : 'border-border/40 border-t px-6 py-16 sm:py-20'
+      )}
     >
       {/* <GlowBackground gradient='from-cyan-500/10 via-violet-500/5 to-transparent' /> */}
 
-      {/* Header */}
-      <div className='mx-auto max-w-5xl text-center'>
-        <Kicker
-          icon={<Activity className='h-3.5 w-3.5' strokeWidth={2} />}
-          className='border-cyan-500/20 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
-        >
-          {t('kicker')}
-        </Kicker>
+      {/* Header — hidden when embedded inside a marketing detail page that
+          already provides its own section heading. */}
+      {!embedded && (
+        <div className='mx-auto max-w-5xl text-center'>
+          <Kicker
+            icon={<Activity className='h-3.5 w-3.5' strokeWidth={2} />}
+            className='border-cyan-500/20 bg-cyan-500/10 text-cyan-600 dark:text-cyan-400'
+          >
+            {t('kicker')}
+          </Kicker>
 
-        <motion.h2
-          initial={{ opacity: 0, y: 15 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.1 }}
-          className='xs:text-4xl mt-5 text-3xl font-bold tracking-tight sm:text-5xl'
-        >
-          {t('title')}
-        </motion.h2>
-        <motion.p
-          initial={{ opacity: 0, y: 15 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ delay: 0.15 }}
-          className='text-muted-foreground mx-auto mt-4 max-w-2xl text-base'
-        >
-          {t('subtitle')}
-        </motion.p>
-      </div>
+          <motion.h2
+            initial={{ opacity: 0, y: 15 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.1 }}
+            className='xs:text-4xl mt-5 text-3xl font-bold tracking-tight sm:text-5xl'
+          >
+            {t('title')}
+          </motion.h2>
+          <motion.p
+            initial={{ opacity: 0, y: 15 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ delay: 0.15 }}
+            className='text-muted-foreground mx-auto mt-4 max-w-2xl text-base'
+          >
+            {t('subtitle')}
+          </motion.p>
+        </div>
+      )}
 
       {/* Mode tabs */}
-      <div className='mx-auto mt-10 flex max-w-xl flex-wrap items-center justify-center gap-2'>
+      <div
+        className={cn(
+          'mx-auto flex max-w-xl flex-wrap items-center justify-center gap-2',
+          embedded ? '' : 'mt-10'
+        )}
+      >
         {MODES.map((m, i) => {
           const isActive = i === modeIdx;
           return (
