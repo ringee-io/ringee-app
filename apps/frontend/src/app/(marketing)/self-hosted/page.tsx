@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Check, CloudCog, ServerCog } from 'lucide-react';
 
 import { buildMetadata } from '@/features/marketing/seo';
+import { DetailLayout } from '@/features/marketing/components/detail-layout';
 import {
   Card,
   CheckList,
@@ -10,7 +11,6 @@ import {
   Section,
   SectionHeading
 } from '@/features/marketing/components/primitives';
-import { Breadcrumbs } from '@/features/marketing/components/breadcrumbs';
 import { CtaSection } from '@/features/marketing/components/cta-section';
 import { FaqSection } from '@/features/marketing/components/faq';
 import { GITHUB_URL } from '@/features/marketing/site';
@@ -63,13 +63,19 @@ const SELF_HOSTED_FAQS = [
 
 export default function SelfHostedPage() {
   return (
-    <>
-      <Breadcrumbs
-        items={[
-          { name: 'Home', href: '/' },
-          { name: 'Self-hosted', href: '/self-hosted' }
-        ]}
-      />
+    <DetailLayout items={[
+      { name: 'Home', href: '/' },
+      { name: 'Self-hosted', href: '/self-hosted' }
+    ]}
+
+      cta={<CtaSection
+        title='Start with the cloud, switch to self-hosted anytime'
+        description='Create a free account to try Ringee, or grab the code and run it yourself.'
+        secondaryHref={GITHUB_URL}
+        secondaryLabel='View on GitHub'
+      />}
+    >
+
       <Section className='pt-8 pb-4'>
         <Container className='max-w-3xl'>
           <div className='border-border/70 bg-muted/40 text-muted-foreground mb-6 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium'>
@@ -133,13 +139,6 @@ export default function SelfHostedPage() {
       </Section>
 
       <FaqSection faqs={SELF_HOSTED_FAQS} />
-
-      <CtaSection
-        title='Start with the cloud, switch to self-hosted anytime'
-        description='Create a free account to try Ringee, or grab the code and run it yourself.'
-        secondaryHref={GITHUB_URL}
-        secondaryLabel='View on GitHub'
-      />
-    </>
+    </DetailLayout>
   );
 }

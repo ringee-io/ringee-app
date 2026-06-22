@@ -2,8 +2,8 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 
 import { buildMetadata } from '@/features/marketing/seo';
-import { Breadcrumbs } from '@/features/marketing/components/breadcrumbs';
 import { CtaSection } from '@/features/marketing/components/cta-section';
+import { DetailLayout } from '@/features/marketing/components/detail-layout';
 import { FaqSection } from '@/features/marketing/components/faq';
 import {
   CheckList,
@@ -54,14 +54,14 @@ export default async function IntegrationDetailPage({ params }: Params) {
   const path = `/integrations/${integration.slug}`;
 
   return (
-    <>
-      <Breadcrumbs
-        items={[
-          { name: 'Home', href: '/' },
-          { name: 'Integrations', href: '/integrations' },
-          { name: integration.name, href: path }
-        ]}
-      />
+    <DetailLayout
+      items={[
+        { name: 'Home', href: '/' },
+        { name: 'Integrations', href: '/integrations' },
+        { name: integration.name, href: path }
+      ]}
+      cta={<CtaSection />}
+    >
       <DetailHero
         eyebrow={integration.category}
         title={integration.h1}
@@ -88,7 +88,6 @@ export default async function IntegrationDetailPage({ params }: Params) {
 
       <RelatedLinks title='Related integrations' items={related} />
       <FaqSection faqs={integration.faqs} />
-      <CtaSection />
-    </>
+    </DetailLayout>
   );
 }

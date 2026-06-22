@@ -1,6 +1,7 @@
 import TermsPageView from '@/features/landing/components/terms.page.view';
 import { Metadata } from 'next';
 
+import { DetailLayout } from '@/features/marketing/components/detail-layout';
 import { buildMetadata } from '@/features/marketing/seo';
 
 export const metadata: Metadata = buildMetadata({
@@ -11,5 +12,14 @@ export const metadata: Metadata = buildMetadata({
 });
 
 export default function Page() {
-  return <TermsPageView />;
+  return (
+    <DetailLayout
+      items={[
+        { name: 'Home', href: '/' },
+        { name: 'Terms', href: '/terms' }
+      ]}
+    >
+      <TermsPageView />
+    </DetailLayout>
+  );
 }

@@ -324,7 +324,7 @@ export function AskAi() {
         <button
           type='button'
           aria-label='Ask AI about this page'
-          className='group border-border/70 bg-background/90 focus-visible:ring-offset-background fixed right-4 bottom-4 z-40 inline-flex items-center gap-2 rounded-full border py-2.5 pr-3 pl-4 text-sm font-semibold shadow-lg shadow-black/5 backdrop-blur-md transition-all hover:border-emerald-500/50 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:right-6 sm:bottom-6'
+          className='group border-border/70 bg-background/90 focus-visible:ring-offset-background fixed bottom-4 left-1/2 z-40 inline-flex -translate-x-1/2 items-center gap-2 rounded-full border py-2.5 pr-3 pl-4 text-sm font-semibold shadow-lg shadow-black/5 backdrop-blur-md transition-all hover:border-emerald-500/50 hover:shadow-xl focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none sm:bottom-6'
         >
           <Sparkles className='size-4 text-emerald-600 dark:text-emerald-400' />
           Ask AI
@@ -334,7 +334,7 @@ export function AskAi() {
 
       <DropdownMenuContent
         side='top'
-        align='end'
+        align='center'
         sideOffset={12}
         className='border-border/70 w-[20rem] rounded-2xl p-2 shadow-2xl'
       >

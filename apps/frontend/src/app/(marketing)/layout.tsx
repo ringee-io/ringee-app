@@ -28,7 +28,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
         // keep `body` at `overflow: visible` so sticky anchors to the viewport.
         dangerouslySetInnerHTML={{
           __html:
-            'html{height:auto!important;overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior:auto!important}body{height:auto!important;overflow:visible!important}'
+            'html{height:auto!important;overflow-x:hidden!important;overflow-y:auto!important;overscroll-behavior:auto!important;scroll-behavior:smooth;scroll-padding-top:5.5rem}body{height:auto!important;overflow:visible!important}'
         }}
       />
       <div className='bg-background text-foreground relative flex min-h-dvh flex-col'>

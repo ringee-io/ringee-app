@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
 
 import { buildMetadata } from '@/features/marketing/seo';
-import { Breadcrumbs } from '@/features/marketing/components/breadcrumbs';
 import { CtaSection } from '@/features/marketing/components/cta-section';
+import { DetailLayout } from '@/features/marketing/components/detail-layout';
 import { FaqSection } from '@/features/marketing/components/faq';
 import { JsonLd } from '@/features/marketing/components/json-ld';
 import {
@@ -64,13 +64,13 @@ const ABOUT_FAQS = [
 
 export default function AboutPage() {
   return (
-    <>
-      <Breadcrumbs
-        items={[
-          { name: 'Home', href: '/' },
-          { name: 'About', href: '/about' }
-        ]}
-      />
+    <DetailLayout
+      items={[
+        { name: 'Home', href: '/' },
+        { name: 'About', href: '/about' }
+      ]}
+      cta={<CtaSection />}
+    >
 
       <Section className='pt-8 pb-4'>
         <Container className='max-w-3xl'>
@@ -148,7 +148,6 @@ export default function AboutPage() {
       </Section>
 
       <FaqSection faqs={ABOUT_FAQS} />
-      <CtaSection />
 
       <JsonLd
         data={{
@@ -161,6 +160,6 @@ export default function AboutPage() {
           mainEntity: { '@id': `${SITE_URL}/#organization` }
         }}
       />
-    </>
+    </DetailLayout>
   );
 }

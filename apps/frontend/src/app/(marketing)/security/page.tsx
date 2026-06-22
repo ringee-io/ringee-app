@@ -11,13 +11,13 @@ import {
 } from 'lucide-react';
 
 import { buildMetadata } from '@/features/marketing/seo';
+import { DetailLayout } from '@/features/marketing/components/detail-layout';
 import {
   Card,
   Container,
   Section,
   SectionHeading
 } from '@/features/marketing/components/primitives';
-import { Breadcrumbs } from '@/features/marketing/components/breadcrumbs';
 import { CtaSection } from '@/features/marketing/components/cta-section';
 import { FaqSection } from '@/features/marketing/components/faq';
 
@@ -117,13 +117,13 @@ const SECURITY_FAQS = [
 
 export default function SecurityPage() {
   return (
-    <>
-      <Breadcrumbs
-        items={[
-          { name: 'Home', href: '/' },
-          { name: 'Security', href: '/security' }
-        ]}
-      />
+    <DetailLayout
+      items={[
+        { name: 'Home', href: '/' },
+        { name: 'Security', href: '/security' }
+      ]}
+      cta={<CtaSection />}
+    >
       <Section className='pt-8 pb-4'>
         <Container className='max-w-3xl'>
           <div className='border-border/70 bg-muted/40 text-muted-foreground mb-6 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium'>
@@ -183,7 +183,6 @@ export default function SecurityPage() {
       </Section>
 
       <FaqSection faqs={SECURITY_FAQS} />
-      <CtaSection />
-    </>
+    </DetailLayout>
   );
 }

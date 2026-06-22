@@ -1,5 +1,6 @@
 import PrivacyPageView from '@/features/landing/components/privacy.page.view';
 import { Metadata } from 'next';
+import { DetailLayout } from '@/features/marketing/components/detail-layout';
 
 export const metadata: Metadata = {
   title: 'Privacy Policy | Ringee',
@@ -46,5 +47,14 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <PrivacyPageView />;
+  return (
+    <DetailLayout
+      items={[
+        { name: 'Home', href: '/' },
+        { name: 'Privacy', href: '/privacy' }
+      ]}
+    >
+      <PrivacyPageView />
+    </DetailLayout>
+  );
 }

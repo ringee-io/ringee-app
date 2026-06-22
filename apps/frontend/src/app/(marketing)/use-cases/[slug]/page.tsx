@@ -2,8 +2,8 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 
 import { buildMetadata } from '@/features/marketing/seo';
-import { Breadcrumbs } from '@/features/marketing/components/breadcrumbs';
 import { CtaSection } from '@/features/marketing/components/cta-section';
+import { DetailLayout } from '@/features/marketing/components/detail-layout';
 import { FaqSection } from '@/features/marketing/components/faq';
 import {
   DetailHero,
@@ -48,14 +48,14 @@ export default async function UseCaseDetailPage({ params }: Params) {
   const path = `/use-cases/${useCase.slug}`;
 
   return (
-    <>
-      <Breadcrumbs
-        items={[
-          { name: 'Home', href: '/' },
-          { name: 'Use Cases', href: '/use-cases' },
-          { name: useCase.name, href: path }
-        ]}
-      />
+    <DetailLayout
+      items={[
+        { name: 'Home', href: '/' },
+        { name: 'Use Cases', href: '/use-cases' },
+        { name: useCase.name, href: path }
+      ]}
+      cta={<CtaSection />}
+    >
       <DetailHero
         eyebrow='Use case'
         title={useCase.h1}
@@ -68,7 +68,6 @@ export default async function UseCaseDetailPage({ params }: Params) {
       <RelatedLinks title='Recommended features' items={recommended} />
       <WorkflowList steps={useCase.workflow} />
       <FaqSection faqs={useCase.faqs} />
-      <CtaSection />
-    </>
+    </DetailLayout>
   );
 }

@@ -1,5 +1,6 @@
 import SupportPageView from '@/features/landing/components/support.page.view';
 import { Metadata } from 'next';
+import { DetailLayout } from '@/features/marketing/components/detail-layout';
 
 export const metadata: Metadata = {
   title: 'Support | Ringee',
@@ -46,5 +47,14 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <SupportPageView />;
+  return (
+    <DetailLayout
+      items={[
+        { name: 'Home', href: '/' },
+        { name: 'Support', href: '/support' }
+      ]}
+    >
+      <SupportPageView />
+    </DetailLayout>
+  );
 }

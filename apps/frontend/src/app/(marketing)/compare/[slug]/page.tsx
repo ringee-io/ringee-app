@@ -3,8 +3,8 @@ import type { Metadata } from 'next';
 import { Check, X } from 'lucide-react';
 
 import { buildMetadata } from '@/features/marketing/seo';
-import { Breadcrumbs } from '@/features/marketing/components/breadcrumbs';
 import { CtaSection } from '@/features/marketing/components/cta-section';
+import { DetailLayout } from '@/features/marketing/components/detail-layout';
 import { FaqSection } from '@/features/marketing/components/faq';
 import {
   CheckList,
@@ -43,14 +43,14 @@ export default async function ComparePage({ params }: Params) {
   const path = `/compare/${comparison.slug}`;
 
   return (
-    <>
-      <Breadcrumbs
-        items={[
-          { name: 'Home', href: '/' },
-          { name: 'Alternatives', href: '/alternatives' },
-          { name: `vs ${comparison.competitor}`, href: path }
-        ]}
-      />
+    <DetailLayout
+      items={[
+        { name: 'Home', href: '/' },
+        { name: 'Alternatives', href: '/alternatives' },
+        { name: `vs ${comparison.competitor}`, href: path }
+      ]}
+      cta={<CtaSection />}
+    >
       <DetailHero
         eyebrow='Comparison'
         title={comparison.h1}
@@ -143,7 +143,6 @@ export default async function ComparePage({ params }: Params) {
       </Section>
 
       <FaqSection faqs={comparison.faqs} />
-      <CtaSection />
-    </>
+    </DetailLayout>
   );
 }

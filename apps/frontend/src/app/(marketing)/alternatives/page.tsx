@@ -3,13 +3,13 @@ import type { Metadata } from 'next';
 import { ArrowRight } from 'lucide-react';
 
 import { buildMetadata } from '@/features/marketing/seo';
+import { DetailLayout } from '@/features/marketing/components/detail-layout';
 import {
   Card,
   Container,
   Section,
   SectionHeading
 } from '@/features/marketing/components/primitives';
-import { Breadcrumbs } from '@/features/marketing/components/breadcrumbs';
 import { CtaSection } from '@/features/marketing/components/cta-section';
 import { FaqSection } from '@/features/marketing/components/faq';
 import { COMPARISONS } from '@/features/marketing/content/comparisons';
@@ -60,13 +60,13 @@ const ALTERNATIVES_FAQS = [
 
 export default function AlternativesPage() {
   return (
-    <>
-      <Breadcrumbs
-        items={[
-          { name: 'Home', href: '/' },
-          { name: 'Alternatives', href: '/alternatives' }
-        ]}
-      />
+    <DetailLayout
+      items={[
+        { name: 'Home', href: '/' },
+        { name: 'Alternatives', href: '/alternatives' }
+      ]}
+      cta={<CtaSection />}
+    >
       <Section className='pt-8 pb-4'>
         <Container className='max-w-3xl'>
           <h1 className='text-4xl font-bold tracking-tight text-balance sm:text-5xl'>
@@ -124,7 +124,6 @@ export default function AlternativesPage() {
       </Section>
 
       <FaqSection faqs={ALTERNATIVES_FAQS} />
-      <CtaSection />
-    </>
+    </DetailLayout>
   );
 }

@@ -2,8 +2,8 @@ import { notFound } from 'next/navigation';
 import type { Metadata } from 'next';
 
 import { buildMetadata } from '@/features/marketing/seo';
-import { Breadcrumbs } from '@/features/marketing/components/breadcrumbs';
 import { CtaSection } from '@/features/marketing/components/cta-section';
+import { DetailLayout } from '@/features/marketing/components/detail-layout';
 import { FaqSection } from '@/features/marketing/components/faq';
 import {
   DetailHero,
@@ -47,14 +47,14 @@ export default async function FeatureDetailPage({ params }: Params) {
   const path = `/features/${feature.slug}`;
 
   return (
-    <>
-      <Breadcrumbs
-        items={[
-          { name: 'Home', href: '/' },
-          { name: 'Features', href: '/features' },
-          { name: feature.name, href: path }
-        ]}
-      />
+    <DetailLayout
+      items={[
+        { name: 'Home', href: '/' },
+        { name: 'Features', href: '/features' },
+        { name: feature.name, href: path }
+      ]}
+      cta={<CtaSection />}
+    >
       <DetailHero
         eyebrow={feature.category}
         title={feature.h1}
@@ -64,7 +64,6 @@ export default async function FeatureDetailPage({ params }: Params) {
       <HowItWorksSteps steps={feature.howItWorks} />
       <RelatedLinks title='Related features' items={related} />
       <FaqSection faqs={feature.faqs} />
-      <CtaSection />
-    </>
+    </DetailLayout>
   );
 }
