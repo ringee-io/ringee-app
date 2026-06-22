@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { AskAi } from '@/features/marketing/components/ask-ai';
 import { MarketingFooter } from '@/features/marketing/components/footer';
 import { MarketingNavbar } from '@/features/marketing/components/navbar';
 import {
@@ -41,6 +42,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
           <main className='flex-1'>{children}</main>
           <MarketingFooter />
         </div>
+        <AskAi />
       </div>
 
       {/* Canonical entity anchors — one Organization + WebSite per marketing
