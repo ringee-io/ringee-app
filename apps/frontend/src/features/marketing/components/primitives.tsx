@@ -163,7 +163,7 @@ export function ButtonLink({
     'inline-flex h-12 items-center justify-center gap-2 rounded-xl px-6 text-sm font-semibold transition-all focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background focus-visible:outline-none active:scale-[0.98]';
   const styles =
     variant === 'primary'
-      ? 'bg-emerald-600 text-white shadow-lg shadow-emerald-600/20 hover:bg-emerald-600/90 hover:shadow-xl hover:shadow-emerald-600/30'
+      ? 'bg-emerald-700 text-white shadow-lg shadow-emerald-700/20 hover:bg-emerald-700/90 hover:shadow-xl hover:shadow-emerald-700/30'
       : 'border border-border/80 bg-transparent hover:bg-muted/60';
   const externalProps = external
     ? { target: '_blank', rel: 'noreferrer noopener' }

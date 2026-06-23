@@ -140,7 +140,7 @@ export default function PricingPage() {
                 <div className='flex items-center justify-between'>
                   <h2 className='text-xl font-semibold'>{plan.name}</h2>
                   {plan.highlighted ? (
-                    <span className='rounded-full bg-emerald-600 px-3 py-1 text-xs font-semibold text-white'>
+                    <span className='rounded-full bg-emerald-700 px-3 py-1 text-xs font-semibold text-white'>
                       Most popular
                     </span>
                   ) : null}
@@ -175,7 +175,7 @@ export default function PricingPage() {
                   href={SIGN_UP_URL}
                   className={
                     plan.highlighted
-                      ? 'mt-8 inline-flex h-11 items-center justify-center rounded-xl bg-emerald-600 px-6 text-sm font-semibold text-white hover:bg-emerald-600/90'
+                      ? 'mt-8 inline-flex h-11 items-center justify-center rounded-xl bg-emerald-700 px-6 text-sm font-semibold text-white hover:bg-emerald-700/90'
                       : 'border-border/80 hover:bg-muted/60 mt-8 inline-flex h-11 items-center justify-center rounded-xl border px-6 text-sm font-semibold'
                   }
                 >

@@ -1,5 +1,6 @@
 import KBar from '@ringee/frontend-shared/components/kbar';
 import AppMainSidebar from '@/components/layout/app.main.sidebar';
+import ClerkAppProvider from '@/components/layout/clerk-app-provider';
 import Header from '@/components/layout/header';
 import {
   SidebarInset,
@@ -20,19 +21,21 @@ export default async function DashboardLayout({
     cookieStore.get('quick_dial_state')?.value === 'true';
 
   return (
-    <KBar>
-      <SidebarProvider defaultOpen={defaultOpen}>
-        <AppMainSidebar />
-        <SidebarInset>
-          <Header />
-          <div className='flex gap-4'>
-            <div className='w-full'>{children}</div>
-            <DialerShortcutView defaultOpen={defaultDialerOpen} />
-          </div>
-        </SidebarInset>
-        <OnboardingGuideWrapper />
-        {/* <SupportButton /> */}
-      </SidebarProvider>
-    </KBar>
+    <ClerkAppProvider>
+      <KBar>
+        <SidebarProvider defaultOpen={defaultOpen}>
+          <AppMainSidebar />
+          <SidebarInset>
+            <Header />
+            <div className='flex gap-4'>
+              <div className='w-full'>{children}</div>
+              <DialerShortcutView defaultOpen={defaultDialerOpen} />
+            </div>
+          </SidebarInset>
+          <OnboardingGuideWrapper />
+          {/* <SupportButton /> */}
+        </SidebarProvider>
+      </KBar>
+    </ClerkAppProvider>
   );
 }

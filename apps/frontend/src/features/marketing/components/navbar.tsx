@@ -250,7 +250,7 @@ function MobileMenu() {
                     </Button>
                   </Link>
                   <Link href={CTA.primary.href} onClick={() => setOpen(false)}>
-                    <Button className='w-full bg-emerald-600 text-white hover:bg-emerald-600/90'>
+                    <Button className='w-full bg-emerald-700 text-white hover:bg-emerald-700/90'>
                       {CTA.primary.label}
                     </Button>
                   </Link>
@@ -279,7 +279,7 @@ export function MarketingNavbar() {
       >
         <div className='flex items-center gap-2'>
           <Link href='/' aria-label='Ringee home' className='shrink-0'>
-            <Logo />
+            <Logo priority />
           </Link>
           <div className='ml-2 hidden items-center gap-0.5 md:flex'>
             <ProductMenu />
@@ -312,7 +312,7 @@ export function MarketingNavbar() {
             </Button>
           </Link>
           <Link href={CTA.primary.href} className='hidden sm:inline-flex'>
-            <Button className='bg-emerald-600 text-white shadow-sm hover:bg-emerald-600/90'>
+            <Button className='bg-emerald-700 text-white shadow-sm hover:bg-emerald-700/90'>
               {CTA.primary.label}
             </Button>
           </Link>

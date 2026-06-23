@@ -1,5 +1,6 @@
 import { currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
+import ClerkAppProvider from '@/components/layout/clerk-app-provider';
 import { hasSuperAdminEmail } from '@/features/backoffice/lib/super-admins';
 import { BackofficeShell } from '@/features/backoffice/components/backoffice-shell';
 
@@ -21,5 +22,9 @@ export default async function BackofficeLayout({
     redirect('/dashboard');
   }
 
-  return <BackofficeShell>{children}</BackofficeShell>;
+  return (
+    <ClerkAppProvider>
+      <BackofficeShell>{children}</BackofficeShell>
+    </ClerkAppProvider>
+  );
 }
