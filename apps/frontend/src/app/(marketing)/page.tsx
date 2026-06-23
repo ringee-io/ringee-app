@@ -71,7 +71,7 @@ export default async function HomePage() {
 
               {/* Low-cost outbound dialing for freelancers and teams */}
 
-              Modern, low-cost outbound dialing software
+              Modern, low-cost outbound calling software
 
               
               {/* The outbound dialer built for the AI era */}
