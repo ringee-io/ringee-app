@@ -26,13 +26,36 @@ const securityHeaders = [
   }
 ];
 
+// Long-lived, immutable caching for static media in /public (images, fonts,
+// audio). These assets are content-stable, so a one-year cache lets the browser
+// and any edge/CDN reuse them instead of re-fetching on every page — directly
+// reducing repeat HTTP requests and First Contentful Paint. Text files that
+// change in place (robots.txt, ads.txt, sitemap, llms.txt) are intentionally
+// excluded from this rule.
+const STATIC_ASSET_CACHE = [
+  {
+    key: 'Cache-Control',
+    value: 'public, max-age=31536000, immutable'
+  }
+];
+
 // Define the base Next.js configuration
 const baseConfig: NextConfig = {
   output: 'standalone',
   // Don't advertise the framework via the X-Powered-By header.
   poweredByHeader: false,
+  // Gzip/Brotli the HTML and other text responses from the standalone server
+  // so the document payload (flagged as oversized) ships compressed.
+  compress: true,
   async headers() {
-    return [{ source: '/:path*', headers: securityHeaders }];
+    return [
+      { source: '/:path*', headers: securityHeaders },
+      {
+        source:
+          '/:all*(svg|jpg|jpeg|png|gif|ico|webp|avif|woff|woff2|ttf|otf|mp3|wav)',
+        headers: STATIC_ASSET_CACHE
+      }
+    ];
   },
   eslint: {
     ignoreDuringBuilds: true // ✅ Ignora errores de ESLint en el build
@@ -42,6 +65,13 @@ const baseConfig: NextConfig = {
   },
   // optimizeFonts: false, // Prevents "getaddrinfo EAI_AGAIN fonts.googleapis.com" during Docker build
   images: {
+    // Serve modern, smaller formats from the built-in optimizer. AVIF first,
+    // then WebP, then the original — this is what keeps the heavy hero PNGs at
+    // ~50 KB on the wire instead of ~600 KB.
+    formats: ['image/avif', 'image/webp'],
+    // Cache optimized images for 31 days so the optimizer isn't re-encoding the
+    // same source on every request and downstream caches can hold them.
+    minimumCacheTTL: 2678400,
     remotePatterns: [
       {
         protocol: 'https',

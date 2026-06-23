@@ -103,7 +103,10 @@ export default async function HomePage() {
               width={3024}
               height={1964}
               priority
-              sizes='(min-width: 1024px) 50vw, 100vw'
+              // The hero column is half of the max-w-6xl (1152px) container, so
+              // it never exceeds ~560px on desktop. Cap `sizes` there instead of
+              // 50vw so wide monitors don't fetch a needlessly large image.
+              sizes='(min-width: 1024px) 560px, 100vw'
               className='block h-auto w-full dark:hidden'
             />
             <Image
@@ -112,7 +115,7 @@ export default async function HomePage() {
               width={3024}
               height={1964}
               priority
-              sizes='(min-width: 1024px) 50vw, 100vw'
+              sizes='(min-width: 1024px) 560px, 100vw'
               className='hidden h-auto w-full dark:block'
             />
           </div>

@@ -1,0 +1,8 @@
+# ads.txt for ringee.io — IAB Authorized Digital Sellers
+#
+# Ringee does not sell programmatic advertising inventory on this domain.
+# This file is published intentionally so crawlers and ad networks receive a
+# valid response instead of a 404, and so no third party can be impersonated
+# as an authorized seller of ads for ringee.io.
+#
+# Contact: hello@ringee.io
