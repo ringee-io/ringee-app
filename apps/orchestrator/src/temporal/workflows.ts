@@ -111,3 +111,7 @@ export async function numberVerificationCheckWorkflow(): Promise<void> {
 export async function pipelineSchedulerWorkflow(): Promise<void> {
   await periodicJobs.runDuePipelines();
 }
+
+export async function callerIdHealthRecomputeWorkflow(): Promise<void> {
+  await periodicJobs.recomputeCallerIdHealth();
+}

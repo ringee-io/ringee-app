@@ -17,13 +17,17 @@ import {
   TooltipTrigger,
   TooltipContent
 } from '@ringee/frontend-shared/components/ui/tooltip';
-import { Phone, ShoppingCart } from 'lucide-react';
+import { Phone, ShoppingCart, Shuffle } from 'lucide-react';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
+import { useRotationEnabled } from '@/features/number-rotation';
 
 export function NumberSelector({ useMock }: { useMock?: boolean }) {
   const api = useApi();
   const router = useRouter();
+  const t = useTranslations('numberRotation');
+  const rotationEnabled = useRotationEnabled();
 
   const {
     numbers: rawNumbers,
@@ -49,32 +53,53 @@ export function NumberSelector({ useMock }: { useMock?: boolean }) {
     <div className='mb-4'>
       <div className='mb-1 flex items-center justify-between'>
         <p className='text-muted-foreground text-xs font-medium'>
-          Call from: <b>{!hasNumbers ? 'Public Number' : ''}</b>
+          Call from:{' '}
+          <b>{!hasNumbers && !rotationEnabled ? 'Public Number' : ''}</b>
         </p>
-        {/* {!hasNumbers && ( */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <span
-              title='Why buy a number?'
-              onClick={() => router.push('/dashboard/buy-number')}
-              className='text-muted-foreground cursor-pointer text-xs underline'
-            >
-              Why buy a number?
-            </span>
-          </TooltipTrigger>
-          <TooltipContent side='top' className='max-w-[240px] text-sm'>
-            Buying a number allows you to make and receive real calls. Number
-            prices start at <strong>$1.00 USD</strong> monthly according to the
-            country and number type.
-          </TooltipContent>
-        </Tooltip>
-        {/* )} */}
+        {!rotationEnabled && (
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <span
+                title='Why buy a number?'
+                onClick={() => router.push('/dashboard/buy-number')}
+                className='text-muted-foreground cursor-pointer text-xs underline'
+              >
+                Why buy a number?
+              </span>
+            </TooltipTrigger>
+            <TooltipContent side='top' className='max-w-[240px] text-sm'>
+              Buying a number allows you to make and receive real calls. Number
+              prices start at <strong>$1.00 USD</strong> monthly according to
+              the country and number type.
+            </TooltipContent>
+          </Tooltip>
+        )}
       </div>
 
-      {/* Select de números */}
-      {isLoading && <Skeleton className='h-9 w-full rounded-md' />}
+      {/* Rotation on: the backend auto-picks the best local number per call,
+          so manual selection is locked. */}
+      {rotationEnabled && (
+        <button
+          type='button'
+          onClick={() => router.push('/dashboard/number-rotation')}
+          className='border-border/50 bg-muted/40 hover:bg-muted/60 flex w-full items-center gap-2 rounded-md border px-3 py-2 text-left text-sm font-medium transition-colors'
+        >
+          <Shuffle className='h-4 w-4 shrink-0 text-emerald-600' />
+          <span className='flex flex-col'>
+            <span>{t('dialer.auto')}</span>
+            <span className='text-muted-foreground text-xs font-normal'>
+              {t('dialer.autoHint')}
+            </span>
+          </span>
+        </button>
+      )}
 
-      {!isLoading && hasNumbers && (
+      {/* Select de números */}
+      {!rotationEnabled && isLoading && (
+        <Skeleton className='h-9 w-full rounded-md' />
+      )}
+
+      {!rotationEnabled && !isLoading && hasNumbers && (
         <Select
           value={selectedNumber?.id || ''}
           onValueChange={(id) => {
@@ -114,7 +139,7 @@ export function NumberSelector({ useMock }: { useMock?: boolean }) {
       )}
 
       {/* Sin números comprados */}
-      {!isLoading && !hasNumbers && (
+      {!rotationEnabled && !isLoading && !hasNumbers && (
         <div className='border-border/40 bg-muted/20 flex flex-col items-center justify-center rounded-md border py-4'>
           <p className='text-muted-foreground mb-2 text-sm'>
             You don't need a number to call

@@ -6,6 +6,7 @@ export * from "./call.transcription.repository";
 export * from "./call-recording-settings.repository";
 export * from "./telnyx.rate.per.minute.repository";
 export * from "./number.purchased.repository";
+export * from "./caller-id-rotation.repository";
 export * from "./contact.repository";
 export * from "./credit.repository";
 export * from "./credit-auto-reload.repository";

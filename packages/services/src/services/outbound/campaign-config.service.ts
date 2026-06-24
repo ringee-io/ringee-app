@@ -23,6 +23,8 @@ export interface CreateCampaignFullDto {
   dialerMode?: DialerMode;
   callerIdId?: string;
   numberPurchasedId?: string;
+  /** Owned numbers this campaign rotates among (when rotation is enabled). */
+  rotationNumberIds?: string[];
   maxAttempts?: number;
   timezone?: string;
   workStartMin?: number;
@@ -38,6 +40,8 @@ export interface UpdateCampaignSettingsDto {
   dialerMode?: DialerMode;
   callerIdId?: string;
   numberPurchasedId?: string | null;
+  /** Owned numbers this campaign rotates among (when rotation is enabled). */
+  rotationNumberIds?: string[];
   maxAttempts?: number;
   timezone?: string;
   workStartMin?: number;
@@ -85,6 +89,25 @@ export class CampaignConfigService {
     }
   }
 
+  /**
+   * Ensure every number chosen for a campaign's rotation subset belongs to the
+   * caller's organization. Verified caller IDs and purchased DIDs both qualify.
+   */
+  private async ensureNumbersOwnership(
+    ctx: OwnershipContext,
+    ids?: string[],
+  ): Promise<void> {
+    if (!ids || ids.length === 0) return;
+    for (const id of ids) {
+      const number = await this.numberPurchasedRepo.findById(id);
+      if (!number || number.organizationId !== ctx.organizationId) {
+        throw new ForbiddenException(
+          "A selected number does not belong to your organization",
+        );
+      }
+    }
+  }
+
   private async getCampaignWithAuth(ctx: OwnershipContext, id: string) {
     const campaign = await this.campaignRepo.findById(id);
     if (!campaign) throw new NotFoundException("Campaign not found");
@@ -100,6 +123,7 @@ export class CampaignConfigService {
   ): Promise<Campaign> {
     this.ensureOrganization(ctx);
     await this.ensureNumberPurchasedOwnership(ctx, dto.numberPurchasedId);
+    await this.ensureNumbersOwnership(ctx, dto.rotationNumberIds);
 
     const campaign = await this.campaignRepo.create(
       ctx.userId,
@@ -112,6 +136,7 @@ export class CampaignConfigService {
       dto.dialerMode ||
       dto.callerIdId ||
       dto.numberPurchasedId ||
+      dto.rotationNumberIds ||
       dto.maxAttempts ||
       dto.timezone ||
       dto.workStartMin !== undefined ||
@@ -138,6 +163,7 @@ export class CampaignConfigService {
     this.ensureOrganization(ctx);
     const campaign = await this.getCampaignWithAuth(ctx, campaignId);
     await this.ensureNumberPurchasedOwnership(ctx, dto.numberPurchasedId);
+    await this.ensureNumbersOwnership(ctx, dto.rotationNumberIds);
 
     if (campaign.status !== "draft" && campaign.status !== "paused") {
       // Only allow limited changes on active campaigns
@@ -146,6 +172,7 @@ export class CampaignConfigService {
         "description",
         "callerIdId",
         "numberPurchasedId",
+        "rotationNumberIds",
         "wrapUpTimeSec",
         "maxAttempts",
         "timezone",

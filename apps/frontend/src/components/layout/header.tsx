@@ -16,6 +16,7 @@ import { HeaderOnboardingButton } from '@/features/onboarding/components/header-
 import { usePendingActionsBadge } from '@/features/pending-actions/hooks/use-pending-actions-badge';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { Icons } from '@ringee/frontend-shared/components/icons';
+import { NumberRotationHeaderButton } from '@/features/number-rotation';
 
 export default function Header({ useMock }: { useMock?: boolean }) {
   const router = useRouter();
@@ -43,7 +44,10 @@ export default function Header({ useMock }: { useMock?: boolean }) {
           onClick={() => router.push('/dashboard/pending-actions')}
           variant={mobile ? 'ghost' : 'link'}
           size={mobile ? 'icon' : 'sm'}
-          className={cn('cursor-pointer', mobile ? 'relative h-8 w-8 p-0' : 'gap-1.5')}
+          className={cn(
+            'cursor-pointer',
+            mobile ? 'relative h-8 w-8 p-0' : 'gap-1.5'
+          )}
           aria-label='Pending Actions'
         >
           {/* @ts-ignore */}
@@ -76,9 +80,8 @@ export default function Header({ useMock }: { useMock?: boolean }) {
             </span>
           )}
         </Button>
-        {canAccessAdminFeatures && (
-          <CreditPopover useMock={useMock} />
-        )}
+        {canAccessAdminFeatures && <NumberRotationHeaderButton />}
+        {canAccessAdminFeatures && <CreditPopover useMock={useMock} />}
         {/* <div className='hidden sm:flex'>
           <SearchInput />
         </div> */}

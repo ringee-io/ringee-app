@@ -36,6 +36,7 @@ import { CallRecordingSettingsService } from "../transcription";
 import { CallRepository } from "@ringee/database";
 import { CallSessionAccessTokenService } from "./call-session-access-token.service";
 import { PipelineFanoutService } from "../ai-pipeline";
+import { CallerIdRotationService } from "../caller-id-rotation/caller-id-rotation.service";
 
 const MIN_CREDIT_BALANCE_TO_CALL = 0.01;
 const DEFAULT_EXPIRES_IN_MINUTES = 60;
@@ -98,6 +99,7 @@ export class CallSessionService {
     private readonly recordingService: RecordingService,
     private readonly recordingSettingsService: CallRecordingSettingsService,
     private readonly pipelineFanout: PipelineFanoutService,
+    private readonly callerIdRotationService: CallerIdRotationService,
   ) {}
 
   // ── Ownership & access ──────────────────────────────────────
@@ -616,7 +618,16 @@ export class CallSessionService {
       });
     }
 
-    const callerIdNumber = await this.resolvePrimaryCallerIdNumber(ctx);
+    // Per-call caller-ID selection using the session owner's pool. Rotation is
+    // keyed to the owner even though a magic-link guest may be the one dialing;
+    // when rotation is off this returns the owner's primary number unchanged.
+    const fixedCallerId = await this.resolvePrimaryCallerIdNumber(ctx);
+    const selection = await this.callerIdRotationService.selectForDial(
+      ctx,
+      item.phoneNumber,
+      { phoneNumber: fixedCallerId },
+    );
+    const callerIdNumber = selection.phoneNumber;
     const customHeaders: Array<{ name: string; value: string }> = [
       { name: "X-Ringee-Call-Session-Id", value: sessionId },
       { name: "X-Ringee-Call-Session-Item-Id", value: item.id },

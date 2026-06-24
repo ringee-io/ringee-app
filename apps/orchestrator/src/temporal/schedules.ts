@@ -98,6 +98,15 @@ const SCHEDULES: ScheduleDef[] = [
     every: "15m",
     catchupWindow: "1h",
   },
+  {
+    // Recompute caller-ID health scores from a moving window and apply
+    // active⇄cooling transitions. Reputation moves slowly, so a 30m cadence is
+    // plenty and keeps workflow-history volume low.
+    id: "ringee.caller-id-health",
+    workflow: WORKFLOW_NAMES.callerIdHealthRecompute,
+    every: "30m",
+    catchupWindow: "1h",
+  },
 ];
 
 /**

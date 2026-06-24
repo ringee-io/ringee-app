@@ -41,6 +41,36 @@ export class NumberPurchasedRepository {
     });
   }
 
+  /**
+   * Owned numbers that can legitimately be presented as a caller ID for
+   * rotation: purchased DIDs plus *verified, active* external caller IDs. Both
+   * kinds live in this table — see `kind`. Soft-deleted rows are excluded.
+   */
+  async findRotatable(ctx: OwnershipContext): Promise<NumberPurchased[]> {
+    const ownershipFilter = buildOwnershipFilter(ctx);
+    return this.prisma.numberPurchased.findMany({
+      where: {
+        ...ownershipFilter,
+        deletedAt: null,
+        OR: [
+          { kind: "purchased" },
+          { kind: "verified_caller_id", verified: true, active: true },
+        ],
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  /** Find an owned number (any kind) by its E.164 phone, scoped to the owner. */
+  async findOwnedByPhone(
+    ctx: OwnershipContext,
+    phoneNumber: string,
+  ): Promise<NumberPurchased | null> {
+    return this.prisma.numberPurchased.findFirst({
+      where: { ...buildOwnershipFilter(ctx), phoneNumber, deletedAt: null },
+    });
+  }
+
   async assignToOwner(
     numberId: string,
     ctx: OwnershipContext,

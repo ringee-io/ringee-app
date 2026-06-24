@@ -2,6 +2,7 @@ import { Logger, type INestApplicationContext } from "@nestjs/common";
 import {
   AgentSessionService,
   CallbackService,
+  CallerIdRotationService,
   CrmBulkSyncService,
   CrmSyncService,
   CustomIntegrationDeliveryService,
@@ -46,6 +47,7 @@ export function createActivities(app: INestApplicationContext) {
   const customIntegrationsDelivery = app.get(CustomIntegrationDeliveryService);
   const numberPurchasedService = app.get(NumberPurchasedService);
   const pipelineRunService = app.get(PipelineRunService);
+  const callerIdRotationService = app.get(CallerIdRotationService);
 
   return {
     // ── Event-driven jobs (started by the backend via OrchestratorService) ──
@@ -139,6 +141,15 @@ export function createActivities(app: INestApplicationContext) {
       const count = await pipelineRunService.runDueScheduled();
       if (count > 0)
         logger.debug(`PipelineScheduler: ${count} pipeline runs triggered`);
+    },
+
+    async recomputeCallerIdHealth() {
+      const { evaluated, cooled, recovered } =
+        await callerIdRotationService.recomputeHealth();
+      if (cooled > 0 || recovered > 0)
+        logger.debug(
+          `CallerIdHealth: evaluated ${evaluated}, cooled ${cooled}, recovered ${recovered}`,
+        );
     },
   };
 }

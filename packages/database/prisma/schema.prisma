@@ -418,6 +418,8 @@ model User {
   callRecordingSettings   CallRecordingSettings?
   callTranscriptions      CallTranscription[]
   regulatoryDocuments     RegulatoryDocument[]
+  callerIdRotation        CallerIdRotationSettings?
+  callerIdPoolMembers     CallerIdPoolMember[]
 
   @@index([clerkId])
 }
@@ -463,6 +465,8 @@ model Organization {
   callRecordingSettings  CallRecordingSettings?
   callTranscriptions     CallTranscription[]
   regulatoryDocuments    RegulatoryDocument[]
+  callerIdRotation       CallerIdRotationSettings?
+  callerIdPoolMembers    CallerIdPoolMember[]
 
   @@index([clerkId])
 }
@@ -726,6 +730,8 @@ model NumberPurchased {
   campaignsAsCallerId Campaign[]               @relation("campaignCallerId")
   callsAsCallerId     Call[]                   @relation("callCallerId")
   requirementValues   NumberRequirementValue[]
+  rotationMember      CallerIdPoolMember?
+  rotationUsage       CallerIdDailyUsage[]
 
   @@index([isoCountry])
   @@index([provider])
@@ -738,6 +744,97 @@ model NumberPurchased {
 enum NumberKind {
   purchased
   verified_caller_id
+}
+
+/// Lifecycle state of a number inside the caller-ID rotation pool.
+/// - active:   eligible for selection.
+/// - cooling:  temporarily out after a low health score; re-enters after coolingUntil.
+/// - flagged:  marked as spam by a carrier; out until manual review (never auto-cleared).
+/// - disabled: the user removed it from rotation manually.
+enum CallerIdRotationStatus {
+  active
+  cooling
+  flagged
+  disabled
+}
+
+/// Per-workspace caller-ID rotation settings — the GLOBAL toggle. Scoped to the
+/// active workspace (organization if active, otherwise the user), mirroring the
+/// CallRecordingSettings singleton pattern.
+model CallerIdRotationSettings {
+  id             String  @id @default(uuid()) @db.Uuid
+  userId         String? @unique @db.Uuid
+  organizationId String? @unique @db.Uuid
+
+  /// When true, every dialer (manual, campaign, session) rotates the caller ID.
+  enabled Boolean @default(false)
+  /// "local_presence" (prefer destination area code) | "balanced" (country only).
+  strategy String @default("local_presence")
+  /// Default per-number daily cap; a pool member may override it.
+  defaultDailyCap Int @default(50)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
+}
+
+/// Rotation state for one owned number (purchased DID or verified caller ID).
+/// Kept separate from NumberPurchased so reporting joins stay clean and the base
+/// number row is untouched.
+model CallerIdPoolMember {
+  id             String  @id @default(uuid()) @db.Uuid
+  numberId       String  @unique @db.Uuid
+  userId         String? @db.Uuid
+  organizationId String? @db.Uuid
+
+  /// Whether the user keeps this number in the rotation pool.
+  participating  Boolean                @default(true)
+  rotationStatus CallerIdRotationStatus  @default(active)
+  /// Per-number daily cap override; null inherits settings.defaultDailyCap.
+  dailyCap       Int?
+  /// 0-100, derived from answer rate and short-call ratio over a moving window.
+  healthScore    Int                    @default(100)
+  lastUsedAt     DateTime?
+  /// When a cooling number becomes eligible to re-enter (if score recovered).
+  coolingUntil   DateTime?
+  flaggedAt      DateTime?
+  /// Cached destination matching prefix (national area/significant code).
+  areaCode       String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  number       NumberPurchased @relation(fields: [numberId], references: [id], onDelete: Cascade)
+  user         User?           @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization Organization?   @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([rotationStatus])
+}
+
+/// Per-number, per-day usage counter. Avoids racy midnight resets (we read the
+/// row for "today") and powers calls/day reporting + health scoring.
+model CallerIdDailyUsage {
+  id         String   @id @default(uuid()) @db.Uuid
+  numberId   String   @db.Uuid
+  day        DateTime @db.Date
+  count      Int      @default(0)
+  answered   Int      @default(0)
+  shortCalls Int      @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  number NumberPurchased @relation(fields: [numberId], references: [id], onDelete: Cascade)
+
+  @@unique([numberId, day])
+  @@index([day])
 }
 
 /// Reusable regulatory document stored in Ringee's own bucket, scoped to a
@@ -1212,6 +1309,9 @@ model Campaign {
   callerIdId        String?    @db.Uuid
   // Purchased number used as the outbound caller ID for this campaign's calls
   numberPurchasedId String?    @db.Uuid
+  // Subset of owned numbers this campaign rotates among when caller-ID rotation
+  // is enabled. Empty → rotate across the whole workspace pool.
+  rotationNumberIds String[]   @db.Uuid
   maxAttempts       Int        @default(3)
 
   // Working hours (minutes from midnight in campaign timezone)

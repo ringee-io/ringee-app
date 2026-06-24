@@ -17,6 +17,7 @@ import {
 import {
   CallbackService,
   CallerIdService,
+  CallerIdRotationService,
   CallService,
   ComplianceService,
   ContactService,
@@ -31,6 +32,8 @@ import type { Call } from "@ringee/database";
 /** Stable error codes the browser extension maps to user-facing states. */
 type PrepareCallErrorCode =
   | "NO_CALLER_ID"
+  | "NO_CALLER_ID_FOR_COUNTRY"
+  | "CALLER_ID_CAP_REACHED"
   | "INSUFFICIENT_CREDITS"
   | "DNC_BLOCKED"
   | "CONTACT_FAILED";
@@ -48,6 +51,8 @@ interface PrepareCallDto {
   name?: string;
   company?: string;
   origin?: PageOriginDto;
+  /** Manual override to dial even when every eligible number hit its daily cap. */
+  allowOverCap?: boolean;
 }
 
 const E164 = /^\+[1-9]\d{6,14}$/;
@@ -67,6 +72,7 @@ export class ExtensionController {
     private readonly complianceService: ComplianceService,
     private readonly creditService: CreditService,
     private readonly callerIdService: CallerIdService,
+    private readonly callerIdRotationService: CallerIdRotationService,
     private readonly numberPurchasedService: NumberPurchasedService,
     private readonly telephonyService: TelephonyService,
     private readonly callbackService: CallbackService,
@@ -276,9 +282,32 @@ export class ExtensionController {
       );
     }
 
-    // 3) Caller ID — always resolved server-side.
-    const callerId = await this.resolveCallerId(ctx);
+    // 3) Caller ID — always resolved server-side. Rotation-aware: when the
+    //    workspace enables number rotation the engine picks a country-matched
+    //    number from the pool; otherwise it returns the fixed caller ID.
+    const fixedCallerId = await this.resolveCallerId(ctx);
+    const selection = await this.callerIdRotationService.selectForDial(
+      ctx,
+      destination,
+      { phoneNumber: fixedCallerId },
+      { allowOverCap: body.allowOverCap === true },
+    );
+    const callerId = selection.phoneNumber;
     if (!callerId) {
+      if (selection.reason === "all_over_cap") {
+        this.fail(
+          "CALLER_ID_CAP_REACHED",
+          "Every number for this destination reached today's cap. Retry later or override.",
+          HttpStatus.CONFLICT,
+        );
+      }
+      if (selection.reason === "no_caller_id_for_country") {
+        this.fail(
+          "NO_CALLER_ID_FOR_COUNTRY",
+          "No caller ID is available for this destination's country. Add a number for it.",
+          HttpStatus.CONFLICT,
+        );
+      }
       this.fail(
         "NO_CALLER_ID",
         "No caller ID is available for this workspace.",
