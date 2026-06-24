@@ -1,7 +1,6 @@
 import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
 import {
   CampaignRepository,
-  CallerIdRepository,
   NumberPurchasedRepository,
   AgentSessionStatus,
 } from "@ringee/database";
@@ -23,7 +22,6 @@ export class DialerOrchestrationService implements OnModuleDestroy {
 
   constructor(
     private readonly campaignRepo: CampaignRepository,
-    private readonly callerIdRepo: CallerIdRepository,
     private readonly numberPurchasedRepo: NumberPurchasedRepository,
     private readonly leadQueueService: LeadQueueService,
     private readonly agentSessionService: AgentSessionService,
@@ -248,9 +246,11 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       if (assigned?.phoneNumber) return assigned.phoneNumber;
     }
 
-    // 2. Verified caller ID.
+    // 2. Verified caller ID (now stored in the NumberPurchased table).
     if (campaign.callerIdId) {
-      const callerId = await this.callerIdRepo.findById(campaign.callerIdId);
+      const callerId = await this.numberPurchasedRepo.findById(
+        campaign.callerIdId,
+      );
       if (callerId?.phoneNumber) return callerId.phoneNumber;
     }
 
@@ -258,6 +258,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     if (campaign.organizationId) {
       const purchased = await this.numberPurchasedRepo.findOne({
         organizationId: campaign.organizationId,
+        kind: "purchased",
         status: { in: ["active", "assigned"] },
       });
       if (purchased?.phoneNumber) return purchased.phoneNumber;

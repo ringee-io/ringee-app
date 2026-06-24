@@ -390,7 +390,6 @@ model User {
   userNumbers             UserNumber[]
   Contact                 Contact[]
   ContactNote             ContactNote[]
-  CallerId                CallerId[]
   Credit                  Credit[]
   creditAutoReload        CreditAutoReload?
   devices                 UserDevice[]
@@ -441,7 +440,6 @@ model Organization {
   userNumbers            UserNumber[]
   numbersPurchased       NumberPurchased[]
   contacts               Contact[]
-  callerIds              CallerId[]
   credits                Credit[]
   creditAutoReload       CreditAutoReload?
   subscriptions          Subscription[]
@@ -570,8 +568,8 @@ model Call {
   contactId       String?    @db.Uuid
   contact         Contact?   @relation(fields: [contactId], references: [id])
 
-  callerIdId String?   @db.Uuid
-  callerId   CallerId? @relation(fields: [callerIdId], references: [id])
+  callerIdId String?          @db.Uuid
+  callerId   NumberPurchased? @relation("callCallerId", fields: [callerIdId], references: [id])
 
   clientState   String?
   lastCommandId String?
@@ -691,6 +689,20 @@ model NumberPurchased {
   userId                 String?   @db.Uuid
   organizationId         String?   @db.Uuid
 
+  // Distinguishes a real purchased Telnyx DID from an external number the user
+  // owns elsewhere and verified via Telnyx Verified Numbers to use as a caller ID.
+  kind NumberKind @default(purchased)
+
+  // Caller-ID verification (only meaningful when kind = verified_caller_id).
+  verified                Boolean   @default(false)
+  active                  Boolean   @default(true)
+  verificationStatus      String? // pending | verified | failed | expired
+  verificationMethod      String? // sms | call
+  verificationRequestedAt DateTime?
+  verifiedAt              DateTime?
+  verificationFee         Float? // last fee charged for a verification attempt
+  deletedAt               DateTime?
+
   // Messaging capabilities (snapshot derived from provider features)
   providerMessagingProfileId String?
   messagingEnabled           Boolean @default(false)
@@ -707,17 +719,25 @@ model NumberPurchased {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user              User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  organization      Organization?            @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  userNumbers       UserNumber[]
-  campaigns         Campaign[]               @relation("campaignNumberPurchased")
-  requirementValues NumberRequirementValue[]
+  user                User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization        Organization?            @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  userNumbers         UserNumber[]
+  campaigns           Campaign[]               @relation("campaignNumberPurchased")
+  campaignsAsCallerId Campaign[]               @relation("campaignCallerId")
+  callsAsCallerId     Call[]                   @relation("callCallerId")
+  requirementValues   NumberRequirementValue[]
 
   @@index([isoCountry])
   @@index([provider])
   @@index([providerConnectionId])
   @@index([organizationId])
   @@index([providerMessagingProfileId])
+  @@index([kind])
+}
+
+enum NumberKind {
+  purchased
+  verified_caller_id
 }
 
 /// Reusable regulatory document stored in Ringee's own bucket, scoped to a
@@ -1074,30 +1094,6 @@ model CrmCompanyLink {
   @@index([connectionId, domain])
 }
 
-model CallerId {
-  id             String    @id @default(uuid()) @db.Uuid
-  userId         String    @db.Uuid
-  organizationId String?   @db.Uuid
-  phoneNumber    String    @db.VarChar(20)
-  provider       String    @default("telnyx")
-  providerId     String?
-  verified       Boolean   @default(false)
-  verifiedAt     DateTime?
-  status         String    @default("pending")
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  deletedAt      DateTime?
-
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  calls        Call[]
-  campaigns    Campaign[]    @relation("campaignCallerId")
-
-  @@unique([userId, phoneNumber, deletedAt])
-  @@index([userId])
-  @@index([organizationId])
-}
-
 model Credit {
   id                 String    @id @default(uuid()) @db.Uuid
   userId             String?   @db.Uuid
@@ -1236,7 +1232,7 @@ model Campaign {
 
   user            User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization    Organization?    @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  callerId        CallerId?        @relation("campaignCallerId", fields: [callerIdId], references: [id])
+  callerId        NumberPurchased? @relation("campaignCallerId", fields: [callerIdId], references: [id], onDelete: SetNull)
   numberPurchased NumberPurchased? @relation("campaignNumberPurchased", fields: [numberPurchasedId], references: [id], onDelete: SetNull)
   members         CampaignMember[]
   leads           CampaignLead[]

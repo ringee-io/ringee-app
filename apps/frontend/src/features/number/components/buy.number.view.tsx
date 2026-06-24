@@ -11,13 +11,14 @@ import { Suspense } from 'react';
 import { DataTableSkeleton } from '@ringee/frontend-shared/components/ui/table/data-table-skeleton';
 import { BuyNumberListing } from './buy.number.listing';
 import { MyNumberListing } from './my.number.listing';
+import { CallerIdListing } from './caller-id.listing';
 import { getTranslations } from 'next-intl/server';
 
 export default async function BuyNumberPage() {
   const tab = searchParamsCache.get('tab') || 'buy';
   const t = await getTranslations('settings.numbers.tabs');
 
-  if (!['buy', 'my-numbers'].includes(tab)) {
+  if (!['buy', 'my-numbers', 'caller-ids'].includes(tab)) {
     redirect('/dashboard/numbers?tab=buy');
   }
 
@@ -29,6 +30,9 @@ export default async function BuyNumberPage() {
         </TabsTrigger>
         <TabsTrigger value='my-numbers' asChild>
           <Link href='?tab=my-numbers'>{t('myNumbers')}</Link>
+        </TabsTrigger>
+        <TabsTrigger value='caller-ids' asChild>
+          <Link href='?tab=caller-ids'>{t('callerIds')}</Link>
         </TabsTrigger>
       </TabsList>
 
@@ -56,6 +60,15 @@ export default async function BuyNumberPage() {
           >
             <MyNumberListing />
           </Suspense>
+        </TabsContent>
+      )}
+
+      {tab === 'caller-ids' && (
+        <TabsContent
+          value='caller-ids'
+          className='flex flex-1 flex-col space-y-4'
+        >
+          <CallerIdListing />
         </TabsContent>
       )}
     </Tabs>

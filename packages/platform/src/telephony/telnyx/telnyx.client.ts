@@ -51,6 +51,15 @@ export class TelnyxClient {
     }
   }
 
+  async delete<T = any>(path: string): Promise<T> {
+    try {
+      const { data } = await this.client.delete<T>(path);
+      return data;
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
   /**
    * Uploads a file as multipart/form-data. The shared axios instance forces
    * `Content-Type: application/json`, so this uses fetch with a native FormData

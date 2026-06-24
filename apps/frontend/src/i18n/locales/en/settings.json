@@ -11,7 +11,78 @@
     "metaDescription": "Instantly buy local or international phone numbers to make and receive calls with Ringee. Perfect for sales teams, call centers, and global businesses.",
     "tabs": {
       "buy": "Buy Number",
-      "myNumbers": "My Numbers"
+      "myNumbers": "My Numbers",
+      "callerIds": "Caller IDs"
+    },
+    "callerIds": {
+      "title": "Caller IDs",
+      "description": "Verify numbers you already own and use them as your outbound caller ID.",
+      "add": "Add caller ID",
+      "empty": "No caller IDs yet. Add one to start calling from a number you own.",
+      "loadError": "Could not load your caller IDs.",
+      "feeNotice": "Each verification costs {fee}.",
+      "balanceLabel": "Your balance: {balance}",
+      "insufficientCredits": "Not enough credits. Verifying a caller ID costs {fee}.",
+      "surchargeNotice": "Calls placed from a verified caller ID add $0.50 per minute to the rate.",
+      "table": {
+        "phoneNumber": "Number",
+        "country": "Country",
+        "status": "Status",
+        "active": "Active",
+        "addedOn": "Added",
+        "actions": "Actions"
+      },
+      "status": {
+        "verified": "Verified",
+        "pending": "Pending",
+        "failed": "Failed",
+        "inactive": "Inactive"
+      },
+      "actions": {
+        "verify": "Verify",
+        "enterCode": "Enter code",
+        "delete": "Delete"
+      },
+      "addModal": {
+        "title": "Add a caller ID",
+        "description": "We'll send a verification code to confirm you own this number.",
+        "phoneLabel": "Phone number",
+        "methodLabel": "How should we send the code?",
+        "methodSms": "Text message (SMS)",
+        "methodCall": "Phone call",
+        "extensionLabel": "Extension (optional)",
+        "extensionPlaceholder": "e.g. 123",
+        "submit": "Send verification",
+        "submitting": "Sending…",
+        "feeLine": "A {fee} verification fee will be charged to your balance.",
+        "invalidPhone": "Enter a valid phone number.",
+        "success": "Verification sent. Enter the code you receive.",
+        "error": "Could not send the verification."
+      },
+      "verifyModal": {
+        "title": "Verify {phone}",
+        "description": "Enter the {digits}-digit code we sent to your number.",
+        "resend": "Resend code",
+        "submit": "Verify",
+        "submitting": "Verifying…",
+        "success": "Caller ID verified.",
+        "error": "Invalid or expired code. Try again.",
+        "resent": "A new code is on its way."
+      },
+      "deleteModal": {
+        "title": "Delete this caller ID?",
+        "description": "{phone} will no longer be available as an outbound caller ID. This can't be undone.",
+        "confirm": "Delete",
+        "cancel": "Cancel",
+        "success": "Caller ID deleted.",
+        "error": "Could not delete the caller ID."
+      },
+      "toggle": {
+        "activated": "Caller ID activated.",
+        "deactivated": "Caller ID deactivated.",
+        "error": "Could not update the caller ID.",
+        "needsVerification": "Verify this caller ID before activating it."
+      }
     },
     "buy": {
       "table": {

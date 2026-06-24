@@ -695,16 +695,23 @@ export class CallService {
           }
 
           const rawTotalCost = parseFloat(costPayload.total_cost);
-          const profitMargin = process.env.CALL_PROFIT_MARGIN
+          const baseMargin = process.env.CALL_PROFIT_MARGIN
             ? parseFloat(process.env.CALL_PROFIT_MARGIN)
             : 0;
-          const totalCost = rawTotalCost * profitMargin;
 
           // Build context from call's ownership
           const callCtx: OwnershipContext = {
             userId: call.userId!,
             organizationId: call.organizationId,
           };
+
+          // Calls placed from a verified caller ID carry an extra 0.3 added to
+          // the profit-margin multiplier.
+          const usedCallerId = await this.numberPurchasedService
+            .isVerifiedCallerId(callCtx, call.fromNumber)
+            .catch(() => false);
+          const profitMargin = usedCallerId ? baseMargin + 0.3 : baseMargin;
+          const totalCost = rawTotalCost * profitMargin;
 
           if (user.freeCallTrial) {
             // consumeFreeCallTrial invalidates the cached user, so the next
