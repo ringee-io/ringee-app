@@ -12,14 +12,12 @@ import {
 } from '@/features/marketing/components/primitives';
 import { CtaSection } from '@/features/marketing/components/cta-section';
 import { FaqSection } from '@/features/marketing/components/faq';
-import { JsonLd } from '@/features/marketing/components/json-ld';
-import { ScalabilityCalculator } from '@/features/marketing/components/scalability-calculator';
 import {
-  PRICING,
-  SIGN_UP_URL,
-  SITE_LAST_MODIFIED,
-  SITE_URL
-} from '@/features/marketing/site';
+  JsonLd,
+  softwareAppJsonLd
+} from '@/features/marketing/components/json-ld';
+import { ScalabilityCalculator } from '@/features/marketing/components/scalability-calculator';
+import { PRICING, SIGN_UP_URL, SITE_URL } from '@/features/marketing/site';
 
 export const metadata: Metadata = buildMetadata({
   title: 'Pricing — Free Freelancer, $20/mo Organization | Ringee',
@@ -209,37 +207,12 @@ export default function PricingPage() {
       <FaqSection faqs={PRICING_FAQS} />
 
       <JsonLd
-        data={{
-          '@context': 'https://schema.org',
-          '@type': 'Product',
+        data={softwareAppJsonLd({
           name: 'Ringee',
           description:
-            'Affordable outbound calling software with flat, per-organization pricing and no per-seat fees.',
-          url: `${SITE_URL}/pricing`,
-          brand: { '@type': 'Brand', name: 'Ringee' },
-          dateModified: SITE_LAST_MODIFIED,
-          offers: [
-            {
-              '@type': 'Offer',
-              name: 'Freelancer',
-              price: '0',
-              priceCurrency: 'USD',
-              availability: 'https://schema.org/InStock',
-              url: `${SITE_URL}/pricing`,
-              description:
-                'Every Ringee feature for one person. Pay only for calling credits.'
-            },
-            {
-              '@type': 'Offer',
-              name: 'Organization',
-              price: '20',
-              priceCurrency: 'USD',
-              availability: 'https://schema.org/InStock',
-              url: `${SITE_URL}/pricing`,
-              description: 'Per organization, per month. Unlimited users.'
-            }
-          ]
-        }}
+            'Affordable outbound calling software with flat, per-organization pricing and no per-seat fees. Freelancer is free with every feature; Organization is $20/month for unlimited users.',
+          url: SITE_URL
+        })}
       />
     </DetailLayout>
   );

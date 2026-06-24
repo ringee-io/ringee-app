@@ -137,10 +137,12 @@ export function softwareAppJsonLd({
   return {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
+    '@id': `${SITE_URL}/#software`,
     name,
     applicationCategory: 'BusinessApplication',
     operatingSystem: 'Web, iOS, Android',
     url,
+    image: `${SITE_URL}/og-image.png`,
     description,
     isAccessibleForFree: true,
     license: 'https://opensource.org/licenses/MIT',
