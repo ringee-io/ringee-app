@@ -51,7 +51,8 @@
     "telnyx": "^4.2.1",
     "ws": "^8.21.0",
     "zod": "^4.1.12",
-    "zod-to-json-schema": "^3.24.6"
+    "zod-to-json-schema": "^3.24.6",
+    "libphonenumber-js": "^1.11.0"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.13",
