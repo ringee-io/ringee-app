@@ -11,7 +11,78 @@
     "metaDescription": "Kaufen Sie sofort lokale oder internationale Rufnummern, um mit Ringee Anrufe zu tätigen und zu empfangen. Perfekt für Vertriebsteams, Call Center und global tätige Unternehmen.",
     "tabs": {
       "buy": "Nummer kaufen",
-      "myNumbers": "Meine Nummern"
+      "myNumbers": "Meine Nummern",
+      "callerIds": "Anrufer-IDs"
+    },
+    "callerIds": {
+      "title": "Anrufer-IDs",
+      "description": "Verifizieren Sie Nummern, die Sie bereits besitzen, und nutzen Sie sie als Ihre ausgehende Anrufer-ID.",
+      "add": "Anrufer-ID hinzufügen",
+      "empty": "Noch keine Anrufer-IDs. Fügen Sie eine hinzu, um von einer Nummer aus anzurufen, die Ihnen gehört.",
+      "loadError": "Ihre Anrufer-IDs konnten nicht geladen werden.",
+      "feeNotice": "Jede Verifizierung kostet {fee}.",
+      "balanceLabel": "Ihr Guthaben: {balance}",
+      "insufficientCredits": "Nicht genügend Guthaben. Die Verifizierung einer Anrufer-ID kostet {fee}.",
+      "surchargeNotice": "Anrufe von einer verifizierten Anrufer-ID erhöhen den Tarif um $0.50 pro Minute.",
+      "table": {
+        "phoneNumber": "Nummer",
+        "country": "Land",
+        "status": "Status",
+        "active": "Aktiv",
+        "addedOn": "Hinzugefügt",
+        "actions": "Aktionen"
+      },
+      "status": {
+        "verified": "Verifiziert",
+        "pending": "Ausstehend",
+        "failed": "Fehlgeschlagen",
+        "inactive": "Inaktiv"
+      },
+      "actions": {
+        "verify": "Verifizieren",
+        "enterCode": "Code eingeben",
+        "delete": "Löschen"
+      },
+      "addModal": {
+        "title": "Anrufer-ID hinzufügen",
+        "description": "Wir senden einen Bestätigungscode, um zu bestätigen, dass diese Nummer Ihnen gehört.",
+        "phoneLabel": "Telefonnummer",
+        "methodLabel": "Wie sollen wir den Code senden?",
+        "methodSms": "Textnachricht (SMS)",
+        "methodCall": "Telefonanruf",
+        "extensionLabel": "Durchwahl (optional)",
+        "extensionPlaceholder": "z. B. 123",
+        "submit": "Verifizierung senden",
+        "submitting": "Senden…",
+        "feeLine": "Eine Verifizierungsgebühr von {fee} wird von Ihrem Guthaben abgebucht.",
+        "invalidPhone": "Geben Sie eine gültige Telefonnummer ein.",
+        "success": "Verifizierung gesendet. Geben Sie den erhaltenen Code ein.",
+        "error": "Die Verifizierung konnte nicht gesendet werden."
+      },
+      "verifyModal": {
+        "title": "{phone} verifizieren",
+        "description": "Geben Sie den {digits}-stelligen Code ein, den wir an Ihre Nummer gesendet haben.",
+        "resend": "Code erneut senden",
+        "submit": "Verifizieren",
+        "submitting": "Verifizieren…",
+        "success": "Anrufer-ID verifiziert.",
+        "error": "Ungültiger oder abgelaufener Code. Versuchen Sie es erneut.",
+        "resent": "Ein neuer Code ist unterwegs."
+      },
+      "deleteModal": {
+        "title": "Diese Anrufer-ID löschen?",
+        "description": "{phone} ist nicht mehr als ausgehende Anrufer-ID verfügbar. Dies kann nicht rückgängig gemacht werden.",
+        "confirm": "Löschen",
+        "cancel": "Abbrechen",
+        "success": "Anrufer-ID gelöscht.",
+        "error": "Die Anrufer-ID konnte nicht gelöscht werden."
+      },
+      "toggle": {
+        "activated": "Anrufer-ID aktiviert.",
+        "deactivated": "Anrufer-ID deaktiviert.",
+        "error": "Die Anrufer-ID konnte nicht aktualisiert werden.",
+        "needsVerification": "Verifizieren Sie diese Anrufer-ID, bevor Sie sie aktivieren."
+      }
     },
     "buy": {
       "table": {

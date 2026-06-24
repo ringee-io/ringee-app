@@ -11,7 +11,78 @@
     "metaDescription": "Achetez en un instant des numéros locaux ou internationaux pour passer et recevoir des appels avec Ringee. Idéal pour les équipes commerciales, les centres d'appel et les entreprises mondiales.",
     "tabs": {
       "buy": "Acheter un numéro",
-      "myNumbers": "Mes numéros"
+      "myNumbers": "Mes numéros",
+      "callerIds": "Identifiants d'appelant"
+    },
+    "callerIds": {
+      "title": "Identifiants d'appelant",
+      "description": "Vérifiez les numéros que vous possédez déjà et utilisez-les comme identifiant d'appelant sortant.",
+      "add": "Ajouter un identifiant d'appelant",
+      "empty": "Aucun identifiant d'appelant pour l'instant. Ajoutez-en un pour appeler depuis un numéro que vous possédez.",
+      "loadError": "Impossible de charger vos identifiants d'appelant.",
+      "feeNotice": "Chaque vérification coûte {fee}.",
+      "balanceLabel": "Votre solde : {balance}",
+      "insufficientCredits": "Crédits insuffisants. La vérification d'un identifiant d'appelant coûte {fee}.",
+      "surchargeNotice": "Les appels passés depuis un identifiant d'appelant vérifié ajoutent $0.50 par minute au tarif.",
+      "table": {
+        "phoneNumber": "Numéro",
+        "country": "Pays",
+        "status": "Statut",
+        "active": "Actif",
+        "addedOn": "Ajouté",
+        "actions": "Actions"
+      },
+      "status": {
+        "verified": "Vérifié",
+        "pending": "En attente",
+        "failed": "Échoué",
+        "inactive": "Inactif"
+      },
+      "actions": {
+        "verify": "Vérifier",
+        "enterCode": "Saisir le code",
+        "delete": "Supprimer"
+      },
+      "addModal": {
+        "title": "Ajouter un identifiant d'appelant",
+        "description": "Nous enverrons un code de vérification pour confirmer que ce numéro vous appartient.",
+        "phoneLabel": "Numéro de téléphone",
+        "methodLabel": "Comment envoyer le code ?",
+        "methodSms": "SMS (message texte)",
+        "methodCall": "Appel téléphonique",
+        "extensionLabel": "Extension (facultatif)",
+        "extensionPlaceholder": "ex. 123",
+        "submit": "Envoyer la vérification",
+        "submitting": "Envoi…",
+        "feeLine": "Des frais de vérification de {fee} seront débités de votre solde.",
+        "invalidPhone": "Saisissez un numéro de téléphone valide.",
+        "success": "Vérification envoyée. Saisissez le code reçu.",
+        "error": "Impossible d'envoyer la vérification."
+      },
+      "verifyModal": {
+        "title": "Vérifier {phone}",
+        "description": "Saisissez le code à {digits} chiffres que nous avons envoyé à votre numéro.",
+        "resend": "Renvoyer le code",
+        "submit": "Vérifier",
+        "submitting": "Vérification…",
+        "success": "Identifiant d'appelant vérifié.",
+        "error": "Code invalide ou expiré. Réessayez.",
+        "resent": "Un nouveau code est en route."
+      },
+      "deleteModal": {
+        "title": "Supprimer cet identifiant d'appelant ?",
+        "description": "{phone} ne sera plus disponible comme identifiant d'appelant sortant. Cette action est irréversible.",
+        "confirm": "Supprimer",
+        "cancel": "Annuler",
+        "success": "Identifiant d'appelant supprimé.",
+        "error": "Impossible de supprimer l'identifiant d'appelant."
+      },
+      "toggle": {
+        "activated": "Identifiant d'appelant activé.",
+        "deactivated": "Identifiant d'appelant désactivé.",
+        "error": "Impossible de mettre à jour l'identifiant d'appelant.",
+        "needsVerification": "Vérifiez cet identifiant d'appelant avant de l'activer."
+      }
     },
     "buy": {
       "table": {

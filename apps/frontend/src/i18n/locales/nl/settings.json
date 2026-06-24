@@ -11,7 +11,78 @@
     "metaDescription": "Koop direct lokale of internationale telefoonnummers om met Ringee te bellen en gebeld te worden. Perfect voor salesteams, callcenters en wereldwijde bedrijven.",
     "tabs": {
       "buy": "Nummer kopen",
-      "myNumbers": "Mijn nummers"
+      "myNumbers": "Mijn nummers",
+      "callerIds": "Beller-ID's"
+    },
+    "callerIds": {
+      "title": "Beller-ID's",
+      "description": "Verifieer nummers die je al hebt en gebruik ze als je uitgaande beller-ID.",
+      "add": "Beller-ID toevoegen",
+      "empty": "Nog geen beller-ID's. Voeg er een toe om te bellen vanaf een nummer dat je bezit.",
+      "loadError": "Kan je beller-ID's niet laden.",
+      "feeNotice": "Elke verificatie kost {fee}.",
+      "balanceLabel": "Je saldo: {balance}",
+      "insufficientCredits": "Niet genoeg tegoed. Een beller-ID verifiëren kost {fee}.",
+      "surchargeNotice": "Oproepen vanaf een geverifieerde beller-ID voegen $0.50 per minuut toe aan het tarief.",
+      "table": {
+        "phoneNumber": "Nummer",
+        "country": "Land",
+        "status": "Status",
+        "active": "Actief",
+        "addedOn": "Toegevoegd",
+        "actions": "Acties"
+      },
+      "status": {
+        "verified": "Geverifieerd",
+        "pending": "In behandeling",
+        "failed": "Mislukt",
+        "inactive": "Inactief"
+      },
+      "actions": {
+        "verify": "Verifiëren",
+        "enterCode": "Code invoeren",
+        "delete": "Verwijderen"
+      },
+      "addModal": {
+        "title": "Een beller-ID toevoegen",
+        "description": "We sturen een verificatiecode om te bevestigen dat dit nummer van jou is.",
+        "phoneLabel": "Telefoonnummer",
+        "methodLabel": "Hoe sturen we de code?",
+        "methodSms": "Sms (tekstbericht)",
+        "methodCall": "Telefoongesprek",
+        "extensionLabel": "Toestelnummer (optioneel)",
+        "extensionPlaceholder": "bijv. 123",
+        "submit": "Verificatie versturen",
+        "submitting": "Versturen…",
+        "feeLine": "Er wordt {fee} verificatiekosten van je saldo afgeschreven.",
+        "invalidPhone": "Voer een geldig telefoonnummer in.",
+        "success": "Verificatie verstuurd. Voer de ontvangen code in.",
+        "error": "Kan de verificatie niet versturen."
+      },
+      "verifyModal": {
+        "title": "{phone} verifiëren",
+        "description": "Voer de {digits}-cijferige code in die we naar je nummer hebben gestuurd.",
+        "resend": "Code opnieuw versturen",
+        "submit": "Verifiëren",
+        "submitting": "Verifiëren…",
+        "success": "Beller-ID geverifieerd.",
+        "error": "Ongeldige of verlopen code. Probeer het opnieuw.",
+        "resent": "Een nieuwe code is onderweg."
+      },
+      "deleteModal": {
+        "title": "Deze beller-ID verwijderen?",
+        "description": "{phone} is niet langer beschikbaar als uitgaande beller-ID. Dit kan niet ongedaan worden gemaakt.",
+        "confirm": "Verwijderen",
+        "cancel": "Annuleren",
+        "success": "Beller-ID verwijderd.",
+        "error": "Kan de beller-ID niet verwijderen."
+      },
+      "toggle": {
+        "activated": "Beller-ID geactiveerd.",
+        "deactivated": "Beller-ID gedeactiveerd.",
+        "error": "Kan de beller-ID niet bijwerken.",
+        "needsVerification": "Verifieer deze beller-ID voordat je hem activeert."
+      }
     },
     "buy": {
       "table": {

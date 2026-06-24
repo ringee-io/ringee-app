@@ -1,4 +1,5 @@
 import {
+  BadgeCheck,
   Bot,
   CalendarCheck,
   CalendarClock,
@@ -121,7 +122,7 @@ export const FEATURES: FeatureContent[] = [
       'Calling credits billed separately so you only pay for minutes',
       'Notes, outcomes, and callbacks captured inline'
     ],
-    related: ['campaigns', 'call-outcomes', 'callbacks', 'crm-sync'],
+    related: ['caller-id', 'campaigns', 'call-outcomes', 'callbacks'],
     faqs: [
       {
         question: 'Do I need any special hardware to make calls?',
@@ -137,6 +138,85 @@ export const FEATURES: FeatureContent[] = [
         question: 'Which countries can I call?',
         answer:
           'Ringee connects calls through Telnyx and supports outbound calling to more than 180 countries. Per-minute rates vary by destination.'
+      },
+      {
+        question: 'Can I call from my own number?',
+        answer:
+          'Yes. Verify a number you already own as a caller ID and use it as the number people see when you call — no need to buy a new one.'
+      }
+    ]
+  },
+  {
+    slug: 'caller-id',
+    name: 'Custom caller ID',
+    category: 'Communicate',
+    icon: BadgeCheck,
+    tagline:
+      'Call from a number you already own — verify it once and show it as your outbound caller ID.',
+    metaTitle: 'Custom Caller ID — Call From a Number You Own | Ringee',
+    metaDescription:
+      'Use a number you already own as your outbound caller ID in Ringee. Verify it by SMS or phone call, then show a familiar number so more prospects pick up.',
+    h1: 'Call from your own number with a verified caller ID',
+    intro: [
+      'People answer numbers they recognize. Ringee lets you place outbound calls from a phone number you already own — your mobile, your office line, or a local business number — by setting it as your verified caller ID, so that is the number that shows up on the other end.',
+      'You do not have to buy a new number to start. Verify a number you control in a couple of minutes, switch it on, and use it as the caller ID for your calls and campaigns.'
+    ],
+    whoFor: [
+      'Reps who get better pickup from a familiar, local number',
+      'Freelancers and consultants calling from their own line',
+      'Agencies calling on behalf of a client’s existing number',
+      'Teams with a business number they already want to keep using'
+    ],
+    howItWorks: [
+      {
+        title: 'Add a number you own',
+        description:
+          'Enter the number and choose how to receive the code — by SMS or an automated phone call.'
+      },
+      {
+        title: 'Verify ownership',
+        description:
+          'Enter the code Ringee sends to confirm the number is yours. A small one-time verification fee applies per number.'
+      },
+      {
+        title: 'Call from it',
+        description:
+          'Activate the verified caller ID and use it for your calls and campaigns so people see that number when you reach out.'
+      }
+    ],
+    benefits: [
+      'Show a number prospects recognize and trust',
+      'No need to buy a new number — reuse one you own',
+      'Quick self-serve verification by SMS or phone call',
+      'Use verified caller IDs for calls and campaigns'
+    ],
+    related: [
+      'outbound-calling',
+      'campaigns',
+      'call-outcomes',
+      'call-recording'
+    ],
+    faqs: [
+      {
+        question: 'Do I need to buy a number to use a caller ID?',
+        answer:
+          'No. A caller ID lets you call from a number you already own. You verify that you control it, then use it as the number shown on outbound calls — no purchase required.'
+      },
+      {
+        question: 'How do I verify a number I own?',
+        answer:
+          'Add the number in Ringee and choose to receive a verification code by SMS or an automated phone call, then enter the code to confirm ownership. A small one-time verification fee applies per number.'
+      },
+      {
+        question: 'Is there an extra cost to call from a verified caller ID?',
+        answer:
+          'Verifying a number costs a small one-time fee. Calls placed from a verified caller ID add $0.50 per minute on top of the standard per-minute rate for the destination.'
+      },
+      {
+        question:
+          'What is the difference between a caller ID and a purchased number?',
+        answer:
+          'A purchased number is a new line you rent from Ringee to make and receive calls. A caller ID is a number you already own that you verify and display on outbound calls — useful when you want familiar numbers without buying new ones.'
       }
     ]
   },
@@ -184,7 +264,7 @@ export const FEATURES: FeatureContent[] = [
       'Reuse lists across follow-up rounds',
       'Attach every note and result to the right campaign'
     ],
-    related: ['outbound-calling', 'call-outcomes', 'callbacks', 'crm-sync'],
+    related: ['outbound-calling', 'caller-id', 'call-outcomes', 'callbacks'],
     faqs: [
       {
         question: 'How do leads get into a campaign?',
