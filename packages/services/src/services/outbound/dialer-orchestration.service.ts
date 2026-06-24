@@ -11,6 +11,7 @@ import { CallAttemptService } from "./call-attempt.service";
 import { ComplianceService } from "./compliance.service";
 import { SSEBridgeService } from "./sse-bridge.service";
 import { DispositionService } from "./disposition.service";
+import { CallerIdRotationService } from "../caller-id-rotation/caller-id-rotation.service";
 
 const DIALER_POLL_INTERVAL_MS = 500;
 
@@ -30,6 +31,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     private readonly telephonyService: TelephonyService,
     private readonly sseBridge: SSEBridgeService,
     private readonly dispositionService: DispositionService,
+    private readonly callerIdRotationService: CallerIdRotationService,
   ) {}
 
   onModuleDestroy(): void {
@@ -268,6 +270,37 @@ export class DialerOrchestrationService implements OnModuleDestroy {
   }
 
   /**
+   * Resolve the caller ID to present for one campaign dial, applying caller-ID
+   * rotation when the workspace has it enabled. The campaign's fixed caller ID
+   * (see {@link resolveCallerIdNumber}) is passed as the fallback so behavior is
+   * unchanged when rotation is off. Caps and number health are respected across
+   * the whole campaign because every lead flows through here.
+   */
+  private async resolveDialCallerId(
+    campaign: {
+      callerIdId: string | null;
+      numberPurchasedId: string | null;
+      organizationId: string | null;
+      rotationNumberIds?: string[] | null;
+    },
+    agentUserId: string,
+    destination: string,
+  ): Promise<string | null> {
+    const fixed = await this.resolveCallerIdNumber(campaign);
+    const ctx = {
+      userId: agentUserId,
+      organizationId: campaign.organizationId,
+    };
+    const result = await this.callerIdRotationService.selectForDial(
+      ctx,
+      destination,
+      { phoneNumber: fixed },
+      { restrictToNumberIds: campaign.rotationNumberIds ?? undefined },
+    );
+    return result.phoneNumber;
+  }
+
+  /**
    * Initiate a call via Telnyx WebRTC.
    * Resolves the campaign caller ID and tells the frontend to place the call.
    */
@@ -277,13 +310,19 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       callerIdId: string | null;
       numberPurchasedId: string | null;
       organizationId: string | null;
+      rotationNumberIds?: string[] | null;
     },
     agent: { id: string; userId: string },
     lead: { id: string; contact: { phoneNumber: string } },
     attemptId: string,
   ): Promise<void> {
-    // Resolve caller ID phone number (falls back to purchased number)
-    const callerIdNumber = await this.resolveCallerIdNumber(campaign);
+    // Resolve caller ID phone number (rotation-aware; falls back to the
+    // campaign's fixed caller ID / purchased number when rotation is off).
+    const callerIdNumber = await this.resolveDialCallerId(
+      campaign,
+      agent.userId,
+      lead.contact.phoneNumber,
+    );
 
     // Transition states
     await this.agentSessionService.transitionTo(
@@ -320,11 +359,18 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     const campaign = await this.campaignRepo.findById(campaignId);
     if (!campaign) throw new Error("Campaign not found");
 
-    // Resolve caller ID (falls back to the org's purchased number)
-    const callerIdNumber = await this.resolveCallerIdNumber(campaign);
-
     // Get the lead's phone number
     const lead = await this.leadQueueService.getLeadById(session.currentLeadId);
+
+    // Resolve caller ID (rotation-aware; falls back to the campaign's fixed
+    // caller ID / org purchased number when rotation is off).
+    const callerIdNumber = lead?.contact?.phoneNumber
+      ? await this.resolveDialCallerId(
+          campaign,
+          session.userId,
+          lead.contact.phoneNumber,
+        )
+      : await this.resolveCallerIdNumber(campaign);
 
     // Find the current attempt for this lead
     const attempts = await this.callAttemptService.getAttemptHistory(

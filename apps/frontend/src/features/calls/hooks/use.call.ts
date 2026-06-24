@@ -131,13 +131,30 @@ export function useCall(call?: Call | null) {
   const handleCall = async (number: string) => {
     if (!client) return console.warn('⚠️ Telnyx client not ready');
 
-    // Caller ID is never hardcoded: it comes from the user's selected number,
-    // which the number store resolves from the backend (purchased numbers, or
-    // the configured public/free-trial line). No literal numbers here.
-    const callerId = selectedNumber?.phoneNumber;
+    // Caller ID is decided by the backend. The user's selected number is sent
+    // as the fallback so behavior is unchanged when number rotation is off;
+    // when it's on, the backend rotates to the best country-matched number.
+    let callerId = selectedNumber?.phoneNumber ?? null;
+    try {
+      const res = await api.post<{
+        phoneNumber: string | null;
+        reason: string;
+      }>('/caller-id-rotation/resolve', {
+        destination: number,
+        fallbackPhoneNumber: selectedNumber?.phoneNumber ?? null,
+        fallbackNumberId:
+          selectedNumber?.id && selectedNumber.id !== 'public'
+            ? selectedNumber.id
+            : null
+      });
+      if (res) callerId = res.phoneNumber;
+    } catch {
+      // Network/permission hiccup — fall back to the locally selected number.
+    }
+
     if (!callerId) {
       return console.warn(
-        '⚠️ No caller ID available — pick a number in the dialer first'
+        '⚠️ No caller ID available for this destination — add a number for its country.'
       );
     }
 

@@ -8,6 +8,7 @@ import { CallRecordingSettingsRepository } from "./repositories/call-recording-s
 import { CallRepository } from "./repositories/call.repository";
 import { TelnyxRatePerMinuteRepository } from "./repositories/telnyx.rate.per.minute.repository";
 import { NumberPurchasedRepository } from "./repositories/number.purchased.repository";
+import { CallerIdRotationRepository } from "./repositories/caller-id-rotation.repository";
 import { ContactRepository } from "./repositories/contact.repository";
 import { CreditRepository } from "./repositories/credit.repository";
 import { CreditAutoReloadRepository } from "./repositories/credit-auto-reload.repository";
@@ -87,6 +88,7 @@ const databaseProviders = [
   CallRecordingSettingsRepository,
   TelnyxRatePerMinuteRepository,
   NumberPurchasedRepository,
+  CallerIdRotationRepository,
   ContactRepository,
   CreditRepository,
   CreditAutoReloadRepository,

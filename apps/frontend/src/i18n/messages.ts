@@ -50,6 +50,7 @@ const NAMESPACES = [
   'integrations',
   'billing',
   'settings',
+  'numberRotation',
   'onboarding',
   'productTour',
   'forms',

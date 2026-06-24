@@ -39,6 +39,11 @@ export class CreateCampaignDto {
   numberPurchasedId?: string;
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  rotationNumberIds?: string[];
+
+  @IsOptional()
   @IsInt()
   @Min(1)
   @Max(20)

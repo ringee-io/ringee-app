@@ -1,0 +1,70 @@
+{
+  "header": {
+    "label": "Number rotation",
+    "on": "Number rotation is on",
+    "off": "Number rotation is off"
+  },
+  "dialer": {
+    "auto": "Automatic · number rotation",
+    "autoHint": "We pick the best local number for each call."
+  },
+  "campaign": {
+    "title": "Numbers to rotate in this campaign",
+    "hint": "Each call presents the best of these for the contact (same country, healthy, under cap).",
+    "allHint": "None selected — rotating across your whole number pool.",
+    "empty": "No numbers available to rotate. Buy or verify a number first."
+  },
+  "explainer": {
+    "title": "What number rotation does",
+    "subtitle": "Local presence dialing that protects your numbers' reputation.",
+    "localPresence": "When you have several of your own numbers, Ringee automatically presents the one most likely to get answered — preferring a number with the same area code as the person you're calling (local presence). Local numbers get answered far more often than unfamiliar ones.",
+    "reputation": "Calls are spread across your numbers with daily limits, and each number's health is tracked from its answer rate and very-short calls. A number that starts to look like spam is rested automatically until it recovers, so no single number gets burned.",
+    "compliance": "Only numbers you own are ever used. This is local presence, never a fake or borrowed caller ID."
+  },
+  "master": {
+    "title": "Rotation",
+    "subtitle": "A single switch for every dialer — manual, campaigns and shared session links.",
+    "statusOn": "Rotation is ON",
+    "statusOff": "Rotation is OFF",
+    "toggleHint": "When off, every call uses your fixed caller ID as before."
+  },
+  "config": {
+    "strategy": "Strategy",
+    "strategyLocalPresence": "Local presence",
+    "strategyBalanced": "Balanced",
+    "strategyLocalPresenceDesc": "Prefer a number with the same area code as the destination, then any number from the same country.",
+    "strategyBalancedDesc": "Ignore area code and simply spread calls evenly across your healthiest numbers in the destination's country.",
+    "defaultCap": "Default daily cap per number",
+    "defaultCapDesc": "Maximum calls a number presents per day before it's rested. Numbers can override this individually."
+  },
+  "pool": {
+    "title": "Numbers in rotation",
+    "subtitle": "The numbers that can be presented as caller ID, with their daily usage and health.",
+    "empty": "No numbers available yet. Buy or verify a number to start rotating.",
+    "number": "Number",
+    "country": "Country",
+    "status": "Status",
+    "usedToday": "Used today",
+    "cap": "Daily cap",
+    "health": "Health",
+    "inRotation": "In rotation"
+  },
+  "status": {
+    "active": "Active",
+    "cooling": "Cooling",
+    "flagged": "Flagged",
+    "disabled": "Off"
+  },
+  "reporting": {
+    "title": "Performance",
+    "subtitle": "Per-number answer rate and health over the last 7 days.",
+    "number": "Number",
+    "country": "Country",
+    "calls": "Calls",
+    "answerRate": "Answer rate",
+    "score": "Health"
+  },
+  "errors": {
+    "saveFailed": "Couldn't save. Only workspace admins can change rotation settings."
+  }
+}

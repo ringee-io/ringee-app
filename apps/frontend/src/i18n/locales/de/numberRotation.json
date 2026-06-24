@@ -1,0 +1,70 @@
+{
+  "header": {
+    "label": "Nummernrotation",
+    "on": "Nummernrotation ist aktiv",
+    "off": "Nummernrotation ist aus"
+  },
+  "dialer": {
+    "auto": "Automatisch · Nummernrotation",
+    "autoHint": "Wir wählen für jeden Anruf die beste lokale Nummer."
+  },
+  "campaign": {
+    "title": "Nummern für die Rotation in dieser Kampagne",
+    "hint": "Jeder Anruf zeigt die beste dieser Nummern für den Kontakt (gleiches Land, gesund, unter dem Limit).",
+    "allHint": "Keine ausgewählt – Rotation über deinen gesamten Nummernpool.",
+    "empty": "Keine Nummern für die Rotation verfügbar. Kaufe oder verifiziere zuerst eine Nummer."
+  },
+  "explainer": {
+    "title": "Was die Nummernrotation bewirkt",
+    "subtitle": "Lokale Präsenz, die den Ruf deiner Nummern schützt.",
+    "localPresence": "Wenn du mehrere eigene Nummern hast, präsentiert Ringee automatisch diejenige mit der höchsten Antwortwahrscheinlichkeit – bevorzugt eine Nummer mit der gleichen Vorwahl wie die angerufene Person (lokale Präsenz). Lokale Nummern werden weitaus häufiger beantwortet als unbekannte.",
+    "reputation": "Anrufe werden mit Tageslimits über deine Nummern verteilt, und die Gesundheit jeder Nummer wird anhand ihrer Antwortrate und sehr kurzer Anrufe verfolgt. Eine Nummer, die anfängt wie Spam zu wirken, wird automatisch pausiert, bis sie sich erholt – so wird keine Nummer verbrannt.",
+    "compliance": "Es werden nur Nummern verwendet, die dir gehören. Das ist lokale Präsenz, niemals eine gefälschte oder geliehene Anrufer-ID."
+  },
+  "master": {
+    "title": "Rotation",
+    "subtitle": "Ein Schalter für alle Wählhilfen – manuell, Kampagnen und geteilte Sitzungslinks.",
+    "statusOn": "Rotation AN",
+    "statusOff": "Rotation AUS",
+    "toggleHint": "Wenn aus, nutzt jeder Anruf wie zuvor deine feste Anrufer-ID."
+  },
+  "config": {
+    "strategy": "Strategie",
+    "strategyLocalPresence": "Lokale Präsenz",
+    "strategyBalanced": "Ausgewogen",
+    "strategyLocalPresenceDesc": "Bevorzuge eine Nummer mit derselben Vorwahl wie das Ziel, dann jede Nummer aus demselben Land.",
+    "strategyBalancedDesc": "Ignoriere die Vorwahl und verteile Anrufe einfach gleichmäßig über deine gesündesten Nummern im Zielland.",
+    "defaultCap": "Standard-Tageslimit pro Nummer",
+    "defaultCapDesc": "Maximale Anrufe, die eine Nummer pro Tag zeigt, bevor sie pausiert wird. Nummern können dies einzeln überschreiben."
+  },
+  "pool": {
+    "title": "Nummern in Rotation",
+    "subtitle": "Die Nummern, die als Anrufer-ID gezeigt werden können, mit Tagesnutzung und Gesundheit.",
+    "empty": "Noch keine Nummern verfügbar. Kaufe oder verifiziere eine Nummer, um mit der Rotation zu beginnen.",
+    "number": "Nummer",
+    "country": "Land",
+    "status": "Status",
+    "usedToday": "Heute genutzt",
+    "cap": "Tageslimit",
+    "health": "Gesundheit",
+    "inRotation": "In Rotation"
+  },
+  "status": {
+    "active": "Aktiv",
+    "cooling": "Pausiert",
+    "flagged": "Markiert",
+    "disabled": "Aus"
+  },
+  "reporting": {
+    "title": "Leistung",
+    "subtitle": "Antwortrate und Gesundheit pro Nummer der letzten 7 Tage.",
+    "number": "Nummer",
+    "country": "Land",
+    "calls": "Anrufe",
+    "answerRate": "Antwortrate",
+    "score": "Gesundheit"
+  },
+  "errors": {
+    "saveFailed": "Speichern fehlgeschlagen. Nur Workspace-Admins können die Rotation ändern."
+  }
+}

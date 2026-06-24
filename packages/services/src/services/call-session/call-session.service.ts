@@ -36,6 +36,7 @@ import { CallRecordingSettingsService } from "../transcription";
 import { CallRepository } from "@ringee/database";
 import { CallSessionAccessTokenService } from "./call-session-access-token.service";
 import { PipelineFanoutService } from "../ai-pipeline";
+import { CallerIdRotationService } from "../caller-id-rotation/caller-id-rotation.service";
 
 const MIN_CREDIT_BALANCE_TO_CALL = 0.01;
 const DEFAULT_EXPIRES_IN_MINUTES = 60;
@@ -98,6 +99,7 @@ export class CallSessionService {
     private readonly recordingService: RecordingService,
     private readonly recordingSettingsService: CallRecordingSettingsService,
     private readonly pipelineFanout: PipelineFanoutService,
+    private readonly callerIdRotationService: CallerIdRotationService,
   ) {}
 
   // ── Ownership & access ──────────────────────────────────────
@@ -428,6 +430,7 @@ export class CallSessionService {
     creditsOk: boolean;
     creditBalance: number;
     callerIdNumber: string | null;
+    rotationEnabled: boolean;
     recordAllCalls: boolean;
     telephony: {
       sipUsername: string;
@@ -445,6 +448,12 @@ export class CallSessionService {
     const creditsOk = balance > MIN_CREDIT_BALANCE_TO_CALL;
 
     const callerIdNumber = await this.resolvePrimaryCallerIdNumber(ctx);
+    // When the owner's workspace rotates caller IDs, the magic-link dialer shows
+    // it's automatic; the actual per-call number is chosen in startCallForItem.
+    const rotationEnabled = await this.callerIdRotationService
+      .getSettings(ctx)
+      .then((s) => s.enabled)
+      .catch(() => false);
 
     // When the owner's workspace enforces auto-recording, the magic-link
     // dialer disables its manual record toggle (recording starts on answer).
@@ -498,6 +507,7 @@ export class CallSessionService {
       creditsOk,
       creditBalance: balance,
       callerIdNumber,
+      rotationEnabled,
       recordAllCalls,
       telephony,
     };
@@ -616,7 +626,16 @@ export class CallSessionService {
       });
     }
 
-    const callerIdNumber = await this.resolvePrimaryCallerIdNumber(ctx);
+    // Per-call caller-ID selection using the session owner's pool. Rotation is
+    // keyed to the owner even though a magic-link guest may be the one dialing;
+    // when rotation is off this returns the owner's primary number unchanged.
+    const fixedCallerId = await this.resolvePrimaryCallerIdNumber(ctx);
+    const selection = await this.callerIdRotationService.selectForDial(
+      ctx,
+      item.phoneNumber,
+      { phoneNumber: fixedCallerId },
+    );
+    const callerIdNumber = selection.phoneNumber;
     const customHeaders: Array<{ name: string; value: string }> = [
       { name: "X-Ringee-Call-Session-Id", value: sessionId },
       { name: "X-Ringee-Call-Session-Item-Id", value: item.id },

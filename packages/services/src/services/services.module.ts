@@ -20,6 +20,7 @@ import { NumberPurchasedService } from "./number.purchased.service";
 import { RegulatoryDocumentService } from "./regulatory-document.service";
 import { ContactService } from "./contact.service";
 import { CallerIdService } from "./caller.id.service";
+import { CallerIdRotationService } from "./caller-id-rotation/caller-id-rotation.service";
 import { CreditService } from "./credit.service";
 import { DashboardService } from "./dashboard.service";
 import { DashboardLayoutService } from "./dashboard-layout.service";
@@ -138,6 +139,7 @@ const servicesProviders = [
   RegulatoryDocumentService,
   ContactService,
   CallerIdService,
+  CallerIdRotationService,
   CreditService,
   DashboardService,
   DashboardLayoutService,

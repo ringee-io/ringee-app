@@ -207,6 +207,7 @@ export class CampaignRepository {
         | "dialerMode"
         | "callerIdId"
         | "numberPurchasedId"
+        | "rotationNumberIds"
         | "maxAttempts"
         | "timezone"
         | "workStartMin"

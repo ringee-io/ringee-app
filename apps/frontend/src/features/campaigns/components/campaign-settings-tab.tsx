@@ -32,8 +32,11 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger
 } from '@ringee/frontend-shared/components/ui/alert-dialog';
-import { Loader2, Phone, Trash2 } from 'lucide-react';
+import { Switch } from '@ringee/frontend-shared/components/ui/switch';
+import { Loader2, Phone, Shuffle, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
+import { useRotationEnabled } from '@/features/number-rotation';
 import type { Campaign, DialerMode } from '../types/campaign.types';
 
 interface CallerId {
@@ -86,6 +89,8 @@ interface Props {
 export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
   const api = useApi();
   const router = useRouter();
+  const t = useTranslations('numberRotation');
+  const rotationEnabled = useRotationEnabled();
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -98,6 +103,7 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
     dialerMode: campaign.dialerMode,
     callerIdId: campaign.callerIdId || '',
     numberPurchasedId: campaign.numberPurchasedId || '',
+    rotationNumberIds: campaign.rotationNumberIds || [],
     maxAttempts: campaign.maxAttempts,
     timezone: campaign.timezone,
     workStartMin: campaign.workStartMin,
@@ -130,6 +136,23 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
     });
   }
 
+  // Owned numbers eligible for this campaign's rotation: purchased DIDs plus
+  // verified, active caller IDs.
+  const rotatableNumbers = [
+    ...phoneNumbers.map((n) => ({ id: n.id, phoneNumber: n.phoneNumber })),
+    ...callerIds
+      .filter((c) => c.verified && c.active !== false)
+      .map((c) => ({ id: c.id, phoneNumber: c.phoneNumber }))
+  ];
+
+  function toggleRotationNumber(id: string) {
+    updateForm({
+      rotationNumberIds: form.rotationNumberIds.includes(id)
+        ? form.rotationNumberIds.filter((n) => n !== id)
+        : [...form.rotationNumberIds, id]
+    });
+  }
+
   async function handleSave() {
     setError(null);
     setSaving(true);
@@ -138,7 +161,8 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
         ...form,
         // Empty values clear the FK rather than violating it.
         callerIdId: form.callerIdId || null,
-        numberPurchasedId: form.numberPurchasedId || null
+        numberPurchasedId: form.numberPurchasedId || null,
+        rotationNumberIds: form.rotationNumberIds
       });
       onUpdated();
       toast.success('Settings saved.');
@@ -210,68 +234,112 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
           </CardDescription>
         </CardHeader>
         <CardContent className='space-y-4'>
-          <div className='space-y-2'>
-            <Label>Phone Number</Label>
-            <Select
-              value={form.numberPurchasedId || ''}
-              onValueChange={(v) => updateForm({ numberPurchasedId: v })}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder='Select a phone number...' />
-              </SelectTrigger>
-              <SelectContent>
-                {phoneNumbers.map((num) => (
-                  <SelectItem key={num.id} value={num.id}>
-                    <span className='flex items-center gap-2'>
-                      <Phone className='h-3 w-3' />
-                      {num.phoneNumber}
-                    </span>
-                  </SelectItem>
-                ))}
-                {phoneNumbers.length === 0 && (
-                  <SelectItem value='__none' disabled>
-                    No purchased numbers
-                  </SelectItem>
-                )}
-              </SelectContent>
-            </Select>
-            <p className='text-muted-foreground text-xs'>
-              Calls in this campaign are placed from this purchased number.
-            </p>
-          </div>
-
-          <div className='space-y-2'>
-            <Label>Caller ID (optional)</Label>
-            <Select
-              value={form.callerIdId || '__default'}
-              onValueChange={(v) =>
-                updateForm({ callerIdId: v === '__default' ? '' : v })
-              }
-            >
-              <SelectTrigger>
-                <SelectValue placeholder='Use the campaign phone number' />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value='__default'>
-                  Use the campaign phone number (default)
-                </SelectItem>
-                {callerIds
-                  .filter((c) => c.verified && c.active !== false)
-                  .map((cid) => (
-                    <SelectItem key={cid.id} value={cid.id}>
-                      <span className='flex items-center gap-2'>
-                        <Phone className='h-3 w-3' />
-                        {cid.phoneNumber}
+          {rotationEnabled && (
+            <div className='space-y-2'>
+              <div className='flex items-center gap-2'>
+                <Shuffle className='h-4 w-4 text-emerald-600' />
+                <Label>{t('campaign.title')}</Label>
+              </div>
+              <p className='text-muted-foreground text-xs'>
+                {t('campaign.hint')}
+              </p>
+              {rotatableNumbers.length === 0 ? (
+                <p className='text-muted-foreground text-sm'>
+                  {t('campaign.empty')}
+                </p>
+              ) : (
+                <div className='divide-border/50 rounded-md border'>
+                  {rotatableNumbers.map((num) => (
+                    <div
+                      key={num.id}
+                      className='flex items-center justify-between gap-3 border-b px-3 py-2 last:border-b-0'
+                    >
+                      <span className='flex items-center gap-2 text-sm'>
+                        <Phone className='text-muted-foreground h-3.5 w-3.5' />
+                        {num.phoneNumber}
                       </span>
-                    </SelectItem>
+                      <Switch
+                        checked={form.rotationNumberIds.includes(num.id)}
+                        onCheckedChange={() => toggleRotationNumber(num.id)}
+                      />
+                    </div>
                   ))}
-              </SelectContent>
-            </Select>
-            <p className='text-muted-foreground text-xs'>
-              Legacy verified caller ID, used only when no phone number is
-              assigned above.
-            </p>
-          </div>
+                </div>
+              )}
+              <p className='text-muted-foreground text-xs'>
+                {form.rotationNumberIds.length === 0
+                  ? t('campaign.allHint')
+                  : null}
+              </p>
+            </div>
+          )}
+
+          {!rotationEnabled && (
+            <>
+              <div className='space-y-2'>
+                <Label>Phone Number</Label>
+                <Select
+                  value={form.numberPurchasedId || ''}
+                  onValueChange={(v) => updateForm({ numberPurchasedId: v })}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder='Select a phone number...' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {phoneNumbers.map((num) => (
+                      <SelectItem key={num.id} value={num.id}>
+                        <span className='flex items-center gap-2'>
+                          <Phone className='h-3 w-3' />
+                          {num.phoneNumber}
+                        </span>
+                      </SelectItem>
+                    ))}
+                    {phoneNumbers.length === 0 && (
+                      <SelectItem value='__none' disabled>
+                        No purchased numbers
+                      </SelectItem>
+                    )}
+                  </SelectContent>
+                </Select>
+                <p className='text-muted-foreground text-xs'>
+                  Calls in this campaign are placed from this purchased number.
+                </p>
+              </div>
+
+              <div className='space-y-2'>
+                <Label>Caller ID (optional)</Label>
+                <Select
+                  value={form.callerIdId || '__default'}
+                  onValueChange={(v) =>
+                    updateForm({ callerIdId: v === '__default' ? '' : v })
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder='Use the campaign phone number' />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value='__default'>
+                      Use the campaign phone number (default)
+                    </SelectItem>
+                    {callerIds
+                      .filter((c) => c.verified && c.active !== false)
+                      .map((cid) => (
+                        <SelectItem key={cid.id} value={cid.id}>
+                          <span className='flex items-center gap-2'>
+                            <Phone className='h-3 w-3' />
+                            {cid.phoneNumber}
+                          </span>
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className='text-muted-foreground text-xs'>
+                  Legacy verified caller ID, used only when no phone number is
+                  assigned above.
+                </p>
+              </div>
+            </>
+          )}
           <div className='grid gap-4 sm:grid-cols-2'>
             <div className='space-y-2'>
               <Label>Dialer Mode</Label>

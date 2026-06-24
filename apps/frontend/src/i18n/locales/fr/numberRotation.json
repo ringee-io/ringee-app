@@ -1,0 +1,70 @@
+{
+  "header": {
+    "label": "Rotation des numéros",
+    "on": "Rotation des numéros activée",
+    "off": "Rotation des numéros désactivée"
+  },
+  "dialer": {
+    "auto": "Automatique · rotation des numéros",
+    "autoHint": "Nous choisissons le meilleur numéro local pour chaque appel."
+  },
+  "campaign": {
+    "title": "Numéros à utiliser en rotation pour cette campagne",
+    "hint": "Chaque appel présente le meilleur de ces numéros pour le contact (même pays, sain, sous la limite).",
+    "allHint": "Aucun sélectionné — rotation sur l'ensemble de vos numéros.",
+    "empty": "Aucun numéro disponible pour la rotation. Achetez ou vérifiez d'abord un numéro."
+  },
+  "explainer": {
+    "title": "Ce que fait la rotation des numéros",
+    "subtitle": "Une présence locale qui protège la réputation de vos numéros.",
+    "localPresence": "Lorsque vous possédez plusieurs numéros, Ringee présente automatiquement celui qui a le plus de chances d'obtenir une réponse — en privilégiant un numéro ayant le même indicatif régional que la personne appelée (présence locale). Les numéros locaux obtiennent bien plus de réponses que les numéros inconnus.",
+    "reputation": "Les appels sont répartis entre vos numéros avec des limites quotidiennes, et la santé de chaque numéro est suivie d'après son taux de réponse et ses appels très courts. Un numéro qui commence à ressembler à du spam est mis au repos automatiquement jusqu'à sa récupération, pour qu'aucun numéro ne soit grillé.",
+    "compliance": "Seuls les numéros que vous possédez sont utilisés. C'est de la présence locale, jamais un identifiant falsifié ou emprunté."
+  },
+  "master": {
+    "title": "Rotation",
+    "subtitle": "Un seul interrupteur pour tous les composeurs : manuel, campagnes et liens de session partagés.",
+    "statusOn": "Rotation ACTIVÉE",
+    "statusOff": "Rotation DÉSACTIVÉE",
+    "toggleHint": "Désactivée, chaque appel utilise votre identifiant fixe comme avant."
+  },
+  "config": {
+    "strategy": "Stratégie",
+    "strategyLocalPresence": "Présence locale",
+    "strategyBalanced": "Équilibrée",
+    "strategyLocalPresenceDesc": "Privilégier un numéro avec le même indicatif régional que la destination, puis tout numéro du même pays.",
+    "strategyBalancedDesc": "Ignorer l'indicatif régional et répartir simplement les appels entre vos numéros les plus sains du pays de destination.",
+    "defaultCap": "Limite quotidienne par défaut par numéro",
+    "defaultCapDesc": "Nombre maximal d'appels qu'un numéro présente par jour avant d'être mis au repos. Chaque numéro peut avoir sa propre limite."
+  },
+  "pool": {
+    "title": "Numéros en rotation",
+    "subtitle": "Les numéros pouvant être présentés comme identifiant, avec leur usage quotidien et leur santé.",
+    "empty": "Aucun numéro disponible pour l'instant. Achetez ou vérifiez un numéro pour commencer la rotation.",
+    "number": "Numéro",
+    "country": "Pays",
+    "status": "Statut",
+    "usedToday": "Utilisé aujourd'hui",
+    "cap": "Limite quotidienne",
+    "health": "Santé",
+    "inRotation": "En rotation"
+  },
+  "status": {
+    "active": "Actif",
+    "cooling": "En repos",
+    "flagged": "Signalé",
+    "disabled": "Désactivé"
+  },
+  "reporting": {
+    "title": "Performance",
+    "subtitle": "Taux de réponse et santé par numéro sur les 7 derniers jours.",
+    "number": "Numéro",
+    "country": "Pays",
+    "calls": "Appels",
+    "answerRate": "Taux de réponse",
+    "score": "Santé"
+  },
+  "errors": {
+    "saveFailed": "Échec de l'enregistrement. Seuls les administrateurs de l'espace de travail peuvent modifier la rotation."
+  }
+}

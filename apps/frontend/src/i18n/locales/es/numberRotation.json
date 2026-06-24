@@ -1,0 +1,70 @@
+{
+  "header": {
+    "label": "Rotación de números",
+    "on": "Rotación de números activada",
+    "off": "Rotación de números desactivada"
+  },
+  "dialer": {
+    "auto": "Automático · rotación de números",
+    "autoHint": "Elegimos el mejor número local para cada llamada."
+  },
+  "campaign": {
+    "title": "Números a rotar en esta campaña",
+    "hint": "Cada llamada presenta el mejor de estos para el contacto (mismo país, sano, bajo el límite).",
+    "allHint": "Ninguno seleccionado: se rota entre todos tus números.",
+    "empty": "No hay números disponibles para rotar. Compra o verifica un número primero."
+  },
+  "explainer": {
+    "title": "Qué hace la rotación de números",
+    "subtitle": "Marcación con presencia local que protege la reputación de tus números.",
+    "localPresence": "Cuando tienes varios números propios, Ringee presenta automáticamente el que tiene más probabilidad de ser contestado: prefiere un número con el mismo código de área que la persona a la que llamas (presencia local). Los números locales se contestan mucho más que los desconocidos.",
+    "reputation": "Las llamadas se reparten entre tus números con límites diarios, y la salud de cada número se mide por su tasa de respuesta y las llamadas muy cortas. Un número que empieza a parecer spam descansa automáticamente hasta recuperarse, para que ninguno se queme.",
+    "compliance": "Solo se usan números que te pertenecen. Esto es presencia local, nunca un identificador falso o ajeno."
+  },
+  "master": {
+    "title": "Rotación",
+    "subtitle": "Un único interruptor para todos los marcadores: manual, campañas y enlaces de sesión compartidos.",
+    "statusOn": "Rotación ACTIVADA",
+    "statusOff": "Rotación DESACTIVADA",
+    "toggleHint": "Cuando está desactivada, cada llamada usa tu identificador fijo como antes."
+  },
+  "config": {
+    "strategy": "Estrategia",
+    "strategyLocalPresence": "Presencia local",
+    "strategyBalanced": "Equilibrada",
+    "strategyLocalPresenceDesc": "Prefiere un número con el mismo código de área que el destino y, si no, cualquier número del mismo país.",
+    "strategyBalancedDesc": "Ignora el código de área y simplemente reparte las llamadas de forma uniforme entre tus números más sanos del país del destino.",
+    "defaultCap": "Límite diario por número",
+    "defaultCapDesc": "Máximo de llamadas que presenta un número al día antes de descansar. Cada número puede tener su propio límite."
+  },
+  "pool": {
+    "title": "Números en rotación",
+    "subtitle": "Los números que pueden presentarse como identificador, con su uso diario y su salud.",
+    "empty": "Aún no hay números disponibles. Compra o verifica un número para empezar a rotar.",
+    "number": "Número",
+    "country": "País",
+    "status": "Estado",
+    "usedToday": "Usado hoy",
+    "cap": "Límite diario",
+    "health": "Salud",
+    "inRotation": "En rotación"
+  },
+  "status": {
+    "active": "Activo",
+    "cooling": "En descanso",
+    "flagged": "Marcado",
+    "disabled": "Desactivado"
+  },
+  "reporting": {
+    "title": "Rendimiento",
+    "subtitle": "Tasa de respuesta y salud por número en los últimos 7 días.",
+    "number": "Número",
+    "country": "País",
+    "calls": "Llamadas",
+    "answerRate": "Tasa de respuesta",
+    "score": "Salud"
+  },
+  "errors": {
+    "saveFailed": "No se pudo guardar. Solo los administradores del espacio pueden cambiar la rotación."
+  }
+}

@@ -5,6 +5,7 @@ export * from "./call.service";
 export * from "./call.transcription.service";
 export * from "./contact.service";
 export * from "./caller.id.service";
+export * from "./caller-id-rotation/caller-id-rotation.service";
 export * from "./number.purchased.service";
 export * from "./regulatory-document.service";
 export * from "./credit.service";

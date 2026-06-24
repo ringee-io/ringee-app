@@ -13,6 +13,7 @@
     "@ringee/database": "workspace:*",
     "@ringee/platform": "workspace:*",
     "date-fns": "4.1.0",
+    "libphonenumber-js": "^1.11.0",
     "reflect-metadata": "~0.2.2",
     "rimraf": "~6.0.0",
     "rxjs": "~7.8.0",

@@ -27,6 +27,7 @@ import { UserService } from "./user.service";
 import { CreditService } from "./credit.service";
 import { ContactService } from "./contact.service";
 import { NumberPurchasedService } from "./number.purchased.service";
+import { CallerIdRotationService } from "./caller-id-rotation/caller-id-rotation.service";
 import { UserDeviceService } from "./user.device.service";
 import { OrganizationService } from "./organization.service";
 import { CallAttemptService } from "./outbound/call-attempt.service";
@@ -39,6 +40,10 @@ import {
   pickCallTerminalEvent,
 } from "./custom-integrations/custom-integration-event-builders";
 
+/** Connected calls shorter than this (seconds) count as "very short" for
+ * caller-ID reputation scoring (spec: <5s). */
+const SHORT_CALL_SECONDS = 5;
+
 @Injectable()
 export class CallService {
   private readonly logger = new Logger(CallService.name);
@@ -50,6 +55,7 @@ export class CallService {
     private readonly creditService: CreditService,
     private readonly contactService: ContactService,
     private readonly numberPurchasedService: NumberPurchasedService,
+    private readonly callerIdRotationService: CallerIdRotationService,
     private readonly notificationService: NotificationService,
     private readonly userDeviceService: UserDeviceService,
     private readonly orchestratorService: OrchestratorService,
@@ -430,6 +436,13 @@ export class CallService {
           payload.to!,
         );
 
+        // Resolve which owned number this call presents as caller ID (by its
+        // `from`) so we can audit it on the Call row and count it toward the
+        // number's daily usage / reputation. Best-effort: never block the call.
+        const presentedNumberId = await this.callerIdRotationService
+          .registerOutboundCall(outboundCtx, payload.from!)
+          .catch(() => null);
+
         const outboundCall = await this.callRepository.createCall(outboundCtx, {
           contact: contact ? { connect: { id: contact.id } } : undefined,
           fromNumber: payload.from!,
@@ -442,6 +455,9 @@ export class CallService {
           status: CallStatus.ringing,
           startedAt: payload.start_time!,
           clientState: Buffer.from("initiate_call").toString("base64"),
+          callerId: presentedNumberId
+            ? { connect: { id: presentedNumberId } }
+            : undefined,
         });
 
         // Inbox thread materialises now so the conversation appears
@@ -503,6 +519,13 @@ export class CallService {
         if (answeredCall) {
           await this.applyAnswerAutomation(answeredCall);
         }
+        // Caller-ID reputation: count this as an answered call for the presented
+        // number (drives health scoring). Best-effort.
+        if (answeredCall?.callerIdId) {
+          void this.callerIdRotationService.registerAnswered(
+            answeredCall.callerIdId,
+          );
+        }
         break;
       }
 
@@ -517,6 +540,18 @@ export class CallService {
 
         const hangupCall =
           await this.callRepository.findByControlId(callControlId);
+        // Caller-ID reputation: a connected call that lasted < 5s is a strong
+        // "spam-like" signal for the presented number. Count it for health.
+        if (
+          hangupCall?.callerIdId &&
+          hangupCall.answeredAt &&
+          hangupCall.durationSeconds != null &&
+          hangupCall.durationSeconds < SHORT_CALL_SECONDS
+        ) {
+          void this.callerIdRotationService.registerShortCall(
+            hangupCall.callerIdId,
+          );
+        }
         const hangupAttemptId = this.extractCallAttemptId(payload);
         if (hangupAttemptId && hangupCall) {
           await this.callAttemptService.handleWebhookEvent(

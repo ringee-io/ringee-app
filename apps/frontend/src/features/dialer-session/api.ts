@@ -64,6 +64,8 @@ export interface ValidateResponse {
   creditsOk: boolean;
   creditBalance: number;
   callerIdNumber: string | null;
+  /** True when the owner's workspace rotates caller IDs per call. */
+  rotationEnabled: boolean;
   /** True when the owner's workspace auto-records every call. */
   recordAllCalls: boolean;
   telephony: TelephonyCredential | null;
