@@ -33,6 +33,7 @@ interface CallerId {
   id: string;
   phoneNumber: string;
   verified: boolean;
+  active?: boolean;
   status: string;
 }
 
@@ -231,7 +232,7 @@ export function CampaignCreateForm() {
                   Use the campaign phone number (default)
                 </SelectItem>
                 {callerIds
-                  .filter((c) => c.verified)
+                  .filter((c) => c.verified && c.active !== false)
                   .map((cid) => (
                     <SelectItem key={cid.id} value={cid.id}>
                       <span className='flex items-center gap-2'>

@@ -6,6 +6,7 @@ import {
   BadRequestException,
   NotFoundException,
   Param,
+  Patch,
   Post,
   Put,
   Query,
@@ -18,6 +19,7 @@ import {
   AvailableNumber,
   CurrentUser,
   NumberFeature,
+  OrgAdminOnly,
   Public,
   TelephonyService,
   createOwnershipContext,
@@ -32,6 +34,7 @@ import {
 import {
   RequestCallerIdVerificationDto,
   SaveRequirementsDraftDto,
+  SetCallerIdActiveDto,
   SubmitRequirementsDto,
   ValidateAddressDto,
   VerifyCallerIdDto,
@@ -125,6 +128,13 @@ export class TelephonyController {
     return this.callerIdService.getCallerIds(ctx);
   }
 
+  /** The flat fee charged per caller-ID verification sent (for the UI to show). */
+  @Get("caller-id/verification-fee")
+  async getCallerIdVerificationFee() {
+    return { fee: this.callerIdService.getVerificationFee() };
+  }
+
+  @OrgAdminOnly()
   @Post("caller-id")
   async requestVerification(
     @Body() body: RequestCallerIdVerificationDto,
@@ -136,15 +146,41 @@ export class TelephonyController {
       body.phoneNumber,
       body.method,
       body.extension,
+      body.isoCountry,
     );
   }
 
+  @OrgAdminOnly()
   @Post("caller-id/:id/verify")
   async verifyVerification(
     @Body() body: VerifyCallerIdDto,
     @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
   ) {
-    return this.callerIdService.verifyCallerId(id, body.verificationCode);
+    const ctx = createOwnershipContext(user);
+    return this.callerIdService.verifyCallerId(ctx, id, body.verificationCode);
+  }
+
+  @OrgAdminOnly()
+  @Patch("caller-id/:id/active")
+  async setCallerIdActive(
+    @Body() body: SetCallerIdActiveDto,
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    const ctx = createOwnershipContext(user);
+    return this.callerIdService.setActive(ctx, id, body.active);
+  }
+
+  @OrgAdminOnly()
+  @Delete("caller-id/:id")
+  async deleteCallerId(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    const ctx = createOwnershipContext(user);
+    await this.callerIdService.removeCallerId(ctx, id);
+    return { success: true };
   }
 
   @Get("phone-numbers")

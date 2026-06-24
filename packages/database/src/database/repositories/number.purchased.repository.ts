@@ -31,7 +31,9 @@ export class NumberPurchasedRepository {
   ): Promise<(NumberPurchased & { userNumbers: UserNumber[] })[]> {
     const ownershipFilter = buildOwnershipFilter(ctx);
     return this.prisma.numberPurchased.findMany({
-      where: ownershipFilter,
+      // Only real purchased DIDs — verified caller IDs live in the same table
+      // but are a different kind and are listed via the caller-id methods below.
+      where: { ...ownershipFilter, kind: "purchased" },
       orderBy: { createdAt: "desc" },
       include: {
         userNumbers: true,
@@ -162,6 +164,117 @@ export class NumberPurchasedRepository {
 
   async findById(id: string): Promise<NumberPurchased | null> {
     return this.prisma.numberPurchased.findUnique({ where: { id } });
+  }
+
+  /** Looks a number up by its (unique) E.164 value — used for billing lookups. */
+  async findByPhoneNumber(
+    phoneNumber: string,
+  ): Promise<NumberPurchased | null> {
+    return this.prisma.numberPurchased.findUnique({ where: { phoneNumber } });
+  }
+
+  // ─── Verified caller IDs (kind = "verified_caller_id") ──────────────────
+  // External numbers a user owns elsewhere and verified through Telnyx Verified
+  // Numbers. Stored in this table, discriminated by `kind`, soft-deleted.
+
+  private callerIdScope(
+    ctx: OwnershipContext,
+  ): Prisma.NumberPurchasedWhereInput {
+    return {
+      ...buildOwnershipFilter(ctx),
+      kind: "verified_caller_id",
+      deletedAt: null,
+    };
+  }
+
+  async listCallerIds(ctx: OwnershipContext): Promise<NumberPurchased[]> {
+    return this.prisma.numberPurchased.findMany({
+      where: this.callerIdScope(ctx),
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  async findCallerIdByPhone(
+    ctx: OwnershipContext,
+    phoneNumber: string,
+  ): Promise<NumberPurchased | null> {
+    return this.prisma.numberPurchased.findFirst({
+      where: { ...this.callerIdScope(ctx), phoneNumber },
+    });
+  }
+
+  async findCallerIdById(id: string): Promise<NumberPurchased | null> {
+    return this.prisma.numberPurchased.findFirst({
+      where: { id, kind: "verified_caller_id", deletedAt: null },
+    });
+  }
+
+  async createCallerId(
+    ctx: OwnershipContext,
+    data: Omit<
+      Prisma.NumberPurchasedCreateInput,
+      "user" | "organization" | "kind" | "campaigns"
+    >,
+  ): Promise<NumberPurchased> {
+    return this.prisma.numberPurchased.create({
+      data: {
+        ...data,
+        kind: "verified_caller_id",
+        user: { connect: { id: ctx.userId } },
+        organization: ctx.organizationId
+          ? { connect: { id: ctx.organizationId } }
+          : undefined,
+      },
+    });
+  }
+
+  async markCallerIdVerified(id: string): Promise<NumberPurchased> {
+    return this.prisma.numberPurchased.update({
+      where: { id },
+      data: {
+        verified: true,
+        active: true,
+        verificationStatus: "verified",
+        verifiedAt: new Date(),
+      },
+    });
+  }
+
+  async markCallerIdFailed(
+    id: string,
+    reason?: string,
+  ): Promise<NumberPurchased> {
+    return this.prisma.numberPurchased.update({
+      where: { id },
+      data: {
+        verified: false,
+        verificationStatus: reason ? `failed:${reason}` : "failed",
+      },
+    });
+  }
+
+  async updateCallerId(
+    id: string,
+    data: Prisma.NumberPurchasedUpdateInput,
+  ): Promise<NumberPurchased> {
+    return this.prisma.numberPurchased.update({ where: { id }, data });
+  }
+
+  async setCallerIdActive(
+    id: string,
+    active: boolean,
+  ): Promise<NumberPurchased> {
+    return this.prisma.numberPurchased.update({
+      where: { id },
+      data: { active },
+    });
+  }
+
+  async softDeleteCallerId(id: string): Promise<NumberPurchased> {
+    return this.prisma.numberPurchased.update({
+      where: { id },
+      data: { deletedAt: new Date(), active: false },
+    });
   }
 
   async update(

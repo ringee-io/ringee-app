@@ -134,6 +134,42 @@ export class TelnyxService implements TelephonyService {
     }
   }
 
+  async listVerifiedNumbers(): Promise<
+    Array<{ phoneNumber: string; verified: boolean }>
+  > {
+    const { data } = await this.telnyxClient.get<{
+      data?: Array<{ phone_number: string; verified_at?: string | null }>;
+    }>("/verified_numbers");
+
+    return (data ?? []).map((record) => ({
+      phoneNumber: record.phone_number,
+      verified: !!record.verified_at,
+    }));
+  }
+
+  async deleteVerifiedNumber(phoneNumber: string): Promise<void> {
+    try {
+      await this.telnyxClient.delete(
+        `/verified_numbers/${encodeURIComponent(phoneNumber)}`,
+      );
+      this.logger.log(`Verified number ${phoneNumber} deleted from Telnyx.`);
+    } catch (error: any) {
+      // A 404 means Telnyx already has no such verified number — treat the
+      // local delete as the source of truth and don't block on the carrier.
+      if (error?.status === 404 || error?.response?.status === 404) {
+        this.logger.warn(
+          `Verified number ${phoneNumber} not found on Telnyx; skipping.`,
+        );
+        return;
+      }
+      this.logger.error(
+        `Failed to delete verified number ${phoneNumber}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
   async searchAvailableNumbers(
     params: SearchAvailableParams,
   ): Promise<AvailableNumber[]> {

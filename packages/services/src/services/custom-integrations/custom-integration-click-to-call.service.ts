@@ -7,7 +7,6 @@ import {
 } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import {
-  CallerIdRepository,
   CustomIntegration,
   CustomIntegrationContactLinkRepository,
   ContactRepository,
@@ -43,7 +42,6 @@ export class CustomIntegrationClickToCallService {
   constructor(
     private readonly contactLinkRepo: CustomIntegrationContactLinkRepository,
     private readonly contactRepo: ContactRepository,
-    private readonly callerIdRepo: CallerIdRepository,
     private readonly prisma: PrismaService,
     private readonly crypto: CryptoService,
   ) {}
@@ -174,14 +172,17 @@ export class CustomIntegrationClickToCallService {
   ): Promise<string> {
     if (requested) return normalizePhone(requested);
 
-    // Pick the first verified caller ID for the agent in this workspace.
-    const callerId = await this.prisma.callerId.findFirst({
+    // Pick the first active verified caller ID for the agent in this workspace.
+    const callerId = await this.prisma.numberPurchased.findFirst({
       where: {
         userId: agentUserId,
         ...(ctx.organizationId
           ? { organizationId: ctx.organizationId }
           : { organizationId: null }),
+        kind: "verified_caller_id",
         verified: true,
+        active: true,
+        deletedAt: null,
       },
       orderBy: { createdAt: "asc" },
     });
@@ -189,9 +190,12 @@ export class CustomIntegrationClickToCallService {
 
     // Fall back to any purchased number on the workspace.
     const purchased = await this.prisma.numberPurchased.findFirst({
-      where: ctx.organizationId
-        ? { organizationId: ctx.organizationId }
-        : { userId: agentUserId, organizationId: null },
+      where: {
+        ...(ctx.organizationId
+          ? { organizationId: ctx.organizationId }
+          : { userId: agentUserId, organizationId: null }),
+        kind: "purchased",
+      },
       orderBy: { createdAt: "asc" },
     });
     if (purchased) return purchased.phoneNumber;

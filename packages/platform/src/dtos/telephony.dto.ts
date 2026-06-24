@@ -4,6 +4,7 @@ import {
   IsOptional,
   IsIn,
   IsArray,
+  IsBoolean,
   ArrayNotEmpty,
   IsUUID,
   ValidateNested,
@@ -23,12 +24,22 @@ export class RequestCallerIdVerificationDto {
   @IsString()
   @IsOptional()
   extension?: string;
+
+  /** ISO-3166 alpha-2 country, derived by the client from the phone input. */
+  @IsString()
+  @IsOptional()
+  isoCountry?: string;
 }
 
 export class VerifyCallerIdDto {
   @IsString()
   @IsNotEmpty()
   verificationCode!: string;
+}
+
+export class SetCallerIdActiveDto {
+  @IsBoolean()
+  active!: boolean;
 }
 
 /**

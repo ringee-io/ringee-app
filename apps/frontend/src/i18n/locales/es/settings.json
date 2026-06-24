@@ -11,7 +11,78 @@
     "metaDescription": "Compra al instante números locales o internacionales para hacer y recibir llamadas con Ringee. Ideal para equipos de ventas, call centers y negocios globales.",
     "tabs": {
       "buy": "Comprar número",
-      "myNumbers": "Mis números"
+      "myNumbers": "Mis números",
+      "callerIds": "IDs de llamada"
+    },
+    "callerIds": {
+      "title": "IDs de llamada",
+      "description": "Verifica números que ya tienes y úsalos como tu identificador de llamada saliente.",
+      "add": "Agregar ID de llamada",
+      "empty": "Aún no tienes IDs de llamada. Agrega uno para llamar desde un número que ya posees.",
+      "loadError": "No se pudieron cargar tus IDs de llamada.",
+      "feeNotice": "Cada verificación cuesta {fee}.",
+      "balanceLabel": "Tu saldo: {balance}",
+      "insufficientCredits": "Créditos insuficientes. Verificar un ID de llamada cuesta {fee}.",
+      "surchargeNotice": "Las llamadas hechas con un ID de llamada verificado suman $0.50 por minuto a la tarifa.",
+      "table": {
+        "phoneNumber": "Número",
+        "country": "País",
+        "status": "Estado",
+        "active": "Activo",
+        "addedOn": "Agregado",
+        "actions": "Acciones"
+      },
+      "status": {
+        "verified": "Verificado",
+        "pending": "Pendiente",
+        "failed": "Fallido",
+        "inactive": "Inactivo"
+      },
+      "actions": {
+        "verify": "Verificar",
+        "enterCode": "Ingresar código",
+        "delete": "Eliminar"
+      },
+      "addModal": {
+        "title": "Agregar un ID de llamada",
+        "description": "Enviaremos un código de verificación para confirmar que este número es tuyo.",
+        "phoneLabel": "Número de teléfono",
+        "methodLabel": "¿Cómo enviamos el código?",
+        "methodSms": "Mensaje de texto (SMS)",
+        "methodCall": "Llamada telefónica",
+        "extensionLabel": "Extensión (opcional)",
+        "extensionPlaceholder": "ej. 123",
+        "submit": "Enviar verificación",
+        "submitting": "Enviando…",
+        "feeLine": "Se cobrará una tarifa de verificación de {fee} a tu saldo.",
+        "invalidPhone": "Ingresa un número de teléfono válido.",
+        "success": "Verificación enviada. Ingresa el código que recibas.",
+        "error": "No se pudo enviar la verificación."
+      },
+      "verifyModal": {
+        "title": "Verificar {phone}",
+        "description": "Ingresa el código de {digits} dígitos que enviamos a tu número.",
+        "resend": "Reenviar código",
+        "submit": "Verificar",
+        "submitting": "Verificando…",
+        "success": "ID de llamada verificado.",
+        "error": "Código inválido o expirado. Inténtalo de nuevo.",
+        "resent": "Un nuevo código está en camino."
+      },
+      "deleteModal": {
+        "title": "¿Eliminar este ID de llamada?",
+        "description": "{phone} ya no estará disponible como identificador de llamada saliente. Esta acción no se puede deshacer.",
+        "confirm": "Eliminar",
+        "cancel": "Cancelar",
+        "success": "ID de llamada eliminado.",
+        "error": "No se pudo eliminar el ID de llamada."
+      },
+      "toggle": {
+        "activated": "ID de llamada activado.",
+        "deactivated": "ID de llamada desactivado.",
+        "error": "No se pudo actualizar el ID de llamada.",
+        "needsVerification": "Verifica este ID de llamada antes de activarlo."
+      }
     },
     "buy": {
       "table": {

@@ -59,6 +59,30 @@ export class NumberPurchasedService {
     return this.numberPurchasedRepository.findByOwner(ctx);
   }
 
+  /**
+   * True when `phoneNumber` is one of this owner's verified caller IDs. Calls
+   * placed from a verified caller ID carry an extra profit margin, so the cost
+   * handler uses this to decide whether the surcharge applies.
+   */
+  async isVerifiedCallerId(
+    ctx: OwnershipContext,
+    phoneNumber: string,
+  ): Promise<boolean> {
+    const number =
+      await this.numberPurchasedRepository.findByPhoneNumber(phoneNumber);
+    if (
+      !number ||
+      number.kind !== "verified_caller_id" ||
+      !number.verified ||
+      number.deletedAt
+    ) {
+      return false;
+    }
+    return ctx.organizationId
+      ? number.organizationId === ctx.organizationId
+      : number.userId === ctx.userId;
+  }
+
   findOneByNumber(number: string): Promise<NumberPurchased | null> {
     return this.numberPurchasedRepository.findOne({
       phoneNumber: number,
@@ -352,9 +376,7 @@ export class NumberPurchasedService {
     );
 
     // Merge locally-saved form values so the UI can prefill on reload.
-    const saved = await this.requirementValueRepository.findByNumber(
-      number.id,
-    );
+    const saved = await this.requirementValueRepository.findByNumber(number.id);
     const draftByRequirement = new Map<string, RequirementDraft>();
     for (const value of saved) {
       draftByRequirement.set(value.requirementId, this.toDraft(value));

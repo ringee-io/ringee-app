@@ -169,13 +169,20 @@ export class AttioAppService {
     const ownerFilter = buildOwnershipFilter(ctx);
 
     const [callerIds, numbers] = await Promise.all([
-      this.prisma.callerId.findMany({
-        where: { ...ownerFilter, deletedAt: null, verified: true },
-        select: { id: true, phoneNumber: true, verified: true, status: true },
+      this.prisma.numberPurchased.findMany({
+        where: {
+          ...ownerFilter,
+          kind: "verified_caller_id",
+          deletedAt: null,
+          verified: true,
+          active: true,
+        },
+        select: { id: true, phoneNumber: true, verified: true },
       }),
       this.prisma.numberPurchased.findMany({
         where: {
           ...ownerFilter,
+          kind: "purchased",
           status: {
             in: ["active", "assigned"],
           },
@@ -189,7 +196,7 @@ export class AttioAppService {
         id: c.id,
         phoneNumber: c.phoneNumber,
         verified: c.verified,
-        status: c.status,
+        status: "verified",
       })),
       ...numbers.map((n) => ({
         id: n.id,

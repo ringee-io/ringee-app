@@ -43,6 +43,16 @@ export class TelephonyService implements TelephonyServiceInterface {
     );
   }
 
+  listVerifiedNumbers(): Promise<
+    Array<{ phoneNumber: string; verified: boolean }>
+  > {
+    return this.getServiceProvider().listVerifiedNumbers();
+  }
+
+  deleteVerifiedNumber(phoneNumber: string): Promise<void> {
+    return this.getServiceProvider().deleteVerifiedNumber(phoneNumber);
+  }
+
   getRates(): Promise<TelephonyCountryRate[]> {
     return this.getServiceProvider().getRates();
   }
