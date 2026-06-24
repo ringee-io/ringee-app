@@ -1,0 +1,70 @@
+{
+  "header": {
+    "label": "Nummerrotatie",
+    "on": "Nummerrotatie staat aan",
+    "off": "Nummerrotatie staat uit"
+  },
+  "dialer": {
+    "auto": "Automatisch · nummerrotatie",
+    "autoHint": "Wij kiezen het beste lokale nummer voor elke oproep."
+  },
+  "campaign": {
+    "title": "Nummers om in deze campagne te rouleren",
+    "hint": "Elke oproep toont het beste van deze nummers voor het contact (zelfde land, gezond, onder de limiet).",
+    "allHint": "Geen geselecteerd — rotatie over je hele nummerpool.",
+    "empty": "Geen nummers beschikbaar om te rouleren. Koop of verifieer eerst een nummer."
+  },
+  "explainer": {
+    "title": "Wat nummerrotatie doet",
+    "subtitle": "Lokale aanwezigheid die de reputatie van je nummers beschermt.",
+    "localPresence": "Als je meerdere eigen nummers hebt, toont Ringee automatisch het nummer met de grootste kans om opgenomen te worden — bij voorkeur een nummer met hetzelfde netnummer als de persoon die je belt (lokale aanwezigheid). Lokale nummers worden veel vaker opgenomen dan onbekende.",
+    "reputation": "Oproepen worden met dagelijkse limieten over je nummers verdeeld en de gezondheid van elk nummer wordt bijgehouden op basis van het opnamepercentage en zeer korte oproepen. Een nummer dat op spam begint te lijken, wordt automatisch gerust tot het herstelt, zodat geen enkel nummer opbrandt.",
+    "compliance": "Alleen nummers die van jou zijn, worden gebruikt. Dit is lokale aanwezigheid, nooit een vals of geleend nummer."
+  },
+  "master": {
+    "title": "Rotatie",
+    "subtitle": "Eén schakelaar voor elke kiezer — handmatig, campagnes en gedeelde sessielinks.",
+    "statusOn": "Rotatie AAN",
+    "statusOff": "Rotatie UIT",
+    "toggleHint": "Wanneer uit, gebruikt elke oproep zoals voorheen je vaste nummer."
+  },
+  "config": {
+    "strategy": "Strategie",
+    "strategyLocalPresence": "Lokale aanwezigheid",
+    "strategyBalanced": "Gebalanceerd",
+    "strategyLocalPresenceDesc": "Geef voorkeur aan een nummer met hetzelfde netnummer als de bestemming, dan elk nummer uit hetzelfde land.",
+    "strategyBalancedDesc": "Negeer het netnummer en verdeel oproepen gewoon gelijkmatig over je gezondste nummers in het land van bestemming.",
+    "defaultCap": "Standaard daglimiet per nummer",
+    "defaultCapDesc": "Maximaal aantal oproepen dat een nummer per dag toont voordat het wordt gerust. Nummers kunnen dit afzonderlijk overschrijven."
+  },
+  "pool": {
+    "title": "Nummers in rotatie",
+    "subtitle": "De nummers die als nummerweergave kunnen worden getoond, met hun dagelijks gebruik en gezondheid.",
+    "empty": "Nog geen nummers beschikbaar. Koop of verifieer een nummer om met rouleren te beginnen.",
+    "number": "Nummer",
+    "country": "Land",
+    "status": "Status",
+    "usedToday": "Vandaag gebruikt",
+    "cap": "Daglimiet",
+    "health": "Gezondheid",
+    "inRotation": "In rotatie"
+  },
+  "status": {
+    "active": "Actief",
+    "cooling": "In rust",
+    "flagged": "Gemarkeerd",
+    "disabled": "Uit"
+  },
+  "reporting": {
+    "title": "Prestaties",
+    "subtitle": "Opnamepercentage en gezondheid per nummer over de afgelopen 7 dagen.",
+    "number": "Nummer",
+    "country": "Land",
+    "calls": "Oproepen",
+    "answerRate": "Opnamepercentage",
+    "score": "Gezondheid"
+  },
+  "errors": {
+    "saveFailed": "Opslaan mislukt. Alleen werkruimtebeheerders kunnen de rotatie wijzigen."
+  }
+}

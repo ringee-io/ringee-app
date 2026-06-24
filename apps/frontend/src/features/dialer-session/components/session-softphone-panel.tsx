@@ -13,6 +13,7 @@ import {
   Phone,
   PhoneOff,
   Play,
+  Shuffle,
   SkipForward,
   X
 } from 'lucide-react';
@@ -41,6 +42,8 @@ interface Props {
     | 'disconnected'
     | 'error';
   callerIdNumber: string | null;
+  /** True when the owner's workspace rotates caller IDs per call. */
+  rotationEnabled?: boolean;
   /** True when the owner's workspace auto-records every call. */
   recordAllCalls?: boolean;
   onDial: () => void | Promise<void>;
@@ -74,6 +77,7 @@ export function SessionSoftphonePanel(props: Props) {
     creditsOk,
     telnyxStatus,
     callerIdNumber,
+    rotationEnabled = false,
     recordAllCalls = false,
     onDial,
     onSkip,
@@ -153,10 +157,17 @@ export function SessionSoftphonePanel(props: Props) {
           <p className='text-muted-foreground mt-2 font-mono text-sm'>
             {activeItem.phoneNumberMasked}
           </p>
-          {callerIdNumber && (
-            <p className='text-muted-foreground mt-1 text-xs'>
-              Calling from <span className='font-mono'>{callerIdNumber}</span>
+          {rotationEnabled ? (
+            <p className='mt-1 flex items-center justify-center gap-1 text-xs text-emerald-600'>
+              <Shuffle className='h-3 w-3' />
+              Automatic · number rotation
             </p>
+          ) : (
+            callerIdNumber && (
+              <p className='text-muted-foreground mt-1 text-xs'>
+                Calling from <span className='font-mono'>{callerIdNumber}</span>
+              </p>
+            )
           )}
         </div>
 

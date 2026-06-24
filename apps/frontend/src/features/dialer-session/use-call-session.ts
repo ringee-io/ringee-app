@@ -76,6 +76,7 @@ export function useCallSession(token: string) {
   const [creditsOk, setCreditsOk] = useState(true);
   const [creditBalance, setCreditBalance] = useState<number>(0);
   const [callerIdNumber, setCallerIdNumber] = useState<string | null>(null);
+  const [rotationEnabled, setRotationEnabled] = useState(false);
   const [recordAllCalls, setRecordAllCalls] = useState(false);
   const [telephony, setTelephony] = useState<TelephonyCredential | null>(null);
   const [activeItemId, setActiveItemId] = useState<string | null>(null);
@@ -103,6 +104,7 @@ export function useCallSession(token: string) {
       setCreditsOk(res.creditsOk);
       setCreditBalance(res.creditBalance);
       setCallerIdNumber(res.callerIdNumber);
+      setRotationEnabled(res.rotationEnabled ?? false);
       setRecordAllCalls(res.recordAllCalls ?? false);
       setTelephony(res.telephony);
       const firstPending = res.session.items.find(
@@ -431,6 +433,7 @@ export function useCallSession(token: string) {
     creditsOk,
     creditBalance,
     callerIdNumber,
+    rotationEnabled,
     recordAllCalls,
     items,
     activeItem,

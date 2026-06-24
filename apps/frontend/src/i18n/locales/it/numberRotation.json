@@ -1,0 +1,70 @@
+{
+  "header": {
+    "label": "Rotazione dei numeri",
+    "on": "Rotazione dei numeri attiva",
+    "off": "Rotazione dei numeri disattivata"
+  },
+  "dialer": {
+    "auto": "Automatico · rotazione dei numeri",
+    "autoHint": "Scegliamo il miglior numero locale per ogni chiamata."
+  },
+  "campaign": {
+    "title": "Numeri da ruotare in questa campagna",
+    "hint": "Ogni chiamata presenta il migliore di questi numeri per il contatto (stesso paese, sano, sotto il limite).",
+    "allHint": "Nessuno selezionato — rotazione su tutti i tuoi numeri.",
+    "empty": "Nessun numero disponibile per la rotazione. Acquista o verifica prima un numero."
+  },
+  "explainer": {
+    "title": "Cosa fa la rotazione dei numeri",
+    "subtitle": "Presenza locale che protegge la reputazione dei tuoi numeri.",
+    "localPresence": "Quando hai più numeri tuoi, Ringee presenta automaticamente quello con maggiori probabilità di risposta, preferendo un numero con lo stesso prefisso della persona che stai chiamando (presenza locale). I numeri locali ricevono molte più risposte di quelli sconosciuti.",
+    "reputation": "Le chiamate vengono distribuite tra i tuoi numeri con limiti giornalieri e la salute di ciascun numero è monitorata in base al tasso di risposta e alle chiamate molto brevi. Un numero che inizia a sembrare spam viene messo a riposo automaticamente finché non si riprende, così nessun numero si brucia.",
+    "compliance": "Vengono usati solo numeri di tua proprietà. È presenza locale, mai un ID chiamante falso o preso in prestito."
+  },
+  "master": {
+    "title": "Rotazione",
+    "subtitle": "Un unico interruttore per ogni dialer: manuale, campagne e link di sessione condivisi.",
+    "statusOn": "Rotazione ATTIVA",
+    "statusOff": "Rotazione DISATTIVATA",
+    "toggleHint": "Quando è disattivata, ogni chiamata usa il tuo ID chiamante fisso come prima."
+  },
+  "config": {
+    "strategy": "Strategia",
+    "strategyLocalPresence": "Presenza locale",
+    "strategyBalanced": "Bilanciata",
+    "strategyLocalPresenceDesc": "Preferisci un numero con lo stesso prefisso della destinazione, poi qualsiasi numero dello stesso paese.",
+    "strategyBalancedDesc": "Ignora il prefisso e distribuisci semplicemente le chiamate in modo uniforme tra i tuoi numeri più sani del paese di destinazione.",
+    "defaultCap": "Limite giornaliero predefinito per numero",
+    "defaultCapDesc": "Numero massimo di chiamate che un numero presenta al giorno prima di riposare. Ogni numero può avere il proprio limite."
+  },
+  "pool": {
+    "title": "Numeri in rotazione",
+    "subtitle": "I numeri che possono essere presentati come ID chiamante, con il loro uso giornaliero e la salute.",
+    "empty": "Ancora nessun numero disponibile. Acquista o verifica un numero per iniziare la rotazione.",
+    "number": "Numero",
+    "country": "Paese",
+    "status": "Stato",
+    "usedToday": "Usato oggi",
+    "cap": "Limite giornaliero",
+    "health": "Salute",
+    "inRotation": "In rotazione"
+  },
+  "status": {
+    "active": "Attivo",
+    "cooling": "A riposo",
+    "flagged": "Segnalato",
+    "disabled": "Disattivato"
+  },
+  "reporting": {
+    "title": "Prestazioni",
+    "subtitle": "Tasso di risposta e salute per numero negli ultimi 7 giorni.",
+    "number": "Numero",
+    "country": "Paese",
+    "calls": "Chiamate",
+    "answerRate": "Tasso di risposta",
+    "score": "Salute"
+  },
+  "errors": {
+    "saveFailed": "Salvataggio non riuscito. Solo gli amministratori dell'area di lavoro possono modificare la rotazione."
+  }
+}

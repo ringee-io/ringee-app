@@ -430,6 +430,7 @@ export class CallSessionService {
     creditsOk: boolean;
     creditBalance: number;
     callerIdNumber: string | null;
+    rotationEnabled: boolean;
     recordAllCalls: boolean;
     telephony: {
       sipUsername: string;
@@ -447,6 +448,12 @@ export class CallSessionService {
     const creditsOk = balance > MIN_CREDIT_BALANCE_TO_CALL;
 
     const callerIdNumber = await this.resolvePrimaryCallerIdNumber(ctx);
+    // When the owner's workspace rotates caller IDs, the magic-link dialer shows
+    // it's automatic; the actual per-call number is chosen in startCallForItem.
+    const rotationEnabled = await this.callerIdRotationService
+      .getSettings(ctx)
+      .then((s) => s.enabled)
+      .catch(() => false);
 
     // When the owner's workspace enforces auto-recording, the magic-link
     // dialer disables its manual record toggle (recording starts on answer).
@@ -500,6 +507,7 @@ export class CallSessionService {
       creditsOk,
       creditBalance: balance,
       callerIdNumber,
+      rotationEnabled,
       recordAllCalls,
       telephony,
     };

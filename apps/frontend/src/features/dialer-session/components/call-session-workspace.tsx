@@ -20,6 +20,7 @@ export function CallSessionWorkspace({ token }: Props) {
     creditsOk,
     creditBalance,
     callerIdNumber,
+    rotationEnabled,
     recordAllCalls,
     items,
     activeItem,
@@ -93,6 +94,7 @@ export function CallSessionWorkspace({ token }: Props) {
             creditsOk={creditsOk}
             telnyxStatus={telnyxStatus}
             callerIdNumber={callerIdNumber}
+            rotationEnabled={rotationEnabled}
             recordAllCalls={recordAllCalls}
             onDial={actions.dial}
             onSkip={actions.skip}
