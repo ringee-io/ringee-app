@@ -106,6 +106,11 @@ export const PRODUCT_MENU: ProductMenuGroup[] = [
         description: 'Run shared team calling campaigns'
       },
       {
+        label: 'Caller ID rotation',
+        href: '/features/caller-id-rotation',
+        description: 'Local-presence dialing for higher pickup'
+      },
+      {
         label: 'Call outcomes',
         href: '/features/call-outcomes',
         description: 'Log a result on every call'

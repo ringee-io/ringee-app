@@ -15,6 +15,11 @@ import {
   RelatedLinks,
   WhoForAndBenefits
 } from '@/features/marketing/components/detail';
+import {
+  RotationHealth,
+  RotationLocalPresence,
+  RotationMechanics
+} from '@/features/marketing/components/caller-id-rotation';
 import { FEATURES, getFeature } from '@/features/marketing/content/features';
 
 /**
@@ -79,6 +84,7 @@ export default async function FeatureDetailPage({ params }: Params) {
 
   const path = `/features/${feature.slug}`;
   const demo = FEATURE_DEMOS[feature.slug];
+  const isRotation = feature.slug === 'caller-id-rotation';
 
   return (
     <DetailLayout
@@ -101,8 +107,15 @@ export default async function FeatureDetailPage({ params }: Params) {
           description={demo.description}
         />
       )}
+      {isRotation && <RotationLocalPresence />}
       <WhoForAndBenefits whoFor={feature.whoFor} benefits={feature.benefits} />
       <HowItWorksSteps steps={feature.howItWorks} />
+      {isRotation && (
+        <>
+          <RotationMechanics />
+          <RotationHealth />
+        </>
+      )}
       <RelatedLinks title='Related features' items={related} />
       <FaqSection faqs={feature.faqs} />
     </DetailLayout>

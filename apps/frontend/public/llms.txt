@@ -22,6 +22,7 @@
 
 - [Outbound calling](https://www.ringee.io/features/outbound-calling): Browser- and iOS-based international dialing.
 - [Campaigns](https://www.ringee.io/features/campaigns): Run shared team calling campaigns.
+- [Caller ID rotation](https://www.ringee.io/features/caller-id-rotation): Show a local number matched to each lead's area code, rotated across a healthy pool for higher pickup.
 - [Call outcomes and notes](https://www.ringee.io/features/call-outcomes): Log a result and notes on every call.
 - [Callbacks](https://www.ringee.io/features/callbacks): Schedule and never miss a call-back.
 - [Meetings (Google Calendar)](https://www.ringee.io/features/meetings): Book meetings from a call and keep them in sync.

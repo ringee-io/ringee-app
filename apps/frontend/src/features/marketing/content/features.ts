@@ -9,6 +9,7 @@ import {
   Mic,
   PhoneOutgoing,
   RefreshCw,
+  Shuffle,
   Waypoints
 } from 'lucide-react';
 
@@ -122,7 +123,7 @@ export const FEATURES: FeatureContent[] = [
       'Calling credits billed separately so you only pay for minutes',
       'Notes, outcomes, and callbacks captured inline'
     ],
-    related: ['caller-id', 'campaigns', 'call-outcomes', 'callbacks'],
+    related: ['caller-id', 'caller-id-rotation', 'campaigns', 'callbacks'],
     faqs: [
       {
         question: 'Do I need any special hardware to make calls?',
@@ -191,9 +192,9 @@ export const FEATURES: FeatureContent[] = [
       'Use verified caller IDs for calls and campaigns'
     ],
     related: [
+      'caller-id-rotation',
       'outbound-calling',
       'campaigns',
-      'call-outcomes',
       'call-recording'
     ],
     faqs: [
@@ -217,6 +218,79 @@ export const FEATURES: FeatureContent[] = [
           'What is the difference between a caller ID and a purchased number?',
         answer:
           'A purchased number is a new line you rent from Ringee to make and receive calls. A caller ID is a number you already own that you verify and display on outbound calls — useful when you want familiar numbers without buying new ones.'
+      }
+    ]
+  },
+  {
+    slug: 'caller-id-rotation',
+    name: 'Caller ID rotation',
+    category: 'Communicate',
+    icon: Shuffle,
+    tagline:
+      'Show a local number that matches each lead’s area code, rotated across a healthy pool so more calls get answered.',
+    metaTitle: 'Caller ID Rotation & Local Presence Dialing | Ringee',
+    metaDescription:
+      'Ringee’s caller ID rotation shows a local number matched to each prospect’s area code and spreads dials across a pool with daily caps and health monitoring — so more calls get answered and your numbers stay trusted.',
+    h1: 'Caller ID rotation for local-presence dialing',
+    intro: [
+      'People answer numbers they recognize. Caller ID rotation automatically presents a local number that matches each prospect’s area code, then rotates across a pool of your numbers so no single line gets overused or flagged as spam.',
+      'One engine on Ringee’s backend decides the caller ID for every outbound call — guaranteeing it always matches the destination’s country, favoring the local area code, respecting per-number daily caps, and ranking by each number’s recent health. You dial; Ringee shows the right number.'
+    ],
+    whoFor: [
+      'Outbound teams dialing across many regions or countries',
+      'SDRs who need higher pickup from cold lists',
+      'Agencies running high-volume calling for clients',
+      'Anyone whose connect rates suffer from unknown or foreign numbers'
+    ],
+    howItWorks: [
+      {
+        title: 'Build your number pool',
+        description:
+          'Turn rotation on for your workspace and every number you own joins the pool. Set a default daily cap and pick local-presence or balanced rotation.'
+      },
+      {
+        title: 'Ringee shows the right number',
+        description:
+          'On each call the engine picks a number in the destination’s country — same area code first — that is under its daily cap and in good health.'
+      },
+      {
+        title: 'The pool stays healthy on its own',
+        description:
+          'Caps spread out volume, health scores track answer rates, and numbers that dip are cooled off automatically, then returned once they recover.'
+      }
+    ],
+    benefits: [
+      'More answered calls from familiar, local numbers',
+      'No single number burned — dials spread with daily caps',
+      'Automatic health monitoring and cooling protect deliverability',
+      'Safe by default: off, or unmatched calls, keep your fixed caller ID'
+    ],
+    related: ['caller-id', 'outbound-calling', 'campaigns', 'call-outcomes'],
+    faqs: [
+      {
+        question: 'What is caller ID rotation?',
+        answer:
+          'Caller ID rotation automatically varies the number shown on your outbound calls, choosing one that matches the prospect’s region and spreading calls across a pool of your numbers. It raises pickup with local presence and keeps any single number from being flagged for high volume.'
+      },
+      {
+        question: 'How does Ringee choose which number to show?',
+        answer:
+          'For every call Ringee reads the destination’s country and only considers numbers you own in that same country. It prefers a number with the same area code, skips any number that has hit its daily cap, and among the rest picks the healthiest, least-recently-used one. If it can’t safely match, it keeps your fixed caller ID instead of dialing from the wrong country.'
+      },
+      {
+        question: 'Will rotation get my numbers flagged as spam?',
+        answer:
+          'It’s designed to do the opposite. Per-number daily caps keep volume human-looking, and a health score based on recent answer rates pulls weakening numbers out to cool off before they hurt you — then returns them automatically once they recover.'
+      },
+      {
+        question: 'Do I have to use rotation?',
+        answer:
+          'No. Rotation is opt-in per workspace. While it’s off you keep the exact fixed caller ID you use today, and even with it on, any call Ringee can’t safely match falls back to your fixed number — so turning it on is risk-free.'
+      },
+      {
+        question: 'Does rotation work in campaigns?',
+        answer:
+          'Yes. Rotation applies to the manual web dialer, to campaigns, and to shared calling links. A campaign can draw from your whole pool or be limited to a chosen set of numbers.'
       }
     ]
   },
@@ -264,7 +338,12 @@ export const FEATURES: FeatureContent[] = [
       'Reuse lists across follow-up rounds',
       'Attach every note and result to the right campaign'
     ],
-    related: ['outbound-calling', 'caller-id', 'call-outcomes', 'callbacks'],
+    related: [
+      'outbound-calling',
+      'caller-id',
+      'caller-id-rotation',
+      'call-outcomes'
+    ],
     faqs: [
       {
         question: 'How do leads get into a campaign?',
