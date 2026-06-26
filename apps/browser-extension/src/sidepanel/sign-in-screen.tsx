@@ -14,7 +14,7 @@ const SYNC_HOST =
 export function SignInScreen() {
   const openRingee = () => {
     // No `tabs` permission needed just to open a tab.
-    chrome.tabs.create({ url: SYNC_HOST });
+    chrome.tabs.create({ url: 'https://www.ringee.io' });
   };
 
   return (
