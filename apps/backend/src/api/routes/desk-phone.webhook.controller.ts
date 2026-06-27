@@ -48,22 +48,20 @@ export class DeskPhoneWebhookController {
       return { received: true };
     }
 
-    // Verify the Telnyx Ed25519 signature when a public key is configured.
-    // Without a key (local dev) we proceed but warn, so the flow is testable.
-    if (apiConfiguration.TELNYX_PUBLIC_KEY) {
-      const raw = req.rawBody ?? Buffer.from(JSON.stringify(body ?? {}));
-      const ok = this.verifier.verify(
-        headers["telnyx-signature-ed25519"],
-        headers["telnyx-timestamp"],
-        raw,
-      );
-      if (!ok) {
-        throw new UnauthorizedException("Invalid Telnyx signature");
-      }
-    } else {
+    // Verify the Telnyx Ed25519 signature over the raw body bytes, exactly as
+    // messaging.webhook.controller.ts does. Fail closed: a missing/invalid
+    // signature (or unconfigured TELNYX_PUBLIC_KEY) is rejected.
+    const raw = req.rawBody ?? Buffer.from(JSON.stringify(body ?? {}), "utf-8");
+    const ok = this.verifier.verify(
+      headers["telnyx-signature-ed25519"],
+      headers["telnyx-timestamp"],
+      raw,
+    );
+    if (!ok) {
       this.logger.warn(
-        "TELNYX_PUBLIC_KEY not set — desk-phone webhook signature NOT verified",
+        "Rejected Telnyx desk-phone webhook (invalid signature)",
       );
+      throw new UnauthorizedException("Invalid Telnyx signature");
     }
 
     const event = body?.data;
