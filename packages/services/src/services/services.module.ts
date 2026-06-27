@@ -129,6 +129,10 @@ import {
   ObjectionInsightService,
 } from "./ai-pipeline";
 import { BackofficeService } from "./backoffice.service";
+import {
+  SipDeviceService,
+  DeskPhoneCallService,
+} from "./sip-device";
 
 const servicesProviders = [
   UserService,
@@ -246,6 +250,9 @@ const servicesProviders = [
   ObjectionInsightService,
   // Backoffice (super admin)
   BackofficeService,
+  // Desk Phones (SIP Devices)
+  SipDeviceService,
+  DeskPhoneCallService,
 ];
 
 /**

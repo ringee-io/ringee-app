@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useAuth, useUser } from "@clerk/chrome-extension";
+import { useAuth } from "@clerk/chrome-extension";
 import {
   ActiveCallModal,
   DialerProvider,
@@ -16,14 +16,15 @@ import {
   type DialRequestMsg,
 } from "@ringee/dialer-core/contracts";
 import { resolveDialNumber } from "@ringee/dialer-core/phone";
-import { RingeeApi } from "../lib/ringee-api";
+import { RingeeApi, type CurrentUser } from "../lib/ringee-api";
 import { statusTextFor } from "../lib/call-flow";
 import { DEFAULT_REGION } from "../lib/region";
 import {
   ensureMicrophoneAccess,
   requestMicrophonePermission,
 } from "../lib/microphone";
-import { Home } from "./home";
+import { AppShell } from "./app-shell";
+import { AppProvider, NavProvider, type AppData } from "./navigation";
 import { ScheduleCallbackForm } from "./schedule-callback.form";
 import { BookMeetingForm } from "./book-meeting.form";
 
@@ -38,13 +39,14 @@ const EMPTY_SNAPSHOT: CallSnapshotMsg = {
 
 export function CallExperience() {
   const { getToken } = useAuth();
-  const { user } = useUser();
   const [snap, setSnap] = useState<CallSnapshotMsg>(EMPTY_SNAPSHOT);
   const [muted, setMuted] = useState(false);
   const [onHold, setOnHold] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const recordingIdRef = useRef<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [me, setMe] = useState<CurrentUser | null>(null);
+  const [creditKey, setCreditKey] = useState(0);
   const prevState = useRef<CallState>("idle");
 
   const {
@@ -54,6 +56,18 @@ export function CallExperience() {
   } = useCallStore();
 
   const api = useMemo(() => new RingeeApi(() => getToken()), [getToken]);
+
+  // Identity / admin flag / workspace label for the shell header.
+  useEffect(() => {
+    let alive = true;
+    api
+      .getCurrentUser()
+      .then((u) => alive && setMe(u))
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [api]);
 
   // Subscribe to the background's call snapshot — the side panel is a remote
   // control, this is the single source of truth it renders.
@@ -109,6 +123,13 @@ export function CallExperience() {
     (_kind: "success" | "error", message: string) => setToast(message),
     [],
   );
+
+  // Auto-dismiss the toast after a moment (it has no exit animation to hook).
+  useEffect(() => {
+    if (toast == null) return;
+    const t = setTimeout(() => setToast(null), 2800);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   // The extension provides only the post-call booking/callback forms — the
   // active-call view stays lean (see the `compact` prop). These slots are what
@@ -192,6 +213,8 @@ export function CallExperience() {
     recordingIdRef.current = null;
     send({ type: MessageType.EndCall });
     setSnap(EMPTY_SNAPSHOT);
+    // A finished call moved the balance — refresh the header pill.
+    setCreditKey((k) => k + 1);
   }, [resetCallStore]);
 
   const dialManual = useCallback((e164: string, name?: string) => {
@@ -209,12 +232,6 @@ export function CallExperience() {
     async (raw: string, name?: string) => {
       const e164 = resolveDialNumber(raw, DEFAULT_REGION);
       if (!e164) return;
-      // The live call runs headless in the offscreen document, which can't show
-      // the mic prompt — and neither can this side panel (Chrome only prompts in
-      // a tab). If we don't hold the grant the offscreen's getUserMedia fails and
-      // Telnyx tears the call down moments after it connects. So ensure the grant
-      // first; when it's missing this opens the permission tab — block the dial
-      // and tell the user to allow it there, instead of placing a doomed call.
       const micOk = await ensureMicrophoneAccess();
       if (!micOk) {
         setToast(
@@ -236,9 +253,8 @@ export function CallExperience() {
     }
   }, [snap.state]);
 
-  // Backstop: if the offscreen engine reports it couldn't capture the mic
-  // (a first-ever external dial can fail before the grant exists), open the
-  // permission tab so the user can fix it in one click and retry.
+  // Backstop: if the offscreen engine reports it couldn't capture the mic, open
+  // the permission tab so the user can fix it in one click and retry.
   useEffect(() => {
     if (snap.state === "failed" && /microphone/i.test(snap.error ?? "")) {
       requestMicrophonePermission();
@@ -247,56 +263,58 @@ export function CallExperience() {
 
   const open = isLiveCallState(snap.state) || postCallPhase;
 
+  const appData = useMemo<AppData>(
+    () => ({ api, me, onDial: handleDial, notify }),
+    [api, me, handleDial, notify],
+  );
+
   return (
     <DialerProvider data={data} slots={slots} notify={notify}>
-      <div className="bg-background text-foreground flex h-full flex-col">
-        {!open && (
-          <Home
-            api={api}
-            userLabel={
-              user?.primaryEmailAddress?.emailAddress ??
-              user?.firstName ??
-              undefined
-            }
-            error={snap.state === "failed" ? snap.error : undefined}
-            dncBlocked={snap.state === "failed" && snap.dncBlocked}
-            onDial={handleDial}
-          />
-        )}
+      <NavProvider>
+        <AppProvider value={appData}>
+          <div className="bg-background text-foreground relative h-full">
+            {/* The shell stays mounted under the call overlay so navigation
+                state survives a call — just hidden while a call is on screen. */}
+            <div className={open ? "hidden" : "h-full"}>
+              <AppShell
+                error={snap.state === "failed" ? snap.error : undefined}
+                dncBlocked={snap.state === "failed" && snap.dncBlocked}
+                creditRefreshKey={creditKey}
+              />
+            </div>
 
-        {open && (
-          <ActiveCallModal
-            compact
-            open={open}
-            onClose={onHangup}
-            number={snap.destination || "+CALL"}
-            contactName={snap.contact?.name}
-            statusText={statusTextFor(snap.state)}
-            isMuted={muted}
-            isOnHold={onHold}
-            isRecording={isRecording}
-            onHangup={onHangup}
-            onToggleMute={onToggleMute}
-            onToggleHold={onToggleHold}
-            onToggleRecording={onToggleRecording}
-            onSendDTMF={onSendDTMF}
-            remoteStream={null}
-            isPostCall={postCallPhase}
-            onPostCallClose={onPostCallClose}
-            contactId={snap.contact?.id ?? null}
-            callId={snap.callId ?? null}
-          />
-        )}
+            {open && (
+              <ActiveCallModal
+                compact
+                open={open}
+                onClose={onHangup}
+                number={snap.destination || "+CALL"}
+                contactName={snap.contact?.name}
+                statusText={statusTextFor(snap.state)}
+                isMuted={muted}
+                isOnHold={onHold}
+                isRecording={isRecording}
+                onHangup={onHangup}
+                onToggleMute={onToggleMute}
+                onToggleHold={onToggleHold}
+                onToggleRecording={onToggleRecording}
+                onSendDTMF={onSendDTMF}
+                remoteStream={null}
+                isPostCall={postCallPhase}
+                onPostCallClose={onPostCallClose}
+                contactId={snap.contact?.id ?? null}
+                callId={snap.callId ?? null}
+              />
+            )}
 
-        {toast && (
-          <div
-            className="bg-foreground text-background fixed bottom-3 left-1/2 z-50 -translate-x-1/2 rounded-lg px-3 py-2 text-xs shadow-lg"
-            onAnimationEnd={() => setToast(null)}
-          >
-            {toast}
+            {toast && (
+              <div className="bg-foreground text-background animate-[fadeIn_0.15s_ease] fixed bottom-16 left-1/2 z-[60] -translate-x-1/2 rounded-lg px-3 py-2 text-xs shadow-lg">
+                {toast}
+              </div>
+            )}
           </div>
-        )}
-      </div>
+        </AppProvider>
+      </NavProvider>
     </DialerProvider>
   );
 }

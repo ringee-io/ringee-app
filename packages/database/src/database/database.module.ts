@@ -77,6 +77,8 @@ import { CallAnalysisRepository } from "./repositories/call-analysis.repository"
 import { PendingActionRepository } from "./repositories/pending-action.repository";
 import { ObjectionInsightRepository } from "./repositories/objection-insight.repository";
 import { BackofficeRepository } from "./repositories/backoffice.repository";
+import { SipDeviceRepository } from "./repositories/sip-device.repository";
+import { BlockedCallLogRepository } from "./repositories/blocked-call-log.repository";
 
 const databaseProviders = [
   PrismaService,
@@ -155,6 +157,8 @@ const databaseProviders = [
   PendingActionRepository,
   ObjectionInsightRepository,
   BackofficeRepository,
+  SipDeviceRepository,
+  BlockedCallLogRepository,
 ];
 
 @Global()

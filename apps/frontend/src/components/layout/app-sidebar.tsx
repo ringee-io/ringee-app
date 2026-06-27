@@ -373,6 +373,13 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                         <Icons.phoneCall className='mr-2 h-4 w-4' />
                         {tNav('userMenu.buyNumber')}
                       </DropdownMenuItem>
+                      <DropdownMenuItem
+                        onClick={() => router.push('/dashboard/desk-phones')}
+                      >
+                        {/* @ts-ignore */}
+                        <Icons.plug className='mr-2 h-4 w-4' />
+                        Desk Phones
+                      </DropdownMenuItem>
                     </DropdownMenuGroup>
                   </>
                 )}

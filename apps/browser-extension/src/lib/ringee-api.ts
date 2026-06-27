@@ -60,8 +60,105 @@ export class ApiError extends Error {
 export interface CurrentUser {
   id: string;
   email?: string;
-  firstName?: string;
+  firstName?: string | null;
   workspaceName?: string;
+  /**
+   * Mirrors the backend `OrgAdminGuard` rule (no org → true; inside an org only
+   * `org:admin`). Drives whether the side panel shows the credit balance and the
+   * "Add credits" entry point.
+   */
+  isAdmin?: boolean;
+}
+
+// ── Contacts / CRM ─────────────────────────────────────────────────────────
+export interface ContactSummary {
+  id: string;
+  name: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  company?: string | null;
+  phoneNumber: string;
+  email?: string | null;
+  jobTitle?: string | null;
+  lastContactedAt?: string | null;
+}
+
+export interface ContactNote {
+  id: string;
+  contactId?: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface CallFull {
+  id: string;
+  contactId?: string | null;
+  contactName?: string | null;
+  contactCompany?: string | null;
+  phoneNumber?: string;
+  fromNumber: string;
+  toNumber: string;
+  direction: string | null;
+  status: string;
+  durationSeconds?: number | null;
+  startedAt?: string | null;
+  outcome?: CallOutcome | null;
+  outcomeNote?: string | null;
+  hasRecording?: boolean;
+  recordingUrl?: string | null;
+  hasTranscription?: boolean;
+  notes?: { id: string; content: string; createdAt: string }[];
+}
+
+export interface Callback {
+  id: string;
+  contactId: string;
+  contactName?: string | null;
+  contactCompany?: string | null;
+  phoneNumber?: string | null;
+  scheduledAt: string;
+  status: string;
+  note?: string | null;
+}
+
+export interface Meeting {
+  id: string;
+  title?: string | null;
+  contactId: string;
+  contactName?: string | null;
+  contactCompany?: string | null;
+  scheduledAt: string;
+  duration: number;
+  location?: string | null;
+  notes?: string | null;
+  status: string;
+  meetingUrl?: string | null;
+}
+
+export interface ContactDetail extends ContactSummary {
+  recentCalls: CallFull[];
+  notes: ContactNote[];
+  upcomingCallback: Callback | null;
+  upcomingMeeting: Meeting | null;
+}
+
+/** Create/update payload — mirrors the backend `CreateContactDto`. */
+export interface ContactInput {
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  phoneNumber: string;
+  email?: string;
+  jobTitle?: string;
+  organization?: string;
+  note?: string;
+}
+
+export interface Paginated<T> {
+  data: T[];
+  total: number;
+  page: number;
+  totalPages: number;
 }
 
 // ── "Today" home feed ─────────────────────────────────────────────────────────
@@ -265,6 +362,118 @@ export class RingeeApi {
     return this.request<void>("/telephony/recordings/stop", {
       method: "POST",
       body: JSON.stringify({ recordingId, callSessionId }),
+    });
+  }
+
+  // ── Credit (admin only) ────────────────────────────────────────────────
+  /** Workspace balance — backend is `@OrgAdminOnly()` (403 for org members). */
+  getCredit() {
+    return this.request<{ balance: number }>("/extension/credit");
+  }
+
+  /** Start a Stripe one-time credit checkout; returns the hosted-page URL. */
+  createCreditCheckout(amount: number) {
+    return this.request<{ url: string }>("/stripe/checkout/credit", {
+      method: "POST",
+      body: JSON.stringify({ amount }),
+    });
+  }
+
+  // ── Contacts ───────────────────────────────────────────────────────────
+  listContacts(params: { search?: string; page?: number; limit?: number }) {
+    const qs = new URLSearchParams();
+    if (params.search) qs.set("search", params.search);
+    if (params.page) qs.set("page", String(params.page));
+    if (params.limit) qs.set("limit", String(params.limit));
+    const q = qs.toString();
+    return this.request<Paginated<ContactSummary>>(
+      `/mobile/contacts${q ? `?${q}` : ""}`,
+    );
+  }
+
+  searchContacts(query: string, limit = 20) {
+    const qs = new URLSearchParams({ q: query, limit: String(limit) });
+    return this.request<{ data: ContactSummary[]; total: number }>(
+      `/mobile/contacts/search?${qs.toString()}`,
+    );
+  }
+
+  /** Full contact: recent calls, notes, upcoming callback + meeting. */
+  getContact(id: string) {
+    return this.request<ContactDetail>(
+      `/mobile/contacts/${encodeURIComponent(id)}`,
+    );
+  }
+
+  createContact(input: ContactInput) {
+    return this.request<{ id: string }>("/contacts", {
+      method: "POST",
+      body: JSON.stringify(input),
+    });
+  }
+
+  updateContact(id: string, input: ContactInput) {
+    return this.request<{ id: string }>(`/contacts/${encodeURIComponent(id)}`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    });
+  }
+
+  addContactNote(id: string, content: string) {
+    return this.request<void>(
+      `/mobile/contacts/${encodeURIComponent(id)}/notes`,
+      { method: "POST", body: JSON.stringify({ content }) },
+    );
+  }
+
+  // ── Calls ──────────────────────────────────────────────────────────────
+  /** Full call detail (recording url, outcome, notes). */
+  getCallFull(id: string) {
+    return this.request<CallFull>(`/mobile/calls/${encodeURIComponent(id)}`);
+  }
+
+  setCallOutcome(id: string, input: { outcome: CallOutcome; outcomeNote?: string }) {
+    return this.request<void>(
+      `/mobile/calls/${encodeURIComponent(id)}/outcome`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          outcome: input.outcome,
+          outcomeNote: input.outcomeNote || undefined,
+        }),
+      },
+    );
+  }
+
+  addCallNote(id: string, content: string) {
+    return this.request<void>(`/mobile/calls/${encodeURIComponent(id)}/notes`, {
+      method: "POST",
+      body: JSON.stringify({ content }),
+    });
+  }
+
+  // ── Callbacks ──────────────────────────────────────────────────────────
+  rescheduleCallback(id: string, scheduledAt: string) {
+    return this.request<void>(
+      `/callbacks/${encodeURIComponent(id)}/reschedule`,
+      { method: "PATCH", body: JSON.stringify({ scheduledAt }) },
+    );
+  }
+
+  cancelCallback(id: string) {
+    return this.request<void>(`/callbacks/${encodeURIComponent(id)}/cancel`, {
+      method: "PATCH",
+    });
+  }
+
+  // ── Meetings ───────────────────────────────────────────────────────────
+  getMeeting(id: string) {
+    return this.request<Meeting>(`/meetings/${encodeURIComponent(id)}`);
+  }
+
+  cancelMeeting(id: string) {
+    return this.request<void>(`/meetings/${encodeURIComponent(id)}/cancel`, {
+      method: "PATCH",
     });
   }
 }

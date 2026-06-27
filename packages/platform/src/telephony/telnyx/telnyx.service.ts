@@ -882,4 +882,155 @@ export class TelnyxService implements TelephonyService {
       return {};
     }
   }
+
+  // ────────────────────────────────────────────────────────────
+  // Desk Phones (SIP Devices) — Credential Connections + parking
+  // ────────────────────────────────────────────────────────────
+
+  /**
+   * Create a Telnyx Credential Connection for a desk phone. The connection
+   * carries its own SIP `user_name`/`password` (what the physical phone
+   * registers with), a shared Outbound Voice Profile so outbound calls bill
+   * through Ringee, and Park Outbound Calls enabled so every outbound call is
+   * parked for a Call Control decision (credit / DNC / caller-ID validation)
+   * before it is bridged to the PSTN.
+   *
+   * Telnyx constraints (enforce upstream): `user_name` 4–32 chars, alphanumeric
+   * only; `password` 8–128 chars. Transport/media are left permissive so a
+   * basic phone can still register — TLS/SRTP are recommended in the UI.
+   */
+  async createDeskPhoneConnection(params: {
+    connectionName: string;
+    userName: string;
+    password: string;
+    webhookEventUrl: string;
+    outboundVoiceProfileId: string;
+  }): Promise<{
+    connectionId: string;
+    connectionName: string;
+    userName: string;
+  }> {
+    const payload = {
+      connection_name: params.connectionName,
+      user_name: params.userName,
+      password: params.password,
+      webhook_event_url: params.webhookEventUrl,
+      webhook_api_version: "2",
+      // "Park Outbound Calls": forces every outbound SIP call from this
+      // connection into a parked state awaiting a Call Control command, instead
+      // of bridging it straight to the URI destination.
+      call_parking_enabled: true,
+      outbound: {
+        outbound_voice_profile_id: params.outboundVoiceProfileId,
+      },
+    };
+
+    try {
+      const { data } = await this.telnyxClient.post(
+        "/credential_connections",
+        payload,
+      );
+      return {
+        connectionId: data?.id,
+        connectionName: data?.connection_name ?? params.connectionName,
+        userName: data?.user_name ?? params.userName,
+      };
+    } catch (error: any) {
+      this.logger.error(
+        "Error creating desk-phone credential connection",
+        error?.response?.data || error?.message,
+      );
+      throw new HttpException(
+        error?.response?.data?.errors?.[0]?.detail ||
+          "Failed to create Telnyx credential connection",
+        error?.response?.status || 500,
+      );
+    }
+  }
+
+  /** Rotate the SIP password on a desk-phone connection (username unchanged). */
+  async updateDeskPhoneConnectionPassword(
+    connectionId: string,
+    password: string,
+  ): Promise<void> {
+    await this.telnyxClient.patch(`/credential_connections/${connectionId}`, {
+      password,
+    });
+  }
+
+  /**
+   * Enable/disable a desk-phone connection. Disabling stops the phone from
+   * registering and placing/receiving calls without deleting the connection.
+   */
+  async setDeskPhoneConnectionActive(
+    connectionId: string,
+    active: boolean,
+  ): Promise<void> {
+    await this.telnyxClient.patch(`/credential_connections/${connectionId}`, {
+      active,
+    });
+  }
+
+  /** Permanently delete a desk-phone connection in Telnyx. */
+  async deleteDeskPhoneConnection(connectionId: string): Promise<void> {
+    await this.telnyxClient.delete(`/credential_connections/${connectionId}`);
+  }
+
+  /**
+   * Best-effort registration snapshot. Telnyx does not expose live SIP
+   * registration state for credential connections through this endpoint, so we
+   * return the connection's `active` flag and let the webhook-driven
+   * `lastRegisteredAt` be the source of truth for "registered". Returns null if
+   * the connection no longer exists.
+   */
+  async getDeskPhoneConnection(connectionId: string): Promise<{
+    id: string;
+    active: boolean;
+    userName?: string;
+  } | null> {
+    try {
+      const { data } = await this.telnyxClient.get(
+        `/credential_connections/${connectionId}`,
+      );
+      if (!data?.id) return null;
+      return {
+        id: data.id,
+        active: data.active !== false,
+        userName: data.user_name,
+      };
+    } catch (error: any) {
+      if (error?.response?.status === 404) return null;
+      throw error;
+    }
+  }
+
+  /**
+   * Connect a parked desk-phone outbound call to its PSTN destination. The
+   * parked leg already exists on the device's connection (which carries our
+   * OVP), so a Call Control `transfer` dials the destination and bridges on
+   * answer, billing through Ringee. `from` presents the validated caller ID.
+   */
+  async connectParkedCall(
+    callControlId: string,
+    params: {
+      to: string;
+      from: string;
+      commandId?: string;
+      clientState?: Record<string, unknown>;
+      /** Hard cap (seconds) after which Telnyx auto-ends the call. */
+      timeLimitSecs?: number;
+    },
+  ): Promise<void> {
+    await this.telnyxClient.post(`/calls/${callControlId}/actions/transfer`, {
+      to: params.to,
+      from: params.from,
+      command_id: params.commandId || crypto.randomUUID(),
+      ...(params.timeLimitSecs
+        ? { time_limit_secs: params.timeLimitSecs }
+        : {}),
+      client_state: Buffer.from(
+        JSON.stringify(params.clientState ?? { action: "desk_phone_outbound" }),
+      ).toString("base64"),
+    });
+  }
 }

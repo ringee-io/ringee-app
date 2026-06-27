@@ -18,6 +18,7 @@ export type NumberPurchased = {
   purchaseDate?: string | null;
   monthlyCost?: number | null;
   upfrontCost?: number | null;
+  inboundMode?: 'ringee_default' | 'desk_phone_only';
 };
 
 export const columns: ColumnDef<NumberPurchased>[] = [
@@ -105,6 +106,18 @@ export const columns: ColumnDef<NumberPurchased>[] = [
         >
           {label}
         </Badge>
+      );
+    }
+  },
+  {
+    accessorKey: 'inboundMode',
+    header: () => <>Inbound destination</>,
+    cell: ({ cell }) => {
+      const mode = cell.getValue<string>();
+      return mode === 'desk_phone_only' ? (
+        <Badge variant='secondary'>Desk phone only</Badge>
+      ) : (
+        <Badge variant='outline'>Ringee Web/Mobile</Badge>
       );
     }
   },

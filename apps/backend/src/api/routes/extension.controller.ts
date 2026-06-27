@@ -12,6 +12,7 @@ import {
   CurrentUser,
   CurrentUserData,
   createOwnershipContext,
+  OrgAdminOnly,
   TelephonyService,
 } from "@ringee/platform";
 import {
@@ -82,13 +83,34 @@ export class ExtensionController {
     private readonly transcriptionService: TranscriptionService,
   ) {}
 
-  /** Identity + a friendly workspace label for the side-panel header. */
+  /**
+   * Identity + a friendly workspace label for the side-panel header. `isAdmin`
+   * mirrors the `OrgAdminGuard` rule (no active org → unrestricted; inside an
+   * org only `org:admin` qualifies). The side panel uses it to decide whether
+   * to render the credit balance + "Add credits" entry point.
+   */
   @Get("me")
   me(@CurrentUser() user: CurrentUserData) {
+    const isAdmin = !user.activeOrgId || user.activeOrgRole === "org:admin";
     return {
       id: user.id,
+      firstName: user.firstName ?? null,
       workspaceName: user.activeOrgId ? "Organization" : "Personal",
+      isAdmin,
     };
+  }
+
+  /**
+   * Current workspace credit balance for the side-panel pill. Admin-only via the
+   * same `@OrgAdminOnly()` decorator the web app uses — org members get a 403 and
+   * the panel hides the credit UI entirely (matching `isAdmin` from `/me`).
+   */
+  @Get("credit")
+  @OrgAdminOnly()
+  async credit(@CurrentUser() user: CurrentUserData) {
+    const ctx = createOwnershipContext(user);
+    const balance = await this.creditService.getBalance(ctx).catch(() => 0);
+    return { balance };
   }
 
   /**
