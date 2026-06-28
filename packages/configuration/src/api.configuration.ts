@@ -28,6 +28,21 @@ const apiConfiguration = {
   TELNYX_CONNECTION_ID: process.env.TELNYX_CONNECTION_ID!,
   TELNYX_PUBLIC_KEY: process.env.TELNYX_PUBLIC_KEY,
   TELNYX_MESSAGING_PROFILE_ID: process.env.TELNYX_MESSAGING_PROFILE_ID,
+  // Shared Outbound Voice Profile assigned to every desk-phone SIP connection
+  // so outbound calls from physical phones bill through Ringee. Required only
+  // when DESK_PHONES_ENABLED is true (validated lazily on device creation).
+  TELNYX_OUTBOUND_VOICE_PROFILE_ID:
+    process.env.TELNYX_OUTBOUND_VOICE_PROFILE_ID,
+  // Master switch for the Desk Phones / SIP Devices feature. When false the
+  // CRUD endpoints and the dedicated desk-phone webhook reject all traffic, so
+  // the flow can be shipped dark and toggled on per environment.
+  DESK_PHONES_ENABLED: process.env.DESK_PHONES_ENABLED === "true",
+  // Hard per-call ceiling (minutes) for desk-phone outbound calls. Enforced as
+  // a Telnyx `time_limit_secs` on the bridged call so an unattended phone can't
+  // rack up runaway spend; the real cost is still settled from Telnyx CDRs.
+  DESK_PHONE_MAX_CALL_MINUTES: Number(
+    process.env.DESK_PHONE_MAX_CALL_MINUTES ?? 120,
+  ),
   TELNYX_WEBHOOK_TOLERANCE_SECONDS: Number(
     process.env.TELNYX_WEBHOOK_TOLERANCE_SECONDS ?? 300,
   ),

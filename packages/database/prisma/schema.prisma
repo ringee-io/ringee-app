@@ -388,6 +388,8 @@ model User {
   calls                   Call[]
   numbersOwned            NumberPurchased[]
   userNumbers             UserNumber[]
+  sipDevices              SipDevice[]
+  blockedCalls            BlockedCallLog[]
   Contact                 Contact[]
   ContactNote             ContactNote[]
   Credit                  Credit[]
@@ -441,6 +443,8 @@ model Organization {
   calls                  Call[]
   userNumbers            UserNumber[]
   numbersPurchased       NumberPurchased[]
+  sipDevices             SipDevice[]
+  blockedCalls           BlockedCallLog[]
   contacts               Contact[]
   credits                Credit[]
   creditAutoReload       CreditAutoReload?
@@ -584,6 +588,15 @@ model Call {
   outcome     CallOutcome?
   outcomeNote String?      @db.Text
 
+  // Origin channel of the call, used for history filtering/badges.
+  // Values: "web" | "chrome_extension" | "mobile" | "campaign" | "session" |
+  // "sip_device". Null on legacy rows (treated as the default web dialer).
+  source String?
+
+  // Set when this call originated from a desk phone (source = "sip_device").
+  sipDeviceId String?    @db.Uuid
+  sipDevice   SipDevice? @relation(fields: [sipDeviceId], references: [id], onDelete: SetNull)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -606,6 +619,7 @@ model Call {
   @@index([callSessionId])
   @@index([fromNumber])
   @@index([toNumber])
+  @@index([sipDeviceId])
 }
 
 model CallTranscriptionSegment {
@@ -672,6 +686,139 @@ model UserNumber {
   @@index([organizationId])
 }
 
+/// Where inbound calls to a number ring. See NumberPurchased.inboundMode.
+enum NumberInboundMode {
+  ringee_default
+  desk_phone_only
+}
+
+/// Ringee surfaces allowed to present a number as an outbound caller ID.
+enum OutboundSource {
+  web
+  chrome_extension
+  mobile
+  sip_device
+}
+
+/// Lifecycle of a SIP desk phone as Ringee understands it.
+/// - pending:    created in Telnyx, no SIP REGISTER seen yet.
+/// - registered: the phone is currently registered to Telnyx.
+/// - offline:    was registered, but Telnyx no longer reports it online.
+/// - disabled:   Ringee turned the device off — no inbound or outbound.
+/// - deleted:    soft-deleted; the Telnyx connection has been torn down.
+enum SipDeviceStatus {
+  pending
+  registered
+  offline
+  disabled
+  deleted
+}
+
+/// A physical SIP phone (Yealink, Grandstream, Cisco…) or softphone connected
+/// to Ringee through a dedicated Telnyx Credential Connection. One device ==
+/// one Telnyx SIP Connection. The connection has Park Outbound Calls enabled so
+/// Ringee can validate credit / DNC / caller ID before bridging outbound calls.
+model SipDevice {
+  id        String @id @default(uuid()) @db.Uuid
+  /// Short, user-visible reference, e.g. "dev_8k4m2p9x". Never the raw UUID.
+  publicRef String @unique
+
+  organizationId String? @db.Uuid
+  userId         String  @db.Uuid
+
+  label      String // "Office Yealink"
+  deviceType String? // yealink | grandstream | cisco | zoiper | other
+  provider   String  @default("telnyx")
+
+  // ── Telnyx wiring ────────────────────────────────────────────────────────
+  telnyxConnectionId   String  @unique
+  telnyxConnectionName String
+  /// Telnyx telephony_credential id backing the SIP username/password.
+  telnyxCredentialId   String?
+  sipUsername          String  @unique // "rg_dev_8k4m2p9x"
+  /// AES-GCM encrypted SIP password (CryptoService). Never returned in clear
+  /// except at creation / explicit regeneration.
+  sipPasswordEncrypted String  @db.Text
+
+  outboundVoiceProfileId String?
+  parkOutboundEnabled    Boolean @default(true)
+
+  // ── Number / routing ─────────────────────────────────────────────────────
+  /// The number this device uses (inbound target when allowInbound, and the
+  /// device's default outbound caller ID).
+  assignedPhoneNumberId String? @db.Uuid
+  /// E.164 snapshot of the caller ID the device presents on outbound calls.
+  callerId              String?
+
+  allowInbound  Boolean           @default(true)
+  allowOutbound Boolean           @default(true)
+  inboundMode   NumberInboundMode @default(desk_phone_only)
+
+  status SipDeviceStatus @default(pending)
+
+  // ── Operational limits (security) ─────────────────────────────────────────
+  maxConcurrentCalls Int?
+  dailySpendLimit    Float?
+
+  // ── Last-seen registration telemetry (best-effort from Telnyx) ─────────────
+  lastRegisteredAt DateTime?
+  lastIpAddress    String?
+  lastUserAgent    String?
+
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  assignedNumber NumberPurchased?  @relation("SipDeviceAssignedNumber", fields: [assignedPhoneNumberId], references: [id], onDelete: SetNull)
+  inboundNumbers NumberPurchased[] @relation("NumberInboundSipDevice")
+  calls          Call[]
+  blockedCalls   BlockedCallLog[]
+
+  @@index([organizationId])
+  @@index([userId])
+  @@index([telnyxConnectionId])
+  @@index([assignedPhoneNumberId])
+  @@index([status])
+}
+
+/// Append-only audit of outbound attempts Ringee refused to connect (DNC,
+/// no credit, caller ID not permitted, device disabled…). Primarily fed by the
+/// desk-phone webhook, but generic enough for any source.
+model BlockedCallLog {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String? @db.Uuid
+  userId         String? @db.Uuid
+  sipDeviceId    String? @db.Uuid
+
+  source     String  @default("sip_device")
+  fromNumber String?
+  toNumber   String?
+  callerId   String?
+  /// Machine reason, e.g. DNC | INSUFFICIENT_CREDIT | CALLER_ID_NOT_ALLOWED |
+  /// DEVICE_DISABLED | DEVICE_NOT_FOUND | OUTBOUND_DISABLED.
+  reason     String
+  detail     String? @db.Text
+
+  /// Telnyx ids for traceability + idempotency.
+  providerEventId    String?
+  providerCallId     String?
+  telnyxConnectionId String?
+
+  createdAt DateTime @default(now())
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  user         User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  sipDevice    SipDevice?    @relation(fields: [sipDeviceId], references: [id], onDelete: SetNull)
+
+  @@unique([providerEventId])
+  @@index([organizationId])
+  @@index([sipDeviceId])
+  @@index([reason])
+  @@index([createdAt])
+}
+
 model NumberPurchased {
   id                     String    @id @default(uuid()) @db.Uuid
   phoneNumber            String    @unique
@@ -720,18 +867,36 @@ model NumberPurchased {
   messagingStatus            String?
   messagingError             String? @db.Text
 
+  // ── Inbound routing (Desk Phones) ──────────────────────────────────────
+  // Where inbound calls to this number currently ring.
+  // - ringee_default: Ringee Web / Chrome Extension / Mobile (the legacy path).
+  // - desk_phone_only: a single SIP desk phone; the number does NOT ring in
+  //   any Ringee app. The number stays usable as an outbound caller ID.
+  inboundMode        NumberInboundMode @default(ringee_default)
+  inboundSipDeviceId String?           @db.Uuid
+
+  // Which Ringee surfaces may present this number as an outbound caller ID.
+  // Empty list is treated as "no restriction" by callers.
+  allowedOutboundSources OutboundSource[] @default([web, chrome_extension, mobile, sip_device])
+
+  // Optional per-user allow-list for using this number as a caller ID.
+  // Empty means every member of the owning workspace may use it.
+  allowedOutboundUserIds String[] @default([]) @db.Uuid
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  user                User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
-  organization        Organization?            @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  userNumbers         UserNumber[]
-  campaigns           Campaign[]               @relation("campaignNumberPurchased")
-  campaignsAsCallerId Campaign[]               @relation("campaignCallerId")
-  callsAsCallerId     Call[]                   @relation("callCallerId")
-  requirementValues   NumberRequirementValue[]
-  rotationMember      CallerIdPoolMember?
-  rotationUsage       CallerIdDailyUsage[]
+  user                 User?                    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  organization         Organization?            @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  userNumbers          UserNumber[]
+  inboundSipDevice     SipDevice?               @relation("NumberInboundSipDevice", fields: [inboundSipDeviceId], references: [id], onDelete: SetNull)
+  assignedToSipDevices SipDevice[]              @relation("SipDeviceAssignedNumber")
+  campaigns            Campaign[]               @relation("campaignNumberPurchased")
+  campaignsAsCallerId  Campaign[]               @relation("campaignCallerId")
+  callsAsCallerId      Call[]                   @relation("callCallerId")
+  requirementValues    NumberRequirementValue[]
+  rotationMember       CallerIdPoolMember?
+  rotationUsage        CallerIdDailyUsage[]
 
   @@index([isoCountry])
   @@index([provider])
@@ -739,6 +904,7 @@ model NumberPurchased {
   @@index([organizationId])
   @@index([providerMessagingProfileId])
   @@index([kind])
+  @@index([inboundSipDeviceId])
 }
 
 enum NumberKind {
@@ -767,11 +933,11 @@ model CallerIdRotationSettings {
   organizationId String? @unique @db.Uuid
 
   /// When true, every dialer (manual, campaign, session) rotates the caller ID.
-  enabled Boolean @default(false)
+  enabled         Boolean @default(false)
   /// "local_presence" (prefer destination area code) | "balanced" (country only).
-  strategy String @default("local_presence")
+  strategy        String  @default("local_presence")
   /// Default per-number daily cap; a pool member may override it.
-  defaultDailyCap Int @default(50)
+  defaultDailyCap Int     @default(50)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -794,7 +960,7 @@ model CallerIdPoolMember {
 
   /// Whether the user keeps this number in the rotation pool.
   participating  Boolean                @default(true)
-  rotationStatus CallerIdRotationStatus  @default(active)
+  rotationStatus CallerIdRotationStatus @default(active)
   /// Per-number daily cap override; null inherits settings.defaultDailyCap.
   dailyCap       Int?
   /// 0-100, derived from answer rate and short-call ratio over a moving window.
@@ -3182,9 +3348,9 @@ model ObjectionInsight {
 
   contextType    AiPipelineContextType
   contextKey     String
-  campaignId     String? @db.Uuid
-  organizationId String? @db.Uuid
-  userId         String? @db.Uuid
+  campaignId     String?               @db.Uuid
+  organizationId String?               @db.Uuid
+  userId         String?               @db.Uuid
 
   objectionType  String // canonical bucket, or `dynamic:<slug>` when discovered
   // Display label for AI-discovered (dynamic) objections; null for canonical
