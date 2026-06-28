@@ -25,6 +25,7 @@ import {
 } from '../hooks/use-inbox';
 import { EventBubble } from './event-bubble';
 import { Composer } from './composer';
+import { AssignThreadMenu } from './assign-thread-menu';
 import { useTranslations } from 'next-intl';
 
 interface Props {
@@ -99,11 +100,7 @@ export function ThreadTimeline({ thread, onChanged }: Props) {
           </p>
         </div>
         <div className='flex items-center gap-2'>
-          {thread.contactId ? null : (
-            <Button variant='outline' size='sm' disabled>
-              {t('timeline.linkContact')}
-            </Button>
-          )}
+          <AssignThreadMenu thread={thread} onChanged={onChanged} />
           <Button
             variant='outline'
             size='sm'

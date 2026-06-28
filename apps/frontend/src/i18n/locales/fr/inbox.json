@@ -4,6 +4,8 @@
   "filters": {
     "all": "Tous",
     "unread": "Non lus",
+    "mine": "Assignés à moi",
+    "unassigned": "Non assignés",
     "missed": "Manqués",
     "missedCalls": "Appels manqués",
     "voicemail": "Messagerie vocale",
@@ -21,7 +23,9 @@
     "noConversations": "Aucune conversation pour le moment",
     "newWillAppear": "Les nouveaux appels et SMS apparaîtront ici automatiquement.",
     "importing": "Importation…",
-    "importFromPastCalls": "Importer depuis les appels passés"
+    "importFromPastCalls": "Importer depuis les appels passés",
+    "markRead": "Marquer comme lu",
+    "loadingMore": "Chargement de la suite…"
   },
   "timeline": {
     "selectConversation": "Sélectionnez une conversation pour commencer",
@@ -43,7 +47,87 @@
     "messagePlaceholder": "Tapez un message — ⌘/Ctrl + Entrée pour envoyer",
     "saveNote": "Enregistrer la note",
     "send": "Envoyer",
+    "attach": "Joindre un média",
+    "mmsDisabled": "Ce numéro ne prend pas en charge les MMS",
+    "attachError": "Impossible de téléverser la pièce jointe",
     "smsDisabledWarning": "Ce numéro n'a pas les SMS activés dans Telnyx. Choisissez-en un autre ou activez la messagerie sur le numéro."
+  },
+  "newConversation": {
+    "newMessage": "Nouveau message",
+    "title": "Nouvelle conversation",
+    "from": "De",
+    "selectNumber": "Sélectionner un numéro",
+    "noSmsNumbers": "Aucun de vos numéros n'a les SMS activés.",
+    "to": "À",
+    "manualPlaceholder": "+14155550100",
+    "message": "Message",
+    "messagePlaceholder": "Saisissez votre premier message…",
+    "send": "Envoyer le message",
+    "sendError": "Impossible d'envoyer le message"
+  },
+  "contextPane": {
+    "quickActions": "Actions rapides",
+    "call": "Appeler",
+    "note": "Note",
+    "callback": "Rappel",
+    "meeting": "Réunion",
+    "viewProfile": "Voir le profil complet",
+    "unknownNumber": "Ce numéro n'est pas encore associé à un contact.",
+    "namePlaceholder": "Nom du contact",
+    "create": "Créer",
+    "linkExisting": "Associer un contact existant",
+    "searchContacts": "Rechercher des contacts…",
+    "searching": "Recherche…",
+    "noContacts": "Aucun contact trouvé",
+    "linkedToast": "Contact associé",
+    "linkError": "Impossible d'associer le contact",
+    "createdToast": "Contact créé et associé",
+    "createError": "Impossible de créer le contact",
+    "scheduleCallback": "Planifier un rappel",
+    "scheduleMeeting": "Planifier une réunion",
+    "notePlaceholder": "Ajouter une note (facultatif)…",
+    "schedule": "Planifier",
+    "invalidDate": "Choisissez une date et une heure futures",
+    "callbackScheduled": "Rappel planifié",
+    "meetingScheduled": "Réunion planifiée",
+    "scheduleError": "Impossible de planifier",
+    "history": {
+      "title": "Historique",
+      "empty": "Aucun historique pour ce contact.",
+      "loading": "Chargement de l'historique…",
+      "callInbound": "Appel entrant",
+      "callOutbound": "Appel sortant",
+      "callMissed": "Appel manqué",
+      "note": "Note",
+      "meeting": "Réunion",
+      "callback": "Rappel",
+      "outcomes": {
+        "meeting_booked": "Réunion planifiée",
+        "sale": "Vente",
+        "interested": "Intéressé",
+        "follow_up": "Suivi",
+        "callback_scheduled": "Rappel planifié",
+        "not_interested": "Pas intéressé",
+        "no_answer": "Pas de réponse",
+        "voicemail": "Messagerie vocale",
+        "wrong_number": "Mauvais numéro",
+        "gatekeeper": "Filtrage / accueil"
+      },
+      "statuses": {
+        "scheduled": "Planifié",
+        "completed": "Terminé",
+        "cancelled": "Annulé",
+        "missed": "Manqué",
+        "pending": "En attente",
+        "confirmed": "Confirmé"
+      }
+    }
+  },
+  "assignment": {
+    "assign": "Assigner",
+    "assignTo": "Assigner à",
+    "unassigned": "Non assigné",
+    "memberFallback": "Membre"
   },
   "events": {
     "missedCall": "Appel manqué",
