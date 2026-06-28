@@ -33,6 +33,23 @@ const BREAKPOINTS: Record<Breakpoint, number> = {
 const ROW_HEIGHT = 60;
 const MARGIN: readonly [number, number] = [12, 12];
 
+const BREAKPOINT_ORDER: readonly Breakpoint[] = ['lg', 'md', 'sm', 'xs', 'xxs'];
+
+/**
+ * Resolve the active breakpoint from the *viewport* width instead of the grid
+ * container width. The Quick Dial side panel shrinks the dashboard column
+ * (md:w-[30%]); if we let react-grid-layout derive the breakpoint from the
+ * shrunken container it would drop column counts and reshuffle every widget
+ * each time the dialer opens/closes. Keying off the viewport keeps the column
+ * count stable while the dialer toggles — widgets just render narrower.
+ */
+function breakpointForViewport(viewportWidth: number): Breakpoint {
+  for (const bp of BREAKPOINT_ORDER) {
+    if (viewportWidth >= BREAKPOINTS[bp]) return bp;
+  }
+  return 'xxs';
+}
+
 interface WidgetGridProps {
   widgets: DashboardWidget[];
   /** Called whenever the user drags or resizes a widget. */
@@ -53,6 +70,23 @@ export function WidgetGrid({
     measureBeforeMount: false,
     initialWidth: 1200
   });
+
+  // Drive the responsive breakpoint off the viewport, not the container width,
+  // so opening/closing the Quick Dial panel doesn't reflow the widgets. The
+  // grid is client-only (next/dynamic ssr:false), so window is available on the
+  // first render.
+  const [breakpoint, setBreakpoint] = React.useState<Breakpoint>(() =>
+    typeof window === 'undefined'
+      ? 'lg'
+      : breakpointForViewport(window.innerWidth)
+  );
+  React.useEffect(() => {
+    const onResize = () =>
+      setBreakpoint(breakpointForViewport(window.innerWidth));
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const layout: Layout = React.useMemo(
     () =>
@@ -114,6 +148,7 @@ export function WidgetGrid({
         // @ts-ignore
         <Responsive<Breakpoint>
           width={width}
+          breakpoint={breakpoint}
           breakpoints={BREAKPOINTS}
           cols={COLS}
           layouts={layouts}
@@ -122,7 +157,11 @@ export function WidgetGrid({
           dragConfig={dragConfig}
           resizeConfig={resizeConfig}
           compactor={verticalCompactor}
-          onLayoutChange={handleLayoutChange}
+          // Persist only on explicit user interaction. Wiring onLayoutChange
+          // here would also fire on width-driven reflows and save positions the
+          // user never set (corrupting the layout when the dialer toggles).
+          onDragStop={handleLayoutChange}
+          onResizeStop={handleLayoutChange}
         >
           {widgets.map((w) => (
             // @ts-ignore
