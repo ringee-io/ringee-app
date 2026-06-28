@@ -67,9 +67,14 @@ services:
     networks:
       - ringee-network
 
+  # Opt-in only: the UI is a debugging convenience, not a runtime dependency.
+  # It does NOT start with `docker-compose up -d`; bring it up on demand with
+  # `docker-compose --profile debug up -d ringee-temporal-ui`. Keeping it off by
+  # default avoids paying for an always-on container on self-hosted deploys.
   ringee-temporal-ui:
     image: temporalio/ui:2.31.2
     container_name: ringee-temporal-ui
+    profiles: ["debug"]
     ports:
       - "${TEMPORAL_UI_PORT:-8080}:8080"
     environment:

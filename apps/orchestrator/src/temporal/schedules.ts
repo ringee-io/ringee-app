@@ -22,40 +22,43 @@ interface ScheduleDef {
 
 /**
  * Replaces the old worker's setInterval pollers. Cadence notes: the three
- * outbox drains ran every 5s as setIntervals; as Schedules they run every 15s
- * to keep workflow-history volume reasonable on a self-hosted cluster (they
- * drain 25 items per tick, so worst-case added latency is ~10s).
+ * outbox drains ran every 5s as setIntervals; as Schedules they run every 60s
+ * to keep workflow-history volume (and therefore Temporal/Postgres CPU on a
+ * self-hosted cluster) low. They drain 25 items per tick, so worst-case added
+ * latency is ~60s — acceptable for outbox-style background pushes. The
+ * minute-granular schedulers (retry/callback/reminder) likewise run every 60s.
+ * Tightening any of these back down directly raises self-hosted billing.
  */
 const SCHEDULES: ScheduleDef[] = [
   {
     id: "ringee.retry-scheduler",
     workflow: WORKFLOW_NAMES.retryScheduler,
-    every: "30s",
-    catchupWindow: "1m",
+    every: "60s",
+    catchupWindow: "2m",
   },
   {
     id: "ringee.callback-scheduler",
     workflow: WORKFLOW_NAMES.callbackScheduler,
-    every: "30s",
-    catchupWindow: "1m",
+    every: "60s",
+    catchupWindow: "2m",
   },
   {
     id: "ringee.heartbeat-check",
     workflow: WORKFLOW_NAMES.heartbeatCheck,
-    every: "15s",
+    every: "30s",
     catchupWindow: "1m",
   },
   {
     id: "ringee.campaign-completion-check",
     workflow: WORKFLOW_NAMES.campaignCompletionCheck,
-    every: "1m",
-    catchupWindow: "2m",
+    every: "2m",
+    catchupWindow: "5m",
   },
   {
     id: "ringee.crm-drain",
     workflow: WORKFLOW_NAMES.crmDrain,
-    every: "15s",
-    catchupWindow: "1m",
+    every: "60s",
+    catchupWindow: "2m",
   },
   {
     id: "ringee.crm-bulk-sync",
@@ -66,20 +69,20 @@ const SCHEDULES: ScheduleDef[] = [
   {
     id: "ringee.enrichment-drain",
     workflow: WORKFLOW_NAMES.enrichmentDrain,
-    every: "15s",
-    catchupWindow: "1m",
+    every: "60s",
+    catchupWindow: "2m",
   },
   {
     id: "ringee.reminder-scheduler",
     workflow: WORKFLOW_NAMES.reminderScheduler,
-    every: "30s",
-    catchupWindow: "1m",
+    every: "60s",
+    catchupWindow: "2m",
   },
   {
     id: "ringee.custom-integrations-drain",
     workflow: WORKFLOW_NAMES.customIntegrationsDrain,
-    every: "15s",
-    catchupWindow: "1m",
+    every: "60s",
+    catchupWindow: "2m",
   },
   {
     // Carriers review regulatory documents over hours/days, so a slow cadence
