@@ -4,6 +4,8 @@
   "filters": {
     "all": "Alle",
     "unread": "Ungelesen",
+    "mine": "Mir zugewiesen",
+    "unassigned": "Nicht zugewiesen",
     "missed": "Verpasst",
     "missedCalls": "Verpasste Anrufe",
     "voicemail": "Voicemail",
@@ -21,7 +23,9 @@
     "noConversations": "Noch keine Unterhaltungen",
     "newWillAppear": "Neue Anrufe und SMS erscheinen hier automatisch.",
     "importing": "Importiere…",
-    "importFromPastCalls": "Aus vergangenen Anrufen importieren"
+    "importFromPastCalls": "Aus vergangenen Anrufen importieren",
+    "markRead": "Als gelesen markieren",
+    "loadingMore": "Lade mehr…"
   },
   "timeline": {
     "selectConversation": "Wähle eine Unterhaltung, um zu beginnen",
@@ -43,7 +47,87 @@
     "messagePlaceholder": "Nachricht eingeben — ⌘/Strg + Enter zum Senden",
     "saveNote": "Notiz speichern",
     "send": "Senden",
+    "attach": "Medien anhängen",
+    "mmsDisabled": "Diese Nummer unterstützt kein MMS",
+    "attachError": "Anhang konnte nicht hochgeladen werden",
     "smsDisabledWarning": "Für diese Nummer ist SMS in Telnyx nicht aktiviert. Wähle eine andere oder aktiviere Messaging für die Nummer."
+  },
+  "newConversation": {
+    "newMessage": "Neue Nachricht",
+    "title": "Neue Unterhaltung",
+    "from": "Von",
+    "selectNumber": "Nummer auswählen",
+    "noSmsNumbers": "Keine deiner Nummern hat SMS aktiviert.",
+    "to": "An",
+    "manualPlaceholder": "+14155550100",
+    "message": "Nachricht",
+    "messagePlaceholder": "Schreibe deine erste Nachricht…",
+    "send": "Nachricht senden",
+    "sendError": "Nachricht konnte nicht gesendet werden"
+  },
+  "contextPane": {
+    "quickActions": "Schnellaktionen",
+    "call": "Anrufen",
+    "note": "Notiz",
+    "callback": "Rückruf",
+    "meeting": "Meeting",
+    "viewProfile": "Vollständiges Profil ansehen",
+    "unknownNumber": "Diese Nummer ist noch nicht mit einem Kontakt verknüpft.",
+    "namePlaceholder": "Kontaktname",
+    "create": "Erstellen",
+    "linkExisting": "Bestehenden Kontakt verknüpfen",
+    "searchContacts": "Kontakte suchen…",
+    "searching": "Suche…",
+    "noContacts": "Keine Kontakte gefunden",
+    "linkedToast": "Kontakt verknüpft",
+    "linkError": "Kontakt konnte nicht verknüpft werden",
+    "createdToast": "Kontakt erstellt und verknüpft",
+    "createError": "Kontakt konnte nicht erstellt werden",
+    "scheduleCallback": "Rückruf planen",
+    "scheduleMeeting": "Meeting planen",
+    "notePlaceholder": "Notiz hinzufügen (optional)…",
+    "schedule": "Planen",
+    "invalidDate": "Wähle ein zukünftiges Datum und eine Uhrzeit",
+    "callbackScheduled": "Rückruf geplant",
+    "meetingScheduled": "Meeting geplant",
+    "scheduleError": "Planung fehlgeschlagen",
+    "history": {
+      "title": "Verlauf",
+      "empty": "Noch kein Verlauf für diesen Kontakt.",
+      "loading": "Verlauf wird geladen…",
+      "callInbound": "Eingehender Anruf",
+      "callOutbound": "Ausgehender Anruf",
+      "callMissed": "Verpasster Anruf",
+      "note": "Notiz",
+      "meeting": "Meeting",
+      "callback": "Rückruf",
+      "outcomes": {
+        "meeting_booked": "Meeting gebucht",
+        "sale": "Verkauf",
+        "interested": "Interessiert",
+        "follow_up": "Nachfassen",
+        "callback_scheduled": "Rückruf geplant",
+        "not_interested": "Nicht interessiert",
+        "no_answer": "Keine Antwort",
+        "voicemail": "Voicemail",
+        "wrong_number": "Falsche Nummer",
+        "gatekeeper": "Vorzimmer"
+      },
+      "statuses": {
+        "scheduled": "Geplant",
+        "completed": "Abgeschlossen",
+        "cancelled": "Storniert",
+        "missed": "Verpasst",
+        "pending": "Ausstehend",
+        "confirmed": "Bestätigt"
+      }
+    }
+  },
+  "assignment": {
+    "assign": "Zuweisen",
+    "assignTo": "Zuweisen an",
+    "unassigned": "Nicht zugewiesen",
+    "memberFallback": "Mitglied"
   },
   "events": {
     "missedCall": "Verpasster Anruf",

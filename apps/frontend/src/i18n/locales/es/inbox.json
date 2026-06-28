@@ -4,6 +4,8 @@
   "filters": {
     "all": "Todos",
     "unread": "No leídos",
+    "mine": "Asignados a mí",
+    "unassigned": "Sin asignar",
     "missed": "Perdidos",
     "missedCalls": "Llamadas perdidas",
     "voicemail": "Mensaje de voz",
@@ -21,7 +23,9 @@
     "noConversations": "Aún no hay conversaciones",
     "newWillAppear": "Las nuevas llamadas y SMS aparecerán aquí automáticamente.",
     "importing": "Importando…",
-    "importFromPastCalls": "Importar desde llamadas anteriores"
+    "importFromPastCalls": "Importar desde llamadas anteriores",
+    "markRead": "Marcar como visto",
+    "loadingMore": "Cargando más…"
   },
   "timeline": {
     "selectConversation": "Selecciona una conversación para empezar",
@@ -43,7 +47,87 @@
     "messagePlaceholder": "Escribe un mensaje — ⌘/Ctrl + Enter para enviar",
     "saveNote": "Guardar nota",
     "send": "Enviar",
+    "attach": "Adjuntar archivo",
+    "mmsDisabled": "Este número no admite MMS",
+    "attachError": "No se pudo subir el adjunto",
     "smsDisabledWarning": "Este número no tiene SMS habilitado en Telnyx. Elige otro o habilita los mensajes en el número."
+  },
+  "newConversation": {
+    "newMessage": "Nuevo mensaje",
+    "title": "Nueva conversación",
+    "from": "Desde",
+    "selectNumber": "Selecciona un número",
+    "noSmsNumbers": "Ninguno de tus números tiene SMS habilitado.",
+    "to": "Para",
+    "manualPlaceholder": "+14155550100",
+    "message": "Mensaje",
+    "messagePlaceholder": "Escribe tu primer mensaje…",
+    "send": "Enviar mensaje",
+    "sendError": "No se pudo enviar el mensaje"
+  },
+  "contextPane": {
+    "quickActions": "Acciones rápidas",
+    "call": "Llamar",
+    "note": "Nota",
+    "callback": "Devolución",
+    "meeting": "Reunión",
+    "viewProfile": "Ver perfil completo",
+    "unknownNumber": "Este número aún no está vinculado a un contacto.",
+    "namePlaceholder": "Nombre del contacto",
+    "create": "Crear",
+    "linkExisting": "Vincular contacto existente",
+    "searchContacts": "Buscar contactos…",
+    "searching": "Buscando…",
+    "noContacts": "No se encontraron contactos",
+    "linkedToast": "Contacto vinculado",
+    "linkError": "No se pudo vincular el contacto",
+    "createdToast": "Contacto creado y vinculado",
+    "createError": "No se pudo crear el contacto",
+    "scheduleCallback": "Programar devolución",
+    "scheduleMeeting": "Agendar reunión",
+    "notePlaceholder": "Añade una nota (opcional)…",
+    "schedule": "Programar",
+    "invalidDate": "Elige una fecha y hora futura",
+    "callbackScheduled": "Devolución programada",
+    "meetingScheduled": "Reunión agendada",
+    "scheduleError": "No se pudo programar",
+    "history": {
+      "title": "Historial",
+      "empty": "Aún no hay historial para este contacto.",
+      "loading": "Cargando historial…",
+      "callInbound": "Llamada entrante",
+      "callOutbound": "Llamada saliente",
+      "callMissed": "Llamada perdida",
+      "note": "Nota",
+      "meeting": "Reunión",
+      "callback": "Devolución",
+      "outcomes": {
+        "meeting_booked": "Reunión agendada",
+        "sale": "Venta",
+        "interested": "Interesado",
+        "follow_up": "Seguimiento",
+        "callback_scheduled": "Devolución programada",
+        "not_interested": "No interesado",
+        "no_answer": "Sin respuesta",
+        "voicemail": "Buzón de voz",
+        "wrong_number": "Número equivocado",
+        "gatekeeper": "Filtro / recepción"
+      },
+      "statuses": {
+        "scheduled": "Programada",
+        "completed": "Completada",
+        "cancelled": "Cancelada",
+        "missed": "Perdida",
+        "pending": "Pendiente",
+        "confirmed": "Confirmada"
+      }
+    }
+  },
+  "assignment": {
+    "assign": "Asignar",
+    "assignTo": "Asignar a",
+    "unassigned": "Sin asignar",
+    "memberFallback": "Miembro"
   },
   "events": {
     "missedCall": "Llamada perdida",

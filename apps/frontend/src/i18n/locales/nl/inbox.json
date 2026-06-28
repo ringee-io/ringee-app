@@ -4,6 +4,8 @@
   "filters": {
     "all": "Alle",
     "unread": "Ongelezen",
+    "mine": "Aan mij toegewezen",
+    "unassigned": "Niet toegewezen",
     "missed": "Gemist",
     "missedCalls": "Gemiste oproepen",
     "voicemail": "Voicemail",
@@ -21,7 +23,9 @@
     "noConversations": "Nog geen gesprekken",
     "newWillAppear": "Nieuwe oproepen en SMS verschijnen hier automatisch.",
     "importing": "Importeren…",
-    "importFromPastCalls": "Importeer uit eerdere oproepen"
+    "importFromPastCalls": "Importeer uit eerdere oproepen",
+    "markRead": "Markeer als gelezen",
+    "loadingMore": "Meer laden…"
   },
   "timeline": {
     "selectConversation": "Selecteer een gesprek om te beginnen",
@@ -43,7 +47,87 @@
     "messagePlaceholder": "Typ een bericht — ⌘/Ctrl + Enter om te verzenden",
     "saveNote": "Notitie opslaan",
     "send": "Verzenden",
+    "attach": "Media bijvoegen",
+    "mmsDisabled": "Dit nummer ondersteunt geen MMS",
+    "attachError": "Kon bijlage niet uploaden",
     "smsDisabledWarning": "Voor dit nummer is SMS niet ingeschakeld in Telnyx. Kies een ander of schakel berichten in voor het nummer."
+  },
+  "newConversation": {
+    "newMessage": "Nieuw bericht",
+    "title": "Nieuw gesprek",
+    "from": "Van",
+    "selectNumber": "Selecteer een nummer",
+    "noSmsNumbers": "Geen van je nummers heeft SMS ingeschakeld.",
+    "to": "Aan",
+    "manualPlaceholder": "+14155550100",
+    "message": "Bericht",
+    "messagePlaceholder": "Typ je eerste bericht…",
+    "send": "Bericht verzenden",
+    "sendError": "Kon het bericht niet verzenden"
+  },
+  "contextPane": {
+    "quickActions": "Snelle acties",
+    "call": "Bellen",
+    "note": "Notitie",
+    "callback": "Terugbellen",
+    "meeting": "Vergadering",
+    "viewProfile": "Volledig profiel bekijken",
+    "unknownNumber": "Dit nummer is nog niet aan een contact gekoppeld.",
+    "namePlaceholder": "Contactnaam",
+    "create": "Aanmaken",
+    "linkExisting": "Bestaand contact koppelen",
+    "searchContacts": "Contacten zoeken…",
+    "searching": "Zoeken…",
+    "noContacts": "Geen contacten gevonden",
+    "linkedToast": "Contact gekoppeld",
+    "linkError": "Kon het contact niet koppelen",
+    "createdToast": "Contact aangemaakt en gekoppeld",
+    "createError": "Kon het contact niet aanmaken",
+    "scheduleCallback": "Terugbelverzoek plannen",
+    "scheduleMeeting": "Vergadering plannen",
+    "notePlaceholder": "Voeg een notitie toe (optioneel)…",
+    "schedule": "Plannen",
+    "invalidDate": "Kies een datum en tijd in de toekomst",
+    "callbackScheduled": "Terugbelverzoek gepland",
+    "meetingScheduled": "Vergadering gepland",
+    "scheduleError": "Plannen mislukt",
+    "history": {
+      "title": "Geschiedenis",
+      "empty": "Nog geen geschiedenis voor dit contact.",
+      "loading": "Geschiedenis laden…",
+      "callInbound": "Inkomende oproep",
+      "callOutbound": "Uitgaande oproep",
+      "callMissed": "Gemiste oproep",
+      "note": "Notitie",
+      "meeting": "Vergadering",
+      "callback": "Terugbellen",
+      "outcomes": {
+        "meeting_booked": "Vergadering geboekt",
+        "sale": "Verkoop",
+        "interested": "Geïnteresseerd",
+        "follow_up": "Opvolgen",
+        "callback_scheduled": "Terugbelverzoek gepland",
+        "not_interested": "Niet geïnteresseerd",
+        "no_answer": "Geen antwoord",
+        "voicemail": "Voicemail",
+        "wrong_number": "Verkeerd nummer",
+        "gatekeeper": "Poortwachter"
+      },
+      "statuses": {
+        "scheduled": "Gepland",
+        "completed": "Voltooid",
+        "cancelled": "Geannuleerd",
+        "missed": "Gemist",
+        "pending": "In afwachting",
+        "confirmed": "Bevestigd"
+      }
+    }
+  },
+  "assignment": {
+    "assign": "Toewijzen",
+    "assignTo": "Toewijzen aan",
+    "unassigned": "Niet toegewezen",
+    "memberFallback": "Lid"
   },
   "events": {
     "missedCall": "Gemiste oproep",

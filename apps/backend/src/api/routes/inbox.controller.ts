@@ -8,7 +8,10 @@ import {
   Param,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import {
   CurrentUser,
   CurrentUserData,
@@ -20,6 +23,12 @@ import {
   CallService,
 } from "@ringee/services";
 import { InboxThreadStatus, InboxEventKind } from "@ringee/database";
+
+const E164_REGEX = /^\+[1-9]\d{6,14}$/;
+const MAX_SMS_TEXT_LENGTH = 1600;
+const MAX_MEDIA_URLS = 10;
+const MAX_MEDIA_BYTES = 5 * 1024 * 1024; // Telnyx MMS hard cap is ~5 MB.
+const ALLOWED_MEDIA_TYPES = /^(image|video|audio)\//i;
 
 @Controller("inbox")
 export class InboxController {
@@ -60,6 +69,8 @@ export class InboxController {
       search?: string;
       page?: string;
       limit?: string;
+      assignedToId?: string;
+      mine?: string;
     } = {},
   ) {
     const ctx = createOwnershipContext(user);
@@ -76,14 +87,38 @@ export class InboxController {
         : [query.kind as InboxEventKind]
       : undefined;
 
+    // "mine" assigns to the current user; "unassigned" (assignedToId === "null")
+    // filters threads with no assignee. Both narrow the team-inbox view.
+    let assignedToId: string | null | undefined;
+    if (query.mine === "true") {
+      assignedToId = user.id;
+    } else if (query.assignedToId === "null") {
+      assignedToId = null;
+    } else if (query.assignedToId) {
+      assignedToId = query.assignedToId;
+    }
+
     return this.timeline.listThreads(ctx, {
       status,
       kindIn,
       unreadOnly: query.unreadOnly === "true",
       search: query.search,
+      assignedToId,
       page: query.page ? Number(query.page) : undefined,
       limit: query.limit ? Number(query.limit) : undefined,
     });
+  }
+
+  /** Per-filter thread counts for the inbox filter pills. */
+  @Get("counts")
+  async counts(@CurrentUser() user: CurrentUserData) {
+    return this.timeline.counts(createOwnershipContext(user));
+  }
+
+  /** Total unread threads — drives the sidebar badge. */
+  @Get("unread-count")
+  async unreadCount(@CurrentUser() user: CurrentUserData) {
+    return this.timeline.unreadCount(createOwnershipContext(user));
   }
 
   @Get("threads/:id")
@@ -154,6 +189,26 @@ export class InboxController {
   ) {
     const ctx = createOwnershipContext(user);
     return this.timeline.assignThread(ctx, id, body.assigneeId ?? null);
+  }
+
+  /** Full contact history (calls + outcomes, notes, meetings, callbacks). */
+  @Get("threads/:id/activity")
+  async threadActivity(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id") id: string,
+  ) {
+    const ctx = createOwnershipContext(user);
+    return this.timeline.getThreadActivity(ctx, id);
+  }
+
+  @Post("threads/:id/link-contact")
+  async linkContact(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id") id: string,
+    @Body() body: { contactId: string | null },
+  ) {
+    const ctx = createOwnershipContext(user);
+    return this.timeline.linkContact(ctx, id, body?.contactId ?? null);
   }
 
   @Post("threads/:id/notes")
@@ -249,11 +304,48 @@ export class InboxController {
       idempotencyKey: body.idempotencyKey,
     });
   }
-}
 
-const E164_REGEX = /^\+[1-9]\d{6,14}$/;
-const MAX_SMS_TEXT_LENGTH = 1600;
-const MAX_MEDIA_URLS = 10;
+  /**
+   * Uploads an MMS attachment to object storage and returns its public URL so
+   * the composer can include it in `mediaUrls` when sending. Telnyx fetches the
+   * media by URL, so it must be publicly reachable (R2/S3 in production).
+   */
+  @Post("media")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: { fileSize: MAX_MEDIA_BYTES },
+      fileFilter: (_req, file, cb) => {
+        if (ALLOWED_MEDIA_TYPES.test(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(
+            new BadRequestException(
+              "Only image, video and audio attachments are allowed",
+            ),
+            false,
+          );
+        }
+      },
+    }),
+  )
+  async uploadMedia(
+    @UploadedFile()
+    file: {
+      buffer: Buffer;
+      originalname: string;
+      mimetype: string;
+    },
+  ) {
+    if (!file) {
+      throw new BadRequestException("No file uploaded");
+    }
+    return this.messageService.uploadOutboundMedia({
+      buffer: file.buffer,
+      contentType: file.mimetype,
+      filename: file.originalname,
+    });
+  }
+}
 
 function normalizePhone(value: unknown): string | undefined {
   if (typeof value !== "string") return undefined;

@@ -23,6 +23,16 @@ export interface TelephonyNumbersService {
     connectionId?: string,
   ): Promise<AssignedNumber>;
   /**
+   * Links a phone number to a messaging profile on the provider so it can send
+   * and receive SMS/MMS. Required for any number with messaging enabled —
+   * without it the provider will not route messages for the number. Returns the
+   * messaging profile id the number ended up attached to (or null).
+   */
+  setMessagingProfile(
+    phoneNumber: string,
+    messagingProfileId: string,
+  ): Promise<string | null>;
+  /**
    * Lists the regulatory requirements (documents / fields) that must be
    * fulfilled to order a number for a given country + number type, so the UI
    * can tell the user what they'll need to provide.

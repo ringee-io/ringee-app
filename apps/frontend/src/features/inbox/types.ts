@@ -96,29 +96,50 @@ export interface InboxEvent {
   meeting?: any;
 }
 
+export type InboxCountKey = 'all' | 'unread' | 'missed' | 'voicemails' | 'sms';
+
 export const THREAD_FILTER_OPTIONS: {
   id: string;
   labelKey: string;
   status?: InboxThreadStatus[];
   kind?: InboxEventKind[];
   unreadOnly?: boolean;
+  mine?: boolean;
+  unassigned?: boolean;
+  /** Which key from GET /inbox/counts drives this pill's badge (if any). */
+  countKey?: InboxCountKey;
 }[] = [
-  { id: 'all', labelKey: 'filters.all', status: ['open', 'pending'] },
-  { id: 'unread', labelKey: 'filters.unread', unreadOnly: true },
+  {
+    id: 'all',
+    labelKey: 'filters.all',
+    status: ['open', 'pending'],
+    countKey: 'all'
+  },
+  {
+    id: 'unread',
+    labelKey: 'filters.unread',
+    unreadOnly: true,
+    countKey: 'unread'
+  },
+  { id: 'mine', labelKey: 'filters.mine', mine: true },
+  { id: 'unassigned', labelKey: 'filters.unassigned', unassigned: true },
   {
     id: 'missed',
     labelKey: 'filters.missedCalls',
-    kind: ['missed_call']
+    kind: ['missed_call'],
+    countKey: 'missed'
   },
   {
     id: 'voicemails',
     labelKey: 'filters.voicemails',
-    kind: ['voicemail_received']
+    kind: ['voicemail_received'],
+    countKey: 'voicemails'
   },
   {
     id: 'sms',
     labelKey: 'filters.sms',
-    kind: ['sms_received', 'sms_sent', 'mms_received', 'mms_sent']
+    kind: ['sms_received', 'sms_sent', 'mms_received', 'mms_sent'],
+    countKey: 'sms'
   },
   { id: 'resolved', labelKey: 'filters.resolved', status: ['resolved'] },
   { id: 'archived', labelKey: 'filters.archived', status: ['archived'] }

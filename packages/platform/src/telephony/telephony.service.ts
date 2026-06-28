@@ -88,6 +88,16 @@ export class TelephonyService implements TelephonyServiceInterface {
     );
   }
 
+  setMessagingProfile(
+    phoneNumber: string,
+    messagingProfileId: string,
+  ): Promise<string | null> {
+    return this.getServiceProvider().setMessagingProfile(
+      phoneNumber,
+      messagingProfileId,
+    );
+  }
+
   getRegulatoryRequirements(
     query: RegulatoryRequirementsQuery,
   ): Promise<RegulatoryRequirementsResult> {

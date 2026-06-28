@@ -4,6 +4,8 @@
   "filters": {
     "all": "All",
     "unread": "Unread",
+    "mine": "Assigned to me",
+    "unassigned": "Unassigned",
     "missed": "Missed",
     "missedCalls": "Missed Calls",
     "voicemail": "Voicemail",
@@ -21,7 +23,9 @@
     "noConversations": "No conversations yet",
     "newWillAppear": "New calls and SMS will appear here automatically.",
     "importing": "Importing…",
-    "importFromPastCalls": "Import from past calls"
+    "importFromPastCalls": "Import from past calls",
+    "markRead": "Mark as read",
+    "loadingMore": "Loading more…"
   },
   "timeline": {
     "selectConversation": "Select a conversation to start",
@@ -43,7 +47,87 @@
     "messagePlaceholder": "Type a message — ⌘/Ctrl + Enter to send",
     "saveNote": "Save note",
     "send": "Send",
+    "attach": "Attach media",
+    "mmsDisabled": "This number does not support MMS",
+    "attachError": "Could not upload attachment",
     "smsDisabledWarning": "This number does not have SMS enabled in Telnyx. Pick another or enable messaging on the number."
+  },
+  "newConversation": {
+    "newMessage": "New message",
+    "title": "New conversation",
+    "from": "From",
+    "selectNumber": "Select a number",
+    "noSmsNumbers": "None of your numbers have SMS enabled.",
+    "to": "To",
+    "manualPlaceholder": "+14155550100",
+    "message": "Message",
+    "messagePlaceholder": "Type your first message…",
+    "send": "Send message",
+    "sendError": "Could not send the message"
+  },
+  "contextPane": {
+    "quickActions": "Quick actions",
+    "call": "Call",
+    "note": "Note",
+    "callback": "Callback",
+    "meeting": "Meeting",
+    "viewProfile": "View full profile",
+    "unknownNumber": "This number isn't linked to a contact yet.",
+    "namePlaceholder": "Contact name",
+    "create": "Create",
+    "linkExisting": "Link existing contact",
+    "searchContacts": "Search contacts…",
+    "searching": "Searching…",
+    "noContacts": "No contacts found",
+    "linkedToast": "Contact linked",
+    "linkError": "Could not link the contact",
+    "createdToast": "Contact created and linked",
+    "createError": "Could not create the contact",
+    "scheduleCallback": "Schedule callback",
+    "scheduleMeeting": "Schedule meeting",
+    "notePlaceholder": "Add a note (optional)…",
+    "schedule": "Schedule",
+    "invalidDate": "Pick a future date and time",
+    "callbackScheduled": "Callback scheduled",
+    "meetingScheduled": "Meeting scheduled",
+    "scheduleError": "Could not schedule",
+    "history": {
+      "title": "History",
+      "empty": "No history yet for this contact.",
+      "loading": "Loading history…",
+      "callInbound": "Inbound call",
+      "callOutbound": "Outbound call",
+      "callMissed": "Missed call",
+      "note": "Note",
+      "meeting": "Meeting",
+      "callback": "Callback",
+      "outcomes": {
+        "meeting_booked": "Meeting booked",
+        "sale": "Sale",
+        "interested": "Interested",
+        "follow_up": "Follow up",
+        "callback_scheduled": "Callback scheduled",
+        "not_interested": "Not interested",
+        "no_answer": "No answer",
+        "voicemail": "Voicemail",
+        "wrong_number": "Wrong number",
+        "gatekeeper": "Gatekeeper"
+      },
+      "statuses": {
+        "scheduled": "Scheduled",
+        "completed": "Completed",
+        "cancelled": "Cancelled",
+        "missed": "Missed",
+        "pending": "Pending",
+        "confirmed": "Confirmed"
+      }
+    }
+  },
+  "assignment": {
+    "assign": "Assign",
+    "assignTo": "Assign to",
+    "unassigned": "Unassigned",
+    "memberFallback": "Member"
   },
   "events": {
     "missedCall": "Missed call",

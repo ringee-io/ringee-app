@@ -9,9 +9,12 @@ import {
   InboxEventRepository,
   ContactRepository,
   NumberPurchasedRepository,
+  CallbackTaskRepository,
   Call,
   Recording,
   Contact,
+  ContactNote,
+  Meeting,
   InboxThread,
   InboxEvent,
   InboxEventDirection,
@@ -86,6 +89,7 @@ export class InboxTimelineService {
     private readonly eventRepo: InboxEventRepository,
     private readonly contactRepo: ContactRepository,
     private readonly numberRepo: NumberPurchasedRepository,
+    private readonly callbackRepo: CallbackTaskRepository,
   ) {}
 
   /**
@@ -254,7 +258,8 @@ export class InboxTimelineService {
         ? { lastInboundAt: occurredAt }
         : {}),
       ...(params.direction === InboxEventDirection.outbound
-        ? { lastOutboundAt: occurredAt }
+        ? // Replying marks the conversation as seen.
+          { lastOutboundAt: occurredAt, unreadCount: 0 }
         : {}),
       ...(params.incrementUnread &&
       params.direction === InboxEventDirection.inbound
@@ -608,6 +613,108 @@ export class InboxTimelineService {
   ) {
     await this.ensureAccess(ctx, threadId);
     return this.threadRepo.update(threadId, { assignedToId: assigneeId });
+  }
+
+  /**
+   * Links (or unlinks, when contactId is null) a thread to a contact. Used by
+   * the inbox "Link contact" action when a conversation came from an unknown
+   * number. Verifies the contact belongs to the same owner before linking.
+   */
+  async linkContact(
+    ctx: OwnershipContext,
+    threadId: string,
+    contactId: string | null,
+  ): Promise<InboxThread> {
+    await this.ensureAccess(ctx, threadId);
+    if (contactId) {
+      const contact = await this.contactRepo.findById(contactId);
+      if (!contact) {
+        throw new NotFoundException("Contact not found");
+      }
+      const sameOwner = ctx.organizationId
+        ? contact.organizationId === ctx.organizationId
+        : contact.userId === ctx.userId;
+      if (!sameOwner) {
+        throw new ForbiddenException("Access denied");
+      }
+    }
+    return this.threadRepo.update(threadId, {
+      contact: contactId
+        ? { connect: { id: contactId } }
+        : { disconnect: true },
+    });
+  }
+
+  /**
+   * Full contact context for the thread: every call (with its outcome + note),
+   * contact notes, meetings (with notes) and callbacks (with notes). Powers the
+   * inbox context pane so the rep sees the complete history of the contact.
+   * Returns empty collections when the thread isn't linked to a contact yet.
+   */
+  async getThreadActivity(ctx: OwnershipContext, threadId: string) {
+    const thread = await this.ensureAccess(ctx, threadId);
+    if (!thread.contactId) {
+      return {
+        contactId: null,
+        calls: [],
+        notes: [],
+        meetings: [],
+        callbacks: [],
+      };
+    }
+
+    const contact = (await this.contactRepo.findById(thread.contactId)) as
+      | (Contact & {
+          calls?: Call[];
+          notes?: ContactNote[];
+          meetings?: Meeting[];
+        })
+      | null;
+    const callbacks = await this.callbackRepo.findByContact(thread.contactId);
+
+    return {
+      contactId: thread.contactId,
+      calls: (contact?.calls ?? []).map((c) => ({
+        id: c.id,
+        direction: c.direction,
+        status: c.status,
+        outcome: c.outcome,
+        outcomeNote: c.outcomeNote,
+        durationSeconds: c.durationSeconds,
+        createdAt: c.createdAt,
+      })),
+      notes: (contact?.notes ?? []).map((n) => ({
+        id: n.id,
+        content: n.content,
+        userId: n.userId,
+        createdAt: n.createdAt,
+      })),
+      meetings: (contact?.meetings ?? []).map((m) => ({
+        id: m.id,
+        title: m.title,
+        scheduledAt: m.scheduledAt,
+        notes: m.notes,
+        status: m.status,
+      })),
+      callbacks: callbacks.map((cb) => ({
+        id: cb.id,
+        scheduledAt: cb.scheduledAt,
+        note: cb.note,
+        status: cb.status,
+        completedAt: cb.completedAt,
+      })),
+    };
+  }
+
+  /** Per-filter counts for the inbox filter pills. */
+  async counts(ctx: OwnershipContext) {
+    return this.threadRepo.countsByFilter(ctx);
+  }
+
+  /** Total unread threads — drives the nav badge. */
+  async unreadCount(ctx: OwnershipContext): Promise<{ count: number }> {
+    const count = await this.threadRepo.countUnread(ctx);
+    return { count };
   }
 
   // Public helpers used by the call hooks (called from CallService).

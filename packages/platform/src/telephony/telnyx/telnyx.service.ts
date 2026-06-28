@@ -631,6 +631,27 @@ export class TelnyxService implements TelephonyService {
     };
   }
 
+  /**
+   * Attaches the number to a messaging profile (PATCH /phone_numbers/{id} with
+   * `messaging_profile_id`). Telnyx will not route SMS/MMS for a number that is
+   * not linked to a messaging profile, so this must run for every messaging
+   * enabled number at provision time. Returns the messaging profile id Telnyx
+   * reports the number ended up attached to.
+   */
+  async setMessagingProfile(
+    phoneNumber: string,
+    messagingProfileId: string,
+  ): Promise<string | null> {
+    const encoded = encodeURIComponent(phoneNumber);
+    const { data } = await this.telnyxClient.patch(
+      `/phone_numbers/${encoded}`,
+      {
+        messaging_profile_id: messagingProfileId,
+      },
+    );
+    return data?.messaging_profile_id ?? messagingProfileId;
+  }
+
   async getRates(): Promise<TelephonyCountryRate[]> {
     throw new Error("Not implemented");
   }

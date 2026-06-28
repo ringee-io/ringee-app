@@ -86,6 +86,36 @@ export class MessageService {
     );
   }
 
+  /**
+   * Stores an outbound MMS attachment in our own object storage and returns a
+   * publicly reachable URL. Telnyx fetches media by URL when sending an MMS, so
+   * the file must live somewhere it can reach (R2/S3 in production).
+   */
+  async uploadOutboundMedia(input: {
+    buffer: Buffer;
+    contentType: string;
+    filename?: string;
+  }): Promise<{ url: string }> {
+    const storage = UploadFactory.createStorage();
+    const extFromName = input.filename?.includes(".")
+      ? input.filename.split(".").pop()
+      : undefined;
+    const extFromType = input.contentType.includes("/")
+      ? input.contentType.split("/")[1]?.split("+")[0]
+      : undefined;
+    const ext = (extFromName || extFromType || "bin")
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "");
+    const key = `inbox-mms/${Date.now()}-${Math.random().toString(36).slice(2, 10)}.${ext}`;
+    const url = await storage.uploadBuffer(
+      key,
+      input.buffer,
+      input.contentType,
+      ext,
+    );
+    return { url };
+  }
+
   // ─────────────────────────────────────────────────────────
   // Outbound SMS
   // ─────────────────────────────────────────────────────────

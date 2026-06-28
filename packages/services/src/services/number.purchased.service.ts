@@ -185,6 +185,48 @@ export class NumberPurchasedService {
     return updated;
   }
 
+  /**
+   * Resolves the messaging profile a number should be attached to and, when
+   * needed, links it on the provider. Telnyx will not route SMS/MMS for a
+   * number that is not attached to a messaging profile, so any number with
+   * messaging enabled must be linked at provision time.
+   *
+   * - If the provider already reports a profile (number is linked), reuse it.
+   * - Otherwise, attach the configured `TELNYX_MESSAGING_PROFILE_ID`.
+   * - Best-effort: a provider failure is logged and returns null so the
+   *   purchase/provision is not blocked (messagingStatus reflects "pending").
+   */
+  private async applyMessagingProfile(
+    phoneNumber: string,
+    messagingEnabled: boolean,
+    detectedProfileId?: string | null,
+  ): Promise<string | null> {
+    if (!messagingEnabled) return detectedProfileId ?? null;
+    if (detectedProfileId) return detectedProfileId;
+
+    const configured = apiConfiguration.TELNYX_MESSAGING_PROFILE_ID;
+    if (!configured) {
+      this.logger.warn(
+        `Number ${phoneNumber} has messaging enabled but TELNYX_MESSAGING_PROFILE_ID is not set; ` +
+          `messages will not route until a messaging profile is assigned.`,
+      );
+      return null;
+    }
+
+    try {
+      const assigned = await this.telephonyService.setMessagingProfile(
+        phoneNumber,
+        configured,
+      );
+      return assigned ?? configured;
+    } catch (err) {
+      this.logger.warn(
+        `Failed to attach messaging profile to ${phoneNumber}: ${(err as Error).message}`,
+      );
+      return null;
+    }
+  }
+
   async buyNumber(
     ctx: OwnershipContext,
     numberId: string,
@@ -249,10 +291,11 @@ export class NumberPurchasedService {
     const internationalSmsEnabled = !!providerFeatures.internationalSms;
     const emergencyEnabled = !!providerFeatures.emergency;
     const messagingEnabled = smsEnabled || mmsEnabled;
-    const profileId =
-      providerFeatures.raw?.messaging_profile_id ??
-      apiConfiguration.TELNYX_MESSAGING_PROFILE_ID ??
-      null;
+    const profileId = await this.applyMessagingProfile(
+      phoneNumber.phoneNumber,
+      messagingEnabled,
+      providerFeatures.raw?.messaging_profile_id ?? null,
+    );
 
     const created = await this.numberPurchasedRepository.create(ctx, {
       userNumbers: {
@@ -303,7 +346,11 @@ export class NumberPurchasedService {
       emergencyEnabled,
       messagingEnabled,
       providerMessagingProfileId: profileId,
-      messagingStatus: messagingEnabled ? "ready" : "unavailable",
+      messagingStatus: messagingEnabled
+        ? profileId
+          ? "ready"
+          : "pending"
+        : "unavailable",
     });
 
     return created;
@@ -823,10 +870,11 @@ export class NumberPurchasedService {
     const smsEnabled = !!features.sms;
     const mmsEnabled = !!features.mms;
     const messagingEnabled = smsEnabled || mmsEnabled;
-    const profileId =
-      features.raw?.messaging_profile_id ??
-      apiConfiguration.TELNYX_MESSAGING_PROFILE_ID ??
-      null;
+    const profileId = await this.applyMessagingProfile(
+      number.phoneNumber,
+      messagingEnabled,
+      features.raw?.messaging_profile_id ?? null,
+    );
 
     // Match buyNumber: become the owner's primary number only if they have none.
     const ctx: OwnershipContext = {
@@ -852,7 +900,11 @@ export class NumberPurchasedService {
       emergencyEnabled: !!features.emergency,
       messagingEnabled,
       providerMessagingProfileId: profileId,
-      messagingStatus: messagingEnabled ? "ready" : "unavailable",
+      messagingStatus: messagingEnabled
+        ? profileId
+          ? "ready"
+          : "pending"
+        : "unavailable",
       features: {
         sms: smsEnabled,
         mms: mmsEnabled,

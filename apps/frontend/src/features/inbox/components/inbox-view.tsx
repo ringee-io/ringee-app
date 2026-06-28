@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { ThreadList } from './thread-list';
 import { ThreadTimeline } from './thread-timeline';
+import { ContactContextPane } from './contact-context-pane';
 import { InboxThread } from '../types';
 
 export function InboxView() {
@@ -43,6 +44,9 @@ export function InboxView() {
         }}
       />
       <ThreadTimeline thread={selected} onChanged={bumpReload} />
+      {selected && (
+        <ContactContextPane thread={selected} onChanged={bumpReload} />
+      )}
     </div>
   );
 }

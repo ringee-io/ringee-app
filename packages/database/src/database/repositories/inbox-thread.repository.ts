@@ -154,6 +154,65 @@ export class InboxThreadRepository {
     };
   }
 
+  /**
+   * Per-filter thread counts for the inbox filter pills. Mirrors the filter
+   * definitions on the frontend (THREAD_FILTER_OPTIONS) so the badges match
+   * what each tab will actually show.
+   */
+  async countsByFilter(ctx: OwnershipContext): Promise<{
+    all: number;
+    unread: number;
+    missed: number;
+    voicemails: number;
+    sms: number;
+  }> {
+    const ownership = buildOwnershipFilter(ctx);
+    const [all, unread, missed, voicemails, sms] = await Promise.all([
+      this.prisma.inboxThread.count({
+        where: {
+          ...ownership,
+          status: {
+            in: [InboxThreadStatus.open, InboxThreadStatus.pending],
+          },
+        },
+      }),
+      this.prisma.inboxThread.count({
+        where: { ...ownership, unreadCount: { gt: 0 } },
+      }),
+      this.prisma.inboxThread.count({
+        where: { ...ownership, lastEventKind: InboxEventKind.missed_call },
+      }),
+      this.prisma.inboxThread.count({
+        where: {
+          ...ownership,
+          lastEventKind: InboxEventKind.voicemail_received,
+        },
+      }),
+      this.prisma.inboxThread.count({
+        where: {
+          ...ownership,
+          lastEventKind: {
+            in: [
+              InboxEventKind.sms_received,
+              InboxEventKind.sms_sent,
+              InboxEventKind.mms_received,
+              InboxEventKind.mms_sent,
+            ],
+          },
+        },
+      }),
+    ]);
+    return { all, unread, missed, voicemails, sms };
+  }
+
+  /** Number of threads with at least one unread event (drives the nav badge). */
+  async countUnread(ctx: OwnershipContext): Promise<number> {
+    const ownership = buildOwnershipFilter(ctx);
+    return this.prisma.inboxThread.count({
+      where: { ...ownership, unreadCount: { gt: 0 } },
+    });
+  }
+
   async update(
     id: string,
     data: Prisma.InboxThreadUpdateInput,
