@@ -28,6 +28,12 @@ import {
   TooltipContent,
   TooltipTrigger
 } from '@ringee/frontend-shared/components/ui/tooltip';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger
+} from '@ringee/frontend-shared/components/ui/popover';
+import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { UserAvatarProfile } from '@ringee/frontend-shared/components/user-avatar-profile';
 import { navGroups } from '@ringee/frontend-shared/constants/data';
 import type { NavItem } from '@ringee/frontend-shared/types';
@@ -81,13 +87,22 @@ const ITEM_TITLE_KEYS: Record<string, string> = {
 function OutreachLockOverlay({ collapsed }: { collapsed: boolean }) {
   const api = useApi();
   const t = useTranslations('navigation.sidebar');
+  const tUpgrade = useTranslations('organizations.upgrade');
   const [loading, setLoading] = React.useState(false);
+  const [open, setOpen] = React.useState(false);
+  const [billingInterval, setBillingInterval] = React.useState<
+    'month' | 'year'
+  >('month');
 
   const handleUpgrade = async () => {
     setLoading(true);
     try {
+      // Send the chosen cadence so the backend prices the subscription as
+      // monthly ($20) or annual ($200). Omitting it defaulted to "month",
+      // which is why an annual upgrade was still charged $20/mo.
       const res = await api.post<{ url: string }>(
-        '/stripe/checkout/organization'
+        '/stripe/checkout/organization',
+        { billingInterval }
       );
       if (res.url) window.location.href = res.url;
     } catch {
@@ -105,13 +120,72 @@ function OutreachLockOverlay({ collapsed }: { collapsed: boolean }) {
       <p className='text-foreground text-[11px] font-semibold'>
         {t('outreachLocked')}
       </p>
-      <button
-        onClick={handleUpgrade}
-        disabled={loading}
-        className='mt-0.5 text-xs text-emerald-500 transition-colors hover:text-emerald-400 hover:underline disabled:opacity-60'
-      >
-        {loading ? t('redirecting') : t('upgradeNow')}
-      </button>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button className='mt-0.5 text-xs text-emerald-500 transition-colors hover:text-emerald-400 hover:underline'>
+            {t('upgradeNow')}
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          align='center'
+          sideOffset={8}
+          className='border-border/50 bg-background w-[280px] rounded-xl border p-4 shadow-2xl'
+        >
+          <div className='space-y-4'>
+            {/* Billing interval toggle */}
+            <div className='border-border/50 bg-muted/50 inline-flex w-full rounded-lg border p-1'>
+              <button
+                type='button'
+                onClick={() => setBillingInterval('month')}
+                className={cn(
+                  'flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                  billingInterval === 'month'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {tUpgrade('billingMonthly')}
+              </button>
+              <button
+                type='button'
+                onClick={() => setBillingInterval('year')}
+                className={cn(
+                  'flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+                  billingInterval === 'year'
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:text-foreground'
+                )}
+              >
+                {tUpgrade('billingAnnual')}
+                <span className='rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400'>
+                  {tUpgrade('annualSavings')}
+                </span>
+              </button>
+            </div>
+
+            {/* Pricing */}
+            <div className='flex items-baseline gap-1'>
+              <span className='text-foreground text-2xl font-bold'>
+                {billingInterval === 'year' ? '$200' : '$20'}
+              </span>
+              <span className='text-muted-foreground text-xs'>
+                {billingInterval === 'year'
+                  ? tUpgrade('perYear')
+                  : tUpgrade('perMonth')}
+              </span>
+            </div>
+
+            <Button
+              onClick={handleUpgrade}
+              disabled={loading}
+              size='sm'
+              className='w-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 font-semibold text-white'
+            >
+              {loading ? t('redirecting') : tUpgrade('proceedToUpgrade')}
+            </Button>
+          </div>
+        </PopoverContent>
+      </Popover>
     </div>
   );
 }

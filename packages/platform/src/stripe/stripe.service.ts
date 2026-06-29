@@ -159,6 +159,7 @@ export class StripeService {
   async createOrganizationSubscriptionSession(
     customerId: string,
     userId: string,
+    billingInterval: "month" | "year" = "month",
     frontendOrigin?: string,
   ): Promise<{
     url: string;
@@ -170,6 +171,15 @@ export class StripeService {
     const cancelUrl = callbackUrl + "?payment=cancel";
     const successUrl = callbackUrl + `?payment=success&msg=${msg}`;
 
+    // $20/month, or $200/year (billed annually = two months free) to reward
+    // the longer commitment. The interval flows through to the Stripe Price so
+    // the customer is charged on the cadence they chose.
+    const isAnnual = billingInterval === "year";
+    const unitAmount = isAnnual ? 20000 : 2000;
+    const description = isAnnual
+      ? "Annual subscription to create and manage organizations (2 months free)"
+      : "Monthly subscription to create and manage organizations";
+
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
@@ -179,6 +189,7 @@ export class StripeService {
         metadata: {
           userId,
           type: "organization",
+          billingInterval,
         },
       },
       line_items: [
@@ -187,11 +198,10 @@ export class StripeService {
             currency: "usd",
             product_data: {
               name: "Ringee Organization Plan",
-              description:
-                "Monthly subscription to create and manage organizations",
+              description,
             },
-            unit_amount: 2000, // $20.00
-            recurring: { interval: "month" },
+            unit_amount: unitAmount,
+            recurring: { interval: billingInterval },
           },
           quantity: 1,
         },

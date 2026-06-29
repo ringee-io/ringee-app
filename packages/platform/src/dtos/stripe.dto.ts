@@ -1,12 +1,15 @@
 import { Type } from "class-transformer";
 import {
   IsBoolean,
+  IsIn,
   IsNumber,
   IsOptional,
   IsString,
   Min,
   ValidateNested,
 } from "class-validator";
+
+export type BillingInterval = "month" | "year";
 
 export class CreateCreditCheckoutDto {
   @IsNumber()
@@ -96,6 +99,21 @@ export class RequestCreditDto {
   @IsOptional()
   @IsString()
   workspace?: string;
+}
+
+export class CreateOrganizationCheckoutDto {
+  /**
+   * Billing cadence the user picked for the organization plan. Defaults to
+   * "month" when omitted so older clients (and the compact upgrade button)
+   * keep working unchanged.
+   */
+  @IsOptional()
+  @IsIn(["month", "year"])
+  billingInterval?: BillingInterval;
+
+  @IsOptional()
+  @IsString()
+  frontendOrigin?: string;
 }
 
 export class CreatePhoneCheckoutDto {

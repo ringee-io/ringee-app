@@ -107,6 +107,9 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
   );
   const [isProceedingToUpgrade, setIsProceedingToUpgrade] =
     React.useState(false);
+  const [billingInterval, setBillingInterval] = React.useState<
+    "month" | "year"
+  >("month");
   const [isSwitchingOrg, setIsSwitchingOrg] = React.useState(false);
 
   React.useEffect(() => {
@@ -159,6 +162,7 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
     try {
       const response = await api.post<{ url: string }>(
         "/stripe/checkout/organization",
+        { billingInterval },
       );
       if (response.url) {
         window.location.href = response.url;
@@ -300,6 +304,37 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
                   ))}
                 </div>
 
+                {/* Billing interval toggle */}
+                <div className="inline-flex w-full rounded-lg border border-border/50 bg-muted/50 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setBillingInterval("month")}
+                    className={cn(
+                      "flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                      billingInterval === "month"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {tUpgrade("billingMonthly")}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setBillingInterval("year")}
+                    className={cn(
+                      "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                      billingInterval === "year"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground",
+                    )}
+                  >
+                    {tUpgrade("billingAnnual")}
+                    <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+                      {tUpgrade("annualSavings")}
+                    </span>
+                  </button>
+                </div>
+
                 {/* Pricing Highlight */}
                 <div className="rounded-lg bg-muted/50 p-3 flex items-center justify-between border border-border/50">
                   <div className="flex flex-col">
@@ -308,10 +343,12 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
                     </span>
                     <div className="flex items-baseline gap-1">
                       <span className="text-2xl font-bold text-foreground">
-                        $20
+                        {billingInterval === "year" ? "$200" : "$20"}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        {tUpgrade("perMonth")}
+                        {billingInterval === "year"
+                          ? tUpgrade("perYear")
+                          : tUpgrade("perMonth")}
                       </span>
                     </div>
                   </div>
@@ -541,6 +578,37 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
                         ))}
                       </div>
 
+                      {/* Billing interval toggle */}
+                      <div className="inline-flex w-full rounded-lg border border-border/50 bg-muted/50 p-1">
+                        <button
+                          type="button"
+                          onClick={() => setBillingInterval("month")}
+                          className={cn(
+                            "flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                            billingInterval === "month"
+                              ? "bg-background text-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {tUpgrade("billingMonthly")}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setBillingInterval("year")}
+                          className={cn(
+                            "flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium transition-colors",
+                            billingInterval === "year"
+                              ? "bg-background text-foreground shadow-sm"
+                              : "text-muted-foreground hover:text-foreground",
+                          )}
+                        >
+                          {tUpgrade("billingAnnual")}
+                          <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[9px] font-semibold text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-400">
+                            {tUpgrade("annualSavings")}
+                          </span>
+                        </button>
+                      </div>
+
                       <div className="rounded-lg bg-muted/50 p-3 flex items-center justify-between border border-border/50">
                         <div className="flex flex-col">
                           <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
@@ -548,10 +616,12 @@ export function OrgSwitcher({ useMock }: { useMock?: boolean }) {
                           </span>
                           <div className="flex items-baseline gap-1">
                             <span className="text-2xl font-bold text-foreground">
-                              $20
+                              {billingInterval === "year" ? "$200" : "$20"}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              {tUpgrade("perMonthPerOrg")}
+                              {billingInterval === "year"
+                                ? tUpgrade("perYearPerOrg")
+                                : tUpgrade("perMonthPerOrg")}
                             </span>
                           </div>
                         </div>

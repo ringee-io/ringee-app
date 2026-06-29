@@ -32,6 +32,7 @@ import {
   CreatePhoneCheckoutDto,
   CreateMonthlyCreditSubscriptionDto,
   CreateAutoReloadSetupDto,
+  CreateOrganizationCheckoutDto,
 } from "@ringee/platform";
 import { TriggerLoopEventPublisher } from "../../triggerloop/services/triggerloop-event-publisher.service";
 
@@ -80,9 +81,16 @@ export class StripeController {
       return id;
     }
 
-    // Otherwise use/create user customer
-    if (user.customerId) {
-      return user.customerId;
+    // Otherwise use/create the personal user customer.
+    //
+    // IMPORTANT: do NOT trust `user.customerId` from @CurrentUser(). That
+    // object is hydrated from Clerk, and `ClerkUserRepository.mapToUser`
+    // hardcodes `customerId: null` (Stripe ids live in our own DB, not Clerk).
+    // Reading it here meant the id was always null, so every checkout created a
+    // brand-new Stripe customer. Resolve the stored id from our database.
+    const dbUser = await this.userService.getUserById(user.id);
+    if (dbUser?.customerId) {
+      return dbUser.customerId;
     }
 
     const { id } = await this.stripeService.createCustomer(
@@ -203,7 +211,10 @@ export class StripeController {
 
   @Post("checkout/organization")
   @OrgAdminOnly()
-  async createOrganizationCheckout(@CurrentUser() user: CurrentUserData) {
+  async createOrganizationCheckout(
+    @Body() body: CreateOrganizationCheckoutDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
     if (!user) {
       throw new NotFoundException("User not found");
     }
@@ -215,6 +226,8 @@ export class StripeController {
     return this.stripeService.createOrganizationSubscriptionSession(
       customerId,
       user.id,
+      body.billingInterval ?? "month",
+      body.frontendOrigin,
     );
   }
 
