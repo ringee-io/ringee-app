@@ -3,6 +3,7 @@ import {
   AddressValidationResult,
   AssignedNumber,
   AvailableNumber,
+  CostInformation,
   NumberOrderRequirements,
   PurchaseNumbers,
   RegulatoryRequirementsQuery,
@@ -17,6 +18,12 @@ export interface TelephonyNumbersService {
   searchAvailableNumbers(
     params: SearchAvailableParams,
   ): Promise<AvailableNumber[]>;
+  /**
+   * Authoritative price (incl. profit margin) for a single available number,
+   * resolved from the provider. The price is computed server-side so it can
+   * never be supplied or tampered with by the client at checkout time.
+   */
+  getAvailableNumberCost(phoneNumber: string): Promise<CostInformation>;
   purchaseNumbers(phoneNumbers: string[]): Promise<PurchaseNumbers>;
   assignNumberToConnection(
     phoneNumber: string,

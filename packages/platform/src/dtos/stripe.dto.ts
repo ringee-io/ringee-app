@@ -102,9 +102,16 @@ export class CreatePhoneCheckoutDto {
   @IsString()
   numberId!: string;
 
+  /**
+   * IGNORED server-side. The checkout price is resolved authoritatively from
+   * the provider in `createPhoneCheckout`; this field is kept only optional for
+   * backward compatibility with older clients that still send it. Do NOT read
+   * it to price anything — that is the price-tampering vector this replaced.
+   */
+  @IsOptional()
   @ValidateNested()
   @Type(() => CostInformationDto)
-  costInformation!: CostInformationDto;
+  costInformation?: CostInformationDto;
 
   @IsOptional()
   @IsString()

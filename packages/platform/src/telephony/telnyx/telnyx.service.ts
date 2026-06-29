@@ -6,6 +6,7 @@ import {
   AddressValidationResult,
   AssignedNumber,
   AvailableNumber,
+  CostInformation,
   NumberOrderRequirementItem,
   NumberOrderRequirements,
   PurchaseNumbers,
@@ -239,6 +240,51 @@ export class TelnyxService implements TelephonyService {
       this.logger.error("Error searching available numbers", error);
       return [];
     }
+  }
+
+  /**
+   * Authoritative, server-side price for a single available number. Re-queries
+   * Telnyx for THIS number's real cost and applies the same profit margin as
+   * `searchAvailableNumbers`, so the recurring price can never be supplied (or
+   * tampered with) by the client at checkout time. Throws if the number can no
+   * longer be found/priced, so an un-priceable number never reaches Stripe.
+   */
+  async getAvailableNumberCost(phoneNumber: string): Promise<CostInformation> {
+    const digits = phoneNumber.replace(/[^\d]/g, "");
+    if (!digits) {
+      throw new HttpException(
+        "A valid phone number is required to price it",
+        400,
+      );
+    }
+
+    const { data: numbersList } = await telnyx.availablePhoneNumbers.list({
+      filter: { phone_number: { ends_with: digits } },
+    });
+
+    const match = (numbersList || []).find(
+      (item: any) =>
+        (item?.phone_number || "").replace(/[^\d]/g, "") === digits,
+    );
+
+    if (!match) {
+      this.logger.warn(
+        `Could not price ${phoneNumber}: not present in Telnyx available numbers`,
+      );
+      throw new HttpException(
+        `Number ${phoneNumber} is no longer available; cannot determine its price`,
+        409,
+      );
+    }
+
+    const monthlyCost = Number(match?.cost_information?.monthly_cost || 0);
+    const upfrontCost = Number(match?.cost_information?.upfront_cost || 0);
+
+    return {
+      currency: (match?.cost_information?.currency as "USD") || "USD",
+      monthlyCost: this.applyNumberProfitMargin(monthlyCost),
+      upfrontCost: this.applyNumberProfitMargin(upfrontCost),
+    };
   }
 
   async purchaseNumbers(phoneNumbers: string[]): Promise<PurchaseNumbers> {

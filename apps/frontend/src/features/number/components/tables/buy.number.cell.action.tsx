@@ -31,15 +31,12 @@ export const CellActionBuy = ({ data }: { data: AvailableNumber }) => {
     try {
       setConfirming(true);
 
+      // Price is resolved server-side from the provider at checkout; the client
+      // intentionally does NOT send an amount (sending one would be ignored).
       const { url } = await api.post<{ url: string }>(
         '/stripe/checkout/phone',
         {
-          numberId: data.phoneNumber,
-          costInformation: {
-            monthlyCost: Number(data.costInformation.monthlyCost),
-            upfrontCost: Number(data.costInformation.upfrontCost),
-            currency: data.costInformation.currency
-          }
+          numberId: data.phoneNumber
         }
       );
 

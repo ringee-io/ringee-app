@@ -132,10 +132,18 @@ export class StripeController {
 
     const customerId = await this.getOrCreateCustomer(user);
 
+    // Resolve the price authoritatively from the provider. NEVER trust an
+    // amount sent by the client (`body.costInformation`): it can be tampered
+    // with to create the subscription at an arbitrary price. Anything the
+    // client sends is ignored here.
+    const cost = await this.numberPurchasedService.getAuthoritativeCost(
+      body.numberId,
+    );
+
     return this.stripeService.createPhoneNumberSubscriptionSession(
       customerId,
       body.numberId,
-      body.costInformation.monthlyCost,
+      cost.monthlyCost,
       0,
       user.id,
       user.activeOrgId, // Pass organizationId

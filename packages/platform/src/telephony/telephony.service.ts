@@ -5,6 +5,7 @@ import { TelnyxService } from "./telnyx";
 import {
   AddressValidationInput,
   AddressValidationResult,
+  CostInformation,
   SearchAvailableParams,
   PurchaseNumbers,
   AssignedNumber,
@@ -72,6 +73,10 @@ export class TelephonyService implements TelephonyServiceInterface {
     params: SearchAvailableParams,
   ): Promise<AvailableNumber[]> {
     return this.getServiceProvider().searchAvailableNumbers(params);
+  }
+
+  getAvailableNumberCost(phoneNumber: string): Promise<CostInformation> {
+    return this.getServiceProvider().getAvailableNumberCost(phoneNumber);
   }
 
   purchaseNumbers(phoneNumbers: string[]): Promise<PurchaseNumbers> {

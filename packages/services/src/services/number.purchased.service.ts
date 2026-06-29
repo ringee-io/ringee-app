@@ -48,6 +48,15 @@ export class NumberPurchasedService {
     return this.numberPurchasedRepository.release(id);
   }
 
+  /**
+   * Authoritative monthly/upfront price for a number, resolved server-side from
+   * the provider (incl. profit margin). Used at checkout so the client can
+   * never dictate or tamper with the price that ends up on the subscription.
+   */
+  getAuthoritativeCost(phoneNumber: string): Promise<CostInformation> {
+    return this.telephonyService.getAvailableNumberCost(phoneNumber);
+  }
+
   assignToOwner(
     numberId: string,
     ctx: OwnershipContext,
