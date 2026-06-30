@@ -138,24 +138,20 @@ export class CallService {
   }
 
   /**
-   * Decide whether `ctx`'s owner may place/continue a call. An active free
-   * trial is always enough; otherwise a positive credit balance (user or
-   * organization, resolved from the context) is required. When neither holds
-   * the live call is hung up and `false` is returned so the caller stops
-   * processing the event.
-   *
-   * The user is read through {@link UserService.getCachedUserById} so this hot
-   * webhook path avoids a DB round-trip; the cache is invalidated whenever the
-   * free trial is consumed.
+   * Decide whether `ctx`'s owner may place/continue a call.
+   * A positive credit balance (user or organization, resolved from the
+   * context) is required. If not, the live call is hung up and `false` is
+   * returned so the caller stops processing the event.
    */
   private async ensureCallAffordable(
     ctx: OwnershipContext,
     callControlId: string,
   ): Promise<boolean> {
-    const user = await this.userService.getCachedUserById(ctx.userId);
-    if (user?.freeCallTrial) {
-      return true;
-    }
+    // Free-call trial intentionally disabled: credit is always required.
+    // const user = await this.userService.getCachedUserById(ctx.userId);
+    // if (user?.freeCallTrial) {
+    //   return true;
+    // }
 
     const balance = await this.creditService.getBalance(ctx);
     if (balance > 0) {
@@ -163,7 +159,7 @@ export class CallService {
     }
 
     this.logger.warn(
-      `⛔ Hanging up call ${callControlId}: no credit and no free trial ` +
+      `⛔ Hanging up call ${callControlId}: no credit ` +
         `(userId=${ctx.userId} orgId=${ctx.organizationId})`,
     );
     await this.telephonyService
@@ -424,9 +420,7 @@ export class CallService {
           };
         }
 
-        // Credit/free-trial gate: an owner with no active free trial and no
-        // remaining credit cannot place calls — hang up before the call
-        // connects so no billable minutes are consumed.
+        // Credit-only gate: callers need credit > 0 to place calls.
         if (!(await this.ensureCallAffordable(outboundCtx, callControlId))) {
           return;
         }
@@ -722,13 +716,6 @@ export class CallService {
             return;
           }
 
-          const user = await this.userService.getCachedUserById(call.userId!);
-
-          if (!user) {
-            this.logger.warn(`⚠️ Usuario ${call.userId} no encontrado`);
-            return;
-          }
-
           const rawTotalCost = parseFloat(costPayload.total_cost);
           const baseMargin = process.env.CALL_PROFIT_MARGIN
             ? parseFloat(process.env.CALL_PROFIT_MARGIN)
@@ -748,13 +735,8 @@ export class CallService {
           const profitMargin = usedCallerId ? baseMargin + 0.3 : baseMargin;
           const totalCost = rawTotalCost * profitMargin;
 
-          if (user.freeCallTrial) {
-            // consumeFreeCallTrial invalidates the cached user, so the next
-            // call re-validates against real credit instead of a stale trial.
-            await this.userService.consumeFreeCallTrial(user.id);
-          } else {
-            await this.creditService.consumeCredits(callCtx, totalCost);
-          }
+          // Free-call trial intentionally disabled: always charge credits.
+          await this.creditService.consumeCredits(callCtx, totalCost);
 
           await this.callRepository.updateCost(
             callControlId,
