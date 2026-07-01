@@ -27,6 +27,10 @@
     "stepsCompleted": "{completed} van {total} stappen voltooid"
   },
   "guideSteps": {
+    "request_free_call": {
+      "title": "Vraag je gratis gesprek aan",
+      "description": "Vraag het Ringee-team om een gratis gesprek om de service te proberen"
+    },
     "first_call": {
       "title": "Maak je eerste gesprek",
       "description": "Je eerste Ringee-gesprek is gratis"
@@ -59,5 +63,19 @@
     "recordingAlt": "Zo start je een opname",
     "maybeLater": "Misschien later",
     "startCalling": "Begin met bellen"
+  },
+  "freeCallRequest": {
+    "badge": "Gratis gesprek",
+    "title": "Vraag een gratis gesprek aan",
+    "description": "Probeer Ringee met een gesprek van ons. Stuur een aanvraag en ons team beoordeelt deze en neemt per e-mail contact op.",
+    "notePlaceholder": "Vertel ons kort hoe je Ringee wilt gebruiken (optioneel)",
+    "submit": "Gratis gesprek aanvragen",
+    "submitting": "Aanvraag verzenden…",
+    "dismiss": "Misschien later",
+    "successTitle": "Aanvraag verzonden",
+    "successDescription": "Bedankt! Het Ringee-team beoordeelt je aanvraag en neemt binnenkort per e-mail contact op.",
+    "done": "Klaar",
+    "errorTitle": "Er ging iets mis",
+    "errorDescription": "We konden je aanvraag niet verzenden. Probeer het zo meteen opnieuw."
   }
 }

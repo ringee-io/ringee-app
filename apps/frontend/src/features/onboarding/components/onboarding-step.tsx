@@ -6,6 +6,7 @@ import {
   Mic,
   Hash,
   CreditCard,
+  Gift,
   Check,
   ChevronRight,
   Lock
@@ -27,7 +28,8 @@ const iconMap = {
   phone: Phone,
   mic: Mic,
   hash: Hash,
-  'credit-card': CreditCard
+  'credit-card': CreditCard,
+  gift: Gift
 };
 
 export function OnboardingStepItem({

@@ -27,6 +27,10 @@
     "stepsCompleted": "{completed} de {total} passos concluídos"
   },
   "guideSteps": {
+    "request_free_call": {
+      "title": "Solicite a sua chamada grátis",
+      "description": "Peça à equipa da Ringee uma chamada grátis para experimentar o serviço"
+    },
     "first_call": {
       "title": "Faça a sua primeira chamada",
       "description": "A Ringee oferece a sua primeira chamada"
@@ -59,5 +63,19 @@
     "recordingAlt": "Como começar a gravar",
     "maybeLater": "Talvez mais tarde",
     "startCalling": "Começar a ligar"
+  },
+  "freeCallRequest": {
+    "badge": "Chamada grátis",
+    "title": "Solicite uma chamada grátis",
+    "description": "Experimente a Ringee com uma chamada por nossa conta. Envie um pedido e a nossa equipa vai analisá-lo e responder por email.",
+    "notePlaceholder": "Conte-nos como pensa usar a Ringee (opcional)",
+    "submit": "Solicitar chamada grátis",
+    "submitting": "A enviar pedido…",
+    "dismiss": "Talvez mais tarde",
+    "successTitle": "Pedido enviado",
+    "successDescription": "Obrigado! A equipa da Ringee vai analisar o seu pedido e entrar em contacto por email em breve.",
+    "done": "Concluído",
+    "errorTitle": "Algo correu mal",
+    "errorDescription": "Não foi possível enviar o seu pedido. Tente novamente dentro de momentos."
   }
 }

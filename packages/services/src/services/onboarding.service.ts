@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { UserRepository } from "@ringee/database";
 
 export type OnboardingStep =
+  | "request_free_call"
   | "first_call"
   | "recording"
   | "check_numbers"
@@ -16,6 +17,7 @@ export interface OnboardingStatusDto {
 }
 
 const ALL_STEPS: OnboardingStep[] = [
+  "request_free_call",
   "first_call",
   "recording",
   "check_numbers",
