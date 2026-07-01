@@ -32,7 +32,7 @@ export class UserRepository {
     return this.prisma.user.create({
       data: {
         ...data,
-        // freeCallTrial: false,
+        freeCallTrial: false,
         encryptionKey: data.encryptionKey || this.generateEncryptionKey(),
       },
     });
@@ -129,7 +129,7 @@ export class UserRepository {
     return this.prisma.user.create({
       data: {
         ...mapped,
-        // freeCallTrial: false,
+        freeCallTrial: false,
         encryptionKey: this.generateEncryptionKey(),
       },
       include: { emails: true },

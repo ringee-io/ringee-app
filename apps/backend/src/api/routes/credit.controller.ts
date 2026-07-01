@@ -54,7 +54,7 @@ export class CreditController {
 
       return {
         balance,
-        freeCallTrial: dbUser.freeCallTrial,
+        freeCallTrial: false,
       };
     } catch (error) {
       return {

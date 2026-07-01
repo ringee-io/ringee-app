@@ -139,19 +139,19 @@ export class CallService {
 
   /**
    * Decide whether `ctx`'s owner may place/continue a call.
-   * A positive credit balance (user or organization, resolved from the
-   * context) is required. If not, the live call is hung up and `false` is
-   * returned so the caller stops processing the event.
+   * Owners flagged with an active free-call trial are always allowed.
+   * Otherwise a positive credit balance (user or organization, resolved from
+   * the context) is required. If neither holds, the live call is hung up and
+   * `false` is returned so the caller stops processing the event.
    */
   private async ensureCallAffordable(
     ctx: OwnershipContext,
     callControlId: string,
   ): Promise<boolean> {
-    // Free-call trial intentionally disabled: credit is always required.
-    // const user = await this.userService.getCachedUserById(ctx.userId);
-    // if (user?.freeCallTrial) {
-    //   return true;
-    // }
+    const user = await this.userService.getCachedUserById(ctx.userId);
+    if (user?.freeCallTrial) {
+      return true;
+    }
 
     const balance = await this.creditService.getBalance(ctx);
     if (balance > 0) {
