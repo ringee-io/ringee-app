@@ -27,6 +27,10 @@
     "stepsCompleted": "{completed} of {total} steps completed"
   },
   "guideSteps": {
+    "request_free_call": {
+      "title": "Request your free call",
+      "description": "Ask the Ringee team for a free call to try the service"
+    },
     "first_call": {
       "title": "Make your first call",
       "description": "Ringee offers your first call for free"
@@ -59,5 +63,19 @@
     "recordingAlt": "How to start recording",
     "maybeLater": "Maybe later",
     "startCalling": "Start calling now"
+  },
+  "freeCallRequest": {
+    "badge": "Free call",
+    "title": "Request a free call",
+    "description": "Try Ringee with a call on us. Send a request and our team will review it and get back to you by email.",
+    "notePlaceholder": "Tell us a bit about how you plan to use Ringee (optional)",
+    "submit": "Request free call",
+    "submitting": "Sending request…",
+    "dismiss": "Maybe later",
+    "successTitle": "Request sent",
+    "successDescription": "Thanks! The Ringee team will review your request and reach out by email soon.",
+    "done": "Done",
+    "errorTitle": "Something went wrong",
+    "errorDescription": "We couldn't send your request. Please try again in a moment."
   }
 }

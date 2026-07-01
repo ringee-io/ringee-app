@@ -416,6 +416,7 @@ model User {
   aiConversations         AiConversation[]
   aiMessages              AiMessage[]
   customIntegrations      CustomIntegration[]
+  freeTrialCallRequest    FreeTrialCallRequest?
   callSessions            CallSession[]
   callRecordingSettings   CallRecordingSettings?
   callTranscriptions      CallTranscription[]
@@ -424,6 +425,24 @@ model User {
   callerIdPoolMembers     CallerIdPoolMember[]
 
   @@index([clerkId])
+}
+
+enum FreeTrialRequestStatus {
+  pending
+  approved
+  rejected
+}
+
+/// A user's one-time request for a free trial call, reviewed manually by the
+/// Ringee team (an email is sent to the team on creation). One per user
+/// (`userId` unique) so it can only ever be requested once.
+model FreeTrialCallRequest {
+  id        String                 @id @default(uuid()) @db.Uuid
+  userId    String                 @unique @db.Uuid
+  user      User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status    FreeTrialRequestStatus @default(pending)
+  note      String?                @db.Text
+  createdAt DateTime               @default(now())
 }
 
 model Organization {

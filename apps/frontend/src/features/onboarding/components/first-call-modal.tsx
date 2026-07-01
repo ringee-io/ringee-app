@@ -27,11 +27,14 @@ export function FirstCallModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [hasDismissed, setHasDismissed] = useState(false);
 
-  // Show modal when first_call step is not complete
+  // Show modal when first_call step is not complete — but only after the user
+  // has requested their free call (that's the first onboarding step), so the
+  // two modals never stack on a brand-new account.
   useEffect(() => {
     if (
       !isLoading &&
       status &&
+      isStepComplete('request_free_call') &&
       !isStepComplete('first_call') &&
       !hasDismissed
     ) {
@@ -53,8 +56,14 @@ export function FirstCallModal() {
     setIsOpen(false);
   };
 
-  // Don't render if loading or already completed
-  if (isLoading || !status || isStepComplete('first_call')) {
+  // Don't render if loading, already completed, or the free call hasn't been
+  // requested yet (the request modal takes priority).
+  if (
+    isLoading ||
+    !status ||
+    !isStepComplete('request_free_call') ||
+    isStepComplete('first_call')
+  ) {
     return null;
   }
 

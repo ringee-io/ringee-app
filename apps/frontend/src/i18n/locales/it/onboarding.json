@@ -27,6 +27,10 @@
     "stepsCompleted": "{completed} di {total} passaggi completati"
   },
   "guideSteps": {
+    "request_free_call": {
+      "title": "Richiedi la tua chiamata gratuita",
+      "description": "Chiedi al team di Ringee una chiamata gratuita per provare il servizio"
+    },
     "first_call": {
       "title": "Effettua la tua prima chiamata",
       "description": "Ringee ti offre la prima chiamata"
@@ -59,5 +63,19 @@
     "recordingAlt": "Come avviare la registrazione",
     "maybeLater": "Magari più tardi",
     "startCalling": "Inizia a chiamare"
+  },
+  "freeCallRequest": {
+    "badge": "Chiamata gratuita",
+    "title": "Richiedi una chiamata gratuita",
+    "description": "Prova Ringee con una chiamata offerta da noi. Invia una richiesta e il nostro team la esaminerà e ti risponderà via email.",
+    "notePlaceholder": "Raccontaci come pensi di usare Ringee (facoltativo)",
+    "submit": "Richiedi chiamata gratuita",
+    "submitting": "Invio della richiesta…",
+    "dismiss": "Magari più tardi",
+    "successTitle": "Richiesta inviata",
+    "successDescription": "Grazie! Il team di Ringee esaminerà la tua richiesta e ti contatterà presto via email.",
+    "done": "Fatto",
+    "errorTitle": "Qualcosa è andato storto",
+    "errorDescription": "Non siamo riusciti a inviare la tua richiesta. Riprova tra un momento."
   }
 }

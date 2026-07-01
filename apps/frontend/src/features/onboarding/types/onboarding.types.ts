@@ -1,4 +1,5 @@
 export type OnboardingStep =
+  | 'request_free_call'
   | 'first_call'
   | 'recording'
   | 'check_numbers'
@@ -16,7 +17,7 @@ export interface OnboardingStepConfig {
   id: OnboardingStep;
   title: string;
   description: string;
-  icon: 'phone' | 'mic' | 'hash' | 'credit-card';
+  icon: 'phone' | 'mic' | 'hash' | 'credit-card' | 'gift';
   action: () => void;
   requiresAdmin?: boolean; // Only for buy_credits step
 }

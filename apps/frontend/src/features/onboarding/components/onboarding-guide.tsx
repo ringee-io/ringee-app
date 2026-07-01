@@ -26,6 +26,7 @@ import {
 
 import { useOnboarding } from '../hooks/use.onboarding';
 import { useOnboardingUIStore } from '../store/onboarding.store';
+import { useFreeCallRequestStore } from '../store/free-call-request.store';
 import { OnboardingStepItem } from './onboarding-step';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import type {
@@ -57,11 +58,21 @@ export function OnboardingGuide() {
 
   const { isExpanded, isMinimized, toggleExpanded, toggleMinimized } =
     useOnboardingUIStore();
+  const openFreeCallRequest = useFreeCallRequestStore((s) => s.open);
   const [isDismissing, setIsDismissing] = useState(false);
 
   // Define step configurations with actions
   const stepConfigs: OnboardingStepConfig[] = useMemo(
     () => [
+      {
+        id: 'request_free_call' as OnboardingStep,
+        title: tSteps('request_free_call.title'),
+        description: tSteps('request_free_call.description'),
+        icon: 'gift',
+        action: () => {
+          openFreeCallRequest();
+        }
+      },
       {
         id: 'first_call' as OnboardingStep,
         title: tSteps('first_call.title'),
@@ -100,7 +111,7 @@ export function OnboardingGuide() {
         }
       }
     ],
-    [router, completeStep, tSteps]
+    [router, completeStep, tSteps, openFreeCallRequest]
   );
 
   // Filter steps based on org role
