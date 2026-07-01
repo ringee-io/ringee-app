@@ -17,6 +17,7 @@ import {
 } from '@/features/marketing/components/primitives';
 import { CtaSection } from '@/features/marketing/components/cta-section';
 import { ScalabilityCalculator } from '@/features/marketing/components/scalability-calculator';
+import { TrustedBy } from '@/features/marketing/components/trusted-by';
 import {
   JsonLd,
   softwareAppJsonLd
@@ -121,6 +122,9 @@ export default async function HomePage() {
           </div>
         </Container>
       </Section>
+
+      {/* Social proof — companies running outbound on Ringee */}
+      <TrustedBy />
 
       {/* Full feature catalog — internal linking from the home page */}
       {/* <Section className='py-16 sm:py-20'>
