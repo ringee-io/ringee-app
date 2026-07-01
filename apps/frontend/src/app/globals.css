@@ -227,3 +227,73 @@
   animation: ringee-thinking-bounce 1.1s ease-in-out infinite;
 }
 
+/* ------------------------------------------------------------------ */
+/* Logo marquee (marketing "trusted by" strip)                        */
+/* Two identical tracks scroll left in lockstep; each track is at     */
+/* least the viewport wide so the row never shows a gap, even with a  */
+/* handful of logos. Translating by 100% + one gap hands off          */
+/* seamlessly from one track to the next.                             */
+/* ------------------------------------------------------------------ */
+@keyframes marquee-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-100% - var(--marquee-gap)));
+  }
+}
+
+.marquee {
+  --marquee-gap: 3rem;
+  display: flex;
+  gap: var(--marquee-gap);
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 8%,
+    black 92%,
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    transparent,
+    black 8%,
+    black 92%,
+    transparent
+  );
+}
+
+.marquee__track {
+  flex: 0 0 auto;
+  min-width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: var(--marquee-gap);
+  animation: marquee-scroll var(--marquee-duration, 70s) linear infinite;
+  will-change: transform;
+}
+
+.marquee:hover .marquee__track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee {
+    -webkit-mask-image: none;
+    mask-image: none;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .marquee__track {
+    animation: none;
+    min-width: 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+  .marquee__track[aria-hidden='true'] {
+    display: none;
+  }
+}
+
