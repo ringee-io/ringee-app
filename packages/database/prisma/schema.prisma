@@ -3380,3 +3380,119 @@ model ObjectionInsight {
   @@index([campaignId])
   @@index([organizationId])
 }
+
+// ── Ringee Infra (visual architecture console) ──
+// A workspace-scoped overlay that renders existing entities (team members,
+// numbers, SIP devices, campaigns, pools, integrations) as draggable nodes on a
+// canvas and draws the relationships between them. These tables persist canvas
+// state (node positions, hidden flags, draft connections) and an event trail.
+// They never replace the real entities — `referenceId` points back at them.
+// userId/organizationId are stored as scalar columns (no relations) so the
+// overlay stays decoupled from the core models; queries scope on them directly
+// via buildOwnershipFilter (organizationId when set, else userId).
+
+enum InfrastructureResourceType {
+  TEAM_MEMBER
+  PHONE_NUMBER
+  SIP_DEVICE
+  CAMPAIGN
+  NUMBER_POOL
+  ROUTING_RULE
+  INTEGRATION
+}
+
+enum InfrastructureConnectionType {
+  ASSIGNED_TO
+  USES
+  ROUTES_TO
+  BELONGS_TO
+  OWNS
+  MEMBER_OF
+  TRIGGERS
+}
+
+enum InfrastructureConnectionStatus {
+  ACTIVE
+  DRAFT
+  BROKEN
+  VISUAL_ONLY
+}
+
+/// One node on the Infra canvas. Mirrors a real workspace entity by
+/// (type, referenceId); rows without a referenceId are user-created drafts.
+model InfrastructureResource {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String? @db.Uuid
+  userId         String  @db.Uuid
+
+  type        InfrastructureResourceType
+  /// Id of the real entity this node represents (User, NumberPurchased,
+  /// SipDevice, Campaign…). Null for draft/pending nodes.
+  referenceId String?
+  /// Display label. Seeded from the real entity name; editable in the inspector.
+  name        String
+  /// Snapshot of the entity's status at last write. The canvas recomputes the
+  /// live status from the real entity on load; this is a fallback for drafts.
+  status      String                     @default("ACTIVE")
+
+  positionX Float   @default(0)
+  positionY Float   @default(0)
+  /// Removed from the canvas without deleting the real entity. Hidden nodes are
+  /// not rendered and are not re-seeded, but can be re-added via "Link existing".
+  hidden    Boolean @default(false)
+
+  metadata Json @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([organizationId, userId, type, referenceId])
+  @@index([organizationId])
+  @@index([userId])
+  @@index([organizationId, type])
+}
+
+/// A persisted edge the user drew that does NOT (yet) back a real relationship.
+/// Edges that mirror a real DB relationship are derived on the fly at load time
+/// and are not stored here.
+model InfrastructureConnection {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String? @db.Uuid
+  userId         String  @db.Uuid
+
+  sourceResourceId String @db.Uuid
+  targetResourceId String @db.Uuid
+
+  type   InfrastructureConnectionType
+  status InfrastructureConnectionStatus @default(DRAFT)
+
+  metadata Json @default("{}")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([sourceResourceId, targetResourceId, type])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+/// Append-only activity trail for the Infra console (node created/renamed/hidden,
+/// connection applied/removed…). Mirrors the CallSessionEvent pattern.
+model InfrastructureEvent {
+  id             String  @id @default(uuid()) @db.Uuid
+  organizationId String? @db.Uuid
+  userId         String  @db.Uuid
+
+  resourceId   String? @db.Uuid
+  connectionId String? @db.Uuid
+
+  type        String
+  message     String
+  actorUserId String? @db.Uuid
+  payload     Json?
+
+  createdAt DateTime @default(now())
+
+  @@index([resourceId, createdAt])
+  @@index([organizationId, createdAt])
+}

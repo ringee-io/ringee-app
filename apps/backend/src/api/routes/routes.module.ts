@@ -63,6 +63,7 @@ import { BackofficeController } from "./backoffice.controller";
 import { CallerIdRotationController } from "./caller-id-rotation.controller";
 import { SipDeviceController } from "./sip-device.controller";
 import { DeskPhoneWebhookController } from "./desk-phone.webhook.controller";
+import { InfrastructureController } from "./infrastructure.controller";
 
 @Module({
   controllers: [
@@ -120,6 +121,7 @@ import { DeskPhoneWebhookController } from "./desk-phone.webhook.controller";
     CallerIdRotationController,
     SipDeviceController,
     DeskPhoneWebhookController,
+    InfrastructureController,
   ],
   // TranscriptionMediaGateway lives here (not in the shared ServicesModule) so
   // the Telnyx media-stream WS server binds its port only in the API process.

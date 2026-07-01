@@ -42,7 +42,8 @@ import {
   IconChevronsDown,
   IconLogout,
   IconPhoneCalling,
-  IconShieldLock
+  IconShieldLock,
+  IconTopologyStar3
 } from '@tabler/icons-react';
 import { isSuperAdminEmail } from '@/features/backoffice/lib/super-admins';
 
@@ -460,6 +461,10 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                         {/* @ts-ignore */}
                         <Icons.plug className='mr-2 h-4 w-4' />
                         Desk Phones
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => router.push('/infra')}>
+                        <IconTopologyStar3 className='mr-2 h-4 w-4' />
+                        Ringee Infra
                       </DropdownMenuItem>
                     </DropdownMenuGroup>
                   </>

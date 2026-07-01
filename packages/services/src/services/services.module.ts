@@ -133,6 +133,7 @@ import {
   SipDeviceService,
   DeskPhoneCallService,
 } from "./sip-device";
+import { InfrastructureService } from "./infrastructure";
 
 const servicesProviders = [
   UserService,
@@ -253,6 +254,8 @@ const servicesProviders = [
   // Desk Phones (SIP Devices)
   SipDeviceService,
   DeskPhoneCallService,
+  // Ringee Infra (visual architecture console)
+  InfrastructureService,
 ];
 
 /**

@@ -83,6 +83,13 @@ export class StripeService {
     userId: string,
     organizationId?: string | null,
     frontendOrigin?: string,
+    /**
+     * Optional override for the post-checkout redirect. Defaults to the
+     * `/dashboard/buy-number` flow; Ringee Infra passes its own `/infra/overview`
+     * URLs so the purchase stays inside the Infra console. Stripe substitutes
+     * `{CHECKOUT_SESSION_ID}` in `successUrl` at redirect time.
+     */
+    returnUrls?: { successUrl: string; cancelUrl: string },
   ): Promise<{
     url: string;
     sessionId: string;
@@ -94,10 +101,12 @@ export class StripeService {
     const msg = `Your phone number ${phoneNumber} has been added to your account.`;
     const baseUrl = frontendOrigin || process.env.FRONTEND_URL!;
     const callbackUrl = baseUrl + "/dashboard/buy-number";
-    const cancelUrl = callbackUrl + "?tab=buy&payment=cancel";
+    const cancelUrl =
+      returnUrls?.cancelUrl ?? callbackUrl + "?tab=buy&payment=cancel";
     const successUrl =
+      returnUrls?.successUrl ??
       callbackUrl +
-      `?tab=my-numbers&payment=success&msg=${msg}&numberId=${phoneNumber}&amount=${upfrontCostUsd}`;
+        `?tab=my-numbers&payment=success&msg=${msg}&numberId=${phoneNumber}&amount=${upfrontCostUsd}`;
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
