@@ -371,7 +371,7 @@ model User {
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
   customerId       String?
-  freeCallTrial    Boolean? @default(true)
+  freeCallTrial    Boolean? @default(false)
   encryptionKey    String?  @db.Text
 
   // Onboarding state
