@@ -1,7 +1,8 @@
 /**
  * Content script — runs on every http(s) page. It finds real phone numbers in
- * the rendered page, marks each one, and shows an animated popover anchored
- * just above it with two actions: "Call with Ringee" and "Hide". The right-click
+ * the rendered page and marks each one with a quiet underline. Hovering a number
+ * reveals an animated popover anchored just above it with two actions: "Call with
+ * Ringee" and "Hide"; it dismisses once the cursor leaves. The right-click
  * "Call with Ringee" menu (service worker) stays as a second way to call.
  *
  * It touches NOTHING privileged: no WebRTC, no auth, no caller ID. It only emits
@@ -28,11 +29,6 @@ const SKIP_TAGS = new Set([
   "PRE",
 ]);
 const seen = new WeakSet<Text>();
-
-/** How many popovers we open on our own; the rest reveal on hover/click so a
- * contact list doesn't explode into dozens of cards at once. */
-const AUTO_OPEN_BUDGET = 8;
-let autoOpened = 0;
 
 function shouldSkip(node: Node): boolean {
   let el: Node | null = node.parentElement;
@@ -87,8 +83,27 @@ function ensureLayer(): HTMLElement {
 interface Entry {
   anchor: HTMLElement;
   pop: HTMLElement;
+  closeTimer?: number;
 }
 const open = new Map<HTMLElement, Entry>();
+
+/** Cancel a pending hover-out dismissal (the cursor came back in time). */
+function cancelClose(anchor: HTMLElement) {
+  const entry = open.get(anchor);
+  if (entry?.closeTimer !== undefined) {
+    clearTimeout(entry.closeTimer);
+    entry.closeTimer = undefined;
+  }
+}
+
+/** Dismiss shortly after the cursor leaves, so crossing the small gap between
+ * the number and the card (to click "Call") doesn't snap it shut. */
+function scheduleClose(anchor: HTMLElement) {
+  const entry = open.get(anchor);
+  if (!entry) return;
+  clearTimeout(entry.closeTimer);
+  entry.closeTimer = window.setTimeout(() => closePop(anchor), 150);
+}
 
 const PHONE_SVG =
   `<svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true">` +
@@ -116,6 +131,7 @@ function positionPop(pop: HTMLElement, anchor: HTMLElement) {
 function closePop(anchor: HTMLElement) {
   const entry = open.get(anchor);
   if (!entry) return;
+  clearTimeout(entry.closeTimer);
   entry.pop.remove();
   open.delete(anchor);
 }
@@ -156,6 +172,10 @@ function openPop(anchor: HTMLElement, e164: string, name?: string) {
       e.stopPropagation();
       closePop(anchor);
     });
+
+  // Keep the card up while the cursor is over it; dismiss once it leaves.
+  pop.addEventListener("mouseenter", () => cancelClose(anchor));
+  pop.addEventListener("mouseleave", () => scheduleClose(anchor));
 
   ensureLayer().appendChild(pop);
   open.set(anchor, { anchor, pop });
@@ -201,19 +221,16 @@ function processTextNode(node: Text) {
     const f = found[i];
     const anchor = wrapNumber(node, f.startsAt, f.endsAt);
     const e164 = f.e164;
-    anchor.addEventListener("mouseenter", () => openPop(anchor, e164, name));
+    anchor.addEventListener("mouseenter", () => {
+      cancelClose(anchor);
+      openPop(anchor, e164, name);
+    });
+    anchor.addEventListener("mouseleave", () => scheduleClose(anchor));
     anchor.addEventListener("click", (e) => {
       e.preventDefault();
       e.stopPropagation();
       openPop(anchor, e164, name);
     });
-    if (autoOpened < AUTO_OPEN_BUDGET) {
-      const r = anchor.getBoundingClientRect();
-      if (r.top >= 0 && r.top <= window.innerHeight) {
-        autoOpened++;
-        openPop(anchor, e164, name);
-      }
-    }
   }
 }
 
