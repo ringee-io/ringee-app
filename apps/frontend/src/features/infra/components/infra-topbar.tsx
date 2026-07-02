@@ -26,12 +26,12 @@ import {
 } from '@tabler/icons-react';
 import { InfraContextSwitcher } from './infra-context-switcher';
 import { useInfraStore } from '../store/infra.store';
-import { RESOURCE_META, addResourceOptions } from '../lib/node-config';
+import { RESOURCE_META, addResourceGroups } from '../lib/node-config';
 
 export function InfraTopbar() {
   const { hasOrg } = useOrgRole();
   const requestAdd = useInfraStore((s) => s.requestAdd);
-  const options = addResourceOptions(hasOrg);
+  const groups = addResourceGroups(hasOrg);
 
   return (
     <header className='bg-background/70 relative flex h-16 shrink-0 items-center gap-3 border-b px-3 backdrop-blur-xl sm:px-4'>
@@ -41,7 +41,7 @@ export function InfraTopbar() {
           Ringee Infra
         </p>
         <p className='text-muted-foreground truncate text-[11px]'>
-          Build your calling architecture
+          Build your call center visually
         </p>
       </div>
 
@@ -81,32 +81,40 @@ export function InfraTopbar() {
               <IconChevronDown className='size-3.5 opacity-70' />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align='end' className='w-60'>
-            <DropdownMenuLabel className='text-muted-foreground text-[11px] tracking-wide uppercase'>
-              Add resource
-            </DropdownMenuLabel>
-            {options.map((opt) => {
-              const meta = RESOURCE_META[opt.type];
-              const Icon = meta.Icon;
-              return (
-                <DropdownMenuItem
-                  key={opt.type}
-                  onSelect={() => requestAdd(opt.type)}
-                  className='gap-2.5 py-2'
-                >
-                  <span
-                    className={cn(
-                      'flex size-7 items-center justify-center rounded-lg',
-                      meta.badge
-                    )}
-                  >
-                    <Icon className='size-4' />
-                  </span>
-                  <span className='flex-1'>{opt.label}</span>
-                </DropdownMenuItem>
-              );
-            })}
+          <DropdownMenuContent align='end' className='w-64'>
+            {groups.map((group, gi) => (
+              <div key={group.group}>
+                {gi > 0 ? <DropdownMenuSeparator /> : null}
+                <DropdownMenuLabel className='text-muted-foreground text-[11px] tracking-wide uppercase'>
+                  {group.group}
+                </DropdownMenuLabel>
+                {group.items.map((opt) => {
+                  const meta = RESOURCE_META[opt.type];
+                  const Icon = meta.Icon;
+                  return (
+                    <DropdownMenuItem
+                      key={opt.type}
+                      onSelect={() => requestAdd(opt.type)}
+                      className='gap-2.5 py-2'
+                    >
+                      <span
+                        className={cn(
+                          'flex size-7 items-center justify-center rounded-lg',
+                          meta.badge
+                        )}
+                      >
+                        <Icon className='size-4' />
+                      </span>
+                      <span className='flex-1'>{opt.label}</span>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </div>
+            ))}
             <DropdownMenuSeparator />
+            <DropdownMenuLabel className='text-muted-foreground text-[11px] tracking-wide uppercase'>
+              Connections
+            </DropdownMenuLabel>
             <DropdownMenuItem
               onSelect={() => requestAdd(null)}
               className='gap-2.5 py-2'

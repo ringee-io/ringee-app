@@ -20,18 +20,18 @@ const POINTS: {
 }[] = [
   {
     icon: IconStack2,
-    title: 'Add resources',
-    body: 'Numbers, campaigns, SIP devices and people.'
+    title: 'Add your pieces',
+    body: 'Numbers, agents, SIP devices and campaigns.'
   },
   {
     icon: IconRouteSquare2,
     title: 'Connect them',
-    body: 'Draw links to route calls end to end.'
+    body: 'Draw links so calls flow end to end.'
   },
   {
     icon: IconAdjustmentsBolt,
-    title: 'Manage visually',
-    body: 'Configure everything from one canvas.'
+    title: 'Launch & manage',
+    body: 'Start calling and manage it from one canvas.'
   }
 ];
 
@@ -72,11 +72,11 @@ export function InfraWelcome({ onDismiss }: { onDismiss: () => void }) {
             Ringee Infra
           </p>
           <h2 className='mt-1 text-xl font-semibold tracking-tight'>
-            Your calling architecture, visualized
+            Build your call center visually
           </h2>
           <p className='text-muted-foreground mx-auto mt-1.5 max-w-sm text-sm'>
-            The visual console where you build and manage the infrastructure
-            behind every call — all in one place.
+            Connect numbers, agents, SIP devices and campaigns in one place —
+            and manage your whole calling operation from here.
           </p>
         </div>
 

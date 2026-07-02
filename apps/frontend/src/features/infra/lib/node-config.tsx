@@ -78,20 +78,51 @@ export const RESOURCE_META: Record<InfrastructureResourceType, ResourceMeta> = {
   }
 };
 
+export interface AddResourceOption {
+  type: InfrastructureResourceType;
+  label: string;
+}
+
+export interface AddResourceGroup {
+  /** Intention label ("People", "Calling", "Outbound"). */
+  group: string;
+  items: AddResourceOption[];
+}
+
 /**
- * Resource types the user can natively create, in the order menus list them.
- * Team Member and Campaign are organization-only (no personal team; campaigns
- * require an org), so they drop out in the personal workspace.
+ * The things a user can add, grouped by *intention* rather than technical type,
+ * so the menu reads like assembling a call center: who calls (People), what they
+ * call with (Calling), and how it's organized (Outbound). Agents and campaigns
+ * are organization-only (no personal team; campaigns require an org), so those
+ * groups drop out in the personal workspace.
  */
-export function addResourceOptions(
-  hasOrg: boolean
-): { type: InfrastructureResourceType; label: string }[] {
-  const opts: { type: InfrastructureResourceType; label: string }[] = [];
-  if (hasOrg) opts.push({ type: 'TEAM_MEMBER', label: 'Add team member' });
-  opts.push({ type: 'PHONE_NUMBER', label: 'Add phone number' });
-  opts.push({ type: 'SIP_DEVICE', label: 'Add SIP device' });
-  if (hasOrg) opts.push({ type: 'CAMPAIGN', label: 'Add campaign' });
-  return opts;
+export function addResourceGroups(hasOrg: boolean): AddResourceGroup[] {
+  const groups: AddResourceGroup[] = [];
+  if (hasOrg) {
+    groups.push({
+      group: 'People',
+      items: [{ type: 'TEAM_MEMBER', label: 'Add agent' }]
+    });
+  }
+  groups.push({
+    group: 'Calling',
+    items: [
+      { type: 'PHONE_NUMBER', label: 'Add phone number' },
+      { type: 'SIP_DEVICE', label: 'Add SIP device' }
+    ]
+  });
+  if (hasOrg) {
+    groups.push({
+      group: 'Outbound',
+      items: [{ type: 'CAMPAIGN', label: 'Add campaign' }]
+    });
+  }
+  return groups;
+}
+
+/** Flat list of buildable resources (empty-state quick-adds, back-compat). */
+export function addResourceOptions(hasOrg: boolean): AddResourceOption[] {
+  return addResourceGroups(hasOrg).flatMap((g) => g.items);
 }
 
 /**
@@ -148,6 +179,12 @@ export function statusTone(status: string): StatusTone {
   if (BAD.has(s)) return 'bad';
   if (WARN.has(s)) return 'warn';
   return 'idle';
+}
+
+/** Human-readable status: "waiting_documents" → "Waiting documents". */
+export function prettyStatus(status: string): string {
+  const s = status.replace(/_/g, ' ').toLowerCase();
+  return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
 export const TONE_DOT: Record<StatusTone, string> = {

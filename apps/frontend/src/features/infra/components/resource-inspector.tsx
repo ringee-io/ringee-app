@@ -47,10 +47,13 @@ import {
   IconKey,
   IconRoute,
   IconFileText,
+  IconPhone,
   IconPlayerPlay,
   IconPlayerPause,
   IconUsersGroup,
   IconInbox,
+  IconAlertTriangle,
+  IconCircleCheck,
   type IconProps
 } from '@tabler/icons-react';
 import type { ComponentType } from 'react';
@@ -77,6 +80,13 @@ import {
   type InspectorTab,
   type StatusTone
 } from '../lib/node-config';
+import {
+  buildAdjacency,
+  nodeReadiness,
+  type NodeAdjacency,
+  type Readiness,
+  type ReadinessState
+} from '../lib/readiness';
 import type {
   InfraEdge,
   InfraEvent,
@@ -118,6 +128,132 @@ function StatusBadge({ status }: { status: string }) {
       <span className={cn('size-1.5 rounded-full', TONE_DOT[tone])} />
       {prettyStatus(status)}
     </span>
+  );
+}
+
+const BANNER_TONE: Record<StatusTone, string> = {
+  ok: 'border-emerald-500/30 bg-emerald-500/10',
+  warn: 'border-amber-500/30 bg-amber-500/10',
+  bad: 'border-red-500/30 bg-red-500/10',
+  idle: 'border-border bg-muted/30'
+};
+
+const FIX_LABEL: Partial<Record<ReadinessState, string>> = {
+  needs_number: 'Assign a number',
+  needs_agents: 'Assign agents',
+  needs_routing: 'Configure routing',
+  needs_documents: 'Submit documents',
+  needs_payment: 'Complete payment',
+  not_registered: 'View registration',
+  no_campaign: 'Assign to a campaign'
+};
+
+const FIX_ICON: Partial<Record<InspectorTab, ComponentType<IconProps>>> = {
+  routing: IconRoute,
+  numbers: IconPhone,
+  agents: IconUsersGroup,
+  campaigns: IconUsersGroup,
+  documents: IconFileText,
+  billing: IconFileText,
+  registration: IconKey
+};
+
+/** "Current setup" — the human relationships a node has, read from live edges. */
+function connectionRows(
+  node: InfraNode,
+  adj: NodeAdjacency | undefined
+): { label: string; value: string }[] {
+  const names = (t: InfrastructureResourceType) =>
+    (adj?.neighborsByType[t] ?? []).map((n) => n.name);
+  const rows: { label: string; value: string }[] = [];
+  switch (node.type) {
+    case 'PHONE_NUMBER':
+      if (names('CAMPAIGN').length)
+        rows.push({ label: 'Used by', value: names('CAMPAIGN').join(', ') });
+      if (names('SIP_DEVICE').length)
+        rows.push({
+          label: 'Routes to',
+          value: names('SIP_DEVICE').join(', ')
+        });
+      if (names('TEAM_MEMBER').length)
+        rows.push({
+          label: 'Routes to',
+          value: names('TEAM_MEMBER').join(', ')
+        });
+      if (names('NUMBER_POOL').length)
+        rows.push({ label: 'In pool', value: names('NUMBER_POOL').join(', ') });
+      break;
+    case 'CAMPAIGN':
+      rows.push({
+        label: 'Agents',
+        value: String(adj?.count.TEAM_MEMBER ?? 0)
+      });
+      rows.push({
+        label: 'Number',
+        value: names('PHONE_NUMBER').join(', ') || 'None'
+      });
+      rows.push({ label: 'Leads', value: String(node.metadata?.leads ?? 0) });
+      break;
+    case 'TEAM_MEMBER':
+      if (names('CAMPAIGN').length)
+        rows.push({ label: 'Campaigns', value: names('CAMPAIGN').join(', ') });
+      if (names('SIP_DEVICE').length)
+        rows.push({ label: 'Devices', value: names('SIP_DEVICE').join(', ') });
+      break;
+    case 'SIP_DEVICE':
+      if (names('TEAM_MEMBER').length)
+        rows.push({ label: 'Owner', value: names('TEAM_MEMBER').join(', ') });
+      if (names('PHONE_NUMBER').length)
+        rows.push({ label: 'Number', value: names('PHONE_NUMBER').join(', ') });
+      break;
+  }
+  return rows;
+}
+
+/** Headline "is this ready, and what's missing?" banner in the Overview tab. */
+function ReadinessBanner({
+  readiness,
+  canMutate,
+  onFix
+}: {
+  readiness: Readiness;
+  canMutate: boolean;
+  onFix: (tab: InspectorTab) => void;
+}) {
+  const Icon = readiness.incomplete ? IconAlertTriangle : IconCircleCheck;
+  const iconColor =
+    readiness.tone === 'ok'
+      ? 'text-emerald-500'
+      : readiness.tone === 'bad'
+        ? 'text-red-500'
+        : readiness.tone === 'warn'
+          ? 'text-amber-500'
+          : 'text-muted-foreground';
+  return (
+    <div
+      className={cn(
+        'flex items-start gap-2.5 rounded-xl border p-3',
+        BANNER_TONE[readiness.tone]
+      )}
+    >
+      <Icon className={cn('mt-0.5 size-4 shrink-0', iconColor)} />
+      <div className='min-w-0 flex-1'>
+        <p className='text-sm font-medium'>{readiness.label}</p>
+        {readiness.hint ? (
+          <p className='text-muted-foreground text-xs'>{readiness.hint}</p>
+        ) : null}
+      </div>
+      {readiness.fixTab && canMutate && readiness.incomplete ? (
+        <Button
+          size='sm'
+          variant='outline'
+          className='h-7 shrink-0 px-2.5 text-xs'
+          onClick={() => onFix(readiness.fixTab!)}
+        >
+          Fix
+        </Button>
+      ) : null}
+    </div>
   );
 }
 
@@ -361,6 +497,17 @@ export function ResourceInspector({
   const [view, setView] = useState<InfraNode | null>(selectedNode);
   const [shown, setShown] = useState(false);
 
+  // Derived completeness + live relationships for the "setup hub" header.
+  const adjacency = useMemo(() => buildAdjacency(nodes, edges), [nodes, edges]);
+  const readiness = useMemo(
+    () => (view ? nodeReadiness(view, adjacency.get(view.id), hasOrg) : null),
+    [view, adjacency, hasOrg]
+  );
+  const connRows = useMemo(
+    () => (view ? connectionRows(view, adjacency.get(view.id)) : []),
+    [view, adjacency]
+  );
+
   const [events, setEvents] = useState<InfraEvent[]>([]);
   const [loadingEvents, setLoadingEvents] = useState(false);
   const [docs, setDocs] = useState<InfraNumberDocuments | null>(null);
@@ -440,7 +587,9 @@ export function ResourceInspector({
     : isPerson
       ? m.role
         ? String(m.role)
-        : 'Team member'
+        : hasOrg
+          ? 'Agent'
+          : 'Team member'
       : meta.label;
 
   const refetch = () => onRefetch();
@@ -542,6 +691,14 @@ export function ResourceInspector({
   // Contextual primary action (rendered in the sticky footer).
   const primary = (() => {
     if (!canMutate) return null;
+    // When the node is incomplete, the primary action resolves what's missing.
+    if (readiness?.incomplete && readiness.fixTab) {
+      return {
+        label: FIX_LABEL[readiness.state] ?? 'Finish setup',
+        Icon: FIX_ICON[readiness.fixTab] ?? IconRoute,
+        run: () => onTabChange(readiness.fixTab!)
+      };
+    }
     if (node.type === 'CAMPAIGN') {
       const s = node.status.toLowerCase();
       if (s === 'active')
@@ -726,6 +883,29 @@ export function ResourceInspector({
           >
             {/* Overview */}
             <TabsContent value='overview' className='mt-0 space-y-4'>
+              {readiness ? (
+                <ReadinessBanner
+                  readiness={readiness}
+                  canMutate={canMutate}
+                  onFix={onTabChange}
+                />
+              ) : null}
+              {connRows.length > 0 ? (
+                <div>
+                  <p className='text-muted-foreground mb-1.5 text-[11px] font-medium tracking-wide uppercase'>
+                    Current setup
+                  </p>
+                  <FieldCard>
+                    {connRows.map((r) => (
+                      <Field
+                        key={`${r.label}-${r.value}`}
+                        label={r.label}
+                        value={r.value}
+                      />
+                    ))}
+                  </FieldCard>
+                </div>
+              ) : null}
               <FieldCard>
                 <Field label='Name' value={node.name} />
                 {isOwner ? <Field label='Owner' value='You' /> : null}

@@ -106,8 +106,8 @@ export function CreateCampaignFlow({
         }
       }}
       type='CAMPAIGN'
-      title='Add campaign'
-      description='Create a draft campaign. Agents, leads and numbers are configured in the inspector.'
+      title='Create an outbound campaign'
+      description='Name it and pick a number to call from. Add agents and leads next, from the inspector.'
       footer={
         <Button
           onClick={handleCreate}

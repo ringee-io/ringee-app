@@ -100,8 +100,8 @@ export function CreateSipDeviceFlow({
         }
       }}
       type='SIP_DEVICE'
-      title='Add SIP device'
-      description='Create a device. Credentials appear in the inspector after creation.'
+      title='Connect a desk phone or softphone'
+      description='Name your device — we generate credentials you can configure right after.'
       footer={
         <Button
           onClick={handleCreate}

@@ -72,8 +72,10 @@ export function NodeContextMenu({
   return (
     <FloatingMenu x={x} y={y} onClose={onClose}>
       <MenuLabel>
-        {!hasOrg && node.type === 'TEAM_MEMBER'
-          ? 'Personal profile'
+        {node.type === 'TEAM_MEMBER'
+          ? hasOrg
+            ? 'Agent'
+            : 'Personal profile'
           : RESOURCE_META[node.type].label}
       </MenuLabel>
       {actions.map((action, i) => {

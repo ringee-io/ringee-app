@@ -147,13 +147,13 @@ export function CreatePhoneNumberFlow({
       open={open}
       onOpenChange={(o) => !o && close()}
       type='PHONE_NUMBER'
-      title='Add phone number'
+      title='Add a number to your call center'
       description={
         step === 'criteria'
-          ? 'Choose a country and number type to search live inventory.'
+          ? 'Where do you want to call from? Pick a country and number type.'
           : step === 'select'
-            ? 'Select an available number.'
-            : 'Review before paying.'
+            ? 'Choose the number you like best.'
+            : 'Review the price, then pay to activate.'
       }
       footer={
         step === 'criteria' ? (
@@ -190,7 +190,7 @@ export function CreatePhoneNumberFlow({
               disabled={submitting}
               onClick={handleCheckout}
             >
-              {submitting ? 'Redirecting…' : 'Continue to payment'}
+              {submitting ? 'Redirecting…' : 'Pay & activate'}
             </Button>
           </div>
         )

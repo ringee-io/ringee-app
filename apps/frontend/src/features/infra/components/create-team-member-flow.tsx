@@ -87,8 +87,8 @@ export function CreateTeamMemberFlow({
         }
       }}
       type='TEAM_MEMBER'
-      title='Add team member'
-      description='Place existing workspace members on the canvas.'
+      title='Add agents to your call center'
+      description='Choose who will be placing calls — put them on the canvas.'
       footer={
         <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
           <Button asChild variant='ghost' size='sm'>

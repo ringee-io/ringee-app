@@ -39,11 +39,13 @@ import {
   type NodeActionKey,
   type OnResourceCreated
 } from '../lib/node-config';
+import { buildAdjacency, nodeReadiness } from '../lib/readiness';
+import { setupSteps, type SetupActionKey } from '../lib/setup-steps';
+import type { InfraTemplate } from '../lib/templates';
 import type {
   InfraEdge,
   InfraNode,
   InfraOverview,
-  InfrastructureConnectionType,
   InfrastructureResourceType
 } from '../types';
 import { ResourceNode, type ResourceNodeData } from './resource-node';
@@ -53,22 +55,48 @@ import { NodeContextMenu } from './node-context-menu';
 import { AddResourceModal } from './add-resource-modal';
 import { EmptyState } from './empty-state';
 import { InfraWelcome } from './infra-welcome';
+import { SetupChecklist } from './setup-checklist';
 import { PendingChangesBar } from './pending-changes-bar';
 
 const nodeTypes = { resource: ResourceNode };
 const PENDING_KEY = 'infra.pendingCheckout';
 const HINT_KEY = 'infra.hintDismissed';
 const WELCOME_KEY = 'infra.welcomeSeen';
+const CHECKLIST_KEY = 'infra.checklistDismissed';
+const TEMPLATE_KEY = 'infra.templateLabel';
 
-const EDGE_LABEL: Record<InfrastructureConnectionType, string> = {
-  ASSIGNED_TO: 'assigned to',
-  USES: 'uses',
-  ROUTES_TO: 'routes to',
-  BELONGS_TO: 'in pool',
-  OWNS: 'owns',
-  MEMBER_OF: 'member of',
-  TRIGGERS: 'triggers'
-};
+/** Human, hover-only sentence describing a relationship edge. */
+function edgeSentence(
+  edge: InfraEdge,
+  nodesById: Map<string, InfraNode>
+): string {
+  const source = nodesById.get(edge.source)?.name ?? 'This resource';
+  const target = nodesById.get(edge.target)?.name ?? 'another resource';
+  if (edge.status === 'BROKEN') {
+    return 'This connection is broken — one side was removed.';
+  }
+  const sentence = ((): string => {
+    switch (edge.type) {
+      case 'ASSIGNED_TO':
+        return `${source} is assigned to ${target}`;
+      case 'USES':
+        return `${source} is used by ${target}`;
+      case 'ROUTES_TO':
+        return `Calls to ${source} route to ${target}`;
+      case 'BELONGS_TO':
+        return `${source} is in ${target}`;
+      case 'OWNS':
+        return `${source} owns ${target}`;
+      case 'MEMBER_OF':
+        return `${source} is a member of ${target}`;
+      case 'TRIGGERS':
+        return `${source} triggers ${target}`;
+      default:
+        return `${source} is connected to ${target}`;
+    }
+  })();
+  return edge.applied ? sentence : `${sentence} · draft`;
+}
 
 /** Hex per resource type for the minimap dots (matches RESOURCE_META accents). */
 const MINIMAP_COLOR: Record<InfrastructureResourceType, string> = {
@@ -81,19 +109,33 @@ const MINIMAP_COLOR: Record<InfrastructureResourceType, string> = {
   INTEGRATION: '#d946ef'
 };
 
-function toFlowNodes(nodes: InfraNode[]): Node[] {
+function toFlowNodes(
+  nodes: InfraNode[],
+  edges: InfraEdge[],
+  hasOrg: boolean
+): Node[] {
+  const adj = buildAdjacency(nodes, edges);
   return nodes.map((n) => ({
     id: n.id,
     type: 'resource',
     position: n.position,
-    data: { node: n } satisfies ResourceNodeData
+    data: {
+      node: n,
+      readiness: nodeReadiness(n, adj.get(n.id), hasOrg)
+    } satisfies ResourceNodeData
   }));
 }
 
-function toFlowEdges(edges: InfraEdge[]): Edge[] {
+/**
+ * Edges carry no inline label — the relationship "story" is revealed on hover
+ * (see the floating tip in the canvas), keeping a busy graph readable. Colour +
+ * dash + animation still encode active / draft / broken at a glance.
+ */
+function toFlowEdges(edges: InfraEdge[], hoveredId: string | null): Edge[] {
   return edges.map((e) => {
     const dashed = e.status !== 'ACTIVE';
     const broken = e.status === 'BROKEN';
+    const hovered = e.id === hoveredId;
     const stroke = broken
       ? 'var(--destructive)'
       : e.status === 'ACTIVE'
@@ -104,15 +146,6 @@ function toFlowEdges(edges: InfraEdge[]): Edge[] {
       source: e.source,
       target: e.target,
       type: 'smoothstep',
-      label: EDGE_LABEL[e.type],
-      labelStyle: {
-        fontSize: 10,
-        fontWeight: 600,
-        fill: 'var(--muted-foreground)'
-      },
-      labelBgStyle: { fill: 'var(--card)', fillOpacity: 0.92 },
-      labelBgPadding: [6, 3] as [number, number],
-      labelBgBorderRadius: 6,
       animated: e.status === 'ACTIVE',
       markerEnd: {
         type: MarkerType.ArrowClosed,
@@ -121,7 +154,7 @@ function toFlowEdges(edges: InfraEdge[]): Edge[] {
         color: stroke
       },
       style: {
-        strokeWidth: 1.5,
+        strokeWidth: hovered ? 2.5 : 1.5,
         strokeDasharray: dashed ? '6 4' : undefined,
         stroke
       },
@@ -147,6 +180,14 @@ export function InfraCanvas() {
   const [error, setError] = useState<string | null>(null);
   const [hintDismissed, setHintDismissed] = useState(true);
   const [welcomeSeen, setWelcomeSeen] = useState(true);
+  const [checklistDismissed, setChecklistDismissed] = useState(true);
+  const [templateLabel, setTemplateLabel] = useState<string | null>(null);
+  const [hoveredEdgeId, setHoveredEdgeId] = useState<string | null>(null);
+  const [edgeTip, setEdgeTip] = useState<{
+    x: number;
+    y: number;
+    text: string;
+  } | null>(null);
 
   const {
     selectedNodeId,
@@ -194,25 +235,42 @@ export function InfraCanvas() {
     }
   }, []);
 
+  const dismissChecklist = useCallback(() => {
+    setChecklistDismissed(true);
+    try {
+      localStorage.setItem(CHECKLIST_KEY, '1');
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     try {
       setHintDismissed(localStorage.getItem(HINT_KEY) === '1');
       setWelcomeSeen(localStorage.getItem(WELCOME_KEY) === '1');
+      setChecklistDismissed(localStorage.getItem(CHECKLIST_KEY) === '1');
+      setTemplateLabel(localStorage.getItem(TEMPLATE_KEY));
     } catch {
       setHintDismissed(false);
       setWelcomeSeen(true);
     }
   }, []);
 
-  const applyOverview = useCallback(
-    (data: InfraOverview) => {
-      setRawNodes(data.nodes);
-      setRawEdges(data.edges);
-      setNodes(toFlowNodes(data.nodes));
-      setEdges(toFlowEdges(data.edges));
-    },
-    [setNodes, setEdges]
-  );
+  // Raw overview → derived flow nodes/edges live in the effects below, so
+  // readiness recomputes when relationships change and edge hover restyles
+  // without a refetch.
+  const applyOverview = useCallback((data: InfraOverview) => {
+    setRawNodes(data.nodes);
+    setRawEdges(data.edges);
+  }, []);
+
+  useEffect(() => {
+    setNodes(toFlowNodes(rawNodes, rawEdges, hasOrg));
+  }, [rawNodes, rawEdges, hasOrg, setNodes]);
+
+  useEffect(() => {
+    setEdges(toFlowEdges(rawEdges, hoveredEdgeId));
+  }, [rawEdges, hoveredEdgeId, setEdges]);
 
   const refetch = useCallback(async () => {
     try {
@@ -351,6 +409,22 @@ export function InfraCanvas() {
   const draftCount = useMemo(
     () => rawEdges.filter((e) => !e.applied && e.status !== 'BROKEN').length,
     [rawEdges]
+  );
+
+  const nodesById = useMemo(
+    () => new Map(rawNodes.map((n) => [n.id, n])),
+    [rawNodes]
+  );
+
+  const setup = useMemo(
+    () => setupSteps(rawNodes, rawEdges, hasOrg),
+    [rawNodes, rawEdges, hasOrg]
+  );
+
+  const firstOfType = useCallback(
+    (t: InfrastructureResourceType) =>
+      rawNodes.find((n) => n.type === t) ?? null,
+    [rawNodes]
   );
 
   // ── Handlers ──────────────────────────────────────────────────────────────
@@ -542,6 +616,90 @@ export function InfraCanvas() {
     []
   );
 
+  // Setup-checklist step → the right add flow, or jump to the node + tab that
+  // completes it (reuses the existing create/inspector surfaces).
+  const handleStepAction = useCallback(
+    (key: SetupActionKey) => {
+      switch (key) {
+        case 'add_member':
+          openCreate('TEAM_MEMBER');
+          return;
+        case 'add_number':
+          openCreate('PHONE_NUMBER');
+          return;
+        case 'add_campaign':
+          openCreate('CAMPAIGN');
+          return;
+        case 'add_sip':
+          openCreate('SIP_DEVICE');
+          return;
+        case 'assign_agents': {
+          const c = firstOfType('CAMPAIGN');
+          if (c) select(c.id, 'agents');
+          else openCreate('CAMPAIGN');
+          return;
+        }
+        case 'connect_number_campaign': {
+          const c = firstOfType('CAMPAIGN');
+          if (c) select(c.id, 'numbers');
+          else openCreate('CAMPAIGN');
+          return;
+        }
+        case 'connect_number_device': {
+          const num = firstOfType('PHONE_NUMBER');
+          if (num) select(num.id, 'routing');
+          else openCreate('PHONE_NUMBER');
+          return;
+        }
+        case 'start_calling': {
+          const c = firstOfType('CAMPAIGN');
+          if (c) select(c.id, 'overview');
+          else
+            toast.info('Add a number, then open the dialer to start calling.');
+          return;
+        }
+      }
+    },
+    [firstOfType, openCreate, select]
+  );
+
+  const handleTemplate = useCallback((template: InfraTemplate) => {
+    setTemplateLabel(template.label);
+    setChecklistDismissed(false);
+    try {
+      localStorage.setItem(TEMPLATE_KEY, template.label);
+      localStorage.setItem(CHECKLIST_KEY, '0');
+    } catch {
+      // ignore
+    }
+    if (template.firstAdd) {
+      setAddModal({ open: true, type: template.firstAdd, position: null });
+    }
+  }, []);
+
+  const handleEdgeEnter = useCallback(
+    (event: React.MouseEvent, edge: Edge) => {
+      const raw = rawEdges.find((r) => r.id === edge.id);
+      if (!raw) return;
+      setHoveredEdgeId(edge.id);
+      setEdgeTip({
+        x: event.clientX,
+        y: event.clientY,
+        text: edgeSentence(raw, nodesById)
+      });
+    },
+    [rawEdges, nodesById]
+  );
+
+  const handleEdgeMove = useCallback((event: React.MouseEvent) => {
+    setEdgeTip((t) => (t ? { ...t, x: event.clientX, y: event.clientY } : t));
+  }, []);
+
+  const handleEdgeLeave = useCallback(() => {
+    setHoveredEdgeId(null);
+    setEdgeTip(null);
+  }, []);
+
   const menuNode = useMemo(
     () =>
       menu?.kind === 'node'
@@ -551,9 +709,25 @@ export function InfraCanvas() {
   );
 
   const busy = loading || contextSwitching;
-  const showHint =
-    !hintDismissed && !busy && !error && rawNodes.length > 0 && canMutate;
   const showWelcome = !welcomeSeen && !busy && !error;
+  const showChecklist =
+    !busy &&
+    !error &&
+    !showWelcome &&
+    rawNodes.length > 0 &&
+    canMutate &&
+    !setup.complete &&
+    !checklistDismissed;
+  // The generic "right-click to add" nudge only surfaces once the guided
+  // checklist is out of the way (setup done or dismissed).
+  const showHint =
+    !hintDismissed &&
+    !busy &&
+    !error &&
+    rawNodes.length > 0 &&
+    canMutate &&
+    !showChecklist &&
+    !showWelcome;
 
   return (
     <div className='relative h-full w-full'>
@@ -579,6 +753,9 @@ export function InfraCanvas() {
             const raw = rawEdges.find((r) => r.id === edge.id);
             if (raw && canMutate) setEdgeToDelete(raw);
           }}
+          onEdgeMouseEnter={handleEdgeEnter}
+          onEdgeMouseMove={handleEdgeMove}
+          onEdgeMouseLeave={handleEdgeLeave}
           nodesConnectable={canMutate}
           deleteKeyCode={null}
           fitView
@@ -623,6 +800,7 @@ export function InfraCanvas() {
               dismissHint();
               setAddModal({ open: true, type, position: null });
             }}
+            onTemplate={handleTemplate}
           />
         ) : null}
       </AnimatePresence>
@@ -662,6 +840,27 @@ export function InfraCanvas() {
           <InfraWelcome key='welcome' onDismiss={dismissWelcome} />
         ) : null}
       </AnimatePresence>
+
+      <AnimatePresence>
+        {showChecklist ? (
+          <SetupChecklist
+            key='checklist'
+            state={setup}
+            templateLabel={templateLabel}
+            onStepAction={handleStepAction}
+            onDismiss={dismissChecklist}
+          />
+        ) : null}
+      </AnimatePresence>
+
+      {edgeTip ? (
+        <div
+          className='bg-card/95 pointer-events-none fixed z-50 max-w-xs -translate-x-1/2 -translate-y-[calc(100%+12px)] rounded-lg border px-2.5 py-1.5 text-xs font-medium shadow-lg ring-1 ring-white/5 backdrop-blur'
+          style={{ left: edgeTip.x, top: edgeTip.y }}
+        >
+          {edgeTip.text}
+        </div>
+      ) : null}
 
       <AnimatePresence>
         {showHint ? (

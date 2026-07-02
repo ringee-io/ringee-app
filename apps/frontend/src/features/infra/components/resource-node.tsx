@@ -7,11 +7,19 @@ import {
   AvatarFallback,
   AvatarImage
 } from '@ringee/frontend-shared/components/ui/avatar';
-import { RESOURCE_META, statusTone, type StatusTone } from '../lib/node-config';
+import {
+  RESOURCE_META,
+  statusTone,
+  prettyStatus,
+  type StatusTone
+} from '../lib/node-config';
+import type { Readiness } from '../lib/readiness';
 import type { InfraNode } from '../types';
 
 export interface ResourceNodeData extends Record<string, unknown> {
   node: InfraNode;
+  /** Precomputed completeness (see lib/readiness). Drives the node's pill. */
+  readiness?: Readiness;
 }
 
 const TONE_PILL: Record<StatusTone, string> = {
@@ -28,11 +36,6 @@ const TONE_DOT_PILL: Record<StatusTone, string> = {
   idle: 'bg-muted-foreground/60'
 };
 
-function prettyStatus(status: string): string {
-  const s = status.replace(/_/g, ' ').toLowerCase();
-  return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
 function initials(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return '?';
@@ -40,8 +43,7 @@ function initials(name: string): string {
   return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
 
-function StatusPill({ status }: { status: string }) {
-  const tone = statusTone(status);
+function StatusPill({ tone, label }: { tone: StatusTone; label: string }) {
   return (
     <span
       className={cn(
@@ -50,7 +52,7 @@ function StatusPill({ status }: { status: string }) {
       )}
     >
       <span className={cn('size-1.5 rounded-full', TONE_DOT_PILL[tone])} />
-      {prettyStatus(status)}
+      {label}
     </span>
   );
 }
@@ -64,10 +66,16 @@ function Chip({ children }: { children: React.ReactNode }) {
 }
 
 export function ResourceNode({ data, selected }: NodeProps) {
-  const node = (data as ResourceNodeData).node;
+  const d = data as ResourceNodeData;
+  const node = d.node;
   const meta = RESOURCE_META[node.type];
   const Icon = meta.Icon;
   const m = node.metadata ?? {};
+
+  // Prefer the derived readiness ("Needs number", "Not registered", …); fall
+  // back to the raw status so a node always reads sensibly.
+  const pillTone = d.readiness?.tone ?? statusTone(node.status);
+  const pillLabel = d.readiness?.label ?? prettyStatus(node.status);
 
   const isOwner = node.type === 'TEAM_MEMBER' && m.role === 'OWNER';
   const isPerson = node.type === 'TEAM_MEMBER';
@@ -169,7 +177,7 @@ export function ResourceNode({ data, selected }: NodeProps) {
                 <p className='truncate text-sm font-semibold' title={node.name}>
                   {isOwner ? 'You' : node.name}
                 </p>
-                <StatusPill status={node.status} />
+                <StatusPill tone={pillTone} label={pillLabel} />
               </div>
               <p
                 className={cn(
