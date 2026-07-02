@@ -1,6 +1,8 @@
 'use client';
 
+import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import { menuVariants } from '../lib/motion';
 
 export function FloatingMenu({
   x,
@@ -13,6 +15,7 @@ export function FloatingMenu({
   onClose: () => void;
   children: React.ReactNode;
 }) {
+  const reduce = useReducedMotion();
   return (
     <>
       <div
@@ -23,12 +26,15 @@ export function FloatingMenu({
           onClose();
         }}
       />
-      <div
-        className='bg-popover/95 text-popover-foreground fixed z-50 min-w-56 rounded-xl border p-1.5 shadow-xl backdrop-blur-md'
+      <motion.div
+        variants={reduce ? undefined : menuVariants}
+        initial='hidden'
+        animate='visible'
+        className='bg-popover/95 text-popover-foreground fixed z-50 min-w-56 origin-top-left rounded-xl border p-1.5 shadow-xl ring-1 ring-white/5 backdrop-blur-md'
         style={{ left: x, top: y }}
       >
         {children}
-      </div>
+      </motion.div>
     </>
   );
 }

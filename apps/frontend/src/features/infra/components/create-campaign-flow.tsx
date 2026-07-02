@@ -1,14 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter
-} from '@ringee/frontend-shared/components/ui/dialog';
+import { InfraDialog } from './infra-dialog';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
@@ -63,7 +56,8 @@ export function CreateCampaignFlow({
   const toggleAgent = (id: string) =>
     setAgentIds((s) => {
       const next = new Set(s);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
 
@@ -103,7 +97,7 @@ export function CreateCampaignFlow({
   };
 
   return (
-    <Dialog
+    <InfraDialog
       open={open}
       onOpenChange={(o) => {
         if (!o) {
@@ -111,114 +105,106 @@ export function CreateCampaignFlow({
           onClose();
         }
       }}
+      type='CAMPAIGN'
+      title='Add campaign'
+      description='Create a draft campaign. Agents, leads and numbers are configured in the inspector.'
+      footer={
+        <Button
+          onClick={handleCreate}
+          disabled={saving || !name.trim()}
+          className='w-full'
+        >
+          {saving ? 'Creating…' : 'Create campaign'}
+        </Button>
+      }
     >
-      <DialogContent className='max-w-md'>
-        <DialogHeader>
-          <DialogTitle>Add campaign</DialogTitle>
-          <DialogDescription>
-            Create a draft campaign. Agents, leads and numbers are configured in
-            the inspector.
-          </DialogDescription>
-        </DialogHeader>
-
-        <div className='space-y-3'>
-          <div className='space-y-1'>
-            <Label>Campaign name</Label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder='Q3 outbound'
-              autoFocus
-            />
-          </div>
-
-          <div className='space-y-1'>
-            <Label>Description (optional)</Label>
-            <Textarea
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-            />
-          </div>
-
-          <div className='grid grid-cols-2 gap-3'>
-            <div className='space-y-1'>
-              <Label>Dialing mode</Label>
-              <Select value={dialerMode} onValueChange={setDialerMode}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {DIALER_MODES.map((m) => (
-                    <SelectItem key={m.value} value={m.value}>
-                      {m.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className='space-y-1'>
-              <Label>Phone number (optional)</Label>
-              <Select
-                value={numberPurchasedId}
-                onValueChange={setNumberPurchasedId}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_NUMBER}>None</SelectItem>
-                  {numbers.map((n) => (
-                    <SelectItem key={n.referenceId} value={n.referenceId}>
-                      {n.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-
-          {/* Agents — organization only; assign team members up front. */}
-          {hasOrg && members.length > 0 ? (
-            <div className='space-y-1.5'>
-              <Label>Agents (optional)</Label>
-              <div className='max-h-36 space-y-1 overflow-y-auto rounded-md border p-1'>
-                {members.map((mem) => {
-                  const checked = agentIds.has(mem.referenceId);
-                  return (
-                    <button
-                      key={mem.referenceId}
-                      type='button'
-                      onClick={() => toggleAgent(mem.referenceId)}
-                      className={cn(
-                        'hover:bg-accent flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left',
-                        checked && 'bg-accent'
-                      )}
-                    >
-                      <Checkbox
-                        checked={checked}
-                        className='pointer-events-none'
-                      />
-                      <span className='truncate text-sm'>{mem.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ) : null}
+      <div className='space-y-4'>
+        <div className='space-y-1'>
+          <Label>Campaign name</Label>
+          <Input
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder='Q3 outbound'
+            autoFocus
+          />
         </div>
 
-        <DialogFooter>
-          <Button
-            onClick={handleCreate}
-            disabled={saving || !name.trim()}
-            className='w-full'
-          >
-            {saving ? 'Creating…' : 'Create campaign'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div className='space-y-1'>
+          <Label>Description (optional)</Label>
+          <Textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={2}
+          />
+        </div>
+
+        <div className='grid grid-cols-2 gap-3'>
+          <div className='space-y-1'>
+            <Label>Dialing mode</Label>
+            <Select value={dialerMode} onValueChange={setDialerMode}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {DIALER_MODES.map((m) => (
+                  <SelectItem key={m.value} value={m.value}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className='space-y-1'>
+            <Label>Phone number (optional)</Label>
+            <Select
+              value={numberPurchasedId}
+              onValueChange={setNumberPurchasedId}
+            >
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_NUMBER}>None</SelectItem>
+                {numbers.map((n) => (
+                  <SelectItem key={n.referenceId} value={n.referenceId}>
+                    {n.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        {/* Agents — organization only; assign team members up front. */}
+        {hasOrg && members.length > 0 ? (
+          <div className='space-y-1.5'>
+            <Label>Agents (optional)</Label>
+            <div className='max-h-36 space-y-1 overflow-y-auto rounded-md border p-1'>
+              {members.map((mem) => {
+                const checked = agentIds.has(mem.referenceId);
+                return (
+                  <button
+                    key={mem.referenceId}
+                    type='button'
+                    onClick={() => toggleAgent(mem.referenceId)}
+                    className={cn(
+                      'hover:bg-accent flex w-full items-center gap-2.5 rounded-sm px-2 py-1.5 text-left',
+                      checked && 'bg-accent'
+                    )}
+                  >
+                    <Checkbox
+                      checked={checked}
+                      className='pointer-events-none'
+                    />
+                    <span className='truncate text-sm'>{mem.name}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ) : null}
+      </div>
+    </InfraDialog>
   );
 }

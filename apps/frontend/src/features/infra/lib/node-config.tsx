@@ -270,14 +270,14 @@ export type OnResourceCreated = (
 
 export const TAB_LABEL: Record<InspectorTab, string> = {
   overview: 'Overview',
-  configuration: 'Config',
+  configuration: 'Configuration',
   routing: 'Routing',
   agents: 'Agents',
   numbers: 'Numbers',
   leads: 'Leads',
-  credentials: 'Creds',
-  registration: 'Reg',
-  documents: 'Docs',
+  credentials: 'Credentials',
+  registration: 'Registration',
+  documents: 'Documents',
   billing: 'Billing',
   campaigns: 'Campaigns',
   devices: 'Devices',

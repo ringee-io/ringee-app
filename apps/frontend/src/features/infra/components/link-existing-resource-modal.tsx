@@ -1,14 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter
-} from '@ringee/frontend-shared/components/ui/dialog';
+import { InfraDialog } from './infra-dialog';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Checkbox } from '@ringee/frontend-shared/components/ui/checkbox';
@@ -74,7 +67,8 @@ export function LinkExistingResourceModal({
   const toggle = (k: string) =>
     setSelected((s) => {
       const next = new Set(s);
-      next.has(k) ? next.delete(k) : next.add(k);
+      if (next.has(k)) next.delete(k);
+      else next.add(k);
       return next;
     });
 
@@ -116,7 +110,7 @@ export function LinkExistingResourceModal({
     : 'Link existing resource';
 
   return (
-    <Dialog
+    <InfraDialog
       open={open}
       onOpenChange={(o) => {
         if (!o) {
@@ -124,15 +118,20 @@ export function LinkExistingResourceModal({
           onClose();
         }
       }}
+      type={type}
+      title={title}
+      description='Place resources that already exist in this workspace on the canvas.'
+      footer={
+        <Button
+          onClick={handleLink}
+          disabled={saving || selected.size === 0}
+          className='w-full'
+        >
+          Link {selected.size > 0 ? `(${selected.size})` : ''}
+        </Button>
+      }
     >
-      <DialogContent className='max-w-md'>
-        <DialogHeader>
-          <DialogTitle>{title}</DialogTitle>
-          <DialogDescription>
-            Place resources that already exist in this workspace on the canvas.
-          </DialogDescription>
-        </DialogHeader>
-
+      <div className='space-y-3'>
         <div className='relative'>
           <IconSearch className='text-muted-foreground absolute top-2.5 left-2.5 size-4' />
           <Input
@@ -143,7 +142,7 @@ export function LinkExistingResourceModal({
           />
         </div>
 
-        <div className='max-h-80 space-y-1 overflow-y-auto'>
+        <div className='max-h-80 space-y-1.5 overflow-y-auto'>
           {loading ? (
             <p className='text-muted-foreground py-6 text-center text-sm'>
               Loading…
@@ -164,14 +163,14 @@ export function LinkExistingResourceModal({
                   type='button'
                   onClick={() => toggle(k)}
                   className={cn(
-                    'hover:bg-accent flex w-full items-center gap-3 rounded-md border p-2 text-left',
+                    'hover:bg-accent flex w-full items-center gap-3 rounded-lg border p-2.5 text-left transition-colors',
                     checked && 'border-primary bg-accent'
                   )}
                 >
                   <Checkbox checked={checked} className='pointer-events-none' />
                   <div
                     className={cn(
-                      'flex size-8 items-center justify-center rounded-md',
+                      'flex size-8 items-center justify-center rounded-lg',
                       meta.badge
                     )}
                   >
@@ -194,17 +193,7 @@ export function LinkExistingResourceModal({
             })
           )}
         </div>
-
-        <DialogFooter>
-          <Button
-            onClick={handleLink}
-            disabled={saving || selected.size === 0}
-            className='w-full'
-          >
-            Link {selected.size > 0 ? `(${selected.size})` : ''}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </InfraDialog>
   );
 }

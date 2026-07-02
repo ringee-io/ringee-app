@@ -120,11 +120,15 @@ export function ResourceNode({ data, selected }: NodeProps) {
   return (
     <div
       className={cn(
-        'bg-card text-card-foreground group w-[244px] overflow-hidden rounded-2xl border shadow-sm transition-all',
-        'hover:shadow-md',
+        'bg-card text-card-foreground group w-[244px] overflow-hidden rounded-2xl border shadow-sm transition-[transform,box-shadow,border-color] duration-150 ease-out',
+        'hover:-translate-y-0.5 hover:shadow-lg',
         selected
-          ? cn('border-transparent ring-2', meta.ring)
-          : 'border-border hover:border-foreground/15'
+          ? cn(
+              'border-transparent shadow-lg ring-2 ring-offset-2',
+              'ring-offset-background',
+              meta.ring
+            )
+          : 'border-border hover:border-foreground/20'
       )}
     >
       <Handle

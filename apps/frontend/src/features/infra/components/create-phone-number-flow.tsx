@@ -1,14 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter
-} from '@ringee/frontend-shared/components/ui/dialog';
+import { motion, useReducedMotion } from 'framer-motion';
+import { InfraDialog } from './infra-dialog';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
@@ -76,6 +70,7 @@ export function CreatePhoneNumberFlow({
   onClose: () => void;
 }) {
   const api = useInfraApi();
+  const reduce = useReducedMotion();
   const [step, setStep] = useState<Step>('criteria');
   const [country, setCountry] = useState('US');
   const [numberType, setNumberType] = useState<
@@ -145,20 +140,81 @@ export function CreatePhoneNumberFlow({
     }
   };
 
-  return (
-    <Dialog open={open} onOpenChange={(o) => !o && close()}>
-      <DialogContent className='max-w-lg'>
-        <DialogHeader>
-          <DialogTitle>Add phone number</DialogTitle>
-          <DialogDescription>
-            {step === 'criteria'
-              ? 'Choose a country and number type to search live inventory.'
-              : step === 'select'
-                ? 'Select an available number.'
-                : 'Review before paying.'}
-          </DialogDescription>
-        </DialogHeader>
+  const stepIndex = step === 'criteria' ? 0 : step === 'select' ? 1 : 2;
 
+  return (
+    <InfraDialog
+      open={open}
+      onOpenChange={(o) => !o && close()}
+      type='PHONE_NUMBER'
+      title='Add phone number'
+      description={
+        step === 'criteria'
+          ? 'Choose a country and number type to search live inventory.'
+          : step === 'select'
+            ? 'Select an available number.'
+            : 'Review before paying.'
+      }
+      footer={
+        step === 'criteria' ? (
+          <Button
+            onClick={handleSearch}
+            disabled={searching}
+            className='w-full'
+          >
+            <IconSearch className='size-4' />
+            {searching ? 'Searching…' : 'Search numbers'}
+          </Button>
+        ) : step === 'select' ? (
+          <div className='flex w-full gap-2'>
+            <Button variant='outline' onClick={() => setStep('criteria')}>
+              <IconArrowLeft className='size-4' />
+              Back
+            </Button>
+            <Button
+              className='flex-1'
+              disabled={!selected}
+              onClick={() => setStep('summary')}
+            >
+              Continue
+            </Button>
+          </div>
+        ) : (
+          <div className='flex w-full gap-2'>
+            <Button variant='outline' onClick={() => setStep('select')}>
+              <IconArrowLeft className='size-4' />
+              Back
+            </Button>
+            <Button
+              className='flex-1'
+              disabled={submitting}
+              onClick={handleCheckout}
+            >
+              {submitting ? 'Redirecting…' : 'Continue to payment'}
+            </Button>
+          </div>
+        )
+      }
+    >
+      {/* Step indicator */}
+      <div className='mb-4 flex items-center gap-1.5'>
+        {[0, 1, 2].map((i) => (
+          <span
+            key={i}
+            className={cn(
+              'h-1 flex-1 rounded-full transition-colors duration-300',
+              i <= stepIndex ? 'bg-primary' : 'bg-muted'
+            )}
+          />
+        ))}
+      </div>
+
+      <motion.div
+        key={step}
+        initial={reduce ? false : { opacity: 0, x: 12 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+      >
         {step === 'criteria' ? (
           <div className='space-y-3'>
             <div className='grid grid-cols-2 gap-3'>
@@ -306,49 +362,8 @@ export function CreatePhoneNumberFlow({
             </p>
           </div>
         ) : null}
-
-        <DialogFooter className='gap-2'>
-          {step === 'criteria' ? (
-            <Button
-              onClick={handleSearch}
-              disabled={searching}
-              className='w-full'
-            >
-              <IconSearch className='size-4' />
-              {searching ? 'Searching…' : 'Search numbers'}
-            </Button>
-          ) : step === 'select' ? (
-            <div className='flex w-full gap-2'>
-              <Button variant='outline' onClick={() => setStep('criteria')}>
-                <IconArrowLeft className='size-4' />
-                Back
-              </Button>
-              <Button
-                className='flex-1'
-                disabled={!selected}
-                onClick={() => setStep('summary')}
-              >
-                Continue
-              </Button>
-            </div>
-          ) : (
-            <div className='flex w-full gap-2'>
-              <Button variant='outline' onClick={() => setStep('select')}>
-                <IconArrowLeft className='size-4' />
-                Back
-              </Button>
-              <Button
-                className='flex-1'
-                disabled={submitting}
-                onClick={handleCheckout}
-              >
-                {submitting ? 'Redirecting…' : 'Continue to payment'}
-              </Button>
-            </div>
-          )}
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </motion.div>
+    </InfraDialog>
   );
 }
 

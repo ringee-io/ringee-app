@@ -1,14 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter
-} from '@ringee/frontend-shared/components/ui/dialog';
+import { InfraDialog } from './infra-dialog';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
@@ -98,7 +91,7 @@ export function CreateSipDeviceFlow({
   };
 
   return (
-    <Dialog
+    <InfraDialog
       open={open}
       onOpenChange={(o) => {
         if (!o) {
@@ -106,106 +99,96 @@ export function CreateSipDeviceFlow({
           onClose();
         }
       }}
+      type='SIP_DEVICE'
+      title='Add SIP device'
+      description='Create a device. Credentials appear in the inspector after creation.'
+      footer={
+        <Button
+          onClick={handleCreate}
+          disabled={saving || !label.trim()}
+          className='w-full'
+        >
+          {saving ? 'Creating…' : 'Create device'}
+        </Button>
+      }
     >
-      <DialogContent className='max-w-md'>
-        <DialogHeader>
-          <DialogTitle>Add SIP device</DialogTitle>
-          <DialogDescription>
-            Create a device. Credentials appear in the inspector after creation.
-          </DialogDescription>
-        </DialogHeader>
+      <div className='space-y-4'>
+        <div className='space-y-1'>
+          <Label>Device name</Label>
+          <Input
+            value={label}
+            onChange={(e) => setLabel(e.target.value)}
+            placeholder='Front desk phone'
+            autoFocus
+          />
+        </div>
 
-        <div className='space-y-3'>
+        <div className={hasOrg ? 'grid grid-cols-2 gap-3' : 'space-y-1'}>
           <div className='space-y-1'>
-            <Label>Device name</Label>
-            <Input
-              value={label}
-              onChange={(e) => setLabel(e.target.value)}
-              placeholder='Front desk phone'
-              autoFocus
-            />
-          </div>
-
-          <div className={hasOrg ? 'grid grid-cols-2 gap-3' : 'space-y-1'}>
-            <div className='space-y-1'>
-              <Label>Type</Label>
-              <Select value={deviceType} onValueChange={setDeviceType}>
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {DEVICE_TYPES.map((t) => (
-                    <SelectItem key={t.value} value={t.value}>
-                      {t.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* "Assign to" is a team concept — only in an organization. In the
-                personal workspace the device is always owned by the user. */}
-            {hasOrg ? (
-              <div className='space-y-1'>
-                <Label>Assign to</Label>
-                <Select
-                  value={assignedUserId}
-                  onValueChange={setAssignedUserId}
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={SELF}>Me</SelectItem>
-                    {members.map((m) => (
-                      <SelectItem key={m.referenceId} value={m.referenceId}>
-                        {m.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            ) : null}
-          </div>
-
-          <div className='space-y-1'>
-            <Label>Linked phone number (optional)</Label>
-            <Select value={numberId} onValueChange={setNumberId}>
+            <Label>Type</Label>
+            <Select value={deviceType} onValueChange={setDeviceType}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={NO_NUMBER}>No number</SelectItem>
-                {numbers.map((n) => (
-                  <SelectItem key={n.referenceId} value={n.referenceId}>
-                    {n.name}
+                {DEVICE_TYPES.map((t) => (
+                  <SelectItem key={t.value} value={t.value}>
+                    {t.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
           </div>
 
-          <div className='flex items-center justify-between rounded-md border p-3'>
-            <div>
-              <p className='text-sm font-medium'>Receive inbound calls</p>
-              <p className='text-muted-foreground text-xs'>
-                Route the linked number&apos;s inbound calls to this device.
-              </p>
+          {/* "Assign to" is a team concept — only in an organization. In the
+                personal workspace the device is always owned by the user. */}
+          {hasOrg ? (
+            <div className='space-y-1'>
+              <Label>Assign to</Label>
+              <Select value={assignedUserId} onValueChange={setAssignedUserId}>
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={SELF}>Me</SelectItem>
+                  {members.map((m) => (
+                    <SelectItem key={m.referenceId} value={m.referenceId}>
+                      {m.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-            <Switch checked={allowInbound} onCheckedChange={setAllowInbound} />
-          </div>
+          ) : null}
         </div>
 
-        <DialogFooter>
-          <Button
-            onClick={handleCreate}
-            disabled={saving || !label.trim()}
-            className='w-full'
-          >
-            {saving ? 'Creating…' : 'Create device'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <div className='space-y-1'>
+          <Label>Linked phone number (optional)</Label>
+          <Select value={numberId} onValueChange={setNumberId}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_NUMBER}>No number</SelectItem>
+              {numbers.map((n) => (
+                <SelectItem key={n.referenceId} value={n.referenceId}>
+                  {n.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        <div className='bg-muted/30 flex items-center justify-between rounded-xl border p-3'>
+          <div>
+            <p className='text-sm font-medium'>Receive inbound calls</p>
+            <p className='text-muted-foreground text-xs'>
+              Route the linked number&apos;s inbound calls to this device.
+            </p>
+          </div>
+          <Switch checked={allowInbound} onCheckedChange={setAllowInbound} />
+        </div>
+      </div>
+    </InfraDialog>
   );
 }

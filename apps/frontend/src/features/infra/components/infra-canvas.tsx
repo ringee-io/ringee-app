@@ -17,6 +17,7 @@ import {
   type OnNodeDrag
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
 import { toast } from 'sonner';
 import { useAuth } from '@clerk/nextjs';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
@@ -51,11 +52,13 @@ import { CanvasContextMenu } from './canvas-context-menu';
 import { NodeContextMenu } from './node-context-menu';
 import { AddResourceModal } from './add-resource-modal';
 import { EmptyState } from './empty-state';
+import { InfraWelcome } from './infra-welcome';
 import { PendingChangesBar } from './pending-changes-bar';
 
 const nodeTypes = { resource: ResourceNode };
 const PENDING_KEY = 'infra.pendingCheckout';
 const HINT_KEY = 'infra.hintDismissed';
+const WELCOME_KEY = 'infra.welcomeSeen';
 
 const EDGE_LABEL: Record<InfrastructureConnectionType, string> = {
   ASSIGNED_TO: 'assigned to',
@@ -129,6 +132,7 @@ function toFlowEdges(edges: InfraEdge[]): Edge[] {
 
 export function InfraCanvas() {
   const api = useInfraApi();
+  const reduce = useReducedMotion();
   const { isOrgAdmin, hasOrg } = useOrgRole();
   const { orgId, isLoaded: authLoaded } = useAuth();
   const canMutate = !hasOrg || isOrgAdmin;
@@ -142,6 +146,7 @@ export function InfraCanvas() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [hintDismissed, setHintDismissed] = useState(true);
+  const [welcomeSeen, setWelcomeSeen] = useState(true);
 
   const {
     selectedNodeId,
@@ -177,11 +182,25 @@ export function InfraCanvas() {
     }
   }, []);
 
+  const dismissWelcome = useCallback(() => {
+    setWelcomeSeen(true);
+    // Seeing the welcome counts as learning the hint — don't stack nudges.
+    setHintDismissed(true);
+    try {
+      localStorage.setItem(WELCOME_KEY, '1');
+      localStorage.setItem(HINT_KEY, '1');
+    } catch {
+      // ignore
+    }
+  }, []);
+
   useEffect(() => {
     try {
       setHintDismissed(localStorage.getItem(HINT_KEY) === '1');
+      setWelcomeSeen(localStorage.getItem(WELCOME_KEY) === '1');
     } catch {
       setHintDismissed(false);
+      setWelcomeSeen(true);
     }
   }, []);
 
@@ -534,81 +553,101 @@ export function InfraCanvas() {
   const busy = loading || contextSwitching;
   const showHint =
     !hintDismissed && !busy && !error && rawNodes.length > 0 && canMutate;
+  const showWelcome = !welcomeSeen && !busy && !error;
 
   return (
     <div className='relative h-full w-full'>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        nodeTypes={nodeTypes}
-        onNodeDragStop={handleNodeDragStop}
-        onConnect={handleConnect}
-        onNodeClick={(_e, node) => select(node.id)}
-        onPaneClick={() => closeMenu()}
-        onPaneContextMenu={handlePaneContextMenu}
-        onNodeContextMenu={handleNodeContextMenu}
-        onEdgeClick={(_e, edge) => {
-          const raw = rawEdges.find((r) => r.id === edge.id);
-          if (raw && canMutate) setEdgeToDelete(raw);
-        }}
-        nodesConnectable={canMutate}
-        deleteKeyCode={null}
-        fitView
-        fitViewOptions={{ padding: 0.3, maxZoom: 1 }}
-        minZoom={0.2}
-        proOptions={{ hideAttribution: true }}
-        className='bg-background'
+      <motion.div
+        className='absolute inset-0'
+        initial={reduce ? false : { opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
       >
-        <Background
-          variant={BackgroundVariant.Dots}
-          gap={24}
-          size={1.3}
-          color='var(--border)'
-        />
-        <Controls
-          showInteractive={false}
-          className='[&_button]:!border-border [&_button]:!bg-card [&_button]:!text-muted-foreground !rounded-lg !border !shadow-md'
-        />
-        <MiniMap
-          pannable
-          zoomable
-          className='!right-4 !bottom-4 !m-0 overflow-hidden !rounded-xl !border'
-          style={{ width: 168, height: 112 }}
-          bgColor='transparent'
-          maskColor='color-mix(in oklch, var(--background) 70%, transparent)'
-          nodeColor={(n) =>
-            MINIMAP_COLOR[(n.data as ResourceNodeData)?.node?.type] ??
-            'var(--muted-foreground)'
-          }
-          nodeStrokeWidth={0}
-          nodeBorderRadius={4}
-        />
-      </ReactFlow>
-
-      {!busy && !error && rawNodes.length === 0 ? (
-        <EmptyState
-          hasOrg={hasOrg}
-          onAdd={(type) => {
-            dismissHint();
-            setAddModal({ open: true, type, position: null });
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          nodeTypes={nodeTypes}
+          onNodeDragStop={handleNodeDragStop}
+          onConnect={handleConnect}
+          onNodeClick={(_e, node) => select(node.id)}
+          onPaneClick={() => closeMenu()}
+          onPaneContextMenu={handlePaneContextMenu}
+          onNodeContextMenu={handleNodeContextMenu}
+          onEdgeClick={(_e, edge) => {
+            const raw = rawEdges.find((r) => r.id === edge.id);
+            if (raw && canMutate) setEdgeToDelete(raw);
           }}
-        />
-      ) : null}
+          nodesConnectable={canMutate}
+          deleteKeyCode={null}
+          fitView
+          fitViewOptions={{ padding: 0.3, maxZoom: 1 }}
+          minZoom={0.2}
+          proOptions={{ hideAttribution: true }}
+          className='bg-background'
+        >
+          <Background
+            variant={BackgroundVariant.Dots}
+            gap={24}
+            size={1.3}
+            color='var(--border)'
+          />
+          <Controls
+            showInteractive={false}
+            className='[&_button]:!border-border [&_button]:!bg-card [&_button]:!text-muted-foreground !rounded-lg !border !shadow-md'
+          />
+          <MiniMap
+            pannable
+            zoomable
+            className='!right-4 !bottom-4 !m-0 overflow-hidden !rounded-xl !border'
+            style={{ width: 168, height: 112 }}
+            bgColor='transparent'
+            maskColor='color-mix(in oklch, var(--background) 70%, transparent)'
+            nodeColor={(n) =>
+              MINIMAP_COLOR[(n.data as ResourceNodeData)?.node?.type] ??
+              'var(--muted-foreground)'
+            }
+            nodeStrokeWidth={0}
+            nodeBorderRadius={4}
+          />
+        </ReactFlow>
+      </motion.div>
 
-      {busy ? (
-        <div className='bg-background/70 absolute inset-0 z-20 flex items-center justify-center backdrop-blur-sm'>
-          <div className='bg-card/90 flex items-center gap-2.5 rounded-full border px-4 py-2 shadow-lg'>
-            <IconLoader2 className='text-primary size-4 animate-spin' />
-            <p className='text-sm font-medium'>
-              {contextSwitching
-                ? 'Switching workspace…'
-                : 'Loading architecture…'}
-            </p>
-          </div>
-        </div>
-      ) : null}
+      <AnimatePresence>
+        {!busy && !error && rawNodes.length === 0 ? (
+          <EmptyState
+            key='empty'
+            hasOrg={hasOrg}
+            onAdd={(type) => {
+              dismissHint();
+              setAddModal({ open: true, type, position: null });
+            }}
+          />
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {busy ? (
+          <motion.div
+            key='busy'
+            initial={reduce ? false : { opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className='bg-background/70 absolute inset-0 z-20 flex items-center justify-center backdrop-blur-sm'
+          >
+            <div className='bg-card/90 flex items-center gap-2.5 rounded-full border px-4 py-2 shadow-lg ring-1 ring-white/5'>
+              <IconLoader2 className='text-primary size-4 animate-spin' />
+              <p className='text-sm font-medium'>
+                {contextSwitching
+                  ? 'Switching workspace…'
+                  : 'Loading architecture…'}
+              </p>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       {error ? (
         <div className='bg-background/60 absolute inset-0 z-10 flex items-center justify-center'>
@@ -618,26 +657,43 @@ export function InfraCanvas() {
 
       <PendingChangesBar draftCount={draftCount} />
 
-      {showHint ? (
-        <div className='pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2'>
-          <div className='bg-card/90 text-muted-foreground pointer-events-auto flex items-center gap-2 rounded-full border px-3.5 py-2 text-xs shadow-md backdrop-blur'>
-            <IconInfoCircle className='size-3.5 shrink-0' />
-            <span>
-              Right-click anywhere or use{' '}
-              <span className='text-foreground font-medium'>Add resource</span>{' '}
-              to build your calling architecture.
-            </span>
-            <button
-              type='button'
-              onClick={dismissHint}
-              aria-label='Dismiss hint'
-              className='hover:text-foreground ml-1 transition-colors'
-            >
-              <IconX className='size-3.5' />
-            </button>
-          </div>
-        </div>
-      ) : null}
+      <AnimatePresence>
+        {showWelcome ? (
+          <InfraWelcome key='welcome' onDismiss={dismissWelcome} />
+        ) : null}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {showHint ? (
+          <motion.div
+            key='hint'
+            initial={reduce ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 6 }}
+            transition={{ duration: 0.22, ease: [0.16, 1, 0.3, 1] }}
+            className='pointer-events-none absolute bottom-4 left-1/2 z-20 -translate-x-1/2'
+          >
+            <div className='bg-card/90 text-muted-foreground pointer-events-auto flex items-center gap-2 rounded-full border px-3.5 py-2 text-xs shadow-md ring-1 ring-white/5 backdrop-blur'>
+              <IconInfoCircle className='size-3.5 shrink-0' />
+              <span>
+                Right-click anywhere or use{' '}
+                <span className='text-foreground font-medium'>
+                  Add resource
+                </span>{' '}
+                to build your calling architecture.
+              </span>
+              <button
+                type='button'
+                onClick={dismissHint}
+                aria-label='Dismiss hint'
+                className='hover:text-foreground ml-1 transition-colors'
+              >
+                <IconX className='size-3.5' />
+              </button>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
 
       {menu?.kind === 'pane' ? (
         <CanvasContextMenu

@@ -2,14 +2,7 @@
 
 import Link from 'next/link';
 import { useState } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter
-} from '@ringee/frontend-shared/components/ui/dialog';
+import { InfraDialog } from './infra-dialog';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Checkbox } from '@ringee/frontend-shared/components/ui/checkbox';
@@ -53,7 +46,8 @@ export function CreateTeamMemberFlow({
   const toggle = (id: string) =>
     setSelected((s) => {
       const next = new Set(s);
-      next.has(id) ? next.delete(id) : next.add(id);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
 
@@ -84,7 +78,7 @@ export function CreateTeamMemberFlow({
   };
 
   return (
-    <Dialog
+    <InfraDialog
       open={open}
       onOpenChange={(o) => {
         if (!o) {
@@ -92,15 +86,24 @@ export function CreateTeamMemberFlow({
           onClose();
         }
       }}
+      type='TEAM_MEMBER'
+      title='Add team member'
+      description='Place existing workspace members on the canvas.'
+      footer={
+        <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
+          <Button asChild variant='ghost' size='sm'>
+            <Link href='/dashboard/settings/overview'>
+              <IconUserPlus className='size-4' />
+              Invite new member
+            </Link>
+          </Button>
+          <Button onClick={handleAdd} disabled={saving || selected.size === 0}>
+            Add {selected.size > 0 ? `(${selected.size})` : ''}
+          </Button>
+        </div>
+      }
     >
-      <DialogContent className='max-w-md'>
-        <DialogHeader>
-          <DialogTitle>Add team member</DialogTitle>
-          <DialogDescription>
-            Place existing workspace members on the canvas.
-          </DialogDescription>
-        </DialogHeader>
-
+      <div className='space-y-3'>
         <div className='relative'>
           <IconSearch className='text-muted-foreground absolute top-2.5 left-2.5 size-4' />
           <Input
@@ -111,7 +114,7 @@ export function CreateTeamMemberFlow({
           />
         </div>
 
-        <div className='max-h-72 space-y-1 overflow-y-auto'>
+        <div className='max-h-72 space-y-1.5 overflow-y-auto'>
           {loading ? (
             <p className='text-muted-foreground py-6 text-center text-sm'>
               Loading…
@@ -129,7 +132,7 @@ export function CreateTeamMemberFlow({
                   type='button'
                   onClick={() => toggle(m.referenceId)}
                   className={cn(
-                    'hover:bg-accent flex w-full items-center gap-3 rounded-md border p-2 text-left',
+                    'hover:bg-accent flex w-full items-center gap-3 rounded-lg border p-2.5 text-left transition-colors',
                     checked && 'border-primary bg-accent'
                   )}
                 >
@@ -145,19 +148,7 @@ export function CreateTeamMemberFlow({
             })
           )}
         </div>
-
-        <DialogFooter className='flex-col gap-2 sm:flex-row sm:justify-between'>
-          <Button asChild variant='ghost' size='sm'>
-            <Link href='/dashboard/settings/overview'>
-              <IconUserPlus className='size-4' />
-              Invite new member
-            </Link>
-          </Button>
-          <Button onClick={handleAdd} disabled={saving || selected.size === 0}>
-            Add {selected.size > 0 ? `(${selected.size})` : ''}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+      </div>
+    </InfraDialog>
   );
 }
