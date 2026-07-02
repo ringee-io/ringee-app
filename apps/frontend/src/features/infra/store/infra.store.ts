@@ -21,6 +21,17 @@ export interface CanvasMenuState {
   nodeId?: string;
 }
 
+/**
+ * The edge currently hovered on the canvas, held here (not in the node/edge
+ * arrays) so hovering restyles the custom edge and highlights its two endpoint
+ * nodes without rebuilding the whole graph on every mouse move.
+ */
+export interface HoveredEdge {
+  id: string;
+  source: string;
+  target: string;
+}
+
 interface InfraStore {
   selectedNodeId: string | null;
   inspectorTab: InspectorTab;
@@ -39,6 +50,14 @@ interface InfraStore {
   credentialsByResource: Record<string, SipCredentials>;
   /** Set by the topbar "Add resource" button; consumed + cleared by the canvas. */
   addRequest: AddRequest | null;
+  /** Edge under the cursor — drives edge/endpoint hover highlight (see above). */
+  hoveredEdge: HoveredEdge | null;
+  /**
+   * A node the canvas should select + reveal once its overview has loaded. Set
+   * from the Usage view (health rows) before navigating to /infra/overview;
+   * survives the per-context reset so the deep-link isn't wiped on load.
+   */
+  focusNodeId: string | null;
 
   select: (nodeId: string, tab?: InspectorTab) => void;
   closeInspector: () => void;
@@ -49,6 +68,8 @@ interface InfraStore {
   setContextSwitching: (switching: boolean) => void;
   requestAdd: (type: InfrastructureResourceType | null) => void;
   clearAddRequest: () => void;
+  setHoveredEdge: (edge: HoveredEdge | null) => void;
+  setFocusNode: (nodeId: string | null) => void;
   /**
    * Wipe all canvas-local UI state when the active workspace changes, so a
    * resource from the previous context never lingers in the inspector/menu and
@@ -64,6 +85,8 @@ export const useInfraStore = create<InfraStore>((set) => ({
   contextSwitching: false,
   credentialsByResource: {},
   addRequest: null,
+  hoveredEdge: null,
+  focusNodeId: null,
 
   select: (nodeId, tab = 'overview') =>
     set({ selectedNodeId: nodeId, inspectorTab: tab }),
@@ -81,12 +104,15 @@ export const useInfraStore = create<InfraStore>((set) => ({
   setContextSwitching: (switching) => set({ contextSwitching: switching }),
   requestAdd: (type) => set({ addRequest: { type } }),
   clearAddRequest: () => set({ addRequest: null }),
+  setHoveredEdge: (edge) => set({ hoveredEdge: edge }),
+  setFocusNode: (nodeId) => set({ focusNodeId: nodeId }),
   resetForContext: () =>
     set({
       selectedNodeId: null,
       inspectorTab: 'overview',
       menu: null,
       credentialsByResource: {},
-      addRequest: null
+      addRequest: null,
+      hoveredEdge: null
     })
 }));

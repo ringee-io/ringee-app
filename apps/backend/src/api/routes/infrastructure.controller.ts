@@ -6,10 +6,13 @@ import {
   Delete,
   Body,
   Param,
+  Query,
+  BadRequestException,
 } from "@nestjs/common";
 import {
   CurrentUser,
   createOwnershipContext,
+  resolveMemberFilter,
   OrgAdminOnly,
   AllowOrgMember,
   UpdatePositionDto,
@@ -33,6 +36,16 @@ interface CurrentUserData {
   activeOrgRole?: string | null;
 }
 
+interface UsageQuery {
+  from?: string;
+  to?: string;
+  range?: string; // today | yesterday | 7d | 30d | this_month | last_month
+  campaignId?: string;
+  numberId?: string;
+  sipDeviceId?: string;
+  memberId?: string;
+}
+
 /**
  * Ringee Infra — visual architecture console. Reads are open to org members;
  * every mutation is admin-only via the controller-level guard (freelancers with
@@ -49,6 +62,22 @@ export class InfrastructureController {
   @AllowOrgMember()
   async overview(@CurrentUser() user: CurrentUserData) {
     return this.infra.getOverview(createOwnershipContext(user));
+  }
+
+  @Get("usage")
+  @AllowOrgMember()
+  async usage(@CurrentUser() user: CurrentUserData, @Query() q: UsageQuery) {
+    const range = parseUsageRange(q);
+    // Non-admin members are pinned to their own data; admins may pick a member.
+    const memberId = resolveMemberFilter(user, q.memberId) ?? null;
+    return this.infra.getUsage(createOwnershipContext(user), {
+      start: range?.start,
+      end: range?.end,
+      campaignId: q.campaignId ?? null,
+      numberId: q.numberId ?? null,
+      sipDeviceId: q.sipDeviceId ?? null,
+      memberId,
+    });
   }
 
   @Get("linkable")
@@ -305,5 +334,56 @@ export class InfrastructureController {
   ) {
     await this.infra.deleteConnection(createOwnershipContext(user), id);
     return { ok: true };
+  }
+}
+
+/**
+ * Resolve the Usage date range from explicit from/to or a named preset. Mirrors
+ * the dashboard controller's parser so both views speak the same range language.
+ */
+function parseUsageRange(
+  q: UsageQuery,
+): { start: Date; end: Date } | undefined {
+  if (q.from && q.to) {
+    const start = new Date(q.from);
+    const end = new Date(q.to);
+    if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      throw new BadRequestException("Invalid from/to date");
+    }
+    return { start, end };
+  }
+  if (!q.range) return undefined;
+
+  const now = new Date();
+  const end = new Date(now);
+  end.setHours(23, 59, 59, 999);
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+
+  switch (q.range) {
+    case "today":
+      return { start, end };
+    case "yesterday": {
+      start.setDate(start.getDate() - 1);
+      const yEnd = new Date(start);
+      yEnd.setHours(23, 59, 59, 999);
+      return { start, end: yEnd };
+    }
+    case "7d":
+      start.setDate(start.getDate() - 6);
+      return { start, end };
+    case "30d":
+      start.setDate(start.getDate() - 29);
+      return { start, end };
+    case "this_month":
+      start.setDate(1);
+      return { start, end };
+    case "last_month": {
+      const s = new Date(now.getFullYear(), now.getMonth() - 1, 1, 0, 0, 0, 0);
+      const e = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+      return { start: s, end: e };
+    }
+    default:
+      return undefined;
   }
 }

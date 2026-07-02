@@ -28,6 +28,7 @@ export type ReadinessState =
   | 'needs_agents'
   | 'needs_documents'
   | 'needs_payment'
+  | 'needs_setup'
   | 'not_registered'
   | 'no_campaign'
   | 'disabled'

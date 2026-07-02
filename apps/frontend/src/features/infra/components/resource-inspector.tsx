@@ -54,6 +54,7 @@ import {
   IconInbox,
   IconAlertTriangle,
   IconCircleCheck,
+  IconCircleDashed,
   type IconProps
 } from '@tabler/icons-react';
 import type { ComponentType } from 'react';
@@ -208,6 +209,118 @@ function connectionRows(
       break;
   }
   return rows;
+}
+
+interface Requirement {
+  label: string;
+  met: boolean;
+}
+
+/**
+ * The concrete checklist behind a node's readiness — "Number ✓ / Agents ✗" —
+ * so the inspector spells out exactly what a resource still needs. Derived from
+ * the same adjacency + status the readiness banner uses.
+ */
+function resourceRequirements(
+  node: InfraNode,
+  adj: NodeAdjacency | undefined,
+  hasOrg: boolean
+): Requirement[] {
+  const has = (t: InfrastructureResourceType) => adj?.types.has(t) ?? false;
+  const m = node.metadata ?? {};
+  const s = node.status.toLowerCase();
+  switch (node.type) {
+    case 'PHONE_NUMBER':
+      return [
+        {
+          label: 'Regulatory documents',
+          met: !(
+            s.includes('document') ||
+            s === 'pending' ||
+            s === 'under_review' ||
+            s === 'order_created' ||
+            s.includes('payment')
+          )
+        },
+        {
+          label: 'Routed to a campaign or device',
+          met: has('CAMPAIGN') || has('SIP_DEVICE') || has('TEAM_MEMBER')
+        }
+      ];
+    case 'CAMPAIGN': {
+      const reqs: Requirement[] = [
+        { label: 'Has a phone number', met: has('PHONE_NUMBER') }
+      ];
+      if (hasOrg)
+        reqs.push({ label: 'Has assigned agents', met: has('TEAM_MEMBER') });
+      reqs.push({
+        label: 'Running',
+        met: ['active', 'running'].includes(s)
+      });
+      return reqs;
+    }
+    case 'SIP_DEVICE':
+      return [
+        {
+          label: 'Registered',
+          met: s === 'registered' || !!m.lastRegisteredAt
+        },
+        {
+          label: 'Has a number',
+          met: !!m.assignedNumber || has('PHONE_NUMBER')
+        }
+      ];
+    case 'TEAM_MEMBER': {
+      const isOwner = m.role === 'OWNER' || !hasOrg;
+      if (isOwner) return [];
+      return [
+        {
+          label: 'Assigned to a campaign',
+          met: Number(m.assignedCampaigns ?? 0) > 0 || has('CAMPAIGN')
+        }
+      ];
+    }
+    default:
+      return [];
+  }
+}
+
+/** Renders the requirement checklist as ticked / dashed rows. */
+function RequirementList({ items }: { items: Requirement[] }) {
+  return (
+    <div>
+      <p className='text-muted-foreground mb-1.5 text-[11px] font-medium tracking-wide uppercase'>
+        Requirements
+      </p>
+      <FieldCard>
+        {items.map((it) => (
+          <div
+            key={it.label}
+            className='flex items-center gap-2.5 border-b py-2.5 last:border-0'
+          >
+            {it.met ? (
+              <IconCircleCheck className='size-4 shrink-0 text-emerald-500' />
+            ) : (
+              <IconCircleDashed className='text-muted-foreground/50 size-4 shrink-0' />
+            )}
+            <span
+              className={cn('text-sm', it.met ? '' : 'text-muted-foreground')}
+            >
+              {it.label}
+            </span>
+            <span
+              className={cn(
+                'ml-auto text-[11px] font-medium',
+                it.met ? 'text-emerald-500' : 'text-amber-500'
+              )}
+            >
+              {it.met ? 'Ready' : 'Missing'}
+            </span>
+          </div>
+        ))}
+      </FieldCard>
+    </div>
+  );
 }
 
 /** Headline "is this ready, and what's missing?" banner in the Overview tab. */
@@ -506,6 +619,11 @@ export function ResourceInspector({
   const connRows = useMemo(
     () => (view ? connectionRows(view, adjacency.get(view.id)) : []),
     [view, adjacency]
+  );
+  const requirements = useMemo(
+    () =>
+      view ? resourceRequirements(view, adjacency.get(view.id), hasOrg) : [],
+    [view, adjacency, hasOrg]
   );
 
   const [events, setEvents] = useState<InfraEvent[]>([]);
@@ -889,6 +1007,9 @@ export function ResourceInspector({
                   canMutate={canMutate}
                   onFix={onTabChange}
                 />
+              ) : null}
+              {requirements.length > 0 ? (
+                <RequirementList items={requirements} />
               ) : null}
               {connRows.length > 0 ? (
                 <div>

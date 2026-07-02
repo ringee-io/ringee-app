@@ -145,3 +145,79 @@ export interface InfraConfigResult {
   /** Present only when SIP credentials were regenerated. */
   credentials?: SipDeviceCredentials;
 }
+
+// ── Usage view ──────────────────────────────────────────────────────────────
+
+/** Filters accepted by the Usage view (all optional; range defaults to 30d). */
+export interface InfraUsageFilters {
+  start?: Date;
+  end?: Date;
+  campaignId?: string | null;
+  /** NumberPurchased id — resolved to its E.164 for call attribution. */
+  numberId?: string | null;
+  sipDeviceId?: string | null;
+  /** User id — only honoured for org admins. */
+  memberId?: string | null;
+}
+
+/** A "top resource" reference for the performance highlights. */
+export interface InfraUsageRef {
+  id: string;
+  name: string;
+  /** The metric that ranked it (calls, unless noted by the consumer). */
+  value: number;
+}
+
+export interface InfraUsageResourceRow {
+  id: string;
+  name: string;
+  calls: number;
+  minutes: number;
+  cost: number;
+}
+
+export interface InfraUsageSeriesPoint {
+  /** ISO day, YYYY-MM-DD. */
+  date: string;
+  calls: number;
+  minutes: number;
+  spend: number;
+}
+
+export interface InfraUsageResult {
+  scope: "organization" | "personal";
+  currency: string;
+  range: { start: string; end: string };
+  overview: {
+    callsToday: number;
+    callsThisWeek: number;
+    minutesThisMonth: number;
+    monthlyCost: number;
+    activeCampaigns: number;
+    activeNumbers: number;
+    sipDevices: number;
+    activeAgents: number;
+  };
+  performance: {
+    totalCalls: number;
+    callsConnected: number;
+    /** 0–100. */
+    answerRate: number;
+    avgDurationSec: number;
+    topCampaign: InfraUsageRef | null;
+    topNumber: InfraUsageRef | null;
+    topAgent: InfraUsageRef | null;
+    topDevice: InfraUsageRef | null;
+  };
+  cost: {
+    spendByNumber: InfraUsageResourceRow[];
+    spendByCampaign: InfraUsageResourceRow[];
+    series: InfraUsageSeriesPoint[];
+  };
+  byResource: {
+    byCampaign: InfraUsageResourceRow[];
+    byNumber: InfraUsageResourceRow[];
+    byDevice: InfraUsageResourceRow[];
+    byMember: InfraUsageResourceRow[];
+  };
+}

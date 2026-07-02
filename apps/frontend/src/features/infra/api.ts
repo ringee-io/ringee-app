@@ -14,7 +14,9 @@ import type {
   InfraCreateResult,
   InfraSipCreateResult,
   InfraNumberDocuments,
-  InfraConfigPatch
+  InfraConfigPatch,
+  InfraUsage,
+  UsageQueryParams
 } from './types';
 
 const BASE = '/infrastructure';
@@ -25,6 +27,21 @@ export function useInfraApi() {
   return useMemo(
     () => ({
       getOverview: () => api.get<InfraOverview>(`${BASE}/overview`),
+
+      // Build the query explicitly — the backend param names (range/from/to,
+      // campaignId, numberId, sipDeviceId, memberId) are the source of truth.
+      getUsage: (params: UsageQueryParams = {}) => {
+        const qs = new URLSearchParams();
+        if (params.range) qs.set('range', params.range);
+        if (params.from) qs.set('from', params.from);
+        if (params.to) qs.set('to', params.to);
+        if (params.campaignId) qs.set('campaignId', params.campaignId);
+        if (params.numberId) qs.set('numberId', params.numberId);
+        if (params.sipDeviceId) qs.set('sipDeviceId', params.sipDeviceId);
+        if (params.memberId) qs.set('memberId', params.memberId);
+        const q = qs.toString();
+        return api.get<InfraUsage>(`${BASE}/usage${q ? `?${q}` : ''}`);
+      },
 
       listLinkable: () => api.get<InfraLinkableItem[]>(`${BASE}/linkable`),
 

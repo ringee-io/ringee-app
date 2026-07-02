@@ -54,6 +54,10 @@ import {
   InfraConfigPatch,
   InfraConfigResult,
   InfraPosition,
+  InfraUsageFilters,
+  InfraUsageResult,
+  InfraUsageRef,
+  InfraUsageResourceRow,
 } from "./infrastructure.types";
 
 interface DesiredEntity {
@@ -262,6 +266,153 @@ export class InfrastructureService {
       actorUserId: e.actorUserId,
       createdAt: e.createdAt,
     }));
+  }
+
+  // ===========================================================================
+  // Usage (uso, salud, gasto) — the module's second view
+  // ===========================================================================
+
+  /**
+   * Usage & spend for the active workspace, computed over the `Call` table and
+   * scoped by the ownership context (org → org-wide, personal → the user's own
+   * data). Overview cards use fixed windows; performance/cost/by-resource honour
+   * the requested range + resource filters. Member breakdowns are only
+   * meaningful in an organization.
+   */
+  async getUsage(
+    ctx: OwnershipContext,
+    filters: InfraUsageFilters,
+  ): Promise<InfraUsageResult> {
+    const end = filters.end ?? new Date();
+    const start =
+      filters.start ??
+      (() => {
+        const s = new Date(end);
+        s.setDate(s.getDate() - 29);
+        s.setHours(0, 0, 0, 0);
+        return s;
+      })();
+
+    // A number filter is expressed against the call's originating E.164.
+    let fromNumber: string | null = null;
+    if (filters.numberId) {
+      const number = await this.numberRepo.findById(filters.numberId);
+      fromNumber = number?.phoneNumber ?? null;
+    }
+    // Member filter is org-admin territory; personal scope ignores it.
+    const memberId = ctx.organizationId ? (filters.memberId ?? null) : null;
+
+    const agg = await this.infraRepo.getUsage(ctx, {
+      start,
+      end,
+      campaignId: filters.campaignId ?? null,
+      fromNumber,
+      sipDeviceId: filters.sipDeviceId ?? null,
+      memberId,
+    });
+
+    // Resolve member display names (byMember rows carry ids only).
+    const memberNames = await this.resolveMemberNames(
+      ctx,
+      agg.byMember.map((m) => m.id),
+    );
+    const byMember: InfraUsageResourceRow[] = agg.byMember.map((m) => ({
+      id: m.id,
+      name: memberNames.get(m.id) ?? "Agent",
+      calls: m.calls,
+      minutes: m.minutes,
+      cost: m.cost,
+    }));
+
+    const topByCalls = (
+      rows: { id: string; name: string; calls: number }[],
+    ): InfraUsageRef | null => {
+      const top = rows[0];
+      return top && top.calls > 0
+        ? { id: top.id, name: top.name, value: top.calls }
+        : null;
+    };
+
+    const answerRate =
+      agg.performance.totalCalls > 0
+        ? Math.round(
+            (agg.performance.callsConnected / agg.performance.totalCalls) * 100,
+          )
+        : 0;
+
+    const spendByNumber = [...agg.byNumber].sort((a, b) => b.cost - a.cost);
+    const spendByCampaign = [...agg.byCampaign].sort((a, b) => b.cost - a.cost);
+
+    return {
+      scope: ctx.organizationId ? "organization" : "personal",
+      currency: "USD",
+      range: { start: start.toISOString(), end: end.toISOString() },
+      overview: agg.overview,
+      performance: {
+        totalCalls: agg.performance.totalCalls,
+        callsConnected: agg.performance.callsConnected,
+        answerRate,
+        avgDurationSec: agg.performance.avgDurationSec,
+        topCampaign: topByCalls(agg.byCampaign),
+        topNumber: topByCalls(agg.byNumber),
+        topAgent: topByCalls(byMember),
+        topDevice: topByCalls(agg.byDevice),
+      },
+      cost: {
+        spendByNumber,
+        spendByCampaign,
+        series: agg.series.map((s) => ({
+          date: s.date,
+          calls: s.calls,
+          minutes: s.minutes,
+          spend: s.cost,
+        })),
+      },
+      byResource: {
+        byCampaign: agg.byCampaign,
+        byNumber: agg.byNumber,
+        byDevice: agg.byDevice,
+        byMember,
+      },
+    };
+  }
+
+  /** Map user ids → display name (org members, or the user themselves). */
+  private async resolveMemberNames(
+    ctx: OwnershipContext,
+    userIds: string[],
+  ): Promise<Map<string, string>> {
+    const names = new Map<string, string>();
+    if (userIds.length === 0) return names;
+
+    if (ctx.organizationId) {
+      const members = await this.orgRepo.listMembersWithUsers(
+        ctx.organizationId,
+      );
+      for (const m of members) {
+        if (!m.userId || !m.user) continue;
+        const name =
+          [m.user.firstName, m.user.lastName]
+            .filter(Boolean)
+            .join(" ")
+            .trim() ||
+          m.user.emails[0]?.email ||
+          "Team member";
+        names.set(m.userId, name);
+      }
+    } else {
+      const me = (await this.userRepo.findById(ctx.userId)) as
+        | (User & { emails?: { email: string }[] })
+        | null;
+      if (me) {
+        const name =
+          [me.firstName, me.lastName].filter(Boolean).join(" ").trim() ||
+          me.emails?.[0]?.email ||
+          "You";
+        names.set(me.id, name);
+      }
+    }
+    return names;
   }
 
   /**
@@ -964,9 +1115,7 @@ export class InfrastructureService {
         ctx.organizationId,
       );
       return new Set(
-        members
-          .map((m) => m.userId)
-          .filter((id): id is string => Boolean(id)),
+        members.map((m) => m.userId).filter((id): id is string => Boolean(id)),
       );
     }
     return new Set([ctx.userId]);

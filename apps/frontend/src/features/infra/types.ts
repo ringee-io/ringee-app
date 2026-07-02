@@ -143,3 +143,82 @@ export interface InfraConfigPatch {
   transition?: 'active' | 'paused' | 'completed';
   enabled?: boolean;
 }
+
+// ── Usage view ──────────────────────────────────────────────────────────────
+
+/** Named or explicit date range for the Usage view. */
+export type UsageRangeKey =
+  | 'today'
+  | 'yesterday'
+  | '7d'
+  | '30d'
+  | 'this_month'
+  | 'last_month';
+
+export interface UsageQueryParams {
+  range?: UsageRangeKey;
+  from?: string;
+  to?: string;
+  campaignId?: string | null;
+  numberId?: string | null;
+  sipDeviceId?: string | null;
+  memberId?: string | null;
+}
+
+export interface InfraUsageRef {
+  id: string;
+  name: string;
+  value: number;
+}
+
+export interface InfraUsageResourceRow {
+  id: string;
+  name: string;
+  calls: number;
+  minutes: number;
+  cost: number;
+}
+
+export interface InfraUsageSeriesPoint {
+  date: string;
+  calls: number;
+  minutes: number;
+  spend: number;
+}
+
+export interface InfraUsage {
+  scope: 'organization' | 'personal';
+  currency: string;
+  range: { start: string; end: string };
+  overview: {
+    callsToday: number;
+    callsThisWeek: number;
+    minutesThisMonth: number;
+    monthlyCost: number;
+    activeCampaigns: number;
+    activeNumbers: number;
+    sipDevices: number;
+    activeAgents: number;
+  };
+  performance: {
+    totalCalls: number;
+    callsConnected: number;
+    answerRate: number;
+    avgDurationSec: number;
+    topCampaign: InfraUsageRef | null;
+    topNumber: InfraUsageRef | null;
+    topAgent: InfraUsageRef | null;
+    topDevice: InfraUsageRef | null;
+  };
+  cost: {
+    spendByNumber: InfraUsageResourceRow[];
+    spendByCampaign: InfraUsageResourceRow[];
+    series: InfraUsageSeriesPoint[];
+  };
+  byResource: {
+    byCampaign: InfraUsageResourceRow[];
+    byNumber: InfraUsageResourceRow[];
+    byDevice: InfraUsageResourceRow[];
+    byMember: InfraUsageResourceRow[];
+  };
+}

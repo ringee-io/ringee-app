@@ -14,13 +14,30 @@ import {
   type StatusTone
 } from '../lib/node-config';
 import type { Readiness } from '../lib/readiness';
+import { useInfraStore } from '../store/infra.store';
 import type { InfraNode } from '../types';
 
 export interface ResourceNodeData extends Record<string, unknown> {
   node: InfraNode;
   /** Precomputed completeness (see lib/readiness). Drives the node's pill. */
   readiness?: Readiness;
+  /** Edge ids where this node is the source — one distributed right handle each. */
+  sourceHandleIds?: string[];
+  /** Edge ids where this node is the target — one distributed left handle each. */
+  targetHandleIds?: string[];
 }
+
+/** Even vertical spread for N handles down a node's border (never the corners). */
+function handleTop(index: number, count: number): string {
+  return `${((index + 1) / (count + 1)) * 100}%`;
+}
+
+const TONE_HANDLE: Record<StatusTone, string> = {
+  ok: '!border-emerald-400/70',
+  warn: '!border-amber-400/70',
+  bad: '!border-red-400/70',
+  idle: '!border-muted-foreground/50'
+};
 
 const TONE_PILL: Record<StatusTone, string> = {
   ok: 'bg-emerald-500/15 text-emerald-400',
@@ -65,7 +82,7 @@ function Chip({ children }: { children: React.ReactNode }) {
   );
 }
 
-export function ResourceNode({ data, selected }: NodeProps) {
+export function ResourceNode({ id, data, selected }: NodeProps) {
   const d = data as ResourceNodeData;
   const node = d.node;
   const meta = RESOURCE_META[node.type];
@@ -76,6 +93,17 @@ export function ResourceNode({ data, selected }: NodeProps) {
   // back to the raw status so a node always reads sensibly.
   const pillTone = d.readiness?.tone ?? statusTone(node.status);
   const pillLabel = d.readiness?.label ?? prettyStatus(node.status);
+  const incomplete = d.readiness?.incomplete ?? false;
+
+  // Light up when this node is an endpoint of the currently-hovered edge, so a
+  // hovered relationship visibly connects its two nodes.
+  const hoveredEdge = useInfraStore((s) => s.hoveredEdge);
+  const endpointHighlight =
+    !!hoveredEdge && (hoveredEdge.source === id || hoveredEdge.target === id);
+
+  const sourceHandleIds = d.sourceHandleIds ?? [];
+  const targetHandleIds = d.targetHandleIds ?? [];
+  const handleTone = TONE_HANDLE[pillTone];
 
   const isOwner = node.type === 'TEAM_MEMBER' && m.role === 'OWNER';
   const isPerson = node.type === 'TEAM_MEMBER';
@@ -128,7 +156,7 @@ export function ResourceNode({ data, selected }: NodeProps) {
   return (
     <div
       className={cn(
-        'bg-card text-card-foreground group w-[244px] overflow-hidden rounded-2xl border shadow-sm transition-[transform,box-shadow,border-color] duration-150 ease-out',
+        'bg-card text-card-foreground group relative w-[244px] overflow-hidden rounded-2xl border shadow-sm transition-[transform,box-shadow,border-color] duration-150 ease-out',
         'hover:-translate-y-0.5 hover:shadow-lg',
         selected
           ? cn(
@@ -136,13 +164,40 @@ export function ResourceNode({ data, selected }: NodeProps) {
               'ring-offset-background',
               meta.ring
             )
-          : 'border-border hover:border-foreground/20'
+          : endpointHighlight
+            ? 'border-primary/60 ring-primary/25 shadow-lg ring-2'
+            : incomplete
+              ? cn(
+                  'hover:border-foreground/20',
+                  pillTone === 'bad'
+                    ? 'border-red-500/40'
+                    : 'border-amber-500/40'
+                )
+              : 'border-border hover:border-foreground/20'
       )}
     >
+      {/* One dedicated target handle per incoming relationship, spread down the
+          left border so each connection reads individually. */}
+      {targetHandleIds.map((edgeId, i) => (
+        <Handle
+          key={edgeId}
+          id={edgeId}
+          type='target'
+          position={Position.Left}
+          style={{ top: handleTop(i, targetHandleIds.length) }}
+          className={cn(
+            '!bg-background !size-2.5 !border-2 transition-transform',
+            handleTone
+          )}
+        />
+      ))}
+      {/* Always-available target socket for creating a new connection (subtle
+          until the node is hovered); its id never clashes with an edge id. */}
       <Handle
         type='target'
+        id='t'
         position={Position.Left}
-        className='!bg-background !border-muted-foreground/50 !size-2.5 !border-2'
+        className='!bg-background !border-muted-foreground/40 !size-2.5 !border-2 !opacity-0 transition-opacity group-hover:!opacity-100'
       />
 
       {/* Accent rail */}
@@ -196,10 +251,26 @@ export function ResourceNode({ data, selected }: NodeProps) {
         </div>
       </div>
 
+      {/* One dedicated source handle per outgoing relationship, spread down the
+          right border. */}
+      {sourceHandleIds.map((edgeId, i) => (
+        <Handle
+          key={edgeId}
+          id={edgeId}
+          type='source'
+          position={Position.Right}
+          style={{ top: handleTop(i, sourceHandleIds.length) }}
+          className={cn(
+            '!bg-background !size-2.5 !border-2 transition-transform',
+            handleTone
+          )}
+        />
+      ))}
       <Handle
         type='source'
+        id='s'
         position={Position.Right}
-        className='!bg-background !border-muted-foreground/50 !size-2.5 !border-2'
+        className='!bg-background !border-muted-foreground/40 !size-2.5 !border-2 !opacity-0 transition-opacity group-hover:!opacity-100'
       />
     </div>
   );

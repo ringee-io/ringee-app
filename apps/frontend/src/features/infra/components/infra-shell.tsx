@@ -12,6 +12,7 @@ import {
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import {
   IconArrowLeft,
+  IconChartHistogram,
   IconTopologyStar3,
   type IconProps
 } from '@tabler/icons-react';
@@ -20,7 +21,8 @@ import { SPRING } from '../lib/motion';
 import { InfraTopbar } from './infra-topbar';
 
 const NAV: { href: string; label: string; icon: ComponentType<IconProps> }[] = [
-  { href: '/infra/overview', label: 'Architecture', icon: IconTopologyStar3 }
+  { href: '/infra/overview', label: 'Architecture', icon: IconTopologyStar3 },
+  { href: '/infra/usage', label: 'Usage', icon: IconChartHistogram }
 ];
 
 function RailButton({
