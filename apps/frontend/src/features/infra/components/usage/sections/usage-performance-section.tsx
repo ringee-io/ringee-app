@@ -7,15 +7,18 @@ import {
   IconSpeakerphone,
   IconPhone,
   IconUser,
-  IconDeviceLandlinePhone
+  IconDeviceLandlinePhone,
+  IconChartArea
 } from '@tabler/icons-react';
-import type { InfraUsage } from '../../types';
+import type { InfraUsage } from '../../../types';
+import { TimeArea } from '../usage-charts';
 import {
+  GroupLabel,
   Panel,
-  SectionHeader,
+  SectionIntro,
   TopResourceCard,
   formatDuration
-} from './usage-primitives';
+} from '../usage-primitives';
 
 /** Circular answer-rate meter (single primary hue, value shown in the center). */
 function AnswerRateRing({ pct }: { pct: number }) {
@@ -55,7 +58,32 @@ function AnswerRateRing({ pct }: { pct: number }) {
   );
 }
 
-export function UsagePerformance({
+function Metric({
+  icon: Icon,
+  label,
+  value
+}: {
+  icon: typeof IconPhoneCheck;
+  label: string;
+  value: string;
+}) {
+  return (
+    <div className='flex items-center gap-2.5'>
+      <Icon className='text-muted-foreground size-4 shrink-0' />
+      <span className='text-muted-foreground min-w-0 flex-1 truncate text-xs'>
+        {label}
+      </span>
+      <span className='text-sm font-semibold tabular-nums'>{value}</span>
+    </div>
+  );
+}
+
+/**
+ * Performance — how well calls are actually going in the selected range. Answer
+ * rate + core rates, the top performers by kind, and a single calls-over-time
+ * trend. No spend, no health: this view answers one question only.
+ */
+export function UsagePerformanceSection({
   usage,
   hasOrg
 }: {
@@ -65,14 +93,14 @@ export function UsagePerformance({
   const p = usage.performance;
 
   return (
-    <section>
-      <SectionHeader
+    <div className='space-y-8'>
+      <SectionIntro
         title='Performance'
-        subtitle='How calling is going in the selected range'
+        description='How well your calls are performing'
         icon={IconActivityHeartbeat}
       />
+
       <div className='grid gap-3 lg:grid-cols-3'>
-        {/* Answer rate + core rates */}
         <Panel className='flex items-center gap-4'>
           <AnswerRateRing pct={p.answerRate} />
           <div className='min-w-0 flex-1 space-y-2.5'>
@@ -89,7 +117,6 @@ export function UsagePerformance({
           </div>
         </Panel>
 
-        {/* Top performers */}
         <div className='grid gap-3 sm:grid-cols-2 lg:col-span-2'>
           <TopResourceCard
             label='Top campaign'
@@ -127,26 +154,20 @@ export function UsagePerformance({
           />
         </div>
       </div>
-    </section>
-  );
-}
 
-function Metric({
-  icon: Icon,
-  label,
-  value
-}: {
-  icon: typeof IconPhoneCheck;
-  label: string;
-  value: string;
-}) {
-  return (
-    <div className='flex items-center gap-2.5'>
-      <Icon className='text-muted-foreground size-4 shrink-0' />
-      <span className='text-muted-foreground min-w-0 flex-1 truncate text-xs'>
-        {label}
-      </span>
-      <span className='text-sm font-semibold tabular-nums'>{value}</span>
+      <div>
+        <GroupLabel>Trend</GroupLabel>
+        <TimeArea
+          data={usage.cost.series}
+          dataKey='calls'
+          gradientId='infra-perf-calls-grad'
+          format={(v) => `${v.toLocaleString()} calls`}
+          icon={IconChartArea}
+          title='Calls over time'
+          subtitle='Total calls placed per day in the selected range'
+          height={200}
+        />
+      </div>
     </div>
   );
 }

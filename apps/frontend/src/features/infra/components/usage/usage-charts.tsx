@@ -9,23 +9,13 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import {
-  IconCoin,
-  IconPhone,
-  IconSpeakerphone,
-  IconChartArea
-} from '@tabler/icons-react';
-import type { InfraUsage, InfraUsageSeriesPoint } from '../../types';
-import {
-  EmptyHint,
-  MiniBarRow,
-  Panel,
-  SectionHeader,
-  formatMinutes,
-  formatMoney
-} from './usage-primitives';
+import type { IconProps } from '@tabler/icons-react';
+import type { ComponentType } from 'react';
+import type { InfraUsageSeriesPoint } from '../../types';
+import { EmptyHint, Panel, SectionHeader } from './usage-primitives';
 
-function shortDate(iso: string): string {
+/** "3/14"-style compact axis/tooltip label. */
+export function shortDate(iso: string): string {
   const d = new Date(iso);
   if (Number.isNaN(d.getTime())) return iso;
   return `${d.getMonth() + 1}/${d.getDate()}`;
@@ -54,28 +44,36 @@ function ChartTooltip({
   );
 }
 
-/** A single-series area over time (primary hue, no legend — the title names it). */
-function TimeArea({
+/**
+ * A single-series area over time wrapped in a panel (primary hue, no legend —
+ * the title names it). Shared by Performance (calls) and Cost & billing
+ * (spend / minutes) so every trend reads with one visual voice.
+ */
+export function TimeArea({
   data,
   dataKey,
   gradientId,
   format,
   icon: Icon,
-  title
+  title,
+  subtitle,
+  height = 176
 }: {
   data: InfraUsageSeriesPoint[];
-  dataKey: 'spend' | 'minutes';
+  dataKey: 'spend' | 'minutes' | 'calls';
   gradientId: string;
   format: (v: number) => string;
-  icon: typeof IconChartArea;
+  icon: ComponentType<IconProps>;
   title: string;
+  subtitle?: string;
+  height?: number;
 }) {
   const hasData = data.some((d) => d[dataKey] > 0);
   return (
     <Panel>
-      <SectionHeader title={title} icon={Icon} />
+      <SectionHeader title={title} subtitle={subtitle} icon={Icon} />
       {hasData ? (
-        <div className='h-44 w-full'>
+        <div className='w-full' style={{ height }}>
           <ResponsiveContainer width='100%' height='100%'>
             <AreaChart
               data={data}
@@ -135,85 +133,5 @@ function TimeArea({
         <EmptyHint>No activity in this range.</EmptyHint>
       )}
     </Panel>
-  );
-}
-
-export function UsageCost({ usage }: { usage: InfraUsage }) {
-  const { cost, currency } = usage;
-  const maxNumberSpend = Math.max(1, ...cost.spendByNumber.map((r) => r.cost));
-  const maxCampaignSpend = Math.max(
-    1,
-    ...cost.spendByCampaign.map((r) => r.cost)
-  );
-
-  return (
-    <section>
-      <SectionHeader
-        title='Cost & billing'
-        subtitle='Where your spend and minutes are going'
-        icon={IconCoin}
-      />
-
-      <div className='grid gap-3 lg:grid-cols-2'>
-        <TimeArea
-          data={cost.series}
-          dataKey='spend'
-          gradientId='infra-spend-grad'
-          format={(v) => formatMoney(v, currency)}
-          icon={IconChartArea}
-          title='Spend over time'
-        />
-        <TimeArea
-          data={cost.series}
-          dataKey='minutes'
-          gradientId='infra-minutes-grad'
-          format={(v) => formatMinutes(v)}
-          icon={IconChartArea}
-          title='Minutes over time'
-        />
-
-        <Panel>
-          <SectionHeader title='Spend by number' icon={IconPhone} />
-          {cost.spendByNumber.length ? (
-            <div className='space-y-0.5'>
-              {cost.spendByNumber.slice(0, 8).map((r) => (
-                <MiniBarRow
-                  key={r.id}
-                  name={r.name}
-                  value={r.cost}
-                  valueLabel={formatMoney(r.cost, currency)}
-                  max={maxNumberSpend}
-                  icon={IconPhone}
-                  barClass='bg-emerald-500'
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyHint>No number spend yet.</EmptyHint>
-          )}
-        </Panel>
-
-        <Panel>
-          <SectionHeader title='Spend by campaign' icon={IconSpeakerphone} />
-          {cost.spendByCampaign.length ? (
-            <div className='space-y-0.5'>
-              {cost.spendByCampaign.slice(0, 8).map((r) => (
-                <MiniBarRow
-                  key={r.id}
-                  name={r.name}
-                  value={r.cost}
-                  valueLabel={formatMoney(r.cost, currency)}
-                  max={maxCampaignSpend}
-                  icon={IconSpeakerphone}
-                  barClass='bg-amber-500'
-                />
-              ))}
-            </div>
-          ) : (
-            <EmptyHint>No campaign spend yet.</EmptyHint>
-          )}
-        </Panel>
-      </div>
-    </section>
   );
 }

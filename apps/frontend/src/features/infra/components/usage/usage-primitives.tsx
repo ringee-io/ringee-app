@@ -1,8 +1,10 @@
 'use client';
 
+import { motion, useReducedMotion } from 'framer-motion';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import type { ComponentType } from 'react';
 import type { IconProps } from '@tabler/icons-react';
+import { SPRING } from '../../lib/motion';
 
 /** Premium surface shared by every Usage panel. */
 export function Panel({
@@ -20,6 +22,113 @@ export function Panel({
       )}
     >
       {children}
+    </div>
+  );
+}
+
+/**
+ * The editorial header at the top of every Usage section — larger and calmer
+ * than the compact panel {@link SectionHeader}, so each view opens with a clear
+ * title, a one-line intent, and an optional right-hand summary.
+ */
+export function SectionIntro({
+  title,
+  description,
+  icon: Icon,
+  right
+}: {
+  title: string;
+  description?: string;
+  icon?: ComponentType<IconProps>;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div className='mb-6 flex items-start gap-3'>
+      {Icon ? (
+        <span className='bg-muted/60 text-muted-foreground flex size-9 shrink-0 items-center justify-center rounded-xl'>
+          <Icon className='size-[18px]' />
+        </span>
+      ) : null}
+      <div className='min-w-0 flex-1'>
+        <h1 className='text-base font-semibold tracking-tight'>{title}</h1>
+        {description ? (
+          <p className='text-muted-foreground text-[13px]'>{description}</p>
+        ) : null}
+      </div>
+      {right ? <div className='shrink-0'>{right}</div> : null}
+    </div>
+  );
+}
+
+/** A quiet uppercase label that groups a cluster of panels within a section. */
+export function GroupLabel({
+  children,
+  right
+}: {
+  children: React.ReactNode;
+  right?: React.ReactNode;
+}) {
+  return (
+    <div className='mb-2.5 flex items-center justify-between'>
+      <span className='text-muted-foreground text-[11px] font-medium tracking-[0.08em] uppercase'>
+        {children}
+      </span>
+      {right}
+    </div>
+  );
+}
+
+interface SegmentItem<T extends string> {
+  id: T;
+  label: string;
+  icon?: ComponentType<IconProps>;
+}
+
+/**
+ * Premium pill tabs with a shared sliding indicator (framer `layoutId`). Used
+ * for the second layer of segmentation inside "By resource".
+ */
+export function SegmentedTabs<T extends string>({
+  items,
+  active,
+  onSelect,
+  layoutId = 'usage-segment'
+}: {
+  items: SegmentItem<T>[];
+  active: T;
+  onSelect: (id: T) => void;
+  layoutId?: string;
+}) {
+  const reduce = useReducedMotion();
+  return (
+    <div className='bg-muted/40 inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-xl border p-1'>
+      {items.map((it) => {
+        const on = it.id === active;
+        const Icon = it.icon;
+        return (
+          <button
+            key={it.id}
+            type='button'
+            onClick={() => onSelect(it.id)}
+            className={cn(
+              'relative flex shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+              on
+                ? 'text-foreground'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            {on ? (
+              <motion.span
+                layoutId={layoutId}
+                transition={reduce ? { duration: 0 } : SPRING}
+                className='bg-card absolute inset-0 rounded-lg border shadow-sm ring-1 ring-white/5'
+              />
+            ) : null}
+            {Icon ? <Icon className='relative size-3.5' /> : null}
+            <span className='relative whitespace-nowrap'>{it.label}</span>
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -200,6 +309,49 @@ export function TopResourceCard({
         ) : null}
       </div>
     </Root>
+  );
+}
+
+/** A compact, horizontally-laid insight — icon + label + value on one line.
+ *  Lighter than {@link StatTile}; used for the Overview "highlights" row. */
+export function InsightTile({
+  label,
+  value,
+  sub,
+  icon: Icon,
+  accent = 'text-muted-foreground',
+  tint = 'bg-muted/60'
+}: {
+  label: string;
+  value: string | number;
+  sub?: string;
+  icon: ComponentType<IconProps>;
+  accent?: string;
+  tint?: string;
+}) {
+  return (
+    <Panel className='flex items-center gap-3'>
+      <span
+        className={cn(
+          'flex size-9 shrink-0 items-center justify-center rounded-lg',
+          tint,
+          accent
+        )}
+      >
+        <Icon className='size-5' />
+      </span>
+      <div className='min-w-0'>
+        <p className='text-muted-foreground text-[11px] font-medium tracking-wide uppercase'>
+          {label}
+        </p>
+        <p className='text-lg font-semibold tracking-tight tabular-nums'>
+          {value}
+        </p>
+        {sub ? (
+          <p className='text-muted-foreground truncate text-[11px]'>{sub}</p>
+        ) : null}
+      </div>
+    </Panel>
   );
 }
 
