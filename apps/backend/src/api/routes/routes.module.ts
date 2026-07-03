@@ -65,7 +65,6 @@ import { SipDeviceController } from "./sip-device.controller";
 import { DeskPhoneWebhookController } from "./desk-phone.webhook.controller";
 import { InfrastructureController } from "./infrastructure.controller";
 import { FreeTrialController } from "./free-trial.controller";
-import { InfrastructureController } from "./infrastructure.controller";
 
 @Module({
   controllers: [
