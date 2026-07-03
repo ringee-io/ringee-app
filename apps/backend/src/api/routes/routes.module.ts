@@ -63,7 +63,6 @@ import { BackofficeController } from "./backoffice.controller";
 import { CallerIdRotationController } from "./caller-id-rotation.controller";
 import { SipDeviceController } from "./sip-device.controller";
 import { DeskPhoneWebhookController } from "./desk-phone.webhook.controller";
-import { InfrastructureController } from "./infrastructure.controller";
 import { FreeTrialController } from "./free-trial.controller";
 
 @Module({
