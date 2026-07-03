@@ -58,6 +58,7 @@ import {
   InfraUsageResult,
   InfraUsageRef,
   InfraUsageResourceRow,
+  InfraJourneySignalsDto,
 } from "./infrastructure.types";
 
 interface DesiredEntity {
@@ -413,6 +414,45 @@ export class InfrastructureService {
       }
     }
     return names;
+  }
+
+  /**
+   * Journey signals — the raw inputs (beyond the resource inventory the overview
+   * already returns) the client needs to place the workspace on its maturity
+   * "Journey": a stable 30-day call volume plus the recording / transcription /
+   * AI switches. Volume comes from {@link getUsage} over a fixed 30-day window so
+   * the classification never depends on whatever filter the Usage view has set.
+   */
+  async getJourneySignals(
+    ctx: OwnershipContext,
+  ): Promise<InfraJourneySignalsDto> {
+    const end = new Date();
+    const start = new Date(end);
+    start.setDate(start.getDate() - 29);
+    start.setHours(0, 0, 0, 0);
+
+    const [usage, extra] = await Promise.all([
+      this.getUsage(ctx, { start, end }),
+      this.infraRepo.getJourneySignals(ctx),
+    ]);
+
+    const minutesLast30d = usage.cost.series.reduce(
+      (sum, point) => sum + point.minutes,
+      0,
+    );
+
+    return {
+      scope: ctx.organizationId ? "organization" : "personal",
+      callsLast30d: usage.performance.totalCalls,
+      minutesLast30d: Math.round(minutesLast30d),
+      connectedCallsLast30d: usage.performance.callsConnected,
+      answerRate: usage.performance.answerRate,
+      recordingEnabled: extra.recordAllCalls,
+      transcriptionEnabled:
+        extra.transcribeRealtime || extra.transcribeRecordings,
+      transcriptionsLast30d: extra.transcriptionsLast30d,
+      aiEnabled: extra.aiEnabledCount > 0,
+    };
   }
 
   /**

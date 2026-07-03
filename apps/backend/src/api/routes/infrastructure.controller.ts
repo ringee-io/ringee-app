@@ -80,6 +80,12 @@ export class InfrastructureController {
     });
   }
 
+  @Get("journey")
+  @AllowOrgMember()
+  async journey(@CurrentUser() user: CurrentUserData) {
+    return this.infra.getJourneySignals(createOwnershipContext(user));
+  }
+
   @Get("linkable")
   @AllowOrgMember()
   async linkable(@CurrentUser() user: CurrentUserData) {

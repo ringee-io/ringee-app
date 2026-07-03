@@ -1,6 +1,7 @@
 import type { ComponentType } from 'react';
 import {
   IconLayoutDashboard,
+  IconRocket,
   IconActivityHeartbeat,
   IconShieldCheck,
   IconCoin,
@@ -8,9 +9,10 @@ import {
   type IconProps
 } from '@tabler/icons-react';
 
-/** The five first-class views inside Usage — each owns one concern. */
+/** The first-class views inside Usage — each owns one concern. */
 export type UsageSection =
   | 'overview'
+  | 'journey'
   | 'performance'
   | 'health'
   | 'cost'
@@ -30,6 +32,12 @@ export const USAGE_SECTIONS: UsageSectionMeta[] = [
     label: 'Overview',
     description: 'The executive summary',
     Icon: IconLayoutDashboard
+  },
+  {
+    id: 'journey',
+    label: 'Journey',
+    description: 'Your stage & next steps',
+    Icon: IconRocket
   },
   {
     id: 'performance',
@@ -61,5 +69,5 @@ export const DEFAULT_USAGE_SECTION: UsageSection = 'overview';
 
 /** Filters are only meaningful on the range/resource-driven views. */
 export function sectionUsesFilters(section: UsageSection): boolean {
-  return section !== 'health';
+  return section !== 'health' && section !== 'journey';
 }

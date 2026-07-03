@@ -8,11 +8,13 @@ import { cn } from '@ringee/frontend-shared/lib/utils';
 import { IconLoader2, IconChartHistogram } from '@tabler/icons-react';
 import { contentVariants } from '../../lib/motion';
 import { buildHealth } from '../../lib/usage-health';
+import { buildJourney } from '../../lib/journey';
 import { useInfraApi } from '../../api';
 import { useInfraStore } from '../../store/infra.store';
 import type {
   InfraEdge,
   InfraNode,
+  InfraJourneySignals,
   InfraUsage as InfraUsageData
 } from '../../types';
 import { UsageFilters, type UsageFilterState } from './usage-filters';
@@ -23,6 +25,7 @@ import {
   type UsageSection
 } from './usage-sections';
 import { UsageOverviewSection } from './sections/usage-overview-section';
+import { UsageJourneySection } from './sections/usage-journey-section';
 import { UsagePerformanceSection } from './sections/usage-performance-section';
 import { UsageHealthSection } from './sections/usage-health-section';
 import { UsageCostSection } from './sections/usage-cost-section';
@@ -53,16 +56,22 @@ export function InfraUsage() {
   const [nodes, setNodes] = useState<InfraNode[]>([]);
   const [edges, setEdges] = useState<InfraEdge[]>([]);
   const [usage, setUsage] = useState<InfraUsageData | null>(null);
+  const [signals, setSignals] = useState<InfraJourneySignals | null>(null);
   const [filters, setFilters] = useState<UsageFilterState>(DEFAULT_FILTERS);
   const [loadingOverview, setLoadingOverview] = useState(true);
   const [loadingUsage, setLoadingUsage] = useState(true);
+  const [loadingJourney, setLoadingJourney] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // ── Overview (filter options + operational health), reloads on workspace switch
+  // ── Overview (filter options + operational health) + Journey signals, both
+  //    reload on workspace switch. Journey signals use a fixed 30-day window, so
+  //    they're fetched here (not on filter change).
   useEffect(() => {
     if (!authLoaded) return;
     let cancelled = false;
     setLoadingOverview(true);
+    setLoadingJourney(true);
+    setSignals(null);
     setFilters(DEFAULT_FILTERS);
     api
       .getOverview()
@@ -77,6 +86,12 @@ export function InfraUsage() {
         setLoadingOverview(false);
         setContextSwitching(false);
       });
+    api
+      .getJourney()
+      .then((data) => !cancelled && setSignals(data))
+      // A Journey signal failure is non-fatal — the other views still work.
+      .catch(() => undefined)
+      .finally(() => !cancelled && setLoadingJourney(false));
     return () => {
       cancelled = true;
     };
@@ -113,10 +128,19 @@ export function InfraUsage() {
     [nodes, edges, hasOrg]
   );
 
+  // Journey is derived from the overview nodes/edges + the 30-day signals, so it
+  // stands on its own (no `usage` payload, no filters) and can render on a
+  // brand-new, empty workspace with its "Not enough activity yet" framing.
+  const journey = useMemo(
+    () => (signals ? buildJourney({ nodes, edges, signals, hasOrg }) : null),
+    [signals, nodes, edges, hasOrg]
+  );
+
   // Full loader until the first usage payload lands; later filter reloads dim
   // the content instead (see loadingUsage below), so there's no blank flash.
   const busy =
     contextSwitching || (!usage && (loadingOverview || loadingUsage));
+  const journeyBusy = contextSwitching || loadingOverview || loadingJourney;
   const empty = !busy && !error && nodes.length === 0;
   const showFilters = sectionUsesFilters(section);
   // The health view ignores filters, so its content never dims on reload.
@@ -130,6 +154,7 @@ export function InfraUsage() {
             usage={data}
             hasOrg={hasOrg}
             health={health}
+            journey={journey}
             onNavigate={setSection}
           />
         );
@@ -180,6 +205,42 @@ export function InfraUsage() {
             <div className='flex h-64 items-center justify-center'>
               <p className='text-destructive text-sm'>{error}</p>
             </div>
+          ) : section === 'journey' ? (
+            journeyBusy ? (
+              <div className='flex h-64 items-center justify-center'>
+                <div className='bg-card/90 flex items-center gap-2.5 rounded-full border px-4 py-2 shadow-lg ring-1 ring-white/5'>
+                  <IconLoader2 className='text-primary size-4 animate-spin' />
+                  <p className='text-sm font-medium'>
+                    {contextSwitching
+                      ? 'Switching workspace…'
+                      : 'Reading your journey…'}
+                  </p>
+                </div>
+              </div>
+            ) : !journey ? (
+              <div className='flex h-64 items-center justify-center'>
+                <p className='text-destructive text-sm'>
+                  Could not load your journey.
+                </p>
+              </div>
+            ) : (
+              <div className='mx-auto max-w-[1180px] px-4 py-6 sm:px-6'>
+                <AnimatePresence mode='wait'>
+                  <motion.div
+                    key='journey'
+                    variants={reduce ? undefined : contentVariants}
+                    initial={reduce ? false : 'hidden'}
+                    animate='visible'
+                    exit={reduce ? undefined : 'exit'}
+                  >
+                    <UsageJourneySection
+                      journey={journey}
+                      onNavigate={setSection}
+                    />
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            )
           ) : busy ? (
             <div className='flex h-64 items-center justify-center'>
               <div className='bg-card/90 flex items-center gap-2.5 rounded-full border px-4 py-2 shadow-lg ring-1 ring-white/5'>

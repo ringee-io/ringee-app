@@ -501,4 +501,46 @@ export class InfrastructureRepository {
       })),
     };
   }
+
+  // ── Journey signals ─────────────────────────────────────────────────────────
+
+  /**
+   * The workspace's recording / transcription / AI switches, plus how many
+   * transcripts were actually produced in the last 30 days. Scoped to the active
+   * workspace like every other read here. Volume (calls/minutes) is sourced from
+   * {@link getUsage} at the service layer, so this only covers the signals that
+   * live outside the Call table.
+   */
+  async getJourneySignals(ctx: OwnershipContext): Promise<{
+    recordAllCalls: boolean;
+    transcribeRealtime: boolean;
+    transcribeRecordings: boolean;
+    transcriptionsLast30d: number;
+    aiEnabledCount: number;
+  }> {
+    const owner = buildOwnershipFilter(ctx);
+    const since = new Date();
+    since.setDate(since.getDate() - 29);
+    since.setHours(0, 0, 0, 0);
+
+    const [settings, transcriptionsLast30d, aiEnabledCount] = await Promise.all(
+      [
+        this.prisma.callRecordingSettings.findFirst({ where: owner }),
+        this.prisma.callTranscription.count({
+          where: { ...owner, createdAt: { gte: since } },
+        }),
+        this.prisma.aiPipelineActivation.count({
+          where: { ...owner, enabled: true },
+        }),
+      ],
+    );
+
+    return {
+      recordAllCalls: settings?.recordAllCalls ?? false,
+      transcribeRealtime: settings?.transcribeRealtime ?? false,
+      transcribeRecordings: settings?.transcribeRecordings ?? false,
+      transcriptionsLast30d,
+      aiEnabledCount,
+    };
+  }
 }

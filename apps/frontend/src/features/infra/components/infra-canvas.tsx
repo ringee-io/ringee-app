@@ -174,6 +174,7 @@ export function InfraCanvas() {
     contextSwitching,
     addRequest,
     focusNodeId,
+    focusTab,
     select,
     closeInspector,
     setTab,
@@ -323,10 +324,10 @@ export function InfraCanvas() {
     if (!focusNodeId) return;
     const target = rawNodes.find((n) => n.id === focusNodeId);
     if (!target) return; // wait until the overview containing it has loaded
-    select(focusNodeId, 'overview');
+    select(focusNodeId, focusTab ?? 'overview');
     fitView({ nodes: [{ id: focusNodeId }], duration: 400, maxZoom: 1.1 });
     setFocusNode(null);
-  }, [focusNodeId, rawNodes, select, fitView, setFocusNode]);
+  }, [focusNodeId, focusTab, rawNodes, select, fitView, setFocusNode]);
 
   // ── Returning from Stripe Checkout ──────────────────────────────────────────
   useEffect(() => {

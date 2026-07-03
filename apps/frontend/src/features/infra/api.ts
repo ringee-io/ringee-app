@@ -16,6 +16,7 @@ import type {
   InfraNumberDocuments,
   InfraConfigPatch,
   InfraUsage,
+  InfraJourneySignals,
   UsageQueryParams
 } from './types';
 
@@ -42,6 +43,10 @@ export function useInfraApi() {
         const q = qs.toString();
         return api.get<InfraUsage>(`${BASE}/usage${q ? `?${q}` : ''}`);
       },
+
+      // Journey maturity signals — a fixed 30-day window, so it never depends on
+      // the Usage filters. Reloaded only on workspace switch.
+      getJourney: () => api.get<InfraJourneySignals>(`${BASE}/journey`),
 
       listLinkable: () => api.get<InfraLinkableItem[]>(`${BASE}/linkable`),
 

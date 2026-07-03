@@ -54,10 +54,13 @@ interface InfraStore {
   hoveredEdge: HoveredEdge | null;
   /**
    * A node the canvas should select + reveal once its overview has loaded. Set
-   * from the Usage view (health rows) before navigating to /infra/overview;
-   * survives the per-context reset so the deep-link isn't wiped on load.
+   * from the Usage view (health rows, Journey steps) before navigating to
+   * /infra/overview; survives the per-context reset so the deep-link isn't wiped
+   * on load. `focusTab` optionally opens a specific inspector tab (e.g. Journey's
+   * "Register device" step deep-links straight to the registration tab).
    */
   focusNodeId: string | null;
+  focusTab: InspectorTab | null;
 
   select: (nodeId: string, tab?: InspectorTab) => void;
   closeInspector: () => void;
@@ -69,7 +72,7 @@ interface InfraStore {
   requestAdd: (type: InfrastructureResourceType | null) => void;
   clearAddRequest: () => void;
   setHoveredEdge: (edge: HoveredEdge | null) => void;
-  setFocusNode: (nodeId: string | null) => void;
+  setFocusNode: (nodeId: string | null, tab?: InspectorTab | null) => void;
   /**
    * Wipe all canvas-local UI state when the active workspace changes, so a
    * resource from the previous context never lingers in the inspector/menu and
@@ -87,6 +90,7 @@ export const useInfraStore = create<InfraStore>((set) => ({
   addRequest: null,
   hoveredEdge: null,
   focusNodeId: null,
+  focusTab: null,
 
   select: (nodeId, tab = 'overview') =>
     set({ selectedNodeId: nodeId, inspectorTab: tab }),
@@ -105,7 +109,8 @@ export const useInfraStore = create<InfraStore>((set) => ({
   requestAdd: (type) => set({ addRequest: { type } }),
   clearAddRequest: () => set({ addRequest: null }),
   setHoveredEdge: (edge) => set({ hoveredEdge: edge }),
-  setFocusNode: (nodeId) => set({ focusNodeId: nodeId }),
+  setFocusNode: (nodeId, tab = null) =>
+    set({ focusNodeId: nodeId, focusTab: tab }),
   resetForContext: () =>
     set({
       selectedNodeId: null,

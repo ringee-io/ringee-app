@@ -15,10 +15,12 @@ import {
   IconCoin,
   IconArrowRight,
   IconCircleCheck,
-  IconAlertTriangle
+  IconAlertTriangle,
+  IconRocket
 } from '@tabler/icons-react';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import type { HealthSummary } from '../../../lib/usage-health';
+import type { JourneyState } from '../../../lib/journey';
 import type { InfraUsage } from '../../../types';
 import type { UsageSection } from '../usage-sections';
 import {
@@ -93,6 +95,70 @@ function SummaryCard({
 }
 
 /**
+ * The strategic Journey banner — a single, prominent handoff to the Journey view
+ * (the detail lives there). Shows the current maturity stage and how many next
+ * steps are waiting, so Overview opens with direction, not just metrics.
+ */
+function JourneyMiniCard({
+  journey,
+  onOpen
+}: {
+  journey: JourneyState;
+  onOpen: () => void;
+}) {
+  const { stage, stageIndex, totalStages, nextSteps, notEnoughData } = journey;
+  const Icon = stage.Icon;
+  const stepCount = nextSteps.length;
+
+  return (
+    <button
+      type='button'
+      onClick={onOpen}
+      className='bg-card/60 group hover:border-foreground/20 relative flex w-full items-center gap-4 overflow-hidden rounded-2xl border p-4 text-left shadow-sm ring-1 ring-white/5 backdrop-blur-sm transition-colors sm:p-5'
+    >
+      <div
+        aria-hidden
+        className={cn(
+          'pointer-events-none absolute -top-16 -right-10 size-44 rounded-full opacity-15 blur-3xl',
+          stage.solid
+        )}
+      />
+      <span
+        className={cn(
+          'relative flex size-11 shrink-0 items-center justify-center rounded-xl ring-1 ring-white/10',
+          stage.tint,
+          stage.accent
+        )}
+      >
+        <Icon className='size-6' />
+      </span>
+      <div className='relative min-w-0 flex-1'>
+        <p className='text-muted-foreground flex items-center gap-1.5 text-[11px] font-medium tracking-wide uppercase'>
+          <IconRocket className='size-3.5' />
+          Journey
+        </p>
+        <p className='mt-0.5 truncate text-sm font-semibold tracking-tight'>
+          {notEnoughData
+            ? 'Not enough activity yet'
+            : `Current stage: ${stage.name}`}
+        </p>
+        <p className='text-muted-foreground truncate text-[12px]'>
+          {notEnoughData
+            ? 'See the first steps to get going'
+            : stepCount > 0
+              ? `${stepCount} recommended next ${stepCount === 1 ? 'step' : 'steps'} · stage ${stageIndex + 1} of ${totalStages}`
+              : `You're up to date · stage ${stageIndex + 1} of ${totalStages}`}
+        </p>
+      </div>
+      <span className='text-muted-foreground group-hover:border-foreground/20 group-hover:text-foreground relative hidden shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors sm:inline-flex'>
+        View journey
+        <IconArrowRight className='size-3.5 transition-transform group-hover:translate-x-0.5' />
+      </span>
+    </button>
+  );
+}
+
+/**
  * Overview — the executive summary. Answers "how is the call center doing" in
  * one glance: headline counters, live resource counts, a few highlights, and
  * two summary cards that hand off to the health and cost views. Deliberately
@@ -102,11 +168,13 @@ export function UsageOverviewSection({
   usage,
   hasOrg,
   health,
+  journey,
   onNavigate
 }: {
   usage: InfraUsage;
   hasOrg: boolean;
   health: HealthSummary;
+  journey: JourneyState | null;
   onNavigate: (section: UsageSection) => void;
 }) {
   const o = usage.overview;
@@ -132,6 +200,14 @@ export function UsageOverviewSection({
         }
         icon={IconLayoutDashboard}
       />
+
+      {/* Journey — one strategic banner, detail lives in its own view. */}
+      {journey ? (
+        <JourneyMiniCard
+          journey={journey}
+          onOpen={() => onNavigate('journey')}
+        />
+      ) : null}
 
       {/* Headline counters */}
       <div className='grid grid-cols-2 gap-3 lg:grid-cols-4'>

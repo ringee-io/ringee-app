@@ -221,3 +221,29 @@ export interface InfraUsageResult {
     byMember: InfraUsageResourceRow[];
   };
 }
+
+// ── Journey (internal: Ryan Buckets / maturity segmentation) ──────────────────
+// User-facing name is "Journey". These are the *raw signals* that aren't already
+// derivable on the client from the overview nodes/edges: a stable 30-day call
+// volume plus the recording / transcription / AI switches. The frontend combines
+// them with the resource inventory it already has to classify a maturity stage.
+
+export interface InfraJourneySignalsDto {
+  scope: "organization" | "personal";
+  /** Calls placed in the last 30 days (fixed window, filter-independent). */
+  callsLast30d: number;
+  /** Talk minutes across those calls (rounded). */
+  minutesLast30d: number;
+  /** Connected calls in the window (for the answer-rate reason). */
+  connectedCallsLast30d: number;
+  /** 0–100, over the 30-day window. */
+  answerRate: number;
+  /** "Record all calls" is on for this workspace. */
+  recordingEnabled: boolean;
+  /** Realtime or recording transcription is on for this workspace. */
+  transcriptionEnabled: boolean;
+  /** Transcripts actually produced in the last 30 days (proof of use). */
+  transcriptionsLast30d: number;
+  /** At least one AI pipeline is enabled for this workspace. */
+  aiEnabled: boolean;
+}

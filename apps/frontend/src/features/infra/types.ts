@@ -186,6 +186,25 @@ export interface InfraUsageSeriesPoint {
   spend: number;
 }
 
+// ── Journey (internal: Ryan Buckets) ─────────────────────────────────────────
+
+/**
+ * Raw signals the Journey view can't derive from the overview nodes/edges: a
+ * stable 30-day call volume plus the recording / transcription / AI switches.
+ * Combined client-side with the resource inventory to classify a maturity stage.
+ */
+export interface InfraJourneySignals {
+  scope: 'organization' | 'personal';
+  callsLast30d: number;
+  minutesLast30d: number;
+  connectedCallsLast30d: number;
+  answerRate: number;
+  recordingEnabled: boolean;
+  transcriptionEnabled: boolean;
+  transcriptionsLast30d: number;
+  aiEnabled: boolean;
+}
+
 export interface InfraUsage {
   scope: 'organization' | 'personal';
   currency: string;

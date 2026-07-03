@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, useReducedMotion } from 'framer-motion';
@@ -82,9 +83,16 @@ export function InfraShell({ children }: { children: React.ReactNode }) {
               <Link
                 href='/infra/overview'
                 aria-label='Ringee Infra'
-                className='from-primary to-primary/85 text-primary-foreground shadow-primary/20 group flex size-10 items-center justify-center rounded-xl bg-gradient-to-br shadow-lg ring-1 ring-white/10'
+                className='group relative flex size-10 items-center justify-center overflow-hidden rounded-xl shadow-lg ring-1 ring-white/10'
               >
-                <IconTopologyStar3 className='size-5 transition-transform duration-200 group-hover:scale-110' />
+                <Image
+                  src='/android-chrome-192x192.png'
+                  alt='Ringee'
+                  width={40}
+                  height={40}
+                  priority
+                  className='size-full object-cover transition-transform duration-200 group-hover:scale-110'
+                />
               </Link>
             </TooltipTrigger>
             <TooltipContent side='right'>Ringee Infra</TooltipContent>
