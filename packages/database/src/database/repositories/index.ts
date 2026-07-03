@@ -74,4 +74,6 @@ export * from "./objection-insight.repository";
 export * from "./backoffice.repository";
 export * from "./sip-device.repository";
 export * from "./blocked-call-log.repository";
+export * from "./infrastructure.repository";
 export * from "./free-trial-call-request.repository";
+export * from "./infrastructure.repository";

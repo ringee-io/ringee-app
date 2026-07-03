@@ -121,7 +121,9 @@ import { FreeTrialController } from "./free-trial.controller";
     CallerIdRotationController,
     SipDeviceController,
     DeskPhoneWebhookController,
+    InfrastructureController,
     FreeTrialController,
+    InfrastructureController,
   ],
   // TranscriptionMediaGateway lives here (not in the shared ServicesModule) so
   // the Telnyx media-stream WS server binds its port only in the API process.

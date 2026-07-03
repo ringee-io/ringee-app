@@ -67,6 +67,25 @@ export class OrganizationRepository {
       .filter((u): u is User & { emails: UserEmail[] } => u !== null);
   }
 
+  /**
+   * All resolved members of an organization with their user row + primary email.
+   * Pending (clerk-only) invitations are excluded. Used by Ringee Infra to seed
+   * Team Member nodes.
+   */
+  async listMembersWithUsers(
+    organizationId: string,
+  ): Promise<
+    Array<
+      OrganizationMembership & { user: (User & { emails: UserEmail[] }) | null }
+    >
+  > {
+    return this.prisma.organizationMembership.findMany({
+      where: { organizationId, userId: { not: null } },
+      include: { user: { include: { emails: { take: 1 } } } },
+      orderBy: { createdAt: "asc" },
+    });
+  }
+
   /** True when the user has a resolved membership in the organization. */
   async isMember(userId: string, organizationId: string): Promise<boolean> {
     const count = await this.prisma.organizationMembership.count({

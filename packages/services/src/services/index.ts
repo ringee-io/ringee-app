@@ -36,3 +36,4 @@ export * from "./transcription";
 export * from "./ai-pipeline";
 export * from "./backoffice.service";
 export * from "./sip-device";
+export * from "./infrastructure";
