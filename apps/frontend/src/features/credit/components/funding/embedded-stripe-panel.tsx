@@ -171,7 +171,7 @@ export function EmbeddedStripePanel({
                 stripe={stripePromise}
                 options={{ clientSecret, onComplete: handleComplete }}
               >
-                <EmbededCheckout />
+                <EmbeddedCheckout />
               </EmbeddedCheckoutProvider>
             </div>
           </div>
