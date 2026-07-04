@@ -57,8 +57,54 @@
         "enable": "Activar recarga automática"
       },
       "footer": {
-        "secureByStripe": "Seguro con Stripe",
-        "refundGuarantee": "Garantía de reembolso del 100%"
+        "secureByStripe": "Pago seguro con Stripe",
+        "cardSafety": "Los datos de tu tarjeta nunca pasan por los servidores de Ringee"
+      },
+      "checkout": {
+        "title": "Pago seguro",
+        "changeAmount": "Cambiar monto",
+        "subtitle": "Añade {amount} a tu saldo de Ringee",
+        "amountLabel": "Monto",
+        "newBalanceLabel": "Nuevo saldo",
+        "estCallingTime": "Tiempo de llamada estimado",
+        "minutesValue": "~{minutes} min",
+        "loading": "Preparando el pago seguro…",
+        "errorTitle": "No se pudo iniciar el pago",
+        "errorBody": "Algo salió mal al preparar tu pago. Inténtalo de nuevo.",
+        "retry": "Reintentar",
+        "missingKeyTitle": "Pagos no configurados",
+        "missingKeyBody": "Stripe aún no está configurado en este entorno. Agrega tu clave publicable para habilitar el pago.",
+        "completedTitle": "Pago confirmado",
+        "completedPending": "Los créditos aparecerán en breve.",
+        "completedReflected": "Tus créditos se han añadido.",
+        "syncing": "Actualizando tu saldo…",
+        "done": "Listo",
+        "creditsNote": "Los créditos se añaden tras confirmar el pago."
+      },
+      "amount": {
+        "currentBalance": "Saldo actual",
+        "lastTopup": "Última recarga: {amount}",
+        "rechargeCta": "Recargar {amount}",
+        "continueCheckout": "Continuar al pago seguro",
+        "useAnotherMethod": "Usar otro método de pago",
+        "savedHint": "Se cobrará a {brand} •••• {last4}."
+      },
+      "saved": {
+        "title": "Recarga rápida",
+        "subtitle": "Recarga {amount} con tu tarjeta guardada",
+        "methodLabel": "Método de pago",
+        "expLabel": "Vence {value}",
+        "processing": "Procesando tu pago…",
+        "authenticating": "Confirmando con tu banco…",
+        "chargeNote": "Se cobrará con tu método de pago guardado.",
+        "failedTitle": "El pago no se completó",
+        "failedBody": "Tu tarjeta guardada fue rechazada. Prueba otro método de pago.",
+        "useAnotherMethod": "Usar otro método de pago",
+        "tryAgain": "Reintentar"
+      },
+      "consent": {
+        "save": "Guarda este método de pago para recargas futuras más rápidas.",
+        "hint": "Recarga la próxima vez con un solo clic."
       }
     }
   },

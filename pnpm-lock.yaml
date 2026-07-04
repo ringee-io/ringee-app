@@ -84,7 +84,7 @@ importers:
     dependencies:
       attio:
         specifier: latest
-        version: 0.0.1-experimental.20260608(@types/node@24.12.2)(bufferutil@4.1.0)(eslint@9.35.0(jiti@2.7.0))(react-dom@19.1.1(react@19.1.0))(react@19.1.0)(utf-8-validate@6.0.6)
+        version: 0.0.1-experimental.20260630(@types/node@24.12.2)(bufferutil@4.1.0)(eslint@9.35.0(jiti@2.7.0))(react-dom@19.1.1(react@19.1.0))(react@19.1.0)(utf-8-validate@6.0.6)
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -522,6 +522,12 @@ importers:
       '@sentry/nextjs':
         specifier: ^9.19.0
         version: 9.46.0(@opentelemetry/context-async-hooks@1.30.1(@opentelemetry/api@1.9.0))(@opentelemetry/core@1.30.1(@opentelemetry/api@1.9.0))(@opentelemetry/sdk-trace-base@1.30.1(@opentelemetry/api@1.9.0))(next@15.3.8(@babel/core@7.28.4)(@opentelemetry/api@1.9.0)(react-dom@19.0.1(react@19.0.1))(react@19.0.1))(react@19.0.1)(webpack@5.107.2(postcss@8.4.49))
+      '@stripe/react-stripe-js':
+        specifier: ^6.7.0
+        version: 6.7.0(@stripe/stripe-js@9.9.0)(react-dom@19.0.1(react@19.0.1))(react@19.0.1)
+      '@stripe/stripe-js':
+        specifier: ^9.9.0
+        version: 9.9.0
       '@tabler/icons-react':
         specifier: ^3.31.0
         version: 3.35.0(react@19.0.1)
@@ -6873,8 +6879,19 @@ packages:
   '@standard-schema/utils@0.3.0':
     resolution: {integrity: sha512-e7Mew686owMaPJVNNLs55PUvgz371nKgwsc4vxE49zsODpJEnxgxRo2y/OKrqueavXgZNMDVj3DdHFlaSAeU8g==}
 
+  '@stripe/react-stripe-js@6.7.0':
+    resolution: {integrity: sha512-KSWTQHcDlAOlxcOz+uq0pTA/k9G4+IBF/X8mtSFkkBX+nb74buMTIFcCUCHWNhjuPqfD+yJm7NWDan1EaxSyzQ==}
+    peerDependencies:
+      '@stripe/stripe-js': '>=9.5.0 <10.0.0'
+      react: '>=16.8.0 <20.0.0'
+      react-dom: '>=16.8.0 <20.0.0'
+
   '@stripe/stripe-js@5.6.0':
     resolution: {integrity: sha512-w8CEY73X/7tw2KKlL3iOk679V9bWseE4GzNz3zlaYxcTjmcmWOathRb0emgo/QQ3eoNzmq68+2Y2gxluAv3xGw==}
+    engines: {node: '>=12.16'}
+
+  '@stripe/stripe-js@9.9.0':
+    resolution: {integrity: sha512-Vwqe6Q5cU4i82tPyAv2BpaW/fQSNdOSO4/J8EeDLPp5/oIZiMmdB+Hgh863zFH+rtoxpuWGvD1L7QPh8k1Rdvw==}
     engines: {node: '>=12.16'}
 
   '@surma/rollup-plugin-off-main-thread@2.2.3':
@@ -8331,8 +8348,8 @@ packages:
     resolution: {integrity: sha512-+q/t7Ekv1EDY2l6Gda6LLiX14rU9TV20Wa3ofeQmwPFZbOMo9DXrLbOjFaaclkXKWidIaopwAObQDqwWtGUjqg==}
     engines: {node: '>= 4.0.0'}
 
-  attio@0.0.1-experimental.20260608:
-    resolution: {integrity: sha512-zfO3sjsUev0jda2AocrvXq9g4olEYNbjBj40LlA7C3uMqXv3Rao2yHDn58RjedFXSbMzYRp8NlnrAwuJgEoPsw==}
+  attio@0.0.1-experimental.20260630:
+    resolution: {integrity: sha512-AqQax5tvZQ3I2GKf84In8Q2/kaijcgdzQ+gui/SckfCTVsXsPkTFypCC8htv3yJ9RsV/cHEyTxw/CB8OfsHZrg==}
     hasBin: true
 
   attr-accept@2.2.5:
@@ -20899,7 +20916,16 @@ snapshots:
 
   '@standard-schema/utils@0.3.0': {}
 
+  '@stripe/react-stripe-js@6.7.0(@stripe/stripe-js@9.9.0)(react-dom@19.0.1(react@19.0.1))(react@19.0.1)':
+    dependencies:
+      '@stripe/stripe-js': 9.9.0
+      prop-types: 15.8.1
+      react: 19.0.1
+      react-dom: 19.0.1(react@19.0.1)
+
   '@stripe/stripe-js@5.6.0': {}
+
+  '@stripe/stripe-js@9.9.0': {}
 
   '@surma/rollup-plugin-off-main-thread@2.2.3':
     dependencies:
@@ -22583,7 +22609,7 @@ snapshots:
 
   at-least-node@1.0.0: {}
 
-  attio@0.0.1-experimental.20260608(@types/node@24.12.2)(bufferutil@4.1.0)(eslint@9.35.0(jiti@2.7.0))(react-dom@19.1.1(react@19.1.0))(react@19.1.0)(utf-8-validate@6.0.6):
+  attio@0.0.1-experimental.20260630(@types/node@24.12.2)(bufferutil@4.1.0)(eslint@9.35.0(jiti@2.7.0))(react-dom@19.1.1(react@19.1.0))(react@19.1.0)(utf-8-validate@6.0.6):
     dependencies:
       '@attio/fetchable': 0.0.1-experimental.9
       '@babel/code-frame': 7.27.1

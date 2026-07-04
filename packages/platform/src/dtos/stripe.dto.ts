@@ -23,6 +23,15 @@ export class CreateCreditCheckoutDto {
   @IsOptional()
   @IsString()
   frontendOrigin?: string;
+
+  /**
+   * Consent to save the card used at checkout for future one-click recharges.
+   * Defaults to false server-side; only ever true when the user leaves the
+   * consent checkbox checked. Ignored by the saved-card recharge endpoint.
+   */
+  @IsOptional()
+  @IsBoolean()
+  savePaymentMethod?: boolean;
 }
 
 export class CostInformationDto {

@@ -1419,6 +1419,33 @@ model CreditAutoReload {
   @@index([organizationId])
 }
 
+/// Idempotency ledger for one-time credit top-ups purchased via Stripe embedded
+/// checkout. Exactly one row per completed checkout session (and per payment
+/// intent), so a replayed `checkout.session.completed` webhook can never
+/// double-credit a balance. Scalar-scoped on purpose — owner is stored as plain
+/// ids so the ledger survives independently of the credit balance rows.
+model CreditTopup {
+  id                      String   @id @default(uuid()) @db.Uuid
+  userId                  String?  @db.Uuid
+  organizationId          String?  @db.Uuid
+  amount                  Float
+  amountCents             Int
+  // Embedded-checkout top-ups carry a session id; saved-card / auto-reload
+  // charges are PaymentIntent-only, so this is nullable. Postgres lets a unique
+  // index hold many NULLs, so embedded flows stay unique per session while
+  // PaymentIntent-only flows rely on `stripePaymentIntentId @unique`.
+  stripeCheckoutSessionId String?  @unique
+  stripePaymentIntentId   String?  @unique
+  // How the top-up was paid: "embedded_checkout" | "saved_payment_method" |
+  // "auto_reload". Traceability only — never drives crediting logic.
+  source                  String?
+  status                  String   @default("completed")
+  createdAt               DateTime @default(now())
+
+  @@index([userId])
+  @@index([organizationId])
+}
+
 model UserDevice {
   id       String @id @default(uuid()) @db.Uuid
   userId   String @db.Uuid

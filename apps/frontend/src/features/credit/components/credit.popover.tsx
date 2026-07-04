@@ -9,7 +9,6 @@ import {
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
-import { Progress } from '@ringee/frontend-shared/components/ui/progress';
 import {
   Tabs,
   TabsList,
@@ -22,7 +21,7 @@ import {
   Zap,
   Plus,
   ShieldCheck,
-  DollarSign,
+  Lock,
   RefreshCw,
   CalendarSync
 } from 'lucide-react';
@@ -35,11 +34,10 @@ import { useCreditStore } from '@/features/credit/store/credit.store';
 import { useAuth } from '@clerk/nextjs';
 import { useOnboardingComplete } from '@/features/onboarding/hooks/use.onboarding.complete';
 import { useTranslations } from 'next-intl';
-
-const PRESETS = [10, 25, 50, 100];
-
-// Minimum purchase amount enforced across recharge flows (USD).
-const MIN_AMOUNT = 5;
+import { MIN_AMOUNT } from '../lib/recharge';
+import { AmountStep } from './recharge/amount-step';
+import { SavedRechargeStep } from './recharge/saved-recharge-step';
+import { EmbeddedCheckoutPanel } from './recharge/embedded-checkout-panel';
 
 const MyButton = ({
   freeCallTrial,
@@ -79,94 +77,6 @@ const MyButton = ({
     </Button>
   );
 };
-
-// --- One-time recharge tab ---
-function OneTimeTab({
-  onCheckout,
-  loading
-}: {
-  onCheckout: (amount: number) => void;
-  loading: boolean;
-}) {
-  const t = useTranslations('billing.credits.popover');
-  const [amount, setAmount] = useState(25);
-  const estimatedMinutes = Math.round(amount * 50);
-  const level = Math.min(100, (amount / 100) * 100);
-  const belowMin = amount < MIN_AMOUNT;
-
-  return (
-    <div className='space-y-4'>
-      <div>
-        <Label className='mb-2 block text-sm'>{t('common.chooseAmount')}</Label>
-        <div className='flex flex-wrap gap-2'>
-          {PRESETS.map((val) => (
-            <Button
-              key={val}
-              variant={val === amount ? 'default' : 'outline'}
-              onClick={() => setAmount(val)}
-              className={cn(
-                'min-w-[70px] flex-1 cursor-pointer',
-                val === amount
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm'
-                  : 'hover:border-emerald-500 hover:text-emerald-400'
-              )}
-            >
-              ${val}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      <div>
-        <Label htmlFor='custom'>{t('common.customAmountLabel')}</Label>
-        <Input
-          id='custom'
-          type='number'
-          min={MIN_AMOUNT}
-          placeholder={t('oneTime.customPlaceholder')}
-          value={amount}
-          onChange={(e) => setAmount(Number(e.target.value) || 0)}
-          aria-invalid={belowMin}
-          className={cn(
-            'mt-1 max-w-[150px]',
-            belowMin && 'border-red-500 focus-visible:ring-red-500'
-          )}
-        />
-        {belowMin && (
-          <p className='mt-1 text-xs text-red-500'>
-            {t('common.minAmountError', { amount: MIN_AMOUNT })}
-          </p>
-        )}
-      </div>
-
-      <div className='space-y-2 pt-1'>
-        <div className='flex justify-between text-sm'>
-          <span>{t('oneTime.newBalance')}</span>
-          <span className='font-medium text-emerald-400'>
-            ${amount.toFixed(2)}
-          </span>
-        </div>
-        <Progress value={level} className='bg-muted h-2 overflow-hidden' />
-        <p className='text-muted-foreground text-xs'>
-          {t('oneTime.estimatedTime', { minutes: estimatedMinutes })}
-        </p>
-      </div>
-
-      <Button
-        onClick={() => onCheckout(amount)}
-        disabled={loading || belowMin}
-        size='lg'
-        className={cn(
-          'w-full font-semibold transition-all duration-300',
-          'bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 text-black',
-          'cursor-pointer shadow-[0_0_15px_-4px_rgba(45,212,191,0.5)] hover:scale-[1.02] hover:brightness-110'
-        )}
-      >
-        {loading ? t('common.redirecting') : t('oneTime.checkout')}
-      </Button>
-    </div>
-  );
-}
 
 // --- Monthly fund tab ---
 function MonthlyFundTab({
@@ -458,30 +368,47 @@ export function CreditPopover({
   const api = useApi();
   const router = useRouter();
 
+  // Popover is controlled so we can (a) reset back to amount selection whenever
+  // it opens/closes, and (b) keep it open through payment instead of losing the
+  // Stripe form to an accidental outside click.
+  const [open, setOpen] = useState(false);
+  // Which step the one-time recharge flow is showing:
+  //  - 'amount'        compact selector (lives inside the one-time tab)
+  //  - 'saved-review'  fast path against a saved card (full panel)
+  //  - 'checkout'      embedded Stripe checkout (full panel; first-time/change)
+  // Subscription flows (monthly / auto-reload) keep the redirect model.
+  const [step, setStep] = useState<'amount' | 'saved-review' | 'checkout'>(
+    'amount'
+  );
+  const [amount, setAmount] = useState(25);
+
   const {
     balance,
     freeCallTrial,
     fetchBalance,
     fetchAutoReloadSettings,
     autoReloadSettings,
-    status
+    fetchPaymentMethod,
+    paymentMethod,
+    lastTopupAmount,
+    hasLoaded
   } = useCreditStore();
   const { completeStep: completeOnboardingStep } = useOnboardingComplete();
 
-  const handleOneTimeCheckout = async (amount: number) => {
-    setLoading(true);
-    try {
-      completeOnboardingStep('buy_credits');
+  const wide = step !== 'amount';
 
-      const { url } = await api.post('/stripe/checkout/credit', {
-        amount
-      });
+  // Proceed from the amount selector. With a reusable saved card we go straight
+  // to the one-click fast path; otherwise to embedded checkout. Either way the
+  // amount is re-validated server-side and credited only by the confirmed
+  // webhook.
+  const proceedFromAmount = () => {
+    completeOnboardingStep('buy_credits');
+    setStep(paymentMethod?.hasSavedMethod ? 'saved-review' : 'checkout');
+  };
 
-      router.push(url);
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
-    }
+  const useAnotherMethod = () => {
+    completeOnboardingStep('buy_credits');
+    setStep('checkout');
   };
 
   const handleMonthlySubscribe = async (amount: number) => {
@@ -547,13 +474,19 @@ export function CreditPopover({
       fetchBalance(api, useMock);
       if (!useMock) {
         fetchAutoReloadSettings(api);
+        fetchPaymentMethod(api);
       }
     }
   }, [auth?.userId, fetch]);
 
   useCongrats();
 
-  if (status === 'loading' || status === 'idle' || status === 'error') {
+  // Skeleton only until the FIRST successful balance load. Background refreshes
+  // (e.g. reconciling the balance after a payment) must NOT collapse the whole
+  // popover back to a skeleton — doing so unmounted the open Stripe checkout and
+  // snapped the panel back to the amount step, re-triggering the balance fetch
+  // in a loop (the "reloads 3 times / back to the form" bug).
+  if (!hasLoaded) {
     return <Skeleton className='h-6 w-48' />;
   }
 
@@ -568,7 +501,21 @@ export function CreditPopover({
   }
 
   return (
-    <Popover>
+    <Popover
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        // Reset to the amount step on both open and close so we never reopen on
+        // a stale checkout. Closing mid-payment is safe — crediting is
+        // webhook-driven and idempotent, and the next open re-fetches balance.
+        setStep('amount');
+        if (next) {
+          // Suggest the last-used amount when we already have one.
+          const last = useCreditStore.getState().lastTopupAmount;
+          if (last && last >= MIN_AMOUNT) setAmount(last);
+        }
+      }}
+    >
       <PopoverTrigger asChild>
         {children ? (
           children
@@ -608,73 +555,117 @@ export function CreditPopover({
       <PopoverContent
         align='end'
         sideOffset={10}
-        className='border-border/50 bg-background w-[400px] rounded-lg border p-6 shadow-2xl'
+        onInteractOutside={(e) => {
+          // Don't let an accidental outside click discard an in-flight payment.
+          // Use "Change amount" / the trigger to leave instead.
+          if (wide) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (wide) {
+            e.preventDefault();
+            setStep('amount');
+          }
+        }}
+        className={cn(
+          'border-border/60 bg-background rounded-xl border shadow-2xl',
+          // Smoothly grow from the compact selector into the wide payment panel.
+          'transition-[max-width,width] duration-300 ease-out',
+          wide
+            ? // Wide, near-full-screen on mobile; ~720px floating panel anchored
+              // right on desktop so the Stripe form never gets compressed.
+              'w-[95vw] max-w-[720px] overflow-hidden p-0'
+            : 'w-[400px] p-6'
+        )}
       >
-        <div className='space-y-4'>
-          {/* Header */}
-          <div>
-            <h3 className='flex items-center gap-2 text-base font-semibold'>
-              <CreditCard className='h-4 w-4 text-emerald-400' />
-              {t('header')}
-            </h3>
-            <p className='text-muted-foreground text-sm'>{t('subheader')}</p>
-          </div>
-
-          {/* Tabs */}
-          <Tabs defaultValue='one-time'>
-            <TabsList className='w-full'>
-              <TabsTrigger value='one-time' className='flex-1 text-xs'>
-                <CreditCard className='mr-1 h-3 w-3' />
-                {t('tabs.oneTime')}
-              </TabsTrigger>
-              <TabsTrigger value='monthly' className='flex-1 text-xs'>
-                <CalendarSync className='mr-1 h-3 w-3' />
-                {t('tabs.monthly')}
-              </TabsTrigger>
-              <TabsTrigger value='auto-reload' className='flex-1 text-xs'>
-                <RefreshCw className='mr-1 h-3 w-3' />
-                {t('tabs.autoReload')}
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value='one-time'>
-              <OneTimeTab
-                onCheckout={handleOneTimeCheckout}
-                loading={loading}
-              />
-            </TabsContent>
-
-            <TabsContent value='monthly'>
-              <MonthlyFundTab
-                onSubscribe={handleMonthlySubscribe}
-                onCancel={handleCancelMonthlyFund}
-                loading={loading}
-                currentSettings={autoReloadSettings}
-              />
-            </TabsContent>
-
-            <TabsContent value='auto-reload'>
-              <AutoReloadTab
-                onSetup={handleAutoReloadSetup}
-                onToggle={handleAutoReloadToggle}
-                loading={loading}
-                currentSettings={autoReloadSettings}
-              />
-            </TabsContent>
-          </Tabs>
-
-          {/* Footer */}
-          <div className='text-muted-foreground flex items-center justify-between border-t pt-3 text-xs'>
-            <div className='flex items-center gap-1'>
-              <ShieldCheck className='h-3.5 w-3.5 text-emerald-400' />
-              {t('footer.secureByStripe')}
+        {step === 'checkout' ? (
+          <EmbeddedCheckoutPanel
+            key='checkout'
+            amount={amount}
+            onBack={() => setStep('amount')}
+            onClose={() => setOpen(false)}
+          />
+        ) : step === 'saved-review' && paymentMethod ? (
+          <SavedRechargeStep
+            key='saved'
+            amount={amount}
+            method={paymentMethod}
+            currentBalance={balance}
+            onBack={() => setStep('amount')}
+            onChangeMethod={() => setStep('checkout')}
+            onClose={() => setOpen(false)}
+          />
+        ) : (
+          <div className='space-y-4'>
+            {/* Header */}
+            <div>
+              <h3 className='flex items-center gap-2 text-base font-semibold'>
+                <CreditCard className='h-4 w-4 text-emerald-400' />
+                {t('header')}
+              </h3>
+              <p className='text-muted-foreground text-sm'>{t('subheader')}</p>
             </div>
-            <div className='flex items-center gap-1'>
-              <DollarSign className='h-3.5 w-3.5 text-emerald-400' />
-              {t('footer.refundGuarantee')}
+
+            {/* Tabs */}
+            <Tabs defaultValue='one-time'>
+              <TabsList className='w-full'>
+                <TabsTrigger value='one-time' className='flex-1 text-xs'>
+                  <CreditCard className='mr-1 h-3 w-3' />
+                  {t('tabs.oneTime')}
+                </TabsTrigger>
+                <TabsTrigger value='monthly' className='flex-1 text-xs'>
+                  <CalendarSync className='mr-1 h-3 w-3' />
+                  {t('tabs.monthly')}
+                </TabsTrigger>
+                <TabsTrigger value='auto-reload' className='flex-1 text-xs'>
+                  <RefreshCw className='mr-1 h-3 w-3' />
+                  {t('tabs.autoReload')}
+                </TabsTrigger>
+              </TabsList>
+
+              <TabsContent value='one-time'>
+                <AmountStep
+                  amount={amount}
+                  onAmountChange={setAmount}
+                  currentBalance={balance}
+                  lastTopupAmount={lastTopupAmount}
+                  method={paymentMethod}
+                  onPrimary={proceedFromAmount}
+                  onUseAnotherMethod={useAnotherMethod}
+                />
+              </TabsContent>
+
+              <TabsContent value='monthly'>
+                <MonthlyFundTab
+                  onSubscribe={handleMonthlySubscribe}
+                  onCancel={handleCancelMonthlyFund}
+                  loading={loading}
+                  currentSettings={autoReloadSettings}
+                />
+              </TabsContent>
+
+              <TabsContent value='auto-reload'>
+                <AutoReloadTab
+                  onSetup={handleAutoReloadSetup}
+                  onToggle={handleAutoReloadToggle}
+                  loading={loading}
+                  currentSettings={autoReloadSettings}
+                />
+              </TabsContent>
+            </Tabs>
+
+            {/* Footer */}
+            <div className='text-muted-foreground flex items-center justify-between border-t pt-3 text-xs'>
+              <div className='flex items-center gap-1'>
+                <ShieldCheck className='h-3.5 w-3.5 text-emerald-400' />
+                {t('footer.secureByStripe')}
+              </div>
+              <div className='flex items-center gap-1'>
+                <Lock className='h-3.5 w-3.5 text-emerald-400' />
+                {t('footer.cardSafety')}
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </PopoverContent>
     </Popover>
   );

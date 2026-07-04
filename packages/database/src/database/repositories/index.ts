@@ -10,6 +10,7 @@ export * from "./caller-id-rotation.repository";
 export * from "./contact.repository";
 export * from "./credit.repository";
 export * from "./credit-auto-reload.repository";
+export * from "./credit-topup.repository";
 export * from "./dashboard.repository";
 export * from "./dashboard-layout.repository";
 export * from "./user.device.repository";

@@ -1,6 +1,8 @@
 import {
   Controller,
   Post,
+  Get,
+  Param,
   Body,
   Headers,
   Req,
@@ -8,6 +10,7 @@ import {
   HttpCode,
   HttpStatus,
   NotFoundException,
+  BadRequestException,
   RawBodyRequest,
 } from "@nestjs/common";
 import { Response, Request } from "express";
@@ -43,6 +46,12 @@ interface CurrentUserData {
   firstName?: string | null;
   lastName?: string | null;
 }
+
+// Server-authoritative bounds for a single credit top-up (USD). NEVER trust the
+// client to enforce these — the amount is re-validated here before a Checkout
+// Session is created.
+const MIN_TOPUP_USD = 5;
+const MAX_TOPUP_USD = 2000;
 
 @Controller("stripe")
 export class StripeController {
@@ -102,6 +111,104 @@ export class StripeController {
     return id;
   }
 
+  /**
+   * Resolves the caller's existing Stripe customer id WITHOUT creating one.
+   * Used by read-only endpoints (e.g. "do I have a saved card?") so merely
+   * opening the recharge panel never provisions a Stripe customer. Returns null
+   * when the org/user has no customer yet.
+   */
+  private async resolveExistingCustomerId(
+    user: CurrentUserData,
+  ): Promise<string | null> {
+    if (user.activeOrgId) {
+      const org = await this.organizationService.getOrganizationById(
+        user.activeOrgId,
+      );
+      return org?.customerId ?? null;
+    }
+
+    const dbUser = await this.userService.getUserById(user.id);
+    return dbUser?.customerId ?? null;
+  }
+
+  /**
+   * Whether the caller has a reusable saved card, plus display-only fields for
+   * the fast recharge UI. NEVER returns the payment-method id — the id is
+   * resolved server-side at charge time so a client can only ever charge its
+   * own saved card.
+   */
+  @Get("payment-method")
+  @OrgAdminOnly()
+  async getPaymentMethod(@CurrentUser() user: CurrentUserData) {
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    const customerId = await this.resolveExistingCustomerId(user);
+    if (!customerId) {
+      return { hasSavedMethod: false };
+    }
+
+    const pm = await this.stripeService.getSavedPaymentMethod(customerId);
+    return {
+      hasSavedMethod: pm.hasSavedMethod,
+      brand: pm.brand,
+      last4: pm.last4,
+      expMonth: pm.expMonth,
+      expYear: pm.expYear,
+    };
+  }
+
+  /**
+   * One-click recharge against the caller's saved card. Re-validates the amount
+   * and resolves the payment-method id server-side; the client only sends the
+   * amount. Credits are added ONLY by the confirmed `payment_intent.succeeded`
+   * webhook. Returns the intent status so the frontend can complete 3-D Secure
+   * (`requires_action`) or fall back to embedded checkout (`failed`).
+   */
+  @Post("checkout/credit/saved")
+  @OrgAdminOnly()
+  async createSavedCardCheckout(
+    @Body() body: CreateCreditCheckoutDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    const amount = this.normalizeTopupAmount(body.amount);
+    const customerId = await this.getOrCreateCustomer(user);
+    const pm = await this.stripeService.getSavedPaymentMethod(customerId);
+
+    if (!pm.hasSavedMethod || !pm.paymentMethodId) {
+      throw new BadRequestException("No saved payment method on file.");
+    }
+
+    return this.stripeService.createSavedCardTopupIntent({
+      userId: user.id,
+      customerId,
+      paymentMethodId: pm.paymentMethodId,
+      amountUsd: amount,
+      organizationId: user.activeOrgId,
+    });
+  }
+
+  /**
+   * Server-authoritative status of a saved-card top-up PaymentIntent. The
+   * frontend polls this after finishing 3-D Secure before showing success — it
+   * never trusts the client-side result alone.
+   */
+  @Get("payment-intent/:paymentIntentId/status")
+  @OrgAdminOnly()
+  async getPaymentIntentStatus(
+    @Param("paymentIntentId") paymentIntentId: string,
+  ) {
+    if (!paymentIntentId) {
+      throw new BadRequestException("paymentIntentId is required");
+    }
+    return this.stripeService.getPaymentIntentStatus(paymentIntentId);
+  }
+
   @Post("checkout/credit")
   @OrgAdminOnly()
   async createCreditCheckout(
@@ -125,6 +232,71 @@ export class StripeController {
       user.activeOrgId, // Pass organizationId
       body.frontendOrigin, // Pass frontendOrigin
     );
+  }
+
+  /**
+   * Embedded Checkout for a one-time credit top-up. Returns a `clientSecret`
+   * the dashboard mounts inline (no redirect, no new page). The amount is
+   * validated server-side; presets and custom amounts both flow through here.
+   * Credits are added ONLY by the confirmed webhook — this endpoint never
+   * touches the balance.
+   */
+  @Post("checkout/credit/embedded")
+  @OrgAdminOnly()
+  async createEmbeddedCreditCheckout(
+    @Body() body: CreateCreditCheckoutDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    const amount = this.normalizeTopupAmount(body.amount);
+    const customerId = await this.getOrCreateCustomer(user);
+
+    return this.stripeService.createEmbeddedCreditTopupSession(
+      user.id,
+      customerId,
+      amount,
+      body.description ||
+        "Add more credits to your Ringee account to keep making calls and using advanced features without interruption.",
+      user.activeOrgId,
+      body.frontendOrigin,
+      body.savePaymentMethod ?? false,
+    );
+  }
+
+  /**
+   * Status of an embedded credit checkout session. The frontend polls this
+   * after `onComplete` to confirm the payment before showing a success state —
+   * it never trusts the client-side completion callback on its own.
+   */
+  @Get("checkout/credit/session/:sessionId")
+  @OrgAdminOnly()
+  async getCreditCheckoutStatus(@Param("sessionId") sessionId: string) {
+    if (!sessionId) {
+      throw new BadRequestException("sessionId is required");
+    }
+    return this.stripeService.getCreditCheckoutStatus(sessionId);
+  }
+
+  /**
+   * Clamp-free validation for a top-up amount. Rounds to whole cents and
+   * enforces the server-authoritative [MIN, MAX] bounds so a tampered client
+   * cannot request an out-of-range charge.
+   */
+  private normalizeTopupAmount(raw: unknown): number {
+    const amount = Math.round(Number(raw) * 100) / 100;
+    if (
+      !Number.isFinite(amount) ||
+      amount < MIN_TOPUP_USD ||
+      amount > MAX_TOPUP_USD
+    ) {
+      throw new BadRequestException(
+        `Amount must be between $${MIN_TOPUP_USD} and $${MAX_TOPUP_USD}.`,
+      );
+    }
+    return amount;
   }
 
   @Post("checkout/phone")
@@ -277,12 +449,34 @@ export class StripeController {
               id: userId,
               activeOrgId: organizationId,
             });
-            await this.creditService.addCredits(ctx, amountUsd);
-            await this.triggerLoop.creditsAdded(
-              userId,
+
+            // Idempotent credit: `creditTopupOnce` records the checkout session
+            // in the CreditTopup ledger first and only moves balance when the
+            // row is newly inserted. A replayed webhook returns `false`, so we
+            // never double-credit and never re-fire the "credits added" event.
+            const paymentIntentId =
+              typeof session.payment_intent === "string"
+                ? session.payment_intent
+                : ((session.payment_intent as Stripe.PaymentIntent | null)
+                    ?.id ?? null);
+
+            const credited = await this.creditService.creditTopupOnce(
+              ctx,
               amountUsd,
-              organizationId ?? undefined,
+              { checkoutSessionId: session.id, paymentIntentId },
             );
+
+            if (credited) {
+              await this.triggerLoop.creditsAdded(
+                userId,
+                amountUsd,
+                organizationId ?? undefined,
+              );
+            } else {
+              console.log(
+                `↩️ Duplicate credit top-up webhook ignored for session ${session.id} (user ${userId})`,
+              );
+            }
           } else if (
             fn === "creditSubscription" &&
             session.mode === "subscription" &&
@@ -433,22 +627,51 @@ export class StripeController {
         case "payment_intent.succeeded": {
           const paymentIntent = event.data.object as Stripe.PaymentIntent;
           const metadata = paymentIntent.metadata || {};
+          const userId = metadata.userId;
 
-          if (metadata.fn === "autoReloadCharge" && metadata.userId) {
+          // Saved-card one-click recharge and auto-reload are PaymentIntent-only
+          // (no checkout session), so they are credited here — idempotently,
+          // keyed on the payment-intent id, so a webhook replay can never
+          // double-credit. The embedded-checkout PaymentIntent also fires this
+          // event, but it is credited by `checkout.session.completed` and is
+          // deliberately ignored here.
+          const isSavedCardTopup =
+            metadata.fn === "creditTopupSavedCard" ||
+            (metadata.type === "credit_topup" &&
+              metadata.rechargeMode === "saved_payment_method");
+          const isAutoReload = metadata.fn === "autoReloadCharge";
+
+          if ((isSavedCardTopup || isAutoReload) && userId) {
             const amountUsd = paymentIntent.amount / 100;
             const ctx = createOwnershipContext({
-              id: metadata.userId,
+              id: userId,
               activeOrgId: metadata.organizationId || null,
             });
-            await this.creditService.addCredits(ctx, amountUsd);
-            await this.triggerLoop.creditsAdded(
-              metadata.userId,
+
+            const credited = await this.creditService.creditTopupOnce(
+              ctx,
               amountUsd,
-              metadata.organizationId || undefined,
+              {
+                checkoutSessionId: null,
+                paymentIntentId: paymentIntent.id,
+                source: isAutoReload ? "auto_reload" : "saved_payment_method",
+              },
             );
-            console.log(
-              `🔄 Auto-reload credited: $${amountUsd} for user ${metadata.userId}`,
-            );
+
+            if (credited) {
+              await this.triggerLoop.creditsAdded(
+                userId,
+                amountUsd,
+                metadata.organizationId || undefined,
+              );
+              console.log(
+                `${isAutoReload ? "🔄 Auto-reload" : "⚡ Saved-card top-up"} credited: $${amountUsd} for user ${userId}`,
+              );
+            } else {
+              console.log(
+                `↩️ Duplicate ${isAutoReload ? "auto-reload" : "saved-card"} top-up webhook ignored for payment intent ${paymentIntent.id} (user ${userId})`,
+              );
+            }
           }
           break;
         }

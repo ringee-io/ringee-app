@@ -42,7 +42,8 @@ export class CreditRepository {
         ...(amount > 0
           ? {
               lastPurchaseDate: new Date(),
-              lastPurchaseAmount: existing.amount,
+              // The amount added this time (the top-up), not the prior balance.
+              lastPurchaseAmount: amount,
             }
           : {}),
       },
@@ -55,5 +56,10 @@ export class CreditRepository {
       where: ownershipFilter,
     });
     return credit?.amount ?? 0;
+  }
+
+  async getCredit(ctx: OwnershipContext): Promise<Credit | null> {
+    const ownershipFilter = buildOwnershipFilter(ctx);
+    return this.prisma.credit.findFirst({ where: ownershipFilter });
   }
 }

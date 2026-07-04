@@ -75,6 +75,294 @@ export class StripeService {
     };
   }
 
+  /**
+   * Creates an EMBEDDED Checkout Session for a one-time credit top-up.
+   *
+   * Unlike `createOneTimePaymentSession` (which returns a hosted redirect URL),
+   * this uses `ui_mode: "embedded"` and returns a `client_secret` the frontend
+   * mounts inside the dashboard — the user never leaves Ringee. Standard card
+   * payments complete inside the embedded form (`redirect_on_completion:
+   * "if_required"`); only payment methods that mandate a redirect fall back to
+   * `return_url`. Crediting still happens exclusively from the confirmed
+   * `checkout.session.completed` webhook — this call never moves balance.
+   */
+  async createEmbeddedCreditTopupSession(
+    userId: string,
+    customerId: string,
+    amountUsd: number,
+    description: string,
+    organizationId?: string | null,
+    frontendOrigin?: string,
+    /**
+     * When true, the card used for this checkout is saved on the customer for
+     * future off-session top-ups (`setup_future_usage: "off_session"`). Driven
+     * by an explicit consent checkbox rendered in the Ringee shell — never
+     * saved without it.
+     */
+    savePaymentMethod: boolean = false,
+  ): Promise<{
+    clientSecret: string;
+    sessionId: string;
+    amountUsd: number;
+    amountCents: number;
+  }> {
+    const amountCents = Math.round(amountUsd * 100);
+    const baseUrl = (frontendOrigin || process.env.FRONTEND_URL!).replace(
+      /\/$/,
+      "",
+    );
+    // Only used for payment methods that force a redirect. Standard cards
+    // complete in place and fire the client `onComplete` callback instead.
+    const returnUrl = `${baseUrl}/dashboard/overview?payment=success&credit_topup={CHECKOUT_SESSION_ID}`;
+
+    // Attached to BOTH the session and the underlying payment intent so the
+    // webhook can read it from either object.
+    const metadata: Record<string, string> = {
+      userId,
+      organizationId: organizationId ?? "",
+      amount: String(amountUsd),
+      amountCents: String(amountCents),
+      type: "credit_topup",
+      service: "ringee",
+      rechargeMode: "embedded_checkout",
+      // Kept so the existing webhook routing (`fn`) keeps working unchanged.
+      fn: "createOneTimePaymentSession",
+    };
+
+    const session = await stripe.checkout.sessions.create({
+      ui_mode: "embedded",
+      mode: "payment",
+      customer: customerId,
+      redirect_on_completion: "if_required",
+      return_url: returnUrl,
+      metadata,
+      payment_intent_data: {
+        metadata,
+        // Save the card for future one-click recharges only with consent. The
+        // consent checkbox lives in the Ringee shell (not Stripe's own UI), so
+        // this flag is the single source of truth for whether we persist it.
+        ...(savePaymentMethod
+          ? { setup_future_usage: "off_session" as const }
+          : {}),
+      },
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: { name: "Ringee Credit Top-up", description },
+            unit_amount: amountCents,
+          },
+          quantity: 1,
+        },
+      ],
+      allow_promotion_codes: true,
+    });
+
+    return {
+      clientSecret: session.client_secret!,
+      sessionId: session.id,
+      amountUsd,
+      amountCents,
+    };
+  }
+
+  /**
+   * Lightweight status read for an embedded credit checkout session. The
+   * frontend polls this after `onComplete` to confirm payment before showing a
+   * success state — it never trusts the client alone.
+   */
+  async getCreditCheckoutStatus(sessionId: string): Promise<{
+    sessionId: string;
+    status: string | null;
+    paymentStatus: string | null;
+    amountTotalUsd: number | null;
+  }> {
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+
+    return {
+      sessionId: session.id,
+      status: session.status ?? null,
+      paymentStatus: session.payment_status ?? null,
+      amountTotalUsd:
+        session.amount_total != null ? session.amount_total / 100 : null,
+    };
+  }
+
+  /**
+   * Resolves the customer's reusable saved card for the one-click recharge
+   * path. Prefers the customer's default payment method; otherwise falls back
+   * to the most recently attached card. Returns display fields plus the
+   * payment-method id (the id is used server-side only — never sent to the
+   * browser).
+   */
+  async getSavedPaymentMethod(customerId: string): Promise<{
+    hasSavedMethod: boolean;
+    paymentMethodId: string | null;
+    brand: string | null;
+    last4: string | null;
+    expMonth: number | null;
+    expYear: number | null;
+  }> {
+    const none = {
+      hasSavedMethod: false,
+      paymentMethodId: null,
+      brand: null,
+      last4: null,
+      expMonth: null,
+      expYear: null,
+    };
+
+    const customer = await stripe.customers.retrieve(customerId, {
+      expand: ["invoice_settings.default_payment_method"],
+    });
+
+    // Deleted customers come back as `{ deleted: true }`.
+    if (!customer || (customer as Stripe.DeletedCustomer).deleted) {
+      return none;
+    }
+
+    const c = customer as Stripe.Customer;
+    let pm: Stripe.PaymentMethod | null =
+      c.invoice_settings?.default_payment_method &&
+      typeof c.invoice_settings.default_payment_method !== "string"
+        ? (c.invoice_settings.default_payment_method as Stripe.PaymentMethod)
+        : null;
+
+    // No explicit default — fall back to the newest attached card.
+    if (!pm) {
+      const list = await stripe.paymentMethods.list({
+        customer: customerId,
+        type: "card",
+        limit: 1,
+      });
+      pm = list.data[0] ?? null;
+    }
+
+    if (!pm || !pm.card) {
+      return none;
+    }
+
+    return {
+      hasSavedMethod: true,
+      paymentMethodId: pm.id,
+      brand: pm.card.brand ?? null,
+      last4: pm.card.last4 ?? null,
+      expMonth: pm.card.exp_month ?? null,
+      expYear: pm.card.exp_year ?? null,
+    };
+  }
+
+  /**
+   * One-click recharge against a saved card. Creates and confirms an
+   * off-session PaymentIntent server-side; the payment-method id is resolved
+   * from the customer by the caller, never supplied by the client, so a user
+   * can only ever charge their own saved card. Credits are added ONLY by the
+   * confirmed `payment_intent.succeeded` webhook — this call never moves
+   * balance.
+   *
+   * If the card requires 3-D Secure, the off-session confirm throws a
+   * `StripeCardError` carrying the pending PaymentIntent; we surface its
+   * `client_secret` as `requires_action` so the browser can complete
+   * authentication in place. Any other failure maps to `failed`, and the
+   * frontend falls back to entering a new card via embedded checkout.
+   */
+  async createSavedCardTopupIntent(params: {
+    userId: string;
+    customerId: string;
+    paymentMethodId: string;
+    amountUsd: number;
+    organizationId?: string | null;
+  }): Promise<{
+    status: "succeeded" | "processing" | "requires_action" | "failed";
+    paymentIntentId: string | null;
+    clientSecret: string | null;
+  }> {
+    const { userId, customerId, paymentMethodId, amountUsd, organizationId } =
+      params;
+    const amountCents = Math.round(amountUsd * 100);
+
+    const metadata: Record<string, string> = {
+      userId,
+      organizationId: organizationId ?? "",
+      amount: String(amountUsd),
+      amountCents: String(amountCents),
+      type: "credit_topup",
+      service: "ringee",
+      rechargeMode: "saved_payment_method",
+      fn: "creditTopupSavedCard",
+    };
+
+    try {
+      const pi = await stripe.paymentIntents.create({
+        amount: amountCents,
+        currency: "usd",
+        customer: customerId,
+        payment_method: paymentMethodId,
+        off_session: true,
+        confirm: true,
+        metadata,
+      });
+
+      return {
+        status: this.mapPaymentIntentStatus(pi.status),
+        paymentIntentId: pi.id,
+        clientSecret:
+          pi.status === "requires_action" ? (pi.client_secret ?? null) : null,
+      };
+    } catch (err) {
+      const pi = (err as Stripe.errors.StripeCardError)?.payment_intent as
+        | Stripe.PaymentIntent
+        | undefined;
+      if (pi?.status === "requires_action") {
+        return {
+          status: "requires_action",
+          paymentIntentId: pi.id,
+          clientSecret: pi.client_secret ?? null,
+        };
+      }
+      return {
+        status: "failed",
+        paymentIntentId: pi?.id ?? null,
+        clientSecret: null,
+      };
+    }
+  }
+
+  /**
+   * Server-authoritative status read for a saved-card top-up PaymentIntent.
+   * The frontend polls this after completing 3-D Secure so it never trusts the
+   * client-side result on its own.
+   */
+  async getPaymentIntentStatus(paymentIntentId: string): Promise<{
+    paymentIntentId: string;
+    status: "succeeded" | "processing" | "requires_action" | "failed";
+    amountUsd: number | null;
+  }> {
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+    return {
+      paymentIntentId: pi.id,
+      status: this.mapPaymentIntentStatus(pi.status),
+      amountUsd: pi.amount != null ? pi.amount / 100 : null,
+    };
+  }
+
+  private mapPaymentIntentStatus(
+    status: Stripe.PaymentIntent.Status,
+  ): "succeeded" | "processing" | "requires_action" | "failed" {
+    switch (status) {
+      case "succeeded":
+        return "succeeded";
+      case "processing":
+        return "processing";
+      case "requires_action":
+      case "requires_confirmation":
+        return "requires_action";
+      default:
+        // requires_payment_method, canceled, requires_capture, …
+        return "failed";
+    }
+  }
+
   async createPhoneNumberSubscriptionSession(
     customerId: string,
     phoneNumber: string,

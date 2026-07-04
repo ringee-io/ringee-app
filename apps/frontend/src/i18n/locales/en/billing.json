@@ -58,7 +58,53 @@
       },
       "footer": {
         "secureByStripe": "Secure by Stripe",
-        "refundGuarantee": "100% Refund Guarantee"
+        "cardSafety": "Card details never touch Ringee servers"
+      },
+      "checkout": {
+        "title": "Secure checkout",
+        "changeAmount": "Change amount",
+        "subtitle": "Add {amount} to your Ringee balance",
+        "amountLabel": "Amount",
+        "newBalanceLabel": "New balance",
+        "estCallingTime": "Est. calling time",
+        "minutesValue": "~{minutes} min",
+        "loading": "Preparing secure checkout…",
+        "errorTitle": "Checkout couldn't start",
+        "errorBody": "Something went wrong preparing your payment. Please try again.",
+        "retry": "Try again",
+        "missingKeyTitle": "Payments not configured",
+        "missingKeyBody": "Stripe isn't set up for this environment yet. Add your publishable key to enable checkout.",
+        "completedTitle": "Payment confirmed",
+        "completedPending": "Credits will appear shortly.",
+        "completedReflected": "Your credits have been added.",
+        "syncing": "Updating your balance…",
+        "done": "Done",
+        "creditsNote": "Credits are added after payment confirmation."
+      },
+      "amount": {
+        "currentBalance": "Current balance",
+        "lastTopup": "Last top-up: {amount}",
+        "rechargeCta": "Recharge {amount}",
+        "continueCheckout": "Continue to secure checkout",
+        "useAnotherMethod": "Use another payment method",
+        "savedHint": "Charged to {brand} •••• {last4}."
+      },
+      "saved": {
+        "title": "Fast recharge",
+        "subtitle": "Recharge {amount} with your saved card",
+        "methodLabel": "Payment method",
+        "expLabel": "Exp {value}",
+        "processing": "Processing your payment…",
+        "authenticating": "Confirming with your bank…",
+        "chargeNote": "You'll be charged using your saved payment method.",
+        "failedTitle": "Payment didn't go through",
+        "failedBody": "Your saved card was declined. Try another payment method.",
+        "useAnotherMethod": "Use another payment method",
+        "tryAgain": "Try again"
+      },
+      "consent": {
+        "save": "Save this payment method for faster future top-ups.",
+        "hint": "Recharge next time with one click."
       }
     }
   },

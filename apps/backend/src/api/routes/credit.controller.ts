@@ -50,16 +50,20 @@ export class CreditController {
 
     try {
       const ctx = createOwnershipContext(user);
-      const balance = await this.creditService.getBalance(ctx);
+      const summary = await this.creditService.getBalanceSummary(ctx);
 
       return {
-        balance,
+        balance: summary.balance,
         freeCallTrial: false,
+        lastTopupAmount: summary.lastTopupAmount,
+        lastTopupAt: summary.lastTopupAt,
       };
     } catch (error) {
       return {
         balance: 0,
         freeCallTrial: false,
+        lastTopupAmount: null,
+        lastTopupAt: null,
       };
     }
   }
