@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { useTranslations } from 'next-intl';
 import {
   ArrowLeft,
@@ -28,6 +29,8 @@ interface Props {
   onChangeMethod: () => void;
   /** Close the whole popover. */
   onClose: () => void;
+  /** Report charge-in-flight so the drawer can hard-guard accidental close. */
+  onBusyChange?: (busy: boolean) => void;
 }
 
 /**
@@ -42,7 +45,8 @@ export function SavedRechargeStep({
   currentBalance,
   onBack,
   onChangeMethod,
-  onClose
+  onClose,
+  onBusyChange
 }: Props) {
   const t = useTranslations('billing.credits.popover');
   const liveBalance = useCreditStore((s) => s.balance);
@@ -50,6 +54,12 @@ export function SavedRechargeStep({
 
   const busy = phase === 'processing' || phase === 'authenticating';
   const projectedBalance = currentBalance + amount;
+
+  // Let the drawer hard-guard close while a charge is actually in flight.
+  useEffect(() => {
+    onBusyChange?.(busy);
+    return () => onBusyChange?.(false);
+  }, [busy, onBusyChange]);
 
   return (
     <div className='bg-background flex max-h-[85vh] flex-col sm:max-h-[82vh]'>

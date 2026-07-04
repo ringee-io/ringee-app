@@ -23,7 +23,8 @@
         "redirecting": "Redirecting...",
         "chooseAmount": "Choose amount",
         "customAmountLabel": "Or enter custom amount",
-        "minAmountError": "Minimum purchase is ${amount}"
+        "minAmountError": "Minimum purchase is ${amount}",
+        "cancel": "Cancel"
       },
       "oneTime": {
         "customPlaceholder": "e.g. 40",
@@ -35,7 +36,7 @@
         "activeTitle": "Monthly fund active",
         "activeDescription": "<b>${amount}</b> will be added to your balance every month automatically.",
         "cancelling": "Cancelling...",
-        "cancel": "Cancel Monthly Fund",
+        "cancel": "Cancel monthly funding",
         "intro": "Set a fixed monthly amount that will be automatically added to your balance every month. No more manual recharges.",
         "amountLabel": "Monthly amount",
         "customPlaceholder": "e.g. 75",
@@ -43,7 +44,27 @@
         "monthlyCharge": "Monthly charge",
         "monthlyChargeValue": "${amount}/month",
         "estimatedTime": "~{minutes} minutes of calling per month",
-        "subscribe": "Subscribe Monthly Fund"
+        "subscribe": "Set up monthly funding",
+        "activeSubtitle": "Credits are added automatically every month.",
+        "amountRow": "Monthly amount",
+        "nextCharge": "Next charge",
+        "paymentMethodRow": "Payment method",
+        "editAmount": "Edit amount",
+        "save": "Save",
+        "changeMethod": "Change payment method",
+        "cancelConfirm": "Cancel monthly funding? Credits already added stay in your balance.",
+        "cancelConfirmYes": "Yes, cancel",
+        "keep": "Keep it",
+        "consent": "I understand my card will be charged monthly.",
+        "consentHint": "Credits are added after each successful payment. Cancel anytime.",
+        "setupTitle": "Set up monthly funding",
+        "setupSubtitle": "Add {amount} to your balance every month",
+        "frequencyRow": "Billing frequency",
+        "frequencyValue": "Every month",
+        "estTimeRow": "Calling time / month",
+        "creditsNote": "Credits are added after each successful monthly payment.",
+        "setupDoneTitle": "Monthly funding is on",
+        "setupDoneBody": "We've added your first {amount} and will top up automatically every month."
       },
       "autoReload": {
         "activeTitle": "Auto-reload active",
@@ -54,11 +75,25 @@
         "amountLabel": "Reload amount",
         "customPlaceholder": "Custom amount",
         "summary": "Your card will be charged <b>${amount}</b> now and saved for future automatic reloads when your balance drops below <b>${threshold}</b>.",
-        "enable": "Enable Auto-Reload"
+        "enable": "Turn on auto-reload",
+        "statusActive": "Active",
+        "statusReloading": "Reloading…",
+        "statusFailed": "Payment failed",
+        "statusRequiresMethod": "Requires new payment method",
+        "rule": "When your balance drops below <b>{threshold}</b>, we add <b>{amount}</b>.",
+        "changeMethod": "Change payment method",
+        "editSettings": "Edit settings",
+        "turnOff": "Turn off auto-reload",
+        "estAfterReload": "Calling time after reload",
+        "consent": "I authorize Ringee to charge my saved payment method when my balance drops below the selected threshold.",
+        "enableError": "We couldn't turn on auto-reload. Please try again.",
+        "requiresMethod": "Auto-reload requires a saved payment method.",
+        "addMethod": "Add a payment method"
       },
       "footer": {
         "secureByStripe": "Secure by Stripe",
-        "cardSafety": "Card details never touch Ringee servers"
+        "cardSafety": "Card details never touch Ringee servers",
+        "creditsAfter": "Credits added after confirmation"
       },
       "checkout": {
         "title": "Secure checkout",
@@ -105,6 +140,15 @@
       "consent": {
         "save": "Save this payment method for faster future top-ups.",
         "hint": "Recharge next time with one click."
+      },
+      "card": {
+        "title": "Update payment method",
+        "subtitle": "Save a new card — you won't be charged now.",
+        "summaryLabel": "Payment method",
+        "note": "Your card is saved securely for future charges. You won't be charged to save it.",
+        "doneTitle": "Payment method updated",
+        "doneBody": "Your new card is saved and ready for future charges.",
+        "doneCta": "Done"
       }
     }
   },

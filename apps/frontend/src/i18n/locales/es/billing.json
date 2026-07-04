@@ -23,7 +23,8 @@
         "redirecting": "Redirigiendo...",
         "chooseAmount": "Elige un importe",
         "customAmountLabel": "O introduce un importe personalizado",
-        "minAmountError": "La compra mínima es de ${amount}"
+        "minAmountError": "La compra mínima es de ${amount}",
+        "cancel": "Cancelar"
       },
       "oneTime": {
         "customPlaceholder": "Ej. 40",
@@ -43,7 +44,27 @@
         "monthlyCharge": "Cargo mensual",
         "monthlyChargeValue": "${amount}/mes",
         "estimatedTime": "~{minutes} minutos de llamada al mes",
-        "subscribe": "Suscribirse a la recarga mensual"
+        "subscribe": "Configurar recarga mensual",
+        "activeSubtitle": "Los créditos se añaden automáticamente cada mes.",
+        "amountRow": "Monto mensual",
+        "nextCharge": "Próximo cargo",
+        "paymentMethodRow": "Método de pago",
+        "editAmount": "Editar monto",
+        "save": "Guardar",
+        "changeMethod": "Cambiar método de pago",
+        "cancelConfirm": "¿Cancelar la recarga mensual? Los créditos ya añadidos permanecen en tu saldo.",
+        "cancelConfirmYes": "Sí, cancelar",
+        "keep": "Mantener",
+        "consent": "Entiendo que se cobrará mi tarjeta cada mes.",
+        "consentHint": "Los créditos se añaden tras cada pago exitoso. Cancela cuando quieras.",
+        "setupTitle": "Configurar recarga mensual",
+        "setupSubtitle": "Añade {amount} a tu saldo cada mes",
+        "frequencyRow": "Frecuencia de cobro",
+        "frequencyValue": "Cada mes",
+        "estTimeRow": "Minutos de llamada / mes",
+        "creditsNote": "Los créditos se añaden tras cada pago mensual exitoso.",
+        "setupDoneTitle": "Recarga mensual activada",
+        "setupDoneBody": "Añadimos tu primer {amount} y recargaremos automáticamente cada mes."
       },
       "autoReload": {
         "activeTitle": "Recarga automática activa",
@@ -54,11 +75,25 @@
         "amountLabel": "Importe de la recarga",
         "customPlaceholder": "Importe personalizado",
         "summary": "Se cobrarán <b>${amount}</b> a tu tarjeta ahora y se guardará para futuras recargas automáticas cuando tu saldo baje de <b>${threshold}</b>.",
-        "enable": "Activar recarga automática"
+        "enable": "Activar recarga automática",
+        "statusActive": "Activa",
+        "statusReloading": "Recargando…",
+        "statusFailed": "Pago fallido",
+        "statusRequiresMethod": "Requiere nuevo método de pago",
+        "rule": "Cuando tu saldo baje de <b>{threshold}</b>, añadimos <b>{amount}</b>.",
+        "changeMethod": "Cambiar método de pago",
+        "editSettings": "Editar ajustes",
+        "turnOff": "Desactivar recarga automática",
+        "estAfterReload": "Minutos de llamada tras recargar",
+        "consent": "Autorizo a Ringee a cobrar mi método de pago guardado cuando mi saldo baje del umbral seleccionado.",
+        "enableError": "No pudimos activar la recarga automática. Inténtalo de nuevo.",
+        "requiresMethod": "La recarga automática requiere un método de pago guardado.",
+        "addMethod": "Añadir método de pago"
       },
       "footer": {
         "secureByStripe": "Pago seguro con Stripe",
-        "cardSafety": "Los datos de tu tarjeta nunca pasan por los servidores de Ringee"
+        "cardSafety": "Los datos de tu tarjeta nunca pasan por los servidores de Ringee",
+        "creditsAfter": "Créditos añadidos tras la confirmación"
       },
       "checkout": {
         "title": "Pago seguro",
@@ -105,6 +140,15 @@
       "consent": {
         "save": "Guarda este método de pago para recargas futuras más rápidas.",
         "hint": "Recarga la próxima vez con un solo clic."
+      },
+      "card": {
+        "title": "Actualizar método de pago",
+        "subtitle": "Guarda una nueva tarjeta — no se te cobrará ahora.",
+        "summaryLabel": "Método de pago",
+        "note": "Tu tarjeta se guarda de forma segura para cargos futuros. No se te cobra por guardarla.",
+        "doneTitle": "Método de pago actualizado",
+        "doneBody": "Tu nueva tarjeta está guardada y lista para cargos futuros.",
+        "doneCta": "Listo"
       }
     }
   },

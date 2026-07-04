@@ -1,30 +1,19 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
   Popover,
-  PopoverContent,
-  PopoverTrigger
+  PopoverTrigger,
+  PopoverContent
 } from '@ringee/frontend-shared/components/ui/popover';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
-import { Input } from '@ringee/frontend-shared/components/ui/input';
-import { Label } from '@ringee/frontend-shared/components/ui/label';
 import {
   Tabs,
   TabsList,
-  TabsTrigger,
-  TabsContent
+  TabsTrigger
 } from '@ringee/frontend-shared/components/ui/tabs';
-import { Switch } from '@ringee/frontend-shared/components/ui/switch';
-import {
-  CreditCard,
-  Zap,
-  Plus,
-  ShieldCheck,
-  Lock,
-  RefreshCw,
-  CalendarSync
-} from 'lucide-react';
+import { CreditCard, Zap, Plus, RefreshCw, CalendarSync } from 'lucide-react';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useRouter } from 'next/navigation';
@@ -37,34 +26,32 @@ import { useTranslations } from 'next-intl';
 import { MIN_AMOUNT } from '../lib/recharge';
 import { AmountStep } from './recharge/amount-step';
 import { SavedRechargeStep } from './recharge/saved-recharge-step';
-import { EmbeddedCheckoutPanel } from './recharge/embedded-checkout-panel';
+import { OneTimeCheckout } from './funding/one-time-checkout';
+import { MonthlyTab } from './funding/monthly-tab';
+import { MonthlySetupPanel } from './funding/monthly-setup-panel';
+import { AutoReloadTab } from './funding/auto-reload-tab';
+import { CardSetupPanel } from './funding/card-setup-panel';
+import { FundingFooter } from './funding/funding-chrome';
 
-const MyButton = ({
-  freeCallTrial,
-  balance,
-  onClick
-}: {
-  freeCallTrial: boolean;
-  balance: number;
-  onClick?: () => void;
-}) => {
+const triggerClasses = cn(
+  'group relative flex items-center gap-2 overflow-hidden rounded-xl px-5 py-2.5 font-semibold',
+  'text-white transition-all duration-300 ease-out',
+  'bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400',
+  'shadow-[0_0_18px_-4px_rgba(45,212,191,0.6)]',
+  'hover:shadow-[0_0_25px_-4px_rgba(45,212,191,0.8)]',
+  'cursor-pointer'
+);
+
+const MyButton = ({ onClick }: { onClick?: () => void }) => {
   const t = useTranslations('billing.credits.popover');
   return (
     <Button
       variant='ghost'
       size='sm'
       onClick={onClick}
-      className={cn(
-        'group relative flex items-center gap-2 overflow-hidden rounded-xl px-5 py-2.5 font-semibold',
-        'text-white transition-all duration-300 ease-out',
-        'bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400',
-        'shadow-[0_0_18px_-4px_rgba(45,212,191,0.6)]',
-        'hover:shadow-[0_0_25px_-4px_rgba(45,212,191,0.8)]',
-        'cursor-pointer'
-      )}
+      className={triggerClasses}
     >
       <span className='absolute inset-0 rounded-full bg-white/10 opacity-0 blur-sm transition-opacity group-hover:opacity-100' />
-
       <div className='z-10 flex items-center gap-2'>
         <Zap className='text-foreground h-4 w-4 transition-transform group-hover:rotate-6' />
         <span className='text-foreground font-semibold'>
@@ -78,280 +65,66 @@ const MyButton = ({
   );
 };
 
-// --- Monthly fund tab ---
-function MonthlyFundTab({
-  onSubscribe,
-  onCancel,
-  loading,
-  currentSettings
-}: {
-  onSubscribe: (amount: number) => void;
-  onCancel: () => void;
-  loading: boolean;
-  currentSettings: {
-    monthlyFundEnabled: boolean;
-    monthlyFundAmount: number | null;
-  } | null;
-}) {
-  const t = useTranslations('billing.credits.popover');
-  const [amount, setAmount] = useState(
-    currentSettings?.monthlyFundAmount ?? 50
-  );
-  const isActive = currentSettings?.monthlyFundEnabled ?? false;
-  const belowMin = amount < MIN_AMOUNT;
+// The full-panel takeovers that replace the hub (tab selector) while active.
+type FlowStep =
+  | null
+  | 'one-time-saved'
+  | 'one-time-checkout'
+  | 'monthly-setup'
+  | 'monthly-change-card'
+  | 'auto-reload-change-card';
 
-  if (isActive) {
-    return (
-      <div className='space-y-4'>
-        <div className='rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4'>
-          <div className='flex items-center gap-2'>
-            <CalendarSync className='h-4 w-4 text-emerald-400' />
-            <span className='text-sm font-medium'>
-              {t('monthly.activeTitle')}
-            </span>
-          </div>
-          <p className='text-muted-foreground mt-1 text-sm'>
-            {t.rich('monthly.activeDescription', {
-              amount: currentSettings?.monthlyFundAmount?.toFixed(2) ?? '0.00',
-              b: (chunks) => <strong>{chunks}</strong>
-            })}
-          </p>
-        </div>
+// The steps that host a Stripe iframe. Clicking inside the iframe reads as an
+// "interact outside" to Radix, so we must not auto-close the popover on those.
+const EMBEDDED_STEPS: FlowStep[] = [
+  'one-time-checkout',
+  'monthly-setup',
+  'monthly-change-card',
+  'auto-reload-change-card'
+];
 
-        <Button
-          onClick={onCancel}
-          disabled={loading}
-          variant='outline'
-          size='lg'
-          className='w-full cursor-pointer border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300'
-        >
-          {loading ? t('monthly.cancelling') : t('monthly.cancel')}
-        </Button>
-      </div>
-    );
-  }
+/**
+ * Smoothly animate a container to the exact height of its current child. The
+ * returned `measureRef` is attached to whichever step is mounted; a
+ * ResizeObserver keeps the measured height in sync even as async content (the
+ * Stripe iframe) grows. Reads run at commit time so the first paint is correct
+ * — no open-time height jump.
+ */
+function useAutoHeight() {
+  const [height, setHeight] = useState<number>();
+  const observerRef = useRef<ResizeObserver | null>(null);
 
-  return (
-    <div className='space-y-4'>
-      <p className='text-muted-foreground text-sm'>{t('monthly.intro')}</p>
+  const measureRef = useCallback((node: HTMLDivElement | null) => {
+    observerRef.current?.disconnect();
+    if (!node) return;
+    const sync = () => setHeight(node.offsetHeight);
+    sync();
+    const observer = new ResizeObserver(sync);
+    observer.observe(node);
+    observerRef.current = observer;
+  }, []);
 
-      <div>
-        <Label className='mb-2 block text-sm'>{t('monthly.amountLabel')}</Label>
-        <div className='flex flex-wrap gap-2'>
-          {[25, 50, 100, 200].map((val) => (
-            <Button
-              key={val}
-              variant={val === amount ? 'default' : 'outline'}
-              onClick={() => setAmount(val)}
-              className={cn(
-                'min-w-[70px] flex-1 cursor-pointer',
-                val === amount
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm'
-                  : 'hover:border-emerald-500 hover:text-emerald-400'
-              )}
-            >
-              ${val}
-              {t('monthly.perMonthSuffix')}
-            </Button>
-          ))}
-        </div>
-      </div>
+  useEffect(() => () => observerRef.current?.disconnect(), []);
 
-      <div>
-        <Label htmlFor='monthly-custom'>{t('common.customAmountLabel')}</Label>
-        <Input
-          id='monthly-custom'
-          type='number'
-          min={MIN_AMOUNT}
-          placeholder={t('monthly.customPlaceholder')}
-          value={amount}
-          onChange={(e) => setAmount(Number(e.target.value) || 0)}
-          aria-invalid={belowMin}
-          className={cn(
-            'mt-1 max-w-[150px]',
-            belowMin && 'border-red-500 focus-visible:ring-red-500'
-          )}
-        />
-        {belowMin && (
-          <p className='mt-1 text-xs text-red-500'>
-            {t('common.minAmountError', { amount: MIN_AMOUNT })}
-          </p>
-        )}
-      </div>
-
-      <div className='space-y-1 pt-1'>
-        <div className='flex justify-between text-sm'>
-          <span>{t('monthly.monthlyCharge')}</span>
-          <span className='font-medium text-emerald-400'>
-            {t('monthly.monthlyChargeValue', { amount: amount.toFixed(2) })}
-          </span>
-        </div>
-        <p className='text-muted-foreground text-xs'>
-          {t('monthly.estimatedTime', { minutes: Math.round(amount * 50) })}
-        </p>
-      </div>
-
-      <Button
-        onClick={() => onSubscribe(amount)}
-        disabled={loading || belowMin}
-        size='lg'
-        className={cn(
-          'w-full font-semibold transition-all duration-300',
-          'bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 text-black',
-          'cursor-pointer shadow-[0_0_15px_-4px_rgba(45,212,191,0.5)] hover:scale-[1.02] hover:brightness-110'
-        )}
-      >
-        {loading ? t('common.redirecting') : t('monthly.subscribe')}
-      </Button>
-    </div>
-  );
+  return { height, measureRef };
 }
 
-// --- Auto-reload tab ---
-function AutoReloadTab({
-  onSetup,
-  onToggle,
-  loading,
-  currentSettings
-}: {
-  onSetup: (threshold: number, reloadAmount: number) => void;
-  onToggle: (enabled: boolean) => void;
-  loading: boolean;
-  currentSettings: {
-    autoReloadEnabled: boolean;
-    autoReloadThreshold: number;
-    autoReloadAmount: number;
-  } | null;
-}) {
-  const t = useTranslations('billing.credits.popover');
-  const [threshold, setThreshold] = useState(
-    currentSettings?.autoReloadThreshold ?? 5
-  );
-  const [reloadAmount, setReloadAmount] = useState(
-    currentSettings?.autoReloadAmount ?? 25
-  );
-  const isActive = currentSettings?.autoReloadEnabled ?? false;
-  const belowMin = reloadAmount < MIN_AMOUNT;
+// Directional step slide — forward (into a flow) enters from the right, back
+// returns from the left. Height is animated separately, so this only moves x.
+const stepVariants = {
+  initial: (dir: number) => ({ opacity: 0, x: dir * 26 }),
+  animate: { opacity: 1, x: 0 },
+  exit: (dir: number) => ({ opacity: 0, x: dir * -26 })
+};
 
-  if (isActive) {
-    return (
-      <div className='space-y-4'>
-        <div className='rounded-lg border border-emerald-500/30 bg-emerald-500/5 p-4'>
-          <div className='flex items-center gap-2'>
-            <RefreshCw className='h-4 w-4 text-emerald-400' />
-            <span className='text-sm font-medium'>
-              {t('autoReload.activeTitle')}
-            </span>
-          </div>
-          <p className='text-muted-foreground mt-1 text-sm'>
-            {t.rich('autoReload.activeDescription', {
-              threshold:
-                currentSettings?.autoReloadThreshold?.toFixed(2) ?? '0.00',
-              amount: currentSettings?.autoReloadAmount?.toFixed(2) ?? '0.00',
-              b: (chunks) => <strong>{chunks}</strong>
-            })}
-          </p>
-        </div>
-
-        <div className='flex items-center justify-between'>
-          <Label htmlFor='auto-reload-toggle' className='text-sm'>
-            {t('autoReload.toggleLabel')}
-          </Label>
-          <Switch
-            id='auto-reload-toggle'
-            checked={isActive}
-            onCheckedChange={(checked) => onToggle(!!checked)}
-            disabled={loading}
-          />
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div className='space-y-4'>
-      <p className='text-muted-foreground text-sm'>{t('autoReload.intro')}</p>
-
-      <div>
-        <Label htmlFor='threshold'>{t('autoReload.thresholdLabel')}</Label>
-        <div className='relative mt-1'>
-          <span className='text-muted-foreground absolute top-1/2 left-3 -translate-y-1/2 text-sm'>
-            $
-          </span>
-          <Input
-            id='threshold'
-            type='number'
-            min={1}
-            value={threshold}
-            onChange={(e) => setThreshold(Number(e.target.value) || 0)}
-            className='max-w-[150px] pl-7'
-          />
-        </div>
-      </div>
-
-      <div>
-        <Label htmlFor='reload-amount'>{t('autoReload.amountLabel')}</Label>
-        <div className='mt-1 flex flex-wrap gap-2'>
-          {[10, 25, 50, 100].map((val) => (
-            <Button
-              key={val}
-              variant={val === reloadAmount ? 'default' : 'outline'}
-              onClick={() => setReloadAmount(val)}
-              className={cn(
-                'min-w-[60px] flex-1 cursor-pointer',
-                val === reloadAmount
-                  ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm'
-                  : 'hover:border-emerald-500 hover:text-emerald-400'
-              )}
-            >
-              ${val}
-            </Button>
-          ))}
-        </div>
-        <Input
-          id='reload-amount-custom'
-          type='number'
-          min={MIN_AMOUNT}
-          placeholder={t('autoReload.customPlaceholder')}
-          value={reloadAmount}
-          onChange={(e) => setReloadAmount(Number(e.target.value) || 0)}
-          aria-invalid={belowMin}
-          className={cn(
-            'mt-2 max-w-[150px]',
-            belowMin && 'border-red-500 focus-visible:ring-red-500'
-          )}
-        />
-        {belowMin && (
-          <p className='mt-1 text-xs text-red-500'>
-            {t('common.minAmountError', { amount: MIN_AMOUNT })}
-          </p>
-        )}
-      </div>
-
-      <div className='border-border/50 bg-muted/30 text-muted-foreground rounded-lg border p-3 text-xs'>
-        {t.rich('autoReload.summary', {
-          amount: reloadAmount.toFixed(2),
-          threshold: threshold.toFixed(2),
-          b: (chunks) => <strong>{chunks}</strong>
-        })}
-      </div>
-
-      <Button
-        onClick={() => onSetup(threshold, reloadAmount)}
-        disabled={loading || threshold < 1 || belowMin}
-        size='lg'
-        className={cn(
-          'w-full font-semibold transition-all duration-300',
-          'bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 text-black',
-          'cursor-pointer shadow-[0_0_15px_-4px_rgba(45,212,191,0.5)] hover:scale-[1.02] hover:brightness-110'
-        )}
-      >
-        {loading ? t('common.redirecting') : t('autoReload.enable')}
-      </Button>
-    </div>
-  );
-}
-
+/**
+ * The Ringee funding center. A compact, content-fitting popover anchored to the
+ * `$balance` trigger that hosts three first-class flows — One-time, Monthly and
+ * Auto-reload — in one visual system. The panel springs to the exact height of
+ * whatever step is showing (amount picker → saved-card one-tap recharge →
+ * embedded Stripe checkout), so recharging is fast and never feels like a full
+ * page. Public API is unchanged (`children`, `fetch`, `useMock`).
+ */
 export function CreditPopover({
   children,
   fetch = true,
@@ -363,31 +136,31 @@ export function CreditPopover({
 }) {
   const t = useTranslations('billing.credits.popover');
   const auth = useAuth();
-
-  const [loading, setLoading] = useState(false);
   const api = useApi();
   const router = useRouter();
 
-  // Popover is controlled so we can (a) reset back to amount selection whenever
-  // it opens/closes, and (b) keep it open through payment instead of losing the
-  // Stripe form to an accidental outside click.
   const [open, setOpen] = useState(false);
-  // Which step the one-time recharge flow is showing:
-  //  - 'amount'        compact selector (lives inside the one-time tab)
-  //  - 'saved-review'  fast path against a saved card (full panel)
-  //  - 'checkout'      embedded Stripe checkout (full panel; first-time/change)
-  // Subscription flows (monthly / auto-reload) keep the redirect model.
-  const [step, setStep] = useState<'amount' | 'saved-review' | 'checkout'>(
-    'amount'
+  const [tab, setTab] = useState<'one-time' | 'monthly' | 'auto-reload'>(
+    'one-time'
   );
+  const [flowStep, setFlowStep] = useState<FlowStep>(null);
+  const [dir, setDir] = useState(1);
+  const [paymentInFlight, setPaymentInFlight] = useState(false);
+
+  const { height, measureRef } = useAutoHeight();
+
+  // Primary inputs are lifted here so "back" from any takeover preserves them.
   const [amount, setAmount] = useState(25);
+  const [monthlyAmount, setMonthlyAmount] = useState(50);
+  const [threshold, setThreshold] = useState(10);
+  const [reloadAmount, setReloadAmount] = useState(25);
 
   const {
     balance,
     freeCallTrial,
     fetchBalance,
     fetchAutoReloadSettings,
-    autoReloadSettings,
+    fetchMonthlyFund,
     fetchPaymentMethod,
     paymentMethod,
     lastTopupAmount,
@@ -395,277 +168,280 @@ export function CreditPopover({
   } = useCreditStore();
   const { completeStep: completeOnboardingStep } = useOnboardingComplete();
 
-  const wide = step !== 'amount';
+  const takeover = flowStep !== null;
+  const embeddedStep = EMBEDDED_STEPS.includes(flowStep);
+  // Never let an outside click discard a live charge or a hosted card form.
+  const blockOutside = paymentInFlight || embeddedStep;
 
-  // Proceed from the amount selector. With a reusable saved card we go straight
-  // to the one-click fast path; otherwise to embedded checkout. Either way the
-  // amount is re-validated server-side and credited only by the confirmed
-  // webhook.
-  const proceedFromAmount = () => {
+  // Forward into a flow (slide left→right); `back` reverses it.
+  const goTo = (step: Exclude<FlowStep, null>) => {
+    setDir(1);
+    setFlowStep(step);
+  };
+  const back = () => {
+    setDir(-1);
+    setFlowStep(null);
+  };
+  const close = () => setOpen(false);
+
+  const proceedOneTime = () => {
     completeOnboardingStep('buy_credits');
-    setStep(paymentMethod?.hasSavedMethod ? 'saved-review' : 'checkout');
+    goTo(
+      paymentMethod?.hasSavedMethod ? 'one-time-saved' : 'one-time-checkout'
+    );
   };
 
   const useAnotherMethod = () => {
     completeOnboardingStep('buy_credits');
-    setStep('checkout');
+    goTo('one-time-checkout');
   };
 
-  const handleMonthlySubscribe = async (amount: number) => {
-    setLoading(true);
-    try {
-      const { url } = await api.post('/stripe/checkout/credit-subscription', {
-        amount
-      });
-
-      router.push(url);
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
-    }
+  const refreshFunding = () => {
+    if (useMock) return;
+    fetchAutoReloadSettings(api);
+    fetchMonthlyFund(api);
+    fetchPaymentMethod(api);
   };
 
-  const handleCancelMonthlyFund = async () => {
-    setLoading(true);
-    try {
-      await api.delete('/credits/monthly-fund');
-      await fetchAutoReloadSettings(api);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleAutoReloadSetup = async (
-    threshold: number,
-    reloadAmount: number
-  ) => {
-    setLoading(true);
-    try {
-      const { url } = await api.post('/stripe/checkout/auto-reload-setup', {
-        threshold,
-        reloadAmount
-      });
-
-      router.push(url);
-    } catch (err) {
-      console.error(err);
-      setLoading(false);
-    }
-  };
-
-  const handleAutoReloadToggle = async (enabled: boolean) => {
-    setLoading(true);
-    try {
-      await api.patch('/credits/auto-reload-settings', {
-        autoReloadEnabled: enabled
-      });
-      await fetchAutoReloadSettings(api);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
+  // Initial load so the trigger shows the balance.
   useEffect(() => {
     if (fetch && (useMock || auth?.userId)) {
       fetchBalance(api, useMock);
-      if (!useMock) {
-        fetchAutoReloadSettings(api);
-        fetchPaymentMethod(api);
-      }
+      refreshFunding();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auth?.userId, fetch]);
 
   useCongrats();
 
-  // Skeleton only until the FIRST successful balance load. Background refreshes
-  // (e.g. reconciling the balance after a payment) must NOT collapse the whole
-  // popover back to a skeleton — doing so unmounted the open Stripe checkout and
-  // snapped the panel back to the amount step, re-triggering the balance fetch
-  // in a loop (the "reloads 3 times / back to the form" bug).
+  // Skeleton only until the FIRST successful balance load — background refreshes
+  // (post-payment reconciliation) must never collapse the whole trigger.
   if (!hasLoaded) {
     return <Skeleton className='h-6 w-48' />;
   }
 
   if (freeCallTrial === true) {
-    return (
-      <MyButton
-        freeCallTrial={freeCallTrial}
-        balance={balance}
-        onClick={() => router.push('/dashboard/call')}
-      />
-    );
+    return <MyButton onClick={() => router.push('/dashboard/call')} />;
   }
 
-  return (
-    <Popover
-      open={open}
-      onOpenChange={(next) => {
-        setOpen(next);
-        // Reset to the amount step on both open and close so we never reopen on
-        // a stale checkout. Closing mid-payment is safe — crediting is
-        // webhook-driven and idempotent, and the next open re-fetches balance.
-        setStep('amount');
-        if (next) {
-          // Suggest the last-used amount when we already have one.
-          const last = useCreditStore.getState().lastTopupAmount;
-          if (last && last >= MIN_AMOUNT) setAmount(last);
-        }
-      }}
-    >
-      <PopoverTrigger asChild>
-        {children ? (
-          children
-        ) : (
-          <Button
-            variant='ghost'
-            size='sm'
-            className={cn(
-              'group relative flex items-center gap-2 overflow-hidden rounded-xl px-5 py-2.5 font-semibold',
-              'text-white transition-all duration-300 ease-out',
-              'bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400',
-              'shadow-[0_0_18px_-4px_rgba(45,212,191,0.6)]',
-              'hover:shadow-[0_0_25px_-4px_rgba(45,212,191,0.8)]',
-              'cursor-pointer'
-            )}
-          >
-            <span className='absolute inset-0 rounded-full bg-white/10 opacity-0 blur-sm transition-opacity group-hover:opacity-100' />
+  const handleOpenChange = (next: boolean) => {
+    // Never discard an in-flight charge (built-in close, Esc, outside click all
+    // route through here). Crediting is webhook-driven and idempotent, so a
+    // normal close mid-flow is otherwise safe.
+    if (!next && paymentInFlight) return;
+    setOpen(next);
+    if (next) {
+      setDir(1);
+      setFlowStep(null);
+      fetchBalance(api, useMock, true);
+      refreshFunding();
+      const last = useCreditStore.getState().lastTopupAmount;
+      if (last && last >= MIN_AMOUNT) setAmount(last);
+    } else {
+      setFlowStep(null);
+      setTab('one-time');
+    }
+  };
 
-            <div className='z-10 flex items-center gap-2'>
-              <Zap className='text-foreground h-4 w-4 transition-transform group-hover:rotate-6' />
-
-              <span className='text-foreground font-semibold'>
-                ${balance.toFixed(2)}
-              </span>
-              <span className='text-foreground hidden text-sm opacity-90 sm:inline'>
-                {t('availableCredit')}
-              </span>
-            </div>
-
-            <div className='bg-foreground/20 z-10 ml-1 flex h-6 w-6 items-center justify-center rounded-full'>
-              <Plus className='text-foreground h-3.5 w-3.5' />
-            </div>
-          </Button>
-        )}
-      </PopoverTrigger>
-
-      <PopoverContent
-        align='end'
-        sideOffset={10}
-        onInteractOutside={(e) => {
-          // Don't let an accidental outside click discard an in-flight payment.
-          // Use "Change amount" / the trigger to leave instead.
-          if (wide) e.preventDefault();
-        }}
-        onEscapeKeyDown={(e) => {
-          if (wide) {
-            e.preventDefault();
-            setStep('amount');
-          }
-        }}
-        className={cn(
-          'border-border/60 bg-background rounded-xl border shadow-2xl',
-          // Smoothly grow from the compact selector into the wide payment panel.
-          'transition-[max-width,width] duration-300 ease-out',
-          wide
-            ? // Wide, near-full-screen on mobile; ~720px floating panel anchored
-              // right on desktop so the Stripe form never gets compressed.
-              'w-[95vw] max-w-[720px] overflow-hidden p-0'
-            : 'w-[400px] p-6'
-        )}
-      >
-        {step === 'checkout' ? (
-          <EmbeddedCheckoutPanel
-            key='checkout'
-            amount={amount}
-            onBack={() => setStep('amount')}
-            onClose={() => setOpen(false)}
-          />
-        ) : step === 'saved-review' && paymentMethod ? (
+  const renderTakeover = () => {
+    switch (flowStep) {
+      case 'one-time-saved':
+        return paymentMethod ? (
           <SavedRechargeStep
-            key='saved'
             amount={amount}
             method={paymentMethod}
             currentBalance={balance}
-            onBack={() => setStep('amount')}
-            onChangeMethod={() => setStep('checkout')}
-            onClose={() => setOpen(false)}
+            onBack={back}
+            onChangeMethod={() => goTo('one-time-checkout')}
+            onClose={close}
+            onBusyChange={setPaymentInFlight}
           />
-        ) : (
-          <div className='space-y-4'>
-            {/* Header */}
-            <div>
-              <h3 className='flex items-center gap-2 text-base font-semibold'>
-                <CreditCard className='h-4 w-4 text-emerald-400' />
-                {t('header')}
-              </h3>
-              <p className='text-muted-foreground text-sm'>{t('subheader')}</p>
-            </div>
+        ) : null;
+      case 'one-time-checkout':
+        return (
+          <OneTimeCheckout
+            amount={amount}
+            currentBalance={balance}
+            onBack={back}
+            onClose={close}
+          />
+        );
+      case 'monthly-setup':
+        return (
+          <MonthlySetupPanel
+            amount={monthlyAmount}
+            onBack={back}
+            onClose={close}
+          />
+        );
+      case 'monthly-change-card':
+        return <CardSetupPanel context='monthly' onBack={back} onDone={back} />;
+      case 'auto-reload-change-card':
+        return (
+          <CardSetupPanel context='auto-reload' onBack={back} onDone={back} />
+        );
+      default:
+        return null;
+    }
+  };
 
-            {/* Tabs */}
-            <Tabs defaultValue='one-time'>
-              <TabsList className='w-full'>
-                <TabsTrigger value='one-time' className='flex-1 text-xs'>
-                  <CreditCard className='mr-1 h-3 w-3' />
-                  {t('tabs.oneTime')}
-                </TabsTrigger>
-                <TabsTrigger value='monthly' className='flex-1 text-xs'>
-                  <CalendarSync className='mr-1 h-3 w-3' />
-                  {t('tabs.monthly')}
-                </TabsTrigger>
-                <TabsTrigger value='auto-reload' className='flex-1 text-xs'>
-                  <RefreshCw className='mr-1 h-3 w-3' />
-                  {t('tabs.autoReload')}
-                </TabsTrigger>
-              </TabsList>
+  const renderHub = () => (
+    // Self-bounded: caps its own height and scrolls the tab body internally, so
+    // the popover only ever grows to the content, never past the viewport.
+    <div className='flex max-h-[85vh] flex-col sm:max-h-[80vh]'>
+      {/* Header — title + live balance chip */}
+      <div className='flex shrink-0 items-start justify-between gap-3 px-5 pt-5 pb-3'>
+        <div className='min-w-0'>
+          <h3 className='flex items-center gap-2 text-[15px] font-semibold tracking-tight'>
+            <CreditCard className='h-4 w-4 text-emerald-400' />
+            {t('header')}
+          </h3>
+          <p className='text-muted-foreground text-xs'>{t('subheader')}</p>
+        </div>
+        <div className='border-border/60 bg-muted/30 shrink-0 rounded-xl border px-3 py-1.5 text-right'>
+          <p className='text-muted-foreground text-[9px] font-medium tracking-[0.12em] uppercase'>
+            {t('availableCredit')}
+          </p>
+          <p className='text-sm font-semibold tabular-nums'>
+            ${balance.toFixed(2)}
+          </p>
+        </div>
+      </div>
 
-              <TabsContent value='one-time'>
-                <AmountStep
-                  amount={amount}
-                  onAmountChange={setAmount}
-                  currentBalance={balance}
-                  lastTopupAmount={lastTopupAmount}
-                  method={paymentMethod}
-                  onPrimary={proceedFromAmount}
-                  onUseAnotherMethod={useAnotherMethod}
-                />
-              </TabsContent>
+      {/* Flow selector */}
+      <div className='shrink-0 px-5'>
+        <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
+          <TabsList className='bg-muted/40 w-full'>
+            <TabsTrigger value='one-time' className='flex-1 text-xs'>
+              <CreditCard className='mr-1 h-3 w-3' />
+              {t('tabs.oneTime')}
+            </TabsTrigger>
+            <TabsTrigger value='monthly' className='flex-1 text-xs'>
+              <CalendarSync className='mr-1 h-3 w-3' />
+              {t('tabs.monthly')}
+            </TabsTrigger>
+            <TabsTrigger value='auto-reload' className='flex-1 text-xs'>
+              <RefreshCw className='mr-1 h-3 w-3' />
+              {t('tabs.autoReload')}
+            </TabsTrigger>
+          </TabsList>
+        </Tabs>
+      </div>
 
-              <TabsContent value='monthly'>
-                <MonthlyFundTab
-                  onSubscribe={handleMonthlySubscribe}
-                  onCancel={handleCancelMonthlyFund}
-                  loading={loading}
-                  currentSettings={autoReloadSettings}
-                />
-              </TabsContent>
+      {/* Active flow — crossfades on tab change; height is animated by the shell */}
+      <div className='min-h-0 flex-1 overflow-x-hidden overflow-y-auto px-5 pt-4 pb-5'>
+        <motion.div
+          key={tab}
+          initial={{ opacity: 0, x: 8 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.2, ease: 'easeOut' }}
+        >
+          {tab === 'one-time' && (
+            <AmountStep
+              amount={amount}
+              onAmountChange={setAmount}
+              currentBalance={balance}
+              lastTopupAmount={lastTopupAmount}
+              method={paymentMethod}
+              onPrimary={proceedOneTime}
+              onUseAnotherMethod={useAnotherMethod}
+            />
+          )}
+          {tab === 'monthly' && (
+            <MonthlyTab
+              amount={monthlyAmount}
+              onAmountChange={setMonthlyAmount}
+              onSetup={() => goTo('monthly-setup')}
+              onChangeCard={() => goTo('monthly-change-card')}
+            />
+          )}
+          {tab === 'auto-reload' && (
+            <AutoReloadTab
+              threshold={threshold}
+              onThresholdChange={setThreshold}
+              reloadAmount={reloadAmount}
+              onReloadChange={setReloadAmount}
+              currentBalance={balance}
+              onNeedCard={() => goTo('auto-reload-change-card')}
+            />
+          )}
+        </motion.div>
+      </div>
 
-              <TabsContent value='auto-reload'>
-                <AutoReloadTab
-                  onSetup={handleAutoReloadSetup}
-                  onToggle={handleAutoReloadToggle}
-                  loading={loading}
-                  currentSettings={autoReloadSettings}
-                />
-              </TabsContent>
-            </Tabs>
+      <FundingFooter />
+    </div>
+  );
 
-            {/* Footer */}
-            <div className='text-muted-foreground flex items-center justify-between border-t pt-3 text-xs'>
-              <div className='flex items-center gap-1'>
-                <ShieldCheck className='h-3.5 w-3.5 text-emerald-400' />
-                {t('footer.secureByStripe')}
-              </div>
-              <div className='flex items-center gap-1'>
-                <Lock className='h-3.5 w-3.5 text-emerald-400' />
-                {t('footer.cardSafety')}
-              </div>
-            </div>
-          </div>
+  const trigger = children ?? (
+    <Button variant='ghost' size='sm' className={triggerClasses}>
+      <span className='absolute inset-0 rounded-full bg-white/10 opacity-0 blur-sm transition-opacity group-hover:opacity-100' />
+      <div className='z-10 flex items-center gap-2'>
+        <Zap className='text-foreground h-4 w-4 transition-transform group-hover:rotate-6' />
+        <span className='text-foreground font-semibold'>
+          ${balance.toFixed(2)}
+        </span>
+        <span className='text-foreground hidden text-sm opacity-90 sm:inline'>
+          {t('availableCredit')}
+        </span>
+      </div>
+      <div className='bg-foreground/20 z-10 ml-1 flex h-6 w-6 items-center justify-center rounded-full transition-transform group-hover:rotate-90'>
+        <Plus className='text-foreground h-3.5 w-3.5' />
+      </div>
+    </Button>
+  );
+
+  return (
+    <Popover open={open} onOpenChange={handleOpenChange}>
+      <PopoverTrigger asChild>{trigger}</PopoverTrigger>
+      <PopoverContent
+        align='end'
+        sideOffset={12}
+        collisionPadding={12}
+        // Focus the panel, not the (auto-loading) Stripe iframe.
+        onOpenAutoFocus={(e) => {
+          if (takeover) e.preventDefault();
+        }}
+        onEscapeKeyDown={(e) => {
+          if (paymentInFlight) e.preventDefault();
+          else if (takeover) {
+            e.preventDefault();
+            back();
+          }
+        }}
+        onInteractOutside={(e) => {
+          if (blockOutside) e.preventDefault();
+        }}
+        className={cn(
+          'bg-background text-foreground w-[420px] max-w-[calc(100vw-1.5rem)]',
+          'overflow-hidden rounded-2xl border p-0 shadow-2xl'
         )}
+      >
+        <motion.div
+          initial={false}
+          animate={{ height: height ?? 'auto' }}
+          transition={{
+            type: 'spring',
+            stiffness: 340,
+            damping: 34,
+            mass: 0.9
+          }}
+          style={{ overflow: 'hidden' }}
+        >
+          <AnimatePresence mode='wait' initial={false} custom={dir}>
+            <motion.div
+              key={flowStep ?? 'hub'}
+              ref={measureRef}
+              custom={dir}
+              variants={stepVariants}
+              initial='initial'
+              animate='animate'
+              exit='exit'
+              transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
+            >
+              {takeover ? renderTakeover() : renderHub()}
+            </motion.div>
+          </AnimatePresence>
+        </motion.div>
       </PopoverContent>
     </Popover>
   );

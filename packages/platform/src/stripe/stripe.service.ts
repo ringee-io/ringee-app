@@ -574,6 +574,288 @@ export class StripeService {
     };
   }
 
+  /**
+   * EMBEDDED Checkout Session for a monthly credit-funding SUBSCRIPTION.
+   *
+   * The subscription-mode analogue of `createEmbeddedCreditTopupSession`: the
+   * user sets up recurring monthly funding inside the dashboard (no redirect).
+   * Crediting is NEVER done here — every paid cycle (including the first) is
+   * credited idempotently from the confirmed `invoice.payment_succeeded`
+   * webhook via `creditTopupOnce`. Metadata lives on both the session and the
+   * subscription so the webhook can resolve owner + amount from either object.
+   */
+  async createEmbeddedMonthlyCreditSubscriptionSession(
+    userId: string,
+    customerId: string,
+    amountUsd: number,
+    organizationId?: string | null,
+    frontendOrigin?: string,
+  ): Promise<{
+    clientSecret: string;
+    sessionId: string;
+    amountUsd: number;
+    amountCents: number;
+  }> {
+    const amountCents = Math.round(amountUsd * 100);
+    const baseUrl = (frontendOrigin || process.env.FRONTEND_URL!).replace(
+      /\/$/,
+      "",
+    );
+    const returnUrl = `${baseUrl}/dashboard/overview?payment=success&monthly_fund={CHECKOUT_SESSION_ID}`;
+
+    const metadata: Record<string, string> = {
+      userId,
+      organizationId: organizationId ?? "",
+      amount: String(amountUsd),
+      amountCents: String(amountCents),
+      amountUsd: String(amountUsd),
+      type: "monthly_credit_funding",
+      service: "ringee",
+      fn: "creditSubscription",
+    };
+
+    const session = await stripe.checkout.sessions.create({
+      ui_mode: "embedded",
+      mode: "subscription",
+      customer: customerId,
+      redirect_on_completion: "if_required",
+      return_url: returnUrl,
+      metadata,
+      subscription_data: { metadata },
+      line_items: [
+        {
+          price_data: {
+            currency: "usd",
+            product_data: {
+              name: "Ringee Monthly Credit Fund",
+              description: `$${amountUsd} in credits added to your account every month`,
+            },
+            unit_amount: amountCents,
+            recurring: { interval: "month" },
+          },
+          quantity: 1,
+        },
+      ],
+      allow_promotion_codes: true,
+    });
+
+    return {
+      clientSecret: session.client_secret!,
+      sessionId: session.id,
+      amountUsd,
+      amountCents,
+    };
+  }
+
+  /**
+   * Change the monthly amount of an active credit-funding subscription by
+   * swapping the single item to a new inline price. Reuses the existing product
+   * so we don't accumulate orphan products. Prorates the difference.
+   */
+  async updateMonthlyCreditSubscriptionAmount(
+    subscriptionId: string,
+    amountUsd: number,
+  ): Promise<{ subscriptionId: string; amountUsd: number }> {
+    const sub = await stripe.subscriptions.retrieve(subscriptionId);
+    const item = sub.items.data[0];
+    if (!item) {
+      throw new Error(`Subscription ${subscriptionId} has no items to update.`);
+    }
+    const currentProductId =
+      typeof item.price.product === "string"
+        ? item.price.product
+        : item.price.product.id;
+
+    // Products Stripe creates on-the-fly from a Checkout `price_data.product_data`
+    // are created INACTIVE. Stripe then refuses to attach the new price (for the
+    // amount change) to an inactive product ("product … is marked as inactive").
+    // Reactivate it first; if it was deleted entirely, mint a fresh product.
+    const productId = await this.ensureActiveProduct(currentProductId, amountUsd);
+
+    await stripe.subscriptions.update(subscriptionId, {
+      items: [
+        {
+          id: item.id,
+          price_data: {
+            currency: "usd",
+            product: productId,
+            unit_amount: Math.round(amountUsd * 100),
+            recurring: { interval: "month" },
+          },
+        },
+      ],
+      proration_behavior: "create_prorations",
+      metadata: {
+        ...sub.metadata,
+        amount: String(amountUsd),
+        amountUsd: String(amountUsd),
+      },
+    });
+
+    return { subscriptionId, amountUsd };
+  }
+
+  /**
+   * Guarantee a usable (active) product id to hang a new subscription price on.
+   * Reactivates the given product if it's archived; if it no longer exists,
+   * creates a fresh "Ringee Monthly Credit Fund" product and returns that id.
+   */
+  private async ensureActiveProduct(
+    productId: string,
+    amountUsd: number,
+  ): Promise<string> {
+    try {
+      const product = await stripe.products.retrieve(productId);
+      if (!product.active) {
+        await stripe.products.update(productId, { active: true });
+      }
+      return productId;
+    } catch {
+      const created = await stripe.products.create({
+        name: "Ringee Monthly Credit Fund",
+        description: `$${amountUsd} in credits added to your account every month`,
+      });
+      return created.id;
+    }
+  }
+
+  /**
+   * Read-only snapshot of a subscription for the "monthly funding active" view:
+   * next charge date, current amount, whether it's set to cancel, and the card
+   * on file. `current_period_end` moved onto the item in recent API versions,
+   * so we read from the item first and fall back to the subscription.
+   */
+  async getSubscriptionSummary(subscriptionId: string): Promise<{
+    status: string;
+    nextChargeDate: Date | null;
+    amountUsd: number | null;
+    cancelAtPeriodEnd: boolean;
+    paymentMethod: { brand: string | null; last4: string | null } | null;
+  }> {
+    const sub = await stripe.subscriptions.retrieve(subscriptionId, {
+      expand: ["default_payment_method"],
+    });
+    const item = sub.items?.data?.[0];
+    const periodEnd =
+      (item as unknown as { current_period_end?: number })
+        ?.current_period_end ??
+      (sub as unknown as { current_period_end?: number }).current_period_end ??
+      null;
+    const unitAmount = item?.price?.unit_amount ?? null;
+
+    const pm =
+      sub.default_payment_method &&
+      typeof sub.default_payment_method !== "string"
+        ? (sub.default_payment_method as Stripe.PaymentMethod)
+        : null;
+
+    return {
+      status: sub.status,
+      nextChargeDate: periodEnd ? new Date(periodEnd * 1000) : null,
+      amountUsd: unitAmount != null ? unitAmount / 100 : null,
+      cancelAtPeriodEnd: sub.cancel_at_period_end ?? false,
+      paymentMethod: pm?.card
+        ? { brand: pm.card.brand ?? null, last4: pm.card.last4 ?? null }
+        : null,
+    };
+  }
+
+  /**
+   * Subscription metadata + current amount, for the invoice-driven monthly
+   * crediting path. Reading the owner from the subscription (not our own
+   * settings row) makes crediting resilient to webhook ordering — the first
+   * invoice can land before `checkout.session.completed` writes our row.
+   */
+  async getSubscriptionMetadata(subscriptionId: string): Promise<{
+    metadata: Record<string, string>;
+    amountUsd: number | null;
+  }> {
+    const sub = await stripe.subscriptions.retrieve(subscriptionId);
+    const unit = sub.items?.data?.[0]?.price?.unit_amount ?? null;
+    return {
+      metadata: (sub.metadata ?? {}) as Record<string, string>,
+      amountUsd: unit != null ? unit / 100 : null,
+    };
+  }
+
+  /**
+   * Sets a payment method as the customer default and, if given, the default
+   * for an active subscription. Called from the webhook after a `mode:"setup"`
+   * embedded session completes, so "change payment method" never leaves the
+   * dashboard.
+   */
+  async setDefaultPaymentMethod(
+    customerId: string,
+    paymentMethodId: string,
+    subscriptionId?: string | null,
+  ): Promise<void> {
+    await stripe.customers.update(customerId, {
+      invoice_settings: { default_payment_method: paymentMethodId },
+    });
+    if (subscriptionId) {
+      await stripe.subscriptions.update(subscriptionId, {
+        default_payment_method: paymentMethodId,
+      });
+    }
+  }
+
+  /** Retrieve the payment-method id a completed setup session attached. */
+  async getSetupSessionPaymentMethodId(
+    sessionId: string,
+  ): Promise<string | null> {
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ["setup_intent"],
+    });
+    const si = session.setup_intent;
+    if (!si || typeof si === "string") return null;
+    const pm = (si as Stripe.SetupIntent).payment_method;
+    return typeof pm === "string" ? pm : (pm?.id ?? null);
+  }
+
+  /**
+   * EMBEDDED Checkout Session in `mode:"setup"` — collects and saves a new card
+   * WITHOUT charging it. Used by "change payment method" for monthly funding and
+   * auto-reload. The webhook (`fn:"updateSavedPaymentMethod"`) then promotes the
+   * saved card to the customer / subscription default.
+   */
+  async createEmbeddedCardSetupSession(
+    userId: string,
+    customerId: string,
+    organizationId?: string | null,
+    frontendOrigin?: string,
+    subscriptionId?: string | null,
+  ): Promise<{ clientSecret: string; sessionId: string }> {
+    const baseUrl = (frontendOrigin || process.env.FRONTEND_URL!).replace(
+      /\/$/,
+      "",
+    );
+    const returnUrl = `${baseUrl}/dashboard/overview?setup=complete&card_setup={CHECKOUT_SESSION_ID}`;
+    const metadata: Record<string, string> = {
+      userId,
+      organizationId: organizationId ?? "",
+      subscriptionId: subscriptionId ?? "",
+      type: "card_setup",
+      service: "ringee",
+      fn: "updateSavedPaymentMethod",
+    };
+
+    const session = await stripe.checkout.sessions.create({
+      ui_mode: "embedded",
+      mode: "setup",
+      customer: customerId,
+      currency: "usd",
+      redirect_on_completion: "if_required",
+      return_url: returnUrl,
+      metadata,
+      setup_intent_data: { metadata },
+    });
+
+    return {
+      clientSecret: session.client_secret!,
+      sessionId: session.id,
+    };
+  }
+
   async createAutoReloadSetupSession(
     customerId: string,
     userId: string,
@@ -635,37 +917,68 @@ export class StripeService {
     };
   }
 
-  async chargeOffSession(
-    userId: string,
-    amountUsd: number,
-    organizationId?: string,
-  ): Promise<{ paymentIntentId: string }> {
-    // Find the customer ID from Stripe by searching for the user
-    const customers = await stripe.customers.search({
-      query: `metadata["userId"]:"${userId}"`,
-      limit: 1,
-    });
+  /**
+   * Off-session balance-drop auto-reload charge against the customer's saved
+   * card. The `customerId` and `paymentMethodId` are resolved authoritatively by
+   * the caller (never from client input, never via a fuzzy `customers.search`),
+   * so a charge can only ever hit the owner's own saved card. An
+   * `idempotencyKey` makes a duplicated call a no-op at Stripe's edge — a second
+   * safety net on top of the DB `active -> charging` lock.
+   *
+   * Crediting still happens ONLY from the confirmed `payment_intent.succeeded`
+   * webhook (idempotent via `creditTopupOnce`). This method throws on a decline;
+   * the caller marks the auto-reload `failed` / `requires_payment_method`.
+   */
+  async createAutoReloadCharge(params: {
+    userId: string;
+    customerId: string;
+    paymentMethodId: string;
+    amountUsd: number;
+    thresholdUsd: number;
+    organizationId?: string | null;
+    idempotencyKey: string;
+  }): Promise<{
+    status: "succeeded" | "processing" | "requires_action" | "failed";
+    paymentIntentId: string;
+  }> {
+    const {
+      userId,
+      customerId,
+      paymentMethodId,
+      amountUsd,
+      thresholdUsd,
+      organizationId,
+      idempotencyKey,
+    } = params;
+    const amountCents = Math.round(amountUsd * 100);
 
-    if (!customers.data.length) {
-      throw new Error(`No Stripe customer found for user ${userId}`);
-    }
-
-    const customer = customers.data[0];
-
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: Math.round(amountUsd * 100),
-      currency: "usd",
-      customer: customer.id,
-      off_session: true,
-      confirm: true,
-      metadata: {
-        userId,
-        organizationId: organizationId ?? "",
-        fn: "autoReloadCharge",
+    const paymentIntent = await stripe.paymentIntents.create(
+      {
+        amount: amountCents,
+        currency: "usd",
+        customer: customerId,
+        payment_method: paymentMethodId,
+        off_session: true,
+        confirm: true,
+        metadata: {
+          userId,
+          organizationId: organizationId ?? "",
+          amount: String(amountUsd),
+          amountCents: String(amountCents),
+          thresholdAmountCents: String(Math.round(thresholdUsd * 100)),
+          reloadAmountCents: String(amountCents),
+          type: "auto_reload",
+          service: "ringee",
+          fn: "autoReloadCharge",
+        },
       },
-    });
+      { idempotencyKey },
+    );
 
-    return { paymentIntentId: paymentIntent.id };
+    return {
+      status: this.mapPaymentIntentStatus(paymentIntent.status),
+      paymentIntentId: paymentIntent.id,
+    };
   }
 
   async cancelSubscription(

@@ -4,6 +4,12 @@
 
 export const RECHARGE_PRESETS = [10, 25, 50, 100] as const;
 
+// One quick-pick set per flow. The custom input always accepts any in-bounds
+// amount; presets are just the low-friction defaults.
+export const MONTHLY_PRESETS = [25, 50, 100, 200] as const;
+export const THRESHOLD_PRESETS = [5, 10, 20, 50] as const;
+export const RELOAD_PRESETS = [10, 25, 50, 100] as const;
+
 // Client-side bounds. The server re-validates these authoritatively
 // (`normalizeTopupAmount`, $5–$2000) — these only drive UX.
 export const MIN_AMOUNT = 5;

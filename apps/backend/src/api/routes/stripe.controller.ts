@@ -36,6 +36,7 @@ import {
   CreateMonthlyCreditSubscriptionDto,
   CreateAutoReloadSetupDto,
   CreateOrganizationCheckoutDto,
+  CreateCardSetupDto,
 } from "@ringee/platform";
 import { TriggerLoopEventPublisher } from "../../triggerloop/services/triggerloop-event-publisher.service";
 
@@ -352,6 +353,66 @@ export class StripeController {
     );
   }
 
+  /**
+   * EMBEDDED monthly credit-funding subscription (no redirect). Returns a
+   * `clientSecret` the dashboard mounts inline. Credits are added ONLY by the
+   * confirmed `invoice.payment_succeeded` webhook (idempotent per invoice) —
+   * this endpoint never moves balance.
+   */
+  @Post("checkout/credit-subscription/embedded")
+  @OrgAdminOnly()
+  async createEmbeddedCreditSubscription(
+    @Body() body: CreateMonthlyCreditSubscriptionDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    const customerId = await this.getOrCreateCustomer(user);
+
+    return this.stripeService.createEmbeddedMonthlyCreditSubscriptionSession(
+      user.id,
+      customerId,
+      body.amount,
+      user.activeOrgId,
+      body.frontendOrigin,
+    );
+  }
+
+  /**
+   * EMBEDDED `mode:"setup"` session to save/replace a card without charging it
+   * ("change payment method" for monthly funding + auto-reload). If the caller
+   * has an active monthly subscription, the webhook also promotes the new card
+   * to that subscription's default. Returns a `clientSecret` for the dashboard.
+   */
+  @Post("setup/payment-method/embedded")
+  @OrgAdminOnly()
+  async createCardSetup(
+    @Body() body: CreateCardSetupDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+
+    const customerId = await this.getOrCreateCustomer(user);
+    const ctx = createOwnershipContext(user);
+    const settings = await this.creditService.getAutoReloadSettings(ctx);
+    const subscriptionId =
+      settings?.monthlyFundEnabled && settings.stripeSubscriptionId
+        ? settings.stripeSubscriptionId
+        : null;
+
+    return this.stripeService.createEmbeddedCardSetupSession(
+      user.id,
+      customerId,
+      user.activeOrgId,
+      body.frontendOrigin,
+      subscriptionId,
+    );
+  }
+
   @Post("checkout/auto-reload-setup")
   @OrgAdminOnly()
   async createAutoReloadSetup(
@@ -420,9 +481,10 @@ export class StripeController {
         signature,
         endpointSecret,
       );
-    } catch (err: any) {
-      console.error("❌ Webhook signature verification failed:", err.message);
-      return res.status(400).send(`Webhook Error: ${err.message}`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("❌ Webhook signature verification failed:", message);
+      return res.status(400).send(`Webhook Error: ${message}`);
     }
 
     console.log("✅ Webhook signature verification successful: " + event.type);
@@ -431,12 +493,46 @@ export class StripeController {
       switch (event.type) {
         case "checkout.session.completed": {
           const session = event.data.object as Stripe.Checkout.Session;
-          const amountUsd = session.amount_total
-            ? session.amount_total / 100
-            : 0;
           const userId = session.metadata?.userId;
           const organizationId = session.metadata?.organizationId || null;
           const fn = session.metadata?.fn;
+          const sessionCustomerId =
+            typeof session.customer === "string"
+              ? session.customer
+              : ((session.customer as Stripe.Customer | null)?.id ?? null);
+
+          // "Change payment method" (mode:setup) — no charge. Promote the newly
+          // saved card to the customer (and subscription) default, and clear a
+          // failed auto-reload so it re-arms with the fresh card.
+          if (
+            session.mode === "setup" &&
+            fn === "updateSavedPaymentMethod" &&
+            userId &&
+            sessionCustomerId
+          ) {
+            const pmId =
+              await this.stripeService.getSetupSessionPaymentMethodId(
+                session.id,
+              );
+            if (pmId) {
+              await this.stripeService.setDefaultPaymentMethod(
+                sessionCustomerId,
+                pmId,
+                session.metadata?.subscriptionId || undefined,
+              );
+              const ctx = createOwnershipContext({
+                id: userId,
+                activeOrgId: organizationId,
+              });
+              await this.creditService.resetAutoReloadStatusIfFailed(ctx);
+              console.log(`💳 Saved payment method updated for user ${userId}`);
+            }
+            break;
+          }
+
+          const amountUsd = session.amount_total
+            ? session.amount_total / 100
+            : 0;
 
           if (
             (fn === "createOneTimePaymentSession" ||
@@ -482,11 +578,15 @@ export class StripeController {
             session.mode === "subscription" &&
             userId
           ) {
-            // Save the subscription ID for recurring credit charges
+            // Activate the monthly fund ONLY — do NOT credit here. Every paid
+            // cycle (including the first) is credited idempotently from
+            // `invoice.payment_succeeded` via `creditTopupOnce`, so a webhook
+            // replay can never double-credit and we never credit before the
+            // invoice is actually paid.
             const subscriptionId =
               typeof session.subscription === "string"
                 ? session.subscription
-                : (session.subscription as any)?.id;
+                : (session.subscription as Stripe.Subscription | null)?.id;
 
             if (subscriptionId) {
               const ctx = createOwnershipContext({
@@ -494,22 +594,13 @@ export class StripeController {
                 activeOrgId: organizationId,
               });
               const subAmountUsd = Number(
-                session.metadata?.amountUsd || amountUsd,
+                session.metadata?.amountUsd || session.metadata?.amount || 0,
               );
               await this.creditService.updateMonthlyFundSettings(ctx, {
                 monthlyFundEnabled: true,
-                monthlyFundAmount: subAmountUsd,
+                monthlyFundAmount: subAmountUsd || null,
                 stripeSubscriptionId: subscriptionId,
               });
-              // Add credits for the first month
-              if (subAmountUsd > 0) {
-                await this.creditService.addCredits(ctx, subAmountUsd);
-                await this.triggerLoop.creditsAdded(
-                  userId,
-                  subAmountUsd,
-                  organizationId ?? undefined,
-                );
-              }
               console.log(
                 `📅 Monthly credit fund activated for user ${userId}: $${subAmountUsd}/month`,
               );
@@ -587,37 +678,77 @@ export class StripeController {
           const sub = invoice.parent?.subscription_details?.subscription;
           const subscriptionId =
             typeof sub === "string" ? sub : (sub?.id ?? null);
+          const billingReason = (invoice as { billing_reason?: string })
+            .billing_reason;
 
-          if (subscriptionId) {
-            // Check if this is a monthly credit fund subscription
-            const settings =
-              await this.creditService.findSettingsByStripeSubscription(
-                subscriptionId,
-              );
+          // Credit BOTH the first paid cycle and every recurring cycle. Owner +
+          // amount come from the SUBSCRIPTION metadata (not our settings row) so
+          // crediting is resilient to webhook ordering. `creditTopupOnce`, keyed
+          // on a per-invoice id, makes replays a no-op — one credit per invoice.
+          if (
+            subscriptionId &&
+            (billingReason === "subscription_create" ||
+              billingReason === "subscription_cycle")
+          ) {
+            const info =
+              await this.stripeService.getSubscriptionMetadata(subscriptionId);
+
             if (
-              settings &&
-              settings.monthlyFundEnabled &&
-              settings.monthlyFundAmount
+              info.metadata.fn === "creditSubscription" &&
+              info.metadata.userId
             ) {
-              // Skip if this is the first invoice (already credited in checkout.session.completed)
-              const billingReason = (invoice as any).billing_reason;
-              if (billingReason === "subscription_cycle") {
-                const ctx = createOwnershipContext({
-                  id: settings.userId!,
-                  activeOrgId: settings.organizationId,
-                });
-                await this.creditService.addCredits(
+              const ctx = createOwnershipContext({
+                id: info.metadata.userId,
+                activeOrgId: info.metadata.organizationId || null,
+              });
+              const amountUsd = Number(
+                info.metadata.amountUsd ||
+                  info.metadata.amount ||
+                  info.amountUsd ||
+                  0,
+              );
+
+              // Keep the settings row in sync in case checkout.session.completed
+              // hasn't landed yet (webhook ordering is not guaranteed).
+              await this.creditService.updateMonthlyFundSettings(ctx, {
+                monthlyFundEnabled: true,
+                monthlyFundAmount: amountUsd || null,
+                stripeSubscriptionId: subscriptionId,
+              });
+
+              if (amountUsd > 0) {
+                const invoicePi = (
+                  invoice as { payment_intent?: string | { id?: string } }
+                ).payment_intent;
+                const paymentIntentId =
+                  (typeof invoicePi === "string"
+                    ? invoicePi
+                    : (invoicePi?.id ?? null)) ?? `invoice:${invoice.id}`;
+
+                const credited = await this.creditService.creditTopupOnce(
                   ctx,
-                  settings.monthlyFundAmount,
+                  amountUsd,
+                  {
+                    checkoutSessionId: null,
+                    paymentIntentId,
+                    source: "monthly_credit_funding",
+                  },
                 );
-                await this.triggerLoop.creditsAdded(
-                  settings.userId!,
-                  settings.monthlyFundAmount,
-                  settings.organizationId ?? undefined,
-                );
-                console.log(
-                  `📅 Monthly credit fund charged: $${settings.monthlyFundAmount} for user ${settings.userId}`,
-                );
+
+                if (credited) {
+                  await this.triggerLoop.creditsAdded(
+                    info.metadata.userId,
+                    amountUsd,
+                    info.metadata.organizationId || undefined,
+                  );
+                  console.log(
+                    `📅 Monthly credit fund charged: $${amountUsd} for user ${info.metadata.userId} (${billingReason})`,
+                  );
+                } else {
+                  console.log(
+                    `↩️ Duplicate monthly-fund invoice webhook ignored for ${invoice.id}`,
+                  );
+                }
               }
             }
           }
@@ -659,6 +790,11 @@ export class StripeController {
             );
 
             if (credited) {
+              // Auto-reload re-arms ONLY after the balance is topped up, so a
+              // concurrent consume can never re-charge before the credit lands.
+              if (isAutoReload) {
+                await this.creditService.reArmAutoReload(ctx, paymentIntent.id);
+              }
               await this.triggerLoop.creditsAdded(
                 userId,
                 amountUsd,
@@ -672,6 +808,33 @@ export class StripeController {
                 `↩️ Duplicate ${isAutoReload ? "auto-reload" : "saved-card"} top-up webhook ignored for payment intent ${paymentIntent.id} (user ${userId})`,
               );
             }
+          }
+          break;
+        }
+
+        case "payment_intent.payment_failed": {
+          // Async off-session failures (auto-reload declines) surface here.
+          // Move the reload to a stopped state so it won't keep retrying, and
+          // the drawer shows "Payment failed" / "Requires new payment method".
+          const paymentIntent = event.data.object as Stripe.PaymentIntent;
+          const metadata = paymentIntent.metadata || {};
+          if (metadata.fn === "autoReloadCharge" && metadata.userId) {
+            const ctx = createOwnershipContext({
+              id: metadata.userId,
+              activeOrgId: metadata.organizationId || null,
+            });
+            const code = paymentIntent.last_payment_error?.code;
+            const requiresNewMethod =
+              code === "authentication_required" ||
+              code === "payment_method_unactivated" ||
+              code === "expired_card";
+            await this.creditService.markAutoReloadFailed(
+              ctx,
+              requiresNewMethod,
+            );
+            console.log(
+              `❌ Auto-reload payment failed for user ${metadata.userId} (${code ?? "unknown"})`,
+            );
           }
           break;
         }

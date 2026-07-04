@@ -14,6 +14,8 @@ import {
   createOwnershipContext,
   OrgAdminOnly,
   UpdateAutoReloadSettingsDto,
+  EnableAutoReloadDto,
+  UpdateMonthlyFundDto,
   RequestCreditDto,
   ResendProvider,
 } from "@ringee/platform";
@@ -58,7 +60,7 @@ export class CreditController {
         lastTopupAmount: summary.lastTopupAmount,
         lastTopupAt: summary.lastTopupAt,
       };
-    } catch (error) {
+    } catch {
       return {
         balance: 0,
         freeCallTrial: false,
@@ -148,6 +150,7 @@ export class CreditController {
       autoReloadEnabled: settings?.autoReloadEnabled ?? false,
       autoReloadThreshold: settings?.autoReloadThreshold ?? 5,
       autoReloadAmount: settings?.autoReloadAmount ?? 25,
+      autoReloadStatus: settings?.autoReloadStatus ?? "disabled",
       monthlyFundEnabled: settings?.monthlyFundEnabled ?? false,
       monthlyFundAmount: settings?.monthlyFundAmount ?? null,
     };
@@ -169,7 +172,53 @@ export class CreditController {
       autoReloadEnabled: settings.autoReloadEnabled,
       autoReloadThreshold: settings.autoReloadThreshold,
       autoReloadAmount: settings.autoReloadAmount,
+      autoReloadStatus: settings.autoReloadStatus,
     };
+  }
+
+  /**
+   * Config-only enable of balance-drop auto-reload. Reuses the caller's saved
+   * card (no charge at setup) and requires the separate explicit `consent`
+   * (enforced by the DTO). Returns 400 `requires_payment_method` when there is
+   * no saved card so the UI can send the user through card setup first.
+   */
+  @Post("auto-reload")
+  @OrgAdminOnly()
+  async enableAutoReload(
+    @CurrentUser() user: CurrentUserData,
+    @Body() body: EnableAutoReloadDto,
+  ) {
+    const ctx = createOwnershipContext(user);
+    const settings = await this.creditService.enableAutoReload(ctx, {
+      threshold: body.threshold,
+      reloadAmount: body.reloadAmount,
+    });
+    return {
+      autoReloadEnabled: settings.autoReloadEnabled,
+      autoReloadThreshold: settings.autoReloadThreshold,
+      autoReloadAmount: settings.autoReloadAmount,
+      autoReloadStatus: settings.autoReloadStatus,
+    };
+  }
+
+  /** Snapshot of the active monthly funding subscription for its status view. */
+  @Get("monthly-fund")
+  @OrgAdminOnly()
+  async getMonthlyFund(@CurrentUser() user: CurrentUserData) {
+    const ctx = createOwnershipContext(user);
+    return this.creditService.getMonthlyFundSummary(ctx);
+  }
+
+  /** Change the monthly funding amount (updates the Stripe subscription). */
+  @Patch("monthly-fund")
+  @OrgAdminOnly()
+  async updateMonthlyFund(
+    @CurrentUser() user: CurrentUserData,
+    @Body() body: UpdateMonthlyFundDto,
+  ) {
+    const ctx = createOwnershipContext(user);
+    await this.creditService.updateMonthlyFundAmount(ctx, body.amount);
+    return this.creditService.getMonthlyFundSummary(ctx);
   }
 
   @Delete("monthly-fund")

@@ -1,5 +1,6 @@
 import { Type } from "class-transformer";
 import {
+  Equals,
   IsBoolean,
   IsIn,
   IsNumber,
@@ -66,6 +67,44 @@ export class CreateAutoReloadSetupDto {
   @Min(1, { message: "Threshold must be at least $1" })
   threshold!: number;
 
+  @IsOptional()
+  @IsString()
+  frontendOrigin?: string;
+}
+
+/**
+ * Config-only enable of balance-drop auto-reload. Unlike the old
+ * `CreateAutoReloadSetupDto` flow, this does NOT charge the card at setup — it
+ * reuses the customer's saved payment method and only charges (off-session)
+ * when the balance later drops below the threshold. `consent` must be `true`:
+ * it is a SEPARATE, explicit authorization from the one-time "save card"
+ * consent, and the server rejects the request without it.
+ */
+export class EnableAutoReloadDto {
+  @IsNumber()
+  @Min(1, { message: "Threshold must be at least $1" })
+  threshold!: number;
+
+  @IsNumber()
+  @Min(5, { message: "Reload amount must be at least $5" })
+  reloadAmount!: number;
+
+  @IsBoolean()
+  @Equals(true, {
+    message: "You must authorize automatic charges to enable auto-reload.",
+  })
+  consent!: boolean;
+}
+
+/** Edit the amount of an active monthly credit-funding subscription. */
+export class UpdateMonthlyFundDto {
+  @IsNumber()
+  @Min(5, { message: "Monthly amount must be at least $5" })
+  amount!: number;
+}
+
+/** Start an embedded `mode:"setup"` session to save/replace a card (no charge). */
+export class CreateCardSetupDto {
   @IsOptional()
   @IsString()
   frontendOrigin?: string;

@@ -6,12 +6,31 @@ import { ApiClient } from '@ringee/frontend-shared/lib/api';
 
 type FetchStatus = 'idle' | 'loading' | 'success' | 'error';
 
+/** Balance-drop auto-reload lifecycle, mirrors the backend column. */
+export type AutoReloadStatus =
+  | 'disabled'
+  | 'active'
+  | 'charging'
+  | 'failed'
+  | 'requires_payment_method';
+
 interface AutoReloadSettings {
   autoReloadEnabled: boolean;
   autoReloadThreshold: number;
   autoReloadAmount: number;
+  autoReloadStatus: AutoReloadStatus;
   monthlyFundEnabled: boolean;
   monthlyFundAmount: number | null;
+}
+
+/** Live snapshot of the monthly-funding subscription (from Stripe). */
+export interface MonthlyFund {
+  enabled: boolean;
+  amount: number | null;
+  nextChargeDate: string | null;
+  cancelAtPeriodEnd: boolean;
+  status: string | null;
+  paymentMethod: { brand: string | null; last4: string | null } | null;
 }
 
 export interface SavedPaymentMethod {
@@ -32,6 +51,8 @@ interface CreditState {
   hasLoaded: boolean;
   error: string | null;
   autoReloadSettings: AutoReloadSettings | null;
+  // Live monthly-funding subscription snapshot (next charge date, card on file).
+  monthlyFund: MonthlyFund | null;
   // Last confirmed top-up, used to suggest the previous amount as the default.
   lastTopupAmount: number | null;
   lastTopupAt: string | null;
@@ -48,6 +69,7 @@ interface CreditState {
     silent?: boolean
   ) => Promise<void>;
   fetchAutoReloadSettings: (api: ApiClient) => Promise<void>;
+  fetchMonthlyFund: (api: ApiClient) => Promise<void>;
   fetchPaymentMethod: (api: ApiClient) => Promise<void>;
   setBalance: (balance: number) => void;
   setFreeCallTrial: (v: boolean) => void;
@@ -62,12 +84,17 @@ export const useCreditStore = create<CreditState>()(
     hasLoaded: false,
     error: null,
     autoReloadSettings: null,
+    monthlyFund: null,
     lastTopupAmount: null,
     lastTopupAt: null,
     paymentMethod: null,
     paymentMethodStatus: 'idle',
 
-    fetchBalance: async (api: ApiClient, useMock?: boolean, silent?: boolean) => {
+    fetchBalance: async (
+      api: ApiClient,
+      useMock?: boolean,
+      silent?: boolean
+    ) => {
       // A silent refresh keeps the last good balance on screen — never flip to
       // 'loading', or every reconciliation poll would tear down the open panel.
       if (!silent) set({ status: 'loading', error: null });
@@ -102,9 +129,37 @@ export const useCreditStore = create<CreditState>()(
     fetchAutoReloadSettings: async (api: ApiClient) => {
       try {
         const settings = await api.get('/credits/auto-reload-settings');
-        set({ autoReloadSettings: settings });
+        set({
+          autoReloadSettings: {
+            autoReloadEnabled: !!settings?.autoReloadEnabled,
+            autoReloadThreshold: settings?.autoReloadThreshold ?? 5,
+            autoReloadAmount: settings?.autoReloadAmount ?? 25,
+            autoReloadStatus:
+              (settings?.autoReloadStatus as AutoReloadStatus) ?? 'disabled',
+            monthlyFundEnabled: !!settings?.monthlyFundEnabled,
+            monthlyFundAmount: settings?.monthlyFundAmount ?? null
+          }
+        });
       } catch (err: any) {
         console.error('Error fetching auto-reload settings:', err);
+      }
+    },
+
+    fetchMonthlyFund: async (api: ApiClient) => {
+      try {
+        const mf = await api.get('/credits/monthly-fund');
+        set({
+          monthlyFund: {
+            enabled: !!mf?.enabled,
+            amount: mf?.amount ?? null,
+            nextChargeDate: mf?.nextChargeDate ?? null,
+            cancelAtPeriodEnd: !!mf?.cancelAtPeriodEnd,
+            status: mf?.status ?? null,
+            paymentMethod: mf?.paymentMethod ?? null
+          }
+        });
+      } catch (err: any) {
+        console.error('Error fetching monthly fund:', err);
       }
     },
 
@@ -147,6 +202,7 @@ export const useCreditStore = create<CreditState>()(
         hasLoaded: false,
         error: null,
         autoReloadSettings: null,
+        monthlyFund: null,
         lastTopupAmount: null,
         lastTopupAt: null,
         paymentMethod: null,

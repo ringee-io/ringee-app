@@ -1404,6 +1404,19 @@ model CreditAutoReload {
   autoReloadThreshold Float   @default(5)
   autoReloadAmount    Float   @default(25)
 
+  // Auto-reload runtime state. `autoReloadStatus` is both the user-facing status
+  // AND the concurrency lock: the balance-drop charge only fires when a single
+  // caller wins the atomic `active -> charging` transition, so simultaneous
+  // `consumeCredits` calls can never trigger duplicate reloads. Re-armed to
+  // `active` by the confirmed webhook.
+  // Values: "disabled" | "active" | "charging" | "failed" | "requires_payment_method"
+  autoReloadStatus              String    @default("disabled")
+  // Explicit, separate consent to off-session charges (distinct from the
+  // one-time "save card for faster top-ups" consent). Required to enable.
+  autoReloadConsentAt           DateTime?
+  autoReloadLastChargeAt        DateTime?
+  autoReloadLastPaymentIntentId String?
+
   // Monthly recurring fund (Stripe subscription)
   monthlyFundEnabled   Boolean @default(false)
   monthlyFundAmount    Float?
