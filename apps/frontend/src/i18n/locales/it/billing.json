@@ -23,7 +23,8 @@
         "redirecting": "Reindirizzamento...",
         "chooseAmount": "Scegli un importo",
         "customAmountLabel": "Oppure inserisci un importo personalizzato",
-        "minAmountError": "L'acquisto minimo è ${amount}"
+        "minAmountError": "L'acquisto minimo è ${amount}",
+        "cancel": "Annulla"
       },
       "oneTime": {
         "customPlaceholder": "es. 40",
@@ -43,7 +44,28 @@
         "monthlyCharge": "Addebito mensile",
         "monthlyChargeValue": "${amount}/mese",
         "estimatedTime": "~{minutes} minuti di chiamata al mese",
-        "subscribe": "Iscriviti alla ricarica mensile"
+        "subscribe": "Iscriviti alla ricarica mensile",
+        "activeSubtitle": "I crediti vengono aggiunti automaticamente ogni mese.",
+        "amountRow": "Importo mensile",
+        "nextCharge": "Prossimo addebito",
+        "paymentMethodRow": "Metodo di pagamento",
+        "editAmount": "Modifica importo",
+        "save": "Salva",
+        "changeMethod": "Cambia metodo di pagamento",
+        "cancelConfirm": "Annullare la ricarica mensile? I crediti già aggiunti restano nel tuo saldo.",
+        "cancelConfirmYes": "Sì, annulla",
+        "keep": "Mantieni",
+        "consent": "Capisco che la mia carta verrà addebitata ogni mese.",
+        "consentHint": "I crediti vengono aggiunti dopo ogni pagamento riuscito. Annulla in qualsiasi momento.",
+        "setupTitle": "Configura la ricarica mensile",
+        "setupSubtitle": "Aggiungi {amount} al tuo saldo ogni mese",
+        "frequencyRow": "Frequenza di fatturazione",
+        "frequencyValue": "Ogni mese",
+        "estTimeRow": "Tempo di chiamata / mese",
+        "creditsNote": "I crediti vengono aggiunti dopo ogni pagamento mensile riuscito.",
+        "setupDoneTitle": "La ricarica mensile è attiva",
+        "setupDoneBody": "Abbiamo aggiunto i tuoi primi {amount} e ricaricheremo automaticamente ogni mese.",
+        "subscribeCta": "Paga {amount} e avvia il finanziamento"
       },
       "autoReload": {
         "activeTitle": "Ricarica automatica attiva",
@@ -54,11 +76,98 @@
         "amountLabel": "Importo della ricarica",
         "customPlaceholder": "Importo personalizzato",
         "summary": "La tua carta verrà addebitata di <b>${amount}</b> ora e salvata per future ricariche automatiche quando il tuo saldo scende sotto <b>${threshold}</b>.",
-        "enable": "Attiva ricarica automatica"
+        "enable": "Attiva ricarica automatica",
+        "statusActive": "Attiva",
+        "statusReloading": "Ricarica in corso…",
+        "statusFailed": "Pagamento non riuscito",
+        "statusRequiresMethod": "Richiede un nuovo metodo di pagamento",
+        "rule": "Quando il tuo saldo scende sotto <b>{threshold}</b>, aggiungiamo <b>{amount}</b>.",
+        "changeMethod": "Cambia metodo di pagamento",
+        "editSettings": "Modifica impostazioni",
+        "turnOff": "Disattiva ricarica automatica",
+        "estAfterReload": "Tempo di chiamata dopo la ricarica",
+        "consent": "Autorizzo Ringee ad addebitare il metodo di pagamento salvato quando il mio saldo scende sotto la soglia selezionata.",
+        "enableError": "Non è stato possibile attivare la ricarica automatica. Riprova.",
+        "requiresMethod": "La ricarica automatica richiede un metodo di pagamento salvato.",
+        "addMethod": "Aggiungi un metodo di pagamento"
       },
       "footer": {
         "secureByStripe": "Sicuro con Stripe",
-        "refundGuarantee": "Rimborso garantito al 100%"
+        "refundGuarantee": "Rimborso garantito al 100%",
+        "cardSafety": "I dati della carta non passano mai dai server di Ringee",
+        "creditsAfter": "Crediti aggiunti dopo la conferma"
+      },
+      "amount": {
+        "currentBalance": "Saldo attuale",
+        "lastTopup": "Ultima ricarica: {amount}",
+        "rechargeCta": "Ricarica {amount}",
+        "continueCheckout": "Continua al pagamento sicuro",
+        "useAnotherMethod": "Usa un altro metodo di pagamento",
+        "savedHint": "Addebitato su {brand} •••• {last4}."
+      },
+      "checkout": {
+        "title": "Pagamento sicuro",
+        "changeAmount": "Cambia importo",
+        "subtitle": "Aggiungi {amount} al tuo saldo Ringee",
+        "amountLabel": "Importo",
+        "newBalanceLabel": "Nuovo saldo",
+        "estCallingTime": "Tempo di chiamata stimato",
+        "minutesValue": "~{minutes} min",
+        "loading": "Preparazione del pagamento sicuro…",
+        "errorTitle": "Impossibile avviare il pagamento",
+        "errorBody": "Si è verificato un problema durante la preparazione del pagamento. Riprova.",
+        "retry": "Riprova",
+        "missingKeyTitle": "Pagamenti non configurati",
+        "missingKeyBody": "Stripe non è ancora configurato per questo ambiente. Aggiungi la tua chiave pubblicabile per abilitare il pagamento.",
+        "completedTitle": "Pagamento confermato",
+        "completedPending": "I crediti appariranno a breve.",
+        "completedReflected": "I tuoi crediti sono stati aggiunti.",
+        "syncing": "Aggiornamento del saldo…",
+        "done": "Fatto",
+        "creditsNote": "I crediti vengono aggiunti dopo la conferma del pagamento.",
+        "processing": "Elaborazione del pagamento…",
+        "payNow": "Paga {amount}",
+        "emailLabel": "Email per le ricevute",
+        "invoiceEmailLabel": "Email per le fatture",
+        "emailPlaceholder": "tu@azienda.com",
+        "emailHint": "La tua ricevuta Stripe viene inviata qui — modificala se vuoi ricevere le fatture altrove."
+      },
+      "saved": {
+        "title": "Ricarica veloce",
+        "subtitle": "Ricarica {amount} con la tua carta salvata",
+        "methodLabel": "Metodo di pagamento",
+        "expLabel": "Scad. {value}",
+        "processing": "Elaborazione del pagamento…",
+        "authenticating": "Conferma con la tua banca…",
+        "chargeNote": "Verrai addebitato tramite il tuo metodo di pagamento salvato.",
+        "failedTitle": "Pagamento non riuscito",
+        "failedBody": "La tua carta salvata è stata rifiutata. Prova un altro metodo di pagamento.",
+        "useAnotherMethod": "Usa un altro metodo di pagamento",
+        "tryAgain": "Riprova"
+      },
+      "consent": {
+        "save": "Salva questo metodo di pagamento per ricariche future più veloci.",
+        "hint": "La prossima volta ricarica con un clic."
+      },
+      "coupon": {
+        "prompt": "Hai un coupon sconto?",
+        "placeholder": "Codice sconto",
+        "apply": "Applica",
+        "remove": "Rimuovi",
+        "appliedLabel": "{code} applicato",
+        "discountRow": "Sconto",
+        "youPayRow": "Paghi",
+        "invalid": "Questo codice non è valido."
+      },
+      "card": {
+        "title": "Aggiorna metodo di pagamento",
+        "subtitle": "Salva una nuova carta — non verrà addebitato nulla ora.",
+        "summaryLabel": "Metodo di pagamento",
+        "note": "La tua carta viene salvata in modo sicuro per addebiti futuri. Non verrai addebitato per salvarla.",
+        "doneTitle": "Metodo di pagamento aggiornato",
+        "doneBody": "La tua nuova carta è salvata e pronta per addebiti futuri.",
+        "doneCta": "Fatto",
+        "saveCta": "Salva carta"
       }
     }
   },

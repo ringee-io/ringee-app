@@ -23,7 +23,8 @@
         "redirecting": "A redirecionar...",
         "chooseAmount": "Escolha um valor",
         "customAmountLabel": "Ou introduza um valor personalizado",
-        "minAmountError": "A compra mínima é de ${amount}"
+        "minAmountError": "A compra mínima é de ${amount}",
+        "cancel": "Cancelar"
       },
       "oneTime": {
         "customPlaceholder": "Ex. 40",
@@ -43,7 +44,28 @@
         "monthlyCharge": "Cobrança mensal",
         "monthlyChargeValue": "${amount}/mês",
         "estimatedTime": "~{minutes} minutos de chamada por mês",
-        "subscribe": "Subscrever recarga mensal"
+        "subscribe": "Subscrever recarga mensal",
+        "activeSubtitle": "Os créditos são adicionados automaticamente todos os meses.",
+        "amountRow": "Valor mensal",
+        "nextCharge": "Próxima cobrança",
+        "paymentMethodRow": "Método de pagamento",
+        "editAmount": "Editar valor",
+        "save": "Guardar",
+        "changeMethod": "Alterar método de pagamento",
+        "cancelConfirm": "Cancelar a recarga mensal? Os créditos já adicionados permanecem no seu saldo.",
+        "cancelConfirmYes": "Sim, cancelar",
+        "keep": "Manter",
+        "consent": "Compreendo que o meu cartão será cobrado mensalmente.",
+        "consentHint": "Os créditos são adicionados após cada pagamento bem-sucedido. Cancele quando quiser.",
+        "setupTitle": "Configurar recarga mensal",
+        "setupSubtitle": "Adicionar {amount} ao seu saldo todos os meses",
+        "frequencyRow": "Frequência de faturação",
+        "frequencyValue": "Todos os meses",
+        "estTimeRow": "Tempo de chamada / mês",
+        "creditsNote": "Os créditos são adicionados após cada pagamento mensal bem-sucedido.",
+        "setupDoneTitle": "A recarga mensal está ativa",
+        "setupDoneBody": "Adicionámos os seus primeiros {amount} e recarregaremos automaticamente todos os meses.",
+        "subscribeCta": "Pagar {amount} e iniciar o financiamento"
       },
       "autoReload": {
         "activeTitle": "Recarga automática ativa",
@@ -54,11 +76,98 @@
         "amountLabel": "Valor da recarga",
         "customPlaceholder": "Valor personalizado",
         "summary": "O seu cartão será cobrado em <b>${amount}</b> agora e guardado para futuras recargas automáticas quando o seu saldo descer abaixo de <b>${threshold}</b>.",
-        "enable": "Ativar recarga automática"
+        "enable": "Ativar recarga automática",
+        "statusActive": "Ativa",
+        "statusReloading": "A recarregar…",
+        "statusFailed": "Pagamento falhou",
+        "statusRequiresMethod": "Requer novo método de pagamento",
+        "rule": "Quando o seu saldo descer abaixo de <b>{threshold}</b>, adicionamos <b>{amount}</b>.",
+        "changeMethod": "Alterar método de pagamento",
+        "editSettings": "Editar definições",
+        "turnOff": "Desativar recarga automática",
+        "estAfterReload": "Tempo de chamada após a recarga",
+        "consent": "Autorizo a Ringee a cobrar o meu método de pagamento guardado quando o meu saldo descer abaixo do limite selecionado.",
+        "enableError": "Não foi possível ativar a recarga automática. Tente novamente.",
+        "requiresMethod": "A recarga automática requer um método de pagamento guardado.",
+        "addMethod": "Adicionar um método de pagamento"
       },
       "footer": {
         "secureByStripe": "Seguro pela Stripe",
-        "refundGuarantee": "Garantia de reembolso de 100%"
+        "refundGuarantee": "Garantia de reembolso de 100%",
+        "cardSafety": "Os dados do cartão nunca passam pelos servidores da Ringee",
+        "creditsAfter": "Créditos adicionados após a confirmação"
+      },
+      "amount": {
+        "currentBalance": "Saldo atual",
+        "lastTopup": "Último carregamento: {amount}",
+        "rechargeCta": "Carregar {amount}",
+        "continueCheckout": "Continuar para o pagamento seguro",
+        "useAnotherMethod": "Usar outro método de pagamento",
+        "savedHint": "Cobrado em {brand} •••• {last4}."
+      },
+      "checkout": {
+        "title": "Pagamento seguro",
+        "changeAmount": "Alterar valor",
+        "subtitle": "Adicionar {amount} ao seu saldo Ringee",
+        "amountLabel": "Valor",
+        "newBalanceLabel": "Novo saldo",
+        "estCallingTime": "Tempo de chamada estimado",
+        "minutesValue": "~{minutes} min",
+        "loading": "A preparar o pagamento seguro…",
+        "errorTitle": "Não foi possível iniciar o pagamento",
+        "errorBody": "Ocorreu um problema ao preparar o seu pagamento. Tente novamente.",
+        "retry": "Tentar novamente",
+        "missingKeyTitle": "Pagamentos não configurados",
+        "missingKeyBody": "O Stripe ainda não está configurado para este ambiente. Adicione a sua chave publicável para ativar o pagamento.",
+        "completedTitle": "Pagamento confirmado",
+        "completedPending": "Os créditos aparecerão em breve.",
+        "completedReflected": "Os seus créditos foram adicionados.",
+        "syncing": "A atualizar o seu saldo…",
+        "done": "Concluído",
+        "creditsNote": "Os créditos são adicionados após a confirmação do pagamento.",
+        "processing": "A processar o seu pagamento…",
+        "payNow": "Pagar {amount}",
+        "emailLabel": "E-mail para recibos",
+        "invoiceEmailLabel": "E-mail para faturas",
+        "emailPlaceholder": "voce@empresa.com",
+        "emailHint": "O seu recibo Stripe é enviado para aqui — edite-o se quiser receber as faturas noutro lado."
+      },
+      "saved": {
+        "title": "Recarga rápida",
+        "subtitle": "Carregar {amount} com o seu cartão guardado",
+        "methodLabel": "Método de pagamento",
+        "expLabel": "Val. {value}",
+        "processing": "A processar o seu pagamento…",
+        "authenticating": "A confirmar com o seu banco…",
+        "chargeNote": "Será cobrado através do seu método de pagamento guardado.",
+        "failedTitle": "O pagamento não foi concluído",
+        "failedBody": "O seu cartão guardado foi recusado. Experimente outro método de pagamento.",
+        "useAnotherMethod": "Usar outro método de pagamento",
+        "tryAgain": "Tentar novamente"
+      },
+      "consent": {
+        "save": "Guardar este método de pagamento para carregamentos futuros mais rápidos.",
+        "hint": "Da próxima vez, carregue com um clique."
+      },
+      "coupon": {
+        "prompt": "Tem um cupão de desconto?",
+        "placeholder": "Código de desconto",
+        "apply": "Aplicar",
+        "remove": "Remover",
+        "appliedLabel": "{code} aplicado",
+        "discountRow": "Desconto",
+        "youPayRow": "Paga",
+        "invalid": "Este código não é válido."
+      },
+      "card": {
+        "title": "Atualizar método de pagamento",
+        "subtitle": "Guarde um novo cartão — não será cobrado agora.",
+        "summaryLabel": "Método de pagamento",
+        "note": "O seu cartão é guardado de forma segura para cobranças futuras. Não será cobrado para o guardar.",
+        "doneTitle": "Método de pagamento atualizado",
+        "doneBody": "O seu novo cartão está guardado e pronto para cobranças futuras.",
+        "doneCta": "Concluído",
+        "saveCta": "Guardar cartão"
       }
     }
   },

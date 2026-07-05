@@ -23,7 +23,8 @@
         "redirecting": "Doorverwijzen...",
         "chooseAmount": "Kies bedrag",
         "customAmountLabel": "Of voer een eigen bedrag in",
-        "minAmountError": "De minimale aankoop is ${amount}"
+        "minAmountError": "De minimale aankoop is ${amount}",
+        "cancel": "Annuleren"
       },
       "oneTime": {
         "customPlaceholder": "bv. 40",
@@ -43,7 +44,28 @@
         "monthlyCharge": "Maandelijkse afschrijving",
         "monthlyChargeValue": "${amount}/maand",
         "estimatedTime": "~{minutes} belminuten per maand",
-        "subscribe": "Abonneer op maandelijkse aanvulling"
+        "subscribe": "Abonneer op maandelijkse aanvulling",
+        "activeSubtitle": "Tegoed wordt elke maand automatisch toegevoegd.",
+        "amountRow": "Maandbedrag",
+        "nextCharge": "Volgende afschrijving",
+        "paymentMethodRow": "Betaalmiddel",
+        "editAmount": "Bedrag bewerken",
+        "save": "Opslaan",
+        "changeMethod": "Betaalmiddel wijzigen",
+        "cancelConfirm": "Maandelijkse aanvulling stoppen? Reeds toegevoegd tegoed blijft op je saldo staan.",
+        "cancelConfirmYes": "Ja, stoppen",
+        "keep": "Behouden",
+        "consent": "Ik begrijp dat mijn kaart maandelijks wordt belast.",
+        "consentHint": "Tegoed wordt toegevoegd na elke geslaagde betaling. Op elk moment op te zeggen.",
+        "setupTitle": "Maandelijkse aanvulling instellen",
+        "setupSubtitle": "Elke maand {amount} aan je saldo toevoegen",
+        "frequencyRow": "Facturatiefrequentie",
+        "frequencyValue": "Elke maand",
+        "estTimeRow": "Beltijd / maand",
+        "creditsNote": "Tegoed wordt toegevoegd na elke geslaagde maandelijkse betaling.",
+        "setupDoneTitle": "Maandelijkse aanvulling staat aan",
+        "setupDoneBody": "We hebben je eerste {amount} toegevoegd en vullen elke maand automatisch aan.",
+        "subscribeCta": "{amount} betalen & aanvullen starten"
       },
       "autoReload": {
         "activeTitle": "Automatisch aanvullen actief",
@@ -54,11 +76,98 @@
         "amountLabel": "Aanvulbedrag",
         "customPlaceholder": "Eigen bedrag",
         "summary": "Je kaart wordt nu belast met <b>${amount}</b> en opgeslagen voor toekomstige automatische aanvullingen wanneer je saldo onder <b>${threshold}</b> komt.",
-        "enable": "Automatisch aanvullen inschakelen"
+        "enable": "Automatisch aanvullen inschakelen",
+        "statusActive": "Actief",
+        "statusReloading": "Aanvullen…",
+        "statusFailed": "Betaling mislukt",
+        "statusRequiresMethod": "Nieuw betaalmiddel vereist",
+        "rule": "Wanneer je saldo onder <b>{threshold}</b> komt, voegen we <b>{amount}</b> toe.",
+        "changeMethod": "Betaalmiddel wijzigen",
+        "editSettings": "Instellingen bewerken",
+        "turnOff": "Automatisch aanvullen uitschakelen",
+        "estAfterReload": "Beltijd na aanvulling",
+        "consent": "Ik machtig Ringee om mijn opgeslagen betaalmiddel te belasten wanneer mijn saldo onder de gekozen drempel komt.",
+        "enableError": "We konden automatisch aanvullen niet inschakelen. Probeer het opnieuw.",
+        "requiresMethod": "Automatisch aanvullen vereist een opgeslagen betaalmiddel.",
+        "addMethod": "Betaalmiddel toevoegen"
       },
       "footer": {
         "secureByStripe": "Beveiligd door Stripe",
-        "refundGuarantee": "100% terugbetalingsgarantie"
+        "refundGuarantee": "100% terugbetalingsgarantie",
+        "cardSafety": "Kaartgegevens komen nooit op de servers van Ringee",
+        "creditsAfter": "Tegoed toegevoegd na bevestiging"
+      },
+      "amount": {
+        "currentBalance": "Huidig saldo",
+        "lastTopup": "Laatste aanvulling: {amount}",
+        "rechargeCta": "{amount} opwaarderen",
+        "continueCheckout": "Doorgaan naar veilig afrekenen",
+        "useAnotherMethod": "Ander betaalmiddel gebruiken",
+        "savedHint": "Afgeschreven van {brand} •••• {last4}."
+      },
+      "checkout": {
+        "title": "Veilig afrekenen",
+        "changeAmount": "Bedrag wijzigen",
+        "subtitle": "{amount} toevoegen aan je Ringee-saldo",
+        "amountLabel": "Bedrag",
+        "newBalanceLabel": "Nieuw saldo",
+        "estCallingTime": "Geschatte beltijd",
+        "minutesValue": "~{minutes} min",
+        "loading": "Veilig afrekenen wordt voorbereid…",
+        "errorTitle": "Afrekenen kon niet starten",
+        "errorBody": "Er is iets misgegaan bij het voorbereiden van je betaling. Probeer het opnieuw.",
+        "retry": "Opnieuw proberen",
+        "missingKeyTitle": "Betalingen niet geconfigureerd",
+        "missingKeyBody": "Stripe is nog niet ingesteld voor deze omgeving. Voeg je publishable key toe om afrekenen in te schakelen.",
+        "completedTitle": "Betaling bevestigd",
+        "completedPending": "Het tegoed verschijnt binnenkort.",
+        "completedReflected": "Je tegoed is toegevoegd.",
+        "syncing": "Je saldo wordt bijgewerkt…",
+        "done": "Klaar",
+        "creditsNote": "Tegoed wordt toegevoegd na bevestiging van de betaling.",
+        "processing": "Je betaling wordt verwerkt…",
+        "payNow": "{amount} betalen",
+        "emailLabel": "E-mail voor bonnen",
+        "invoiceEmailLabel": "E-mail voor facturen",
+        "emailPlaceholder": "jij@bedrijf.com",
+        "emailHint": "Je Stripe-bon wordt hierheen gestuurd — pas het aan als je facturen elders wilt ontvangen."
+      },
+      "saved": {
+        "title": "Snel opwaarderen",
+        "subtitle": "{amount} opwaarderen met je opgeslagen kaart",
+        "methodLabel": "Betaalmiddel",
+        "expLabel": "Verv. {value}",
+        "processing": "Je betaling wordt verwerkt…",
+        "authenticating": "Bevestigen bij je bank…",
+        "chargeNote": "Je wordt belast via je opgeslagen betaalmiddel.",
+        "failedTitle": "Betaling is niet gelukt",
+        "failedBody": "Je opgeslagen kaart is geweigerd. Probeer een ander betaalmiddel.",
+        "useAnotherMethod": "Ander betaalmiddel gebruiken",
+        "tryAgain": "Opnieuw proberen"
+      },
+      "consent": {
+        "save": "Bewaar dit betaalmiddel voor snellere aanvullingen in de toekomst.",
+        "hint": "Waardeer de volgende keer op met één klik."
+      },
+      "coupon": {
+        "prompt": "Heb je een kortingsbon?",
+        "placeholder": "Kortingscode",
+        "apply": "Toepassen",
+        "remove": "Verwijderen",
+        "appliedLabel": "{code} toegepast",
+        "discountRow": "Korting",
+        "youPayRow": "Je betaalt",
+        "invalid": "Deze code is niet geldig."
+      },
+      "card": {
+        "title": "Betaalmiddel bijwerken",
+        "subtitle": "Sla een nieuwe kaart op — je wordt nu niet belast.",
+        "summaryLabel": "Betaalmiddel",
+        "note": "Je kaart wordt veilig opgeslagen voor toekomstige afschrijvingen. Voor het opslaan word je niet belast.",
+        "doneTitle": "Betaalmiddel bijgewerkt",
+        "doneBody": "Je nieuwe kaart is opgeslagen en klaar voor toekomstige afschrijvingen.",
+        "doneCta": "Klaar",
+        "saveCta": "Kaart opslaan"
       }
     }
   },

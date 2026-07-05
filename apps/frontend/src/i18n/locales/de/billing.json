@@ -23,7 +23,8 @@
         "redirecting": "Weiterleitung...",
         "chooseAmount": "Betrag wählen",
         "customAmountLabel": "Oder einen eigenen Betrag eingeben",
-        "minAmountError": "Der Mindestkauf beträgt ${amount}"
+        "minAmountError": "Der Mindestkauf beträgt ${amount}",
+        "cancel": "Abbrechen"
       },
       "oneTime": {
         "customPlaceholder": "z. B. 40",
@@ -43,7 +44,28 @@
         "monthlyCharge": "Monatliche Abbuchung",
         "monthlyChargeValue": "${amount}/Monat",
         "estimatedTime": "~{minutes} Gesprächsminuten pro Monat",
-        "subscribe": "Monatliche Aufladung abonnieren"
+        "subscribe": "Monatliche Aufladung abonnieren",
+        "activeSubtitle": "Guthaben wird jeden Monat automatisch hinzugefügt.",
+        "amountRow": "Monatlicher Betrag",
+        "nextCharge": "Nächste Abbuchung",
+        "paymentMethodRow": "Zahlungsmethode",
+        "editAmount": "Betrag bearbeiten",
+        "save": "Speichern",
+        "changeMethod": "Zahlungsmethode ändern",
+        "cancelConfirm": "Monatliche Aufladung beenden? Bereits hinzugefügtes Guthaben bleibt erhalten.",
+        "cancelConfirmYes": "Ja, beenden",
+        "keep": "Beibehalten",
+        "consent": "Ich verstehe, dass meine Karte monatlich belastet wird.",
+        "consentHint": "Guthaben wird nach jeder erfolgreichen Zahlung hinzugefügt. Jederzeit kündbar.",
+        "setupTitle": "Monatliche Aufladung einrichten",
+        "setupSubtitle": "Jeden Monat {amount} zu Ihrem Guthaben hinzufügen",
+        "frequencyRow": "Abrechnungsintervall",
+        "frequencyValue": "Jeden Monat",
+        "estTimeRow": "Gesprächszeit / Monat",
+        "creditsNote": "Guthaben wird nach jeder erfolgreichen monatlichen Zahlung hinzugefügt.",
+        "setupDoneTitle": "Monatliche Aufladung ist aktiv",
+        "setupDoneBody": "Wir haben Ihre ersten {amount} hinzugefügt und laden jeden Monat automatisch auf.",
+        "subscribeCta": "{amount} zahlen & Aufladung starten"
       },
       "autoReload": {
         "activeTitle": "Auto-Aufladung aktiv",
@@ -54,11 +76,98 @@
         "amountLabel": "Aufladungsbetrag",
         "customPlaceholder": "Eigener Betrag",
         "summary": "Ihre Karte wird jetzt mit <b>${amount}</b> belastet und für zukünftige automatische Aufladungen gespeichert, wenn Ihr Guthaben unter <b>${threshold}</b> fällt.",
-        "enable": "Auto-Aufladung aktivieren"
+        "enable": "Auto-Aufladung aktivieren",
+        "statusActive": "Aktiv",
+        "statusReloading": "Wird aufgeladen…",
+        "statusFailed": "Zahlung fehlgeschlagen",
+        "statusRequiresMethod": "Neue Zahlungsmethode erforderlich",
+        "rule": "Wenn Ihr Guthaben unter <b>{threshold}</b> fällt, fügen wir <b>{amount}</b> hinzu.",
+        "changeMethod": "Zahlungsmethode ändern",
+        "editSettings": "Einstellungen bearbeiten",
+        "turnOff": "Auto-Aufladung deaktivieren",
+        "estAfterReload": "Gesprächszeit nach Aufladung",
+        "consent": "Ich ermächtige Ringee, meine gespeicherte Zahlungsmethode zu belasten, wenn mein Guthaben unter den gewählten Schwellwert fällt.",
+        "enableError": "Auto-Aufladung konnte nicht aktiviert werden. Bitte versuchen Sie es erneut.",
+        "requiresMethod": "Für die Auto-Aufladung ist eine gespeicherte Zahlungsmethode erforderlich.",
+        "addMethod": "Zahlungsmethode hinzufügen"
       },
       "footer": {
         "secureByStripe": "Gesichert durch Stripe",
-        "refundGuarantee": "100 % Geld-zurück-Garantie"
+        "refundGuarantee": "100 % Geld-zurück-Garantie",
+        "cardSafety": "Kartendaten erreichen niemals die Server von Ringee",
+        "creditsAfter": "Guthaben wird nach Bestätigung hinzugefügt"
+      },
+      "amount": {
+        "currentBalance": "Aktuelles Guthaben",
+        "lastTopup": "Letzte Aufladung: {amount}",
+        "rechargeCta": "{amount} aufladen",
+        "continueCheckout": "Weiter zur sicheren Kasse",
+        "useAnotherMethod": "Andere Zahlungsmethode verwenden",
+        "savedHint": "Belastet auf {brand} •••• {last4}."
+      },
+      "checkout": {
+        "title": "Sichere Kasse",
+        "changeAmount": "Betrag ändern",
+        "subtitle": "{amount} zu Ihrem Ringee-Guthaben hinzufügen",
+        "amountLabel": "Betrag",
+        "newBalanceLabel": "Neues Guthaben",
+        "estCallingTime": "Geschätzte Gesprächszeit",
+        "minutesValue": "~{minutes} Min.",
+        "loading": "Sichere Kasse wird vorbereitet…",
+        "errorTitle": "Kasse konnte nicht gestartet werden",
+        "errorBody": "Bei der Vorbereitung Ihrer Zahlung ist ein Fehler aufgetreten. Bitte versuchen Sie es erneut.",
+        "retry": "Erneut versuchen",
+        "missingKeyTitle": "Zahlungen nicht konfiguriert",
+        "missingKeyBody": "Stripe ist für diese Umgebung noch nicht eingerichtet. Fügen Sie Ihren Publishable Key hinzu, um die Kasse zu aktivieren.",
+        "completedTitle": "Zahlung bestätigt",
+        "completedPending": "Das Guthaben erscheint in Kürze.",
+        "completedReflected": "Ihr Guthaben wurde hinzugefügt.",
+        "syncing": "Ihr Guthaben wird aktualisiert…",
+        "done": "Fertig",
+        "creditsNote": "Guthaben wird nach Zahlungsbestätigung hinzugefügt.",
+        "processing": "Ihre Zahlung wird verarbeitet…",
+        "payNow": "{amount} bezahlen",
+        "emailLabel": "E-Mail für Belege",
+        "invoiceEmailLabel": "E-Mail für Rechnungen",
+        "emailPlaceholder": "sie@unternehmen.de",
+        "emailHint": "Ihr Stripe-Beleg wird hierhin gesendet – ändern Sie sie, wenn Rechnungen woanders hingehen sollen."
+      },
+      "saved": {
+        "title": "Schnellaufladung",
+        "subtitle": "{amount} mit Ihrer gespeicherten Karte aufladen",
+        "methodLabel": "Zahlungsmethode",
+        "expLabel": "Gültig bis {value}",
+        "processing": "Ihre Zahlung wird verarbeitet…",
+        "authenticating": "Bestätigung durch Ihre Bank…",
+        "chargeNote": "Sie werden über Ihre gespeicherte Zahlungsmethode belastet.",
+        "failedTitle": "Zahlung nicht durchgeführt",
+        "failedBody": "Ihre gespeicherte Karte wurde abgelehnt. Versuchen Sie eine andere Zahlungsmethode.",
+        "useAnotherMethod": "Andere Zahlungsmethode verwenden",
+        "tryAgain": "Erneut versuchen"
+      },
+      "consent": {
+        "save": "Diese Zahlungsmethode für schnellere zukünftige Aufladungen speichern.",
+        "hint": "Beim nächsten Mal mit einem Klick aufladen."
+      },
+      "coupon": {
+        "prompt": "Haben Sie einen Rabattgutschein?",
+        "placeholder": "Rabattcode",
+        "apply": "Anwenden",
+        "remove": "Entfernen",
+        "appliedLabel": "{code} angewendet",
+        "discountRow": "Rabatt",
+        "youPayRow": "Sie zahlen",
+        "invalid": "Dieser Code ist ungültig."
+      },
+      "card": {
+        "title": "Zahlungsmethode aktualisieren",
+        "subtitle": "Neue Karte speichern – Sie werden jetzt nicht belastet.",
+        "summaryLabel": "Zahlungsmethode",
+        "note": "Ihre Karte wird sicher für zukünftige Abbuchungen gespeichert. Für das Speichern werden Sie nicht belastet.",
+        "doneTitle": "Zahlungsmethode aktualisiert",
+        "doneBody": "Ihre neue Karte ist gespeichert und für zukünftige Abbuchungen bereit.",
+        "doneCta": "Fertig",
+        "saveCta": "Karte speichern"
       }
     }
   },

@@ -23,7 +23,8 @@
         "redirecting": "Redirection...",
         "chooseAmount": "Choisir un montant",
         "customAmountLabel": "Ou saisissez un montant personnalisé",
-        "minAmountError": "L'achat minimum est de ${amount}"
+        "minAmountError": "L'achat minimum est de ${amount}",
+        "cancel": "Annuler"
       },
       "oneTime": {
         "customPlaceholder": "ex. 40",
@@ -43,7 +44,28 @@
         "monthlyCharge": "Prélèvement mensuel",
         "monthlyChargeValue": "${amount}/mois",
         "estimatedTime": "~{minutes} minutes d'appel par mois",
-        "subscribe": "S'abonner au fonds mensuel"
+        "subscribe": "S'abonner au fonds mensuel",
+        "activeSubtitle": "Les crédits sont ajoutés automatiquement chaque mois.",
+        "amountRow": "Montant mensuel",
+        "nextCharge": "Prochain prélèvement",
+        "paymentMethodRow": "Moyen de paiement",
+        "editAmount": "Modifier le montant",
+        "save": "Enregistrer",
+        "changeMethod": "Changer de moyen de paiement",
+        "cancelConfirm": "Annuler le fonds mensuel ? Les crédits déjà ajoutés restent sur votre solde.",
+        "cancelConfirmYes": "Oui, annuler",
+        "keep": "Conserver",
+        "consent": "Je comprends que ma carte sera débitée chaque mois.",
+        "consentHint": "Les crédits sont ajoutés après chaque paiement réussi. Annulez à tout moment.",
+        "setupTitle": "Configurer le fonds mensuel",
+        "setupSubtitle": "Ajouter {amount} à votre solde chaque mois",
+        "frequencyRow": "Fréquence de facturation",
+        "frequencyValue": "Chaque mois",
+        "estTimeRow": "Temps d'appel / mois",
+        "creditsNote": "Les crédits sont ajoutés après chaque paiement mensuel réussi.",
+        "setupDoneTitle": "Le fonds mensuel est activé",
+        "setupDoneBody": "Nous avons ajouté vos premiers {amount} et rechargerons automatiquement chaque mois.",
+        "subscribeCta": "Payer {amount} et démarrer le financement"
       },
       "autoReload": {
         "activeTitle": "Auto-rechargement actif",
@@ -54,11 +76,98 @@
         "amountLabel": "Montant du rechargement",
         "customPlaceholder": "Montant personnalisé",
         "summary": "Votre carte sera débitée de <b>${amount}</b> maintenant et enregistrée pour les futurs rechargements automatiques lorsque votre solde passe sous <b>${threshold}</b>.",
-        "enable": "Activer l'auto-rechargement"
+        "enable": "Activer l'auto-rechargement",
+        "statusActive": "Actif",
+        "statusReloading": "Rechargement…",
+        "statusFailed": "Échec du paiement",
+        "statusRequiresMethod": "Nouveau moyen de paiement requis",
+        "rule": "Lorsque votre solde passe sous <b>{threshold}</b>, nous ajoutons <b>{amount}</b>.",
+        "changeMethod": "Changer de moyen de paiement",
+        "editSettings": "Modifier les paramètres",
+        "turnOff": "Désactiver l'auto-rechargement",
+        "estAfterReload": "Temps d'appel après rechargement",
+        "consent": "J'autorise Ringee à débiter mon moyen de paiement enregistré lorsque mon solde passe sous le seuil sélectionné.",
+        "enableError": "Impossible d'activer l'auto-rechargement. Veuillez réessayer.",
+        "requiresMethod": "L'auto-rechargement nécessite un moyen de paiement enregistré.",
+        "addMethod": "Ajouter un moyen de paiement"
       },
       "footer": {
         "secureByStripe": "Sécurisé par Stripe",
-        "refundGuarantee": "100 % de remboursement garanti"
+        "refundGuarantee": "100 % de remboursement garanti",
+        "cardSafety": "Les données de carte ne transitent jamais par les serveurs de Ringee",
+        "creditsAfter": "Crédits ajoutés après confirmation"
+      },
+      "amount": {
+        "currentBalance": "Solde actuel",
+        "lastTopup": "Dernière recharge : {amount}",
+        "rechargeCta": "Recharger {amount}",
+        "continueCheckout": "Continuer vers le paiement sécurisé",
+        "useAnotherMethod": "Utiliser un autre moyen de paiement",
+        "savedHint": "Débité sur {brand} •••• {last4}."
+      },
+      "checkout": {
+        "title": "Paiement sécurisé",
+        "changeAmount": "Modifier le montant",
+        "subtitle": "Ajouter {amount} à votre solde Ringee",
+        "amountLabel": "Montant",
+        "newBalanceLabel": "Nouveau solde",
+        "estCallingTime": "Temps d'appel estimé",
+        "minutesValue": "~{minutes} min",
+        "loading": "Préparation du paiement sécurisé…",
+        "errorTitle": "Le paiement n'a pas pu démarrer",
+        "errorBody": "Une erreur s'est produite lors de la préparation de votre paiement. Veuillez réessayer.",
+        "retry": "Réessayer",
+        "missingKeyTitle": "Paiements non configurés",
+        "missingKeyBody": "Stripe n'est pas encore configuré pour cet environnement. Ajoutez votre clé publiable pour activer le paiement.",
+        "completedTitle": "Paiement confirmé",
+        "completedPending": "Les crédits apparaîtront sous peu.",
+        "completedReflected": "Vos crédits ont été ajoutés.",
+        "syncing": "Mise à jour de votre solde…",
+        "done": "Terminé",
+        "creditsNote": "Les crédits sont ajoutés après confirmation du paiement.",
+        "processing": "Traitement de votre paiement…",
+        "payNow": "Payer {amount}",
+        "emailLabel": "E-mail pour les reçus",
+        "invoiceEmailLabel": "E-mail pour les factures",
+        "emailPlaceholder": "vous@entreprise.com",
+        "emailHint": "Votre reçu Stripe est envoyé ici — modifiez-le si vous souhaitez recevoir les factures ailleurs."
+      },
+      "saved": {
+        "title": "Recharge rapide",
+        "subtitle": "Recharger {amount} avec votre carte enregistrée",
+        "methodLabel": "Moyen de paiement",
+        "expLabel": "Exp. {value}",
+        "processing": "Traitement de votre paiement…",
+        "authenticating": "Confirmation avec votre banque…",
+        "chargeNote": "Vous serez débité via votre moyen de paiement enregistré.",
+        "failedTitle": "Le paiement n'a pas abouti",
+        "failedBody": "Votre carte enregistrée a été refusée. Essayez un autre moyen de paiement.",
+        "useAnotherMethod": "Utiliser un autre moyen de paiement",
+        "tryAgain": "Réessayer"
+      },
+      "consent": {
+        "save": "Enregistrer ce moyen de paiement pour des recharges plus rapides à l'avenir.",
+        "hint": "Rechargez la prochaine fois en un clic."
+      },
+      "coupon": {
+        "prompt": "Vous avez un code de réduction ?",
+        "placeholder": "Code de réduction",
+        "apply": "Appliquer",
+        "remove": "Retirer",
+        "appliedLabel": "{code} appliqué",
+        "discountRow": "Réduction",
+        "youPayRow": "Vous payez",
+        "invalid": "Ce code n'est pas valide."
+      },
+      "card": {
+        "title": "Mettre à jour le moyen de paiement",
+        "subtitle": "Enregistrez une nouvelle carte — vous ne serez pas débité maintenant.",
+        "summaryLabel": "Moyen de paiement",
+        "note": "Votre carte est enregistrée en toute sécurité pour de futurs débits. Vous ne serez pas débité pour l'enregistrer.",
+        "doneTitle": "Moyen de paiement mis à jour",
+        "doneBody": "Votre nouvelle carte est enregistrée et prête pour de futurs débits.",
+        "doneCta": "Terminé",
+        "saveCta": "Enregistrer la carte"
       }
     }
   },
