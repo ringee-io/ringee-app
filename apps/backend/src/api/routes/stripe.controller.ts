@@ -37,6 +37,9 @@ import {
   CreateAutoReloadSetupDto,
   CreateOrganizationCheckoutDto,
   CreateCardSetupDto,
+  UpdateBillingEmailDto,
+  ApplyCreditCouponDto,
+  UpdateSavePreferenceDto,
 } from "@ringee/platform";
 import { TriggerLoopEventPublisher } from "../../triggerloop/services/triggerloop-event-publisher.service";
 
@@ -236,15 +239,15 @@ export class StripeController {
   }
 
   /**
-   * Embedded Checkout for a one-time credit top-up. Returns a `clientSecret`
-   * the dashboard mounts inline (no redirect, no new page). The amount is
-   * validated server-side; presets and custom amounts both flow through here.
-   * Credits are added ONLY by the confirmed webhook — this endpoint never
-   * touches the balance.
+   * PaymentIntent for a one-time credit top-up, confirmed by the custom Stripe
+   * Elements form inside the dashboard (no redirect, no Stripe-hosted UI).
+   * Returns a `clientSecret` + `paymentIntentId`. The amount is validated
+   * server-side; presets and custom amounts both flow through here. Credits are
+   * added ONLY by the confirmed webhook — this endpoint never touches balance.
    */
-  @Post("checkout/credit/embedded")
+  @Post("checkout/credit/intent")
   @OrgAdminOnly()
-  async createEmbeddedCreditCheckout(
+  async createCreditPaymentIntent(
     @Body() body: CreateCreditCheckoutDto,
     @CurrentUser() user: CurrentUserData,
   ) {
@@ -255,30 +258,85 @@ export class StripeController {
     const amount = this.normalizeTopupAmount(body.amount);
     const customerId = await this.getOrCreateCustomer(user);
 
-    return this.stripeService.createEmbeddedCreditTopupSession(
+    return this.stripeService.createCreditTopupPaymentIntent(
       user.id,
       customerId,
       amount,
       body.description ||
         "Add more credits to your Ringee account to keep making calls and using advanced features without interruption.",
       user.activeOrgId,
-      body.frontendOrigin,
       body.savePaymentMethod ?? false,
+      body.invoiceEmail,
     );
   }
 
   /**
-   * Status of an embedded credit checkout session. The frontend polls this
-   * after `onComplete` to confirm the payment before showing a success state —
-   * it never trusts the client-side completion callback on its own.
+   * Update the billing email Stripe sends receipts / invoices to. Called by the
+   * custom checkout right before confirming, when the user edited the email.
+   * Updates the customer email and, if a live one-time intent id is given, its
+   * `receipt_email`.
    */
-  @Get("checkout/credit/session/:sessionId")
+  @Post("checkout/billing-email")
   @OrgAdminOnly()
-  async getCreditCheckoutStatus(@Param("sessionId") sessionId: string) {
-    if (!sessionId) {
-      throw new BadRequestException("sessionId is required");
+  async updateBillingEmail(
+    @Body() body: UpdateBillingEmailDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (!user) {
+      throw new NotFoundException("User not found");
     }
-    return this.stripeService.getCreditCheckoutStatus(sessionId);
+    const customerId = await this.getOrCreateCustomer(user);
+    await this.stripeService.updateBillingEmail(
+      customerId,
+      body.email,
+      body.paymentIntentId,
+    );
+    return { ok: true };
+  }
+
+  /**
+   * Apply (or clear, with a blank code) a promotion code on a live one-time
+   * top-up. Reduces only the CHARGE — the credited face amount is preserved — so
+   * the discount is a real saving. Returns the recomputed charge for the UI.
+   */
+  @Post("checkout/credit/apply-coupon")
+  @OrgAdminOnly()
+  async applyCreditCoupon(
+    @Body() body: ApplyCreditCouponDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+    const customerId = await this.getOrCreateCustomer(user);
+    return this.stripeService.applyCreditCoupon(
+      customerId,
+      body.paymentIntentId,
+      body.code,
+    );
+  }
+
+  /**
+   * Toggle "save this card" on a live one-time top-up in place (updates the
+   * PaymentIntent's `setup_future_usage`), so the entered card details survive —
+   * unlike recreating the intent, which wiped the form.
+   */
+  @Post("checkout/credit/save-preference")
+  @OrgAdminOnly()
+  async updateSavePreference(
+    @Body() body: UpdateSavePreferenceDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+    const customerId = await this.getOrCreateCustomer(user);
+    await this.stripeService.setCreditSavePreference(
+      customerId,
+      body.paymentIntentId,
+      body.savePaymentMethod,
+    );
+    return { ok: true };
   }
 
   /**
@@ -354,14 +412,15 @@ export class StripeController {
   }
 
   /**
-   * EMBEDDED monthly credit-funding subscription (no redirect). Returns a
-   * `clientSecret` the dashboard mounts inline. Credits are added ONLY by the
-   * confirmed `invoice.payment_succeeded` webhook (idempotent per invoice) —
-   * this endpoint never moves balance.
+   * Monthly credit-funding subscription for the custom Elements form (no
+   * redirect). Creates a `default_incomplete` subscription and returns the first
+   * invoice's confirmation `clientSecret` + `subscriptionId`. Credits are added
+   * ONLY by the confirmed `invoice.payment_succeeded` webhook (idempotent per
+   * invoice) — this endpoint never moves balance.
    */
-  @Post("checkout/credit-subscription/embedded")
+  @Post("checkout/credit-subscription/intent")
   @OrgAdminOnly()
-  async createEmbeddedCreditSubscription(
+  async createCreditSubscriptionIntent(
     @Body() body: CreateMonthlyCreditSubscriptionDto,
     @CurrentUser() user: CurrentUserData,
   ) {
@@ -371,25 +430,26 @@ export class StripeController {
 
     const customerId = await this.getOrCreateCustomer(user);
 
-    return this.stripeService.createEmbeddedMonthlyCreditSubscriptionSession(
+    return this.stripeService.createMonthlyCreditSubscriptionIntent(
       user.id,
       customerId,
       body.amount,
       user.activeOrgId,
-      body.frontendOrigin,
+      body.invoiceEmail,
     );
   }
 
   /**
-   * EMBEDDED `mode:"setup"` session to save/replace a card without charging it
-   * ("change payment method" for monthly funding + auto-reload). If the caller
-   * has an active monthly subscription, the webhook also promotes the new card
-   * to that subscription's default. Returns a `clientSecret` for the dashboard.
+   * SetupIntent to save/replace a card without charging it, for the custom
+   * Elements form ("change payment method" for monthly funding + auto-reload).
+   * If the caller has an active monthly subscription, the `setup_intent.succeeded`
+   * webhook also promotes the new card to that subscription's default. Returns a
+   * `clientSecret` + `setupIntentId` for the dashboard.
    */
-  @Post("setup/payment-method/embedded")
+  @Post("setup/payment-method/intent")
   @OrgAdminOnly()
-  async createCardSetup(
-    @Body() body: CreateCardSetupDto,
+  async createCardSetupIntent(
+    @Body() _body: CreateCardSetupDto,
     @CurrentUser() user: CurrentUserData,
   ) {
     if (!user) {
@@ -404,11 +464,10 @@ export class StripeController {
         ? settings.stripeSubscriptionId
         : null;
 
-    return this.stripeService.createEmbeddedCardSetupSession(
+    return this.stripeService.createCardSetupIntent(
       user.id,
       customerId,
       user.activeOrgId,
-      body.frontendOrigin,
       subscriptionId,
     );
   }
@@ -760,24 +819,42 @@ export class StripeController {
           const metadata = paymentIntent.metadata || {};
           const userId = metadata.userId;
 
-          // Saved-card one-click recharge and auto-reload are PaymentIntent-only
-          // (no checkout session), so they are credited here — idempotently,
-          // keyed on the payment-intent id, so a webhook replay can never
-          // double-credit. The embedded-checkout PaymentIntent also fires this
-          // event, but it is credited by `checkout.session.completed` and is
-          // deliberately ignored here.
+          // Every one-time top-up is PaymentIntent-only (no checkout session) and
+          // credited here — idempotently, keyed on the payment-intent id, so a
+          // webhook replay can never double-credit. Three kinds land here: the
+          // custom Elements checkout, the saved-card one-click recharge, and the
+          // off-session auto-reload charge.
+          const isCustomTopup =
+            metadata.fn === "creditTopupCustomCard" ||
+            (metadata.type === "credit_topup" &&
+              metadata.rechargeMode === "custom_checkout");
           const isSavedCardTopup =
             metadata.fn === "creditTopupSavedCard" ||
             (metadata.type === "credit_topup" &&
               metadata.rechargeMode === "saved_payment_method");
           const isAutoReload = metadata.fn === "autoReloadCharge";
 
-          if ((isSavedCardTopup || isAutoReload) && userId) {
-            const amountUsd = paymentIntent.amount / 100;
+          if ((isCustomTopup || isSavedCardTopup || isAutoReload) && userId) {
+            // Credit the FACE amount purchased, not the charged amount: a
+            // discount coupon lowers `paymentIntent.amount` but the credited
+            // value lives in `metadata.amount`. Fall back to the charge for
+            // legacy intents / other kinds that carry no face metadata.
+            const chargedUsd = paymentIntent.amount / 100;
+            const faceUsd = Number(metadata.amount);
+            const amountUsd =
+              isCustomTopup && Number.isFinite(faceUsd) && faceUsd > 0
+                ? faceUsd
+                : chargedUsd;
             const ctx = createOwnershipContext({
               id: userId,
               activeOrgId: metadata.organizationId || null,
             });
+
+            const source = isAutoReload
+              ? "auto_reload"
+              : isCustomTopup
+                ? "custom_checkout"
+                : "saved_payment_method";
 
             const credited = await this.creditService.creditTopupOnce(
               ctx,
@@ -785,7 +862,7 @@ export class StripeController {
               {
                 checkoutSessionId: null,
                 paymentIntentId: paymentIntent.id,
-                source: isAutoReload ? "auto_reload" : "saved_payment_method",
+                source,
               },
             );
 
@@ -801,13 +878,58 @@ export class StripeController {
                 metadata.organizationId || undefined,
               );
               console.log(
-                `${isAutoReload ? "🔄 Auto-reload" : "⚡ Saved-card top-up"} credited: $${amountUsd} for user ${userId}`,
+                `${
+                  isAutoReload
+                    ? "🔄 Auto-reload"
+                    : isCustomTopup
+                      ? "💳 Credit top-up"
+                      : "⚡ Saved-card top-up"
+                } credited: $${amountUsd} for user ${userId}`,
               );
             } else {
               console.log(
-                `↩️ Duplicate ${isAutoReload ? "auto-reload" : "saved-card"} top-up webhook ignored for payment intent ${paymentIntent.id} (user ${userId})`,
+                `↩️ Duplicate top-up webhook ignored for payment intent ${paymentIntent.id} (user ${userId})`,
               );
             }
+          }
+          break;
+        }
+
+        case "setup_intent.succeeded": {
+          // Custom "change payment method" flow (SetupIntent, no charge). Promote
+          // the newly saved card to the customer (and subscription) default, and
+          // clear a failed auto-reload so it re-arms with the fresh card. Mirrors
+          // the old embedded `checkout.session.completed` (mode:setup) branch.
+          const setupIntent = event.data.object as Stripe.SetupIntent;
+          const metadata = setupIntent.metadata || {};
+          const userId = metadata.userId;
+          const customerId =
+            typeof setupIntent.customer === "string"
+              ? setupIntent.customer
+              : ((setupIntent.customer as Stripe.Customer | null)?.id ?? null);
+          const pmId =
+            typeof setupIntent.payment_method === "string"
+              ? setupIntent.payment_method
+              : ((setupIntent.payment_method as Stripe.PaymentMethod | null)
+                  ?.id ?? null);
+
+          if (
+            metadata.fn === "updateSavedPaymentMethod" &&
+            userId &&
+            customerId &&
+            pmId
+          ) {
+            await this.stripeService.setDefaultPaymentMethod(
+              customerId,
+              pmId,
+              metadata.subscriptionId || undefined,
+            );
+            const ctx = createOwnershipContext({
+              id: userId,
+              activeOrgId: metadata.organizationId || null,
+            });
+            await this.creditService.resetAutoReloadStatusIfFailed(ctx);
+            console.log(`💳 Saved payment method updated for user ${userId}`);
           }
           break;
         }

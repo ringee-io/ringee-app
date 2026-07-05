@@ -64,7 +64,8 @@
         "estTimeRow": "Calling time / month",
         "creditsNote": "Credits are added after each successful monthly payment.",
         "setupDoneTitle": "Monthly funding is on",
-        "setupDoneBody": "We've added your first {amount} and will top up automatically every month."
+        "setupDoneBody": "We've added your first {amount} and will top up automatically every month.",
+        "subscribeCta": "Pay {amount} & start funding"
       },
       "autoReload": {
         "activeTitle": "Auto-reload active",
@@ -114,7 +115,13 @@
         "completedReflected": "Your credits have been added.",
         "syncing": "Updating your balance…",
         "done": "Done",
-        "creditsNote": "Credits are added after payment confirmation."
+        "creditsNote": "Credits are added after payment confirmation.",
+        "processing": "Processing your payment…",
+        "payNow": "Pay {amount}",
+        "emailLabel": "Email for receipts",
+        "invoiceEmailLabel": "Email for invoices",
+        "emailPlaceholder": "you@company.com",
+        "emailHint": "Your Stripe receipt is sent here — edit it if you want invoices elsewhere."
       },
       "amount": {
         "currentBalance": "Current balance",
@@ -141,6 +148,16 @@
         "save": "Save this payment method for faster future top-ups.",
         "hint": "Recharge next time with one click."
       },
+      "coupon": {
+        "prompt": "Have a discount coupon?",
+        "placeholder": "Discount code",
+        "apply": "Apply",
+        "remove": "Remove",
+        "appliedLabel": "{code} applied",
+        "discountRow": "Discount",
+        "youPayRow": "You pay",
+        "invalid": "That code isn’t valid."
+      },
       "card": {
         "title": "Update payment method",
         "subtitle": "Save a new card — you won't be charged now.",
@@ -148,7 +165,8 @@
         "note": "Your card is saved securely for future charges. You won't be charged to save it.",
         "doneTitle": "Payment method updated",
         "doneBody": "Your new card is saved and ready for future charges.",
-        "doneCta": "Done"
+        "doneCta": "Done",
+        "saveCta": "Save card"
       }
     }
   },

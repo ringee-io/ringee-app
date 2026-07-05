@@ -2,6 +2,7 @@ import { Type } from "class-transformer";
 import {
   Equals,
   IsBoolean,
+  IsEmail,
   IsIn,
   IsNumber,
   IsOptional,
@@ -33,6 +34,52 @@ export class CreateCreditCheckoutDto {
   @IsOptional()
   @IsBoolean()
   savePaymentMethod?: boolean;
+
+  /**
+   * Email the Stripe receipt for this top-up is sent to (custom checkout).
+   * Defaults to the caller's account email on the client; editable in the form.
+   */
+  @IsOptional()
+  @IsEmail()
+  invoiceEmail?: string;
+}
+
+/** Change the billing email on the customer (and, if given, a live top-up). */
+export class UpdateBillingEmailDto {
+  @IsEmail()
+  email!: string;
+
+  /** Optional one-time PaymentIntent whose `receipt_email` to update too. */
+  @IsOptional()
+  @IsString()
+  paymentIntentId?: string;
+}
+
+/**
+ * Apply (or, with a blank `code`, clear) a customer-facing promotion code on a
+ * live one-time credit top-up PaymentIntent. Only the CHARGE is reduced — the
+ * credited face amount is preserved — so the user pays less for the same credit.
+ */
+export class ApplyCreditCouponDto {
+  @IsString()
+  paymentIntentId!: string;
+
+  /** Promotion code as typed by the user; empty string removes the discount. */
+  @IsString()
+  code!: string;
+}
+
+/**
+ * Toggle whether the card used on a live one-time top-up is saved for future
+ * one-click recharges. Updates the PaymentIntent's `setup_future_usage` in place
+ * (no recreation), so the entered card details are preserved.
+ */
+export class UpdateSavePreferenceDto {
+  @IsString()
+  paymentIntentId!: string;
+
+  @IsBoolean()
+  savePaymentMethod!: boolean;
 }
 
 export class CostInformationDto {
@@ -56,6 +103,14 @@ export class CreateMonthlyCreditSubscriptionDto {
   @IsOptional()
   @IsString()
   frontendOrigin?: string;
+
+  /**
+   * Email the recurring Stripe invoices are delivered to (custom checkout).
+   * Defaults to the caller's account email on the client; editable in the form.
+   */
+  @IsOptional()
+  @IsEmail()
+  invoiceEmail?: string;
 }
 
 export class CreateAutoReloadSetupDto {

@@ -64,7 +64,8 @@
         "estTimeRow": "Minutos de llamada / mes",
         "creditsNote": "Los créditos se añaden tras cada pago mensual exitoso.",
         "setupDoneTitle": "Recarga mensual activada",
-        "setupDoneBody": "Añadimos tu primer {amount} y recargaremos automáticamente cada mes."
+        "setupDoneBody": "Añadimos tu primer {amount} y recargaremos automáticamente cada mes.",
+        "subscribeCta": "Pagar {amount} e iniciar"
       },
       "autoReload": {
         "activeTitle": "Recarga automática activa",
@@ -114,7 +115,13 @@
         "completedReflected": "Tus créditos se han añadido.",
         "syncing": "Actualizando tu saldo…",
         "done": "Listo",
-        "creditsNote": "Los créditos se añaden tras confirmar el pago."
+        "creditsNote": "Los créditos se añaden tras confirmar el pago.",
+        "processing": "Procesando tu pago…",
+        "payNow": "Pagar {amount}",
+        "emailLabel": "Correo para recibos",
+        "invoiceEmailLabel": "Correo para facturas",
+        "emailPlaceholder": "tu@empresa.com",
+        "emailHint": "Tu recibo de Stripe se envía aquí — edítalo si quieres las facturas en otro correo."
       },
       "amount": {
         "currentBalance": "Saldo actual",
@@ -141,6 +148,16 @@
         "save": "Guarda este método de pago para recargas futuras más rápidas.",
         "hint": "Recarga la próxima vez con un solo clic."
       },
+      "coupon": {
+        "prompt": "¿Tienes un cupón de descuento?",
+        "placeholder": "Código de descuento",
+        "apply": "Aplicar",
+        "remove": "Quitar",
+        "appliedLabel": "{code} aplicado",
+        "discountRow": "Descuento",
+        "youPayRow": "Pagas",
+        "invalid": "Ese código no es válido."
+      },
       "card": {
         "title": "Actualizar método de pago",
         "subtitle": "Guarda una nueva tarjeta — no se te cobrará ahora.",
@@ -148,7 +165,8 @@
         "note": "Tu tarjeta se guarda de forma segura para cargos futuros. No se te cobra por guardarla.",
         "doneTitle": "Método de pago actualizado",
         "doneBody": "Tu nueva tarjeta está guardada y lista para cargos futuros.",
-        "doneCta": "Listo"
+        "doneCta": "Listo",
+        "saveCta": "Guardar tarjeta"
       }
     }
   },

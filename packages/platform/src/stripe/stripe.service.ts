@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 
 const stripe = new Stripe(apiConfiguration.STRIPE_SECRET_KEY!, {
@@ -76,47 +76,35 @@ export class StripeService {
   }
 
   /**
-   * Creates an EMBEDDED Checkout Session for a one-time credit top-up.
+   * Creates a PaymentIntent for a one-time credit top-up, confirmed by a CUSTOM
+   * Stripe Elements form rendered INSIDE Ringee (no Stripe-hosted checkout UI).
    *
-   * Unlike `createOneTimePaymentSession` (which returns a hosted redirect URL),
-   * this uses `ui_mode: "embedded"` and returns a `client_secret` the frontend
-   * mounts inside the dashboard — the user never leaves Ringee. Standard card
-   * payments complete inside the embedded form (`redirect_on_completion:
-   * "if_required"`); only payment methods that mandate a redirect fall back to
-   * `return_url`. Crediting still happens exclusively from the confirmed
-   * `checkout.session.completed` webhook — this call never moves balance.
+   * Card-only (`payment_method_types: ["card"]`) so the form stays minimal, and
+   * `receipt_email` routes the Stripe receipt to whatever billing email the user
+   * chose. Crediting still happens EXCLUSIVELY from the confirmed
+   * `payment_intent.succeeded` webhook (rechargeMode `custom_checkout`) — this
+   * call never moves balance. Toggling `savePaymentMethod` changes
+   * `setup_future_usage`, which is fixed at creation, so the caller recreates
+   * the intent when the consent flips.
    */
-  async createEmbeddedCreditTopupSession(
+  async createCreditTopupPaymentIntent(
     userId: string,
     customerId: string,
     amountUsd: number,
     description: string,
     organizationId?: string | null,
-    frontendOrigin?: string,
-    /**
-     * When true, the card used for this checkout is saved on the customer for
-     * future off-session top-ups (`setup_future_usage: "off_session"`). Driven
-     * by an explicit consent checkbox rendered in the Ringee shell — never
-     * saved without it.
-     */
     savePaymentMethod: boolean = false,
+    invoiceEmail?: string | null,
   ): Promise<{
     clientSecret: string;
-    sessionId: string;
+    paymentIntentId: string;
     amountUsd: number;
     amountCents: number;
+    billingEmail: string | null;
   }> {
     const amountCents = Math.round(amountUsd * 100);
-    const baseUrl = (frontendOrigin || process.env.FRONTEND_URL!).replace(
-      /\/$/,
-      "",
-    );
-    // Only used for payment methods that force a redirect. Standard cards
-    // complete in place and fire the client `onComplete` callback instead.
-    const returnUrl = `${baseUrl}/dashboard/overview?payment=success&credit_topup={CHECKOUT_SESSION_ID}`;
+    const receiptEmail = invoiceEmail?.trim() || undefined;
 
-    // Attached to BOTH the session and the underlying payment intent so the
-    // webhook can read it from either object.
     const metadata: Record<string, string> = {
       userId,
       organizationId: organizationId ?? "",
@@ -124,67 +112,225 @@ export class StripeService {
       amountCents: String(amountCents),
       type: "credit_topup",
       service: "ringee",
-      rechargeMode: "embedded_checkout",
-      // Kept so the existing webhook routing (`fn`) keeps working unchanged.
-      fn: "createOneTimePaymentSession",
+      rechargeMode: "custom_checkout",
+      fn: "creditTopupCustomCard",
     };
 
-    const session = await stripe.checkout.sessions.create({
-      ui_mode: "embedded",
-      mode: "payment",
+    const pi = await stripe.paymentIntents.create({
+      amount: amountCents,
+      currency: "usd",
       customer: customerId,
-      redirect_on_completion: "if_required",
-      return_url: returnUrl,
+      payment_method_types: ["card"],
+      description,
       metadata,
-      payment_intent_data: {
-        metadata,
-        // Save the card for future one-click recharges only with consent. The
-        // consent checkbox lives in the Ringee shell (not Stripe's own UI), so
-        // this flag is the single source of truth for whether we persist it.
-        ...(savePaymentMethod
-          ? { setup_future_usage: "off_session" as const }
-          : {}),
-      },
-      line_items: [
-        {
-          price_data: {
-            currency: "usd",
-            product_data: { name: "Ringee Credit Top-up", description },
-            unit_amount: amountCents,
-          },
-          quantity: 1,
-        },
-      ],
-      allow_promotion_codes: true,
+      ...(receiptEmail ? { receipt_email: receiptEmail } : {}),
+      // Save the card for future one-click recharges only with consent. The
+      // consent checkbox lives in the Ringee form (not Stripe's own UI), so this
+      // flag is the single source of truth for whether we persist it.
+      ...(savePaymentMethod
+        ? { setup_future_usage: "off_session" as const }
+        : {}),
     });
 
     return {
-      clientSecret: session.client_secret!,
-      sessionId: session.id,
+      clientSecret: pi.client_secret!,
+      paymentIntentId: pi.id,
       amountUsd,
       amountCents,
+      billingEmail: receiptEmail ?? null,
     };
   }
 
   /**
-   * Lightweight status read for an embedded credit checkout session. The
-   * frontend polls this after `onComplete` to confirm payment before showing a
-   * success state — it never trusts the client alone.
+   * Update where Stripe delivers receipts / invoices for this customer. Sets the
+   * customer's email (used for subscription invoices) and, when a one-time
+   * PaymentIntent id is supplied, its `receipt_email` (used for the top-up
+   * receipt). Called right before a custom-form confirm when the user edited the
+   * billing email — a no-op for a blank value.
    */
-  async getCreditCheckoutStatus(sessionId: string): Promise<{
-    sessionId: string;
-    status: string | null;
-    paymentStatus: string | null;
-    amountTotalUsd: number | null;
+  async updateBillingEmail(
+    customerId: string,
+    email: string,
+    paymentIntentId?: string | null,
+  ): Promise<void> {
+    const clean = email.trim();
+    if (!clean) return;
+    await stripe.customers.update(customerId, { email: clean });
+    if (paymentIntentId) {
+      await stripe.paymentIntents.update(paymentIntentId, {
+        receipt_email: clean,
+      });
+    }
+  }
+
+  /**
+   * Retrieve a still-editable one-time credit top-up PaymentIntent that belongs
+   * to `customerId`. Guards ownership and shape so a caller can only ever touch
+   * its OWN live top-up, and only while it can still be changed (before it is
+   * confirmed / succeeds).
+   */
+  private async getEditableTopupIntent(
+    customerId: string,
+    paymentIntentId: string,
+  ): Promise<Stripe.PaymentIntent> {
+    const pi = await stripe.paymentIntents.retrieve(paymentIntentId);
+    const piCustomer =
+      typeof pi.customer === "string" ? pi.customer : (pi.customer?.id ?? null);
+    if (piCustomer !== customerId || pi.metadata?.type !== "credit_topup") {
+      throw new BadRequestException("This payment can’t be updated.");
+    }
+    if (
+      pi.status !== "requires_payment_method" &&
+      pi.status !== "requires_confirmation"
+    ) {
+      throw new BadRequestException("This payment can no longer be changed.");
+    }
+    return pi;
+  }
+
+  /**
+   * Toggle whether the card used on a live one-time top-up is saved for future
+   * one-click recharges, by updating the PaymentIntent's `setup_future_usage` in
+   * place. The `client_secret` is unchanged, so the mounted Stripe Elements form
+   * (and the entered card details) survive — unlike recreating the intent.
+   */
+  async setCreditSavePreference(
+    customerId: string,
+    paymentIntentId: string,
+    savePaymentMethod: boolean,
+  ): Promise<void> {
+    await this.getEditableTopupIntent(customerId, paymentIntentId);
+    await stripe.paymentIntents.update(paymentIntentId, {
+      // Empty string clears `setup_future_usage`, so unchecking stops the save.
+      setup_future_usage: savePaymentMethod ? "off_session" : "",
+    });
+  }
+
+  /**
+   * Validate a customer-facing promotion code and apply it to a live one-time
+   * credit top-up: the CHARGE (`amount`) is reduced by the coupon's discount
+   * while the credited face amount — carried in `metadata.amount` / `amountCents`
+   * and read by the webhook — is left untouched, so the user pays less for the
+   * same credit. A blank `code` clears any applied discount and restores the
+   * full charge. Throws on an unknown / inactive / inapplicable code.
+   */
+  async applyCreditCoupon(
+    customerId: string,
+    paymentIntentId: string,
+    rawCode: string,
+  ): Promise<{
+    code: string;
+    label: string;
+    discountCents: number;
+    discountUsd: number;
+    chargeCents: number;
+    chargeUsd: number;
+    faceCents: number;
+    faceUsd: number;
+    percentOff: number | null;
   }> {
-    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    const pi = await this.getEditableTopupIntent(customerId, paymentIntentId);
+
+    // Face value (what the user is buying) is fixed at creation — always price
+    // the discount off it, never off the possibly-already-discounted amount.
+    const faceCents = Number(pi.metadata?.amountCents) || pi.amount;
+    const code = rawCode.trim();
+
+    // Blank code → remove any discount and restore the full charge.
+    if (!code) {
+      await stripe.paymentIntents.update(paymentIntentId, {
+        amount: faceCents,
+        metadata: {
+          couponCode: "",
+          couponId: "",
+          promotionCodeId: "",
+          discountCents: "",
+          chargeCents: "",
+        },
+      });
+      return {
+        code: "",
+        label: "",
+        discountCents: 0,
+        discountUsd: 0,
+        chargeCents: faceCents,
+        chargeUsd: faceCents / 100,
+        faceCents,
+        faceUsd: faceCents / 100,
+        percentOff: null,
+      };
+    }
+
+    const promo = (
+      await stripe.promotionCodes.list({
+        code,
+        active: true,
+        limit: 1,
+        expand: ["data.promotion.coupon"],
+      })
+    ).data[0];
+    // Stripe v19 nests the coupon under `promotion.coupon` (and it may come back
+    // as an id unless expanded — hence the expand above + object guard).
+    const rawCoupon = promo?.promotion?.coupon;
+    const coupon =
+      rawCoupon && typeof rawCoupon !== "string" ? rawCoupon : null;
+    if (!promo || !coupon?.valid) {
+      throw new BadRequestException("That code isn’t valid.");
+    }
+    // Promotion codes can be locked to a single customer.
+    const promoCustomer =
+      typeof promo.customer === "string"
+        ? promo.customer
+        : (promo.customer?.id ?? null);
+    if (promoCustomer && promoCustomer !== customerId) {
+      throw new BadRequestException("That code isn’t valid for this account.");
+    }
+    // Respect a merchant-configured minimum spend on the promotion code.
+    const minAmount = promo.restrictions?.minimum_amount;
+    if (minAmount && faceCents < minAmount) {
+      throw new BadRequestException(
+        `This code needs a minimum of $${(minAmount / 100).toFixed(2)}.`,
+      );
+    }
+
+    let discountCents = 0;
+    if (coupon.percent_off) {
+      discountCents = Math.round((faceCents * coupon.percent_off) / 100);
+    } else if (coupon.amount_off) {
+      if (coupon.currency && coupon.currency !== "usd") {
+        throw new BadRequestException("That code can’t be used here.");
+      }
+      discountCents = coupon.amount_off;
+    }
+
+    // Stripe won't confirm a card charge below $0.50, so clamp and reflect the
+    // real (clamped) discount back to the caller.
+    const MIN_CHARGE_CENTS = 50;
+    const chargeCents = Math.max(faceCents - discountCents, MIN_CHARGE_CENTS);
+    discountCents = faceCents - chargeCents;
+
+    await stripe.paymentIntents.update(paymentIntentId, {
+      amount: chargeCents,
+      metadata: {
+        // Keep `amount` / `amountCents` (face) intact → webhook credits face.
+        couponCode: code,
+        couponId: coupon.id,
+        promotionCodeId: promo.id,
+        discountCents: String(discountCents),
+        chargeCents: String(chargeCents),
+      },
+    });
 
     return {
-      sessionId: session.id,
-      status: session.status ?? null,
-      paymentStatus: session.payment_status ?? null,
-      amountTotalUsd:
-        session.amount_total != null ? session.amount_total / 100 : null,
+      code,
+      label: coupon.name ?? code,
+      discountCents,
+      discountUsd: discountCents / 100,
+      chargeCents,
+      chargeUsd: chargeCents / 100,
+      faceCents,
+      faceUsd: faceCents / 100,
+      percentOff: coupon.percent_off ?? null,
     };
   }
 
@@ -575,33 +721,34 @@ export class StripeService {
   }
 
   /**
-   * EMBEDDED Checkout Session for a monthly credit-funding SUBSCRIPTION.
-   *
-   * The subscription-mode analogue of `createEmbeddedCreditTopupSession`: the
-   * user sets up recurring monthly funding inside the dashboard (no redirect).
-   * Crediting is NEVER done here — every paid cycle (including the first) is
-   * credited idempotently from the confirmed `invoice.payment_succeeded`
-   * webhook via `creditTopupOnce`. Metadata lives on both the session and the
-   * subscription so the webhook can resolve owner + amount from either object.
+   * Creates a monthly credit-funding SUBSCRIPTION in `default_incomplete` mode
+   * for a CUSTOM Elements form. Returns the first invoice's confirmation client
+   * secret; the frontend confirms it with the card the user enters (no
+   * redirect, no Stripe-hosted UI). The card is saved as the subscription
+   * default so future cycles charge automatically. Crediting + activation happen
+   * from `invoice.payment_succeeded` (fn `creditSubscription`), idempotent per
+   * invoice — this call never moves balance.
    */
-  async createEmbeddedMonthlyCreditSubscriptionSession(
+  async createMonthlyCreditSubscriptionIntent(
     userId: string,
     customerId: string,
     amountUsd: number,
     organizationId?: string | null,
-    frontendOrigin?: string,
+    invoiceEmail?: string | null,
   ): Promise<{
     clientSecret: string;
-    sessionId: string;
+    subscriptionId: string;
     amountUsd: number;
     amountCents: number;
+    billingEmail: string | null;
   }> {
     const amountCents = Math.round(amountUsd * 100);
-    const baseUrl = (frontendOrigin || process.env.FRONTEND_URL!).replace(
-      /\/$/,
-      "",
-    );
-    const returnUrl = `${baseUrl}/dashboard/overview?payment=success&monthly_fund={CHECKOUT_SESSION_ID}`;
+    const email = invoiceEmail?.trim() || undefined;
+    // Subscription invoices are delivered to the customer's email — set it so
+    // recurring receipts go where the user asked.
+    if (email) {
+      await stripe.customers.update(customerId, { email });
+    }
 
     const metadata: Record<string, string> = {
       userId,
@@ -614,36 +761,49 @@ export class StripeService {
       fn: "creditSubscription",
     };
 
-    const session = await stripe.checkout.sessions.create({
-      ui_mode: "embedded",
-      mode: "subscription",
+    // Subscription item `price_data` requires a product id (unlike Checkout
+    // `line_items`, which accept inline `product_data`). Mint the product first;
+    // `updateMonthlyCreditSubscriptionAmount` reuses / reactivates it on edits.
+    const product = await stripe.products.create({
+      name: "Ringee Monthly Credit Fund",
+      description: `$${amountUsd} in credits added to your account every month`,
+    });
+
+    const subscription = await stripe.subscriptions.create({
       customer: customerId,
-      redirect_on_completion: "if_required",
-      return_url: returnUrl,
-      metadata,
-      subscription_data: { metadata },
-      line_items: [
+      items: [
         {
           price_data: {
             currency: "usd",
-            product_data: {
-              name: "Ringee Monthly Credit Fund",
-              description: `$${amountUsd} in credits added to your account every month`,
-            },
+            product: product.id,
             unit_amount: amountCents,
             recurring: { interval: "month" },
           },
-          quantity: 1,
         },
       ],
-      allow_promotion_codes: true,
+      payment_behavior: "default_incomplete",
+      payment_settings: {
+        save_default_payment_method: "on_subscription",
+        payment_method_types: ["card"],
+      },
+      metadata,
+      expand: ["latest_invoice.confirmation_secret"],
     });
 
+    const invoice = subscription.latest_invoice as Stripe.Invoice | null;
+    const clientSecret = invoice?.confirmation_secret?.client_secret ?? null;
+    if (!clientSecret) {
+      throw new Error(
+        "Subscription created but no confirmation secret was returned.",
+      );
+    }
+
     return {
-      clientSecret: session.client_secret!,
-      sessionId: session.id,
+      clientSecret,
+      subscriptionId: subscription.id,
       amountUsd,
       amountCents,
+      billingEmail: email ?? null,
     };
   }
 
@@ -670,7 +830,10 @@ export class StripeService {
     // are created INACTIVE. Stripe then refuses to attach the new price (for the
     // amount change) to an inactive product ("product … is marked as inactive").
     // Reactivate it first; if it was deleted entirely, mint a fresh product.
-    const productId = await this.ensureActiveProduct(currentProductId, amountUsd);
+    const productId = await this.ensureActiveProduct(
+      currentProductId,
+      amountUsd,
+    );
 
     await stripe.subscriptions.update(subscriptionId, {
       items: [
@@ -813,23 +976,18 @@ export class StripeService {
   }
 
   /**
-   * EMBEDDED Checkout Session in `mode:"setup"` — collects and saves a new card
+   * Creates a SetupIntent to save / replace a card via a CUSTOM Elements form,
    * WITHOUT charging it. Used by "change payment method" for monthly funding and
-   * auto-reload. The webhook (`fn:"updateSavedPaymentMethod"`) then promotes the
-   * saved card to the customer / subscription default.
+   * auto-reload. The confirmed `setup_intent.succeeded` webhook
+   * (`fn:"updateSavedPaymentMethod"`) then promotes the saved card to the
+   * customer / subscription default.
    */
-  async createEmbeddedCardSetupSession(
+  async createCardSetupIntent(
     userId: string,
     customerId: string,
     organizationId?: string | null,
-    frontendOrigin?: string,
     subscriptionId?: string | null,
-  ): Promise<{ clientSecret: string; sessionId: string }> {
-    const baseUrl = (frontendOrigin || process.env.FRONTEND_URL!).replace(
-      /\/$/,
-      "",
-    );
-    const returnUrl = `${baseUrl}/dashboard/overview?setup=complete&card_setup={CHECKOUT_SESSION_ID}`;
+  ): Promise<{ clientSecret: string; setupIntentId: string }> {
     const metadata: Record<string, string> = {
       userId,
       organizationId: organizationId ?? "",
@@ -839,20 +997,16 @@ export class StripeService {
       fn: "updateSavedPaymentMethod",
     };
 
-    const session = await stripe.checkout.sessions.create({
-      ui_mode: "embedded",
-      mode: "setup",
+    const si = await stripe.setupIntents.create({
       customer: customerId,
-      currency: "usd",
-      redirect_on_completion: "if_required",
-      return_url: returnUrl,
+      payment_method_types: ["card"],
+      usage: "off_session",
       metadata,
-      setup_intent_data: { metadata },
     });
 
     return {
-      clientSecret: session.client_secret!,
-      sessionId: session.id,
+      clientSecret: si.client_secret!,
+      setupIntentId: si.id,
     };
   }
 

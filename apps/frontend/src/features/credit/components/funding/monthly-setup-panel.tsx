@@ -3,30 +3,43 @@
 import { useCallback } from 'react';
 import { CalendarSync, Clock, CheckCircle2, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { useUser } from '@clerk/nextjs';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useCreditStore } from '@/features/credit/store/credit.store';
 import { money, estimateMinutes } from '../../lib/recharge';
 import { useBalanceReconcile } from '../../hooks/use-balance-reconcile';
-import { EmbeddedStripePanel } from './embedded-stripe-panel';
+import {
+  ElementsCheckoutPanel,
+  type CreatedIntent
+} from './elements-checkout-panel';
 import { FundingSummary } from './funding-summary';
 
 interface Props {
   amount: number;
   onBack: () => void;
   onClose: () => void;
+  /** Bubble the charge-in-flight state up so the popover blocks dismissal. */
+  onBusyChange?: (busy: boolean) => void;
 }
 
 /**
- * Set up recurring monthly funding via an embedded Stripe SUBSCRIPTION checkout.
- * The first (and every) paid invoice credits the balance from the webhook, so
- * the result view reconciles the balance just like a one-time top-up. No
- * redirect; consent to the recurring charge was captured before entering here.
+ * Set up recurring monthly funding via a custom Stripe Elements SUBSCRIPTION
+ * checkout (`default_incomplete`). The first (and every) paid invoice credits
+ * the balance from the webhook, so the result view reconciles the balance just
+ * like a one-time top-up. No redirect; consent to the recurring charge was
+ * captured before entering here.
  */
-export function MonthlySetupPanel({ amount, onBack, onClose }: Props) {
+export function MonthlySetupPanel({
+  amount,
+  onBack,
+  onClose,
+  onBusyChange
+}: Props) {
   const t = useTranslations('billing.credits.popover');
   const api = useApi();
+  const { user } = useUser();
   const fetchMonthlyFund = useCreditStore((s) => s.fetchMonthlyFund);
   const fetchAutoReloadSettings = useCreditStore(
     (s) => s.fetchAutoReloadSettings
@@ -34,16 +47,26 @@ export function MonthlySetupPanel({ amount, onBack, onClose }: Props) {
   const liveBalance = useCreditStore((s) => s.balance);
   const { reflected, start } = useBalanceReconcile();
 
-  const createSession = useCallback(async () => {
-    const res = await api.post(
-      '/stripe/checkout/credit-subscription/embedded',
-      {
-        amount,
-        frontendOrigin: window.location.origin
-      }
-    );
-    return { clientSecret: res.clientSecret, sessionId: res.sessionId ?? null };
-  }, [api, amount]);
+  const createIntent = useCallback(async (): Promise<CreatedIntent> => {
+    const res = await api.post('/stripe/checkout/credit-subscription/intent', {
+      amount,
+      invoiceEmail: user?.primaryEmailAddress?.emailAddress
+    });
+    // Subscription invoices are billed to the customer email — there is no
+    // one-time PaymentIntent to attach a receipt to, so intentId stays null.
+    return {
+      clientSecret: res.clientSecret,
+      intentId: null,
+      billingEmail: res.billingEmail ?? null
+    };
+  }, [api, amount, user]);
+
+  const persistEmail = useCallback(
+    async (email: string) => {
+      await api.post('/stripe/checkout/billing-email', { email });
+    },
+    [api]
+  );
 
   const onComplete = useCallback(() => {
     fetchMonthlyFund(api);
@@ -52,13 +75,20 @@ export function MonthlySetupPanel({ amount, onBack, onClose }: Props) {
   }, [api, fetchMonthlyFund, fetchAutoReloadSettings, start]);
 
   return (
-    <EmbeddedStripePanel
+    <ElementsCheckoutPanel
       title={t('monthly.setupTitle')}
       subtitle={t('monthly.setupSubtitle', { amount: money(amount) })}
       badge={`${money(amount)}${t('monthly.perMonthSuffix')}`}
       onBack={onBack}
+      onClose={onClose}
+      onBusyChange={onBusyChange}
       backLabel={t('monthly.setupTitle')}
-      createSession={createSession}
+      createIntent={createIntent}
+      intentKind='payment'
+      submitLabel={t('monthly.subscribeCta', { amount: money(amount) })}
+      showEmailField
+      emailLabel={t('checkout.invoiceEmailLabel')}
+      persistEmail={persistEmail}
       summary={
         <FundingSummary
           label={t('monthly.amountLabel')}
@@ -81,7 +111,6 @@ export function MonthlySetupPanel({ amount, onBack, onClose }: Props) {
           ]}
           note={t('monthly.creditsNote')}
           confidence
-          sticky
         />
       }
       onComplete={onComplete}

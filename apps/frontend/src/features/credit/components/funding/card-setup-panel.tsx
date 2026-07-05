@@ -7,7 +7,10 @@ import { cn } from '@ringee/frontend-shared/lib/utils';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useCreditStore } from '@/features/credit/store/credit.store';
-import { EmbeddedStripePanel } from './embedded-stripe-panel';
+import {
+  ElementsCheckoutPanel,
+  type CreatedIntent
+} from './elements-checkout-panel';
 import { FundingSummary } from './funding-summary';
 
 interface Props {
@@ -16,15 +19,23 @@ interface Props {
   onBack: () => void;
   /** Called after the new card is saved and the store is refreshed. */
   onDone: () => void;
+  /** Bubble the charge-in-flight state up so the popover blocks dismissal. */
+  onBusyChange?: (busy: boolean) => void;
 }
 
 /**
- * Save / replace the card WITHOUT charging it, via an embedded Stripe
- * `mode:"setup"` session. On completion the webhook promotes the new card to
- * the customer (and any active subscription) default and clears a failed
- * auto-reload; here we just refresh the store and confirm. No redirect.
+ * Save / replace the card WITHOUT charging it, via a custom Stripe Elements
+ * SetupIntent. On completion the `setup_intent.succeeded` webhook promotes the
+ * new card to the customer (and any active subscription) default and clears a
+ * failed auto-reload; here we just refresh the store and confirm. No redirect,
+ * no invoice — so the billing-email field is intentionally hidden.
  */
-export function CardSetupPanel({ context, onBack, onDone }: Props) {
+export function CardSetupPanel({
+  context,
+  onBack,
+  onDone,
+  onBusyChange
+}: Props) {
   const t = useTranslations('billing.credits.popover');
   const api = useApi();
   const fetchPaymentMethod = useCreditStore((s) => s.fetchPaymentMethod);
@@ -33,28 +44,34 @@ export function CardSetupPanel({ context, onBack, onDone }: Props) {
     (s) => s.fetchAutoReloadSettings
   );
 
-  const createSession = useCallback(async () => {
-    const res = await api.post('/stripe/setup/payment-method/embedded', {
-      frontendOrigin: window.location.origin
-    });
-    return { clientSecret: res.clientSecret, sessionId: res.sessionId ?? null };
+  const createIntent = useCallback(async (): Promise<CreatedIntent> => {
+    const res = await api.post('/stripe/setup/payment-method/intent', {});
+    return {
+      clientSecret: res.clientSecret,
+      intentId: res.setupIntentId ?? null,
+      billingEmail: null
+    };
   }, [api]);
 
   const onComplete = useCallback(() => {
     // The webhook does the promotion; give it a beat, then refresh what the
-    // drawer shows. These are silent, non-blocking refreshes.
+    // dialog shows. These are silent, non-blocking refreshes.
     fetchPaymentMethod(api);
     fetchMonthlyFund(api);
     fetchAutoReloadSettings(api);
   }, [api, fetchPaymentMethod, fetchMonthlyFund, fetchAutoReloadSettings]);
 
   return (
-    <EmbeddedStripePanel
+    <ElementsCheckoutPanel
       title={t('card.title')}
       subtitle={t('card.subtitle')}
       onBack={onBack}
+      onClose={onDone}
+      onBusyChange={onBusyChange}
       backLabel={t('card.title')}
-      createSession={createSession}
+      createIntent={createIntent}
+      intentKind='setup'
+      submitLabel={t('card.saveCta')}
       summary={
         <FundingSummary
           label={t('card.summaryLabel')}
@@ -65,7 +82,6 @@ export function CardSetupPanel({ context, onBack, onDone }: Props) {
           rows={[]}
           note={t('card.note')}
           confidence
-          sticky
         />
       }
       onComplete={onComplete}

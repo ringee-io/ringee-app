@@ -74,9 +74,11 @@ type FlowStep =
   | 'monthly-change-card'
   | 'auto-reload-change-card';
 
-// The steps that host a Stripe iframe. Clicking inside the iframe reads as an
-// "interact outside" to Radix, so we must not auto-close the popover on those.
-const EMBEDDED_STEPS: FlowStep[] = [
+// The steps that render the big two-column checkout INSIDE the popover — the
+// popover grows to fit them (same size the checkout dialog used to be). While
+// one is active every dismissal is guarded: outside click / Esc go back a step,
+// they never discard the flow.
+const CHECKOUT_STEPS: FlowStep[] = [
   'one-time-checkout',
   'monthly-setup',
   'monthly-change-card',
@@ -146,6 +148,11 @@ export function CreditPopover({
   const [flowStep, setFlowStep] = useState<FlowStep>(null);
   const [dir, setDir] = useState(1);
   const [paymentInFlight, setPaymentInFlight] = useState(false);
+  // Whether the popover is at its wide, two-column checkout size. Flipped in the
+  // AnimatePresence handoff (see `onExitComplete`) so the width only changes in
+  // the invisible gap between the old step leaving and the new one entering —
+  // each step is therefore always rendered at its own correct width.
+  const [wide, setWide] = useState(false);
 
   const { height, measureRef } = useAutoHeight();
 
@@ -168,10 +175,11 @@ export function CreditPopover({
   } = useCreditStore();
   const { completeStep: completeOnboardingStep } = useOnboardingComplete();
 
-  const takeover = flowStep !== null;
-  const embeddedStep = EMBEDDED_STEPS.includes(flowStep);
-  // Never let an outside click discard a live charge or a hosted card form.
-  const blockOutside = paymentInFlight || embeddedStep;
+  const checkoutStep = CHECKOUT_STEPS.includes(flowStep);
+  // Every non-null step is an in-popover takeover; the compact saved-card fast
+  // path and the big checkout differ only in the popover's width. A live charge
+  // or an active checkout step hard-blocks outside-close (going back is fine).
+  const blockOutside = paymentInFlight || checkoutStep;
 
   // Forward into a flow (slide left→right); `back` reverses it.
   const goTo = (step: Exclude<FlowStep, null>) => {
@@ -182,7 +190,14 @@ export function CreditPopover({
     setDir(-1);
     setFlowStep(null);
   };
-  const close = () => setOpen(false);
+  // Close the whole popover AND drop any active step, so "Done" never leaves a
+  // detached checkout mounted (the step used to render as a sibling dialog).
+  const close = () => {
+    setOpen(false);
+    setFlowStep(null);
+    setTab('one-time');
+    setWide(false);
+  };
 
   const proceedOneTime = () => {
     completeOnboardingStep('buy_credits');
@@ -230,6 +245,8 @@ export function CreditPopover({
     // normal close mid-flow is otherwise safe.
     if (!next && paymentInFlight) return;
     setOpen(next);
+    // Always land on the compact hub, so the width matches the step shown.
+    setWide(false);
     if (next) {
       setDir(1);
       setFlowStep(null);
@@ -243,47 +260,20 @@ export function CreditPopover({
     }
   };
 
-  const renderTakeover = () => {
-    switch (flowStep) {
-      case 'one-time-saved':
-        return paymentMethod ? (
-          <SavedRechargeStep
-            amount={amount}
-            method={paymentMethod}
-            currentBalance={balance}
-            onBack={back}
-            onChangeMethod={() => goTo('one-time-checkout')}
-            onClose={close}
-            onBusyChange={setPaymentInFlight}
-          />
-        ) : null;
-      case 'one-time-checkout':
-        return (
-          <OneTimeCheckout
-            amount={amount}
-            currentBalance={balance}
-            onBack={back}
-            onClose={close}
-          />
-        );
-      case 'monthly-setup':
-        return (
-          <MonthlySetupPanel
-            amount={monthlyAmount}
-            onBack={back}
-            onClose={close}
-          />
-        );
-      case 'monthly-change-card':
-        return <CardSetupPanel context='monthly' onBack={back} onDone={back} />;
-      case 'auto-reload-change-card':
-        return (
-          <CardSetupPanel context='auto-reload' onBack={back} onDone={back} />
-        );
-      default:
-        return null;
-    }
-  };
+  // The compact saved-card fast path — the one step that keeps the popover
+  // narrow. "Use another card" hands off to the wider one-time checkout step.
+  const renderTakeover = () =>
+    paymentMethod ? (
+      <SavedRechargeStep
+        amount={amount}
+        method={paymentMethod}
+        currentBalance={balance}
+        onBack={back}
+        onChangeMethod={() => goTo('one-time-checkout')}
+        onClose={close}
+        onBusyChange={setPaymentInFlight}
+      />
+    ) : null;
 
   const renderHub = () => (
     // Self-bounded: caps its own height and scrolls the tab body internally, so
@@ -372,6 +362,55 @@ export function CreditPopover({
     </div>
   );
 
+  // Whatever step is active renders inside the popover (the shell animates its
+  // height/width to fit). The big checkout flows used to be sibling dialogs;
+  // folding them in makes "Done"/close dismiss cleanly through the popover.
+  const renderStep = () => {
+    switch (flowStep) {
+      case 'one-time-saved':
+        return renderTakeover();
+      case 'one-time-checkout':
+        return (
+          <OneTimeCheckout
+            amount={amount}
+            currentBalance={balance}
+            onBack={back}
+            onClose={close}
+            onBusyChange={setPaymentInFlight}
+          />
+        );
+      case 'monthly-setup':
+        return (
+          <MonthlySetupPanel
+            amount={monthlyAmount}
+            onBack={back}
+            onClose={close}
+            onBusyChange={setPaymentInFlight}
+          />
+        );
+      case 'monthly-change-card':
+        return (
+          <CardSetupPanel
+            context='monthly'
+            onBack={back}
+            onDone={back}
+            onBusyChange={setPaymentInFlight}
+          />
+        );
+      case 'auto-reload-change-card':
+        return (
+          <CardSetupPanel
+            context='auto-reload'
+            onBack={back}
+            onDone={back}
+            onBusyChange={setPaymentInFlight}
+          />
+        );
+      default:
+        return renderHub();
+    }
+  };
+
   const trigger = children ?? (
     <Button variant='ghost' size='sm' className={triggerClasses}>
       <span className='absolute inset-0 rounded-full bg-white/10 opacity-0 blur-sm transition-opacity group-hover:opacity-100' />
@@ -397,13 +436,15 @@ export function CreditPopover({
         align='end'
         sideOffset={12}
         collisionPadding={12}
-        // Focus the panel, not the (auto-loading) Stripe iframe.
         onOpenAutoFocus={(e) => {
-          if (takeover) e.preventDefault();
+          // Don't yank focus into an active step (esp. the Stripe iframe).
+          if (flowStep) e.preventDefault();
         }}
         onEscapeKeyDown={(e) => {
+          // A live charge hard-blocks dismissal; any active step steps back
+          // instead of closing; on the hub, let Radix close the popover.
           if (paymentInFlight) e.preventDefault();
-          else if (takeover) {
+          else if (flowStep) {
             e.preventDefault();
             back();
           }
@@ -412,8 +453,10 @@ export function CreditPopover({
           if (blockOutside) e.preventDefault();
         }}
         className={cn(
-          'bg-background text-foreground w-[420px] max-w-[calc(100vw-1.5rem)]',
-          'overflow-hidden rounded-2xl border p-0 shadow-2xl'
+          'bg-background text-foreground max-w-[calc(100vw-1.5rem)]',
+          'overflow-hidden rounded-2xl border p-0 shadow-2xl',
+          // The popover grows to the big two-column checkout, else stays compact.
+          wide ? 'w-[min(1240px,96vw)]' : 'w-[420px]'
         )}
       >
         <motion.div
@@ -427,7 +470,14 @@ export function CreditPopover({
           }}
           style={{ overflow: 'hidden' }}
         >
-          <AnimatePresence mode='wait' initial={false} custom={dir}>
+          <AnimatePresence
+            mode='wait'
+            initial={false}
+            custom={dir}
+            // Resize once the old step has fully left and before the new one
+            // enters, so a step never reflows mid-animation (2-col ↔ 1-col).
+            onExitComplete={() => setWide(checkoutStep)}
+          >
             <motion.div
               key={flowStep ?? 'hub'}
               ref={measureRef}
@@ -438,7 +488,7 @@ export function CreditPopover({
               exit='exit'
               transition={{ duration: 0.26, ease: [0.22, 1, 0.36, 1] }}
             >
-              {takeover ? renderTakeover() : renderHub()}
+              {renderStep()}
             </motion.div>
           </AnimatePresence>
         </motion.div>
