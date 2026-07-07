@@ -29,6 +29,7 @@ import {
   failureSnapshot,
 } from "../lib/call-flow";
 import { DEFAULT_REGION } from "../lib/region";
+import { getSelectedCallerId } from "../lib/selected-caller-id";
 
 const PUBLISHABLE_KEY = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 const SYNC_HOST =
@@ -108,6 +109,10 @@ async function dial(target: DialTarget, tabId?: number) {
     return;
   }
 
+  // The number the user picked in the panel header (null → Automatic). The
+  // backend re-validates it and ignores it when it isn't a valid caller ID.
+  const preferredCallerId = (await getSelectedCallerId()) ?? undefined;
+
   // The backend owns every business rule: workspace, permissions, credits, DNC,
   // caller ID resolution, find-or-create contact, and minting WebRTC creds.
   let prepared;
@@ -117,6 +122,7 @@ async function dial(target: DialTarget, tabId?: number) {
       name: target.name,
       company: target.company,
       origin: target.origin,
+      preferredCallerId,
     });
   } catch (e) {
     const code = e instanceof ApiError ? e.code : "UNKNOWN";

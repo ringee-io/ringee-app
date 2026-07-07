@@ -54,6 +54,13 @@ interface PrepareCallDto {
   origin?: PageOriginDto;
   /** Manual override to dial even when every eligible number hit its daily cap. */
   allowOverCap?: boolean;
+  /**
+   * The E.164 the user explicitly chose to call from in the side-panel number
+   * picker. When it is still a valid caller ID for the workspace it is used
+   * as-is (bypassing rotation); otherwise it is ignored and the normal
+   * resolution runs. Never trusted blindly — always validated server-side.
+   */
+  preferredCallerId?: string;
 }
 
 const E164 = /^\+[1-9]\d{6,14}$/;
@@ -111,6 +118,34 @@ export class ExtensionController {
     const ctx = createOwnershipContext(user);
     const balance = await this.creditService.getBalance(ctx).catch(() => 0);
     return { balance };
+  }
+
+  /**
+   * The outbound numbers this user may call from in the extension: purchased
+   * DIDs + verified caller IDs, filtered to those the `chrome_extension` surface
+   * (and this user) is allowed to present. Powers the side-panel "Call from"
+   * picker. Available to every member — picking a number is not an admin action.
+   */
+  @Get("numbers")
+  async numbers(@CurrentUser() user: CurrentUserData) {
+    const ctx = createOwnershipContext(user);
+    const numbers = await this.numberPurchasedService
+      .listOutboundCallerIds(ctx, {
+        source: "chrome_extension",
+        userId: user.id,
+      })
+      .catch(() => []);
+    return {
+      numbers: numbers.map((n) => ({
+        id: n.id,
+        phoneNumber: n.phoneNumber,
+        isoCountry: n.isoCountry,
+        kind: n.kind,
+        // Purchased DIDs are inherently usable; only external caller IDs carry a
+        // verification state (and `findRotatable` already returned it verified).
+        verified: n.kind === "verified_caller_id" ? n.verified : true,
+      })),
+    };
   }
 
   /**
@@ -304,37 +339,45 @@ export class ExtensionController {
       );
     }
 
-    // 3) Caller ID — always resolved server-side. Rotation-aware: when the
-    //    workspace enables number rotation the engine picks a country-matched
-    //    number from the pool; otherwise it returns the fixed caller ID.
-    const fixedCallerId = await this.resolveCallerId(ctx);
-    const selection = await this.callerIdRotationService.selectForDial(
+    // 3) Caller ID — always resolved server-side. The user's explicit "call
+    //    from this number" pick wins when it is still a valid caller ID for this
+    //    workspace/surface; otherwise fall back to the rotation-aware resolver
+    //    (rotation ON → country-matched pool pick, OFF → the fixed caller ID).
+    let callerId = await this.resolvePreferredCallerId(
       ctx,
-      destination,
-      { phoneNumber: fixedCallerId },
-      { allowOverCap: body.allowOverCap === true },
+      user.id,
+      body.preferredCallerId,
     );
-    const callerId = selection.phoneNumber;
     if (!callerId) {
-      if (selection.reason === "all_over_cap") {
-        this.fail(
-          "CALLER_ID_CAP_REACHED",
-          "Every number for this destination reached today's cap. Retry later or override.",
-          HttpStatus.CONFLICT,
-        );
-      }
-      if (selection.reason === "no_caller_id_for_country") {
-        this.fail(
-          "NO_CALLER_ID_FOR_COUNTRY",
-          "No caller ID is available for this destination's country. Add a number for it.",
-          HttpStatus.CONFLICT,
-        );
-      }
-      this.fail(
-        "NO_CALLER_ID",
-        "No caller ID is available for this workspace.",
-        HttpStatus.CONFLICT,
+      const fixedCallerId = await this.resolveCallerId(ctx);
+      const selection = await this.callerIdRotationService.selectForDial(
+        ctx,
+        destination,
+        { phoneNumber: fixedCallerId },
+        { allowOverCap: body.allowOverCap === true },
       );
+      callerId = selection.phoneNumber;
+      if (!callerId) {
+        if (selection.reason === "all_over_cap") {
+          this.fail(
+            "CALLER_ID_CAP_REACHED",
+            "Every number for this destination reached today's cap. Retry later or override.",
+            HttpStatus.CONFLICT,
+          );
+        }
+        if (selection.reason === "no_caller_id_for_country") {
+          this.fail(
+            "NO_CALLER_ID_FOR_COUNTRY",
+            "No caller ID is available for this destination's country. Add a number for it.",
+            HttpStatus.CONFLICT,
+          );
+        }
+        this.fail(
+          "NO_CALLER_ID",
+          "No caller ID is available for this workspace.",
+          HttpStatus.CONFLICT,
+        );
+      }
     }
 
     // 4) Attach the call to a contact (so it lands in the CRM timeline).
@@ -373,6 +416,27 @@ export class ExtensionController {
       credential,
       destination,
     };
+  }
+
+  /**
+   * The number the user explicitly chose in the side-panel picker, but only
+   * when it is still one of their allowed extension caller IDs. Returns null
+   * (→ fall back to normal resolution) when unset, malformed, or no longer
+   * valid — a stale pick must never silently spoof another workspace's number.
+   */
+  private async resolvePreferredCallerId(
+    ctx: ReturnType<typeof createOwnershipContext>,
+    userId: string,
+    preferred?: string,
+  ): Promise<string | null> {
+    const wanted = (preferred ?? "").trim();
+    if (!E164.test(wanted)) return null;
+    // Same list the picker shows — every active number of the workspace this
+    // user may present (no per-surface filter). Keeps pick + call consistent.
+    const allowed = await this.numberPurchasedService
+      .listOutboundCallerIds(ctx, { userId })
+      .catch(() => []);
+    return allowed.some((n) => n.phoneNumber === wanted) ? wanted : null;
   }
 
   /** Verified caller ID → purchased number → configured public line. */

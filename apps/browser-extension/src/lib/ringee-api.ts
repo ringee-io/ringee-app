@@ -23,6 +23,17 @@ export interface PrepareCallRequest {
   name?: string;
   company?: string;
   origin?: PageOrigin;
+  /** E.164 the user picked to call from; the backend uses it only if still valid. */
+  preferredCallerId?: string;
+}
+
+/** One outbound number the user may call from (picker in the panel header). */
+export interface WorkspaceNumber {
+  id: string;
+  phoneNumber: string; // E.164
+  isoCountry: string;
+  kind: "purchased" | "verified_caller_id" | string;
+  verified: boolean;
 }
 
 export interface PrepareCallResponse {
@@ -259,6 +270,11 @@ export class RingeeApi {
       method: "POST",
       body: JSON.stringify(input),
     });
+  }
+
+  /** The outbound numbers the user may call from — powers the "Call from" picker. */
+  listNumbers() {
+    return this.request<{ numbers: WorkspaceNumber[] }>("/extension/numbers");
   }
 
   /** Identity / active workspace for the side-panel header. */

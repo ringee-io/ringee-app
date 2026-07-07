@@ -8,6 +8,7 @@ import {
   NumberPurchased,
   NumberPurchasedRepository,
   NumberRequirementValueRepository,
+  OutboundSource,
   RequirementValueWithDocument,
   UserRepository,
 } from "@ringee/database";
@@ -66,6 +67,41 @@ export class NumberPurchasedService {
 
   findByOwner(ctx: OwnershipContext): Promise<NumberPurchased[]> {
     return this.numberPurchasedRepository.findByOwner(ctx);
+  }
+
+  /**
+   * The caller IDs the user may present for this workspace: purchased DIDs that
+   * are active or assigned, plus verified/active external caller IDs (see
+   * `findRotatable`). A number is dropped when it is still provisioning/released
+   * (any status other than active/assigned), when `allowedOutboundSources`
+   * excludes an explicitly-requested `source`, or when its per-user
+   * `allowedOutboundUserIds` excludes `userId`. Empty allow-lists mean "no
+   * restriction", and omitting `source` skips the surface filter entirely (the
+   * extension shows every active/assigned number). Used by surfaces that let the
+   * user pick which number to call from — the picked number is validated against
+   * this same list server-side.
+   */
+  async listOutboundCallerIds(
+    ctx: OwnershipContext,
+    opts: { source?: OutboundSource; userId: string },
+  ): Promise<NumberPurchased[]> {
+    const USABLE_STATUS = new Set(["active", "assigned"]);
+    const numbers = await this.numberPurchasedRepository.findRotatable(ctx);
+    return numbers.filter((n) => {
+      // Purchased DIDs must be in a usable state (active or assigned) — never a
+      // pending/porting/released row. Verified caller IDs carry no status; they
+      // are already gated on verified + active by `findRotatable`.
+      if (n.kind === "purchased" && n.status && !USABLE_STATUS.has(n.status)) {
+        return false;
+      }
+      const sources = n.allowedOutboundSources ?? [];
+      const users = n.allowedOutboundUserIds ?? [];
+      const sourceAllowed =
+        sources.length === 0 ||
+        (opts.source ? sources.includes(opts.source) : true);    
+        const userAllowed = users.length === 0 || users.includes(opts.userId);
+      return sourceAllowed && userAllowed;
+    });
   }
 
   /**

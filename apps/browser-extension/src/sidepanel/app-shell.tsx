@@ -2,6 +2,7 @@ import { AlertCircle, Home, Users } from "lucide-react";
 import { cn } from "@ringee/frontend-shared/lib/utils";
 import { RingeeLogo } from "./ringee-logo";
 import { CreditPill } from "./credit/credit-pill";
+import { CallerIdPicker } from "./caller-id/caller-id-picker";
 import { useApp, useNav, type Route, type Tab } from "./navigation";
 import { TodayScreen } from "./screens/today-screen";
 import { ContactsScreen } from "./screens/contacts-screen";
@@ -35,7 +36,8 @@ export function AppShell({
       {isRoot && (
         <header className="bg-background flex items-center justify-between px-4 py-3">
           <RingeeLogo className="h-6" />
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <CallerIdPicker api={api} />
             {me?.isAdmin ? (
               <CreditPill
                 api={api}
@@ -44,7 +46,7 @@ export function AppShell({
               />
             ) : (
               me && (
-                <span className="bg-muted text-muted-foreground max-w-[140px] truncate rounded-full px-2.5 py-1 text-xs font-medium">
+                <span className="bg-muted text-muted-foreground max-w-[96px] truncate rounded-full px-2.5 py-1 text-xs font-medium">
                   {me.firstName || me.workspaceName || "Ringee"}
                 </span>
               )
