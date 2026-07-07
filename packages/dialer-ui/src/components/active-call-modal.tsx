@@ -61,6 +61,19 @@ export type ActiveCallModalProps = {
   contactName?: string;
   statusText?: string;
 
+  /**
+   * Authoritative "the far end answered" signal, derived from the real Telnyx
+   * call state (`state === "active"`) by the host. When provided it gates both
+   * the connected visuals AND — critically — when the remote media stream is
+   * attached. Attaching `remoteStream` while the call is still *ringing* plays
+   * the carrier's early-media ringback on top of the SDK's local `ringbackFile`,
+   * so the caller hears the ring tone twice. Only playing it once truly
+   * connected keeps a single audio source through ringing → answer.
+   * Falls back to the elapsed-time heuristic when omitted (e.g. the extension,
+   * which plays remote audio out-of-band and passes `remoteStream={null}`).
+   */
+  isConnected?: boolean;
+
   isMuted?: boolean;
   isOnHold?: boolean;
   isRecording?: boolean;
@@ -99,6 +112,7 @@ export function ActiveCallModal({
   number,
   contactName,
   statusText = "Connecting...",
+  isConnected: isConnectedProp,
   isMuted = false,
   isOnHold = false,
   isRecording = false,
@@ -205,7 +219,11 @@ export function ActiveCallModal({
   }
 
   // --- ACTIVE CALL VIEW ---
-  const isConnected = statusText === "Connected" || elapsed > 0;
+  // Prefer the host's real call-state signal; the elapsed-time heuristic is a
+  // fallback only. This is what stops the remote early-media stream from being
+  // attached during ringing (which doubled the ring tone against ringbackFile).
+  const isConnected =
+    isConnectedProp ?? (statusText === "Connected" || elapsed > 0);
   const wide = showRightPanel;
 
   return (

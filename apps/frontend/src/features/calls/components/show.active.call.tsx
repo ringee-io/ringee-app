@@ -127,6 +127,7 @@ export function ShowActiveCall() {
       number={activeCall?.options?.destinationNumber || '+CALL'}
       contactName={contactName}
       statusText={statusText}
+      isConnected={activeCall?.state === 'active'}
       onHangup={handleHangup}
       onToggleHold={handleHold}
       onToggleMute={async () => await handleMute(!isMuted)}
