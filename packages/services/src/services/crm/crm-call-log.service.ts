@@ -97,6 +97,7 @@ export class CrmCallLogService {
       const matchResult = await this.matching.resolveByPhone(
         connection,
         counterpartPhone,
+        call.contactId,
       );
 
       const linkedRecords = matchResult.link
@@ -229,6 +230,72 @@ export class CrmCallLogService {
           body: `Recording link for call: ${recordingUrl}`,
         } as Record<string, unknown>,
         dedupeKey: `note.sync:${sync.connectionId}:${callId}:recording:v1`,
+      });
+    }
+  }
+
+  /**
+   * Attach a call's transcript to the CRM record. Transcription finishes
+   * asynchronously (after the recording is processed), so this runs separately
+   * from the initial call log:
+   * - if the call.log is still pending, fold the transcript into its payload so
+   *   the single note carries it;
+   * - if the call.log already synced, push the transcript as its own note.
+   * Mirrors {@link enqueueRecordingNote}; safe to call more than once (the
+   * note.sync is dedupe-keyed).
+   */
+  async enqueueTranscriptSync(
+    callId: string,
+    opts: { transcript?: string | null; transcriptUrl?: string | null },
+  ): Promise<void> {
+    const transcript = opts.transcript?.trim() || null;
+    const transcriptUrl = opts.transcriptUrl?.trim() || null;
+    if (!transcript && !transcriptUrl) return;
+
+    const syncs = await this.syncRepo.listByCall(callId);
+    if (!syncs || syncs.length === 0) return;
+
+    for (const sync of syncs) {
+      if (
+        sync.status === "pending" ||
+        sync.status === "needs_resolution" ||
+        sync.status === "failed"
+      ) {
+        const currentPayload = sync.payloadSnapshot as any;
+        if (transcript) currentPayload.transcript = transcript;
+        if (transcriptUrl) currentPayload.transcriptUrl = transcriptUrl;
+        await this.syncRepo.upsertPending({
+          connectionId: sync.connectionId,
+          provider: sync.provider,
+          callId: sync.callId,
+          idempotencyKey: sync.idempotencyKey,
+          payload: currentPayload,
+        });
+        continue;
+      }
+
+      // Only the terminal, successfully-linked syncs can receive a follow-up
+      // note; skip in-progress ones (drain will pick the payload up if pending).
+      if (sync.status !== "done" || !sync.externalRecordId) continue;
+
+      const body = transcript
+        ? transcriptUrl
+          ? `[View transcript](${transcriptUrl})\n\n${transcript}`
+          : transcript
+        : `[View transcript](${transcriptUrl})`;
+
+      await this.outbox.enqueue({
+        connectionId: sync.connectionId,
+        provider: sync.provider,
+        kind: "note.sync",
+        subjectId: sync.id,
+        payload: {
+          recordId: sync.externalRecordId,
+          recordType: sync.externalRecordType,
+          title: "Call Transcript",
+          body,
+        } as Record<string, unknown>,
+        dedupeKey: `note.sync:${sync.connectionId}:${callId}:transcript:v1`,
       });
     }
   }

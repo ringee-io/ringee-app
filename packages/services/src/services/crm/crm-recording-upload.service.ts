@@ -7,7 +7,7 @@ import {
   RecordingRepository,
   UserRepository,
 } from "@ringee/database";
-import { OwnershipContext } from "@ringee/platform";
+import { normalizePhoneE164, OwnershipContext } from "@ringee/platform";
 import { CrmConnectionService } from "./crm-connection.service";
 import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
 import { buildRecordingEventData } from "../custom-integrations/custom-integration-event-builders";
@@ -116,8 +116,18 @@ export class CrmRecordingUploadService {
         ? await this.linkRepo.listByContact(call.contactId)
         : [];
 
+      // Fallback lookup key: the counterpart's phone. Links created at call
+      // time are keyed by phone and (for historical calls) may lack a
+      // contactId, so listByContact alone misses them.
+      const counterpartE164 = normalizePhoneE164(callerPhone ?? "");
+
       for (const connection of connections) {
-        const link = links.find((l) => l.connectionId === connection.id);
+        let link = links.find((l) => l.connectionId === connection.id);
+        if (!link && counterpartE164) {
+          link =
+            (await this.linkRepo.findByPhone(connection.id, counterpartE164)) ??
+            undefined;
+        }
         if (!link) {
           this.logger.debug(
             `no CRM link for contact=${call.contactId} on connection=${connection.id}, skipping recording upload`,

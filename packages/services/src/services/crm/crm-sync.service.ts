@@ -112,12 +112,13 @@ export class CrmSyncService {
         (creds) => provider.logCall(creds, logInput),
       );
 
+      // `result.record` is always the person/company the call was logged
+      // against (even when the provider created it on the fly), so recording
+      // and transcript follow-ups target the right record instead of a note id.
       await this.syncRepo.markDone(sync.id, {
-        externalActivityId: result.externalId,
-        externalRecordId:
-          logInput.linkedRecords[0]?.externalId ?? result.externalId,
-        externalRecordType:
-          logInput.linkedRecords[0]?.externalType ?? result.externalType,
+        externalActivityId: result.activityId ?? null,
+        externalRecordId: result.record.externalId,
+        externalRecordType: result.record.externalType,
       });
       await this.connections.touchLastSync(connection.id);
       await this.outbox.markSent(event.id);

@@ -5,6 +5,7 @@ import type { CrmProvider } from "./provider";
 import type {
   CrmAuthorizeParams,
   CrmCallLogInput,
+  CrmCallLogResult,
   CrmCapabilities,
   CrmCompanyInput,
   CrmCompanyMatch,
@@ -62,7 +63,7 @@ export abstract class AbstractCrmProvider implements CrmProvider {
   abstract logCall(
     creds: CrmCredentials,
     input: CrmCallLogInput,
-  ): Promise<CrmRecordRef>;
+  ): Promise<CrmCallLogResult>;
   abstract addNote(
     creds: CrmCredentials,
     input: CrmNoteInput,

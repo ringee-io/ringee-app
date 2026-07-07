@@ -4,6 +4,7 @@ import { CrmError } from "../../errors";
 import type {
   CrmAuthorizeParams,
   CrmCallLogInput,
+  CrmCallLogResult,
   CrmCapabilities,
   CrmCompanyInput,
   CrmCompanyMatch,
@@ -475,7 +476,7 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
   async logCall(
     creds: CrmCredentials,
     input: CrmCallLogInput,
-  ): Promise<CrmRecordRef> {
+  ): Promise<CrmCallLogResult> {
     const odooCreds = parseOdooCredentials(creds);
     await this.authenticate(odooCreds);
 
@@ -546,7 +547,9 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
       );
     }
 
-    return target;
+    // Odoo logs into the partner's chatter (no separate activity id we can
+    // reliably surface), so the record IS the target and activityId is null.
+    return { record: target, activityId: null };
   }
 
   async addNote(

@@ -39,19 +39,42 @@ export class CrmMatchingService {
   async resolveByPhone(
     connection: CrmConnection,
     phoneRaw: string,
+    contactId?: string | null,
   ): Promise<ResolvedMatch> {
     const phoneE164 = normalizePhoneE164(phoneRaw);
     if (!phoneE164) return { link: null, candidates: [], phoneE164: null };
 
     const cached = await this.linkRepo.findByPhone(connection.id, phoneE164);
     if (cached) {
+      // Backfill the Ringee contactId onto a phone-only link so downstream
+      // features that resolve by contact (recording upload, notes, tasks) find
+      // it. Links created before this call knew the contact have contactId=null.
+      if (contactId && !cached.contactId) {
+        const updated = await this.linkRepo
+          .upsertLink({
+            connectionId: connection.id,
+            provider: connection.provider,
+            externalId: cached.externalId,
+            externalType: cached.externalType,
+            phoneNumberE164: phoneE164,
+            contactId,
+            matchConfidence: cached.matchConfidence ?? undefined,
+          })
+          .catch(() => cached);
+        return { link: updated, candidates: [], phoneE164 };
+      }
       return { link: cached, candidates: [], phoneE164 };
     }
 
     const cacheKey = `crm-match-${connection.id}-${phoneE164}`;
     const cachedCandidates = await this.redis.get<CrmRecordMatch[]>(cacheKey);
     if (cachedCandidates) {
-      return this.fromCandidates(connection, phoneE164, cachedCandidates);
+      return this.fromCandidates(
+        connection,
+        phoneE164,
+        cachedCandidates,
+        contactId,
+      );
     }
 
     const provider = this.registry.get(connection.provider);
@@ -82,13 +105,14 @@ export class CrmMatchingService {
     }
 
     await this.redis.set(cacheKey, candidates, MATCH_CACHE_TTL_MS);
-    return this.fromCandidates(connection, phoneE164, candidates);
+    return this.fromCandidates(connection, phoneE164, candidates, contactId);
   }
 
   private async fromCandidates(
     connection: CrmConnection,
     phoneE164: string,
     candidates: CrmRecordMatch[],
+    contactId?: string | null,
   ): Promise<ResolvedMatch> {
     const exact = candidates.filter((c) => c.matchedOn === "phone_exact");
 
@@ -100,6 +124,7 @@ export class CrmMatchingService {
         externalId: picked.externalId,
         externalType: picked.externalType,
         phoneNumberE164: phoneE164,
+        contactId: contactId ?? null,
         matchConfidence: "phone_exact",
         rawSnapshot: (picked.raw ?? null) as never,
       });

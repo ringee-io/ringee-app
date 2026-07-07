@@ -5,6 +5,7 @@ import { CrmError } from "../../errors";
 import type {
   CrmAuthorizeParams,
   CrmCallLogInput,
+  CrmCallLogResult,
   CrmCapabilities,
   CrmCompanyInput,
   CrmCompanyMatch,
@@ -296,7 +297,7 @@ export class AttioProvider extends AbstractCrmProvider {
   async logCall(
     creds: CrmCredentials,
     input: CrmCallLogInput,
-  ): Promise<CrmRecordRef> {
+  ): Promise<CrmCallLogResult> {
     let target = input.linkedRecords[0];
 
     if (!target && input.needsPersonCreation) {
@@ -336,9 +337,17 @@ export class AttioProvider extends AbstractCrmProvider {
       body,
     });
 
+    // `record` is the person/company the note is attached to — this is what
+    // follow-up syncs (recording/transcript notes and file uploads) must
+    // target. `activityId` is the note we just created. Returning the note_id
+    // as the record id here (as before) silently broke those follow-ups when
+    // the person was created inside this call.
     return {
-      externalId: res.data.id.note_id,
-      externalType: target.externalType,
+      record: {
+        externalId: target.externalId,
+        externalType: target.externalType,
+      },
+      activityId: res.data.id.note_id,
     };
   }
 

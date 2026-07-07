@@ -27,6 +27,7 @@ import {
   livePartialKey,
   trackToSpeaker,
 } from "./transcription.constants";
+import { CrmCallLogService } from "../crm/crm-call-log.service";
 
 /** Per-Telnyx-connection bridge state. */
 interface BridgeState {
@@ -63,6 +64,7 @@ export class TranscriptionMediaGateway
     private readonly transcriptionRepo: CallTranscriptionRepository,
     private readonly redisService: RedisService,
     private readonly httpAdapterHost: HttpAdapterHost,
+    private readonly crmCallLogService: CrmCallLogService,
   ) {}
 
   onModuleInit(): void {
@@ -302,14 +304,35 @@ export class TranscriptionMediaGateway
 
     // Give Deepgram a beat to flush the last final before we stamp completion.
     setTimeout(() => {
-      void this.transcriptionRepo
-        .markStatus(state.transcriptionId!, finalStatus, {
-          completedAt: new Date(),
-        })
-        .catch(() => undefined);
-      this.logger.log(
-        `🏁 Media stream finalized for call ${state.callId} (${finalStatus})`,
-      );
+      void (async () => {
+        await this.transcriptionRepo
+          .markStatus(state.transcriptionId!, finalStatus, {
+            completedAt: new Date(),
+          })
+          .catch(() => undefined);
+
+        // Push the completed live transcript onto the CRM record (best-effort).
+        if (finalStatus === TranscriptionStatus.completed) {
+          const header = await this.transcriptionRepo
+            .findHeaderById(state.transcriptionId!)
+            .catch(() => null);
+          if (header?.text) {
+            await this.crmCallLogService
+              .enqueueTranscriptSync(state.callId, { transcript: header.text })
+              .catch((err) =>
+                this.logger.warn(
+                  `CRM transcript sync (realtime) failed for call ${state.callId}: ${
+                    err instanceof Error ? err.message : String(err)
+                  }`,
+                ),
+              );
+          }
+        }
+
+        this.logger.log(
+          `🏁 Media stream finalized for call ${state.callId} (${finalStatus})`,
+        );
+      })();
     }, 2000);
   }
 }

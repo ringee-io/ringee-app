@@ -3,6 +3,7 @@ import { CrmError } from "./errors";
 import {
   CrmAuthorizeParams,
   CrmCallLogInput,
+  CrmCallLogResult,
   CrmCapabilities,
   CrmCompanyInput,
   CrmCompanyMatch,
@@ -72,7 +73,10 @@ export interface CrmProvider {
   ): Promise<CrmRecordRef>;
 
   // Logging
-  logCall(creds: CrmCredentials, input: CrmCallLogInput): Promise<CrmRecordRef>;
+  logCall(
+    creds: CrmCredentials,
+    input: CrmCallLogInput,
+  ): Promise<CrmCallLogResult>;
   addNote(creds: CrmCredentials, input: CrmNoteInput): Promise<CrmRecordRef>;
 
   // Tasks (optional)

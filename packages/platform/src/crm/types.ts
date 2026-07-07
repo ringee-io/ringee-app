@@ -80,6 +80,20 @@ export type CrmCallLogInput = {
   } | null;
 };
 
+/**
+ * Result of logging a call. Splits the two distinct entities a provider may
+ * produce so callers never conflate them:
+ * - `record`: the person/company the call was logged against. This is what
+ *   later follow-ups (recording/transcript notes, file uploads) must target.
+ * - `activityId`: the id of the note/activity entity created for the call, if
+ *   the provider makes a separate one (e.g. Attio note_id). `null` when the
+ *   provider logs into the record itself without a distinct activity id.
+ */
+export type CrmCallLogResult = {
+  record: CrmRecordRef;
+  activityId?: string | null;
+};
+
 export type CrmNoteInput = {
   recordId: string;
   recordType: CrmRecordType;

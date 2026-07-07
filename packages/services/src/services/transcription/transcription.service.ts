@@ -25,6 +25,7 @@ import {
 } from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
 import { CreditService } from "../credit.service";
+import { CrmCallLogService } from "../crm/crm-call-log.service";
 import {
   CallTranscriptionView,
   TranscriptionView,
@@ -44,6 +45,7 @@ export class TranscriptionService {
     private readonly orchestratorService: OrchestratorService,
     private readonly redisService: RedisService,
     private readonly creditService: CreditService,
+    private readonly crmCallLogService: CrmCallLogService,
   ) {}
 
   // ── Access control ────────────────────────────────────────────────────
@@ -521,6 +523,16 @@ export class TranscriptionService {
       this.logger.log(
         `✅ Recording transcription completed for call ${callId} (${result.segments.length} segments)`,
       );
+
+      // Best-effort: push the transcript onto the CRM record. Never let a CRM
+      // failure break transcription.
+      await this.crmCallLogService
+        .enqueueTranscriptSync(callId, { transcript: result.text })
+        .catch((crmErr: Error) =>
+          this.logger.warn(
+            `CRM transcript sync enqueue failed for call ${callId}: ${crmErr.message}`,
+          ),
+        );
     } catch (err) {
       await this.transcriptionRepo.markStatus(
         header.id,
