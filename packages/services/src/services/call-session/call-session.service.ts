@@ -36,6 +36,7 @@ import { CallRecordingSettingsService } from "../transcription";
 import { CallRepository } from "@ringee/database";
 import { CallSessionAccessTokenService } from "./call-session-access-token.service";
 import { PipelineFanoutService } from "../ai-pipeline";
+import { CrmCallLogService } from "../crm/crm-call-log.service";
 import { CallerIdRotationService } from "../caller-id-rotation/caller-id-rotation.service";
 
 const MIN_CREDIT_BALANCE_TO_CALL = 0.01;
@@ -100,6 +101,7 @@ export class CallSessionService {
     private readonly recordingSettingsService: CallRecordingSettingsService,
     private readonly pipelineFanout: PipelineFanoutService,
     private readonly callerIdRotationService: CallerIdRotationService,
+    private readonly crmCallLog: CrmCallLogService,
   ) {}
 
   // ── Ownership & access ──────────────────────────────────────
@@ -771,6 +773,14 @@ export class CallSessionService {
         );
       // AI Pipeline: fan out the finalized outcome (magic-link path).
       this.pipelineFanout.handleCallFinalized(callId);
+      // CRM: fold outcome + notes + duration into the deferred call-log note.
+      void this.crmCallLog
+        .enqueueOutcomeUpdate(callId)
+        .catch((err: Error) =>
+          this.logger.warn(
+            `crm outcome update failed for call ${callId}: ${err.message}`,
+          ),
+        );
     }
 
     const itemUpdates: Prisma.CallSessionItemUpdateInput = {

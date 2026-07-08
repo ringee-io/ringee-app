@@ -52,21 +52,31 @@ export function mapAttioPersonToMatch(
   };
 }
 
+function formatCallDuration(seconds: number): string {
+  const total = Math.max(0, Math.round(seconds));
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
+  if (mins === 0) return `${secs}s`;
+  if (secs === 0) return `${mins}m`;
+  return `${mins}m ${secs}s`;
+}
+
 export function buildCallLogNote(input: CrmCallLogInput): {
   title: string;
   content: string;
 } {
   const startedAt = input.startedAt.toISOString();
-  const durationMin = input.durationSeconds
-    ? Math.max(1, Math.round(input.durationSeconds / 60))
-    : null;
+  const durationLabel =
+    input.durationSeconds != null
+      ? formatCallDuration(input.durationSeconds)
+      : null;
   const lines: string[] = [
     `**${input.direction === "outbound" ? "Outbound" : "Inbound"} call** — ${startedAt}`,
   ];
   lines.push("");
   lines.push(`**From:** ${input.from}`);
   lines.push(`**To:** ${input.to}`);
-  if (durationMin !== null) lines.push(`**Duration:** ${durationMin} min`);
+  if (durationLabel !== null) lines.push(`**Duration:** ${durationLabel}`);
   if (input.outcomeLabel) lines.push(`**Outcome:** ${input.outcomeLabel}`);
   if (input.agentName) lines.push(`**Agent:** ${input.agentName}`);
   if (input.notes && input.notes.trim()) {
@@ -88,6 +98,10 @@ export function buildCallLogNote(input: CrmCallLogInput): {
         .replace(/\b\w/g, (c) => c.toUpperCase());
       lines.push(`- **${label}:** ${String(val)}`);
     }
+  }
+  if (input.meetingUrl) {
+    lines.push("");
+    lines.push(`[Join meeting](${input.meetingUrl})`);
   }
   if (input.recordingUrl) {
     lines.push("");

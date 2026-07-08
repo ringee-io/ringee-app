@@ -70,6 +70,8 @@ export type CrmCallLogInput = {
   insights?: Record<string, unknown> | null;
   agentName?: string | null;
   agentEmail?: string | null;
+  /** Video-meeting join URL (e.g. Google Meet) when a meeting was booked. */
+  meetingUrl?: string | null;
   linkedRecords: CrmRecordRef[];
   needsPersonCreation?: {
     displayName?: string | null;

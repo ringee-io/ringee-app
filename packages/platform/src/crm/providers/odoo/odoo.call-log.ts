@@ -64,6 +64,11 @@ export function buildOdooCallLog(input: CrmCallLogInput): {
     }
     lines.push(`</ul>`);
   }
+  if (input.meetingUrl) {
+    lines.push(
+      `<p><a href="${escapeAttr(input.meetingUrl)}" target="_blank" rel="noopener">Join meeting</a></p>`,
+    );
+  }
   if (input.recordingUrl) {
     lines.push(
       `<p><a href="${escapeAttr(input.recordingUrl)}" target="_blank" rel="noopener">Listen to recording</a></p>`,

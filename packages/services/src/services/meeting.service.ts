@@ -17,6 +17,7 @@ import {
 } from "@ringee/database";
 import { OwnershipContext } from "@ringee/platform";
 import { CalendarService } from "./calendar.service";
+import { CrmCallLogService } from "./crm/crm-call-log.service";
 import { CrmMeetingSyncService } from "./crm/crm-meeting-sync.service";
 import { ReminderService } from "./reminders/reminder.service";
 import { ContactRepository } from "@ringee/database";
@@ -42,6 +43,7 @@ export class MeetingService {
     private readonly contactRepo: ContactRepository,
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
     private readonly pipelineFanout: PipelineFanoutService,
+    private readonly crmCallLog: CrmCallLogService,
   ) {}
 
   private async enqueueMeetingCreated(meeting: Meeting): Promise<void> {
@@ -58,10 +60,24 @@ export class MeetingService {
     });
   }
 
-  private async enqueueOutcomeUpdated(call: Call): Promise<void> {
+  private async enqueueOutcomeUpdated(
+    call: Call,
+    meetingUrl?: string | null,
+  ): Promise<void> {
     // AI Pipeline: fan out the finalized outcome to enabled pipelines (counters
     // + Layer 1 rule actions). Fire-and-forget; never blocks the outcome write.
     this.pipelineFanout.handleCallFinalized(call.id);
+
+    // CRM: fold the finalized outcome + notes + duration (+ meeting link, when a
+    // meeting was booked) into the call-log note (deferred at hangup so it can
+    // carry the disposition).
+    void this.crmCallLog
+      .enqueueOutcomeUpdate(call.id, { meetingUrl: meetingUrl ?? null })
+      .catch((err: Error) =>
+        this.logger.warn(
+          `crm outcome update failed for call ${call.id}: ${err.message}`,
+        ),
+      );
 
     const ctx = callOwnershipFromCall(call);
     if (!ctx) return;
@@ -103,15 +119,17 @@ export class MeetingService {
       notes: dto.notes,
     });
 
-    // Auto-set call outcome to meeting_booked if linked to a call
+    // Auto-set call outcome to meeting_booked if linked to a call. Fold the
+    // fanout in below, AFTER the calendar event, so the Meet link makes it into
+    // the same call-log note.
+    let bookedCall: Call | null = null;
     if (dto.callId) {
       const call = await this.callRepo.findById(dto.callId);
       if (call) {
-        const updated = await this.callRepo.updateOutcome(
+        bookedCall = await this.callRepo.updateOutcome(
           call.id,
           CallOutcome.meeting_booked,
         );
-        await this.enqueueOutcomeUpdated(updated);
       }
     }
 
@@ -137,6 +155,15 @@ export class MeetingService {
       // No calendar connected or API error — don't block meeting creation
       this.logger.debug(
         `Skipped calendar sync for meeting ${meeting.id}: ${(err as Error).message}`,
+      );
+    }
+
+    // Now that we have the Meet link, fan out the meeting_booked outcome so the
+    // call-log note carries the join URL alongside the disposition.
+    if (bookedCall) {
+      await this.enqueueOutcomeUpdated(
+        bookedCall,
+        calendarResult?.meetLink ?? null,
       );
     }
 
