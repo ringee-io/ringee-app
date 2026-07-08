@@ -100,7 +100,7 @@ export default defineManifest((env) => {
     // Present only when CRX_KEY is set, so the extension ID stays stable.
     ...(crxKey ? { key: crxKey } : {}),
     name: "Ringee — Low-cost outbound dialing",
-    version: "0.1.3",
+    version: "0.1.4",
     description:
       "Modern, low-cost outbound dialing. Call any number on any page with the real Ringee dialer over WebRTC — no per-seat tax.",
     minimum_chrome_version: "116", // offscreen + sidePanel APIs
