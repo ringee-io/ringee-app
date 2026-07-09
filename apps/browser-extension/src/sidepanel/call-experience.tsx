@@ -55,7 +55,13 @@ export function CallExperience() {
     reset: resetCallStore,
   } = useCallStore();
 
-  const api = useMemo(() => new RingeeApi(() => getToken()), [getToken]);
+  const api = useMemo(
+    () =>
+      new RingeeApi((opts) =>
+        getToken(opts?.forceRefresh ? { skipCache: true } : undefined),
+      ),
+    [getToken],
+  );
 
   // Identity / admin flag / workspace label for the shell header.
   useEffect(() => {
@@ -100,8 +106,14 @@ export function CallExperience() {
         duration,
         contactName: snap.contact?.name ?? null,
         contactId: snap.contact?.id ?? null,
+        // prepare-call returns no Ringee callId up front (the Call row is created
+        // later from the Telnyx `call.initiated` webhook). Hand the backend the
+        // Telnyx session id instead — `/meetings/call-outcome` resolves the Call
+        // from it. Without this the disposition is silently dropped (the
+        // post-call save no-ops when both ids are null) and the CRM note never
+        // gets the outcome/notes folded in.
         callId: snap.callId ?? null,
-        callSessionId: null,
+        callSessionId: snap.telnyxSessionId ?? null,
       });
     }
     prevState.current = snap.state;
@@ -136,7 +148,12 @@ export function CallExperience() {
   // make the "schedule callback / book meeting" forms show after a call ends.
   const slots = useMemo<DialerSlots>(
     () => ({
-      renderScheduleCallback: ({ contactId, callId, onScheduled, onCancel }) => (
+      renderScheduleCallback: ({
+        contactId,
+        callId,
+        onScheduled,
+        onCancel,
+      }) => (
         <ScheduleCallbackForm
           api={api}
           notify={notify}

@@ -295,7 +295,11 @@ export class InfrastructureRepository {
 
     const rangeSql = Prisma.sql`c."startedAt" BETWEEN ${filters.start} AND ${filters.end}`;
     const scopeSql = Prisma.sql`${ownerSql} AND ${rangeSql} ${filterSql}`;
-    const answered = Prisma.sql`c."status" IN ('answered','recording','completed')`;
+    // "Answered/connected" = the callee actually picked up (answeredAt set) or
+    // the call is live-answered. `completed` is excluded on purpose: every call
+    // reaches it on hangup, answered or not, so counting it marks unanswered
+    // calls as answered.
+    const answered = Prisma.sql`(c."answeredAt" IS NOT NULL OR c."status" IN ('answered','recording'))`;
 
     // Fixed windows for the overview cards.
     const now = new Date();

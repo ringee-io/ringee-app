@@ -139,10 +139,15 @@ function dateRange(ctx: DashboardContext) {
   return { start, end };
 }
 
+// A call counts as "answered/connected" only when the callee actually picked
+// up — i.e. `answeredAt` is set (from the Telnyx `call.answered` webhook). These
+// are the transient *live* answered states; do NOT include `completed`, which
+// EVERY call reaches on hangup whether or not it was ever answered (that made
+// unanswered calls show as answered — the "all my calls are answered" bug). The
+// authoritative signal is the `answeredAt IS NOT NULL` clause OR'd alongside.
 const ANSWERED_STATUSES: CallStatus[] = [
   CallStatus.answered,
   CallStatus.recording,
-  CallStatus.completed,
 ];
 
 @Injectable()
@@ -560,7 +565,7 @@ export class DashboardRepository {
         u."lastName",
         COUNT(*)::int AS total,
         COUNT(*) FILTER (
-          WHERE c.status IN ('answered','recording','completed')
+          WHERE c.status IN ('answered','recording')
              OR c."answeredAt" IS NOT NULL
         )::int AS answered,
         COUNT(*) FILTER (WHERE c.outcome = 'meeting_booked')::int AS meetings,

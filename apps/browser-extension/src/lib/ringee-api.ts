@@ -232,21 +232,27 @@ export interface CallDetail {
   } | null;
 }
 
-type TokenProvider = () => Promise<string | null>;
+/**
+ * Supplies the Clerk JWT for a request. `forceRefresh` skips Clerk's in-memory
+ * token cache — the short-lived session JWT (~60s) goes stale while the side
+ * panel sits open, and a cached-but-expired token is exactly what makes the
+ * backend answer 401 ("de-authenticated, can't fetch data"). We retry those
+ * once with a freshly-minted token before surfacing the error.
+ */
+type TokenProvider = (opts?: {
+  forceRefresh?: boolean;
+}) => Promise<string | null>;
 
 export class RingeeApi {
   constructor(private readonly getToken: TokenProvider) {}
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
-    const token = await this.getToken();
-    const res = await fetch(`${API_URL}${path}`, {
-      ...init,
-      headers: {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(init?.headers ?? {}),
-      },
-    });
+    let res = await this.fetchWithToken(path, init, false);
+    // Stale Clerk JWT → force a refresh and try once more before giving up. This
+    // is the single most common cause of the panel "losing" auth mid-session.
+    if (res.status === 401) {
+      res = await this.fetchWithToken(path, init, true);
+    }
     if (!res.ok) {
       let code: PrepareCallErrorCode = "UNKNOWN";
       let message = res.statusText;
@@ -262,6 +268,22 @@ export class RingeeApi {
       throw new ApiError(res.status, code, message);
     }
     return res.status === 204 ? (undefined as T) : ((await res.json()) as T);
+  }
+
+  private async fetchWithToken(
+    path: string,
+    init: RequestInit | undefined,
+    forceRefresh: boolean,
+  ): Promise<Response> {
+    const token = await this.getToken({ forceRefresh }).catch(() => null);
+    return fetch(`${API_URL}${path}`, {
+      ...init,
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(init?.headers ?? {}),
+      },
+    });
   }
 
   /** Backend-gated pre-call: validate → workspace → credits → DNC → caller ID → contact → creds. */
@@ -448,7 +470,10 @@ export class RingeeApi {
     return this.request<CallFull>(`/mobile/calls/${encodeURIComponent(id)}`);
   }
 
-  setCallOutcome(id: string, input: { outcome: CallOutcome; outcomeNote?: string }) {
+  setCallOutcome(
+    id: string,
+    input: { outcome: CallOutcome; outcomeNote?: string },
+  ) {
     return this.request<void>(
       `/mobile/calls/${encodeURIComponent(id)}/outcome`,
       {

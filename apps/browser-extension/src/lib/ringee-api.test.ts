@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { mapStatusToErrorCode } from "./ringee-api";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { ApiError, RingeeApi, mapStatusToErrorCode } from "./ringee-api";
 
 describe("mapStatusToErrorCode", () => {
   it("maps HTTP statuses to stable prepare-call error codes", () => {
@@ -12,5 +12,52 @@ describe("mapStatusToErrorCode", () => {
   it("falls back to UNKNOWN for unmapped statuses", () => {
     expect(mapStatusToErrorCode(500)).toBe("UNKNOWN");
     expect(mapStatusToErrorCode(418)).toBe("UNKNOWN");
+  });
+});
+
+describe("RingeeApi auth retry", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  const jsonResponse = (status: number, body: unknown) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
+
+  it("retries once with a force-refreshed token after a 401", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(jsonResponse(401, { message: "expired" }))
+      .mockResolvedValueOnce(jsonResponse(200, { id: "u1" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const calls: Array<{ forceRefresh?: boolean } | undefined> = [];
+    const api = new RingeeApi(async (opts) => {
+      calls.push(opts);
+      return opts?.forceRefresh ? "fresh-token" : "stale-token";
+    });
+
+    const user = await api.getCurrentUser();
+
+    expect(user).toEqual({ id: "u1" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    // First attempt uses the cached token, the retry forces a refresh.
+    expect(calls[0]?.forceRefresh).toBeFalsy();
+    expect(calls[1]?.forceRefresh).toBe(true);
+    const retryAuth = (fetchMock.mock.calls[1][1] as RequestInit)
+      .headers as Record<string, string>;
+    expect(retryAuth.Authorization).toBe("Bearer fresh-token");
+  });
+
+  it("surfaces the error when the retry also fails", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(401, { message: "nope" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new RingeeApi(async () => "token");
+
+    await expect(api.getCurrentUser()).rejects.toBeInstanceOf(ApiError);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

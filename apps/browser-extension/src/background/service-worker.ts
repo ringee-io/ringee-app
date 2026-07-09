@@ -42,9 +42,16 @@ async function clerk() {
     syncHost: SYNC_HOST,
   });
 }
-async function getToken(): Promise<string | null> {
+async function getToken(opts?: {
+  forceRefresh?: boolean;
+}): Promise<string | null> {
   const c = await clerk();
-  return c.session ? c.session.getToken() : null;
+  if (!c.session) return null;
+  // Skip Clerk's in-memory cache when we're retrying a 401 — the cached
+  // short-lived JWT has usually just expired.
+  return c.session.getToken(
+    opts?.forceRefresh ? { skipCache: true } : undefined,
+  );
 }
 async function getIdentity(): Promise<{
   userId: string;
