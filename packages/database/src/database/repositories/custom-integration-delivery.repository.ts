@@ -7,6 +7,15 @@ import {
 } from "@prisma/client";
 import { PrismaService } from "../prisma.service";
 
+/**
+ * Lease window for a claimed delivery. If the draining worker dies before the
+ * delivery reaches a terminal state, the lease lapses after this and the next
+ * drain reclaims it instead of leaving it stuck in `sending` forever. Kept well
+ * above the drain activity's worst-case runtime so an in-flight drain is never
+ * robbed of its own deliveries.
+ */
+const CLAIM_LEASE_MS = 10 * 60 * 1000;
+
 @Injectable()
 export class CustomIntegrationDeliveryRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -53,8 +62,15 @@ export class CustomIntegrationDeliveryRepository {
     now: Date,
     batchSize: number,
   ): Promise<CustomIntegrationDelivery[]> {
+    // Due = freshly `pending`, OR `sending` whose lease has already expired (the
+    // worker that claimed them died/timed-out before completing). Without
+    // reclaiming the latter, a crashed drain strands deliveries in `sending`
+    // forever, since this query previously only looked at `pending`.
     const due = await this.prisma.customIntegrationDelivery.findMany({
-      where: { status: "pending", nextAttemptAt: { lte: now } },
+      where: {
+        status: { in: ["pending", "sending"] },
+        nextAttemptAt: { lte: now },
+      },
       orderBy: { nextAttemptAt: "asc" },
       take: batchSize,
       select: { id: true },
@@ -62,14 +78,18 @@ export class CustomIntegrationDeliveryRepository {
     if (due.length === 0) return [];
     const ids = due.map((d) => d.id);
     await this.prisma.customIntegrationDelivery.updateMany({
-      where: { id: { in: ids }, status: "pending" },
+      where: {
+        id: { in: ids },
+        status: { in: ["pending", "sending"] },
+        nextAttemptAt: { lte: now },
+      },
       data: {
         status: "sending",
-        nextAttemptAt: new Date(now.getTime() + 120_000),
+        nextAttemptAt: new Date(now.getTime() + CLAIM_LEASE_MS),
       },
     });
     return this.prisma.customIntegrationDelivery.findMany({
-      where: { id: { in: ids } },
+      where: { id: { in: ids }, status: "sending" },
     });
   }
 
