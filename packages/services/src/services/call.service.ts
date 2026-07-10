@@ -72,6 +72,45 @@ export class CallService {
   ) {}
 
   /**
+   * Persist a post-call disposition and IMMEDIATELY push it to the CRM, so the
+   * call-log note fires the moment the agent picks an outcome / closes / skips
+   * instead of sitting in the outbox until the hangup grace window elapses.
+   *
+   * Centralized here on purpose: every disposition entry point (web dialer,
+   * mobile, extension) must trigger the sync. Historically only the magic-link
+   * session path called {@link CrmCallLogService.enqueueOutcomeUpdate}, so
+   * web/mobile dispositions silently waited out the full grace window.
+   *
+   * `outcome` is optional — a bare "close"/"skip" with no outcome still
+   * finalizes the note with whatever metadata the call already carries.
+   */
+  async setOutcome(
+    callId: string,
+    opts: { outcome?: CallOutcome | null; outcomeNote?: string | null } = {},
+  ): Promise<Call | null> {
+    const call =
+      opts.outcome != null
+        ? await this.callRepository.updateOutcome(
+            callId,
+            opts.outcome,
+            opts.outcomeNote ?? undefined,
+          )
+        : await this.callRepository.findById(callId);
+
+    // Best-effort: fold the finalized disposition into the deferred call-log
+    // note and make it due now. CRM problems must never fail the disposition.
+    void this.crmCallLogService
+      .enqueueOutcomeUpdate(callId)
+      .catch((err: Error) =>
+        this.logger.warn(
+          `crm outcome update failed for call ${callId}: ${err.message}`,
+        ),
+      );
+
+    return call;
+  }
+
+  /**
    * Apply the call owner's recording/transcription settings when a call is
    * answered. Both actions are best-effort: a transcription/recording failure
    * must never break webhook processing of the live call.

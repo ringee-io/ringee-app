@@ -22,6 +22,7 @@ import {
   RedisService,
 } from "@ringee/platform";
 import {
+  formatTranscriptWithSpeakers,
   LIVE_PARTIAL_TTL_MS,
   LivePartial,
   livePartialKey,
@@ -316,9 +317,19 @@ export class TranscriptionMediaGateway
           const header = await this.transcriptionRepo
             .findHeaderById(state.transcriptionId!)
             .catch(() => null);
-          if (header?.text) {
+          // Prefer the speaker-labeled rendering (Agent/Contact via per-track
+          // segments); fall back to the flat header text if segments are
+          // unavailable.
+          const segments = await this.transcriptionRepo
+            .getSegmentsByTranscription(state.transcriptionId!)
+            .catch(() => []);
+          const transcript =
+            segments.length > 0
+              ? formatTranscriptWithSpeakers(segments)
+              : (header?.text ?? "");
+          if (transcript) {
             await this.crmCallLogService
-              .enqueueTranscriptSync(state.callId, { transcript: header.text })
+              .enqueueTranscriptSync(state.callId, { transcript })
               .catch((err) =>
                 this.logger.warn(
                   `CRM transcript sync (realtime) failed for call ${state.callId}: ${

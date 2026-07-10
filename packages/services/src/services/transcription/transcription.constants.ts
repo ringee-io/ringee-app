@@ -25,3 +25,56 @@ export const trackToSpeaker = (
   if (track === "inbound") return 1;
   return null;
 };
+
+/**
+ * Render transcript segments as a speaker-labeled markdown transcript for the
+ * CRM note. Attribution:
+ *  - Telnyx per-track live streams are reliable → "Agent" (outbound track) and
+ *    "Contact" (inbound track).
+ *  - Deepgram diarization on a single-channel recording only yields an
+ *    unordered speaker index that does NOT map to a role, so those are labeled
+ *    "Speaker 1/2…" instead of guessing Agent vs Contact (never mislabel).
+ * Consecutive segments from the same speaker are merged into one block.
+ */
+export function formatTranscriptWithSpeakers(
+  segments: Array<{
+    text: string;
+    speaker?: number | null;
+    track?: string | null;
+  }>,
+): string {
+  const labelFor = (seg: {
+    speaker?: number | null;
+    track?: string | null;
+  }): string | null => {
+    if (seg.track === "outbound") return "Agent";
+    if (seg.track === "inbound") return "Contact";
+    if (seg.speaker != null) return `Speaker ${seg.speaker + 1}`;
+    return null;
+  };
+
+  const blocks: string[] = [];
+  let label: string | null | undefined = undefined;
+  let buffer: string[] = [];
+
+  const flush = () => {
+    if (buffer.length === 0) return;
+    const text = buffer.join(" ").replace(/\s+/g, " ").trim();
+    if (text) blocks.push(label ? `**${label}:** ${text}` : text);
+    buffer = [];
+  };
+
+  for (const seg of segments) {
+    const t = seg.text?.trim();
+    if (!t) continue;
+    const segLabel = labelFor(seg);
+    if (segLabel !== label) {
+      flush();
+      label = segLabel;
+    }
+    buffer.push(t);
+  }
+  flush();
+
+  return blocks.join("\n\n");
+}

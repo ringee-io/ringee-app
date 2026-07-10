@@ -168,6 +168,16 @@ export function PostCallView({ onClose }: PostCallViewProps) {
     setShowCallback(false);
   };
 
+  const handleSkip = () => {
+    // Closed without an outcome: still push the call to the CRM now so its note
+    // doesn't wait out the hangup grace window. Best-effort — closing the
+    // post-call view must never depend on the CRM call succeeding.
+    if (callId) {
+      void data.finalizeCall?.({ callId }).catch(() => undefined);
+    }
+    onClose();
+  };
+
   const handleOutcomeClick = (id: CallOutcome) => {
     setOutcome(id);
     // Selecting `callback_scheduled` immediately opens the date/time picker.
@@ -344,7 +354,7 @@ export function PostCallView({ onClose }: PostCallViewProps) {
       {/* Actions */}
       <div className="flex items-center gap-3">
         <button
-          onClick={onClose}
+          onClick={handleSkip}
           className="text-muted-foreground hover:text-foreground flex-shrink-0 text-xs transition-colors"
         >
           Skip

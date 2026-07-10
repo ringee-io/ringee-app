@@ -344,6 +344,17 @@ export class RingeeApi {
     });
   }
 
+  /**
+   * Finalize a call closed without an outcome (Skip / close) so its CRM note
+   * fires now instead of waiting out the hangup grace window.
+   */
+  finalizeCall(input: { callId: string }) {
+    return this.request<void>(
+      `/mobile/calls/${encodeURIComponent(input.callId)}/finalize`,
+      { method: "POST" },
+    );
+  }
+
   /** Book a meeting against a contact (same endpoint + shape the web app uses). */
   bookMeeting(input: {
     contactId: string;

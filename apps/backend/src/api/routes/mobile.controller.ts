@@ -201,15 +201,31 @@ export class MobileController {
     if (!call) throw new NotFoundException("Call not found");
     this.assertVisible(call, ctx);
 
-    await this.prisma.call.update({
-      where: { id },
-      data: {
-        outcome: body.outcome,
-        ...(body.outcomeNote !== undefined
-          ? { outcomeNote: body.outcomeNote }
-          : {}),
-      },
+    // Persist + trigger the CRM sync now (fires the note immediately instead of
+    // waiting out the hangup grace window). See CallService.setOutcome.
+    await this.callService.setOutcome(id, {
+      outcome: body.outcome,
+      outcomeNote: body.outcomeNote ?? null,
     });
+    return { ok: true };
+  }
+
+  /**
+   * Finalize the post-call step when the agent closes/skips WITHOUT choosing an
+   * outcome. Doesn't change the call — just pushes whatever metadata it already
+   * has to the CRM now, so the note doesn't wait out the grace window.
+   */
+  @Post("calls/:id/finalize")
+  async finalizeCall(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id") id: string,
+  ) {
+    const ctx = createOwnershipContext(user);
+    const call = await this.prisma.call.findUnique({ where: { id } });
+    if (!call) throw new NotFoundException("Call not found");
+    this.assertVisible(call, ctx);
+
+    await this.callService.setOutcome(id, {});
     return { ok: true };
   }
 

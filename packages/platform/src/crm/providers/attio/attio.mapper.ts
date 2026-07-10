@@ -74,11 +74,16 @@ export function buildCallLogNote(input: CrmCallLogInput): {
     `**${input.direction === "outbound" ? "Outbound" : "Inbound"} call** — ${startedAt}`,
   ];
   lines.push("");
-  lines.push(`**From:** ${input.from}`);
-  lines.push(`**To:** ${input.to}`);
-  if (durationLabel !== null) lines.push(`**Duration:** ${durationLabel}`);
-  if (input.outcomeLabel) lines.push(`**Outcome:** ${input.outcomeLabel}`);
-  if (input.agentName) lines.push(`**Agent:** ${input.agentName}`);
+  // Render the call metadata as a markdown LIST (one item per line). Attio's
+  // block editor imports list items reliably; plain consecutive `**Label:**`
+  // lines get folded into a single paragraph and their inline values can be
+  // dropped on import — which is why From/To were landing blank even though the
+  // Call row has both numbers. (Matches the Insights list rendering below.)
+  if (input.from) lines.push(`- **From:** ${input.from}`);
+  if (input.to) lines.push(`- **To:** ${input.to}`);
+  if (durationLabel !== null) lines.push(`- **Duration:** ${durationLabel}`);
+  if (input.outcomeLabel) lines.push(`- **Outcome:** ${input.outcomeLabel}`);
+  if (input.agentName) lines.push(`- **Agent:** ${input.agentName}`);
   if (input.notes && input.notes.trim()) {
     lines.push("");
     lines.push("**Notes**");
@@ -112,11 +117,13 @@ export function buildCallLogNote(input: CrmCallLogInput): {
   }
   if (input.transcript && input.transcript.trim()) {
     lines.push("");
-    lines.push("<details><summary>Transcript</summary>");
+    // Attio markdown supports headings/lists/bold/italic/strike/highlight/links
+    // but NOT raw HTML — a `<details>` block makes Attio reject the whole note
+    // with a 400 validation error (which is non-retryable, so the note is lost).
+    // Use a level-3 heading (supported) instead of a collapsible HTML section.
+    lines.push("### Transcript");
     lines.push("");
     lines.push(input.transcript.trim());
-    lines.push("");
-    lines.push("</details>");
   }
   lines.push("");
   lines.push(`_Synced from Ringee · ${input.idempotencyKey}_`);

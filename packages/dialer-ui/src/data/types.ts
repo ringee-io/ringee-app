@@ -21,6 +21,13 @@ export interface DialerDataClient {
     outcome: CallOutcome;
     outcomeNote?: string;
   }): Promise<void>;
+
+  /**
+   * Finalize a call closed WITHOUT an outcome (Skip / close) so its CRM note
+   * fires now instead of waiting out the hangup grace window. Optional — hosts
+   * that don't wire it up simply skip the early push.
+   */
+  finalizeCall?(input: { callId: string }): Promise<void>;
 }
 
 /** Workspace recording policy that gates the manual record/transcribe buttons. */

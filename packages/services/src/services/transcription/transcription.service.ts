@@ -30,7 +30,11 @@ import {
   CallTranscriptionView,
   TranscriptionView,
 } from "./transcription.types";
-import { LivePartial, livePartialKey } from "./transcription.constants";
+import {
+  formatTranscriptWithSpeakers,
+  LivePartial,
+  livePartialKey,
+} from "./transcription.constants";
 
 @Injectable()
 export class TranscriptionService {
@@ -525,9 +529,15 @@ export class TranscriptionService {
       );
 
       // Best-effort: push the transcript onto the CRM record. Never let a CRM
-      // failure break transcription.
+      // failure break transcription. Use the speaker-labeled rendering so the
+      // note separates who said what (Agent/Contact for per-track, Speaker N
+      // for diarized recordings) instead of one undifferentiated block.
+      const crmTranscript =
+        result.segments.length > 0
+          ? formatTranscriptWithSpeakers(result.segments)
+          : result.text;
       await this.crmCallLogService
-        .enqueueTranscriptSync(callId, { transcript: result.text })
+        .enqueueTranscriptSync(callId, { transcript: crmTranscript })
         .catch((crmErr: Error) =>
           this.logger.warn(
             `CRM transcript sync enqueue failed for call ${callId}: ${crmErr.message}`,

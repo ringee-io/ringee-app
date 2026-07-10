@@ -127,6 +127,8 @@ export function CallExperience() {
         outcome: Parameters<RingeeApi["saveCallOutcome"]>[0]["outcome"];
         outcomeNote?: string;
       }) => api.saveCallOutcome(input).then(() => undefined),
+      finalizeCall: (input: { callId: string }) =>
+        api.finalizeCall(input).then(() => undefined),
     }),
     [api],
   );

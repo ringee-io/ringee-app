@@ -123,6 +123,10 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
             outcome: input.outcome,
             outcomeNote: input.outcomeNote || undefined
           })
+          .then(() => undefined),
+      finalizeCall: (input: { callId: string }) =>
+        api
+          .post(`/mobile/calls/${input.callId}/finalize`, {})
           .then(() => undefined)
     }),
     [api]

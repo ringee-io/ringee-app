@@ -57,12 +57,15 @@ export class CrmCallLogService {
     } = {},
   ): Promise<void> {
     try {
-      // Hangup fires before the agent records the disposition — defer the note
-      // so enqueueOutcomeUpdate can fold the outcome/notes into the same note.
-      await this.enqueueCallLog(call, {
-        ...opts,
-        deferMs: opts.deferMs ?? OUTCOME_GRACE_MS,
-      });
+      // Answered calls: hangup fires before the agent records the disposition,
+      // so defer the note — enqueueOutcomeUpdate (triggered when the agent
+      // picks an outcome / closes / skips) folds it in and makes it due now.
+      // The grace window is only the fallback for calls that are never
+      // dispositioned. Unanswered calls (no answer / voicemail / busy) have no
+      // disposition coming, so there is nothing to wait for — fire immediately.
+      const deferMs =
+        opts.deferMs ?? (call.answeredAt != null ? OUTCOME_GRACE_MS : 0);
+      await this.enqueueCallLog(call, { ...opts, deferMs });
     } catch (err) {
       this.logger.error(
         `crm call-log failed to enqueue for call=${call.id}: ${
