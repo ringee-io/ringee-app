@@ -61,7 +61,7 @@
       },
       "verifyModal": {
         "title": "{phone} verifiëren",
-        "description": "Voer de {digits}-cijferige code in die we naar je nummer hebben gestuurd.",
+        "description": "Voer de code in die we naar je nummer hebben gestuurd.",
         "resend": "Code opnieuw versturen",
         "submit": "Verifiëren",
         "submitting": "Verifiëren…",

@@ -61,7 +61,7 @@
       },
       "verifyModal": {
         "title": "{phone} verifizieren",
-        "description": "Geben Sie den {digits}-stelligen Code ein, den wir an Ihre Nummer gesendet haben.",
+        "description": "Geben Sie den Code ein, den wir an Ihre Nummer gesendet haben.",
         "resend": "Code erneut senden",
         "submit": "Verifizieren",
         "submitting": "Verifizieren…",

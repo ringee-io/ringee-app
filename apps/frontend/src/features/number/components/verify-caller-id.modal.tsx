@@ -14,14 +14,8 @@ import {
   DialogHeader,
   DialogTitle
 } from '@ringee/frontend-shared/components/ui/dialog';
-import {
-  InputOTP,
-  InputOTPGroup,
-  InputOTPSlot
-} from '@ringee/frontend-shared/components/ui/input-otp';
+import { Input } from '@ringee/frontend-shared/components/ui/input';
 import type { CallerId } from './caller-id.types';
-
-const CODE_LENGTH = 6;
 
 export function VerifyCallerIdModal({
   callerId,
@@ -46,7 +40,7 @@ export function VerifyCallerIdModal({
   }, [callerId?.id]);
 
   const submit = async (value: string) => {
-    if (!callerId || value.length !== CODE_LENGTH) return;
+    if (!callerId || value.length === 0) return;
     setSubmitting(true);
     try {
       await api.post(`/telephony/caller-id/${callerId.id}/verify`, {
@@ -94,26 +88,26 @@ export function VerifyCallerIdModal({
             {t('verifyModal.title', { phone: callerId?.phoneNumber ?? '' })}
           </DialogTitle>
           <DialogDescription>
-            {t('verifyModal.description', { digits: CODE_LENGTH })}
+            {t('verifyModal.description')}
           </DialogDescription>
         </DialogHeader>
 
         <div className='flex flex-col items-center gap-4 py-2'>
-          <InputOTP
-            maxLength={CODE_LENGTH}
+          <Input
+            inputMode='numeric'
+            autoComplete='one-time-code'
+            autoFocus
+            placeholder='••••••'
             value={code}
-            onChange={(value) => {
-              setCode(value);
-              if (value.length === CODE_LENGTH) void submit(value);
+            onChange={(e) =>
+              setCode(e.target.value.replace(/\D/g, ''))
+            }
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void submit(code);
             }}
             disabled={submitting}
-          >
-            <InputOTPGroup>
-              {Array.from({ length: CODE_LENGTH }).map((_, i) => (
-                <InputOTPSlot key={i} index={i} />
-              ))}
-            </InputOTPGroup>
-          </InputOTP>
+            className='text-center text-lg tracking-[0.3em]'
+          />
 
           <button
             type='button'
@@ -135,7 +129,7 @@ export function VerifyCallerIdModal({
           </Button>
           <Button
             onClick={() => submit(code)}
-            disabled={submitting || code.length !== CODE_LENGTH}
+            disabled={submitting || code.length === 0}
           >
             {submitting && (
               <IconLoader2 className='mr-2 h-4 w-4 animate-spin' />
