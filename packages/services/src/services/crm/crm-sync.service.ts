@@ -336,7 +336,7 @@ export class CrmSyncService {
     err: unknown,
   ): Promise<void> {
     if (err instanceof CrmError) {
-      const message = `${err.code}: ${err.message}`;
+      const message = this.describeError(err);
       if (err.code === "AUTH_REVOKED" || err.code === "AUTH_EXPIRED") {
         // AUTH_EXPIRED reaching here means runWithFreshCredentials already tried
         // a reactive refresh and it also failed — treat as terminal.
@@ -368,7 +368,7 @@ export class CrmSyncService {
       return;
     }
 
-    const message = err instanceof Error ? err.message : String(err);
+    const message = this.describeError(err);
     if (event.attemptCount + 1 < MAX_OUTBOX_ATTEMPTS) {
       const nextAttemptAt = this.computeBackoff(event.attemptCount + 1);
       await this.syncRepo.scheduleRetry(sync.id, nextAttemptAt, message);
@@ -383,11 +383,13 @@ export class CrmSyncService {
     event: CrmOutboxEvent,
     err: unknown,
   ): Promise<void> {
-    const message = err instanceof Error ? err.message : String(err);
-    this.logger.error(`outbox event ${event.id} failed: ${message}`);
+    const message = this.describeError(err);
+    this.logger.error(
+      `outbox event ${event.id} (kind=${event.kind}, connection=${event.connectionId}) failed: ${message}`,
+    );
 
     if (err instanceof CrmError && !err.retryable) {
-      await this.outbox.markFailed(event.id, `${err.code}: ${err.message}`);
+      await this.outbox.markFailed(event.id, message);
       return;
     }
 
@@ -402,6 +404,35 @@ export class CrmSyncService {
     } else {
       await this.outbox.markFailed(event.id, message);
     }
+  }
+
+  /**
+   * Human-readable error string that PRESERVES the provider's response body.
+   * Attio (and the other CRMs) return the real reason for a 4xx/5xx in the JSON
+   * body; `CrmError.message` alone is just "server 500" / "validation error", so
+   * the body is what actually explains why a note/meeting was rejected. Without
+   * this the failure is undiagnosable from the logs or the stored `lastError`.
+   */
+  private describeError(err: unknown): string {
+    if (err instanceof CrmError) {
+      const details = this.stringifyDetails(err.providerDetails);
+      return details
+        ? `${err.code}: ${err.message} — ${details}`
+        : `${err.code}: ${err.message}`;
+    }
+    return err instanceof Error ? err.message : String(err);
+  }
+
+  private stringifyDetails(details: unknown): string | null {
+    if (details == null) return null;
+    let s: string;
+    try {
+      s = typeof details === "string" ? details : JSON.stringify(details);
+    } catch {
+      return null;
+    }
+    if (!s) return null;
+    return s.length > 800 ? `${s.slice(0, 800)}…` : s;
   }
 
   private computeBackoff(attempt: number, retryAfterMs?: number): Date {
