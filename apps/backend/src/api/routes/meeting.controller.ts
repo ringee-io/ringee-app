@@ -118,13 +118,17 @@ export class MeetingController {
     return this.meetingService.cancelMeeting(ctx, id);
   }
 
+  /**
+   * Post-call disposition. `outcome` is optional: skip/close send the same
+   * request without one, which still pushes the CRM call-log note immediately.
+   */
   @Post("call-outcome")
   async updateCallOutcome(
     @Body()
     dto: {
       callId?: string;
       callSessionId?: string;
-      outcome: string;
+      outcome?: string;
       outcomeNote?: string;
     },
     @CurrentUser() user: CurrentUserData,
@@ -143,6 +147,10 @@ export class MeetingController {
 
     if (!callId) {
       throw new BadRequestException("callId or callSessionId is required");
+    }
+
+    if (!dto.outcome) {
+      return this.meetingService.finalizeCall(ctx, callId);
     }
 
     return this.meetingService.updateCallOutcome(ctx, callId, {

@@ -7,25 +7,39 @@ import {
   ContactRepository,
   CrmCallSyncRepository,
   CrmOutboxRepository,
+  NumberPurchasedRepository,
   UserRepository,
 } from "@ringee/database";
 import type { CrmCallLogInput } from "@ringee/platform";
-import { OwnershipContext } from "@ringee/platform";
+import {
+  normalizePhoneE164,
+  OrchestratorService,
+  OwnershipContext,
+} from "@ringee/platform";
 import { CrmConnectionService } from "./crm-connection.service";
 import { CrmMatchingService } from "./crm-matching.service";
 
 const MIN_DURATION_SECONDS = 3;
 
-// The call-log note is enqueued on hangup, but the agent records the outcome
-// and notes a few seconds/minutes later in the post-call view. Defer the note
-// so the disposition can be folded into the same note before it reaches the
-// CRM (see enqueueOutcomeUpdate). If no disposition is ever recorded, the note
-// still syncs after this window with the call metadata alone.
-const OUTCOME_GRACE_MS = 3 * 60 * 1000;
-
 function outcomeLabel(outcome?: CallOutcome | null): string | null {
   if (!outcome) return null;
   return outcome.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+/**
+ * Turn a raw Call from/to value into a displayable E.164 number, or null.
+ * WebRTC legs report SIP URIs — "sip:+1809...@sip.telnyx.com" (number
+ * recoverable) or "sip:gencredXYZ@..." (browser credential, NOT a number) —
+ * and Attio renders such values as an empty label, which is how "From:/To:"
+ * showed up blank in the note. Credential usernames must never leak.
+ */
+function displayPhone(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  const trimmed = raw.trim();
+  const sipUser = trimmed.match(/^sips?:([^@;]+)/i);
+  const candidate = sipUser ? sipUser[1] : trimmed;
+  if (!/^\+?[\d\s().-]+$/.test(candidate)) return null;
+  return normalizePhoneE164(candidate);
 }
 
 @Injectable()
@@ -40,32 +54,49 @@ export class CrmCallLogService {
     private readonly contactRepo: ContactRepository,
     private readonly callRepo: CallRepository,
     private readonly userRepo: UserRepository,
+    private readonly numberRepo: NumberPurchasedRepository,
+    private readonly orchestrator: OrchestratorService,
   ) {}
 
-  async handleCallCompleted(
+  /**
+   * Resolve the note's From/To display numbers. Falls back to the presented
+   * caller ID (outbound `from`, via the Call's callerId link) and the Ringee
+   * contact's phone when the raw Call values aren't real numbers (SIP legs).
+   */
+  private async resolveDisplayNumbers(
     call: Call,
-    opts: {
-      recordingUrl?: string | null;
-      notes?: string | null;
-      agentName?: string | null;
-      transcript?: string | null;
-      transcriptUrl?: string | null;
-      summary?: string | null;
-      insights?: Record<string, unknown> | null;
-      meetingUrl?: string | null;
-      deferMs?: number;
-    } = {},
-  ): Promise<void> {
+    direction: "inbound" | "outbound",
+    contactPhone: string | null | undefined,
+  ): Promise<{ from: string | null; to: string | null }> {
+    let from = displayPhone(call.fromNumber);
+    let to = displayPhone(call.toNumber);
+    const counterpart = displayPhone(contactPhone);
+
+    if (direction === "outbound") {
+      to = to ?? counterpart;
+      if (!from && call.callerIdId) {
+        const number = await this.numberRepo
+          .findById(call.callerIdId)
+          .catch(() => null);
+        from = displayPhone(number?.phoneNumber);
+      }
+    } else {
+      from = from ?? counterpart;
+    }
+    return { from, to };
+  }
+
+  async handleCallCompleted(call: Call): Promise<void> {
     try {
-      // Answered calls: hangup fires before the agent records the disposition,
-      // so defer the note — enqueueOutcomeUpdate (triggered when the agent
-      // picks an outcome / closes / skips) folds it in and makes it due now.
-      // The grace window is only the fallback for calls that are never
-      // dispositioned. Unanswered calls (no answer / voicemail / busy) have no
-      // disposition coming, so there is nothing to wait for — fire immediately.
-      const deferMs =
-        opts.deferMs ?? (call.answeredAt != null ? OUTCOME_GRACE_MS : 0);
-      await this.enqueueCallLog(call, { ...opts, deferMs });
+      // Answered calls from a dialer UI hold their note at hangup: only the
+      // sync snapshot is prepared, and the push happens exclusively when the
+      // user saves an outcome / skips / closes (enqueueOutcomeUpdate) — there
+      // is NO timed fallback. Calls that never get that request push straight
+      // from the hangup webhook: unanswered attempts and desk-phone (SIP)
+      // calls, which have no post-call view.
+      const holdForDisposition =
+        call.answeredAt != null && call.source !== "sip_device";
+      await this.enqueueCallLog(call, { holdForDisposition });
     } catch (err) {
       this.logger.error(
         `crm call-log failed to enqueue for call=${call.id}: ${
@@ -73,6 +104,21 @@ export class CrmCallLogService {
         }`,
       );
     }
+  }
+
+  /**
+   * Start an on-demand Temporal crmDrain so the just-enqueued outbox events
+   * push to the CRM now instead of on the next 60s schedule tick. Best-effort:
+   * if Temporal is unreachable the scheduled drain still picks the events up.
+   */
+  private triggerImmediateDrain(callId: string): void {
+    void this.orchestrator
+      .triggerCrmDrain(`call:${callId}`)
+      .catch((err: Error) =>
+        this.logger.warn(
+          `could not trigger immediate crm drain for call=${callId}: ${err.message}`,
+        ),
+      );
   }
 
   /** Best-effort display name of the agent who placed/received the call. */
@@ -96,15 +142,19 @@ export class CrmCallLogService {
   async enqueueCallLog(
     call: Call,
     opts: {
-      recordingUrl?: string | null;
-      notes?: string | null;
-      agentName?: string | null;
-      transcript?: string | null;
-      transcriptUrl?: string | null;
-      summary?: string | null;
-      insights?: Record<string, unknown> | null;
       meetingUrl?: string | null;
-      deferMs?: number;
+      /**
+       * Prepare the sync snapshot but do NOT enqueue the outbox push — the
+       * user's post-call request (save/skip/close, campaign dispose) fires it
+       * via enqueueOutcomeUpdate. Recording/transcript folds keep working
+       * against the prepared snapshot in the meantime.
+       */
+      holdForDisposition?: boolean;
+      /**
+       * Human label for the disposition when the Call has no CallOutcome —
+       * campaign dispositions can use custom codes outside the enum.
+       */
+      fallbackOutcomeLabel?: string | null;
     } = {},
   ): Promise<void> {
     if (!call.userId) return;
@@ -118,11 +168,7 @@ export class CrmCallLogService {
       return;
     }
 
-    const agentName =
-      opts.agentName ?? (await this.resolveAgentName(call.userId));
-    const nextAttemptAt = opts.deferMs
-      ? new Date(Date.now() + opts.deferMs)
-      : undefined;
+    const agentName = await this.resolveAgentName(call.userId);
 
     const ctx: OwnershipContext = {
       userId: call.userId,
@@ -141,12 +187,20 @@ export class CrmCallLogService {
     const counterpartPhone =
       direction === "outbound" ? call.toNumber : call.fromNumber;
 
+    let enqueuedNow = false;
+
     // If Ringee already has a contact for this call, propagate its
     // name/email to the CRM so the partner gets created with real data
     // instead of just the phone number.
     const ringeeContact = call.contactId
       ? await this.contactRepo.findById(call.contactId).catch(() => null)
       : null;
+
+    const { from, to } = await this.resolveDisplayNumbers(
+      call,
+      direction,
+      ringeeContact?.phoneNumber,
+    );
 
     for (const connection of connections) {
       const matchResult = await this.matching.resolveByPhone(
@@ -183,19 +237,20 @@ export class CrmCallLogService {
         idempotencyKey,
         ringeeCallId: call.id,
         direction,
-        from: call.fromNumber,
-        to: call.toNumber,
+        from,
+        to,
         startedAt: call.startedAt ?? call.createdAt,
         endedAt: call.endedAt ?? null,
         durationSeconds: call.durationSeconds ?? null,
         outcome: call.outcome ?? null,
-        outcomeLabel: outcomeLabel(call.outcome),
-        notes: opts.notes ?? call.outcomeNote ?? null,
-        recordingUrl: opts.recordingUrl ?? null,
-        transcript: opts.transcript ?? null,
-        transcriptUrl: opts.transcriptUrl ?? null,
-        summary: opts.summary ?? null,
-        insights: opts.insights ?? null,
+        outcomeLabel:
+          outcomeLabel(call.outcome) ?? opts.fallbackOutcomeLabel ?? null,
+        notes: call.outcomeNote ?? null,
+        recordingUrl: null,
+        transcript: null,
+        transcriptUrl: null,
+        summary: null,
+        insights: null,
         agentName: agentName ?? null,
         agentEmail: null,
         meetingUrl: opts.meetingUrl ?? null,
@@ -220,6 +275,10 @@ export class CrmCallLogService {
         continue;
       }
 
+      // Held notes only get their outbox event from the user's post-call
+      // request (enqueueOutcomeUpdate) — never from the hangup webhook.
+      if (opts.holdForDisposition) continue;
+
       await this.outbox.enqueue({
         connectionId: connection.id,
         provider: connection.provider,
@@ -227,43 +286,76 @@ export class CrmCallLogService {
         subjectId: sync.id,
         payload: { syncId: sync.id } as Record<string, unknown>,
         dedupeKey: `call.log:${connection.id}:${call.id}:v1`,
-        nextAttemptAt,
       });
+      enqueuedNow = true;
     }
+
+    // Due-now events (unanswered hangups, dispositions with no prior sync)
+    // shouldn't wait for the next scheduled drain tick.
+    if (enqueuedNow) this.triggerImmediateDrain(call.id);
   }
 
   /**
    * Fold the finalized disposition (outcome, notes, duration, agent) into the
-   * call-log note once the agent records it in the post-call view. The hangup
-   * log is deferred (see OUTCOME_GRACE_MS), so the pending note usually hasn't
-   * reached the CRM yet — we refresh its frozen snapshot and make it due now so
-   * a single note carries everything. Mirrors {@link enqueueRecordingNote}:
-   * - pending/failed sync → refresh the snapshot and enqueue immediately;
+   * call-log note and push it to the CRM immediately — this fires the moment
+   * the user saves an outcome OR skips/closes the post-call view (and when a
+   * campaign disposition is submitted). Mirrors {@link enqueueRecordingNote}:
+   * - pending/failed sync → refresh the snapshot and enqueue due now;
    * - already-synced note → append a compact follow-up (late disposition);
    * - no sync yet → enqueue the log now with the finalized call.
+   * Every path ends by kicking an on-demand Temporal crmDrain, so the note
+   * lands in the CRM within seconds instead of on the next schedule tick.
    * Safe to call more than once (idempotency + dedupe keys).
    */
   async enqueueOutcomeUpdate(
     callId: string,
-    opts: { meetingUrl?: string | null } = {},
+    opts: {
+      meetingUrl?: string | null;
+      /** Disposition label used when the Call has no CallOutcome (custom campaign codes). */
+      fallbackOutcomeLabel?: string | null;
+    } = {},
   ): Promise<void> {
     const call = await this.callRepo.findById(callId).catch(() => null);
     if (!call) return;
     const meetingUrl = opts.meetingUrl?.trim() || null;
+    const label =
+      outcomeLabel(call.outcome) ?? opts.fallbackOutcomeLabel ?? null;
 
     const syncs = await this.syncRepo.listByCall(callId);
     if (!syncs || syncs.length === 0) {
-      await this.enqueueCallLog(call, { meetingUrl });
+      // enqueueCallLog fires due-now events and triggers the drain itself.
+      await this.enqueueCallLog(call, {
+        meetingUrl,
+        fallbackOutcomeLabel: opts.fallbackOutcomeLabel,
+      });
       return;
     }
 
     const agentName = await this.resolveAgentName(call.userId);
 
+    // Re-resolve the display numbers so snapshots that froze a raw SIP URI
+    // (WebRTC legs) get the clean E.164 values before the note goes out.
+    const direction: "inbound" | "outbound" = ["inbound", "incoming"].includes(
+      call.direction ?? "",
+    )
+      ? "inbound"
+      : "outbound";
+    const contact = call.contactId
+      ? await this.contactRepo.findById(call.contactId).catch(() => null)
+      : null;
+    const { from, to } = await this.resolveDisplayNumbers(
+      call,
+      direction,
+      contact?.phoneNumber,
+    );
+
     for (const sync of syncs) {
       if (sync.status === "pending" || sync.status === "failed") {
         const currentPayload = sync.payloadSnapshot as Record<string, unknown>;
+        currentPayload.from = from;
+        currentPayload.to = to;
         currentPayload.outcome = call.outcome ?? null;
-        currentPayload.outcomeLabel = outcomeLabel(call.outcome);
+        currentPayload.outcomeLabel = label;
         currentPayload.notes = call.outcomeNote ?? currentPayload.notes ?? null;
         currentPayload.durationSeconds =
           call.durationSeconds ?? currentPayload.durationSeconds ?? null;
@@ -279,7 +371,8 @@ export class CrmCallLogService {
           idempotencyKey: sync.idempotencyKey,
           payload: currentPayload,
         });
-        // The hangup log was deferred; the disposition is in now, so let it go.
+        // The hangup log was held for this request; the disposition is in
+        // now, so let it go.
         await this.outbox.enqueue({
           connectionId: sync.connectionId,
           provider: sync.provider,
@@ -292,11 +385,10 @@ export class CrmCallLogService {
         continue;
       }
 
-      // Note already in the CRM (outcome saved after the grace window) — append
-      // a compact disposition note so the info still lands on the record.
+      // Note already in the CRM (e.g. outcome saved again later from history)
+      // — append a compact disposition note so the info still lands.
       if (sync.status !== "done" || !sync.externalRecordId) continue;
 
-      const label = outcomeLabel(call.outcome);
       const parts: string[] = [];
       if (label) parts.push(`**Outcome:** ${label}`);
       if (call.outcomeNote && call.outcomeNote.trim()) {
@@ -324,6 +416,8 @@ export class CrmCallLogService {
         dedupeKey: `note.sync:${sync.connectionId}:${callId}:disposition:v1`,
       });
     }
+
+    this.triggerImmediateDrain(callId);
   }
 
   async manualRetry(syncId: string): Promise<void> {

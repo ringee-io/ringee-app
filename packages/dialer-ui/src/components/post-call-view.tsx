@@ -169,11 +169,16 @@ export function PostCallView({ onClose }: PostCallViewProps) {
   };
 
   const handleSkip = () => {
-    // Closed without an outcome: still push the call to the CRM now so its note
-    // doesn't wait out the hangup grace window. Best-effort — closing the
-    // post-call view must never depend on the CRM call succeeding.
-    if (callId) {
-      void data.finalizeCall?.({ callId }).catch(() => undefined);
+    // Closed without an outcome: same request as saving (minus the outcome) so
+    // the CRM note still fires immediately with whatever the call carries.
+    // Best-effort — closing the post-call view must never depend on it.
+    if (callId || callSessionId) {
+      void data
+        .saveCallOutcome({
+          callId: callId || undefined,
+          callSessionId: callSessionId || undefined,
+        })
+        .catch(() => undefined);
     }
     onClose();
   };
@@ -238,36 +243,34 @@ export function PostCallView({ onClose }: PostCallViewProps) {
           Successful Outcomes
         </p>
         <div className="grid grid-cols-2 gap-2.5">
-          {OUTCOMES.filter((o) => ["sale", "meeting_booked"].includes(o.id)).map(
-            (o) => {
-              const Icon = o.icon;
-              const isSelected = outcome === o.id;
-              return (
-                <button
-                  key={o.id}
-                  onClick={() => handleOutcomeClick(o.id)}
+          {OUTCOMES.filter((o) =>
+            ["sale", "meeting_booked"].includes(o.id),
+          ).map((o) => {
+            const Icon = o.icon;
+            const isSelected = outcome === o.id;
+            return (
+              <button
+                key={o.id}
+                onClick={() => handleOutcomeClick(o.id)}
+                className={cn(
+                  "flex items-center gap-3 rounded-xl border p-3 text-sm font-semibold transition-all duration-200 active:scale-95",
+                  isSelected
+                    ? cn(o.bgActive, "scale-[1.02] shadow-md")
+                    : "border-border/60 bg-card hover:border-border hover:bg-muted/30 hover:shadow-sm",
+                )}
+              >
+                <div
                   className={cn(
-                    "flex items-center gap-3 rounded-xl border p-3 text-sm font-semibold transition-all duration-200 active:scale-95",
-                    isSelected
-                      ? cn(o.bgActive, "scale-[1.02] shadow-md")
-                      : "border-border/60 bg-card hover:border-border hover:bg-muted/30 hover:shadow-sm",
+                    "flex items-center justify-center rounded-lg p-2 transition-colors",
+                    isSelected ? "bg-background/50" : "bg-muted/50",
                   )}
                 >
-                  <div
-                    className={cn(
-                      "flex items-center justify-center rounded-lg p-2 transition-colors",
-                      isSelected ? "bg-background/50" : "bg-muted/50",
-                    )}
-                  >
-                    <Icon
-                      className={cn("h-5 w-5", isSelected ? "" : o.color)}
-                    />
-                  </div>
-                  <span>{o.label}</span>
-                </button>
-              );
-            },
-          )}
+                  <Icon className={cn("h-5 w-5", isSelected ? "" : o.color)} />
+                </div>
+                <span>{o.label}</span>
+              </button>
+            );
+          })}
         </div>
 
         <p className="text-muted-foreground mt-2 text-xs font-medium tracking-wider uppercase">

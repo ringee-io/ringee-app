@@ -1,9 +1,12 @@
 import { Injectable, Logger, NotFoundException } from "@nestjs/common";
 import {
   CallAttemptRepository,
+  CallOutcome,
+  CallRepository,
   CampaignLeadRepository,
   CallAttemptStatus,
   CampaignLeadStatus,
+  Disposition,
 } from "@ringee/database";
 import { AgentSessionService } from "./agent-session.service";
 import { DispositionService } from "./disposition.service";
@@ -12,6 +15,7 @@ import { CallbackService } from "./callback.service";
 import { ComplianceService } from "./compliance.service";
 import { SSEBridgeService } from "./sse-bridge.service";
 import { AgentSessionStatus } from "@ringee/database";
+import { CrmCallLogService } from "../crm/crm-call-log.service";
 
 @Injectable()
 export class CallAttemptService {
@@ -26,6 +30,8 @@ export class CallAttemptService {
     private readonly callbackService: CallbackService,
     private readonly complianceService: ComplianceService,
     private readonly sseBridge: SSEBridgeService,
+    private readonly callRepo: CallRepository,
+    private readonly crmCallLog: CrmCallLogService,
   ) {}
 
   async createAttempt(data: {
@@ -295,11 +301,59 @@ export class CallAttemptService {
       );
     }
 
+    // Persist the disposition on the linked Call and push the CRM call-log
+    // note immediately — this request is the only thing that fires the note
+    // for campaign calls; without it the notes never left the attempt row.
+    const callId = attempt.callId ?? current.callId;
+    if (callId) {
+      await this.applyDispositionToCall(callId, disposition, data.note);
+    }
+
     this.logger.log(
       `Disposition '${disposition.code}' submitted for attempt ${data.callAttemptId}, action: ${action}`,
     );
 
     return { action };
+  }
+
+  /**
+   * Mirror a campaign disposition onto the Call row (system codes map 1:1 to
+   * the CallOutcome enum; custom codes keep the note only) and fold it into
+   * the CRM call-log note right away. Best-effort — a CRM/DB hiccup must never
+   * fail the disposition submit.
+   */
+  private async applyDispositionToCall(
+    callId: string,
+    disposition: Disposition,
+    note?: string,
+  ): Promise<void> {
+    const mappedOutcome = (Object.values(CallOutcome) as string[]).includes(
+      disposition.code,
+    )
+      ? (disposition.code as CallOutcome)
+      : null;
+
+    try {
+      if (mappedOutcome) {
+        await this.callRepo.updateOutcome(callId, mappedOutcome, note);
+      } else if (note) {
+        await this.callRepo.updateOutcomeNote(callId, note);
+      }
+    } catch (err) {
+      this.logger.warn(
+        `could not persist disposition on call ${callId}: ${(err as Error).message}`,
+      );
+    }
+
+    void this.crmCallLog
+      .enqueueOutcomeUpdate(callId, {
+        fallbackOutcomeLabel: mappedOutcome ? null : disposition.label,
+      })
+      .catch((err: Error) =>
+        this.logger.warn(
+          `crm outcome update failed for call ${callId}: ${err.message}`,
+        ),
+      );
   }
 
   async getAttemptById(attemptId: string) {

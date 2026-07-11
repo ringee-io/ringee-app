@@ -201,8 +201,8 @@ export class MobileController {
     if (!call) throw new NotFoundException("Call not found");
     this.assertVisible(call, ctx);
 
-    // Persist + trigger the CRM sync now (fires the note immediately instead of
-    // waiting out the hangup grace window). See CallService.setOutcome.
+    // Persist + push the CRM note immediately — the user's request is the only
+    // thing that fires it for answered calls. See CallService.setOutcome.
     await this.callService.setOutcome(id, {
       outcome: body.outcome,
       outcomeNote: body.outcomeNote ?? null,
@@ -213,7 +213,7 @@ export class MobileController {
   /**
    * Finalize the post-call step when the agent closes/skips WITHOUT choosing an
    * outcome. Doesn't change the call — just pushes whatever metadata it already
-   * has to the CRM now, so the note doesn't wait out the grace window.
+   * has to the CRM now (without this request the note never fires).
    */
   @Post("calls/:id/finalize")
   async finalizeCall(

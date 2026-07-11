@@ -35,6 +35,12 @@ export type SearchLeadsOpts = {
   page?: number;
   perPage?: number;
   useCache?: boolean;
+  /**
+   * Debit Ringee credits for this operation (default true). MCP tool calls
+   * pass false — agent-driven prospecting must never spend Ringee credits
+   * (the provider's own credits are still consumed upstream).
+   */
+  chargeCredits?: boolean;
 };
 
 export type SearchLeadsResponse = {
@@ -53,6 +59,8 @@ export type ImportLeadsResult = {
 
 export type RevealLeadOpts = {
   revealPhone?: boolean;
+  /** Debit Ringee credits (default true). See {@link SearchLeadsOpts}. */
+  chargeCredits?: boolean;
 };
 
 export type RevealLeadResult = {
@@ -65,6 +73,8 @@ export type RevealLeadResult = {
 export type RevealContactOpts = {
   revealPhone?: boolean;
   revealEmail?: boolean;
+  /** Debit Ringee credits (default true). See {@link SearchLeadsOpts}. */
+  chargeCredits?: boolean;
 };
 
 export type RevealContactResult = {
@@ -161,7 +171,10 @@ export class LeadSearchService {
       throw err;
     }
 
-    const cost = apiConfiguration.ENRICHMENT_COST_LEAD_SEARCH;
+    const cost =
+      opts.chargeCredits === false
+        ? 0
+        : apiConfiguration.ENRICHMENT_COST_LEAD_SEARCH;
     const updated = await this.leadJobs.markDone(job.id, {
       totalResults: result.total,
       resultSnapshot: result as unknown,
@@ -285,7 +298,10 @@ export class LeadSearchService {
       results: candidate ? [candidate] : [],
     };
 
-    const cost = apiConfiguration.ENRICHMENT_COST_LEAD_SEARCH;
+    const cost =
+      opts.chargeCredits === false
+        ? 0
+        : apiConfiguration.ENRICHMENT_COST_LEAD_SEARCH;
     const updated = await this.leadJobs.markDone(job.id, {
       totalResults: result.total,
       resultSnapshot: result as unknown,
@@ -357,14 +373,17 @@ export class LeadSearchService {
   async importLeads(
     ctx: OwnershipContext,
     candidates: LeadCandidate[],
-    opts: { tagIds?: string[] } = {},
+    opts: { tagIds?: string[]; chargeCredits?: boolean } = {},
   ): Promise<ImportLeadsResult> {
     const out: ImportLeadsResult = {
       importedContactIds: [],
       duplicates: 0,
       errors: 0,
     };
-    const importCost = apiConfiguration.ENRICHMENT_COST_LEAD_IMPORT;
+    const importCost =
+      opts.chargeCredits === false
+        ? 0
+        : apiConfiguration.ENRICHMENT_COST_LEAD_IMPORT;
 
     for (const cand of candidates) {
       try {
@@ -591,7 +610,10 @@ export class LeadSearchService {
 
     // Debit one credit per reveal — mobile reveals are 10 upstream, but we
     // expose a single `lead-import` cost knob in our config.
-    const cost = apiConfiguration.ENRICHMENT_COST_LEAD_IMPORT;
+    const cost =
+      opts.chargeCredits === false
+        ? 0
+        : apiConfiguration.ENRICHMENT_COST_LEAD_IMPORT;
     if (cost > 0) {
       try {
         await this.credits.consumeCredits(ctx, cost);
@@ -727,7 +749,10 @@ export class LeadSearchService {
       `${connection.provider}:contact-reveal`,
     );
 
-    const cost = apiConfiguration.ENRICHMENT_COST_LEAD_IMPORT;
+    const cost =
+      opts.chargeCredits === false
+        ? 0
+        : apiConfiguration.ENRICHMENT_COST_LEAD_IMPORT;
     if (cost > 0) {
       try {
         await this.credits.consumeCredits(ctx, cost);

@@ -54,6 +54,20 @@ export class OrchestratorService {
     ]);
   }
 
+  /**
+   * Kick an immediate CRM outbox drain — the same workflow the 60s Temporal
+   * Schedule runs, started on demand so a just-enqueued call-log note reaches
+   * the CRM right away instead of waiting for the next tick. The workflowId is
+   * unique per trigger; concurrent drains are safe (claimDueBatch leases rows).
+   */
+  async triggerCrmDrain(hint: string): Promise<string> {
+    return this.startWorkflow(
+      WORKFLOW_NAMES.crmDrain,
+      `crm-drain:${hint}:${Date.now()}`,
+      [],
+    );
+  }
+
   private async startWorkflow(
     workflowType: WorkflowName,
     workflowId: string,

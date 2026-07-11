@@ -30,7 +30,6 @@ const DEFAULT_RECORDING_SETTINGS: DialerRecordingSettings = {
 };
 
 const DEFAULT_NOTIFY: DialerNotify = (kind, message) => {
-  // eslint-disable-next-line no-console
   console[kind === "error" ? "error" : "log"](`[dialer] ${message}`);
 };
 
@@ -71,7 +70,9 @@ export function DialerProvider({
     labels: { ...DEFAULT_DIALER_LABELS, ...labels },
     notify,
   };
-  return <DialerContext.Provider value={value}>{children}</DialerContext.Provider>;
+  return (
+    <DialerContext.Provider value={value}>{children}</DialerContext.Provider>
+  );
 }
 
 export function useDialer(): DialerContextValue {

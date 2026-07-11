@@ -74,11 +74,12 @@ export function buildCallLogNote(input: CrmCallLogInput): {
     `**${input.direction === "outbound" ? "Outbound" : "Inbound"} call** — ${startedAt}`,
   ];
   lines.push("");
-  // Render the call metadata as a markdown LIST (one item per line). Attio's
-  // block editor imports list items reliably; plain consecutive `**Label:**`
-  // lines get folded into a single paragraph and their inline values can be
-  // dropped on import — which is why From/To were landing blank even though the
-  // Call row has both numbers. (Matches the Insights list rendering below.)
+  // Render the call metadata as a markdown LIST (one item per line) — Attio's
+  // block editor imports list items reliably, while consecutive `**Label:**`
+  // paragraphs get folded together. From/To arrive already sanitized to E.164
+  // by the call-log service (raw Call rows carry SIP URIs on WebRTC legs,
+  // which Attio rendered as an empty value) and are null when no real number
+  // exists, so the guard drops the whole line instead of an empty label.
   if (input.from) lines.push(`- **From:** ${input.from}`);
   if (input.to) lines.push(`- **To:** ${input.to}`);
   if (durationLabel !== null) lines.push(`- **Duration:** ${durationLabel}`);

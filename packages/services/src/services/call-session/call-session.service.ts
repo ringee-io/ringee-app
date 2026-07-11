@@ -773,7 +773,8 @@ export class CallSessionService {
         );
       // AI Pipeline: fan out the finalized outcome (magic-link path).
       this.pipelineFanout.handleCallFinalized(callId);
-      // CRM: fold outcome + notes + duration into the deferred call-log note.
+      // CRM: fold outcome + notes + duration into the held call-log note and
+      // push it now.
       void this.crmCallLog
         .enqueueOutcomeUpdate(callId)
         .catch((err: Error) =>

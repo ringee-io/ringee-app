@@ -25,8 +25,12 @@ export function buildOdooCallLog(input: CrmCallLogInput): {
     )}</p>`,
   );
   lines.push("<ul>");
-  lines.push(`<li><strong>From:</strong> ${escapeHtml(input.from)}</li>`);
-  lines.push(`<li><strong>To:</strong> ${escapeHtml(input.to)}</li>`);
+  if (input.from) {
+    lines.push(`<li><strong>From:</strong> ${escapeHtml(input.from)}</li>`);
+  }
+  if (input.to) {
+    lines.push(`<li><strong>To:</strong> ${escapeHtml(input.to)}</li>`);
+  }
   if (durationMin !== null) {
     lines.push(`<li><strong>Duration:</strong> ${durationMin} min</li>`);
   }

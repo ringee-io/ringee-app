@@ -95,14 +95,14 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
         mode === 'active' ? (
           <TranscribeCallButton
             callId={callId}
-            mode="active"
-            size="sm"
+            mode='active'
+            size='sm'
             autoTranscribeEnabled={recordingSettings.transcribeRealtime}
-            className="h-12 rounded px-3 text-xs md:h-14 md:px-4 md:text-sm"
+            className='h-12 rounded px-3 text-xs md:h-14 md:px-4 md:text-sm'
             onView={onView}
           />
         ) : (
-          <TranscribeCallButton callId={callId} mode="history" />
+          <TranscribeCallButton callId={callId} mode='history' />
         )
     }),
     [recordingSettings.transcribeRealtime]
@@ -110,23 +110,21 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
 
   const data = useMemo(
     () => ({
+      // Outcome save AND skip/close share this request — with no `outcome` the
+      // backend just pushes the CRM call-log note immediately.
       saveCallOutcome: (input: {
         callId?: string | null;
         callSessionId?: string | null;
-        outcome: string;
+        outcome?: string;
         outcomeNote?: string;
       }) =>
         api
           .post('/meetings/call-outcome', {
             callId: input.callId || undefined,
             callSessionId: input.callSessionId || undefined,
-            outcome: input.outcome,
+            outcome: input.outcome || undefined,
             outcomeNote: input.outcomeNote || undefined
           })
-          .then(() => undefined),
-      finalizeCall: (input: { callId: string }) =>
-        api
-          .post(`/mobile/calls/${input.callId}/finalize`, {})
           .then(() => undefined)
     }),
     [api]
@@ -140,7 +138,10 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
         transcribeRealtime: recordingSettings.transcribeRealtime
       }}
       slots={slots}
-      labels={{ callbackBadge: t('badge'), callbackDisposition: t('disposition') }}
+      labels={{
+        callbackBadge: t('badge'),
+        callbackDisposition: t('disposition')
+      }}
       notify={(kind, message) =>
         kind === 'error' ? toast.error(message) : toast.success(message)
       }

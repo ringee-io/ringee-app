@@ -14,20 +14,17 @@ import type { CallOutcome } from "@ringee/dialer-core";
  * This is the seam that lets a single modal serve both surfaces.
  */
 export interface DialerDataClient {
-  /** Persist the disposition + note for a finished call. */
+  /**
+   * Persist the disposition + note for a finished call. `outcome` is optional:
+   * Skip/close send the SAME request without one, which still pushes the CRM
+   * call-log note immediately (POST /meetings/call-outcome on both hosts).
+   */
   saveCallOutcome(input: {
     callId?: string | null;
     callSessionId?: string | null;
-    outcome: CallOutcome;
+    outcome?: CallOutcome;
     outcomeNote?: string;
   }): Promise<void>;
-
-  /**
-   * Finalize a call closed WITHOUT an outcome (Skip / close) so its CRM note
-   * fires now instead of waiting out the hangup grace window. Optional — hosts
-   * that don't wire it up simply skip the early push.
-   */
-  finalizeCall?(input: { callId: string }): Promise<void>;
 }
 
 /** Workspace recording policy that gates the manual record/transcribe buttons. */
@@ -88,10 +85,7 @@ export const DEFAULT_DIALER_LABELS: DialerLabels = {
   callbackDisposition: "Callback",
 };
 
-export type DialerNotify = (
-  kind: "success" | "error",
-  message: string,
-) => void;
+export type DialerNotify = (kind: "success" | "error", message: string) => void;
 
 export interface DialerContextValue {
   data: DialerDataClient;

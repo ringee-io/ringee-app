@@ -55,8 +55,14 @@ export type CrmCallLogInput = {
   idempotencyKey: string;
   ringeeCallId: string;
   direction: CrmCallDirection;
-  from: string;
-  to: string;
+  /**
+   * Display numbers in E.164, already sanitized by the call-log service —
+   * WebRTC legs report SIP URIs in the raw Call row, which must never reach
+   * the note (Attio renders them as an empty value). Null when no real
+   * number could be resolved; providers skip the line entirely.
+   */
+  from: string | null;
+  to: string | null;
   startedAt: Date;
   endedAt?: Date | null;
   durationSeconds?: number | null;

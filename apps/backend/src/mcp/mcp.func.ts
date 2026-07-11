@@ -980,6 +980,8 @@ export class McpFunc {
         provider: input.provider as EnrichmentProviderType | undefined,
         page: input.page,
         perPage: input.perPage,
+        // Agent-driven prospecting never debits Ringee credits.
+        chargeCredits: false,
       },
     );
 
@@ -1022,7 +1024,8 @@ export class McpFunc {
     description:
       "Reveal email (and optionally mobile phone) for a single candidate from a previous search_leads job. " +
       "Also upserts a Contact in Ringee with the revealed data so the lead is immediately callable. " +
-      "Consumes provider credits — only call when the user has explicitly chosen this lead.",
+      "Spends no Ringee credits, but consumes the enrichment provider's credits — " +
+      "only call when the user has explicitly chosen this lead.",
     zod: RevealLeadSchema,
     annotations: {
       title: "Reveal lead",
@@ -1039,7 +1042,9 @@ export class McpFunc {
       ctx,
       input.jobId,
       input.externalId,
-      { revealPhone: input.revealPhone ?? false },
+      // Agent-driven prospecting never debits Ringee credits (the enrichment
+      // provider's own credits are still consumed upstream).
+      { revealPhone: input.revealPhone ?? false, chargeCredits: false },
     );
 
     return text({
@@ -1101,7 +1106,8 @@ export class McpFunc {
     const result = await this.leadSearchService.importLeads(
       ctx,
       candidates as never,
-      { tagIds: input.tagIds },
+      // Agent-driven prospecting never debits Ringee credits.
+      { tagIds: input.tagIds, chargeCredits: false },
     );
 
     return text({

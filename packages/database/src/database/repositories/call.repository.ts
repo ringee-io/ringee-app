@@ -149,6 +149,18 @@ export class CallRepository {
     });
   }
 
+  /**
+   * Persist just the note — used by campaign dispositions whose custom codes
+   * don't map onto the CallOutcome enum but whose notes must still reach the
+   * CRM call-log.
+   */
+  async updateOutcomeNote(callId: string, outcomeNote: string): Promise<Call> {
+    return this.prisma.call.update({
+      where: { id: callId },
+      data: { outcomeNote },
+    });
+  }
+
   async deleteCall(callControlId: string): Promise<void> {
     await this.prisma.call.delete({ where: { callControlId } });
   }

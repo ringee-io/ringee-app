@@ -68,9 +68,8 @@ export class MeetingService {
     // + Layer 1 rule actions). Fire-and-forget; never blocks the outcome write.
     this.pipelineFanout.handleCallFinalized(call.id);
 
-    // CRM: fold the finalized outcome + notes + duration (+ meeting link, when a
-    // meeting was booked) into the call-log note (deferred at hangup so it can
-    // carry the disposition).
+    // CRM: fold the finalized outcome + notes + duration (+ meeting link, when
+    // a meeting was booked) into the held call-log note and push it now.
     void this.crmCallLog
       .enqueueOutcomeUpdate(call.id, { meetingUrl: meetingUrl ?? null })
       .catch((err: Error) =>
@@ -305,6 +304,42 @@ export class MeetingService {
       outcomeNote?: string;
     },
   ): Promise<Call> {
+    const call = await this.assertCallAccess(ctx, callId);
+
+    const updated = await this.callRepo.updateOutcome(
+      call.id,
+      dto.outcome,
+      dto.outcomeNote,
+    );
+    await this.enqueueOutcomeUpdated(updated);
+    return updated;
+  }
+
+  /**
+   * Post-call view closed/skipped with NO outcome — same request the outcome
+   * save uses (POST /meetings/call-outcome), just without an outcome. Pushes
+   * the CRM call-log note immediately with whatever the call already carries.
+   * Without this request the note of an answered dialer call never fires.
+   */
+  async finalizeCall(ctx: OwnershipContext, callId: string): Promise<Call> {
+    const call = await this.assertCallAccess(ctx, callId);
+
+    // Only the CRM note fires here: with no outcome there is nothing for the
+    // AI pipeline or custom-integration outcome events to fan out.
+    void this.crmCallLog
+      .enqueueOutcomeUpdate(call.id)
+      .catch((err: Error) =>
+        this.logger.warn(
+          `crm finalize failed for call ${call.id}: ${err.message}`,
+        ),
+      );
+    return call;
+  }
+
+  private async assertCallAccess(
+    ctx: OwnershipContext,
+    callId: string,
+  ): Promise<Call> {
     const call = await this.callRepo.findById(callId);
     if (!call) throw new NotFoundException("Call not found");
 
@@ -314,13 +349,6 @@ export class MeetingService {
     if (!ctx.organizationId && call.userId !== ctx.userId) {
       throw new ForbiddenException("Access denied");
     }
-
-    const updated = await this.callRepo.updateOutcome(
-      callId,
-      dto.outcome,
-      dto.outcomeNote,
-    );
-    await this.enqueueOutcomeUpdated(updated);
-    return updated;
+    return call;
   }
 }

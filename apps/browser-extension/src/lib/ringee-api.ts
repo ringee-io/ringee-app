@@ -326,11 +326,15 @@ export class RingeeApi {
     );
   }
 
-  /** Persist disposition + note after the call (same endpoint the web app uses). */
+  /**
+   * Persist disposition + note after the call (same endpoint the web app
+   * uses). `outcome` is optional: Skip/close send the same request without
+   * one, which still pushes the CRM call-log note immediately.
+   */
   saveCallOutcome(input: {
     callId?: string | null;
     callSessionId?: string | null;
-    outcome: CallOutcome;
+    outcome?: CallOutcome;
     outcomeNote?: string;
   }) {
     return this.request<void>("/meetings/call-outcome", {
@@ -338,21 +342,10 @@ export class RingeeApi {
       body: JSON.stringify({
         callId: input.callId || undefined,
         callSessionId: input.callSessionId || undefined,
-        outcome: input.outcome,
+        outcome: input.outcome || undefined,
         outcomeNote: input.outcomeNote || undefined,
       }),
     });
-  }
-
-  /**
-   * Finalize a call closed without an outcome (Skip / close) so its CRM note
-   * fires now instead of waiting out the hangup grace window.
-   */
-  finalizeCall(input: { callId: string }) {
-    return this.request<void>(
-      `/mobile/calls/${encodeURIComponent(input.callId)}/finalize`,
-      { method: "POST" },
-    );
   }
 
   /** Book a meeting against a contact (same endpoint + shape the web app uses). */

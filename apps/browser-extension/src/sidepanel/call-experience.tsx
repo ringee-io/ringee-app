@@ -121,14 +121,15 @@ export function CallExperience() {
 
   const data = useMemo(
     () => ({
+      // Outcome save AND skip/close share this request — with no `outcome` the
+      // backend just pushes the CRM call-log note immediately. Works with only
+      // the Telnyx session id, which is all the extension has post-call.
       saveCallOutcome: (input: {
         callId?: string | null;
         callSessionId?: string | null;
-        outcome: Parameters<RingeeApi["saveCallOutcome"]>[0]["outcome"];
+        outcome?: Parameters<RingeeApi["saveCallOutcome"]>[0]["outcome"];
         outcomeNote?: string;
       }) => api.saveCallOutcome(input).then(() => undefined),
-      finalizeCall: (input: { callId: string }) =>
-        api.finalizeCall(input).then(() => undefined),
     }),
     [api],
   );
