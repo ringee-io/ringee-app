@@ -65,7 +65,7 @@ export function useHangupListener() {
         : 0;
 
       // Short calls (< 5s) or failed calls: skip post-call, close immediately
-      if (duration < 5 || state === 'failed') {
+      if (state === 'failed') {
         setActiveCall(null);
         return;
       }
