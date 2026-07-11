@@ -74,7 +74,7 @@ describe("buildStartCall (prepare-call → offscreen)", () => {
 });
 
 describe("static env credentials (web-app style)", () => {
-  it("overrides the backend SIP creds + caller ID when env is set", () => {
+  it("overrides the SIP creds but NEVER the backend-resolved caller ID", () => {
     vi.stubEnv("VITE_TELNYX_LOGIN", "useredison44068");
     vi.stubEnv("VITE_TELNYX_PASSWORD", "G7bJ#!+Gtj=K");
     vi.stubEnv("VITE_RINGEE_PUBLIC_CALLER_ID", "+17869460882");
@@ -84,7 +84,9 @@ describe("static env credentials (web-app style)", () => {
       username: "useredison44068",
       password: "G7bJ#!+Gtj=K",
     });
-    expect(msg.callerId).toBe("+17869460882");
+    // The backend caller ID honors the user's "Call from" pick — the static
+    // public caller ID must not silently replace it.
+    expect(msg.callerId).toBe("+14155550000");
     // Backend attribution (contact/callId) is still carried through.
     expect(msg.callId).toBe("call_1");
   });
@@ -103,6 +105,28 @@ describe("static env credentials (web-app style)", () => {
     expect(msg!.callerId).toBe("+17869460882");
     expect(msg!.destination).toBe("+18095551234");
     expect(msg!.callId).toBeUndefined();
+  });
+
+  it("buildStaticStartCall prefers the user's picked caller ID over the static one", () => {
+    vi.stubEnv("VITE_TELNYX_LOGIN", "useredison44068");
+    vi.stubEnv("VITE_TELNYX_PASSWORD", "G7bJ#!+Gtj=K");
+    vi.stubEnv("VITE_RINGEE_PUBLIC_CALLER_ID", "+17869460882");
+
+    const msg = buildStaticStartCall(
+      { destination: "+18095551234" },
+      { userId: "user_1" },
+      "+16465559999",
+    );
+    expect(msg!.callerId).toBe("+16465559999");
+
+    // A pick alone also suffices — no static caller ID configured.
+    vi.stubEnv("VITE_RINGEE_PUBLIC_CALLER_ID", "");
+    const picked = buildStaticStartCall(
+      { destination: "+18095551234" },
+      { userId: "user_1" },
+      "+16465559999",
+    );
+    expect(picked!.callerId).toBe("+16465559999");
   });
 
   it("buildStaticStartCall returns null unless creds AND caller ID are set", () => {

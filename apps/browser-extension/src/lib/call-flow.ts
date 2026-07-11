@@ -56,10 +56,13 @@ export function staticCallerId(): string | undefined {
 
 /**
  * Translate a successful backend prepare-call into the START_CALL message the
- * offscreen engine consumes. The caller ID and SIP credentials normally come
- * straight from the backend response, but when static env credentials / caller
- * ID are configured (web-app style) they take precedence — so the extension
- * dials with the same shared line the web app does.
+ * offscreen engine consumes. Static env SIP credentials (web-app style) take
+ * precedence over the minted per-call ones so the extension dials on the same
+ * shared connection the web app does — but the caller ID is ALWAYS the
+ * backend-resolved one: it already honors the user's "Call from" pick and the
+ * rotation rules, and letting the static public caller ID win here would
+ * silently override that pick on every call. The static caller ID is only used
+ * on the no-backend path (see `buildStaticStartCall`).
  */
 export function buildStartCall(
   prepared: PrepareCallResponse,
@@ -74,7 +77,7 @@ export function buildStartCall(
           username: prepared.credential.sipUsername,
           password: prepared.credential.sipPassword,
         },
-    callerId: staticCallerId() ?? prepared.callerId,
+    callerId: prepared.callerId,
     destination: prepared.destination,
     userId: identity.userId,
     organizationId: identity.orgId,
@@ -86,15 +89,18 @@ export function buildStartCall(
  * Build START_CALL purely from static env credentials, bypassing the backend.
  * Used as a fallback when prepare-call is unavailable (backend down, no
  * server-resolved caller ID, credential minting failed) so the extension can
- * still dial with the shared web-app credentials. Returns null unless BOTH
- * static SIP credentials and a static caller ID are configured.
+ * still dial with the shared web-app credentials. The user's "Call from" pick
+ * (already limited to their own workspace numbers by the picker) still wins
+ * over the static public caller ID. Returns null unless static SIP credentials
+ * AND some caller ID (picked or static) are available.
  */
 export function buildStaticStartCall(
   target: { destination: string },
   identity: { userId: string; orgId?: string },
+  preferredCallerId?: string,
 ): StartCallMsg | null {
   const creds = staticCredentials();
-  const callerId = staticCallerId();
+  const callerId = preferredCallerId || staticCallerId();
   if (!creds || !callerId) return null;
   return {
     type: MessageType.StartCall,

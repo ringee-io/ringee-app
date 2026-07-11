@@ -139,7 +139,7 @@ async function dial(target: DialTarget, tabId?: number) {
     const fallback =
       code === "DNC_BLOCKED" || code === "FORBIDDEN"
         ? null
-        : buildStaticStartCall(target, identity);
+        : buildStaticStartCall(target, identity, preferredCallerId);
     if (fallback) {
       setSnapshot({
         state: "connecting",
