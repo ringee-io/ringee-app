@@ -1,5 +1,6 @@
 import { defineManifest } from "@crxjs/vite-plugin";
 import { loadEnv } from "vite";
+import packageJson from "./package.json"
 
 /**
  * Pages where Ringee auto-detects phone numbers and drops a "Call with Ringee"
@@ -100,7 +101,7 @@ export default defineManifest((env) => {
     // Present only when CRX_KEY is set, so the extension ID stays stable.
     ...(crxKey ? { key: crxKey } : {}),
     name: "Ringee — Low-cost outbound dialing",
-    version: "0.1.6",
+    version: packageJson.version,
     description:
       "Modern, low-cost outbound dialing. Call any number on any page with the real Ringee dialer over WebRTC — no per-seat tax.",
     minimum_chrome_version: "116", // offscreen + sidePanel APIs
