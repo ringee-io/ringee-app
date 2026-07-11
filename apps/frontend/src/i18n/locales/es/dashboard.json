@@ -247,6 +247,7 @@
     },
     "bestTime": {
       "emptyHint": "Cuando empiecen a registrarse resultados, este gráfico te mostrará las horas del día que generan más resultados.",
+      "metricEmpty": "Esta métrica aún no tiene datos en el período seleccionado. Prueba con otra métrica.",
       "metrics": {
         "sales": "Ventas",
         "meetings": "Reuniones agendadas",

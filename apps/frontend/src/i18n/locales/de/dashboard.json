@@ -247,6 +247,7 @@
     },
     "bestTime": {
       "emptyHint": "Sobald Ergebnisse vorliegen, zeigt dieses Diagramm, in welchen Stunden des Tages die meisten Ergebnisse entstehen.",
+      "metricEmpty": "Für diese Metrik gibt es im gewählten Zeitraum noch keine Daten. Wähle eine andere Metrik.",
       "metrics": {
         "sales": "Verkäufe",
         "meetings": "Termine vereinbart",

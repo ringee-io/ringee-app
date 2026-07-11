@@ -247,6 +247,7 @@
     },
     "bestTime": {
       "emptyHint": "Once outcomes start showing up, this chart will reveal the hours of the day that produce the most results.",
+      "metricEmpty": "No data for this metric in the selected period yet. Try another metric.",
       "metrics": {
         "sales": "Sales",
         "meetings": "Meetings Booked",

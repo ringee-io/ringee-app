@@ -247,6 +247,7 @@
     },
     "bestTime": {
       "emptyHint": "Dès que des résultats apparaîtront, ce graphique révélera les heures de la journée qui produisent le plus de résultats.",
+      "metricEmpty": "Cette métrique n'a pas encore de données sur la période sélectionnée. Essayez une autre métrique.",
       "metrics": {
         "sales": "Ventes",
         "meetings": "Rendez-vous pris",

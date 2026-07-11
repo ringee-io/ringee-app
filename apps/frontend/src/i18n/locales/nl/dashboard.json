@@ -247,6 +247,7 @@
     },
     "bestTime": {
       "emptyHint": "Zodra er resultaten binnenkomen, laat deze grafiek zien op welke uren van de dag de meeste resultaten ontstaan.",
+      "metricEmpty": "Deze metriek heeft nog geen gegevens in de geselecteerde periode. Probeer een andere metriek.",
       "metrics": {
         "sales": "Verkoop",
         "meetings": "Afspraken ingepland",

@@ -89,6 +89,16 @@ export class CallRepository {
       return call as unknown as Call;
     }
 
+    // An outbound call that ends without ever firing `call.answered` never
+    // connected — auto-disposition it as no_answer so it surfaces in
+    // dashboards/CRM as unanswered. Never overwrite an agent-set outcome, and
+    // leave inbound calls alone (a missed inbound is not a "no contesta").
+    const neverConnected =
+      !call.answeredAt &&
+      !call.outcome &&
+      call.direction !== "inbound" &&
+      call.direction !== "incoming";
+
     return this.prisma.call.update({
       where: { callControlId },
       data: {
@@ -96,6 +106,7 @@ export class CallRepository {
         endedAt: endedAtDate,
         startedAt: startedAtDate,
         durationSeconds,
+        ...(neverConnected ? { outcome: CallOutcome.no_answer } : {}),
       },
     });
   }

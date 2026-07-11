@@ -150,6 +150,15 @@ const ANSWERED_STATUSES: CallStatus[] = [
   CallStatus.recording,
 ];
 
+// Outcomes that mean a human never picked up. Voicemail pickups DO fire the
+// Telnyx `call.answered` webhook (answeredAt gets set), so machine-answered
+// calls would otherwise count as connected — the disposition wins over the
+// raw telephony signal.
+const UNANSWERED_OUTCOMES: CallOutcome[] = [
+  CallOutcome.no_answer,
+  CallOutcome.voicemail,
+];
+
 @Injectable()
 export class DashboardRepository {
   constructor(private prisma: PrismaService) {}
@@ -206,9 +215,22 @@ export class DashboardRepository {
       this.prisma.call.count({
         where: {
           ...callBaseWhere,
-          OR: [
-            { status: { in: ANSWERED_STATUSES } },
-            { answeredAt: { not: null } },
+          AND: [
+            {
+              OR: [
+                { status: { in: ANSWERED_STATUSES } },
+                { answeredAt: { not: null } },
+              ],
+            },
+            // Explicit `outcome IS NULL` arm: Prisma's notIn (like SQL's
+            // NOT IN) silently drops NULL rows, which would empty the count
+            // for calls without a disposition.
+            {
+              OR: [
+                { outcome: null },
+                { outcome: { notIn: UNANSWERED_OUTCOMES } },
+              ],
+            },
           ],
         },
       }),
@@ -565,8 +587,10 @@ export class DashboardRepository {
         u."lastName",
         COUNT(*)::int AS total,
         COUNT(*) FILTER (
-          WHERE c.status IN ('answered','recording')
-             OR c."answeredAt" IS NOT NULL
+          WHERE (c.status IN ('answered','recording')
+             OR c."answeredAt" IS NOT NULL)
+            AND (c.outcome IS NULL
+             OR c.outcome NOT IN ('no_answer','voicemail'))
         )::int AS answered,
         COUNT(*) FILTER (WHERE c.outcome = 'meeting_booked')::int AS meetings,
         COUNT(*) FILTER (WHERE c.outcome = 'sale')::int AS sales,
