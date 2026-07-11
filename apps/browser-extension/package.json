@@ -1,6 +1,6 @@
 {
   "name": "browser-extension",
-  "version": "0.1.8",
+  "version": "0.1.7",
   "private": true,
   "type": "module",
   "description": "Ringee browser extension — modern, low-cost outbound dialing. Call any number on any page with the real Ringee dialer over WebRTC.",
