@@ -31,7 +31,7 @@ import {
 import { USE_CASES } from '@/features/marketing/content/use-cases';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Ringee — Affordable, Agentic Outbound Calling Software',
+  title: 'Ringee — Affordable Outbound Calling Software',
   description:
     'Open-source, pay-as-you-go outbound calling software. Call leads worldwide, record and transcribe calls, and drive it from Claude, ChatGPT and the CLI.',
   path: '/'
