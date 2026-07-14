@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
 import {
   CallRepository,
   CallSessionRepository,
@@ -43,10 +43,13 @@ import {
 /** Connected calls shorter than this (seconds) count as "very short" for
  * caller-ID reputation scoring (spec: <5s). */
 const SHORT_CALL_SECONDS = 5;
+const LOW_BALANCE_USD = 1;
+const LOW_BALANCE_MAX_CALL_SECONDS = 5 * 60;
 
 @Injectable()
-export class CallService {
+export class CallService implements OnModuleDestroy {
   private readonly logger = new Logger(CallService.name);
+  private readonly lowBalanceHangupTimers = new Map<string, NodeJS.Timeout>();
 
   constructor(
     private readonly callRepository: CallRepository,
@@ -70,6 +73,13 @@ export class CallService {
     private readonly recordingSettingsService: CallRecordingSettingsService,
     private readonly transcriptionOrchestrator: TranscriptionService,
   ) {}
+
+  onModuleDestroy(): void {
+    for (const timer of this.lowBalanceHangupTimers.values()) {
+      clearTimeout(timer);
+    }
+    this.lowBalanceHangupTimers.clear();
+  }
 
   /**
    * Persist a post-call disposition and IMMEDIATELY push it to the CRM — the
@@ -209,6 +219,100 @@ export class CallService {
         ),
       );
     return false;
+  }
+
+  private clearLowBalanceHangup(callControlId: string): void {
+    const timer = this.lowBalanceHangupTimers.get(callControlId);
+    if (!timer) return;
+    clearTimeout(timer);
+    this.lowBalanceHangupTimers.delete(callControlId);
+  }
+
+  private scheduleLowBalanceHangup(
+    call: Call,
+    balance: number,
+    maxSeconds: number,
+  ): void {
+    if (!call.callControlId) return;
+
+    this.clearLowBalanceHangup(call.callControlId);
+
+    const timer = setTimeout(() => {
+      this.telephonyService
+        .hangupCall(call.callControlId!)
+        .then(() =>
+          this.logger.warn(
+            `⏳ Low-balance duration limit reached (${maxSeconds}s). Hanging up call ${call.callControlId}`,
+          ),
+        )
+        .catch((err) =>
+          this.logger.error(
+            `Failed low-balance hangup for call ${call.callControlId}: ${err.message}`,
+            err.stack,
+          ),
+        )
+        .finally(() => this.lowBalanceHangupTimers.delete(call.callControlId!));
+    }, maxSeconds * 1000);
+
+    timer.unref?.();
+    this.lowBalanceHangupTimers.set(call.callControlId, timer);
+
+    this.logger.warn(
+      `Low-balance policy armed for call ${call.callControlId}: balance=$${balance.toFixed(2)}; maxDuration=${maxSeconds}s`,
+    );
+  }
+
+  /**
+   * Re-check balance once the call is answered:
+   * - balance <= 0: hang up immediately
+   * - balance <= $1: cap call duration to 5 minutes
+   */
+  private async enforceAnsweredCreditPolicy(call: Call): Promise<boolean> {
+    if (!call.callControlId || !call.userId) return true;
+
+    const direction = (call.direction || "").toLowerCase();
+    if (!["outbound", "outgoing"].includes(direction)) {
+      return true;
+    }
+
+    const ctx: OwnershipContext = {
+      userId: call.userId,
+      organizationId: call.organizationId,
+    };
+
+    const user = await this.userService.getCachedUserById(ctx.userId);
+    if (user?.freeCallTrial) {
+      return true;
+    }
+
+    const balance = await this.creditService.getBalance(ctx);
+    if (balance <= 0) {
+      this.logger.warn(
+        `⛔ Hanging up answered call ${call.callControlId}: no credit ` +
+          `(userId=${ctx.userId} orgId=${ctx.organizationId})`,
+      );
+      await this.telephonyService
+        .hangupCall(call.callControlId)
+        .catch((err) =>
+          this.logger.error(
+            `Failed to hang up call ${call.callControlId}: ${err.message}`,
+            err.stack,
+          ),
+        );
+      return false;
+    }
+
+    if (balance <= LOW_BALANCE_USD) {
+      this.scheduleLowBalanceHangup(
+        call,
+        balance,
+        LOW_BALANCE_MAX_CALL_SECONDS,
+      );
+    } else {
+      this.clearLowBalanceHangup(call.callControlId);
+    }
+
+    return true;
   }
 
   /**
@@ -547,6 +651,16 @@ export class CallService {
             answeredCall.id,
           );
         }
+
+        if (answeredCall) {
+          const canContinue = await this.enforceAnsweredCreditPolicy(
+            answeredCall,
+          );
+          if (!canContinue) {
+            break;
+          }
+        }
+
         // Apply Record all / Transcribe realtime settings once the call is up.
         if (answeredCall) {
           await this.applyAnswerAutomation(answeredCall);
@@ -563,6 +677,8 @@ export class CallService {
 
       case "call.hangup": {
         const hangupPayload = payload as CallHangupPayload;
+
+        this.clearLowBalanceHangup(callControlId);
 
         await this.callRepository.completeCall(
           callControlId,
@@ -754,7 +870,16 @@ export class CallService {
             return;
           }
 
-          const rawTotalCost = parseFloat(costPayload.total_cost);
+          // Idempotency guard: duplicated call.cost deliveries must not charge
+          // credits more than once.
+          if (call.totalCost != null) {
+            this.logger.debug(
+              `Skipping duplicate call.cost for ${callControlId} (already settled)`,
+            );
+            return;
+          }
+
+          const rawTotalCost = parseFloat(costPayload.total_cost ?? "0");
           const baseMargin = process.env.CALL_PROFIT_MARGIN
             ? parseFloat(process.env.CALL_PROFIT_MARGIN)
             : 0;
@@ -771,15 +896,31 @@ export class CallService {
             .isVerifiedCallerId(callCtx, call.fromNumber)
             .catch(() => false);
           const profitMargin = usedCallerId ? baseMargin + 0.3 : baseMargin;
-          const totalCost = rawTotalCost * profitMargin;
+          const computedTotalCost = rawTotalCost * profitMargin;
+
+          // Never debit more than the available balance.
+          const balanceBefore = await this.creditService
+            .getBalance(callCtx)
+            .catch(() => 0);
+          const totalCost = Math.max(
+            Math.min(computedTotalCost, balanceBefore),
+            0,
+          );
 
           // Free-call trial intentionally disabled: always charge credits.
-          await this.creditService.consumeCredits(callCtx, totalCost);
+          if (totalCost > 0) {
+            await this.creditService.consumeCredits(callCtx, totalCost);
+          }
 
           await this.callRepository.updateCost(
             callControlId,
             totalCost,
-            payload,
+            {
+              ...payload,
+              ringeeComputedTotalCost: computedTotalCost,
+              ringeeBalanceBefore: balanceBefore,
+              ringeeChargeCapped: totalCost < computedTotalCost,
+            },
           );
           break;
         } catch (error) {
