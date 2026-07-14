@@ -43,7 +43,7 @@ import {
 /** Connected calls shorter than this (seconds) count as "very short" for
  * caller-ID reputation scoring (spec: <5s). */
 const SHORT_CALL_SECONDS = 5;
-const LOW_BALANCE_USD = 1;
+const LOW_BALANCE_USD = 2;
 const LOW_BALANCE_MAX_CALL_SECONDS = 5 * 60;
 
 @Injectable()
