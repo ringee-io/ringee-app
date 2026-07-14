@@ -30,7 +30,7 @@ export class NumberPurchasedRepository {
     ctx: OwnershipContext,
   ): Promise<(NumberPurchased & { userNumbers: UserNumber[] })[]> {
     const ownershipFilter = buildOwnershipFilter(ctx);
-    return this.prisma.numberPurchased.findMany({
+    const values = await this.prisma.numberPurchased.findMany({
       // Only real purchased DIDs — verified caller IDs live in the same table
       // but are a different kind and are listed via the caller-id methods below.
       where: { ...ownershipFilter, kind: "purchased" },
@@ -39,6 +39,16 @@ export class NumberPurchasedRepository {
         userNumbers: true,
       },
     });
+
+    const callerIds = await this.prisma.numberPurchased.findMany({
+      where: { ...ownershipFilter, kind: "verified_caller_id", verified: true, verificationStatus: "verified" },
+      orderBy: { createdAt: "desc" },
+      include: {
+        userNumbers: true,
+      },
+    });
+    
+    return [...values, ...callerIds];
   }
 
   /**
