@@ -37,6 +37,7 @@ type TelnyxClient = ReturnType<typeof createTelnyxClient>;
 
 let client: TelnyxClient | null = null;
 let activeCall: Call | null = null;
+let activeTelnyxSessionId: string | undefined;
 
 /**
  * The side panel passes `remoteStream={null}` to the Active Call Modal — it's a
@@ -97,6 +98,7 @@ function cleanup() {
   detachRemoteAudio();
   client = null;
   activeCall = null;
+  activeTelnyxSessionId = undefined;
 }
 
 async function connect(sip: StartCallMsg["sip"]): Promise<TelnyxClient> {
@@ -122,16 +124,23 @@ async function connect(sip: StartCallMsg["sip"]): Promise<TelnyxClient> {
 
   onCallUpdate(c, (call) => {
     activeCall = call;
+    // Telnyx may omit telnyxIDs from its terminal update. Retain the last
+    // observed session id until after `ended` has been emitted so post-call
+    // outcome/notes always carry a stable backend correlation key.
+    activeTelnyxSessionId =
+      call.telnyxIDs?.telnyxSessionId ?? activeTelnyxSessionId;
     const mapped = mapTelnyxState(call.state);
     // Play the far end as soon as the media stream exists (set once the call is
     // answered) so the user can actually hear the call.
     attachRemoteAudio(call);
     const cause = mapped === "ended" ? hangupCause(call) : undefined;
     if (mapped === "ended" && cause) {
-      console.warn(`[Ringee] call ended — ${cause} (telnyx state: ${call.state})`);
+      console.warn(
+        `[Ringee] call ended — ${cause} (telnyx state: ${call.state})`,
+      );
     }
     emit(mapped, {
-      telnyxSessionId: call.telnyxIDs?.telnyxSessionId,
+      telnyxSessionId: activeTelnyxSessionId,
       cause,
     });
     if (mapped === "ended") cleanup();

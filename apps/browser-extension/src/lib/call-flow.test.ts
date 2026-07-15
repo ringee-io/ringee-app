@@ -4,6 +4,7 @@ import {
   ERROR_COPY,
   buildStartCall,
   buildStaticStartCall,
+  callEventSnapshotPatch,
   failureSnapshot,
   statusTextFor,
 } from "./call-flow";
@@ -48,6 +49,35 @@ describe("failureSnapshot", () => {
 
   it("falls back to the generic message for unknown codes", () => {
     expect(failureSnapshot("UNKNOWN").error).toBe(ERROR_COPY.UNKNOWN);
+  });
+});
+
+describe("callEventSnapshotPatch", () => {
+  it("keeps the last Telnyx session id when the terminal event omits it", () => {
+    const patch = callEventSnapshotPatch(
+      {
+        type: MessageType.CallSnapshot,
+        state: "active",
+        telnyxSessionId: "telnyx-session-1",
+      },
+      { type: MessageType.CallEvent, state: "ended" },
+    );
+
+    expect(patch.state).toBe("ended");
+    expect(patch.telnyxSessionId).toBe("telnyx-session-1");
+  });
+
+  it("uses a newly observed Telnyx session id", () => {
+    const patch = callEventSnapshotPatch(
+      { type: MessageType.CallSnapshot, state: "connecting" },
+      {
+        type: MessageType.CallEvent,
+        state: "ringing",
+        detail: { telnyxSessionId: "telnyx-session-2" },
+      },
+    );
+
+    expect(patch.telnyxSessionId).toBe("telnyx-session-2");
   });
 });
 

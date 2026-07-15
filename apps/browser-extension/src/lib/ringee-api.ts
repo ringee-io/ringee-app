@@ -336,16 +336,45 @@ export class RingeeApi {
     callSessionId?: string | null;
     outcome?: CallOutcome;
     outcomeNote?: string;
-  }) {
-    return this.request<void>("/meetings/call-outcome", {
-      method: "POST",
-      body: JSON.stringify({
-        callId: input.callId || undefined,
-        callSessionId: input.callSessionId || undefined,
-        outcome: input.outcome || undefined,
-        outcomeNote: input.outcomeNote || undefined,
-      }),
-    });
+  }): Promise<void> {
+    return this.saveCallOutcomeWithWebhookRetry(input);
+  }
+
+  private async saveCallOutcomeWithWebhookRetry(input: {
+    callId?: string | null;
+    callSessionId?: string | null;
+    outcome?: CallOutcome;
+    outcomeNote?: string;
+  }): Promise<void> {
+    // A browser call is created from Telnyx's call.initiated webhook. WebRTC
+    // can reach its terminal state a fraction before that webhook transaction
+    // is visible, so retry only that precise resolution race. Other 4xx/5xx
+    // responses surface immediately and a successful request is never replayed.
+    const retryDelays =
+      input.callSessionId && !input.callId ? [150, 350, 750, 1500] : [];
+
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await this.request<void>("/meetings/call-outcome", {
+          method: "POST",
+          body: JSON.stringify({
+            callId: input.callId || undefined,
+            callSessionId: input.callSessionId || undefined,
+            outcome: input.outcome || undefined,
+            outcomeNote: input.outcomeNote || undefined,
+          }),
+        });
+        return;
+      } catch (error) {
+        const isWebhookRace =
+          error instanceof ApiError &&
+          error.status === 400 &&
+          error.message.includes("callId or callSessionId is required");
+        const delay = retryDelays[attempt];
+        if (!isWebhookRace || delay === undefined) throw error;
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
   }
 
   /** Book a meeting against a contact (same endpoint + shape the web app uses). */

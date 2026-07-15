@@ -5,14 +5,12 @@
  */
 import {
   MessageType,
+  type CallEventMsg,
   type CallSnapshotMsg,
   type CallState,
   type StartCallMsg,
 } from "@ringee/dialer-core/contracts";
-import type {
-  PrepareCallErrorCode,
-  PrepareCallResponse,
-} from "./ringee-api";
+import type { PrepareCallErrorCode, PrepareCallResponse } from "./ringee-api";
 
 /** User-facing copy for every backend prepare-call failure code. */
 export const ERROR_COPY: Record<PrepareCallErrorCode, string> = {
@@ -38,12 +36,33 @@ export function failureSnapshot(
 }
 
 /**
+ * Merge a WebRTC lifecycle event into the background snapshot without losing
+ * the Telnyx session id. Some final SDK updates omit `telnyxIDs`, so blindly
+ * assigning `undefined` on `ended` makes the post-call note impossible to
+ * associate with its backend Call row.
+ */
+export function callEventSnapshotPatch(
+  current: CallSnapshotMsg,
+  event: CallEventMsg,
+): Partial<Omit<CallSnapshotMsg, "type">> {
+  const cause = event.detail?.cause;
+  return {
+    state: event.state,
+    error: event.detail?.error ?? cause,
+    telnyxSessionId: event.detail?.telnyxSessionId ?? current.telnyxSessionId,
+  };
+}
+
+/**
  * Optional static Telnyx WebRTC SIP credentials supplied via the extension's
  * own env (Vite) — the same shared credentials the web app dials with
  * (NEXT_PUBLIC_TELNYX_LOGIN / NEXT_PUBLIC_TELNYX_PASSWORD). Both must be present
  * to count as configured.
  */
-export function staticCredentials(): { login: string; password: string } | null {
+export function staticCredentials(): {
+  login: string;
+  password: string;
+} | null {
   const login = import.meta.env.VITE_TELNYX_LOGIN?.trim();
   const password = import.meta.env.VITE_TELNYX_PASSWORD?.trim();
   return login && password ? { login, password } : null;

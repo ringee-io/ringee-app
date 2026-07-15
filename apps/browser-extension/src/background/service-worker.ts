@@ -26,6 +26,7 @@ import {
   ERROR_COPY,
   buildStartCall,
   buildStaticStartCall,
+  callEventSnapshotPatch,
   failureSnapshot,
 } from "../lib/call-flow";
 import { DEFAULT_REGION } from "../lib/region";
@@ -107,6 +108,9 @@ async function dial(target: DialTarget, tabId?: number) {
     error: undefined,
     dncBlocked: false,
     startedAt: undefined,
+    // Never let a previous call's Telnyx id leak into this call. Once the new
+    // id arrives, callEventSnapshotPatch keeps it through the final SDK event.
+    telnyxSessionId: undefined,
   });
   if (tabId !== undefined) chrome.sidePanel.open({ tabId }).catch(() => {});
 
@@ -189,11 +193,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     if ((msg.state === "ended" || msg.state === "failed") && cause) {
       console.warn(`[Ringee] ${msg.state}: ${cause}`);
     }
-    setSnapshot({
-      state: msg.state,
-      error: msg.detail?.error ?? cause,
-      telnyxSessionId: msg.detail?.telnyxSessionId,
-    });
+    setSnapshot(callEventSnapshotPatch(snapshot, msg));
     // Call finished: release the mic + tear down the WebRTC context. The
     // post-call (outcome/notes) UI lives in the side panel and needs no engine.
     if (msg.state === "ended" || msg.state === "failed") {
@@ -217,6 +217,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       error: undefined,
       dncBlocked: false,
       startedAt: undefined,
+      telnyxSessionId: undefined,
     });
     return false;
   }

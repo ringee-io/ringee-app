@@ -61,3 +61,81 @@ describe("RingeeApi auth retry", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
+
+describe("RingeeApi post-call save", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  const jsonResponse = (status: number, body: unknown) =>
+    new Response(JSON.stringify(body), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
+
+  it("retries the temporary Telnyx webhook resolution race without losing the note", async () => {
+    vi.useFakeTimers();
+    const longNote = "Seguimiento con contexto detallado 🚀\n".repeat(500);
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse(400, {
+          message: "callId or callSessionId is required",
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse(200, { ok: true }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new RingeeApi(async () => "token");
+    const saving = api.saveCallOutcome({
+      callSessionId: "telnyx-session-1",
+      outcome: "interested",
+      outcomeNote: longNote,
+    });
+
+    await vi.runAllTimersAsync();
+    await saving;
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const retryBody = JSON.parse(
+      String((fetchMock.mock.calls[1][1] as RequestInit).body),
+    );
+    expect(retryBody).toMatchObject({
+      callSessionId: "telnyx-session-1",
+      outcome: "interested",
+      outcomeNote: longNote,
+    });
+  });
+
+  it("sends finalize without an outcome through the same post-call endpoint", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new RingeeApi(async () => "token");
+    await api.saveCallOutcome({ callSessionId: "telnyx-session-1" });
+
+    const body = JSON.parse(
+      String((fetchMock.mock.calls[0][1] as RequestInit).body),
+    );
+    expect(body).toEqual({ callSessionId: "telnyx-session-1" });
+  });
+
+  it("does not retry unrelated validation errors", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(jsonResponse(400, { message: "invalid outcome" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new RingeeApi(async () => "token");
+    await expect(
+      api.saveCallOutcome({
+        callSessionId: "telnyx-session-1",
+        outcome: "interested",
+      }),
+    ).rejects.toBeInstanceOf(ApiError);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
