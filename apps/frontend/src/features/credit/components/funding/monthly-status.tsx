@@ -1,13 +1,24 @@
 'use client';
 
 import { useState } from 'react';
-import { CalendarSync, CreditCard, Loader2, CheckCircle2 } from 'lucide-react';
+import {
+  CalendarSync,
+  CreditCard,
+  Loader2,
+  CheckCircle2,
+  AlertTriangle
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { formatBrand } from '../../lib/recharge';
-import { MIN_AMOUNT, MONTHLY_PRESETS, money } from '../../lib/recharge';
+import {
+  MONTHLY_PRESETS,
+  money,
+  paymentErrorMessage
+} from '../../lib/recharge';
+import { useCreditStore } from '@/features/credit/store/credit.store';
 
 interface Props {
   amount: number | null;
@@ -32,13 +43,15 @@ export function MonthlyStatus({
   onCancel
 }: Props) {
   const t = useTranslations('billing.credits.popover');
+  const minimumCreditPurchase = useCreditStore((s) => s.minimumCreditPurchase);
   const [editing, setEditing] = useState(false);
   const [draft, setDraft] = useState(amount ?? 50);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [cancelling, setCancelling] = useState(false);
 
-  const belowMin = draft < MIN_AMOUNT;
+  const belowMin = draft < minimumCreditPurchase;
 
   const nextCharge = nextChargeDate
     ? new Date(nextChargeDate).toLocaleDateString(undefined, {
@@ -51,9 +64,12 @@ export function MonthlyStatus({
   const save = async () => {
     if (belowMin) return;
     setSaving(true);
+    setSaveError(null);
     try {
       await onEditAmount(draft);
       setEditing(false);
+    } catch (err) {
+      setSaveError(paymentErrorMessage(err, t('checkout.errorBody')));
     } finally {
       setSaving(false);
     }
@@ -140,12 +156,23 @@ export function MonthlyStatus({
           </div>
           <Input
             type='number'
-            min={MIN_AMOUNT}
+            min={minimumCreditPurchase}
             value={draft}
             onChange={(e) => setDraft(Number(e.target.value) || 0)}
             aria-invalid={belowMin}
             className={cn('max-w-[160px]', belowMin && 'border-red-500')}
           />
+          {belowMin && (
+            <p className='text-xs text-red-500'>
+              {t('common.minAmountError', { amount: minimumCreditPurchase })}
+            </p>
+          )}
+          {saveError && (
+            <p className='flex items-center gap-1.5 text-xs text-red-500'>
+              <AlertTriangle className='h-3.5 w-3.5' />
+              {saveError}
+            </p>
+          )}
           <div className='flex gap-2'>
             <Button
               onClick={save}

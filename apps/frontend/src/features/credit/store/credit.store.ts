@@ -43,6 +43,8 @@ export interface SavedPaymentMethod {
 
 interface CreditState {
   balance: number;
+  canCall: boolean;
+  minimumCreditPurchase: number;
   freeCallTrial: boolean;
   status: FetchStatus;
   // True once the balance has loaded successfully at least once. Used to gate
@@ -79,6 +81,8 @@ interface CreditState {
 export const useCreditStore = create<CreditState>()(
   devtools((set) => ({
     balance: 0,
+    canCall: true,
+    minimumCreditPurchase: 5,
     freeCallTrial: false,
     status: 'idle',
     hasLoaded: false,
@@ -100,13 +104,21 @@ export const useCreditStore = create<CreditState>()(
       if (!silent) set({ status: 'loading', error: null });
 
       try {
-        const { balance, freeCallTrial, lastTopupAmount, lastTopupAt } =
-          await api.get(
-            '/credits/balance',
-            useMock ? { mock: true } : undefined
-          );
+        const {
+          balance,
+          canCall,
+          minimumCreditPurchase,
+          freeCallTrial,
+          lastTopupAmount,
+          lastTopupAt
+        } = await api.get(
+          '/credits/balance',
+          useMock ? { mock: true } : undefined
+        );
         set({
           balance,
+          canCall: canCall ?? true,
+          minimumCreditPurchase: minimumCreditPurchase ?? 5,
           freeCallTrial,
           lastTopupAmount: lastTopupAmount ?? null,
           lastTopupAt: lastTopupAt ?? null,
@@ -198,6 +210,8 @@ export const useCreditStore = create<CreditState>()(
     reset: () =>
       set({
         balance: 0,
+        canCall: true,
+        minimumCreditPurchase: 5,
         status: 'idle',
         hasLoaded: false,
         error: null,

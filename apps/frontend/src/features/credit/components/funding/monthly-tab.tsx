@@ -10,11 +10,7 @@ import { Checkbox } from '@ringee/frontend-shared/components/ui/checkbox';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useCreditStore } from '@/features/credit/store/credit.store';
-import {
-  MIN_AMOUNT,
-  MONTHLY_PRESETS,
-  estimateMinutes
-} from '../../lib/recharge';
+import { MONTHLY_PRESETS, estimateMinutes } from '../../lib/recharge';
 import { MonthlyStatus } from './monthly-status';
 
 interface Props {
@@ -48,13 +44,14 @@ export function MonthlyTab({
   const api = useApi();
   const monthlyFund = useCreditStore((s) => s.monthlyFund);
   const settings = useCreditStore((s) => s.autoReloadSettings);
+  const minimumCreditPurchase = useCreditStore((s) => s.minimumCreditPurchase);
   const fetchMonthlyFund = useCreditStore((s) => s.fetchMonthlyFund);
   const fetchAutoReloadSettings = useCreditStore(
     (s) => s.fetchAutoReloadSettings
   );
 
   const [consent, setConsent] = useState(false);
-  const belowMin = amount < MIN_AMOUNT;
+  const belowMin = amount < minimumCreditPurchase;
   const isActive =
     monthlyFund?.enabled || settings?.monthlyFundEnabled || false;
 
@@ -116,7 +113,7 @@ export function MonthlyTab({
         <Input
           id='monthly-custom'
           type='number'
-          min={MIN_AMOUNT}
+          min={minimumCreditPurchase}
           placeholder={t('monthly.customPlaceholder')}
           value={amount}
           onChange={(e) => onAmountChange(Number(e.target.value) || 0)}
@@ -125,7 +122,7 @@ export function MonthlyTab({
         />
         {belowMin && (
           <p className='mt-1 text-xs text-red-500'>
-            {t('common.minAmountError', { amount: MIN_AMOUNT })}
+            {t('common.minAmountError', { amount: minimumCreditPurchase })}
           </p>
         )}
       </div>

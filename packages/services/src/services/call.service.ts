@@ -197,6 +197,21 @@ export class CallService implements OnModuleDestroy {
     callControlId: string,
   ): Promise<boolean> {
     const user = await this.userService.getCachedUserById(ctx.userId);
+    if (user?.canCall === false) {
+      this.logger.warn(
+        `⛔ Hanging up call ${callControlId}: outbound calling disabled ` +
+          `(userId=${ctx.userId})`,
+      );
+      await this.telephonyService
+        .hangupCall(callControlId)
+        .catch((err) =>
+          this.logger.error(
+            `Failed to hang up disabled call ${callControlId}: ${err.message}`,
+            err.stack,
+          ),
+        );
+      return false;
+    }
     if (user?.freeCallTrial) {
       return true;
     }
@@ -281,6 +296,21 @@ export class CallService implements OnModuleDestroy {
     };
 
     const user = await this.userService.getCachedUserById(ctx.userId);
+    if (user?.canCall === false) {
+      this.logger.warn(
+        `⛔ Hanging up answered call ${call.callControlId}: outbound calling disabled ` +
+          `(userId=${ctx.userId})`,
+      );
+      await this.telephonyService
+        .hangupCall(call.callControlId)
+        .catch((err) =>
+          this.logger.error(
+            `Failed to hang up disabled call ${call.callControlId}: ${err.message}`,
+            err.stack,
+          ),
+        );
+      return false;
+    }
     if (user?.freeCallTrial) {
       return true;
     }

@@ -5,6 +5,7 @@ import {
   Delete,
   Get,
   Param,
+  Patch,
   Post,
   Put,
   Query,
@@ -12,9 +13,12 @@ import {
 import {
   IsBoolean,
   IsIn,
+  IsInt,
   IsNumber,
   IsOptional,
   IsString,
+  Max,
+  Min,
 } from "class-validator";
 import { BackofficeService, PipelineType } from "@ringee/services";
 import { AccountType } from "@ringee/database";
@@ -60,6 +64,27 @@ class SetAiPipelineDto {
 class AssignNumberDto {
   @IsString()
   numberId!: string;
+}
+
+class UpdateUserGeneralSettingsDto {
+  @IsOptional()
+  @IsBoolean()
+  canCall?: boolean;
+
+  @IsOptional()
+  @IsNumber()
+  @Min(0.5)
+  @Max(2000)
+  minimumCreditPurchase?: number;
+
+  @IsOptional()
+  @IsBoolean()
+  freeCallTrial?: boolean;
+
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  numberPurchaseLimit?: number | null;
 }
 
 function parseAccountType(type: string): AccountType {
@@ -142,6 +167,19 @@ export class BackofficeController {
     @Body() dto: SetCreditDto,
   ) {
     return this.backoffice.setCredit(parseAccountType(type), id, dto);
+  }
+
+  @Patch("accounts/:type/:id/general-settings")
+  updateUserGeneralSettings(
+    @Param("type") type: string,
+    @Param("id") id: string,
+    @Body() dto: UpdateUserGeneralSettingsDto,
+  ) {
+    return this.backoffice.updateUserGeneralSettings(
+      parseAccountType(type),
+      id,
+      dto,
+    );
   }
 
   @Put("accounts/:type/:id/recording-settings")

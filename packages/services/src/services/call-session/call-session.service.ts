@@ -38,6 +38,7 @@ import { CallSessionAccessTokenService } from "./call-session-access-token.servi
 import { PipelineFanoutService } from "../ai-pipeline";
 import { CrmCallLogService } from "../crm/crm-call-log.service";
 import { CallerIdRotationService } from "../caller-id-rotation/caller-id-rotation.service";
+import { UserService } from "../user.service";
 
 const MIN_CREDIT_BALANCE_TO_CALL = 0.01;
 const DEFAULT_EXPIRES_IN_MINUTES = 60;
@@ -102,6 +103,7 @@ export class CallSessionService {
     private readonly pipelineFanout: PipelineFanoutService,
     private readonly callerIdRotationService: CallerIdRotationService,
     private readonly crmCallLog: CrmCallLogService,
+    private readonly userService: UserService,
   ) {}
 
   // ── Ownership & access ──────────────────────────────────────
@@ -605,6 +607,12 @@ export class CallSessionService {
     }
 
     const ctx = this.ownershipContext(session);
+    const user = await this.userService.getCachedUserById(session.userId);
+    if (user?.canCall === false) {
+      throw new ForbiddenException(
+        "Outbound calling is disabled for this user",
+      );
+    }
     const balance = await this.creditService.getBalance(ctx);
     if (balance <= MIN_CREDIT_BALANCE_TO_CALL) {
       await this.repo.logEvent({

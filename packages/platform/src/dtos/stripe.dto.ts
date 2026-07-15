@@ -15,7 +15,7 @@ export type BillingInterval = "month" | "year";
 
 export class CreateCreditCheckoutDto {
   @IsNumber()
-  @Min(1, { message: "Amount must be greater than 0" })
+  @Min(0.5, { message: "Amount must be at least $0.50" })
   amount!: number;
 
   @IsOptional()
@@ -97,7 +97,7 @@ export class CostInformationDto {
 
 export class CreateMonthlyCreditSubscriptionDto {
   @IsNumber()
-  @Min(5, { message: "Monthly amount must be at least $5" })
+  @Min(0.5, { message: "Monthly amount must be at least $0.50" })
   amount!: number;
 
   @IsOptional()
@@ -115,7 +115,7 @@ export class CreateMonthlyCreditSubscriptionDto {
 
 export class CreateAutoReloadSetupDto {
   @IsNumber()
-  @Min(5, { message: "Reload amount must be at least $5" })
+  @Min(0.5, { message: "Reload amount must be at least $0.50" })
   reloadAmount!: number;
 
   @IsNumber()
@@ -141,7 +141,7 @@ export class EnableAutoReloadDto {
   threshold!: number;
 
   @IsNumber()
-  @Min(5, { message: "Reload amount must be at least $5" })
+  @Min(0.5, { message: "Reload amount must be at least $0.50" })
   reloadAmount!: number;
 
   @IsBoolean()
@@ -154,7 +154,7 @@ export class EnableAutoReloadDto {
 /** Edit the amount of an active monthly credit-funding subscription. */
 export class UpdateMonthlyFundDto {
   @IsNumber()
-  @Min(5, { message: "Monthly amount must be at least $5" })
+  @Min(0.5, { message: "Monthly amount must be at least $0.50" })
   amount!: number;
 }
 
@@ -177,7 +177,7 @@ export class UpdateAutoReloadSettingsDto {
 
   @IsOptional()
   @IsNumber()
-  @Min(5)
+  @Min(0.5)
   autoReloadAmount?: number;
 }
 

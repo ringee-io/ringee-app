@@ -12,13 +12,16 @@ import { useTranslations } from 'next-intl';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { cn } from '@ringee/frontend-shared/lib/utils';
-import type { AutoReloadStatus as Status } from '@/features/credit/store/credit.store';
 import {
-  MIN_AMOUNT,
+  useCreditStore,
+  type AutoReloadStatus as Status
+} from '@/features/credit/store/credit.store';
+import {
   THRESHOLD_PRESETS,
   RELOAD_PRESETS,
   formatBrand,
-  money
+  money,
+  paymentErrorMessage
 } from '../../lib/recharge';
 
 interface Props {
@@ -47,15 +50,17 @@ export function AutoReloadStatusView({
   onTurnOff
 }: Props) {
   const t = useTranslations('billing.credits.popover');
+  const minimumCreditPurchase = useCreditStore((s) => s.minimumCreditPurchase);
   const [editing, setEditing] = useState(false);
   const [draftThreshold, setDraftThreshold] = useState(threshold);
   const [draftReload, setDraftReload] = useState(reloadAmount);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [turningOff, setTurningOff] = useState(false);
 
   const needsAttention =
     status === 'failed' || status === 'requires_payment_method';
-  const belowMin = draftReload < MIN_AMOUNT || draftThreshold < 1;
+  const belowMin = draftReload < minimumCreditPurchase || draftThreshold < 1;
 
   const badge = {
     active: {
@@ -88,9 +93,12 @@ export function AutoReloadStatusView({
   const save = async () => {
     if (belowMin) return;
     setSaving(true);
+    setSaveError(null);
     try {
       await onEditSettings(draftThreshold, draftReload);
       setEditing(false);
+    } catch (err) {
+      setSaveError(paymentErrorMessage(err, t('autoReload.enableError')));
     } finally {
       setSaving(false);
     }
@@ -222,12 +230,25 @@ export function AutoReloadStatusView({
             </div>
             <Input
               type='number'
-              min={MIN_AMOUNT}
+              min={minimumCreditPurchase}
               value={draftReload}
               onChange={(e) => setDraftReload(Number(e.target.value) || 0)}
               className='mt-2 max-w-[160px]'
             />
+            {draftReload < minimumCreditPurchase && (
+              <p className='mt-1 text-xs text-red-500'>
+                {t('common.minAmountError', {
+                  amount: minimumCreditPurchase
+                })}
+              </p>
+            )}
           </div>
+          {saveError && (
+            <p className='flex items-center gap-1.5 text-xs text-red-500'>
+              <AlertTriangle className='h-3.5 w-3.5' />
+              {saveError}
+            </p>
+          )}
           <div className='flex gap-2'>
             <Button
               onClick={save}

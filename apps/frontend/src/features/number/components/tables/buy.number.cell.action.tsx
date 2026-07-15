@@ -41,8 +41,10 @@ export const CellActionBuy = ({ data }: { data: AvailableNumber }) => {
       );
 
       router.push(url);
-    } catch {
-      toast.error(t('purchase.error'));
+    } catch (err) {
+      toast.error(
+        err instanceof Error && err.message ? err.message : t('purchase.error')
+      );
       setConfirming(false);
     }
   };

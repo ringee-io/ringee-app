@@ -29,7 +29,8 @@ import {
   type AccountType,
   type NumberListItem,
   type PipelineType,
-  type RecordingSettings
+  type RecordingSettings,
+  type UserGeneralSettings
 } from '../api';
 import {
   errorMessage,
@@ -98,6 +99,16 @@ export function AccountDetail({ type, id }: { type: AccountType; id: string }) {
             setAccount((a) => (a ? { ...a, creditBalance: balance } : a))
           }
         />
+        {account.userSettings && (
+          <GeneralSettingsCard
+            type={type}
+            id={id}
+            settings={account.userSettings}
+            onUpdated={(userSettings) =>
+              setAccount((a) => (a ? { ...a, userSettings } : a))
+            }
+          />
+        )}
         <RecordingCard
           type={type}
           id={id}
@@ -113,6 +124,183 @@ export function AccountDetail({ type, id }: { type: AccountType; id: string }) {
         <NumbersCard type={type} id={id} account={account} onChanged={load} />
       </div>
     </div>
+  );
+}
+
+// ── General user settings ───────────────────────────────────
+
+function GeneralSettingsCard({
+  type,
+  id,
+  settings,
+  onUpdated
+}: {
+  type: AccountType;
+  id: string;
+  settings: UserGeneralSettings;
+  onUpdated: (settings: UserGeneralSettings) => void;
+}) {
+  const api = useBackofficeApi();
+  const [canCall, setCanCall] = useState(settings.canCall);
+  const [freeCallTrial, setFreeCallTrial] = useState(settings.freeCallTrial);
+  const [minimumCreditPurchase, setMinimumCreditPurchase] = useState(
+    settings.minimumCreditPurchase.toString()
+  );
+  const [numberPurchaseLimit, setNumberPurchaseLimit] = useState(
+    settings.numberPurchaseLimit?.toString() ?? ''
+  );
+  const [savingLimits, setSavingLimits] = useState(false);
+  const [savingToggle, setSavingToggle] = useState<
+    'canCall' | 'freeCallTrial' | null
+  >(null);
+
+  useEffect(() => {
+    setCanCall(settings.canCall);
+    setFreeCallTrial(settings.freeCallTrial);
+  }, [settings.canCall, settings.freeCallTrial]);
+
+  useEffect(() => {
+    setMinimumCreditPurchase(settings.minimumCreditPurchase.toString());
+    setNumberPurchaseLimit(settings.numberPurchaseLimit?.toString() ?? '');
+  }, [settings.minimumCreditPurchase, settings.numberPurchaseLimit]);
+
+  const toggleSetting = async (
+    key: 'canCall' | 'freeCallTrial',
+    value: boolean
+  ) => {
+    const setLocal = key === 'canCall' ? setCanCall : setFreeCallTrial;
+    const previous = key === 'canCall' ? canCall : freeCallTrial;
+    setLocal(value);
+    setSavingToggle(key);
+    try {
+      const updated = await api.updateUserGeneralSettings(type, id, {
+        [key]: value
+      });
+      onUpdated(updated);
+      toast.success(
+        key === 'canCall'
+          ? value
+            ? 'Calling enabled'
+            : 'Calling disabled'
+          : value
+            ? 'Free trial call enabled'
+            : 'Free trial call disabled'
+      );
+    } catch (err) {
+      setLocal(previous);
+      toast.error(errorMessage(err, 'Failed to update setting'));
+    } finally {
+      setSavingToggle(null);
+    }
+  };
+
+  const saveLimits = async () => {
+    const minimum = Number(minimumCreditPurchase);
+    const limit =
+      numberPurchaseLimit === '' ? null : Number(numberPurchaseLimit);
+    if (!Number.isFinite(minimum) || minimum < 0.5 || minimum > 2000) {
+      toast.error('Minimum credit purchase must be between $0.50 and $2,000');
+      return;
+    }
+    if (limit !== null && (!Number.isInteger(limit) || limit < 0)) {
+      toast.error('Number purchase limit must be a whole number');
+      return;
+    }
+
+    setSavingLimits(true);
+    try {
+      const updated = await api.updateUserGeneralSettings(type, id, {
+        minimumCreditPurchase: minimum,
+        numberPurchaseLimit: limit
+      });
+      onUpdated(updated);
+      toast.success('General settings updated');
+    } catch (err) {
+      toast.error(errorMessage(err, 'Failed to update general settings'));
+    } finally {
+      setSavingLimits(false);
+    }
+  };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>General settings</CardTitle>
+        <CardDescription>
+          Calling and purchasing controls for this user.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className='space-y-5'>
+        <div className='flex items-center justify-between gap-4'>
+          <div>
+            <Label>Can place calls</Label>
+            <p className='text-muted-foreground text-xs'>
+              Disable to block every outbound call for this user.
+            </p>
+          </div>
+          <Switch
+            checked={canCall}
+            disabled={savingToggle !== null}
+            onCheckedChange={(value) => toggleSetting('canCall', value)}
+          />
+        </div>
+
+        <div className='flex items-center justify-between gap-4'>
+          <div>
+            <Label>Free trial call</Label>
+            <p className='text-muted-foreground text-xs'>
+              Grants the existing one-time free call trial.
+            </p>
+          </div>
+          <Switch
+            checked={freeCallTrial}
+            disabled={savingToggle !== null}
+            onCheckedChange={(value) => toggleSetting('freeCallTrial', value)}
+          />
+        </div>
+
+        <div className='grid gap-4 sm:grid-cols-2'>
+          <div className='space-y-1'>
+            <Label htmlFor='minimum-credit-purchase'>
+              Minimum credit purchase (USD)
+            </Label>
+            <Input
+              id='minimum-credit-purchase'
+              type='number'
+              min='0.5'
+              max='2000'
+              step='0.01'
+              placeholder='5.00'
+              required
+              value={minimumCreditPurchase}
+              onChange={(e) => setMinimumCreditPurchase(e.target.value)}
+            />
+            <p className='text-muted-foreground text-xs'>
+              Defaults to $5 and can be customized for this user.
+            </p>
+          </div>
+          <div className='space-y-1'>
+            <Label htmlFor='number-purchase-limit'>Number purchase limit</Label>
+            <Input
+              id='number-purchase-limit'
+              type='number'
+              min='0'
+              step='1'
+              placeholder='Unlimited'
+              value={numberPurchaseLimit}
+              onChange={(e) => setNumberPurchaseLimit(e.target.value)}
+            />
+            <p className='text-muted-foreground text-xs'>
+              Leave blank for unlimited purchases.
+            </p>
+          </div>
+        </div>
+
+        <Button onClick={saveLimits} disabled={savingLimits}>
+          {savingLimits ? 'Saving…' : 'Save limits'}
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
 

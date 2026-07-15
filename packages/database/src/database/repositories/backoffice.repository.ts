@@ -70,6 +70,12 @@ export interface AssignedNumber {
 export interface AccountDetail extends AccountListItem {
   numbers: AssignedNumber[];
   pipelineRows: { pipelineType: AiPipelineType; enabled: boolean }[];
+  userSettings: {
+    canCall: boolean;
+    minimumCreditPurchase: number;
+    freeCallTrial: boolean;
+    numberPurchaseLimit: number | null;
+  } | null;
 }
 
 export interface NumberListItem {
@@ -402,6 +408,10 @@ export class BackofficeRepository {
         firstName: true,
         lastName: true,
         createdAt: true,
+        canCall: true,
+        minimumCreditPurchase: true,
+        freeCallTrial: true,
+        numberPurchaseLimit: true,
         emails: { select: { email: true, isPrimary: true } },
         Credit: { where: { organizationId: null }, select: { amount: true } },
         callRecordingSettings: {
@@ -443,6 +453,12 @@ export class BackofficeRepository {
       createdAt: u.createdAt,
       numbers,
       pipelineRows,
+      userSettings: {
+        canCall: u.canCall,
+        minimumCreditPurchase: u.minimumCreditPurchase,
+        freeCallTrial: u.freeCallTrial ?? false,
+        numberPurchaseLimit: u.numberPurchaseLimit,
+      },
     };
   }
 
@@ -494,6 +510,7 @@ export class BackofficeRepository {
       createdAt: o.createdAt,
       numbers,
       pipelineRows,
+      userSettings: null,
     };
   }
 

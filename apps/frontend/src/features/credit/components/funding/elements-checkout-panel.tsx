@@ -28,6 +28,7 @@ import {
   buildCheckoutAppearance,
   paymentElementOptions
 } from './checkout-appearance';
+import { paymentErrorMessage } from '../../lib/recharge';
 
 const stripePromise = getStripe();
 
@@ -127,6 +128,7 @@ export function ElementsCheckoutPanel({
   );
 
   const [phase, setPhase] = useState<Phase>('loading');
+  const [creationError, setCreationError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [billingEmail, setBillingEmail] = useState<string | null>(null);
   const intentIdRef = useRef<string | null>(null);
@@ -142,6 +144,7 @@ export function ElementsCheckoutPanel({
 
   const create = useCallback(async () => {
     setPhase('loading');
+    setCreationError(null);
     try {
       const {
         clientSecret: secret,
@@ -155,9 +158,10 @@ export function ElementsCheckoutPanel({
       setPhase('ready');
     } catch (err) {
       console.error('Failed to create Stripe intent:', err);
+      setCreationError(paymentErrorMessage(err, t('checkout.errorBody')));
       setPhase('error');
     }
-  }, [createIntent]);
+  }, [createIntent, t]);
 
   // Create on mount and whenever the session key changes (consent toggle, etc.).
   useEffect(() => {
@@ -166,8 +170,7 @@ export function ElementsCheckoutPanel({
       return;
     }
     create();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionKey]);
+  }, [create, missingKey, sessionKey]);
 
   const handleSuccess = useCallback(() => {
     setPhase('completed');
@@ -256,7 +259,7 @@ export function ElementsCheckoutPanel({
             <p className='text-muted-foreground max-w-[38ch] text-xs'>
               {missingKey
                 ? t('checkout.missingKeyBody')
-                : t('checkout.errorBody')}
+                : (creationError ?? t('checkout.errorBody'))}
             </p>
             {!missingKey && (
               <Button
@@ -419,7 +422,7 @@ function CheckoutForm({
         }
       } catch (err) {
         console.error('Checkout confirmation failed:', err);
-        setError(t('checkout.errorBody'));
+        setError(paymentErrorMessage(err, t('checkout.errorBody')));
       } finally {
         setSubmitting(false);
         inFlightRef.current = false;

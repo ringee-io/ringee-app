@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useCreditStore } from '@/features/credit/store/credit.store';
 import { getStripe } from '../lib/stripe';
+import { paymentErrorMessage } from '../lib/recharge';
 
 /** Discrete phases of a one-click saved-card recharge. */
 export type SavedRechargePhase =
@@ -42,6 +43,7 @@ export function useSavedRecharge() {
   const fetchBalance = useCreditStore((s) => s.fetchBalance);
 
   const [phase, setPhase] = useState<SavedRechargePhase>('idle');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [creditReflected, setCreditReflected] = useState(false);
 
   const baselineBalanceRef = useRef(0);
@@ -96,6 +98,7 @@ export function useSavedRecharge() {
       if (inFlightRef.current) return;
       inFlightRef.current = true;
       setCreditReflected(false);
+      setErrorMessage(null);
       baselineBalanceRef.current = useCreditStore.getState().balance;
       setPhase('processing');
 
@@ -114,11 +117,15 @@ export function useSavedRecharge() {
           setPhase('authenticating');
           const stripe = await getStripe();
           if (!stripe) {
+            setErrorMessage('Stripe is temporarily unavailable. Try again.');
             setPhase('failed');
             return;
           }
           const { error } = await stripe.handleNextAction({ clientSecret });
           if (error) {
+            setErrorMessage(
+              error.message ?? 'Card authentication could not be completed.'
+            );
             setPhase('failed');
             return;
           }
@@ -133,9 +140,16 @@ export function useSavedRecharge() {
           return;
         }
 
+        setErrorMessage('The payment could not be completed. Try again.');
         setPhase('failed');
       } catch (err) {
         console.error('Saved-card recharge failed:', err);
+        setErrorMessage(
+          paymentErrorMessage(
+            err,
+            'The payment could not be completed. Try again.'
+          )
+        );
         setPhase('failed');
       } finally {
         inFlightRef.current = false;
@@ -147,8 +161,9 @@ export function useSavedRecharge() {
   const reset = useCallback(() => {
     if (pollTimer.current) clearTimeout(pollTimer.current);
     setCreditReflected(false);
+    setErrorMessage(null);
     setPhase('idle');
   }, []);
 
-  return { phase, creditReflected, start, reset };
+  return { phase, creditReflected, errorMessage, start, reset };
 }

@@ -58,6 +58,22 @@ export class NumberPurchasedService {
     return this.telephonyService.getAvailableNumberCost(phoneNumber);
   }
 
+  async assertCanPurchaseNumber(userId: string): Promise<void> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+    if (user.numberPurchaseLimit === null) return;
+
+    const purchased =
+      await this.numberPurchasedRepository.countPurchasedByUser(userId);
+    if (purchased >= user.numberPurchaseLimit) {
+      throw new BadRequestException(
+        `Phone number limit reached. This account can own up to ${user.numberPurchaseLimit} purchased number${user.numberPurchaseLimit === 1 ? "" : "s"}.`,
+      );
+    }
+  }
+
   assignToOwner(
     numberId: string,
     ctx: OwnershipContext,

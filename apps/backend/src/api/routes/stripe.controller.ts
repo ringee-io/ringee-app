@@ -54,7 +54,9 @@ interface CurrentUserData {
 // Server-authoritative bounds for a single credit top-up (USD). NEVER trust the
 // client to enforce these — the amount is re-validated here before a Checkout
 // Session is created.
-const MIN_TOPUP_USD = 5;
+// Stripe's technical floor for USD charges. The commercial minimum is stored
+// per user (default $5) and can be changed from the backoffice.
+const MIN_TOPUP_USD = 0.5;
 const MAX_TOPUP_USD = 2000;
 
 @Controller("stripe")
@@ -180,7 +182,7 @@ export class StripeController {
       throw new NotFoundException("User not found");
     }
 
-    const amount = this.normalizeTopupAmount(body.amount);
+    const amount = await this.normalizeTopupAmount(body.amount, user.id);
     const customerId = await this.getOrCreateCustomer(user);
     const pm = await this.stripeService.getSavedPaymentMethod(customerId);
 
@@ -223,14 +225,13 @@ export class StripeController {
       throw new NotFoundException("User not found");
     }
 
-    console.log("user", user);
-
+    const amount = await this.normalizeTopupAmount(body.amount, user.id);
     const customerId = await this.getOrCreateCustomer(user);
 
     return this.stripeService.createOneTimePaymentSession(
       user.id,
       customerId,
-      body.amount,
+      amount,
       body.description ||
         "Add more credits to your Ringee account to keep making calls, and using advanced features without interruption.",
       user.activeOrgId, // Pass organizationId
@@ -255,7 +256,7 @@ export class StripeController {
       throw new NotFoundException("User not found");
     }
 
-    const amount = this.normalizeTopupAmount(body.amount);
+    const amount = await this.normalizeTopupAmount(body.amount, user.id);
     const customerId = await this.getOrCreateCustomer(user);
 
     return this.stripeService.createCreditTopupPaymentIntent(
@@ -344,7 +345,10 @@ export class StripeController {
    * enforces the server-authoritative [MIN, MAX] bounds so a tampered client
    * cannot request an out-of-range charge.
    */
-  private normalizeTopupAmount(raw: unknown): number {
+  private async normalizeTopupAmount(
+    raw: unknown,
+    userId: string,
+  ): Promise<number> {
     const amount = Math.round(Number(raw) * 100) / 100;
     if (
       !Number.isFinite(amount) ||
@@ -355,6 +359,7 @@ export class StripeController {
         `Amount must be between $${MIN_TOPUP_USD} and $${MAX_TOPUP_USD}.`,
       );
     }
+    await this.userService.assertMinimumCreditPurchase(userId, amount);
     return amount;
   }
 
@@ -368,6 +373,8 @@ export class StripeController {
     if (!user) {
       throw new NotFoundException("User not found");
     }
+
+    await this.numberPurchasedService.assertCanPurchaseNumber(user.id);
 
     const customerId = await this.getOrCreateCustomer(user);
 
@@ -400,12 +407,13 @@ export class StripeController {
       throw new NotFoundException("User not found");
     }
 
+    const amount = await this.normalizeTopupAmount(body.amount, user.id);
     const customerId = await this.getOrCreateCustomer(user);
 
     return this.stripeService.createMonthlyCreditSubscriptionSession(
       customerId,
       user.id,
-      body.amount,
+      amount,
       user.activeOrgId,
       body.frontendOrigin,
     );
@@ -428,12 +436,13 @@ export class StripeController {
       throw new NotFoundException("User not found");
     }
 
+    const amount = await this.normalizeTopupAmount(body.amount, user.id);
     const customerId = await this.getOrCreateCustomer(user);
 
     return this.stripeService.createMonthlyCreditSubscriptionIntent(
       user.id,
       customerId,
-      body.amount,
+      amount,
       user.activeOrgId,
       body.invoiceEmail,
     );

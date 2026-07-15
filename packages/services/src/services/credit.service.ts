@@ -185,8 +185,8 @@ export class CreditService {
     ctx: OwnershipContext,
     amount: number,
   ): Promise<CreditAutoReload> {
-    if (amount < 5) {
-      throw new BadRequestException("Monthly amount must be at least $5.");
+    if (amount < 0.5) {
+      throw new BadRequestException("Monthly amount must be at least $0.50.");
     }
     const settings = await this.creditAutoReloadRepository.getSettings(ctx);
     if (!settings?.stripeSubscriptionId || !settings.monthlyFundEnabled) {

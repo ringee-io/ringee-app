@@ -56,14 +56,18 @@ export class CreditController {
 
       return {
         balance: summary.balance,
-        freeCallTrial: false,
+        canCall: dbUser.canCall,
+        minimumCreditPurchase: dbUser.minimumCreditPurchase,
+        freeCallTrial: dbUser.freeCallTrial ?? false,
         lastTopupAmount: summary.lastTopupAmount,
         lastTopupAt: summary.lastTopupAt,
       };
     } catch {
       return {
         balance: 0,
-        freeCallTrial: false,
+        canCall: dbUser.canCall,
+        minimumCreditPurchase: dbUser.minimumCreditPurchase,
+        freeCallTrial: dbUser.freeCallTrial ?? false,
         lastTopupAmount: null,
         lastTopupAt: null,
       };
@@ -162,6 +166,12 @@ export class CreditController {
     @CurrentUser() user: CurrentUserData,
     @Body() body: UpdateAutoReloadSettingsDto,
   ) {
+    if (typeof body.autoReloadAmount === "number") {
+      await this.userService.assertMinimumCreditPurchase(
+        user.id,
+        body.autoReloadAmount,
+      );
+    }
     const ctx = createOwnershipContext(user);
     const settings = await this.creditService.updateAutoReloadSettings(
       ctx,
@@ -188,6 +198,10 @@ export class CreditController {
     @CurrentUser() user: CurrentUserData,
     @Body() body: EnableAutoReloadDto,
   ) {
+    await this.userService.assertMinimumCreditPurchase(
+      user.id,
+      body.reloadAmount,
+    );
     const ctx = createOwnershipContext(user);
     const settings = await this.creditService.enableAutoReload(ctx, {
       threshold: body.threshold,
@@ -216,6 +230,7 @@ export class CreditController {
     @CurrentUser() user: CurrentUserData,
     @Body() body: UpdateMonthlyFundDto,
   ) {
+    await this.userService.assertMinimumCreditPurchase(user.id, body.amount);
     const ctx = createOwnershipContext(user);
     await this.creditService.updateMonthlyFundAmount(ctx, body.amount);
     return this.creditService.getMonthlyFundSummary(ctx);

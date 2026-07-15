@@ -23,7 +23,6 @@ import { useCreditStore } from '@/features/credit/store/credit.store';
 import { useAuth } from '@clerk/nextjs';
 import { useOnboardingComplete } from '@/features/onboarding/hooks/use.onboarding.complete';
 import { useTranslations } from 'next-intl';
-import { MIN_AMOUNT } from '../lib/recharge';
 import { AmountStep } from './recharge/amount-step';
 import { SavedRechargeStep } from './recharge/saved-recharge-step';
 import { OneTimeCheckout } from './funding/one-time-checkout';
@@ -164,6 +163,7 @@ export function CreditPopover({
 
   const {
     balance,
+    minimumCreditPurchase,
     freeCallTrial,
     fetchBalance,
     fetchAutoReloadSettings,
@@ -253,7 +253,7 @@ export function CreditPopover({
       fetchBalance(api, useMock, true);
       refreshFunding();
       const last = useCreditStore.getState().lastTopupAmount;
-      if (last && last >= MIN_AMOUNT) setAmount(last);
+      if (last && last >= minimumCreditPurchase) setAmount(last);
     } else {
       setFlowStep(null);
       setTab('one-time');

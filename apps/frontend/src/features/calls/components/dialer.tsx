@@ -59,7 +59,12 @@ export function Dialer({
   const { client, activeCall } = useTelnyxStore();
   const { handleCall } = useCall();
   const { number, setNumber } = useDialerStore();
-  const { balance, freeCallTrial, status: balanceStatus } = useCreditStore();
+  const {
+    balance,
+    canCall,
+    freeCallTrial,
+    status: balanceStatus
+  } = useCreditStore();
   const { canAccessAdminFeatures } = useMock
     ? { canAccessAdminFeatures: true }
     : useOrgRole();
@@ -156,6 +161,11 @@ export function Dialer({
           </CardHeader>
 
           <CardContent className='space-y-3'>
+            {!canCall && balanceStatus === 'success' && (
+              <p className='rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400'>
+                Outbound calling is disabled for this account.
+              </p>
+            )}
             <NumberSelector useMock={useMock} />
             <Separator className='opacity-10' />
             <ContactSelector number={number} onSelectNumber={setNumber} />
@@ -175,8 +185,12 @@ export function Dialer({
               onDelete={() => setNumber(number.slice(0, -1))}
               onCall={async () => await attemptCall(number)}
               isCalling={isCalling || checkingDnc}
+              callingDisabled={!useMock && !canCall}
               showCreditPopover={
-                canAccessAdminFeatures && !freeCallTrial && balance <= 0
+                canCall &&
+                canAccessAdminFeatures &&
+                !freeCallTrial &&
+                balance <= 0
               }
             />
           </CardContent>

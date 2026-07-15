@@ -51,6 +51,16 @@ export class NumberPurchasedRepository {
     return [...values, ...callerIds];
   }
 
+  countPurchasedByUser(userId: string): Promise<number> {
+    return this.prisma.numberPurchased.count({
+      where: {
+        userId,
+        kind: "purchased",
+        status: { not: "released" },
+      },
+    });
+  }
+
   /**
    * Owned numbers that can legitimately be presented as a caller ID for
    * rotation: purchased DIDs plus *verified, active* external caller IDs. Both

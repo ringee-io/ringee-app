@@ -7,10 +7,12 @@ import { Label } from '@ringee/frontend-shared/components/ui/label';
 import { Progress } from '@ringee/frontend-shared/components/ui/progress';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { History, Wallet } from 'lucide-react';
-import type { SavedPaymentMethod } from '@/features/credit/store/credit.store';
+import {
+  useCreditStore,
+  type SavedPaymentMethod
+} from '@/features/credit/store/credit.store';
 import {
   RECHARGE_PRESETS,
-  MIN_AMOUNT,
   money,
   estimateMinutes,
   formatBrand
@@ -51,7 +53,8 @@ export function AmountStep({
   onUseAnotherMethod
 }: Props) {
   const t = useTranslations('billing.credits.popover');
-  const belowMin = amount < MIN_AMOUNT;
+  const minimumCreditPurchase = useCreditStore((s) => s.minimumCreditPurchase);
+  const belowMin = amount < minimumCreditPurchase;
   const newBalance = currentBalance + amount;
   const level = Math.min(100, (amount / 100) * 100);
   const hasSaved = !!method?.hasSavedMethod;
@@ -110,7 +113,7 @@ export function AmountStep({
         <Input
           id='custom'
           type='number'
-          min={MIN_AMOUNT}
+          min={minimumCreditPurchase}
           placeholder={t('oneTime.customPlaceholder')}
           value={amount}
           onChange={(e) => onAmountChange(Number(e.target.value) || 0)}
@@ -122,7 +125,7 @@ export function AmountStep({
         />
         {belowMin && (
           <p className='mt-1 text-xs text-red-500'>
-            {t('common.minAmountError', { amount: MIN_AMOUNT })}
+            {t('common.minAmountError', { amount: minimumCreditPurchase })}
           </p>
         )}
       </div>

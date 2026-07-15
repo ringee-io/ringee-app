@@ -10,6 +10,20 @@ export interface NotificationPreferences {
   missedCalls: boolean;
 }
 
+export interface UserGeneralSettings {
+  canCall: boolean;
+  minimumCreditPurchase: number;
+  freeCallTrial: boolean;
+  numberPurchaseLimit: number | null;
+}
+
+export interface UpdateUserGeneralSettingsInput {
+  canCall?: boolean;
+  minimumCreditPurchase?: number;
+  freeCallTrial?: boolean;
+  numberPurchaseLimit?: number | null;
+}
+
 const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
   callbacks: true,
   meetings: true,
@@ -170,6 +184,47 @@ export class UserService {
     const user = await this.userRepository.update(userId, { customerId });
     await this.invalidateUserCache(user);
     return user;
+  }
+
+  async updateGeneralSettings(
+    userId: string,
+    input: UpdateUserGeneralSettingsInput,
+  ): Promise<UserGeneralSettings> {
+    const updated = await this.userRepository.update(userId, {
+      ...(input.canCall !== undefined ? { canCall: input.canCall } : {}),
+      ...(input.minimumCreditPurchase !== undefined
+        ? { minimumCreditPurchase: input.minimumCreditPurchase }
+        : {}),
+      ...(input.freeCallTrial !== undefined
+        ? { freeCallTrial: input.freeCallTrial }
+        : {}),
+      ...(input.numberPurchaseLimit !== undefined
+        ? { numberPurchaseLimit: input.numberPurchaseLimit }
+        : {}),
+    });
+    await this.invalidateUserCache(updated);
+    return {
+      canCall: updated.canCall,
+      minimumCreditPurchase: updated.minimumCreditPurchase,
+      freeCallTrial: updated.freeCallTrial ?? false,
+      numberPurchaseLimit: updated.numberPurchaseLimit,
+    };
+  }
+
+  async assertMinimumCreditPurchase(
+    userId: string,
+    amount: number,
+  ): Promise<void> {
+    const user = await this.getCachedUserById(userId);
+    if (!user) {
+      throw new BadRequestException("User not found");
+    }
+    const minimum = user.minimumCreditPurchase;
+    if (amount < minimum) {
+      throw new BadRequestException(
+        `The minimum credit purchase for this account is $${minimum.toFixed(2)}. Enter $${minimum.toFixed(2)} or more.`,
+      );
+    }
   }
 
   async consumeFreeCallTrial(userId: string): Promise<User> {

@@ -355,24 +355,29 @@ enum SocialPlatform {
 }
 
 model User {
-  id               String   @id @default(uuid()) @db.Uuid
-  clerkId          String?  @unique
-  firstName        String?
-  lastName         String?
-  imageUrl         String?
-  profileImageUrl  String?
-  passwordEnabled  Boolean? @default(false)
-  twoFactorEnabled Boolean? @default(false)
-  publicMetadata   Json?
-  privateMetadata  Json?
-  unsafeMetadata   Json?
-  clientIp         String?
-  userAgent        String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
-  customerId       String?
-  freeCallTrial    Boolean? @default(false)
-  encryptionKey    String?  @db.Text
+  id                    String   @id @default(uuid()) @db.Uuid
+  clerkId               String?  @unique
+  firstName             String?
+  lastName              String?
+  imageUrl              String?
+  profileImageUrl       String?
+  passwordEnabled       Boolean? @default(false)
+  twoFactorEnabled      Boolean? @default(false)
+  publicMetadata        Json?
+  privateMetadata       Json?
+  unsafeMetadata        Json?
+  clientIp              String?
+  userAgent             String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  customerId            String?
+  freeCallTrial         Boolean? @default(false)
+  // Per-user commercial/operational controls managed from the backoffice.
+  // The number limit is nullable to preserve the historical "unlimited" behaviour.
+  canCall               Boolean  @default(true)
+  minimumCreditPurchase Float    @default(5)
+  numberPurchaseLimit   Int?
+  encryptionKey         String?  @db.Text
 
   // Onboarding state
   onboardingCompletedSteps String[]  @default([])
@@ -919,6 +924,7 @@ model NumberPurchased {
 
   @@index([isoCountry])
   @@index([provider])
+  @@index([userId])
   @@index([providerConnectionId])
   @@index([organizationId])
   @@index([providerMessagingProfileId])

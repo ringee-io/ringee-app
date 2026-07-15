@@ -72,6 +72,14 @@ export interface PipelineFlag {
 export interface AccountDetail extends AccountListItem {
   numbers: AssignedNumber[];
   pipelines: PipelineFlag[];
+  userSettings: UserGeneralSettings | null;
+}
+
+export interface UserGeneralSettings {
+  canCall: boolean;
+  minimumCreditPurchase: number;
+  freeCallTrial: boolean;
+  numberPurchaseLimit: number | null;
 }
 
 export interface NumberListItem {
@@ -120,6 +128,16 @@ export function useBackofficeApi() {
       ) =>
         api.post<{ balance: number }>(
           `${BASE}/accounts/${type}/${id}/credit`,
+          body
+        ),
+
+      updateUserGeneralSettings: (
+        type: AccountType,
+        id: string,
+        body: Partial<UserGeneralSettings>
+      ) =>
+        api.patch<UserGeneralSettings>(
+          `${BASE}/accounts/${type}/${id}/general-settings`,
           body
         ),
 

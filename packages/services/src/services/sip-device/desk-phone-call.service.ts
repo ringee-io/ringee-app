@@ -21,6 +21,7 @@ type BlockReason =
   | "DEVICE_NOT_FOUND"
   | "DEVICE_DISABLED"
   | "OUTBOUND_DISABLED"
+  | "USER_CALLING_DISABLED"
   | "INVALID_DESTINATION"
   | "NO_CALLER_ID"
   | "CALLER_ID_NOT_ALLOWED"
@@ -225,6 +226,13 @@ export class DeskPhoneCallService {
       return block("OUTBOUND_DISABLED");
     }
 
+    const user = await this.userService
+      .getCachedUserById(device.userId)
+      .catch(() => null);
+    if (user?.canCall === false) {
+      return block("USER_CALLING_DISABLED");
+    }
+
     // 2) Destination normalization.
     const destination = this.normalizeE164(payload.to);
     if (!destination) {
@@ -260,9 +268,6 @@ export class DeskPhoneCallService {
     }
 
     // 5) Credit — balance gate (real cost settled on call.cost).
-    const user = await this.userService
-      .getCachedUserById(device.userId)
-      .catch(() => null);
     if (!user?.freeCallTrial) {
       const balance = await this.creditService.getBalance(ctx).catch(() => 0);
       if (balance <= 0) {

@@ -10,9 +10,8 @@ export const MONTHLY_PRESETS = [25, 50, 100, 200] as const;
 export const THRESHOLD_PRESETS = [5, 10, 20, 50] as const;
 export const RELOAD_PRESETS = [10, 25, 50, 100] as const;
 
-// Client-side bounds. The server re-validates these authoritatively
-// (`normalizeTopupAmount`, $5–$2000) — these only drive UX.
-export const MIN_AMOUNT = 5;
+// The maximum is global. The minimum is returned per user by /credits/balance
+// (default $5) so the backoffice can customize it.
 export const MAX_AMOUNT = 2000;
 
 // ~50 minutes of calling per USD (matches the backend heuristic).
@@ -22,6 +21,16 @@ export const money = (n: number) => `$${n.toFixed(2)}`;
 
 export const estimateMinutes = (usd: number) =>
   Math.round(usd * MINUTES_PER_USD);
+
+/** Preserve useful API/Stripe messages instead of hiding them behind a generic error. */
+export function paymentErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && error.message.trim()) return error.message;
+  if (error && typeof error === 'object') {
+    const message = (error as { message?: unknown }).message;
+    if (typeof message === 'string' && message.trim()) return message;
+  }
+  return fallback;
+}
 
 const BRAND_LABELS: Record<string, string> = {
   visa: 'Visa',

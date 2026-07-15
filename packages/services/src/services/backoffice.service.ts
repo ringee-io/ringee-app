@@ -23,6 +23,11 @@ import {
   toContextTypeEnum,
 } from "./ai-pipeline/pipeline-context";
 import { PipelineType } from "./ai-pipeline/ai-pipeline.types";
+import {
+  UserGeneralSettings,
+  UserService,
+  UpdateUserGeneralSettingsInput,
+} from "./user.service";
 
 export interface AccountDetailDto extends Omit<AccountDetail, "pipelineRows"> {
   pipelines: {
@@ -53,6 +58,7 @@ export class BackofficeService {
     private readonly recordingSettingsService: CallRecordingSettingsService,
     private readonly activationRepo: AiPipelineActivationRepository,
     private readonly registry: PipelineRegistry,
+    private readonly userService: UserService,
   ) {}
 
   /** Target ownership context for the account being administered. */
@@ -60,6 +66,19 @@ export class BackofficeService {
     return type === "org"
       ? { userId: "", organizationId: id }
       : { userId: id, organizationId: null };
+  }
+
+  async updateUserGeneralSettings(
+    type: AccountType,
+    id: string,
+    input: UpdateUserGeneralSettingsInput,
+  ): Promise<UserGeneralSettings> {
+    if (type !== "user") {
+      throw new BadRequestException(
+        "General settings can only be configured for users",
+      );
+    }
+    return this.userService.updateGeneralSettings(id, input);
   }
 
   // ── Dashboard & listing ────────────────────────────────────

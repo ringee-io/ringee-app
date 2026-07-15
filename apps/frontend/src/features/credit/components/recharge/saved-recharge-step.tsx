@@ -50,7 +50,8 @@ export function SavedRechargeStep({
 }: Props) {
   const t = useTranslations('billing.credits.popover');
   const liveBalance = useCreditStore((s) => s.balance);
-  const { phase, creditReflected, start, reset } = useSavedRecharge();
+  const { phase, creditReflected, errorMessage, start, reset } =
+    useSavedRecharge();
 
   const busy = phase === 'processing' || phase === 'authenticating';
   const projectedBalance = currentBalance + amount;
@@ -108,7 +109,7 @@ export function SavedRechargeStep({
             </div>
             <p className='text-sm font-medium'>{t('saved.failedTitle')}</p>
             <p className='text-muted-foreground max-w-[38ch] text-xs'>
-              {t('saved.failedBody')}
+              {errorMessage ?? t('saved.failedBody')}
             </p>
             <div className='mt-1 flex flex-col items-center gap-2'>
               <Button

@@ -11,11 +11,11 @@ import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useCreditStore } from '@/features/credit/store/credit.store';
 import {
-  MIN_AMOUNT,
   THRESHOLD_PRESETS,
   RELOAD_PRESETS,
   estimateMinutes,
-  money
+  money,
+  paymentErrorMessage
 } from '../../lib/recharge';
 import { AutoReloadStatusView } from './auto-reload-status';
 
@@ -54,21 +54,22 @@ export function AutoReloadTab({
   const api = useApi();
   const settings = useCreditStore((s) => s.autoReloadSettings);
   const savedCard = useCreditStore((s) => s.paymentMethod);
+  const minimumCreditPurchase = useCreditStore((s) => s.minimumCreditPurchase);
   const fetchAutoReloadSettings = useCreditStore(
     (s) => s.fetchAutoReloadSettings
   );
 
   const [consent, setConsent] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const isActive = settings?.autoReloadEnabled ?? false;
   const hasSaved = !!savedCard?.hasSavedMethod;
-  const belowMin = reloadAmount < MIN_AMOUNT || threshold < 1;
+  const belowMin = reloadAmount < minimumCreditPurchase || threshold < 1;
 
   const enable = useCallback(async () => {
     setLoading(true);
-    setError(false);
+    setError(null);
     try {
       await api.post('/credits/auto-reload', {
         threshold,
@@ -78,12 +79,11 @@ export function AutoReloadTab({
       await fetchAutoReloadSettings(api);
     } catch (err) {
       console.error('Failed to enable auto-reload:', err);
-      // Most likely no saved card server-side — route to card setup.
-      onNeedCard();
+      setError(paymentErrorMessage(err, t('autoReload.enableError')));
     } finally {
       setLoading(false);
     }
-  }, [api, threshold, reloadAmount, fetchAutoReloadSettings, onNeedCard]);
+  }, [api, threshold, reloadAmount, fetchAutoReloadSettings, t]);
 
   const editSettings = useCallback(
     async (nextThreshold: number, nextReload: number) => {
@@ -180,13 +180,18 @@ export function AutoReloadTab({
         </div>
         <Input
           type='number'
-          min={MIN_AMOUNT}
+          min={minimumCreditPurchase}
           placeholder={t('autoReload.customPlaceholder')}
           value={reloadAmount}
           onChange={(e) => onReloadChange(Number(e.target.value) || 0)}
           aria-invalid={belowMin}
           className={cn('mt-2 max-w-[160px]', belowMin && 'border-red-500')}
         />
+        {reloadAmount < minimumCreditPurchase && (
+          <p className='mt-1 text-xs text-red-500'>
+            {t('common.minAmountError', { amount: minimumCreditPurchase })}
+          </p>
+        )}
       </div>
 
       {/* Rule + estimate */}
@@ -239,7 +244,7 @@ export function AutoReloadTab({
           {error && (
             <p className='flex items-center gap-1.5 text-xs text-red-500'>
               <AlertTriangle className='h-3.5 w-3.5' />
-              {t('autoReload.enableError')}
+              {error}
             </p>
           )}
 

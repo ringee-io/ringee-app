@@ -10,6 +10,7 @@ export function DialPad({
   onDelete,
   onCall,
   isCalling,
+  callingDisabled = false,
   showCreditPopover = false
 }: {
   number: string;
@@ -17,6 +18,7 @@ export function DialPad({
   onDelete: () => void;
   onCall: () => Promise<void>;
   isCalling: boolean;
+  callingDisabled?: boolean;
   showCreditPopover?: boolean;
 }) {
   const keys = [
@@ -128,12 +130,17 @@ export function DialPad({
         ) : (
           <button
             onClick={onCall}
-            disabled={!number}
+            disabled={!number || callingDisabled}
+            title={
+              callingDisabled
+                ? 'Outbound calling is disabled for this account'
+                : undefined
+            }
             className={`flex h-20 w-20 items-center justify-center rounded-xl transition-all active:scale-95 ${
               isCalling
                 ? 'bg-red-600 hover:bg-red-700'
                 : 'bg-green-600 hover:bg-green-700'
-            }`}
+            } ${callingDisabled ? 'cursor-not-allowed opacity-50' : ''}`}
           >
             <Phone className='h-6 w-6 text-white' />
           </button>
