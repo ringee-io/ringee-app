@@ -29,20 +29,22 @@ export function DateRangeBar({
   };
 
   return (
-    <div className='flex flex-wrap items-center gap-2'>
-      {PRESETS.map((p) => (
-        <Button
-          key={p.key}
-          size='sm'
-          variant={active === p.key ? 'default' : 'outline'}
-          onClick={() => handlePreset(p.key)}
-        >
-          {p.label}
-        </Button>
-      ))}
+    <div className='flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center'>
+      <div className='grid grid-cols-3 gap-2 sm:flex sm:flex-wrap'>
+        {PRESETS.map((p) => (
+          <Button
+            key={p.key}
+            size='sm'
+            variant={active === p.key ? 'default' : 'outline'}
+            onClick={() => handlePreset(p.key)}
+          >
+            {p.label}
+          </Button>
+        ))}
+      </div>
 
       {active === 'custom' && (
-        <div className='flex items-center gap-2'>
+        <div className='grid w-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:w-auto'>
           <Input
             type='date'
             value={toDateInputValue(value.start)}
@@ -53,7 +55,8 @@ export function DateRangeBar({
                 start: fromDateInputValue(e.target.value)
               })
             }
-            className='w-auto'
+            aria-label='Start date'
+            className='w-full min-w-0 sm:w-auto'
           />
           <span className='text-muted-foreground text-sm'>to</span>
           <Input
@@ -66,7 +69,8 @@ export function DateRangeBar({
                 end: fromDateInputValue(e.target.value, true)
               })
             }
-            className='w-auto'
+            aria-label='End date'
+            className='w-full min-w-0 sm:w-auto'
           />
         </div>
       )}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
@@ -41,7 +42,7 @@ function SettingsBadges({ item }: { item: AccountListItem }) {
     { on: item.transcribeRecordings, label: 'TR' }
   ];
   return (
-    <div className='flex gap-1'>
+    <div className='flex flex-wrap gap-1'>
       {flags.map((f) => (
         <Badge
           key={f.label}
@@ -101,29 +102,30 @@ export function AccountsTable() {
   const totalPages = Math.max(Math.ceil(total / PAGE_SIZE), 1);
 
   return (
-    <div className='space-y-6'>
+    <div className='space-y-4 sm:space-y-6'>
       <div>
-        <h1 className='text-2xl font-semibold'>Accounts</h1>
+        <h1 className='text-xl font-semibold sm:text-2xl'>Accounts</h1>
         <p className='text-muted-foreground text-sm'>
           Manage customers — credit, numbers, recording and AI pipeline.
         </p>
       </div>
 
-      <Card>
-        <CardHeader className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+      <Card className='gap-4 py-4 sm:gap-6 sm:py-6'>
+        <CardHeader className='flex flex-col gap-3 px-4 sm:flex-row sm:items-center sm:justify-between sm:px-6'>
           <CardTitle>
             {total > 0 ? `${formatNumber(total)} ` : ''}
             {type === 'user' ? 'Users' : 'Organizations'}
           </CardTitle>
           <div className='flex flex-col gap-2 sm:flex-row sm:items-center'>
             <Tabs
+              className='w-full sm:w-auto'
               value={type}
               onValueChange={(v) => {
                 setType(v as AccountType);
                 setPage(1);
               }}
             >
-              <TabsList>
+              <TabsList className='w-full sm:w-fit'>
                 <TabsTrigger value='user'>Users</TabsTrigger>
                 <TabsTrigger value='org'>Organizations</TabsTrigger>
               </TabsList>
@@ -136,85 +138,145 @@ export function AccountsTable() {
               }
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
-              className='sm:w-64'
+              className='w-full sm:w-64'
             />
           </div>
         </CardHeader>
 
-        <CardContent className='space-y-4'>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>{type === 'user' ? 'Email' : 'Slug'}</TableHead>
-                <TableHead className='text-right'>Credit</TableHead>
-                <TableHead className='text-right'>Numbers</TableHead>
-                <TableHead className='text-right'>Calls</TableHead>
-                <TableHead>Recording</TableHead>
-                <TableHead>AI</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {loading && items.length === 0 ? (
+        <CardContent className='space-y-4 px-4 sm:px-6'>
+          <div className='hidden lg:block'>
+            <Table>
+              <TableHeader>
                 <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className='text-muted-foreground py-8 text-center'
-                  >
-                    Loading…
-                  </TableCell>
+                  <TableHead>Name</TableHead>
+                  <TableHead>{type === 'user' ? 'Email' : 'Slug'}</TableHead>
+                  <TableHead className='text-right'>Credit</TableHead>
+                  <TableHead className='text-right'>Numbers</TableHead>
+                  <TableHead className='text-right'>Calls</TableHead>
+                  <TableHead>Recording</TableHead>
+                  <TableHead>AI</TableHead>
                 </TableRow>
-              ) : items.length === 0 ? (
-                <TableRow>
-                  <TableCell
-                    colSpan={7}
-                    className='text-muted-foreground py-8 text-center'
-                  >
-                    No accounts found.
-                  </TableCell>
-                </TableRow>
-              ) : (
-                items.map((item) => (
-                  <TableRow
-                    key={item.id}
-                    className='cursor-pointer'
-                    onClick={() =>
-                      router.push(
-                        `/backoffice/accounts/${item.type}/${item.id}`
-                      )
-                    }
-                  >
-                    <TableCell className='font-medium'>{item.name}</TableCell>
-                    <TableCell className='text-muted-foreground'>
-                      {item.email || item.slug || '—'}
-                    </TableCell>
-                    <TableCell className='text-right'>
-                      {formatMoney(item.creditBalance)}
-                    </TableCell>
-                    <TableCell className='text-right'>
-                      {formatNumber(item.numbersCount)}
-                    </TableCell>
-                    <TableCell className='text-right'>
-                      {formatNumber(item.callsCount)}
-                    </TableCell>
-                    <TableCell>
-                      <SettingsBadges item={item} />
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={item.aiPipelineEnabled ? 'default' : 'outline'}
-                        className={item.aiPipelineEnabled ? '' : 'opacity-50'}
-                      >
-                        {item.aiPipelineEnabled ? 'On' : 'Off'}
-                      </Badge>
+              </TableHeader>
+              <TableBody>
+                {loading && items.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      className='text-muted-foreground py-8 text-center'
+                    >
+                      Loading…
                     </TableCell>
                   </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
+                ) : items.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={7}
+                      className='text-muted-foreground py-8 text-center'
+                    >
+                      No accounts found.
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  items.map((item) => (
+                    <TableRow
+                      key={item.id}
+                      className='cursor-pointer'
+                      onClick={() =>
+                        router.push(
+                          `/backoffice/accounts/${item.type}/${item.id}`
+                        )
+                      }
+                    >
+                      <TableCell className='font-medium'>{item.name}</TableCell>
+                      <TableCell className='text-muted-foreground'>
+                        {item.email || item.slug || '—'}
+                      </TableCell>
+                      <TableCell className='text-right'>
+                        {formatMoney(item.creditBalance)}
+                      </TableCell>
+                      <TableCell className='text-right'>
+                        {formatNumber(item.numbersCount)}
+                      </TableCell>
+                      <TableCell className='text-right'>
+                        {formatNumber(item.callsCount)}
+                      </TableCell>
+                      <TableCell>
+                        <SettingsBadges item={item} />
+                      </TableCell>
+                      <TableCell>
+                        <Badge
+                          variant={
+                            item.aiPipelineEnabled ? 'default' : 'outline'
+                          }
+                          className={item.aiPipelineEnabled ? '' : 'opacity-50'}
+                        >
+                          {item.aiPipelineEnabled ? 'On' : 'Off'}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
+              </TableBody>
+            </Table>
+          </div>
 
-          <div className='flex items-center justify-between'>
+          <div className='divide-y lg:hidden'>
+            {loading && items.length === 0 ? (
+              <p className='text-muted-foreground py-8 text-center text-sm'>
+                Loading…
+              </p>
+            ) : items.length === 0 ? (
+              <p className='text-muted-foreground py-8 text-center text-sm'>
+                No accounts found.
+              </p>
+            ) : (
+              items.map((item) => (
+                <Link
+                  key={item.id}
+                  href={`/backoffice/accounts/${item.type}/${item.id}`}
+                  className='hover:bg-muted/50 focus-visible:ring-ring block rounded-md py-4 outline-none focus-visible:ring-2'
+                >
+                  <div className='flex min-w-0 items-start justify-between gap-3'>
+                    <div className='min-w-0'>
+                      <p className='truncate font-medium'>{item.name}</p>
+                      <p className='text-muted-foreground truncate text-xs'>
+                        {item.email || item.slug || '—'}
+                      </p>
+                    </div>
+                    <Badge
+                      variant={item.aiPipelineEnabled ? 'default' : 'outline'}
+                      className={
+                        item.aiPipelineEnabled ? '' : 'shrink-0 opacity-50'
+                      }
+                    >
+                      AI {item.aiPipelineEnabled ? 'On' : 'Off'}
+                    </Badge>
+                  </div>
+
+                  <dl className='mt-3 grid grid-cols-3 gap-3 text-sm'>
+                    <div>
+                      <dt className='text-muted-foreground text-xs'>Credit</dt>
+                      <dd>{formatMoney(item.creditBalance)}</dd>
+                    </div>
+                    <div>
+                      <dt className='text-muted-foreground text-xs'>Numbers</dt>
+                      <dd>{formatNumber(item.numbersCount)}</dd>
+                    </div>
+                    <div>
+                      <dt className='text-muted-foreground text-xs'>Calls</dt>
+                      <dd>{formatNumber(item.callsCount)}</dd>
+                    </div>
+                  </dl>
+
+                  <div className='mt-3'>
+                    <SettingsBadges item={item} />
+                  </div>
+                </Link>
+              ))
+            )}
+          </div>
+
+          <div className='flex flex-wrap items-center justify-between gap-3'>
             <span className='text-muted-foreground text-sm'>
               Page {page} of {totalPages}
             </span>

@@ -69,7 +69,7 @@ export function AccountDetail({ type, id }: { type: AccountType; id: string }) {
   }
 
   return (
-    <div className='space-y-6'>
+    <div className='space-y-4 sm:space-y-6'>
       <div className='space-y-2'>
         <Link
           href='/backoffice/accounts'
@@ -78,19 +78,21 @@ export function AccountDetail({ type, id }: { type: AccountType; id: string }) {
           <IconArrowLeft className='size-4' /> Back to accounts
         </Link>
         <div className='flex flex-wrap items-center gap-3'>
-          <h1 className='text-2xl font-semibold'>{account.name}</h1>
+          <h1 className='min-w-0 text-xl font-semibold break-words sm:text-2xl'>
+            {account.name}
+          </h1>
           <Badge variant='secondary'>
             {account.type === 'user' ? 'User' : 'Organization'}
           </Badge>
         </div>
-        <p className='text-muted-foreground text-sm'>
+        <p className='text-muted-foreground text-sm break-words'>
           {account.email || account.slug || account.id} ·{' '}
           {formatNumber(account.callsCount)} calls · joined{' '}
           {formatDate(account.createdAt)}
         </p>
       </div>
 
-      <div className='grid gap-6 lg:grid-cols-2'>
+      <div className='grid gap-4 sm:gap-6 lg:grid-cols-2'>
         <CreditCard
           type={type}
           id={id}
@@ -223,14 +225,14 @@ function GeneralSettingsCard({
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className='gap-4 py-4 sm:gap-6 sm:py-6'>
+      <CardHeader className='px-4 sm:px-6'>
         <CardTitle>General settings</CardTitle>
         <CardDescription>
           Calling and purchasing controls for this user.
         </CardDescription>
       </CardHeader>
-      <CardContent className='space-y-5'>
+      <CardContent className='space-y-5 px-4 sm:px-6'>
         <div className='flex items-center justify-between gap-4'>
           <div>
             <Label>Can place calls</Label>
@@ -296,7 +298,11 @@ function GeneralSettingsCard({
           </div>
         </div>
 
-        <Button onClick={saveLimits} disabled={savingLimits}>
+        <Button
+          className='w-full sm:w-auto'
+          onClick={saveLimits}
+          disabled={savingLimits}
+        >
           {savingLimits ? 'Saving…' : 'Save limits'}
         </Button>
       </CardContent>
@@ -342,8 +348,8 @@ function CreditCard({
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className='gap-4 py-4 sm:gap-6 sm:py-6'>
+      <CardHeader className='px-4 sm:px-6'>
         <CardTitle>Credit</CardTitle>
         <CardDescription>
           Current balance:{' '}
@@ -352,8 +358,8 @@ function CreditCard({
           </span>
         </CardDescription>
       </CardHeader>
-      <CardContent className='space-y-4'>
-        <div className='flex gap-2'>
+      <CardContent className='space-y-4 px-4 sm:px-6'>
+        <div className='grid grid-cols-2 gap-2'>
           <Button
             size='sm'
             variant={mode === 'set' ? 'default' : 'outline'}
@@ -369,7 +375,7 @@ function CreditCard({
             Adjust (+/−)
           </Button>
         </div>
-        <div className='flex items-end gap-2'>
+        <div className='flex flex-col gap-2 sm:flex-row sm:items-end'>
           <div className='flex-1 space-y-1'>
             <Label htmlFor='credit-amount'>
               {mode === 'set' ? 'New balance' : 'Amount to add/subtract'}
@@ -383,7 +389,11 @@ function CreditCard({
               onChange={(e) => setAmount(e.target.value)}
             />
           </div>
-          <Button onClick={apply} disabled={saving || amount === ''}>
+          <Button
+            className='w-full sm:w-auto'
+            onClick={apply}
+            disabled={saving || amount === ''}
+          >
             {saving ? 'Saving…' : 'Apply'}
           </Button>
         </div>
@@ -443,12 +453,12 @@ function RecordingCard({
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className='gap-4 py-4 sm:gap-6 sm:py-6'>
+      <CardHeader className='px-4 sm:px-6'>
         <CardTitle>Recording &amp; transcription</CardTitle>
         <CardDescription>Global call recording settings.</CardDescription>
       </CardHeader>
-      <CardContent className='space-y-4'>
+      <CardContent className='space-y-4 px-4 sm:px-6'>
         {RECORDING_FIELDS.map((f) => (
           <div key={f.key} className='flex items-center justify-between gap-4'>
             <div>
@@ -512,15 +522,15 @@ function AiPipelineCard({
   };
 
   return (
-    <Card>
-      <CardHeader>
+    <Card className='gap-4 py-4 sm:gap-6 sm:py-6'>
+      <CardHeader className='px-4 sm:px-6'>
         <CardTitle>AI pipeline</CardTitle>
         <CardDescription>
           Enable AI analysis for this {type === 'org' ? 'organization' : 'user'}
           .
         </CardDescription>
       </CardHeader>
-      <CardContent className='space-y-4'>
+      <CardContent className='space-y-4 px-4 sm:px-6'>
         <div className='flex items-center justify-between gap-4'>
           <div>
             <Label>All pipelines</Label>
@@ -592,15 +602,15 @@ function NumbersCard({
   };
 
   return (
-    <Card>
-      <CardHeader className='flex flex-row items-center justify-between'>
+    <Card className='gap-4 py-4 sm:gap-6 sm:py-6'>
+      <CardHeader className='flex flex-col items-start gap-3 px-4 sm:flex-row sm:items-center sm:justify-between sm:px-6'>
         <div>
           <CardTitle>Numbers</CardTitle>
           <CardDescription>Assigned phone numbers.</CardDescription>
         </div>
         <AssignNumberDialog type={type} id={id} onAssigned={onChanged} />
       </CardHeader>
-      <CardContent>
+      <CardContent className='px-4 sm:px-6'>
         {account.numbers.length === 0 ? (
           <p className='text-muted-foreground py-4 text-center text-sm'>
             No numbers assigned.
@@ -610,7 +620,7 @@ function NumbersCard({
             {account.numbers.map((n) => (
               <li
                 key={n.id}
-                className='flex items-center justify-between gap-4 py-2'
+                className='flex flex-col items-start gap-2 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4 sm:py-2'
               >
                 <div>
                   <span className='font-medium'>{n.phoneNumber}</span>
@@ -618,7 +628,7 @@ function NumbersCard({
                     {n.isoCountry}
                   </span>
                 </div>
-                <div className='flex items-center gap-2'>
+                <div className='flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end'>
                   {n.status && (
                     <Badge variant='outline' className='text-xs'>
                       {n.status}
@@ -699,7 +709,7 @@ function AssignNumberDialog({
       <DialogTrigger asChild>
         <Button size='sm'>Assign number</Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className='max-h-[calc(100dvh-2rem)] p-4 sm:p-6'>
         <DialogHeader>
           <DialogTitle>Assign an available number</DialogTitle>
         </DialogHeader>
@@ -722,7 +732,7 @@ function AssignNumberDialog({
               {numbers.map((n) => (
                 <li
                   key={n.id}
-                  className='flex items-center justify-between gap-4 py-2'
+                  className='flex flex-col items-start gap-2 py-3 min-[400px]:flex-row min-[400px]:items-center min-[400px]:justify-between min-[400px]:gap-4 min-[400px]:py-2'
                 >
                   <div>
                     <span className='font-medium'>{n.phoneNumber}</span>

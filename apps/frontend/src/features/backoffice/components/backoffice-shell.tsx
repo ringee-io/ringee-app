@@ -15,7 +15,8 @@ import {
   SidebarMenuItem,
   SidebarProvider,
   SidebarRail,
-  SidebarTrigger
+  SidebarTrigger,
+  useSidebar
 } from '@ringee/frontend-shared/components/ui/sidebar';
 import { ScrollArea } from '@ringee/frontend-shared/components/ui/scroll-area';
 import {
@@ -35,10 +36,23 @@ const NAV = [
 ];
 
 export function BackofficeShell({ children }: { children: React.ReactNode }) {
-  const pathname = usePathname();
-
   return (
     <SidebarProvider>
+      <BackofficeShellContent>{children}</BackofficeShellContent>
+    </SidebarProvider>
+  );
+}
+
+function BackofficeShellContent({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  const closeMobileNavigation = () => {
+    if (isMobile) setOpenMobile(false);
+  };
+
+  return (
+    <>
       <Sidebar collapsible='icon'>
         <SidebarHeader>
           <div className='flex items-center gap-2 px-2 py-1.5'>
@@ -63,7 +77,7 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
                       isActive={active}
                       tooltip={item.label}
                     >
-                      <Link href={item.href}>
+                      <Link href={item.href} onClick={closeMobileNavigation}>
                         <Icon />
                         <span>{item.label}</span>
                       </Link>
@@ -79,7 +93,7 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
           <SidebarMenu>
             <SidebarMenuItem>
               <SidebarMenuButton asChild tooltip='Back to app'>
-                <Link href='/dashboard'>
+                <Link href='/dashboard' onClick={closeMobileNavigation}>
                   <IconArrowLeft />
                   <span>Back to app</span>
                 </Link>
@@ -90,10 +104,10 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
         <SidebarRail />
       </Sidebar>
 
-      <SidebarInset>
-        <header className='flex h-14 shrink-0 items-center gap-2 border-b px-4'>
-          <SidebarTrigger />
-          <span className='text-muted-foreground text-sm font-medium'>
+      <SidebarInset className='min-w-0 overflow-hidden'>
+        <header className='flex h-14 shrink-0 items-center gap-2 border-b px-3 sm:px-4'>
+          <SidebarTrigger className='size-9 md:size-7' />
+          <span className='text-muted-foreground truncate text-sm font-medium'>
             Ringee Backoffice
           </span>
         </header>
@@ -101,9 +115,11 @@ export function BackofficeShell({ children }: { children: React.ReactNode }) {
             the dashboard's PageContainer). Height = viewport minus the 56px
             header; pb gives mobile breathing room above the browser chrome. */}
         <ScrollArea className='h-[calc(100dvh-56px)]'>
-          <div className='p-4 pb-16 md:p-6'>{children}</div>
+          <div className='p-3 pb-[calc(env(safe-area-inset-bottom)+2rem)] sm:p-4 md:p-6'>
+            {children}
+          </div>
         </ScrollArea>
       </SidebarInset>
-    </SidebarProvider>
+    </>
   );
 }
