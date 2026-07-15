@@ -22,6 +22,7 @@ import { apiConfiguration } from "@ringee/configuration";
 import { TelephonyService } from "../interfaces/telephony.service";
 import Telnyx from "telnyx";
 import { AvailablePhoneNumberListParams } from "telnyx/resources/available-phone-numbers";
+import { parsePhoneNumberFromString } from "libphonenumber-js/max";
 
 const telnyx = new Telnyx({
   baseURL: "https://api.telnyx.com/v2",
@@ -250,17 +251,60 @@ export class TelnyxService implements TelephonyService {
    * longer be found/priced, so an un-priceable number never reaches Stripe.
    */
   async getAvailableNumberCost(phoneNumber: string): Promise<CostInformation> {
-    const digits = phoneNumber.replace(/[^\d]/g, "");
-    if (!digits) {
+    const parsed = parsePhoneNumberFromString(phoneNumber.trim());
+    if (!parsed) {
       throw new HttpException(
         "A valid phone number is required to price it",
         400,
       );
     }
 
-    const { data: numbersList } = await telnyx.availablePhoneNumbers.list({
-      filter: { phone_number: { ends_with: digits } },
-    });
+    // Telnyx's available-number pattern is national, not E.164. Passing the
+    // country calling code as part of `ends_with` makes valid international
+    // numbers (for example +44 numbers) fail with "Invalid request filter".
+    // Parse the E.164 value so Telnyx receives the national number plus its
+    // separate ISO country filter, then still require an exact E.164 match
+    // below so a broad/best-effort result can never be priced accidentally.
+    const filter: AvailablePhoneNumberListParams.Filter = {
+      phone_number: { ends_with: parsed.nationalNumber },
+      ...(parsed.country ? { country_code: parsed.country } : {}),
+    };
+
+    let numbersList;
+    try {
+      ({ data: numbersList } = await telnyx.availablePhoneNumbers.list({
+        filter,
+      }));
+    } catch (error: unknown) {
+      const providerError = error as {
+        status?: number;
+        response?: { status?: number };
+        error?: { code?: string };
+        errors?: Array<{ code?: string }>;
+      };
+      const providerStatus =
+        providerError.status ?? providerError.response?.status;
+      const providerCode =
+        providerError.error?.code ?? providerError.errors?.[0]?.code;
+      this.logger.warn(
+        `Could not price ${parsed.number} via Telnyx ` +
+          `(status ${providerStatus ?? "unknown"}, code ${providerCode ?? "unknown"})`,
+      );
+
+      if (providerStatus === 400 || providerStatus === 404) {
+        throw new HttpException(
+          `Number ${parsed.number} is no longer available; cannot determine its price`,
+          409,
+        );
+      }
+
+      throw new HttpException(
+        "Unable to verify the phone number price with the provider",
+        502,
+      );
+    }
+
+    const digits = parsed.number.replace(/\D/g, "");
 
     const match = (numbersList || []).find(
       (item: any) =>

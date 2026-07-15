@@ -29,6 +29,7 @@
     "firebase-admin": "^13.5.0",
     "ioredis": "^5.8.2",
     "keyv": "^5.5.3",
+    "libphonenumber-js": "^1.11.0",
     "mime": "^4.0.1",
     "mime-types": "^3.0.2",
     "openai": "^6.2.0",

@@ -1330,6 +1330,9 @@ importers:
       keyv:
         specifier: ^5.5.3
         version: 5.5.3
+      libphonenumber-js:
+        specifier: ^1.11.0
+        version: 1.12.23
       mime:
         specifier: ^4.0.1
         version: 4.1.0
