@@ -1,6 +1,8 @@
-"use client";
+'use client';
 
-import { useEffect } from "react";
+import { useEffect } from 'react';
+
+const CRISP_SCRIPT_ID = 'crisp-chat-script';
 
 declare global {
   interface Window {
@@ -14,17 +16,23 @@ export const CrispChat = () => {
     const websiteId = process.env.NEXT_PUBLIC_CRISP_WEBSITE_ID;
     if (!websiteId) return;
 
-    window.$crisp = [];
+    window.$crisp = window.$crisp || [];
     window.CRISP_WEBSITE_ID = websiteId;
+    window.$crisp.push(['do', 'chat:show']);
 
-    (function () {
+    if (!document.getElementById(CRISP_SCRIPT_ID)) {
       const d = document;
-      const s = d.createElement("script");
+      const s = d.createElement('script');
 
-      s.src = "https://client.crisp.chat/l.js";
+      s.id = CRISP_SCRIPT_ID;
+      s.src = 'https://client.crisp.chat/l.js';
       s.async = true;
-      d.getElementsByTagName("head")[0].appendChild(s);
-    })();
+      d.head.appendChild(s);
+    }
+
+    return () => {
+      window.$crisp.push(['do', 'chat:hide']);
+    };
   }, []);
 
   return null;

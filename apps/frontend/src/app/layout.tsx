@@ -12,7 +12,6 @@ import { NuqsAdapter } from 'nuqs/adapters/next/app';
 import './globals.css';
 import './theme.css';
 import Script from 'next/script';
-import { CrispChat } from '@ringee/frontend-shared/components/crisp-chat';
 
 const META_THEME_COLORS = {
   light: '#ffffff',
@@ -232,7 +231,6 @@ export default async function RootLayout({
             >
               <Providers activeThemeValue={activeThemeValue as string}>
                 <Toaster />
-                <CrispChat />
                 {children}
               </Providers>
             </ThemeProvider>
