@@ -42,25 +42,71 @@ export interface ComputedCost {
 
 const PRICING: Record<string, ModelPricing> = {
   // ── Anthropic (Claude) ──
+  // Standard, first-party Claude API pricing. Do not use the 50%-discounted
+  // Message Batches rates here: Ringee calls messages.stream/create.
+  "claude-fable-5": {
+    inputPerMTok: 10,
+    outputPerMTok: 50,
+    cacheWritePerMTok: 12.5,
+    cacheReadPerMTok: 1,
+  },
+  "claude-opus-4-8": {
+    inputPerMTok: 5,
+    outputPerMTok: 25,
+    cacheWritePerMTok: 6.25,
+    cacheReadPerMTok: 0.5,
+  },
   "claude-opus-4-7": {
-    inputPerMTok: 2.5,
-    outputPerMTok: 12.5,
-    cacheWritePerMTok: 3.13,
-    cacheReadPerMTok: 0.25,
+    inputPerMTok: 5,
+    outputPerMTok: 25,
+    cacheWritePerMTok: 6.25,
+    cacheReadPerMTok: 0.5,
+  },
+  "claude-sonnet-5": {
+    inputPerMTok: 3,
+    outputPerMTok: 15,
+    cacheWritePerMTok: 3.75,
+    cacheReadPerMTok: 0.3,
   },
   "claude-sonnet-4-6": {
-    inputPerMTok: 1.5,
-    outputPerMTok: 7.5,
-    cacheWritePerMTok: 1.88,
-    cacheReadPerMTok: 0.15,
+    inputPerMTok: 3,
+    outputPerMTok: 15,
+    cacheWritePerMTok: 3.75,
+    cacheReadPerMTok: 0.3,
   },
   "claude-haiku-4-5": {
-    inputPerMTok: 0.5,
-    outputPerMTok: 2.5,
-    cacheWritePerMTok: 0.63,
-    cacheReadPerMTok: 0.05,
+    inputPerMTok: 1,
+    outputPerMTok: 5,
+    cacheWritePerMTok: 1.25,
+    cacheReadPerMTok: 0.1,
   },
   // ── OpenAI (GPT) ──
+  "gpt-5.6-sol": {
+    inputPerMTok: 5,
+    outputPerMTok: 30,
+    cacheWritePerMTok: 6.25,
+    cacheReadPerMTok: 0.5,
+  },
+  // The gpt-5.6 alias routes to GPT-5.6 Sol.
+  "gpt-5.6": {
+    inputPerMTok: 5,
+    outputPerMTok: 30,
+    cacheWritePerMTok: 6.25,
+    cacheReadPerMTok: 0.5,
+  },
+  "gpt-5.6-terra": {
+    inputPerMTok: 2.5,
+    outputPerMTok: 15,
+    cacheWritePerMTok: 3.125,
+    cacheReadPerMTok: 0.25,
+  },
+  "gpt-5.6-luna": {
+    inputPerMTok: 1,
+    outputPerMTok: 6,
+    cacheWritePerMTok: 1.25,
+    cacheReadPerMTok: 0.1,
+  },
+  // Retained for deployments that explicitly pin the previous generation.
   "gpt-5.5": {
     inputPerMTok: 5.0,
     outputPerMTok: 30.0,
@@ -81,7 +127,7 @@ const PRICING: Record<string, ModelPricing> = {
   },
 };
 
-// Longest first so `gpt-5.4-mini` matches before `gpt-5.4`.
+// Longest first so a family alias never shadows a more specific model id.
 const KEYS_BY_SPECIFICITY = Object.keys(PRICING).sort(
   (a, b) => b.length - a.length,
 );
