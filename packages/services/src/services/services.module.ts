@@ -125,15 +125,13 @@ import {
   PipelineFanoutService,
   FollowUpAiBatchService,
   FollowUpRecommendationsPipeline,
+  ObjectionCallExtractionService,
   ObjectionAiBatchService,
   ObjectionIntelligencePipeline,
   ObjectionInsightService,
 } from "./ai-pipeline";
 import { BackofficeService } from "./backoffice.service";
-import {
-  SipDeviceService,
-  DeskPhoneCallService,
-} from "./sip-device";
+import { SipDeviceService, DeskPhoneCallService } from "./sip-device";
 import { InfrastructureService } from "./infrastructure";
 
 const servicesProviders = [
@@ -248,6 +246,7 @@ const servicesProviders = [
   FollowUpAiBatchService,
   FollowUpRecommendationsPipeline,
   // AI Pipeline — Objection Intelligence
+  ObjectionCallExtractionService,
   ObjectionAiBatchService,
   ObjectionIntelligencePipeline,
   ObjectionInsightService,

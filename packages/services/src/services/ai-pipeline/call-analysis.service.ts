@@ -46,7 +46,7 @@ export class CallAnalysisService {
 
   /** Compute (or refresh) and persist the analysis for a call in its context. */
   async ensureForCall(call: Call, ctx: PipelineContext): Promise<CallAnalysis> {
-    const { text, language } = await this.bestTranscript(call.id);
+    const { text, language } = await this.getBestTranscript(call.id);
     const hasUsableTranscript =
       !!text && text.trim().length >= MIN_USABLE_TRANSCRIPT_CHARS;
     const signals = hasUsableTranscript
@@ -90,7 +90,7 @@ export class CallAnalysisService {
   }
 
   /** Pick the most complete transcript across realtime/recording sources. */
-  private async bestTranscript(
+  async getBestTranscript(
     callId: string,
   ): Promise<{ text: string | null; language: string | null }> {
     const headers = await this.transcriptionRepo.findHeadersByCall(callId);
@@ -100,8 +100,36 @@ export class CallAnalysisService {
       )
       .sort((a, b) => (b.text?.length ?? 0) - (a.text?.length ?? 0));
     const best = completed[0];
-    return { text: best?.text ?? null, language: best?.language ?? null };
+    if (!best) return { text: null, language: null };
+    const attributed = renderTranscript(best.segments ?? []);
+    return {
+      text: attributed || best.text,
+      language: best.language ?? null,
+    };
   }
+}
+
+/** Preserve reliable Telnyx roles and neutral diarization labels for AI. */
+function renderTranscript(
+  segments: Array<{
+    text: string;
+    speaker?: number | null;
+    track?: string | null;
+  }>,
+): string {
+  return segments
+    .map((segment) => {
+      const text = segment.text.trim();
+      if (!text) return "";
+      if (segment.track === "outbound") return `Agent: ${text}`;
+      if (segment.track === "inbound") return `Contact: ${text}`;
+      if (segment.speaker != null) {
+        return `Speaker ${segment.speaker + 1}: ${text}`;
+      }
+      return text;
+    })
+    .filter(Boolean)
+    .join("\n");
 }
 
 function toStringArray(value: unknown): string[] {

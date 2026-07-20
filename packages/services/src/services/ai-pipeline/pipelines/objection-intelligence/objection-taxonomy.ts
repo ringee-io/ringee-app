@@ -1,18 +1,9 @@
 /**
- * Canonical objection taxonomy, shared by the Objection Intelligence pipeline
- * and its result screen. This pipeline works on clean canonical labels only.
+ * Legacy objection labels retained for old snapshots/UI fallback plus the
+ * shared outcome helpers below. New Objection Intelligence results always use
+ * AI-discovered dynamic clusters and do not use this taxonomy.
  *
- * Per-call objection detection and multilingual normalization (mapping
- * "mándame info" / "send me info" to the same bucket) happen ONCE upstream in
- * the shared CallAnalysis extraction pass and are read back from
- * AnalyzedCall.objections — this pipeline never re-extracts from transcripts.
- *
- * The current CallAnalysis extractor emits a coarser set of bucket labels
- * (price, timing, authority, …). `toCanonicalObjection` deterministically maps
- * whatever labels are stored — both the coarse extractor labels and canonical
- * labels (identity) — onto this taxonomy, so when the upstream extractor is
- * upgraded to emit canonical labels directly, this pipeline keeps working with
- * no change. Unknown labels collapse to `other`.
+ * `toCanonicalObjection` only supports historical rule-based CallAnalysis rows.
  */
 export const OBJECTION_TYPES = [
   "send_me_information",

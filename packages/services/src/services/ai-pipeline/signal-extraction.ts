@@ -1,7 +1,8 @@
 /**
  * Cheap, deterministic, rule-based extraction from a transcript. NO AI — this
- * is the "Cheap rule-based signals first" cost discipline (invariant 4). The AI
- * batch layer (Layer 2) may later overwrite these with richer extraction.
+ * is the "Cheap rule-based signals first" cost discipline for follow-up and
+ * shared call metadata. Objection Intelligence owns a separate, one-time
+ * semantic extraction from the complete transcript.
  */
 
 export interface ExtractedSignals {

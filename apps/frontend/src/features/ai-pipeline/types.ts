@@ -59,7 +59,7 @@ export interface ObjectionExample {
 export interface ObjectionInsight {
   id: string;
   objectionType: string;
-  // AI-named label for discovered (dynamic) objections; null for canonical.
+  // AI-authored dynamic label; null only on historical canonical rows.
   label: string | null;
   dynamic: boolean;
   count: number;

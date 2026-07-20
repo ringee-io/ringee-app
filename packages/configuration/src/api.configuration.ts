@@ -128,11 +128,9 @@ const apiConfiguration = {
   // Off by default: Layer 1 (rule-based, no AI) ships fully; the AI batch is
   // wired but gated so it can be enabled without a code change.
   AI_FOLLOWUP_AI_ENABLED: process.env.AI_FOLLOWUP_AI_ENABLED === "true",
-  // AI Pipeline — Objection Intelligence Step B (curated analytical pass).
-  // Off by default: Step A (code-measured top objections + counts) always
-  // runs; the AI reasoning/recommendations + their review actions are gated so
-  // they can be enabled without a code change.
-  AI_OBJECTION_AI_ENABLED: process.env.AI_OBJECTION_AI_ENABLED === "true",
+  // AI Pipeline — semantic, at-most-once full-transcript extraction. Pipeline
+  // activation is already explicit per context, so AI is on unless disabled.
+  AI_OBJECTION_AI_ENABLED: process.env.AI_OBJECTION_AI_ENABLED !== "false",
   // ── Backoffice (super admin) ──
   // Comma-separated email allowlist for the internal super-admin area. When
   // unset, the backend falls back to DEFAULT_SUPER_ADMIN_EMAILS (see the

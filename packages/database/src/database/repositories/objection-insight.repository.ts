@@ -44,8 +44,31 @@ export class ObjectionInsightRepository {
   /** All insights for a resolved context, ranked by prevalence. */
   findManyByContextKey(contextKey: string): Promise<ObjectionInsight[]> {
     return this.prisma.objectionInsight.findMany({
-      where: { contextKey },
+      where: { contextKey, count: { gt: 0 } },
       orderBy: [{ count: "desc" }, { appearanceRate: "desc" }],
+    });
+  }
+
+  /**
+   * Hide clusters no longer represented by the completed per-call extraction
+   * set while preserving saved responses and user state for possible reuse.
+   */
+  async markMissingInactive(
+    contextKey: string,
+    activeTypes: string[],
+  ): Promise<void> {
+    await this.prisma.objectionInsight.updateMany({
+      where: {
+        contextKey,
+        ...(activeTypes.length > 0
+          ? { objectionType: { notIn: activeTypes } }
+          : {}),
+      },
+      data: {
+        count: 0,
+        appearanceRate: 0,
+        convertedRate: null,
+      },
     });
   }
 

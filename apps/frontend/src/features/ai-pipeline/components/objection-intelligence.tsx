@@ -7,7 +7,6 @@ import {
   useMemo,
   useState
 } from 'react';
-import { useSearchParams } from 'next/navigation';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
@@ -56,14 +55,10 @@ import {
   allRows,
   insightLabel
 } from '../types';
-import { mockRunPreview, mockSummary, mockView } from '../mock-objections';
-
 const PIPELINE = 'objection_intelligence';
 
 export function ObjectionIntelligence() {
   const api = useApi();
-  // Demo mode: `?mock=1` renders the screen with fixtures, no backend/AI run.
-  const mock = useSearchParams().get('mock') === '1';
   const [summary, setSummary] = useState<ActivationSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -86,14 +81,6 @@ export function ObjectionIntelligence() {
   );
 
   const loadSummary = useCallback(async () => {
-    if (mock) {
-      setSummary(mockSummary);
-      setSelectedId(
-        (prev) => prev ?? allRows(mockSummary)[0]?.contextKey ?? null
-      );
-      setLoadingSummary(false);
-      return;
-    }
     setLoadingSummary(true);
     try {
       const data = await api.get<ActivationSummary>(`/ai-pipeline/${PIPELINE}`);
@@ -105,19 +92,13 @@ export function ObjectionIntelligence() {
     } finally {
       setLoadingSummary(false);
     }
-  }, [mock]);
+  }, [api]);
 
   useEffect(() => {
     loadSummary();
   }, [loadSummary]);
 
   const loadResults = useCallback(async () => {
-    if (mock) {
-      // Only the high-confidence campaign carries demo data; others read empty.
-      setView(selectedId === 'campaign:demo-q3' ? mockView : null);
-      setLoadingResults(false);
-      return;
-    }
     if (!selectedRow) return;
     setLoadingResults(true);
     try {
@@ -131,30 +112,13 @@ export function ObjectionIntelligence() {
     } finally {
       setLoadingResults(false);
     }
-  }, [selectedRow, selectedId, mock]);
+  }, [api, selectedRow]);
 
   useEffect(() => {
     loadResults();
   }, [loadResults]);
 
   const toggle = async (row: ActivationRow, enabled: boolean) => {
-    if (mock) {
-      setSummary((s) =>
-        s
-          ? {
-              ...s,
-              campaigns: s.campaigns.map((c) =>
-                c.contextKey === row.contextKey ? { ...c, enabled } : c
-              ),
-              organization:
-                s.organization?.contextKey === row.contextKey
-                  ? { ...s.organization, enabled }
-                  : s.organization
-            }
-          : s
-      );
-      return;
-    }
     try {
       await api.post(`/ai-pipeline/${PIPELINE}/activation`, {
         ...row.descriptor,
@@ -172,10 +136,6 @@ export function ObjectionIntelligence() {
     setRunOpen(true);
     setRunMessage(null);
     setRunPreview(null);
-    if (mock) {
-      setRunPreview(mockRunPreview);
-      return;
-    }
     try {
       const preview = await api.post<RunPreview>(
         `/ai-pipeline/${PIPELINE}/run/preview`,
@@ -189,10 +149,6 @@ export function ObjectionIntelligence() {
 
   const confirmRun = async () => {
     if (!runContext) return;
-    if (mock) {
-      setRunMessage('Demo — analysis would run here (142 eligible calls).');
-      return;
-    }
     setRunBusy(true);
     setRunMessage(null);
     try {
@@ -204,7 +160,7 @@ export function ObjectionIntelligence() {
         setRunMessage('A run is already in progress for this context.');
       } else {
         setRunMessage(
-          `Analysis complete — ${res.eligibleCount ?? 0} eligible calls.`
+          `Analysis complete — ${res.eligibleCount ?? 0} calls analyzed cumulatively.`
         );
         await loadSummary();
         await loadResults();
@@ -221,23 +177,7 @@ export function ObjectionIntelligence() {
       ? { ...selectedRow.descriptor, contextType: selectedRow.contextType }
       : {};
 
-  const patchInsight = (id: string, patch: Partial<ObjectionInsight>) =>
-    setView((v) =>
-      v
-        ? {
-            ...v,
-            insights: v.insights.map((i) =>
-              i.id === id ? { ...i, ...patch } : i
-            )
-          }
-        : v
-    );
-
   const saveResponse = async (insight: ObjectionInsight, response: string) => {
-    if (mock) {
-      patchInsight(insight.id, { savedResponse: response, status: 'saved' });
-      return;
-    }
     await api.post(`/objection-insights/${insight.id}/save`, {
       ...descriptorBody(),
       response
@@ -246,10 +186,6 @@ export function ObjectionIntelligence() {
   };
 
   const insightAction = async (insight: ObjectionInsight, path: string) => {
-    if (mock) {
-      if (path === 'dismiss') patchInsight(insight.id, { status: 'dismissed' });
-      return;
-    }
     await api.post(
       `/objection-insights/${insight.id}/${path}`,
       descriptorBody()
@@ -301,7 +237,6 @@ export function ObjectionIntelligence() {
   const showConverted = confidence === 'medium' || confidence === 'high';
   const selectedInsight =
     activeInsights.find((i) => i.id === selectedObjection) ?? null;
-  const dynamicCount = activeInsights.filter((i) => i.dynamic).length;
   const topBlocker = activeInsights[0] ?? null;
   const seriesFor = (type: string) =>
     (view?.trend ?? []).map((p) => p.counts[type] ?? 0);
@@ -352,8 +287,9 @@ export function ObjectionIntelligence() {
 
       <p className='text-muted-foreground flex items-start gap-1.5 text-xs'>
         <Info className='mt-0.5 h-3.5 w-3.5 shrink-0' />
-        Each context is analyzed independently — campaign calls, organization
-        calls outside campaigns, and personal calls never mix.
+        Each eligible call&apos;s complete transcript is analyzed once. Later
+        runs process only new calls and recalculate cumulative insights; results
+        from different contexts never mix.
       </p>
 
       {/* Contexts manager (de-emphasized) */}
@@ -501,8 +437,8 @@ export function ObjectionIntelligence() {
           />
           <KpiTile
             icon={<Sparkles className='h-4 w-4' />}
-            label='Discovered by AI'
-            value={`${dynamicCount}`}
+            label='New calls pending'
+            value={`${selectedRow?.newEligibleSinceLastRun ?? 0}`}
             accent
           />
         </div>

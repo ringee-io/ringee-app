@@ -46,6 +46,16 @@ const periodicJobs = proxyActivities<Activities>({
   retry: { maximumAttempts: 1 },
 });
 
+/**
+ * AI pipeline runs may need to semantically analyze a historical backlog of
+ * complete call transcripts. Keep this separate from the short pollers so the
+ * durable per-call claims are not interrupted by their eight-minute timeout.
+ */
+const intelligenceJobs = proxyActivities<Activities>({
+  startToCloseTimeout: "1 hour",
+  retry: { maximumAttempts: 1 },
+});
+
 /** Full CRM bulk sync iterates every active connection. */
 const bulkJobs = proxyActivities<Activities>({
   startToCloseTimeout: "25 minutes",
@@ -109,7 +119,7 @@ export async function numberVerificationCheckWorkflow(): Promise<void> {
 }
 
 export async function pipelineSchedulerWorkflow(): Promise<void> {
-  await periodicJobs.runDuePipelines();
+  await intelligenceJobs.runDuePipelines();
 }
 
 export async function callerIdHealthRecomputeWorkflow(): Promise<void> {

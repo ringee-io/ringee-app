@@ -3316,10 +3316,9 @@ model AiPipelineRun {
   @@index([contextKey])
 }
 
-// One structured extraction per call, computed once and read by every pipeline
-// (pipelines never re-parse a transcript). contextKey is the resolved pipeline
-// context for the call, stored so batch runs can enumerate eligible calls
-// cheaply. Add only because no equivalent analysis model existed.
+// Cheap rule-based metadata per call, shared by pipeline eligibility and the
+// follow-up rules. Objection Intelligence stores its separate semantic,
+// at-most-once full-transcript extraction in ObjectionCallAnalysis.
 model CallAnalysis {
   id     String @id @default(uuid()) @db.Uuid
   callId String @unique @db.Uuid
@@ -3401,6 +3400,44 @@ enum ObjectionInsightStatus {
   dismissed
 }
 
+enum ObjectionCallAnalysisStatus {
+  processing
+  completed
+  failed
+}
+
+// Semantic objection extraction for one eligible call. The unique callId is
+// an at-most-once claim: once a row exists, that transcript is never sent to
+// the objection model again. `objections` contains dynamic, multilingual
+// clusters and evidence extracted from the complete transcript.
+model ObjectionCallAnalysis {
+  id String @id @default(uuid()) @db.Uuid
+
+  callId String @unique @db.Uuid
+
+  contextType    AiPipelineContextType
+  contextKey     String
+  campaignId     String?               @db.Uuid
+  organizationId String?               @db.Uuid
+  userId         String?               @db.Uuid
+
+  status       ObjectionCallAnalysisStatus @default(processing)
+  outcomeClass String?
+  language     String?
+  model        String?
+  objections   Json?
+  error        String?                     @db.Text
+
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  updatedAt   DateTime  @updatedAt
+
+  @@index([contextKey, status])
+  @@index([campaignId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
 // Pipeline-specific result store for Objection Intelligence (the template for
 // "pipeline results with user state"). One row per (contextKey, objectionType):
 // the latest code-measured counts + AI-analyzed reasoning, plus the user's
@@ -3417,12 +3454,10 @@ model ObjectionInsight {
   organizationId String?               @db.Uuid
   userId         String?               @db.Uuid
 
-  objectionType  String // canonical bucket, or `dynamic:<slug>` when discovered
-  // Display label for AI-discovered (dynamic) objections; null for canonical
-  // buckets (the UI derives their label from the taxonomy).
+  objectionType  String // Stable dynamic semantic cluster key.
+  // AI-authored label. Null remains supported for historical canonical rows.
   label          String?
-  // True for objections the AI discovered outside the canonical taxonomy.
-  dynamic        Boolean @default(false)
+  dynamic        Boolean @default(true)
   count          Int     @default(0)
   appearanceRate Float   @default(0)
   convertedRate  Float? // null until medium/high confidence (correlational)
