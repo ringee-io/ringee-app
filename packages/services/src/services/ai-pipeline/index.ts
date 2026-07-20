@@ -8,6 +8,7 @@ export * from "./pipeline-activation.service";
 export * from "./pipeline-run.service";
 export * from "./pending-action.service";
 export * from "./pipeline-fanout.service";
+export * from "./ai-pipeline-credit.service";
 export * from "./pipelines/follow-up-ai-batch.service";
 export * from "./pipelines/follow-up-recommendations.pipeline";
 export * from "./pipelines/objection-intelligence/objection-taxonomy";

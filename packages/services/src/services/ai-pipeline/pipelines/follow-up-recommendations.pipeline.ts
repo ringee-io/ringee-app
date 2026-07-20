@@ -14,6 +14,7 @@ import {
   PipelineRunInput,
   PipelineRunResult,
 } from "../ai-pipeline.types";
+import { AiPipelineChargeError } from "../ai-pipeline-credit.service";
 import { FollowUpAiBatchService } from "./follow-up-ai-batch.service";
 
 /** Outcomes that make a call count toward Follow-up in any context. */
@@ -32,6 +33,7 @@ function inDays(n: number): Date {
 export interface FollowUpRunResult {
   enrichedCount: number;
   skipped: boolean;
+  chargedCredits: number;
   reason?: string;
   model?: string;
 }
@@ -220,6 +222,7 @@ export class FollowUpRecommendationsPipeline
       return {
         result: {
           enrichedCount: 0,
+          chargedCredits: 0,
           skipped: true,
           reason: "AI layer disabled (AI_FOLLOWUP_AI_ENABLED=false)",
         },
@@ -230,7 +233,8 @@ export class FollowUpRecommendationsPipeline
     }
 
     try {
-      const { enrichment, model } = await this.aiBatch.enrich(input);
+      const { enrichment, model, chargedCredits } =
+        await this.aiBatch.enrich(input);
 
       // Merge AI enrichment onto the rule drafts (same groupKey), so the AI
       // layer improves existing rule actions rather than creating parallel
@@ -253,16 +257,23 @@ export class FollowUpRecommendationsPipeline
       }
 
       return {
-        result: { enrichedCount: enrichment.size, skipped: false, model },
+        result: {
+          enrichedCount: enrichment.size,
+          skipped: false,
+          model,
+          chargedCredits,
+        },
         confidence,
         pendingActions: drafts,
         eligibleCount,
       };
     } catch (err) {
+      if (err instanceof AiPipelineChargeError) throw err;
       this.logger.error(`Follow-up AI batch failed: ${(err as Error).message}`);
       return {
         result: {
           enrichedCount: 0,
+          chargedCredits: 0,
           skipped: true,
           reason: `AI batch error: ${(err as Error).message}`,
         },

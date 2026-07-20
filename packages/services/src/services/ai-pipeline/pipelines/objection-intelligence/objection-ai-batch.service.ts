@@ -4,7 +4,9 @@ import {
   AiProviderRegistry,
   AiStreamEvent,
   AiStreamRequest,
+  AiUsage,
 } from "@ringee/platform";
+import { AiPipelineCreditService } from "../../ai-pipeline-credit.service";
 import { PipelineContext } from "../../pipeline-context";
 import { ObjectionResolution } from "./objection-semantic";
 
@@ -34,12 +36,14 @@ export interface IncrementalObjectionEvidence {
 
 export interface ObjectionAiBatchInput {
   context: PipelineContext;
+  billingUserId: string | null;
   objections: IncrementalObjectionEvidence[];
 }
 
 export interface ObjectionAiBatchOutput {
   perObjection: Map<string, ObjectionAnalysis>;
   model?: string;
+  chargedCredits: number;
 }
 
 const SYSTEM_PROMPT = `You maintain rolling objection intelligence for a B2B
@@ -61,14 +65,17 @@ evidence. Keep the recommended response to 1-3 editable sentences.`;
  */
 @Injectable()
 export class ObjectionAiBatchService {
-  constructor(private readonly providers: AiProviderRegistry) {}
+  constructor(
+    private readonly providers: AiProviderRegistry,
+    private readonly billing: AiPipelineCreditService,
+  ) {}
 
   async analyze(input: ObjectionAiBatchInput): Promise<ObjectionAiBatchOutput> {
     const objections = input.objections.filter(
       (objection) => objection.newEvidence.length > 0,
     );
     if (objections.length === 0) {
-      return { perObjection: new Map() };
+      return { perObjection: new Map(), chargedCredits: 0 };
     }
 
     const provider = this.providers.get(apiConfiguration.AI_PROVIDER);
@@ -126,22 +133,32 @@ export class ObjectionAiBatchService {
       toolChoice: "required",
     };
 
-    const { args, model } = await collectToolCall(provider.stream(req));
-    return { perObjection: validate(args, knownKeys), model };
+    const { args, usage } = await collectToolCall(provider.stream(req));
+    const chargedCredits = await this.billing.chargeUsage({
+      context: input.context,
+      fallbackUserId: input.billingUserId,
+      usage,
+      operation: "Objection Intelligence rolling synthesis",
+    });
+    return {
+      perObjection: validate(args, knownKeys),
+      model: usage?.model,
+      chargedCredits,
+    };
   }
 }
 
 async function collectToolCall(
   stream: AsyncIterable<AiStreamEvent>,
-): Promise<{ args: unknown; model?: string }> {
+): Promise<{ args: unknown; usage?: AiUsage }> {
   let args: unknown = { objections: [] };
-  let model: string | undefined;
+  let usage: AiUsage | undefined;
   for await (const event of stream) {
     if (event.type === "tool_call_completed") args = event.arguments;
-    else if (event.type === "completed") model = event.usage?.model;
+    else if (event.type === "completed") usage = event.usage;
     else if (event.type === "error") throw new Error(event.error);
   }
-  return { args, model };
+  return { args, usage };
 }
 
 function validate(

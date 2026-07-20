@@ -123,6 +123,7 @@ import {
   PipelineRunService,
   PendingActionService,
   PipelineFanoutService,
+  AiPipelineCreditService,
   FollowUpAiBatchService,
   FollowUpRecommendationsPipeline,
   ObjectionCallExtractionService,
@@ -243,6 +244,7 @@ const servicesProviders = [
   PipelineRunService,
   PendingActionService,
   PipelineFanoutService,
+  AiPipelineCreditService,
   FollowUpAiBatchService,
   FollowUpRecommendationsPipeline,
   // AI Pipeline — Objection Intelligence

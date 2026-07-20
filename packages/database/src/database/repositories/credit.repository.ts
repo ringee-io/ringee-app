@@ -33,12 +33,12 @@ export class CreditRepository {
   async updateBalance(ctx: OwnershipContext, amount: number): Promise<Credit> {
     const existing = await this.getOrCreateCredit(ctx);
 
-    const newBalance = existing.amount + amount;
-
     return this.prisma.credit.update({
       where: { id: existing.id },
       data: {
-        amount: newBalance,
+        // Atomic at the database level: concurrent calls/pipelines must each
+        // contribute their own debit instead of overwriting a stale balance.
+        amount: { increment: amount },
         ...(amount > 0
           ? {
               lastPurchaseDate: new Date(),

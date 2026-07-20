@@ -9,8 +9,13 @@ import {
   AiProviderRegistry,
   AiStreamEvent,
   AiStreamRequest,
+  AiUsage,
 } from "@ringee/platform";
 import { AnalyzedCall } from "../../ai-pipeline.types";
+import {
+  AiPipelineChargeError,
+  AiPipelineCreditService,
+} from "../../ai-pipeline-credit.service";
 import { CallAnalysisService } from "../../call-analysis.service";
 import {
   PipelineContext,
@@ -38,6 +43,7 @@ export interface ObjectionExtractionBatchResult {
   newCallIds: Set<string>;
   aiApplied: boolean;
   model?: string;
+  chargedCredits: number;
 }
 
 const SYSTEM_PROMPT = `You extract sales objections from complete call
@@ -70,6 +76,7 @@ export class ObjectionCallExtractionService {
     private readonly providers: AiProviderRegistry,
     private readonly repository: ObjectionCallAnalysisRepository,
     private readonly callAnalysis: CallAnalysisService,
+    private readonly billing: AiPipelineCreditService,
   ) {}
 
   /**
@@ -96,6 +103,7 @@ export class ObjectionCallExtractionService {
         analyses,
         newCallIds: new Set(),
         aiApplied: analyses.length > 0,
+        chargedCredits: 0,
       };
     }
 
@@ -103,6 +111,7 @@ export class ObjectionCallExtractionService {
     const catalog = buildClusterCatalog(analyses);
     const newCallIds = new Set<string>();
     let lastModel: string | undefined;
+    let chargedCredits = 0;
 
     // Sequential by design: each completed call can add a cluster that the
     // next multilingual call reuses, avoiding synonym clusters within a run.
@@ -141,6 +150,12 @@ export class ObjectionCallExtractionService {
           catalog,
         });
         lastModel = extracted.model ?? lastModel;
+        chargedCredits += await this.billing.chargeUsage({
+          context,
+          fallbackUserId: call.userId,
+          usage: extracted.usage,
+          operation: `Objection Intelligence extraction for call ${call.callId}`,
+        });
 
         const completed = await this.repository.complete(claim.id, {
           language: extracted.language ?? transcript.language,
@@ -158,6 +173,7 @@ export class ObjectionCallExtractionService {
         this.logger.warn(
           `Objection extraction permanently failed for call ${call.callId}: ${message}`,
         );
+        if (error instanceof AiPipelineChargeError) throw error;
       }
     }
 
@@ -166,6 +182,7 @@ export class ObjectionCallExtractionService {
       newCallIds,
       aiApplied: analyses.length > 0,
       model: lastModel,
+      chargedCredits,
     };
   }
 
@@ -178,6 +195,7 @@ export class ObjectionCallExtractionService {
     language?: string;
     objections: SemanticObjection[];
     model?: string;
+    usage?: AiUsage;
   }> {
     const provider = this.providers.get(apiConfiguration.AI_PROVIDER);
     const clusters = [...input.catalog].map(([clusterKey, label]) => ({
@@ -243,7 +261,7 @@ export class ObjectionCallExtractionService {
       toolChoice: "required",
     };
 
-    const { args, model } = await collectToolCall(provider.stream(req));
+    const { args, usage } = await collectToolCall(provider.stream(req));
     return {
       language: clampString(
         (args as { language?: unknown } | null)?.language,
@@ -254,7 +272,8 @@ export class ObjectionCallExtractionService {
         input.catalog,
         input.transcript,
       ),
-      model,
+      model: usage?.model,
+      usage,
     };
   }
 }
@@ -275,15 +294,15 @@ function buildClusterCatalog(
 
 async function collectToolCall(
   stream: AsyncIterable<AiStreamEvent>,
-): Promise<{ args: unknown; model?: string }> {
+): Promise<{ args: unknown; usage?: AiUsage }> {
   let args: unknown = { objections: [] };
-  let model: string | undefined;
+  let usage: AiUsage | undefined;
   for await (const event of stream) {
     if (event.type === "tool_call_completed") args = event.arguments;
-    else if (event.type === "completed") model = event.usage?.model;
+    else if (event.type === "completed") usage = event.usage;
     else if (event.type === "error") throw new Error(event.error);
   }
-  return { args, model };
+  return { args, usage };
 }
 
 function clampString(value: unknown, max: number): string {

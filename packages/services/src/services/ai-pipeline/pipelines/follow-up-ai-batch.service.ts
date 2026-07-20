@@ -5,8 +5,10 @@ import {
   AiProviderRegistry,
   AiStreamEvent,
   AiStreamRequest,
+  AiUsage,
 } from "@ringee/platform";
 import { AnalyzedCall, PipelineRunInput } from "../ai-pipeline.types";
+import { AiPipelineCreditService } from "../ai-pipeline-credit.service";
 import { PipelineContext } from "../pipeline-context";
 
 export interface AiEnrichment {
@@ -23,6 +25,7 @@ export interface FollowUpAiBatchOutput {
   enrichment: Map<string, AiEnrichment>;
   model?: string;
   enrichedCount: number;
+  chargedCredits: number;
 }
 
 const SYSTEM_PROMPT = `You are a sales follow-up assistant. You review completed
@@ -41,13 +44,16 @@ no real opening, set dismiss=true for it.`;
 export class FollowUpAiBatchService {
   private readonly logger = new Logger(FollowUpAiBatchService.name);
 
-  constructor(private readonly providers: AiProviderRegistry) {}
+  constructor(
+    private readonly providers: AiProviderRegistry,
+    private readonly billing: AiPipelineCreditService,
+  ) {}
 
   async enrich(input: PipelineRunInput): Promise<FollowUpAiBatchOutput> {
     // The AI layer only processes calls with a usable transcript.
     const calls = input.eligibleCalls.filter((c) => c.hasUsableTranscript);
     if (calls.length === 0) {
-      return { enrichment: new Map(), enrichedCount: 0 };
+      return { enrichment: new Map(), enrichedCount: 0, chargedCredits: 0 };
     }
 
     const provider = this.providers.get(apiConfiguration.AI_PROVIDER);
@@ -95,9 +101,20 @@ export class FollowUpAiBatchService {
       maxOutputTokens: 1200,
     };
 
-    const { args, model } = await this.collectToolCall(provider.stream(req));
+    const { args, usage } = await this.collectToolCall(provider.stream(req));
+    const chargedCredits = await this.billing.chargeUsage({
+      context: input.context,
+      fallbackUserId: calls.find((call) => call.userId)?.userId,
+      usage,
+      operation: "Follow-up Intelligence batch",
+    });
     const enrichment = this.validate(args, new Set(calls.map((c) => c.callId)));
-    return { enrichment, model, enrichedCount: enrichment.size };
+    return {
+      enrichment,
+      model: usage?.model,
+      enrichedCount: enrichment.size,
+      chargedCredits,
+    };
   }
 
   private buildPrompt(ctx: PipelineContext, calls: AnalyzedCall[]): string {
@@ -122,19 +139,19 @@ export class FollowUpAiBatchService {
   /** Consume the provider stream and return the first completed tool call. */
   private async collectToolCall(
     stream: AsyncIterable<AiStreamEvent>,
-  ): Promise<{ args: unknown; model?: string }> {
+  ): Promise<{ args: unknown; usage?: AiUsage }> {
     let args: unknown = { items: [] };
-    let model: string | undefined;
+    let usage: AiUsage | undefined;
     for await (const ev of stream) {
       if (ev.type === "tool_call_completed") {
         args = ev.arguments;
       } else if (ev.type === "completed") {
-        model = ev.usage?.model;
+        usage = ev.usage;
       } else if (ev.type === "error") {
         throw new Error(ev.error);
       }
     }
-    return { args, model };
+    return { args, usage };
   }
 
   /** Hand-written validation (no zod dependency in this package). */

@@ -22,6 +22,7 @@ import {
   contextOwnerColumns,
   toContextTypeEnum,
 } from "../../pipeline-context";
+import { AiPipelineChargeError } from "../../ai-pipeline-credit.service";
 import {
   IncrementalObjectionEvidence,
   ObjectionAiBatchOutput,
@@ -55,6 +56,8 @@ export interface ObjectionResult {
   model?: string;
   /** Calls with a completed one-time semantic extraction. */
   eligibleCount: number;
+  /** Actual token cost debited during this invocation. */
+  chargedCredits: number;
 }
 
 interface DynamicBucket {
@@ -145,7 +148,10 @@ export class ObjectionIntelligencePipeline
       previousInsights.map((insight) => [insight.objectionType, insight]),
     );
 
-    let ai: ObjectionAiBatchOutput = { perObjection: new Map() };
+    let ai: ObjectionAiBatchOutput = {
+      perObjection: new Map(),
+      chargedCredits: 0,
+    };
     const evidence: IncrementalObjectionEvidence[] = [...buckets.values()].map(
       (bucket) => {
         const previous = previousByType.get(bucket.clusterKey);
@@ -174,8 +180,14 @@ export class ObjectionIntelligencePipeline
 
     if (evidence.some((item) => item.newEvidence.length > 0)) {
       try {
-        ai = await this.aiBatch.analyze({ context, objections: evidence });
+        ai = await this.aiBatch.analyze({
+          context,
+          billingUserId:
+            input.eligibleCalls.find((call) => call.userId)?.userId ?? null,
+          objections: evidence,
+        });
       } catch (error) {
+        if (error instanceof AiPipelineChargeError) throw error;
         this.logger.error(
           `Incremental objection intelligence failed: ${errorMessage(error)}`,
         );
@@ -251,6 +263,7 @@ export class ObjectionIntelligencePipeline
         aiApplied: extracted.aiApplied,
         model: ai.model ?? extracted.model,
         eligibleCount,
+        chargedCredits: extracted.chargedCredits + ai.chargedCredits,
       },
       confidence,
       pendingActions: drafts,
