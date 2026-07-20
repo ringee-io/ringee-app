@@ -16,6 +16,7 @@ import { ComplianceService } from "./compliance.service";
 import { SSEBridgeService } from "./sse-bridge.service";
 import { AgentSessionStatus } from "@ringee/database";
 import { CrmCallLogService } from "../crm/crm-call-log.service";
+import { PipelineFanoutService } from "../ai-pipeline";
 
 @Injectable()
 export class CallAttemptService {
@@ -32,6 +33,7 @@ export class CallAttemptService {
     private readonly sseBridge: SSEBridgeService,
     private readonly callRepo: CallRepository,
     private readonly crmCallLog: CrmCallLogService,
+    private readonly pipelineFanout: PipelineFanoutService,
   ) {}
 
   async createAttempt(data: {
@@ -333,9 +335,11 @@ export class CallAttemptService {
       ? (disposition.code as CallOutcome)
       : null;
 
+    let outcomePersisted = false;
     try {
       if (mappedOutcome) {
         await this.callRepo.updateOutcome(callId, mappedOutcome, note);
+        outcomePersisted = true;
       } else if (note) {
         await this.callRepo.updateOutcomeNote(callId, note);
       }
@@ -343,6 +347,12 @@ export class CallAttemptService {
       this.logger.warn(
         `could not persist disposition on call ${callId}: ${(err as Error).message}`,
       );
+    }
+
+    // AI Pipeline: campaign dispositions are the campaign dialer's canonical
+    // outcome-write path, so feed the finalized call into its campaign context.
+    if (outcomePersisted) {
+      this.pipelineFanout.handleCallFinalized(callId);
     }
 
     void this.crmCallLog

@@ -35,6 +35,7 @@ import {
   LivePartial,
   livePartialKey,
 } from "./transcription.constants";
+import { PipelineFanoutService } from "../ai-pipeline";
 
 @Injectable()
 export class TranscriptionService {
@@ -50,6 +51,7 @@ export class TranscriptionService {
     private readonly redisService: RedisService,
     private readonly creditService: CreditService,
     private readonly crmCallLogService: CrmCallLogService,
+    private readonly pipelineFanout: PipelineFanoutService,
   ) {}
 
   // ── Access control ────────────────────────────────────────────────────
@@ -527,6 +529,11 @@ export class TranscriptionService {
       this.logger.log(
         `✅ Recording transcription completed for call ${callId} (${result.segments.length} segments)`,
       );
+
+      // Refresh the shared call analysis only after the completed transcript is
+      // durable. If the outcome is not set yet the fan-out is a no-op; the
+      // later outcome write will analyze the already-completed transcript.
+      this.pipelineFanout.handleCallFinalized(callId);
 
       // Best-effort: push the transcript onto the CRM record. Never let a CRM
       // failure break transcription. Use the speaker-labeled rendering so the

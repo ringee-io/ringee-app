@@ -29,6 +29,7 @@ import {
   trackToSpeaker,
 } from "./transcription.constants";
 import { CrmCallLogService } from "../crm/crm-call-log.service";
+import { PipelineFanoutService } from "../ai-pipeline";
 
 /** Per-Telnyx-connection bridge state. */
 interface BridgeState {
@@ -66,6 +67,7 @@ export class TranscriptionMediaGateway
     private readonly redisService: RedisService,
     private readonly httpAdapterHost: HttpAdapterHost,
     private readonly crmCallLogService: CrmCallLogService,
+    private readonly pipelineFanout: PipelineFanoutService,
   ) {}
 
   onModuleInit(): void {
@@ -312,8 +314,13 @@ export class TranscriptionMediaGateway
           })
           .catch(() => undefined);
 
-        // Push the completed live transcript onto the CRM record (best-effort).
         if (finalStatus === TranscriptionStatus.completed) {
+          // Re-run the idempotent pipeline fan-out now that the full realtime
+          // transcript is durable. It refreshes CallAnalysis without
+          // double-counting a call already seen at outcome time.
+          this.pipelineFanout.handleCallFinalized(state.callId);
+
+          // Push the completed live transcript onto the CRM record (best-effort).
           const header = await this.transcriptionRepo
             .findHeaderById(state.transcriptionId!)
             .catch(() => null);

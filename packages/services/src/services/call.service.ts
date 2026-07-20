@@ -39,6 +39,7 @@ import {
   callOwnershipFromCall,
   pickCallTerminalEvent,
 } from "./custom-integrations/custom-integration-event-builders";
+import { PipelineFanoutService } from "./ai-pipeline";
 
 /** Connected calls shorter than this (seconds) count as "very short" for
  * caller-ID reputation scoring (spec: <5s). */
@@ -72,6 +73,7 @@ export class CallService implements OnModuleDestroy {
     private readonly telephonyService: TelephonyService,
     private readonly recordingSettingsService: CallRecordingSettingsService,
     private readonly transcriptionOrchestrator: TranscriptionService,
+    private readonly pipelineFanout: PipelineFanoutService,
   ) {}
 
   onModuleDestroy(): void {
@@ -105,6 +107,12 @@ export class CallService implements OnModuleDestroy {
             opts.outcomeNote ?? undefined,
           )
         : await this.callRepository.findById(callId);
+
+    // AI Pipeline: mobile and any other callers that centralize outcome writes
+    // here must feed the same idempotent fan-out as the web/meeting flow.
+    if (call?.outcome) {
+      this.pipelineFanout.handleCallFinalized(call.id);
+    }
 
     // Best-effort: fold the finalized disposition into the held call-log note
     // and push it now. CRM problems must never fail the disposition.
