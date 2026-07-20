@@ -94,7 +94,9 @@ export interface AiPipelineDefinition<TResult = unknown> {
   cadence: {
     byTimeMs: number; // auto-run if this much time passed since lastRunAt
     byNewEligible: number; // or this many new eligible since last run
-    minEligibleForAuto: number; // never auto-run below this
+    minEligibleForAuto: number; // initial volume trigger + low-data threshold
+    /** Run on the time cadence even with fewer new calls than the threshold. */
+    runOnTimeWithoutNewEligible?: boolean;
   };
 
   confidence(eligibleCount: number): ConfidenceLevel;

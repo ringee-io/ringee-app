@@ -103,9 +103,10 @@ export class ObjectionIntelligencePipeline
   readonly implemented = true;
 
   readonly cadence = {
-    byTimeMs: 24 * 60 * 60 * 1000, // once per day
-    byNewEligible: 50, // or every 50 new eligible, whichever first
-    minEligibleForAuto: 25, // never auto-run below 25 (manual allowed w/ warning)
+    byTimeMs: 24 * 60 * 60 * 1000, // every day, independent of new-call volume
+    byNewEligible: 50, // or after 50 new eligible, whichever happens first
+    minEligibleForAuto: 25, // initial volume trigger + confidence threshold
+    runOnTimeWithoutNewEligible: true,
   };
 
   constructor(

@@ -176,10 +176,27 @@ export class PipelineRunService {
 
   private isDue(def: AiPipelineDefinition, a: AiPipelineActivation): boolean {
     const newE = a.newEligibleSinceLastRun;
-    if (newE < def.cadence.minEligibleForAuto) return false;
+
+    // The volume trigger can always pull a run forward.
     if (newE >= def.cadence.byNewEligible) return true;
-    if (!a.lastRunAt) return true;
-    return Date.now() - a.lastRunAt.getTime() >= def.cadence.byTimeMs;
+
+    // Preserve the initial low-data guard: a newly-enabled pipeline can run as
+    // soon as it reaches its minimum useful sample, without waiting a full
+    // cadence window.
+    if (!a.lastRunAt && newE >= def.cadence.minEligibleForAuto) return true;
+
+    const timeReference = a.lastRunAt ?? a.createdAt;
+    const timeDue =
+      Date.now() - timeReference.getTime() >= def.cadence.byTimeMs;
+    if (!timeDue) return false;
+
+    // Some analyses (Objection Intelligence) are periodic snapshots and must
+    // refresh on schedule even during quiet periods. Others retain the minimum
+    // new-call gate to avoid spending AI tokens without enough fresh data.
+    return (
+      def.cadence.runOnTimeWithoutNewEligible === true ||
+      newE >= def.cadence.minEligibleForAuto
+    );
   }
 
   private contextFromActivation(
