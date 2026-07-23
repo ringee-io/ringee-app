@@ -17,6 +17,8 @@ export const CSV_FIELDS = {
   name: { required: true, maxLength: 100 },
   email: { required: false, maxLength: 100 },
   company: { required: false, maxLength: undefined },
+  jobTitle: { required: false, maxLength: undefined },
+  location: { required: false, maxLength: undefined },
 } as const;
 
 export type CsvFieldName = keyof typeof CSV_FIELDS;
@@ -39,6 +41,8 @@ export interface CsvContactRow {
   name: string;
   email?: string;
   company?: string;
+  jobTitle?: string;
+  location?: string;
 }
 
 export interface CsvRowError {
@@ -135,6 +139,8 @@ export function validateCsvRow(
       name: row.name.trim(),
       email: row.email?.trim() || undefined,
       company: row.company?.trim() || undefined,
+      jobTitle: row.jobTitle?.trim() || undefined,
+      location: row.location?.trim() || undefined,
     },
     errors: [],
   };

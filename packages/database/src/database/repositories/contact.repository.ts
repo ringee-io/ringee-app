@@ -390,11 +390,18 @@ export class ContactRepository {
       name: string;
       email?: string;
       company?: string;
+      jobTitle?: string;
+      location?: string;
     }>,
   ): Promise<number> {
     const result = await this.prisma.contact.createMany({
       data: contacts.map((contact) => ({
-        ...contact,
+        phoneNumber: contact.phoneNumber,
+        name: contact.name,
+        email: contact.email,
+        company: contact.company,
+        jobTitle: contact.jobTitle,
+        locationCity: contact.location,
         userId: ctx.userId,
         organizationId: ctx.organizationId ?? null,
       })),

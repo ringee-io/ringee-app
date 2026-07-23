@@ -49,7 +49,7 @@ const CSV_CONFIG = {
 };
 
 const REQUIRED_FIELDS = ['phoneNumber', 'name'];
-const OPTIONAL_FIELDS = ['email', 'company'];
+const OPTIONAL_FIELDS = ['email', 'company', 'jobTitle', 'location'];
 
 export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
   const api = useApi();
@@ -216,7 +216,8 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
 
   const downloadTemplate = () => {
     const headers = [...REQUIRED_FIELDS, ...OPTIONAL_FIELDS].join(',');
-    const example = '+1234567890,John Doe,john@example.com,Acme Inc';
+    const example =
+      '+1234567890,John Doe,john@example.com,Acme Inc,Sales Manager,New York';
     const csv = `${headers}\n${example}`;
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -22,6 +22,10 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
+import {
+  Tag,
+  TagMultiSelect
+} from '@/features/contact/components/tag-multi-select';
 
 const CSV_CONFIG = {
   MAX_FILE_SIZE: 5 * 1024 * 1024, // 5MB
@@ -47,7 +51,9 @@ const OPTIONAL_FIELDS: {
   example: string;
 }[] = [
   { name: 'email', description: 'Contact email', example: 'john@acme.com' },
-  { name: 'company', description: 'Company name', example: 'Acme Inc' }
+  { name: 'company', description: 'Company name', example: 'Acme Inc' },
+  { name: 'jobTitle', description: 'Job title', example: 'Sales Manager' },
+  { name: 'location', description: 'Location', example: 'New York' }
 ];
 
 interface ImportSummary {
@@ -87,14 +93,34 @@ export function ImportLeadsModal({
   const [summary, setSummary] = useState<ImportSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [tags, setTags] = useState<Tag[]>([]);
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    api
+      .get<Tag[]>('/tags')
+      .then(setTags)
+      .catch(() => setTags([]));
+  }, [open, api]);
 
   const resetState = useCallback(() => {
     setState('idle');
     setFile(null);
     setSummary(null);
     setError(null);
+    setSelectedTagIds([]);
     if (fileInputRef.current) fileInputRef.current.value = '';
   }, []);
+
+  async function handleCreateTag(name: string, color?: string): Promise<Tag> {
+    const newTag = await api.post<Tag>('/tags', { name, color });
+    setTags((currentTags) =>
+      [...currentTags, newTag].sort((a, b) => a.name.localeCompare(b.name))
+    );
+    return newTag;
+  }
 
   function handleClose(next: boolean) {
     if (!next) {
@@ -145,6 +171,9 @@ export function ImportLeadsModal({
     try {
       const formData = new FormData();
       formData.append('file', file);
+      if (selectedTagIds.length > 0) {
+        formData.append('tagIds', JSON.stringify(selectedTagIds));
+      }
       const res = await api.upload<ImportResult>(
         `/campaigns/${campaignId}/leads/csv`,
         formData
@@ -314,6 +343,17 @@ export function ImportLeadsModal({
                 </>
               )}
             </div>
+
+            {file && (
+              <TagMultiSelect
+                availableTags={tags}
+                selectedTagIds={selectedTagIds}
+                onSelectionChange={setSelectedTagIds}
+                onCreateTag={handleCreateTag}
+                placeholder='Assign tags to newly created contacts'
+                className='w-full'
+              />
+            )}
 
             {/* Error message */}
             {error && (

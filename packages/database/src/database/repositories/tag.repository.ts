@@ -38,6 +38,25 @@ export class TagRepository {
     });
   }
 
+  async findOwnedIds(
+    ctx: OwnershipContext,
+    tagIds: string[],
+  ): Promise<string[]> {
+    if (tagIds.length === 0) return [];
+
+    const ownershipFilter = buildOwnershipFilter(ctx);
+    const tags = await this.prisma.tag.findMany({
+      where: {
+        ...ownershipFilter,
+        id: { in: tagIds },
+        deletedAt: null,
+      },
+      select: { id: true },
+    });
+
+    return tags.map((tag) => tag.id);
+  }
+
   async update(
     id: string,
     data: { name?: string; color?: string },

@@ -9,6 +9,7 @@ import {
   CampaignLeadRepository,
   CampaignMemberRepository,
   ContactRepository,
+  TagRepository,
   Campaign,
   CampaignLeadStatus,
   Prisma,
@@ -22,6 +23,7 @@ import {
   validateCsvHeaders,
   validateCsvRow,
   ALL_CSV_FIELDS,
+  CsvContactRow,
   CsvRowError,
   VALID_CAMPAIGN_STATUSES,
 } from "@ringee/platform";
@@ -45,6 +47,7 @@ export class CampaignService {
     private readonly campaignLeadRepo: CampaignLeadRepository,
     private readonly campaignMemberRepo: CampaignMemberRepository,
     private readonly contactRepo: ContactRepository,
+    private readonly tagRepo: TagRepository,
   ) {}
 
   private ensureOrganization(ctx: OwnershipContext): void {
@@ -280,6 +283,7 @@ export class CampaignService {
     ctx: OwnershipContext,
     campaignId: string,
     csvContent: string,
+    tagIds?: string[],
   ): Promise<CampaignLeadsImportResult> {
     this.ensureOrganization(ctx);
 
@@ -292,6 +296,8 @@ export class CampaignService {
     if (campaign.organizationId !== ctx.organizationId) {
       throw new ForbiddenException("Access denied");
     }
+
+    const validatedTagIds = await this.validateImportTagIds(ctx, tagIds);
 
     const lines = csvContent.split(/\r?\n/).filter((line) => line.trim());
 
@@ -321,12 +327,7 @@ export class CampaignService {
     headers.forEach((h, i) => headerIndices.set(h.trim().toLowerCase(), i));
 
     const errors: CsvRowError[] = [];
-    const validContacts: Array<{
-      phoneNumber: string;
-      name: string;
-      email?: string;
-      company?: string;
-    }> = [];
+    const validContacts: CsvContactRow[] = [];
     const seenPhones = new Set<string>();
 
     // Parse and validate each row
@@ -362,6 +363,7 @@ export class CampaignService {
     let contactsCreated = 0;
     let leadsAdded = 0;
     let duplicatesSkipped = 0;
+    const insertedPhones: string[] = [];
 
     for (
       let i = 0;
@@ -386,6 +388,7 @@ export class CampaignService {
       if (newContacts.length > 0) {
         const count = await this.contactRepo.createMany(ctx, newContacts);
         contactsCreated += count;
+        insertedPhones.push(...newContacts.map((contact) => contact.phoneNumber));
       }
 
       // Get all contact IDs for this batch
@@ -424,6 +427,19 @@ export class CampaignService {
       }
     }
 
+    if (validatedTagIds.length > 0 && insertedPhones.length > 0) {
+      const newContactIds = await this.contactRepo.findContactIdsByPhoneNumbers(
+        ctx,
+        insertedPhones,
+      );
+      if (newContactIds.length > 0) {
+        await this.tagRepo.assignTagsToContacts(
+          newContactIds,
+          validatedTagIds,
+        );
+      }
+    }
+
     return {
       success: true,
       summary: {
@@ -457,5 +473,22 @@ export class CampaignService {
     result.push(current.trim());
 
     return result;
+  }
+
+  private async validateImportTagIds(
+    ctx: OwnershipContext,
+    tagIds?: string[],
+  ): Promise<string[]> {
+    const uniqueTagIds = [...new Set(tagIds ?? [])];
+    if (uniqueTagIds.length === 0) return [];
+
+    const ownedTagIds = await this.tagRepo.findOwnedIds(ctx, uniqueTagIds);
+    if (ownedTagIds.length !== uniqueTagIds.length) {
+      throw new BadRequestException(
+        "One or more tags are invalid or do not belong to this workspace",
+      );
+    }
+
+    return uniqueTagIds;
   }
 }

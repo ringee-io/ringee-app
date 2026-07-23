@@ -349,6 +349,7 @@ export class CampaignController {
     @Param("id") campaignId: string,
     @UploadedFile() file: { buffer: Buffer; originalname: string },
     @CurrentUser() user: CurrentUserData,
+    @Body("tagIds") tagIdsRaw?: string,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -359,7 +360,30 @@ export class CampaignController {
 
     const ctx = createOwnershipContext(user);
     const csvContent = file.buffer.toString("utf-8");
-    return this.campaignService.importLeadsFromCsv(ctx, campaignId, csvContent);
+
+    let tagIds: string[] | undefined;
+    if (tagIdsRaw) {
+      try {
+        const parsed: unknown = JSON.parse(tagIdsRaw);
+        if (!Array.isArray(parsed) || !parsed.every((id) => typeof id === "string")) {
+          throw new BadRequestException("tagIds must be an array of strings");
+        }
+        tagIds = parsed;
+      } catch (error) {
+        if (error instanceof BadRequestException) throw error;
+        tagIds = tagIdsRaw
+          .split(",")
+          .map((tagId) => tagId.trim())
+          .filter(Boolean);
+      }
+    }
+
+    return this.campaignService.importLeadsFromCsv(
+      ctx,
+      campaignId,
+      csvContent,
+      tagIds,
+    );
   }
 
   @Post(":id/leads/manual")

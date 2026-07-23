@@ -205,6 +205,7 @@ export class ContactService {
     csvContent: string,
     tagIds?: string[],
   ): Promise<CsvImportResult> {
+    const validatedTagIds = await this.validateImportTagIds(ctx, tagIds);
     const lines = csvContent.split(/\r?\n/).filter((line) => line.trim());
 
     if (lines.length === 0) {
@@ -298,13 +299,16 @@ export class ContactService {
     }
 
     // Assign tags to imported contacts if tagIds provided
-    if (tagIds && tagIds.length > 0 && insertedPhones.length > 0) {
+    if (validatedTagIds.length > 0 && insertedPhones.length > 0) {
       const newContactIds = await this.repo.findContactIdsByPhoneNumbers(
         ctx,
         insertedPhones,
       );
       if (newContactIds.length > 0) {
-        await this.tagRepo.assignTagsToContacts(newContactIds, tagIds);
+        await this.tagRepo.assignTagsToContacts(
+          newContactIds,
+          validatedTagIds,
+        );
       }
     }
 
@@ -343,6 +347,23 @@ export class ContactService {
     result.push(current.trim());
 
     return result;
+  }
+
+  private async validateImportTagIds(
+    ctx: OwnershipContext,
+    tagIds?: string[],
+  ): Promise<string[]> {
+    const uniqueTagIds = [...new Set(tagIds ?? [])];
+    if (uniqueTagIds.length === 0) return [];
+
+    const ownedTagIds = await this.tagRepo.findOwnedIds(ctx, uniqueTagIds);
+    if (ownedTagIds.length !== uniqueTagIds.length) {
+      throw new BadRequestException(
+        "One or more tags are invalid or do not belong to this workspace",
+      );
+    }
+
+    return uniqueTagIds;
   }
 
   async deleteContactsByTags(ctx: OwnershipContext, tagIds: string[]) {
