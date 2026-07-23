@@ -39,7 +39,6 @@ export default function Header({ useMock }: { useMock?: boolean }) {
       </div>
 
       <div className='flex items-center gap-2 px-2 sm:gap-4 sm:px-4'>
-        {!mobile && <CommunitySupportButton />}
         <Button
           onClick={() => router.push('/dashboard/pending-actions')}
           variant={mobile ? 'ghost' : 'link'}
