@@ -13,12 +13,7 @@
  * These types live in `@ringee/dialer-core` (not the extension) so the offscreen
  * engine, the side panel, and any test can import the identical contract.
  */
-import type {
-  CallState,
-  ContactRef,
-  DialTarget,
-  PageOrigin,
-} from "./call";
+import type { CallState, ContactRef, DialTarget, PageOrigin } from "./call";
 
 export const MESSAGE_PREFIX = "RINGEE_" as const;
 
@@ -171,7 +166,9 @@ export function isCallCommand(m: unknown): m is CallCommandMsg {
     return typeof cmd.value === "boolean";
   }
   if (cmd.action === "dtmf") {
-    return typeof cmd.digit === "string" && /^[0-9*#]$/.test(cmd.digit as string);
+    return (
+      typeof cmd.digit === "string" && /^[0-9A-D*#]$/.test(cmd.digit as string)
+    );
   }
   return true;
 }

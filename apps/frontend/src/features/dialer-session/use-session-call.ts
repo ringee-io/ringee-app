@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Call, INotification, TelnyxRTC } from '@telnyx/webrtc';
+import { setOutboundRingbackVolume } from '@ringee/dialer-core/engine';
 import { sessionApi, type CustomHeader } from './api';
 
 export type CallState =
@@ -112,10 +113,12 @@ export function useSessionCall(
       setRecordingId(null);
     }
 
-    // Attach the remote stream to our hidden audio element.
+    // Telnyx's local ringback is the only audio before answer. Attaching early
+    // media here as well would play a second ring tone over it.
     const remote = (next as unknown as { remoteStream?: MediaStream })
       .remoteStream;
-    if (remote && audioRef.current) {
+    const canPlayRemote = state === 'active' || state === 'held';
+    if (remote && audioRef.current && canPlayRemote) {
       try {
         audioRef.current.srcObject = remote;
         void audioRef.current.play().catch(() => undefined);
@@ -148,6 +151,7 @@ export function useSessionCall(
         customHeaders: headers,
         keepConnectionAliveOnSocketClose: true
       } as Parameters<TelnyxRTC['newCall']>[0]);
+      setOutboundRingbackVolume();
       setCallState('dialing');
       setTelnyxSessionId(null);
     },

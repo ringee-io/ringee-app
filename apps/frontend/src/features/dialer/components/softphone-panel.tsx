@@ -7,6 +7,7 @@ import { useDialerLeadStore } from '../store/dialer-lead.store';
 import { useDialerAttemptStore } from '../store/dialer-attempt.store';
 import { useDialerCall } from '../hooks/use-dialer-call';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
+import { DtmfKeypad } from '@ringee/dialer-ui';
 import {
   Phone,
   PhoneOff,
@@ -37,13 +38,6 @@ function formatDuration(sec: number): string {
   const s = sec % 60;
   return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
 }
-
-const DTMF_KEYS = [
-  ['1', '2', '3'],
-  ['4', '5', '6'],
-  ['7', '8', '9'],
-  ['*', '0', '#']
-];
 
 interface Props {
   campaignId: string;
@@ -132,7 +126,14 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
   // Attach the remote audio stream
   const audioRef = useRef<HTMLAudioElement>(null);
   useEffect(() => {
-    if (activeCall && (activeCall as any).remoteStream && audioRef.current) {
+    // Before answer, Telnyx already plays the quiet local ringback. Waiting
+    // until active avoids stacking carrier early media on top of that tone.
+    if (
+      activeCall &&
+      callState === 'active' &&
+      (activeCall as any).remoteStream &&
+      audioRef.current
+    ) {
       audioRef.current.srcObject = (activeCall as any).remoteStream;
       audioRef.current.play().catch(() => {});
     }
@@ -367,19 +368,7 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
               >
                 <X className='h-3 w-3' />
               </Button>
-              <div className='grid grid-cols-3 gap-2 pt-4'>
-                {DTMF_KEYS.flat().map((key) => (
-                  <Button
-                    key={key}
-                    variant='outline'
-                    size='sm'
-                    className='h-10 w-10 font-mono text-lg'
-                    onClick={() => sendDTMF(key)}
-                  >
-                    {key}
-                  </Button>
-                ))}
-              </div>
+              <DtmfKeypad className='pt-4' onSendDTMF={sendDTMF} />
             </div>
           )}
         </>

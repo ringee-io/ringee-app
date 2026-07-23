@@ -2,6 +2,8 @@
 // `apps/browser-extension`. There is no second modal anywhere in the monorepo.
 export { ActiveCallModal } from "./components/active-call-modal";
 export type { ActiveCallModalProps } from "./components/active-call-modal";
+export { DtmfKeypad } from "./components/dtmf-keypad";
+export type { DtmfKeypadProps } from "./components/dtmf-keypad";
 export { PostCallView } from "./components/post-call-view";
 
 export { DialerProvider, useDialer } from "./data/context";

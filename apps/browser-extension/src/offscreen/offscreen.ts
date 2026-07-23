@@ -21,6 +21,7 @@ import {
   onCallUpdate,
   mapTelnyxState,
   TELNYX_EVENTS,
+  OUTBOUND_RINGBACK_VOLUME,
   type Call,
 } from "@ringee/dialer-core/engine";
 import {
@@ -49,10 +50,13 @@ const remoteAudio = document.getElementById(
   "ringee-remote-audio",
 ) as HTMLAudioElement | null;
 
-function attachRemoteAudio(call: Call) {
+function attachRemoteAudio(call: Call, state: CallState) {
   const stream = (call as unknown as { remoteStream?: MediaStream })
     .remoteStream;
-  if (!remoteAudio || !stream || remoteAudio.srcObject === stream) return;
+  if (!remoteAudio || !stream) return;
+  remoteAudio.volume =
+    state === "active" || state === "held" ? 1 : OUTBOUND_RINGBACK_VOLUME;
+  if (remoteAudio.srcObject === stream) return;
   remoteAudio.srcObject = stream;
   void remoteAudio.play().catch(() => {});
 }
@@ -130,9 +134,10 @@ async function connect(sip: StartCallMsg["sip"]): Promise<TelnyxClient> {
     activeTelnyxSessionId =
       call.telnyxIDs?.telnyxSessionId ?? activeTelnyxSessionId;
     const mapped = mapTelnyxState(call.state);
-    // Play the far end as soon as the media stream exists (set once the call is
-    // answered) so the user can actually hear the call.
-    attachRemoteAudio(call);
+    // Play carrier early media when present, but keep it quiet for headset
+    // users until the far end answers. `attachRemoteAudio` restores full volume
+    // for the active conversation.
+    attachRemoteAudio(call, mapped);
     const cause = mapped === "ended" ? hangupCause(call) : undefined;
     if (mapped === "ended" && cause) {
       console.warn(

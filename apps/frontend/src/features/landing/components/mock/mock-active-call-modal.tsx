@@ -10,6 +10,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
+import { DtmfKeypad } from '@ringee/dialer-ui';
 import {
   Avatar,
   AvatarFallback
@@ -119,7 +120,6 @@ export function MockActiveCallScreen({
   onToggleRecording
 }: Props) {
   const [elapsed, setElapsed] = useState(0);
-  const [dtmfDigits, setDtmfDigits] = useState<string[]>([]);
   const [bookingPanelOpen, setBookingPanelOpen] = useState(false);
   const [meetingBooked, setMeetingBooked] = useState(false);
   const [activeTab, setActiveTab] = useState<
@@ -321,37 +321,9 @@ export function MockActiveCallScreen({
                 <PopoverContent
                   side='top'
                   align='center'
-                  className='w-64 rounded p-4 shadow-xl'
+                  className='w-auto rounded p-4 shadow-xl'
                 >
-                  <div className='grid grid-cols-3 gap-2'>
-                    {[
-                      '1',
-                      '2',
-                      '3',
-                      '4',
-                      '5',
-                      '6',
-                      '7',
-                      '8',
-                      '9',
-                      '*',
-                      '0',
-                      '#'
-                    ].map((d) => (
-                      <button
-                        key={d}
-                        onClick={() => setDtmfDigits((p) => [...p, d])}
-                        className='bg-muted/40 hover:bg-primary hover:text-primary-foreground flex h-12 items-center justify-center rounded text-xl font-medium transition-all active:scale-90 md:h-14'
-                      >
-                        {d}
-                      </button>
-                    ))}
-                  </div>
-                  {dtmfDigits.length > 0 && (
-                    <div className='text-primary bg-primary/10 mt-3 rounded py-1.5 text-center font-mono text-sm font-semibold tracking-widest'>
-                      {dtmfDigits.join(' ')}
-                    </div>
-                  )}
+                  <DtmfKeypad onSendDTMF={() => undefined} />
                 </PopoverContent>
               </Popover>
 

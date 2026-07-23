@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
+import { DtmfKeypad } from '@ringee/dialer-ui';
 import {
   CheckCircle2,
   Circle,
@@ -54,13 +55,6 @@ interface Props {
   onToggleRecording: () => void | Promise<void>;
   onSendDTMF: (digit: string) => void;
 }
-
-const DTMF_KEYS = [
-  ['1', '2', '3'],
-  ['4', '5', '6'],
-  ['7', '8', '9'],
-  ['*', '0', '#']
-];
 
 function formatDuration(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -340,19 +334,7 @@ export function SessionSoftphonePanel(props: Props) {
             >
               <X className='h-3 w-3' />
             </Button>
-            <div className='grid grid-cols-3 gap-2 pt-4'>
-              {DTMF_KEYS.flat().map((key) => (
-                <Button
-                  key={key}
-                  variant='outline'
-                  size='sm'
-                  className='h-10 w-10 font-mono text-lg'
-                  onClick={() => onSendDTMF(key)}
-                >
-                  {key}
-                </Button>
-              ))}
-            </div>
+            <DtmfKeypad className='pt-4' onSendDTMF={onSendDTMF} />
           </div>
         )}
       </div>

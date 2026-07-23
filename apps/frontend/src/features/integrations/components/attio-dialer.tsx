@@ -8,15 +8,10 @@ import {
 } from '@ringee/frontend-shared/components/ui/avatar';
 import { useTelnyxStore } from '@/features/calls/store/telnyx.store';
 import { useAuth } from '@clerk/nextjs';
-import {
-  Loader2,
-  Phone,
-  PhoneOff,
-  AlertCircle,
-  CheckCircle2
-} from 'lucide-react';
+import { Loader2, Phone, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { setOutboundRingbackVolume } from '@ringee/dialer-core/engine';
 
 type DialerState = 'ready' | 'connecting' | 'active' | 'ended' | 'error';
 
@@ -63,6 +58,7 @@ export function AttioDialer() {
         keepConnectionAliveOnSocketClose: true,
         debug: process.env.NODE_ENV === 'development'
       });
+      setOutboundRingbackVolume();
       setDialerState('active');
     } catch (err) {
       setErrorMsg(

@@ -37,7 +37,6 @@ import { useEffect, useMemo, useState } from "react";
 // Subpath imports keep the Telnyx engine out of the side-panel / web bundles —
 // only the offscreen document ever pulls in @ringee/dialer-core/engine.
 import { useCallStore } from "@ringee/dialer-core/store";
-import { playDtmfTone, DTMF_KEYS } from "@ringee/dialer-core/dtmf";
 import {
   Popover,
   PopoverContent,
@@ -51,6 +50,7 @@ import {
 } from "@ringee/frontend-shared/components/ui/tabs";
 import { IconKeyboard } from "@tabler/icons-react";
 import { PostCallView } from "./post-call-view";
+import { DtmfKeypad } from "./dtmf-keypad";
 import { useDialer } from "../data/context";
 
 export type ActiveCallModalProps = {
@@ -134,7 +134,6 @@ export function ActiveCallModal({
 }: ActiveCallModalProps) {
   const { slots, recordingSettings } = useDialer();
   const [elapsed, setElapsed] = useState(0);
-  const [dtmfDigits, setDtmfDigits] = useState<string[]>([]);
   const {
     bookingPanelOpen,
     setBookingPanelOpen,
@@ -165,12 +164,6 @@ export function ActiveCallModal({
   useEffect(() => {
     if (bookingPanelOpen && hasBooking) setActiveTab("booking");
   }, [bookingPanelOpen, hasBooking]);
-
-  const handlePressDTMF = (digit: string) => {
-    playDtmfTone(digit);
-    onSendDTMF?.(digit);
-    setDtmfDigits((prev) => [...prev, digit]);
-  };
 
   useEffect(() => {
     if (!open) return;
@@ -462,24 +455,9 @@ export function ActiveCallModal({
                   <PopoverContent
                     side="top"
                     align="center"
-                    className="w-64 rounded p-4 shadow-xl"
+                    className="w-auto rounded p-4 shadow-xl"
                   >
-                    <div className="grid grid-cols-3 gap-2">
-                      {DTMF_KEYS.map((d) => (
-                        <button
-                          key={d}
-                          onClick={() => handlePressDTMF(d)}
-                          className="bg-muted/40 hover:bg-primary hover:text-primary-foreground flex h-12 items-center justify-center rounded text-xl font-medium transition-all active:scale-90 md:h-14"
-                        >
-                          {d}
-                        </button>
-                      ))}
-                    </div>
-                    {dtmfDigits.length > 0 && (
-                      <div className="text-primary bg-primary/10 mt-3 rounded py-1.5 text-center font-mono text-sm font-semibold tracking-widest">
-                        {dtmfDigits.join(" ")}
-                      </div>
-                    )}
+                    <DtmfKeypad onSendDTMF={(digit) => onSendDTMF?.(digit)} />
                   </PopoverContent>
                 </Popover>
 

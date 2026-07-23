@@ -33,7 +33,10 @@ describe("isDialRequest", () => {
   it("rejects a missing/empty target", () => {
     expect(isDialRequest({ type: MessageType.DialRequest })).toBe(false);
     expect(
-      isDialRequest({ type: MessageType.DialRequest, target: { destination: "" } }),
+      isDialRequest({
+        type: MessageType.DialRequest,
+        target: { destination: "" },
+      }),
     ).toBe(false);
     expect(isDialRequest({ type: MessageType.CallCommand })).toBe(false);
   });
@@ -60,7 +63,10 @@ describe("isStartCall", () => {
 describe("isCallCommand", () => {
   it("accepts hangup", () => {
     expect(
-      isCallCommand({ type: MessageType.CallCommand, command: { action: "hangup" } }),
+      isCallCommand({
+        type: MessageType.CallCommand,
+        command: { action: "hangup" },
+      }),
     ).toBe(true);
   });
   it("validates mute/hold boolean values", () => {
@@ -87,7 +93,13 @@ describe("isCallCommand", () => {
     expect(
       isCallCommand({
         type: MessageType.CallCommand,
-        command: { action: "dtmf", digit: "X" },
+        command: { action: "dtmf", digit: "A" },
+      }),
+    ).toBe(true);
+    expect(
+      isCallCommand({
+        type: MessageType.CallCommand,
+        command: { action: "dtmf", digit: "+" },
       }),
     ).toBe(false);
   });

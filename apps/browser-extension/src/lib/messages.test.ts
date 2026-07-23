@@ -68,7 +68,13 @@ describe("extension message validation", () => {
     expect(
       isCallCommand({
         type: MessageType.CallCommand,
-        command: { action: "dtmf", digit: "Z" },
+        command: { action: "dtmf", digit: "D" },
+      }),
+    ).toBe(true);
+    expect(
+      isCallCommand({
+        type: MessageType.CallCommand,
+        command: { action: "dtmf", digit: "+" },
       }),
     ).toBe(false);
   });

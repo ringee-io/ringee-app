@@ -57,10 +57,28 @@ export interface PlaceCallOptions extends CallAttribution {
   debug?: boolean;
 }
 
+/** Comfortable ringback level for headset users before the far end answers. */
+export const OUTBOUND_RINGBACK_VOLUME = 0.25;
+
+/**
+ * Telnyx creates one internal looping <audio id="_ringback"> element when a
+ * call is placed. Keep that local ringback quiet without lowering the remote
+ * person's audio after the call connects.
+ */
+export function setOutboundRingbackVolume(
+  volume = OUTBOUND_RINGBACK_VOLUME,
+): void {
+  if (typeof document === "undefined") return;
+  const ringback = document.getElementById("_ringback");
+  if (ringback instanceof HTMLAudioElement) {
+    ringback.volume = Math.min(1, Math.max(0, volume));
+  }
+}
+
 /** Place an outbound call. Returns the Telnyx `Call` handle. */
 export function placeCall(opts: PlaceCallOptions): Call {
   const { client, destination, callerId, userId, organizationId } = opts;
-  return client.newCall({
+  const call = client.newCall({
     callerNumber: callerId,
     destinationNumber: destination,
     audio: true,
@@ -72,12 +90,17 @@ export function placeCall(opts: PlaceCallOptions): Call {
     debug: opts.debug ?? false,
     debugOutput: "socket",
   });
+  setOutboundRingbackVolume();
+  return call;
 }
 
 // ── Per-call controls ─────────────────────────────────────────────────────────
 // Each guards against a missing/half-initialized Call so callers don't have to.
 
-export async function muteCall(call: Call | null, mute: boolean): Promise<void> {
+export async function muteCall(
+  call: Call | null,
+  mute: boolean,
+): Promise<void> {
   if (!call) return;
   if (mute) {
     if (typeof call.muteAudio === "function") await call.muteAudio();
@@ -86,7 +109,10 @@ export async function muteCall(call: Call | null, mute: boolean): Promise<void> 
   }
 }
 
-export async function holdCall(call: Call | null, hold: boolean): Promise<void> {
+export async function holdCall(
+  call: Call | null,
+  hold: boolean,
+): Promise<void> {
   if (!call) return;
   if (hold) {
     if (typeof call.hold === "function") await call.hold();

@@ -3,13 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Call } from '@telnyx/webrtc';
 import { useTelnyxStore } from '@/features/calls/store/telnyx.store';
-import {
-  useDialerAttemptStore,
-  type CallAttemptStatus
-} from '../store/dialer-attempt.store';
+import { useDialerAttemptStore } from '../store/dialer-attempt.store';
 import { useDialerSessionStore } from '../store/dialer-session.store';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useAuth } from '@clerk/nextjs';
+import { setOutboundRingbackVolume } from '@ringee/dialer-core/engine';
 
 /**
  * Manages the actual Telnyx WebRTC call for the dialer.
@@ -123,6 +121,7 @@ export function useDialerCall() {
         debug: process.env.NODE_ENV === 'development',
         debugOutput: 'socket'
       });
+      setOutboundRingbackVolume();
     },
     [client, userId, orgId]
   );

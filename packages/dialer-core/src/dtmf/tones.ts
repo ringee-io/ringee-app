@@ -8,18 +8,60 @@ const DTMF_FREQUENCIES: Record<string, [number, number]> = {
   "1": [697, 1209],
   "2": [697, 1336],
   "3": [697, 1477],
+  A: [697, 1633],
   "4": [770, 1209],
   "5": [770, 1336],
   "6": [770, 1477],
+  B: [770, 1633],
   "7": [852, 1209],
   "8": [852, 1336],
   "9": [852, 1477],
+  C: [852, 1633],
   "*": [941, 1209],
   "0": [941, 1336],
   "#": [941, 1477],
+  D: [941, 1633],
 };
 
-export const DTMF_KEYS = Object.keys(DTMF_FREQUENCIES);
+export const DTMF_KEY_ROWS = [
+  ["1", "2", "3", "A"],
+  ["4", "5", "6", "B"],
+  ["7", "8", "9", "C"],
+  ["*", "0", "#", "D"],
+] as const;
+export const DTMF_KEYS = DTMF_KEY_ROWS.flat();
+
+export const DTMF_LETTER_ROWS = [
+  ["A", "B", "C", "D", "E", "F"],
+  ["G", "H", "I", "J", "K", "L"],
+  ["M", "N", "O", "P", "Q", "R"],
+  ["S", "T", "U", "V", "W", "X"],
+  ["Y", "Z"],
+] as const;
+
+const T9_LETTER_GROUPS = [
+  ["ABC", "2"],
+  ["DEF", "3"],
+  ["GHI", "4"],
+  ["JKL", "5"],
+  ["MNO", "6"],
+  ["PQRS", "7"],
+  ["TUV", "8"],
+  ["WXYZ", "9"],
+] as const;
+
+/**
+ * Phone networks cannot transmit arbitrary text through DTMF. Convert a letter
+ * to the digit printed beneath it on a standard telephone keypad instead.
+ */
+export function letterToDtmfDigit(letter: string): string | null {
+  const normalized = letter.trim().toUpperCase();
+  if (normalized.length !== 1) return null;
+  const group = T9_LETTER_GROUPS.find(([letters]) =>
+    letters.includes(normalized),
+  );
+  return group?.[1] ?? null;
+}
 
 export function isDtmfDigit(digit: string): boolean {
   return digit in DTMF_FREQUENCIES;
