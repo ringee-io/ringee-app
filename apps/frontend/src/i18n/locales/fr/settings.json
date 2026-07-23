@@ -23,7 +23,6 @@
       "feeNotice": "Chaque vérification coûte {fee}.",
       "balanceLabel": "Votre solde : {balance}",
       "insufficientCredits": "Crédits insuffisants. La vérification d'un identifiant d'appelant coûte {fee}.",
-      "surchargeNotice": "Les appels passés depuis un identifiant d'appelant vérifié ajoutent $0.50 par minute au tarif.",
       "table": {
         "phoneNumber": "Numéro",
         "country": "Pays",

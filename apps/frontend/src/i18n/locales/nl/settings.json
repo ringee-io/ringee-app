@@ -23,7 +23,6 @@
       "feeNotice": "Elke verificatie kost {fee}.",
       "balanceLabel": "Je saldo: {balance}",
       "insufficientCredits": "Niet genoeg tegoed. Een beller-ID verifiëren kost {fee}.",
-      "surchargeNotice": "Oproepen vanaf een geverifieerde beller-ID voegen $0.50 per minuut toe aan het tarief.",
       "table": {
         "phoneNumber": "Nummer",
         "country": "Land",

@@ -23,7 +23,6 @@
       "feeNotice": "Cada verificación cuesta {fee}.",
       "balanceLabel": "Tu saldo: {balance}",
       "insufficientCredits": "Créditos insuficientes. Verificar un ID de llamada cuesta {fee}.",
-      "surchargeNotice": "Las llamadas hechas con un ID de llamada verificado suman $0.50 por minuto a la tarifa.",
       "table": {
         "phoneNumber": "Número",
         "country": "País",

@@ -23,7 +23,6 @@
       "feeNotice": "Each verification costs {fee}.",
       "balanceLabel": "Your balance: {balance}",
       "insufficientCredits": "Not enough credits. Verifying a caller ID costs {fee}.",
-      "surchargeNotice": "Calls placed from a verified caller ID add $0.50 per minute to the rate.",
       "table": {
         "phoneNumber": "Number",
         "country": "Country",

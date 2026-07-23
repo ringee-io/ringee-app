@@ -23,7 +23,6 @@
       "feeNotice": "Ogni verifica costa {fee}.",
       "balanceLabel": "Il tuo saldo: {balance}",
       "insufficientCredits": "Credito insufficiente. Verificare un ID chiamante costa {fee}.",
-      "surchargeNotice": "Le chiamate effettuate da un ID chiamante verificato aggiungono $0.50 al minuto alla tariffa.",
       "table": {
         "phoneNumber": "Numero",
         "country": "Paese",

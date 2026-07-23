@@ -145,7 +145,6 @@ export function CallerIdListing() {
           <IconInfoCircle className='h-3.5 w-3.5' />
           {t('feeNotice', { fee: formatUsd(fee) })}
         </span>
-        <span>{t('surchargeNotice')}</span>
       </div>
 
       {loading ? (

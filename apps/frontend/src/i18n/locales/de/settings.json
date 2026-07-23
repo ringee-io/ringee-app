@@ -23,7 +23,6 @@
       "feeNotice": "Jede Verifizierung kostet {fee}.",
       "balanceLabel": "Ihr Guthaben: {balance}",
       "insufficientCredits": "Nicht genügend Guthaben. Die Verifizierung einer Anrufer-ID kostet {fee}.",
-      "surchargeNotice": "Anrufe von einer verifizierten Anrufer-ID erhöhen den Tarif um $0.50 pro Minute.",
       "table": {
         "phoneNumber": "Nummer",
         "country": "Land",
