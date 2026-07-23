@@ -148,6 +148,21 @@
         "pending": "pendiente",
         "rejected": "rechazado",
         "expired": "expirado"
+      },
+      "transfer": {
+        "action": "Mover",
+        "title": "Mover número a otro workspace",
+        "description": "Elige dónde debe estar {phone}. Debes ser administrador de ambos workspaces de organización.",
+        "placeholder": "Selecciona el workspace de destino",
+        "personal": "Workspace personal",
+        "resetNotice": "Se eliminarán las asignaciones de campañas, rotación y teléfonos SIP propias del workspace. La suscripción actual de Stripe seguirá facturándose al workspace que compró originalmente el número.",
+        "noTargets": "No administras ningún otro workspace disponible.",
+        "cancel": "Cancelar",
+        "confirm": "Mover número",
+        "moving": "Moviendo…",
+        "success": "Número movido correctamente.",
+        "error": "No se pudo mover el número.",
+        "loadError": "No se pudieron cargar tus workspaces."
       }
     },
     "verify": {

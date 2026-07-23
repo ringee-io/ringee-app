@@ -194,5 +194,13 @@
     "addCard": "Add card",
     "expiresOn": "Expires {date}",
     "default": "Default"
+  },
+  "portal": {
+    "eyebrow": "Secure billing powered by Stripe",
+    "title": "Opening your billing portal",
+    "description": "Manage subscriptions, payment methods, invoices and billing information securely in Stripe.",
+    "redirecting": "Redirecting to Stripe…",
+    "retry": "Open Stripe billing portal",
+    "error": "We could not open the billing portal. Please try again in a moment."
   }
 }

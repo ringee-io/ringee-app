@@ -36,6 +36,7 @@ import {
   SaveRequirementsDraftDto,
   SetCallerIdActiveDto,
   SubmitRequirementsDto,
+  TransferPhoneNumberDto,
   ValidateAddressDto,
   VerifyCallerIdDto,
 } from "@ringee/platform";
@@ -189,6 +190,26 @@ export class TelephonyController {
   ): Promise<NumberPurchased[]> {
     const ctx = createOwnershipContext(user);
     return this.numberPurchasedService.findByOwner(ctx);
+  }
+
+  @Get("phone-numbers/transfer-targets")
+  @OrgAdminOnly()
+  async getPhoneNumberTransferTargets(@CurrentUser() user: CurrentUserData) {
+    return this.numberPurchasedService.getTransferTargets(user.id);
+  }
+
+  @Patch("phone-numbers/:id/workspace")
+  @OrgAdminOnly()
+  async transferPhoneNumber(
+    @Param("id") id: string,
+    @Body() body: TransferPhoneNumberDto,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.numberPurchasedService.transferWorkspace(
+      user,
+      id,
+      body.organizationId ?? null,
+    );
   }
 
   @Post("phone-numbers/:id/refresh-messaging")

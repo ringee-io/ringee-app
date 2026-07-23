@@ -112,6 +112,12 @@ export function UserNav({ useMock }: { useMock?: boolean }) {
                   <Icons.phoneCall className='mr-2 h-4 w-4' />
                   {t('buyNumber')}
                 </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => router.push('/dashboard/billing')}
+                >
+                  <Icons.billing className='mr-2 h-4 w-4' />
+                  {t('billing')}
+                </DropdownMenuItem>
               </DropdownMenuGroup>
             </>
           )}

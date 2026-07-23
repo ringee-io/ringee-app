@@ -41,13 +41,18 @@ export class NumberPurchasedRepository {
     });
 
     const callerIds = await this.prisma.numberPurchased.findMany({
-      where: { ...ownershipFilter, kind: "verified_caller_id", verified: true, verificationStatus: "verified" },
+      where: {
+        ...ownershipFilter,
+        kind: "verified_caller_id",
+        verified: true,
+        verificationStatus: "verified",
+      },
       orderBy: { createdAt: "desc" },
       include: {
         userNumbers: true,
       },
     });
-    
+
     return [...values, ...callerIds];
   }
 
@@ -214,6 +219,109 @@ export class NumberPurchasedRepository {
 
   async findById(id: string): Promise<NumberPurchased | null> {
     return this.prisma.numberPurchased.findUnique({ where: { id } });
+  }
+
+  /**
+   * Re-home a number across workspace boundaries. Workspace-specific routing,
+   * campaign and rotation links are intentionally reset so the destination can
+   * configure the number without inheriting cross-tenant references.
+   */
+  async transferWorkspace(
+    numberId: string,
+    source: { userId: string; organizationId: string | null },
+    target: { userId: string; organizationId: string | null },
+  ): Promise<NumberPurchased> {
+    return this.prisma.$transaction(async (tx) => {
+      const number = await tx.numberPurchased.findUnique({
+        where: { id: numberId },
+      });
+      if (!number) throw new NotFoundException("Number not found");
+      const stillOwnedBySource = source.organizationId
+        ? number.organizationId === source.organizationId
+        : number.organizationId === null && number.userId === source.userId;
+      if (!stillOwnedBySource) {
+        throw new NotFoundException("Number is no longer in this workspace");
+      }
+
+      const previousUserNumber = await tx.userNumber.findFirst({
+        where: { numberId, userId: target.userId },
+        orderBy: { enabled: "desc" },
+      });
+
+      await tx.sipDevice.updateMany({
+        where: { assignedPhoneNumberId: numberId },
+        data: { assignedPhoneNumberId: null, callerId: null },
+      });
+      await tx.campaign.updateMany({
+        where: { numberPurchasedId: numberId },
+        data: { numberPurchasedId: null },
+      });
+      await tx.campaign.updateMany({
+        where: { callerIdId: numberId },
+        data: { callerIdId: null },
+      });
+
+      const rotationCampaigns = await tx.campaign.findMany({
+        where: { rotationNumberIds: { has: numberId } },
+        select: { id: true, rotationNumberIds: true },
+      });
+      for (const campaign of rotationCampaigns) {
+        await tx.campaign.update({
+          where: { id: campaign.id },
+          data: {
+            rotationNumberIds: {
+              set: campaign.rotationNumberIds.filter((id) => id !== numberId),
+            },
+          },
+        });
+      }
+
+      await tx.callerIdPoolMember.deleteMany({ where: { numberId } });
+      await tx.userNumber.deleteMany({ where: { numberId } });
+
+      if (number.kind === "purchased") {
+        const hasPrimary = await tx.userNumber.count({
+          where: {
+            userId: target.userId,
+            organizationId: target.organizationId,
+            enabled: true,
+            isPrimary: true,
+          },
+        });
+        const enabled =
+          number.status !== "pending" &&
+          number.status !== "released" &&
+          number.deletedAt === null;
+
+        await tx.userNumber.create({
+          data: {
+            userId: target.userId,
+            organizationId: target.organizationId,
+            numberId,
+            enabled,
+            isPrimary: enabled && hasPrimary === 0,
+            canCall: enabled,
+            canReceive: enabled,
+            canRecord: previousUserNumber?.canRecord ?? false,
+            canSendSms: enabled && number.smsEnabled,
+            canReceiveSms: enabled && number.smsEnabled,
+            canSendMms: enabled && number.mmsEnabled,
+            canReceiveMms: enabled && number.mmsEnabled,
+          },
+        });
+      }
+
+      return tx.numberPurchased.update({
+        where: { id: numberId },
+        data: {
+          userId: target.userId,
+          organizationId: target.organizationId,
+          inboundMode: "ringee_default",
+          inboundSipDeviceId: null,
+          allowedOutboundUserIds: [],
+        },
+      });
+    });
   }
 
   /** Looks a number up by its (unique) E.164 value — used for billing lookups. */

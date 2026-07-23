@@ -49,6 +49,7 @@ interface CurrentUserData {
   customerId?: string | null;
   firstName?: string | null;
   lastName?: string | null;
+  emails?: Array<{ email: string; isPrimary?: boolean }>;
 }
 
 // Server-authoritative bounds for a single credit top-up (USD). NEVER trust the
@@ -89,7 +90,8 @@ export class StripeController {
       const { id } = await this.stripeService.createCustomer(
         user.id, // We still link metadata to user ID for reference
         org.name,
-        undefined, // Org email?
+        user.emails?.find((email) => email.isPrimary)?.email ??
+          user.emails?.[0]?.email,
       );
 
       await this.organizationService.updateCustomerId(org.id, id);
@@ -111,6 +113,8 @@ export class StripeController {
     const { id } = await this.stripeService.createCustomer(
       user.id,
       `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || "User",
+      user.emails?.find((email) => email.isPrimary)?.email ??
+        user.emails?.[0]?.email,
     );
 
     await this.userService.patchCustomerId(user.id, id);
@@ -135,6 +139,16 @@ export class StripeController {
 
     const dbUser = await this.userService.getUserById(user.id);
     return dbUser?.customerId ?? null;
+  }
+
+  @Post("billing/portal")
+  @OrgAdminOnly()
+  async createBillingPortal(@CurrentUser() user: CurrentUserData) {
+    const customerId = await this.getOrCreateCustomer(user);
+    return this.stripeService.createBillingPortalSession(
+      customerId,
+      `${apiConfiguration.FRONTEND_URL.replace(/\/$/, "")}/dashboard/overview`,
+    );
   }
 
   /**

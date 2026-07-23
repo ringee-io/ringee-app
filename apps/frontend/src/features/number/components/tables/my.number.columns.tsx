@@ -6,7 +6,7 @@ import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { format } from 'date-fns';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useTranslations } from 'next-intl';
-import { VerifyNumberCell } from './verify.number.cell';
+import { NumberActionsCell } from './number.actions.cell';
 
 export type NumberPurchased = {
   id: string;
@@ -19,6 +19,7 @@ export type NumberPurchased = {
   monthlyCost?: number | null;
   upfrontCost?: number | null;
   inboundMode?: 'ringee_default' | 'desk_phone_only';
+  organizationId?: string | null;
 };
 
 export const columns: ColumnDef<NumberPurchased>[] = [
@@ -71,9 +72,16 @@ export const columns: ColumnDef<NumberPurchased>[] = [
     cell: ({ cell }) => {
       const tTable = useTranslations('settings.numbers.my.table');
       const tStatus = useTranslations('settings.numbers.my.status');
-      const status = (cell.getValue<string>() || '').toLowerCase()!;
+      const status = (cell.getValue<string>() || '').toLowerCase();
+      type BadgeVariant = 'default' | 'secondary' | 'destructive' | 'outline';
+      type KnownStatus =
+        | 'assigned'
+        | 'inactive'
+        | 'pending'
+        | 'rejected'
+        | 'expired';
 
-      const variants: Record<string, string> = {
+      const variants: Partial<Record<KnownStatus, BadgeVariant>> = {
         assigned: 'default',
         inactive: 'secondary',
         pending: 'default',
@@ -81,17 +89,20 @@ export const columns: ColumnDef<NumberPurchased>[] = [
         expired: 'destructive'
       };
 
-      const variant = variants[status] as any;
-      const knownStatuses = [
+      const knownStatuses: KnownStatus[] = [
         'assigned',
         'inactive',
         'pending',
         'rejected',
         'expired'
       ];
+      const knownStatus = knownStatuses.includes(status as KnownStatus)
+        ? (status as KnownStatus)
+        : null;
+      const variant = knownStatus ? variants[knownStatus] : 'outline';
       const label = status
-        ? knownStatuses.includes(status)
-          ? tStatus(status as any)
+        ? knownStatus
+          ? tStatus(knownStatus)
           : status
         : tTable('unknown');
 
@@ -168,6 +179,6 @@ export const columns: ColumnDef<NumberPurchased>[] = [
       const t = useTranslations('settings.numbers.my.table');
       return <>{t('actions')}</>;
     },
-    cell: ({ row }) => <VerifyNumberCell data={row.original} />
+    cell: ({ row }) => <NumberActionsCell data={row.original} />
   }
 ];

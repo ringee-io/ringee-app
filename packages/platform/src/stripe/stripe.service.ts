@@ -8,6 +8,8 @@ const stripe = new Stripe(apiConfiguration.STRIPE_SECRET_KEY!, {
 
 @Injectable()
 export class StripeService {
+  private billingPortalConfigurationId?: Promise<string>;
+
   async createCustomer(
     userId: string,
     name: string,
@@ -20,6 +22,73 @@ export class StripeService {
     });
 
     return { id: customer.id };
+  }
+
+  async createBillingPortalSession(
+    customerId: string,
+    returnUrl: string,
+  ): Promise<{ url: string }> {
+    const configuration = await this.getBillingPortalConfigurationId();
+    const session = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      configuration,
+      return_url: returnUrl,
+    });
+    return { url: session.url };
+  }
+
+  private getBillingPortalConfigurationId(): Promise<string> {
+    if (!this.billingPortalConfigurationId) {
+      this.billingPortalConfigurationId =
+        this.resolveBillingPortalConfiguration().catch((error) => {
+          this.billingPortalConfigurationId = undefined;
+          throw error;
+        });
+    }
+    return this.billingPortalConfigurationId;
+  }
+
+  private async resolveBillingPortalConfiguration(): Promise<string> {
+    const configurations = await stripe.billingPortal.configurations.list({
+      active: true,
+      limit: 100,
+    });
+    const existing = configurations.data.find(
+      (configuration) => configuration.metadata?.ringee === "billing_portal_v1",
+    );
+    if (existing) return existing.id;
+
+    const configuration = await stripe.billingPortal.configurations.create({
+      name: "Ringee billing portal",
+      metadata: { ringee: "billing_portal_v1" },
+      features: {
+        customer_update: {
+          enabled: true,
+          allowed_updates: ["address", "email", "name", "tax_id"],
+        },
+        invoice_history: { enabled: true },
+        payment_method_update: { enabled: true },
+        subscription_cancel: {
+          enabled: true,
+          mode: "at_period_end",
+          cancellation_reason: {
+            enabled: true,
+            options: [
+              "customer_service",
+              "low_quality",
+              "missing_features",
+              "switched_service",
+              "too_complex",
+              "too_expensive",
+              "unused",
+              "other",
+            ],
+          },
+        },
+        subscription_update: { enabled: false },
+      },
+    });
+    return configuration.id;
   }
 
   async createOneTimePaymentSession(

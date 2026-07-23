@@ -194,5 +194,13 @@
     "addCard": "Añadir tarjeta",
     "expiresOn": "Caduca el {date}",
     "default": "Predeterminada"
+  },
+  "portal": {
+    "eyebrow": "Facturación segura con Stripe",
+    "title": "Abriendo tu portal de facturación",
+    "description": "Administra suscripciones, métodos de pago, facturas e información de facturación de forma segura en Stripe.",
+    "redirecting": "Redirigiendo a Stripe…",
+    "retry": "Abrir portal de facturación de Stripe",
+    "error": "No pudimos abrir el portal de facturación. Inténtalo de nuevo en un momento."
   }
 }

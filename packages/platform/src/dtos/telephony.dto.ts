@@ -207,3 +207,10 @@ export class SaveRequirementsDraftDto {
   @Type(() => DraftRequirementItemDto)
   requirements!: DraftRequirementItemDto[];
 }
+
+/** Move an owned phone number to personal scope or to an admin-managed org. */
+export class TransferPhoneNumberDto {
+  @IsOptional()
+  @IsUUID()
+  organizationId!: string | null;
+}

@@ -148,6 +148,21 @@
         "pending": "pending",
         "rejected": "rejected",
         "expired": "expired"
+      },
+      "transfer": {
+        "action": "Move",
+        "title": "Move number to another workspace",
+        "description": "Choose where {phone} should live. You must be an administrator of both organization workspaces.",
+        "placeholder": "Select destination workspace",
+        "personal": "Personal workspace",
+        "resetNotice": "Workspace-specific campaign, rotation and desk-phone assignments will be cleared. The existing Stripe subscription remains billed to the workspace that originally purchased the number.",
+        "noTargets": "There are no other workspaces you administer.",
+        "cancel": "Cancel",
+        "confirm": "Move number",
+        "moving": "Moving…",
+        "success": "Number moved successfully.",
+        "error": "Could not move the number.",
+        "loadError": "Could not load your workspaces."
       }
     },
     "verify": {

@@ -456,6 +456,12 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                         {tNav('userMenu.buyNumber')}
                       </DropdownMenuItem>
                       <DropdownMenuItem
+                        onClick={() => router.push('/dashboard/billing')}
+                      >
+                        <Icons.billing className='mr-2 h-4 w-4' />
+                        {tNav('userMenu.billing')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
                         onClick={() => router.push('/dashboard/desk-phones')}
                       >
                         {/* @ts-ignore */}

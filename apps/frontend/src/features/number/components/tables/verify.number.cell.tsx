@@ -12,7 +12,7 @@ export function VerifyNumberCell({ data }: { data: NumberPurchased }) {
   const actionable = ['pending', 'rejected', 'expired'].includes(status);
 
   if (!actionable) {
-    return <span className='text-muted-foreground'>-</span>;
+    return null;
   }
 
   const needsFix = status === 'rejected' || status === 'expired';

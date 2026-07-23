@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   Logger,
   NotFoundException,
@@ -27,6 +28,7 @@ import {
 } from "@ringee/platform";
 import { apiConfiguration } from "@ringee/configuration";
 import { RegulatoryDocumentService } from "./regulatory-document.service";
+import { OrganizationService } from "./organization.service";
 
 /** Internal address copied on every regulatory-submission follow-up email. */
 const REGULATORY_FOLLOWUP_CC = "edisonpadilla.dev@gmail.com";
@@ -43,6 +45,7 @@ export class NumberPurchasedService {
     private readonly userRepository: UserRepository,
     private readonly requirementValueRepository: NumberRequirementValueRepository,
     private readonly regulatoryDocumentService: RegulatoryDocumentService,
+    private readonly organizationService: OrganizationService,
   ) {}
 
   release(id: string): Promise<NumberPurchased> {
@@ -85,6 +88,98 @@ export class NumberPurchasedService {
     return this.numberPurchasedRepository.findByOwner(ctx);
   }
 
+  async getTransferTargets(userId: string): Promise<
+    Array<{
+      organizationId: string | null;
+      name: string;
+      kind: "personal" | "organization";
+    }>
+  > {
+    const memberships =
+      await this.organizationService.listMembershipsForUser(userId);
+    return [
+      { organizationId: null, name: "Personal workspace", kind: "personal" },
+      ...memberships
+        .filter((membership) => membership.role.includes("admin"))
+        .map((membership) => ({
+          organizationId: membership.id,
+          name: membership.name,
+          kind: "organization" as const,
+        })),
+    ];
+  }
+
+  async transferWorkspace(
+    user: {
+      id: string;
+      activeOrgId?: string | null;
+      activeOrgRole?: string | null;
+    },
+    numberId: string,
+    targetOrganizationId: string | null,
+  ): Promise<NumberPurchased> {
+    const number = await this.numberPurchasedRepository.findById(numberId);
+    if (!number || number.deletedAt) {
+      throw new NotFoundException("Number not found");
+    }
+
+    const nonTransferableStatuses = new Set([
+      "pending",
+      "rejected",
+      "expired",
+      "released",
+    ]);
+    if (
+      number.status &&
+      nonTransferableStatuses.has(number.status.toLowerCase())
+    ) {
+      throw new BadRequestException(
+        "Complete number verification before moving this number",
+      );
+    }
+
+    const sourceIsPersonal = !number.organizationId;
+    const ownsSource = sourceIsPersonal
+      ? !user.activeOrgId && number.userId === user.id
+      : user.activeOrgId === number.organizationId &&
+        user.activeOrgRole === "org:admin";
+    if (!ownsSource) {
+      throw new ForbiddenException(
+        "Only an administrator of the source workspace can move this number",
+      );
+    }
+
+    if ((number.organizationId ?? null) === targetOrganizationId) {
+      throw new BadRequestException(
+        "The number already belongs to that workspace",
+      );
+    }
+
+    if (targetOrganizationId) {
+      const targets = await this.getTransferTargets(user.id);
+      const canAdminTarget = targets.some(
+        (target) => target.organizationId === targetOrganizationId,
+      );
+      if (!canAdminTarget) {
+        throw new ForbiddenException(
+          "You must be an administrator of the destination organization",
+        );
+      }
+    }
+
+    return this.numberPurchasedRepository.transferWorkspace(
+      numberId,
+      {
+        userId: user.id,
+        organizationId: number.organizationId ?? null,
+      },
+      {
+        userId: user.id,
+        organizationId: targetOrganizationId,
+      },
+    );
+  }
+
   /**
    * The caller IDs the user may present for this workspace: purchased DIDs that
    * are active or assigned, plus verified/active external caller IDs (see
@@ -114,8 +209,8 @@ export class NumberPurchasedService {
       const users = n.allowedOutboundUserIds ?? [];
       const sourceAllowed =
         sources.length === 0 ||
-        (opts.source ? sources.includes(opts.source) : true);    
-        const userAllowed = users.length === 0 || users.includes(opts.userId);
+        (opts.source ? sources.includes(opts.source) : true);
+      const userAllowed = users.length === 0 || users.includes(opts.userId);
       return sourceAllowed && userAllowed;
     });
   }
