@@ -111,6 +111,7 @@ export class CrmController {
     const validProviders: CrmProviderType[] = [
       "attio",
       "hubspot",
+      "gohighlevel",
       "salesforce",
     ];
     if (!validProviders.includes(provider as CrmProviderType)) {

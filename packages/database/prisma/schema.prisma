@@ -192,6 +192,7 @@ enum CallSessionEventType {
 enum CrmProviderType {
   attio
   hubspot
+  gohighlevel
   salesforce
   odoo_14_18
   odoo_19_plus

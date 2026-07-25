@@ -45,7 +45,7 @@ export class CrmOAuthService {
   getBackendRedirectUri(provider: CrmProviderType): string {
     const base = apiConfiguration.BACKEND_URL as string | undefined;
     if (!base) throw new BadRequestException("BACKEND_URL not configured");
-    return `${base.replace(/\/$/, "")}/api/crm/${provider}/oauth/callback`;
+    return `${base.trim().replace(/\/+$/, "")}/api/crm/${provider}/oauth/callback`;
   }
 
   async createAuthorizationUrl(
@@ -134,7 +134,7 @@ export class CrmOAuthService {
     const workspace = await providerImpl.getWorkspaceInfo({
       accessToken: tokens.accessToken,
       refreshToken: tokens.refreshToken ?? null,
-      accountId: "",
+      accountId: tokens.accountId ?? "",
       connectionId: "",
     });
 
@@ -150,8 +150,11 @@ export class CrmOAuthService {
       expiresAt: tokens.expiresAt ?? null,
       scopes: tokens.scopes,
       externalAccountId: workspace.accountId,
-      externalAccountName: workspace.accountName,
-      providerMetadata: workspace.metadata ?? null,
+      externalAccountName: workspace.accountName ?? tokens.accountName ?? null,
+      providerMetadata: {
+        ...(tokens.metadata ?? {}),
+        ...(workspace.metadata ?? {}),
+      },
       capabilities: (workspace.capabilities ?? null) as Record<
         string,
         unknown
