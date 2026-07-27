@@ -19,8 +19,15 @@ export const CurrentUser = createParamDecorator(
     }
 
     let user;
+    let resolvedUserId: string | undefined;
     try {
-      user = await ClerkUserRepository.findById(clerkUserId);
+      if (typeof request.resolveRingeeUser === "function") {
+        const resolved = await request.resolveRingeeUser();
+        user = resolved.clerkUser;
+        resolvedUserId = resolved.ringeeUserId;
+      } else {
+        user = await ClerkUserRepository.findById(clerkUserId);
+      }
     } catch (error) {
       console.error("Error al obtener usuario:", error);
       throw new InternalServerErrorException(
@@ -33,7 +40,11 @@ export const CurrentUser = createParamDecorator(
     }
 
     const mappedUser = ClerkUserRepository.mapToUser(user);
-    const rawUserId = (user.privateMetadata as any)?.userId;
+    const privateMetadata = user.privateMetadata as Record<string, unknown>;
+    const metadataUserId = privateMetadata.userId;
+    const rawUserId =
+      resolvedUserId ??
+      (typeof metadataUserId === "string" ? metadataUserId : undefined);
 
     if (!rawUserId) {
       throw new UnauthorizedException(

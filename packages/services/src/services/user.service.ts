@@ -88,6 +88,14 @@ export class UserService {
   }
 
   /**
+   * Warm both user cache aliases after an external synchronization (for
+   * example, Clerk's first-login repair path) without reading the row again.
+   */
+  async warmUserCache(user: User): Promise<void> {
+    await this.cacheUser(user);
+  }
+
+  /**
    * Cached lookup by internal id. Use this on read-mostly/hot paths; reach for
    * {@link getUserById} only when you explicitly need an uncached read.
    */

@@ -123,17 +123,35 @@ export class UserRepository {
       });
     }
 
-    await this.registerToNewsletter(clerkUser.emailAddresses);
-
     // Generate encryption key for new users
-    return this.prisma.user.create({
-      data: {
-        ...mapped,
-        freeCallTrial: false,
-        encryptionKey: this.generateEncryptionKey(),
-      },
-      include: { emails: true },
-    });
+    try {
+      const created = await this.prisma.user.create({
+        data: {
+          ...mapped,
+          freeCallTrial: false,
+          encryptionKey: this.generateEncryptionKey(),
+        },
+        include: { emails: true },
+      });
+
+      await this.registerToNewsletter(clerkUser.emailAddresses);
+      return created;
+    } catch (error) {
+      // The Clerk webhook and the first authenticated request may both try to
+      // create the same user. The unique clerkId constraint makes that safe;
+      // return the winner instead of surfacing a transient signup failure.
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002"
+      ) {
+        const concurrentlyCreated = await this.findByClerkId(clerkUser.id);
+        if (concurrentlyCreated) {
+          return concurrentlyCreated;
+        }
+      }
+
+      throw error;
+    }
   }
 
   async registerToNewsletter(emailAddresses: any) {

@@ -69,6 +69,7 @@ export class ClerkController {
 
           await ClerkUserRepository.updateMetadata(userId, {
             privateMetadata: {
+              ...(clerkUser.privateMetadata as Record<string, unknown>),
               userId: user.id,
             },
           });
