@@ -1,11 +1,29 @@
 import { Injectable, Inject, Logger } from "@nestjs/common";
-import { Cache } from "cache-manager";
+
+interface RedisClient {
+  set(
+    key: string,
+    value: string,
+    options?: {
+      PX?: number;
+      EX?: number;
+      NX?: boolean;
+    },
+  ): Promise<string | null>;
+  get(key: string): Promise<string | null>;
+  del(key: string): Promise<number>;
+  eval(
+    script: string,
+    options: { keys: string[]; arguments: string[] },
+  ): Promise<unknown>;
+  ttl(key: string): Promise<number>;
+}
 
 @Injectable()
 export class RedisService {
   private readonly logger = new Logger(RedisService.name);
 
-  constructor(@Inject("REDIS_CLIENT") private cacheManager: Cache) {}
+  constructor(@Inject("REDIS_CLIENT") private readonly client: RedisClient) {}
 
   /**
    * Set a value in Redis with optional TTL
@@ -17,7 +35,7 @@ export class RedisService {
     try {
       const serialized =
         typeof value === "string" ? value : JSON.stringify(value);
-      await this.cacheManager.set(key, serialized, ttl);
+      await this.client.set(key, serialized, ttl ? { PX: ttl } : undefined);
     } catch (error) {
       this.logger.error(`Error setting cache for key ${key}:`, error);
       throw error;
@@ -31,7 +49,7 @@ export class RedisService {
    */
   async get<T>(key: string): Promise<T | undefined> {
     try {
-      const raw = await this.cacheManager.get<string>(key);
+      const raw = await this.client.get(key);
       if (raw === undefined || raw === null) return undefined;
       if (typeof raw === "string") {
         try {
@@ -56,7 +74,7 @@ export class RedisService {
    */
   async del(key: string): Promise<void> {
     try {
-      await this.cacheManager.del(key);
+      await this.client.del(key);
       this.logger.debug(`Cache deleted: ${key}`);
     } catch (error) {
       this.logger.error(`Error deleting cache for key ${key}:`, error);
@@ -140,5 +158,44 @@ export class RedisService {
       this.logger.error("Error deleting multiple cache entries:", error);
       throw error;
     }
+  }
+
+  /**
+   * Atomically increments a counter and starts its expiry window only when the
+   * key is first created. This is safe across multiple API instances.
+   */
+  async incrementWithExpiry(key: string, ttlSeconds: number): Promise<number> {
+    const script = `
+      local current = redis.call("INCR", KEYS[1])
+      if current == 1 then
+        redis.call("EXPIRE", KEYS[1], ARGV[1])
+      end
+      return current
+    `;
+    const result = await this.client.eval(script, {
+      keys: [key],
+      arguments: [String(ttlSeconds)],
+    });
+    return Number(result);
+  }
+
+  /**
+   * Stores a short-lived marker exactly once. Used to make webhook-driven
+   * counters idempotent when a provider retries the same event.
+   */
+  async setIfAbsent(
+    key: string,
+    value: string,
+    ttlSeconds: number,
+  ): Promise<boolean> {
+    const result = await this.client.set(key, value, {
+      EX: ttlSeconds,
+      NX: true,
+    });
+    return result === "OK";
+  }
+
+  async ttlSeconds(key: string): Promise<number> {
+    return this.client.ttl(key);
   }
 }

@@ -14,6 +14,16 @@ import { clerkMiddleware } from "@ringee/platform";
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
 
+  if (apiConfiguration.TRUST_PROXY_HOPS > 0) {
+    // Use req.ip only after Express has been told exactly how many proxy hops
+    // are trusted. Trusting arbitrary forwarded headers would let attackers
+    // rotate a spoofed IP and bypass the Stripe abuse limiter.
+    app
+      .getHttpAdapter()
+      .getInstance()
+      .set("trust proxy", apiConfiguration.TRUST_PROXY_HOPS);
+  }
+
   app.enableCors({
     origin: [
       apiConfiguration.FRONTEND_URL,

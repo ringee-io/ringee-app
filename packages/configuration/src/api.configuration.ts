@@ -1,3 +1,13 @@
+const positiveInteger = (name: string, fallback: number): number => {
+  const value = Number(process.env[name] ?? fallback);
+  return Number.isInteger(value) && value > 0 ? value : fallback;
+};
+
+const nonNegativeInteger = (name: string, fallback: number): number => {
+  const value = Number(process.env[name] ?? fallback);
+  return Number.isInteger(value) && value >= 0 ? value : fallback;
+};
+
 const apiConfiguration = {
   PORT: process.env.PORT || 3000,
   DATABASE_URL: process.env.DATABASE_URL!,
@@ -71,6 +81,40 @@ const apiConfiguration = {
     process.env.TRANSCRIPTION_MEDIA_STREAM_PUBLIC_URL,
   STRIPE_SECRET_KEY: process.env.STRIPE_SECRET_KEY,
   STRIPE_WEBHOOK_SECRET: process.env.STRIPE_WEBHOOK_SECRET!,
+  // Number of reverse-proxy hops in front of Express. Keep at 0 when the API is
+  // directly internet-facing; set the exact hop count in production so req.ip
+  // cannot be spoofed through X-Forwarded-For.
+  TRUST_PROXY_HOPS: nonNegativeInteger("TRUST_PROXY_HOPS", 0),
+  // Stripe card-testing controls. Request limits stop PaymentIntent/SetupIntent
+  // creation floods; failure limits are driven by signed Stripe webhooks.
+  STRIPE_ABUSE_REQUEST_WINDOW_SECONDS: positiveInteger(
+    "STRIPE_ABUSE_REQUEST_WINDOW_SECONDS",
+    600,
+  ),
+  STRIPE_ABUSE_MAX_REQUESTS_PER_USER: positiveInteger(
+    "STRIPE_ABUSE_MAX_REQUESTS_PER_USER",
+    4,
+  ),
+  STRIPE_ABUSE_MAX_REQUESTS_PER_IP: positiveInteger(
+    "STRIPE_ABUSE_MAX_REQUESTS_PER_IP",
+    12,
+  ),
+  STRIPE_ABUSE_FAILURE_WINDOW_SECONDS: positiveInteger(
+    "STRIPE_ABUSE_FAILURE_WINDOW_SECONDS",
+    3600,
+  ),
+  STRIPE_ABUSE_MAX_FAILURES_PER_USER: positiveInteger(
+    "STRIPE_ABUSE_MAX_FAILURES_PER_USER",
+    4,
+  ),
+  STRIPE_ABUSE_MAX_FAILURES_PER_IP: positiveInteger(
+    "STRIPE_ABUSE_MAX_FAILURES_PER_IP",
+    8,
+  ),
+  STRIPE_ABUSE_BLOCK_SECONDS: positiveInteger(
+    "STRIPE_ABUSE_BLOCK_SECONDS",
+    86400,
+  ),
   TRIGGERLOOP_BASE_URL: process.env.TRIGGERLOOP_BASE_URL!,
   TRIGGERLOOP_API_KEY: process.env.TRIGGERLOOP_API_KEY!,
   TRIGGERLOOP_WEBHOOK_SECRET: process.env.TRIGGERLOOP_WEBHOOK_SECRET!,

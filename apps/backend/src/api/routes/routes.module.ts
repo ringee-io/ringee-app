@@ -65,6 +65,7 @@ import { SipDeviceController } from "./sip-device.controller";
 import { DeskPhoneWebhookController } from "./desk-phone.webhook.controller";
 import { FreeTrialController } from "./free-trial.controller";
 import { InfrastructureController } from "./infrastructure.controller";
+import { StripeAbuseProtectionService } from "./stripe-abuse-protection.service";
 
 @Module({
   controllers: [
@@ -127,7 +128,11 @@ import { InfrastructureController } from "./infrastructure.controller";
   ],
   // TranscriptionMediaGateway lives here (not in the shared ServicesModule) so
   // the Telnyx media-stream WS server binds its port only in the API process.
-  providers: [EnrichmentFeatureGuard, TranscriptionMediaGateway],
+  providers: [
+    EnrichmentFeatureGuard,
+    TranscriptionMediaGateway,
+    StripeAbuseProtectionService,
+  ],
   imports: [
     McpModule,
     ChatModule,

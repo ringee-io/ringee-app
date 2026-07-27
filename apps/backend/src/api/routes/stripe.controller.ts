@@ -42,6 +42,7 @@ import {
   UpdateSavePreferenceDto,
 } from "@ringee/platform";
 import { TriggerLoopEventPublisher } from "../../triggerloop/services/triggerloop-event-publisher.service";
+import { StripeAbuseProtectionService } from "./stripe-abuse-protection.service";
 
 interface CurrentUserData {
   id: string;
@@ -70,6 +71,7 @@ export class StripeController {
     private readonly organizationService: OrganizationService,
     private readonly subscriptionService: SubscriptionService,
     private readonly triggerLoop: TriggerLoopEventPublisher,
+    private readonly stripeAbuse: StripeAbuseProtectionService,
   ) {}
 
   private async getOrCreateCustomer(user: CurrentUserData): Promise<string> {
@@ -191,11 +193,13 @@ export class StripeController {
   async createSavedCardCheckout(
     @Body() body: CreateCreditCheckoutDto,
     @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
   ) {
     if (!user) {
       throw new NotFoundException("User not found");
     }
 
+    await this.stripeAbuse.assertIntentCreationAllowed(req, user.id);
     const amount = await this.normalizeTopupAmount(body.amount, user.id);
     const customerId = await this.getOrCreateCustomer(user);
     const pm = await this.stripeService.getSavedPaymentMethod(customerId);
@@ -234,11 +238,13 @@ export class StripeController {
   async createCreditCheckout(
     @Body() body: CreateCreditCheckoutDto,
     @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
   ) {
     if (!user) {
       throw new NotFoundException("User not found");
     }
 
+    await this.stripeAbuse.assertIntentCreationAllowed(req, user.id);
     const amount = await this.normalizeTopupAmount(body.amount, user.id);
     const customerId = await this.getOrCreateCustomer(user);
 
@@ -265,11 +271,16 @@ export class StripeController {
   async createCreditPaymentIntent(
     @Body() body: CreateCreditCheckoutDto,
     @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
   ) {
     if (!user) {
       throw new NotFoundException("User not found");
     }
 
+    const abuseIpHash = await this.stripeAbuse.assertIntentCreationAllowed(
+      req,
+      user.id,
+    );
     const amount = await this.normalizeTopupAmount(body.amount, user.id);
     const customerId = await this.getOrCreateCustomer(user);
 
@@ -282,6 +293,7 @@ export class StripeController {
       user.activeOrgId,
       body.savePaymentMethod ?? false,
       body.invoiceEmail,
+      abuseIpHash,
     );
   }
 
@@ -383,11 +395,13 @@ export class StripeController {
     @Body()
     body: CreatePhoneCheckoutDto,
     @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
   ) {
     if (!user) {
       throw new NotFoundException("User not found");
     }
 
+    await this.stripeAbuse.assertIntentCreationAllowed(req, user.id);
     await this.numberPurchasedService.assertCanPurchaseNumber(user.id);
 
     const customerId = await this.getOrCreateCustomer(user);
@@ -416,11 +430,13 @@ export class StripeController {
   async createCreditSubscription(
     @Body() body: CreateMonthlyCreditSubscriptionDto,
     @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
   ) {
     if (!user) {
       throw new NotFoundException("User not found");
     }
 
+    await this.stripeAbuse.assertIntentCreationAllowed(req, user.id);
     const amount = await this.normalizeTopupAmount(body.amount, user.id);
     const customerId = await this.getOrCreateCustomer(user);
 
@@ -445,11 +461,16 @@ export class StripeController {
   async createCreditSubscriptionIntent(
     @Body() body: CreateMonthlyCreditSubscriptionDto,
     @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
   ) {
     if (!user) {
       throw new NotFoundException("User not found");
     }
 
+    const abuseIpHash = await this.stripeAbuse.assertIntentCreationAllowed(
+      req,
+      user.id,
+    );
     const amount = await this.normalizeTopupAmount(body.amount, user.id);
     const customerId = await this.getOrCreateCustomer(user);
 
@@ -459,6 +480,7 @@ export class StripeController {
       amount,
       user.activeOrgId,
       body.invoiceEmail,
+      abuseIpHash,
     );
   }
 
@@ -474,11 +496,16 @@ export class StripeController {
   async createCardSetupIntent(
     @Body() _body: CreateCardSetupDto,
     @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
   ) {
     if (!user) {
       throw new NotFoundException("User not found");
     }
 
+    const abuseIpHash = await this.stripeAbuse.assertIntentCreationAllowed(
+      req,
+      user.id,
+    );
     const customerId = await this.getOrCreateCustomer(user);
     const ctx = createOwnershipContext(user);
     const settings = await this.creditService.getAutoReloadSettings(ctx);
@@ -492,6 +519,7 @@ export class StripeController {
       customerId,
       user.activeOrgId,
       subscriptionId,
+      abuseIpHash,
     );
   }
 
@@ -500,11 +528,13 @@ export class StripeController {
   async createAutoReloadSetup(
     @Body() body: CreateAutoReloadSetupDto,
     @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
   ) {
     if (!user) {
       throw new NotFoundException("User not found");
     }
 
+    await this.stripeAbuse.assertIntentCreationAllowed(req, user.id);
     const customerId = await this.getOrCreateCustomer(user);
 
     // Save auto-reload settings
@@ -529,10 +559,13 @@ export class StripeController {
   async createOrganizationCheckout(
     @Body() body: CreateOrganizationCheckoutDto,
     @CurrentUser() user: CurrentUserData,
+    @Req() req: Request,
   ) {
     if (!user) {
       throw new NotFoundException("User not found");
     }
+
+    await this.stripeAbuse.assertIntentCreationAllowed(req, user.id);
 
     // Use personal customer ID, not org
     const personalUser = { ...user, activeOrgId: null };
@@ -837,6 +870,41 @@ export class StripeController {
           break;
         }
 
+        case "invoice.payment_failed": {
+          const invoice = event.data.object as Stripe.Invoice;
+          const sub = invoice.parent?.subscription_details?.subscription;
+          const subscriptionId =
+            typeof sub === "string" ? sub : (sub?.id ?? null);
+          const billingReason = (invoice as { billing_reason?: string })
+            .billing_reason;
+
+          // Count only the interactive first-invoice confirmation. Normal
+          // recurring declines are not card testing and must keep their regular
+          // dunning/recovery behavior.
+          if (subscriptionId && billingReason === "subscription_create") {
+            const info =
+              await this.stripeService.getSubscriptionMetadata(subscriptionId);
+            if (
+              info.metadata.fn === "creditSubscription" &&
+              info.metadata.userId
+            ) {
+              const protection = await this.stripeAbuse.recordFailedCardAttempt(
+                {
+                  eventId: event.id,
+                  userId: info.metadata.userId,
+                  ipHash: info.metadata.abuseIpHash,
+                },
+              );
+              if (protection.shouldCancelIntent) {
+                await this.stripeService.cancelSubscriptionImmediately(
+                  subscriptionId,
+                );
+              }
+            }
+          }
+          break;
+        }
+
         case "payment_intent.succeeded": {
           const paymentIntent = event.data.object as Stripe.PaymentIntent;
           const metadata = paymentIntent.metadata || {};
@@ -957,12 +1025,52 @@ export class StripeController {
           break;
         }
 
+        case "setup_intent.setup_failed": {
+          const setupIntent = event.data.object as Stripe.SetupIntent;
+          const metadata = setupIntent.metadata || {};
+          if (metadata.fn === "updateSavedPaymentMethod" && metadata.userId) {
+            const protection = await this.stripeAbuse.recordFailedCardAttempt({
+              eventId: event.id,
+              userId: metadata.userId,
+              ipHash: metadata.abuseIpHash,
+            });
+            if (protection.shouldCancelIntent) {
+              await this.stripeService.cancelSetupIntentIfPending(
+                setupIntent.id,
+              );
+            }
+          }
+          break;
+        }
+
         case "payment_intent.payment_failed": {
+          const paymentIntent = event.data.object as Stripe.PaymentIntent;
+          const metadata = paymentIntent.metadata || {};
+
+          // Interactive top-up failures are card-testing signals. Count signed
+          // webhook events (not client claims), block the account/IP at the
+          // configured threshold, and cancel this still-reusable client secret.
+          if (
+            (metadata.fn === "creditTopupCustomCard" ||
+              (metadata.type === "credit_topup" &&
+                metadata.rechargeMode === "custom_checkout")) &&
+            metadata.userId
+          ) {
+            const protection = await this.stripeAbuse.recordFailedCardAttempt({
+              eventId: event.id,
+              userId: metadata.userId,
+              ipHash: metadata.abuseIpHash,
+            });
+            if (protection.shouldCancelIntent) {
+              await this.stripeService.cancelPaymentIntentIfPending(
+                paymentIntent.id,
+              );
+            }
+          }
+
           // Async off-session failures (auto-reload declines) surface here.
           // Move the reload to a stopped state so it won't keep retrying, and
           // the drawer shows "Payment failed" / "Requires new payment method".
-          const paymentIntent = event.data.object as Stripe.PaymentIntent;
-          const metadata = paymentIntent.metadata || {};
           if (metadata.fn === "autoReloadCharge" && metadata.userId) {
             const ctx = createOwnershipContext({
               id: metadata.userId,

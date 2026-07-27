@@ -1,5 +1,5 @@
 import Stripe from "stripe";
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 
 const stripe = new Stripe(apiConfiguration.STRIPE_SECRET_KEY!, {
@@ -8,6 +8,7 @@ const stripe = new Stripe(apiConfiguration.STRIPE_SECRET_KEY!, {
 
 @Injectable()
 export class StripeService {
+  private readonly logger = new Logger(StripeService.name);
   private billingPortalConfigurationId?: Promise<string>;
 
   async createCustomer(
@@ -164,6 +165,7 @@ export class StripeService {
     organizationId?: string | null,
     savePaymentMethod: boolean = false,
     invoiceEmail?: string | null,
+    abuseIpHash?: string | null,
   ): Promise<{
     clientSecret: string;
     paymentIntentId: string;
@@ -183,6 +185,7 @@ export class StripeService {
       service: "ringee",
       rechargeMode: "custom_checkout",
       fn: "creditTopupCustomCard",
+      ...(abuseIpHash ? { abuseIpHash } : {}),
     };
 
     const pi = await stripe.paymentIntents.create({
@@ -190,6 +193,9 @@ export class StripeService {
       currency: "usd",
       customer: customerId,
       payment_method_types: ["card"],
+      payment_method_options: {
+        card: { request_three_d_secure: "challenge" },
+      },
       description,
       metadata,
       ...(receiptEmail ? { receipt_email: receiptEmail } : {}),
@@ -804,6 +810,7 @@ export class StripeService {
     amountUsd: number,
     organizationId?: string | null,
     invoiceEmail?: string | null,
+    abuseIpHash?: string | null,
   ): Promise<{
     clientSecret: string;
     subscriptionId: string;
@@ -828,6 +835,7 @@ export class StripeService {
       type: "monthly_credit_funding",
       service: "ringee",
       fn: "creditSubscription",
+      ...(abuseIpHash ? { abuseIpHash } : {}),
     };
 
     // Subscription item `price_data` requires a product id (unlike Checkout
@@ -854,6 +862,9 @@ export class StripeService {
       payment_settings: {
         save_default_payment_method: "on_subscription",
         payment_method_types: ["card"],
+        payment_method_options: {
+          card: { request_three_d_secure: "challenge" },
+        },
       },
       metadata,
       expand: ["latest_invoice.confirmation_secret"],
@@ -1056,6 +1067,7 @@ export class StripeService {
     customerId: string,
     organizationId?: string | null,
     subscriptionId?: string | null,
+    abuseIpHash?: string | null,
   ): Promise<{ clientSecret: string; setupIntentId: string }> {
     const metadata: Record<string, string> = {
       userId,
@@ -1064,11 +1076,15 @@ export class StripeService {
       type: "card_setup",
       service: "ringee",
       fn: "updateSavedPaymentMethod",
+      ...(abuseIpHash ? { abuseIpHash } : {}),
     };
 
     const si = await stripe.setupIntents.create({
       customer: customerId,
       payment_method_types: ["card"],
+      payment_method_options: {
+        card: { request_three_d_secure: "challenge" },
+      },
       usage: "off_session",
       metadata,
     });
@@ -1202,6 +1218,60 @@ export class StripeService {
       status: this.mapPaymentIntentStatus(paymentIntent.status),
       paymentIntentId: paymentIntent.id,
     };
+  }
+
+  /**
+   * Revoke a reusable client secret once Ringee's abuse threshold is reached.
+   * A concurrent Stripe transition can make the intent terminal first; that
+   * race is safe and treated as a no-op.
+   */
+  async cancelPaymentIntentIfPending(
+    paymentIntentId: string,
+  ): Promise<boolean> {
+    try {
+      await stripe.paymentIntents.cancel(paymentIntentId);
+      return true;
+    } catch (error) {
+      if (error instanceof Stripe.errors.StripeInvalidRequestError) {
+        this.logger.warn(
+          `PaymentIntent ${paymentIntentId} was already terminal when abuse cancellation ran`,
+        );
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  async cancelSetupIntentIfPending(setupIntentId: string): Promise<boolean> {
+    try {
+      await stripe.setupIntents.cancel(setupIntentId);
+      return true;
+    } catch (error) {
+      if (error instanceof Stripe.errors.StripeInvalidRequestError) {
+        this.logger.warn(
+          `SetupIntent ${setupIntentId} was already terminal when abuse cancellation ran`,
+        );
+        return false;
+      }
+      throw error;
+    }
+  }
+
+  async cancelSubscriptionImmediately(
+    subscriptionId: string,
+  ): Promise<boolean> {
+    try {
+      await stripe.subscriptions.cancel(subscriptionId);
+      return true;
+    } catch (error) {
+      if (error instanceof Stripe.errors.StripeInvalidRequestError) {
+        this.logger.warn(
+          `Subscription ${subscriptionId} was already terminal when abuse cancellation ran`,
+        );
+        return false;
+      }
+      throw error;
+    }
   }
 
   async cancelSubscription(
