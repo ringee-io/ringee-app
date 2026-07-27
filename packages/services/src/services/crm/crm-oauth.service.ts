@@ -30,6 +30,7 @@ export type OAuthStatePayload = {
 };
 
 const STATE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const MARKETPLACE_HANDOFF_TTL_MS = 10 * 60 * 1000; // 10 minutes
 
 @Injectable()
 export class CrmOAuthService {
@@ -126,9 +127,99 @@ export class CrmOAuthService {
     if (state.provider !== provider) {
       throw new UnauthorizedException("oauth provider mismatch");
     }
+    const ctx: OwnershipContext = {
+      userId: state.userId,
+      organizationId:
+        state.scope === "organization" ? state.organizationId : null,
+    };
+
+    const result = await this.exchangeAndPersist(ctx, provider, code);
+    return {
+      ...result,
+      redirectFrontendUrl: state.redirectFrontendUrl,
+    };
+  }
+
+  /**
+   * HighLevel Marketplace installs can begin outside Ringee, so their OAuth
+   * callback has no Ringee-generated state. We never attach that callback
+   * directly to an account. Instead, encrypt the short-lived authorization
+   * code into a one-time handoff that the authenticated frontend completes.
+   */
+  async createMarketplaceInstallHandoff(
+    provider: CrmProviderType,
+    code: string,
+  ): Promise<string> {
+    const nonce = this.randomHex(32);
+    const handoff = this.crypto.encrypt({
+      v: 1,
+      provider,
+      code,
+      nonce,
+      createdAt: Date.now(),
+    });
+    await this.redis.set(
+      this.marketplaceHandoffKey(nonce),
+      "1",
+      MARKETPLACE_HANDOFF_TTL_MS,
+    );
+    return handoff;
+  }
+
+  async completeMarketplaceInstall(
+    ctx: OwnershipContext,
+    provider: CrmProviderType,
+    handoffRaw: string,
+  ): Promise<{
+    connectionId: string;
+    accountName: string | null;
+  }> {
+    let decoded: Record<string, unknown>;
+    try {
+      decoded = this.crypto.decrypt(handoffRaw);
+    } catch {
+      throw new UnauthorizedException("invalid marketplace install handoff");
+    }
+
+    const handoff = decoded as {
+      provider?: CrmProviderType;
+      code?: string;
+      nonce?: string;
+      createdAt?: number;
+    };
+    if (
+      handoff.provider !== provider ||
+      !handoff.code ||
+      !handoff.nonce ||
+      typeof handoff.createdAt !== "number" ||
+      Date.now() - handoff.createdAt > MARKETPLACE_HANDOFF_TTL_MS
+    ) {
+      throw new UnauthorizedException(
+        "invalid or expired marketplace install handoff",
+      );
+    }
+
+    const key = this.marketplaceHandoffKey(handoff.nonce);
+    if (!(await this.redis.has(key))) {
+      throw new UnauthorizedException(
+        "marketplace install handoff expired or already used",
+      );
+    }
+    await this.redis.del(key);
+
+    return this.exchangeAndPersist(ctx, provider, handoff.code);
+  }
+
+  private async exchangeAndPersist(
+    ctx: OwnershipContext,
+    provider: CrmProviderType,
+    code: string,
+  ): Promise<{
+    connectionId: string;
+    accountName: string | null;
+  }> {
     const providerImpl = this.registry.get(provider);
     const redirectUri = this.getBackendRedirectUri(provider);
-
     const tokens = await providerImpl.exchangeCode({ code, redirectUri });
 
     const workspace = await providerImpl.getWorkspaceInfo({
@@ -137,12 +228,6 @@ export class CrmOAuthService {
       accountId: tokens.accountId ?? "",
       connectionId: "",
     });
-
-    const ctx: OwnershipContext = {
-      userId: state.userId,
-      organizationId:
-        state.scope === "organization" ? state.organizationId : null,
-    };
 
     const connection = await this.connections.upsertFromOAuth(ctx, provider, {
       accessToken: tokens.accessToken,
@@ -164,12 +249,15 @@ export class CrmOAuthService {
     return {
       connectionId: connection.id,
       accountName: workspace.accountName,
-      redirectFrontendUrl: state.redirectFrontendUrl,
     };
   }
 
   private nonceKey(nonce: string): string {
     return `crm:oauth:nonce:${nonce}`;
+  }
+
+  private marketplaceHandoffKey(nonce: string): string {
+    return `crm:oauth:marketplace-handoff:${nonce}`;
   }
 
   private randomHex(bytes: number): string {

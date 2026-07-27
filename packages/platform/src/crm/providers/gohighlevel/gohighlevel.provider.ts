@@ -46,6 +46,26 @@ type HighLevelTokenResponse = {
   locationId?: string;
   companyId?: string;
   userId?: string;
+  approvedLocations?: string[];
+  isBulkInstallation?: boolean;
+  installToFutureLocations?: boolean;
+  approveAllLocations?: boolean;
+};
+
+type HighLevelInstalledLocation =
+  | string
+  | {
+      _id?: string;
+      id?: string;
+      locationId?: string;
+      isInstalled?: boolean;
+    };
+
+type HighLevelInstalledLocationsResponse = {
+  items?: HighLevelInstalledLocation[];
+  locations?: HighLevelInstalledLocation[];
+  installedLocations?: HighLevelInstalledLocation[];
+  locationIds?: string[];
 };
 
 type HighLevelContact = {
@@ -154,18 +174,18 @@ export class GoHighLevelProvider extends AbstractCrmProvider {
 
   exchangeCode(params: CrmExchangeParams): Promise<CrmTokenSet> {
     return this.tokenRequest({
-      grant_type: "authorization_code",
+      grantType: "authorization_code",
       code: params.code,
-      user_type: "Location",
-      redirect_uri: params.redirectUri,
+      userType: "Location",
+      redirectUri: params.redirectUri,
     });
   }
 
   refreshToken(refreshToken: string): Promise<CrmTokenSet> {
     return this.tokenRequest({
-      grant_type: "refresh_token",
-      refresh_token: refreshToken,
-      user_type: "Location",
+      grantType: "refresh_token",
+      refreshToken,
+      userType: "Location",
     });
   }
 
@@ -173,8 +193,8 @@ export class GoHighLevelProvider extends AbstractCrmProvider {
     body: Record<string, string>,
   ): Promise<CrmTokenSet> {
     const form = new URLSearchParams({
-      client_id: this.config.clientId,
-      client_secret: this.config.clientSecret,
+      clientId: this.config.clientId,
+      clientSecret: this.config.clientSecret,
       ...body,
     });
     const response = await fetch(this.config.tokenUrl, {
@@ -195,6 +215,128 @@ export class GoHighLevelProvider extends AbstractCrmProvider {
       );
     }
     const data = (await response.json()) as HighLevelTokenResponse;
+    if (!data.locationId && data.userType === "Company") {
+      return this.exchangeCompanyTokenForLocation(data);
+    }
+    return this.mapTokenResponse(data);
+  }
+
+  private async exchangeCompanyTokenForLocation(
+    companyToken: HighLevelTokenResponse,
+  ): Promise<CrmTokenSet> {
+    const accessToken =
+      companyToken.access_token ?? companyToken.accessToken ?? "";
+    const companyId = companyToken.companyId;
+    if (!accessToken || !companyId) {
+      throw new CrmError(
+        "VALIDATION",
+        false,
+        "HighLevel Company token did not include an access token and company id",
+      );
+    }
+
+    let locationIds = (companyToken.approvedLocations ?? []).filter(Boolean);
+    if (locationIds.length === 0) {
+      locationIds = await this.getInstalledLocationIds(accessToken, companyId);
+    }
+    locationIds = Array.from(new Set(locationIds));
+
+    if (locationIds.length === 0) {
+      throw new CrmError(
+        "VALIDATION",
+        false,
+        "HighLevel returned an Agency token but no installed Sub-account was found for this app",
+        undefined,
+        {
+          companyId,
+          appId: this.config.versionId ?? this.config.clientId.split("-")[0],
+        },
+      );
+    }
+    if (locationIds.length > 1) {
+      throw new CrmError(
+        "VALIDATION",
+        false,
+        "HighLevel bulk installation selected multiple Locations; install Ringee for one Sub-account at a time",
+        undefined,
+        { locationCount: locationIds.length },
+      );
+    }
+
+    const locationTokenUrl = new URL(
+      "/oauth/location-token",
+      this.config.tokenUrl,
+    ).toString();
+    const response = await fetch(locationTokenUrl, {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/x-www-form-urlencoded",
+        Version: "v3",
+      },
+      body: new URLSearchParams({
+        companyId,
+        locationId: locationIds[0],
+      }).toString(),
+    });
+    if (!response.ok) {
+      const parsed = await response.json().catch(() => undefined);
+      throw this.classifyHttpError(
+        response.status,
+        parsed,
+        response.headers.get("retry-after"),
+      );
+    }
+    return this.mapTokenResponse(
+      (await response.json()) as HighLevelTokenResponse,
+    );
+  }
+
+  private async getInstalledLocationIds(
+    accessToken: string,
+    companyId: string,
+  ): Promise<string[]> {
+    const installedLocationsUrl = new URL(
+      "/oauth/installed-locations",
+      this.config.tokenUrl,
+    );
+    installedLocationsUrl.searchParams.set("companyId", companyId);
+    installedLocationsUrl.searchParams.set(
+      "appId",
+      this.config.versionId ?? this.config.clientId.split("-")[0],
+    );
+    installedLocationsUrl.searchParams.set("isInstalled", "true");
+
+    const response = await fetch(installedLocationsUrl, {
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        Version: "v3",
+      },
+    });
+    if (!response.ok) {
+      const parsed = await response.json().catch(() => undefined);
+      throw this.classifyHttpError(
+        response.status,
+        parsed,
+        response.headers.get("retry-after"),
+      );
+    }
+
+    const data = (await response.json()) as HighLevelInstalledLocationsResponse;
+    const locations =
+      data.items ?? data.locations ?? data.installedLocations ?? [];
+    const ids = locations.flatMap((location) => {
+      if (typeof location === "string") return [location];
+      if (location.isInstalled === false) return [];
+      const id = location.locationId ?? location.id ?? location._id;
+      return id ? [id] : [];
+    });
+    return [...ids, ...(data.locationIds ?? [])];
+  }
+
+  private mapTokenResponse(data: HighLevelTokenResponse): CrmTokenSet {
     const accessToken = data.access_token ?? data.accessToken;
     if (!accessToken) {
       throw new CrmError(
@@ -216,6 +358,7 @@ export class GoHighLevelProvider extends AbstractCrmProvider {
         companyId: data.companyId ?? null,
         userId: data.userId ?? null,
         userType: data.userType ?? "Location",
+        isBulkInstallation: data.isBulkInstallation ?? false,
       },
     };
   }

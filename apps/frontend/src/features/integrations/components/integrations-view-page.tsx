@@ -59,10 +59,47 @@ export default function IntegrationsViewPage() {
     const crm = searchParams.get('crm');
     const provider = searchParams.get('provider');
     const reason = searchParams.get('reason');
+    const installToken = searchParams.get('installToken');
     if (!crm) return;
-    const key = `${crm}:${provider}:${reason}`;
+    const key = `${crm}:${provider}:${reason}:${installToken ?? ''}`;
     if (notifiedRef.current === key) return;
     notifiedRef.current = key;
+
+    const clearOAuthParams = () => {
+      const url = new URL(window.location.href);
+      url.searchParams.delete('crm');
+      url.searchParams.delete('provider');
+      url.searchParams.delete('reason');
+      url.searchParams.delete('connectionId');
+      url.searchParams.delete('installToken');
+      router.replace(url.pathname + (url.search ? url.search : ''));
+    };
+
+    if (crm === 'pending' && provider && installToken) {
+      void (async () => {
+        try {
+          await api.post(`/crm/${provider}/oauth/complete-install`, {
+            token: installToken
+          });
+          toast.success(
+            `${PROVIDER_META[provider as CrmProviderType]?.name ?? provider} connected`
+          );
+          await reload();
+        } catch (err) {
+          toast.error(
+            `Connection failed: ${
+              err instanceof Error
+                ? err.message
+                : 'could not complete Marketplace installation'
+            }. Please try again.`
+          );
+        } finally {
+          clearOAuthParams();
+        }
+      })();
+      return;
+    }
+
     if (crm === 'connected' && provider) {
       toast.success(
         `${PROVIDER_META[provider as CrmProviderType]?.name ?? provider} connected`
@@ -73,13 +110,8 @@ export default function IntegrationsViewPage() {
         `Connection failed${reason ? `: ${reason}` : ''}. Please try again.`
       );
     }
-    const url = new URL(window.location.href);
-    url.searchParams.delete('crm');
-    url.searchParams.delete('provider');
-    url.searchParams.delete('reason');
-    url.searchParams.delete('connectionId');
-    router.replace(url.pathname + (url.search ? url.search : ''));
-  }, [searchParams, router, reload]);
+    clearOAuthParams();
+  }, [api, searchParams, router, reload]);
 
   const handleConnect = async (
     provider: CrmProviderType,
@@ -195,9 +227,9 @@ export default function IntegrationsViewPage() {
           </TabsTrigger>
         )}
         {/* {canAccessAdminFeatures && ( */}
-          <TabsTrigger value='connectors' className='gap-1.5'>
-            <Bot className='h-3.5 w-3.5' /> Connectors
-          </TabsTrigger>
+        <TabsTrigger value='connectors' className='gap-1.5'>
+          <Bot className='h-3.5 w-3.5' /> Connectors
+        </TabsTrigger>
         {/* )} */}
       </TabsList>
 
@@ -218,9 +250,9 @@ export default function IntegrationsViewPage() {
       )}
 
       {/* {canAccessAdminFeatures && ( */}
-        <TabsContent value='connectors' className='mt-6'>
-          <ConnectorsTab />
-        </TabsContent>
+      <TabsContent value='connectors' className='mt-6'>
+        <ConnectorsTab />
+      </TabsContent>
       {/* )} */}
 
       {canAccessAdminFeatures && (

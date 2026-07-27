@@ -71,6 +71,8 @@ import { CrmProviderRegistry } from "./registry";
             apiConfiguration.GOHIGHLEVEL_OAUTH_TOKEN_URL ??
             "https://services.leadconnectorhq.com/oauth/token",
           scopes: parseScopes(apiConfiguration.GOHIGHLEVEL_OAUTH_SCOPES, [
+            "oauth.readonly",
+            "oauth.write",
             "contacts.readonly",
             "contacts.write",
             "locations.readonly",
