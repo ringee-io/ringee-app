@@ -1,0 +1,38 @@
+{
+  "uid": "ringee_app",
+  "type": "app",
+  "config": {
+    "name": "Ringee",
+    "description": "Ringee is an open-source, low-cost outbound calling platform for sales teams. The HubSpot integration synchronizes contacts and companies and keeps calls, notes, tasks, and meetings organized in HubSpot.",
+    "distribution": "marketplace",
+    "auth": {
+      "type": "oauth",
+      "redirectUrls": [
+        "http://localhost:3000/api/crm/hubspot/oauth/callback",
+        "https://api.ringee.io/api/crm/hubspot/oauth/callback"
+      ],
+      "requiredScopes": [
+        "crm.objects.contacts.read",
+        "crm.objects.contacts.write",
+        "crm.objects.companies.read",
+        "crm.objects.companies.write",
+        "crm.objects.owners.read"
+      ],
+      "optionalScopes": [],
+      "conditionallyRequiredScopes": []
+    },
+    "permittedUrls": {
+      "fetch": [
+        "https://api.hubapi.com"
+      ],
+      "iframe": [],
+      "img": []
+    },
+    "support": {
+      "supportEmail": "hello@ringee.io",
+      "documentationUrl": "https://docs.ringee.io",
+      "supportUrl": "https://www.ringee.io/support",
+      "supportPhone": "+18495322320"
+    }
+  }
+}
