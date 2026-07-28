@@ -22,7 +22,8 @@ export function UserNav({ useMock }: { useMock?: boolean }) {
         user: {
           imageUrl: '/edison.jpg',
           fullName: 'Edison J. Padilla',
-          emailAddresses: [{ emailAddress: 'edisonjpp@gmail.com' }]
+          emailAddresses: [{ emailAddress: 'edisonjpp@gmail.com' }],
+          phoneNumbers: []
         }
       }
     : useUser();
@@ -35,6 +36,11 @@ export function UserNav({ useMock }: { useMock?: boolean }) {
   const tNavigation = useTranslations('navigation');
 
   if (user) {
+    const identity =
+      user.emailAddresses[0]?.emailAddress ??
+      user.phoneNumbers[0]?.phoneNumber ??
+      '';
+
     return (
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
@@ -54,7 +60,7 @@ export function UserNav({ useMock }: { useMock?: boolean }) {
                 {user.fullName}
               </p>
               <p className='text-muted-foreground text-xs leading-none'>
-                {user.emailAddresses[0].emailAddress}
+                {identity}
               </p>
             </div>
           </DropdownMenuLabel>

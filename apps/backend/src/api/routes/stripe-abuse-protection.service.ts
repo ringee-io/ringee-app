@@ -4,6 +4,7 @@ import { isIP } from "node:net";
 import type { Request } from "express";
 import { apiConfiguration } from "@ringee/configuration";
 import { RedisService } from "@ringee/platform";
+import { UserAccessEnforcementService } from "./user-access-enforcement.service";
 
 const KEY_PREFIX = "stripe-abuse:v1";
 const WEBHOOK_DEDUP_SECONDS = 2 * 24 * 60 * 60;
@@ -18,7 +19,10 @@ export interface StripeFailureResult {
 export class StripeAbuseProtectionService {
   private readonly logger = new Logger(StripeAbuseProtectionService.name);
 
-  constructor(private readonly redis: RedisService) {}
+  constructor(
+    private readonly redis: RedisService,
+    private readonly userAccess: UserAccessEnforcementService,
+  ) {}
 
   /**
    * Enforces creation velocity before Ringee mints a Stripe client secret or
@@ -36,6 +40,9 @@ export class StripeAbuseProtectionService {
     ]);
 
     if (userBlockTtl > 0 || ipBlockTtl > 0) {
+      if (userBlockTtl > 0) {
+        await this.userAccess.banForPaymentAbuse(userId);
+      }
       this.throwBlocked(Math.max(userBlockTtl, ipBlockTtl));
     }
 
@@ -65,6 +72,9 @@ export class StripeAbuseProtectionService {
           ? this.block("ip", ipHash, "request_velocity")
           : Promise.resolve(),
       ]);
+      if (userExceeded) {
+        await this.userAccess.banForPaymentAbuse(userId);
+      }
       this.logger.warn(
         `Stripe intent creation blocked for user=${userId}, ip=${ipHash.slice(0, 8)} (userLimit=${userExceeded}, ipLimit=${ipExceeded})`,
       );
@@ -102,6 +112,9 @@ export class StripeAbuseProtectionService {
       ipHash ? this.blockTtl("ip", ipHash) : Promise.resolve(-2),
     ]);
     if (existingUserBlock > 0 || existingIpBlock > 0) {
+      if (existingUserBlock > 0) {
+        await this.userAccess.banForPaymentAbuse(userId);
+      }
       return {
         shouldCancelIntent: true,
         userBlocked: existingUserBlock > 0,
@@ -138,6 +151,9 @@ export class StripeAbuseProtectionService {
           ? this.block("ip", ipHash, "card_failures")
           : Promise.resolve(),
       ]);
+      if (userBlocked) {
+        await this.userAccess.banForPaymentAbuse(userId);
+      }
       this.logger.warn(
         `Stripe card testing threshold reached for user=${userId}, ip=${ipHash?.slice(0, 8) ?? "unknown"} (userFailures=${userFailures}, ipFailures=${ipFailures}, userBlocked=${userBlocked}, ipBlocked=${ipBlocked})`,
       );

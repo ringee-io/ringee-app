@@ -145,6 +145,7 @@ function GeneralSettingsCard({
   const api = useBackofficeApi();
   const [canCall, setCanCall] = useState(settings.canCall);
   const [freeCallTrial, setFreeCallTrial] = useState(settings.freeCallTrial);
+  const [phoneRequired, setPhoneRequired] = useState(settings.phoneRequired);
   const [minimumCreditPurchase, setMinimumCreditPurchase] = useState(
     settings.minimumCreditPurchase.toString()
   );
@@ -153,13 +154,14 @@ function GeneralSettingsCard({
   );
   const [savingLimits, setSavingLimits] = useState(false);
   const [savingToggle, setSavingToggle] = useState<
-    'canCall' | 'freeCallTrial' | null
+    'canCall' | 'freeCallTrial' | 'phoneRequired' | null
   >(null);
 
   useEffect(() => {
     setCanCall(settings.canCall);
     setFreeCallTrial(settings.freeCallTrial);
-  }, [settings.canCall, settings.freeCallTrial]);
+    setPhoneRequired(settings.phoneRequired);
+  }, [settings.canCall, settings.freeCallTrial, settings.phoneRequired]);
 
   useEffect(() => {
     setMinimumCreditPurchase(settings.minimumCreditPurchase.toString());
@@ -167,11 +169,21 @@ function GeneralSettingsCard({
   }, [settings.minimumCreditPurchase, settings.numberPurchaseLimit]);
 
   const toggleSetting = async (
-    key: 'canCall' | 'freeCallTrial',
+    key: 'canCall' | 'freeCallTrial' | 'phoneRequired',
     value: boolean
   ) => {
-    const setLocal = key === 'canCall' ? setCanCall : setFreeCallTrial;
-    const previous = key === 'canCall' ? canCall : freeCallTrial;
+    const setLocal =
+      key === 'canCall'
+        ? setCanCall
+        : key === 'freeCallTrial'
+          ? setFreeCallTrial
+          : setPhoneRequired;
+    const previous =
+      key === 'canCall'
+        ? canCall
+        : key === 'freeCallTrial'
+          ? freeCallTrial
+          : phoneRequired;
     setLocal(value);
     setSavingToggle(key);
     try {
@@ -180,13 +192,17 @@ function GeneralSettingsCard({
       });
       onUpdated(updated);
       toast.success(
-        key === 'canCall'
+        key === 'phoneRequired'
           ? value
-            ? 'Calling enabled'
-            : 'Calling disabled'
-          : value
-            ? 'Free trial call enabled'
-            : 'Free trial call disabled'
+            ? 'Phone verification required'
+            : 'Phone verification waived'
+          : key === 'canCall'
+            ? value
+              ? 'Calling enabled'
+              : 'Calling disabled'
+            : value
+              ? 'Free trial call enabled'
+              : 'Free trial call disabled'
       );
     } catch (err) {
       setLocal(previous);
@@ -258,6 +274,21 @@ function GeneralSettingsCard({
             checked={freeCallTrial}
             disabled={savingToggle !== null}
             onCheckedChange={(value) => toggleSetting('freeCallTrial', value)}
+          />
+        </div>
+
+        <div className='flex items-center justify-between gap-4'>
+          <div>
+            <Label>Require verified phone</Label>
+            <p className='text-muted-foreground text-xs'>
+              Turn off after reviewing the user&apos;s case in Crisp when SMS
+              verification is unavailable in their country.
+            </p>
+          </div>
+          <Switch
+            checked={phoneRequired}
+            disabled={savingToggle !== null}
+            onCheckedChange={(value) => toggleSetting('phoneRequired', value)}
           />
         </div>
 

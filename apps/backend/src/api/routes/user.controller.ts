@@ -4,6 +4,7 @@ import {
   Body,
   BadRequestException,
   Get,
+  NotFoundException,
   Query,
 } from "@nestjs/common";
 import { CurrentUser } from "@ringee/platform";
@@ -16,6 +17,19 @@ export class UserController {
     private readonly userDeviceService: UserDeviceService,
     private readonly userService: UserService,
   ) {}
+
+  @Get("access-requirements")
+  async getAccessRequirements(@CurrentUser() user: User) {
+    const persistedUser = await this.userService.getCachedUserById(user.id);
+    if (!persistedUser) {
+      throw new NotFoundException("User not found");
+    }
+
+    return {
+      phoneRequired: persistedUser.phoneRequired,
+      phoneVerified: persistedUser.phoneVerified,
+    };
+  }
 
   @Patch("fcm-token")
   async updateFcmToken(

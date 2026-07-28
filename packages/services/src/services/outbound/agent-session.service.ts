@@ -9,8 +9,9 @@ import {
   AgentSessionRepository,
   CampaignLeadRepository,
   AgentSessionStatus,
-  CampaignLeadStatus,
 } from "@ringee/database";
+import { UserService } from "../user.service";
+import { SSEBridgeService } from "./sse-bridge.service";
 const HEARTBEAT_STALE_MS = 30_000; // 30 seconds
 
 @Injectable()
@@ -20,6 +21,8 @@ export class AgentSessionService {
   constructor(
     private readonly sessionRepo: AgentSessionRepository,
     private readonly campaignLeadRepo: CampaignLeadRepository,
+    private readonly userService: UserService,
+    private readonly sseBridge: SSEBridgeService,
   ) {}
 
   async startSession(data: {
@@ -27,6 +30,7 @@ export class AgentSessionService {
     userId: string;
     organizationId: string;
   }) {
+    await this.assertDialerEnabled(data.userId);
     const session = await this.sessionRepo.upsert(data);
 
     this.logger.log(
@@ -63,6 +67,7 @@ export class AgentSessionService {
 
   async resume(sessionId: string) {
     const session = await this.getSession(sessionId);
+    await this.assertDialerEnabled(session.userId);
 
     if (session.status !== AgentSessionStatus.paused) {
       throw new ConflictException("Session is not paused");
@@ -110,6 +115,34 @@ export class AgentSessionService {
 
   async findActiveByCampaign(campaignId: string) {
     return this.sessionRepo.findActiveByCampaign(campaignId);
+  }
+
+  /**
+   * Immediately removes a user from every campaign dialer. Lead locks are
+   * released best-effort, while marking the session offline is authoritative.
+   */
+  async disableForUser(userId: string): Promise<number> {
+    const sessions = await this.sessionRepo.findActiveByUser(userId);
+    for (const session of sessions) {
+      if (session.currentLeadId) {
+        await this.campaignLeadRepo
+          .releaseLock(session.currentLeadId)
+          .catch((error) =>
+            this.logger.warn(
+              `Could not release lead ${session.currentLeadId} while disabling agent ${userId}: ${error instanceof Error ? error.message : String(error)}`,
+            ),
+          );
+      }
+      await this.sessionRepo.markOffline(session.id);
+      this.sseBridge.emit(`agent:${session.id}`, "session.state", {
+        status: "offline",
+        reason: "account_disabled",
+      });
+      this.logger.warn(
+        `Disabled dialer session ${session.id} for user ${userId}`,
+      );
+    }
+    return sessions.length;
   }
 
   async getById(sessionId: string) {
@@ -162,5 +195,14 @@ export class AgentSessionService {
     const session = await this.sessionRepo.findById(sessionId);
     if (!session) throw new NotFoundException("Session not found");
     return session;
+  }
+
+  private async assertDialerEnabled(userId: string): Promise<void> {
+    const user = await this.userService.getCachedUserById(userId);
+    if (user?.canCall === false) {
+      throw new ForbiddenException(
+        "Outbound calling is disabled for this user",
+      );
+    }
   }
 }

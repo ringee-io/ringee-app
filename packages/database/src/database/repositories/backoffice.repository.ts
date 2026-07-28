@@ -75,6 +75,7 @@ export interface AccountDetail extends AccountListItem {
     minimumCreditPurchase: number;
     freeCallTrial: boolean;
     numberPurchaseLimit: number | null;
+    phoneRequired: boolean;
   } | null;
 }
 
@@ -412,6 +413,7 @@ export class BackofficeRepository {
         minimumCreditPurchase: true,
         freeCallTrial: true,
         numberPurchaseLimit: true,
+        phoneRequired: true,
         emails: { select: { email: true, isPrimary: true } },
         Credit: { where: { organizationId: null }, select: { amount: true } },
         callRecordingSettings: {
@@ -458,6 +460,7 @@ export class BackofficeRepository {
         minimumCreditPurchase: u.minimumCreditPurchase,
         freeCallTrial: u.freeCallTrial ?? false,
         numberPurchaseLimit: u.numberPurchaseLimit,
+        phoneRequired: u.phoneRequired,
       },
     };
   }

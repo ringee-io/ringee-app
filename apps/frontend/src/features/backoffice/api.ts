@@ -80,6 +80,7 @@ export interface UserGeneralSettings {
   minimumCreditPurchase: number;
   freeCallTrial: boolean;
   numberPurchaseLimit: number | null;
+  phoneRequired: boolean;
 }
 
 export interface NumberListItem {

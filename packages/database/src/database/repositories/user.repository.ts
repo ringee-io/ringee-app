@@ -69,6 +69,11 @@ export class UserRepository {
   }
 
   private mapClerkToPrisma(clerkUser: ClerkUser): Prisma.UserCreateInput {
+    const primaryPhone =
+      clerkUser.phoneNumbers.find(
+        (phone) => phone.id === clerkUser.primaryPhoneNumberId,
+      ) ?? clerkUser.phoneNumbers[0];
+
     return {
       clerkId: clerkUser.id,
       firstName: clerkUser.firstName,
@@ -83,6 +88,8 @@ export class UserRepository {
         {}) as unknown as Prisma.NullableJsonNullValueInput,
       unsafeMetadata: (clerkUser.unsafeMetadata ??
         {}) as unknown as Prisma.NullableJsonNullValueInput,
+      phoneNumber: primaryPhone?.phoneNumber ?? null,
+      phoneVerified: primaryPhone?.verification?.status === "verified",
       emails: {
         create: clerkUser.emailAddresses.map((e) => ({
           email: e.emailAddress,

@@ -1,6 +1,7 @@
 import {
   CanActivate,
   ExecutionContext,
+  ForbiddenException,
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
@@ -39,6 +40,11 @@ export class ClerkAuthGuard implements CanActivate {
       throw new UnauthorizedException("Unauthorized");
     }
 
+    const ringeeUser = await this.findCachedUserByClerkId(userId);
+    if (ringeeUser?.blockedAt) {
+      throw new ForbiddenException("Account disabled");
+    }
+
     if (orgId) {
       const org = await this.organizationService.getByClerkId(orgId);
 
@@ -57,10 +63,12 @@ export class ClerkAuthGuard implements CanActivate {
   }
 
   /**
-   * Clerk can redirect a newly-created OAuth user before the `user.created`
-   * webhook has created the matching local row and stored its UUID in private
-   * metadata. Resolve that race on the first authenticated request so server
-   * components do not fail while waiting for webhook delivery.
+   * Clerk can redirect a newly-created user before the `user.created` webhook
+   * has created the matching local row and stored its UUID in private metadata.
+   * Resolve that race on the first authenticated request. The post-signup
+   * `/auth/sign-up/continue` page intentionally makes such a request before it
+   * renders, so the account is already manageable from Ringee's backoffice
+   * while phone verification is still pending.
    */
   private async resolveRingeeUser(clerkUserId: string) {
     const clerkUser = await ClerkUserRepository.findById(clerkUserId);

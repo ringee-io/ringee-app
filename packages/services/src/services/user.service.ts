@@ -15,6 +15,7 @@ export interface UserGeneralSettings {
   minimumCreditPurchase: number;
   freeCallTrial: boolean;
   numberPurchaseLimit: number | null;
+  phoneRequired: boolean;
 }
 
 export interface UpdateUserGeneralSettingsInput {
@@ -22,6 +23,7 @@ export interface UpdateUserGeneralSettingsInput {
   minimumCreditPurchase?: number;
   freeCallTrial?: boolean;
   numberPurchaseLimit?: number | null;
+  phoneRequired?: boolean;
 }
 
 const DEFAULT_NOTIFICATION_PREFERENCES: NotificationPreferences = {
@@ -209,6 +211,9 @@ export class UserService {
       ...(input.numberPurchaseLimit !== undefined
         ? { numberPurchaseLimit: input.numberPurchaseLimit }
         : {}),
+      ...(input.phoneRequired !== undefined
+        ? { phoneRequired: input.phoneRequired }
+        : {}),
     });
     await this.invalidateUserCache(updated);
     return {
@@ -216,7 +221,23 @@ export class UserService {
       minimumCreditPurchase: updated.minimumCreditPurchase,
       freeCallTrial: updated.freeCallTrial ?? false,
       numberPurchaseLimit: updated.numberPurchaseLimit,
+      phoneRequired: updated.phoneRequired,
     };
+  }
+
+  /**
+   * Permanently deny Ringee access and outbound calling. Session revocation is
+   * handled by the identity adapter so this method remains the local source of
+   * truth if the user signs in to Clerk again.
+   */
+  async blockAccount(userId: string, reason: string): Promise<User> {
+    const updated = await this.userRepository.update(userId, {
+      blockedAt: new Date(),
+      blockedReason: reason,
+      canCall: false,
+    });
+    await this.invalidateUserCache(updated);
+    return updated;
   }
 
   async assertMinimumCreditPurchase(

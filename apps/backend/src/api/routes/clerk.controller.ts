@@ -10,6 +10,7 @@ import { UserRepository, OrganizationRepository } from "@ringee/database";
 import { SubscriptionService, UserService } from "@ringee/services";
 import { apiConfiguration } from "@ringee/configuration";
 import { TriggerLoopEventPublisher } from "../../triggerloop/services/triggerloop-event-publisher.service";
+import { UserAccessEnforcementService } from "./user-access-enforcement.service";
 
 @Public()
 @Controller("webhooks")
@@ -20,6 +21,7 @@ export class ClerkController {
     private readonly subscriptionService: SubscriptionService,
     private readonly userService: UserService,
     private readonly triggerLoop: TriggerLoopEventPublisher,
+    private readonly userAccess: UserAccessEnforcementService,
   ) {}
 
   @Post("clerk")
@@ -87,14 +89,17 @@ export class ClerkController {
           const userId = (evt.data as any).id;
 
           const clerkUser = await ClerkUserRepository.findById(userId);
-          const user = await this.userRepository.updateFromClerkUser(
-            clerkUser,
-            {
-              clientIp: ip,
-              userAgent: userAgent,
-            },
-          );
+          // `user.updated` can overtake `user.created` during signup. Use the
+          // idempotent sync path so either event can establish the local row.
+          const user = await this.userRepository.syncFromClerkUser(clerkUser, {
+            clientIp: ip,
+            userAgent: userAgent,
+          });
           await this.userService.invalidateUserCache(user);
+
+          if (clerkUser.banned) {
+            await this.userAccess.syncClerkBanToRingee(user.id);
+          }
 
           const primary = clerkUser.emailAddresses?.find(
             (e) => e.id === clerkUser.primaryEmailAddressId,

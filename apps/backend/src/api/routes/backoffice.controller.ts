@@ -85,6 +85,10 @@ class UpdateUserGeneralSettingsDto {
   @IsInt()
   @Min(0)
   numberPurchaseLimit?: number | null;
+
+  @IsOptional()
+  @IsBoolean()
+  phoneRequired?: boolean;
 }
 
 function parseAccountType(type: string): AccountType {

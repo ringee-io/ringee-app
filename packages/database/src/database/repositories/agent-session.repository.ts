@@ -67,6 +67,15 @@ export class AgentSessionRepository {
     });
   }
 
+  async findActiveByUser(userId: string): Promise<AgentSession[]> {
+    return this.prisma.agentSession.findMany({
+      where: {
+        userId,
+        status: { not: AgentSessionStatus.offline },
+      },
+    });
+  }
+
   async updateStatus(
     id: string,
     status: AgentSessionStatus,

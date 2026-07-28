@@ -7,6 +7,14 @@ export class ClerkUserRepository {
     return clerkClient.users.getUser(id);
   }
 
+  /**
+   * Native Clerk ban. Clerk revokes the user's active sessions and prevents
+   * future sign-ins until an administrator unbans the account.
+   */
+  static async banUser(clerkUserId: string): Promise<void> {
+    await clerkClient.users.banUser(clerkUserId);
+  }
+
   static async updateMetadata(
     clerkUserId: string,
     metadata: {
@@ -42,6 +50,11 @@ export class ClerkUserRepository {
   }
 
   static mapToUser(user: ClerkUser): PrismaUser & { emails: UserEmail[] } {
+    const primaryPhone =
+      user.phoneNumbers.find(
+        (phone) => phone.id === user.primaryPhoneNumberId,
+      ) ?? user.phoneNumbers[0];
+
     return {
       id: user.id,
       clerkId: user.id,
@@ -65,6 +78,11 @@ export class ClerkUserRepository {
       canCall: true,
       minimumCreditPurchase: 5,
       numberPurchaseLimit: null,
+      blockedAt: null,
+      blockedReason: null,
+      phoneNumber: primaryPhone?.phoneNumber ?? null,
+      phoneVerified: primaryPhone?.verification?.status === "verified",
+      phoneRequired: true,
       encryptionKey: null,
       onboardingCompletedSteps: [],
       onboardingDismissedAt: null,

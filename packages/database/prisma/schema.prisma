@@ -193,6 +193,8 @@ enum CrmProviderType {
   attio
   hubspot
   salesforce
+  /// Legacy provider kept to preserve existing CRM records.
+  gohighlevel
   odoo_14_18
   odoo_19_plus
 }
@@ -355,29 +357,38 @@ enum SocialPlatform {
 }
 
 model User {
-  id                    String   @id @default(uuid()) @db.Uuid
-  clerkId               String?  @unique
+  id                    String    @id @default(uuid()) @db.Uuid
+  clerkId               String?   @unique
   firstName             String?
   lastName              String?
   imageUrl              String?
   profileImageUrl       String?
-  passwordEnabled       Boolean? @default(false)
-  twoFactorEnabled      Boolean? @default(false)
+  passwordEnabled       Boolean?  @default(false)
+  twoFactorEnabled      Boolean?  @default(false)
   publicMetadata        Json?
   privateMetadata       Json?
   unsafeMetadata        Json?
   clientIp              String?
   userAgent             String?
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
   customerId            String?
-  freeCallTrial         Boolean? @default(false)
+  freeCallTrial         Boolean?  @default(false)
   // Per-user commercial/operational controls managed from the backoffice.
   // The number limit is nullable to preserve the historical "unlimited" behaviour.
-  canCall               Boolean  @default(true)
-  minimumCreditPurchase Float    @default(5)
+  canCall               Boolean   @default(true)
+  minimumCreditPurchase Float     @default(5)
   numberPurchaseLimit   Int?
-  encryptionKey         String?  @db.Text
+  // A product-level access block. Clerk sessions are revoked separately.
+  blockedAt             DateTime?
+  blockedReason         String?   @db.Text
+  // Primary authentication phone synchronized from Clerk (E.164).
+  phoneNumber           String?   @unique @db.VarChar(32)
+  phoneVerified         Boolean   @default(false)
+  // Per-user onboarding requirement. Super admins can waive it when Clerk
+  // cannot deliver an SMS to the user's country.
+  phoneRequired         Boolean   @default(true)
+  encryptionKey         String?   @db.Text
 
   // Onboarding state
   onboardingCompletedSteps String[]  @default([])
@@ -563,6 +574,9 @@ model DeletedUser {
   unsafeMetadata   Json?
   clientIp         String?
   userAgent        String?
+  phoneNumber      String?   @db.VarChar(32)
+  phoneVerified    Boolean   @default(false)
+  phoneRequired    Boolean   @default(true)
   deletionReason   String?
   deletedBy        String?
   deletedAt        DateTime  @default(now())

@@ -139,7 +139,7 @@ export function InfraTopbar() {
 
         <span className='bg-border/70 hidden h-6 w-px sm:block' />
 
-        <UserButton afterSignOutUrl='/' />
+        <UserButton />
       </div>
     </header>
   );

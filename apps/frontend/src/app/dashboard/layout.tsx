@@ -9,12 +9,21 @@ import {
 import { DialerShortcutView } from '@/features/calls/components/dialer.shortcut.view';
 import { OnboardingGuideWrapper } from '@/features/onboarding/components/onboarding-guide-wrapper';
 import { cookies } from 'next/headers';
+import { currentUser } from '@clerk/nextjs/server';
+import { redirect } from 'next/navigation';
+import { needsPhoneVerification } from '@/features/auth/lib/phone-access.server';
 
 export default async function DashboardLayout({
   children
 }: {
   children: React.ReactNode;
 }) {
+  const user = await currentUser();
+
+  if (user && (await needsPhoneVerification(user.phoneNumbers))) {
+    redirect('/auth/sign-up/continue');
+  }
+
   const cookieStore = await cookies();
   const defaultOpen = cookieStore.get('sidebar_state')?.value === 'true';
   const defaultDialerOpen =

@@ -1,5 +1,9 @@
+import { currentUser } from '@clerk/nextjs/server';
 import { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import SignUpViewPage from '@/features/auth/components/sign-up-view';
+import VerifyPhoneView from '@/features/auth/components/verify-phone-view';
+import { needsPhoneVerification } from '@/features/auth/lib/phone-access.server';
 
 export const metadata: Metadata = {
   title: 'Create Your Ringee Account — Start Calling Worldwide',
@@ -45,5 +49,17 @@ export const metadata: Metadata = {
 };
 
 export default async function Page() {
+  const user = await currentUser();
+
+  if (user) {
+    // This backend read also synchronizes the newly-created Clerk user into
+    // Ringee's database when the user.created webhook has not arrived yet.
+    if (await needsPhoneVerification(user.phoneNumbers)) {
+      return <VerifyPhoneView />;
+    }
+
+    redirect('/dashboard/overview');
+  }
+
   return <SignUpViewPage />;
 }

@@ -66,6 +66,7 @@ import { DeskPhoneWebhookController } from "./desk-phone.webhook.controller";
 import { FreeTrialController } from "./free-trial.controller";
 import { InfrastructureController } from "./infrastructure.controller";
 import { StripeAbuseProtectionService } from "./stripe-abuse-protection.service";
+import { UserAccessEnforcementService } from "./user-access-enforcement.service";
 
 @Module({
   controllers: [
@@ -132,6 +133,7 @@ import { StripeAbuseProtectionService } from "./stripe-abuse-protection.service"
     EnrichmentFeatureGuard,
     TranscriptionMediaGateway,
     StripeAbuseProtectionService,
+    UserAccessEnforcementService,
   ],
   imports: [
     McpModule,
