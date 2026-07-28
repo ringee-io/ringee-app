@@ -12,7 +12,7 @@ ringee-io-firebase-adminsdk-*.json
 apps/frontend/public/sw.js
 
 packages/database/prisma/migrations
-!packages/database/prisma/migrations/
+!packages/database/prisma/migrations/*
 packages/database/prisma/migrations/*
 !packages/database/prisma/migrations/20260727090000_add_user_access_block/
 !packages/database/prisma/migrations/20260727090000_add_user_access_block/migration.sql

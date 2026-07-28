@@ -5,29 +5,33 @@ import SignUpViewPage from '@/features/auth/components/sign-up-view';
 import VerifyPhoneView from '@/features/auth/components/verify-phone-view';
 import { needsPhoneVerification } from '@/features/auth/lib/phone-access.server';
 
-export const metadata: Metadata = {
-  title: 'Create Your Ringee Account — Start Calling Worldwide',
+type SignUpPageProps = {
+  params: Promise<{ 'sign-up'?: string[] }>;
+};
+
+const signUpMetadata: Metadata = {
+  title: 'Create your Ringee account | Ringee',
   description:
-    'Sign up for Ringee and start making crystal-clear calls to 180+ countries. Create your free account today and join thousands of salespeople and businesses using Ringee to connect globally.',
+    'Create your Ringee account to make outbound calls, manage contacts, track outcomes, and collaborate with your team.',
   keywords: [
     'Ringee sign up',
     'create account',
     'register Ringee',
-    'VoIP app',
-    'call software',
-    'international calling',
-    'cold calling tool',
+    'outbound calling software',
     'sales dialer'
   ],
+  alternates: {
+    canonical: '/auth/sign-up'
+  },
   robots: {
     index: true,
     follow: true
   },
   openGraph: {
-    title: 'Join Ringee — Make Calls to 180+ Countries',
+    title: 'Create your Ringee account',
     description:
-      'Create your Ringee account and start calling from your browser or mobile. Built for sales teams and professionals worldwide.',
-    url: 'https://ringee.io/sign-up',
+      'Create your Ringee account and start managing outbound calls from your browser.',
+    url: '/auth/sign-up',
     type: 'website',
     siteName: 'Ringee.io',
     images: [
@@ -35,18 +39,70 @@ export const metadata: Metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Join Ringee — Global Calling Made Simple'
+        alt: 'Create your Ringee account'
       }
     ]
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Create Your Ringee Account',
+    title: 'Create your Ringee account',
     description:
-      'Sign up to make and record calls to 180+ countries. The easiest way for salespeople and businesses to connect worldwide.',
+      'Create your Ringee account and start managing outbound calls from your browser.',
     images: ['/og-image.png']
   }
 };
+
+const continueMetadata: Metadata = {
+  title: 'Verify your phone number | Ringee',
+  description:
+    'Add and verify your phone number to finish setting up your Ringee account.',
+  alternates: {
+    canonical: '/auth/sign-up/continue'
+  },
+  robots: {
+    index: false,
+    follow: false
+  },
+  openGraph: {
+    title: 'Verify your phone number | Ringee',
+    description:
+      'Add and verify your phone number to finish setting up your Ringee account.',
+    url: '/auth/sign-up/continue',
+    type: 'website',
+    siteName: 'Ringee.io'
+  },
+  twitter: {
+    card: 'summary',
+    title: 'Verify your phone number | Ringee',
+    description:
+      'Add and verify your phone number to finish setting up your Ringee account.'
+  }
+};
+
+const completeSignUpMetadata: Metadata = {
+  title: 'Complete your signup | Ringee',
+  description: 'Complete the remaining steps to create your Ringee account.',
+  robots: {
+    index: false,
+    follow: false
+  }
+};
+
+export async function generateMetadata({
+  params
+}: SignUpPageProps): Promise<Metadata> {
+  const segments = (await params)['sign-up'];
+
+  if (segments?.[0] === 'continue') {
+    return continueMetadata;
+  }
+
+  if (segments?.length) {
+    return completeSignUpMetadata;
+  }
+
+  return signUpMetadata;
+}
 
 export default async function Page() {
   const user = await currentUser();

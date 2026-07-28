@@ -1,13 +1,7 @@
 import { SignIn as ClerkSignInForm } from '@clerk/nextjs';
-import { Metadata } from 'next';
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 import AuthPageShell from './auth-page-shell';
-
-export const metadata: Metadata = {
-  title: 'Authentication',
-  description: 'Authentication forms built using the components.'
-};
 
 export default async function SignInViewPage() {
   const t = await getTranslations('auth');

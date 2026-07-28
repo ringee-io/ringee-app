@@ -2,27 +2,21 @@ import { Metadata } from 'next';
 import SignInViewPage from '@/features/auth/components/sign-in-view';
 
 export const metadata: Metadata = {
-  title: 'Sign In to Your Ringee Account — Secure Access',
+  title: 'Sign in to Ringee | Ringee',
   description:
-    'Log in to your Ringee account to manage calls, contacts, and phone numbers. Access your dashboard and connect with anyone, anywhere — powered by Telnyx and Ringee WebRTC.',
-  keywords: [
-    'Ringee login',
-    'sign in',
-    'Ringee account access',
-    'VoIP dashboard',
-    'business calling',
-    'call management',
-    'Ringee.io'
-  ],
+    'Sign in to your Ringee account to manage calls, contacts, campaigns, and team activity.',
+  alternates: {
+    canonical: '/auth/sign-in'
+  },
   robots: {
-    index: true,
-    follow: true
+    index: false,
+    follow: false
   },
   openGraph: {
-    title: 'Sign In — Ringee Dashboard',
+    title: 'Sign in to Ringee',
     description:
-      'Access your Ringee dashboard to make calls, manage contacts, and view your global calling activity.',
-    url: 'https://ringee.io/sign-in',
+      'Access your Ringee account to manage calls, contacts, campaigns, and team activity.',
+    url: '/auth/sign-in',
     type: 'website',
     siteName: 'Ringee.io',
     images: [
@@ -30,15 +24,15 @@ export const metadata: Metadata = {
         url: '/og-image.png',
         width: 1200,
         height: 630,
-        alt: 'Sign In to Ringee — Global Calling Platform'
+        alt: 'Sign in to Ringee'
       }
     ]
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Log In to Ringee',
+    title: 'Sign in to Ringee',
     description:
-      'Sign in to your Ringee account and continue making calls to 180+ countries. Fast, secure, and built for professionals.',
+      'Access your Ringee account to manage calls, contacts, campaigns, and team activity.',
     images: ['/og-image.png']
   }
 };
