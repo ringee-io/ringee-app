@@ -1,7 +1,11 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { UserRepository } from "@ringee/database";
 import { ClerkUserRepository } from "@ringee/platform";
-import { AgentSessionService, UserService } from "@ringee/services";
+import {
+  AgentSessionService,
+  CLERK_USER_BAN_REASON,
+  UserService,
+} from "@ringee/services";
 
 @Injectable()
 export class UserAccessEnforcementService {
@@ -62,11 +66,44 @@ export class UserAccessEnforcementService {
   }
 
   /**
-   * Called from Clerk's signed user.updated webhook. This covers bans made
-   * manually in the Clerk Dashboard once the native premium ban is enabled.
+   * Mirrors Clerk's current ban state into Ringee from the signed user.updated
+   * webhook. Clerk emits the same event for both ban and unban operations.
+   *
+   * Only a block created by this synchronization is cleared on unban. A Clerk
+   * profile update must never lift a stronger product-side block such as
+   * payment abuse.
    */
-  async syncClerkBanToRingee(userId: string): Promise<void> {
-    await this.disableRingeeDialer(userId, "clerk_user_banned");
+  async syncClerkAccessToRingee(
+    userId: string,
+    banned: boolean,
+  ): Promise<void> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      this.logger.error(
+        `Cannot synchronize Clerk access: Ringee user ${userId} was not found`,
+      );
+      return;
+    }
+
+    if (banned) {
+      // Preserve a pre-existing Ringee block and its more specific reason.
+      if (!user.blockedAt) {
+        await this.disableRingeeDialer(userId, CLERK_USER_BAN_REASON);
+      }
+      return;
+    }
+
+    if (user.blockedAt && user.blockedReason === CLERK_USER_BAN_REASON) {
+      const unblocked = await this.userService.unblockAccount(
+        userId,
+        CLERK_USER_BAN_REASON,
+      );
+      if (unblocked) {
+        this.logger.log(
+          `User ${userId} unblocked after Clerk access was restored`,
+        );
+      }
+    }
   }
 
   private async disableRingeeDialer(

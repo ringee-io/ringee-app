@@ -8,7 +8,11 @@ import {
 import { Reflector } from "@nestjs/core";
 import { ClerkUserRepository, IS_PUBLIC_KEY } from "@ringee/platform";
 import { getAuth } from "@clerk/express";
-import { OrganizationService, UserService } from "@ringee/services";
+import {
+  CLERK_USER_BAN_REASON,
+  OrganizationService,
+  UserService,
+} from "@ringee/services";
 import { UserRepository } from "@ringee/database";
 
 @Injectable()
@@ -41,7 +45,10 @@ export class ClerkAuthGuard implements CanActivate {
     }
 
     const ringeeUser = await this.findCachedUserByClerkId(userId);
-    if (ringeeUser?.blockedAt) {
+    if (
+      ringeeUser?.blockedAt &&
+      !(await this.restoreMissedClerkUnban(ringeeUser, userId))
+    ) {
       throw new ForbiddenException("Account disabled");
     }
 
@@ -60,6 +67,39 @@ export class ClerkAuthGuard implements CanActivate {
     request.resolveRingeeUser = () => this.resolveRingeeUser(userId);
 
     return isAuthenticated;
+  }
+
+  /**
+   * Repair a missed or already-delivered Clerk unban webhook on the user's
+   * first authenticated request. Fail closed if Clerk cannot be reached, and
+   * never lift a block created by another Ringee enforcement path.
+   */
+  private async restoreMissedClerkUnban(
+    ringeeUser: { id: string; blockedReason: string | null },
+    clerkUserId: string,
+  ): Promise<boolean> {
+    if (ringeeUser.blockedReason !== CLERK_USER_BAN_REASON) {
+      return false;
+    }
+
+    try {
+      const clerkUser = await ClerkUserRepository.findById(clerkUserId);
+      if (clerkUser.banned) {
+        return false;
+      }
+
+      const unblocked = await this.userService.unblockAccount(
+        ringeeUser.id,
+        CLERK_USER_BAN_REASON,
+      );
+      return Boolean(unblocked);
+    } catch (error) {
+      console.warn(
+        `Could not reconcile Clerk access for Ringee user ${ringeeUser.id}`,
+        error,
+      );
+      return false;
+    }
   }
 
   /**

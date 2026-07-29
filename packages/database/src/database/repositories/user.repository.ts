@@ -235,6 +235,35 @@ export class UserRepository {
     });
   }
 
+  /**
+   * Clear an account block only if its reason still matches. Including the
+   * expected reason in the update predicate prevents an identity-provider
+   * unban from racing with and clearing a newer product-side block.
+   */
+  async unblockIfReason(
+    id: string,
+    expectedReason: string,
+  ): Promise<User | null> {
+    try {
+      return await this.prisma.user.update({
+        where: { id, blockedReason: expectedReason },
+        data: {
+          blockedAt: null,
+          blockedReason: null,
+          canCall: true,
+        },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2025"
+      ) {
+        return null;
+      }
+      throw error;
+    }
+  }
+
   async updateFreeCallTrial(id: string, freeCallTrial: boolean): Promise<User> {
     return this.prisma.user.update({
       where: { id },

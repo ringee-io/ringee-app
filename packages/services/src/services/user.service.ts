@@ -2,6 +2,8 @@ import { BadRequestException, Injectable } from "@nestjs/common";
 import { User, UserRepository } from "@ringee/database";
 import { RedisService } from "@ringee/platform";
 
+export const CLERK_USER_BAN_REASON = "clerk_user_banned";
+
 // Mirrors the mobile settings toggles. Missing keys default to "on" so a
 // user who has never opened the screen still receives notifications.
 export interface NotificationPreferences {
@@ -115,12 +117,12 @@ export class UserService {
 
   /** Cached lookup by Clerk id (see {@link getCachedUserById}). */
   async getCachedByClerkId(clerkId: string): Promise<User | null> {
-    const cached = await this.redisService.get<User>(
-      UserService.clerkKey(clerkId),
-    );
-    if (cached) {
-      return cached;
-    }
+    // const cached = await this.redisService.get<User>(
+    //   UserService.clerkKey(clerkId),
+    // );
+    // if (cached) {
+    //   return cached;
+    // }
     const user = await this.userRepository.findByClerkId(clerkId);
     if (user) {
       await this.cacheUser(user);
@@ -236,6 +238,26 @@ export class UserService {
       blockedReason: reason,
       canCall: false,
     });
+    await this.invalidateUserCache(updated);
+    return updated;
+  }
+
+  /**
+   * Restore product access after the identity provider removes its ban.
+   * The repository verifies the reason atomically so a concurrent, stronger
+   * product-side block cannot be cleared by an identity-provider update.
+   */
+  async unblockAccount(
+    userId: string,
+    expectedReason: string,
+  ): Promise<User | null> {
+    const updated = await this.userRepository.unblockIfReason(
+      userId,
+      expectedReason,
+    );
+    if (!updated) {
+      return null;
+    }
     await this.invalidateUserCache(updated);
     return updated;
   }

@@ -97,9 +97,10 @@ export class ClerkController {
           });
           await this.userService.invalidateUserCache(user);
 
-          if (clerkUser.banned) {
-            await this.userAccess.syncClerkBanToRingee(user.id);
-          }
+          await this.userAccess.syncClerkAccessToRingee(
+            user.id,
+            clerkUser.banned,
+          );
 
           const primary = clerkUser.emailAddresses?.find(
             (e) => e.id === clerkUser.primaryEmailAddressId,
