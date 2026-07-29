@@ -933,7 +933,7 @@ export class CallService implements OnModuleDestroy {
           const usedCallerId = await this.numberPurchasedService
             .isVerifiedCallerId(callCtx, call.fromNumber)
             .catch(() => false);
-          const profitMargin = usedCallerId ? baseMargin + 0.3 : baseMargin;
+          const profitMargin = usedCallerId ? baseMargin + 0.01 : baseMargin;
           const computedTotalCost = rawTotalCost * profitMargin;
 
           // Never debit more than the available balance.
