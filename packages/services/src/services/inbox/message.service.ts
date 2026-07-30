@@ -355,7 +355,7 @@ export class MessageService {
                 },
               );
               if (messageRow.direction === MessageDirection.outbound) {
-                await this.chargeMessageCost(messageRow, payload);
+                await this.chargeMessageCost(messageRow, payload, eventId);
               }
             }
           }
@@ -402,6 +402,7 @@ export class MessageService {
   private async chargeMessageCost(
     messageRow: Message,
     payload: TelnyxMessagePayload,
+    eventId: string,
   ): Promise<void> {
     const rawAmount = payload.cost?.amount
       ? parseFloat(payload.cost.amount)
@@ -428,7 +429,10 @@ export class MessageService {
 
     try {
       if (totalCost > 0) {
-        await this.creditService.consumeCredits(ctx, totalCost);
+        await this.creditService.consumeCredits(ctx, totalCost, {
+          idempotencyKey: `message-cost:${messageRow.id}`,
+          source: `telnyx.message.finalized:${eventId}`,
+        });
       }
       await this.messageRepo.updateCost(messageRow.id, totalCost, {
         rawAmount,

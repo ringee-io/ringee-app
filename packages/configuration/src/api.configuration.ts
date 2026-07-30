@@ -135,14 +135,6 @@ const apiConfiguration = {
   ENRICHMENT_DEDUP_TTL_DAYS: Number(
     process.env.ENRICHMENT_DEDUP_TTL_DAYS ?? 30,
   ),
-  ENRICHMENT_COST_PROSPEO: Number(process.env.ENRICHMENT_COST_PROSPEO ?? 5),
-  ENRICHMENT_COST_APOLLO: Number(process.env.ENRICHMENT_COST_APOLLO ?? 3),
-  ENRICHMENT_COST_LEAD_SEARCH: Number(
-    process.env.ENRICHMENT_COST_LEAD_SEARCH ?? 1,
-  ),
-  ENRICHMENT_COST_LEAD_IMPORT: Number(
-    process.env.ENRICHMENT_COST_LEAD_IMPORT ?? 5,
-  ),
   PROSPEO_API_BASE_URL:
     process.env.PROSPEO_API_BASE_URL || "https://api.prospeo.io",
   APOLLO_API_BASE_URL:

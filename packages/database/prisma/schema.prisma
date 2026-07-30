@@ -1416,6 +1416,27 @@ model Credit {
   @@index([organizationId])
 }
 
+/// Idempotency ledger for credit debits caused by retriable work (provider
+/// webhooks, Temporal activities, enrichment jobs, etc.). The unique key and
+/// balance decrement are committed in one database transaction, so a replay
+/// can never reduce the balance twice.
+model CreditDebit {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String?  @db.Uuid
+  organizationId String?  @db.Uuid
+  amount         Float
+  balanceBefore  Float?
+  balanceAfter   Float?
+  idempotencyKey String   @unique
+  source         String?
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([source])
+  @@index([createdAt])
+}
+
 model CreditAutoReload {
   id             String  @id @default(uuid()) @db.Uuid
   userId         String? @unique @db.Uuid

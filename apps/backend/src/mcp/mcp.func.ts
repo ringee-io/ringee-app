@@ -1000,8 +1000,6 @@ export class McpFunc {
         provider: input.provider as EnrichmentProviderType | undefined,
         page: input.page,
         perPage: input.perPage,
-        // Agent-driven prospecting never debits Ringee credits.
-        chargeCredits: false,
       },
     );
 
@@ -1062,9 +1060,7 @@ export class McpFunc {
       ctx,
       input.jobId,
       input.externalId,
-      // Agent-driven prospecting never debits Ringee credits (the enrichment
-      // provider's own credits are still consumed upstream).
-      { revealPhone: input.revealPhone ?? false, chargeCredits: false },
+      { revealPhone: input.revealPhone ?? false },
     );
 
     return text({
@@ -1126,8 +1122,7 @@ export class McpFunc {
     const result = await this.leadSearchService.importLeads(
       ctx,
       candidates as never,
-      // Agent-driven prospecting never debits Ringee credits.
-      { tagIds: input.tagIds, chargeCredits: false },
+      { tagIds: input.tagIds },
     );
 
     return text({

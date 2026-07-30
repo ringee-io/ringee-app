@@ -953,7 +953,10 @@ export class CallService implements OnModuleDestroy {
 
           // Free-call trial intentionally disabled: always charge credits.
           if (totalCost > 0) {
-            await this.creditService.consumeCredits(callCtx, totalCost);
+            await this.creditService.consumeCredits(callCtx, totalCost, {
+              idempotencyKey: `call-cost:${call.id}`,
+              source: "telnyx.call.cost",
+            });
           }
 
           await this.callRepository.updateCost(callControlId, totalCost, {

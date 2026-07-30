@@ -104,19 +104,37 @@ export class CreditService {
     return true;
   }
 
-  async consumeCredits(ctx: OwnershipContext, amount: number): Promise<Credit> {
-    if (amount < 0) {
-      throw new BadRequestException("The amount must be positive.");
+  async consumeCredits(
+    ctx: OwnershipContext,
+    amount: number,
+    ref?: { idempotencyKey: string; source: string },
+  ): Promise<Credit> {
+    if (!Number.isFinite(amount) || amount < 0) {
+      throw new BadRequestException(
+        "The amount must be a finite positive number.",
+      );
+    }
+    if (ref && (!ref.idempotencyKey.trim() || !ref.source.trim())) {
+      throw new BadRequestException(
+        "Debit idempotency key and source must not be empty.",
+      );
     }
 
-    const credit = await this.creditRepository.updateBalance(ctx, -amount);
+    const result = ref
+      ? await this.creditRepository.consumeOnce(ctx, amount, ref)
+      : {
+          credit: await this.creditRepository.updateBalance(ctx, -amount),
+          debited: true,
+        };
 
-    // Check if auto-reload should be triggered
-    this.checkAutoReload(ctx, credit.amount).catch((err) =>
-      console.error("Auto-reload check failed:", err),
-    );
+    // A replay must not re-trigger side effects either.
+    if (result.debited) {
+      this.checkAutoReload(ctx, result.credit.amount).catch((err) =>
+        console.error("Auto-reload check failed:", err),
+      );
+    }
 
-    return credit;
+    return result.credit;
   }
 
   /** Resolve the caller's stored Stripe customer id (never creates one). */

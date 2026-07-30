@@ -22,7 +22,6 @@ import {
   EnrichmentResult,
   OwnershipContext,
 } from "@ringee/platform";
-import { CreditService } from "../credit.service";
 import { EnrichmentConnectionService } from "./enrichment-connection.service";
 import { EnrichmentMergeService } from "./enrichment-merge.service";
 
@@ -30,11 +29,6 @@ const PROVIDER_PRIORITY: EnrichmentProviderType[] = [
   EnrichmentProviderType.apollo,
   EnrichmentProviderType.prospeo,
 ];
-
-const PROVIDER_COST: Record<EnrichmentProviderType, number> = {
-  prospeo: apiConfiguration.ENRICHMENT_COST_PROSPEO,
-  apollo: apiConfiguration.ENRICHMENT_COST_APOLLO,
-};
 
 export type EnrichContactOpts = {
   providerPreference?: EnrichmentProviderType;
@@ -63,7 +57,6 @@ export class EnrichmentService {
     private readonly registry: EnrichmentProviderRegistry,
     private readonly contactRepo: ContactRepository,
     private readonly merge: EnrichmentMergeService,
-    private readonly credits: CreditService,
   ) {}
 
   async getJob(id: string): Promise<EnrichmentJob | null> {
@@ -251,10 +244,6 @@ export class EnrichmentService {
           continue;
         }
 
-        const ctx: OwnershipContext = {
-          userId: job.userId,
-          organizationId: job.organizationId ?? undefined,
-        };
         await this.processOne(connection, job, contact, query, {
           triggeredBy: job.triggeredBy ?? "drain",
         });
@@ -340,24 +329,14 @@ export class EnrichmentService {
     const providerLabel = `${connection.provider}:${connection.externalAccountId}`;
     await this.merge.mergeIntoContact(ctx, contact, result, providerLabel);
 
-    const cost = PROVIDER_COST[connection.provider] ?? 0;
     const done = await this.jobs.markDone(job.id, {
       resultSnapshot: result,
       providerCredits: result.providerCost ?? null,
-      costCredits: cost,
+      // Enrichment may consume the connected provider's allowance, but never
+      // Ringee balance.
+      costCredits: 0,
     });
     await this.connections.touchLastUsed(connection.id);
-
-    // Debit credits post-merge (best-effort, mirrors call.service pattern).
-    if (cost > 0) {
-      try {
-        await this.credits.consumeCredits(ctx, cost);
-      } catch (err) {
-        this.logger.warn(
-          `credit debit failed for enrichment job ${done.id} (${cost} credits): ${(err as Error).message}`,
-        );
-      }
-    }
     return done;
   }
 

@@ -30,8 +30,9 @@ export function EnrichmentTab() {
       <Alert>
         <AlertTitle>How billing works</AlertTitle>
         <AlertDescription>
-          We only debit credits when an enrichment returns results. Lead search
-          and lead import credits are configured in your workspace settings.
+          Ringee never debits your calling credits for enrichment, lead search,
+          import, or reveal. Search and reveal may use credits from your
+          connected Apollo or Prospeo account.
         </AlertDescription>
       </Alert>
 

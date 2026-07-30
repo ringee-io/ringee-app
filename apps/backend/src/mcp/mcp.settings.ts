@@ -42,8 +42,9 @@ Guidelines:
     "yes, delete" before calling. Never auto-confirm.
 11. search_leads / reveal_lead / import_leads_as_contacts use the user's
     connected enrichment provider (Apollo or Prospeo). search_leads returns
-    a jobId; pass it to reveal_lead or import_leads_as_contacts. Reveal and
-    import consume credits — confirm with the user before mass actions.
+    a jobId; pass it to reveal_lead or import_leads_as_contacts. These actions
+    never consume Ringee credits, although search/reveal may consume the
+    connected enrichment provider's own allowance.
 12. Every read and write is scoped to the ACTIVE workspace (personal or one
     organization). Use list_workspaces to see the options and switch_workspace
     to change it — no re-login needed. If the user asks for their personal vs

@@ -151,7 +151,7 @@ export function LeadSearchPanel() {
       setLastCached(!!res.cached);
       setContactIdByExternal({});
       if (res.cached) {
-        toast.success('Loaded from cache — no credits used');
+        toast.success('Loaded from cache — no provider credits used');
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Search failed');
@@ -181,7 +181,7 @@ export function LeadSearchPanel() {
       setLastCached(!!res.cached);
       setContactIdByExternal({});
       if (res.cached) {
-        toast.success('Loaded from cache — no credits used');
+        toast.success('Loaded from cache — no provider credits used');
       } else if (res.result.results.length === 0) {
         toast.message('No profile found for that URL');
       }
@@ -305,7 +305,7 @@ export function LeadSearchPanel() {
                 className='flex cursor-pointer items-center gap-1.5 text-xs'
               >
                 <Database className='h-3.5 w-3.5' />
-                Use cached results (save credits)
+                Use cached results (save provider credits)
               </Label>
             </div>
           </div>

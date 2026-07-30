@@ -358,7 +358,10 @@ export class DeskPhoneCallService {
         .catch(() => undefined);
     } else {
       await this.creditService
-        .consumeCredits(ctx, totalCost)
+        .consumeCredits(ctx, totalCost, {
+          idempotencyKey: `call-cost:${call.id}`,
+          source: "telnyx.desk-phone.call.cost",
+        })
         .catch((err) =>
           this.logger.error(
             `Desk-phone credit settle failed for call ${call.id}: ${err.message}`,

@@ -435,6 +435,10 @@ export class TranscriptionService {
       await this.creditService.consumeCredits(
         this.ctxFromCall(call),
         chargedCredits,
+        {
+          idempotencyKey: `transcription-realtime:${header.id}`,
+          source: "deepgram.realtime-transcription",
+        },
       );
     }
 
@@ -499,6 +503,10 @@ export class TranscriptionService {
             organizationId: header.organizationId,
           },
           chargedCredits,
+          {
+            idempotencyKey: `transcription-recording:${header.id}`,
+            source: "deepgram.recording-transcription",
+          },
         );
       }
 

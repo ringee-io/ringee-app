@@ -81,7 +81,7 @@ export const INTEGRATIONS: IntegrationContent[] = [
     h1: 'Apollo + Ringee: from lead search to live call',
     intro: [
       'Apollo is where many outbound teams find their leads. Ringee connects to Apollo as an enrichment provider so you can search for prospects, reveal their details, and bring them into Ringee as contacts you can call.',
-      'Because reveal and import actions consume credits, Ringee confirms before any mass action — so you stay in control of spend.'
+      'Ringee never charges calling credits for search, reveal, or import. Search and reveal may use credits from your connected Apollo account.'
     ],
     enables: [
       'Search for leads using your Apollo data',
@@ -99,7 +99,7 @@ export const INTEGRATIONS: IntegrationContent[] = [
     benefits: [
       'Go from prospect search to live call in one flow',
       'No manual data entry between tools',
-      'Credit-spend confirmation before bulk reveals',
+      'No Ringee credit charge for search, reveal, or import',
       'Clean contact records ready for campaigns'
     ],
     related: ['prospeo', 'attio', 'chatgpt'],
@@ -107,7 +107,7 @@ export const INTEGRATIONS: IntegrationContent[] = [
       {
         question: 'Does importing leads cost credits?',
         answer:
-          'Revealing and importing leads consumes enrichment credits. Ringee asks you to confirm before any mass reveal or import.'
+          'Ringee does not charge credits for importing, searching, or revealing leads. Search and reveal may use credits from your connected Apollo account.'
       },
       {
         question: 'Are imported leads the same as contacts?',
@@ -128,7 +128,7 @@ export const INTEGRATIONS: IntegrationContent[] = [
     h1: 'Prospeo + Ringee: enriched leads, ready to call',
     intro: [
       'Prospeo helps you find and verify contact details. Connect it as your Ringee enrichment provider to search for leads, reveal their details, and import them as contacts you can immediately add to a campaign.',
-      'Reveal and import consume credits, so Ringee confirms before any bulk action to keep your spend predictable.'
+      'Ringee never charges calling credits for search, reveal, or import. Search and reveal may use credits from your connected Prospeo account.'
     ],
     enables: [
       'Search leads through your Prospeo connection',
@@ -146,7 +146,7 @@ export const INTEGRATIONS: IntegrationContent[] = [
     benefits: [
       'Verified lead details flow straight into calling',
       'One connected provider, no copy-paste',
-      'Spend confirmation before bulk reveals',
+      'No Ringee credit charge for search, reveal, or import',
       'Contacts ready for campaigns instantly'
     ],
     related: ['apollo', 'odoo', 'claude'],

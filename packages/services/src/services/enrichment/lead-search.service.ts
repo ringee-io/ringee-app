@@ -6,7 +6,6 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { createHash } from "crypto";
-import { apiConfiguration } from "@ringee/configuration";
 import {
   Contact,
   ContactRepository,
@@ -26,7 +25,6 @@ import {
   LeadSearchResult,
   OwnershipContext,
 } from "@ringee/platform";
-import { CreditService } from "../credit.service";
 import { EnrichmentConnectionService } from "./enrichment-connection.service";
 import { EnrichmentMergeService } from "./enrichment-merge.service";
 
@@ -35,12 +33,6 @@ export type SearchLeadsOpts = {
   page?: number;
   perPage?: number;
   useCache?: boolean;
-  /**
-   * Debit Ringee credits for this operation (default true). MCP tool calls
-   * pass false — agent-driven prospecting must never spend Ringee credits
-   * (the provider's own credits are still consumed upstream).
-   */
-  chargeCredits?: boolean;
 };
 
 export type SearchLeadsResponse = {
@@ -59,8 +51,6 @@ export type ImportLeadsResult = {
 
 export type RevealLeadOpts = {
   revealPhone?: boolean;
-  /** Debit Ringee credits (default true). See {@link SearchLeadsOpts}. */
-  chargeCredits?: boolean;
 };
 
 export type RevealLeadResult = {
@@ -73,8 +63,6 @@ export type RevealLeadResult = {
 export type RevealContactOpts = {
   revealPhone?: boolean;
   revealEmail?: boolean;
-  /** Debit Ringee credits (default true). See {@link SearchLeadsOpts}. */
-  chargeCredits?: boolean;
 };
 
 export type RevealContactResult = {
@@ -95,7 +83,6 @@ export class LeadSearchService {
     private readonly contactRepo: ContactRepository,
     private readonly merge: EnrichmentMergeService,
     private readonly socialLinkRepo: SocialLinkRepository,
-    private readonly credits: CreditService,
   ) {}
 
   async searchLeads(
@@ -171,26 +158,12 @@ export class LeadSearchService {
       throw err;
     }
 
-    const cost =
-      opts.chargeCredits === false
-        ? 0
-        : apiConfiguration.ENRICHMENT_COST_LEAD_SEARCH;
     const updated = await this.leadJobs.markDone(job.id, {
       totalResults: result.total,
       resultSnapshot: result as unknown,
-      costCredits: cost,
+      costCredits: 0,
     });
     await this.connections.touchLastUsed(connection.id);
-
-    if (cost > 0) {
-      try {
-        await this.credits.consumeCredits(ctx, cost);
-      } catch (err) {
-        this.logger.warn(
-          `credit debit failed for lead search ${updated.id}: ${(err as Error).message}`,
-        );
-      }
-    }
 
     return { job: updated, result, cached: false };
   }
@@ -198,7 +171,8 @@ export class LeadSearchService {
   /**
    * Look up a single lead by LinkedIn profile URL. Wraps the response as a
    * single-result LeadSearchJob so reveal/import flows can be reused.
-   * Debits the same cost as a lead search when a result is returned.
+   * This may consume the connected provider's allowance, but never Ringee
+   * credits.
    */
   async searchByLinkedInUrl(
     ctx: OwnershipContext,
@@ -298,28 +272,12 @@ export class LeadSearchService {
       results: candidate ? [candidate] : [],
     };
 
-    const cost =
-      opts.chargeCredits === false
-        ? 0
-        : apiConfiguration.ENRICHMENT_COST_LEAD_SEARCH;
     const updated = await this.leadJobs.markDone(job.id, {
       totalResults: result.total,
       resultSnapshot: result as unknown,
-      costCredits: candidate ? cost : 0,
+      costCredits: 0,
     });
     await this.connections.touchLastUsed(connection.id);
-
-    if (cost > 0 && candidate) {
-      try {
-        await this.credits.consumeCredits(ctx, cost);
-      } catch (err) {
-        this.logger.warn(
-          `credit debit failed for linkedin search ${updated.id}: ${
-            (err as Error).message
-          }`,
-        );
-      }
-    }
 
     return { job: updated, result, cached: false };
   }
@@ -368,23 +326,18 @@ export class LeadSearchService {
 
   /**
    * Import a set of LeadCandidates from a previous search result as Contacts.
-   * Performs phone-based dedup; debits credits per imported lead.
+   * Performs phone-based dedup. Importing never consumes Ringee credits.
    */
   async importLeads(
     ctx: OwnershipContext,
     candidates: LeadCandidate[],
-    opts: { tagIds?: string[]; chargeCredits?: boolean } = {},
+    opts: { tagIds?: string[] } = {},
   ): Promise<ImportLeadsResult> {
     const out: ImportLeadsResult = {
       importedContactIds: [],
       duplicates: 0,
       errors: 0,
     };
-    const importCost =
-      opts.chargeCredits === false
-        ? 0
-        : apiConfiguration.ENRICHMENT_COST_LEAD_IMPORT;
-
     for (const cand of candidates) {
       try {
         const phone =
@@ -436,15 +389,6 @@ export class LeadSearchService {
           lastEnrichedAt: new Date(),
         });
 
-        // Append additional emails/phones/social links
-        if (cand.person.emails && cand.person.emails.length > 1) {
-          for (const e of cand.person.emails.slice(1)) {
-            await this.contactRepo
-              .update(created.id, {})
-              .catch(() => undefined);
-            // (using merge service helpers via direct repo upsert below)
-          }
-        }
         // Use merge service to apply complete data (also handles company)
         await this.merge.mergeIntoContact(
           ctx,
@@ -479,19 +423,6 @@ export class LeadSearchService {
       } catch (err) {
         out.errors += 1;
         this.logger.warn(`lead import failed: ${(err as Error).message}`);
-      }
-    }
-
-    if (importCost > 0 && out.importedContactIds.length > 0) {
-      try {
-        await this.credits.consumeCredits(
-          ctx,
-          importCost * out.importedContactIds.length,
-        );
-      } catch (err) {
-        this.logger.warn(
-          `lead import credit debit failed: ${(err as Error).message}`,
-        );
       }
     }
 
@@ -619,22 +550,6 @@ export class LeadSearchService {
       );
     }
 
-    // Debit one credit per reveal — mobile reveals are 10 upstream, but we
-    // expose a single `lead-import` cost knob in our config.
-    const cost =
-      opts.chargeCredits === false
-        ? 0
-        : apiConfiguration.ENRICHMENT_COST_LEAD_IMPORT;
-    if (cost > 0) {
-      try {
-        await this.credits.consumeCredits(ctx, cost);
-      } catch (err) {
-        this.logger.warn(
-          `credit debit failed for lead reveal ${jobId}/${externalId}: ${(err as Error).message}`,
-        );
-      }
-    }
-
     return {
       candidate: merged,
       contactId: contact?.id ?? null,
@@ -759,22 +674,6 @@ export class LeadSearchService {
       result,
       `${connection.provider}:contact-reveal`,
     );
-
-    const cost =
-      opts.chargeCredits === false
-        ? 0
-        : apiConfiguration.ENRICHMENT_COST_LEAD_IMPORT;
-    if (cost > 0) {
-      try {
-        await this.credits.consumeCredits(ctx, cost);
-      } catch (err) {
-        this.logger.warn(
-          `credit debit failed for contact reveal ${contact.id}: ${
-            (err as Error).message
-          }`,
-        );
-      }
-    }
 
     return {
       contactId: contact.id,
