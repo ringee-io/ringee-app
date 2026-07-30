@@ -945,14 +945,11 @@ export class CallService implements OnModuleDestroy {
           });
           const { computedTotalCost } = chargeBreakdown;
 
-          // Never debit more than the available balance.
           const balanceBefore = await this.creditService
             .getBalance(callCtx)
             .catch(() => 0);
-          const totalCost = Math.max(
-            Math.min(computedTotalCost, balanceBefore),
-            0,
-          );
+
+          const totalCost = computedTotalCost;
 
           // Free-call trial intentionally disabled: always charge credits.
           if (totalCost > 0) {
