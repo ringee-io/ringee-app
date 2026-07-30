@@ -64,15 +64,16 @@ export class TelnyxRatePerMinuteRepository {
   }
 
   private applyRateAdjustments(rate: number, multiplier: number): number {
-    if (!Number.isFinite(rate)) return 0.02;
-    if (rate === 0) return 0.02;
+    if (!Number.isFinite(rate)) return 0.012;
+    if (rate === 0) return 0.012;
+    if (!rate) return 0.012;
 
     return rate * multiplier;
   }
 
   private calcStats(rates: number[]) {
     if (!rates.length) {
-      return { min: 0, max: 0, avg: 0 };
+      return { min: 0.012, max: 0.012, avg: 0.012 };
     }
 
     const multiplier = this.getMultiplier();
