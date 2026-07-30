@@ -8,6 +8,12 @@ interface Contact {
   id: string;
   name: string;
   phone: string;
+  company: string | null;
+  jobTitle: string | null;
+  state: string | null;
+  website: string | null;
+  revenue: string | null;
+  companySize: string | null;
 }
 
 type FetchStatus = 'idle' | 'loading' | 'success' | 'error';
@@ -65,7 +71,13 @@ export const useContactsStore = create<ContactsState>()(
         const contacts = (data ?? []).map((c: any) => ({
           id: c.id,
           name: c.name,
-          phone: c.phoneNumber
+          phone: c.phoneNumber,
+          company: c.company ?? null,
+          jobTitle: c.jobTitle ?? null,
+          state: c.locationRegion ?? null,
+          website: c.websiteUrl ?? null,
+          revenue: c.revenue ?? null,
+          companySize: c.companySize ?? null
         }));
 
         const total = meta.total;
@@ -99,7 +111,13 @@ export const useContactsStore = create<ContactsState>()(
         const contacts = (data ?? []).map((c: any) => ({
           id: c.id,
           name: c.name,
-          phone: c.phoneNumber
+          phone: c.phoneNumber,
+          company: c.company ?? null,
+          jobTitle: c.jobTitle ?? null,
+          state: c.locationRegion ?? null,
+          website: c.websiteUrl ?? null,
+          revenue: c.revenue ?? null,
+          companySize: c.companySize ?? null
         }));
 
         set((state) => ({

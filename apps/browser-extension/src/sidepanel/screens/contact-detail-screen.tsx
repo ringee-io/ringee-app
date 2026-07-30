@@ -10,15 +10,23 @@ import {
   PhoneOutgoing,
   Pencil,
   StickyNote,
+  BriefcaseBusiness,
+  Building2,
+  MapPin,
+  Globe2,
+  BadgeDollarSign,
+  UsersRound,
 } from "lucide-react";
 import { formatForDisplay } from "@ringee/dialer-core/phone";
 import type { ContactDetail } from "../../lib/ringee-api";
+import { formatDuration, formatTime, outcomeLabel } from "../../lib/format";
 import {
-  formatDuration,
-  formatTime,
-  outcomeLabel,
-} from "../../lib/format";
-import { Avatar, Field, ScreenHeader, Section, Spinner } from "../components/ui";
+  Avatar,
+  Field,
+  ScreenHeader,
+  Section,
+  Spinner,
+} from "../components/ui";
 import { NoteSheet } from "../components/note-sheet";
 import { ScheduleCallbackForm } from "../schedule-callback.form";
 import { BookMeetingForm } from "../book-meeting.form";
@@ -118,6 +126,12 @@ export function ContactDetailScreen({ id }: { id: string }) {
           <div className="bg-card space-y-2.5 rounded-xl p-3 shadow-sm">
             <Field icon={Phone}>{formatForDisplay(c.phoneNumber)}</Field>
             {c.email && <Field icon={Mail}>{c.email}</Field>}
+            {c.company && <Field icon={Building2}>{c.company}</Field>}
+            {c.jobTitle && <Field icon={BriefcaseBusiness}>{c.jobTitle}</Field>}
+            {c.state && <Field icon={MapPin}>{c.state}</Field>}
+            {c.website && <Field icon={Globe2}>{c.website}</Field>}
+            {c.revenue && <Field icon={BadgeDollarSign}>{c.revenue}</Field>}
+            {c.companySize && <Field icon={UsersRound}>{c.companySize}</Field>}
             <Field icon={Clock}>
               {c.lastContactedAt
                 ? `Last contacted ${formatTime(c.lastContactedAt)}`

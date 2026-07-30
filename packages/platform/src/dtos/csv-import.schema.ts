@@ -19,6 +19,10 @@ export const CSV_FIELDS = {
   company: { required: false, maxLength: undefined },
   jobTitle: { required: false, maxLength: undefined },
   location: { required: false, maxLength: undefined },
+  state: { required: false, maxLength: 100 },
+  website: { required: false, maxLength: 255 },
+  revenue: { required: false, maxLength: 100 },
+  companySize: { required: false, maxLength: 100 },
 } as const;
 
 export type CsvFieldName = keyof typeof CSV_FIELDS;
@@ -43,6 +47,10 @@ export interface CsvContactRow {
   company?: string;
   jobTitle?: string;
   location?: string;
+  state?: string;
+  website?: string;
+  revenue?: string;
+  companySize?: string;
 }
 
 export interface CsvRowError {
@@ -141,6 +149,10 @@ export function validateCsvRow(
       company: row.company?.trim() || undefined,
       jobTitle: row.jobTitle?.trim() || undefined,
       location: row.location?.trim() || undefined,
+      state: row.state?.trim() || undefined,
+      website: row.website?.trim() || undefined,
+      revenue: row.revenue?.trim() || undefined,
+      companySize: row.companySize?.trim() || undefined,
     },
     errors: [],
   };

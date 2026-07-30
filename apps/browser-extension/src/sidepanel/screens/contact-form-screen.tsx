@@ -36,6 +36,10 @@ export function ContactFormScreen({
   const [lastName, setLastName] = useState("");
   const [company, setCompany] = useState("");
   const [jobTitle, setJobTitle] = useState("");
+  const [state, setState] = useState("");
+  const [website, setWebsite] = useState("");
+  const [revenue, setRevenue] = useState("");
+  const [companySize, setCompanySize] = useState("");
   const [email, setEmail] = useState("");
   const [phone, setPhone] = useState<Value | undefined>(
     (initialPhone as Value) || undefined,
@@ -53,6 +57,10 @@ export function ContactFormScreen({
         setLastName(c.lastName ?? "");
         setCompany(c.company ?? "");
         setJobTitle(c.jobTitle ?? "");
+        setState(c.state ?? "");
+        setWebsite(c.website ?? "");
+        setRevenue(c.revenue ?? "");
+        setCompanySize(c.companySize ?? "");
         setEmail(c.email ?? "");
         setPhone((c.phoneNumber as Value) || undefined);
       })
@@ -82,6 +90,10 @@ export function ContactFormScreen({
       name: name || undefined,
       organization: company.trim() || undefined,
       jobTitle: jobTitle.trim() || undefined,
+      state: state.trim() || undefined,
+      website: website.trim() || undefined,
+      revenue: revenue.trim() || undefined,
+      companySize: companySize.trim() || undefined,
       email: email.trim() || undefined,
       note: !editing && note.trim() ? note.trim() : undefined,
     };
@@ -153,6 +165,41 @@ export function ContactFormScreen({
             <Input
               value={jobTitle}
               onChange={(e) => setJobTitle(e.target.value)}
+              className="h-9 text-sm"
+            />
+          </FormRow>
+
+          <div className="grid grid-cols-2 gap-2.5">
+            <FormRow label="State / Region">
+              <Input
+                value={state}
+                onChange={(e) => setState(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </FormRow>
+            <FormRow label="Company size">
+              <Input
+                value={companySize}
+                onChange={(e) => setCompanySize(e.target.value)}
+                className="h-9 text-sm"
+              />
+            </FormRow>
+          </div>
+
+          <FormRow label="Website">
+            <Input
+              value={website}
+              onChange={(e) => setWebsite(e.target.value)}
+              placeholder="https://acme.com"
+              className="h-9 text-sm"
+            />
+          </FormRow>
+
+          <FormRow label="Revenue">
+            <Input
+              value={revenue}
+              onChange={(e) => setRevenue(e.target.value)}
+              placeholder="$10M-$50M"
               className="h-9 text-sm"
             />
           </FormRow>

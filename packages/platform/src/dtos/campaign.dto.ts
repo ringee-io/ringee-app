@@ -122,6 +122,31 @@ export class ManualLeadDto {
   company?: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  jobTitle?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  website?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  revenue?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  companySize?: string;
+
+  @IsOptional()
   @IsObject()
   metadata?: Record<string, unknown>;
 }

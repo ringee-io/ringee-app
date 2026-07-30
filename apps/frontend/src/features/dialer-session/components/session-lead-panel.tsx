@@ -9,7 +9,12 @@ import {
   Phone,
   PhoneOff,
   SkipForward,
-  Users
+  Users,
+  BriefcaseBusiness,
+  MapPin,
+  Globe2,
+  BadgeDollarSign,
+  Building
 } from 'lucide-react';
 import type { SessionItemDto } from '../api';
 import type { CallSessionPhase } from '../use-call-session';
@@ -106,6 +111,31 @@ export function SessionLeadPanel({
                 <span>{activeItem.company}</span>
               </div>
             )}
+            {activeItem.jobTitle && (
+              <SessionProperty
+                icon={BriefcaseBusiness}
+                value={activeItem.jobTitle}
+              />
+            )}
+            {activeItem.state && (
+              <SessionProperty icon={MapPin} value={activeItem.state} />
+            )}
+            {activeItem.website && (
+              <SessionProperty
+                icon={Globe2}
+                value={activeItem.website}
+                href={activeItem.website}
+              />
+            )}
+            {activeItem.revenue && (
+              <SessionProperty
+                icon={BadgeDollarSign}
+                value={activeItem.revenue}
+              />
+            )}
+            {activeItem.companySize && (
+              <SessionProperty icon={Building} value={activeItem.companySize} />
+            )}
             <div className='text-muted-foreground flex items-center gap-2'>
               <Hash className='h-4 w-4' />
               <span>Position #{activeItem.positionIndex + 1}</span>
@@ -185,6 +215,34 @@ export function SessionLeadPanel({
           })}
         </ul>
       </div>
+    </div>
+  );
+}
+
+function SessionProperty({
+  icon: Icon,
+  value,
+  href
+}: {
+  icon: typeof Phone;
+  value: string;
+  href?: string;
+}) {
+  return (
+    <div className='text-muted-foreground flex items-center gap-2'>
+      <Icon className='h-4 w-4 shrink-0' />
+      {href ? (
+        <a
+          href={href}
+          target='_blank'
+          rel='noreferrer'
+          className='truncate underline-offset-2 hover:underline'
+        >
+          {value}
+        </a>
+      ) : (
+        <span>{value}</span>
+      )}
     </div>
   );
 }

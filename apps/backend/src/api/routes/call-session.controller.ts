@@ -44,6 +44,11 @@ interface ContactRow {
   phoneNumber?: string | null;
   name?: string | null;
   company?: string | null;
+  jobTitle?: string | null;
+  state?: string | null;
+  website?: string | null;
+  revenue?: string | null;
+  companySize?: string | null;
 }
 
 interface CreateBody {
@@ -173,6 +178,11 @@ export class CallSessionController {
         phoneNumber: i.phoneNumber,
         displayName: i.displayName,
         company: i.company,
+        jobTitle: i.jobTitle,
+        state: i.state,
+        website: i.website,
+        revenue: i.revenue,
+        companySize: i.companySize,
         status: i.status,
         positionIndex: i.positionIndex,
         outcome: i.outcome,
@@ -277,6 +287,11 @@ export class CallSessionController {
           id: i.id,
           displayName: i.displayName ?? "Unknown contact",
           company: i.company,
+          jobTitle: i.jobTitle,
+          state: i.state,
+          website: i.website,
+          revenue: i.revenue,
+          companySize: i.companySize,
           phoneNumberMasked: maskPhone(i.phoneNumber),
           phoneNumber: i.phoneNumber, // needed for WebRTC dial
           status: i.status,

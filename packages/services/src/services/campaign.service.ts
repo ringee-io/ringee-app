@@ -235,6 +235,11 @@ export class CampaignService {
           phoneNumber: lead.phone,
           email: lead.email,
           company: lead.company,
+          jobTitle: lead.jobTitle,
+          locationRegion: lead.state,
+          websiteUrl: lead.website,
+          revenue: lead.revenue,
+          companySize: lead.companySize,
         });
         contactsCreated++;
       }
@@ -380,6 +385,11 @@ export class CampaignService {
       );
       const existingPhonesSet = new Set(existingPhones);
 
+      await this.contactRepo.updateImportedSalesProperties(
+        ctx,
+        batch.filter((contact) => existingPhonesSet.has(contact.phoneNumber)),
+      );
+
       // Create new contacts
       const newContacts = batch.filter(
         (c) => !existingPhonesSet.has(c.phoneNumber),
@@ -388,7 +398,9 @@ export class CampaignService {
       if (newContacts.length > 0) {
         const count = await this.contactRepo.createMany(ctx, newContacts);
         contactsCreated += count;
-        insertedPhones.push(...newContacts.map((contact) => contact.phoneNumber));
+        insertedPhones.push(
+          ...newContacts.map((contact) => contact.phoneNumber),
+        );
       }
 
       // Get all contact IDs for this batch
@@ -433,10 +445,7 @@ export class CampaignService {
         insertedPhones,
       );
       if (newContactIds.length > 0) {
-        await this.tagRepo.assignTagsToContacts(
-          newContactIds,
-          validatedTagIds,
-        );
+        await this.tagRepo.assignTagsToContacts(newContactIds, validatedTagIds);
       }
     }
 

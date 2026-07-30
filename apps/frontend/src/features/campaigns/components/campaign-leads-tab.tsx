@@ -283,11 +283,25 @@ export function CampaignLeadsTab({
                   {leads.map((lead) => (
                     <TableRow key={lead.id}>
                       <TableCell className='font-medium'>
-                        {lead.contact.name || '—'}
+                        <div>{lead.contact.name || '—'}</div>
+                        <div className='text-muted-foreground text-xs'>
+                          {[lead.contact.jobTitle, lead.contact.locationRegion]
+                            .filter(Boolean)
+                            .join(' · ') || '—'}
+                        </div>
                       </TableCell>
                       <TableCell>{lead.contact.phoneNumber}</TableCell>
                       <TableCell className='hidden md:table-cell'>
-                        {lead.contact.company || '—'}
+                        <div>{lead.contact.company || '—'}</div>
+                        <div className='text-muted-foreground text-xs'>
+                          {[
+                            lead.contact.companySize,
+                            lead.contact.revenue,
+                            lead.contact.websiteUrl
+                          ]
+                            .filter(Boolean)
+                            .join(' · ') || '—'}
+                        </div>
                       </TableCell>
                       <TableCell>
                         <Badge

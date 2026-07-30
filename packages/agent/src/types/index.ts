@@ -46,6 +46,10 @@ export interface ContactSummary {
   email: string | null;
   company: string | null;
   jobTitle: string | null;
+  state?: string | null;
+  website?: string | null;
+  revenue?: string | null;
+  companySize?: string | null;
   lastCallAt?: string | null;
 }
 

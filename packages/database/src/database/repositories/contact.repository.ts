@@ -106,6 +106,12 @@ export class ContactRepository {
               { name: { contains: search, mode: "insensitive" } },
               { phoneNumber: { contains: search, mode: "insensitive" } },
               { email: { contains: search, mode: "insensitive" } },
+              { company: { contains: search, mode: "insensitive" } },
+              { jobTitle: { contains: search, mode: "insensitive" } },
+              { locationRegion: { contains: search, mode: "insensitive" } },
+              { websiteUrl: { contains: search, mode: "insensitive" } },
+              { revenue: { contains: search, mode: "insensitive" } },
+              { companySize: { contains: search, mode: "insensitive" } },
             ],
           }
         : {}),
@@ -392,6 +398,10 @@ export class ContactRepository {
       company?: string;
       jobTitle?: string;
       location?: string;
+      state?: string;
+      website?: string;
+      revenue?: string;
+      companySize?: string;
     }>,
   ): Promise<number> {
     const result = await this.prisma.contact.createMany({
@@ -402,12 +412,58 @@ export class ContactRepository {
         company: contact.company,
         jobTitle: contact.jobTitle,
         locationCity: contact.location,
+        locationRegion: contact.state,
+        websiteUrl: contact.website,
+        revenue: contact.revenue,
+        companySize: contact.companySize,
         userId: ctx.userId,
         organizationId: ctx.organizationId ?? null,
       })),
       skipDuplicates: true,
     });
     return result.count;
+  }
+
+  /**
+   * Apply sales-profile columns from an import to contacts that already exist.
+   * Empty CSV cells are omitted so an import never erases stored enrichment.
+   */
+  async updateImportedSalesProperties(
+    ctx: OwnershipContext,
+    contacts: Array<{
+      phoneNumber: string;
+      jobTitle?: string;
+      state?: string;
+      website?: string;
+      revenue?: string;
+      companySize?: string;
+    }>,
+  ): Promise<void> {
+    const ownershipFilter = buildOwnershipFilter(ctx);
+    const operations: Prisma.PrismaPromise<Prisma.BatchPayload>[] = [];
+    for (const contact of contacts) {
+      const data: Prisma.ContactUpdateManyMutationInput = {};
+      if (contact.jobTitle) data.jobTitle = contact.jobTitle;
+      if (contact.state) data.locationRegion = contact.state;
+      if (contact.website) data.websiteUrl = contact.website;
+      if (contact.revenue) data.revenue = contact.revenue;
+      if (contact.companySize) data.companySize = contact.companySize;
+      if (Object.keys(data).length === 0) continue;
+      operations.push(
+        this.prisma.contact.updateMany({
+          where: {
+            ...ownershipFilter,
+            phoneNumber: contact.phoneNumber,
+            deletedAt: null,
+          },
+          data,
+        }),
+      );
+    }
+
+    if (operations.length > 0) {
+      await this.prisma.$transaction(operations);
+    }
   }
 
   async deleteNote(noteId: string) {

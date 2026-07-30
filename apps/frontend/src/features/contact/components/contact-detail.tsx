@@ -51,7 +51,9 @@ import {
   Wrench,
   GraduationCap,
   BadgeCheck,
-  Sparkles
+  Sparkles,
+  BadgeDollarSign,
+  UsersRound
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useQuickDialerCall } from '@/features/calls/hooks/use.quick.dialer.call';
@@ -119,6 +121,8 @@ export interface ContactDetailData {
   email?: string | null;
   company?: string | null;
   jobTitle?: string | null;
+  revenue?: string | null;
+  companySize?: string | null;
   source?: string | null;
   lastCallAt?: string | null;
   createdAt: string;
@@ -359,6 +363,16 @@ export default function ContactDetail({
                 icon={Briefcase}
                 label={t('jobTitle')}
                 value={contact.jobTitle}
+              />
+              <InfoRow
+                icon={BadgeDollarSign}
+                label={t('revenue')}
+                value={contact.revenue}
+              />
+              <InfoRow
+                icon={UsersRound}
+                label={t('companySize')}
+                value={contact.companySize}
               />
               <InfoRow
                 icon={Globe}

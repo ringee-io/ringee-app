@@ -51,6 +51,10 @@ export class ContactService {
       email: dto.email,
       company: dto.organization,
       jobTitle: dto.jobTitle,
+      locationRegion: dto.state,
+      websiteUrl: dto.website,
+      revenue: dto.revenue,
+      companySize: dto.companySize,
       source: dto.source,
       notes: dto.note
         ? {
@@ -134,6 +138,10 @@ export class ContactService {
       email: dto.email,
       company: dto.organization,
       jobTitle: dto.jobTitle,
+      locationRegion: dto.state,
+      websiteUrl: dto.website,
+      revenue: dto.revenue,
+      companySize: dto.companySize,
       source: dto.source,
     });
   }
@@ -286,6 +294,11 @@ export class ContactService {
       );
       const existingSet = new Set(existingPhones);
 
+      await this.repo.updateImportedSalesProperties(
+        ctx,
+        batch.filter((contact) => existingSet.has(contact.phoneNumber)),
+      );
+
       // Filter out existing
       const newContacts = batch.filter((c) => !existingSet.has(c.phoneNumber));
       duplicatesSkipped += batch.length - newContacts.length;
@@ -305,10 +318,7 @@ export class ContactService {
         insertedPhones,
       );
       if (newContactIds.length > 0) {
-        await this.tagRepo.assignTagsToContacts(
-          newContactIds,
-          validatedTagIds,
-        );
+        await this.tagRepo.assignTagsToContacts(newContactIds, validatedTagIds);
       }
     }
 

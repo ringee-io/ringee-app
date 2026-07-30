@@ -54,6 +54,11 @@ export interface CreateCallSessionInput {
     phoneNumber?: string | null;
     name?: string | null;
     company?: string | null;
+    jobTitle?: string | null;
+    state?: string | null;
+    website?: string | null;
+    revenue?: string | null;
+    companySize?: string | null;
   }>;
   expiresInMinutes?: number | null;
   maxCalls?: number | null;
@@ -79,6 +84,11 @@ export interface ResolvedContact {
   phoneNumber: string;
   displayName: string | null;
   company: string | null;
+  jobTitle: string | null;
+  state: string | null;
+  website: string | null;
+  revenue: string | null;
+  companySize: string | null;
 }
 
 @Injectable()
@@ -176,6 +186,11 @@ export class CallSessionService {
       const contactId = row.contactId ?? null;
       let displayName = row.name ?? null;
       let company = row.company ?? null;
+      let jobTitle = row.jobTitle ?? null;
+      let state = row.state ?? null;
+      let website = row.website ?? null;
+      let revenue = row.revenue ?? null;
+      let companySize = row.companySize ?? null;
       let phoneNumber: string | null = row.phoneNumber ?? null;
 
       if (contactId) {
@@ -201,6 +216,11 @@ export class CallSessionService {
         if (!phoneNumber) phoneNumber = contact.phoneNumber;
         if (!displayName) displayName = contact.name ?? null;
         if (!company) company = contact.company ?? null;
+        if (!jobTitle) jobTitle = contact.jobTitle ?? null;
+        if (!state) state = contact.locationRegion ?? null;
+        if (!website) website = contact.websiteUrl ?? null;
+        if (!revenue) revenue = contact.revenue ?? null;
+        if (!companySize) companySize = contact.companySize ?? null;
       }
 
       if (!phoneNumber) {
@@ -221,6 +241,11 @@ export class CallSessionService {
         phoneNumber: normalized,
         displayName,
         company,
+        jobTitle,
+        state,
+        website,
+        revenue,
+        companySize,
       });
     }
     return resolved;
@@ -287,6 +312,11 @@ export class CallSessionService {
         phoneNumber: item.phoneNumber,
         displayName: item.displayName,
         company: item.company,
+        jobTitle: item.jobTitle,
+        state: item.state,
+        website: item.website,
+        revenue: item.revenue,
+        companySize: item.companySize,
         positionIndex: idx,
         status: CallSessionItemStatus.pending,
       })),
@@ -383,6 +413,11 @@ export class CallSessionService {
           phoneNumber: item.phoneNumber,
           displayName: item.displayName,
           company: item.company,
+          jobTitle: item.jobTitle,
+          state: item.state,
+          website: item.website,
+          revenue: item.revenue,
+          companySize: item.companySize,
           positionIndex: idx,
           status: CallSessionItemStatus.pending,
         })),

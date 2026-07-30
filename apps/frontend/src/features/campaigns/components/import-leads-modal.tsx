@@ -53,6 +53,18 @@ const OPTIONAL_FIELDS: {
   { name: 'email', description: 'Contact email', example: 'john@acme.com' },
   { name: 'company', description: 'Company name', example: 'Acme Inc' },
   { name: 'jobTitle', description: 'Job title', example: 'Sales Manager' },
+  { name: 'state', description: 'State or region', example: 'New York' },
+  {
+    name: 'website',
+    description: 'Company website',
+    example: 'https://acme.com'
+  },
+  { name: 'revenue', description: 'Company revenue', example: '$10M-$50M' },
+  {
+    name: 'companySize',
+    description: 'Company size',
+    example: '51-200'
+  },
   { name: 'location', description: 'Location', example: 'New York' }
 ];
 

@@ -1107,6 +1107,8 @@ model Contact {
   email          String?   @db.VarChar(100)
   company        String?
   jobTitle       String?
+  revenue        String?
+  companySize    String?
   source         String?
   ownerId        String?   @db.Uuid
   lastCallAt     DateTime?
@@ -3035,6 +3037,11 @@ model CallSessionItem {
   phoneNumber String  @db.VarChar(20)
   displayName String?
   company     String?
+  jobTitle    String?
+  state       String?
+  website     String? @db.VarChar(255)
+  revenue     String?
+  companySize String?
 
   positionIndex Int
   status        CallSessionItemStatus @default(pending)

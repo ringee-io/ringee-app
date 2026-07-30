@@ -131,6 +131,14 @@ export const CreateContactSchema = {
   lastName: z.string().max(50).optional().describe("Family name."),
   email: z.string().email().max(100).optional().describe("Primary email."),
   jobTitle: z.string().max(100).optional().describe("Role at the company."),
+  state: z.string().max(100).optional().describe("State or region."),
+  website: z.string().max(255).optional().describe("Company website."),
+  revenue: z.string().max(100).optional().describe("Company revenue or range."),
+  companySize: z
+    .string()
+    .max(100)
+    .optional()
+    .describe("Company size or range."),
   organization: z
     .string()
     .max(100)
@@ -172,6 +180,10 @@ export const UpdateContactSchema = {
   lastName: z.string().max(50).optional(),
   email: z.string().email().max(100).optional(),
   jobTitle: z.string().max(100).optional(),
+  state: z.string().max(100).optional(),
+  website: z.string().max(255).optional(),
+  revenue: z.string().max(100).optional(),
+  companySize: z.string().max(100).optional(),
   organization: z
     .string()
     .max(100)
@@ -546,6 +558,11 @@ const CallSessionContactSchema = z.object({
     .max(200)
     .optional()
     .describe("Company shown in the dialer UI."),
+  jobTitle: z.string().max(100).optional(),
+  state: z.string().max(100).optional(),
+  website: z.string().max(255).optional(),
+  revenue: z.string().max(100).optional(),
+  companySize: z.string().max(100).optional(),
 });
 
 export const CreateCallSessionSchema = {

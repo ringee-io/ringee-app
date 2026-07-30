@@ -124,6 +124,10 @@ export class McpFunc {
       email: contact.email,
       company: contact.company,
       jobTitle: contact.jobTitle,
+      state: contact.locationRegion,
+      website: contact.websiteUrl,
+      revenue: contact.revenue,
+      companySize: contact.companySize,
     };
   }
 
@@ -293,7 +297,7 @@ export class McpFunc {
   @McpTool({
     toolName: "search_contacts",
     description:
-      "Search the user's (or organization's) Ringee contact directory by name, phone, email, or company. " +
+      "Search the user's (or organization's) Ringee contact directory by name, phone, email, company, job title, state, website, revenue, or company size. " +
       'Pass query "*" to list ALL contacts (paginated). ' +
       "Returns a paginated list of matching contacts with their id, name, phone, email and lastCallAt. " +
       "Use this to resolve a contactId before calling start_call, create_callback, or schedule_meeting.",
@@ -335,6 +339,10 @@ export class McpFunc {
         email: c.email,
         company: c.company,
         jobTitle: c.jobTitle,
+        state: c.locationRegion,
+        website: c.websiteUrl,
+        revenue: c.revenue,
+        companySize: c.companySize,
         lastCallAt: c.lastCallAt,
       })),
     });
@@ -411,6 +419,10 @@ export class McpFunc {
           name: c.name,
           company: c.company,
           jobTitle: c.jobTitle,
+          state: c.locationRegion,
+          website: c.websiteUrl,
+          revenue: c.revenue,
+          companySize: c.companySize,
           seniority: c.seniority,
           department: c.department,
           locationCountryCode: c.locationCountryCode,
@@ -834,6 +846,10 @@ export class McpFunc {
       phoneNumber: input.phoneNumber,
       email: input.email,
       jobTitle: input.jobTitle,
+      state: input.state,
+      website: input.website,
+      revenue: input.revenue,
+      companySize: input.companySize,
       organization: input.organization,
       source: input.source ?? "mcp",
       note: input.note,
@@ -873,6 +889,10 @@ export class McpFunc {
       phoneNumber: input.phoneNumber as string,
       email: input.email,
       jobTitle: input.jobTitle,
+      state: input.state,
+      website: input.website,
+      revenue: input.revenue,
+      companySize: input.companySize,
       organization: input.organization,
       source: input.source,
       tagIds: input.tagIds,

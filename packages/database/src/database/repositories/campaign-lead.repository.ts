@@ -9,6 +9,11 @@ export interface CampaignLeadWithContact extends CampaignLead {
     phoneNumber: string;
     email: string | null;
     company: string | null;
+    jobTitle: string | null;
+    locationRegion: string | null;
+    websiteUrl: string | null;
+    revenue: string | null;
+    companySize: string | null;
   };
 }
 
@@ -60,6 +65,11 @@ export class CampaignLeadRepository {
             phoneNumber: true,
             email: true,
             company: true,
+            jobTitle: true,
+            locationRegion: true,
+            websiteUrl: true,
+            revenue: true,
+            companySize: true,
           },
         },
       },
@@ -112,6 +122,11 @@ export class CampaignLeadRepository {
             phoneNumber: true,
             email: true,
             company: true,
+            jobTitle: true,
+            locationRegion: true,
+            websiteUrl: true,
+            revenue: true,
+            companySize: true,
           },
         },
       },
@@ -257,6 +272,11 @@ export class CampaignLeadRepository {
             phoneNumber: true,
             email: true,
             company: true,
+            jobTitle: true,
+            locationRegion: true,
+            websiteUrl: true,
+            revenue: true,
+            companySize: true,
           },
         },
       },

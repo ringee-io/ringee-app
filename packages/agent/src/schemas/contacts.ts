@@ -7,7 +7,7 @@ export const SearchContactsSchema = z.object({
     .min(1)
     .max(200)
     .describe(
-      'Free-text search across name, phone, email and company. Pass "*" to list ALL contacts (paginated).',
+      'Free-text search across name, phone, email, company, job title, state, website, revenue and company size. Pass "*" to list ALL contacts (paginated).',
     ),
   page: z.number().int().min(1).optional(),
   limit: z.number().int().min(1).max(50).optional(),
@@ -53,6 +53,10 @@ export const CreateContactSchema = z.object({
   lastName: z.string().max(50).optional(),
   email: z.string().email().max(100).optional(),
   jobTitle: z.string().max(100).optional(),
+  state: z.string().max(100).optional(),
+  website: z.string().max(255).optional(),
+  revenue: z.string().max(100).optional(),
+  companySize: z.string().max(100).optional(),
   organization: z.string().max(100).optional().describe("Company name."),
   source: z.string().max(50).optional(),
   note: z.string().max(2000).optional(),
@@ -67,6 +71,10 @@ export const UpdateContactSchema = z.object({
   lastName: z.string().max(50).optional(),
   email: z.string().email().max(100).optional(),
   jobTitle: z.string().max(100).optional(),
+  state: z.string().max(100).optional(),
+  website: z.string().max(255).optional(),
+  revenue: z.string().max(100).optional(),
+  companySize: z.string().max(100).optional(),
   organization: z.string().max(100).optional(),
   source: z.string().max(50).optional(),
   tagIds: z

@@ -12,10 +12,21 @@ import { Loader2, Phone, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { setOutboundRingbackVolume } from '@ringee/dialer-core/engine';
+import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 
 type DialerState = 'ready' | 'connecting' | 'active' | 'ended' | 'error';
 
+interface ContactSalesProfile {
+  company?: string | null;
+  jobTitle?: string | null;
+  locationRegion?: string | null;
+  websiteUrl?: string | null;
+  revenue?: string | null;
+  companySize?: string | null;
+}
+
 export function AttioDialer() {
+  const api = useApi();
   const searchParams = useSearchParams();
   const toNumber = searchParams.get('to');
   const fromNumber = searchParams.get('from');
@@ -25,9 +36,21 @@ export function AttioDialer() {
   const { userId, orgId } = useAuth();
   const [dialerState, setDialerState] = useState<DialerState>('ready');
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [contactProfile, setContactProfile] =
+    useState<ContactSalesProfile | null>(null);
   const dialedRef = useRef(false);
 
   const isTelnyxReady = telnyxStatus === 'registered';
+
+  useEffect(() => {
+    if (!toNumber) return;
+    api
+      .post<ContactSalesProfile>('/contacts/find-or-create', {
+        phoneNumber: toNumber
+      })
+      .then(setContactProfile)
+      .catch(() => setContactProfile(null));
+  }, [api, toNumber]);
 
   const handleDial = useCallback(async () => {
     if (!client || !toNumber || !fromNumber || !userId) {
@@ -114,6 +137,32 @@ export function AttioDialer() {
               {toNumber}
             </p>
           )}
+          {contactProfile &&
+            [contactProfile.jobTitle, contactProfile.company].some(Boolean) && (
+              <p className='text-muted-foreground max-w-full truncate text-xs'>
+                {[contactProfile.jobTitle, contactProfile.company]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            )}
+          {contactProfile &&
+            [
+              contactProfile.locationRegion,
+              contactProfile.websiteUrl,
+              contactProfile.revenue,
+              contactProfile.companySize
+            ].some(Boolean) && (
+              <p className='text-muted-foreground max-w-full truncate text-xs'>
+                {[
+                  contactProfile.locationRegion,
+                  contactProfile.websiteUrl,
+                  contactProfile.revenue,
+                  contactProfile.companySize
+                ]
+                  .filter(Boolean)
+                  .join(' · ')}
+              </p>
+            )}
           <Badge
             variant='outline'
             className='mt-1 border-violet-500/30 bg-violet-500/10 text-[10px] text-violet-500'

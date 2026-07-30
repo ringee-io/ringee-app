@@ -15,6 +15,11 @@ export const CallSessionContactSchema = z.object({
     .describe("E.164 phone. Required when contactId is absent."),
   name: z.string().max(200).optional(),
   company: z.string().max(200).optional(),
+  jobTitle: z.string().max(100).optional(),
+  state: z.string().max(100).optional(),
+  website: z.string().max(255).optional(),
+  revenue: z.string().max(100).optional(),
+  companySize: z.string().max(100).optional(),
 });
 
 export const CreateCallSessionSchema = z.object({

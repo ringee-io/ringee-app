@@ -65,6 +65,11 @@ export interface CampaignLead {
     phoneNumber: string;
     email: string | null;
     company: string | null;
+    jobTitle: string | null;
+    locationRegion: string | null;
+    websiteUrl: string | null;
+    revenue: string | null;
+    companySize: string | null;
   };
 }
 

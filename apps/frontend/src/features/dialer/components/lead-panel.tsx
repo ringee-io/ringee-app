@@ -4,7 +4,18 @@ import { useDialerLeadStore } from '../store/dialer-lead.store';
 import { useDialerAttemptStore } from '../store/dialer-attempt.store';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
-import { User, Phone, Mail, Building2, Clock, Users } from 'lucide-react';
+import {
+  Phone,
+  Mail,
+  Building2,
+  Clock,
+  Users,
+  BriefcaseBusiness,
+  MapPin,
+  Globe2,
+  BadgeDollarSign,
+  Building
+} from 'lucide-react';
 
 export function LeadPanel() {
   const currentLead = useDialerLeadStore((s) => s.currentLead);
@@ -61,6 +72,28 @@ export function LeadPanel() {
               <span>{contact.company}</span>
             </div>
           )}
+          {contact.jobTitle && (
+            <ContactProperty
+              icon={BriefcaseBusiness}
+              value={contact.jobTitle}
+            />
+          )}
+          {contact.locationRegion && (
+            <ContactProperty icon={MapPin} value={contact.locationRegion} />
+          )}
+          {contact.websiteUrl && (
+            <ContactProperty
+              icon={Globe2}
+              value={contact.websiteUrl}
+              href={contact.websiteUrl}
+            />
+          )}
+          {contact.revenue && (
+            <ContactProperty icon={BadgeDollarSign} value={contact.revenue} />
+          )}
+          {contact.companySize && (
+            <ContactProperty icon={Building} value={contact.companySize} />
+          )}
           <div className='text-muted-foreground flex items-center gap-2'>
             <Clock className='h-4 w-4' />
             <span>Attempt #{attempts + 1}</span>
@@ -102,6 +135,34 @@ export function LeadPanel() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function ContactProperty({
+  icon: Icon,
+  value,
+  href
+}: {
+  icon: typeof Phone;
+  value: string;
+  href?: string;
+}) {
+  return (
+    <div className='text-muted-foreground flex items-center gap-2'>
+      <Icon className='h-4 w-4 shrink-0' />
+      {href ? (
+        <a
+          href={href}
+          target='_blank'
+          rel='noreferrer'
+          className='truncate underline-offset-2 hover:underline'
+        >
+          {value}
+        </a>
+      ) : (
+        <span>{value}</span>
+      )}
     </div>
   );
 }

@@ -83,6 +83,18 @@ export function ContactSelector({ number, onSelectNumber }: Props) {
           <p className='text-muted-foreground text-sm'>
             {selectedContact.phone}
           </p>
+          <p className='text-muted-foreground mt-1 line-clamp-2 text-xs'>
+            {[
+              selectedContact.jobTitle,
+              selectedContact.company,
+              selectedContact.state,
+              selectedContact.website,
+              selectedContact.revenue,
+              selectedContact.companySize
+            ]
+              .filter(Boolean)
+              .join(' · ')}
+          </p>
         </div>
       )}
 
@@ -113,8 +125,15 @@ export function ContactSelector({ number, onSelectNumber }: Props) {
                     selectedContact?.id === c.id && 'bg-accent/60'
                   )}
                 >
-                  <span className='font-medium'>{c.name}</span>
-                  <span className='text-muted-foreground text-sm'>
+                  <span className='min-w-0'>
+                    <span className='block truncate font-medium'>{c.name}</span>
+                    <span className='text-muted-foreground block truncate text-xs'>
+                      {[c.jobTitle, c.company, c.state]
+                        .filter(Boolean)
+                        .join(' · ')}
+                    </span>
+                  </span>
+                  <span className='text-muted-foreground ml-3 shrink-0 text-sm'>
                     {c.phone}
                   </span>
                 </button>

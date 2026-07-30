@@ -91,6 +91,10 @@ export interface ContactSummary {
   phoneNumber: string;
   email?: string | null;
   jobTitle?: string | null;
+  state?: string | null;
+  website?: string | null;
+  revenue?: string | null;
+  companySize?: string | null;
   lastContactedAt?: string | null;
 }
 
@@ -161,6 +165,10 @@ export interface ContactInput {
   phoneNumber: string;
   email?: string;
   jobTitle?: string;
+  state?: string;
+  website?: string;
+  revenue?: string;
+  companySize?: string;
   organization?: string;
   note?: string;
 }

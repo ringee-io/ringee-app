@@ -35,6 +35,11 @@ export interface SessionItemDto {
   id: string;
   displayName: string;
   company: string | null;
+  jobTitle: string | null;
+  state: string | null;
+  website: string | null;
+  revenue: string | null;
+  companySize: string | null;
   phoneNumberMasked: string;
   /** Full E.164 phone number, sent to Telnyx WebRTC for dialing. */
   phoneNumber: string;

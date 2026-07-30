@@ -70,7 +70,7 @@ export class EnrichmentMergeService {
         result.confidence >= CONFIDENCE_THRESHOLD);
 
     const scalarUpdates = confident
-      ? this.computeContactScalarUpdates(contact, result.person)
+      ? this.computeContactScalarUpdates(contact, result.person, result.company)
       : {};
 
     // Preserve existing fields like provider/externalId set at import time —
@@ -158,6 +158,7 @@ export class EnrichmentMergeService {
   private computeContactScalarUpdates(
     contact: Contact,
     p: EnrichedPerson,
+    company?: EnrichmentResult["company"],
   ): Prisma.ContactUpdateInput {
     const updates: Prisma.ContactUpdateInput = {};
     const fillIfEmpty = <K extends keyof Contact>(
@@ -185,6 +186,12 @@ export class EnrichmentMergeService {
     fillIfEmpty("githubUrl", p.githubUrl);
     fillIfEmpty("facebookUrl", p.facebookUrl);
     fillIfEmpty("websiteUrl", p.websiteUrl);
+    fillIfEmpty("companySize", company?.employeeCountRange ?? company?.size);
+    fillIfEmpty(
+      "revenue",
+      company?.revenueRange ??
+        (company?.annualRevenue != null ? String(company.annualRevenue) : null),
+    );
 
     if (p.location) {
       fillIfEmpty("locationCity", p.location.city);

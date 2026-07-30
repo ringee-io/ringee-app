@@ -71,6 +71,10 @@ const formSchema = z.object({
     .optional()
     .or(z.literal('')),
   jobTitle: z.string().optional(),
+  state: z.string().optional(),
+  website: z.string().optional(),
+  revenue: z.string().optional(),
+  companySize: z.string().optional(),
   source: z.string().optional(),
   note: z.string().optional(),
   tagIds: z.array(z.string()).optional()
@@ -88,6 +92,10 @@ export interface ContactFormData {
   email: string;
   phoneNumber: string;
   jobTitle?: string | null;
+  locationRegion?: string | null;
+  websiteUrl?: string | null;
+  revenue?: string | null;
+  companySize?: string | null;
   source?: string | null;
   lastCallAt: string | null;
   notes: { id: string; content: string; createdAt: string }[];
@@ -130,6 +138,10 @@ export default function ContactForm({
       email: initialData?.email || '',
       phoneNumber: initialData?.phoneNumber || '',
       jobTitle: initialData?.jobTitle || '',
+      state: initialData?.locationRegion || '',
+      website: initialData?.websiteUrl || '',
+      revenue: initialData?.revenue || '',
+      companySize: initialData?.companySize || '',
       source: initialData?.source || '',
       note: undefined,
       tagIds: initialData?.tags?.map((t) => t.tag.id) || []
@@ -312,6 +324,36 @@ export default function ContactForm({
                   name='jobTitle'
                   label={t('jobTitle')}
                   placeholder={t('jobTitlePlaceholder') || 'Sales Manager'}
+                />
+              </div>
+
+              <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+                <FormInput
+                  control={form.control}
+                  name='state'
+                  label={t('state')}
+                  placeholder={t('statePlaceholder')}
+                />
+                <FormInput
+                  control={form.control}
+                  name='website'
+                  label={t('website')}
+                  placeholder='https://acme.com'
+                />
+              </div>
+
+              <div className='grid grid-cols-1 gap-4 sm:grid-cols-2'>
+                <FormInput
+                  control={form.control}
+                  name='revenue'
+                  label={t('revenue')}
+                  placeholder='$10M–$50M'
+                />
+                <FormInput
+                  control={form.control}
+                  name='companySize'
+                  label={t('companySize')}
+                  placeholder='51–200'
                 />
               </div>
 

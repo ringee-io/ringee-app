@@ -26,6 +26,10 @@ interface ContactRow {
   phoneNumber: string;
   company?: string | null;
   jobTitle?: string | null;
+  locationRegion?: string | null;
+  websiteUrl?: string | null;
+  revenue?: string | null;
+  companySize?: string | null;
   source?: string | null;
   lastCallAt?: string | null;
   tags?: ContactTag[];
@@ -82,6 +86,21 @@ export const columns: ColumnDef<ContactRow>[] = [
     accessorFn: (row: ContactRow) => row.company,
     header: ({ column }: { column: Column<ContactRow, unknown> }) => (
       <DataTableColumnHeader column={column} title='Company' />
+    ),
+    cell: ({ row }) => (
+      <div>
+        <div>{row.original.company || '--'}</div>
+        <div className='text-muted-foreground max-w-64 truncate text-xs'>
+          {[
+            row.original.locationRegion,
+            row.original.companySize,
+            row.original.revenue,
+            row.original.websiteUrl
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        </div>
+      </div>
     ),
     meta: { className: 'hidden md:table-cell' }
   },

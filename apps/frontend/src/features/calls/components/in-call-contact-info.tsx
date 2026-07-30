@@ -21,6 +21,10 @@ type ContactPayload = {
   organization?: string | null;
   company?: string | null;
   jobTitle?: string | null;
+  locationRegion?: string | null;
+  websiteUrl?: string | null;
+  revenue?: string | null;
+  companySize?: string | null;
 };
 
 type FormState = {
@@ -31,6 +35,10 @@ type FormState = {
   phoneNumber: string;
   organization: string;
   jobTitle: string;
+  state: string;
+  website: string;
+  revenue: string;
+  companySize: string;
 };
 
 const emptyForm: FormState = {
@@ -40,7 +48,11 @@ const emptyForm: FormState = {
   email: '',
   phoneNumber: '',
   organization: '',
-  jobTitle: ''
+  jobTitle: '',
+  state: '',
+  website: '',
+  revenue: '',
+  companySize: ''
 };
 
 function toForm(c: ContactPayload | null): FormState {
@@ -52,7 +64,11 @@ function toForm(c: ContactPayload | null): FormState {
     email: c.email ?? '',
     phoneNumber: c.phoneNumber ?? '',
     organization: c.organization ?? c.company ?? '',
-    jobTitle: c.jobTitle ?? ''
+    jobTitle: c.jobTitle ?? '',
+    state: c.locationRegion ?? '',
+    website: c.websiteUrl ?? '',
+    revenue: c.revenue ?? '',
+    companySize: c.companySize ?? ''
   };
 }
 
@@ -236,6 +252,36 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
             label='Puesto'
             value={form.jobTitle}
             onChange={setField('jobTitle')}
+            disabled={!editing}
+          />
+        </div>
+
+        <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+          <Field
+            label='Estado / Provincia'
+            value={form.state}
+            onChange={setField('state')}
+            disabled={!editing}
+          />
+          <Field
+            label='Sitio web'
+            value={form.website}
+            onChange={setField('website')}
+            disabled={!editing}
+          />
+        </div>
+
+        <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
+          <Field
+            label='Ingresos'
+            value={form.revenue}
+            onChange={setField('revenue')}
+            disabled={!editing}
+          />
+          <Field
+            label='Tamaño de empresa'
+            value={form.companySize}
+            onChange={setField('companySize')}
             disabled={!editing}
           />
         </div>

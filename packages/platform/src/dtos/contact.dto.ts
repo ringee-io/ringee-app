@@ -38,6 +38,26 @@ export class CreateContactDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(100)
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  website?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  revenue?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  companySize?: string;
+
+  @IsOptional()
+  @IsString()
   @MaxLength(50)
   source?: string;
 

@@ -417,6 +417,17 @@ export class LeadSearchService {
           locationCity: cand.person.location?.city ?? null,
           locationRegion: cand.person.location?.region ?? null,
           locationCountry: cand.person.location?.country ?? null,
+          websiteUrl: fitColumn(
+            cand.person.websiteUrl ?? cand.company?.website,
+            URL_MAX,
+          ),
+          revenue:
+            cand.company?.revenueRange ??
+            (cand.company?.annualRevenue != null
+              ? String(cand.company.annualRevenue)
+              : null),
+          companySize:
+            cand.company?.employeeCountRange ?? cand.company?.size ?? null,
           enrichmentMetadata: {
             provider: cand.provider,
             externalId: cand.externalId,
@@ -815,6 +826,17 @@ export class LeadSearchService {
       locationCity: cand.person.location?.city ?? null,
       locationRegion: cand.person.location?.region ?? null,
       locationCountry: cand.person.location?.country ?? null,
+      websiteUrl: fitColumn(
+        cand.person.websiteUrl ?? cand.company?.website,
+        URL_MAX,
+      ),
+      revenue:
+        cand.company?.revenueRange ??
+        (cand.company?.annualRevenue != null
+          ? String(cand.company.annualRevenue)
+          : null),
+      companySize:
+        cand.company?.employeeCountRange ?? cand.company?.size ?? null,
       source: `lead-search:${cand.provider}`,
       enrichmentMetadata: {
         provider: cand.provider,
