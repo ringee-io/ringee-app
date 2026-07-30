@@ -40,6 +40,7 @@ import {
   pickCallTerminalEvent,
 } from "./custom-integrations/custom-integration-event-builders";
 import { PipelineFanoutService } from "./ai-pipeline";
+import { calculateCallCharge, readProfitMultiplier } from "./call-cost.util";
 
 /** Connected calls shorter than this (seconds) count as "very short" for
  * caller-ID reputation scoring (spec: <5s). */
@@ -691,9 +692,8 @@ export class CallService implements OnModuleDestroy {
         }
 
         if (answeredCall) {
-          const canContinue = await this.enforceAnsweredCreditPolicy(
-            answeredCall,
-          );
+          const canContinue =
+            await this.enforceAnsweredCreditPolicy(answeredCall);
           if (!canContinue) {
             break;
           }
@@ -917,10 +917,13 @@ export class CallService implements OnModuleDestroy {
             return;
           }
 
-          const rawTotalCost = parseFloat(costPayload.total_cost ?? "0");
-          const baseMargin = process.env.CALL_PROFIT_MARGIN
-            ? parseFloat(process.env.CALL_PROFIT_MARGIN)
-            : 0;
+          const baseMargin = readProfitMultiplier(
+            process.env.CALL_PROFIT_MARGIN,
+          );
+          const recordingMargin = readProfitMultiplier(
+            process.env.CALL_RECORDING_PROFIT_MARGIN,
+            baseMargin,
+          );
 
           // Build context from call's ownership
           const callCtx: OwnershipContext = {
@@ -934,7 +937,13 @@ export class CallService implements OnModuleDestroy {
             .isVerifiedCallerId(callCtx, call.fromNumber)
             .catch(() => false);
           const profitMargin = usedCallerId ? baseMargin + 0 : baseMargin;
-          const computedTotalCost = rawTotalCost * profitMargin;
+          const chargeBreakdown = calculateCallCharge({
+            costParts: costPayload.cost_parts,
+            totalCost: costPayload.total_cost,
+            callProfitMultiplier: profitMargin,
+            recordingProfitMultiplier: recordingMargin,
+          });
+          const { computedTotalCost } = chargeBreakdown;
 
           // Never debit more than the available balance.
           const balanceBefore = await this.creditService
@@ -950,16 +959,17 @@ export class CallService implements OnModuleDestroy {
             await this.creditService.consumeCredits(callCtx, totalCost);
           }
 
-          await this.callRepository.updateCost(
-            callControlId,
-            totalCost,
-            {
-              ...payload,
-              ringeeComputedTotalCost: computedTotalCost,
-              ringeeBalanceBefore: balanceBefore,
-              ringeeChargeCapped: totalCost < computedTotalCost,
+          await this.callRepository.updateCost(callControlId, totalCost, {
+            ...payload,
+            ringeeCostBreakdown: {
+              ...chargeBreakdown,
+              callProfitMultiplier: profitMargin,
+              recordingProfitMultiplier: recordingMargin,
             },
-          );
+            ringeeComputedTotalCost: computedTotalCost,
+            ringeeBalanceBefore: balanceBefore,
+            ringeeChargeCapped: totalCost < computedTotalCost,
+          });
           break;
         } catch (error) {
           console.error("Error processing call cost:", error);

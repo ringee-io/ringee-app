@@ -16,6 +16,7 @@ import { ContactService } from "../contact.service";
 import { NumberPurchasedService } from "../number.purchased.service";
 import { ComplianceService } from "../outbound/compliance.service";
 import { SipDeviceService } from "./sip-device.service";
+import { calculateCallCharge, readProfitMultiplier } from "../call-cost.util";
 
 type BlockReason =
   | "DEVICE_NOT_FOUND"
@@ -334,15 +335,22 @@ export class DeskPhoneCallService {
       .getCachedUserById(call.userId!)
       .catch(() => null);
 
-    const rawTotalCost = parseFloat(payload.total_cost ?? "0");
-    const baseMargin = process.env.CALL_PROFIT_MARGIN
-      ? parseFloat(process.env.CALL_PROFIT_MARGIN)
-      : 0;
+    const baseMargin = readProfitMultiplier(process.env.CALL_PROFIT_MARGIN);
+    const recordingMargin = readProfitMultiplier(
+      process.env.CALL_RECORDING_PROFIT_MARGIN,
+      baseMargin,
+    );
     const usedCallerId = await this.numberPurchasedService
       .isVerifiedCallerId(ctx, call.fromNumber)
       .catch(() => false);
     const profitMargin = usedCallerId ? baseMargin + 0.3 : baseMargin;
-    const totalCost = rawTotalCost * profitMargin;
+    const chargeBreakdown = calculateCallCharge({
+      costParts: payload.cost_parts,
+      totalCost: payload.total_cost,
+      callProfitMultiplier: profitMargin,
+      recordingProfitMultiplier: recordingMargin,
+    });
+    const totalCost = chargeBreakdown.computedTotalCost;
 
     if (user?.freeCallTrial) {
       await this.userService
@@ -358,7 +366,15 @@ export class DeskPhoneCallService {
         );
     }
     await this.callRepository
-      .updateCost(callControlId, totalCost, payload)
+      .updateCost(callControlId, totalCost, {
+        ...payload,
+        ringeeCostBreakdown: {
+          ...chargeBreakdown,
+          callProfitMultiplier: profitMargin,
+          recordingProfitMultiplier: recordingMargin,
+        },
+        ringeeComputedTotalCost: totalCost,
+      })
       .catch(() => undefined);
   }
 

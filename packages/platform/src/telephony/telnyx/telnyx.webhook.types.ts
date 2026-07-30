@@ -81,22 +81,13 @@ export interface CallTranscriptionPayload extends TelnyxBasePayload {
 export interface CallCostPayload extends TelnyxBasePayload {
   billed_duration_secs: number;
   billing_group_id: string | null;
-  cost_parts: [
-    {
-      billed_duration_secs: number;
-      call_part: "sip-trunking";
-      cost: string;
-      currency: "USD";
-      rate: string;
-    },
-    {
-      billed_duration_secs: number;
-      call_part: "call-control";
-      cost: string;
-      currency: "USD";
-      rate: string;
-    },
-  ];
+  cost_parts: Array<{
+    billed_duration_secs: number;
+    call_part: string;
+    cost: string;
+    currency: "USD";
+    rate: string;
+  }>;
   status: "success";
   total_cost: string;
 }
