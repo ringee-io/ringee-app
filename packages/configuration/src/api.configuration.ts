@@ -93,11 +93,11 @@ const apiConfiguration = {
   ),
   STRIPE_ABUSE_MAX_REQUESTS_PER_USER: positiveInteger(
     "STRIPE_ABUSE_MAX_REQUESTS_PER_USER",
-    4,
+    20,
   ),
   STRIPE_ABUSE_MAX_REQUESTS_PER_IP: positiveInteger(
     "STRIPE_ABUSE_MAX_REQUESTS_PER_IP",
-    12,
+    24,
   ),
   STRIPE_ABUSE_FAILURE_WINDOW_SECONDS: positiveInteger(
     "STRIPE_ABUSE_FAILURE_WINDOW_SECONDS",
