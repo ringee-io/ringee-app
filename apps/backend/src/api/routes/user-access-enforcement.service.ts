@@ -1,11 +1,14 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { UserRepository } from "@ringee/database";
-import { ClerkUserRepository } from "@ringee/platform";
+import { ClerkUserRepository, RedisService } from "@ringee/platform";
 import {
   AgentSessionService,
   CLERK_USER_BAN_REASON,
   UserService,
 } from "@ringee/services";
+
+const STRIPE_PAYMENT_ABUSE_REASON = "stripe_payment_abuse";
+const STRIPE_ABUSE_KEY_PREFIX = "stripe-abuse:v1";
 
 @Injectable()
 export class UserAccessEnforcementService {
@@ -15,6 +18,7 @@ export class UserAccessEnforcementService {
     private readonly userRepository: UserRepository,
     private readonly userService: UserService,
     private readonly agentSessionService: AgentSessionService,
+    private readonly redis: RedisService,
   ) {}
 
   /**
@@ -42,7 +46,7 @@ export class UserAccessEnforcementService {
       : Promise.reject(new Error("User has no Clerk id"));
     const localDisable = this.disableRingeeDialer(
       user.id,
-      "stripe_payment_abuse",
+      STRIPE_PAYMENT_ABUSE_REASON,
     );
 
     const [clerkResult, localResult] = await Promise.allSettled([
@@ -69,9 +73,8 @@ export class UserAccessEnforcementService {
    * Mirrors Clerk's current ban state into Ringee from the signed user.updated
    * webhook. Clerk emits the same event for both ban and unban operations.
    *
-   * Only a block created by this synchronization is cleared on unban. A Clerk
-   * profile update must never lift a stronger product-side block such as
-   * payment abuse.
+   * An explicit Clerk unban is the administrator's source of truth: restore
+   * Ringee access, outbound calling, and the user's Stripe fraud state.
    */
   async syncClerkAccessToRingee(
     userId: string,
@@ -93,17 +96,33 @@ export class UserAccessEnforcementService {
       return;
     }
 
-    if (user.blockedAt && user.blockedReason === CLERK_USER_BAN_REASON) {
-      const unblocked = await this.userService.unblockAccount(
-        userId,
-        CLERK_USER_BAN_REASON,
-      );
-      if (unblocked) {
-        this.logger.log(
-          `User ${userId} unblocked after Clerk access was restored`,
-        );
-      }
+    // `user.updated` also fires for normal profile/email changes. Only treat a
+    // non-banned event as an administrative unban when Ringee still carries a
+    // block that is known to have banned the Clerk identity.
+    const isRestorableClerkBan =
+      user.blockedAt &&
+      (user.blockedReason === CLERK_USER_BAN_REASON ||
+        user.blockedReason === STRIPE_PAYMENT_ABUSE_REASON);
+    if (!isRestorableClerkBan) {
+      return;
     }
+
+    // Reset only this user's Stripe counters/block. Shared IP counters are not
+    // user-owned and must not be erased by an account-level Clerk unban.
+    await this.redis.delMany([
+      `${STRIPE_ABUSE_KEY_PREFIX}:requests:user:${userId}`,
+      `${STRIPE_ABUSE_KEY_PREFIX}:failures:user:${userId}`,
+      `${STRIPE_ABUSE_KEY_PREFIX}:blocked:user:${userId}`,
+    ]);
+    const restored = await this.userRepository.update(userId, {
+      blockedAt: null,
+      blockedReason: null,
+      canCall: true,
+    });
+    await this.userService.invalidateUserCache(restored);
+    this.logger.log(
+      `User ${userId} fully restored after Clerk unban (previousReason=${user.blockedReason ?? "none"}, canCall=true)`,
+    );
   }
 
   private async disableRingeeDialer(
