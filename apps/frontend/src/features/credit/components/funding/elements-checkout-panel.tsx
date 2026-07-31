@@ -132,8 +132,21 @@ export function ElementsCheckoutPanel({
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [billingEmail, setBillingEmail] = useState<string | null>(null);
   const intentIdRef = useRef<string | null>(null);
+  const createIntentRef = useRef(createIntent);
+  const creationErrorFallbackRef = useRef(t('checkout.errorBody'));
+  const startedSessionRef = useRef<{ key: string | number | undefined } | null>(
+    null
+  );
   const [busy, setBusy] = useState(false);
   const missingKey = !STRIPE_PUBLISHABLE_KEY;
+
+  // Callback identities from Clerk/API/i18n can change during a render. Keep
+  // the latest values in refs so those identity changes never mint a second
+  // PaymentIntent or wipe card fields that the customer is already entering.
+  useEffect(() => {
+    createIntentRef.current = createIntent;
+    creationErrorFallbackRef.current = t('checkout.errorBody');
+  }, [createIntent, t]);
 
   // Mirror the charge-in-flight state to the popover shell so it can block
   // dismissal, and always release the lock when this panel unmounts.
@@ -150,7 +163,7 @@ export function ElementsCheckoutPanel({
         clientSecret: secret,
         intentId,
         billingEmail: email
-      } = await createIntent();
+      } = await createIntentRef.current();
       if (!secret) throw new Error('Missing client secret');
       intentIdRef.current = intentId;
       setBillingEmail(email);
@@ -158,18 +171,24 @@ export function ElementsCheckoutPanel({
       setPhase('ready');
     } catch (err) {
       console.error('Failed to create Stripe intent:', err);
-      setCreationError(paymentErrorMessage(err, t('checkout.errorBody')));
+      setCreationError(
+        paymentErrorMessage(err, creationErrorFallbackRef.current)
+      );
       setPhase('error');
     }
-  }, [createIntent, t]);
+  }, []);
 
-  // Create on mount and whenever the session key changes (consent toggle, etc.).
+  // Create on mount and whenever the caller deliberately changes the session.
   useEffect(() => {
     if (missingKey) {
       setPhase('error');
       return;
     }
-    create();
+    // React Strict Mode and parent callback changes must not create duplicate
+    // incomplete intents for the same checkout amount/session.
+    if (startedSessionRef.current?.key === sessionKey) return;
+    startedSessionRef.current = { key: sessionKey };
+    void create();
   }, [create, missingKey, sessionKey]);
 
   const handleSuccess = useCallback(() => {

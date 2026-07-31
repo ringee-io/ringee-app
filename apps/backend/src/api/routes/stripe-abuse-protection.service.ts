@@ -34,11 +34,49 @@ export class StripeAbuseProtectionService {
     userId: string,
   ): Promise<string> {
     const ipHash = this.fingerprintRequestIp(request);
-    const [userBlockTtl, ipBlockTtl, userBlockReason] = await Promise.all([
+    const [
+      storedUserBlockTtl,
+      storedIpBlockTtl,
+      userBlockReason,
+      ipBlockReason,
+    ] = await Promise.all([
       this.blockTtl("user", userId),
       this.blockTtl("ip", ipHash),
       this.blockReason("user", userId),
+      this.blockReason("ip", ipHash),
     ]);
+
+    // Older releases stored request-velocity blocks for as long as 24 hours.
+    // Those blocks are not evidence of card abuse and can strand legitimate
+    // customers even after the configured request limit is raised. Remove them
+    // lazily on the next checkout request; the expiring counters below remain
+    // the source of truth for request velocity.
+    const clearUserVelocityBlock =
+      storedUserBlockTtl > 0 && userBlockReason === "request_velocity";
+    const clearIpVelocityBlock =
+      storedIpBlockTtl > 0 && ipBlockReason === "request_velocity";
+    if (clearUserVelocityBlock || clearIpVelocityBlock) {
+      const legacyKeys: string[] = [];
+      if (clearUserVelocityBlock) {
+        legacyKeys.push(
+          this.blockKey("user", userId),
+          `${KEY_PREFIX}:requests:user:${userId}`,
+        );
+      }
+      if (clearIpVelocityBlock) {
+        legacyKeys.push(
+          this.blockKey("ip", ipHash),
+          `${KEY_PREFIX}:requests:ip:${ipHash}`,
+        );
+      }
+      await this.redis.delMany(legacyKeys);
+      this.logger.log(
+        `Cleared legacy Stripe request-velocity block for user=${userId}, ip=${ipHash.slice(0, 8)} (user=${clearUserVelocityBlock}, ip=${clearIpVelocityBlock})`,
+      );
+    }
+
+    const userBlockTtl = clearUserVelocityBlock ? -2 : storedUserBlockTtl;
+    const ipBlockTtl = clearIpVelocityBlock ? -2 : storedIpBlockTtl;
 
     if (userBlockTtl > 0 || ipBlockTtl > 0) {
       // Only a threshold of signed, webhook-confirmed card failures is strong
@@ -68,28 +106,21 @@ export class StripeAbuseProtectionService {
       ipCount > apiConfiguration.STRIPE_ABUSE_MAX_REQUESTS_PER_IP;
 
     if (userExceeded || ipExceeded) {
-      await Promise.all([
+      const [userWindowTtl, ipWindowTtl] = await Promise.all([
         userExceeded
-          ? this.block(
-              "user",
-              userId,
-              "request_velocity",
-              apiConfiguration.STRIPE_ABUSE_REQUEST_BLOCK_SECONDS,
-            )
-          : Promise.resolve(),
+          ? this.redis.ttlSeconds(`${KEY_PREFIX}:requests:user:${userId}`)
+          : Promise.resolve(0),
         ipExceeded
-          ? this.block(
-              "ip",
-              ipHash,
-              "request_velocity",
-              apiConfiguration.STRIPE_ABUSE_REQUEST_BLOCK_SECONDS,
-            )
-          : Promise.resolve(),
+          ? this.redis.ttlSeconds(`${KEY_PREFIX}:requests:ip:${ipHash}`)
+          : Promise.resolve(0),
       ]);
       this.logger.warn(
         `Stripe intent creation blocked for user=${userId}, ip=${ipHash.slice(0, 8)} (userLimit=${userExceeded}, ipLimit=${ipExceeded})`,
       );
-      this.throwBlocked(apiConfiguration.STRIPE_ABUSE_REQUEST_BLOCK_SECONDS);
+      const retryAfterSeconds = Math.max(userWindowTtl, ipWindowTtl);
+      this.throwBlocked(
+        retryAfterSeconds > 0 ? retryAfterSeconds : windowSeconds,
+      );
     }
 
     return ipHash;
