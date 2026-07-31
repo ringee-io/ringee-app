@@ -15,12 +15,17 @@ export class ClerkUserRepository {
     await clerkClient.users.banUser(clerkUserId);
   }
 
+  /** Restore sign-in access for a Clerk user previously banned by Ringee. */
+  static async unbanUser(clerkUserId: string): Promise<void> {
+    await clerkClient.users.unbanUser(clerkUserId);
+  }
+
   static async updateMetadata(
     clerkUserId: string,
     metadata: {
-      publicMetadata?: Record<string, any>;
-      privateMetadata?: Record<string, any>;
-      unsafeMetadata?: Record<string, any>;
+      publicMetadata?: Record<string, unknown>;
+      privateMetadata?: Record<string, unknown>;
+      unsafeMetadata?: Record<string, unknown>;
     },
   ) {
     return clerkClient.users.updateUser(clerkUserId, metadata);

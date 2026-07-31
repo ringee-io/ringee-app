@@ -23,6 +23,10 @@ import {
 import { BackofficeService, PipelineType } from "@ringee/services";
 import { AccountType } from "@ringee/database";
 import { SuperAdminOnly } from "../guards/super-admin.guard";
+import {
+  UserAccessAdminState,
+  UserAccessEnforcementService,
+} from "./user-access-enforcement.service";
 
 const PIPELINE_TYPES: PipelineType[] = [
   "follow_up_recommendations",
@@ -121,7 +125,10 @@ function parseRange(q: { start?: string; end?: string }): {
 @Controller("backoffice")
 @SuperAdminOnly()
 export class BackofficeController {
-  constructor(private readonly backoffice: BackofficeService) {}
+  constructor(
+    private readonly backoffice: BackofficeService,
+    private readonly userAccess: UserAccessEnforcementService,
+  ) {}
 
   @Get("dashboard")
   getDashboard(@Query() q: { start?: string; end?: string }) {
@@ -160,8 +167,39 @@ export class BackofficeController {
   }
 
   @Get("accounts/:type/:id")
-  getAccount(@Param("type") type: string, @Param("id") id: string) {
-    return this.backoffice.getAccount(parseAccountType(type), id);
+  async getAccount(@Param("type") type: string, @Param("id") id: string) {
+    const accountType = parseAccountType(type);
+    const account = await this.backoffice.getAccount(accountType, id);
+    if (accountType !== "user" || !account.userSettings) {
+      return account;
+    }
+    return {
+      ...account,
+      userSettings: {
+        ...account.userSettings,
+        access: await this.userAccess.getAdminState(id),
+      },
+    };
+  }
+
+  @Post("accounts/user/:id/access/stripe-abuse/restore")
+  restoreStripeAbuse(@Param("id") id: string): Promise<UserAccessAdminState> {
+    return this.userAccess.restoreStripeAbuse(id);
+  }
+
+  @Post("accounts/user/:id/access/ringee-block/remove")
+  removeRingeeBlock(@Param("id") id: string): Promise<UserAccessAdminState> {
+    return this.userAccess.removeRingeeBlock(id);
+  }
+
+  @Post("accounts/user/:id/access/clerk/ban")
+  banInClerk(@Param("id") id: string): Promise<UserAccessAdminState> {
+    return this.userAccess.setClerkBan(id, true);
+  }
+
+  @Post("accounts/user/:id/access/clerk/unban")
+  unbanInClerk(@Param("id") id: string): Promise<UserAccessAdminState> {
+    return this.userAccess.setClerkBan(id, false);
   }
 
   @Post("accounts/:type/:id/credit")

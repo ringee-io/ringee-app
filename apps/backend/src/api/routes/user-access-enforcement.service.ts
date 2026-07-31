@@ -1,4 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import { UserRepository } from "@ringee/database";
 import { ClerkUserRepository, RedisService } from "@ringee/platform";
 import {
@@ -9,6 +14,14 @@ import {
 
 const STRIPE_PAYMENT_ABUSE_REASON = "stripe_payment_abuse";
 const STRIPE_ABUSE_KEY_PREFIX = "stripe-abuse:v1";
+
+export interface UserAccessAdminState {
+  ringeeBlocked: boolean;
+  blockedAt: string | null;
+  blockedReason: string | null;
+  canCall: boolean;
+  clerkBanned: boolean | null;
+}
 
 @Injectable()
 export class UserAccessEnforcementService {
@@ -69,6 +82,77 @@ export class UserAccessEnforcementService {
     }
   }
 
+  /** Current access state displayed by the protected backoffice. */
+  async getAdminState(userId: string): Promise<UserAccessAdminState> {
+    const user = await this.requireUser(userId);
+    let clerkBanned: boolean | null = null;
+
+    if (user.clerkId) {
+      try {
+        const clerkUser = await ClerkUserRepository.findById(user.clerkId);
+        clerkBanned = clerkUser.banned;
+      } catch (error) {
+        this.logger.warn(
+          `Could not read Clerk ban state for Ringee user ${userId}: ${this.errorMessage(error)}`,
+        );
+      }
+    }
+
+    return {
+      ringeeBlocked: Boolean(user.blockedAt),
+      blockedAt: user.blockedAt?.toISOString() ?? null,
+      blockedReason: user.blockedReason,
+      canCall: user.canCall,
+      clerkBanned,
+    };
+  }
+
+  /** Clear only the per-user Stripe abuse counters and temporary block. */
+  async restoreStripeAbuse(userId: string): Promise<UserAccessAdminState> {
+    await this.requireUser(userId);
+    await this.resetStripeAbuseState(userId);
+    this.logger.log(`Stripe abuse state restored for user ${userId}`);
+    return this.getAdminState(userId);
+  }
+
+  /** Explicit super-admin repair: remove any Ringee block and enable calling. */
+  async removeRingeeBlock(userId: string): Promise<UserAccessAdminState> {
+    await this.requireUser(userId);
+    const restored = await this.userRepository.update(userId, {
+      blockedAt: null,
+      blockedReason: null,
+      canCall: true,
+    });
+    await this.userService.invalidateUserCache(restored);
+    this.logger.log(`Ringee block removed by backoffice for user ${userId}`);
+    return this.getAdminState(userId);
+  }
+
+  /** Ban or unban the Clerk identity and mirror the result into Ringee now. */
+  async setClerkBan(
+    userId: string,
+    banned: boolean,
+  ): Promise<UserAccessAdminState> {
+    const user = await this.requireUser(userId);
+    if (!user.clerkId) {
+      throw new BadRequestException("User has no Clerk identity");
+    }
+
+    if (banned) {
+      await ClerkUserRepository.banUser(user.clerkId);
+    } else {
+      await ClerkUserRepository.unbanUser(user.clerkId);
+    }
+
+    // Do not wait for eventual webhook delivery before reflecting the action.
+    // The signed user.updated webhook remains an idempotent fallback.
+    await this.syncClerkAccessToRingee(userId, banned);
+    this.logger.log(
+      `Clerk identity ${banned ? "banned" : "unbanned"} by backoffice for user ${userId}`,
+    );
+    return this.getAdminState(userId);
+  }
+
   /**
    * Mirrors Clerk's current ban state into Ringee from the signed user.updated
    * webhook. Clerk emits the same event for both ban and unban operations.
@@ -109,11 +193,7 @@ export class UserAccessEnforcementService {
 
     // Reset only this user's Stripe counters/block. Shared IP counters are not
     // user-owned and must not be erased by an account-level Clerk unban.
-    await this.redis.delMany([
-      `${STRIPE_ABUSE_KEY_PREFIX}:requests:user:${userId}`,
-      `${STRIPE_ABUSE_KEY_PREFIX}:failures:user:${userId}`,
-      `${STRIPE_ABUSE_KEY_PREFIX}:blocked:user:${userId}`,
-    ]);
+    await this.resetStripeAbuseState(userId);
     const restored = await this.userRepository.update(userId, {
       blockedAt: null,
       blockedReason: null,
@@ -135,6 +215,24 @@ export class UserAccessEnforcementService {
     this.logger.warn(
       `User ${userId} blocked and outbound calling disabled (${source}); ${sessionsDisabled} active dialer session(s) forced offline`,
     );
+  }
+
+  private resetStripeAbuseState(userId: string): Promise<void> {
+    return this.redis.delMany([
+      `${STRIPE_ABUSE_KEY_PREFIX}:requests:user:${userId}`,
+      `${STRIPE_ABUSE_KEY_PREFIX}:failures:user:${userId}`,
+      `${STRIPE_ABUSE_KEY_PREFIX}:blocked:user:${userId}`,
+    ]);
+  }
+
+  private async requireUser(
+    userId: string,
+  ): Promise<NonNullable<Awaited<ReturnType<UserRepository["findById"]>>>> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException("User not found");
+    }
+    return user;
   }
 
   private errorMessage(error: unknown): string {

@@ -24,12 +24,25 @@ import {
   DialogTrigger
 } from '@ringee/frontend-shared/components/ui/dialog';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger
+} from '@ringee/frontend-shared/components/ui/alert-dialog';
+import {
   useBackofficeApi,
   type AccountDetail as AccountDetailData,
   type AccountType,
+  type EditableUserGeneralSettings,
   type NumberListItem,
   type PipelineType,
   type RecordingSettings,
+  type UserAccessAdminState,
   type UserGeneralSettings
 } from '../api';
 import {
@@ -102,14 +115,44 @@ export function AccountDetail({ type, id }: { type: AccountType; id: string }) {
           }
         />
         {account.userSettings && (
-          <GeneralSettingsCard
-            type={type}
-            id={id}
-            settings={account.userSettings}
-            onUpdated={(userSettings) =>
-              setAccount((a) => (a ? { ...a, userSettings } : a))
-            }
-          />
+          <>
+            <AccessControlCard
+              id={id}
+              access={account.userSettings.access}
+              onUpdated={(access) =>
+                setAccount((current) =>
+                  current?.userSettings
+                    ? {
+                        ...current,
+                        userSettings: { ...current.userSettings, access }
+                      }
+                    : current
+                )
+              }
+            />
+            <GeneralSettingsCard
+              type={type}
+              id={id}
+              settings={account.userSettings}
+              onUpdated={(settings) =>
+                setAccount((current) =>
+                  current?.userSettings
+                    ? {
+                        ...current,
+                        userSettings: {
+                          ...current.userSettings,
+                          ...settings,
+                          access: {
+                            ...current.userSettings.access,
+                            canCall: settings.canCall
+                          }
+                        }
+                      }
+                    : current
+                )
+              }
+            />
+          </>
         )}
         <RecordingCard
           type={type}
@@ -129,6 +172,156 @@ export function AccountDetail({ type, id }: { type: AccountType; id: string }) {
   );
 }
 
+// ── Account access & abuse controls ─────────────────────────
+
+type AccessAction = 'stripe' | 'ringee' | 'clerk-ban' | 'clerk-unban';
+
+function AccessControlCard({
+  id,
+  access,
+  onUpdated
+}: {
+  id: string;
+  access: UserAccessAdminState;
+  onUpdated: (access: UserAccessAdminState) => void;
+}) {
+  const api = useBackofficeApi();
+  const [busy, setBusy] = useState<AccessAction | null>(null);
+
+  const run = async (action: AccessAction) => {
+    setBusy(action);
+    try {
+      const updated =
+        action === 'stripe'
+          ? await api.restoreStripeAbuse(id)
+          : action === 'ringee'
+            ? await api.removeRingeeBlock(id)
+            : action === 'clerk-ban'
+              ? await api.banInClerk(id)
+              : await api.unbanInClerk(id);
+      onUpdated(updated);
+      toast.success(
+        action === 'stripe'
+          ? 'Stripe abuse counters restored'
+          : action === 'ringee'
+            ? 'Ringee block removed and calling enabled'
+            : action === 'clerk-ban'
+              ? 'User banned in Clerk and Ringee'
+              : 'User unbanned in Clerk'
+      );
+    } catch (err) {
+      toast.error(errorMessage(err, 'Failed to update account access'));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  return (
+    <Card className='gap-4 py-4 sm:gap-6 sm:py-6'>
+      <CardHeader className='px-4 sm:px-6'>
+        <CardTitle>Account access</CardTitle>
+        <CardDescription>
+          Repair Stripe abuse state and manage Ringee or Clerk blocks.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className='space-y-5 px-4 sm:px-6'>
+        <div className='flex flex-wrap gap-2'>
+          <Badge variant={access.ringeeBlocked ? 'destructive' : 'secondary'}>
+            Ringee: {access.ringeeBlocked ? 'blocked' : 'active'}
+          </Badge>
+          <Badge
+            variant={access.clerkBanned === true ? 'destructive' : 'secondary'}
+          >
+            Clerk:{' '}
+            {access.clerkBanned === null
+              ? 'unknown'
+              : access.clerkBanned
+                ? 'banned'
+                : 'active'}
+          </Badge>
+          <Badge variant={access.canCall ? 'secondary' : 'outline'}>
+            Calls: {access.canCall ? 'enabled' : 'disabled'}
+          </Badge>
+        </div>
+
+        {access.ringeeBlocked && (
+          <p className='text-muted-foreground text-xs'>
+            Reason: {access.blockedReason || 'not recorded'}
+            {access.blockedAt ? ` · ${formatDate(access.blockedAt)}` : ''}
+          </p>
+        )}
+
+        <div className='space-y-2'>
+          <Label>Repair controls</Label>
+          <div className='flex flex-wrap gap-2'>
+            <Button
+              size='sm'
+              variant='outline'
+              disabled={busy !== null}
+              onClick={() => run('stripe')}
+            >
+              {busy === 'stripe' ? 'Restoring…' : 'Restore Stripe abuse'}
+            </Button>
+            <Button
+              size='sm'
+              variant='outline'
+              disabled={
+                busy !== null || (!access.ringeeBlocked && access.canCall)
+              }
+              onClick={() => run('ringee')}
+            >
+              {busy === 'ringee' ? 'Removing…' : 'Remove Ringee block'}
+            </Button>
+          </div>
+        </div>
+
+        <div className='space-y-2 border-t pt-4'>
+          <Label>Clerk identity</Label>
+          <div className='flex flex-wrap gap-2'>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  size='sm'
+                  variant='destructive'
+                  disabled={busy !== null || access.clerkBanned === true}
+                >
+                  {busy === 'clerk-ban' ? 'Banning…' : 'Ban in Clerk'}
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Ban this user?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    This revokes Clerk access, blocks the Ringee account and
+                    disables outbound calling.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                  <AlertDialogAction
+                    className='bg-destructive hover:bg-destructive/90 text-white'
+                    onClick={() => run('clerk-ban')}
+                  >
+                    Ban user
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <Button
+              size='sm'
+              variant='outline'
+              disabled={busy !== null || access.clerkBanned === false}
+              onClick={() => run('clerk-unban')}
+            >
+              {busy === 'clerk-unban' ? 'Unbanning…' : 'Unban in Clerk'}
+            </Button>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── General user settings ───────────────────────────────────
 
 function GeneralSettingsCard({
@@ -140,7 +333,7 @@ function GeneralSettingsCard({
   type: AccountType;
   id: string;
   settings: UserGeneralSettings;
-  onUpdated: (settings: UserGeneralSettings) => void;
+  onUpdated: (settings: EditableUserGeneralSettings) => void;
 }) {
   const api = useBackofficeApi();
   const [canCall, setCanCall] = useState(settings.canCall);

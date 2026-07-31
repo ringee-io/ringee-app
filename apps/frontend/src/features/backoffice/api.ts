@@ -81,6 +81,17 @@ export interface UserGeneralSettings {
   freeCallTrial: boolean;
   numberPurchaseLimit: number | null;
   phoneRequired: boolean;
+  access: UserAccessAdminState;
+}
+
+export type EditableUserGeneralSettings = Omit<UserGeneralSettings, 'access'>;
+
+export interface UserAccessAdminState {
+  ringeeBlocked: boolean;
+  blockedAt: string | null;
+  blockedReason: string | null;
+  canCall: boolean;
+  clerkBanned: boolean | null;
 }
 
 export interface NumberListItem {
@@ -135,11 +146,35 @@ export function useBackofficeApi() {
       updateUserGeneralSettings: (
         type: AccountType,
         id: string,
-        body: Partial<UserGeneralSettings>
+        body: Partial<EditableUserGeneralSettings>
       ) =>
-        api.patch<UserGeneralSettings>(
+        api.patch<EditableUserGeneralSettings>(
           `${BASE}/accounts/${type}/${id}/general-settings`,
           body
+        ),
+
+      restoreStripeAbuse: (id: string) =>
+        api.post<UserAccessAdminState>(
+          `${BASE}/accounts/user/${id}/access/stripe-abuse/restore`,
+          {}
+        ),
+
+      removeRingeeBlock: (id: string) =>
+        api.post<UserAccessAdminState>(
+          `${BASE}/accounts/user/${id}/access/ringee-block/remove`,
+          {}
+        ),
+
+      banInClerk: (id: string) =>
+        api.post<UserAccessAdminState>(
+          `${BASE}/accounts/user/${id}/access/clerk/ban`,
+          {}
+        ),
+
+      unbanInClerk: (id: string) =>
+        api.post<UserAccessAdminState>(
+          `${BASE}/accounts/user/${id}/access/clerk/unban`,
+          {}
         ),
 
       updateRecordingSettings: (
