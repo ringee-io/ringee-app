@@ -97,7 +97,13 @@ const apiConfiguration = {
   ),
   STRIPE_ABUSE_MAX_REQUESTS_PER_IP: positiveInteger(
     "STRIPE_ABUSE_MAX_REQUESTS_PER_IP",
-    24,
+    60,
+  ),
+  // Creation-velocity spikes are a temporary throttle, not proof of card
+  // testing. Keep this separate from the longer confirmed-failure block.
+  STRIPE_ABUSE_REQUEST_BLOCK_SECONDS: positiveInteger(
+    "STRIPE_ABUSE_REQUEST_BLOCK_SECONDS",
+    900,
   ),
   STRIPE_ABUSE_FAILURE_WINDOW_SECONDS: positiveInteger(
     "STRIPE_ABUSE_FAILURE_WINDOW_SECONDS",
@@ -105,11 +111,11 @@ const apiConfiguration = {
   ),
   STRIPE_ABUSE_MAX_FAILURES_PER_USER: positiveInteger(
     "STRIPE_ABUSE_MAX_FAILURES_PER_USER",
-    4,
+    5,
   ),
   STRIPE_ABUSE_MAX_FAILURES_PER_IP: positiveInteger(
     "STRIPE_ABUSE_MAX_FAILURES_PER_IP",
-    8,
+    15,
   ),
   STRIPE_ABUSE_BLOCK_SECONDS: positiveInteger(
     "STRIPE_ABUSE_BLOCK_SECONDS",

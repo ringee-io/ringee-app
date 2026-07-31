@@ -34,13 +34,17 @@ export class StripeAbuseProtectionService {
     userId: string,
   ): Promise<string> {
     const ipHash = this.fingerprintRequestIp(request);
-    const [userBlockTtl, ipBlockTtl] = await Promise.all([
+    const [userBlockTtl, ipBlockTtl, userBlockReason] = await Promise.all([
       this.blockTtl("user", userId),
       this.blockTtl("ip", ipHash),
+      this.blockReason("user", userId),
     ]);
 
     if (userBlockTtl > 0 || ipBlockTtl > 0) {
-      if (userBlockTtl > 0) {
+      // Only a threshold of signed, webhook-confirmed card failures is strong
+      // enough evidence to disable an account. A creation burst can be caused
+      // by retries, navigation, or a flaky connection and is throttled only.
+      if (userBlockTtl > 0 && userBlockReason === "card_failures") {
         await this.userAccess.banForPaymentAbuse(userId);
       }
       this.throwBlocked(Math.max(userBlockTtl, ipBlockTtl));
@@ -66,19 +70,26 @@ export class StripeAbuseProtectionService {
     if (userExceeded || ipExceeded) {
       await Promise.all([
         userExceeded
-          ? this.block("user", userId, "request_velocity")
+          ? this.block(
+              "user",
+              userId,
+              "request_velocity",
+              apiConfiguration.STRIPE_ABUSE_REQUEST_BLOCK_SECONDS,
+            )
           : Promise.resolve(),
         ipExceeded
-          ? this.block("ip", ipHash, "request_velocity")
+          ? this.block(
+              "ip",
+              ipHash,
+              "request_velocity",
+              apiConfiguration.STRIPE_ABUSE_REQUEST_BLOCK_SECONDS,
+            )
           : Promise.resolve(),
       ]);
-      if (userExceeded) {
-        await this.userAccess.banForPaymentAbuse(userId);
-      }
       this.logger.warn(
         `Stripe intent creation blocked for user=${userId}, ip=${ipHash.slice(0, 8)} (userLimit=${userExceeded}, ipLimit=${ipExceeded})`,
       );
-      this.throwBlocked(apiConfiguration.STRIPE_ABUSE_BLOCK_SECONDS);
+      this.throwBlocked(apiConfiguration.STRIPE_ABUSE_REQUEST_BLOCK_SECONDS);
     }
 
     return ipHash;
@@ -107,12 +118,17 @@ export class StripeAbuseProtectionService {
       };
     }
 
-    const [existingUserBlock, existingIpBlock] = await Promise.all([
-      this.blockTtl("user", userId),
-      ipHash ? this.blockTtl("ip", ipHash) : Promise.resolve(-2),
-    ]);
+    const [existingUserBlock, existingIpBlock, existingUserBlockReason] =
+      await Promise.all([
+        this.blockTtl("user", userId),
+        ipHash ? this.blockTtl("ip", ipHash) : Promise.resolve(-2),
+        this.blockReason("user", userId),
+      ]);
     if (existingUserBlock > 0 || existingIpBlock > 0) {
-      if (existingUserBlock > 0) {
+      if (
+        existingUserBlock > 0 &&
+        existingUserBlockReason === "card_failures"
+      ) {
         await this.userAccess.banForPaymentAbuse(userId);
       }
       return {
@@ -145,10 +161,20 @@ export class StripeAbuseProtectionService {
     if (userBlocked || ipBlocked) {
       await Promise.all([
         userBlocked
-          ? this.block("user", userId, "card_failures")
+          ? this.block(
+              "user",
+              userId,
+              "card_failures",
+              apiConfiguration.STRIPE_ABUSE_BLOCK_SECONDS,
+            )
           : Promise.resolve(),
         ipBlocked && ipHash
-          ? this.block("ip", ipHash, "card_failures")
+          ? this.block(
+              "ip",
+              ipHash,
+              "card_failures",
+              apiConfiguration.STRIPE_ABUSE_BLOCK_SECONDS,
+            )
           : Promise.resolve(),
       ]);
       if (userBlocked) {
@@ -207,12 +233,20 @@ export class StripeAbuseProtectionService {
     kind: "user" | "ip",
     identity: string,
     reason: string,
+    ttlSeconds: number,
   ): Promise<void> {
     await this.redis.set(
       this.blockKey(kind, identity),
       reason,
-      apiConfiguration.STRIPE_ABUSE_BLOCK_SECONDS * 1000,
+      ttlSeconds * 1000,
     );
+  }
+
+  private blockReason(
+    kind: "user" | "ip",
+    identity: string,
+  ): Promise<string | undefined> {
+    return this.redis.get<string>(this.blockKey(kind, identity));
   }
 
   private blockTtl(kind: "user" | "ip", identity: string): Promise<number> {
