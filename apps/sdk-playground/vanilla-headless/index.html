@@ -1,0 +1,120 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Ringee Dialer SDK — Headless Playground</title>
+    <style>
+      :root { color-scheme: light dark; font-family: -apple-system, Segoe UI, Roboto, sans-serif; }
+      body { max-width: 520px; margin: 40px auto; padding: 0 16px; }
+      h1 { font-size: 20px; }
+      fieldset { border: 1px solid #8884; border-radius: 10px; margin: 12px 0; padding: 14px; }
+      legend { padding: 0 6px; color: #888; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; }
+      input, button { font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid #8886; }
+      button { cursor: pointer; background: #2563eb; color: #fff; border: 0; }
+      button.secondary { background: #8883; color: inherit; }
+      button:disabled { opacity: .5; cursor: not-allowed; }
+      .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+      .row input { flex: 1; min-width: 140px; }
+      #log { font-family: ui-monospace, monospace; font-size: 12px; white-space: pre-wrap;
+             background: #8881; border-radius: 8px; padding: 10px; max-height: 200px; overflow: auto; }
+      .pill { display: inline-block; padding: 2px 8px; border-radius: 999px; background: #8883; font-size: 12px; }
+    </style>
+  </head>
+  <body>
+    <h1>Ringee Dialer SDK — Headless Playground</h1>
+    <p>
+      Auth: <span id="authState" class="pill">–</span>
+      Call: <span id="callState" class="pill">–</span>
+    </p>
+
+    <fieldset>
+      <legend>1 · Sign in (email OTP)</legend>
+      <div class="row">
+        <input id="email" type="email" placeholder="agent@company.com" />
+        <button id="sendCode">Send code</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input id="code" inputmode="numeric" placeholder="6-digit code" />
+        <button id="verify" disabled>Verify</button>
+        <button id="resend" class="secondary" disabled>Resend</button>
+      </div>
+      <p id="agentLine"></p>
+    </fieldset>
+
+    <fieldset>
+      <legend>2 · Call</legend>
+      <div class="row">
+        <input id="to" placeholder="+13055550198" />
+        <button id="call" disabled>Call</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button id="mute" class="secondary" disabled>Mute</button>
+        <button id="unmute" class="secondary" disabled>Unmute</button>
+        <button id="dtmf1" class="secondary" disabled>DTMF 1</button>
+        <button id="hangup" class="secondary" disabled>Hang up</button>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>3 · Session</legend>
+      <button id="signout" class="secondary">Sign out</button>
+    </fieldset>
+
+    <fieldset>
+      <legend>Log</legend>
+      <div id="log"></div>
+    </fieldset>
+
+    <!--
+      Build the SDK first, then serve this file from an origin listed in your
+      publishable key's allowedOrigins (e.g. http://localhost:5173):
+        pnpm --filter @ringee-io/dialer-sdk build
+        npx serve apps/sdk-playground/vanilla-headless
+      Set RINGEE_PK below to your pk_live_… and RINGEE_API to your API base URL.
+    -->
+    <script src="../../../packages/dialer-sdk/dist/ringee.global.js"></script>
+    <script>
+      const RINGEE_PK = "pk_live_REPLACE_ME";
+      const RINGEE_API = "http://localhost:3000"; // Ringee API base (no /api suffix)
+
+      const $ = (id) => document.getElementById(id);
+      const log = (m) => ($("log").textContent = `${new Date().toLocaleTimeString()}  ${m}\n` + $("log").textContent);
+
+      const dialer = Ringee.create({ key: RINGEE_PK, apiUrl: RINGEE_API, debug: true });
+      let challengeId = null;
+
+      dialer.on("authStateChanged", ({ state }) => { $("authState").textContent = state; });
+      dialer.on("stateChanged", ({ state }) => { $("callState").textContent = state; });
+      dialer.on("codeSent", ({ challenge }) => { challengeId = challenge.id; log(`Code sent to ${challenge.maskedEmail}`); $("verify").disabled = false; $("resend").disabled = false; });
+      dialer.on("signedIn", ({ agent }) => { $("agentLine").textContent = `Signed in as ${agent.firstName ?? agent.email} (${agent.role ?? "personal"})`; });
+      dialer.on("ready", () => { log("Dialer ready"); $("call").disabled = false; });
+      dialer.on("dialing", ({ call }) => { log(`Dialing ${call.to}`); setInCall(true); });
+      dialer.on("ringing", () => log("Ringing…"));
+      dialer.on("answered", () => log("Answered"));
+      dialer.on("ended", ({ call }) => { log(`Ended (${call.durationSeconds}s)`); setInCall(false); });
+      dialer.on("failed", ({ error }) => { log(`Failed: ${error.code} — ${error.message}`); setInCall(false); });
+      dialer.on("error", ({ error }) => log(`Error: ${error.code} — ${error.message}`));
+      dialer.on("signedOut", () => { $("agentLine").textContent = ""; $("call").disabled = true; });
+
+      function setInCall(on) {
+        ["mute","unmute","dtmf1","hangup"].forEach((id) => ($(id).disabled = !on));
+        $("call").disabled = on;
+      }
+
+      const guard = (fn) => async () => { try { await fn(); } catch (e) { log(`${e.code ?? "ERR"}: ${e.message}`); } };
+
+      $("sendCode").onclick = guard(() => dialer.requestEmailCode($("email").value.trim()));
+      $("verify").onclick = guard(() => dialer.verifyEmailCode({ challengeId, code: $("code").value.trim() }));
+      $("resend").onclick = guard(() => dialer.resendEmailCode(challengeId));
+      $("call").onclick = guard(() => dialer.call({ to: $("to").value.trim() }));
+      $("mute").onclick = () => dialer.mute();
+      $("unmute").onclick = () => dialer.unmute();
+      $("dtmf1").onclick = () => dialer.sendDigits("1");
+      $("hangup").onclick = guard(() => dialer.hangup());
+      $("signout").onclick = guard(() => dialer.signOut());
+
+      dialer.initialize().then(() => log("Initialized")).catch((e) => log(`Init failed: ${e.code} — ${e.message}`));
+    </script>
+  </body>
+</html>

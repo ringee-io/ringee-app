@@ -12,6 +12,7 @@ import {
   OrchestratorService,
   OwnershipContext,
   TelephonyService,
+  verifyCallCorrelation,
 } from "@ringee/platform";
 import type {
   TelnyxWebhookEvent,
@@ -243,6 +244,76 @@ export class CallService implements OnModuleDestroy {
         ),
       );
     return false;
+  }
+
+  /**
+   * Adopt a pre-created SDK `Call` (source="sdk", status=pending) when the
+   * Telnyx `call.initiated` webhook carries a valid signed correlation token.
+   * Returns true when the token was handled (adopted OR hung up for credit),
+   * false when it should be ignored (bad signature / not adoptable).
+   */
+  private async adoptSdkCall(
+    correlationToken: string,
+    callControlId: string,
+    payload: {
+      from?: string;
+      call_session_id?: string;
+      call_leg_id?: string;
+      start_time?: string;
+    },
+  ): Promise<boolean> {
+    const callId = verifyCallCorrelation(correlationToken);
+    if (!callId) return false;
+
+    const existing = await this.callRepository.findById(callId);
+    if (
+      !existing ||
+      existing.source !== "sdk" ||
+      existing.status !== CallStatus.pending ||
+      existing.callControlId ||
+      !existing.userId
+    ) {
+      return false;
+    }
+
+    const ctx: OwnershipContext = {
+      userId: existing.userId,
+      organizationId: existing.organizationId,
+    };
+
+    // Same credit/enablement gate as the web path (hangs up if unaffordable).
+    if (!(await this.ensureCallAffordable(ctx, callControlId))) {
+      return true;
+    }
+
+    // Audit which owned number presented as caller ID + count daily usage.
+    const presentedNumberId = await this.callerIdRotationService
+      .registerOutboundCall(ctx, payload.from!)
+      .catch(() => null);
+
+    const adopted = await this.callRepository.attachTelephony(existing.id, {
+      callControlId,
+      callSessionId: payload.call_session_id,
+      callLegId: payload.call_leg_id,
+      connectionId: process.env.TELNYX_CONNECTION_ID,
+      startedAt: payload.start_time,
+      status: CallStatus.ringing,
+      callerIdId: presentedNumberId ?? existing.callerIdId ?? undefined,
+    });
+
+    if (adopted) {
+      void this.inboxTimelineService
+        .ensureThreadForCall(adopted)
+        .catch((err) =>
+          this.logger.error(
+            `Inbox ensureThreadForCall failed (sdk, call=${adopted.id}): ${err.message}`,
+            err.stack,
+          ),
+        );
+    }
+
+    this.logger.log(`📞 SDK call ${callControlId} adopted → ${existing.id}`);
+    return true;
   }
 
   private clearLowBalanceHangup(callControlId: string): void {
@@ -555,6 +626,31 @@ export class CallService implements OnModuleDestroy {
             ));
 
           return;
+        }
+
+        // Dialer SDK path: the browser embeds a SIGNED correlation token
+        // (`X-Ringee-Call-Id`) for a `Call` already created at authorize time
+        // (source="sdk"). Adopt that row instead of creating a duplicate. If
+        // the token is invalid or the row isn't adoptable, drop rather than
+        // fall through to the web-create path.
+        {
+          const sdkCorrelation = this.getCustomHeader(
+            payload.custom_headers,
+            "X-Ringee-Call-Id",
+          );
+          if (sdkCorrelation) {
+            const handled = await this.adoptSdkCall(
+              sdkCorrelation,
+              callControlId,
+              payload,
+            );
+            if (!handled) {
+              this.logger.warn(
+                `⚠️ SDK correlation present but not adoptable; dropping ${callControlId}`,
+              );
+            }
+            return;
+          }
         }
 
         // Public CallSession dialer path: the WebRTC client embeds the session

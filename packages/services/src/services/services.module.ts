@@ -134,6 +134,15 @@ import {
 import { BackofficeService } from "./backoffice.service";
 import { SipDeviceService, DeskPhoneCallService } from "./sip-device";
 import { InfrastructureService } from "./infrastructure";
+import {
+  SdkPublishableKeyService,
+  SdkEmailAuthService,
+  SdkSessionService,
+  SdkCallerIdResolver,
+  SdkContactResolver,
+  SdkTelnyxTokenService,
+  SdkCallService,
+} from "./sdk";
 
 const servicesProviders = [
   UserService,
@@ -259,6 +268,14 @@ const servicesProviders = [
   DeskPhoneCallService,
   // Ringee Infra (visual architecture console)
   InfrastructureService,
+  // Ringee Dialer SDK (publishable keys, agent OTP auth, call authorize)
+  SdkPublishableKeyService,
+  SdkEmailAuthService,
+  SdkSessionService,
+  SdkCallerIdResolver,
+  SdkContactResolver,
+  SdkTelnyxTokenService,
+  SdkCallService,
 ];
 
 /**
