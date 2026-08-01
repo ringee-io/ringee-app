@@ -984,6 +984,28 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.16.5)(lightningcss@1.32.0)(terser@5.44.0)
 
+  packages/dialer-sdk:
+    dependencies:
+      '@ringee/dialer-core':
+        specifier: workspace:*
+        version: link:../dialer-core
+    devDependencies:
+      '@telnyx/webrtc':
+        specifier: 2.25.2
+        version: 2.25.2
+      '@types/node':
+        specifier: ~22.16.0
+        version: 22.16.5
+      tsup:
+        specifier: ^8.3.0
+        version: 8.5.1(@swc/core@1.15.33(@swc/helpers@0.5.23))(jiti@2.7.0)(postcss@8.5.15)(tsx@4.22.4)(typescript@5.9.3)(yaml@2.8.1)
+      typescript:
+        specifier: ~5.9.0
+        version: 5.9.3
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.16.5)(lightningcss@1.32.0)(terser@5.44.0)
+
   packages/dialer-ui:
     dependencies:
       '@ringee/dialer-core':
