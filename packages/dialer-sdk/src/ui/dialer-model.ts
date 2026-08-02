@@ -177,6 +177,7 @@ export class DialerModel {
         if (state === "authenticated") {
           this.agent = this.dialer.getAgent();
           this.callerIds = this.dialer.getCallerIds();
+          this.restoreCallerId();
           this.forceEmail = false;
           this.banner = null;
         }
@@ -194,6 +195,7 @@ export class DialerModel {
       on("signedIn", ({ agent }) => {
         this.agent = agent;
         this.callerIds = this.dialer.getCallerIds();
+        this.restoreCallerId();
         this.emit();
       }),
       on("dialing", ({ call }) => {
@@ -230,6 +232,7 @@ export class DialerModel {
       on("signedOut", () => {
         this.agent = null;
         this.callerIds = [];
+        this.selectedCallerId = undefined;
         this.challenge = null;
         this.showEnded = false;
         this.keypadOpen = false;
@@ -259,8 +262,14 @@ export class DialerModel {
   setNumber(v: string): void {
     this.number = v;
   }
-  setCallerId(id: string | undefined): void {
+  /**
+   * Select the caller ID to dial from. User-driven selections persist per agent
+   * so the choice survives reloads; programmatic per-call overrides (from
+   * `startCall`) pass `persist: false` so they never clobber the saved default.
+   */
+  setCallerId(id: string | undefined, opts: { persist?: boolean } = {}): void {
     this.selectedCallerId = id;
+    if (opts.persist !== false) this.persistCallerId(id);
   }
   setKeypadOpen(open: boolean): void {
     if (this.keypadOpen === open) return;
@@ -452,6 +461,39 @@ export class DialerModel {
     for (const off of this.unsubscribers) off();
     this.unsubscribers.length = 0;
     this.listeners.clear();
+  }
+
+  // ── Caller-ID persistence ─────────────────────────────────────────────────
+  /** Storage key is scoped to the agent so shared devices don't cross-pollute. */
+  private callerIdStorageKey(): string | null {
+    const agentId = this.agent?.id;
+    return agentId ? `ringee:sdk:callerid:${agentId}` : null;
+  }
+
+  /** Restore a saved caller ID once the agent + caller IDs are known. */
+  private restoreCallerId(): void {
+    const key = this.callerIdStorageKey();
+    if (!key) return;
+    let stored: string | null = null;
+    try {
+      stored = window.localStorage?.getItem(key) ?? null;
+    } catch {
+      /* storage unavailable (private mode, sandboxed iframe) — stay on auto */
+    }
+    // Only adopt it if the number is still assigned to the agent; otherwise auto.
+    this.selectedCallerId =
+      stored && this.callerIds.some((c) => c.id === stored) ? stored : undefined;
+  }
+
+  private persistCallerId(id: string | undefined): void {
+    const key = this.callerIdStorageKey();
+    if (!key) return;
+    try {
+      if (id) window.localStorage?.setItem(key, id);
+      else window.localStorage?.removeItem(key);
+    } catch {
+      /* ignore — persistence is best-effort */
+    }
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────

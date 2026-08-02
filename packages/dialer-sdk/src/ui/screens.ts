@@ -6,7 +6,7 @@
  * after mounting so keyboard users land on the primary control.
  */
 import { h, replaceChildren } from "./dom";
-import { icon, brandMark } from "./icons";
+import { icon } from "./icons";
 import {
   button,
   errorBanner,
@@ -91,7 +91,19 @@ export function fatalScreen(model: DialerModel): Screen {
   const el = h(
     "div",
     { class: "rg-screen" },
-    h("div", { class: "rg-center", style: { padding: "8px 0" } }, brandMark(30)),
+    h(
+      "div",
+      { class: "rg-center", style: { padding: "8px 0" } },
+      h(
+        "span",
+        {
+          class: "rg-avatar rg-avatar--lg",
+          style: { background: "var(--rg-danger-soft)", color: "var(--ringee-danger)" },
+          attrs: { "aria-hidden": "true" },
+        },
+        icon("alert", 28),
+      ),
+    ),
     slot.el,
     button({
       label: model.s.actionReload,
@@ -259,7 +271,7 @@ export function readyScreen(model: DialerModel): Screen {
 
   const callBtn = button({
     label: model.s.callButton,
-    variant: "primary",
+    variant: "call",
     block: true,
     large: true,
     icon: "phone",
@@ -339,6 +351,7 @@ export function readyScreen(model: DialerModel): Screen {
           callerIds: model.callerIds,
           autoLabel: model.s.callerIdAuto,
           capLabel: model.s.callerIdLabel,
+          selectedId: model.selectedCallerId,
           onSelect: (id) => model.setCallerId(id),
         }).el
       : null;
@@ -524,7 +537,7 @@ export function endedScreen(model: DialerModel): Screen {
       class: "rg-avatar rg-avatar--lg",
       style: failed
         ? { background: "var(--rg-danger-soft)", color: "var(--ringee-danger)" }
-        : { background: "var(--rg-primary-soft)", color: "var(--ringee-primary)" },
+        : { background: "var(--rg-accent-soft)", color: "var(--ringee-accent)" },
       attrs: { "aria-hidden": "true" },
     },
     icon(failed ? "phoneOff" : "check", 28),
@@ -558,7 +571,7 @@ export function endedScreen(model: DialerModel): Screen {
     ),
     button({
       label: failed ? model.s.callAgain : model.s.newCall,
-      variant: "primary",
+      variant: "call",
       block: true,
       large: true,
       icon: "phone",

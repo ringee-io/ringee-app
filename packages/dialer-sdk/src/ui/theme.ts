@@ -14,6 +14,10 @@ export interface RingeeTheme {
   primary?: string;
   primaryHover?: string;
   onPrimary?: string;
+  /** Call accent — the one color kept green by default (call actions + live). */
+  accent?: string;
+  accentHover?: string;
+  onAccent?: string;
   background?: string;
   surface?: string;
   text?: string;
@@ -33,6 +37,9 @@ const VAR: Record<keyof Omit<RingeeTheme, "colorScheme">, string> = {
   primary: "--ringee-primary",
   primaryHover: "--ringee-primary-hover",
   onPrimary: "--ringee-on-primary",
+  accent: "--ringee-accent",
+  accentHover: "--ringee-accent-hover",
+  onAccent: "--ringee-on-accent",
   background: "--ringee-background",
   surface: "--ringee-surface",
   text: "--ringee-text",

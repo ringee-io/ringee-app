@@ -8,7 +8,7 @@ import { h, uid } from "./dom";
 import { icon } from "./icons";
 
 // ── Button ──────────────────────────────────────────────────────────────────
-export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+export type ButtonVariant = "primary" | "call" | "secondary" | "ghost" | "danger";
 
 export interface ButtonOptions {
   label: string;
@@ -67,7 +67,9 @@ export function button(opts: ButtonOptions): ButtonHandle {
             h("span", {
               class:
                 "rg-spinner" +
-                (opts.variant === "primary" || opts.variant === "danger"
+                (opts.variant === "primary" ||
+                opts.variant === "call" ||
+                opts.variant === "danger"
                   ? " rg-spinner--on-primary"
                   : ""),
             }),

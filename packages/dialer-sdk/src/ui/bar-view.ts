@@ -7,7 +7,7 @@
  * Banners float above the bar so its own height never jumps.
  */
 import { h, replaceChildren, raf } from "./dom";
-import { icon, brandMark } from "./icons";
+import { icon } from "./icons";
 import {
   button,
   field,
@@ -46,12 +46,6 @@ export class BarView {
     this.bar = h(
       "div",
       { class: "rg-bar", role: "group", attrs: { "aria-label": model.s.brand } },
-      h(
-        "span",
-        { class: "rg-bar__brand", title: model.s.brand },
-        brandMark(22),
-        h("span", { class: "rg-bar__word", text: model.s.brand }),
-      ),
       this.main,
     );
 
@@ -242,7 +236,7 @@ export class BarView {
     let phone: PhoneHandle;
     const callBtn = button({
       label: s.callButton,
-      variant: "primary",
+      variant: "call",
       icon: "phone",
       disabled: true,
       onClick: () => void this.model.placeCall(),
@@ -283,6 +277,7 @@ export class BarView {
               callerIds: this.model.callerIds,
               autoLabel: s.callerIdAuto,
               capLabel: s.callerIdLabel,
+              selectedId: this.model.selectedCallerId,
               onSelect: (id) => this.model.setCallerId(id),
             }).el,
           )
@@ -371,7 +366,10 @@ export class BarView {
       controls.setKeypadOpen(this.model.keypadOpen);
     };
     const onOutside = (ev: Event) => {
-      if (this.model.keypadOpen && !el.contains(ev.target as Node)) {
+      // composedPath pierces the shadow boundary; `ev.target` would otherwise
+      // retarget to the host and read every in-bar click as "outside".
+      const inside = (ev.composedPath?.() ?? []).includes(el) || el.contains(ev.target as Node);
+      if (this.model.keypadOpen && !inside) {
         this.model.setKeypadOpen(false);
         padPop.hidden = true;
         controls.setKeypadOpen(false);
@@ -438,7 +436,7 @@ export class BarView {
       h("span", { class: "rg-header__spacer" }),
       button({
         label: failed ? s.callAgain : s.newCall,
-        variant: "primary",
+        variant: "call",
         icon: "phone",
         onClick: () => this.model.newCall(),
       }).el,

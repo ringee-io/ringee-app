@@ -138,7 +138,8 @@ export function createFloating(options: FloatingOptions): FloatingController {
         externalContactId: input.externalContactId,
       });
       model.setNumber(input.to);
-      model.setCallerId(input.callerIdId);
+      // Per-call override — don't persist over the agent's saved default.
+      model.setCallerId(input.callerIdId, { persist: false });
       floating.openPanel();
       placeWhenReady(model);
     },

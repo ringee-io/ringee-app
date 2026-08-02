@@ -6,7 +6,6 @@
  * only on a `"screen"` reason and patching in place on `"patch"`.
  */
 import { h, replaceChildren, raf } from "./dom";
-import { icon, brandMark } from "./icons";
 import { iconButton, statusDot } from "./components";
 import { agentMenu } from "./call-components";
 import { buildScreen, type Screen } from "./screens";
@@ -49,17 +48,12 @@ export class CardView {
       );
     }
 
+    // Unbranded header: live status on the left, window controls on the right.
     const header = h(
       "div",
       { class: "rg-header" },
-      h(
-        "div",
-        { class: "rg-header__brand" },
-        brandMark(22),
-        h("span", { class: "rg-header__word", text: model.s.brand }),
-      ),
-      h("span", { class: "rg-header__spacer" }),
       this.statusEl,
+      h("span", { class: "rg-header__spacer" }),
       actions,
     );
 

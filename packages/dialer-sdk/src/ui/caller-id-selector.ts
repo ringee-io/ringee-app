@@ -14,6 +14,8 @@ export interface CallerIdSelectorOptions {
   autoLabel: string;
   capLabel: string;
   allowAuto?: boolean;
+  /** Currently selected caller-ID id (e.g. restored from a previous session). */
+  selectedId?: string;
   onSelect?: (id: string | undefined) => void;
 }
 
@@ -37,8 +39,13 @@ export function callerIdSelector(opts: CallerIdSelectorOptions): CallerIdHandle 
 
   // Default: the primary number, else auto, else first.
   const primary = opts.callerIds.find((c) => c.isPrimary);
-  let selected: string | undefined =
+  const fallback: string | undefined =
     opts.allowAuto === false ? primary?.id ?? opts.callerIds[0]?.id : undefined;
+  // Honor a restored selection when it still maps to an available option.
+  let selected: string | undefined =
+    opts.selectedId != null && options.some((o) => o.id === opts.selectedId)
+      ? opts.selectedId
+      : fallback;
   let activeIndex = Math.max(0, options.findIndex((o) => o.id === selected));
   let open = false;
 
@@ -134,6 +141,12 @@ export function callerIdSelector(opts: CallerIdSelectorOptions): CallerIdHandle 
   }
 
   function onOutside(ev: Event) {
+    // `ev.target` is retargeted to the shadow host for document-level listeners,
+    // so `el.contains(target)` is always false inside the shadow root (it would
+    // close the menu on the very click meant to pick an option). composedPath()
+    // pierces the shadow boundary and reports the real click path.
+    const path = ev.composedPath?.() ?? [];
+    if (path.includes(el)) return;
     if (!el.contains(ev.target as Node)) setOpen(false);
   }
 
