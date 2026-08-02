@@ -11,23 +11,25 @@
 export const STYLES = /* css */ `
 :host {
   /* ── Public theme tokens (light defaults) ───────────────────────────── */
-  /* Primary is neutral ink (black in light / white in dark). Green lives only
-     in accent + success, reserved for call actions and live indicators. */
-  --ringee-primary: #0f172a;
-  --ringee-primary-hover: #1e293b;
+  /* Ringee is monochrome: primary AND accent are neutral ink (near-black in
+     light / near-white in dark), matching the dashboard. No brand green — the
+     call/answer/launcher actions inherit the neutral accent; green survives
+     only as the tiny live/ready status dot (success). */
+  --ringee-primary: #171717;
+  --ringee-primary-hover: #000000;
   --ringee-on-primary: #ffffff;
-  --ringee-accent: #059669;
-  --ringee-accent-hover: #047857;
+  --ringee-accent: #171717;
+  --ringee-accent-hover: #000000;
   --ringee-on-accent: #ffffff;
   --ringee-background: #ffffff;
-  --ringee-surface: #f6f7f9;
-  --ringee-text: #0f172a;
-  --ringee-text-muted: #64748b;
-  --ringee-border: #e6e9ef;
+  --ringee-surface: #fafafa;
+  --ringee-text: #171717;
+  --ringee-text-muted: #737373;
+  --ringee-border: #e5e5e5;
   --ringee-danger: #dc2626;
-  --ringee-success: #059669;
+  --ringee-success: #16a34a;
   --ringee-warning: #b45309;
-  --ringee-radius: 18px;
+  --ringee-radius: 14px;
   --ringee-shadow: 0 18px 48px -16px rgba(15, 23, 42, .24), 0 2px 8px -2px rgba(15, 23, 42, .1);
   --ringee-font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
@@ -222,7 +224,7 @@ svg { display: block; flex: none; }
 .rg-select:focus-visible { outline: none; border-color: var(--ringee-primary); box-shadow: 0 0 0 3px var(--rg-focus); }
 .rg-select[aria-expanded="true"] { border-color: var(--ringee-primary); }
 .rg-select__label { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; }
-.rg-select__cap { font-size: 11px; color: var(--ringee-text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.rg-select__cap { font-size: 11px; color: var(--ringee-text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rg-select__val { font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rg-select__chev { color: var(--ringee-text-muted); transition: transform .18s var(--rg-ease); }
 .rg-select[aria-expanded="true"] .rg-select__chev { transform: rotate(180deg); }
@@ -539,19 +541,19 @@ svg { display: block; flex: none; }
 /** Dark-mode token overrides, shared by the media query and the forced class. */
 function darkTokens(): string {
   return /* css */ `
-    --ringee-primary: #f8fafc;
-    --ringee-primary-hover: #e2e8f0;
-    --ringee-on-primary: #0b1220;
-    --ringee-accent: #34d399;
-    --ringee-accent-hover: #6ee7b7;
-    --ringee-on-accent: #04231a;
-    --ringee-background: #111827;
-    --ringee-surface: #0d131f;
-    --ringee-text: #f1f5f9;
-    --ringee-text-muted: #94a3b8;
-    --ringee-border: #273244;
+    --ringee-primary: #fafafa;
+    --ringee-primary-hover: #ffffff;
+    --ringee-on-primary: #0a0a0a;
+    --ringee-accent: #fafafa;
+    --ringee-accent-hover: #ffffff;
+    --ringee-on-accent: #0a0a0a;
+    --ringee-background: #1c1c1c;
+    --ringee-surface: #0f0f0f;
+    --ringee-text: #fafafa;
+    --ringee-text-muted: #a3a3a3;
+    --ringee-border: #2e2e2e;
     --ringee-danger: #f87171;
-    --ringee-success: #34d399;
+    --ringee-success: #22c55e;
     --ringee-warning: #fbbf24;
     --ringee-shadow: 0 20px 52px -18px rgba(0, 0, 0, .66), 0 2px 10px -4px rgba(0, 0, 0, .5);
     --rg-elevated: color-mix(in srgb, #ffffff 5%, var(--ringee-background));

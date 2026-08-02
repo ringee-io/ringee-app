@@ -86,6 +86,7 @@ export class DialerModel {
   private forceEmail = false;
   private showEnded = false;
   private fatalError = false;
+  private forceRebuild = false;
   private lastScreen: ScreenKey = "loading";
 
   constructor(
@@ -106,7 +107,12 @@ export class DialerModel {
 
   private emit(): void {
     const next = this.computeScreen();
-    const reason: ChangeReason = next === this.lastScreen ? "patch" : "screen";
+    // A contact/number injection (setContact/prefill) doesn't change the screen
+    // key, so force a rebuild — otherwise the ready screen only patches its
+    // banner/button and the new contact chip + number never render.
+    const reason: ChangeReason =
+      this.forceRebuild || next !== this.lastScreen ? "screen" : "patch";
+    this.forceRebuild = false;
     this.lastScreen = next;
     for (const fn of [...this.listeners]) {
       try {
@@ -286,6 +292,18 @@ export class DialerModel {
   setContact(contact: DialerContact | null): void {
     this.contact = contact;
     if (contact?.number) this.number = contact.number;
+    // Contact identity changed — rebuild the screen so the chip/number show.
+    this.forceRebuild = true;
+    this.emit();
+  }
+
+  /**
+   * Integrator API: prefill only the dial field (no contact card). Rebuilds the
+   * ready screen so the number is reflected in the visible phone input.
+   */
+  prefill(number: string): void {
+    this.number = number;
+    this.forceRebuild = true;
     this.emit();
   }
 

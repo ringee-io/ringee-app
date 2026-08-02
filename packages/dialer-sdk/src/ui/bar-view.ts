@@ -272,7 +272,7 @@ export class BarView {
       this.model.callerIds.length > 0
         ? h(
             "div",
-            { attrs: { "data-collapse": "callerid" }, style: { flex: "0 1 170px", minWidth: "0" } },
+            { attrs: { "data-collapse": "callerid" }, style: { flex: "0 1 250px", minWidth: "0" } },
             callerIdSelector({
               callerIds: this.model.callerIds,
               autoLabel: s.callerIdAuto,

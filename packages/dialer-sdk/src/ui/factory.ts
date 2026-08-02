@@ -128,7 +128,7 @@ export function createFloating(options: FloatingOptions): FloatingController {
     close: () => floating.close(),
     toggle: () => floating.toggle(),
     setContact: (c) => model.setContact(c),
-    prefill: (n) => model.setContact({ ...(model.contact ?? {}), number: n }),
+    prefill: (n) => model.prefill(n),
     startCall: (input) => {
       model.setContact({
         number: input.to,
@@ -166,7 +166,7 @@ export function createBar(options: BarOptions): BarController {
     dialer,
     el: mount.host,
     setContact: (c) => model.setContact(c),
-    prefill: (n) => model.setContact({ ...(model.contact ?? {}), number: n }),
+    prefill: (n) => model.prefill(n),
     setTheme: (t) => mount.setTheme(t),
     on: (event, handler) => dialer.on(event, handler),
     destroy: () => {
