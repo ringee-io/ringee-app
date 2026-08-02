@@ -29,6 +29,15 @@ interface NumbersState {
 
 const STORAGE_KEY = 'ringee:selected-number-id';
 
+// A number can only be used as a caller ID while it is in a usable state.
+// Exported so the dropdown and the restore-from-storage logic can never
+// disagree about what is actually offerable.
+const UNSELECTABLE_STATUSES = ['pending', 'inactive', 'released'];
+
+export function isSelectableNumber(num: NumberPurchased): boolean {
+  return !UNSELECTABLE_STATUSES.includes(num.status ?? '');
+}
+
 // The shared "public" / free-trial caller ID is configuration, not a literal:
 // it comes from NEXT_PUBLIC_RINGEE_PUBLIC_CALLER_ID. When unset, no public line
 // is offered and calling requires a purchased number (resolved from backend).
@@ -57,9 +66,15 @@ export const useNumbersStore = create<NumbersState>()(
 
         let restored: NumberPurchased | null = null;
 
+        // The stored id is only a hint: restore it exclusively when the backend
+        // still returns that number as selectable. Otherwise a number deleted
+        // (or released/deactivated) elsewhere would stay selected forever just
+        // because this browser remembers its id.
         if (savedId && savedId !== 'public') {
           restored =
-            list.find((n: NumberPurchased) => n.id === savedId) ?? null;
+            list.find(
+              (n: NumberPurchased) => n.id === savedId && isSelectableNumber(n)
+            ) ?? null;
         }
 
         set({
@@ -72,7 +87,9 @@ export const useNumbersStore = create<NumbersState>()(
           localStorage.removeItem(STORAGE_KEY);
         }
       } catch (err) {
-        set({ status: 'error', numbers: [] });
+        // Without a list we cannot prove the remembered number still exists —
+        // fall back to the public line instead of dialing from a stale id.
+        set({ status: 'error', numbers: [], selectedNumber: publicNumber });
       }
     },
 

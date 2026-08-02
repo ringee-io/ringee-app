@@ -46,6 +46,10 @@ export class NumberPurchasedRepository {
         kind: "verified_caller_id",
         verified: true,
         verificationStatus: "verified",
+        // Caller IDs are soft-deleted: without this a removed caller ID keeps
+        // showing up as a dialable number.
+        deletedAt: null,
+        active: true,
       },
       orderBy: { createdAt: "desc" },
       include: {
