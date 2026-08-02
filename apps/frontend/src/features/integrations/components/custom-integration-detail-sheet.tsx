@@ -423,9 +423,9 @@ function PublishableKeysSection({
             size='sm'
             variant='ghost'
             className='h-6 px-2 text-xs'
-            onClick={() => addOrigin('http://localhost:5173')}
+            onClick={() => addOrigin('https://playground.ringee.io')}
           >
-            localhost:5173 (playground)
+            https://playground.ringee.io (playground)
           </Button>
         </div>
 
