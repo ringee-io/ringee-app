@@ -1,6 +1,6 @@
 /**
- * All user-facing copy. Two shipped locales (`es` default — the acceptance copy
- * — and `en`), fully overridable via the `strings` UI option. Nothing here is
+ * All user-facing copy. Two shipped locales (`en` default and `es`), fully
+ * overridable via the `strings` UI option. Nothing here is
  * technical: backend error codes are translated to plain, actionable sentences
  * by {@link errorCopy}, never surfaced raw.
  */
@@ -447,7 +447,7 @@ export function resolveStrings(
   locale: string | undefined,
   overrides?: Partial<Strings>,
 ): Strings {
-  const base = LOCALES[(locale ?? "es").slice(0, 2)] ?? es;
+  const base = LOCALES[(locale ?? "en").slice(0, 2)] ?? en;
   if (!overrides) return base;
   return { ...base, ...overrides, errors: { ...base.errors, ...overrides.errors } };
 }

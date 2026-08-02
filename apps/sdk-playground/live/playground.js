@@ -24,12 +24,12 @@
   // ── SDK availability guard ───────────────────────────────────────────────
   if (typeof window.Ringee === "undefined" || !window.Ringee.createFloating) {
     $("sdkSrc").textContent =
-      "⚠ SDK no cargado — corré `node build.mjs` para copiar ringee.global.js a ./vendor";
+      "⚠ SDK not loaded — run `node build.mjs` to copy ringee.global.js to ./vendor";
     $("sdkSrc").style.color = "var(--danger)";
     return;
   }
   $("sdkSrc").textContent =
-    "SDK cargado · origen actual: " + window.location.origin;
+    "SDK loaded · current origin: " + window.location.origin;
 
   // ── Config model ─────────────────────────────────────────────────────────
   var FIELDS = [
@@ -61,7 +61,7 @@
       apiUrl: smartApiDefault(),
       agentEmail: DEFAULTS.agentEmail || "",
       mode: "floating",
-      locale: DEFAULTS.locale || "es",
+      locale: DEFAULTS.locale || "en",
       scheme: "auto",
       allowHold: false,
       debug: false,
@@ -218,13 +218,13 @@
   function mount() {
     var cfg = readForm();
     if (!cfg.pk) {
-      log("Falta la publishable key (pk_live_…).", "ev-err");
+      log("A publishable key (pk_live_…) is required.", "ev-err");
       $("pk").focus();
       return;
     }
     persist(cfg);
     teardown();
-    log("Montando modo “" + cfg.mode + "” contra " + cfg.apiUrl + " …");
+    log("Mounting “" + cfg.mode + "” mode against " + cfg.apiUrl + " …");
 
     try {
       if (cfg.mode === "floating") {
@@ -245,7 +245,7 @@
         });
       }
     } catch (e) {
-      log("No se pudo montar: " + (e && e.message || e), "ev-err");
+      log("Could not mount: " + (e && e.message || e), "ev-err");
       return;
     }
 
@@ -258,7 +258,7 @@
           log("initialize() ok", "ev-ok");
         },
         function (e) {
-          log("initialize() falló: " + (e.code || "") + " — " + e.message, "ev-err");
+          log("initialize() failed: " + (e.code || "") + " — " + e.message, "ev-err");
         }
       );
     }
@@ -279,11 +279,11 @@
       refreshHeadlessButtons(p.state);
     });
     d.on("authRequired", function () {
-      log("authRequired — se necesita OTP");
+      log("authRequired — OTP required");
     });
     d.on("codeSent", function (p) {
       challengeId = p.challenge.id;
-      log("Código enviado a " + (p.challenge.maskedEmail || "email"), "ev-ok");
+      log("Code sent to " + (p.challenge.maskedEmail || "email"), "ev-ok");
       $("hlVerify").disabled = false;
       $("hlResend").disabled = false;
     });
@@ -299,7 +299,7 @@
       log("sessionExpired", "ev-err");
     });
     d.on("ready", function () {
-      log("ready — motor y agente listos", "ev-ok");
+      log("ready — engine and agent ready", "ev-ok");
       populateCallerIds();
     });
     d.on("dialing", function (p) {
@@ -345,11 +345,11 @@
     } catch (_) {}
     var sel = $("hlCallerId");
     var current = sel.value;
-    sel.innerHTML = '<option value="">(automático)</option>';
+    sel.innerHTML = '<option value="">(automatic)</option>';
     ids.forEach(function (c) {
       var o = document.createElement("option");
       o.value = c.id;
-      o.textContent = c.phoneNumber + (c.isPrimary ? " · principal" : "");
+      o.textContent = c.phoneNumber + (c.isPrimary ? " · primary" : "");
       sel.appendChild(o);
     });
     if (current) sel.value = current;
@@ -392,7 +392,7 @@
 
   // Headless auth + call handlers
   $("hlSend").onclick = guard(function () {
-    if (!dialer) return log("Montá primero el modo headless.", "ev-err");
+    if (!dialer) return log("Mount headless mode first.", "ev-err");
     return dialer.requestEmailCode($("hlEmail").value.trim());
   });
   $("hlVerify").onclick = guard(function () {
@@ -433,7 +433,7 @@
       controller.setContact(c);
       log("setContact(" + (c ? c.number || c.name : "null") + ")");
     } else {
-      log("setContact solo aplica a Floating/Bar (montá uno).", "ev-err");
+      log("setContact only applies to Floating/Bar (mount one first).", "ev-err");
     }
   };
   $("prefillBtn").onclick = function () {
@@ -442,7 +442,7 @@
       controller.prefill(n);
       log("prefill(" + n + ")");
     } else {
-      log("prefill solo aplica a Floating/Bar (montá uno).", "ev-err");
+      log("prefill only applies to Floating/Bar (mount one first).", "ev-err");
     }
   };
   $("startCallBtn").onclick = function () {
@@ -455,7 +455,7 @@
       });
       log("startCall(" + cfg.cNumber + ")");
     } else {
-      log("startCall solo aplica a Floating (montá Floating).", "ev-err");
+      log("startCall only applies to Floating (mount Floating first).", "ev-err");
     }
   };
 
@@ -467,17 +467,17 @@
     var fresh = loadConfig();
     fresh.pk = ""; // don't re-inject stored pk after a reset
     writeForm(fresh);
-    log("Config reseteada.");
+    log("Configuration reset.");
   };
   $("shareBtn").onclick = function () {
     var url = shareUrl(readForm());
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url).then(
-        function () { log("Enlace copiado al portapapeles.", "ev-ok"); },
-        function () { log("No se pudo copiar; enlace: " + url); }
+        function () { log("Link copied to clipboard.", "ev-ok"); },
+        function () { log("Could not copy; link: " + url); }
       );
     } else {
-      log("Enlace: " + url);
+      log("Link: " + url);
     }
   };
 
@@ -493,18 +493,18 @@
   var initial = loadConfig();
   writeForm(initial);
   $("originHint").innerHTML =
-    "Este origen (<code>" +
+    "This origin (<code>" +
     escapeHtml(window.location.origin) +
-    "</code>) debe estar en <code>allowedOrigins</code> de tu publishable key.";
+    "</code>) must be included in your publishable key's <code>allowedOrigins</code>.";
 
   // Auto-mount when a pk is already available (shared link / env default),
   // so the page is immediately live without an extra click.
   if (initial.pk) {
-    log("pk detectada — montando automáticamente.");
+    log("pk detected — mounting automatically.");
     // Defer so the SDK global is fully ready.
     setTimeout(mount, 0);
   } else {
     $("stageHint").style.display = "block";
-    log("Pegá tu pk_live_… y hacé clic en “Montar / Aplicar”.");
+    log("Paste your pk_live_… and click “Mount / Apply”.");
   }
 })();

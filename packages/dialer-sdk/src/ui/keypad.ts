@@ -24,7 +24,7 @@ export function keypad(onDigit: (digit: string) => void): HTMLElement {
   const grid = h("div", {
     class: "rg-keypad",
     role: "group",
-    attrs: { "aria-label": "Teclado numérico" },
+    attrs: { "aria-label": "Dial pad" },
   });
 
   for (const key of KEYS) {
@@ -33,7 +33,7 @@ export function keypad(onDigit: (digit: string) => void): HTMLElement {
       {
         class: "rg-key",
         type: "button",
-        attrs: { "aria-label": key.d === "0" ? "0 más" : key.d },
+        attrs: { "aria-label": key.d === "0" ? "0 plus" : key.d },
         on: { click: () => onDigit(key.d) },
       },
       h("span", { class: "rg-key__d", text: key.d }),

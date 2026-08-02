@@ -26,7 +26,7 @@ export interface CommonUIOptions {
   dialer?: RingeeDialer;
   /** Theme overrides (`--ringee-*`). */
   theme?: RingeeTheme;
-  /** UI locale: "es" (default) or "en". */
+  /** UI locale: "en" (default) or "es". */
   locale?: string;
   /** Fine-grained copy overrides, merged over the locale bundle. */
   strings?: Partial<Strings>;

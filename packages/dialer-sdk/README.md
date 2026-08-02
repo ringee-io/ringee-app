@@ -1,149 +1,176 @@
 # Ringee Dialer SDK
 
-SDK de navegador para integrar llamadas salientes de Ringee dentro de un CRM,
-backoffice o aplicación web.
+Browser SDK for embedding Ringee outbound calling in a CRM, back office, or web
+application.
 
-El paquete ofrece tres formas de integración:
+The package supports three integration modes:
 
-1. **Floating:** botón flotante que abre un marcador completo.
-2. **Bar:** marcador inline dentro de un elemento de la página.
-3. **Headless:** motor sin interfaz para construir una experiencia propia.
+1. **Floating:** a floating launcher that opens a complete dialer panel.
+2. **Bar:** an inline dialer rendered inside an element on your page.
+3. **Headless:** a UI-free engine for building a fully custom experience.
 
-Las interfaces incluidas no dependen de React: se renderizan en un Shadow DOM,
-funcionan con JavaScript, TypeScript o cualquier framework, incluyen español e
-inglés y se pueden personalizar. El SDK encapsula WebRTC y Telnyx; la aplicación
-host no maneja credenciales SIP ni tokens de Telnyx.
+The included UIs have no React dependency. They render inside an isolated Shadow
+DOM, work with JavaScript, TypeScript, or any framework, support English and
+Spanish, and can be themed. The SDK encapsulates WebRTC and Telnyx, so the host
+application never manages Telnyx credentials or provider-specific objects.
 
-> Este paquete es exclusivamente para navegador. No debe inicializarse en un
-> servidor de Node.js, Server Component, API route o proceso SSR.
+> This is a browser-only package. Do not initialize it in Node.js, a Server
+> Component, an API route, or any SSR process.
 
-## Contenido
+## Contents
 
-- [Elegir una integración](#elegir-una-integración)
-- [Requisitos](#requisitos)
-- [Preparar la integración](#preparar-la-integración)
-- [Opción 1: Floating](#opción-1-floating)
-- [Opción 2: Bar inline](#opción-2-bar-inline)
-- [Opción 3: Headless](#opción-3-headless)
-- [React y Next.js](#react-y-nextjs)
-- [Contactos del CRM](#contactos-del-crm)
-- [Personalización](#personalización)
-- [Referencia de la API](#referencia-de-la-api)
-- [Cómo funciona internamente](#cómo-funciona-internamente)
-- [Seguridad](#seguridad)
+- [Choose an integration](#choose-an-integration)
+- [Requirements](#requirements)
+- [Create a publishable key](#create-a-publishable-key)
+- [Install](#install)
+- [Option 1: Floating](#option-1-floating)
+- [Option 2: Inline Bar](#option-2-inline-bar)
+- [Option 3: Headless](#option-3-headless)
+- [React and Next.js](#react-and-nextjs)
+- [CRM contacts](#crm-contacts)
+- [Customization](#customization)
+- [API reference](#api-reference)
+- [How it works](#how-it-works)
+- [Security](#security)
+- [Self-hosting and local development](#self-hosting-and-local-development)
 - [Troubleshooting](#troubleshooting)
 
-## Elegir una integración
+## Choose an integration
 
-| Modalidad        | Cuándo usarla                         | Inicialización | Interfaz               |
-| ---------------- | ------------------------------------- | -------------- | ---------------------- |
-| Floating con CDN | Prueba rápida o página sin build      | Automática     | Botón flotante + panel |
-| Floating con npm | SPA o aplicación con bundler          | Automática     | Botón flotante + panel |
-| Bar con CDN/npm  | Toolbar, sidebar o ficha de contacto  | Automática     | Marcador inline        |
-| Headless         | Diseño y lógica completamente propios | Manual         | Ninguna                |
+| Mode             | Best for                                  | Initialization | UI                        |
+| ---------------- | ----------------------------------------- | -------------- | ------------------------- |
+| Floating via CDN | Quick setup or pages without a build step | Automatic      | Floating launcher + panel |
+| Floating via npm | SPAs and bundled applications             | Automatic      | Floating launcher + panel |
+| Bar via CDN/npm  | Toolbars, sidebars, and contact records   | Automatic      | Inline dialer             |
+| Headless         | Fully custom design and state handling    | Manual         | None                      |
 
-La recomendación general es empezar con **Floating**. Use **Bar** cuando el CRM
-ya tenga una zona reservada para telefonía y **Headless** únicamente cuando
-necesite controlar todos los estados, formularios y mensajes.
+Start with **Floating** for the fastest implementation. Choose **Bar** when the
+host already has a dedicated area for calling. Choose **Headless** only when you
+need complete control over every screen, form, state, and message.
 
-### Lo que no incluye esta versión
+### Not included in this release
 
-- No existe todavía un URL público de Ringee para insertar directamente con
+- There is no public Ringee URL that can be dropped directly into
   `<iframe src="...">`.
-- No existe todavía un loader automático mediante atributos
-  `data-ringee-key`/`data-ringee-mode`.
-- No existe un paquete React separado. El SDK actual puede usarse desde React
-  mediante `useEffect`, como se muestra más adelante.
+- There is no automatic `data-ringee-key` / `data-ringee-mode` loader.
+- There is no separate React wrapper package. The browser SDK can be mounted
+  from React with `useEffect`, as shown below.
 
-Es posible ejecutar el SDK dentro de un iframe creado por la aplicación host,
-pero la aplicación debe cargar y controlar el paquete dentro de ese documento.
-El iframe necesita su propio origen autorizado, acceso al micrófono y storage;
-esta versión no proporciona un puente `postMessage` listo para usar.
+You can run the SDK inside an iframe created by your application, but your code
+must load and control the package inside that document. The iframe needs an
+allowed origin, microphone permission, and storage access. This release does
+not provide a ready-made `postMessage` bridge.
 
-## Requisitos
+## Requirements
 
-Antes de integrar el marcador se necesita:
+Before embedding the dialer, you need:
 
-- una integración personalizada activa en Ringee;
-- una publishable key `pk_live_...` con el origen del CRM autorizado;
-- un agente de Ringee con acceso al workspace de la integración;
-- al menos un caller ID disponible para el agente/workspace;
-- crédito y permisos suficientes para llamar;
-- una página servida por HTTPS en producción, necesario para el micrófono;
-- un navegador moderno con WebRTC y `navigator.mediaDevices`.
+- an active Ringee Custom Integration;
+- a `pk_live_...` publishable key scoped to the CRM origin;
+- a Ringee agent with access to the integration workspace;
+- at least one caller ID available to that agent or workspace;
+- enough credit and permission to place calls;
+- HTTPS in production, which browsers require for microphone access;
+- a modern browser with WebRTC and `navigator.mediaDevices`.
 
-Los números de destino deben enviarse en formato **E.164**, por ejemplo
-`+13055550198`, `+34911234567` o `+18095550123`.
+Destination numbers must use **E.164** format, for example `+13055550198`,
+`+34911234567`, or `+18095550123`.
 
-## Preparar la integración
+## Create a publishable key
 
-La forma recomendada de crear una publishable key es desde el dashboard de
-Ringee. Esta sección es visible para administradores de la organización y para
-cuentas personales con acceso administrativo.
+The recommended flow uses the Ringee dashboard. Custom Integrations are
+available to organization admins and personal accounts with administrative
+access.
 
-### 1. Entrar a Custom Integrations
+### 1. Open Custom Integrations
 
-1. Inicie sesión en Ringee.
-2. Abra **Integrations** desde el menú lateral. La ruta directa es
+1. Sign in to Ringee.
+2. Open **Integrations** from the sidebar. The direct route is
    `/dashboard/settings/integrations`.
-3. Seleccione la pestaña **Custom Integrations**.
+3. Select the **Custom Integrations** tab.
 
-### 2. Crear o abrir una integración
+### 2. Create or open an integration
 
-- Si todavía no tiene una, pulse **New custom integration**, escriba un nombre
-  como `Mi CRM` y pulse **Create**.
-- Si ya existe, abra su tarjeta con **Configure**.
+- If you do not have one yet, click **New custom integration**, enter a name
+  such as `My CRM`, and click **Create**.
+- If one already exists, open its card with **Configure**.
 
-Al crear una integración, Ringee también muestra una API key `cik_live_...` y un
-webhook signing secret. Esas credenciales pertenecen a la API privada y a los
-webhooks: **no son la clave que utiliza el Dialer SDK y nunca deben incluirse en
-el frontend**.
+When a Custom Integration is created, Ringee also displays a `cik_live_...` API
+key and a webhook signing secret. Those credentials belong to the private API
+and webhook system. **They are not Dialer SDK keys and must never be placed in
+frontend code.**
 
-### 3. Añadir los orígenes permitidos
+### 3. Add allowed origins
 
-Dentro de la integración:
+Inside the integration:
 
-1. Abra la pestaña **Settings**.
-2. Busque la sección **Dialer SDK · Publishable keys**.
-3. En **Allowed origins**, escriba el origen completo del sitio que cargará el
-   SDK, por ejemplo `https://crm.example.com`.
-4. Pulse **Add** y repita el proceso para cada entorno. Para el playground local
-   puede usar el acceso rápido **localhost:5173 (playground)**.
+1. Open **Settings**.
+2. Find **Dialer SDK · Publishable keys**.
+3. Under **Allowed origins**, enter the complete origin that will load the SDK,
+   such as `https://crm.example.com`.
+4. Click **Add** and repeat for every environment. For the local live
+   playground, use **localhost:5173 (playground)**.
 
-El acceso rápido **This dashboard** añade el origen del dashboard que está
-abierto. Úselo solamente si el SDK se ejecutará desde ese mismo origen; para un
-CRM externo debe añadir el origen del CRM.
+The **This dashboard** shortcut adds the origin of the currently open Ringee
+dashboard. Use it only if the SDK will run from that same origin. An external
+CRM must add the CRM origin instead.
 
-Un origen contiene únicamente protocolo, host y puerto opcional. No añada rutas
-como `/contacts`, parámetros ni `#fragmentos`.
+An origin contains only the scheme, host, and optional port. Do not include a
+path, query string, credentials, or fragment.
 
-Ejemplo para una instalación con producción y desarrollo local:
+Example production and local origins:
 
 ```text
 https://crm.example.com
 http://localhost:5173
 ```
 
-### 4. Generar y copiar la publishable key
+### 4. Generate and copy the key
 
-1. Revise la lista de orígenes.
-2. Pulse **Generate publishable key**.
-3. Copie el valor `pk_live_...` mostrado bajo **Publishable key**.
-4. Péguelo en la configuración frontend que se pasa como `key` al SDK.
+1. Review the allowed origin list.
+2. Click **Generate publishable key**.
+3. Copy the `pk_live_...` value shown under **Publishable key**.
+4. Pass it to the SDK as the frontend `key` option.
 
-La pantalla muestra la clave generada para que se copie en ese momento. Aunque
-la publishable key puede estar en el navegador, conviene conservarla en la
-configuración del proyecto y evitar perderla. Si necesita cambiar los orígenes o
-ya no tiene la clave, genere una nueva.
+The dashboard shows the generated value so you can copy it immediately. A
+publishable key is browser-safe, but keep it in your project configuration so
+it is not lost. Generate a new key if you lose it or need a different origin
+list.
 
-### Alternativa: crearla mediante la API administrativa
+### Exact origin matching
 
-Para automatización o self-hosting, un cliente autenticado como administrador
-puede usar la misma operación del dashboard:
+Origins are matched exactly:
+
+- `https://crm.example.com` does not allow `http://crm.example.com`;
+- `https://crm.example.com` does not allow `https://app.crm.example.com`;
+- `http://localhost:5173` does not allow `http://localhost:3000`;
+- paths, query strings, credentials, fragments, and wildcards are rejected.
+
+Every scheme, host, and port combination must be added explicitly. Existing
+publishable keys are not edited; generate a new key for a new origin list.
+
+### Key types
+
+| Key            | Used by                         | Safe in frontend? |
+| -------------- | ------------------------------- | ----------------- |
+| `pk_live_...`  | Dialer SDK                      | Yes               |
+| `cik_live_...` | Private Custom Integrations API | **No**            |
+
+A publishable key identifies an installation and its allowed origins. It does
+not identify or authenticate an agent. Ringee verifies agent identity with a
+one-time code sent to the agent's email.
+
+Rotating the `cik_live_...` secret revokes every publishable key associated with
+the integration. Disabling the integration also invalidates them.
+
+### Administrative API alternative
+
+For automation or self-hosting, an authenticated admin client can perform the
+same operation as the dashboard:
 
 ```http
 POST /api/integrations/custom/<integrationId>/publishable-keys
-Authorization: Bearer <sesion-de-administrador>
+Authorization: Bearer <admin-session>
 Content-Type: application/json
 
 {
@@ -154,7 +181,7 @@ Content-Type: application/json
 }
 ```
 
-Respuesta:
+Response:
 
 ```json
 {
@@ -165,61 +192,36 @@ Respuesta:
 }
 ```
 
-Tanto el dashboard como la API aplican una comparación exacta:
-
-- `https://crm.example.com` no autoriza `http://crm.example.com`;
-- `https://crm.example.com` no autoriza `https://app.crm.example.com`;
-- `http://localhost:5173` no autoriza `http://localhost:3000`;
-- no se aceptan paths, queries, credenciales ni wildcards.
-
-Cada combinación de protocolo, host y puerto debe añadirse explícitamente. Las
-publishable keys actuales no se editan: para usar otra lista de orígenes se
-genera una clave nueva.
-
-### Usar la clave correcta
-
-| Clave          | Dónde se usa                       | ¿Puede estar en frontend? |
-| -------------- | ---------------------------------- | ------------------------- |
-| `pk_live_...`  | SDK del marcador                   | Sí                        |
-| `cik_live_...` | API privada de Custom Integrations | **No**                    |
-
-La publishable key identifica una instalación y sus orígenes autorizados. No
-identifica ni autentica por sí sola a un agente. La identidad se verifica con un
-código de un solo uso enviado al correo del agente.
-
-Rotar la clave secreta `cik_live_...` revoca automáticamente todas las
-publishable keys asociadas. Deshabilitar la integración también las invalida.
-
-## Instalar con npm
+## Install
 
 ```bash
 npm install @ringee/dialer-sdk
 ```
 
-También puede usarse `pnpm add` o `yarn add`.
+You can also use `pnpm add` or `yarn add`.
 
-## Opción 1: Floating
+## Option 1: Floating
 
-Floating monta un botón en la esquina de la página. Al abrirlo, el agente puede
-autenticarse, elegir el caller ID, escribir un número y controlar la llamada.
+Floating mounts a launcher in the page corner. The panel handles agent sign-in,
+caller ID selection, number entry, and in-call controls.
 
-### CDN: un script, sin build
+### CDN: one script, no build step
 
 ```html
 <script src="https://unpkg.com/@ringee/dialer-sdk"></script>
 <script>
   const ringee = Ringee.mount({
     key: "pk_live_xxxxx",
-    locale: "es",
+    locale: "en",
     side: "right",
   });
 </script>
 ```
 
-`Ringee.mount(options)` es un alias de `Ringee.createFloating(options)`.
+`Ringee.mount(options)` is an alias for `Ringee.createFloating(options)`.
 
-En producción se recomienda fijar una versión para que un deploy del host no
-reciba cambios inesperados:
+Pin a version in production to avoid receiving an unexpected release during a
+host application deployment:
 
 ```html
 <script src="https://unpkg.com/@ringee/dialer-sdk@0.1.0/dist/ringee.global.js"></script>
@@ -233,7 +235,7 @@ import { createFloating } from "@ringee/dialer-sdk/ui";
 const ringee = createFloating({
   key: "pk_live_xxxxx",
   agentEmail: currentUser.email,
-  locale: "es",
+  locale: "en",
   side: "right",
   defaultOpen: false,
   rememberOpen: true,
@@ -241,11 +243,11 @@ const ringee = createFloating({
 });
 ```
 
-La UI llama a `initialize()` automáticamente. `agentEmail` solamente prellena el
-campo: Ringee siempre exige que el agente demuestre acceso al correo mediante
+The UI calls `initialize()` automatically. `agentEmail` only prefills the email
+field; Ringee always requires the agent to prove access to that email through
 OTP.
 
-### Abrir, cerrar y lanzar llamadas desde el CRM
+### Control it from the CRM
 
 ```ts
 ringee.open();
@@ -253,27 +255,26 @@ ringee.close();
 ringee.toggle();
 
 ringee.setContact({
-  name: "Marcos Herrera",
+  name: "Morgan Reed",
   number: "+13055550142",
   externalContactId: "crm-contact-294",
 });
 
-// Abre el panel y coloca la llamada cuando el agente esté autenticado y listo.
 ringee.startCall({
   to: "+13055550142",
-  name: "Marcos Herrera",
+  name: "Morgan Reed",
   externalContactId: "crm-contact-294",
 });
 ```
 
-`startCall()` puede invocarse antes de que finalice la restauración de sesión.
-La UI conserva la llamada solicitada y la inicia al llegar a la pantalla
-`ready`. Si el agente aún no está autenticado, primero mostrará el flujo de OTP.
+`startCall()` can be invoked before session restoration finishes. The UI keeps
+the requested call and places it once it reaches `ready`. If the agent is not
+authenticated, the OTP flow appears first.
 
-## Opción 2: Bar inline
+## Option 2: Inline Bar
 
-Bar renderiza el marcador dentro de un contenedor. Su ancho se adapta al ancho
-disponible y no crea un launcher flotante.
+Bar renders the dialer inside a container. It adapts to the available width and
+does not create a floating launcher.
 
 ### CDN
 
@@ -285,12 +286,12 @@ disponible y no crea un launcher flotante.
   const ringeeBar = Ringee.createBar({
     key: "pk_live_xxxxx",
     container: "#ringee-bar",
-    locale: "es",
+    locale: "en",
   });
 
   ringeeBar.setContact({
-    name: "Ana Torres",
-    number: "+34911234567",
+    name: "Avery Stone",
+    number: "+14155550142",
     externalContactId: "contact-802",
   });
 </script>
@@ -305,19 +306,18 @@ const ringeeBar = createBar({
   key: "pk_live_xxxxx",
   container: document.getElementById("ringee-bar")!,
   agentEmail: currentUser.email,
-  locale: "es",
+  locale: "en",
 });
 ```
 
-`container` acepta un `HTMLElement`, un id (`"ringee-bar"`), o un selector CSS
-(`"#sidebar .dialer"`). Si el elemento no existe al llamar `createBar`, el SDK
-lanza un error.
+`container` accepts an `HTMLElement`, an id (`"ringee-bar"`), or a CSS selector
+(`"#sidebar .dialer"`). The SDK throws if the element does not exist when
+`createBar()` is called.
 
-## Opción 3: Headless
+## Option 3: Headless
 
-Headless expone autenticación, llamadas, dispositivos y eventos sin renderizar
-ninguna UI. La aplicación debe construir las pantallas y responder a cada
-estado.
+Headless exposes authentication, calls, devices, and events without rendering
+any UI. The host must build the screens and react to every state.
 
 ```ts
 import { RingeeDialer, RingeeError } from "@ringee/dialer-sdk";
@@ -327,7 +327,7 @@ const dialer = new RingeeDialer({
   debug: false,
 });
 
-// Suscribirse antes de initialize() evita perder los primeros estados.
+// Subscribe before initialize() so the first state changes are not missed.
 dialer.on("authStateChanged", ({ state }) => renderAuthState(state));
 dialer.on("stateChanged", ({ state }) => renderCallState(state));
 dialer.on("authRequired", () => showEmailForm());
@@ -345,36 +345,35 @@ try {
 }
 ```
 
-`initialize()` puede resolver con el agente autenticado o anónimo:
+`initialize()` may resolve with an authenticated or anonymous agent:
 
-- si encuentra una sesión válida en `sessionStorage`, la restaura y emite
-  `signedIn` y `ready`;
-- si no existe una sesión, emite `authRequired` y espera el flujo OTP.
+- if a valid session exists in `sessionStorage`, the SDK restores it and emits
+  `signedIn` and `ready`;
+- otherwise it emits `authRequired` and waits for the OTP flow.
 
-### Autenticación OTP
+### Email OTP
 
 ```ts
 const challenge = await dialer.requestEmailCode("agent@company.com");
 
-// challenge.id debe conservarse hasta verificar o reenviar.
 const agent = await dialer.verifyEmailCode({
   challengeId: challenge.id,
   code: "184279",
 });
 
-console.log("Agente autenticado", agent.email);
+console.log("Signed in as", agent.email);
 ```
 
-Para reenviar el código:
+Resend a code with:
 
 ```ts
 const nextChallenge = await dialer.resendEmailCode(challenge.id);
 ```
 
-Respete `challenge.resendAvailableAt` para deshabilitar temporalmente el botón
-de reenvío, y `challenge.expiresAt` para mostrar la expiración.
+Use `challenge.resendAvailableAt` to control the resend button and
+`challenge.expiresAt` to display expiration.
 
-### Colocar y controlar una llamada
+### Place and control a call
 
 ```ts
 const call = await dialer.call({
@@ -391,26 +390,25 @@ dialer.sendDigits("123#");
 await dialer.hangup();
 ```
 
-Solo puede existir una llamada activa por instancia/agente. Ringee también
-intenta impedir llamadas simultáneas desde distintas pestañas mediante Web
-Locks y vuelve a validarlo en el servidor.
+Only one call can be active per instance or agent. Ringee uses Web Locks to
+reduce simultaneous calls across tabs and validates the restriction again on
+the server.
 
-### Cerrar sesión y destruir la instancia
+### Sign out and clean up
 
 ```ts
-await dialer.signOut(); // elimina la sesión del agente
-await dialer.destroy(); // desconecta WebRTC y libera recursos del navegador
+await dialer.signOut(); // removes the persisted agent session
+await dialer.destroy(); // disconnects WebRTC and releases browser resources
 ```
 
-`signOut()` y `destroy()` tienen propósitos diferentes. Destruir la instancia no
-es el mecanismo para cerrar la sesión persistida; cerrar sesión sí elimina el
-token guardado.
+`signOut()` and `destroy()` serve different purposes. Destroying the instance
+does not sign out the stored session; signing out removes the token.
 
-## React y Next.js
+## React and Next.js
 
-Monte el SDK después de que exista el DOM y destrúyalo al desmontar el
-componente. En Next.js, la importación dinámica dentro de `useEffect` garantiza
-que el paquete de navegador no se ejecute durante SSR.
+Mount the SDK after the DOM exists and destroy it when the component unmounts.
+In Next.js, a dynamic import inside `useEffect` prevents the browser package
+from running during SSR.
 
 ```tsx
 "use client";
@@ -430,7 +428,7 @@ export function RingeeDialer({ email }: { email: string }) {
       controller.current = createFloating({
         key: process.env.NEXT_PUBLIC_RINGEE_KEY!,
         agentEmail: email,
-        locale: "es",
+        locale: "en",
       });
     });
 
@@ -449,7 +447,7 @@ export function RingeeDialer({ email }: { email: string }) {
 }
 ```
 
-Para Bar, renderice primero el contenedor y créelo dentro del efecto:
+For Bar, render the container before creating the controller:
 
 ```tsx
 export function RingeeBar() {
@@ -463,10 +461,12 @@ export function RingeeBar() {
 
     void import("@ringee/dialer-sdk/ui").then(({ createBar }) => {
       if (!mounted || !container.current) return;
+
       const bar = createBar({
         key: process.env.NEXT_PUBLIC_RINGEE_KEY!,
         container: container.current,
       });
+
       cleanup = () => {
         bar.destroy();
         void bar.dialer.destroy();
@@ -483,68 +483,69 @@ export function RingeeBar() {
 }
 ```
 
-## Contactos del CRM
+## CRM contacts
 
-Ringee puede asociar la llamada con el contacto mostrado por la aplicación host.
+Attach the contact currently displayed by the host application:
 
 ```ts
 ringee.setContact({
-  name: "Marcos Herrera",
+  name: "Morgan Reed",
   number: "+13055550142",
   imageUrl: "https://crm.example.com/avatars/294.png",
   externalContactId: "crm-contact-294",
 });
 ```
 
-| Campo               | Uso                                 |
-| ------------------- | ----------------------------------- |
-| `name`              | Etiqueta visual en la UI            |
-| `number`            | Prellena el destino                 |
-| `imageUrl`          | Avatar visual en la UI              |
-| `contactId`         | ID de un contacto nativo de Ringee  |
-| `externalContactId` | ID del contacto en el CRM integrado |
+| Field               | Purpose                          |
+| ------------------- | -------------------------------- |
+| `name`              | Visual label in the included UI  |
+| `number`            | Prefills the destination         |
+| `imageUrl`          | Visual avatar in the included UI |
+| `contactId`         | Native Ringee contact UUID       |
+| `externalContactId` | Contact id in the integrated CRM |
 
-Use `contactId` cuando ya conoce el UUID interno de Ringee. Use
-`externalContactId` cuando la integración mantiene un vínculo entre el ID del
-CRM y un contacto de Ringee. No es necesario enviar ambos.
+Use `contactId` when you already know the internal Ringee UUID. Use
+`externalContactId` when the Custom Integration maps a CRM id to a Ringee
+contact. You do not need both.
 
-Si solo quiere precargar un número:
+To prefill only a number:
 
 ```ts
 ringee.prefill("+13055550142");
 ```
 
-## Personalización
+## Customization
 
-### Idioma
+### Language
+
+English is the default. Spanish remains available explicitly:
 
 ```ts
 createFloating({
   key: "pk_live_xxxxx",
-  locale: "es", // "es" por defecto; también "en"
+  locale: "en", // default; use "es" for Spanish
 });
 ```
 
-### Textos
+### Copy overrides
 
-`strings` permite reemplazar etiquetas individuales sobre el idioma elegido:
+`strings` replaces individual labels on top of the selected language:
 
 ```ts
 createBar({
   key: "pk_live_xxxxx",
   container: "#ringee-bar",
-  locale: "es",
   strings: {
-    callButton: "Marcar ahora",
-    numberLabel: "Teléfono del prospecto",
+    callButton: "Call prospect",
+    numberLabel: "Prospect phone number",
   },
 });
 ```
 
-Los códigos de error del backend se traducen a mensajes accionables en las UIs
-incluidas. En modo headless, la aplicación decide cómo presentarlos.
+The included UIs translate backend error codes into actionable messages.
+Headless applications decide how those errors are displayed.
 
-### Tema
+### Theme
 
 ```ts
 const ringee = createFloating({
@@ -559,15 +560,13 @@ const ringee = createFloating({
   },
 });
 
-// El tema también puede cambiarse después del montaje.
 ringee.setTheme({
   primary: "#0f766e",
   colorScheme: "dark",
 });
 ```
 
-`colorScheme` acepta `"auto"`, `"light"` o `"dark"`. Los campos disponibles
-son:
+`colorScheme` accepts `"auto"`, `"light"`, or `"dark"`. Theme fields include:
 
 - `primary`, `primaryHover`, `onPrimary`;
 - `background`, `surface`, `text`, `textMuted`, `border`;
@@ -575,7 +574,7 @@ son:
 - `radius`, `shadow`, `fontFamily`;
 - `colorScheme`.
 
-Los mismos valores se exponen como custom properties:
+The same values are available as CSS custom properties:
 
 ```css
 #crm-shell {
@@ -596,89 +595,88 @@ Los mismos valores se exponen como custom properties:
 }
 ```
 
-## Referencia de la API
+## API reference
 
-### Opciones comunes de las UIs
+### Common UI options
 
-| Opción          | Tipo               | Default                 | Descripción                                  |
-| --------------- | ------------------ | ----------------------- | -------------------------------------------- |
-| `key`           | `string`           | requerida               | Publishable key `pk_live_...`                |
-| `apiUrl`        | `string`           | `https://api.ringee.io` | Base de la API, sin `/api` al final          |
-| `agentEmail`    | `string`           | —                       | En las UIs, prellena el correo; no autentica |
-| `debug`         | `boolean`          | `false`                 | Activa logs detallados del motor             |
-| `dialer`        | `RingeeDialer`     | —                       | Reutiliza una instancia headless             |
-| `theme`         | `RingeeTheme`      | tema Ringee             | Personaliza colores y medidas                |
-| `locale`        | `string`           | `"es"`                  | Idioma `es` o `en`                           |
-| `strings`       | `Partial<Strings>` | —                       | Reemplaza textos puntuales                   |
-| `allowHold`     | `boolean`          | `false`                 | Muestra Hold/Resume                          |
-| `workspaceName` | `string`           | —                       | Nombre mostrado en el footer                 |
-| `onError`       | `(error) => void`  | —                       | Recibe errores que la UI también muestra     |
+| Option          | Type               | Default                 | Description                                   |
+| --------------- | ------------------ | ----------------------- | --------------------------------------------- |
+| `key`           | `string`           | required                | `pk_live_...` publishable key                 |
+| `apiUrl`        | `string`           | `https://api.ringee.io` | API base URL without `/api`                   |
+| `agentEmail`    | `string`           | —                       | Prefills UI email; does not authenticate      |
+| `debug`         | `boolean`          | `false`                 | Enables verbose engine logs                   |
+| `dialer`        | `RingeeDialer`     | —                       | Reuses a headless instance                    |
+| `theme`         | `RingeeTheme`      | Ringee theme            | Overrides visual tokens                       |
+| `locale`        | `string`           | `"en"`                  | `en` or `es`                                  |
+| `strings`       | `Partial<Strings>` | —                       | Overrides individual labels                   |
+| `allowHold`     | `boolean`          | `false`                 | Shows Hold/Resume controls                    |
+| `workspaceName` | `string`           | —                       | Workspace label in the footer                 |
+| `onError`       | `(error) => void`  | —                       | Receives typed errors also rendered by the UI |
 
-Floating añade:
+Floating adds:
 
-| Opción         | Tipo                | Default         | Descripción                     |
+| Option         | Type                | Default         | Description                     |
 | -------------- | ------------------- | --------------- | ------------------------------- |
-| `side`         | `"left" \| "right"` | `"right"`       | Lado del launcher               |
-| `defaultOpen`  | `boolean`           | `false`         | Abre inicialmente el panel      |
-| `rememberOpen` | `boolean`           | `true`          | Recuerda apertura en la pestaña |
-| `container`    | `HTMLElement`       | `document.body` | Padre donde monta el Shadow DOM |
+| `side`         | `"left" \| "right"` | `"right"`       | Launcher side                   |
+| `defaultOpen`  | `boolean`           | `false`         | Opens the initial panel         |
+| `rememberOpen` | `boolean`           | `true`          | Remembers open state in the tab |
+| `container`    | `HTMLElement`       | `document.body` | Shadow DOM parent               |
 
-Bar requiere `container: HTMLElement | string`.
+Bar requires `container: HTMLElement | string`.
 
-### Controladores de UI
+### UI controllers
 
-| Método/propiedad      | Floating | Bar | Descripción                      |
+| Method/property       | Floating | Bar | Description                      |
 | --------------------- | :------: | :-: | -------------------------------- |
-| `dialer`              |    Sí    | Sí  | Instancia headless subyacente    |
-| `open()`              |    Sí    |  —  | Abre el panel                    |
-| `close()`             |    Sí    |  —  | Cierra el panel                  |
-| `toggle()`            |    Sí    |  —  | Alterna el panel                 |
-| `startCall(input)`    |    Sí    |  —  | Abre y encola/inicia una llamada |
-| `setContact(contact)` |    Sí    | Sí  | Adjunta el contacto actual       |
-| `prefill(number)`     |    Sí    | Sí  | Prellena el número               |
-| `setTheme(theme)`     |    Sí    | Sí  | Cambia el tema                   |
-| `on(event, handler)`  |    Sí    | Sí  | Suscribe un evento headless      |
-| `destroy()`           |    Sí    | Sí  | Retira la UI y sus listeners     |
+| `dialer`              |   Yes    | Yes | Underlying headless instance     |
+| `open()`              |   Yes    |  —  | Opens the panel                  |
+| `close()`             |   Yes    |  —  | Closes the panel                 |
+| `toggle()`            |   Yes    |  —  | Toggles the panel                |
+| `startCall(input)`    |   Yes    |  —  | Opens and queues/starts a call   |
+| `setContact(contact)` |   Yes    | Yes | Attaches the current contact     |
+| `prefill(number)`     |   Yes    | Yes | Prefills the number              |
+| `setTheme(theme)`     |   Yes    | Yes | Updates the theme                |
+| `on(event, handler)`  |   Yes    | Yes | Subscribes to a headless event   |
+| `destroy()`           |   Yes    | Yes | Removes the UI and its listeners |
 
-`controller.destroy()` retira la superficie visual, pero no destruye
-automáticamente la instancia headless. Para liberar también WebRTC, audio y el
-lock de llamada:
+`controller.destroy()` removes the visual surface but does not automatically
+destroy the headless instance. To release WebRTC, audio, and the call lock:
 
 ```ts
 controller.destroy();
 await controller.dialer.destroy();
 ```
 
-Si pasó un `dialer` compartido en las opciones, destrúyalo solamente cuando ya
-ningún otro componente lo use.
+If you supplied a shared `dialer`, destroy it only after every consumer has
+finished using it.
 
-### Métodos de `RingeeDialer`
+### `RingeeDialer` methods
 
-| Método                         | Resultado                 | Uso                                                      |
-| ------------------------------ | ------------------------- | -------------------------------------------------------- |
-| `initialize()`                 | `Promise<void>`           | Valida instalación y restaura sesión                     |
-| `destroy()`                    | `Promise<void>`           | Desconecta y libera recursos                             |
-| `requestEmailCode(email)`      | `Promise<EmailChallenge>` | Inicia OTP                                               |
-| `verifyEmailCode(input)`       | `Promise<RingeeAgent>`    | Verifica OTP                                             |
-| `resendEmailCode(challengeId)` | `Promise<EmailChallenge>` | Reenvía OTP                                              |
-| `signOut()`                    | `Promise<void>`           | Cierra sesión del agente                                 |
-| `getAuthState()`               | `AuthState`               | Estado de autenticación actual                           |
-| `getAgent()`                   | `RingeeAgent \| null`     | Agente autenticado                                       |
-| `getCallerIds()`               | `RingeeCallerId[]`        | Caller IDs autorizados                                   |
-| `call(input)`                  | `Promise<RingeeCall>`     | Autoriza e inicia llamada                                |
-| `hangup()`                     | `Promise<void>`           | Termina llamada                                          |
-| `mute()` / `unmute()`          | `void`                    | Controla micrófono durante llamada                       |
-| `hold()` / `resume()`          | `Promise<void>`           | Controla espera                                          |
-| `sendDigits(digits)`           | `void`                    | Envía DTMF                                               |
-| `getState()`                   | `DialerState`             | Estado actual del marcador                               |
-| `getActiveCall()`              | `RingeeCall \| null`      | Snapshot de la llamada activa                            |
-| `getInputDevices()`            | `Promise<AudioDevice[]>`  | Enumera micrófonos                                       |
-| `getOutputDevices()`           | `Promise<AudioDevice[]>`  | Enumera salidas                                          |
-| `setInputDevice(id)`           | `Promise<void>`           | Guarda la entrada preferida y la valida al pedir permiso |
-| `setOutputDevice(id)`          | `Promise<void>`           | Selecciona salida donde el navegador lo soporte          |
-| `on(event, handler)`           | `() => void`              | Suscribe y devuelve unsubscribe                          |
+| Method                         | Result                    | Purpose                                     |
+| ------------------------------ | ------------------------- | ------------------------------------------- |
+| `initialize()`                 | `Promise<void>`           | Validates installation and restores session |
+| `destroy()`                    | `Promise<void>`           | Disconnects and releases resources          |
+| `requestEmailCode(email)`      | `Promise<EmailChallenge>` | Starts email OTP                            |
+| `verifyEmailCode(input)`       | `Promise<RingeeAgent>`    | Verifies OTP                                |
+| `resendEmailCode(challengeId)` | `Promise<EmailChallenge>` | Resends OTP                                 |
+| `signOut()`                    | `Promise<void>`           | Signs out the agent                         |
+| `getAuthState()`               | `AuthState`               | Current auth state                          |
+| `getAgent()`                   | `RingeeAgent \| null`     | Authenticated agent                         |
+| `getCallerIds()`               | `RingeeCallerId[]`        | Allowed caller IDs                          |
+| `call(input)`                  | `Promise<RingeeCall>`     | Authorizes and starts a call                |
+| `hangup()`                     | `Promise<void>`           | Ends the call                               |
+| `mute()` / `unmute()`          | `void`                    | Controls microphone state                   |
+| `hold()` / `resume()`          | `Promise<void>`           | Controls hold state                         |
+| `sendDigits(digits)`           | `void`                    | Sends DTMF                                  |
+| `getState()`                   | `DialerState`             | Current dialer state                        |
+| `getActiveCall()`              | `RingeeCall \| null`      | Active call snapshot                        |
+| `getInputDevices()`            | `Promise<AudioDevice[]>`  | Lists microphones                           |
+| `getOutputDevices()`           | `Promise<AudioDevice[]>`  | Lists output devices                        |
+| `setInputDevice(id)`           | `Promise<void>`           | Stores and validates preferred input        |
+| `setOutputDevice(id)`          | `Promise<void>`           | Selects output where supported              |
+| `on(event, handler)`           | `() => void`              | Subscribes and returns unsubscribe          |
 
-### Estados de autenticación
+### Authentication states
 
 ```text
 checking -> anonymous -> sending_code -> awaiting_code -> verifying
@@ -687,12 +685,10 @@ checking -> anonymous -> sending_code -> awaiting_code -> verifying
 authenticated -> expired | signed_out
 ```
 
-Valores posibles de `AuthState`:
+`AuthState` values: `checking`, `anonymous`, `sending_code`, `awaiting_code`,
+`verifying`, `authenticated`, `expired`, `signed_out`, and `error`.
 
-`checking`, `anonymous`, `sending_code`, `awaiting_code`, `verifying`,
-`authenticated`, `expired`, `signed_out`, `error`.
-
-### Estados de llamada
+### Call states
 
 ```text
 uninitialized -> initializing -> ready -> dialing -> ringing -> active
@@ -701,17 +697,16 @@ active | held -> reconnecting -> active
 active | held -> ending -> ended -> ready
 ```
 
-Valores posibles de `DialerState`:
+`DialerState` values: `uninitialized`, `initializing`, `ready`, `connecting`,
+`dialing`, `ringing`, `active`, `held`, `reconnecting`, `ending`, `ended`, and
+`error`.
 
-`uninitialized`, `initializing`, `ready`, `connecting`, `dialing`, `ringing`,
-`active`, `held`, `reconnecting`, `ending`, `ended`, `error`.
+The exact sequence may skip states depending on the browser, network, or remote
+destination. Do not assume every state always fires.
 
-La secuencia exacta puede saltar estados según el navegador, la red o la
-respuesta del destino. La UI no debe asumir que siempre recibirá todos.
+### Events
 
-### Eventos
-
-Toda suscripción devuelve una función para desuscribirse:
+Every subscription returns an unsubscribe function:
 
 ```ts
 const off = dialer.on("stateChanged", ({ state }) => {
@@ -721,33 +716,33 @@ const off = dialer.on("stateChanged", ({ state }) => {
 off();
 ```
 
-| Evento             | Payload           | Momento                                                 |
-| ------------------ | ----------------- | ------------------------------------------------------- |
-| `ready`            | `{}`              | WebRTC y agente listos                                  |
-| `authStateChanged` | `{ state }`       | Cambia autenticación                                    |
-| `authRequired`     | `{}`              | Se necesita OTP                                         |
-| `codeSent`         | `{ challenge }`   | Código enviado/reenviado                                |
-| `signedIn`         | `{ agent }`       | Agente autenticado                                      |
-| `signedOut`        | `{}`              | Sesión cerrada                                          |
-| `sessionExpired`   | `{}`              | Sesión vencida                                          |
-| `stateChanged`     | `{ state }`       | Cambia estado de llamada                                |
-| `dialing`          | `{ call }`        | Comienza a marcar                                       |
-| `ringing`          | `{ call }`        | Destino sonando                                         |
-| `answered`         | `{ call }`        | Llamada contestada                                      |
-| `held`             | `{ call }`        | Llamada en espera                                       |
-| `resumed`          | `{ call }`        | Llamada reanudada                                       |
-| `muted`            | `{ call }`        | Micrófono silenciado                                    |
-| `unmuted`          | `{ call }`        | Micrófono habilitado                                    |
-| `ended`            | `{ call }`        | Llamada finalizada normalmente                          |
-| `failed`           | `{ call, error }` | Falló autorización o llamada                            |
-| `tokenExpiring`    | `{}`              | Reservado para renovación anticipada de credenciales    |
-| `microphoneDenied` | `{}`              | Reservado; actualmente use `error`/`failed` y su código |
-| `deviceChanged`    | `{}`              | Cambió selección de audio                               |
-| `error`            | `{ error }`       | Error general tipado                                    |
+| Event              | Payload           | Emitted when                                  |
+| ------------------ | ----------------- | --------------------------------------------- |
+| `ready`            | `{}`              | Agent and WebRTC are ready                    |
+| `authStateChanged` | `{ state }`       | Authentication changes                        |
+| `authRequired`     | `{}`              | OTP is required                               |
+| `codeSent`         | `{ challenge }`   | Code is sent or resent                        |
+| `signedIn`         | `{ agent }`       | Agent is authenticated                        |
+| `signedOut`        | `{}`              | Session is signed out                         |
+| `sessionExpired`   | `{}`              | Session expires                               |
+| `stateChanged`     | `{ state }`       | Call state changes                            |
+| `dialing`          | `{ call }`        | Dialing starts                                |
+| `ringing`          | `{ call }`        | Destination rings                             |
+| `answered`         | `{ call }`        | Call is answered                              |
+| `held`             | `{ call }`        | Call is held                                  |
+| `resumed`          | `{ call }`        | Call resumes                                  |
+| `muted`            | `{ call }`        | Microphone is muted                           |
+| `unmuted`          | `{ call }`        | Microphone is unmuted                         |
+| `ended`            | `{ call }`        | Call ends normally                            |
+| `failed`           | `{ call, error }` | Authorization or call fails                   |
+| `tokenExpiring`    | `{}`              | Reserved for proactive credential renewal     |
+| `microphoneDenied` | `{}`              | Reserved; currently use `error`/`failed` code |
+| `deviceChanged`    | `{}`              | Audio selection changes                       |
+| `error`            | `{ error }`       | A typed general error occurs                  |
 
-### Errores
+### Errors
 
-Las promesas rechazadas usan `RingeeError`:
+Rejected promises use `RingeeError`:
 
 ```ts
 import { RingeeError } from "@ringee/dialer-sdk";
@@ -763,90 +758,89 @@ try {
 }
 ```
 
-Códigos frecuentes:
+Common codes:
 
-- instalación: `INVALID_PUBLISHABLE_KEY`, `DOMAIN_NOT_ALLOWED`,
+- installation: `INVALID_PUBLISHABLE_KEY`, `DOMAIN_NOT_ALLOWED`,
   `INTEGRATION_DISABLED`;
-- autenticación: `INVALID_EMAIL`, `INVALID_EMAIL_CODE`,
+- authentication: `INVALID_EMAIL`, `INVALID_EMAIL_CODE`,
   `EMAIL_CHALLENGE_EXPIRED`, `EMAIL_CODE_ATTEMPTS_EXCEEDED`, `AUTH_REQUIRED`,
   `SESSION_EXPIRED`;
-- permisos: `AGENT_NOT_ALLOWED`, `AGENT_NOT_IN_WORKSPACE`, `USER_BLOCKED`,
+- permissions: `AGENT_NOT_ALLOWED`, `AGENT_NOT_IN_WORKSPACE`, `USER_BLOCKED`,
   `CALLING_DISABLED`;
-- llamada: `INVALID_PHONE_NUMBER`, `NO_CALLER_ID`, `CALLER_ID_NOT_ALLOWED`,
+- calls: `INVALID_PHONE_NUMBER`, `NO_CALLER_ID`, `CALLER_ID_NOT_ALLOWED`,
   `INSUFFICIENT_CREDIT`, `DNC_BLOCKED`, `CALL_ALREADY_ACTIVE`,
   `NO_ACTIVE_CALL`, `CALL_FAILED`;
-- navegador/red: `MICROPHONE_DENIED`, `NO_AUDIO_DEVICE`,
+- browser/network: `MICROPHONE_DENIED`, `NO_AUDIO_DEVICE`,
   `AUDIO_PLAYBACK_BLOCKED`, `TELNYX_CONNECTION_FAILED`, `NETWORK_ERROR`,
   `TIMEOUT`.
 
-`retryable` es `true` para errores transitorios conocidos como rate limit,
-timeout, red o conexión Telnyx. La aplicación no debe reintentar
-automáticamente errores de permisos, crédito, DNC o autenticación.
+`retryable` is true for known transient errors such as rate limits, timeouts,
+network failures, and Telnyx connection failures. Do not automatically retry
+permission, credit, DNC, or authentication errors.
 
-## Cómo funciona internamente
+## How it works
 
-### Al cargar
+### During initialization
 
-1. El SDK lee `window.location.origin`.
-2. Envía la publishable key y el origen a Ringee.
-3. El backend valida firma, integración activa y coincidencia exacta del
-   origen.
-4. El SDK busca una sesión del agente en `sessionStorage`.
-5. Si existe, Ringee la revalida y entrega una credencial WebRTC nueva.
-6. Si no existe, el SDK solicita autenticación por email OTP.
+1. The SDK reads `window.location.origin`.
+2. It sends the publishable key and origin to Ringee.
+3. The backend validates the signature, active integration, and exact origin.
+4. The SDK checks for an agent session in `sessionStorage`.
+5. If present, Ringee revalidates it and returns a new WebRTC credential.
+6. Otherwise, the SDK requests email OTP authentication.
 
-### Al autenticar al agente
+### During agent authentication
 
-1. El agente introduce su correo.
-2. Ringee envía un código de un solo uso sin revelar si el correo existe.
-3. El agente verifica el código.
-4. El backend comprueba que pertenece al workspace y que puede llamar.
-5. El navegador recibe una sesión Ringee y credenciales WebRTC temporales.
-6. El SDK conecta el motor de llamadas y emite `ready`.
+1. The agent enters an email address.
+2. Ringee sends a one-time code without revealing whether the email exists.
+3. The agent verifies the code.
+4. The backend validates workspace membership and calling permissions.
+5. The browser receives a Ringee session and temporary WebRTC credentials.
+6. The SDK connects the calling engine and emits `ready`.
 
-### Al llamar
+### During a call
 
-1. El SDK valida localmente que el número tenga formato E.164.
-2. Adquiere un lock para evitar una segunda llamada en otra pestaña.
-3. El backend valida sesión, caller ID, crédito, DNC, bloqueos y contacto.
-4. Ringee precrea el registro de llamada y devuelve un token de correlación.
-5. El navegador solicita acceso al micrófono.
-6. El SDK inicia la llamada WebRTC y traduce los estados del proveedor a los
-   estados públicos de Ringee.
-7. Al finalizar, libera audio y lock, calcula la duración y emite `ended` o
-   `failed`.
+1. The SDK validates E.164 locally.
+2. It acquires a lock to prevent another tab from starting a call.
+3. The backend validates the session, caller ID, credit, DNC, blocks, and
+   contact.
+4. Ringee creates the call record and returns a signed correlation token.
+5. The browser requests microphone permission.
+6. The SDK starts the WebRTC call and maps provider states to Ringee states.
+7. On completion, it releases audio and the lock, calculates duration, and
+   emits `ended` or `failed`.
 
-La aplicación host nunca recibe el password SIP, el JWT de Telnyx ni objetos
-internos del proveedor como parte de la API pública.
+The public API never exposes SIP passwords, Telnyx JWTs, or provider-specific
+objects to the host application.
 
-### Persistencia
+### Persistence
 
-La sesión del agente se guarda en `sessionStorage` usando una clave aislada por
-integración y origen. Esto permite recargar la pestaña sin repetir OTP, pero la
-sesión desaparece al cerrar la pestaña o llamar `signOut()`.
+The agent session is stored in `sessionStorage` under a key scoped by integration
+and origin. It survives reloads in the same tab and is removed when the tab
+closes or `signOut()` runs.
 
-Las credenciales WebRTC viven únicamente en memoria. Al restaurar la sesión se
-generan de nuevo. Si el navegador bloquea `sessionStorage`, el SDK funciona,
-pero pedirá OTP después de cada recarga.
+WebRTC credentials live only in memory and are minted again on restore. If a
+browser blocks `sessionStorage`, the SDK still works but asks for OTP after each
+reload.
 
-## Seguridad
+## Security
 
-La seguridad no depende de ocultar `pk_live_...`. Cada llamada requiere:
+Security does not depend on hiding `pk_live_...`. Every call requires:
 
-- publishable key firmada;
-- origen autorizado exacto;
-- agente verificado por OTP;
-- membresía vigente en el workspace;
-- sesión Ringee válida;
-- validación server-side de permisos, caller ID, crédito, DNC y bloqueos.
+- a signed publishable key;
+- an exact allowed origin;
+- an agent verified by email OTP;
+- current workspace membership;
+- a valid Ringee session;
+- server-side permission, caller ID, credit, DNC, and block validation.
 
-Nunca coloque `cik_live_...`, credenciales SIP, secretos de Ringee o tokens
-administrativos en el frontend.
+Never place `cik_live_...`, SIP credentials, Ringee secrets, webhook secrets,
+or admin tokens in frontend code.
 
 ### Content Security Policy
 
-Una política CSP restrictiva debe permitir la API y el WebSocket de llamadas.
-Adapte los demás valores a la política del host:
+A restrictive CSP must allow the Ringee API and the calling WebSocket. Adapt the
+remaining values to the host policy:
 
 ```text
 script-src 'self' https://unpkg.com;
@@ -854,26 +848,26 @@ connect-src 'self' https://api.ringee.io wss://rtc.telnyx.com;
 media-src 'self' blob:;
 ```
 
-Si instala por npm, no necesita autorizar `unpkg.com`. Si usa un backend Ringee
-propio, reemplace `https://api.ringee.io` por su origen. Una configuración de
-Telnyx con host regional puede requerir autorizar ese WebSocket adicional.
+An npm installation does not need `unpkg.com`. For self-hosting, replace
+`https://api.ringee.io` with your API origin. Regional Telnyx configuration may
+require an additional WebSocket origin.
 
-### Micrófono e iframes
+### Microphone and iframes
 
-La llamada debe originarse en un contexto seguro (`https://` o localhost). Si
-el SDK se ejecuta dentro de un iframe, el host debe conceder el micrófono:
+Calls must run in a secure context (`https://` or localhost). If the SDK runs
+inside an iframe, the host must grant microphone access:
 
 ```html
 <iframe src="https://dialer.crm.example.com" allow="microphone"></iframe>
 ```
 
-El origen que debe figurar en `allowedOrigins` es el del documento que ejecuta
-el SDK, no necesariamente el de la página padre. Un iframe con sandbox también
-debe conservar los permisos de origen y storage necesarios.
+The origin in `allowedOrigins` is the origin of the document executing the SDK,
+which may differ from the parent page. A sandboxed iframe must also retain the
+origin and storage permissions the SDK needs.
 
-## Self-hosting y desarrollo local
+## Self-hosting and local development
 
-Para usar una API Ringee propia, pase solamente el origen base, sin `/api`:
+Pass the API base origin without `/api`:
 
 ```ts
 const ringee = createFloating({
@@ -882,7 +876,7 @@ const ringee = createFloating({
 });
 ```
 
-En desarrollo:
+Local example:
 
 ```ts
 const ringee = createFloating({
@@ -892,29 +886,30 @@ const ringee = createFloating({
 });
 ```
 
-Recuerde añadir el origen exacto del frontend, por ejemplo
-`http://localhost:4200`, a la publishable key. El origen de `apiUrl` y el origen
-del frontend son valores distintos.
+Remember that the frontend origin, such as `http://localhost:4200`, must be in
+the publishable key. `apiUrl` and the frontend origin are different values.
 
-Este repositorio incluye tres playgrounds:
+### Playgrounds
 
-- `apps/sdk-playground/live`: prueba el bundle real en Floating, Bar o Headless
-  contra un backend Ringee real, con OTP, WebRTC y llamadas reales;
-- `apps/sdk-playground/vanilla-headless`: ejemplo mínimo del flujo headless sin
-  framework;
-- `apps/sdk-playground/ui-gallery`: estados visuales de Floating y Bar con un
-  dialer simulado, sin red ni WebRTC.
+This repository includes:
 
-Para ejecutar el playground completo en `http://localhost:5173`:
+- `apps/sdk-playground/live`: real Floating, Bar, and Headless modes against a
+  real Ringee backend, including OTP, WebRTC, and real calls;
+- `apps/sdk-playground/vanilla-headless`: a minimal framework-free headless
+  example;
+- `apps/sdk-playground/ui-gallery`: visual Floating and Bar states driven by a
+  simulated dialer with no network or WebRTC.
+
+Run the complete playground on `http://localhost:5173`:
 
 ```bash
 node apps/sdk-playground/live/build.mjs --serve
 ```
 
-Añada primero `http://localhost:5173` en **Allowed origins** al generar la
-publishable key desde **Integrations → Custom Integrations**.
+Before running it, add `http://localhost:5173` under **Allowed origins** in
+**Integrations → Custom Integrations** and generate the publishable key.
 
-Para validar el paquete dentro del monorepo:
+Validate the package in the monorepo with:
 
 ```bash
 pnpm --filter @ringee/dialer-sdk typecheck
@@ -926,57 +921,55 @@ pnpm --filter @ringee/dialer-sdk build
 
 ### `DOMAIN_NOT_ALLOWED`
 
-Compruebe `window.location.origin` en la consola y compárelo literalmente con
-los orígenes añadidos en **Integrations → Custom Integrations → Configure →
-Settings → Dialer SDK · Publishable keys**. Revise protocolo, subdominio y
-puerto. Después de cambiar la lista hay que generar y usar una publishable key
-nueva que contenga esos orígenes.
+Compare `window.location.origin` exactly with the origins configured under
+**Integrations → Custom Integrations → Configure → Settings → Dialer SDK ·
+Publishable keys**. Check the scheme, subdomain, and port. Generate and use a
+new publishable key after changing the origin list.
 
 ### `INVALID_PUBLISHABLE_KEY`
 
-La clave está mal copiada, la integración fue eliminada o la clave secreta de la
-integración fue rotada. Genere una publishable key nueva.
+The key is malformed, the integration was removed, or its secret API key was
+rotated. Generate a new publishable key.
 
-### `AUTH_REQUIRED` o vuelve a pedir OTP
+### `AUTH_REQUIRED` or OTP appears after every reload
 
-Espere `ready` antes de llamar. Si el OTP reaparece tras cada recarga, revise si
-el navegador, iframe o política de privacidad bloquea `sessionStorage`.
+Wait for `ready` before calling. If OTP reappears after each reload, verify that
+the browser, iframe, or privacy policy allows `sessionStorage`.
 
 ### `MICROPHONE_DENIED`
 
-Sirva la página por HTTPS, permita el micrófono para el sitio y revise
-`Permissions-Policy`. En un iframe añada `allow="microphone"`.
+Serve the page over HTTPS, allow microphone access for the site, and check the
+host `Permissions-Policy`. Add `allow="microphone"` to an iframe.
 
 ### `AUDIO_PLAYBACK_BLOCKED`
 
-El navegador exige una interacción del usuario antes de reproducir audio. Haga
-que la llamada se inicie desde un click/tap real y evite autollamar al cargar la
-página.
+The browser requires a user gesture before playing audio. Start calls from a
+real click or tap instead of calling automatically during page load.
 
 ### `INVALID_PHONE_NUMBER`
 
-Envíe E.164: signo `+`, código de país y número, sin extensiones. Por ejemplo
+Use E.164: `+`, country code, and number without an extension. Example:
 `+13055550198`.
 
 ### `CALL_ALREADY_ACTIVE`
 
-Ya existe una llamada en la instancia o en otra pestaña que usa la misma
-integración. Finalícela antes de crear otra.
+A call already exists in the instance or another tab using the same
+integration. End it before starting another call.
 
-### El Bar no aparece
+### The Bar does not appear
 
-El contenedor debe existir antes de ejecutar `createBar`. Compruebe también que
-el elemento no tenga ancho o alto colapsado por el layout del host.
+The container must exist before `createBar()` runs. Also ensure the host layout
+does not collapse the element's width or height.
 
-### La UI desaparece pero WebRTC sigue conectado
+### The UI disappears but WebRTC remains connected
 
-`controller.destroy()` desmonta la UI. Destruya además el motor:
+`controller.destroy()` unmounts the UI. Destroy the engine as well:
 
 ```ts
 controller.destroy();
 await controller.dialer.destroy();
 ```
 
-## Licencia
+## License
 
 MIT

@@ -32,9 +32,9 @@ export interface MockConfig {
 
 export const DEMO_AGENT: RingeeAgent = {
   id: "agent_1",
-  firstName: "Valentina",
-  lastName: "Ríos",
-  email: "valentina@empresa.com",
+  firstName: "Taylor",
+  lastName: "Reed",
+  email: "taylor@company.com",
   imageUrl: null,
   organizationId: "org_1",
   role: "member",
@@ -101,7 +101,7 @@ export class MockDialer {
   }
 
   async resendEmailCode(_id: string): Promise<EmailChallenge> {
-    const challenge = this.makeChallenge("valentina@empresa.com");
+    const challenge = this.makeChallenge("taylor@company.com");
     this.emit("codeSent", { challenge });
     return challenge;
   }

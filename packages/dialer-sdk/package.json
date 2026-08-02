@@ -1,6 +1,6 @@
 {
   "name": "@ringee/dialer-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Universal headless browser SDK to embed Ringee calling in any web CRM.",
   "license": "MIT",
   "type": "module",

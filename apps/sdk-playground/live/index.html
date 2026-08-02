@@ -6,7 +6,7 @@
     <title>Ringee Dialer SDK — Live Playground</title>
     <meta
       name="description"
-      content="Playground en vivo del Ringee Dialer SDK — Floating, Bar y Headless contra un backend real."
+      content="Live Ringee Dialer SDK playground — Floating, Bar, and Headless against a real backend."
     />
 
     <!-- Favicon (same artifact the Ringee app ships) -->
@@ -275,7 +275,7 @@
       }
       #barMount { min-height: 76px; width: 100%; }
       #barMount:empty::after {
-        content: "El marcador embebido aparece aquí tras montar.";
+        content: "The embedded dialer appears here after mounting.";
         display: grid; place-items: center; min-height: 76px;
         color: var(--muted); font-size: 12.5px; text-align: center;
       }
@@ -318,7 +318,7 @@
         <span class="divider"></span>
         <div class="meta">
           <div class="kicker">Dialer SDK <span class="tag">Live Playground</span></div>
-          <div class="sub" id="sdkSrc">cargando SDK…</div>
+          <div class="sub" id="sdkSrc">loading SDK…</div>
         </div>
       </div>
       <div class="status-pills">
@@ -331,18 +331,18 @@
       <!-- ── Configuration sidebar ─────────────────────────────────── -->
       <section class="aside">
         <div class="card">
-          <h2><span class="num">1</span> Configuración</h2>
+          <h2><span class="num">1</span> Configuration</h2>
 
           <label for="pk">Publishable key (<code>pk_live_…</code>)</label>
           <input id="pk" placeholder="pk_live_xxxxx" autocomplete="off" spellcheck="false" />
 
-          <label for="apiUrl">API base URL (sin <code>/api</code>)</label>
+          <label for="apiUrl">API base URL (without <code>/api</code>)</label>
           <input id="apiUrl" placeholder="http://localhost:3000" autocomplete="off" spellcheck="false" />
 
-          <label for="agentEmail">Agent email (prefill del OTP)</label>
-          <input id="agentEmail" type="email" placeholder="agente@empresa.com" autocomplete="off" />
+          <label for="agentEmail">Agent email (OTP prefill)</label>
+          <input id="agentEmail" type="email" placeholder="agent@company.com" autocomplete="off" />
 
-          <label>Modo de integración</label>
+          <label>Integration mode</label>
           <div class="seg" id="modeSeg" role="group">
             <button data-mode="floating" aria-pressed="true">Floating</button>
             <button data-mode="bar" aria-pressed="false">Bar</button>
@@ -351,14 +351,14 @@
 
           <div class="row" style="margin-top: 12px">
             <div>
-              <label for="locale">Idioma</label>
+              <label for="locale">Language</label>
               <select id="locale">
-                <option value="es">es</option>
                 <option value="en">en</option>
+                <option value="es">es</option>
               </select>
             </div>
             <div>
-              <label for="scheme">Tema</label>
+              <label for="scheme">Theme</label>
               <select id="scheme">
                 <option value="auto">auto</option>
                 <option value="light">light</option>
@@ -369,26 +369,26 @@
 
           <div class="inline">
             <input type="checkbox" id="allowHold" />
-            <label for="allowHold">Mostrar Hold/Resume</label>
+            <label for="allowHold">Show Hold/Resume</label>
           </div>
           <div class="inline">
             <input type="checkbox" id="debug" />
-            <label for="debug">Debug (logs detallados en consola)</label>
+            <label for="debug">Debug (verbose console logs)</label>
           </div>
 
           <div class="btn-row">
-            <button class="btn" id="mountBtn">Montar / Aplicar</button>
-            <button class="btn ghost sm" id="shareBtn">Copiar enlace</button>
+            <button class="btn" id="mountBtn">Mount / Apply</button>
+            <button class="btn ghost sm" id="shareBtn">Copy link</button>
             <button class="btn ghost sm" id="resetBtn">Reset</button>
           </div>
           <p class="hint" id="originHint"></p>
         </div>
 
         <div class="card">
-          <h2><span class="num">2</span> Contacto (opcional)</h2>
-          <label for="cName">Nombre</label>
-          <input id="cName" placeholder="Marcos Herrera" />
-          <label for="cNumber">Número (E.164)</label>
+          <h2><span class="num">2</span> Contact (optional)</h2>
+          <label for="cName">Name</label>
+          <input id="cName" placeholder="Morgan Reed" />
+          <label for="cNumber">Number (E.164)</label>
           <input id="cNumber" placeholder="+13055550198" />
           <label for="cExt">externalContactId</label>
           <input id="cExt" placeholder="crm-contact-294" />
@@ -398,8 +398,8 @@
             <button class="btn sm" id="startCallBtn" data-mode-only="floating">startCall()</button>
           </div>
           <p class="hint">
-            <code>setContact</code>/<code>prefill</code> aplican a Floating y Bar.
-            <code>startCall</code> abre el panel Floating y marca cuando el agente esté listo.
+            <code>setContact</code>/<code>prefill</code> work with Floating and Bar.
+            <code>startCall</code> opens the Floating panel and calls when the agent is ready.
           </p>
         </div>
       </section>
@@ -407,12 +407,12 @@
       <!-- ── Stage ─────────────────────────────────────────────────── -->
       <section>
         <div class="card">
-          <h2><span class="num">3</span> Escenario</h2>
+          <h2><span class="num">3</span> Stage</h2>
 
           <!-- Floating -->
           <div data-mode-only="floating">
             <p class="hint">
-              El botón flotante se montó en la esquina de la página. Controlá el panel:
+              The floating button is mounted in the page corner. Control the panel:
             </p>
             <div class="btn-row">
               <button class="btn sm" id="openBtn">open()</button>
@@ -424,12 +424,12 @@
           <!-- Bar -->
           <div data-mode-only="bar">
             <p class="hint">
-              El marcador inline se embebe en tu sitio. Así se ve dentro de una página real:
+              The inline dialer is embedded in your site. This is how it looks on a real page:
             </p>
             <div class="bar-showcase">
               <div class="chrome">
                 <div class="dots"><i></i><i></i><i></i></div>
-                <div class="url">tu-app.com/crm/contacto</div>
+                <div class="url">your-app.com/crm/contact</div>
               </div>
               <div class="surface">
                 <div id="barMount"></div>
@@ -439,26 +439,26 @@
 
           <!-- Headless -->
           <div data-mode-only="headless">
-            <p class="hint">Motor sin UI: la interfaz de abajo la construye el playground.</p>
+            <p class="hint">UI-free engine: the playground builds the interface below.</p>
 
             <label style="margin-top: 14px">1 · Sign in (email OTP)</label>
             <div class="row">
-              <input id="hlEmail" type="email" placeholder="agente@empresa.com" />
-              <button class="btn sm" id="hlSend" style="flex: 0 0 auto">Enviar código</button>
+              <input id="hlEmail" type="email" placeholder="agent@company.com" />
+              <button class="btn sm" id="hlSend" style="flex: 0 0 auto">Send code</button>
             </div>
             <div class="row" style="margin-top: 8px">
-              <input id="hlCode" inputmode="numeric" placeholder="código de 6 dígitos" />
-              <button class="btn sm" id="hlVerify" style="flex: 0 0 auto" disabled>Verificar</button>
-              <button class="btn ghost sm" id="hlResend" style="flex: 0 0 auto" disabled>Reenviar</button>
+              <input id="hlCode" inputmode="numeric" placeholder="6-digit code" />
+              <button class="btn sm" id="hlVerify" style="flex: 0 0 auto" disabled>Verify</button>
+              <button class="btn ghost sm" id="hlResend" style="flex: 0 0 auto" disabled>Resend</button>
             </div>
 
             <label style="margin-top: 14px">2 · Caller ID</label>
-            <select id="hlCallerId"><option value="">(automático)</option></select>
+            <select id="hlCallerId"><option value="">(automatic)</option></select>
 
-            <label style="margin-top: 14px">3 · Llamar</label>
+            <label style="margin-top: 14px">3 · Call</label>
             <div class="row">
               <input id="hlTo" placeholder="+13055550198" />
-              <button class="btn sm" id="hlCall" style="flex: 0 0 auto" disabled>Llamar</button>
+              <button class="btn sm" id="hlCall" style="flex: 0 0 auto" disabled>Call</button>
             </div>
             <div class="btn-row">
               <button class="btn ghost sm" id="hlMute" disabled>Mute</button>
@@ -466,7 +466,7 @@
               <button class="btn ghost sm" id="hlHold" disabled>Hold</button>
               <button class="btn ghost sm" id="hlResume" disabled>Resume</button>
               <button class="btn ghost sm" id="hlDtmf" disabled>DTMF 1</button>
-              <button class="btn ghost sm" id="hlHangup" disabled>Colgar</button>
+              <button class="btn ghost sm" id="hlHangup" disabled>Hang up</button>
             </div>
             <div class="btn-row">
               <button class="btn ghost sm" id="hlSignout">Sign out</button>
@@ -474,12 +474,12 @@
           </div>
 
           <div id="stageHint" style="margin-top: 16px; display: none">
-            Configurá tu <code>pk_live_…</code> y hacé clic en <b>Montar / Aplicar</b>.
+            Enter your <code>pk_live_…</code> and click <b>Mount / Apply</b>.
           </div>
         </div>
 
         <div class="card">
-          <h2>Log de eventos</h2>
+          <h2>Event log</h2>
           <pre id="log"></pre>
         </div>
       </section>

@@ -9,7 +9,7 @@
  *   RINGEE_PLAYGROUND_PK      → pk_live_… prefilled in the panel
  *   RINGEE_PLAYGROUND_API     → API base URL (no /api)
  *   RINGEE_PLAYGROUND_EMAIL   → agent email prefill
- *   RINGEE_PLAYGROUND_LOCALE  → "es" | "en"
+ *   RINGEE_PLAYGROUND_LOCALE  → "en" | "es"
  *
  * The result is a fully self-contained static folder (`apps/sdk-playground/live`)
  * that can be deployed to any static host (Vercel/Netlify/Cloudflare/S3/nginx).

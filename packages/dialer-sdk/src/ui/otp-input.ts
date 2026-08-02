@@ -67,7 +67,7 @@ export function otpInput(opts: OtpOptions = {}): OtpHandle {
         // Only the first cell advertises SMS autofill so the browser doesn't
         // scatter a full code across every box.
         autocomplete: i === 0 ? "one-time-code" : "off",
-        "aria-label": `Dígito ${i + 1} de ${length}`,
+        "aria-label": `Digit ${i + 1} of ${length}`,
         "data-filled": "false",
       },
     }) as HTMLInputElement;
@@ -126,7 +126,7 @@ export function otpInput(opts: OtpOptions = {}): OtpHandle {
       class: "rg-otp",
       role: "group",
       id: groupId,
-      attrs: { "aria-label": "Código de verificación de 6 dígitos" },
+      attrs: { "aria-label": "6-digit verification code" },
     },
     ...cells,
   );
