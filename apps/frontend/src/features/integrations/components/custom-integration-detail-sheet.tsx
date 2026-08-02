@@ -376,7 +376,7 @@ function PublishableKeysSection({
             Browser-safe{' '}
             <code className='bg-muted rounded px-1 py-0.5'>pk_live_…</code> for{' '}
             <code className='bg-muted rounded px-1 py-0.5'>
-              @ringee-io/dialer-sdk
+              @ringee/dialer-sdk
             </code>
             . Scope it to the exact origins where the SDK loads.
           </p>

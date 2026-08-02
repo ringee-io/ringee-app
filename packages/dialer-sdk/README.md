@@ -77,28 +77,69 @@ Los números de destino deben enviarse en formato **E.164**, por ejemplo
 
 ## Preparar la integración
 
-### 1. Crear o elegir una integración personalizada
+La forma recomendada de crear una publishable key es desde el dashboard de
+Ringee. Esta sección es visible para administradores de la organización y para
+cuentas personales con acceso administrativo.
 
-La forma recomendada es hacerlo desde el dashboard de Ringee. También existe la
-ruta administrativa:
+### 1. Entrar a Custom Integrations
 
-```http
-POST /api/integrations/custom
-Authorization: Bearer <sesion-de-administrador>
-Content-Type: application/json
+1. Inicie sesión en Ringee.
+2. Abra **Integrations** desde el menú lateral. La ruta directa es
+   `/dashboard/settings/integrations`.
+3. Seleccione la pestaña **Custom Integrations**.
 
-{
-  "name": "Mi CRM"
-}
+### 2. Crear o abrir una integración
+
+- Si todavía no tiene una, pulse **New custom integration**, escriba un nombre
+  como `Mi CRM` y pulse **Create**.
+- Si ya existe, abra su tarjeta con **Configure**.
+
+Al crear una integración, Ringee también muestra una API key `cik_live_...` y un
+webhook signing secret. Esas credenciales pertenecen a la API privada y a los
+webhooks: **no son la clave que utiliza el Dialer SDK y nunca deben incluirse en
+el frontend**.
+
+### 3. Añadir los orígenes permitidos
+
+Dentro de la integración:
+
+1. Abra la pestaña **Settings**.
+2. Busque la sección **Dialer SDK · Publishable keys**.
+3. En **Allowed origins**, escriba el origen completo del sitio que cargará el
+   SDK, por ejemplo `https://crm.example.com`.
+4. Pulse **Add** y repita el proceso para cada entorno. Para el playground local
+   puede usar el acceso rápido **localhost:5173 (playground)**.
+
+El acceso rápido **This dashboard** añade el origen del dashboard que está
+abierto. Úselo solamente si el SDK se ejecutará desde ese mismo origen; para un
+CRM externo debe añadir el origen del CRM.
+
+Un origen contiene únicamente protocolo, host y puerto opcional. No añada rutas
+como `/contacts`, parámetros ni `#fragmentos`.
+
+Ejemplo para una instalación con producción y desarrollo local:
+
+```text
+https://crm.example.com
+http://localhost:5173
 ```
 
-Crear y administrar integraciones requiere una sesión de Ringee con permisos de
-administrador. No debe hacerse desde el navegador público del CRM.
+### 4. Generar y copiar la publishable key
 
-### 2. Crear una publishable key
+1. Revise la lista de orígenes.
+2. Pulse **Generate publishable key**.
+3. Copie el valor `pk_live_...` mostrado bajo **Publishable key**.
+4. Péguelo en la configuración frontend que se pasa como `key` al SDK.
 
-Solicite una publishable key desde un backend o cliente administrativo
-autenticado, indicando todos los orígenes exactos donde se cargará el SDK:
+La pantalla muestra la clave generada para que se copie en ese momento. Aunque
+la publishable key puede estar en el navegador, conviene conservarla en la
+configuración del proyecto y evitar perderla. Si necesita cambiar los orígenes o
+ya no tiene la clave, genere una nueva.
+
+### Alternativa: crearla mediante la API administrativa
+
+Para automatización o self-hosting, un cliente autenticado como administrador
+puede usar la misma operación del dashboard:
 
 ```http
 POST /api/integrations/custom/<integrationId>/publishable-keys
@@ -124,16 +165,18 @@ Respuesta:
 }
 ```
 
-Los orígenes se comparan de forma exacta:
+Tanto el dashboard como la API aplican una comparación exacta:
 
 - `https://crm.example.com` no autoriza `http://crm.example.com`;
 - `https://crm.example.com` no autoriza `https://app.crm.example.com`;
 - `http://localhost:5173` no autoriza `http://localhost:3000`;
 - no se aceptan paths, queries, credenciales ni wildcards.
 
-Cada combinación de protocolo, host y puerto debe añadirse explícitamente.
+Cada combinación de protocolo, host y puerto debe añadirse explícitamente. Las
+publishable keys actuales no se editan: para usar otra lista de orígenes se
+genera una clave nueva.
 
-### 3. Usar la clave correcta
+### Usar la clave correcta
 
 | Clave          | Dónde se usa                       | ¿Puede estar en frontend? |
 | -------------- | ---------------------------------- | ------------------------- |
@@ -150,7 +193,7 @@ publishable keys asociadas. Deshabilitar la integración también las invalida.
 ## Instalar con npm
 
 ```bash
-npm install @ringee-io/dialer-sdk
+npm install @ringee/dialer-sdk
 ```
 
 También puede usarse `pnpm add` o `yarn add`.
@@ -163,7 +206,7 @@ autenticarse, elegir el caller ID, escribir un número y controlar la llamada.
 ### CDN: un script, sin build
 
 ```html
-<script src="https://unpkg.com/@ringee-io/dialer-sdk"></script>
+<script src="https://unpkg.com/@ringee/dialer-sdk"></script>
 <script>
   const ringee = Ringee.mount({
     key: "pk_live_xxxxx",
@@ -179,13 +222,13 @@ En producción se recomienda fijar una versión para que un deploy del host no
 reciba cambios inesperados:
 
 ```html
-<script src="https://unpkg.com/@ringee-io/dialer-sdk@0.1.0/dist/ringee.global.js"></script>
+<script src="https://unpkg.com/@ringee/dialer-sdk@0.1.0/dist/ringee.global.js"></script>
 ```
 
 ### npm
 
 ```ts
-import { createFloating } from "@ringee-io/dialer-sdk/ui";
+import { createFloating } from "@ringee/dialer-sdk/ui";
 
 const ringee = createFloating({
   key: "pk_live_xxxxx",
@@ -237,7 +280,7 @@ disponible y no crea un launcher flotante.
 ```html
 <div id="ringee-bar"></div>
 
-<script src="https://unpkg.com/@ringee-io/dialer-sdk"></script>
+<script src="https://unpkg.com/@ringee/dialer-sdk"></script>
 <script>
   const ringeeBar = Ringee.createBar({
     key: "pk_live_xxxxx",
@@ -256,7 +299,7 @@ disponible y no crea un launcher flotante.
 ### npm
 
 ```ts
-import { createBar } from "@ringee-io/dialer-sdk/ui";
+import { createBar } from "@ringee/dialer-sdk/ui";
 
 const ringeeBar = createBar({
   key: "pk_live_xxxxx",
@@ -277,7 +320,7 @@ ninguna UI. La aplicación debe construir las pantallas y responder a cada
 estado.
 
 ```ts
-import { RingeeDialer, RingeeError } from "@ringee-io/dialer-sdk";
+import { RingeeDialer, RingeeError } from "@ringee/dialer-sdk";
 
 const dialer = new RingeeDialer({
   key: "pk_live_xxxxx",
@@ -373,7 +416,7 @@ que el paquete de navegador no se ejecute durante SSR.
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { FloatingController } from "@ringee-io/dialer-sdk/ui";
+import type { FloatingController } from "@ringee/dialer-sdk/ui";
 
 export function RingeeDialer({ email }: { email: string }) {
   const controller = useRef<FloatingController | null>(null);
@@ -381,7 +424,7 @@ export function RingeeDialer({ email }: { email: string }) {
   useEffect(() => {
     let cancelled = false;
 
-    void import("@ringee-io/dialer-sdk/ui").then(({ createFloating }) => {
+    void import("@ringee/dialer-sdk/ui").then(({ createFloating }) => {
       if (cancelled) return;
 
       controller.current = createFloating({
@@ -418,7 +461,7 @@ export function RingeeBar() {
     let mounted = true;
     let cleanup: (() => void) | undefined;
 
-    void import("@ringee-io/dialer-sdk/ui").then(({ createBar }) => {
+    void import("@ringee/dialer-sdk/ui").then(({ createBar }) => {
       if (!mounted || !container.current) return;
       const bar = createBar({
         key: process.env.NEXT_PUBLIC_RINGEE_KEY!,
@@ -707,7 +750,7 @@ off();
 Las promesas rechazadas usan `RingeeError`:
 
 ```ts
-import { RingeeError } from "@ringee-io/dialer-sdk";
+import { RingeeError } from "@ringee/dialer-sdk";
 
 try {
   await dialer.call({ to: "+13055550198" });
@@ -853,18 +896,30 @@ Recuerde añadir el origen exacto del frontend, por ejemplo
 `http://localhost:4200`, a la publishable key. El origen de `apiUrl` y el origen
 del frontend son valores distintos.
 
-Este repositorio incluye dos playgrounds:
+Este repositorio incluye tres playgrounds:
 
-- `apps/sdk-playground/vanilla-headless`: flujo real sin framework;
+- `apps/sdk-playground/live`: prueba el bundle real en Floating, Bar o Headless
+  contra un backend Ringee real, con OTP, WebRTC y llamadas reales;
+- `apps/sdk-playground/vanilla-headless`: ejemplo mínimo del flujo headless sin
+  framework;
 - `apps/sdk-playground/ui-gallery`: estados visuales de Floating y Bar con un
   dialer simulado, sin red ni WebRTC.
+
+Para ejecutar el playground completo en `http://localhost:5173`:
+
+```bash
+node apps/sdk-playground/live/build.mjs --serve
+```
+
+Añada primero `http://localhost:5173` en **Allowed origins** al generar la
+publishable key desde **Integrations → Custom Integrations**.
 
 Para validar el paquete dentro del monorepo:
 
 ```bash
-pnpm --filter @ringee-io/dialer-sdk typecheck
-pnpm --filter @ringee-io/dialer-sdk test
-pnpm --filter @ringee-io/dialer-sdk build
+pnpm --filter @ringee/dialer-sdk typecheck
+pnpm --filter @ringee/dialer-sdk test
+pnpm --filter @ringee/dialer-sdk build
 ```
 
 ## Troubleshooting
@@ -872,8 +927,10 @@ pnpm --filter @ringee-io/dialer-sdk build
 ### `DOMAIN_NOT_ALLOWED`
 
 Compruebe `window.location.origin` en la consola y compárelo literalmente con
-`allowedOrigins`. Revise protocolo, subdominio y puerto. Después de cambiar la
-lista hay que usar la publishable key que contiene la lista nueva.
+los orígenes añadidos en **Integrations → Custom Integrations → Configure →
+Settings → Dialer SDK · Publishable keys**. Revise protocolo, subdominio y
+puerto. Después de cambiar la lista hay que generar y usar una publishable key
+nueva que contenga esos orígenes.
 
 ### `INVALID_PUBLISHABLE_KEY`
 

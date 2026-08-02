@@ -38,8 +38,8 @@ const BUNDLE = "ringee.global.js";
 const MAP = "ringee.global.js.map";
 
 function buildSdk() {
-  console.log("• Building @ringee-io/dialer-sdk (tsup)…");
-  execSync("pnpm --filter @ringee-io/dialer-sdk build", {
+  console.log("• Building @ringee/dialer-sdk (tsup)…");
+  execSync("pnpm --filter @ringee/dialer-sdk build", {
     cwd: repo,
     stdio: "inherit",
   });
@@ -52,7 +52,7 @@ if (has("--build") || !existsSync(resolve(distDir, BUNDLE))) {
 if (!existsSync(resolve(distDir, BUNDLE))) {
   console.error(
     `✗ Missing ${BUNDLE} in ${distDir}. Run with --build or:\n` +
-      "    pnpm --filter @ringee-io/dialer-sdk build",
+      "    pnpm --filter @ringee/dialer-sdk build",
   );
   process.exit(1);
 }

@@ -2,9 +2,9 @@ import { defineConfig } from "tsup";
 
 /**
  * Build targets:
- *   - `index`  — headless ESM + CJS + `.d.ts` (`@ringee-io/dialer-sdk`)
+ *   - `index`  — headless ESM + CJS + `.d.ts` (`@ringee/dialer-sdk`)
  *   - `ui/index` — turnkey Floating/Bar UI ESM + CJS + `.d.ts`
- *     (`@ringee-io/dialer-sdk/ui`)
+ *     (`@ringee/dialer-sdk/ui`)
  *   - `ringee.global.js` — self-contained IIFE exposing `window.Ringee` with
  *     the UI bundled, for a one-tag CDN embed.
  *

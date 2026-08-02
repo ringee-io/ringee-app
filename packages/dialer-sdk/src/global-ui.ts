@@ -3,7 +3,7 @@
  * headless factory and the turnkey UIs, so a CRM can embed a full dialer with a
  * single `<script>` tag and one call:
  *
- *   <script src="https://unpkg.com/@ringee-io/dialer-sdk"></script>
+ *   <script src="https://unpkg.com/@ringee/dialer-sdk"></script>
  *   <script>
  *     Ringee.createFloating({ key: "pk_live_…" });
  *   </script>

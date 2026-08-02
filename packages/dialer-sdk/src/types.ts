@@ -1,5 +1,5 @@
 /**
- * Public type surface for `@ringee-io/dialer-sdk`.
+ * Public type surface for `@ringee/dialer-sdk`.
  *
  * Framework-agnostic — no React, no DOM-framework types. Everything a CRM
  * integrator needs to build a fully custom dialer UI is here. Telnyx is never

@@ -1,6 +1,6 @@
 # Dialer SDK — Live Playground (real)
 
-A **real, deployable** playground that drives the *production* SDK bundle
+A **real, deployable** playground that drives the _production_ SDK bundle
 (`window.Ringee`, the exact IIFE shipped to unpkg/jsDelivr) against a **real
 Ringee backend**. It covers all three integration modes — **Floating**, **Bar**
 and **Headless** — places real WebRTC calls, and is fully runtime-configurable,
@@ -38,18 +38,34 @@ The panel auto-mounts when a key is already present (shared link or env default)
 
 ### Flags
 
-| Command | Effect |
-| --- | --- |
-| `node build.mjs` | Copy the SDK bundle → `vendor/` (builds it if missing). |
-| `node build.mjs --build` | Force-rebuild the SDK first, then copy. |
-| `node build.mjs --serve` | Build, then serve on `:5173` (`PORT=… ` to change). |
+| Command                  | Effect                                                  |
+| ------------------------ | ------------------------------------------------------- |
+| `node build.mjs`         | Copy the SDK bundle → `vendor/` (builds it if missing). |
+| `node build.mjs --build` | Force-rebuild the SDK first, then copy.                 |
+| `node build.mjs --serve` | Build, then serve on `:5173` (`PORT=… ` to change).     |
 
 Rebuild the SDK and re-copy after changing SDK source:
 `node apps/sdk-playground/live/build.mjs --build`.
 
 ## Get a publishable key
 
-The key is minted by an **org-admin** session (never from the public frontend):
+Create the key from the Ringee dashboard with an administrator account:
+
+1. Open **Integrations** (`/dashboard/settings/integrations`).
+2. Select **Custom Integrations**.
+3. Create an integration with **New custom integration**, or open an existing
+   one with **Configure**.
+4. In **Settings**, find **Dialer SDK · Publishable keys**.
+5. Add `http://localhost:5173` under **Allowed origins**. Also add the exact
+   production origin if the playground will be deployed.
+6. Click **Generate publishable key** and copy the resulting `pk_live_…`.
+
+The `cik_live_…` API key and webhook signing secret shown when a Custom
+Integration is created are server credentials. Never paste either one into this
+playground or another browser application.
+
+For automated or self-hosted setup, an authenticated admin client can call the
+equivalent routes:
 
 ```http
 POST /api/integrations/custom
@@ -60,7 +76,8 @@ POST /api/integrations/custom/<integrationId>/publishable-keys
 ```
 
 Origins are matched **exactly** (protocol + host + port). Add every origin the
-playground is served from.
+playground is served from. To change the allowed origins, generate another
+publishable key.
 
 ## Deploy to production
 
@@ -100,12 +117,12 @@ Anything in the URL overrides `localStorage`.
 
 ## Files
 
-| File | What |
-| --- | --- |
-| `index.html` | Page shell, config panel, per-mode stage, event log |
-| `playground.js` | Real `window.Ringee` wiring (committed, no bundler) |
-| `build.mjs` | Copies the SDK bundle → `vendor/`, injects env defaults, `--serve` |
-| `vendor/` | Generated: `ringee.global.js` (+ map) and `defaults.js` (git-ignored) |
+| File            | What                                                                  |
+| --------------- | --------------------------------------------------------------------- |
+| `index.html`    | Page shell, config panel, per-mode stage, event log                   |
+| `playground.js` | Real `window.Ringee` wiring (committed, no bundler)                   |
+| `build.mjs`     | Copies the SDK bundle → `vendor/`, injects env defaults, `--serve`    |
+| `vendor/`       | Generated: `ringee.global.js` (+ map) and `defaults.js` (git-ignored) |
 
 ## Troubleshooting
 

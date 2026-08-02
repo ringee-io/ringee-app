@@ -1,5 +1,5 @@
 /**
- * `@ringee-io/dialer-sdk/ui` — the turnkey, production-ready dialer UIs
+ * `@ringee/dialer-sdk/ui` — the turnkey, production-ready dialer UIs
  * (Floating + Bar) built on the headless core. Import this when you want a
  * drop-in dialer; import the package root for the headless engine only.
  */
