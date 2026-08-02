@@ -10,6 +10,7 @@ import { RequestMethod, ValidationPipe } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import express from "express";
 import { clerkMiddleware } from "@ringee/platform";
+import { sdkCors } from "./api/sdk/sdk-cors";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
@@ -23,6 +24,10 @@ async function bootstrap() {
       .getInstance()
       .set("trust proxy", apiConfiguration.TRUST_PROXY_HOPS);
   }
+
+  // Dynamic, non-credentialed CORS for the browser Dialer SDK (`/api/v1/sdk/*`).
+  // Registered BEFORE the static credentialed CORS so it owns SDK preflights.
+  app.use(sdkCors);
 
   app.enableCors({
     origin: [

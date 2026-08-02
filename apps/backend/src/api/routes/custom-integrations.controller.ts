@@ -23,6 +23,7 @@ import {
 import {
   CustomIntegrationDeliveryService,
   CustomIntegrationService,
+  SdkPublishableKeyService,
 } from "@ringee/services";
 import {
   CustomIntegrationInboundRepository,
@@ -48,6 +49,7 @@ export class CustomIntegrationsController {
     private readonly delivery: CustomIntegrationDeliveryService,
     private readonly inboundRepo: CustomIntegrationInboundRepository,
     private readonly deliveryRepo: CustomIntegrationDeliveryRepository,
+    private readonly sdkKeys: SdkPublishableKeyService,
   ) {}
 
   @Get()
@@ -100,6 +102,28 @@ export class CustomIntegrationsController {
   ) {
     const ctx = createOwnershipContext(user);
     return this.integrations.regenerateApiKey(ctx, id);
+  }
+
+  /**
+   * Mint a browser-safe publishable key (`pk_live_...`) for this integration,
+   * scoped to the given `allowedOrigins`. Unlike the secret `cik_live_` key
+   * this is meant to ship in a CRM's frontend; it embeds no secret and is
+   * revoked automatically when the integration's API key is rotated.
+   */
+  @Post(":id/publishable-keys")
+  async mintPublishableKey(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id") id: string,
+    @Body() body: { allowedOrigins?: string[] },
+  ) {
+    if (
+      !Array.isArray(body?.allowedOrigins) ||
+      body.allowedOrigins.length === 0
+    ) {
+      throw new BadRequestException("allowedOrigins is required");
+    }
+    const ctx = createOwnershipContext(user);
+    return this.sdkKeys.mint(ctx, id, body.allowedOrigins);
   }
 
   @Post(":id/regenerate-signing-secret")

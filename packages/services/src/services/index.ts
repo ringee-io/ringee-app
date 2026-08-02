@@ -37,3 +37,4 @@ export * from "./ai-pipeline";
 export * from "./backoffice.service";
 export * from "./sip-device";
 export * from "./infrastructure";
+export * from "./sdk";

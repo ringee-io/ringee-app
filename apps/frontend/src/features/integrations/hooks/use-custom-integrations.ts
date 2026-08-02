@@ -99,6 +99,19 @@ export function useCustomIntegrationActions(id: string | null) {
     );
   }, [api, id]);
 
+  const mintPublishableKey = useCallback(
+    async (allowedOrigins: string[]) => {
+      if (!id) throw new Error('no id');
+      return api.post<{
+        publishableKey: string;
+        integrationId: string;
+        apiKeyPrefix: string;
+        allowedOrigins: string[];
+      }>(`${BASE}/${id}/publishable-keys`, { allowedOrigins });
+    },
+    [api, id]
+  );
+
   const testWebhook = useCallback(async (): Promise<TestWebhookResult> => {
     if (!id) throw new Error('no id');
     return api.post<TestWebhookResult>(`${BASE}/${id}/test-webhook`, {});
@@ -123,6 +136,7 @@ export function useCustomIntegrationActions(id: string | null) {
   return {
     regenerateApiKey,
     regenerateSigningSecret,
+    mintPublishableKey,
     testWebhook,
     getInboundLogs,
     getOutboundLogs

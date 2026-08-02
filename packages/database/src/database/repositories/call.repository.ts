@@ -26,6 +26,41 @@ export class CallRepository {
     return this.prisma.call.findUnique({ where: { id } });
   }
 
+  /**
+   * Adopt a pre-created call (e.g. an SDK `source="sdk"` row created at
+   * authorize time) by attaching the telephony identifiers the Telnyx webhook
+   * discovered when the WebRTC leg actually connected. Used instead of a second
+   * `createCall` so the SDK's up-front row is the one that lives on.
+   */
+  async attachTelephony(
+    id: string,
+    data: {
+      callControlId: string;
+      callSessionId?: string | null;
+      callLegId?: string | null;
+      connectionId?: string | null;
+      startedAt?: string | Date | null;
+      status?: CallStatus;
+      callerIdId?: string | null;
+    },
+  ): Promise<Call> {
+    return this.prisma.call.update({
+      where: { id },
+      data: {
+        callControlId: data.callControlId,
+        callSessionId: data.callSessionId ?? undefined,
+        callLegId: data.callLegId ?? undefined,
+        connectionId: data.connectionId ?? undefined,
+        startedAt: data.startedAt ? new Date(data.startedAt) : undefined,
+        status: data.status ?? undefined,
+        callerId: data.callerIdId
+          ? { connect: { id: data.callerIdId } }
+          : undefined,
+        updatedAt: new Date(),
+      },
+    });
+  }
+
   async findByControlId(callControlId: string): Promise<Call | null> {
     return this.prisma.call.findUnique({ where: { callControlId } });
   }
