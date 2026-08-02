@@ -25,9 +25,12 @@ import {
   AlertTriangle,
   Check,
   Copy,
+  KeyRound,
   Loader2,
+  Plus,
   RefreshCw,
-  Send
+  Send,
+  X
 } from 'lucide-react';
 import { toast } from 'sonner';
 import {
@@ -216,6 +219,8 @@ function SettingsTab({
 
       <RegenerateButtons actions={actions} />
 
+      <PublishableKeysSection actions={actions} />
+
       <div className='flex justify-between border-t pt-4'>
         <Button
           variant='destructive'
@@ -299,6 +304,177 @@ function RegenerateButtons({
           value={revealed.value}
           onDismiss={() => setRevealed(null)}
         />
+      )}
+    </div>
+  );
+}
+
+// ── Dialer SDK · Publishable keys ────────────────────────────────────
+
+function normalizeOrigin(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  try {
+    const u = new URL(trimmed);
+    if (u.protocol !== 'http:' && u.protocol !== 'https:') return null;
+    // An origin carries no path/query/hash.
+    if (u.pathname !== '/' || u.search || u.hash) return null;
+    return u.origin;
+  } catch {
+    return null;
+  }
+}
+
+function PublishableKeysSection({
+  actions
+}: {
+  actions: ReturnType<typeof useCustomIntegrationActions>;
+}) {
+  const [origins, setOrigins] = useState<string[]>([]);
+  const [draft, setDraft] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{
+    publishableKey: string;
+    allowedOrigins: string[];
+  } | null>(null);
+
+  const addOrigin = (raw: string) => {
+    const origin = normalizeOrigin(raw);
+    if (!origin) {
+      toast.error('Enter a full origin, e.g. https://crm.example.com');
+      return;
+    }
+    setOrigins((prev) => (prev.includes(origin) ? prev : [...prev, origin]));
+    setDraft('');
+  };
+
+  const generate = async () => {
+    setBusy(true);
+    try {
+      const res = await actions.mintPublishableKey(origins);
+      setResult({
+        publishableKey: res.publishableKey,
+        allowedOrigins: res.allowedOrigins
+      });
+      toast.success('Publishable key generated');
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : 'Could not generate key'
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className='space-y-3 rounded-md border p-3'>
+      <div className='flex items-start gap-2'>
+        <KeyRound className='mt-0.5 h-4 w-4 text-indigo-500' />
+        <div className='min-w-0'>
+          <p className='text-sm font-medium'>Dialer SDK · Publishable keys</p>
+          <p className='text-muted-foreground text-xs'>
+            Browser-safe{' '}
+            <code className='bg-muted rounded px-1 py-0.5'>pk_live_…</code> for{' '}
+            <code className='bg-muted rounded px-1 py-0.5'>
+              @ringee-io/dialer-sdk
+            </code>
+            . Scope it to the exact origins where the SDK loads.
+          </p>
+        </div>
+      </div>
+
+      <div className='space-y-2'>
+        <Label htmlFor='ci-origin' className='text-xs'>
+          Allowed origins
+        </Label>
+        <div className='flex gap-2'>
+          <Input
+            id='ci-origin'
+            value={draft}
+            placeholder='https://crm.example.com'
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                addOrigin(draft);
+              }
+            }}
+          />
+          <Button
+            variant='outline'
+            onClick={() => addOrigin(draft)}
+            disabled={!draft.trim()}
+          >
+            <Plus className='mr-1 h-3.5 w-3.5' /> Add
+          </Button>
+        </div>
+
+        <div className='flex flex-wrap items-center gap-1.5'>
+          <span className='text-muted-foreground text-xs'>Quick add:</span>
+          <Button
+            size='sm'
+            variant='ghost'
+            className='h-6 px-2 text-xs'
+            onClick={() => addOrigin(window.location.origin)}
+          >
+            This dashboard
+          </Button>
+          <Button
+            size='sm'
+            variant='ghost'
+            className='h-6 px-2 text-xs'
+            onClick={() => addOrigin('http://localhost:5173')}
+          >
+            localhost:5173 (playground)
+          </Button>
+        </div>
+
+        {origins.length > 0 && (
+          <div className='flex flex-wrap gap-1.5'>
+            {origins.map((o) => (
+              <Badge
+                key={o}
+                variant='secondary'
+                className='gap-1 font-mono text-[11px]'
+              >
+                {o}
+                <button
+                  type='button'
+                  aria-label={`Remove ${o}`}
+                  className='hover:text-destructive'
+                  onClick={() =>
+                    setOrigins((prev) => prev.filter((x) => x !== o))
+                  }
+                >
+                  <X className='h-3 w-3' />
+                </button>
+              </Badge>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <Button onClick={generate} disabled={busy || origins.length === 0}>
+        {busy ? (
+          <Loader2 className='mr-1.5 h-3.5 w-3.5 animate-spin' />
+        ) : (
+          <KeyRound className='mr-1.5 h-3.5 w-3.5' />
+        )}
+        Generate publishable key
+      </Button>
+
+      {result && (
+        <div className='space-y-2'>
+          <CopyableSecret
+            label='Publishable key'
+            value={result.publishableKey}
+            onDismiss={() => setResult(null)}
+          />
+          <p className='text-muted-foreground text-xs'>
+            Scoped to: {result.allowedOrigins.join(', ')}. Rotating the API key
+            revokes every publishable key for this integration.
+          </p>
+        </div>
       )}
     </div>
   );

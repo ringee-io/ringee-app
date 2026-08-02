@@ -145,23 +145,23 @@ export function CrmConnectionCard({
           <div
             className={cn(
               'flex h-11 w-11 shrink-0 items-center justify-center rounded-lg border p-2',
-              meta.color
+              meta?.color
             )}
           >
             <Image
-              src={meta.logo}
-              alt={`${meta.name} logo`}
+              src={meta?.logo ?? ''}
+              alt={`${meta?.name ?? ''} logo`}
               width={28}
               height={28}
               className={cn(
                 'h-6 w-6 object-contain',
-                meta.logoDarkInvert && 'dark:invert'
+                meta?.logoDarkInvert && 'dark:invert'
               )}
             />
           </div>
           <div className='min-w-0'>
             <div className='flex items-center gap-2'>
-              <h3 className='truncate text-sm font-semibold'>{meta.name}</h3>
+              <h3 className='truncate text-sm font-semibold'>{meta?.name}</h3>
               {statusBadge(connection.status, t)}
             </div>
             <p className='text-muted-foreground mt-0.5 truncate text-xs'>
@@ -206,7 +206,7 @@ export function CrmConnectionCard({
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>
-                      {t('dialogs.disconnectTitle', { provider: meta.name })}
+                      {t('dialogs.disconnectTitle', { provider: meta?.name ?? '' })}
                     </AlertDialogTitle>
                     <AlertDialogDescription>
                       {t('dialogs.disconnectDescription')}
@@ -239,7 +239,7 @@ export function CrmConnectionCard({
                     {t('dialogs.forgetTitle')}
                   </AlertDialogTitle>
                   <AlertDialogDescription>
-                    {t('dialogs.forgetDescription', { provider: meta.name })}
+                    {t('dialogs.forgetDescription', { provider: meta?.name ?? '' })}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
