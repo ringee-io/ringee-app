@@ -24,6 +24,7 @@ export const DEMO_VIDEO_URL = `https://www.youtube.com/watch?v=${DEMO_VIDEO_ID}`
 export const DOCS_URL = 'https://docs.ringee.io';
 export const BLOG_URL = 'https://blog.ringee.io';
 export const CLI_NPM_URL = 'https://www.npmjs.com/package/ringee';
+export const SDK_NPM_URL = 'https://www.npmjs.com/package/@ringee/dialer-sdk';
 export const SIGN_IN_URL = '/auth/sign-in';
 export const SIGN_UP_URL = '/auth/sign-up';
 
@@ -46,6 +47,7 @@ export const SAME_AS = [
   GITHUB_ORG_URL,
   'https://www.reddit.com/r/ringee/',
   CLI_NPM_URL,
+  SDK_NPM_URL,
   IOS_APP_URL,
   ANDROID_APP_URL,
   CHROME_EXTENSION_URL,
@@ -194,6 +196,11 @@ export const PRODUCT_MENU: ProductMenuGroup[] = [
         description: 'Keep your CRM in step'
       },
       {
+        label: 'Dialer SDK',
+        href: '/dialer-sdk',
+        description: 'Embed the dialer in your own app'
+      },
+      {
         label: 'Apollo',
         href: '/integrations/apollo',
         description: 'Pull and enrich Apollo leads'
@@ -271,6 +278,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: 'Callbacks', href: '/features/callbacks' },
       { label: 'Meetings', href: '/features/meetings' },
       { label: 'AI call automation', href: '/features/ai-call-automation' },
+      { label: 'Dialer SDK', href: '/dialer-sdk' },
       { label: 'Apps & extensions', href: '/apps' },
       { label: 'All features', href: '/features' }
     ]
@@ -305,6 +313,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
       { label: 'Developer docs', href: DOCS_URL },
       { label: 'Blog', href: BLOG_URL },
       { label: 'CLI on npm', href: CLI_NPM_URL },
+      { label: 'Dialer SDK on npm', href: SDK_NPM_URL },
       { label: 'Chrome extension', href: CHROME_EXTENSION_URL },
       { label: 'iOS app', href: IOS_APP_URL },
       { label: 'Android app', href: ANDROID_APP_URL },

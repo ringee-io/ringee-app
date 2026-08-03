@@ -1,10 +1,15 @@
 /**
- * A drop-in stand-in for the headless `RingeeDialer` used only by the visual
- * playground. It implements the same public method + event surface but performs
- * no network calls and no WebRTC, so every screen can be shown (and the whole
- * flow clicked through) without a backend or a real phone call. Two modes:
+ * A drop-in stand-in for the headless `RingeeDialer`, used by demos only. It
+ * implements the same public method + event surface but performs no network
+ * calls and no WebRTC, so every screen can be shown (and the whole flow clicked
+ * through) without a backend or a real phone call. Two modes:
  *   - `interactive` simulates realistic, timed transitions on each action.
  *   - `static` stays put so a gallery tile can freeze one exact state.
+ *
+ * Shared by `apps/sdk-playground/ui-gallery` and the public `/dialer-sdk`
+ * marketing demo, so both show the real UI driven by identical fake state. It
+ * is deliberately NOT a package export (no `exports` entry, no tsup target):
+ * consumers of the published package never see it.
  */
 import type {
   AuthState,
@@ -16,9 +21,16 @@ import type {
   RingeeEventHandler,
   RingeeEventName,
   RingeeEventPayloads,
-} from "../../../packages/dialer-sdk/src/types";
+} from "../types";
 
-type Handlers = { [K in RingeeEventName]?: Set<(p: RingeeEventPayloads[K]) => void> };
+/**
+ * Handlers are stored with an opaque payload type; the public `on`/`emit`
+ * signatures below re-apply the per-event payload, so callers stay type-safe
+ * while the bucket itself is uniform (a per-event mapped type can't be indexed
+ * by a generic `T` without widening errors).
+ */
+type AnyHandler = (payload: never) => void;
+type Handlers = Partial<Record<RingeeEventName, Set<AnyHandler>>>;
 
 export interface MockConfig {
   mode?: "interactive" | "static";
@@ -58,26 +70,27 @@ export class MockDialer {
   constructor(cfg: MockConfig = {}) {
     this.cfg = { mode: "interactive", ...cfg };
     this.agent = cfg.agent ?? DEMO_AGENT;
-    this.currenterIds = cfg.callerIds ?? DEMO_CALLER_IDS;
+    this.callerIds = cfg.callerIds ?? DEMO_CALLER_IDS;
   }
 
   // ── Event bus ─────────────────────────────────────────────────────────────
   on<T extends RingeeEventName>(event: T, handler: RingeeEventHandler<T>): () => void {
-    const set = (this.handlers[event] ??= new Set()) as Set<(p: RingeeEventPayloads[T]) => void>;
-    set.add(handler);
-    return () => set.delete(handler);
+    const set = (this.handlers[event] ??= new Set<AnyHandler>());
+    set.add(handler as AnyHandler);
+    return () => set.delete(handler as AnyHandler);
   }
 
   emit<T extends RingeeEventName>(event: T, payload: RingeeEventPayloads[T]): void {
-    const set = this.handlers[event] as Set<(p: RingeeEventPayloads[T]) => void> | undefined;
-    if (set) for (const fn of [...set]) fn(payload);
+    const set = this.handlers[event];
+    if (!set) return;
+    for (const fn of [...set]) (fn as (p: RingeeEventPayloads[T]) => void)(payload);
   }
 
   // ── Getters the model reads ───────────────────────────────────────────────
   getAuthState() { return this.auth; }
   getState() { return this.state; }
   getAgent() { return this.agent; }
-  getCallerIds() { return [...this.currenterIds]; }
+  getCallerIds() { return [...this.callerIds]; }
   getActiveCall() { return this.current; }
 
   private setAuth(a: AuthState) { this.auth = a; this.emit("authStateChanged", { state: a }); }
@@ -132,7 +145,7 @@ export class MockDialer {
 
   async call(input: { to: string }): Promise<RingeeCall> {
     this.current = {
-      id: "call_1", to: input.to, from: this.currenterIds[0]!.phoneNumber,
+      id: "call_1", to: input.to, from: this.callerIds[0]!.phoneNumber,
       direction: "outbound", state: "dialing", startedAt: new Date(),
       answeredAt: null, endedAt: null, durationSeconds: 0, muted: false, held: false,
     };

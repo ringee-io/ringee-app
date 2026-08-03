@@ -13,7 +13,11 @@ import { icon } from "../../../packages/dialer-sdk/src/ui/icons";
 import { createFloating, createBar } from "../../../packages/dialer-sdk/src/ui/factory";
 import type { RingeeCall } from "../../../packages/dialer-sdk/src/types";
 import type { RingeeTheme } from "../../../packages/dialer-sdk/src/ui/theme";
-import { MockDialer, DEMO_AGENT, DEMO_CALLER_IDS } from "./mock-dialer";
+import {
+  MockDialer,
+  DEMO_AGENT,
+  DEMO_CALLER_IDS,
+} from "../../../packages/dialer-sdk/src/demo/mock-dialer";
 
 const CONTACT = { name: "Morgan Reed", number: "+13055550142", contactId: "c1" };
 const strings = resolveStrings("en");

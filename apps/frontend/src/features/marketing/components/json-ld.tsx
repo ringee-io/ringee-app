@@ -122,6 +122,42 @@ function planOffers() {
 }
 
 /**
+ * SoftwareSourceCode entity for a published Ringee package (the Dialer SDK).
+ * Distinct from the `#software` product entity: this describes shippable
+ * source, so it carries the repository, language, and license instead of
+ * offers.
+ */
+export function softwareSourceCodeJsonLd({
+  name,
+  description,
+  url,
+  codeRepository,
+  id
+}: {
+  name: string;
+  description: string;
+  url: string;
+  codeRepository: string;
+  id: string;
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareSourceCode',
+    '@id': id,
+    name,
+    description,
+    url,
+    codeRepository,
+    programmingLanguage: 'TypeScript',
+    runtimePlatform: 'Web browser',
+    license: 'https://opensource.org/licenses/MIT',
+    dateModified: SITE_LAST_MODIFIED,
+    isPartOf: { '@id': `${SITE_URL}/#software` },
+    publisher: { '@id': ORG_ID }
+  };
+}
+
+/**
  * SoftwareApplication structured data for the product. Declared once (homepage);
  * feature pages link back to it rather than redeclaring the whole app.
  */

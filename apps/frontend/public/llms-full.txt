@@ -89,6 +89,24 @@ Ringee exposes its outbound workflow through an MCP server, so AI assistants and
 
 ---
 
+## Dialer SDK
+
+Page: https://www.ringee.io/dialer-sdk — Package: https://www.npmjs.com/package/@ringee/dialer-sdk
+
+`@ringee/dialer-sdk` is a browser SDK that embeds Ringee outbound calling directly into another web application — a CRM, a back office, or an internal tool. It ships three integration modes: Floating (a launcher in the page corner that opens a full dialer panel), Bar (the same dialer rendered inline inside an element you own), and Headless (no UI at all — authentication, calls, devices, states, and typed events, with every screen built by the host). It is open source under the MIT license and published on npm; install with `npm install @ringee/dialer-sdk` or load the global bundle from a CDN with a single script tag.
+
+The SDK has no React dependency and renders its bundled UIs inside a Shadow DOM, so it works with plain JavaScript, TypeScript, React, Vue, Angular, Svelte, or a server-rendered page; in React or Next.js it is mounted from a `useEffect` with a dynamic import so it never runs during SSR. English and Spanish ship in the box, individual labels can be overridden, and colors, radius, shadow, and font are theme tokens that can be set at mount time, changed at runtime, or driven from CSS custom properties such as `--ringee-primary`.
+
+The SDK encapsulates WebRTC and Telnyx entirely: the host application never handles SIP passwords, provider tokens, or provider-specific objects. It also owns microphone capture, remote audio, device selection, reconnects, the call state machine (dialing, ringing, active, held, reconnecting, ending, ended), and a browser lock that prevents a second tab from dialing over a live call.
+
+Security: a `pk_live_...` publishable key is designed to be visible in the browser. It is signed and scoped to an exact list of allowed origins (no wildcards, paths, or implicit subdomains), and it does not authenticate an agent on its own — agents are verified with a one-time code sent to their email, and Ringee validates workspace membership, permissions, caller ID, credit, and DNC on the server before a call connects. The private `cik_live_...` Custom Integrations API key and webhook signing secret are different credentials and must never be shipped to a browser. Publishable keys are generated inside a Custom Integration in the Ringee dashboard (Integrations → Custom Integrations → Dialer SDK · Publishable keys).
+
+Calls placed through the SDK are normal Ringee calls: they appear in call history, use the same pay-as-you-go calling credits (from $0.020/min, with no separate SDK fee), follow the workspace's recording and transcription settings, respect caller ID rotation, and trigger the same Custom Integration webhooks. Passing `externalContactId` lets Ringee resolve a CRM id to the right contact. A self-hosted Ringee deployment is supported by passing the API base origin as the `apiUrl` option. Requirements: a modern browser with WebRTC and `navigator.mediaDevices`, a secure context (HTTPS in production or localhost in development), and E.164 destination numbers.
+
+This release does not include a public Ringee URL that can be dropped into an `<iframe src>`, an automatic `data-ringee-key` loader, or a separate React wrapper package.
+
+---
+
 ## Integrations
 
 - Lead sources: Apollo (pull and enrich leads), Prospeo (enrich contacts).
@@ -143,6 +161,7 @@ Ringee runs wherever you work, all signed in to the same account so contacts, ca
 - iPhone app: the full Ringee dialer on iOS — call, log outcomes, and book follow-ups on the go. Apple App Store: https://apps.apple.com/app/ringee-app/id6773448247
 - Android app: the full Ringee dialer on Android. Google Play: https://play.google.com/store/apps/details?id=io.ringee.twa
 - Web app: no install required — open Ringee in any modern browser at https://www.ringee.io and start calling.
+- Your own app: embed the Ringee dialer in a CRM, back office, or internal tool with the `@ringee/dialer-sdk` browser package — floating, inline, or headless. Details: https://www.ringee.io/dialer-sdk
 - AI tools: drive outbound from Claude and ChatGPT through Ringee's MCP server. Agents prospect leads, build call lists, start calls, and log outcomes; a human always takes the call. Demo (Ringee inside Claude): https://www.youtube.com/watch?v=5yjDOIjfBPM
 
 The apps and the extension are free to install; you only pay for your Ringee plan and pay-as-you-go calling credits.
@@ -163,6 +182,8 @@ The apps and the extension are free to install; you only pay for your Ringee pla
 - Developer documentation: https://docs.ringee.io
 - Blog: https://blog.ringee.io
 - CLI on npm: https://www.npmjs.com/package/ringee
+- Dialer SDK: https://www.ringee.io/dialer-sdk
+- Dialer SDK on npm: https://www.npmjs.com/package/@ringee/dialer-sdk
 - Apps & extensions: https://www.ringee.io/apps
 - Chrome extension: https://chromewebstore.google.com/detail/ringee-%E2%80%94-low-cost-outboun/hmgbaielacnpemblmoahpfdlnfdlmeel
 - iOS app: https://apps.apple.com/app/ringee-app/id6773448247
