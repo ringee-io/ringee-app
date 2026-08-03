@@ -1,7 +1,10 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useNumbersStore } from '../store/number.selector.store';
+import {
+  isSelectableNumber,
+  useNumbersStore
+} from '../store/number.selector.store';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import {
   Select,
@@ -44,9 +47,7 @@ export function NumberSelector({ useMock }: { useMock?: boolean }) {
   }, [useMock]);
 
   const isLoading = status === 'loading';
-  const numbers = rawNumbers.filter(
-    (item) => !['pending', 'inactive'].includes(item.status ?? '')
-  );
+  const numbers = rawNumbers.filter(isSelectableNumber);
   const hasNumbers = numbers.length > 0;
 
   return (
