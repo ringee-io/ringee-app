@@ -30,6 +30,7 @@
 - [Real-time call transcription](https://www.ringee.io/features/call-transcription): Accurate, searchable transcripts, with or without recording.
 - [CRM sync](https://www.ringee.io/features/crm-sync): Keep your CRM in step with your calling.
 - [AI call automation](https://www.ringee.io/features/ai-call-automation): Let agents prospect, build lists, log outcomes, and book follow-ups.
+- [Dialer SDK](https://www.ringee.io/dialer-sdk): Embed the Ringee dialer in your own CRM or web app with the `@ringee/dialer-sdk` browser package.
 
 ## Integrations
 
@@ -74,6 +75,7 @@
 - [Features](https://www.ringee.io/features): Full feature catalog.
 - [Integrations](https://www.ringee.io/integrations): Lead sources, CRMs, calendar, and AI tools.
 - [Apps & extensions](https://www.ringee.io/apps): Use Ringee from the Chrome extension, iPhone, Android, the web, and AI tools.
+- [Dialer SDK](https://www.ringee.io/dialer-sdk): Embed Ringee calling in your own app — floating dialer, inline bar, or headless engine.
 - [Use cases](https://www.ringee.io/use-cases): Who Ringee is built for.
 - [Security](https://www.ringee.io/security): Data protection and an honest certification stance.
 - [Open source](https://www.ringee.io/open-source): MIT-licensed, auditable, self-hostable.
@@ -86,6 +88,7 @@
 - [Developer documentation](https://docs.ringee.io): Guides and API/MCP reference.
 - [Blog](https://blog.ringee.io): Outbound and product articles.
 - [Command-line interface](https://www.npmjs.com/package/ringee): The `ringee` CLI on npm.
+- [Dialer SDK on npm](https://www.npmjs.com/package/@ringee/dialer-sdk): The `@ringee/dialer-sdk` browser package for embedding the dialer.
 - [Chrome extension](https://chromewebstore.google.com/detail/ringee-%E2%80%94-low-cost-outboun/hmgbaielacnpemblmoahpfdlnfdlmeel): One-click outbound calling from your browser.
 - [iOS app](https://apps.apple.com/app/ringee-app/id6773448247): Ringee on the Apple App Store.
 - [Android app](https://play.google.com/store/apps/details?id=io.ringee.twa): Ringee on Google Play.

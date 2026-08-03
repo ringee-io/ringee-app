@@ -26,9 +26,14 @@ open apps/sdk-playground/ui-gallery/index.html
 
 ## Files
 
-| File             | What                                                        |
-| ---------------- | ----------------------------------------------------------- |
-| `index.html`     | Page shell + gallery styling                                |
-| `gallery.ts`     | Builds the frozen state tiles + the live demo               |
-| `mock-dialer.ts` | Drop-in stand-in for `RingeeDialer` (no network, no WebRTC) |
-| `build.mjs`      | esbuild bundler (wires the `@ringee/dialer-core` alias)     |
+| File         | What                                                    |
+| ------------ | ------------------------------------------------------- |
+| `index.html` | Page shell + gallery styling                            |
+| `gallery.ts` | Builds the frozen state tiles + the live demo           |
+| `build.mjs`  | esbuild bundler (wires the `@ringee/dialer-core` alias) |
+
+The fake dialer lives in the SDK itself, at
+`packages/dialer-sdk/src/demo/mock-dialer.ts` — a drop-in stand-in for
+`RingeeDialer` with no network and no WebRTC. It is shared with the public
+`/dialer-sdk` marketing demo so both show the same real UI; it is not a package
+export, so published consumers never see it.
