@@ -1,8 +1,9 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { ArrowRight, X } from 'lucide-react';
+import { ArrowRight, BookOpen, X } from 'lucide-react';
 
 import {
+  ButtonLink,
   Card,
   CheckList,
   Container,
@@ -40,6 +41,52 @@ export function DetailHero({
           ))}
         </div>
         <CtaButtons className='mt-8' />
+      </Container>
+    </Section>
+  );
+}
+
+/**
+ * Hands a reader off to the matching section of docs.ringee.io. Rendered only
+ * when a page has a real docs counterpart — a link to the docs root would send
+ * people somewhere they have to start navigating from scratch.
+ */
+export function DocsCallout({
+  href,
+  title = 'Read the developer docs',
+  description,
+  label = 'Open documentation'
+}: {
+  href: string;
+  title?: string;
+  description: string;
+  label?: string;
+}) {
+  return (
+    <Section className='pt-0'>
+      <Container>
+        <Card className='flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between'>
+          <div className='flex items-start gap-4'>
+            <span className='bg-muted text-muted-foreground inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl'>
+              <BookOpen className='h-5 w-5' aria-hidden />
+            </span>
+            <div>
+              <h2 className='text-lg font-semibold'>{title}</h2>
+              <p className='text-muted-foreground mt-1 text-sm text-pretty'>
+                {description}
+              </p>
+            </div>
+          </div>
+          <ButtonLink
+            href={href}
+            variant='secondary'
+            external
+            withArrow
+            className='shrink-0'
+          >
+            {label}
+          </ButtonLink>
+        </Card>
       </Container>
     </Section>
   );

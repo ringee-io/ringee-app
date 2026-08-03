@@ -12,8 +12,9 @@ import {
   SectionHeading
 } from '@/features/marketing/components/primitives';
 import { CtaSection } from '@/features/marketing/components/cta-section';
+import { DocsCallout } from '@/features/marketing/components/detail';
 import { FaqSection } from '@/features/marketing/components/faq';
-import { GITHUB_URL } from '@/features/marketing/site';
+import { DOCS_INSTALL_URL, GITHUB_URL } from '@/features/marketing/site';
 
 export const metadata: Metadata = buildMetadata({
   title: 'Self-Hosted Outbound Calling | Ringee',
@@ -137,6 +138,13 @@ export default function SelfHostedPage() {
           </ul>
         </Container>
       </Section>
+
+      <DocsCallout
+        href={DOCS_INSTALL_URL}
+        title='Self-hosting guide'
+        description='Step-by-step Docker Compose and Docker installs, the full environment variable reference, and provider setup.'
+        label='Open the install docs'
+      />
 
       <FaqSection faqs={SELF_HOSTED_FAQS} />
     </DetailLayout>

@@ -23,6 +23,22 @@ export const DEMO_VIDEO_URL = `https://www.youtube.com/watch?v=${DEMO_VIDEO_ID}`
 /** Public developer + content resources (live on their own subdomains). */
 export const DOCS_URL = 'https://docs.ringee.io';
 export const BLOG_URL = 'https://blog.ringee.io';
+
+/**
+ * Deep links into the developer docs. Marketing pages link to the docs section
+ * that continues what the reader was just reading, never to the docs root —
+ * landing on a generic index loses the thread. Keep these pointing at real
+ * pages in the `ringee-io/docs` repo.
+ */
+const docsUrl = (path: string) => `${DOCS_URL}${path}`;
+export const DOCS_DIALER_SDK_URL = docsUrl('/dialer-sdk/overview');
+export const DOCS_DIALER_SDK_QUICKSTART_URL = docsUrl('/dialer-sdk/quickstart');
+export const DOCS_MCP_URL = docsUrl('/mcp/overview');
+export const DOCS_MCP_CONNECT_URL = docsUrl('/mcp/connect');
+export const DOCS_MCP_APPS_URL = docsUrl('/mcp/apps');
+export const DOCS_CLI_URL = docsUrl('/cli/overview');
+export const DOCS_API_URL = docsUrl('/api/overview');
+export const DOCS_INSTALL_URL = docsUrl('/installation/docker-compose');
 export const CLI_NPM_URL = 'https://www.npmjs.com/package/ringee';
 export const SDK_NPM_URL = 'https://www.npmjs.com/package/@ringee/dialer-sdk';
 export const SIGN_IN_URL = '/auth/sign-in';

@@ -41,7 +41,8 @@ import {
   SectionHeading
 } from '@/features/marketing/components/primitives';
 import {
-  DOCS_URL,
+  DOCS_DIALER_SDK_QUICKSTART_URL,
+  DOCS_DIALER_SDK_URL,
   GITHUB_URL,
   SDK_NPM_URL,
   SIGN_UP_URL,
@@ -363,9 +364,17 @@ export default function DialerSdkPage() {
           <div className='mt-8'>
             <CodeBlock code={INSTALL_SNIPPET} label='Terminal' />
           </div>
-          <div className='mt-6 flex flex-col gap-3 sm:flex-row sm:gap-4'>
+          <div className='mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:gap-4'>
             <ButtonLink href={SIGN_UP_URL} withArrow>
               Get a publishable key
+            </ButtonLink>
+            <ButtonLink
+              href={DOCS_DIALER_SDK_QUICKSTART_URL}
+              variant='secondary'
+              external
+              withArrow
+            >
+              Read the docs
             </ButtonLink>
             <ButtonLink
               href={SDK_NPM_URL}
@@ -619,7 +628,7 @@ export default function DialerSdkPage() {
                 ]}
               />
               <div className='mt-8 flex flex-col gap-3 sm:flex-row'>
-                <ButtonLink href={DOCS_URL} external withArrow>
+                <ButtonLink href={DOCS_DIALER_SDK_URL} external withArrow>
                   Developer docs
                 </ButtonLink>
                 <ButtonLink

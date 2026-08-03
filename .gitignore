@@ -23,3 +23,5 @@ packages/database/prisma/migrations/*
 # pnpm store has root-owned files. Remove after fixing pnpm permissions and
 # running `pnpm install`.
 .local-sdk*/
+
+apps/frontend/.next-mine

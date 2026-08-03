@@ -12,6 +12,7 @@ import {
 } from '@/features/marketing/components/primitives';
 import {
   DetailHero,
+  DocsCallout,
   RelatedLinks,
   WorkflowList
 } from '@/features/marketing/components/detail';
@@ -85,6 +86,13 @@ export default async function IntegrationDetailPage({ params }: Params) {
           <CheckList items={integration.benefits} className='mt-6 max-w-2xl' />
         </Container>
       </Section>
+
+      {integration.docs ? (
+        <DocsCallout
+          href={integration.docs.href}
+          description={integration.docs.description}
+        />
+      ) : null}
 
       <RelatedLinks title='Related integrations' items={related} />
       <FaqSection faqs={integration.faqs} />
