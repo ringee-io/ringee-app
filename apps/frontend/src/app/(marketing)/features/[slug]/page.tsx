@@ -11,6 +11,7 @@ import {
 import { FaqSection } from '@/features/marketing/components/faq';
 import {
   DetailHero,
+  DocsCallout,
   HowItWorksSteps,
   RelatedLinks,
   WhoForAndBenefits
@@ -116,6 +117,13 @@ export default async function FeatureDetailPage({ params }: Params) {
           <RotationHealth />
         </>
       )}
+      {feature.docs ? (
+        <DocsCallout
+          href={feature.docs.href}
+          description={feature.docs.description}
+        />
+      ) : null}
+
       <RelatedLinks title='Related features' items={related} />
       <FaqSection faqs={feature.faqs} />
     </DetailLayout>

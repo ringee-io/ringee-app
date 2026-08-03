@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import type { Faq } from '../components/faq';
+import { DOCS_API_URL } from '../site';
 
 export type FeatureCategory =
   | 'Communicate'
@@ -39,6 +40,11 @@ export type FeatureContent = {
   benefits: string[];
   /** Slugs of related features. */
   related: string[];
+  /**
+   * Matching section of docs.ringee.io. Set only where the docs actually cover
+   * this feature — omit it rather than pointing at a generic index.
+   */
+  docs?: { href: string; description: string };
   faqs: Faq[];
 };
 
@@ -706,6 +712,11 @@ export const FEATURES: FeatureContent[] = [
       'Cleaner reporting and handoffs'
     ],
     related: ['call-outcomes', 'campaigns', 'outbound-calling'],
+    docs: {
+      href: DOCS_API_URL,
+      description:
+        'Build the sync yourself with the Custom Integrations API — inbound contact events, signed outbound webhooks and click-to-call.'
+    },
     faqs: [
       {
         question: 'Which CRMs does Ringee support?',

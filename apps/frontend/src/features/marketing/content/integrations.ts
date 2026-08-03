@@ -12,6 +12,13 @@ import {
 } from 'lucide-react';
 
 import type { Faq } from '../components/faq';
+import {
+  DOCS_API_URL,
+  DOCS_CLI_URL,
+  DOCS_MCP_APPS_URL,
+  DOCS_MCP_CONNECT_URL,
+  DOCS_MCP_URL
+} from '../site';
 
 export type IntegrationCategory =
   | 'Lead sources'
@@ -36,6 +43,11 @@ export type IntegrationContent = {
   benefits: string[];
   /** Slugs of related integrations. */
   related: string[];
+  /**
+   * Matching section of docs.ringee.io. Set only where the docs actually cover
+   * this integration — omit it rather than pointing at a generic index.
+   */
+  docs?: { href: string; description: string };
   faqs: Faq[];
 };
 
@@ -197,6 +209,11 @@ export const INTEGRATIONS: IntegrationContent[] = [
       'Cleaner pipeline reporting'
     ],
     related: ['odoo', 'apollo', 'mcp'],
+    docs: {
+      href: DOCS_API_URL,
+      description:
+        'Sync Attio records into Ringee and receive call activity back with the Custom Integrations API — events, webhooks and click-to-call.'
+    },
     faqs: [
       {
         question: 'What gets synced to Attio?',
@@ -244,6 +261,11 @@ export const INTEGRATIONS: IntegrationContent[] = [
       'Reliable reporting data'
     ],
     related: ['attio', 'prospeo', 'cli'],
+    docs: {
+      href: DOCS_API_URL,
+      description:
+        'Wire Odoo to Ringee with the Custom Integrations API — inbound contact events, signed outbound webhooks and click-to-call.'
+    },
     faqs: [
       {
         question: 'Which Odoo data does Ringee touch?',
@@ -339,6 +361,11 @@ export const INTEGRATIONS: IntegrationContent[] = [
       'Guardrails on credit-spend and destructive actions'
     ],
     related: ['claude', 'mcp', 'apollo'],
+    docs: {
+      href: DOCS_MCP_APPS_URL,
+      description:
+        'Set up the Ringee app in ChatGPT and see which tools it can reach.'
+    },
     faqs: [
       {
         question: 'Does ChatGPT make calls on its own?',
@@ -386,6 +413,11 @@ export const INTEGRATIONS: IntegrationContent[] = [
       'Keeps the human on every conversation'
     ],
     related: ['chatgpt', 'mcp', 'cli'],
+    docs: {
+      href: DOCS_MCP_CONNECT_URL,
+      description:
+        'Connect Claude to the Ringee MCP server and review the confirmation rules for sensitive actions.'
+    },
     faqs: [
       {
         question: 'What are the safety rules?',
@@ -433,6 +465,11 @@ export const INTEGRATIONS: IntegrationContent[] = [
       'A foundation for custom automation'
     ],
     related: ['cli', 'chatgpt', 'claude'],
+    docs: {
+      href: DOCS_MCP_URL,
+      description:
+        'Connect a client, browse all 19 tools with their trust levels, and read the workspace and safety rules.'
+    },
     faqs: [
       {
         question: 'What is MCP?',
@@ -481,6 +518,11 @@ export const INTEGRATIONS: IntegrationContent[] = [
       'A scriptable foundation for outbound ops'
     ],
     related: ['mcp', 'claude', 'odoo'],
+    docs: {
+      href: DOCS_CLI_URL,
+      description:
+        'Install and configure the ringee CLI, then browse every command, flag and confirmation guard.'
+    },
     faqs: [
       {
         question: 'Is the CLI for developers only?',
