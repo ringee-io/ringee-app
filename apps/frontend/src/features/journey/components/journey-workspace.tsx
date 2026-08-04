@@ -17,6 +17,7 @@ import {
 } from './journey-sections';
 import { OverviewSection } from './sections/overview-section';
 import { ActionsSection } from './sections/actions-section';
+import { RewardsSection } from './sections/rewards-section';
 import { MilestonesSection } from './sections/milestones-section';
 import { ActivitySection } from './sections/activity-section';
 import { StackSection } from './sections/stack-section';
@@ -63,17 +64,28 @@ export function JourneyWorkspace({
     [setSection]
   );
 
+  const claimableRewards = model.rewards.items.filter(
+    (r) => r.status === 'claimable'
+  ).length;
+
   const counts = useMemo(
-    () => ({ actions: model.allSteps.length }),
-    [model.allSteps.length]
+    () => ({
+      actions: model.allSteps.length,
+      rewards: claimableRewards
+    }),
+    [model.allSteps.length, claimableRewards]
   );
 
   return (
     <div className='w-full min-w-0 space-y-5 pb-2'>
       {/* ── The constant: who this workspace is, where it stands, its path ── */}
       <ScopeBar model={model} />
-      <StageHero model={model} onNavigate={select} />
-      <StagePath model={model} />
+      <StageHero
+        model={model}
+        onNavigate={select}
+        canAccessAdminFeatures={canAccessAdminFeatures}
+      />
+      <StagePath model={model} onNavigate={select} />
 
       {/* ── The split: secondary nav + one focused section ────────────────── */}
       <div className='flex min-w-0 flex-col gap-5 md:flex-row'>
@@ -100,6 +112,11 @@ export function JourneyWorkspace({
                 <OverviewSection model={model} onNavigate={select} />
               ) : section === 'actions' ? (
                 <ActionsSection model={model} />
+              ) : section === 'rewards' ? (
+                <RewardsSection
+                  model={model}
+                  canAccessAdminFeatures={canAccessAdminFeatures}
+                />
               ) : section === 'milestones' ? (
                 <MilestonesSection
                   model={model}

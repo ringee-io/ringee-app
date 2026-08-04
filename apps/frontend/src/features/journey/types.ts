@@ -88,6 +88,36 @@ export interface JourneyIntegrations {
   };
 }
 
+export type JourneyRewardStatus = 'locked' | 'claimable' | 'claimed';
+
+/** One stage reward on this workspace's ladder, in ladder order. */
+export interface JourneyReward {
+  stageId: string;
+  /** USD credited to the workspace wallet when redeemed. */
+  amount: number;
+  status: JourneyRewardStatus;
+  claimedAt: string | null;
+}
+
+export interface JourneyRewards {
+  currency: 'USD';
+  /** The ladder stage the backend evaluated the reward states against. */
+  stageId: string;
+  items: JourneyReward[];
+  claimableTotal: number;
+  claimedTotal: number;
+  totalPossible: number;
+}
+
+/** Result of `POST /journey/rewards/claim`. */
+export interface JourneyClaimResult {
+  claimed: boolean;
+  stageId: string;
+  amount: number;
+  balance: number;
+  rewards: JourneyRewards;
+}
+
 export interface JourneyOverview {
   scope: JourneyScope;
   campaignsAvailable: boolean;
@@ -99,4 +129,5 @@ export interface JourneyOverview {
   campaigns: JourneyCampaigns | null;
   intelligence: JourneyIntelligence;
   integrations: JourneyIntegrations;
+  rewards: JourneyRewards;
 }

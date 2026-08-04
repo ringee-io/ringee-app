@@ -1,15 +1,27 @@
-import { IconCheck } from '@tabler/icons-react';
+import { IconCheck, IconGift } from '@tabler/icons-react';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { Panel } from './primitives';
+import { formatUsd } from '../lib/rewards';
 import type { JourneyModel } from '../lib/journey';
+import type { JourneySection } from './journey-sections';
 
 /**
  * The path itself. Which ladder is shown depends on the workspace: an
  * organization climbs through team, campaigns and scale; a freelancer climbs
  * through consistency, an integrated stack and agents. Nobody is shown a rung
  * they cannot reach.
+ *
+ * Stages that pay a reward carry a credit chip under the node, so the money on
+ * the path is visible at a glance: earned (check), ready to redeem
+ * (highlighted — tapping it opens the Rewards view), or still ahead (muted).
  */
-export function StagePath({ model }: { model: JourneyModel }) {
+export function StagePath({
+  model,
+  onNavigate
+}: {
+  model: JourneyModel;
+  onNavigate?: (section: JourneySection) => void;
+}) {
   const { ladder, stageIndex } = model;
   const last = ladder.length - 1;
 
@@ -20,6 +32,7 @@ export function StagePath({ model }: { model: JourneyModel }) {
           const Icon = stage.Icon;
           const done = i < stageIndex;
           const current = i === stageIndex;
+          const reward = model.rewards.byStage[stage.id];
 
           return (
             <div
@@ -90,6 +103,38 @@ export function StagePath({ model }: { model: JourneyModel }) {
                 >
                   {current ? 'You are here' : stage.focus}
                 </p>
+
+                {reward ? (
+                  <button
+                    type='button'
+                    onClick={
+                      onNavigate ? () => onNavigate('rewards') : undefined
+                    }
+                    title={
+                      reward.status === 'claimed'
+                        ? `${formatUsd(reward.amount)} credit redeemed`
+                        : reward.status === 'claimable'
+                          ? `${formatUsd(reward.amount)} credit ready to redeem`
+                          : `Reach this stage to unlock ${formatUsd(reward.amount)} credit`
+                    }
+                    className={cn(
+                      'mt-1.5 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums transition-colors',
+                      reward.status === 'claimed' &&
+                        'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400',
+                      reward.status === 'claimable' &&
+                        'bg-emerald-600 text-white shadow-sm hover:bg-emerald-700',
+                      reward.status === 'locked' &&
+                        'bg-muted text-muted-foreground/70 hover:text-muted-foreground'
+                    )}
+                  >
+                    {reward.status === 'claimed' ? (
+                      <IconCheck className='size-3' />
+                    ) : (
+                      <IconGift className='size-3' />
+                    )}
+                    {formatUsd(reward.amount)}
+                  </button>
+                ) : null}
               </div>
             </div>
           );

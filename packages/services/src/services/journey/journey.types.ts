@@ -104,7 +104,8 @@ export interface JourneyIntegrationsDto {
   };
 }
 
-export interface JourneyOverviewDto {
+/** The measured facts — everything except the reward states derived from them. */
+export interface JourneyOverviewFactsDto {
   scope: JourneyScope;
   /**
    * Campaigns require an organization, so a freelancer workspace can neither
@@ -122,4 +123,43 @@ export interface JourneyOverviewDto {
   campaigns: JourneyCampaignsDto | null;
   intelligence: JourneyIntelligenceDto;
   integrations: JourneyIntegrationsDto;
+}
+
+export type JourneyRewardStatus = "locked" | "claimable" | "claimed";
+
+/** One stage reward on this workspace's ladder, in ladder order. */
+export interface JourneyRewardDto {
+  stageId: string;
+  /** USD credited to the workspace wallet when redeemed. */
+  amount: number;
+  status: JourneyRewardStatus;
+  claimedAt: string | null;
+}
+
+export interface JourneyRewardsDto {
+  currency: "USD";
+  /** The ladder stage the reward states were evaluated against. */
+  stageId: string;
+  items: JourneyRewardDto[];
+  /** Unlocked but not yet redeemed. */
+  claimableTotal: number;
+  /** Already redeemed into the wallet. */
+  claimedTotal: number;
+  /** Everything the full ladder can pay. */
+  totalPossible: number;
+}
+
+export interface JourneyOverviewDto extends JourneyOverviewFactsDto {
+  rewards: JourneyRewardsDto;
+}
+
+/** Result of redeeming one stage reward. */
+export interface JourneyClaimResultDto {
+  /** False when the reward had already been redeemed (nothing was paid). */
+  claimed: boolean;
+  stageId: string;
+  amount: number;
+  /** Wallet balance after the call. */
+  balance: number;
+  rewards: JourneyRewardsDto;
 }

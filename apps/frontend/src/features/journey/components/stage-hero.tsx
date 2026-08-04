@@ -3,10 +3,12 @@ import {
   IconArrowRight,
   IconCircleCheck,
   IconCircleDashed,
+  IconGift,
   IconSparkles
 } from '@tabler/icons-react';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { Panel, ScoreRing } from './primitives';
+import { formatUsd } from '../lib/rewards';
 import type { JourneyModel } from '../lib/journey';
 import type { JourneySection } from './journey-sections';
 
@@ -18,13 +20,19 @@ import type { JourneySection } from './journey-sections';
  */
 export function StageHero({
   model,
-  onNavigate
+  onNavigate,
+  canAccessAdminFeatures = true
 }: {
   model: JourneyModel;
   onNavigate?: (section: JourneySection) => void;
+  canAccessAdminFeatures?: boolean;
 }) {
   const { stage, nextStage, notStartedYet } = model;
   const Icon = stage.Icon;
+  const claimable = model.rewards.claimableTotal;
+  const nextReward = nextStage
+    ? model.rewards.byStage[nextStage.id]
+    : undefined;
 
   return (
     <Panel className={cn('relative overflow-hidden', stage.border)}>
@@ -64,6 +72,34 @@ export function StageHero({
             </div>
           </div>
 
+          {claimable > 0 ? (
+            <div className='mt-5 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] px-3.5 py-2.5'>
+              <span className='flex size-7 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-600 dark:text-emerald-400'>
+                <IconGift className='size-4' />
+              </span>
+              <span className='min-w-0 text-sm'>
+                <span className='font-semibold'>
+                  {formatUsd(claimable)} in call credit
+                </span>{' '}
+                <span className='text-muted-foreground text-xs'>
+                  {canAccessAdminFeatures
+                    ? '— earned on your journey, waiting to be redeemed.'
+                    : '— earned by this workspace; an admin can redeem it.'}
+                </span>
+              </span>
+              {onNavigate && canAccessAdminFeatures ? (
+                <button
+                  type='button'
+                  onClick={() => onNavigate('rewards')}
+                  className='ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-600 px-3.5 py-1.5 text-xs font-medium text-white transition-colors hover:bg-emerald-700'
+                >
+                  Redeem now
+                  <IconArrowRight className='size-3.5' />
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+
           {!notStartedYet && nextStage ? (
             <div className='bg-muted/40 mt-5 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border px-3.5 py-2.5'>
               <IconSparkles
@@ -74,6 +110,16 @@ export function StageHero({
               <span className='text-muted-foreground text-xs'>
                 — {stage.ambition}
               </span>
+              {nextReward && nextReward.status === 'locked' ? (
+                <button
+                  type='button'
+                  onClick={onNavigate ? () => onNavigate('rewards') : undefined}
+                  className='inline-flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-600 transition-colors hover:bg-emerald-500/20 dark:text-emerald-400'
+                >
+                  <IconGift className='size-3' />
+                  Unlocks {formatUsd(nextReward.amount)} credit
+                </button>
+              ) : null}
             </div>
           ) : null}
 

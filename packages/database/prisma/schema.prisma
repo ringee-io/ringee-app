@@ -1437,6 +1437,28 @@ model CreditDebit {
   @@index([createdAt])
 }
 
+/// One row per redeemed Journey stage reward. The ownership+stage unique pair
+/// is the idempotency lock: a stage reward is credited at most once per
+/// workspace — the row and the balance increment share one transaction, so a
+/// double-click or replay can never pay the same reward twice.
+model JourneyRewardClaim {
+  id             String @id @default(uuid()) @db.Uuid
+  /// Set for personal-workspace claims; null when the claim belongs to an org.
+  userId         String? @db.Uuid
+  organizationId String? @db.Uuid
+  stageId        String
+  /// USD credited to the workspace wallet at claim time.
+  amount         Float
+  /// Who pressed redeem (org claims credit the org wallet, not this user).
+  claimedByUserId String?  @db.Uuid
+  createdAt       DateTime @default(now())
+
+  @@unique([organizationId, stageId])
+  @@unique([userId, stageId])
+  @@index([userId])
+  @@index([organizationId])
+}
+
 model CreditAutoReload {
   id             String  @id @default(uuid()) @db.Uuid
   userId         String? @unique @db.Uuid

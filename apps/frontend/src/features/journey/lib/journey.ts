@@ -27,6 +27,8 @@ import {
   type JourneyStageId,
   type JourneyStageMeta
 } from './stages';
+import { signalsFrom, type StageSignals } from './signals';
+import { buildRewardTrack, type JourneyRewardTrack } from './rewards';
 import type { JourneyOverview } from '../types';
 
 /**
@@ -172,6 +174,8 @@ export interface JourneyModel {
   channels: JourneyChannel[];
   outcomeMix: JourneyOutcomeSlice[];
   campaigns: JourneyOverview['campaigns'];
+  /** Call credit earned along the ladder — amounts and states come from the API. */
+  rewards: JourneyRewardTrack;
 }
 
 // ── Formatting helpers ───────────────────────────────────────────────────────
@@ -660,48 +664,8 @@ function intelligenceCriteria(data: JourneyOverview): JourneyCriterion[] {
 }
 
 // ── Stage classification ─────────────────────────────────────────────────────
-
-interface StageSignals {
-  numbers: number;
-  sipDevices: number;
-  teamMembers: number;
-  rotation: boolean;
-  calls: number;
-  activeDays: number;
-  activeCampaigns: number;
-  campaigns: number;
-  crmConnected: boolean;
-  calendarConnected: boolean;
-  enrichmentConnected: boolean;
-  agentConnected: boolean;
-  agentDriving: boolean;
-  aiSurface: boolean;
-}
-
-function signalsFrom(data: JourneyOverview): StageSignals {
-  const i = data.integrations;
-
-  return {
-    numbers: data.foundation.phoneNumbers + data.foundation.verifiedCallerIds,
-    sipDevices: data.foundation.sipDevices,
-    teamMembers: data.foundation.teamMembers,
-    rotation: data.foundation.rotationPoolNumbers >= 2,
-    calls: data.activity.calls,
-    activeDays: data.activity.activeDays,
-    activeCampaigns: data.campaigns?.active ?? 0,
-    campaigns: data.campaigns?.total ?? 0,
-    crmConnected: i.crm.connected || i.customCrm.connected,
-    calendarConnected: i.meetings.connected,
-    enrichmentConnected: i.enrichment.connected,
-    agentConnected: i.mcp.connected,
-    agentDriving: i.mcp.sessionsInWindow > 0 || i.mcp.callsInWindow > 0,
-    aiSurface:
-      data.intelligence.recordingEnabled ||
-      data.intelligence.transcriptionEnabled ||
-      data.intelligence.transcriptions > 0 ||
-      data.intelligence.aiEnabled
-  };
-}
+// Signals are shared with the reward requirements (`./signals`), so the
+// classifier and the unlock checklists always read the same facts.
 
 /**
  * Organization ladder — evaluated most-mature first, so a workspace always lands
@@ -1147,6 +1111,7 @@ export function buildJourney(input: {
     outcomes: data.outcomes,
     channels: buildChannels(data),
     outcomeMix: buildOutcomeMix(data),
-    campaigns: data.campaigns
+    campaigns: data.campaigns,
+    rewards: buildRewardTrack(data)
   };
 }

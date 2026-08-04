@@ -2,6 +2,7 @@ import type { ComponentType } from 'react';
 import {
   IconLayoutDashboard,
   IconRoute,
+  IconGift,
   IconChecklist,
   IconWaveSine,
   IconPlugConnected,
@@ -12,6 +13,7 @@ import {
 export type JourneySection =
   | 'overview'
   | 'actions'
+  | 'rewards'
   | 'milestones'
   | 'activity'
   | 'stack';
@@ -36,6 +38,12 @@ export const JOURNEY_SECTIONS: JourneySectionMeta[] = [
     label: 'What to do next',
     description: 'Your prioritized moves',
     Icon: IconRoute
+  },
+  {
+    id: 'rewards',
+    label: 'Rewards',
+    description: 'Earn & redeem call credit',
+    Icon: IconGift
   },
   {
     id: 'milestones',
