@@ -1,7 +1,22 @@
 import { Command } from "commander";
-import type { CallDetail, CallOutcome, CallStatus } from "@ringee-io/agent";
+import type {
+  CallDetail,
+  CallOutcome,
+  CallStatus,
+  CallbackStatus,
+  DayActivityCallback as CallbackEntry,
+} from "@ringee-io/agent";
 import { getClient, run } from "../client.js";
 import { c, heading, json, kv, line, ok, wantsJson, warn } from "../ui.js";
+
+const CALLBACK_STATUSES: CallbackStatus[] = [
+  "scheduled",
+  "due",
+  "in_progress",
+  "completed",
+  "missed",
+  "cancelled",
+];
 
 function printCall(call: CallDetail, opts: { full: boolean }): void {
   const who = call.contact?.name || call.contact?.phoneNumber || call.toNumber;
@@ -41,15 +56,31 @@ const OUTCOMES: CallOutcome[] = [
   "gatekeeper",
 ];
 
+export function printCallback(cb: CallbackEntry): void {
+  const who = cb.contact?.name || cb.contact?.phoneNumber || "(unknown)";
+  line(`${c.bold(who)}  ${c.gray(cb.callbackId)}`);
+  kv("at", cb.scheduledAt);
+  kv("status", cb.status);
+  kv("phone", cb.contact?.phoneNumber);
+  kv("company", cb.contact?.company);
+  kv("campaign", cb.campaign?.name);
+  kv("note", cb.note);
+  kv("completed", cb.completedAt);
+}
+
 export function registerActivity(program: Command): void {
-  program
-    .command("calls")
-    .description("Browse call history")
+  const calls = program.command("calls").description("Browse call history");
+
+  calls
     .command("list")
     .description(
       "List calls with full detail — outcome, transcription and recording URL",
     )
     .option("--contact <contactId>", "filter to one contact's calls")
+    .option(
+      "--campaign <campaignId|none>",
+      "only this campaign's calls, or 'none' for calls outside any campaign",
+    )
     .option(
       "--outcome <outcomes...>",
       `filter by outcome (one or more of: ${OUTCOMES.join(", ")})`,
@@ -64,6 +95,7 @@ export function registerActivity(program: Command): void {
       run(async () => {
         const res = await getClient().listCalls({
           contactId: opts.contact,
+          campaignId: opts.campaign,
           // Raw argv strings; the client's zod schema validates them.
           outcome: opts.outcome as CallOutcome[] | undefined,
           status: opts.status as CallStatus[] | undefined,
@@ -105,9 +137,42 @@ export function registerActivity(program: Command): void {
       }),
     );
 
-  program
+  const callbacks = program
     .command("callbacks")
-    .description("Schedule callbacks")
+    .description("List and schedule callbacks");
+
+  callbacks
+    .command("list")
+    .description("List scheduled callbacks, soonest first")
+    .option(
+      "--status <status>",
+      `filter by status (${CALLBACK_STATUSES.join(", ")})`,
+    )
+    .option("-p, --page <n>", "page number", (v) => parseInt(v, 10))
+    .option("-l, --limit <n>", "page size (max 50)", (v) => parseInt(v, 10))
+    .action((opts) =>
+      run(async () => {
+        const res = await getClient().listCallbacks({
+          status: opts.status as CallbackStatus | undefined,
+          page: opts.page,
+          limit: opts.limit,
+        });
+        if (wantsJson()) return json(res);
+        if (res.callbacks.length === 0) {
+          warn("No callbacks matched.");
+          return;
+        }
+        heading(
+          `${res.total} callback(s) — page ${res.page}/${res.totalPages}`,
+        );
+        res.callbacks.forEach((cb) => {
+          line("");
+          printCallback(cb);
+        });
+      }),
+    );
+
+  callbacks
     .command("create <contactId> <scheduledAt>")
     .description(
       "Schedule a callback (scheduledAt = ISO-8601 with offset, future)",

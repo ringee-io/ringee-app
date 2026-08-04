@@ -79,15 +79,44 @@ ringee sessions get <callSessionId>
 ringee sessions update <callSessionId> [--title ... --expires ...]
 ringee sessions revoke <callSessionId> --yes                     # destructive
 
+ringee calls list [--contact <id> --campaign <id|none> --outcome ... --from ... --to ...]
 ringee outcomes log <callId> <outcome> [--note ...]
+ringee callbacks list [--status scheduled|due|completed|missed|cancelled]
 ringee callbacks create <contactId> <ISO-8601> [--note ...]
 ringee meetings schedule <contactId> <ISO-8601> [--title ... --duration ...]
+
+# Campaigns (organization workspaces; writes are org-admin only)
+ringee campaigns list [--status active --search ...]
+ringee campaigns get <campaignId>
+ringee campaigns status <campaignId> <draft|active|paused|completed>
+ringee campaigns leads <campaignId> [--status pending]
+ringee campaigns add-lead <campaignId> --phone +E164 --name "Jane Doe" [--email ...]
+ringee campaigns import-leads <campaignId> <leads.json>
+ringee campaigns delete-lead <campaignId> <leadId> --yes          # destructive
+ringee campaigns analytics <campaignId> [--from ... --to ... --hourly --no-agents]
+
+# Analytics (the dashboard overview) and a single day
+ringee analytics calls [--range 30d --campaign none --outcome sale --include kpis agents]
+ringee analytics day <YYYY-MM-DD> [--offset -04:00 --campaign none]
+
+# Do-not-call list
+ringee dnc list [--search 415]
+ringee dnc add +E164... [--reason "asked not to be called"]
+ringee dnc remove +E164 --yes                                     # destructive
+
+# AI pipeline analyses (org admins)
+ringee pipelines list
+ringee pipelines results <pipeline> [--campaign <id> | --org | --personal] [--status pending]
 
 ringee config show | check
 ringee tools | flow | prompt          # knowledge helpers (no connection)
 ```
 
 Add `--json` to any command for raw machine-readable output.
+
+`--campaign none` (on `calls list`, `analytics calls`, `analytics day`) isolates
+calls made **outside** any campaign — the manual dialer, extension, call
+sessions and SDK. Analytics rates are already percentages (0-100).
 
 ## Safety
 
@@ -97,3 +126,6 @@ spends credits, mints magic links, or deletes data by accident:
 - `leads reveal` and `sessions create/update` need `--yes`.
 - `sessions revoke` needs `--yes`.
 - `contacts delete` needs both `--confirm-phone <storedPhone>` and `--yes`.
+- `campaigns delete-lead` needs `--yes` (the lead's call attempts and campaign
+  callbacks go with it; the contact and its call history survive).
+- `dnc remove` needs `--yes` — it makes a suppressed number callable again.

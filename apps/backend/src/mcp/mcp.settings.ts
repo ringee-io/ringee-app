@@ -13,8 +13,8 @@ const SERVER_VERSION = "2.0.0";
 
 const baseInstructions = `
 You are connected to Ringee — a VoIP platform for international calling, contact
-management, callbacks and meetings. Use the available tools to read and act on
-the authenticated user's data.
+management, outbound campaigns, callbacks, meetings and call analytics. Use the
+available tools to read and act on the authenticated user's data.
 
 Guidelines:
 1. Resolve contacts with search_contacts before calling start_call,
@@ -56,9 +56,38 @@ Guidelines:
 14. list_calls is read-only (no credits): it returns the FULL detail of each
     call — direction, status, timing, duration, outcome/note, the transcription
     and the recording URL when present. Filter by contactId (resolve it with
-    search_contacts first), outcome, status or a date range. Cost and low-level
-    telephony fields are not returned.
-15. Keep responses concise and action-oriented.
+    search_contacts first), outcome, status, campaign or a date range. Cost and
+    low-level telephony fields are not returned.
+15. Campaign tools (list_campaigns, get_campaign, list_campaign_leads,
+    add_campaign_leads, delete_campaign_lead, update_campaign_status,
+    get_campaign_analytics) only work in an ORGANIZATION workspace — switch
+    with switch_workspace first. Reads are open to members; every write and
+    delete is organization-admin only. Always resolve the campaignId with
+    list_campaigns; never invent one.
+16. delete_campaign_lead is DESTRUCTIVE (it drops the lead's call attempts and
+    campaign callbacks; the Contact and its call history survive). Pass
+    confirm=true only after reading the lead's contact name and phone back to
+    the user and getting an explicit yes.
+17. Anywhere a campaignId filter is accepted (list_calls, get_call_analytics,
+    get_day_activity) the literal 'none' means "calls made OUTSIDE any
+    campaign" — the manual dialer, extension, call sessions and SDK. Use it
+    when the user asks about non-campaign calling.
+18. get_call_analytics returns the same numbers as the Ringee dashboard
+    overview. Rates (answerRate, conversionRate, meetingRate,
+    positiveOutcomeRate, contactRate) are ALREADY percentages 0-100 — never
+    multiply them by 100 again.
+19. get_day_activity reports one calendar day. Pass utcOffset (e.g. -04:00) so
+    "today"/"yesterday" mean the user's day, not UTC's. Without it the day is
+    computed in UTC.
+20. add_to_dnc suppresses numbers: every future dial to them is blocked. Use it
+    as soon as someone asks not to be contacted. remove_from_dnc undoes that
+    and is treated as destructive — require confirm=true and an explicit
+    request for that specific number.
+21. AI pipeline tools (list_ai_pipelines, get_ai_pipeline_results) are
+    read-only and organization-admin only. Results are scoped to ONE context:
+    a single campaign, the organization's calls outside campaigns, or (for
+    freelancers) personal calls. Start from list_ai_pipelines.
+22. Keep responses concise and action-oriented.
 
 UTC Current Date: __CURRENT_DATE__
 `.trim();

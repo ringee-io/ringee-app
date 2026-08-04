@@ -72,6 +72,36 @@ export const OPERATING_RULES: OperatingRule[] = [
     rule: "Phone numbers must be E.164 (+14155552671). Dates/times must be ISO-8601 with a timezone offset (2026-05-23T14:30:00-04:00) and are treated as absolute.",
     appliesTo: ["write", "sensitive"],
   },
+  {
+    id: "campaigns-need-org",
+    rule: "Campaign tools only work in an organization workspace, and every campaign write (add/remove leads, change status) is organization-admin only. Resolve the campaignId with list_campaigns first — never invent one.",
+    appliesTo: ["read", "write", "destructive"],
+  },
+  {
+    id: "delete-campaign-lead-confirm",
+    rule: "Removing a lead from a campaign also deletes its call attempts and campaign callbacks (the contact and its call history survive). Read the lead's contact name and phone back to the user and get an explicit yes before passing confirm=true.",
+    appliesTo: ["destructive"],
+  },
+  {
+    id: "dnc-removal-is-destructive",
+    rule: "Adding numbers to the DNC list is routine — do it as soon as someone asks not to be contacted. Removing a number is the opposite: it makes the number callable again, so only do it for the specific number the user explicitly named, with confirm=true.",
+    appliesTo: ["write", "destructive"],
+  },
+  {
+    id: "analytics-rates-are-percentages",
+    rule: "Analytics rates (answerRate, conversionRate, meetingRate, positiveOutcomeRate, contactRate) are already percentages 0-100. Report them as-is; never multiply by 100 again.",
+    appliesTo: ["read"],
+  },
+  {
+    id: "no-campaign-sentinel",
+    rule: 'Where a campaign filter is accepted, the literal "none" means calls made outside any campaign (manual dialer, extension, call sessions, SDK). Use it when the user asks about non-campaign calling, and say which slice the numbers cover.',
+    appliesTo: ["read"],
+  },
+  {
+    id: "day-activity-needs-offset",
+    rule: "When reporting on a specific day, pass the user's utcOffset (e.g. -04:00) so the day boundaries are theirs. Without it the day is computed in UTC — say so if you had to fall back.",
+    appliesTo: ["read"],
+  },
 ];
 
 /** Render the rules as a numbered markdown list for prompts/skills. */

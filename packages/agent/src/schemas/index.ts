@@ -4,3 +4,7 @@ export * from "./activity.js";
 export * from "./call-sessions.js";
 export * from "./leads.js";
 export * from "./workspaces.js";
+export * from "./campaigns.js";
+export * from "./analytics.js";
+export * from "./compliance.js";
+export * from "./ai-pipeline.js";

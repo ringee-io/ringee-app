@@ -72,13 +72,25 @@ function buildCallbackFilter(
 }
 
 /**
+ * Sentinel campaign filter meaning "only calls made OUTSIDE any campaign" —
+ * i.e. the manual dialer, the extension, call sessions and the SDK. Mirrors the
+ * `all` / `none` sentinels used elsewhere (backoffice campaign analytics).
+ */
+export const NO_CAMPAIGN = "none";
+
+function isNoCampaign(ctx: DashboardContext): boolean {
+  return ctx.campaignId === NO_CAMPAIGN;
+}
+
+/**
  * Prisma `where` fragment restricting Calls to a campaign via CallAttempt.
- * Empty when no campaign is selected.
+ * Empty when no campaign is selected; `NO_CAMPAIGN` inverts it to the calls
+ * that have no attempt at all.
  */
 function callCampaignWhere(ctx: DashboardContext): Prisma.CallWhereInput {
-  return ctx.campaignId
-    ? { callAttempts: { some: { campaignId: ctx.campaignId } } }
-    : {};
+  if (!ctx.campaignId) return {};
+  if (isNoCampaign(ctx)) return { callAttempts: { none: {} } };
+  return { callAttempts: { some: { campaignId: ctx.campaignId } } };
 }
 
 /**
@@ -91,11 +103,36 @@ function callCampaignSql(
   callIdColumn: Prisma.Sql,
 ): Prisma.Sql {
   if (!ctx.campaignId) return Prisma.empty;
+  if (isNoCampaign(ctx)) {
+    return Prisma.sql`AND NOT EXISTS (
+      SELECT 1 FROM "CallAttempt" ca
+      WHERE ca."callId" = ${callIdColumn}
+    )`;
+  }
   return Prisma.sql`AND EXISTS (
     SELECT 1 FROM "CallAttempt" ca
     WHERE ca."callId" = ${callIdColumn}
       AND ca."campaignId" = ${ctx.campaignId}::uuid
   )`;
+}
+
+/** Campaign filter for Meetings, applied through the originating call. */
+function meetingCampaignWhere(ctx: DashboardContext): Prisma.MeetingWhereInput {
+  if (!ctx.campaignId) return {};
+  if (isNoCampaign(ctx)) {
+    // Booked off a non-campaign call, or with no call at all.
+    return { OR: [{ callId: null }, { call: { callAttempts: { none: {} } } }] };
+  }
+  return { call: { callAttempts: { some: { campaignId: ctx.campaignId } } } };
+}
+
+/** Campaign filter for CallbackTasks, applied through the linked lead. */
+function callbackCampaignWhere(
+  ctx: DashboardContext,
+): Prisma.CallbackTaskWhereInput {
+  if (!ctx.campaignId) return {};
+  if (isNoCampaign(ctx)) return { campaignLeadId: null };
+  return { campaignLead: { campaignId: ctx.campaignId } };
 }
 
 /**
@@ -166,12 +203,8 @@ export class DashboardRepository {
     // Campaign scoping for entities that link to a Call (meetings) or to a
     // campaign lead (callbacks). Keeps every count consistent with the
     // campaign filter applied to the call-level counts.
-    const meetingCampaignWhere: Prisma.MeetingWhereInput = ctx.campaignId
-      ? { call: { callAttempts: { some: { campaignId: ctx.campaignId } } } }
-      : {};
-    const callbackCampaignWhere: Prisma.CallbackTaskWhereInput = ctx.campaignId
-      ? { campaignLead: { campaignId: ctx.campaignId } }
-      : {};
+    const meetingCampaign = meetingCampaignWhere(ctx);
+    const callbackCampaign = callbackCampaignWhere(ctx);
 
     const callBaseWhere: Prisma.CallWhereInput = {
       ...owner,
@@ -224,14 +257,14 @@ export class DashboardRepository {
       this.prisma.meeting.count({
         where: {
           ...meetingOwner,
-          ...meetingCampaignWhere,
+          ...meetingCampaign,
           scheduledAt: { gte: start, lte: end },
         },
       }),
       this.prisma.callbackTask.count({
         where: {
           ...callbackOwner,
-          ...callbackCampaignWhere,
+          ...callbackCampaign,
           scheduledAt: { gte: start, lte: end },
           status: { not: CallbackStatus.cancelled },
         },
@@ -428,9 +461,7 @@ export class DashboardRepository {
         ...owner,
         startedAt: { gte: start, lte: end },
         outcome: { not: null },
-        ...(ctx.campaignId
-          ? { callAttempts: { some: { campaignId: ctx.campaignId } } }
-          : {}),
+        ...callCampaignWhere(ctx),
       },
       _count: { _all: true },
     });
@@ -491,9 +522,7 @@ export class DashboardRepository {
     return this.prisma.meeting.findMany({
       where: {
         ...meetingOwner,
-        ...(ctx.campaignId
-          ? { call: { callAttempts: { some: { campaignId: ctx.campaignId } } } }
-          : {}),
+        ...meetingCampaignWhere(ctx),
         scheduledAt: { gte: now },
         status: { in: [MeetingStatus.scheduled, MeetingStatus.rescheduled] },
       },
@@ -518,9 +547,7 @@ export class DashboardRepository {
     return this.prisma.callbackTask.findMany({
       where: {
         ...callbackOwner,
-        ...(ctx.campaignId
-          ? { campaignLead: { campaignId: ctx.campaignId } }
-          : {}),
+        ...callbackCampaignWhere(ctx),
         scheduledAt: { gte: now },
         status: { in: [CallbackStatus.scheduled, CallbackStatus.due] },
       },

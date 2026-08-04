@@ -394,6 +394,14 @@ export const ListCallsSchema = {
     .describe(
       "ISO-8601 datetime (with timezone). Only calls created at or before this.",
     ),
+  campaignId: z
+    .string()
+    .optional()
+    .describe(
+      "Only calls dialed in this campaign (UUID), or the literal 'none' for " +
+        "calls made OUTSIDE any campaign (manual dialer, extension, call " +
+        "sessions, SDK). Omit for every call.",
+    ),
   page: z
     .number()
     .int()
@@ -726,5 +734,454 @@ export type CreateCallbackInput = {
 export type ScheduleMeetingInput = {
   [K in keyof typeof ScheduleMeetingSchema]: z.infer<
     (typeof ScheduleMeetingSchema)[K]
+  >;
+};
+
+// ── Campaigns ──────────────────────────────────────────────────
+
+/** Campaign lifecycle states (mirrors VALID_CAMPAIGN_STATUSES). */
+export const CAMPAIGN_STATUS_VALUES = [
+  "draft",
+  "active",
+  "paused",
+  "completed",
+] as const;
+
+/**
+ * The CampaignLeadStatus enum values (mirrors the Prisma enum), plus the two
+ * legacy aggregate aliases the repository still understands.
+ */
+export const CAMPAIGN_LEAD_STATUS_VALUES = [
+  "pending",
+  "queued",
+  "locked",
+  "dialing",
+  "in_call",
+  "wrap_up",
+  "dispositioned",
+  "scheduled",
+  "completed",
+  "exhausted",
+  "dnc",
+  "called",
+  "dead",
+] as const;
+
+const pageField = z
+  .number()
+  .int()
+  .min(1)
+  .optional()
+  .describe("1-based page number. Defaults to 1.");
+
+const limitField = z
+  .number()
+  .int()
+  .min(1)
+  .max(50)
+  .optional()
+  .describe("Page size. Defaults to 10, max 50.");
+
+/** YYYY-MM-DD calendar day. */
+const calendarDate = z
+  .string()
+  .regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be YYYY-MM-DD (e.g. 2026-06-02).");
+
+export const ListCampaignsSchema = {
+  search: z
+    .string()
+    .min(1)
+    .max(200)
+    .optional()
+    .describe("Free-text filter over campaign name and description."),
+  status: z
+    .enum(CAMPAIGN_STATUS_VALUES)
+    .optional()
+    .describe("Only campaigns in this lifecycle state."),
+  page: pageField,
+  limit: limitField,
+};
+
+export const GetCampaignSchema = {
+  campaignId: z
+    .string()
+    .uuid()
+    .describe("UUID of the campaign. Resolve it with list_campaigns first."),
+};
+
+export const UpdateCampaignStatusSchema = {
+  campaignId: z.string().uuid(),
+  status: z
+    .enum(CAMPAIGN_STATUS_VALUES)
+    .describe(
+      "New lifecycle state. Only these transitions are allowed: draft→active, " +
+        "active→paused|completed, paused→active|completed. Activating requires " +
+        "at least one lead, one disposition and a usable outbound number.",
+    ),
+};
+
+export const ListCampaignLeadsSchema = {
+  campaignId: z.string().uuid(),
+  status: z
+    .enum(CAMPAIGN_LEAD_STATUS_VALUES)
+    .optional()
+    .describe(
+      'Filter by lead status. "called" (any attempt, still alive) and "dead" ' +
+        "are aggregate aliases; the rest are real CampaignLeadStatus values.",
+    ),
+  page: pageField,
+  limit: limitField,
+};
+
+export const AddCampaignLeadsSchema = {
+  campaignId: z.string().uuid(),
+  leads: z
+    .array(
+      z.object({
+        name: z.string().min(1).max(100),
+        phone: phoneNumberField.describe("E.164 phone number."),
+        email: z.string().email().max(255).optional(),
+        company: z.string().max(100).optional(),
+        jobTitle: z.string().max(100).optional(),
+        state: z.string().max(100).optional(),
+        website: z.string().max(255).optional(),
+        revenue: z.string().max(100).optional(),
+        companySize: z.string().max(100).optional(),
+      }),
+    )
+    .min(1)
+    .max(200)
+    .describe(
+      "Leads to add. A Contact is created (or reused by phone number) for each " +
+        "one, then attached to the campaign. Duplicates within the campaign are " +
+        "skipped, never duplicated.",
+    ),
+};
+
+export const DeleteCampaignLeadSchema = {
+  campaignId: z.string().uuid(),
+  leadId: z
+    .string()
+    .uuid()
+    .describe(
+      "UUID of the CampaignLead row (NOT the contact id). Get it from " +
+        "list_campaign_leads.",
+    ),
+  confirm: z
+    .boolean()
+    .describe(
+      "Must be the literal boolean true. Removing a lead also deletes its call " +
+        "attempts and callbacks for this campaign. The Contact itself is kept.",
+    ),
+};
+
+export const GetCampaignAnalyticsSchema = {
+  campaignId: z.string().uuid(),
+  startDate: z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .describe("Start of the window (ISO-8601). Pair it with endDate."),
+  endDate: z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .describe("End of the window (ISO-8601). Pair it with startDate."),
+  includeAgents: z
+    .boolean()
+    .optional()
+    .describe("Include the per-agent performance breakdown. Default true."),
+  includeHourly: z
+    .boolean()
+    .optional()
+    .describe("Include the hourly call-volume histogram. Default false."),
+};
+
+export type ListCampaignsInput = {
+  [K in keyof typeof ListCampaignsSchema]: z.infer<
+    (typeof ListCampaignsSchema)[K]
+  >;
+};
+export type GetCampaignInput = {
+  [K in keyof typeof GetCampaignSchema]: z.infer<(typeof GetCampaignSchema)[K]>;
+};
+export type UpdateCampaignStatusInput = {
+  [K in keyof typeof UpdateCampaignStatusSchema]: z.infer<
+    (typeof UpdateCampaignStatusSchema)[K]
+  >;
+};
+export type ListCampaignLeadsInput = {
+  [K in keyof typeof ListCampaignLeadsSchema]: z.infer<
+    (typeof ListCampaignLeadsSchema)[K]
+  >;
+};
+export type AddCampaignLeadsInput = {
+  [K in keyof typeof AddCampaignLeadsSchema]: z.infer<
+    (typeof AddCampaignLeadsSchema)[K]
+  >;
+};
+export type DeleteCampaignLeadInput = {
+  [K in keyof typeof DeleteCampaignLeadSchema]: z.infer<
+    (typeof DeleteCampaignLeadSchema)[K]
+  >;
+};
+export type GetCampaignAnalyticsInput = {
+  [K in keyof typeof GetCampaignAnalyticsSchema]: z.infer<
+    (typeof GetCampaignAnalyticsSchema)[K]
+  >;
+};
+
+// ── Call analytics (the /dashboard overview) ───────────────────
+
+export const DASHBOARD_RANGE_VALUES = [
+  "today",
+  "yesterday",
+  "7d",
+  "30d",
+  "this_month",
+  "last_month",
+] as const;
+
+export const GetCallAnalyticsSchema = {
+  range: z
+    .enum(DASHBOARD_RANGE_VALUES)
+    .optional()
+    .describe(
+      "Preset window. Ignored when from/to are given. Defaults to the backend's " +
+        "own default (last 30 days).",
+    ),
+  from: z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .describe("Custom window start (ISO-8601). Must be paired with `to`."),
+  to: z
+    .string()
+    .datetime({ offset: true })
+    .optional()
+    .describe("Custom window end (ISO-8601). Must be paired with `from`."),
+  campaignId: z
+    .string()
+    .optional()
+    .describe(
+      "Restrict to one campaign (UUID), or pass the literal 'none' for calls " +
+        "made OUTSIDE any campaign. Omit to cover every call.",
+    ),
+  outcome: z
+    .enum(CALL_OUTCOME_VALUES)
+    .optional()
+    .describe("Restrict every metric to calls with this outcome."),
+  scope: z
+    .enum(["personal", "organization"])
+    .optional()
+    .describe(
+      "'personal' counts only your own calls; 'organization' covers the whole " +
+        "workspace. Defaults to organization when an org is active.",
+    ),
+  memberUserId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe(
+      "Narrow org-wide numbers to one member (organization admins only).",
+    ),
+  include: z
+    .array(
+      z.enum([
+        "kpis",
+        "funnel",
+        "by-outcome",
+        "over-time",
+        "best-time-of-day",
+        "agents",
+      ]),
+    )
+    .min(1)
+    .optional()
+    .describe(
+      'Which blocks to compute. Defaults to ["kpis","funnel","by-outcome"].',
+    ),
+};
+
+export type GetCallAnalyticsInput = {
+  [K in keyof typeof GetCallAnalyticsSchema]: z.infer<
+    (typeof GetCallAnalyticsSchema)[K]
+  >;
+};
+
+// ── Day activity (one calendar day) ────────────────────────────
+
+export const GetDayActivitySchema = {
+  date: calendarDate.describe(
+    "The calendar day to report on, YYYY-MM-DD (e.g. 2026-06-02).",
+  ),
+  utcOffset: z
+    .string()
+    .regex(
+      /^[+-]\d{2}:\d{2}$/,
+      "utcOffset must look like +HH:MM or -HH:MM (e.g. -04:00).",
+    )
+    .optional()
+    .describe(
+      "Timezone offset the day boundaries are computed in. Defaults to +00:00 " +
+        "(UTC). Pass the user's offset so 'yesterday' means their yesterday.",
+    ),
+  campaignId: z
+    .string()
+    .optional()
+    .describe(
+      "Restrict the calls to one campaign (UUID), or 'none' for calls outside " +
+        "any campaign. Omit for everything.",
+    ),
+  outcome: z
+    .array(z.enum(CALL_OUTCOME_VALUES))
+    .min(1)
+    .optional()
+    .describe("Only calls whose logged outcome is one of these."),
+  includeCallbacks: z
+    .boolean()
+    .optional()
+    .describe("Include callbacks scheduled for that day. Default true."),
+  includeMeetings: z
+    .boolean()
+    .optional()
+    .describe("Include meetings scheduled for that day. Default true."),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .describe("Max calls to return. Defaults to 50."),
+};
+
+export type GetDayActivityInput = {
+  [K in keyof typeof GetDayActivitySchema]: z.infer<
+    (typeof GetDayActivitySchema)[K]
+  >;
+};
+
+// ── Callbacks ──────────────────────────────────────────────────
+
+/** The CallbackStatus enum values (mirrors the Prisma enum). */
+export const CALLBACK_STATUS_VALUES = [
+  "scheduled",
+  "due",
+  "in_progress",
+  "completed",
+  "missed",
+  "cancelled",
+] as const;
+
+export const ListCallbacksSchema = {
+  status: z
+    .enum(CALLBACK_STATUS_VALUES)
+    .optional()
+    .describe("Only callbacks in this state. Omit for all of them."),
+  page: pageField,
+  limit: limitField,
+};
+
+export type ListCallbacksInput = {
+  [K in keyof typeof ListCallbacksSchema]: z.infer<
+    (typeof ListCallbacksSchema)[K]
+  >;
+};
+
+// ── DNC (do-not-call list) ─────────────────────────────────────
+
+export const ListDncSchema = {
+  search: z
+    .string()
+    .min(1)
+    .max(50)
+    .optional()
+    .describe("Filter by phone-number fragment."),
+  page: pageField,
+  limit: limitField,
+};
+
+export const AddToDncSchema = {
+  phoneNumbers: z
+    .array(phoneNumberField)
+    .min(1)
+    .max(500)
+    .describe(
+      "Phone numbers to suppress, E.164. Every future dial to these numbers is " +
+        "blocked for this workspace.",
+    ),
+  reason: z
+    .string()
+    .max(500)
+    .optional()
+    .describe("Why they were suppressed (e.g. 'requested removal')."),
+};
+
+export const RemoveFromDncSchema = {
+  phoneNumber: phoneNumberField.describe(
+    "The suppressed number to release, E.164. Use list_dnc to confirm it first.",
+  ),
+  confirm: z
+    .boolean()
+    .describe(
+      "Must be the literal boolean true. Releasing a number makes it callable " +
+        "again — only do this when the user explicitly asked for it.",
+    ),
+};
+
+export type ListDncInput = {
+  [K in keyof typeof ListDncSchema]: z.infer<(typeof ListDncSchema)[K]>;
+};
+export type AddToDncInput = {
+  [K in keyof typeof AddToDncSchema]: z.infer<(typeof AddToDncSchema)[K]>;
+};
+export type RemoveFromDncInput = {
+  [K in keyof typeof RemoveFromDncSchema]: z.infer<
+    (typeof RemoveFromDncSchema)[K]
+  >;
+};
+
+// ── AI pipelines (analysis results) ────────────────────────────
+
+export const AI_PIPELINE_TYPE_VALUES = [
+  "follow_up_recommendations",
+  "script_optimization",
+  "objection_intelligence",
+] as const;
+
+export const PIPELINE_CONTEXT_TYPE_VALUES = [
+  "campaign",
+  "organization_outside_campaign",
+  "personal",
+] as const;
+
+export const ListAiPipelinesSchema = {};
+
+export const GetAiPipelineResultsSchema = {
+  pipeline: z
+    .enum(AI_PIPELINE_TYPE_VALUES)
+    .describe("Which pipeline's analysis to read. See list_ai_pipelines."),
+  contextType: z
+    .enum(PIPELINE_CONTEXT_TYPE_VALUES)
+    .describe(
+      "Which slice of data the pipeline analysed: one 'campaign', the " +
+        "organization's calls outside campaigns, or a freelancer's 'personal' " +
+        "calls. Each context is analysed and enabled independently.",
+    ),
+  campaignId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe("Required when contextType is 'campaign'."),
+  status: z
+    .enum(["pending", "completed", "dismissed", "snoozed"])
+    .optional()
+    .describe("Filter the resulting actions by state. Defaults to pending."),
+};
+
+export type ListAiPipelinesInput = Record<string, never>;
+export type GetAiPipelineResultsInput = {
+  [K in keyof typeof GetAiPipelineResultsSchema]: z.infer<
+    (typeof GetAiPipelineResultsSchema)[K]
   >;
 };
