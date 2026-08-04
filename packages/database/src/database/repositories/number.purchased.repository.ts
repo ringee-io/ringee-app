@@ -3,9 +3,22 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
-import { Prisma, NumberPurchased, UserNumber } from "@prisma/client";
+import {
+  Prisma,
+  NumberPurchased,
+  OutboundSource,
+  UserNumber,
+} from "@prisma/client";
 import { PrismaService } from "../prisma.service";
 import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
+
+/** Mirrors the `allowedOutboundSources` default in schema.prisma. */
+const DEFAULT_OUTBOUND_SOURCES: OutboundSource[] = [
+  "web",
+  "chrome_extension",
+  "mobile",
+  "sip_device",
+];
 
 @Injectable()
 export class NumberPurchasedRepository {
@@ -36,6 +49,9 @@ export class NumberPurchasedRepository {
           ...rest,
           deletedAt: null,
           active: true,
+          // The row is recycled, but for this owner the number starts now —
+          // "my numbers" is ordered by createdAt.
+          createdAt: new Date(),
           userNumbers,
           user: { connect: { id: ctx.userId } },
           organization: ctx.organizationId
@@ -318,6 +334,13 @@ export class NumberPurchasedRepository {
    * reference that could still route a call through it is cleared and the row
    * is soft-deleted. Historical `Call.callerIdId` links are deliberately kept
    * so past calls stay attributable — the row survives, hidden.
+   *
+   * A released DID goes back into the carrier's inventory and may be bought
+   * again by *someone else*, reviving this very row (see `create`). Everything
+   * that belongs to the outgoing owner is therefore wiped here rather than at
+   * revive time: regulatory submissions (documents/addresses would otherwise
+   * prefill a stranger's verification form), rotation counters, routing
+   * restrictions and the carrier capability snapshot.
    */
   async releasePermanently(numberId: string): Promise<NumberPurchased> {
     return this.prisma.$transaction(async (tx) => {
@@ -350,7 +373,11 @@ export class NumberPurchasedRepository {
       }
 
       await tx.callerIdPoolMember.deleteMany({ where: { numberId } });
+      await tx.callerIdDailyUsage.deleteMany({ where: { numberId } });
       await tx.userNumber.deleteMany({ where: { numberId } });
+      await tx.numberRequirementValue.deleteMany({
+        where: { numberPurchasedId: numberId },
+      });
 
       return tx.numberPurchased.update({
         where: { id: numberId },
@@ -364,6 +391,21 @@ export class NumberPurchasedRepository {
           inboundMode: "ringee_default",
           inboundSipDeviceId: null,
           allowedOutboundUserIds: [],
+          allowedOutboundSources: DEFAULT_OUTBOUND_SOURCES,
+          providerConnectionId: null,
+          providerConnectionName: null,
+          providerMessagingProfileId: null,
+          messagingEnabled: false,
+          messagingStatus: null,
+          messagingError: null,
+          smsEnabled: false,
+          mmsEnabled: false,
+          voiceEnabled: false,
+          faxEnabled: false,
+          hdVoiceEnabled: false,
+          internationalSmsEnabled: false,
+          emergencyEnabled: false,
+          features: Prisma.DbNull,
         },
       });
     });
