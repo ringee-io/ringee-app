@@ -474,6 +474,7 @@ export class CallService implements OnModuleDestroy {
       contactId?: string;
       dateFrom?: string;
       dateTo?: string;
+      campaignId?: string;
       excludeCampaignCalls?: boolean;
       includeMeetings?: boolean;
       includeTranscriptions?: boolean;

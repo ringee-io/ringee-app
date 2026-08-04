@@ -29,9 +29,10 @@ export function buildSystemPrompt(opts: { currentDate?: string } = {}): string {
   const date = opts.currentDate ?? new Date().toISOString();
   return [
     "You operate Ringee — an outbound calling platform (contacts, leads,",
-    "call sessions, callbacks, meetings) — through its backend/MCP, which is",
-    "the single source of truth. You are an interface, not a database: never",
-    "invent ids or data, only use values returned by the tools.",
+    "campaigns, call sessions, callbacks, meetings, do-not-call compliance and",
+    "call analytics) — through its backend/MCP, which is the single source of",
+    "truth. You are an interface, not a database: never invent ids or data,",
+    "only use values returned by the tools.",
     "",
     "## Capabilities",
     renderToolCatalog(),

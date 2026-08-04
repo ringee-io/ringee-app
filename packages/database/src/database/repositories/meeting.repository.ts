@@ -59,12 +59,25 @@ export class MeetingRepository {
       limit?: number;
       /** Narrow an org-wide list to a single member's meetings. */
       userId?: string;
+      /** Only meetings scheduled at or after this instant. */
+      scheduledFrom?: Date;
+      /** Only meetings scheduled at or before this instant. */
+      scheduledTo?: Date;
     },
   ): Promise<{
     data: Meeting[];
     meta: { total: number; page: number; limit: number; totalPages: number };
   }> {
-    const { status, upcoming, search, page = 1, limit = 20, userId } = options || {};
+    const {
+      status,
+      upcoming,
+      search,
+      page = 1,
+      limit = 20,
+      userId,
+      scheduledFrom,
+      scheduledTo,
+    } = options || {};
 
     const ownershipFilter = buildOwnershipFilter(ctx);
     const where: Prisma.MeetingWhereInput = {
@@ -73,6 +86,16 @@ export class MeetingRepository {
       ...(status ? { status } : {}),
       ...(upcoming
         ? { scheduledAt: { gte: new Date() }, status: MeetingStatus.scheduled }
+        : {}),
+      // An explicit window wins over `upcoming` — both write scheduledAt, and a
+      // caller asking for a specific day means that day, not "from now on".
+      ...(scheduledFrom || scheduledTo
+        ? {
+            scheduledAt: {
+              ...(scheduledFrom ? { gte: scheduledFrom } : {}),
+              ...(scheduledTo ? { lte: scheduledTo } : {}),
+            },
+          }
         : {}),
       ...(search
         ? {

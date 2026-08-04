@@ -70,12 +70,23 @@ export class CallbackTaskRepository {
       limit?: number;
       /** Narrow an org-wide list to a single member's callbacks. */
       userId?: string;
+      /** Only callbacks scheduled at or after this instant. */
+      scheduledFrom?: Date;
+      /** Only callbacks scheduled at or before this instant. */
+      scheduledTo?: Date;
     },
   ): Promise<{
     data: CallbackTaskWithContext[];
     meta: { total: number; page: number; limit: number; totalPages: number };
   }> {
-    const { status, page = 1, limit = 20, userId } = options || {};
+    const {
+      status,
+      page = 1,
+      limit = 20,
+      userId,
+      scheduledFrom,
+      scheduledTo,
+    } = options || {};
 
     const where: Prisma.CallbackTaskWhereInput = {
       ...(owner.organizationId
@@ -83,6 +94,14 @@ export class CallbackTaskRepository {
         : { userId: owner.userId, organizationId: null }),
       ...(userId ? { userId } : {}),
       ...(status ? { status } : {}),
+      ...(scheduledFrom || scheduledTo
+        ? {
+            scheduledAt: {
+              ...(scheduledFrom ? { gte: scheduledFrom } : {}),
+              ...(scheduledTo ? { lte: scheduledTo } : {}),
+            },
+          }
+        : {}),
     };
 
     const total = await this.prisma.callbackTask.count({ where });

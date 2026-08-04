@@ -172,6 +172,8 @@ export class CallbackService {
       page?: number;
       limit?: number;
       userId?: string;
+      scheduledFrom?: Date;
+      scheduledTo?: Date;
     },
   ) {
     return this.callbackRepo.listForOwner(owner, options);

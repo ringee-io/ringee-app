@@ -3,6 +3,8 @@ import {
   calendarProviderEnum,
   callOutcomeEnum,
   callStatusEnum,
+  callbackStatusEnum,
+  campaignFilter,
   isoDateTime,
   uuid,
 } from "./common.js";
@@ -11,6 +13,11 @@ export const ListCallsSchema = z.object({
   contactId: uuid
     .optional()
     .describe("Filter to a single contact's calls (resolve it first)."),
+  campaignId: campaignFilter
+    .optional()
+    .describe(
+      'Only this campaign\'s calls, or "none" for calls outside any campaign.',
+    ),
   outcome: z
     .array(callOutcomeEnum)
     .min(1)
@@ -50,6 +57,14 @@ export const CreateCallbackSchema = z.object({
   note: z.string().max(500).optional(),
 });
 
+export const ListCallbacksSchema = z.object({
+  status: callbackStatusEnum
+    .optional()
+    .describe("'scheduled' and 'due' are the ones still owed."),
+  page: z.number().int().min(1).optional(),
+  limit: z.number().int().min(1).max(50).optional(),
+});
+
 export const ScheduleMeetingSchema = z.object({
   contactId: uuid,
   scheduledAt: isoDateTime.describe("When the meeting starts."),
@@ -73,4 +88,5 @@ export const ScheduleMeetingSchema = z.object({
 export type ListCallsInput = z.infer<typeof ListCallsSchema>;
 export type LogCallOutcomeInput = z.infer<typeof LogCallOutcomeSchema>;
 export type CreateCallbackInput = z.infer<typeof CreateCallbackSchema>;
+export type ListCallbacksInput = z.infer<typeof ListCallbacksSchema>;
 export type ScheduleMeetingInput = z.infer<typeof ScheduleMeetingSchema>;

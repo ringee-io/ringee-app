@@ -221,6 +221,8 @@ export class CallRepository {
       contactId?: string;
       dateFrom?: string;
       dateTo?: string;
+      /** Only calls dialed as part of this campaign (via CallAttempt). */
+      campaignId?: string;
       excludeCampaignCalls?: boolean;
       includeMeetings?: boolean;
       includeTranscriptions?: boolean;
@@ -243,6 +245,7 @@ export class CallRepository {
       contactId,
       dateFrom,
       dateTo,
+      campaignId,
       excludeCampaignCalls,
       includeMeetings,
       includeTranscriptions,
@@ -268,6 +271,7 @@ export class CallRepository {
             },
           }
         : {}),
+      ...(campaignId ? { callAttempts: { some: { campaignId } } } : {}),
       ...(excludeCampaignCalls ? { callAttempts: { none: {} } } : {}),
     };
 

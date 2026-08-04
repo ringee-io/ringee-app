@@ -1,6 +1,6 @@
 {
   "name": "@ringee-io/agent",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Agent layer for Ringee — typed clients, schemas, flows, prompts and operating rules on top of the existing Ringee backend/MCP. Powers the `ringee` CLI, Claude Skills (Claude Code + claude.ai) and the ChatGPT App. Contains NO business logic of its own: the Ringee backend/MCP is the single source of truth.",
   "license": "AGPL-3.0-or-later",
   "type": "module",

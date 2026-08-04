@@ -221,6 +221,8 @@ export class MeetingService {
       page?: number;
       limit?: number;
       userId?: string;
+      scheduledFrom?: Date;
+      scheduledTo?: Date;
     },
   ) {
     return this.meetingRepo.listByOwner(ctx, options);

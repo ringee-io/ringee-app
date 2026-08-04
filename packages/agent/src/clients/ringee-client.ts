@@ -22,6 +22,34 @@ import {
   SearchLeadsSchema,
   UpdateCallSessionSchema,
   UpdateContactSchema,
+  AddCampaignLeadsSchema,
+  AddToDncSchema,
+  DeleteCampaignLeadSchema,
+  GetAiPipelineResultsSchema,
+  GetCallAnalyticsSchema,
+  GetCampaignAnalyticsSchema,
+  GetCampaignSchema,
+  GetDayActivitySchema,
+  ListCallbacksSchema,
+  ListCampaignLeadsSchema,
+  ListCampaignsSchema,
+  ListDncSchema,
+  RemoveFromDncSchema,
+  UpdateCampaignStatusSchema,
+  type AddCampaignLeadsInput,
+  type AddToDncInput,
+  type DeleteCampaignLeadInput,
+  type GetAiPipelineResultsInput,
+  type GetCallAnalyticsInput,
+  type GetCampaignAnalyticsInput,
+  type GetCampaignInput,
+  type GetDayActivityInput,
+  type ListCallbacksInput,
+  type ListCampaignLeadsInput,
+  type ListCampaignsInput,
+  type ListDncInput,
+  type RemoveFromDncInput,
+  type UpdateCampaignStatusInput,
   type CreateCallSessionInput,
   type CreateCallbackInput,
   type CreateContactInput,
@@ -41,6 +69,21 @@ import {
   type UpdateContactInput,
 } from "../schemas/index.js";
 import type {
+  AddCampaignLeadsResult,
+  AddToDncResult,
+  AiPipelineResults,
+  CallAnalyticsResult,
+  CampaignAnalyticsResult,
+  CampaignDetail,
+  DayActivityResult,
+  DeleteCampaignLeadResult,
+  ListAiPipelinesResult,
+  ListCallbacksResult,
+  ListCampaignLeadsResult,
+  ListCampaignsResult,
+  ListDncResult,
+  RemoveFromDncResult,
+  UpdateCampaignStatusResult,
   CallSessionInfo,
   ContactDetail,
   CreateCallSessionResult,
@@ -217,6 +260,108 @@ export class RingeeClient {
     return this.call(
       "import_leads_as_contacts",
       ImportLeadsSchema.parse(input),
+    );
+  }
+
+  // ── Campaigns (organization workspaces only) ────────────────────────
+
+  listCampaigns(input: ListCampaignsInput = {}): Promise<ListCampaignsResult> {
+    return this.call("list_campaigns", ListCampaignsSchema.parse(input));
+  }
+
+  getCampaign(input: GetCampaignInput): Promise<CampaignDetail> {
+    return this.call("get_campaign", GetCampaignSchema.parse(input));
+  }
+
+  /** Organization admins only. Invalid transitions are rejected server-side. */
+  updateCampaignStatus(
+    input: UpdateCampaignStatusInput,
+  ): Promise<UpdateCampaignStatusResult> {
+    return this.call(
+      "update_campaign_status",
+      UpdateCampaignStatusSchema.parse(input),
+    );
+  }
+
+  listCampaignLeads(
+    input: ListCampaignLeadsInput,
+  ): Promise<ListCampaignLeadsResult> {
+    return this.call(
+      "list_campaign_leads",
+      ListCampaignLeadsSchema.parse(input),
+    );
+  }
+
+  /** Organization admins only. Existing contacts are reused, never duplicated. */
+  addCampaignLeads(
+    input: AddCampaignLeadsInput,
+  ): Promise<AddCampaignLeadsResult> {
+    return this.call("add_campaign_leads", AddCampaignLeadsSchema.parse(input));
+  }
+
+  /** DESTRUCTIVE. Requires confirm=true. Drops the lead's attempts/callbacks. */
+  deleteCampaignLead(
+    input: DeleteCampaignLeadInput,
+  ): Promise<DeleteCampaignLeadResult> {
+    return this.call(
+      "delete_campaign_lead",
+      DeleteCampaignLeadSchema.parse(input),
+    );
+  }
+
+  getCampaignAnalytics(
+    input: GetCampaignAnalyticsInput,
+  ): Promise<CampaignAnalyticsResult> {
+    return this.call(
+      "get_campaign_analytics",
+      GetCampaignAnalyticsSchema.parse(input),
+    );
+  }
+
+  // ── Analytics + activity ────────────────────────────────────────────
+
+  /** The dashboard overview numbers. campaignId="none" = outside campaigns. */
+  getCallAnalytics(
+    input: GetCallAnalyticsInput = {},
+  ): Promise<CallAnalyticsResult> {
+    return this.call("get_call_analytics", GetCallAnalyticsSchema.parse(input));
+  }
+
+  getDayActivity(input: GetDayActivityInput): Promise<DayActivityResult> {
+    return this.call("get_day_activity", GetDayActivitySchema.parse(input));
+  }
+
+  listCallbacks(input: ListCallbacksInput = {}): Promise<ListCallbacksResult> {
+    return this.call("list_callbacks", ListCallbacksSchema.parse(input));
+  }
+
+  // ── DNC (do-not-call suppression) ───────────────────────────────────
+
+  listDnc(input: ListDncInput = {}): Promise<ListDncResult> {
+    return this.call("list_dnc", ListDncSchema.parse(input));
+  }
+
+  addToDnc(input: AddToDncInput): Promise<AddToDncResult> {
+    return this.call("add_to_dnc", AddToDncSchema.parse(input));
+  }
+
+  /** DESTRUCTIVE for compliance. Requires confirm=true. */
+  removeFromDnc(input: RemoveFromDncInput): Promise<RemoveFromDncResult> {
+    return this.call("remove_from_dnc", RemoveFromDncSchema.parse(input));
+  }
+
+  // ── AI pipelines ────────────────────────────────────────────────────
+
+  listAiPipelines(): Promise<ListAiPipelinesResult> {
+    return this.call("list_ai_pipelines", {});
+  }
+
+  getAiPipelineResults(
+    input: GetAiPipelineResultsInput,
+  ): Promise<AiPipelineResults> {
+    return this.call(
+      "get_ai_pipeline_results",
+      GetAiPipelineResultsSchema.parse(input),
     );
   }
 }

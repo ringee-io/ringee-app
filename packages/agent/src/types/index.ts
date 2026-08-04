@@ -320,3 +320,365 @@ export interface ListWorkspacesResult {
 export interface SwitchWorkspaceResult extends ListWorkspacesResult {
   switched: boolean;
 }
+
+// ── Campaigns ─────────────────────────────────────────────────────────
+
+export type CampaignStatus = "draft" | "active" | "paused" | "completed";
+
+/**
+ * Real CampaignLeadStatus values plus the aggregate aliases the backend
+ * accepts as filters ("called", "dead").
+ */
+export type CampaignLeadStatus =
+  | "pending"
+  | "queued"
+  | "locked"
+  | "dialing"
+  | "in_call"
+  | "wrap_up"
+  | "dispositioned"
+  | "scheduled"
+  | "completed"
+  | "exhausted"
+  | "dnc"
+  | "called"
+  | "dead";
+
+export interface CampaignSummary {
+  id: string;
+  name: string;
+  description: string | null;
+  status: CampaignStatus | string;
+  /** null when the backend did not include the count. */
+  leadsCount: number | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Single-campaign read: adds the dialing configuration. */
+export interface CampaignDetail extends CampaignSummary {
+  dialerMode: string | null;
+  maxAttempts: number | null;
+  retryDelayMin: number | null;
+  wrapUpTimeSec: number | null;
+  workingHours: {
+    timezone: string | null;
+    /** "08:00" — local to the campaign's timezone. */
+    start: string | null;
+    end: string | null;
+    /** 0=Sunday … 6=Saturday. */
+    days: number[] | null;
+  };
+}
+
+export interface ListCampaignsResult {
+  total: number;
+  page: number;
+  totalPages: number;
+  limit?: number;
+  campaigns: CampaignSummary[];
+}
+
+export interface UpdateCampaignStatusResult {
+  ok: boolean;
+  campaignId: string;
+  name: string;
+  status: CampaignStatus | string;
+}
+
+export interface CampaignLead {
+  leadId: string;
+  status: CampaignLeadStatus | string;
+  priority: number;
+  attempts: number;
+  lastCallAt: string | null;
+  nextCallAt: string | null;
+  deadAt: string | null;
+  assignedUserId: string | null;
+  contact: {
+    id: string;
+    name: string | null;
+    phoneNumber: string;
+    email: string | null;
+    company: string | null;
+    jobTitle: string | null;
+  } | null;
+}
+
+export interface ListCampaignLeadsResult {
+  total: number;
+  page: number;
+  totalPages: number;
+  limit?: number;
+  campaignId: string;
+  status: string | null;
+  leads: CampaignLead[];
+}
+
+export interface AddCampaignLeadsResult {
+  ok: boolean;
+  campaignId: string;
+  totalRows: number;
+  contactsCreated: number;
+  leadsAdded: number;
+  duplicatesSkipped: number;
+  invalidRows: number;
+  errors: unknown[];
+}
+
+export interface DeleteCampaignLeadResult {
+  ok: boolean;
+  deleted: boolean;
+  campaignId?: string;
+  leadId?: string;
+  error?: string;
+}
+
+export interface CampaignAnalyticsSummary {
+  totalAttempts: number;
+  connected: number;
+  conversions: number;
+  avgHandleTimeSec: number | null;
+  uniqueLeadsDialed: number;
+  /** Already a percentage (0-100). */
+  contactRate: number;
+  /** Already a percentage (0-100). */
+  conversionRate: number;
+  leadsByStatus: Record<string, number>;
+}
+
+export interface CampaignDispositionStat {
+  dispositionCode: string;
+  count: number;
+  percentage: number;
+}
+
+export interface CampaignAgentStat {
+  agentUserId: string;
+  attempts: number;
+  connected: number;
+  totalTalkSec: number;
+  conversions: number;
+  contactRate: number;
+}
+
+export interface CampaignHourlyStat {
+  hour: number;
+  attempts: number;
+  connected: number;
+}
+
+export interface CampaignAnalyticsResult {
+  campaign: { id: string; name: string; status: string };
+  window: { startDate: string | null; endDate: string | null };
+  summary: CampaignAnalyticsSummary;
+  dispositions: CampaignDispositionStat[];
+  agents?: CampaignAgentStat[];
+  hourly?: CampaignHourlyStat[];
+}
+
+// ── Call analytics (dashboard overview) ───────────────────────────────
+
+export type AnalyticsBlock =
+  | "kpis"
+  | "funnel"
+  | "by-outcome"
+  | "over-time"
+  | "best-time-of-day"
+  | "agents";
+
+/** Every *Rate field is already a percentage (0-100). */
+export interface CallAnalyticsKpis {
+  totalCalls: number;
+  answeredCalls: number;
+  meetingsBooked: number;
+  meetingOutcomeNoEvent: number;
+  sales: number;
+  interested: number;
+  followUps: number;
+  notInterested: number;
+  noAnswer: number;
+  voicemail: number;
+  wrongNumber: number;
+  gatekeeper: number;
+  callbackScheduled: number;
+  callbacksScheduled: number;
+  conversionRate: number;
+  meetingRate: number;
+  positiveOutcomeRate: number;
+  answerRate: number;
+  /** Seconds. */
+  averageDuration: number;
+  rangeStart: string;
+  rangeEnd: string;
+}
+
+export interface CallAnalyticsResult {
+  scope: "personal" | "organization";
+  campaignId: string | null;
+  outcome: CallOutcome | null;
+  memberUserId: string | null;
+  kpis?: CallAnalyticsKpis;
+  funnel?: { label: string; value: number }[];
+  callsByOutcome?: { outcome: string; count: number }[];
+  outcomesOverTime?: unknown[];
+  bestTimeOfDay?: unknown[];
+  agents?: unknown[];
+}
+
+// ── Day activity ──────────────────────────────────────────────────────
+
+export interface DayActivityCallback {
+  callbackId: string;
+  scheduledAt: string;
+  status: string;
+  note: string | null;
+  completedAt: string | null;
+  callId: string | null;
+  contact: {
+    id: string;
+    name: string | null;
+    phoneNumber: string;
+    company: string | null;
+  } | null;
+  campaign: { id: string; name: string } | null;
+}
+
+export interface DayActivityMeeting {
+  meetingId: string;
+  title: string | null;
+  scheduledAt: string;
+  duration: number | null;
+  status: string;
+  location: string | null;
+  contactId: string;
+}
+
+export interface DayActivityResult {
+  date: string;
+  utcOffset: string;
+  window: { start: string; end: string };
+  campaignId: string | null;
+  calls: {
+    total: number;
+    returned: number;
+    /** Counts over the returned page. */
+    outcomeCounts: Record<string, number>;
+    items: CallDetail[];
+  };
+  callbacks?: { total: number; items: DayActivityCallback[] };
+  meetings?: { total: number; items: DayActivityMeeting[] };
+}
+
+// ── Callbacks ─────────────────────────────────────────────────────────
+
+export type CallbackStatus =
+  | "scheduled"
+  | "due"
+  | "in_progress"
+  | "completed"
+  | "missed"
+  | "cancelled";
+
+export interface ListCallbacksResult {
+  total: number;
+  page: number;
+  totalPages: number;
+  limit?: number;
+  status: string | null;
+  callbacks: DayActivityCallback[];
+}
+
+// ── DNC (do-not-call) ─────────────────────────────────────────────────
+
+export interface DncEntry {
+  id: string;
+  phoneNumber: string;
+  reason: string | null;
+  source: string | null;
+  addedAt: string;
+}
+
+export interface ListDncResult {
+  total: number;
+  page: number;
+  totalPages: number;
+  limit?: number;
+  entries: DncEntry[];
+}
+
+export interface AddToDncResult {
+  ok: boolean;
+  added: number;
+  duplicates: number;
+  alreadyListed?: boolean;
+  entryId?: string;
+  phoneNumbers: string[];
+}
+
+export interface RemoveFromDncResult {
+  ok: boolean;
+  removed: number;
+  phoneNumber: string;
+  error?: string;
+}
+
+// ── AI pipelines ──────────────────────────────────────────────────────
+
+export type AiPipelineType =
+  | "follow_up_recommendations"
+  | "script_optimization"
+  | "objection_intelligence";
+
+export type PipelineContextType =
+  | "campaign"
+  | "organization_outside_campaign"
+  | "personal";
+
+export type PendingActionStatus =
+  | "pending"
+  | "completed"
+  | "dismissed"
+  | "snoozed";
+
+export interface AiPipelineOverview {
+  type: AiPipelineType | string;
+  name: string;
+  valueProposition: string;
+  detailRoute: string;
+  implemented: boolean;
+  enabledContexts: number;
+  totalPendingActions: number;
+  totalNewEligible: number;
+}
+
+export interface ListAiPipelinesResult {
+  pipelines: AiPipelineOverview[];
+}
+
+export interface AiPipelineResultsContext {
+  contextKey: string;
+  contextType: PipelineContextType | string;
+  label: string | null;
+  enabled: boolean;
+  lastRunAt: string | null;
+  lastConfidence: string | null;
+  newEligibleSinceLastRun: number;
+  pendingActionCount: number;
+}
+
+export interface AiPipelineResults {
+  pipeline: {
+    type: string;
+    name: string;
+    valueProposition: string;
+    detailRoute: string;
+    implemented: boolean;
+  };
+  context: AiPipelineResultsContext;
+  status: PendingActionStatus | string;
+  /** Shape is backend-defined (paginated pending actions). */
+  actions: unknown;
+  /** Only for objection_intelligence: ranked objections + trend. */
+  objections?: unknown;
+}
