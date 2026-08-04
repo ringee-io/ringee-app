@@ -79,6 +79,7 @@ import { PendingActionRepository } from "./repositories/pending-action.repositor
 import { ObjectionInsightRepository } from "./repositories/objection-insight.repository";
 import { ObjectionCallAnalysisRepository } from "./repositories/objection-call-analysis.repository";
 import { BackofficeRepository } from "./repositories/backoffice.repository";
+import { BackofficeCampaignRepository } from "./repositories/backoffice-campaign.repository";
 import { SipDeviceRepository } from "./repositories/sip-device.repository";
 import { BlockedCallLogRepository } from "./repositories/blocked-call-log.repository";
 import { InfrastructureRepository } from "./repositories/infrastructure.repository";
@@ -163,6 +164,7 @@ const databaseProviders = [
   ObjectionInsightRepository,
   ObjectionCallAnalysisRepository,
   BackofficeRepository,
+  BackofficeCampaignRepository,
   SipDeviceRepository,
   BlockedCallLogRepository,
   InfrastructureRepository,

@@ -110,6 +110,204 @@ export interface RecordingSettings {
   transcribeRecordings: boolean;
 }
 
+// ── Campaign analytics ───────────────────────────────────────
+
+export type CampaignSortKey =
+  | 'attempts'
+  | 'cost'
+  | 'connected'
+  | 'conversions'
+  | 'leads'
+  | 'created'
+  | 'lastActivity'
+  | 'name';
+
+export type CampaignStatusFilter =
+  | 'all'
+  | 'draft'
+  | 'active'
+  | 'paused'
+  | 'completed';
+
+/** Rates are already percentages (0-100); cost figures are absolute money. */
+export interface CampaignMetrics {
+  attempts: number;
+  connected: number;
+  conversions: number;
+  uniqueLeadsDialed: number;
+  talkSec: number;
+  cost: number;
+  contactRate: number;
+  conversionRate: number;
+  avgHandleTimeSec: number;
+  costPerAttempt: number;
+  costPerConnect: number;
+  costPerConversion: number;
+}
+
+export interface CampaignListItem extends CampaignMetrics {
+  id: string;
+  name: string;
+  status: string;
+  dialerMode: string;
+  createdAt: string;
+  isNew: boolean;
+  lastActivityAt: string | null;
+  totalLeads: number;
+  pendingLeads: number;
+  ownerUserId: string;
+  ownerName: string;
+  ownerEmail: string | null;
+  organizationId: string | null;
+  organizationName: string | null;
+  organizationSlug: string | null;
+}
+
+export interface CampaignListResult {
+  items: CampaignListItem[];
+  total: number;
+  totals: CampaignMetrics & {
+    campaigns: number;
+    newCampaigns: number;
+    activeCampaigns: number;
+    totalLeads: number;
+  };
+}
+
+export interface CampaignOrganizationOption {
+  id: string | null;
+  name: string;
+  campaigns: number;
+}
+
+export interface CampaignConfig {
+  id: string;
+  name: string;
+  description: string | null;
+  status: string;
+  dialerMode: string;
+  maxAttempts: number;
+  timezone: string;
+  workStartMin: number;
+  workEndMin: number;
+  workDays: number[];
+  wrapUpTimeSec: number;
+  retryDelayMin: number;
+  createdAt: string;
+  updatedAt: string;
+  ownerUserId: string;
+  ownerName: string;
+  ownerEmail: string | null;
+  organizationId: string | null;
+  organizationName: string | null;
+  organizationSlug: string | null;
+  callerIdNumber: string | null;
+  outboundNumber: string | null;
+  rotationNumbers: string[];
+}
+
+export interface CampaignDailyPoint {
+  day: string;
+  attempts: number;
+  connected: number;
+  conversions: number;
+  cost: number;
+  talkSec: number;
+}
+
+export interface CampaignHourlyPoint {
+  hour: number;
+  attempts: number;
+  connected: number;
+  cost: number;
+}
+
+export interface CampaignDispositionRow {
+  code: string;
+  label: string | null;
+  category: string | null;
+  count: number;
+  percentage: number;
+}
+
+export interface CampaignAgentRow {
+  agentUserId: string;
+  name: string;
+  email: string | null;
+  attempts: number;
+  connected: number;
+  conversions: number;
+  talkSec: number;
+  cost: number;
+  contactRate: number;
+  avgHandleTimeSec: number;
+}
+
+export interface CampaignLeadStatusRow {
+  status: string;
+  count: number;
+}
+
+export interface CampaignListRow {
+  id: string;
+  name: string;
+  source: string | null;
+  leads: number;
+  createdAt: string;
+}
+
+export interface CampaignMemberRow {
+  userId: string;
+  name: string;
+  email: string | null;
+  role: string;
+  assignedAt: string;
+}
+
+export interface CampaignRetryRuleRow {
+  dispositionCategory: string;
+  maxAttempts: number;
+  delayMinutes: number;
+  delayMultiplier: number;
+}
+
+export interface CampaignDetail {
+  range: { start: string; end: string };
+  campaign: CampaignConfig;
+  metrics: CampaignMetrics;
+  daily: CampaignDailyPoint[];
+  hourly: CampaignHourlyPoint[];
+  dispositions: CampaignDispositionRow[];
+  agents: CampaignAgentRow[];
+  leadsByStatus: CampaignLeadStatusRow[];
+  lists: CampaignListRow[];
+  members: CampaignMemberRow[];
+  retryRules: CampaignRetryRuleRow[];
+}
+
+export interface CampaignAttemptRow {
+  id: string;
+  initiatedAt: string;
+  answeredAt: string | null;
+  endedAt: string | null;
+  status: string;
+  attemptNumber: number;
+  durationSec: number | null;
+  hangupCause: string | null;
+  dispositionCode: string | null;
+  cost: number | null;
+  callId: string | null;
+  agentUserId: string;
+  agentName: string;
+  contactName: string | null;
+  contactPhone: string | null;
+}
+
+export interface CampaignAttemptsResult {
+  items: CampaignAttemptRow[];
+  total: number;
+}
+
 const BASE = '/backoffice';
 
 export function useBackofficeApi() {
@@ -201,6 +399,44 @@ export function useBackofficeApi() {
         status: 'available' | 'assigned' | 'all';
         search?: string;
       }) => api.get<NumberListItem[]>(`${BASE}/numbers`, params),
+
+      listCampaigns: (params: {
+        start: Date;
+        end: Date;
+        search?: string;
+        status?: CampaignStatusFilter;
+        organizationId?: string;
+        onlyNew?: boolean;
+        sort?: CampaignSortKey;
+        page?: number;
+        pageSize?: number;
+      }) =>
+        api.get<CampaignListResult>(`${BASE}/campaigns`, {
+          ...params,
+          start: params.start.toISOString(),
+          end: params.end.toISOString()
+        }),
+
+      listCampaignOrganizations: () =>
+        api.get<CampaignOrganizationOption[]>(
+          `${BASE}/campaigns/organizations`
+        ),
+
+      getCampaign: (id: string, start: Date, end: Date) =>
+        api.get<CampaignDetail>(`${BASE}/campaigns/${id}`, {
+          start: start.toISOString(),
+          end: end.toISOString()
+        }),
+
+      listCampaignAttempts: (
+        id: string,
+        params: { start: Date; end: Date; page?: number; pageSize?: number }
+      ) =>
+        api.get<CampaignAttemptsResult>(`${BASE}/campaigns/${id}/attempts`, {
+          ...params,
+          start: params.start.toISOString(),
+          end: params.end.toISOString()
+        }),
 
       assignNumber: (type: AccountType, id: string, numberId: string) =>
         api.post(`${BASE}/accounts/${type}/${id}/numbers`, { numberId }),

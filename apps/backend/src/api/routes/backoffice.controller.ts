@@ -95,6 +95,12 @@ class UpdateUserGeneralSettingsDto {
   phoneRequired?: boolean;
 }
 
+function startOfDay(d: Date): Date {
+  const x = new Date(d);
+  x.setHours(0, 0, 0, 0);
+  return x;
+}
+
 function parseAccountType(type: string): AccountType {
   if (type !== "user" && type !== "org") {
     throw new BadRequestException("type must be 'user' or 'org'");
@@ -102,15 +108,13 @@ function parseAccountType(type: string): AccountType {
   return type;
 }
 
-/** Default dashboard window when no range is supplied: last 30 days. */
+/** Default dashboard window when no range is supplied: today so far. */
 function parseRange(q: { start?: string; end?: string }): {
   start: Date;
   end: Date;
 } {
   const end = q.end ? new Date(q.end) : new Date();
-  const start = q.start
-    ? new Date(q.start)
-    : new Date(end.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const start = q.start ? new Date(q.start) : startOfDay(end);
   if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
     throw new BadRequestException("Invalid start/end date");
   }

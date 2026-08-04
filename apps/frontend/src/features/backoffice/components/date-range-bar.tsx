@@ -15,7 +15,7 @@ import {
 export function DateRangeBar({
   value,
   onChange,
-  initialPreset = '30d'
+  initialPreset = 'today'
 }: {
   value: DateRange;
   onChange: (r: DateRange) => void;

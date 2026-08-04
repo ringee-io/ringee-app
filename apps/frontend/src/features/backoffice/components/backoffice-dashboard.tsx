@@ -149,7 +149,7 @@ function ActivityTable({ rows }: { rows: CallerActivityRow[] }) {
 
 export function BackofficeDashboard() {
   const api = useBackofficeApi();
-  const [range, setRange] = useState<DateRange>(() => rangeForPreset('30d'));
+  const [range, setRange] = useState<DateRange>(() => rangeForPreset('today'));
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
 

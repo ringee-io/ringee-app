@@ -13,6 +13,20 @@ export function formatMoney(n: number): string {
   });
 }
 
+/** Cost-per-unit figures are often fractions of a cent — keep 4 decimals. */
+export function formatMoneyPrecise(n: number): string {
+  if (!n) return '0.0000';
+  return n.toLocaleString(undefined, {
+    minimumFractionDigits: 4,
+    maximumFractionDigits: 4
+  });
+}
+
+/** Values arrive from the API already scaled 0-100. */
+export function formatPercent(n: number): string {
+  return `${n.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+}
+
 export function formatDuration(totalSeconds: number): string {
   if (!totalSeconds) return '0s';
   const h = Math.floor(totalSeconds / 3600);

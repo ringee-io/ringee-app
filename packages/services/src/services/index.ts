@@ -35,6 +35,7 @@ export * from "./call-session";
 export * from "./transcription";
 export * from "./ai-pipeline";
 export * from "./backoffice.service";
+export * from "./backoffice-campaign.service";
 export * from "./sip-device";
 export * from "./infrastructure";
 export * from "./sdk";

@@ -23,6 +23,7 @@ import {
   IconArrowLeft,
   IconLayoutDashboard,
   IconShieldLock,
+  IconSpeakerphone,
   IconUsers
 } from '@tabler/icons-react';
 
@@ -32,7 +33,12 @@ const NAV = [
     label: 'Dashboard',
     icon: IconLayoutDashboard
   },
-  { href: '/backoffice/accounts', label: 'Accounts', icon: IconUsers }
+  { href: '/backoffice/accounts', label: 'Accounts', icon: IconUsers },
+  {
+    href: '/backoffice/campaigns',
+    label: 'Campaigns',
+    icon: IconSpeakerphone
+  }
 ];
 
 export function BackofficeShell({ children }: { children: React.ReactNode }) {
