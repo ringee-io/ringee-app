@@ -7,14 +7,14 @@
   },
   "metadata": {
     "description": "Official Ringee plugins for Claude Code — operate outbound calling, contacts, leads, call sessions, callbacks and meetings through the Ringee MCP.",
-    "version": "0.1.1"
+    "version": "0.1.2"
   },
   "plugins": [
     {
       "name": "ringee",
       "source": "./packages/agent",
       "description": "Operate Ringee from Claude: search/create/update/delete contacts, prospect/reveal/import leads (Apollo/Prospeo), create/manage call sessions (magic links), log call outcomes, and schedule callbacks/meetings — all on top of the Ringee MCP, with safety rules for sensitive and destructive actions.",
-      "version": "0.1.1",
+      "version": "0.1.2",
       "author": {
         "name": "Ringee",
         "url": "https://ringee.io"

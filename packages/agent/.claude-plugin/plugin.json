@@ -2,7 +2,7 @@
   "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
   "name": "ringee",
   "displayName": "Ringee",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Operate Ringee — outbound calling, contacts, leads, call sessions, callbacks and meetings — directly from Claude, backed by the Ringee MCP. Enforces confirmation for sensitive (credits, magic links) and destructive (delete, revoke) actions.",
   "author": {
     "name": "Ringee",
