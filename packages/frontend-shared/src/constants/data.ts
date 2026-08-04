@@ -30,6 +30,14 @@ export const navGroups: NavGroup[] = [
         items: [],
       },
       {
+        title: "Call",
+        url: "/dashboard/call",
+        icon: "phoneCall",
+        shortcut: ["c", "c"],
+        isActive: false,
+        items: [],
+      },
+      {
         title: "Contacts",
         url: "/dashboard/contact",
         icon: "user",
@@ -63,27 +71,22 @@ export const navGroups: NavGroup[] = [
       },
     ],
   },
-  {
-    label: "Communication",
-    items: [
-      {
-        title: "Call",
-        url: "/dashboard/call",
-        icon: "phoneCall",
-        shortcut: ["c", "c"],
-        isActive: false,
-        items: [],
-      },
-      {
-        title: "Inbox",
-        url: "/dashboard/inbox",
-        icon: "inbox",
-        shortcut: ["i", "b"],
-        isActive: false,
-        items: [],
-      },
-    ],
-  },
+  // Temporarily hidden until messaging works reliably. "Call" moved to General.
+  // Restore this group (and the Inbox unread badge in app-sidebar.tsx) when the
+  // Inbox is ready — the /dashboard/inbox route still exists.
+  // {
+  //   label: "Communication",
+  //   items: [
+  //     {
+  //       title: "Inbox",
+  //       url: "/dashboard/inbox",
+  //       icon: "inbox",
+  //       shortcut: ["i", "b"],
+  //       isActive: false,
+  //       items: [],
+  //     },
+  //   ],
+  // },
   {
     label: "Outreach",
     items: [

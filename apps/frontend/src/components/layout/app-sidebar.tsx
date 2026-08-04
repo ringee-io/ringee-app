@@ -54,7 +54,6 @@ import * as React from 'react';
 import { Icons } from '@ringee/frontend-shared/components/icons';
 import { OrgSwitcher } from '@ringee/frontend-shared/components/org-switcher';
 import { useDialerStore } from '@/features/calls/store/dialer.store';
-import { useUnreadCount } from '@/features/inbox/hooks/use-inbox';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { cn } from '@ringee/frontend-shared/lib/utils';
@@ -194,7 +193,6 @@ function OutreachLockOverlay({ collapsed }: { collapsed: boolean }) {
 export default function AppSidebar({ useMock }: { useMock?: boolean }) {
   const pathname = usePathname();
   const dialer = useDialerStore();
-  const inboxUnread = useUnreadCount();
   const tNav = useTranslations('navigation');
   const tCommon = useTranslations('common');
 
@@ -339,11 +337,6 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                             {/* @ts-ignore */}
                             <Icon />
                             <span>{itemTitle}</span>
-                            {item.title === 'Inbox' && inboxUnread > 0 && (
-                              <span className='bg-primary text-primary-foreground ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold'>
-                                {inboxUnread > 99 ? '99+' : inboxUnread}
-                              </span>
-                            )}
                           </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
