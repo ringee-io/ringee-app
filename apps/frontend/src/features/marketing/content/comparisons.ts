@@ -79,7 +79,7 @@ function baseRows(overrides: Partial<Record<string, string>> = {}): ComparisonRo
     },
     {
       label: 'Pay-as-you-go calling credits',
-      ringee: 'Yes — from $0.020/min, pay only for minutes used',
+      ringee: 'Yes — from $0.012/min, pay only for minutes used',
       competitor: overrides.minutes ?? 'Typically bundled minutes or paid add-ons'
     }
   ];
@@ -89,7 +89,7 @@ const COMMON_WHY = [
   'Flat pricing with unlimited users — adding people never raises your subscription.',
   'Open source and self-hostable, so you can audit the code and own your data.',
   'Agentic by design: drive outbound from Claude, ChatGPT, MCP agents, and the CLI.',
-  'Pay-as-you-go calling from $0.020/min — you only pay for the minutes you use.'
+  'Pay-as-you-go calling from $0.012/min — you only pay for the minutes you use.'
 ];
 
 export const COMPARISONS: ComparisonContent[] = [
@@ -122,7 +122,7 @@ export const COMPARISONS: ComparisonContent[] = [
       {
         question: 'How is Ringee’s pricing different from Aircall’s?',
         answer:
-          'Aircall charges per user per month, usually with a seat minimum, so your bill scales with headcount. Ringee is a flat $20/month per organization with unlimited users, plus pay-as-you-go calling credits from $0.020/min — so cost scales with usage, not team size.'
+          'Aircall charges per user per month, usually with a seat minimum, so your bill scales with headcount. Ringee is a flat $20/month per organization with unlimited users, plus pay-as-you-go calling credits from $0.012/min — so cost scales with usage, not team size.'
       },
       {
         question: 'Can I self-host Ringee instead of using a SaaS phone system?',
@@ -218,7 +218,7 @@ export const COMPARISONS: ComparisonContent[] = [
       'Flat pricing with unlimited users instead of premium per-seat plans.',
       'Open source and self-hostable, so you can audit the code and own your data.',
       'Agentic by design: drive outbound from Claude, ChatGPT, MCP agents, and the CLI.',
-      'Pay-as-you-go calling from $0.020/min — you only pay for the minutes you use.'
+      'Pay-as-you-go calling from $0.012/min — you only pay for the minutes you use.'
     ],
     whenCompetitor: [
       'Raw parallel-dialing throughput (many simultaneous dials) is your single most important metric.',

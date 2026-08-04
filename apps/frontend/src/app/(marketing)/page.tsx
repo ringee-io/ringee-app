@@ -39,7 +39,7 @@ export const metadata: Metadata = buildMetadata({
 
 const PROOF_POINTS = [
   'Free for freelancers, $20/mo for teams',
-  'Pay-as-you-go from $0.020/min',
+  'Pay-as-you-go from $0.012/min',
   'Drive it from Claude, ChatGPT, MCP & CLI'
 ];
 
@@ -79,7 +79,7 @@ export default async function HomePage() {
             </h1>
 
             <p className='text-muted-foreground mt-6 max-w-xl text-lg text-pretty'>
-              Open source and pay-as-you-go from $0.020/min — no per-seat tax.
+              Open source and pay-as-you-go from $0.012/min — no per-seat tax.
               Built for freelancers and teams, and driven by your AI: Claude,
               ChatGPT, MCP, and the CLI.
             </p>

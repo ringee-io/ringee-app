@@ -150,7 +150,7 @@ const APPS_FAQS = [
   {
     question: 'Are the apps and extension free?',
     answer:
-      'The Chrome extension and the mobile apps are free to install. You only pay for your Ringee plan — free for freelancers, $20/month for a team — plus pay-as-you-go calling credits from $0.020/min.'
+      'The Chrome extension and the mobile apps are free to install. You only pay for your Ringee plan — free for freelancers, $20/month for a team — plus pay-as-you-go calling credits from $0.012/min.'
   }
 ];
 

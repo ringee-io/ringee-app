@@ -23,7 +23,7 @@ export const metadata: Metadata = buildMetadata({
 const PRINCIPLES = [
   {
     title: 'Affordable by default',
-    body: 'Per-seat pricing punishes teams for growing. Ringee keeps a free Freelancer plan and a single flat $20/month Organization plan with unlimited users, plus pay-as-you-go calling from $0.020/min — so cost scales with usage, not headcount.'
+    body: 'Per-seat pricing punishes teams for growing. Ringee keeps a free Freelancer plan and a single flat $20/month Organization plan with unlimited users, plus pay-as-you-go calling from $0.012/min — so cost scales with usage, not headcount.'
   },
   {
     title: 'Agentic by design',

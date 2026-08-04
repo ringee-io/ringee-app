@@ -26,7 +26,7 @@ export function SignInScreen() {
           Modern, low-cost outbound dialing
         </h1>
         <p className="text-muted-foreground mx-auto max-w-[260px] text-sm">
-          Open source and pay-as-you-go from $0.020/min — no per-seat tax. Sign
+          Open source and pay-as-you-go from $0.012/min — no per-seat tax. Sign
           in to Ringee in your browser, then come back here.
         </p>
       </div>

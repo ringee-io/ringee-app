@@ -36,7 +36,7 @@ const DIFFERENTIATORS = [
   },
   {
     title: 'Pay-as-you-go calling',
-    body: 'Calling credits are billed separately from $0.020/min, so you only pay for the minutes you actually use instead of bundled-minute tiers.'
+    body: 'Calling credits are billed separately from $0.012/min, so you only pay for the minutes you actually use instead of bundled-minute tiers.'
   }
 ];
 

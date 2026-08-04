@@ -6,7 +6,7 @@
 
 - Call leads worldwide from the browser, the Ringee Chrome extension, or the Ringee iOS and Android apps — no special hardware.
 - The Chrome extension lets you call with one click without leaving the page you are on: it detects phone numbers on any site and dials them from your browser using the same dialer, contacts, and call history as the web app.
-- Low-cost and pay-as-you-go: calling credits are billed separately, from $0.020/min, so you only pay for the minutes you use.
+- Low-cost and pay-as-you-go: calling credits are billed separately, from $0.012/min, so you only pay for the minutes you use.
 - Pricing: Freelancer plan is $0/month; Organization plan is $20/month per organization.
 - The Freelancer plan includes every feature for one person; the Organization plan adds an organization, unlimited invited members, and calling campaigns.
 - The Organization plan includes unlimited users (no per-seat pricing).
@@ -65,7 +65,7 @@
 
 - Freelancer: $0/month — every feature for one person (manual dialer, recording, real-time transcription, meetings, prospecting, CRM sync, and AI automation). Pay only for calling credits.
 - Organization: $20/month per organization — adds an organization, unlimited invited members, and calling campaigns. Calling credits billed separately.
-- Calling is pay-as-you-go, from $0.020/min. No per-seat pricing on any plan.
+- Calling is pay-as-you-go, from $0.012/min. No per-seat pricing on any plan.
 - [Pricing details](https://www.ringee.io/pricing)
 
 ## Main pages

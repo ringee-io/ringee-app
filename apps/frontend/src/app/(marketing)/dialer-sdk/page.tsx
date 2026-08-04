@@ -318,7 +318,7 @@ const SDK_FAQS = [
   {
     question: 'How much does the Dialer SDK cost?',
     answer:
-      'The SDK itself is free and MIT-licensed — there is no separate SDK fee. Calls placed through it consume the same pay-as-you-go calling credits as any other Ringee call, from $0.020/min depending on the destination.'
+      'The SDK itself is free and MIT-licensed — there is no separate SDK fee. Calls placed through it consume the same pay-as-you-go calling credits as any other Ringee call, from $0.012/min depending on the destination.'
   },
   {
     question: 'Can I use it with a self-hosted Ringee?',
