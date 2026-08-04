@@ -50,7 +50,7 @@ const chip =
 
 export default async function HomePage() {
   const { userId } = await auth();
-  if (userId) redirect('/dashboard/overview');
+  if (userId) redirect('/dashboard/journey');
 
   return (
     <>

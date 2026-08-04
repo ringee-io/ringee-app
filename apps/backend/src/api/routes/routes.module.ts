@@ -66,6 +66,7 @@ import { SipDeviceController } from "./sip-device.controller";
 import { DeskPhoneWebhookController } from "./desk-phone.webhook.controller";
 import { FreeTrialController } from "./free-trial.controller";
 import { InfrastructureController } from "./infrastructure.controller";
+import { JourneyController } from "./journey.controller";
 import { StripeAbuseProtectionService } from "./stripe-abuse-protection.service";
 import { UserAccessEnforcementService } from "./user-access-enforcement.service";
 
@@ -127,6 +128,7 @@ import { UserAccessEnforcementService } from "./user-access-enforcement.service"
     SipDeviceController,
     DeskPhoneWebhookController,
     InfrastructureController,
+    JourneyController,
     FreeTrialController,
   ],
   // TranscriptionMediaGateway lives here (not in the shared ServicesModule) so

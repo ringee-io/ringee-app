@@ -38,4 +38,5 @@ export * from "./backoffice.service";
 export * from "./backoffice-campaign.service";
 export * from "./sip-device";
 export * from "./infrastructure";
+export * from "./journey";
 export * from "./sdk";

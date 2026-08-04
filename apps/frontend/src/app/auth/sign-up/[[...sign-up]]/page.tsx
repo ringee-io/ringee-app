@@ -114,7 +114,7 @@ export default async function Page() {
       return <VerifyPhoneView />;
     }
 
-    redirect('/dashboard/overview');
+    redirect('/dashboard/journey');
   }
 
   return <SignUpViewPage />;

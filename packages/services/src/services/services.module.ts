@@ -135,6 +135,7 @@ import { BackofficeService } from "./backoffice.service";
 import { BackofficeCampaignService } from "./backoffice-campaign.service";
 import { SipDeviceService, DeskPhoneCallService } from "./sip-device";
 import { InfrastructureService } from "./infrastructure";
+import { JourneyService } from "./journey";
 import {
   SdkPublishableKeyService,
   SdkEmailAuthService,
@@ -270,6 +271,8 @@ const servicesProviders = [
   DeskPhoneCallService,
   // Ringee Infra (visual architecture console)
   InfrastructureService,
+  // Growth Journey (workspace maturity + integration adoption).
+  JourneyService,
   // Ringee Dialer SDK (publishable keys, agent OTP auth, call authorize)
   SdkPublishableKeyService,
   SdkEmailAuthService,

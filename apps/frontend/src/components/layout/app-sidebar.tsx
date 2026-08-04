@@ -70,6 +70,7 @@ const GROUP_LABEL_KEYS: Record<string, string> = {
 };
 
 const ITEM_TITLE_KEYS: Record<string, string> = {
+  Journey: 'items.journey',
   Dashboard: 'items.dashboard',
   Contacts: 'items.contacts',
   Activities: 'items.activities',

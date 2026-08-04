@@ -6,6 +6,7 @@
     "settings": "Settings"
   },
   "items": {
+    "journey": "Journey",
     "dashboard": "Dashboard",
     "contacts": "Contacts",
     "activities": "Activities",
