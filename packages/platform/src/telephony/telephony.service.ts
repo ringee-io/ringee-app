@@ -83,6 +83,10 @@ export class TelephonyService implements TelephonyServiceInterface {
     return this.getServiceProvider().purchaseNumbers(phoneNumbers);
   }
 
+  deletePhoneNumber(phoneNumber: string): Promise<void> {
+    return this.getServiceProvider().deletePhoneNumber(phoneNumber);
+  }
+
   assignNumberToConnection(
     phoneNumber: string,
     connectionId?: string,

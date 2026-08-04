@@ -48,8 +48,62 @@ export class NumberPurchasedService {
     private readonly organizationService: OrganizationService,
   ) {}
 
-  release(id: string): Promise<NumberPurchased> {
-    return this.numberPurchasedRepository.release(id);
+  /**
+   * The Stripe subscription paying for a purchased DID ended (cancelled by the
+   * customer, or dropped after failed payments). The number must disappear from
+   * Ringee *and* be released at the carrier: Telnyx bills the DID monthly for as
+   * long as it sits on the account, so keeping it would mean paying for a number
+   * nobody is subscribed to.
+   *
+   * The carrier release is attempted first, but a carrier failure never blocks
+   * the local retirement — the customer stopped paying, so they must stop having
+   * the number. A failed release is logged as an error for manual cleanup.
+   */
+  async retireCancelledNumber(
+    phoneNumber: string,
+  ): Promise<NumberPurchased | null> {
+    const number =
+      await this.numberPurchasedRepository.findByPhoneNumber(phoneNumber);
+
+    if (!number) {
+      this.logger.warn(
+        `Subscription cancelled for ${phoneNumber} but no matching number exists in Ringee.`,
+      );
+      return null;
+    }
+
+    if (number.deletedAt) {
+      this.logger.log(
+        `Number ${phoneNumber} was already retired; ignoring duplicate cancellation.`,
+      );
+      return number;
+    }
+
+    // Only purchased DIDs are billed through a subscription. A verified caller
+    // ID sharing this E.164 is somebody's external number — never release it.
+    if (number.kind !== "purchased") {
+      this.logger.warn(
+        `Subscription cancelled for ${phoneNumber}, but the matching row is a ` +
+          `${number.kind} and was left untouched.`,
+      );
+      return number;
+    }
+
+    try {
+      await this.telephonyService.deletePhoneNumber(number.phoneNumber);
+    } catch (err) {
+      this.logger.error(
+        `Number ${phoneNumber} could not be released on the carrier after its ` +
+          `subscription was cancelled — it is still billable and needs manual ` +
+          `removal: ${(err as Error).message}`,
+      );
+    }
+
+    const retired = await this.numberPurchasedRepository.releasePermanently(
+      number.id,
+    );
+    this.logger.log(`Number ${phoneNumber} retired after subscription ended.`);
+    return retired;
   }
 
   /**

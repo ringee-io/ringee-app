@@ -388,6 +388,39 @@ export class TelnyxService implements TelephonyService {
     return response;
   }
 
+  /**
+   * Releases a purchased DID back to Telnyx. Numbers are billed monthly for as
+   * long as they exist on the account (they are ordered with `auto_renew`), so
+   * a number whose Ringee subscription ended must be deleted here or Ringee
+   * keeps paying for it forever.
+   *
+   * The `/phone_numbers/{id}` path accepts either the Telnyx phone number id or
+   * the E.164 number — callers pass the number, because `providerNumberId` on
+   * our side is a *number order* id, not a phone number id.
+   */
+  async deletePhoneNumber(phoneNumber: string): Promise<void> {
+    try {
+      await this.telnyxClient.delete(
+        `/phone_numbers/${encodeURIComponent(phoneNumber)}`,
+      );
+      this.logger.log(`Phone number ${phoneNumber} released on Telnyx.`);
+    } catch (error: any) {
+      // Already gone at the carrier (never provisioned, or a replayed
+      // cancellation): nothing left to bill, so let the local delete proceed.
+      if (error?.status === 404 || error?.response?.status === 404) {
+        this.logger.warn(
+          `Phone number ${phoneNumber} not found on Telnyx; skipping release.`,
+        );
+        return;
+      }
+      this.logger.error(
+        `Failed to release phone number ${phoneNumber} on Telnyx`,
+        error?.response?.data || error?.message,
+      );
+      throw error;
+    }
+  }
+
   private mapRegulatoryRequirements(raw: any): RegulatoryRequirement[] {
     if (!Array.isArray(raw)) return [];
     return raw.map((req: any) => ({

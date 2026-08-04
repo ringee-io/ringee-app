@@ -1095,11 +1095,15 @@ export class StripeController {
         case "customer.subscription.deleted": {
           const subscription = event.data.object as Stripe.Subscription;
           const metadata = subscription.metadata || {};
-          const numberId = metadata.phoneNumber;
+          // Set at checkout by `createPhoneNumberSubscriptionSession`: the
+          // E.164 number, not a NumberPurchased id.
+          const phoneNumber = metadata.phoneNumber;
 
-          if (numberId) {
-            console.log(`📴 Suscripción cancelada para ${numberId}`);
-            await this.numberPurchasedService.release(numberId);
+          if (phoneNumber) {
+            console.log(`📴 Subscription cancelled for ${phoneNumber}`);
+            await this.numberPurchasedService.retireCancelledNumber(
+              phoneNumber,
+            );
           }
 
           // Handle credit subscription cancellation

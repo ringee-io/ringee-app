@@ -25,6 +25,13 @@ export interface TelephonyNumbersService {
    */
   getAvailableNumberCost(phoneNumber: string): Promise<CostInformation>;
   purchaseNumbers(phoneNumbers: string[]): Promise<PurchaseNumbers>;
+  /**
+   * Permanently releases a purchased number back to the provider. The provider
+   * keeps billing the number monthly for as long as it lives on the account, so
+   * this must run as soon as the customer stops paying for it (subscription
+   * cancelled). Implementations tolerate a number that is already gone.
+   */
+  deletePhoneNumber(phoneNumber: string): Promise<void>;
   assignNumberToConnection(
     phoneNumber: string,
     connectionId?: string,

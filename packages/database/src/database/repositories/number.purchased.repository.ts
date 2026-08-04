@@ -15,6 +15,36 @@ export class NumberPurchasedRepository {
     ctx: OwnershipContext,
     data: Omit<Prisma.NumberPurchasedCreateInput, "user" | "organization">,
   ): Promise<NumberPurchased> {
+    // `phoneNumber` is unique account-wide. A number that was retired (see
+    // `releasePermanently`) goes back into the carrier's inventory and can be
+    // bought again — by anyone — so the retired row is revived instead of
+    // colliding with a create that the customer has already paid for.
+    const retired = await this.prisma.numberPurchased.findFirst({
+      where: {
+        phoneNumber: data.phoneNumber,
+        kind: "purchased",
+        deletedAt: { not: null },
+      },
+      select: { id: true },
+    });
+
+    if (retired) {
+      const { userNumbers, ...rest } = data;
+      return this.prisma.numberPurchased.update({
+        where: { id: retired.id },
+        data: {
+          ...rest,
+          deletedAt: null,
+          active: true,
+          userNumbers,
+          user: { connect: { id: ctx.userId } },
+          organization: ctx.organizationId
+            ? { connect: { id: ctx.organizationId } }
+            : { disconnect: true },
+        },
+      });
+    }
+
     return this.prisma.numberPurchased.create({
       data: {
         ...data,
@@ -33,7 +63,9 @@ export class NumberPurchasedRepository {
     const values = await this.prisma.numberPurchased.findMany({
       // Only real purchased DIDs — verified caller IDs live in the same table
       // but are a different kind and are listed via the caller-id methods below.
-      where: { ...ownershipFilter, kind: "purchased" },
+      // Retired numbers (subscription cancelled, released at the carrier) are
+      // soft-deleted and must not resurface as owned numbers.
+      where: { ...ownershipFilter, kind: "purchased", deletedAt: null },
       orderBy: { createdAt: "desc" },
       include: {
         userNumbers: true,
@@ -66,6 +98,7 @@ export class NumberPurchasedRepository {
         userId,
         kind: "purchased",
         status: { not: "released" },
+        deletedAt: null,
       },
     });
   }
@@ -160,55 +193,6 @@ export class NumberPurchasedRepository {
         organizationId: ctx.organizationId ?? null,
         assignedDate: new Date(),
         status: "assigned",
-      },
-    });
-  }
-
-  async release(id: string): Promise<NumberPurchased> {
-    const existing = await this.prisma.numberPurchased.findUnique({
-      where: { id },
-    });
-
-    if (existing !== null && existing.status !== "assigned") {
-      throw new NotFoundException("Number not found");
-    }
-
-    const userNumber = await this.prisma.userNumber.findUnique({
-      where: {
-        userId_numberId_enabled: {
-          userId: existing!.userId!,
-          numberId: existing!.id,
-          enabled: true,
-        },
-      },
-    });
-
-    if (userNumber === null) {
-      throw new NotFoundException("User number not found");
-    }
-
-    await this.prisma.userNumber.update({
-      where: {
-        userId_numberId_enabled: {
-          userId: existing!.userId!,
-          numberId: existing!.id,
-          enabled: true,
-        },
-      },
-      data: {
-        enabled: false,
-      },
-    });
-
-    return this.prisma.numberPurchased.update({
-      where: {
-        id,
-      },
-      data: {
-        userId: null,
-        organizationId: null,
-        status: "released",
-        assignedDate: null,
       },
     });
   }
@@ -320,6 +304,63 @@ export class NumberPurchasedRepository {
         data: {
           userId: target.userId,
           organizationId: target.organizationId,
+          inboundMode: "ringee_default",
+          inboundSipDeviceId: null,
+          allowedOutboundUserIds: [],
+        },
+      });
+    });
+  }
+
+  /**
+   * Permanently retires a number: the subscription that paid for it is gone and
+   * the DID has been (or is about to be) released at the carrier, so every
+   * reference that could still route a call through it is cleared and the row
+   * is soft-deleted. Historical `Call.callerIdId` links are deliberately kept
+   * so past calls stay attributable — the row survives, hidden.
+   */
+  async releasePermanently(numberId: string): Promise<NumberPurchased> {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.sipDevice.updateMany({
+        where: { assignedPhoneNumberId: numberId },
+        data: { assignedPhoneNumberId: null, callerId: null },
+      });
+      await tx.campaign.updateMany({
+        where: { numberPurchasedId: numberId },
+        data: { numberPurchasedId: null },
+      });
+      await tx.campaign.updateMany({
+        where: { callerIdId: numberId },
+        data: { callerIdId: null },
+      });
+
+      const rotationCampaigns = await tx.campaign.findMany({
+        where: { rotationNumberIds: { has: numberId } },
+        select: { id: true, rotationNumberIds: true },
+      });
+      for (const campaign of rotationCampaigns) {
+        await tx.campaign.update({
+          where: { id: campaign.id },
+          data: {
+            rotationNumberIds: {
+              set: campaign.rotationNumberIds.filter((id) => id !== numberId),
+            },
+          },
+        });
+      }
+
+      await tx.callerIdPoolMember.deleteMany({ where: { numberId } });
+      await tx.userNumber.deleteMany({ where: { numberId } });
+
+      return tx.numberPurchased.update({
+        where: { id: numberId },
+        data: {
+          userId: null,
+          organizationId: null,
+          status: "released",
+          assignedDate: null,
+          deletedAt: new Date(),
+          active: false,
           inboundMode: "ringee_default",
           inboundSipDeviceId: null,
           allowedOutboundUserIds: [],
