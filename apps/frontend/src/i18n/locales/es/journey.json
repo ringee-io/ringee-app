@@ -19,24 +19,65 @@
     "body": "Tu progreso está a salvo y se sigue registrando. Las recompensas volverán a estar disponibles pronto."
   },
   "window": {
-    "label": "Medido durante los últimos {days} días ({timeZone})"
+    "label": "Medido en los últimos {days} días ({timeZone})"
   },
   "status": {
-    "achieved": "Completada",
-    "in_progress": "En progreso",
-    "locked": "Bloqueada",
-    "lockedHint": "Completa primero la etapa anterior"
+    "achieved": "Completado",
+    "in_progress": "En curso",
+    "available": "Listo para empezar",
+    "locked": "Bloqueado",
+    "blockedBy": "Completa antes {nodes}",
+    "optional": "Opcional",
+    "optionalHint": "Un paso extra. No lo necesitas para terminar esta vía."
   },
   "progress": {
     "label": "{completed} de {total} completados",
-    "stageProgress": "Progreso de la etapa: {percent}%",
+    "nodeProgress": "Progreso del paso: {percent}%",
     "requirementProgress": "{current} de {target}"
   },
-  "current": {
-    "heading": "Aquí estás",
-    "nextHeading": "Lo siguiente",
-    "completeHeading": "Has completado el Journey",
-    "completeBody": "Todas las etapas están hechas. Tu workspace está usando Ringee prácticamente al máximo: vigila las tasas de contacto y el costo desde el dashboard."
+  "completion": {
+    "heading": "Progreso del Journey",
+    "explainer": "Hay más de una forma de terminar. Completa Llamadas esenciales y luego cualquier {count} vías que encajen con cómo vendes de verdad: las que dejes de lado no son progreso perdido, simplemente no son tu camino.",
+    "coreHeading": "Llamadas esenciales",
+    "electiveHeading": "Tus vías elegidas",
+    "electiveProgress": "{completed} de {required} vías",
+    "electiveRemaining": "Completa {count} vía más para terminar",
+    "electiveRemainingPlural": "Completa {count} vías más para terminar",
+    "done": "Journey completado",
+    "doneBody": "Llamadas esenciales más {count} vías. Tu workspace está aprovechando Ringee casi al máximo: vigila las tasas de contacto y el coste desde el panel.",
+    "trackComplete": "Vía completada"
+  },
+  "track": {
+    "required": "Obligatoria",
+    "elective": "Opcional",
+    "core": {
+      "name": "Llamadas esenciales",
+      "description": "Prepara la cuenta, crea un ritmo de llamadas y registra lo que pasó. Todo lo demás se apoya en esto."
+    },
+    "team": {
+      "name": "Equipo",
+      "description": "Consigue que más de una persona llame de verdad, no solo que esté invitada."
+    },
+    "campaigns": {
+      "name": "Campañas",
+      "description": "Convierte el marcado improvisado en un proceso repetible."
+    },
+    "integrations": {
+      "name": "Integraciones",
+      "description": "Haz que llamadas, reuniones y resultados lleguen al resto de tus herramientas, con las que ya usas."
+    },
+    "ai": {
+      "name": "IA",
+      "description": "Deja que la IA lea tus llamadas y las convierta en algo accionable."
+    },
+    "automation": {
+      "name": "Automatización",
+      "description": "Delega el trabajo repetitivo en Ringee, de la forma que mejor le venga a tu operación."
+    },
+    "inbound": {
+      "name": "Entrantes",
+      "description": "Atiende las llamadas que te llegan. Totalmente opcional: nada más en el Journey depende de esto."
+    }
   },
   "nextAction": {
     "heading": "Haz esto ahora",
@@ -49,53 +90,81 @@
     "claimed": "Canjeado",
     "pending": "En revisión",
     "possible": "Journey completo",
+    "none": "Sin recompensa en crédito",
+    "noneHint": "Este paso cuenta para tu vía, pero no lleva crédito.",
     "claim": "Canjear {amount}",
     "claimAll": "Canjear todo ({amount})",
     "claiming": "Canjeando…",
     "claimedOn": "Canjeado el {date}",
-    "lockedLabel": "{amount} al completar esta etapa",
-    "unavailable": "No disponible por ahora",
+    "legacyClaimed": "Ya canjeado",
+    "legacyClaimedBody": "Canjeaste esto en el programa anterior del Journey, así que no se pagará otra vez.",
+    "lockedLabel": "{amount} al completar este paso",
+    "unavailable": "No disponible ahora mismo",
     "unavailableReason": {
-      "disabled": "Las recompensas están en pausa por ahora. Tu progreso se sigue registrando.",
-      "budget": "Las recompensas no están disponibles temporalmente. Vuelve más tarde.",
-      "holdout": "Tu progreso se registra, pero este workspace no forma parte del programa de crédito.",
-      "paused": "Las recompensas están en pausa por ahora. Tu progreso se sigue registrando."
+      "disabled": "Las recompensas están en pausa por el momento. Tu progreso se sigue registrando.",
+      "budget": "Las recompensas no están disponibles temporalmente. Vuelve a intentarlo más tarde.",
+      "holdout": "Tu progreso se registra, pero este workspace no participa en el programa de crédito.",
+      "paused": "Las recompensas están en pausa por el momento. Tu progreso se sigue registrando."
     },
-    "noReward": "Sin crédito en este paso"
+    "noReward": "Sin crédito para este paso"
   },
   "claim": {
     "claimed": "{amount} añadidos al crédito de tu workspace.",
-    "already_claimed": "Este crédito ya se había canjeado.",
-    "pending_review": "Estamos revisando este caso. Verás el crédito en cuanto se apruebe, normalmente en menos de un día.",
+    "already_claimed": "Este crédito ya se canjeó.",
+    "already_claimed_legacy": "Canjeaste esto en el programa anterior del Journey. No se pagará dos veces.",
+    "pending_review": "Lo estamos revisando. Verás el crédito en cuanto se apruebe, normalmente en un día.",
     "needs_more_activity": "Todavía no pudimos confirmar este paso. Sigue llamando e inténtalo de nuevo en un rato.",
     "not_eligible": "Este paso aún no está completo.",
     "rewards_unavailable": "Las recompensas no están disponibles ahora mismo. Tu progreso está a salvo.",
     "workspace_cap_reached": "Este workspace alcanzó el límite de crédito del programa.",
-    "program_paused": "El Journey está en pausa en este momento.",
-    "rate_limited": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
+    "program_paused": "El Journey está en pausa ahora mismo.",
+    "rate_limited": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
     "failed": "Algo salió mal. Inténtalo de nuevo."
   },
   "celebration": {
-    "heading": "Etapa completada",
-    "body": "Has desbloqueado {stage}.",
+    "heading": "Paso completado",
+    "body": "Has desbloqueado {node}.",
     "dismiss": "Continuar"
+  },
+  "drawer": {
+    "why": "Por qué importa",
+    "requirements": "Requisitos",
+    "dependsOn": "Depende de",
+    "unlocks": "Desbloquea",
+    "tip": "Consejo",
+    "close": "Cerrar",
+    "openNode": "Abrir {node}",
+    "noUnlocks": "Nada depende de este paso.",
+    "showMore": "{count} más"
+  },
+  "graph": {
+    "heading": "Tu mapa",
+    "hint": "Haz clic en una ruta para ver todos sus pasos y lo que paga.",
+    "trackNodes": "{completed} de {total} pasos",
+    "jumpToTrack": "Ir a {track}"
+  },
+  "hub": {
+    "personal": "Tu espacio",
+    "organization": "Tu organización",
+    "complete": "{percent}% completado",
+    "aria": "{name} — {percent}% del recorrido completado. Todas las rutas parten de aquí."
   },
   "capabilities": {
     "heading": "Lo que estás usando",
     "hint": "Una capacidad cuenta cuando ha producido resultados reales, no cuando se activa.",
     "used": "En uso",
-    "unused": "Aún sin usar",
+    "unused": "Sin usar todavía",
     "campaigns": "Campañas",
     "crm": "Sincronización con CRM",
-    "custom_integration": "Integración personalizada",
-    "ai": "Insights con IA",
+    "custom_integration": "Integración propia",
+    "ai": "Análisis con IA",
     "mcp": "Agentes (MCP)",
     "calendar": "Calendario",
-    "caller_id_rotation": "Rotación de caller ID",
-    "sip": "Teléfonos de escritorio",
-    "sdk": "Dialer SDK",
+    "caller_id_rotation": "Rotación de identificadores",
+    "sip": "Teléfonos de mesa",
+    "sdk": "SDK del marcador",
     "extension": "Extensión de navegador",
-    "call_sessions": "Sesiones de llamada",
+    "call_sessions": "Sesiones de llamadas",
     "enrichment": "Enriquecimiento de leads"
   },
   "counts": {
@@ -104,66 +173,160 @@
     "doesNotCount": "Activar un ajuste, conectar una cuenta o invitar a alguien no cuenta por sí solo.",
     "workspaceScope": "El Journey pertenece a todo el workspace, no a una sola persona."
   },
-  "stage": {
-    "foundation": {
-      "name": "Base",
-      "promise": "Prepara todo y ten tu primera conversación real.",
-      "value": "Todo lo demás en Ringee se construye sobre un número que funciona y una llamada contestada."
+  "node": {
+    "core": {
+      "setup": {
+        "name": "Listo para marcar",
+        "promise": "Verifica tu teléfono y consigue un número desde el que llamar.",
+        "value": "Todo lo demás en Ringee se apoya en un número que funciona y una cuenta verificada."
+      },
+      "first_call": {
+        "name": "Primera conversación",
+        "promise": "Ten tu primera llamada contestada.",
+        "value": "Una llamada contestada valida toda tu configuración de principio a fin: audio, enrutado y facturación."
+      },
+      "rhythm": {
+        "name": "Ritmo de llamadas",
+        "promise": "Convierte las llamadas en rutina en lugar de una ráfaga.",
+        "value": "Repartir las llamadas entre varios días y contactos es lo que hace que el outbound sea predecible y no cuestión de suerte."
+      },
+      "discipline": {
+        "name": "Disciplina de resultados",
+        "promise": "Registra qué pasó en las llamadas que importaron.",
+        "value": "Los resultados son lo que convierte una lista de llamadas en un pipeline que puedes prever y entrenar."
+      },
+      "scale": {
+        "name": "Volumen sostenido",
+        "promise": "Mantén el ritmo durante semanas, no días.",
+        "value": "El volumen sostenido es la diferencia entre una buena semana y una operación que aguanta."
+      }
     },
-    "consistent_caller": {
-      "name": "Llamadas constantes",
-      "promise": "Convierte las llamadas en rutina en lugar de una ráfaga.",
-      "value": "Repartir las llamadas entre varios días y contactos es lo que hace que el outbound sea predecible y no cuestión de suerte."
+    "team": {
+      "joined": {
+        "name": "Equipo dentro",
+        "promise": "Suma compañeros al workspace.",
+        "value": "Los números compartidos, las analíticas y el coaching empiezan a rendir cuando hay más de una persona."
+      },
+      "calling": {
+        "name": "Equipo llamando",
+        "promise": "Consigue que más de una persona esté de verdad al teléfono.",
+        "value": "Un equipo que llama junto es donde los identificadores compartidos y las analíticas comparativas empiezan a importar."
+      },
+      "coverage": {
+        "name": "Cobertura",
+        "promise": "Mantén a varias personas llamando, semana tras semana.",
+        "value": "La cobertura es lo que mantiene el pipeline en marcha cuando alguien está de vacaciones o tiene una mala semana."
+      }
     },
-    "connected_operator": {
-      "name": "Operación conectada",
-      "promise": "Conecta tus llamadas con el resto de tu stack.",
-      "value": "Cuando los resultados llegan solos a tu CRM y a tu calendario, no se pierde nada y dejas de reescribir datos."
+    "campaigns": {
+      "first": {
+        "name": "Primera campaña",
+        "promise": "Ejecuta una campaña de outbound de principio a fin.",
+        "value": "Las campañas convierten el marcado improvisado en un proceso repetible con leads, intentos y resultados medibles."
+      },
+      "pipeline": {
+        "name": "Leads bien trabajados",
+        "promise": "Contacta con los leads de tu lista y registra qué pasó.",
+        "value": "Una campaña que no puedes medir es una lista de llamadas. Los leads trabajados y los resultados registrados la convierten en un proceso."
+      },
+      "repeatable": {
+        "name": "Máquina repetible",
+        "promise": "Ejecútala más de una vez.",
+        "value": "La segunda campaña es donde el proceso se demuestra y donde los datos de la primera empiezan a rendir."
+      }
     },
-    "ai_closer": {
-      "name": "Cierre con IA",
-      "promise": "Deja que la IA lea tus llamadas y te diga qué funciona.",
-      "value": "Las transcripciones y el análisis convierten cada llamada en práctica para la siguiente."
+    "integrations": {
+      "crm": {
+        "name": "Sincronización con CRM",
+        "promise": "Haz que tus llamadas lleguen solas a tu CRM.",
+        "value": "Cuando los resultados llegan al CRM sin que nadie los reescriba, no se pierde nada y el pipeline refleja la realidad."
+      },
+      "calendar": {
+        "name": "Calendario",
+        "promise": "Envía las reuniones agendadas a un calendario real.",
+        "value": "Una reunión que no está en un calendario es una reunión que no ocurre."
+      },
+      "enrichment": {
+        "name": "Enriquecimiento de leads",
+        "promise": "Convierte búsquedas de prospectos en contactos a los que llamar.",
+        "value": "El enriquecimiento mantiene llena la parte alta de tu lista sin que nadie la construya a mano."
+      },
+      "custom": {
+        "name": "Integración propia",
+        "promise": "Envía eventos de llamada a tus propios sistemas.",
+        "value": "Tu stack no es el de todos. Los webhooks son la forma de encajar Ringee en el que ya tienes."
+      },
+      "connected": {
+        "name": "Operación conectada",
+        "promise": "Haz que los datos fluyan con volumen real.",
+        "value": "Cuenta cualquier combinación de CRM, calendario e integraciones propias: lo que importa es que los datos se muevan."
+      }
     },
-    "agentic_operator": {
-      "name": "Operación con agentes",
-      "promise": "Delega el trabajo repetitivo a un agente.",
-      "value": "Los agentes preparan las llamadas y registran los resultados, para que tu tiempo vaya a las conversaciones que solo tú puedes tener."
+    "ai": {
+      "transcription": {
+        "name": "Llamadas transcritas",
+        "promise": "Convierte tus llamadas en texto que la IA pueda leer.",
+        "value": "Las transcripciones son la materia prima de todo lo que la IA puede contarte sobre tus llamadas."
+      },
+      "insights": {
+        "name": "Análisis con IA",
+        "promise": "Deja que la IA produzca algo accionable.",
+        "value": "Los patrones de objeciones y las recomendaciones de seguimiento convierten cada llamada en práctica para la siguiente."
+      },
+      "team_adoption": {
+        "name": "IA en todo el equipo",
+        "promise": "Pon la IA a trabajar para más de un comercial.",
+        "value": "Los patrones son mucho más útiles a nivel de equipo que de una sola persona: de ahí sale el coaching."
+      }
     },
-    "workspace_ready": {
-      "name": "Workspace listo",
-      "promise": "Pon el workspace a llamar.",
-      "value": "Un número verificado y una llamada contestada demuestran toda la configuración de principio a fin."
+    "automation": {
+      "callbacks": {
+        "name": "Rellamadas trabajadas",
+        "promise": "Devuelve de verdad las llamadas que prometiste.",
+        "value": "Agendar una rellamada es gratis. Trabajarla es donde están los negocios."
+      },
+      "rotation": {
+        "name": "Rotación de identificadores",
+        "promise": "Deja que Ringee elija desde qué número llamar.",
+        "value": "La presencia local y los números sanos suben la tasa de respuesta sin que nadie gestione una hoja de cálculo."
+      },
+      "sessions": {
+        "name": "Sesiones de llamadas",
+        "promise": "Entrega una cola de marcado con un solo enlace.",
+        "value": "Las sesiones permiten que un colaborador empiece a llamar en minutos, sin crear cuenta."
+      },
+      "agents": {
+        "name": "Llamadas con agentes",
+        "promise": "Deja que un agente prepare las llamadas y registre los resultados.",
+        "value": "Los agentes se llevan el trabajo mecánico para que tu tiempo vaya a las conversaciones que solo tú puedes tener."
+      },
+      "breadth": {
+        "name": "Operación multicapacidad",
+        "promise": "Pon a funcionar tres capacidades avanzadas de verdad.",
+        "value": "Cuáles tres lo decides tú: la amplitud es lo que mantiene bajo control la tasa de respuesta y el coste al escalar."
+      }
     },
-    "team_activated": {
-      "name": "Equipo activado",
-      "promise": "Consigue que más de una persona llame de verdad.",
-      "value": "Un equipo que llama junto es donde los números compartidos, las analíticas y el coaching empiezan a rendir."
-    },
-    "campaign_operator": {
-      "name": "Operación de campañas",
-      "promise": "Ejecuta una campaña outbound real de principio a fin.",
-      "value": "Las campañas convierten el marcado improvisado en un proceso repetible con leads, intentos y resultados medibles."
-    },
-    "connected_sales_operation": {
-      "name": "Operación de ventas conectada",
-      "promise": "Haz que los datos fluyan en ambos sentidos.",
-      "value": "Cuando llamadas, reuniones y registros del CRM se mantienen sincronizados, tu pipeline refleja la realidad sin que nadie lo mantenga."
-    },
-    "ai_sales_team": {
-      "name": "Equipo de ventas con IA",
-      "promise": "Pon la IA a trabajar en todo el equipo.",
-      "value": "Los patrones de objeciones y las recomendaciones de seguimiento son mucho más útiles a nivel de equipo que para una sola persona."
-    },
-    "advanced_operation": {
-      "name": "Operación avanzada",
-      "promise": "Opera con madurez y varias capacidades.",
-      "value": "El volumen sostenido en varias capacidades es lo que mantiene bajo control la tasa de contacto y el costo a escala."
+    "inbound": {
+      "routing": {
+        "name": "Entrantes atendidas",
+        "promise": "Enruta las llamadas entrantes a donde alguien las conteste.",
+        "value": "Un número al que la gente puede devolver la llamada vale más que uno que solo marca hacia fuera."
+      },
+      "desk_phones": {
+        "name": "Teléfonos de mesa",
+        "promise": "Atiende llamadas entrantes en terminales reales.",
+        "value": "Los teléfonos de mesa son la forma de que una oficina conteste sin vivir dentro de una pestaña del navegador."
+      },
+      "recovery": {
+        "name": "Perdidas recuperadas",
+        "promise": "Devuelve la llamada a quien no pudiste atender.",
+        "value": "Una llamada perdida que devuelves en un día es un lead. La que nunca devuelves es el lead de la competencia."
+      }
     }
   },
   "requirement": {
     "verified_phone": "Verifica tu número de teléfono",
-    "dialable_number": "Ten un número o un caller ID verificado",
+    "dialable_number": "Ten un número o identificador verificado",
     "first_connected_call": "Ten tu primera llamada contestada",
     "connected_calls": "Llamadas contestadas",
     "active_days": "Días con llamadas",
@@ -172,11 +335,19 @@
     "connected_minutes": "Minutos de conversación",
     "meaningful_conversations": "Conversaciones reales",
     "outcomes_logged": "Llamadas con resultado registrado",
-    "integration_successes": "Sincronizaciones exitosas",
+    "integration_successes": "Sincronizaciones correctas",
+    "crm_synced_calls": "Llamadas sincronizadas con tu CRM",
+    "meetings_synced": "Reuniones en tu calendario",
+    "enrichment_imports": "Leads importados como contactos",
+    "custom_deliveries": "Eventos entregados a tus sistemas",
     "transcriptions": "Llamadas transcritas",
-    "ai_results": "Resultados de IA producidos",
+    "ai_results": "Resultados producidos por IA",
     "ai_members": "Miembros cubiertos por la IA",
     "mcp_calls": "Llamadas hechas por un agente",
+    "mcp_sessions": "Sesiones creadas por un agente",
+    "callbacks_worked": "Rellamadas realmente trabajadas",
+    "rotation_caller_ids": "Identificadores usados en rotación",
+    "call_session_calls": "Llamadas desde una sesión compartida",
     "capabilities": "Capacidades avanzadas en uso",
     "accepted_members": "Miembros que se unieron",
     "active_members": "Miembros que llamaron",
@@ -184,7 +355,10 @@
     "campaign_destinations": "Leads distintos contactados",
     "campaign_days": "Días trabajando la campaña",
     "worked_leads": "Leads realmente contactados",
-    "repeat_campaigns": "Campañas realmente ejecutadas"
+    "repeat_campaigns": "Campañas ejecutadas de verdad",
+    "inbound_answered": "Llamadas entrantes atendidas",
+    "inbound_sip_calls": "Entrantes en teléfono de mesa",
+    "inbound_recovered": "Perdidas devueltas en 48 h"
   },
   "action": {
     "verify_phone": "Verifica tu teléfono",
@@ -192,23 +366,59 @@
     "make_call": "Haz una llamada",
     "call_more_contacts": "Llama a más contactos",
     "import_contacts": "Agrega contactos",
-    "log_outcomes": "Registra resultados de llamadas",
+    "log_outcomes": "Registra resultados",
     "invite_team": "Invita a tu equipo",
     "create_campaign": "Crea una campaña",
     "work_campaign": "Trabaja tu campaña",
     "connect_crm": "Conecta tu CRM",
     "connect_calendar": "Conecta tu calendario",
-    "connect_custom_integration": "Configura una integración personalizada",
+    "connect_custom_integration": "Configura una integración propia",
+    "enrich_leads": "Busca e importa leads",
     "enable_transcription": "Activa la transcripción",
-    "enable_ai_pipeline": "Activa un pipeline de IA",
+    "enable_ai_pipeline": "Activa un flujo de IA",
     "connect_mcp": "Conecta un agente",
+    "work_callbacks": "Trabaja tus rellamadas",
+    "enable_rotation": "Configura la rotación",
+    "create_call_session": "Crea una sesión de llamadas",
+    "configure_inbound": "Configura las entrantes",
+    "setup_desk_phone": "Añade un teléfono de mesa",
     "explore_capabilities": "Explora capacidades"
   },
+  "tip": {
+    "core": {
+      "rhythm": "Las llamadas cuentan cuando son contestadas y duran lo suficiente para ser una conversación; los errores de marcado no.",
+      "discipline": "Puedes registrar el resultado desde la pantalla de llamada o más tarde desde Actividades."
+    },
+    "integrations": {
+      "connected": "Cuenta cualquier combinación: sincronizaciones de CRM, reuniones de calendario y entregas por webhook suman."
+    },
+    "automation": {
+      "breadth": "Cuentan tres capacidades cualesquiera. Elige las que encajen con cómo vendes: no hay un conjunto obligatorio."
+    },
+    "inbound": {
+      "routing": "Las entrantes son totalmente opcionales. Nada más en el Journey espera por esto."
+    },
+    "ai": {
+      "transcription": "La transcripción se configura por workspace y se aplica a las llamadas grabadas desde ese momento."
+    }
+  },
   "a11y": {
-    "stageList": "Etapas del journey",
-    "requirementList": "Requisitos de esta etapa",
+    "graph": "Mapa del Journey",
+    "trackList": "Vías del Journey",
+    "nodeList": "Pasos de {track}",
+    "requirementList": "Requisitos de este paso",
     "claimResult": "Resultado de la recompensa",
     "done": "Hecho",
-    "notDone": "Todavía no"
+    "notDone": "Aún no",
+    "selected": "Seleccionado",
+    "nodeSummary": "{name}, vía {track}, {status}",
+    "keyboardHint": "Usa las flechas para moverte entre las rutas del mapa.",
+    "threadSummary": "{name}, {status}, {done} de {total} pasos"
+  },
+  "thread": {
+    "steps": "Lo que hace falta",
+    "available": "Quedan {amount} por conseguir en esta ruta",
+    "claimableNow": "{amount} listos para canjear ahora",
+    "electiveHint": "Esta ruta es una elección, no un hueco. Saltártela no te resta nada: completa Llamadas esenciales y las rutas que encajen con tu forma de vender."
   }
 }

@@ -181,6 +181,24 @@
   }
 }
 
+/*
+ * Journey graph — the recommended node's idle glow.
+ *
+ * Only ever applied to ONE node at a time (the server's recommendation). A
+ * skill tree where everything pulses reads as a slot machine, so this is
+ * deliberately slow and shallow: a 3s cycle at 6% opacity, riding the existing
+ * focus ring rather than adding a second halo.
+ */
+@keyframes journey-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgb(from currentColor r g b / 0.06);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgb(from currentColor r g b / 0);
+  }
+}
+
 @keyframes ringee-thinking-shine {
   0% {
     background-position: 200% 0;

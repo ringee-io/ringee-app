@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Post } from "@nestjs/common";
-import { IsIn, IsString, MaxLength } from "class-validator";
+import { IsIn, IsOptional, IsString, MaxLength } from "class-validator";
 import {
   CurrentUser,
   OrgAdminOnly,
@@ -16,20 +16,36 @@ interface CurrentUserData {
 class ClaimRewardDto {
   @IsString()
   @MaxLength(64)
-  stageId!: string;
+  nodeId!: string;
 }
 
 class CelebrateDto {
   @IsString()
   @MaxLength(64)
-  stageId!: string;
+  nodeId!: string;
 }
 
 class JourneyEventDto {
-  // Only the two client-originated events are accepted here; everything else is
-  // emitted server-side where it can be trusted.
-  @IsIn(["journey_started", "journey_next_action_clicked"])
-  name!: "journey_started" | "journey_next_action_clicked";
+  // Only the three client-originated events are accepted here; everything else
+  // is emitted server-side where it can be trusted.
+  @IsIn([
+    "journey_started",
+    "journey_next_action_clicked",
+    "journey_node_viewed",
+  ])
+  name!:
+    | "journey_started"
+    | "journey_next_action_clicked"
+    | "journey_node_viewed";
+
+  /**
+   * Which node was opened. Validated against the server-side program before it
+   * is recorded, so an arbitrary string cannot enter the analytics stream.
+   */
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  nodeId?: string;
 }
 
 /**
@@ -55,9 +71,9 @@ export class JourneyController {
   }
 
   /**
-   * Redeems one stage reward. `stageId` is the only client input, and it is
-   * used solely to look up a stage in the server-side program — amount,
-   * eligibility, risk and status are all re-derived.
+   * Redeems one node reward. `nodeId` is the only client input, and it is used
+   * solely to look up a node in the server-side program — amount, eligibility,
+   * dependency satisfaction, risk and status are all re-derived.
    */
   @Post("rewards/claim")
   async claimReward(
@@ -66,21 +82,22 @@ export class JourneyController {
   ) {
     return this.journey.claimReward(
       createOwnershipContext(user),
-      body.stageId,
+      body.nodeId,
       user.id,
     );
   }
 
   /**
-   * Redeems every eligible stage in one server-driven pass, so the client never
-   * loops the single-claim endpoint.
+   * Redeems every eligible node in one server-driven pass, so the client never
+   * loops the single-claim endpoint. The batch is charged one unit of rate
+   * limit however many nodes it settles.
    */
   @Post("rewards/claim-all")
   async claimAll(@CurrentUser() user: CurrentUserData) {
     return this.journey.claimAll(createOwnershipContext(user), user.id);
   }
 
-  /** Records that a stage celebration has been shown, so it never replays. */
+  /** Records that a node celebration has been shown, so it never replays. */
   @Post("celebrate")
   async celebrate(
     @CurrentUser() user: CurrentUserData,
@@ -88,15 +105,16 @@ export class JourneyController {
   ) {
     await this.journey.markCelebrated(
       createOwnershipContext(user),
-      body.stageId,
+      body.nodeId,
     );
     return { ok: true };
   }
 
   /**
-   * The two events only the client can observe. The name is validated against
-   * an allowlist and no client-supplied properties are forwarded — the service
-   * attaches the workspace context itself.
+   * The events only the client can observe. The name is validated against an
+   * allowlist, the node id is validated against the server-side program, and no
+   * other client-supplied property is forwarded — the service attaches the
+   * workspace context itself.
    */
   @Post("events")
   async recordEvent(
@@ -107,6 +125,7 @@ export class JourneyController {
       createOwnershipContext(user),
       user.id,
       body.name,
+      body.nodeId,
     );
     return { ok: true };
   }

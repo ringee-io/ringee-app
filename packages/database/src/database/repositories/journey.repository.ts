@@ -52,6 +52,10 @@ export interface JourneyRawMetrics {
   callbacksWorked: number;
   meetingsSynced: number;
 
+  inboundCallsAnswered: number;
+  inboundSipDeviceCalls: number;
+  inboundMissedFollowedUp: number;
+
   crmSyncedCalls: number;
   customIntegrationDeliveries: number;
   enrichmentImports: number;
@@ -154,6 +158,60 @@ function attemptedCallSql(): Prisma.Sql {
     AND c."status" <> 'pending'`;
 }
 
+/**
+ * The external party of an INBOUND call, normalised.
+ *
+ * Inbound inverts the geometry: `toNumber` is one of our own DIDs and
+ * `fromNumber` is the caller. Reusing `DESTINATION_SQL` here would normalise
+ * our own number and make every inbound call look self-dialled.
+ */
+const ORIGIN_SQL = Prisma.sql`
+  CASE
+    WHEN length(regexp_replace(c."fromNumber", '[^0-9]', '', 'g')) >= 6
+    THEN '+' || ltrim(regexp_replace(c."fromNumber", '[^0-9]', '', 'g'), '0')
+    ELSE NULL
+  END`;
+
+/**
+ * The answered-inbound predicate — the mirror of `connectedCallSql`.
+ *
+ * Same evidence standard as outbound, clause for clause: the leg completed, a
+ * provider corroborated it, it lasted long enough to be a conversation, and the
+ * user did not label it a machine pickup. The only differences are the
+ * direction and that `answeredAt` is what separates a handled inbound call from
+ * a missed one.
+ */
+function answeredInboundSql(minSeconds: number): Prisma.Sql {
+  return Prisma.sql`
+    c."startedAt" IS NOT NULL
+    AND c."direction" = 'inbound'
+    AND c."status" IN ('completed', 'recording', 'answered')
+    AND c."answeredAt" IS NOT NULL
+    AND c."endedAt" IS NOT NULL
+    AND c."providerCallId" IS NOT NULL
+    AND COALESCE(c."durationSeconds", 0) >= ${minSeconds}
+    AND (
+      c."outcome" IS NULL
+      OR c."outcome"::text NOT IN ('no_answer', 'voicemail', 'wrong_number')
+    )`;
+}
+
+/**
+ * A missed inbound call: it arrived and was never answered.
+ *
+ * `providerCallId` is still required — an un-corroborated row is not evidence
+ * that anyone actually called. `status = 'pending'` is excluded because those
+ * rows are in-flight, not missed.
+ */
+function missedInboundSql(): Prisma.Sql {
+  return Prisma.sql`
+    c."startedAt" IS NOT NULL
+    AND c."direction" = 'inbound'
+    AND c."answeredAt" IS NULL
+    AND c."providerCallId" IS NOT NULL
+    AND c."status" <> 'pending'`;
+}
+
 @Injectable()
 export class JourneyRepository {
   private readonly logger = new Logger(JourneyRepository.name);
@@ -176,6 +234,7 @@ export class JourneyRepository {
       calls,
       campaigns,
       followThrough,
+      inbound,
       integrations,
       intelligence,
       channels,
@@ -184,6 +243,7 @@ export class JourneyRepository {
       this.getCallMetrics(ctx, options),
       this.getCampaignMetrics(ctx, options),
       this.getFollowThrough(ctx, options),
+      this.getInboundMetrics(ctx, options),
       this.getIntegrationMetrics(ctx, options),
       this.getIntelligenceMetrics(ctx, options),
       this.getChannelMetrics(ctx, options),
@@ -199,6 +259,7 @@ export class JourneyRepository {
       ...calls,
       ...campaigns,
       ...followThrough,
+      ...inbound,
       ...integrations,
       ...intelligence,
       ...channels,
@@ -517,6 +578,114 @@ export class JourneyRepository {
     `);
 
     return this.readRow(rows[0], ["callbacksWorked", "meetingsSynced"]);
+  }
+
+  // ── Inbound ────────────────────────────────────────────────────────────────
+
+  /**
+   * Calls arriving, not leaving.
+   *
+   * Three metrics, all held to the same standard as the outbound ones: a
+   * configured inbound route proves nothing, an answered inbound call does.
+   *
+   * `inboundMissedFollowedUp` is the interesting one. It counts a missed
+   * inbound call only when someone actually called that person back and got
+   * through, within 48 hours. The matching is deliberately **one-to-one**:
+   * `DISTINCT ON (missed.id)` picks the earliest eligible callback per missed
+   * call, and the `NOT IN` on already-consumed callbacks stops a single return
+   * call from redeeming a whole afternoon of missed ones. Without that, ten
+   * missed calls from the same number plus one callback would score ten.
+   */
+  private async getInboundMetrics(
+    ctx: OwnershipContext,
+    options: JourneyMetricsOptions,
+  ): Promise<
+    Pick<
+      JourneyRawMetrics,
+      | "inboundCallsAnswered"
+      | "inboundSipDeviceCalls"
+      | "inboundMissedFollowedUp"
+    >
+  > {
+    const rows = await this.prisma.$queryRaw<
+      Array<Record<string, number | bigint | null>>
+    >(Prisma.sql`
+      WITH owned AS (${this.ownedNumbersSql(ctx)}),
+      inbound_base AS (
+        SELECT c.*, ${ORIGIN_SQL} AS origin
+        FROM "Call" c
+        WHERE ${this.ownerSql(ctx)}
+          AND c."startedAt" BETWEEN ${options.start} AND ${options.end}
+          AND c."direction" = 'inbound'
+      ),
+      -- External callers only: a call from one of our own numbers to another
+      -- of our own numbers is a loop test, and configured QA numbers never
+      -- count on any metric.
+      inbound_external AS (
+        SELECT b.* FROM inbound_base b
+        WHERE b.origin IS NOT NULL
+          AND b.origin NOT IN (SELECT num FROM owned)
+          AND b.origin NOT IN (${this.testDestinationsSql(options.testDestinations)})
+      ),
+      answered_inbound AS (
+        SELECT e.* FROM inbound_external e
+        JOIN "Call" c ON c."id" = e."id"
+        WHERE ${answeredInboundSql(options.minConnectedSeconds)}
+      ),
+      missed_inbound AS (
+        SELECT e.* FROM inbound_external e
+        JOIN "Call" c ON c."id" = e."id"
+        WHERE ${missedInboundSql()}
+      ),
+      -- Outbound calls that genuinely connected, keyed by who was reached, so
+      -- a callback can be matched to the missed call it answers.
+      outbound_connected AS (
+        SELECT c."id", c."startedAt", ${DESTINATION_SQL} AS destination
+        FROM "Call" c
+        WHERE ${this.ownerSql(ctx)}
+          AND c."startedAt" BETWEEN ${options.start} AND ${options.end}
+          AND ${connectedCallSql(options.minConnectedSeconds)}
+      ),
+      -- Every (missed call, eligible callback) pair, earliest callback first.
+      candidate_pairs AS (
+        SELECT m."id" AS missed_id,
+               o."id" AS callback_id,
+               o."startedAt" AS callback_at
+        FROM missed_inbound m
+        JOIN outbound_connected o
+          ON o.destination = m.origin
+         AND o."startedAt" > m."startedAt"
+         AND o."startedAt" <= m."startedAt" + INTERVAL '48 hours'
+      ),
+      -- One callback may redeem at most one missed call, and each missed call
+      -- is redeemed at most once. Greedy by callback time, which is both stable
+      -- and the most conservative reading of "we called them back".
+      matched AS (
+        SELECT DISTINCT ON (missed_id) missed_id, callback_id
+        FROM candidate_pairs
+        ORDER BY missed_id, callback_at ASC
+      ),
+      deduped AS (
+        SELECT DISTINCT ON (callback_id) missed_id, callback_id
+        FROM matched
+        ORDER BY callback_id, missed_id
+      )
+      SELECT
+        (SELECT COUNT(*) FROM answered_inbound)                  AS "inboundCallsAnswered",
+        -- Deliberately NOT the generic sipDeviceCalls metric, which counts
+        -- outbound legs placed from a desk phone.
+        (
+          SELECT COUNT(*) FROM answered_inbound
+          WHERE "sipDeviceId" IS NOT NULL
+        )                                                        AS "inboundSipDeviceCalls",
+        (SELECT COUNT(*) FROM deduped)                           AS "inboundMissedFollowedUp"
+    `);
+
+    return this.readRow(rows[0], [
+      "inboundCallsAnswered",
+      "inboundSipDeviceCalls",
+      "inboundMissedFollowedUp",
+    ]);
   }
 
   // ── Integrations ───────────────────────────────────────────────────────────

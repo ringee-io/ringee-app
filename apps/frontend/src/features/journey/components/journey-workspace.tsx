@@ -1,14 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 import { useLocale } from 'next-intl';
 import { toast } from 'sonner';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useJourneyCopy } from '../lib/copy';
 import { formatCents } from '../lib/presentation';
+import { buildThreads, findThread } from '../lib/threads';
 import { JourneySummary } from './journey-summary';
-import { StageCard } from './stage-card';
-import { CapabilitiesPanel } from './capabilities-panel';
+import { JourneyGraph } from './journey-graph';
+import { NodeDrawer } from './node-drawer';
 import { StageCelebration } from './celebration';
 import type {
   JourneyClaimAllResult,
@@ -20,9 +22,10 @@ import type {
  * Ringee Journey.
  *
  * This component renders the server's model and does nothing else — there is no
- * threshold, no stage classification and no reward rule in this file. When a
- * claim resolves, the whole overview is refetched rather than patched locally,
- * so what the user sees is always what the backend actually recorded.
+ * threshold, no node classification, no dependency rule, no completion rule and
+ * no reward rule in this file. When a claim resolves, the whole overview is
+ * refetched rather than patched locally, so what the user sees is always what
+ * the backend actually recorded.
  *
  * Route access is enforced by the backend (`@OrgAdminOnly()` on every journey
  * route); the page's own admin check and the hidden nav entry are UX, not
@@ -32,9 +35,12 @@ export function JourneyWorkspace({ initial }: { initial: JourneyOverview }) {
   const { t } = useJourneyCopy();
   const locale = useLocale();
   const api = useApi();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   const [data, setData] = useState(initial);
-  const [claimingStage, setClaimingStage] = useState<string | null>(null);
+  const [claimingNode, setClaimingNode] = useState<string | null>(null);
   const [claimingAll, setClaimingAll] = useState(false);
   const [celebrating, setCelebrating] = useState<string | null>(null);
   // Announced politely so a screen reader hears the claim result without the
@@ -43,10 +49,67 @@ export function JourneyWorkspace({ initial }: { initial: JourneyOverview }) {
 
   useEffect(() => setData(initial), [initial]);
 
-  /** The earliest stage still owed a celebration. One at a time. */
+  /**
+   * The map's seven nodes: one per track. The program's steps live inside them
+   * — see `lib/threads.ts` for why, and for the rule that nothing there is
+   * decided client-side.
+   */
+  const threads = useMemo(() => buildThreads(data), [data]);
+
+  /**
+   * Drawer selection lives in the URL, so it survives a refresh, can be shared,
+   * and closes on Back. A step id still resolves — to the thread that contains
+   * it — so links minted before the map became thread-level keep working, and
+   * an id that is in neither is ignored rather than rendering an empty drawer.
+   */
+  const selectedId = searchParams.get('node');
+  const selectedThread = useMemo(
+    () => findThread(threads, selectedId),
+    [threads, selectedId]
+  );
+
+  const setSelectedNode = useCallback(
+    (nodeId: string | null) => {
+      const params = new URLSearchParams(searchParams.toString());
+      if (nodeId) params.set('node', nodeId);
+      else params.delete('node');
+      const query = params.toString();
+      // `scroll: false` keeps the graph where the user left it.
+      router.replace(query ? `${pathname}?${query}` : pathname, {
+        scroll: false
+      });
+    },
+    [router, pathname, searchParams]
+  );
+
+  /**
+   * Opening a thread is the map's engagement signal. Fired once per open.
+   *
+   * The event carries a *program* node id, because the backend validates it
+   * against the program before recording — a track id would simply be dropped.
+   * The step reported is the one the person actually came to look at: the first
+   * one in the thread that is not finished yet.
+   */
+  const lastViewed = useRef<string | null>(null);
+  useEffect(() => {
+    if (!selectedThread) return;
+    const step =
+      selectedThread.steps.find((s) => s.status !== 'achieved') ??
+      selectedThread.steps[0];
+    if (!step || lastViewed.current === step.id) return;
+    lastViewed.current = step.id;
+    api
+      .post('/journey/events', {
+        name: 'journey_node_viewed',
+        nodeId: step.id
+      })
+      .catch(() => undefined);
+  }, [api, selectedThread]);
+
+  /** The earliest node still owed a celebration. One at a time. */
   const pendingCelebration = useMemo(
-    () => data.stages.find((stage) => stage.celebrationPending) ?? null,
-    [data.stages]
+    () => data.nodes.find((node) => node.celebrationPending) ?? null,
+    [data.nodes]
   );
 
   useEffect(() => {
@@ -92,12 +155,12 @@ export function JourneyWorkspace({ initial }: { initial: JourneyOverview }) {
   );
 
   const claim = useCallback(
-    async (stageId: string) => {
-      setClaimingStage(stageId);
+    async (nodeId: string) => {
+      setClaimingNode(nodeId);
       try {
         const result = await api.post<JourneyClaimResult>(
           '/journey/rewards/claim',
-          { stageId }
+          { nodeId }
         );
         report(result);
         await refresh();
@@ -106,16 +169,16 @@ export function JourneyWorkspace({ initial }: { initial: JourneyOverview }) {
         setAnnouncement(message);
         toast.error(message);
       } finally {
-        setClaimingStage(null);
+        setClaimingNode(null);
       }
     },
     [api, report, refresh, t]
   );
 
   /**
-   * One request, not a loop. The backend walks the ladder in order with its own
-   * idempotency key per stage, so a partial failure cannot double-pay or leave
-   * a hole.
+   * One request, not a loop. The backend charges the rate limit once for the
+   * batch and walks the graph in dependency order with its own idempotency key
+   * per node, so a partial failure cannot double-pay or leave a hole.
    */
   const claimAll = useCallback(async () => {
     setClaimingAll(true);
@@ -130,6 +193,10 @@ export function JourneyWorkspace({ initial }: { initial: JourneyOverview }) {
         });
         setAnnouncement(message);
         toast.success(message);
+      } else if (result.retryAfterSeconds) {
+        const message = t('claim.rate_limited');
+        setAnnouncement(message);
+        toast.error(message);
       } else {
         const last = result.results.at(-1);
         if (last) report(last);
@@ -145,15 +212,15 @@ export function JourneyWorkspace({ initial }: { initial: JourneyOverview }) {
   }, [api, refresh, report, t, locale]);
 
   const dismissCelebration = useCallback(async () => {
-    const stageId = celebrating;
+    const nodeId = celebrating;
     setCelebrating(null);
-    if (!stageId) return;
+    if (!nodeId) return;
     // Persisted server-side so the animation does not replay on another device.
-    await api.post('/journey/celebrate', { stageId }).catch(() => undefined);
+    await api.post('/journey/celebrate', { nodeId }).catch(() => undefined);
     setData((current) => ({
       ...current,
-      stages: current.stages.map((stage) =>
-        stage.id === stageId ? { ...stage, celebrationPending: false } : stage
+      nodes: current.nodes.map((node) =>
+        node.id === nodeId ? { ...node, celebrationPending: false } : node
       )
     }));
   }, [api, celebrating]);
@@ -170,6 +237,14 @@ export function JourneyWorkspace({ initial }: { initial: JourneyOverview }) {
       .catch(() => undefined);
     // Once per mount: this is "the user opened the Journey", not "the model changed".
   }, [api]);
+
+  /** The thread the server's recommended step belongs to. */
+  const recommendedTrackId = useMemo(
+    () =>
+      data.nodes.find((node) => node.id === data.recommendedNodeId)?.track ??
+      null,
+    [data.nodes, data.recommendedNodeId]
+  );
 
   if (!data.program.active) {
     return <ProgramPaused />;
@@ -193,26 +268,34 @@ export function JourneyWorkspace({ initial }: { initial: JourneyOverview }) {
         onNextActionClick={trackNextAction}
       />
 
-      <section>
-        <ul aria-label={t('a11y.stageList')} className='flex flex-col gap-3'>
-          {data.stages.map((stage) => (
-            <StageCard
-              key={stage.id}
-              stage={stage}
-              isCurrent={stage.id === data.currentStageId}
-              rewardsAvailable={data.program.rewardsAvailable}
-              rewardsBlockedReason={data.program.rewardsBlockedReason}
-              onClaim={claim}
-              claiming={claimingStage === stage.id}
-            />
-          ))}
-        </ul>
+      {/*
+        The track bar that used to sit here is gone: the map is seven nodes and
+        every one of them is a track, so a second row of the same seven names
+        above it was the page telling you the same thing twice.
+      */}
+      <section
+        className='bg-card/40 rounded-2xl border p-4 sm:p-6'
+        // Clicking empty canvas closes the drawer; clicks on a node stop
+        // propagation implicitly by re-selecting.
+        onClick={(event) => {
+          if (event.target === event.currentTarget) setSelectedNode(null);
+        }}
+      >
+        <JourneyGraph
+          data={data}
+          threads={threads}
+          selectedTrackId={selectedThread?.track.id ?? null}
+          recommendedTrackId={recommendedTrackId}
+          onSelect={setSelectedNode}
+        />
       </section>
 
-      <CapabilitiesPanel
-        capabilities={data.capabilities}
-        workspaceType={data.workspaceType}
-        window={data.window}
+      <NodeDrawer
+        thread={selectedThread}
+        data={data}
+        onClose={() => setSelectedNode(null)}
+        onClaim={claim}
+        claimingNodeId={claimingNode}
       />
 
       {celebrating && (

@@ -191,7 +191,11 @@ const apiConfiguration = {
     process.env.JOURNEY_RISK_REVIEW_ENABLED !== "false",
   // Active program version. Achievements and claims are stamped with it, so
   // bumping it starts a fresh ladder without invalidating history.
-  JOURNEY_PROGRAM_VERSION: process.env.JOURNEY_PROGRAM_VERSION || "2026.08",
+  // The graph program. `2026.08` was the linear ladder and can no longer be
+  // evaluated — its achievements and claims are read through the supersession
+  // map instead, so pointing this back at it is a configuration error rather
+  // than a rollback.
+  JOURNEY_PROGRAM_VERSION: process.env.JOURNEY_PROGRAM_VERSION || "2026.09",
   // Evaluate, risk-score and log claims without moving money. Claims resolve to
   // `pending_review` so nothing is silently lost.
   JOURNEY_DRY_RUN: process.env.JOURNEY_DRY_RUN === "true",

@@ -4,11 +4,11 @@ import { useEffect, useRef } from 'react';
 import { useReducedMotion } from 'framer-motion';
 import { IconTrophy } from '@tabler/icons-react';
 import { useJourneyCopy } from '../lib/copy';
-import { stagePresentation } from '../lib/presentation';
+import { nodeIcon, trackPresentation } from '../lib/presentation';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 
 /**
- * The stage-complete moment.
+ * The node-complete moment.
  *
  * Rules it exists to obey:
  * - It fires once. Whether it has been shown is stored server-side and comes
@@ -22,15 +22,23 @@ import { cn } from '@ringee/frontend-shared/lib/utils';
  */
 export function StageCelebration({
   stageId,
+  trackId,
   onDismiss
 }: {
+  /** The node id. Named `stageId` still because the API column is `stageId`. */
   stageId: string;
+  /** The node's track, so the celebration uses the right accent. */
+  trackId?: string;
   onDismiss: () => void;
 }) {
   const { t, dynamic } = useJourneyCopy();
   const reduceMotion = useReducedMotion();
   const dismissRef = useRef<HTMLButtonElement>(null);
-  const { Icon, accent, tint } = stagePresentation(stageId);
+  // The node id is `<track>.<name>`, so the track is recoverable even when the
+  // caller does not pass it.
+  const track = trackId ?? stageId.split('.')[0];
+  const { accent, tint } = trackPresentation(track);
+  const Icon = nodeIcon(stageId, track);
 
   useEffect(() => {
     dismissRef.current?.focus();
@@ -41,8 +49,8 @@ export function StageCelebration({
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [onDismiss]);
 
-  const stageName = dynamic(`stage.${stageId}.name`, stageId);
-  const value = dynamic(`stage.${stageId}.value`, '');
+  const stageName = dynamic(`node.${stageId}.name`, stageId);
+  const value = dynamic(`node.${stageId}.value`, '');
 
   return (
     <div

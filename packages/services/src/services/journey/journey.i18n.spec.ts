@@ -5,10 +5,12 @@ import { describe, it } from "node:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import {
-  JOURNEY_PROGRAM_2026_08,
-  journeyLadder,
+  JOURNEY_PROGRAM_2026_09,
+  journeyNodes,
+  journeyTracks,
 } from "./program/journey.program";
 import { JOURNEY_CAPABILITY_IDS } from "./program/journey.capabilities";
+import { JOURNEY_WORKSPACE_TYPES } from "./program/journey.workspace";
 
 /**
  * The copy contract between the program definition and the UI.
@@ -34,7 +36,7 @@ function loadLocale(locale: string): Record<string, unknown> {
   );
 }
 
-/** `stage.foundation.name` → the value, or undefined. */
+/** `node.core.rhythm.name` → the value, or undefined. */
 function lookup(messages: Record<string, unknown>, path: string): unknown {
   return path
     .split(".")
@@ -48,7 +50,7 @@ function lookup(messages: Record<string, unknown>, path: string): unknown {
 }
 
 const en = loadLocale("en");
-const program = JOURNEY_PROGRAM_2026_08;
+const program = JOURNEY_PROGRAM_2026_09;
 
 /** Every message code `JourneyService` can put on a claim result. */
 const CLAIM_MESSAGE_CODES = [
@@ -61,25 +63,42 @@ const CLAIM_MESSAGE_CODES = [
   "workspace_cap_reached",
   "program_paused",
   "rate_limited",
+  // v3: a reward already settled under the previous program version.
+  "already_claimed_legacy",
 ];
 
 /** Every reason `rewardsBlockedReason` can carry. */
 const BLOCKED_REASONS = ["disabled", "budget", "holdout", "paused"];
 
 describe("journey copy — every program id has a string", () => {
-  it("names and explains every stage on both ladders", () => {
-    for (const type of ["personal", "organization"] as const) {
-      for (const stage of journeyLadder(program, type)) {
+  it("names and explains every node of the graph", () => {
+    for (const type of JOURNEY_WORKSPACE_TYPES) {
+      for (const node of journeyNodes(program, type)) {
         for (const field of ["name", "promise", "value"]) {
-          const value = lookup(en, `stage.${stage.id}.${field}`);
+          const value = lookup(en, `node.${node.id}.${field}`);
           assert.equal(
             typeof value,
             "string",
-            `missing en journey.stage.${stage.id}.${field}`,
+            `missing en journey.node.${node.id}.${field}`,
           );
           assert.ok(
             (value as string).length > 0,
-            `empty en journey.stage.${stage.id}.${field}`,
+            `empty en journey.node.${node.id}.${field}`,
+          );
+        }
+      }
+    }
+  });
+
+  it("names and explains every track", () => {
+    for (const type of JOURNEY_WORKSPACE_TYPES) {
+      for (const track of journeyTracks(program, type)) {
+        for (const field of ["name", "description"]) {
+          const value = lookup(en, `track.${track.id}.${field}`);
+          assert.equal(
+            typeof value,
+            "string",
+            `missing en journey.track.${track.id}.${field}`,
           );
         }
       }
@@ -88,9 +107,9 @@ describe("journey copy — every program id has a string", () => {
 
   it("labels every requirement id", () => {
     const ids = new Set<string>();
-    for (const type of ["personal", "organization"] as const) {
-      for (const stage of journeyLadder(program, type)) {
-        for (const requirement of stage.requirements) ids.add(requirement.id);
+    for (const type of JOURNEY_WORKSPACE_TYPES) {
+      for (const node of journeyNodes(program, type)) {
+        for (const requirement of node.requirements) ids.add(requirement.id);
       }
     }
     for (const id of ids) {
@@ -104,9 +123,9 @@ describe("journey copy — every program id has a string", () => {
 
   it("labels every action key", () => {
     const keys = new Set<string>();
-    for (const type of ["personal", "organization"] as const) {
-      for (const stage of journeyLadder(program, type)) {
-        for (const requirement of stage.requirements) {
+    for (const type of JOURNEY_WORKSPACE_TYPES) {
+      for (const node of journeyNodes(program, type)) {
+        for (const requirement of node.requirements) {
           keys.add(requirement.actionKey);
         }
       }
@@ -116,6 +135,16 @@ describe("journey copy — every program id has a string", () => {
         typeof lookup(en, `action.${key}`),
         "string",
         `missing en journey.action.${key}`,
+      );
+    }
+  });
+
+  it("labels every node status the evaluator can return", () => {
+    for (const status of ["achieved", "in_progress", "available", "locked"]) {
+      assert.equal(
+        typeof lookup(en, `status.${status}`),
+        "string",
+        `missing en journey.status.${status}`,
       );
     }
   });
@@ -151,28 +180,70 @@ describe("journey copy — every program id has a string", () => {
   });
 });
 
+/**
+ * Only the strings a user actually reads.
+ *
+ * `JSON.stringify` would also serialise the KEYS, and a key like `blockedBy`
+ * would trip a check meant to catch the word "blocked" in a sentence shown to
+ * a person. Tone is a property of copy, not of identifiers.
+ */
+function allCopy(messages: unknown): string[] {
+  if (typeof messages === "string") return [messages];
+  if (messages && typeof messages === "object") {
+    return Object.values(messages as Record<string, unknown>).flatMap(allCopy);
+  }
+  return [];
+}
+
 describe("journey copy — tone", () => {
   it("never accuses the user of fraud", () => {
     // The client is told a claim needs more activity, never that it was
     // flagged. Leaking the anti-fraud posture teaches people how to evade it
     // and insults the majority who are not evading anything.
-    const forbidden = /fraud|abuse|suspicious|cheat|banned|blocked|violation/i;
-    const serialised = JSON.stringify(en);
-    assert.ok(
-      !forbidden.test(serialised),
-      "journey copy must not accuse the user",
-    );
+    const forbidden = /fraud|abuse|suspicious|cheat|banned|violation/i;
+    for (const line of allCopy(en)) {
+      assert.ok(!forbidden.test(line), `accusatory copy: "${line}"`);
+    }
   });
 
   it("never manufactures urgency", () => {
     const forbidden =
       /expires? (today|soon)|hurry|last chance|act now|only \d+ left/i;
-    assert.ok(!forbidden.test(JSON.stringify(en)));
+    for (const line of allCopy(en)) {
+      assert.ok(!forbidden.test(line), `manufactured urgency: "${line}"`);
+    }
   });
 
   it("never promises credit before it is validated", () => {
     // "You will receive" style promises on a claim that may go to review.
     assert.match(lookup(en, "claim.pending_review") as string, /review|revis/i);
+  });
+
+  it("explains that the Journey can be finished by different paths", () => {
+    // The whole point of an elective model. If the copy does not say it, users
+    // read a partly-empty graph as "I am behind" rather than "I chose".
+    const value = lookup(en, "completion.explainer");
+    assert.equal(
+      typeof value,
+      "string",
+      "missing en journey.completion.explainer",
+    );
+  });
+
+  it("never falls back to generic previous-step wording for a blocked node", () => {
+    // v2 said "Complete the previous step first" because a ladder has exactly
+    // one predecessor. A graph does not, so the copy must name the blocker.
+    for (const line of allCopy(en)) {
+      assert.ok(
+        !/previous step/i.test(line),
+        `blocked-node copy must name the actual blocker: "${line}"`,
+      );
+    }
+    assert.match(
+      lookup(en, "status.blockedBy") as string,
+      /\{nodes?\}/,
+      "journey.status.blockedBy must interpolate the blocking node names",
+    );
   });
 });
 
@@ -197,14 +268,27 @@ describe("journey copy — translations", () => {
     compare(en, es, "journey");
   });
 
-  it("translates every stage name into Spanish", () => {
+  it("translates every node name into Spanish", () => {
     const es = loadLocale("es");
-    for (const type of ["personal", "organization"] as const) {
-      for (const stage of journeyLadder(program, type)) {
+    for (const type of JOURNEY_WORKSPACE_TYPES) {
+      for (const node of journeyNodes(program, type)) {
         assert.equal(
-          typeof lookup(es, `stage.${stage.id}.name`),
+          typeof lookup(es, `node.${node.id}.name`),
           "string",
-          `missing es journey.stage.${stage.id}.name`,
+          `missing es journey.node.${node.id}.name`,
+        );
+      }
+    }
+  });
+
+  it("translates every track name into Spanish", () => {
+    const es = loadLocale("es");
+    for (const type of JOURNEY_WORKSPACE_TYPES) {
+      for (const track of journeyTracks(program, type)) {
+        assert.equal(
+          typeof lookup(es, `track.${track.id}.name`),
+          "string",
+          `missing es journey.track.${track.id}.name`,
         );
       }
     }

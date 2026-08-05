@@ -24,19 +24,60 @@
   "status": {
     "achieved": "Completed",
     "in_progress": "In progress",
+    "available": "Ready to start",
     "locked": "Locked",
-    "lockedHint": "Complete the previous step first"
+    "blockedBy": "Complete {nodes} first",
+    "optional": "Optional",
+    "optionalHint": "A bonus step. You do not need it to finish this track."
   },
   "progress": {
     "label": "{completed} of {total} completed",
-    "stageProgress": "Stage progress: {percent}%",
+    "nodeProgress": "Step progress: {percent}%",
     "requirementProgress": "{current} of {target}"
   },
-  "current": {
-    "heading": "You are here",
-    "nextHeading": "Next up",
-    "completeHeading": "You have completed the Journey",
-    "completeBody": "Every stage is done. Your workspace is using Ringee about as fully as it gets — keep an eye on connect rates and cost from the dashboard."
+  "completion": {
+    "heading": "Journey progress",
+    "explainer": "There is more than one way to finish. Complete Core Calling, then any {count} tracks that match how you actually sell — the ones you skip are not missing progress, they are simply not your path.",
+    "coreHeading": "Core Calling",
+    "electiveHeading": "Your chosen tracks",
+    "electiveProgress": "{completed} of {required} tracks",
+    "electiveRemaining": "Complete {count} more track to finish",
+    "electiveRemainingPlural": "Complete {count} more tracks to finish",
+    "done": "Journey complete",
+    "doneBody": "Core Calling plus {count} tracks. Your workspace is using Ringee about as fully as it gets — keep an eye on connect rates and cost from the dashboard.",
+    "trackComplete": "Track complete"
+  },
+  "track": {
+    "required": "Required",
+    "elective": "Elective",
+    "core": {
+      "name": "Core Calling",
+      "description": "Get set up, build a calling rhythm and log what happened. Everything else builds on this."
+    },
+    "team": {
+      "name": "Team",
+      "description": "Get more than one person genuinely calling, not just invited."
+    },
+    "campaigns": {
+      "name": "Campaigns",
+      "description": "Turn ad-hoc dialing into a repeatable outbound process."
+    },
+    "integrations": {
+      "name": "Integrations",
+      "description": "Make calls, meetings and outcomes flow into the rest of your stack — using whichever tools you already work in."
+    },
+    "ai": {
+      "name": "AI",
+      "description": "Let AI read your calls and turn them into something you can act on."
+    },
+    "automation": {
+      "name": "Automation",
+      "description": "Hand the repetitive work to Ringee, in whichever way suits your operation."
+    },
+    "inbound": {
+      "name": "Inbound",
+      "description": "Handle the calls that come to you. Entirely optional — nothing else in the Journey depends on it."
+    }
   },
   "nextAction": {
     "heading": "Do this next",
@@ -49,11 +90,15 @@
     "claimed": "Redeemed",
     "pending": "Under review",
     "possible": "Full journey",
+    "none": "No credit reward",
+    "noneHint": "This step counts toward your track, but does not carry credit.",
     "claim": "Redeem {amount}",
     "claimAll": "Redeem all ({amount})",
     "claiming": "Redeeming…",
     "claimedOn": "Redeemed on {date}",
-    "lockedLabel": "{amount} when you complete this stage",
+    "legacyClaimed": "Already redeemed",
+    "legacyClaimedBody": "You redeemed this under the previous Journey program, so it will not be paid again.",
+    "lockedLabel": "{amount} when you complete this step",
     "unavailable": "Not available right now",
     "unavailableReason": {
       "disabled": "Rewards are paused at the moment. Your progress is still being recorded.",
@@ -66,6 +111,7 @@
   "claim": {
     "claimed": "{amount} added to your workspace credit.",
     "already_claimed": "This credit was already redeemed.",
+    "already_claimed_legacy": "You redeemed this under the previous Journey program. It will not be paid twice.",
     "pending_review": "We are reviewing this one. You will see the credit as soon as it clears — usually within a day.",
     "needs_more_activity": "We could not confirm this step yet. Keep calling and try again in a little while.",
     "not_eligible": "This step is not complete yet.",
@@ -76,9 +122,32 @@
     "failed": "Something went wrong. Please try again."
   },
   "celebration": {
-    "heading": "Stage complete",
-    "body": "You have unlocked {stage}.",
+    "heading": "Step complete",
+    "body": "You have unlocked {node}.",
     "dismiss": "Continue"
+  },
+  "drawer": {
+    "why": "Why this matters",
+    "requirements": "Requirements",
+    "dependsOn": "Depends on",
+    "unlocks": "Unlocks",
+    "tip": "Tip",
+    "close": "Close",
+    "openNode": "Open {node}",
+    "noUnlocks": "Nothing depends on this step.",
+    "showMore": "{count} more"
+  },
+  "graph": {
+    "heading": "Your map",
+    "hint": "Click a track to see every step it takes — and what it pays.",
+    "trackNodes": "{completed} of {total} steps",
+    "jumpToTrack": "Jump to {track}"
+  },
+  "hub": {
+    "personal": "Your workspace",
+    "organization": "Your organization",
+    "complete": "{percent}% complete",
+    "aria": "{name} — {percent}% of the journey complete. Every track starts here."
   },
   "capabilities": {
     "heading": "What you are using",
@@ -104,61 +173,155 @@
     "doesNotCount": "Turning a setting on, connecting an account, or inviting someone does not count on its own.",
     "workspaceScope": "The Journey belongs to the whole workspace, not to one person."
   },
-  "stage": {
-    "foundation": {
-      "name": "Foundation",
-      "promise": "Get set up and have your first real conversation.",
-      "value": "Everything else in Ringee builds on one working number and one answered call."
+  "node": {
+    "core": {
+      "setup": {
+        "name": "Ready to dial",
+        "promise": "Verify your phone and get a number you can call from.",
+        "value": "Everything else in Ringee builds on one working number and a verified account."
+      },
+      "first_call": {
+        "name": "First conversation",
+        "promise": "Have your first answered call.",
+        "value": "One answered call proves your whole setup end to end — audio, routing and billing."
+      },
+      "rhythm": {
+        "name": "Calling rhythm",
+        "promise": "Turn calling into a routine rather than a burst.",
+        "value": "Spreading calls across days and contacts is what makes outbound predictable instead of lucky."
+      },
+      "discipline": {
+        "name": "Outcome discipline",
+        "promise": "Log what happened on the calls that mattered.",
+        "value": "Outcomes are what turn a call list into a pipeline you can forecast and coach against."
+      },
+      "scale": {
+        "name": "Sustained volume",
+        "promise": "Keep it going across weeks, not days.",
+        "value": "Sustained volume is the difference between a good week and an operation that holds up."
+      }
     },
-    "consistent_caller": {
-      "name": "Consistent Caller",
-      "promise": "Turn calling into a routine rather than a burst.",
-      "value": "Spreading calls across days and contacts is what makes outbound predictable instead of lucky."
+    "team": {
+      "joined": {
+        "name": "Team on board",
+        "promise": "Get colleagues into the workspace.",
+        "value": "Shared numbers, analytics and coaching only start paying off once more than one person is in."
+      },
+      "calling": {
+        "name": "Team calling",
+        "promise": "Get more than one person genuinely on the phone.",
+        "value": "A team that calls together is where shared caller IDs and comparative analytics start to matter."
+      },
+      "coverage": {
+        "name": "Coverage",
+        "promise": "Keep several people calling, week after week.",
+        "value": "Coverage is what keeps your pipeline moving when one person is on holiday or having a bad week."
+      }
     },
-    "connected_operator": {
-      "name": "Connected Operator",
-      "promise": "Wire your calling into the rest of your stack.",
-      "value": "When outcomes land in your CRM and calendar automatically, nothing falls through and you stop re-typing."
+    "campaigns": {
+      "first": {
+        "name": "First campaign",
+        "promise": "Run a real outbound campaign end to end.",
+        "value": "Campaigns turn ad-hoc dialing into a repeatable process with leads, attempts and outcomes you can measure."
+      },
+      "pipeline": {
+        "name": "Leads worked properly",
+        "promise": "Reach the leads in your list and record what happened.",
+        "value": "A campaign you cannot measure is a call list. Worked leads and logged outcomes are what make it a process."
+      },
+      "repeatable": {
+        "name": "Repeatable machine",
+        "promise": "Run it more than once.",
+        "value": "The second campaign is where the process proves itself — and where your first one's data starts paying off."
+      }
     },
-    "ai_closer": {
-      "name": "AI-Powered Closer",
-      "promise": "Let AI read your calls and tell you what works.",
-      "value": "Transcripts and analysis turn every call into practice for the next one."
+    "integrations": {
+      "crm": {
+        "name": "CRM sync",
+        "promise": "Get your calls landing in your CRM automatically.",
+        "value": "When outcomes reach your CRM without anyone re-typing them, nothing falls through and your pipeline reflects reality."
+      },
+      "calendar": {
+        "name": "Calendar",
+        "promise": "Push booked meetings to a real calendar.",
+        "value": "A meeting that is not on a calendar is a meeting that does not happen."
+      },
+      "enrichment": {
+        "name": "Lead enrichment",
+        "promise": "Turn prospect searches into contacts you can call.",
+        "value": "Enrichment is what keeps the top of your list full without anyone building it by hand."
+      },
+      "custom": {
+        "name": "Custom integration",
+        "promise": "Send call events to your own systems.",
+        "value": "Your stack is not everyone's stack. Webhooks are how Ringee fits the one you already have."
+      },
+      "connected": {
+        "name": "Connected operation",
+        "promise": "Get data flowing at real volume.",
+        "value": "Any mix of CRM, calendar and custom integrations counts — what matters is that the data actually moves."
+      }
     },
-    "agentic_operator": {
-      "name": "Agentic Operator",
-      "promise": "Hand the repetitive work to an agent.",
-      "value": "Agents queue the calls and file the outcomes, so your time goes to conversations only you can have."
+    "ai": {
+      "transcription": {
+        "name": "Calls transcribed",
+        "promise": "Turn your calls into text AI can read.",
+        "value": "Transcripts are the raw material for everything else AI can tell you about your calling."
+      },
+      "insights": {
+        "name": "AI insights",
+        "promise": "Let AI produce something you can act on.",
+        "value": "Objection patterns and follow-up recommendations turn every call into practice for the next one."
+      },
+      "team_adoption": {
+        "name": "AI across the team",
+        "promise": "Put AI to work for more than one rep.",
+        "value": "Patterns are far more useful across a team than for one person — that is where coaching comes from."
+      }
     },
-    "workspace_ready": {
-      "name": "Workspace Ready",
-      "promise": "Get the workspace calling.",
-      "value": "One verified number and one answered call proves the whole setup end to end."
+    "automation": {
+      "callbacks": {
+        "name": "Callbacks worked",
+        "promise": "Actually call back the people you promised to.",
+        "value": "Scheduling a callback is free. Working it is where the deals are."
+      },
+      "rotation": {
+        "name": "Caller ID rotation",
+        "promise": "Let Ringee pick the right number to call from.",
+        "value": "Local presence and healthy numbers lift answer rates without anyone managing a spreadsheet."
+      },
+      "sessions": {
+        "name": "Call sessions",
+        "promise": "Hand someone a dialing queue with one link.",
+        "value": "Sessions are how you get a contractor or a colleague calling in minutes, with no account setup."
+      },
+      "agents": {
+        "name": "Agent-driven calling",
+        "promise": "Let an agent queue the calls and file the outcomes.",
+        "value": "Agents take the legwork, so your time goes to conversations only you can have."
+      },
+      "breadth": {
+        "name": "Multi-capability operation",
+        "promise": "Get three advanced capabilities genuinely working.",
+        "value": "Which three is up to you — breadth is what keeps answer rates and cost under control as you scale."
+      }
     },
-    "team_activated": {
-      "name": "Team Activated",
-      "promise": "Get more than one person genuinely calling.",
-      "value": "A team that calls together is where shared numbers, analytics and coaching start paying off."
-    },
-    "campaign_operator": {
-      "name": "Campaign Operator",
-      "promise": "Run a real outbound campaign end to end.",
-      "value": "Campaigns turn ad-hoc dialing into a repeatable process with leads, attempts and outcomes you can measure."
-    },
-    "connected_sales_operation": {
-      "name": "Connected Sales Operation",
-      "promise": "Make the data flow both ways.",
-      "value": "Once calls, meetings and CRM records stay in sync, your pipeline reflects reality without anyone maintaining it."
-    },
-    "ai_sales_team": {
-      "name": "AI Sales Team",
-      "promise": "Put AI to work across the whole team.",
-      "value": "Objection patterns and follow-up recommendations are far more useful across a team than for one rep."
-    },
-    "advanced_operation": {
-      "name": "Advanced Operation",
-      "promise": "Run a mature, multi-capability operation.",
-      "value": "Sustained volume across several capabilities is what keeps answer rates and cost under control at scale."
+    "inbound": {
+      "routing": {
+        "name": "Inbound answered",
+        "promise": "Route incoming calls somewhere they get picked up.",
+        "value": "A number people can call back is worth more than a number that only dials out."
+      },
+      "desk_phones": {
+        "name": "Desk phones",
+        "promise": "Take inbound calls on real handsets.",
+        "value": "Desk phones are how an office floor answers without everyone living in a browser tab."
+      },
+      "recovery": {
+        "name": "Missed calls recovered",
+        "promise": "Call back the people you missed.",
+        "value": "A missed call you return within a day is a lead. One you never return is a competitor's lead."
+      }
     }
   },
   "requirement": {
@@ -173,10 +336,18 @@
     "meaningful_conversations": "Real conversations",
     "outcomes_logged": "Calls with an outcome logged",
     "integration_successes": "Successful integration syncs",
+    "crm_synced_calls": "Calls synced to your CRM",
+    "meetings_synced": "Meetings on your calendar",
+    "enrichment_imports": "Leads imported as contacts",
+    "custom_deliveries": "Events delivered to your systems",
     "transcriptions": "Calls transcribed",
     "ai_results": "AI results produced",
     "ai_members": "Team members covered by AI",
     "mcp_calls": "Calls placed through an agent",
+    "mcp_sessions": "Agent-created call sessions",
+    "callbacks_worked": "Callbacks actually worked",
+    "rotation_caller_ids": "Caller IDs used in rotation",
+    "call_session_calls": "Calls from a shared session",
     "capabilities": "Advanced capabilities in use",
     "accepted_members": "Team members who joined",
     "active_members": "Team members who called",
@@ -184,7 +355,10 @@
     "campaign_destinations": "Different leads reached",
     "campaign_days": "Days working the campaign",
     "worked_leads": "Leads actually reached",
-    "repeat_campaigns": "Campaigns genuinely run"
+    "repeat_campaigns": "Campaigns genuinely run",
+    "inbound_answered": "Inbound calls answered",
+    "inbound_sip_calls": "Inbound calls on a desk phone",
+    "inbound_recovered": "Missed calls returned within 48h"
   },
   "action": {
     "verify_phone": "Verify your phone",
@@ -199,16 +373,52 @@
     "connect_crm": "Connect your CRM",
     "connect_calendar": "Connect your calendar",
     "connect_custom_integration": "Set up a custom integration",
+    "enrich_leads": "Find and import leads",
     "enable_transcription": "Turn on transcription",
     "enable_ai_pipeline": "Turn on an AI pipeline",
     "connect_mcp": "Connect an agent",
+    "work_callbacks": "Work your callbacks",
+    "enable_rotation": "Set up caller ID rotation",
+    "create_call_session": "Create a call session",
+    "configure_inbound": "Set up inbound routing",
+    "setup_desk_phone": "Add a desk phone",
     "explore_capabilities": "Explore capabilities"
   },
+  "tip": {
+    "core": {
+      "rhythm": "Calls count once they are answered and last long enough to be a conversation — short misdials do not.",
+      "discipline": "You can log an outcome straight from the call screen, or later from Activities."
+    },
+    "integrations": {
+      "connected": "Any mix counts: CRM syncs, calendar meetings and custom webhook deliveries all add up."
+    },
+    "automation": {
+      "breadth": "Any three capabilities count. Pick the ones that match how you sell — there is no required set."
+    },
+    "inbound": {
+      "routing": "Inbound is entirely optional. Nothing else in the Journey waits on it."
+    },
+    "ai": {
+      "transcription": "Transcription is set per workspace, and applies to calls recorded from then on."
+    }
+  },
   "a11y": {
-    "stageList": "Journey stages",
-    "requirementList": "Requirements for this stage",
+    "graph": "Journey map",
+    "trackList": "Journey tracks",
+    "nodeList": "Steps in {track}",
+    "requirementList": "Requirements for this step",
     "claimResult": "Reward result",
     "done": "Done",
-    "notDone": "Not done yet"
+    "notDone": "Not done yet",
+    "selected": "Selected",
+    "nodeSummary": "{name}, {track} track, {status}",
+    "keyboardHint": "Use the arrow keys to move between the tracks on the map.",
+    "threadSummary": "{name}, {status}, {done} of {total} steps"
+  },
+  "thread": {
+    "steps": "What this takes",
+    "available": "{amount} still available in this track",
+    "claimableNow": "{amount} ready to redeem now",
+    "electiveHint": "This track is a choice, not a gap. Skipping it costs you nothing — finish Core Calling plus the tracks that match how you actually sell."
   }
 }

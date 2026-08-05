@@ -11,17 +11,16 @@ import {
 } from '@tabler/icons-react';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useJourneyCopy } from '../lib/copy';
-import {
-  actionIcon,
-  actionRoute,
-  formatCents,
-  stagePresentation
-} from '../lib/presentation';
+import { actionIcon, actionRoute, formatCents } from '../lib/presentation';
 import type { JourneyOverview } from '../types';
 
 /**
- * The header: where the workspace is, the single next action, and the credit
- * position — the three things the page exists to answer above the fold.
+ * The header: how far the workspace is, the single next action, and the credit
+ * position — the three things the page has to answer above the fold.
+ *
+ * Completion is expressed as "Core, plus N of M elective tracks" rather than a
+ * single percentage, because a percentage would imply there is one path and the
+ * workspace is behind on it. There isn't, and it usually isn't.
  */
 export function JourneySummary({
   data,
@@ -37,79 +36,87 @@ export function JourneySummary({
   const { t, dynamic } = useJourneyCopy();
   const locale = useLocale();
 
-  const current = data.stages.find((s) => s.id === data.currentStageId);
-  const presentation = stagePresentation(data.currentStageId ?? '');
-  const next = data.nextRequirement;
+  const { completion } = data;
+  const next = data.recommendedRequirement;
+  const recommended = data.nodes.find((n) => n.id === data.recommendedNodeId);
   const NextIcon = next ? actionIcon(next.actionKey) : IconArrowRight;
+
+  const coreTrack = data.tracks.find((track) => track.mode === 'required');
+  const electiveRemaining = Math.max(
+    0,
+    completion.electiveRequired - completion.electiveComplete
+  );
 
   return (
     <section className='grid gap-4 lg:grid-cols-3'>
-      {/* Where you are */}
       <div className='bg-card rounded-2xl border p-5 lg:col-span-2'>
         <p className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
-          {data.completed ? t('current.completeHeading') : t('current.heading')}
+          {t('completion.heading')}
         </p>
 
-        {data.completed || !current ? (
+        {completion.complete ? (
           <>
             <h2 className='mt-2 flex items-center gap-2 text-lg font-semibold'>
               <IconCircleCheck
                 className='size-5 text-emerald-700 dark:text-emerald-400'
                 aria-hidden='true'
               />
-              {t('current.completeHeading')}
+              {t('completion.done')}
             </h2>
             <p className='text-muted-foreground mt-1.5 text-sm leading-relaxed'>
-              {t('current.completeBody')}
+              {t('completion.doneBody', {
+                count: completion.electiveComplete
+              })}
             </p>
           </>
         ) : (
           <>
-            <h2 className='mt-2 flex items-center gap-2.5 text-lg font-semibold'>
-              <span
-                aria-hidden='true'
-                className={cn(
-                  'flex size-8 items-center justify-center rounded-lg',
-                  presentation.tint
-                )}
-              >
-                <presentation.Icon
-                  className={cn('size-4', presentation.accent)}
-                />
-              </span>
-              {dynamic(`stage.${current.id}.name`, current.id)}
-            </h2>
-            <p className='text-muted-foreground mt-1.5 text-sm leading-relaxed'>
-              {dynamic(`stage.${current.id}.promise`, '')}
+            <div className='mt-3 grid gap-3 sm:grid-cols-2'>
+              <Meter
+                label={t('completion.coreHeading')}
+                value={coreTrack?.satisfied ?? 0}
+                total={coreTrack?.needed ?? 1}
+                done={Boolean(coreTrack?.complete)}
+              />
+              <Meter
+                label={t('completion.electiveHeading')}
+                value={completion.electiveComplete}
+                total={completion.electiveRequired}
+                done={
+                  completion.electiveComplete >= completion.electiveRequired
+                }
+                caption={t('completion.electiveProgress', {
+                  completed: completion.electiveComplete,
+                  required: completion.electiveRequired
+                })}
+              />
+            </div>
+
+            {/*
+              Says out loud that skipping a track is a choice, not a gap. Without
+              this line a half-empty graph reads as failure.
+            */}
+            <p className='text-muted-foreground mt-3 text-xs leading-relaxed'>
+              {t('completion.explainer', {
+                count: completion.electiveRequired
+              })}
             </p>
 
-            <div className='mt-4 flex items-center gap-3'>
-              <div
-                role='progressbar'
-                aria-valuemin={0}
-                aria-valuemax={current.total}
-                aria-valuenow={current.completed}
-                aria-label={t('progress.stageProgress', {
-                  percent: current.progressPct
-                })}
-                className='bg-muted h-2 flex-1 overflow-hidden rounded-full'
-              >
-                <div
-                  className='bg-foreground h-full rounded-full transition-[width] duration-700 motion-reduce:transition-none'
-                  style={{ width: `${current.progressPct}%` }}
-                />
-              </div>
-              <span className='text-muted-foreground text-xs font-medium tabular-nums'>
-                {t('progress.label', {
-                  completed: current.completed,
-                  total: current.total
-                })}
-              </span>
-            </div>
+            {electiveRemaining > 0 && coreTrack?.complete && (
+              <p className='mt-1 text-xs font-medium'>
+                {electiveRemaining === 1
+                  ? t('completion.electiveRemaining', {
+                      count: electiveRemaining
+                    })
+                  : t('completion.electiveRemainingPlural', {
+                      count: electiveRemaining
+                    })}
+              </p>
+            )}
           </>
         )}
 
-        {next && (
+        {next && recommended && (
           <div className='bg-muted/50 mt-5 rounded-xl p-4'>
             <p className='text-muted-foreground text-xs font-medium tracking-wide uppercase'>
               {t('nextAction.heading')}
@@ -160,7 +167,10 @@ export function JourneySummary({
         <dl className='mt-4 space-y-1.5 text-xs'>
           <Row
             label={t('reward.claimed')}
-            value={formatCents(data.totals.claimedCents, locale)}
+            value={formatCents(
+              data.totals.claimedCents + data.totals.legacyClaimedCents,
+              locale
+            )}
           />
           {data.totals.pendingReviewCents > 0 && (
             <Row
@@ -210,6 +220,56 @@ export function JourneySummary({
         )}
       </div>
     </section>
+  );
+}
+
+function Meter({
+  label,
+  value,
+  total,
+  done,
+  caption
+}: {
+  label: string;
+  value: number;
+  total: number;
+  done: boolean;
+  caption?: string;
+}) {
+  const percent =
+    total > 0 ? Math.min(100, Math.round((value / total) * 100)) : 0;
+
+  return (
+    <div>
+      <div className='flex items-baseline justify-between gap-2'>
+        <p className='text-sm font-medium'>{label}</p>
+        {done && (
+          <IconCircleCheck
+            className='size-4 shrink-0 text-emerald-700 dark:text-emerald-400'
+            aria-hidden='true'
+          />
+        )}
+      </div>
+      <div
+        role='progressbar'
+        aria-valuemin={0}
+        aria-valuemax={total}
+        aria-valuenow={value}
+        aria-label={label}
+        className='bg-muted mt-1.5 h-2 overflow-hidden rounded-full'
+      >
+        <div
+          className={cn(
+            'h-full rounded-full transition-[width] duration-700 motion-reduce:transition-none',
+            done ? 'bg-emerald-600' : 'bg-foreground'
+          )}
+          style={{ width: `${percent}%` }}
+        />
+      </div>
+      <p className='text-muted-foreground mt-1 text-xs tabular-nums'>
+        {caption ?? `${value}/${total}`}
+      </p>
+    </div>
   );
 }
 

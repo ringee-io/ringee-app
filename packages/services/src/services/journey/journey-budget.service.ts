@@ -46,7 +46,12 @@ export class JourneyBudgetService {
    * Per-user and per-workspace claim velocity.
    *
    * Both counters are incremented on every attempt — including ones that go on
-   * to fail — so probing for an unlocked stage is itself throttled.
+   * to fail — so probing for a locked node is itself throttled.
+   *
+   * This is the *endpoint* rate limit: one call, one unit of budget. A batch
+   * redeem must not spend one unit per node, or a workspace with more claimable
+   * nodes than `JOURNEY_CLAIM_MAX_PER_USER` could never redeem them all — see
+   * `checkBatchRateLimit`.
    */
   async checkRateLimit(
     ctx: OwnershipContext,
@@ -69,11 +74,61 @@ export class JourneyBudgetService {
 
     if (!exceeded) return { allowed: true };
 
+    return this.rateLimited(workspaceKey, userId);
+  }
+
+  /**
+   * The rate limit for "redeem everything", checked exactly once.
+   *
+   * A batch is one user action and costs one unit however many nodes it
+   * settles. The v3 graph has up to 25 rewarded nodes against a default limit
+   * of 10 claims per window, so charging per node would make a legitimate
+   * "Redeem all" cut itself off partway through and leave money stranded.
+   *
+   * Safety is unaffected: the batch still re-derives eligibility per node,
+   * still risk-scores per node, and still writes one idempotency key per node.
+   * The budget and the workspace cap — not this counter — are what bound the
+   * money.
+   */
+  async checkBatchRateLimit(
+    ctx: OwnershipContext,
+    userId: string,
+  ): Promise<JourneyBudgetDecision> {
+    const window = apiConfiguration.JOURNEY_CLAIM_RATE_WINDOW_SECONDS;
+    const workspaceKey = this.workspaceKey(ctx);
+
+    // Batches get their own counters so a burst of them is still throttled,
+    // without a batch and a single claim cannibalising each other's budget.
+    const [userCount, workspaceCount] = await Promise.all([
+      this.redis.incrementWithExpiry(
+        `${KEY_PREFIX}:rl:batch:user:${userId}`,
+        window,
+      ),
+      this.redis.incrementWithExpiry(
+        `${KEY_PREFIX}:rl:batch:ws:${workspaceKey}`,
+        window,
+      ),
+    ]);
+
+    const exceeded =
+      userCount > apiConfiguration.JOURNEY_CLAIM_MAX_PER_USER ||
+      workspaceCount > apiConfiguration.JOURNEY_CLAIM_MAX_PER_WORKSPACE;
+
+    if (!exceeded) return { allowed: true };
+
+    return this.rateLimited(workspaceKey, userId, "batch:");
+  }
+
+  private async rateLimited(
+    workspaceKey: string,
+    userId: string,
+    scope = "",
+  ): Promise<JourneyBudgetDecision> {
     const retryAfterSeconds = await this.redis.ttlSeconds(
-      `${KEY_PREFIX}:rl:ws:${workspaceKey}`,
+      `${KEY_PREFIX}:rl:${scope}ws:${workspaceKey}`,
     );
     this.logger.warn(
-      `Journey claim rate limited workspace=${workspaceKey} user=${userId}`,
+      `Journey claim rate limited workspace=${workspaceKey} user=${userId} scope=${scope || "single"}`,
     );
     return {
       allowed: false,

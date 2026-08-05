@@ -21,12 +21,16 @@ export const JOURNEY_EVENTS = [
   "journey_started",
   "journey_next_action_clicked",
   "journey_requirement_completed",
-  "journey_stage_achieved",
+  /** A node was opened in the drawer — the graph's engagement signal. */
+  "journey_node_viewed",
+  "journey_node_achieved",
+  /** A whole track's completion rule was satisfied. Fired once per track. */
+  "journey_track_completed",
   "journey_reward_claim_clicked",
   "journey_reward_claimed",
   "journey_reward_pending_review",
   "journey_reward_rejected",
-  "journey_stage_celebrated",
+  "journey_node_celebrated",
   "journey_completed",
 ] as const;
 
@@ -38,14 +42,30 @@ export interface JourneyEventProps {
   /** Hashed workspace id — correlatable, not identifying. */
   workspaceRef?: string;
   programVersion?: string;
-  stageId?: string;
+  /** v3 graph node id, e.g. `core.rhythm`. */
+  nodeId?: string;
+  /** v3 track id, e.g. `integrations`. */
+  trackId?: string;
+  trackMode?: "required" | "elective";
   requirementId?: string;
   /** Stable rollout bucket, so cohorts can be compared. */
   experimentCohort?: string;
   holdout?: boolean;
   daysSinceSignup?: number;
-  /** Seconds from workspace creation to reaching the stage. */
-  timeToStageSeconds?: number;
+  /** Seconds from workspace creation to reaching the node. */
+  timeToNodeSeconds?: number;
+  /** Seconds from workspace creation to completing the track. */
+  timeToTrackSeconds?: number;
+  /** Seconds from workspace creation to finishing the Journey. */
+  timeToJourneySeconds?: number;
+  /** How many elective tracks were complete at the time of the event. */
+  electiveTracksCompleted?: number;
+  /**
+   * Which tracks the workspace actually finished, comma-separated and ordered.
+   * The point of an elective model is that different workspaces finish
+   * differently; without this the funnel cannot tell those paths apart.
+   */
+  completionPath?: string;
   riskBand?: string;
   rewardAmountCents?: number;
   productSurface?: string;

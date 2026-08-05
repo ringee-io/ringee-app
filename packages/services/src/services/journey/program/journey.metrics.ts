@@ -77,6 +77,14 @@ export const JOURNEY_METRIC_KEYS = [
   /** Distinct members whose calls produced an AI result. */
   "aiMembersCovered",
 
+  // ── Inbound ───────────────────────────────────────────────────────────────
+  /** Genuinely answered inbound calls, same duration and QA floors as outbound. */
+  "inboundCallsAnswered",
+  /** Answered inbound calls that rang on a desk phone. Not `sipDeviceCalls`. */
+  "inboundSipDeviceCalls",
+  /** Missed inbound calls that were called back and connected within 48h. */
+  "inboundMissedFollowedUp",
+
   // ── Agentic / channels ────────────────────────────────────────────────────
   "mcpSessions",
   "mcpCalls",

@@ -36,6 +36,17 @@ export interface JourneyAchievementInput {
   metricsSnapshot: unknown;
 }
 
+const ACHIEVEMENT_SELECT = {
+  id: true,
+  userId: true,
+  organizationId: true,
+  programVersion: true,
+  stageId: true,
+  achievedAt: true,
+  ruleVersion: true,
+  ruleHash: true,
+} as const;
+
 @Injectable()
 export class JourneyAchievementRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -47,16 +58,29 @@ export class JourneyAchievementRepository {
     return this.prisma.journeyStageAchievement.findMany({
       where: { ...this.owner(ctx), programVersion },
       orderBy: { achievedAt: "asc" },
-      select: {
-        id: true,
-        userId: true,
-        organizationId: true,
-        programVersion: true,
-        stageId: true,
-        achievedAt: true,
-        ruleVersion: true,
-        ruleHash: true,
+      select: ACHIEVEMENT_SELECT,
+    });
+  }
+
+  /**
+   * Achievements earned under program versions *other* than the current one.
+   *
+   * Read-only history for the supersession lens: v3 credits nodes for work a
+   * workspace did under the v2 ladder without ever rewriting those rows. The
+   * exclusion keeps the current program's own achievements out, so nothing can
+   * supersede itself.
+   */
+  async listLegacy(
+    ctx: OwnershipContext,
+    currentProgramVersion: string,
+  ): Promise<JourneyAchievementRecord[]> {
+    return this.prisma.journeyStageAchievement.findMany({
+      where: {
+        ...this.owner(ctx),
+        programVersion: { not: currentProgramVersion },
       },
+      orderBy: { achievedAt: "asc" },
+      select: ACHIEVEMENT_SELECT,
     });
   }
 
