@@ -22,10 +22,15 @@ export const navGroups: NavGroup[] = [
     label: "General",
     items: [
       {
+        // Workspace-level: team size, campaign volume and credit rewards. The
+        // API returns 403 to org members on every journey route, so the entry
+        // is admin-only here too — the guard is the control, this keeps the
+        // navigation from leading members to a dead end.
         title: "Journey",
         url: "/dashboard/journey",
         icon: "route",
         isActive: false,
+        adminOnly: true,
         shortcut: ["j", "j"],
         items: [],
       },

@@ -36,7 +36,8 @@
     "start:frontend": "pnpm run --filter ./apps/frontend run start",
     "prisma:generate": "pnpm run --filter ./packages/database prisma:generate",
     "prisma:migrate": "pnpm run --filter ./packages/database prisma:migrate",
-    "prisma:format": "pnpm run --filter ./packages/database prisma-format"
+    "prisma:format": "pnpm run --filter ./packages/database prisma-format",
+    "journey:analyze": "pnpm --filter ./packages/database run journey:analyze"
   },
   "devDependencies": {
     "@eslint/js": "~9.35.0",

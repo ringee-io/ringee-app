@@ -171,6 +171,109 @@ const apiConfiguration = {
   // unset, the backend falls back to DEFAULT_SUPER_ADMIN_EMAILS (see the
   // SuperAdminGuard) so the module works out of the box for the founders.
   BACKOFFICE_SUPER_ADMIN_EMAILS: process.env.BACKOFFICE_SUPER_ADMIN_EMAILS,
+
+  // ── Ringee Journey (activation / adoption program) ──
+  // Master switch. When false the evaluator never runs: the overview endpoint
+  // reports a paused program, no achievement is written and no claim is taken.
+  // This is the rollback lever — it never deletes achievements or claims.
+  JOURNEY_V2_ENABLED: process.env.JOURNEY_V2_ENABLED !== "false",
+  // The money switch, independent from the program. False = achievements keep
+  // accruing, the ladder keeps rendering, but no claim is accepted. This is the
+  // circuit breaker used for a dark launch and for an incident.
+  JOURNEY_REWARDS_ENABLED: process.env.JOURNEY_REWARDS_ENABLED === "true",
+  // When false, every accepted claim lands in `pending_review` regardless of
+  // risk band — the posture for the first percent of a rollout.
+  JOURNEY_AUTO_APPROVE_ENABLED:
+    process.env.JOURNEY_AUTO_APPROVE_ENABLED === "true",
+  // When false the risk service is skipped entirely and every claim is treated
+  // as low risk. Only meaningful for local development.
+  JOURNEY_RISK_REVIEW_ENABLED:
+    process.env.JOURNEY_RISK_REVIEW_ENABLED !== "false",
+  // Active program version. Achievements and claims are stamped with it, so
+  // bumping it starts a fresh ladder without invalidating history.
+  JOURNEY_PROGRAM_VERSION: process.env.JOURNEY_PROGRAM_VERSION || "2026.08",
+  // Evaluate, risk-score and log claims without moving money. Claims resolve to
+  // `pending_review` so nothing is silently lost.
+  JOURNEY_DRY_RUN: process.env.JOURNEY_DRY_RUN === "true",
+  // Program-wide spend ceilings, in USD cents.
+  JOURNEY_DAILY_BUDGET_CENTS: nonNegativeInteger(
+    "JOURNEY_DAILY_BUDGET_CENTS",
+    50_000,
+  ),
+  JOURNEY_MONTHLY_BUDGET_CENTS: nonNegativeInteger(
+    "JOURNEY_MONTHLY_BUDGET_CENTS",
+    1_000_000,
+  ),
+  // Hard cap per workspace per program version, in USD cents. Sized above the
+  // organization ladder total ($37) so a legitimate full run always fits.
+  JOURNEY_MAX_TOTAL_CENTS_PER_WORKSPACE: positiveInteger(
+    "JOURNEY_MAX_TOTAL_CENTS_PER_WORKSPACE",
+    4_000,
+  ),
+  // Percentage of workspaces (stable hash of the workspace id) that see the
+  // Journey surface at all. 100 = everyone.
+  JOURNEY_ROLLOUT_PERCENT: nonNegativeInteger("JOURNEY_ROLLOUT_PERCENT", 100),
+  // Stable holdout that sees the Journey but is never offered rewards, so
+  // reward-driven lift can be separated from participation-driven lift.
+  JOURNEY_HOLDOUT_PERCENT: nonNegativeInteger("JOURNEY_HOLDOUT_PERCENT", 0),
+  // Comma-separated Ringee user ids always inside the rollout, whatever the
+  // percentage — used for the internal-admins rollout step.
+  JOURNEY_INTERNAL_USER_IDS: process.env.JOURNEY_INTERNAL_USER_IDS || "",
+  // Measurement window, in days, counted back from now and clamped to the
+  // workspace's own age.
+  JOURNEY_WINDOW_DAYS: positiveInteger("JOURNEY_WINDOW_DAYS", 90),
+  // A call must be answered and last at least this long to count as connected.
+  // PROVISIONAL: not yet validated against production data (see
+  // `pnpm journey:analyze`).
+  JOURNEY_MIN_CONNECTED_SECONDS: positiveInteger(
+    "JOURNEY_MIN_CONNECTED_SECONDS",
+    20,
+  ),
+  // Duration above which a connected call counts as a real conversation on
+  // duration alone. Below it, operational evidence (transcript, meeting,
+  // callback, CRM sync) is required. PROVISIONAL.
+  JOURNEY_MEANINGFUL_SECONDS: positiveInteger("JOURNEY_MEANINGFUL_SECONDS", 60),
+  // Minimum connected calls before a campaign counts as genuinely operated.
+  JOURNEY_CAMPAIGN_MIN_CALLS: positiveInteger("JOURNEY_CAMPAIGN_MIN_CALLS", 10),
+  // Comma-separated E.164 destinations excluded from every metric (QA numbers,
+  // carrier echo tests).
+  JOURNEY_TEST_DESTINATIONS: process.env.JOURNEY_TEST_DESTINATIONS || "",
+  // Minimum account age before a reward can be claimed, in hours.
+  JOURNEY_MIN_ACCOUNT_AGE_HOURS: positiveInteger(
+    "JOURNEY_MIN_ACCOUNT_AGE_HOURS",
+    24,
+  ),
+  // How many rewarded workspaces one person may be an accepted admin of before
+  // `related_workspaces` fires.
+  JOURNEY_MAX_REWARDED_WORKSPACES_PER_USER: positiveInteger(
+    "JOURNEY_MAX_REWARDED_WORKSPACES_PER_USER",
+    2,
+  ),
+  // Risk band boundaries, 0-100.
+  JOURNEY_RISK_MEDIUM_THRESHOLD: positiveInteger(
+    "JOURNEY_RISK_MEDIUM_THRESHOLD",
+    30,
+  ),
+  JOURNEY_RISK_HIGH_THRESHOLD: positiveInteger(
+    "JOURNEY_RISK_HIGH_THRESHOLD",
+    70,
+  ),
+  // Claim rate limits (Redis token counters, same pattern as Stripe abuse).
+  JOURNEY_CLAIM_RATE_WINDOW_SECONDS: positiveInteger(
+    "JOURNEY_CLAIM_RATE_WINDOW_SECONDS",
+    600,
+  ),
+  JOURNEY_CLAIM_MAX_PER_USER: positiveInteger("JOURNEY_CLAIM_MAX_PER_USER", 10),
+  JOURNEY_CLAIM_MAX_PER_WORKSPACE: positiveInteger(
+    "JOURNEY_CLAIM_MAX_PER_WORKSPACE",
+    10,
+  ),
+  // Seconds the read-only overview may be served from Redis. The claim path
+  // never reads this cache.
+  JOURNEY_OVERVIEW_CACHE_SECONDS: nonNegativeInteger(
+    "JOURNEY_OVERVIEW_CACHE_SECONDS",
+    60,
+  ),
 };
 
 const errors = [];
@@ -274,6 +377,31 @@ if (!apiConfiguration.STRIPE_SECRET_KEY) {
 
 if (!apiConfiguration.STRIPE_WEBHOOK_SECRET) {
   errors.push("STRIPE_WEBHOOK_SECRET is not defined");
+}
+
+if (
+  apiConfiguration.JOURNEY_ROLLOUT_PERCENT > 100 ||
+  apiConfiguration.JOURNEY_HOLDOUT_PERCENT > 100
+) {
+  errors.push("JOURNEY_ROLLOUT_PERCENT/JOURNEY_HOLDOUT_PERCENT must be 0-100");
+}
+
+if (
+  apiConfiguration.JOURNEY_RISK_MEDIUM_THRESHOLD >=
+  apiConfiguration.JOURNEY_RISK_HIGH_THRESHOLD
+) {
+  errors.push(
+    "JOURNEY_RISK_MEDIUM_THRESHOLD must be lower than JOURNEY_RISK_HIGH_THRESHOLD",
+  );
+}
+
+if (
+  apiConfiguration.JOURNEY_MEANINGFUL_SECONDS <
+  apiConfiguration.JOURNEY_MIN_CONNECTED_SECONDS
+) {
+  errors.push(
+    "JOURNEY_MEANINGFUL_SECONDS must be >= JOURNEY_MIN_CONNECTED_SECONDS",
+  );
 }
 
 if (errors.length > 0) {

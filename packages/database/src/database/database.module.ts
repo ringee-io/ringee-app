@@ -86,6 +86,7 @@ import { InfrastructureRepository } from "./repositories/infrastructure.reposito
 import { FreeTrialCallRequestRepository } from "./repositories/free-trial-call-request.repository";
 import { JourneyRepository } from "./repositories/journey.repository";
 import { JourneyRewardRepository } from "./repositories/journey-reward.repository";
+import { JourneyAchievementRepository } from "./repositories/journey-achievement.repository";
 
 const databaseProviders = [
   PrismaService,
@@ -174,6 +175,7 @@ const databaseProviders = [
   InfrastructureRepository,
   JourneyRepository,
   JourneyRewardRepository,
+  JourneyAchievementRepository,
 ];
 
 @Global()

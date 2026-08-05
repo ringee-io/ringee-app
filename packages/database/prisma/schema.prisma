@@ -389,6 +389,9 @@ model User {
   // cannot deliver an SMS to the user's country.
   phoneRequired         Boolean   @default(true)
   encryptionKey         String?   @db.Text
+  /// IANA timezone (e.g. "Europe/Madrid") used to bucket this workspace's
+  /// activity into local days and weeks. Null falls back to UTC.
+  timezone              String?   @db.VarChar(64)
 
   // Onboarding state
   onboardingCompletedSteps String[]  @default([])
@@ -472,6 +475,9 @@ model Organization {
   updatedAt     DateTime @updatedAt
   createdBy     String?
   encryptionKey String?  @db.Text
+  /// IANA timezone used to bucket this workspace's activity into local days and
+  /// weeks. Null falls back to UTC.
+  timezone      String?  @db.VarChar(64)
 
   members                OrganizationMembership[]
   chatAuths              ChatAuth[]
@@ -658,6 +664,9 @@ model Call {
   @@index([fromNumber])
   @@index([toNumber])
   @@index([sipDeviceId])
+  // Every windowed analytics read (dashboard, journey) filters owner + startedAt.
+  @@index([organizationId, startedAt])
+  @@index([userId, startedAt])
 }
 
 model CallTranscriptionSegment {
@@ -1437,26 +1446,103 @@ model CreditDebit {
   @@index([createdAt])
 }
 
-/// One row per redeemed Journey stage reward. The ownership+stage unique pair
-/// is the idempotency lock: a stage reward is credited at most once per
-/// workspace — the row and the balance increment share one transaction, so a
-/// double-click or replay can never pay the same reward twice.
+/// Ringee Journey — an immutable record that a workspace satisfied one stage of
+/// one program version. Written by the evaluator the first time every
+/// requirement of the stage is met, in ladder order, so a later stage can never
+/// exist without its predecessor.
+///
+/// This is deliberately separate from the reward claim: an achievement is
+/// history and is never revoked because a rolling window went quiet. A
+/// `CHECK` constraint in the migration enforces that exactly one of `userId`
+/// and `organizationId` is set.
+model JourneyStageAchievement {
+  id             String  @id @default(uuid()) @db.Uuid
+  /// Set for personal workspaces; null when the workspace is an organization.
+  userId         String? @db.Uuid
+  organizationId String? @db.Uuid
+
+  programVersion String
+  stageId        String
+  achievedAt     DateTime @default(now())
+
+  /// Version + content hash of the rules that granted this, so a later ladder
+  /// change is auditable rather than retroactive.
+  ruleVersion String
+  ruleHash    String
+
+  /// Per-requirement pass/fail at the moment of achievement.
+  eligibilitySnapshot Json
+  /// The raw metric bag behind that decision. No PII: counts and durations only.
+  metricsSnapshot     Json
+
+  createdAt DateTime @default(now())
+
+  @@unique([userId, programVersion, stageId])
+  @@unique([organizationId, programVersion, stageId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([programVersion, stageId])
+  @@index([achievedAt])
+}
+
+/// Ringee Journey — the money. One row per stage reward attempt per workspace
+/// per program version. `idempotencyKey` is the lock: a double-click, a replay
+/// or two admins redeeming at once all resolve to this single row, and the row,
+/// the wallet increment and the ledger entry share one transaction.
+///
+/// Amounts are integer USD cents. The only conversion to the legacy `Credit`
+/// float happens at settlement time.
 model JourneyRewardClaim {
-  id             String @id @default(uuid()) @db.Uuid
+  id             String  @id @default(uuid()) @db.Uuid
   /// Set for personal-workspace claims; null when the claim belongs to an org.
   userId         String? @db.Uuid
   organizationId String? @db.Uuid
-  stageId        String
-  /// USD credited to the workspace wallet at claim time.
-  amount         Float
-  /// Who pressed redeem (org claims credit the org wallet, not this user).
-  claimedByUserId String?  @db.Uuid
-  createdAt       DateTime @default(now())
 
-  @@unique([organizationId, stageId])
-  @@unique([userId, stageId])
+  programVersion String
+  stageId        String
+
+  amountCents Int
+  currency    String @default("USD")
+
+  /// available | pending_review | approved | claimed | rejected | revoked
+  status String @default("pending_review")
+
+  /// Who pressed redeem. The reward belongs to the workspace, not to them.
+  claimedByUserId String? @db.Uuid
+  idempotencyKey  String  @unique
+
+  /// Anti-fraud verdict. Never exposed to the client.
+  riskScore   Int      @default(0)
+  riskBand    String   @default("low")
+  riskReasons String[] @default([])
+  riskVersion String?
+
+  /// Per-requirement pass/fail proving the stage was earned at claim time.
+  eligibilitySnapshot Json?
+
+  /// Wallet balance (USD) immediately before and after settlement, mirroring
+  /// the CreditDebit ledger convention.
+  balanceBefore Float?
+  balanceAfter  Float?
+
+  claimedAt        DateTime?
+  approvedAt       DateTime?
+  approvedByUserId String?   @db.Uuid
+  rejectedAt       DateTime?
+  rejectionReason  String?   @db.Text
+  reviewNote       String?   @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, programVersion, stageId])
+  @@unique([organizationId, programVersion, stageId])
   @@index([userId])
   @@index([organizationId])
+  @@index([status])
+  @@index([programVersion, stageId])
+  @@index([riskBand])
+  @@index([createdAt])
 }
 
 model CreditAutoReload {

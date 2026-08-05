@@ -18,6 +18,7 @@ packages/database/prisma/migrations/*
 !packages/database/prisma/migrations/20260727090000_add_user_access_block/migration.sql
 !packages/database/prisma/migrations/20260727100000_add_user_auth_phone/
 !packages/database/prisma/migrations/20260727100000_add_user_auth_phone/migration.sql
+packages/database/prisma/migrations-pending/*
 
 # Temporary local copy of @modelcontextprotocol/sdk@1.29.0 used while the
 # pnpm store has root-owned files. Remove after fixing pnpm permissions and
@@ -25,3 +26,4 @@ packages/database/prisma/migrations/*
 .local-sdk*/
 
 apps/frontend/.next-mine
+apps/frontend/.next.rootowned.bak

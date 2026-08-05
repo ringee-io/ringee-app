@@ -1,165 +1,161 @@
+import { JourneyCapabilityId } from "./program/journey.capabilities";
+import { JourneyMetricKey } from "./program/journey.metrics";
+import { JourneyStageStatus } from "./journey.evaluator";
+import { JourneyWorkspaceType } from "./program/journey.program";
+
 /**
- * The payload behind `/dashboard/journey` — a complete, honest picture of a
- * workspace: what has been set up, how much calling happens, what it produces,
- * how intelligent the operation is, and which parts of the stack are connected.
+ * The `/journey` API contract.
  *
- * The API deliberately reports *facts only*. Placing the workspace on its growth
- * path (and deciding what to recommend next) happens client-side, so the model
- * can be tuned without a deploy of the API.
+ * The frontend renders exactly this and computes nothing: every threshold,
+ * every status and every amount is decided here. There is no classification,
+ * no requirement list and no reward rule anywhere in `apps/frontend` — that
+ * duplication is the bug this rewrite exists to remove.
+ *
+ * Requirement and stage ids are stable and are what the frontend translates.
  */
 
-export type JourneyScope = "organization" | "personal";
+export type JourneyRewardStatus =
+  /** Earned, program healthy, not yet redeemed. */
+  | "claimable"
+  /** Earned but the program cannot pay right now (flag, budget, holdout). */
+  | "unavailable"
+  /** Submitted and waiting for a human decision. */
+  | "pending_review"
+  /** Paid. */
+  | "claimed"
+  /** Declined. The client is never told why in detail. */
+  | "rejected"
+  /** The stage has not been earned yet. */
+  | "locked";
+
+export interface JourneyRequirementDto {
+  id: string;
+  metric: JourneyMetricKey;
+  target: number;
+  current: number;
+  done: boolean;
+  progressPct: number;
+  /** Names the recommended action; the client maps it to copy and a route. */
+  actionKey: string;
+}
+
+export interface JourneyStageDto {
+  id: string;
+  order: number;
+  status: JourneyStageStatus;
+  requirements: JourneyRequirementDto[];
+  completed: number;
+  total: number;
+  progressPct: number;
+  /** Null when the stage pays nothing by design (the first rung). */
+  reward: JourneyStageRewardDto | null;
+  /** When this workspace earned it. Null while unearned. */
+  achievedAt: string | null;
+  /** True the first time the client sees it, so the celebration fires once. */
+  celebrationPending: boolean;
+}
+
+export interface JourneyStageRewardDto {
+  amountCents: number;
+  currency: "USD";
+  status: JourneyRewardStatus;
+  claimedAt: string | null;
+}
+
+export interface JourneyProgramStateDto {
+  version: string;
+  /** False when JOURNEY_V2_ENABLED is off or the workspace is out of rollout. */
+  active: boolean;
+  /** False when rewards are paused, out of budget, or the workspace is a holdout. */
+  rewardsAvailable: boolean;
+  /**
+   * Why rewards are unavailable, as a stable code the client turns into a
+   * neutral message: `disabled` | `budget` | `holdout` | `paused`.
+   */
+  rewardsBlockedReason: string | null;
+}
 
 export interface JourneyWindowDto {
   start: string;
   end: string;
   days: number;
+  /** The IANA zone days and weeks were bucketed in. */
+  timeZone: string;
 }
 
-export interface JourneyFoundationDto {
-  phoneNumbers: number;
-  verifiedCallerIds: number;
-  sipDevices: number;
-  /** 0 in a personal workspace — there is no team to count. */
-  teamMembers: number;
-  /** Numbers actively participating in caller-ID rotation. */
-  rotationPoolNumbers: number;
-  contacts: number;
+export interface JourneyCapabilityDto {
+  id: JourneyCapabilityId;
+  used: boolean;
 }
 
-export interface JourneySourceBreakdownDto {
-  source: string;
-  calls: number;
-}
-
-export interface JourneyActivityDto {
-  calls: number;
-  connectedCalls: number;
-  /** 0-100. Share of calls that reached a human, by disposition. */
-  connectRate: number;
-  minutes: number;
-  /** Calls in the equally-long window right before this one. */
-  previousCalls: number;
-  /** Percentage change vs. the previous window; null when there is no baseline. */
-  callsTrendPct: number | null;
-  /** Distinct days with at least one call — calling as a habit, not a burst. */
-  activeDays: number;
-  activeCallers: number;
-  firstCallAt: string | null;
-  bySource: JourneySourceBreakdownDto[];
-}
-
-export interface JourneyOutcomesDto {
-  meetingsBooked: number;
-  sales: number;
-  interested: number;
-  followUps: number;
-  callbacksScheduled: number;
-  meetingsCreated: number;
-}
-
-export interface JourneyCampaignsDto {
-  total: number;
-  active: number;
-  leads: number;
-  callsFromCampaigns: number;
-}
-
-export interface JourneyIntelligenceDto {
-  recordingEnabled: boolean;
-  transcriptionEnabled: boolean;
-  transcriptions: number;
-  aiEnabled: boolean;
-  aiPipelinesEnabled: number;
-}
-
-export interface JourneyIntegrationBaseDto {
-  connected: boolean;
-  count: number;
-  /** Provider slugs (or integration names for custom integrations). */
-  providers: string[];
-  lastActivityAt: string | null;
-}
-
-export interface JourneyIntegrationsDto {
-  /** Native CRM connections (Attio, HubSpot, Salesforce, Odoo…). */
-  crm: JourneyIntegrationBaseDto & { syncedCalls: number };
-  /** Bring-your-own CRM through the Custom Integration API + webhooks. */
-  customCrm: JourneyIntegrationBaseDto & {
-    inboundEvents: number;
-    deliveries: number;
-  };
-  /** Google / Microsoft calendars used to push booked meetings. */
-  meetings: JourneyIntegrationBaseDto & { syncedMeetings: number };
-  /** Apollo / Prospeo lead sourcing and enrichment. */
-  enrichment: JourneyIntegrationBaseDto & {
-    searches: number;
-    enrichedContacts: number;
-  };
-  /** Agentic access: MCP-created call sessions and the calls they drove. */
-  mcp: JourneyIntegrationBaseDto & {
-    sessions: number;
-    sessionsInWindow: number;
-    callsInWindow: number;
-  };
-}
-
-/** The measured facts — everything except the reward states derived from them. */
-export interface JourneyOverviewFactsDto {
-  scope: JourneyScope;
-  /**
-   * Campaigns require an organization, so a freelancer workspace can neither
-   * run nor measure them. The client uses this to swap the whole campaign
-   * dimension out of the journey instead of showing empty campaign metrics.
-   */
-  campaignsAvailable: boolean;
-  /** True when the caller is a plain org member and only sees their own activity. */
-  scopedToMember: boolean;
+export interface JourneyOverviewDto {
+  workspaceType: JourneyWorkspaceType;
+  program: JourneyProgramStateDto;
   window: JourneyWindowDto;
-  foundation: JourneyFoundationDto;
-  activity: JourneyActivityDto;
-  outcomes: JourneyOutcomesDto;
-  /** Null in a personal workspace. */
-  campaigns: JourneyCampaignsDto | null;
-  intelligence: JourneyIntelligenceDto;
-  integrations: JourneyIntegrationsDto;
-}
-
-export type JourneyRewardStatus = "locked" | "claimable" | "claimed";
-
-/** One stage reward on this workspace's ladder, in ladder order. */
-export interface JourneyRewardDto {
-  stageId: string;
-  /** USD credited to the workspace wallet when redeemed. */
-  amount: number;
-  status: JourneyRewardStatus;
-  claimedAt: string | null;
-}
-
-export interface JourneyRewardsDto {
-  currency: "USD";
-  /** The ladder stage the reward states were evaluated against. */
-  stageId: string;
-  items: JourneyRewardDto[];
-  /** Unlocked but not yet redeemed. */
-  claimableTotal: number;
-  /** Already redeemed into the wallet. */
-  claimedTotal: number;
-  /** Everything the full ladder can pay. */
-  totalPossible: number;
-}
-
-export interface JourneyOverviewDto extends JourneyOverviewFactsDto {
-  rewards: JourneyRewardsDto;
-}
-
-/** Result of redeeming one stage reward. */
-export interface JourneyClaimResultDto {
-  /** False when the reward had already been redeemed (nothing was paid). */
-  claimed: boolean;
-  stageId: string;
-  amount: number;
-  /** Wallet balance after the call. */
+  stages: JourneyStageDto[];
+  /** The stage being worked on. Null when the ladder is finished. */
+  currentStageId: string | null;
+  /** The single highest-leverage thing to do next. */
+  nextRequirement: JourneyRequirementDto | null;
+  completed: boolean;
+  capabilities: JourneyCapabilityDto[];
+  /**
+   * The measured metric bag. Exposed so the UI can show live numbers without a
+   * second endpoint; counts and durations only, never PII.
+   */
+  metrics: Record<string, number>;
+  totals: {
+    earnedCents: number;
+    claimableCents: number;
+    claimedCents: number;
+    pendingReviewCents: number;
+    possibleCents: number;
+    currency: "USD";
+  };
+  /** Current wallet balance in USD, for the "credit available" line. */
   balance: number;
-  rewards: JourneyRewardsDto;
+}
+
+export type JourneyClaimOutcomeCode =
+  | "claimed"
+  | "already_claimed"
+  | "pending_review"
+  | "rejected"
+  | "not_eligible"
+  | "unavailable"
+  | "rate_limited";
+
+export interface JourneyClaimResultDto {
+  outcome: JourneyClaimOutcomeCode;
+  stageId: string;
+  amountCents: number;
+  currency: "USD";
+  /** Wallet balance after the operation. Unchanged unless `outcome=claimed`. */
+  balance: number;
+  /** A stable message code — never an anti-fraud detail. */
+  messageCode: string;
+  claimedAt: string | null;
+  /** Present only when rate limited. */
+  retryAfterSeconds?: number;
+}
+
+export interface JourneyClaimAllResultDto {
+  results: JourneyClaimResultDto[];
+  claimedCents: number;
+  balance: number;
+}
+
+/** One pending claim as the backoffice review queue sees it. */
+export interface JourneyReviewItemDto {
+  id: string;
+  workspaceType: JourneyWorkspaceType;
+  workspaceId: string;
+  programVersion: string;
+  stageId: string;
+  amountCents: number;
+  riskScore: number;
+  riskBand: string;
+  riskReasons: string[];
+  claimedByUserId: string | null;
+  createdAt: string;
 }

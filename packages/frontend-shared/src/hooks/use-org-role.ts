@@ -29,8 +29,12 @@ export function useOrgRole() {
   /**
    * Items to hide from org:member users. Recordings stays visible — members can
    * see their own recordings (scoped server-side); only admins can filter by member.
+   *
+   * "Journey" is workspace-level (team size, campaign volume, credit rewards)
+   * and its API returns 403 to members, so showing the entry would only lead to
+   * a dead end. The guard is the real control; this keeps the nav honest.
    */
-  const hiddenForMember = ["Rate", "Buy Number"];
+  const hiddenForMember = ["Rate", "Buy Number", "Journey"];
 
   return {
     isLoaded,

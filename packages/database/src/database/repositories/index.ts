@@ -82,3 +82,4 @@ export * from "./free-trial-call-request.repository";
 export * from "./infrastructure.repository";
 export * from "./journey.repository";
 export * from "./journey-reward.repository";
+export * from "./journey-achievement.repository";

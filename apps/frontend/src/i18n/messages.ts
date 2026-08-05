@@ -60,7 +60,8 @@ const NAMESPACES = [
   'emptyStates',
   'toasts',
   'modals',
-  'transcription'
+  'transcription',
+  'journey'
 ] as const;
 
 export type Namespace = (typeof NAMESPACES)[number];

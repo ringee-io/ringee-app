@@ -1,0 +1,214 @@
+{
+  "title": "Journey",
+  "subtitle": "Where your calling operation stands, and the highest-leverage thing to do next.",
+  "loading": "Loading your journey",
+  "error": {
+    "title": "We could not load your journey right now",
+    "body": "This is only the summary — your calls, contacts and campaigns are unaffected. Refresh in a moment, or jump straight into your work.",
+    "openDialer": "Open the dialer",
+    "openAnalytics": "Go to analytics",
+    "retry": "Try again"
+  },
+  "empty": {
+    "title": "Your journey starts with one conversation",
+    "body": "Get a number, add a few contacts and make your first call. Everything else on this page unlocks from there.",
+    "cta": "Make your first call"
+  },
+  "paused": {
+    "title": "The Journey is paused",
+    "body": "Your progress is safe and keeps being recorded. Rewards will be available again shortly."
+  },
+  "window": {
+    "label": "Measured over the last {days} days ({timeZone})"
+  },
+  "status": {
+    "achieved": "Completed",
+    "in_progress": "In progress",
+    "locked": "Locked",
+    "lockedHint": "Complete the previous step first"
+  },
+  "progress": {
+    "label": "{completed} of {total} completed",
+    "stageProgress": "Stage progress: {percent}%",
+    "requirementProgress": "{current} of {target}"
+  },
+  "current": {
+    "heading": "You are here",
+    "nextHeading": "Next up",
+    "completeHeading": "You have completed the Journey",
+    "completeBody": "Every stage is done. Your workspace is using Ringee about as fully as it gets — keep an eye on connect rates and cost from the dashboard."
+  },
+  "nextAction": {
+    "heading": "Do this next",
+    "cta": "Go"
+  },
+  "reward": {
+    "heading": "Credit",
+    "available": "Credit available",
+    "earned": "Earned",
+    "claimed": "Redeemed",
+    "pending": "Under review",
+    "possible": "Full journey",
+    "claim": "Redeem {amount}",
+    "claimAll": "Redeem all ({amount})",
+    "claiming": "Redeeming…",
+    "claimedOn": "Redeemed on {date}",
+    "lockedLabel": "{amount} when you complete this stage",
+    "unavailable": "Not available right now",
+    "unavailableReason": {
+      "disabled": "Rewards are paused at the moment. Your progress is still being recorded.",
+      "budget": "Rewards are temporarily unavailable. Please check back later.",
+      "holdout": "Your progress is recorded, but this workspace is not part of the credit program.",
+      "paused": "Rewards are paused at the moment. Your progress is still being recorded."
+    },
+    "noReward": "No credit for this step"
+  },
+  "claim": {
+    "claimed": "{amount} added to your workspace credit.",
+    "already_claimed": "This credit was already redeemed.",
+    "pending_review": "We are reviewing this one. You will see the credit as soon as it clears — usually within a day.",
+    "needs_more_activity": "We could not confirm this step yet. Keep calling and try again in a little while.",
+    "not_eligible": "This step is not complete yet.",
+    "rewards_unavailable": "Rewards are not available right now. Your progress is safe.",
+    "workspace_cap_reached": "This workspace has reached the credit limit for the program.",
+    "program_paused": "The Journey is paused right now.",
+    "rate_limited": "Too many attempts. Please wait a moment and try again.",
+    "failed": "Something went wrong. Please try again."
+  },
+  "celebration": {
+    "heading": "Stage complete",
+    "body": "You have unlocked {stage}.",
+    "dismiss": "Continue"
+  },
+  "capabilities": {
+    "heading": "What you are using",
+    "hint": "A capability counts once it has produced real results — not when it is switched on.",
+    "used": "In use",
+    "unused": "Not used yet",
+    "campaigns": "Campaigns",
+    "crm": "CRM sync",
+    "custom_integration": "Custom integration",
+    "ai": "AI insights",
+    "mcp": "Agents (MCP)",
+    "calendar": "Calendar",
+    "caller_id_rotation": "Caller ID rotation",
+    "sip": "Desk phones",
+    "sdk": "Dialer SDK",
+    "extension": "Browser extension",
+    "call_sessions": "Call sessions",
+    "enrichment": "Lead enrichment"
+  },
+  "counts": {
+    "heading": "What counts",
+    "body": "Progress is measured from real activity in this workspace: calls that were answered and lasted long enough to be a conversation, integrations that actually moved data, and AI that produced a result you can act on.",
+    "doesNotCount": "Turning a setting on, connecting an account, or inviting someone does not count on its own.",
+    "workspaceScope": "The Journey belongs to the whole workspace, not to one person."
+  },
+  "stage": {
+    "foundation": {
+      "name": "Foundation",
+      "promise": "Get set up and have your first real conversation.",
+      "value": "Everything else in Ringee builds on one working number and one answered call."
+    },
+    "consistent_caller": {
+      "name": "Consistent Caller",
+      "promise": "Turn calling into a routine rather than a burst.",
+      "value": "Spreading calls across days and contacts is what makes outbound predictable instead of lucky."
+    },
+    "connected_operator": {
+      "name": "Connected Operator",
+      "promise": "Wire your calling into the rest of your stack.",
+      "value": "When outcomes land in your CRM and calendar automatically, nothing falls through and you stop re-typing."
+    },
+    "ai_closer": {
+      "name": "AI-Powered Closer",
+      "promise": "Let AI read your calls and tell you what works.",
+      "value": "Transcripts and analysis turn every call into practice for the next one."
+    },
+    "agentic_operator": {
+      "name": "Agentic Operator",
+      "promise": "Hand the repetitive work to an agent.",
+      "value": "Agents queue the calls and file the outcomes, so your time goes to conversations only you can have."
+    },
+    "workspace_ready": {
+      "name": "Workspace Ready",
+      "promise": "Get the workspace calling.",
+      "value": "One verified number and one answered call proves the whole setup end to end."
+    },
+    "team_activated": {
+      "name": "Team Activated",
+      "promise": "Get more than one person genuinely calling.",
+      "value": "A team that calls together is where shared numbers, analytics and coaching start paying off."
+    },
+    "campaign_operator": {
+      "name": "Campaign Operator",
+      "promise": "Run a real outbound campaign end to end.",
+      "value": "Campaigns turn ad-hoc dialing into a repeatable process with leads, attempts and outcomes you can measure."
+    },
+    "connected_sales_operation": {
+      "name": "Connected Sales Operation",
+      "promise": "Make the data flow both ways.",
+      "value": "Once calls, meetings and CRM records stay in sync, your pipeline reflects reality without anyone maintaining it."
+    },
+    "ai_sales_team": {
+      "name": "AI Sales Team",
+      "promise": "Put AI to work across the whole team.",
+      "value": "Objection patterns and follow-up recommendations are far more useful across a team than for one rep."
+    },
+    "advanced_operation": {
+      "name": "Advanced Operation",
+      "promise": "Run a mature, multi-capability operation.",
+      "value": "Sustained volume across several capabilities is what keeps answer rates and cost under control at scale."
+    }
+  },
+  "requirement": {
+    "verified_phone": "Verify your phone number",
+    "dialable_number": "Have a number or verified caller ID",
+    "first_connected_call": "Have your first answered call",
+    "connected_calls": "Answered calls",
+    "active_days": "Days with calls",
+    "active_weeks": "Weeks with calls",
+    "unique_destinations": "Different people called",
+    "connected_minutes": "Minutes of talk time",
+    "meaningful_conversations": "Real conversations",
+    "outcomes_logged": "Calls with an outcome logged",
+    "integration_successes": "Successful integration syncs",
+    "transcriptions": "Calls transcribed",
+    "ai_results": "AI results produced",
+    "ai_members": "Team members covered by AI",
+    "mcp_calls": "Calls placed through an agent",
+    "capabilities": "Advanced capabilities in use",
+    "accepted_members": "Team members who joined",
+    "active_members": "Team members who called",
+    "campaign_calls": "Answered campaign calls",
+    "campaign_destinations": "Different leads reached",
+    "campaign_days": "Days working the campaign",
+    "worked_leads": "Leads actually reached",
+    "repeat_campaigns": "Campaigns genuinely run"
+  },
+  "action": {
+    "verify_phone": "Verify your phone",
+    "get_number": "Get a number",
+    "make_call": "Make a call",
+    "call_more_contacts": "Call more contacts",
+    "import_contacts": "Add contacts",
+    "log_outcomes": "Log call outcomes",
+    "invite_team": "Invite your team",
+    "create_campaign": "Create a campaign",
+    "work_campaign": "Work your campaign",
+    "connect_crm": "Connect your CRM",
+    "connect_calendar": "Connect your calendar",
+    "connect_custom_integration": "Set up a custom integration",
+    "enable_transcription": "Turn on transcription",
+    "enable_ai_pipeline": "Turn on an AI pipeline",
+    "connect_mcp": "Connect an agent",
+    "explore_capabilities": "Explore capabilities"
+  },
+  "a11y": {
+    "stageList": "Journey stages",
+    "requirementList": "Requirements for this stage",
+    "claimResult": "Reward result",
+    "done": "Done",
+    "notDone": "Not done yet"
+  }
+}

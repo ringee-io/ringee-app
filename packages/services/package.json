@@ -5,7 +5,8 @@
   "scripts": {
     "clean": "rimraf dist",
     "prebuild": "pnpm run clean",
-    "build": "nest build"
+    "build": "nest build",
+    "test": "cd ../.. && dotenv -e .env -- tsx --test \"packages/services/src/**/*.spec.ts\""
   },
   "dependencies": {
     "@nestjs/common": "~11.1.0",
@@ -25,6 +26,7 @@
     "@types/ws": "^8.18.1",
     "ts-node": "~10.9.0",
     "tsconfig-paths": "~4.2.0",
-    "typescript": "~5.9.0"
+    "typescript": "~5.9.0",
+    "tsx": "^4.20.0"
   }
 }

@@ -180,6 +180,31 @@ export class RedisService {
   }
 
   /**
+   * Atomically adds `delta` to a counter, starting the expiry window only when
+   * the key is first created. The amount-carrying sibling of
+   * {@link incrementWithExpiry} — used for spend budgets, where each increment
+   * is a value rather than a single tick.
+   */
+  async incrementBy(
+    key: string,
+    delta: number,
+    ttlSeconds: number,
+  ): Promise<number> {
+    const script = `
+      local current = redis.call("INCRBY", KEYS[1], ARGV[1])
+      if current == tonumber(ARGV[1]) then
+        redis.call("EXPIRE", KEYS[1], ARGV[2])
+      end
+      return current
+    `;
+    const result = await this.client.eval(script, {
+      keys: [key],
+      arguments: [String(Math.trunc(delta)), String(ttlSeconds)],
+    });
+    return Number(result);
+  }
+
+  /**
    * Stores a short-lived marker exactly once. Used to make webhook-driven
    * counters idempotent when a provider retries the same event.
    */

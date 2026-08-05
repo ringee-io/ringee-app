@@ -135,7 +135,13 @@ import { BackofficeService } from "./backoffice.service";
 import { BackofficeCampaignService } from "./backoffice-campaign.service";
 import { SipDeviceService, DeskPhoneCallService } from "./sip-device";
 import { InfrastructureService } from "./infrastructure";
-import { JourneyService } from "./journey";
+import {
+  JourneyService,
+  JourneyRiskService,
+  JourneyBudgetService,
+  JourneyAnalyticsPort,
+  LoggingJourneyAnalytics,
+} from "./journey";
 import {
   SdkPublishableKeyService,
   SdkEmailAuthService,
@@ -271,8 +277,13 @@ const servicesProviders = [
   DeskPhoneCallService,
   // Ringee Infra (visual architecture console)
   InfrastructureService,
-  // Growth Journey (workspace maturity + integration adoption).
+  // Ringee Journey (activation, adoption, retention and rewards).
   JourneyService,
+  JourneyRiskService,
+  JourneyBudgetService,
+  // The analytics sink is bound to an interface so the provider can be swapped
+  // without touching the Journey code that emits events.
+  { provide: JourneyAnalyticsPort, useClass: LoggingJourneyAnalytics },
   // Ringee Dialer SDK (publishable keys, agent OTP auth, call authorize)
   SdkPublishableKeyService,
   SdkEmailAuthService,

@@ -1,173 +1,238 @@
 'use client';
 
-import { useCallback, useMemo } from 'react';
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
-import { parseAsStringLiteral, useQueryState } from 'nuqs';
-import { IconBuilding, IconInfoCircle, IconUser } from '@tabler/icons-react';
-import { contentVariants } from '../lib/motion';
-import { buildJourney } from '../lib/journey';
-import type { JourneyOverview } from '../types';
-import { StageHero } from './stage-hero';
-import { StagePath } from './stage-path';
-import { JourneySidebar, JourneySectionTabs } from './journey-sidebar';
-import {
-  DEFAULT_JOURNEY_SECTION,
-  JOURNEY_SECTIONS,
-  type JourneySection
-} from './journey-sections';
-import { OverviewSection } from './sections/overview-section';
-import { ActionsSection } from './sections/actions-section';
-import { RewardsSection } from './sections/rewards-section';
-import { MilestonesSection } from './sections/milestones-section';
-import { ActivitySection } from './sections/activity-section';
-import { StackSection } from './sections/stack-section';
-
-const SECTION_IDS = JOURNEY_SECTIONS.map((s) => s.id) as [
-  JourneySection,
-  ...JourneySection[]
-];
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useLocale } from 'next-intl';
+import { toast } from 'sonner';
+import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { useJourneyCopy } from '../lib/copy';
+import { formatCents } from '../lib/presentation';
+import { JourneySummary } from './journey-summary';
+import { StageCard } from './stage-card';
+import { CapabilitiesPanel } from './capabilities-panel';
+import { StageCelebration } from './celebration';
+import type {
+  JourneyClaimAllResult,
+  JourneyClaimResult,
+  JourneyOverview
+} from '../types';
 
 /**
- * Journey — the first thing a user sees after signing in.
+ * Ringee Journey.
  *
- * The stage header (where you are, and the path you are on) is the constant and
- * stays pinned at the top; everything else is split into focused sections behind
- * a secondary sidebar, so the page answers one question at a time instead of
- * being a wall. The active section lives in the URL, so a link like
- * `?section=actions` shares the exact view.
+ * This component renders the server's model and does nothing else — there is no
+ * threshold, no stage classification and no reward rule in this file. When a
+ * claim resolves, the whole overview is refetched rather than patched locally,
+ * so what the user sees is always what the backend actually recorded.
  *
- * All five sections read from one payload built once — switching is instant and
- * costs no request.
+ * Route access is enforced by the backend (`@OrgAdminOnly()` on every journey
+ * route); the page's own admin check and the hidden nav entry are UX, not
+ * security.
  */
-export function JourneyWorkspace({
-  data,
-  canAccessAdminFeatures
-}: {
-  data: JourneyOverview;
-  canAccessAdminFeatures: boolean;
-}) {
-  const reduce = useReducedMotion();
-  const model = useMemo(
-    () => buildJourney({ data, canAccessAdminFeatures }),
-    [data, canAccessAdminFeatures]
+export function JourneyWorkspace({ initial }: { initial: JourneyOverview }) {
+  const { t } = useJourneyCopy();
+  const locale = useLocale();
+  const api = useApi();
+
+  const [data, setData] = useState(initial);
+  const [claimingStage, setClaimingStage] = useState<string | null>(null);
+  const [claimingAll, setClaimingAll] = useState(false);
+  const [celebrating, setCelebrating] = useState<string | null>(null);
+  // Announced politely so a screen reader hears the claim result without the
+  // focus being yanked away from the button that caused it.
+  const [announcement, setAnnouncement] = useState('');
+
+  useEffect(() => setData(initial), [initial]);
+
+  /** The earliest stage still owed a celebration. One at a time. */
+  const pendingCelebration = useMemo(
+    () => data.stages.find((stage) => stage.celebrationPending) ?? null,
+    [data.stages]
   );
 
-  const [section, setSection] = useQueryState(
-    'section',
-    parseAsStringLiteral(SECTION_IDS).withDefault(DEFAULT_JOURNEY_SECTION)
-  );
+  useEffect(() => {
+    if (pendingCelebration && !celebrating) {
+      setCelebrating(pendingCelebration.id);
+    }
+  }, [pendingCelebration, celebrating]);
 
-  const select = useCallback(
-    (next: JourneySection) => {
-      void setSection(next);
+  const refresh = useCallback(async () => {
+    try {
+      const fresh = await api.get<JourneyOverview>('/journey/overview');
+      setData(fresh);
+    } catch {
+      // A failed refresh leaves the last good model on screen; the claim result
+      // has already been reported and the next load will reconcile.
+    }
+  }, [api]);
+
+  /** Turns a backend message code into copy. Never invents a reason. */
+  const describe = useCallback(
+    (result: JourneyClaimResult) => {
+      const key = result.messageCode.replace(/^journey\./, '');
+      const amount = formatCents(result.amountCents, locale);
+      // The message code is a runtime value from the API, so the key cannot be
+      // statically typed. `t.has` keeps an unknown code from rendering a raw
+      // message path; `amount` is ignored by the messages that do not use it.
+      return t.has(`claim.${key}` as never)
+        ? t(`claim.${key}` as never, { amount } as never)
+        : t('claim.failed');
     },
-    [setSection]
+    [t, locale]
   );
 
-  const claimableRewards = model.rewards.items.filter(
-    (r) => r.status === 'claimable'
-  ).length;
-
-  const counts = useMemo(
-    () => ({
-      actions: model.allSteps.length,
-      rewards: claimableRewards
-    }),
-    [model.allSteps.length, claimableRewards]
+  const report = useCallback(
+    (result: JourneyClaimResult) => {
+      const message = describe(result);
+      setAnnouncement(message);
+      if (result.outcome === 'claimed') toast.success(message);
+      else if (result.outcome === 'rate_limited') toast.error(message);
+      else toast.info(message);
+    },
+    [describe]
   );
+
+  const claim = useCallback(
+    async (stageId: string) => {
+      setClaimingStage(stageId);
+      try {
+        const result = await api.post<JourneyClaimResult>(
+          '/journey/rewards/claim',
+          { stageId }
+        );
+        report(result);
+        await refresh();
+      } catch {
+        const message = t('claim.failed');
+        setAnnouncement(message);
+        toast.error(message);
+      } finally {
+        setClaimingStage(null);
+      }
+    },
+    [api, report, refresh, t]
+  );
+
+  /**
+   * One request, not a loop. The backend walks the ladder in order with its own
+   * idempotency key per stage, so a partial failure cannot double-pay or leave
+   * a hole.
+   */
+  const claimAll = useCallback(async () => {
+    setClaimingAll(true);
+    try {
+      const result = await api.post<JourneyClaimAllResult>(
+        '/journey/rewards/claim-all',
+        {}
+      );
+      if (result.claimedCents > 0) {
+        const message = t('claim.claimed', {
+          amount: formatCents(result.claimedCents, locale)
+        });
+        setAnnouncement(message);
+        toast.success(message);
+      } else {
+        const last = result.results.at(-1);
+        if (last) report(last);
+      }
+      await refresh();
+    } catch {
+      const message = t('claim.failed');
+      setAnnouncement(message);
+      toast.error(message);
+    } finally {
+      setClaimingAll(false);
+    }
+  }, [api, refresh, report, t, locale]);
+
+  const dismissCelebration = useCallback(async () => {
+    const stageId = celebrating;
+    setCelebrating(null);
+    if (!stageId) return;
+    // Persisted server-side so the animation does not replay on another device.
+    await api.post('/journey/celebrate', { stageId }).catch(() => undefined);
+    setData((current) => ({
+      ...current,
+      stages: current.stages.map((stage) =>
+        stage.id === stageId ? { ...stage, celebrationPending: false } : stage
+      )
+    }));
+  }, [api, celebrating]);
+
+  const trackNextAction = useCallback(() => {
+    api
+      .post('/journey/events', { name: 'journey_next_action_clicked' })
+      .catch(() => undefined);
+  }, [api]);
+
+  useEffect(() => {
+    api
+      .post('/journey/events', { name: 'journey_started' })
+      .catch(() => undefined);
+    // Once per mount: this is "the user opened the Journey", not "the model changed".
+  }, [api]);
+
+  if (!data.program.active) {
+    return <ProgramPaused />;
+  }
 
   return (
-    <div className='w-full min-w-0 space-y-5 pb-2'>
-      {/* ── The constant: who this workspace is, where it stands, its path ── */}
-      <ScopeBar model={model} />
-      <StageHero
-        model={model}
-        onNavigate={select}
-        canAccessAdminFeatures={canAccessAdminFeatures}
+    <div className='flex flex-col gap-6 pb-8'>
+      <header>
+        <h1 className='text-xl font-semibold'>{t('title')}</h1>
+        <p className='text-muted-foreground mt-1 text-sm'>{t('subtitle')}</p>
+      </header>
+
+      <p aria-live='polite' role='status' className='sr-only'>
+        {announcement}
+      </p>
+
+      <JourneySummary
+        data={data}
+        onClaimAll={claimAll}
+        claimingAll={claimingAll}
+        onNextActionClick={trackNextAction}
       />
-      <StagePath model={model} onNavigate={select} />
 
-      {/* ── The split: secondary nav + one focused section ────────────────── */}
-      <div className='flex min-w-0 flex-col gap-5 md:flex-row'>
-        <JourneySidebar active={section} onSelect={select} counts={counts} />
-
-        <div className='min-w-0 flex-1'>
-          <div className='bg-background/80 sticky top-0 z-10 -mx-1 mb-3 px-1 py-2 backdrop-blur-xl md:hidden'>
-            <JourneySectionTabs
-              active={section}
-              onSelect={select}
-              counts={counts}
+      <section>
+        <ul aria-label={t('a11y.stageList')} className='flex flex-col gap-3'>
+          {data.stages.map((stage) => (
+            <StageCard
+              key={stage.id}
+              stage={stage}
+              isCurrent={stage.id === data.currentStageId}
+              rewardsAvailable={data.program.rewardsAvailable}
+              rewardsBlockedReason={data.program.rewardsBlockedReason}
+              onClaim={claim}
+              claiming={claimingStage === stage.id}
             />
-          </div>
+          ))}
+        </ul>
+      </section>
 
-          <AnimatePresence mode='wait'>
-            <motion.div
-              key={section}
-              variants={reduce ? undefined : contentVariants}
-              initial={reduce ? false : 'hidden'}
-              animate='visible'
-              exit={reduce ? undefined : 'exit'}
-            >
-              {section === 'overview' ? (
-                <OverviewSection model={model} onNavigate={select} />
-              ) : section === 'actions' ? (
-                <ActionsSection model={model} />
-              ) : section === 'rewards' ? (
-                <RewardsSection
-                  model={model}
-                  canAccessAdminFeatures={canAccessAdminFeatures}
-                />
-              ) : section === 'milestones' ? (
-                <MilestonesSection
-                  model={model}
-                  canAccessAdminFeatures={canAccessAdminFeatures}
-                />
-              ) : section === 'activity' ? (
-                <ActivitySection model={model} />
-              ) : (
-                <StackSection
-                  model={model}
-                  canAccessAdminFeatures={canAccessAdminFeatures}
-                />
-              )}
-            </motion.div>
-          </AnimatePresence>
+      <CapabilitiesPanel
+        capabilities={data.capabilities}
+        workspaceType={data.workspaceType}
+        window={data.window}
+      />
 
-          <p className='text-muted-foreground/70 mt-8 flex items-start gap-1.5 text-[11px]'>
-            <IconInfoCircle className='mt-px size-3.5 shrink-0' />
-            <span>
-              Your stage comes from your own workspace over the last{' '}
-              {model.windowDays} days — no benchmarks, no guesswork.
-              {model.scopedToMember
-                ? ' You are seeing your own calling activity.'
-                : ''}
-            </span>
-          </p>
-        </div>
-      </div>
+      {celebrating && (
+        <StageCelebration
+          stageId={celebrating}
+          onDismiss={dismissCelebration}
+        />
+      )}
     </div>
   );
 }
 
-/**
- * Which workspace this journey describes. It matters: an organization and a
- * personal workspace are measured on genuinely different paths.
- */
-function ScopeBar({ model }: { model: ReturnType<typeof buildJourney> }) {
-  const Icon = model.hasOrg ? IconBuilding : IconUser;
-
+function ProgramPaused() {
+  const { t } = useJourneyCopy();
   return (
-    <div className='flex flex-wrap items-center gap-2'>
-      <span className='bg-muted text-muted-foreground inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium'>
-        <Icon className='size-3.5' />
-        {model.hasOrg ? 'Organization workspace' : 'Personal workspace'}
-      </span>
-      {!model.hasOrg ? (
-        <span className='text-muted-foreground/70 text-[11px]'>
-          Campaigns are an organization feature, so they are not part of your
-          path.
-        </span>
-      ) : null}
+    <div className='bg-card/60 flex flex-col items-center gap-2 rounded-2xl border p-10 text-center'>
+      <p className='text-sm font-semibold'>{t('paused.title')}</p>
+      <p className='text-muted-foreground max-w-md text-xs leading-relaxed'>
+        {t('paused.body')}
+      </p>
     </div>
   );
 }

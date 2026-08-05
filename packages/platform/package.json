@@ -6,7 +6,7 @@
     "clean": "rimraf dist",
     "prebuild": "pnpm run clean",
     "build": "nest build",
-    "test": "vitest run",
+    "test": "vitest run && cd ../.. && dotenv -e .env -- tsx --test \"packages/platform/src/**/*.spec.ts\"",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -52,6 +52,7 @@
     "ts-node": "~10.9.0",
     "tsconfig-paths": "~4.2.0",
     "typescript": "~5.9.0",
-    "vitest": "^2.1.8"
+    "vitest": "^2.1.8",
+    "tsx": "^4.20.0"
   }
 }

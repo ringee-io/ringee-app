@@ -1,0 +1,214 @@
+{
+  "title": "Journey",
+  "subtitle": "Dónde está tu operación de llamadas y lo más útil que puedes hacer ahora.",
+  "loading": "Cargando tu journey",
+  "error": {
+    "title": "No pudimos cargar tu journey en este momento",
+    "body": "Esto es solo el resumen: tus llamadas, contactos y campañas no se ven afectados. Actualiza en un momento o continúa con tu trabajo.",
+    "openDialer": "Abrir el marcador",
+    "openAnalytics": "Ir a analíticas",
+    "retry": "Reintentar"
+  },
+  "empty": {
+    "title": "Tu journey empieza con una conversación",
+    "body": "Consigue un número, agrega algunos contactos y haz tu primera llamada. Todo lo demás en esta página se abre a partir de ahí.",
+    "cta": "Haz tu primera llamada"
+  },
+  "paused": {
+    "title": "El Journey está en pausa",
+    "body": "Tu progreso está a salvo y se sigue registrando. Las recompensas volverán a estar disponibles pronto."
+  },
+  "window": {
+    "label": "Medido durante los últimos {days} días ({timeZone})"
+  },
+  "status": {
+    "achieved": "Completada",
+    "in_progress": "En progreso",
+    "locked": "Bloqueada",
+    "lockedHint": "Completa primero la etapa anterior"
+  },
+  "progress": {
+    "label": "{completed} de {total} completados",
+    "stageProgress": "Progreso de la etapa: {percent}%",
+    "requirementProgress": "{current} de {target}"
+  },
+  "current": {
+    "heading": "Aquí estás",
+    "nextHeading": "Lo siguiente",
+    "completeHeading": "Has completado el Journey",
+    "completeBody": "Todas las etapas están hechas. Tu workspace está usando Ringee prácticamente al máximo: vigila las tasas de contacto y el costo desde el dashboard."
+  },
+  "nextAction": {
+    "heading": "Haz esto ahora",
+    "cta": "Ir"
+  },
+  "reward": {
+    "heading": "Crédito",
+    "available": "Crédito disponible",
+    "earned": "Ganado",
+    "claimed": "Canjeado",
+    "pending": "En revisión",
+    "possible": "Journey completo",
+    "claim": "Canjear {amount}",
+    "claimAll": "Canjear todo ({amount})",
+    "claiming": "Canjeando…",
+    "claimedOn": "Canjeado el {date}",
+    "lockedLabel": "{amount} al completar esta etapa",
+    "unavailable": "No disponible por ahora",
+    "unavailableReason": {
+      "disabled": "Las recompensas están en pausa por ahora. Tu progreso se sigue registrando.",
+      "budget": "Las recompensas no están disponibles temporalmente. Vuelve más tarde.",
+      "holdout": "Tu progreso se registra, pero este workspace no forma parte del programa de crédito.",
+      "paused": "Las recompensas están en pausa por ahora. Tu progreso se sigue registrando."
+    },
+    "noReward": "Sin crédito en este paso"
+  },
+  "claim": {
+    "claimed": "{amount} añadidos al crédito de tu workspace.",
+    "already_claimed": "Este crédito ya se había canjeado.",
+    "pending_review": "Estamos revisando este caso. Verás el crédito en cuanto se apruebe, normalmente en menos de un día.",
+    "needs_more_activity": "Todavía no pudimos confirmar este paso. Sigue llamando e inténtalo de nuevo en un rato.",
+    "not_eligible": "Este paso aún no está completo.",
+    "rewards_unavailable": "Las recompensas no están disponibles ahora mismo. Tu progreso está a salvo.",
+    "workspace_cap_reached": "Este workspace alcanzó el límite de crédito del programa.",
+    "program_paused": "El Journey está en pausa en este momento.",
+    "rate_limited": "Demasiados intentos. Espera un momento e inténtalo de nuevo.",
+    "failed": "Algo salió mal. Inténtalo de nuevo."
+  },
+  "celebration": {
+    "heading": "Etapa completada",
+    "body": "Has desbloqueado {stage}.",
+    "dismiss": "Continuar"
+  },
+  "capabilities": {
+    "heading": "Lo que estás usando",
+    "hint": "Una capacidad cuenta cuando ha producido resultados reales, no cuando se activa.",
+    "used": "En uso",
+    "unused": "Aún sin usar",
+    "campaigns": "Campañas",
+    "crm": "Sincronización con CRM",
+    "custom_integration": "Integración personalizada",
+    "ai": "Insights con IA",
+    "mcp": "Agentes (MCP)",
+    "calendar": "Calendario",
+    "caller_id_rotation": "Rotación de caller ID",
+    "sip": "Teléfonos de escritorio",
+    "sdk": "Dialer SDK",
+    "extension": "Extensión de navegador",
+    "call_sessions": "Sesiones de llamada",
+    "enrichment": "Enriquecimiento de leads"
+  },
+  "counts": {
+    "heading": "Qué cuenta",
+    "body": "El progreso se mide con actividad real de este workspace: llamadas contestadas que duraron lo suficiente para ser una conversación, integraciones que movieron datos de verdad e IA que produjo un resultado accionable.",
+    "doesNotCount": "Activar un ajuste, conectar una cuenta o invitar a alguien no cuenta por sí solo.",
+    "workspaceScope": "El Journey pertenece a todo el workspace, no a una sola persona."
+  },
+  "stage": {
+    "foundation": {
+      "name": "Base",
+      "promise": "Prepara todo y ten tu primera conversación real.",
+      "value": "Todo lo demás en Ringee se construye sobre un número que funciona y una llamada contestada."
+    },
+    "consistent_caller": {
+      "name": "Llamadas constantes",
+      "promise": "Convierte las llamadas en rutina en lugar de una ráfaga.",
+      "value": "Repartir las llamadas entre varios días y contactos es lo que hace que el outbound sea predecible y no cuestión de suerte."
+    },
+    "connected_operator": {
+      "name": "Operación conectada",
+      "promise": "Conecta tus llamadas con el resto de tu stack.",
+      "value": "Cuando los resultados llegan solos a tu CRM y a tu calendario, no se pierde nada y dejas de reescribir datos."
+    },
+    "ai_closer": {
+      "name": "Cierre con IA",
+      "promise": "Deja que la IA lea tus llamadas y te diga qué funciona.",
+      "value": "Las transcripciones y el análisis convierten cada llamada en práctica para la siguiente."
+    },
+    "agentic_operator": {
+      "name": "Operación con agentes",
+      "promise": "Delega el trabajo repetitivo a un agente.",
+      "value": "Los agentes preparan las llamadas y registran los resultados, para que tu tiempo vaya a las conversaciones que solo tú puedes tener."
+    },
+    "workspace_ready": {
+      "name": "Workspace listo",
+      "promise": "Pon el workspace a llamar.",
+      "value": "Un número verificado y una llamada contestada demuestran toda la configuración de principio a fin."
+    },
+    "team_activated": {
+      "name": "Equipo activado",
+      "promise": "Consigue que más de una persona llame de verdad.",
+      "value": "Un equipo que llama junto es donde los números compartidos, las analíticas y el coaching empiezan a rendir."
+    },
+    "campaign_operator": {
+      "name": "Operación de campañas",
+      "promise": "Ejecuta una campaña outbound real de principio a fin.",
+      "value": "Las campañas convierten el marcado improvisado en un proceso repetible con leads, intentos y resultados medibles."
+    },
+    "connected_sales_operation": {
+      "name": "Operación de ventas conectada",
+      "promise": "Haz que los datos fluyan en ambos sentidos.",
+      "value": "Cuando llamadas, reuniones y registros del CRM se mantienen sincronizados, tu pipeline refleja la realidad sin que nadie lo mantenga."
+    },
+    "ai_sales_team": {
+      "name": "Equipo de ventas con IA",
+      "promise": "Pon la IA a trabajar en todo el equipo.",
+      "value": "Los patrones de objeciones y las recomendaciones de seguimiento son mucho más útiles a nivel de equipo que para una sola persona."
+    },
+    "advanced_operation": {
+      "name": "Operación avanzada",
+      "promise": "Opera con madurez y varias capacidades.",
+      "value": "El volumen sostenido en varias capacidades es lo que mantiene bajo control la tasa de contacto y el costo a escala."
+    }
+  },
+  "requirement": {
+    "verified_phone": "Verifica tu número de teléfono",
+    "dialable_number": "Ten un número o un caller ID verificado",
+    "first_connected_call": "Ten tu primera llamada contestada",
+    "connected_calls": "Llamadas contestadas",
+    "active_days": "Días con llamadas",
+    "active_weeks": "Semanas con llamadas",
+    "unique_destinations": "Personas distintas llamadas",
+    "connected_minutes": "Minutos de conversación",
+    "meaningful_conversations": "Conversaciones reales",
+    "outcomes_logged": "Llamadas con resultado registrado",
+    "integration_successes": "Sincronizaciones exitosas",
+    "transcriptions": "Llamadas transcritas",
+    "ai_results": "Resultados de IA producidos",
+    "ai_members": "Miembros cubiertos por la IA",
+    "mcp_calls": "Llamadas hechas por un agente",
+    "capabilities": "Capacidades avanzadas en uso",
+    "accepted_members": "Miembros que se unieron",
+    "active_members": "Miembros que llamaron",
+    "campaign_calls": "Llamadas de campaña contestadas",
+    "campaign_destinations": "Leads distintos contactados",
+    "campaign_days": "Días trabajando la campaña",
+    "worked_leads": "Leads realmente contactados",
+    "repeat_campaigns": "Campañas realmente ejecutadas"
+  },
+  "action": {
+    "verify_phone": "Verifica tu teléfono",
+    "get_number": "Consigue un número",
+    "make_call": "Haz una llamada",
+    "call_more_contacts": "Llama a más contactos",
+    "import_contacts": "Agrega contactos",
+    "log_outcomes": "Registra resultados de llamadas",
+    "invite_team": "Invita a tu equipo",
+    "create_campaign": "Crea una campaña",
+    "work_campaign": "Trabaja tu campaña",
+    "connect_crm": "Conecta tu CRM",
+    "connect_calendar": "Conecta tu calendario",
+    "connect_custom_integration": "Configura una integración personalizada",
+    "enable_transcription": "Activa la transcripción",
+    "enable_ai_pipeline": "Activa un pipeline de IA",
+    "connect_mcp": "Conecta un agente",
+    "explore_capabilities": "Explora capacidades"
+  },
+  "a11y": {
+    "stageList": "Etapas del journey",
+    "requirementList": "Requisitos de esta etapa",
+    "claimResult": "Resultado de la recompensa",
+    "done": "Hecho",
+    "notDone": "Todavía no"
+  }
+}

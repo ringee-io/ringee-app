@@ -89,6 +89,9 @@ export class ClerkUserRepository {
       phoneVerified: primaryPhone?.verification?.status === "verified",
       phoneRequired: true,
       encryptionKey: null,
+      // Clerk carries no timezone. Like the other DB-only columns above, this
+      // is a placeholder — read the real value from the database.
+      timezone: null,
       onboardingCompletedSteps: [],
       onboardingDismissedAt: null,
       notificationPreferences: null,

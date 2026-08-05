@@ -9,6 +9,12 @@
     "noEmitOnError": true,
     "skipLibCheck": true,
     "esModuleInterop": true,
+    // NestJS and class-validator rely on legacy (stage-2) decorator semantics.
+    // Declared at the root so tools that resolve a single tsconfig for the whole
+    // workspace — the `node --import tsx --test` runners, for one — compile
+    // decorators the same way `nest build` does.
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
     "types": [],
     "jsx": "react",
     "noEmit": false
