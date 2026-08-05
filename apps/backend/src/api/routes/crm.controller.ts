@@ -111,6 +111,7 @@ export class CrmController {
     const validProviders: CrmProviderType[] = [
       "attio",
       "hubspot",
+      "gohighlevel",
       "salesforce",
     ];
     if (!validProviders.includes(provider as CrmProviderType)) {
@@ -125,6 +126,35 @@ export class CrmController {
       redirectFrontendUrl: redirect,
     });
     return { url };
+  }
+
+  @Post(":provider/oauth/complete-install")
+  async completeMarketplaceInstall(
+    @Param("provider") provider: string,
+    @Body()
+    body: {
+      token?: string;
+      scope?: "personal" | "organization";
+    },
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    if (provider !== "gohighlevel") {
+      throw new BadRequestException(
+        `marketplace-initiated install is not supported for ${provider}`,
+      );
+    }
+    if (!body.token) {
+      throw new BadRequestException("marketplace install token is required");
+    }
+
+    const ctx = this.buildScopedCtx(user, body.scope);
+    const result = await this.oauth.completeMarketplaceInstall(
+      ctx,
+      provider,
+      body.token,
+    );
+    await this.triggerInitialBulkSync(result.connectionId);
+    return result;
   }
 
   // ── Odoo credential connect (both 14–18 and 19+) ─────────────────────
@@ -235,10 +265,36 @@ export class CrmController {
         )}`,
       );
     }
-    if (!code || !state) {
+    if (!code) {
       return res.redirect(
         `${base}/dashboard/settings/integrations?crm=error&provider=${provider}&reason=missing_code`,
       );
+    }
+    if (!state) {
+      if (provider !== "gohighlevel") {
+        return res.redirect(
+          `${base}/dashboard/settings/integrations?crm=error&provider=${provider}&reason=missing_state`,
+        );
+      }
+      try {
+        const installToken = await this.oauth.createMarketplaceInstallHandoff(
+          "gohighlevel",
+          code,
+        );
+        return res.redirect(
+          `${base}/dashboard/settings/integrations?crm=pending&provider=gohighlevel&installToken=${encodeURIComponent(
+            installToken,
+          )}`,
+        );
+      } catch (err) {
+        const reason =
+          err instanceof Error ? err.message : "marketplace_handoff_failed";
+        return res.redirect(
+          `${base}/dashboard/settings/integrations?crm=error&provider=${provider}&reason=${encodeURIComponent(
+            reason,
+          )}`,
+        );
+      }
     }
     try {
       const result = await this.oauth.handleCallback(

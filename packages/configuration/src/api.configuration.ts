@@ -127,6 +127,30 @@ const apiConfiguration = {
   ATTIO_OAUTH_TOKEN_URL:
     process.env.ATTIO_OAUTH_TOKEN_URL || "https://app.attio.com/oauth/token",
   ATTIO_API_BASE_URL: process.env.ATTIO_API_BASE_URL || "https://api.attio.com",
+  HUBSPOT_OAUTH_CLIENT_ID: process.env.HUBSPOT_OAUTH_CLIENT_ID,
+  HUBSPOT_OAUTH_CLIENT_SECRET: process.env.HUBSPOT_OAUTH_CLIENT_SECRET,
+  HUBSPOT_OAUTH_AUTHORIZE_URL:
+    process.env.HUBSPOT_OAUTH_AUTHORIZE_URL ||
+    "https://app.hubspot.com/oauth/authorize",
+  HUBSPOT_OAUTH_TOKEN_URL:
+    process.env.HUBSPOT_OAUTH_TOKEN_URL ||
+    "https://api.hubapi.com/oauth/v1/token",
+  HUBSPOT_API_BASE_URL:
+    process.env.HUBSPOT_API_BASE_URL || "https://api.hubapi.com",
+  HUBSPOT_OAUTH_SCOPES: process.env.HUBSPOT_OAUTH_SCOPES,
+  GOHIGHLEVEL_OAUTH_CLIENT_ID: process.env.GOHIGHLEVEL_OAUTH_CLIENT_ID,
+  GOHIGHLEVEL_OAUTH_CLIENT_SECRET: process.env.GOHIGHLEVEL_OAUTH_CLIENT_SECRET,
+  GOHIGHLEVEL_OAUTH_VERSION_ID: process.env.GOHIGHLEVEL_OAUTH_VERSION_ID,
+  GOHIGHLEVEL_OAUTH_AUTHORIZE_URL:
+    process.env.GOHIGHLEVEL_OAUTH_AUTHORIZE_URL ||
+    "https://marketplace.gohighlevel.com/v2/oauth/chooselocation",
+  GOHIGHLEVEL_OAUTH_TOKEN_URL:
+    process.env.GOHIGHLEVEL_OAUTH_TOKEN_URL ||
+    "https://services.leadconnectorhq.com/oauth/token",
+  GOHIGHLEVEL_API_BASE_URL:
+    process.env.GOHIGHLEVEL_API_BASE_URL ||
+    "https://services.leadconnectorhq.com",
+  GOHIGHLEVEL_OAUTH_SCOPES: process.env.GOHIGHLEVEL_OAUTH_SCOPES,
   CRM_DRY_RUN: process.env.CRM_DRY_RUN === "true",
   // ── Data Enrichment & Lead Search ──
   ENRICHMENT_FEATURE_ENABLED:

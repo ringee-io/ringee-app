@@ -7,6 +7,14 @@ export type CrmTokenSet = {
   refreshToken?: string | null;
   expiresAt?: Date | null;
   scopes?: string[];
+  /**
+   * Some providers (notably HighLevel) return the workspace/location identity
+   * only during the token exchange. Passing it through avoids decoding JWTs
+   * and lets getWorkspaceInfo validate the account against the provider API.
+   */
+  accountId?: string | null;
+  accountName?: string | null;
+  metadata?: Record<string, unknown>;
 };
 
 export type CrmCredentials = {

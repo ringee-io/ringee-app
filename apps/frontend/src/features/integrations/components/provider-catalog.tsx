@@ -39,6 +39,7 @@ const PROVIDER_ORDER: CrmProviderType[] = [
   'odoo_14_18',
   'odoo_19_plus',
   'hubspot',
+  'gohighlevel',
   'salesforce'
 ];
 

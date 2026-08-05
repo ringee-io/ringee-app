@@ -1,6 +1,7 @@
 export type CrmProviderType =
   | 'attio'
   | 'hubspot'
+  | 'gohighlevel'
   | 'salesforce'
   | 'odoo_14_18'
   | 'odoo_19_plus';
@@ -138,12 +139,24 @@ export const PROVIDER_META: Record<
   },
   hubspot: {
     name: 'HubSpot',
-    description: 'Coming soon — same playbook, different pipeline.',
+    description:
+      'Sync contacts, companies, calls, notes, tasks and meetings with HubSpot.',
     color: 'bg-orange-500/15 text-orange-500 border-orange-500/20',
-    available: false,
+    available: true,
     logo: '/companies/hubspot.svg',
     logoDarkInvert: false,
     authKind: 'oauth'
+  },
+  gohighlevel: {
+    name: 'GoHighLevel',
+    description:
+      'Connect a HighLevel sub-account to sync contacts, calls, notes, tasks and meetings.',
+    color: 'bg-cyan-500/15 text-cyan-500 border-cyan-500/20',
+    available: true,
+    logo: '/companies/gohighlevel.svg',
+    logoDarkInvert: false,
+    authKind: 'oauth',
+    subtitle: 'Location OAuth'
   },
   salesforce: {
     name: 'Salesforce',

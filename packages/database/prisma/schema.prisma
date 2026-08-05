@@ -192,6 +192,7 @@ enum CallSessionEventType {
 enum CrmProviderType {
   attio
   hubspot
+  gohighlevel
   salesforce
   /// Legacy provider kept to preserve existing CRM records.
   gohighlevel
