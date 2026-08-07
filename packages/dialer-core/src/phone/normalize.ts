@@ -1,5 +1,6 @@
 import {
   parsePhoneNumberFromString,
+  getCountryCallingCode,
   type CountryCode,
 } from "libphonenumber-js/max";
 
@@ -39,6 +40,27 @@ export function formatForDisplay(
 ): string {
   const n = parsePhoneNumberFromString(input.trim(), region);
   return n && n.isValid() ? n.formatInternational() : input;
+}
+
+/**
+ * The E.164 calling code for a country (e.g. "1" for US, "34" for ES).
+ *
+ * Tap-to-dial keypads mimic a physical phone: users tap the *local* digits,
+ * not a full international number. A bare "+" plus those local digits is
+ * only a valid destination by coincidence for NANP countries, where the "1"
+ * trunk prefix users habitually dial doubles as the correct calling code —
+ * everywhere else (e.g. Spain, "+" + 9 local digits) it produces an invalid
+ * or wrong-country number. Callers should seed the first tapped digit with
+ * this code for the currently selected country instead.
+ */
+export function countryCallingCode(
+  region: CountryCode = DEFAULT_REGION,
+): string {
+  try {
+    return getCountryCallingCode(region);
+  } catch {
+    return "1";
+  }
 }
 
 export type { CountryCode };

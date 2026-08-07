@@ -9,7 +9,7 @@ import {
 } from '@ringee/frontend-shared/components/ui/card';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import { Circle, Clock } from 'lucide-react';
-import PhoneInput from 'react-phone-number-input';
+import PhoneInput, { type Country } from 'react-phone-number-input';
 import { useSearchParams } from 'next/navigation';
 import { useCreditStore } from '@/features/credit/store/credit.store';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
@@ -72,6 +72,9 @@ export function Dialer({
 
   const [dncDialog, setDncDialog] = useState<PendingDncDialog | null>(null);
   const [checkingDnc, setCheckingDnc] = useState(false);
+  // Shared between the text field and the tap-to-dial keypad so both agree on
+  // which country's calling code to use for bare, locally-dialed digits.
+  const [country, setCountry] = useState<Country>('US');
 
   const phoneNumberSelected = searchParams.get('phoneNumber');
   const status = activeCall?.state || CallStatus.idle;
@@ -173,6 +176,8 @@ export function Dialer({
             <PhoneInput
               international
               defaultCountry='US'
+              country={country}
+              onCountryChange={(c) => c && setCountry(c)}
               placeholder='Enter number'
               // @ts-ignore
               value={number}
@@ -186,6 +191,7 @@ export function Dialer({
               onCall={async () => await attemptCall(number)}
               isCalling={isCalling || checkingDnc}
               callingDisabled={!useMock && !canCall}
+              country={country}
               showCreditPopover={
                 canCall &&
                 canAccessAdminFeatures &&

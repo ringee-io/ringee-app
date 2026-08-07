@@ -623,6 +623,12 @@ model Call {
   errorMessage  String?
   directionMeta Json?
 
+  // Telnyx's `hangup_cause` from the call.hangup webhook (e.g. "call_rejected",
+  // "unallocated_number", "normal_temporary_failure"). Distinguishes a real
+  // no-pickup from a carrier/permission-level rejection that also lands on
+  // outcome = no_answer, since `answeredAt` never gets set in either case.
+  hangupCause String?
+
   outcome     CallOutcome?
   outcomeNote String?      @db.Text
 

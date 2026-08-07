@@ -3,6 +3,11 @@
 import { CreditPopover } from '@/features/credit/components/credit.popover';
 import { Phone, Delete } from 'lucide-react';
 import { useRef } from 'react';
+import {
+  countryCallingCode,
+  DEFAULT_REGION,
+  type CountryCode
+} from '@ringee/dialer-core/phone';
 
 export function DialPad({
   number,
@@ -11,7 +16,8 @@ export function DialPad({
   onCall,
   isCalling,
   callingDisabled = false,
-  showCreditPopover = false
+  showCreditPopover = false,
+  country = DEFAULT_REGION
 }: {
   number: string;
   setNumber: (v: string) => void;
@@ -20,6 +26,8 @@ export function DialPad({
   isCalling: boolean;
   callingDisabled?: boolean;
   showCreditPopover?: boolean;
+  /** Currently selected dialing country — seeds the calling code for taps. */
+  country?: CountryCode;
 }) {
   const keys = [
     { n: '1' },
@@ -91,7 +99,10 @@ export function DialPad({
     if (number?.includes('+')) {
       setNumber(number + k);
     } else {
-      setNumber(`+${number}${k}`);
+      // First tap of a fresh number: seed the selected country's calling
+      // code so tapping local-style digits (e.g. a 9-digit Spanish number)
+      // dials the right country instead of an invalid "+<local digits>".
+      setNumber(`+${countryCallingCode(country)}${number}${k}`);
     }
   };
 

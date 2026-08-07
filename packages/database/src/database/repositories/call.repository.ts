@@ -110,6 +110,7 @@ export class CallRepository {
     callControlId: string,
     startedAt: string,
     endedAt: string,
+    hangupCause?: string,
   ): Promise<Call> {
     const endedAtDate = new Date(endedAt);
     const startedAtDate = new Date(startedAt);
@@ -141,6 +142,7 @@ export class CallRepository {
         endedAt: endedAtDate,
         startedAt: startedAtDate,
         durationSeconds,
+        ...(hangupCause ? { hangupCause } : {}),
         ...(neverConnected ? { outcome: CallOutcome.no_answer } : {}),
       },
     });

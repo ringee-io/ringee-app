@@ -819,6 +819,7 @@ export class CallService implements OnModuleDestroy {
           callControlId,
           hangupPayload.start_time!,
           hangupPayload.end_time!,
+          hangupPayload.hangup_cause,
         );
 
         const hangupCall =

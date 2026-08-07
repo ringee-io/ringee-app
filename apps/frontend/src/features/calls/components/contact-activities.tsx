@@ -35,6 +35,7 @@ interface ContactData {
     durationSeconds?: number;
     status: string;
     outcome?: string;
+    hangupCause?: string;
     createdAt: string;
   }[];
   notes?: {
@@ -193,8 +194,18 @@ function ActivityRow({ activity }: { activity: ContactActivity }) {
             {call.direction || 'outbound'} call
           </span>
           {call.outcome && (
-            <span className='text-muted-foreground ml-1.5'>
+            <span
+              className='text-muted-foreground ml-1.5'
+              title={
+                call.outcome === 'no_answer' && call.hangupCause
+                  ? `Carrier reason: ${call.hangupCause.replace(/_/g, ' ')}`
+                  : undefined
+              }
+            >
               &middot; {call.outcome.replace(/_/g, ' ')}
+              {call.outcome === 'no_answer' &&
+                call.hangupCause &&
+                ` (${call.hangupCause.replace(/_/g, ' ')})`}
             </span>
           )}
         </div>
