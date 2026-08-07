@@ -8,6 +8,7 @@ import { useDialerSessionStore } from '../store/dialer-session.store';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useAuth } from '@clerk/nextjs';
 import { setOutboundRingbackVolume } from '@ringee/dialer-core/engine';
+import { toast } from 'sonner';
 
 /**
  * Manages the actual Telnyx WebRTC call for the dialer.
@@ -88,7 +89,20 @@ export function useDialerCall() {
         return;
       }
 
-      const callerId = callerIdNumber || '+10000000000';
+      if (!callerIdNumber) {
+        // Placing the call with a fabricated caller ID gets silently
+        // rejected by carriers that validate CLI authenticity (e.g. Spain's
+        // anti-fraud rules) — refuse instead of dialing with a fake number.
+        console.warn(
+          '⚠️ No caller ID resolved for this destination — refusing to dial with a fake number.'
+        );
+        toast.error(
+          'No caller ID available for this destination. Add or enable a number for its country in Caller ID Rotation settings.'
+        );
+        setCallStatus('ended');
+        return;
+      }
+      const callerId = callerIdNumber;
 
       // Encode the campaign call attempt id into client_state so Telnyx
       // call-control webhooks can be linked back to this CallAttempt on the
@@ -123,7 +137,7 @@ export function useDialerCall() {
       });
       setOutboundRingbackVolume();
     },
-    [client, userId, orgId]
+    [client, userId, orgId, setCallStatus]
   );
 
   const toggleMute = useCallback(async () => {

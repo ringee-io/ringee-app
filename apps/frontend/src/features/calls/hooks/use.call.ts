@@ -16,6 +16,7 @@ import { useNumbersStore } from '../store/number.selector.store';
 import { useAnalytics } from '@ringee/frontend-shared/hooks/use.analytics';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useOnboardingComplete } from '@/features/onboarding/hooks/use.onboarding.complete';
+import { toast } from 'sonner';
 
 export function useCall(call?: Call | null) {
   const analytics = useAnalytics();
@@ -153,9 +154,13 @@ export function useCall(call?: Call | null) {
     }
 
     if (!callerId) {
-      return console.warn(
+      console.warn(
         '⚠️ No caller ID available for this destination — add a number for its country.'
       );
+      toast.error(
+        'No caller ID available for this destination. Add or enable a number for its country in Caller ID Rotation settings.'
+      );
+      return;
     }
 
     placeCall({
