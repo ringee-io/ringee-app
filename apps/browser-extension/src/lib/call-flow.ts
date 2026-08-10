@@ -19,19 +19,28 @@ export const ERROR_COPY: Record<PrepareCallErrorCode, string> = {
   NO_CALLER_ID: "No caller ID available for this workspace.",
   INSUFFICIENT_CREDITS: "Not enough credits to place this call.",
   DNC_BLOCKED: "This number is on the Do-Not-Call list.",
+  CONCURRENT_CALL:
+    "You already have a call in progress on another device. End it before starting another.",
   FORBIDDEN: "You don't have permission to call from this workspace.",
   CONTACT_FAILED: "Could not attach the call to a contact.",
   UNKNOWN: "Could not start the call. Please try again.",
 };
 
-/** The snapshot patch the side panel renders when prepare-call fails. */
+/**
+ * The snapshot patch the side panel renders when prepare-call fails.
+ *
+ * `serverMessage` wins when present: the backend often knows more than the code
+ * does (which device is already on a call, which country has no caller ID).
+ */
 export function failureSnapshot(
   code: PrepareCallErrorCode,
-): Pick<CallSnapshotMsg, "state" | "error" | "dncBlocked"> {
+  serverMessage?: string | null,
+): Pick<CallSnapshotMsg, "state" | "error" | "dncBlocked" | "concurrentCall"> {
   return {
     state: "failed",
-    error: ERROR_COPY[code] ?? ERROR_COPY.UNKNOWN,
+    error: serverMessage?.trim() || ERROR_COPY[code] || ERROR_COPY.UNKNOWN,
     dncBlocked: code === "DNC_BLOCKED",
+    concurrentCall: code === "CONCURRENT_CALL",
   };
 }
 

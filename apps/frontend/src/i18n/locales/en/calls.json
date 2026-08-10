@@ -150,5 +150,17 @@
       "willCost": "Your call will cost",
       "perMinute": "per minute"
     }
+  },
+  "concurrentCall": {
+    "title": "One call at a time",
+    "fallbackMessage": "You already have a call in progress on another device.",
+    "handoffMessage": "You tried to start a second call while another one was already running on one of your devices.",
+    "explanation": "Ringee allows one live call per user across every device — the web dialer, the browser extension, a desk phone or an embedded dialer. End the call that is running before starting another.",
+    "teamPitch": "Need two or more people calling at the same time? That's what the Organization plan is for: invite your team and every member calls from their own account, in parallel.",
+    "subscriptionReadyNote": "Your Organization plan is ready. Create your organization and invite your team so several people can call at the same time.",
+    "orgMemberNote": "You're already on the Organization plan. Each teammate calls from their own account — invite them to your organization instead of sharing a login.",
+    "upgrade": "Upgrade to Organization",
+    "redirecting": "Redirecting…",
+    "dismiss": "Got it"
   }
 }

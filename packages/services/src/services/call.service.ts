@@ -41,6 +41,7 @@ import {
   pickCallTerminalEvent,
 } from "./custom-integrations/custom-integration-event-builders";
 import { PipelineFanoutService } from "./ai-pipeline";
+import { ConcurrentCallGuardService } from "./security";
 import { calculateCallCharge, readProfitMultiplier } from "./call-cost.util";
 
 /** Connected calls shorter than this (seconds) count as "very short" for
@@ -76,6 +77,7 @@ export class CallService implements OnModuleDestroy {
     private readonly recordingSettingsService: CallRecordingSettingsService,
     private readonly transcriptionOrchestrator: TranscriptionService,
     private readonly pipelineFanout: PipelineFanoutService,
+    private readonly concurrentCallGuard: ConcurrentCallGuardService,
   ) {}
 
   onModuleDestroy(): void {
@@ -196,6 +198,47 @@ export class CallService implements OnModuleDestroy {
   }
 
   /**
+   * Authoritative half of the one-call-at-a-time rule.
+   *
+   * Every dial surface refuses a second concurrent call up front, but a client
+   * can always talk to Telnyx directly and skip that check — the WebRTC leg is
+   * placed by the browser, not by us. This runs on `call.initiated` for every
+   * outbound leg and hangs up the newcomer when the user is already on a call,
+   * so the rule holds no matter how the call was started.
+   *
+   * Returns false when the event must stop being processed.
+   */
+  private async ensureNoConcurrentCall(
+    ctx: OwnershipContext,
+    callControlId: string,
+  ): Promise<boolean> {
+    const busy = await this.concurrentCallGuard.findOccupyingCall(
+      ctx.userId,
+      callControlId,
+    );
+    if (!busy) {
+      // Bind the lease to this leg so it survives for the call's lifetime and
+      // so a dial that never went through pre-flight still holds the slot.
+      await this.concurrentCallGuard.bindToCall(ctx.userId, callControlId);
+      return true;
+    }
+
+    this.logger.warn(
+      `⛔ Hanging up call ${callControlId}: user ${ctx.userId} is already on call ` +
+        `${busy.id} (${busy.callControlId}, source=${busy.source ?? "unknown"})`,
+    );
+    await this.telephonyService
+      .hangupCall(callControlId)
+      .catch((err) =>
+        this.logger.error(
+          `Failed to hang up concurrent call ${callControlId}: ${err.message}`,
+          err.stack,
+        ),
+      );
+    return false;
+  }
+
+  /**
    * Decide whether `ctx`'s owner may place/continue a call.
    * Owners flagged with an active free-call trial are always allowed.
    * Otherwise a positive credit balance (user or organization, resolved from
@@ -283,6 +326,12 @@ export class CallService implements OnModuleDestroy {
 
     // Same credit/enablement gate as the web path (hangs up if unaffordable).
     if (!(await this.ensureCallAffordable(ctx, callControlId))) {
+      return true;
+    }
+
+    // Same one-call-at-a-time rule as the web path. The row being adopted is
+    // still `pending`, so it never counts as the user's occupying call.
+    if (!(await this.ensureNoConcurrentCall(ctx, callControlId))) {
       return true;
     }
 
@@ -703,6 +752,12 @@ export class CallService implements OnModuleDestroy {
           return;
         }
 
+        // One call at a time per user, across every device. Enforced here too
+        // because the browser places the WebRTC leg and can bypass pre-flight.
+        if (!(await this.ensureNoConcurrentCall(outboundCtx, callControlId))) {
+          return;
+        }
+
         const contact = await this.contactService.findByPhone(
           outboundCtx,
           payload.to!,
@@ -824,6 +879,18 @@ export class CallService implements OnModuleDestroy {
 
         const hangupCall =
           await this.callRepository.findByControlId(callControlId);
+
+        // Free the user's single call slot as soon as the leg is down, so they
+        // can dial again from any device without waiting for a TTL.
+        if (hangupCall?.userId) {
+          await this.concurrentCallGuard
+            .release(hangupCall.userId, callControlId)
+            .catch((err: Error) =>
+              this.logger.warn(
+                `Could not release the dial lease for call ${callControlId}: ${err.message}`,
+              ),
+            );
+        }
         // Caller-ID reputation: a connected call that lasted < 5s is a strong
         // "spam-like" signal for the presented number. Count it for health.
         if (

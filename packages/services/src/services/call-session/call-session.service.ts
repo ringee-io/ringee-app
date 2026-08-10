@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -39,6 +40,7 @@ import { PipelineFanoutService } from "../ai-pipeline";
 import { CrmCallLogService } from "../crm/crm-call-log.service";
 import { CallerIdRotationService } from "../caller-id-rotation/caller-id-rotation.service";
 import { UserService } from "../user.service";
+import { ConcurrentCallGuardService } from "../security";
 
 const MIN_CREDIT_BALANCE_TO_CALL = 0.01;
 const DEFAULT_EXPIRES_IN_MINUTES = 60;
@@ -114,6 +116,7 @@ export class CallSessionService {
     private readonly callerIdRotationService: CallerIdRotationService,
     private readonly crmCallLog: CrmCallLogService,
     private readonly userService: UserService,
+    private readonly concurrentCallGuard: ConcurrentCallGuardService,
   ) {}
 
   // ── Ownership & access ──────────────────────────────────────
@@ -647,6 +650,21 @@ export class CallSessionService {
       throw new ForbiddenException(
         "Outbound calling is disabled for this user",
       );
+    }
+
+    // One call at a time per user, across every device. The guest dialing the
+    // magic link is calling on the session OWNER's behalf, so their calls share
+    // the owner's single slot with the owner's own dialers.
+    const decision = await this.concurrentCallGuard.requestDial(
+      session.userId,
+      {
+        deviceId: `session:${sessionId}`,
+        deviceLabel: "a dialing session link",
+        source: "session",
+      },
+    );
+    if (!decision.allowed) {
+      throw new ConflictException(decision.message);
     }
     const balance = await this.creditService.getBalance(ctx);
     if (balance <= MIN_CREDIT_BALANCE_TO_CALL) {

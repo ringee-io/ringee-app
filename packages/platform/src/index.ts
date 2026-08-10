@@ -4,6 +4,7 @@ export * from "./chat";
 export * from "./ai";
 export * from "./ai-agents";
 export * from "./redis";
+export * from "./realtime";
 export * from "./temporal";
 export * from "./email";
 export * from "./telephony";

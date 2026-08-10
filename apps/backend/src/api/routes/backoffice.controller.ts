@@ -23,8 +23,11 @@ import {
 import { BackofficeService, PipelineType } from "@ringee/services";
 import { AccountType } from "@ringee/database";
 import { SuperAdminOnly } from "../guards/super-admin.guard";
+import type { RealtimeDevice } from "@ringee/platform";
 import {
+  EnforcementResult,
   UserAccessAdminState,
+  UserAccessEnforcementResponse,
   UserAccessEnforcementService,
 } from "./user-access-enforcement.service";
 
@@ -68,6 +71,12 @@ class SetAiPipelineDto {
 class AssignNumberDto {
   @IsString()
   numberId!: string;
+}
+
+class TerminateCallsDto {
+  @IsOptional()
+  @IsString()
+  reason?: string;
 }
 
 class UpdateUserGeneralSettingsDto {
@@ -196,14 +205,36 @@ export class BackofficeController {
     return this.userAccess.removeRingeeBlock(id);
   }
 
+  /**
+   * Full lockdown: bans the Clerk identity, blocks the Ringee account, hangs up
+   * every live call at the provider and pushes `account.blocked` to every
+   * signed-in device over its WebSocket.
+   */
   @Post("accounts/user/:id/access/clerk/ban")
-  banInClerk(@Param("id") id: string): Promise<UserAccessAdminState> {
+  banInClerk(@Param("id") id: string): Promise<UserAccessEnforcementResponse> {
     return this.userAccess.setClerkBan(id, true);
   }
 
   @Post("accounts/user/:id/access/clerk/unban")
-  unbanInClerk(@Param("id") id: string): Promise<UserAccessAdminState> {
+  unbanInClerk(
+    @Param("id") id: string,
+  ): Promise<UserAccessEnforcementResponse> {
     return this.userAccess.setClerkBan(id, false);
+  }
+
+  /** Devices holding an open realtime socket right now, across all instances. */
+  @Get("accounts/user/:id/access/devices")
+  listConnectedDevices(@Param("id") id: string): Promise<RealtimeDevice[]> {
+    return this.userAccess.listConnectedDevices(id);
+  }
+
+  /** Drop the user's live calls without changing their account access. */
+  @Post("accounts/user/:id/access/terminate-calls")
+  terminateActiveCalls(
+    @Param("id") id: string,
+    @Body() dto: TerminateCallsDto,
+  ): Promise<EnforcementResult> {
+    return this.userAccess.terminateActiveCalls(id, dto.reason);
   }
 
   @Post("accounts/:type/:id/credit")

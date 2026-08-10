@@ -58,6 +58,7 @@
     "@types/express": "~5.0.0",
     "@types/mime-types": "^3.0.1",
     "@types/node": "~22.16.0",
+    "@types/ws": "^8.18.1",
     "ts-node": "~10.9.0",
     "tsconfig-paths": "~4.2.0",
     "typescript": "~5.9.0"

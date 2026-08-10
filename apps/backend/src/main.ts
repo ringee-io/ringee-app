@@ -67,8 +67,10 @@ async function bootstrap() {
 
   app.use(clerkMiddleware());
 
-  // The Telnyx media-stream WebSocket self-attaches to this HTTP server via the
-  // gateway's onApplicationBootstrap hook (path /media-stream).
+  // Both WebSocket servers self-attach to this HTTP server from their
+  // `onApplicationBootstrap` hooks: the Telnyx media stream on /media-stream
+  // and the per-user events gateway on /ws/user-events. Each one claims only
+  // its own path on the shared `upgrade` event.
 
   await app.listen(apiConfiguration.PORT, () => {
     console.log(`🚀 Server running on port ${apiConfiguration.PORT}`);

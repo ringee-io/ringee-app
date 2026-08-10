@@ -39,8 +39,10 @@ import {
   type AccountDetail as AccountDetailData,
   type AccountType,
   type EditableUserGeneralSettings,
+  type EnforcementResult,
   type NumberListItem,
   type PipelineType,
+  type RealtimeDevice,
   type RecordingSettings,
   type UserAccessAdminState,
   type UserGeneralSettings
@@ -174,7 +176,27 @@ export function AccountDetail({ type, id }: { type: AccountType; id: string }) {
 
 // ── Account access & abuse controls ─────────────────────────
 
-type AccessAction = 'stripe' | 'ringee' | 'clerk-ban' | 'clerk-unban';
+type AccessAction =
+  | 'stripe'
+  | 'ringee'
+  | 'clerk-ban'
+  | 'clerk-unban'
+  | 'drop-calls';
+
+/** "3 calls ended · 2 devices notified · 1 dialer session offline" */
+function describeEnforcement(result: EnforcementResult): string {
+  const parts = [
+    `${result.calls.terminated} call${result.calls.terminated === 1 ? '' : 's'} ended`,
+    `${result.devicesNotified} device${result.devicesNotified === 1 ? '' : 's'} notified`
+  ];
+  if (result.sessionsDisabled > 0) {
+    parts.push(`${result.sessionsDisabled} dialer session(s) offline`);
+  }
+  if (result.calls.failed > 0) {
+    parts.push(`${result.calls.failed} hangup(s) FAILED — retry`);
+  }
+  return parts.join(' · ');
+}
 
 function AccessControlCard({
   id,
@@ -187,28 +209,61 @@ function AccessControlCard({
 }) {
   const api = useBackofficeApi();
   const [busy, setBusy] = useState<AccessAction | null>(null);
+  const [devices, setDevices] = useState<RealtimeDevice[] | null>(null);
+  const [loadingDevices, setLoadingDevices] = useState(false);
+
+  const loadDevices = useCallback(async () => {
+    setLoadingDevices(true);
+    try {
+      setDevices(await api.listConnectedDevices(id));
+    } catch {
+      // Presence is diagnostic only — never block the access controls on it.
+      setDevices([]);
+    } finally {
+      setLoadingDevices(false);
+    }
+  }, [api, id]);
+
+  useEffect(() => {
+    void loadDevices();
+  }, [loadDevices]);
 
   const run = async (action: AccessAction) => {
     setBusy(action);
     try {
-      const updated =
-        action === 'stripe'
-          ? await api.restoreStripeAbuse(id)
-          : action === 'ringee'
-            ? await api.removeRingeeBlock(id)
-            : action === 'clerk-ban'
-              ? await api.banInClerk(id)
-              : await api.unbanInClerk(id);
-      onUpdated(updated);
-      toast.success(
-        action === 'stripe'
-          ? 'Stripe abuse counters restored'
-          : action === 'ringee'
-            ? 'Ringee block removed and calling enabled'
-            : action === 'clerk-ban'
-              ? 'User banned in Clerk and Ringee'
-              : 'User unbanned in Clerk'
-      );
+      switch (action) {
+        case 'stripe':
+          onUpdated(await api.restoreStripeAbuse(id));
+          toast.success('Stripe abuse counters restored');
+          break;
+        case 'ringee':
+          onUpdated(await api.removeRingeeBlock(id));
+          toast.success('Ringee block removed and calling enabled');
+          break;
+        case 'drop-calls': {
+          const result = await api.terminateActiveCalls(id);
+          toast.success(
+            `Active calls dropped — ${describeEnforcement(result)}`
+          );
+          break;
+        }
+        case 'clerk-ban': {
+          const { access: updated, enforcement } = await api.banInClerk(id);
+          onUpdated(updated);
+          toast.success(`User banned — ${describeEnforcement(enforcement)}`, {
+            duration: 8000
+          });
+          break;
+        }
+        case 'clerk-unban': {
+          const { access: updated } = await api.unbanInClerk(id);
+          onUpdated(updated);
+          toast.success('User unbanned in Clerk');
+          break;
+        }
+      }
+      // Every action above changes who is connected (a ban closes the sockets).
+      await loadDevices();
     } catch (err) {
       toast.error(errorMessage(err, 'Failed to update account access'));
     } finally {
@@ -221,7 +276,8 @@ function AccessControlCard({
       <CardHeader className='px-4 sm:px-6'>
         <CardTitle>Account access</CardTitle>
         <CardDescription>
-          Repair Stripe abuse state and manage Ringee or Clerk blocks.
+          Repair Stripe abuse state, manage Ringee or Clerk blocks, and cut live
+          calls on every signed-in device.
         </CardDescription>
       </CardHeader>
       <CardContent className='space-y-5 px-4 sm:px-6'>
@@ -242,6 +298,9 @@ function AccessControlCard({
           <Badge variant={access.canCall ? 'secondary' : 'outline'}>
             Calls: {access.canCall ? 'enabled' : 'disabled'}
           </Badge>
+          <Badge variant='outline'>
+            Devices online: {devices ? devices.length : '—'}
+          </Badge>
         </div>
 
         {access.ringeeBlocked && (
@@ -250,6 +309,12 @@ function AccessControlCard({
             {access.blockedAt ? ` · ${formatDate(access.blockedAt)}` : ''}
           </p>
         )}
+
+        <ConnectedDevices
+          devices={devices}
+          loading={loadingDevices}
+          onRefresh={() => void loadDevices()}
+        />
 
         <div className='space-y-2'>
           <Label>Repair controls</Label>
@@ -276,6 +341,37 @@ function AccessControlCard({
         </div>
 
         <div className='space-y-2 border-t pt-4'>
+          <Label>Live calls</Label>
+          <p className='text-muted-foreground text-xs'>
+            Hangs up every call this user has in progress, on every device,
+            without touching their account access.
+          </p>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button size='sm' variant='outline' disabled={busy !== null}>
+                {busy === 'drop-calls' ? 'Ending…' : 'End active calls'}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>End this user&apos;s calls?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Every call currently in progress is hung up at the carrier and
+                  each signed-in device is told to tear down immediately. The
+                  account stays active.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={() => run('drop-calls')}>
+                  End calls
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </div>
+
+        <div className='space-y-2 border-t pt-4'>
           <Label>Clerk identity</Label>
           <div className='flex flex-wrap gap-2'>
             <AlertDialog>
@@ -292,8 +388,10 @@ function AccessControlCard({
                 <AlertDialogHeader>
                   <AlertDialogTitle>Ban this user?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    This revokes Clerk access, blocks the Ringee account and
-                    disables outbound calling.
+                    This revokes Clerk access, blocks the Ringee account,
+                    disables outbound calling, hangs up every call in progress
+                    and signs the user out of all {devices?.length ?? 0}{' '}
+                    connected device(s).
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -319,6 +417,64 @@ function AccessControlCard({
         </div>
       </CardContent>
     </Card>
+  );
+}
+
+function ConnectedDevices({
+  devices,
+  loading,
+  onRefresh
+}: {
+  devices: RealtimeDevice[] | null;
+  loading: boolean;
+  onRefresh: () => void;
+}) {
+  return (
+    <div className='space-y-2'>
+      <div className='flex items-center justify-between'>
+        <Label>Connected devices</Label>
+        <Button
+          size='sm'
+          variant='ghost'
+          className='h-7 px-2 text-xs'
+          disabled={loading}
+          onClick={onRefresh}
+        >
+          {loading ? 'Refreshing…' : 'Refresh'}
+        </Button>
+      </div>
+
+      {devices === null || loading ? (
+        <p className='text-muted-foreground text-xs'>Loading…</p>
+      ) : devices.length === 0 ? (
+        <p className='text-muted-foreground text-xs'>
+          No device is holding a realtime connection. A ban still ends their
+          calls server-side and blocks the next request.
+        </p>
+      ) : (
+        <ul className='divide-y rounded-md border text-xs'>
+          {devices.map((device) => (
+            <li
+              key={device.connectionId}
+              className='flex items-center justify-between gap-3 px-3 py-2'
+            >
+              <span className='min-w-0'>
+                <span className='block truncate font-medium'>
+                  {device.deviceLabel || 'Unknown device'}
+                </span>
+                <span className='text-muted-foreground block truncate'>
+                  {device.client} · {device.ip || 'no ip'} · since{' '}
+                  {formatDate(device.connectedAt)}
+                </span>
+              </span>
+              <Badge variant='secondary' className='shrink-0'>
+                online
+              </Badge>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
   );
 }
 

@@ -156,5 +156,17 @@
     "failed": "Échec",
     "processing": "En cours",
     "ready": "Prêt"
+  },
+  "concurrentCall": {
+    "title": "Un seul appel à la fois",
+    "fallbackMessage": "Vous avez déjà un appel en cours sur un autre appareil.",
+    "handoffMessage": "Vous avez essayé de lancer un deuxième appel alors qu'un autre était déjà en cours sur l'un de vos appareils.",
+    "explanation": "Ringee autorise un seul appel actif par utilisateur, sur tous ses appareils : le composeur web, l'extension de navigateur, un téléphone de bureau ou un composeur intégré. Terminez l'appel en cours avant d'en démarrer un autre.",
+    "teamPitch": "Besoin que deux personnes ou plus appellent en même temps ? C'est à cela que sert le plan Organisation : invitez votre équipe et chaque membre appelle depuis son propre compte, en parallèle.",
+    "subscriptionReadyNote": "Votre plan Organisation est prêt. Créez votre organisation et invitez votre équipe pour que plusieurs personnes puissent appeler en même temps.",
+    "orgMemberNote": "Vous avez déjà le plan Organisation. Chaque membre appelle depuis son propre compte : invitez vos collègues dans votre organisation plutôt que de partager un accès.",
+    "upgrade": "Passer à l'Organisation",
+    "redirecting": "Redirection…",
+    "dismiss": "J'ai compris"
   }
 }

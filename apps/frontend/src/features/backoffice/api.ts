@@ -2,6 +2,9 @@
 
 import { useMemo } from 'react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import type { RealtimeDevice } from '@ringee/frontend-shared/realtime';
+
+export type { RealtimeDevice };
 
 export type AccountType = 'user' | 'org';
 
@@ -92,6 +95,23 @@ export interface UserAccessAdminState {
   blockedReason: string | null;
   canCall: boolean;
   clerkBanned: boolean | null;
+}
+
+/** What a ban / forced disconnect actually did, reported back to the admin. */
+export interface EnforcementResult {
+  calls: {
+    callIds: string[];
+    terminated: number;
+    withoutControlId: number;
+    failed: number;
+  };
+  devicesNotified: number;
+  sessionsDisabled: number;
+}
+
+export interface UserAccessEnforcementResponse {
+  access: UserAccessAdminState;
+  enforcement: EnforcementResult;
 }
 
 export interface NumberListItem {
@@ -363,16 +383,31 @@ export function useBackofficeApi() {
           {}
         ),
 
+      /**
+       * Full lockdown: Clerk ban + Ringee block + every live call hung up at
+       * the provider + `account.blocked` pushed to every connected device.
+       */
       banInClerk: (id: string) =>
-        api.post<UserAccessAdminState>(
+        api.post<UserAccessEnforcementResponse>(
           `${BASE}/accounts/user/${id}/access/clerk/ban`,
           {}
         ),
 
       unbanInClerk: (id: string) =>
-        api.post<UserAccessAdminState>(
+        api.post<UserAccessEnforcementResponse>(
           `${BASE}/accounts/user/${id}/access/clerk/unban`,
           {}
+        ),
+
+      /** Devices holding an open realtime socket right now. */
+      listConnectedDevices: (id: string) =>
+        api.get<RealtimeDevice[]>(`${BASE}/accounts/user/${id}/access/devices`),
+
+      /** Drop live calls without changing the account's access. */
+      terminateActiveCalls: (id: string, reason?: string) =>
+        api.post<EnforcementResult>(
+          `${BASE}/accounts/user/${id}/access/terminate-calls`,
+          reason ? { reason } : {}
         ),
 
       updateRecordingSettings: (

@@ -95,6 +95,56 @@ export class CallRepository {
     });
   }
 
+  /**
+   * Every live call placed BY this user, regardless of workspace. Unlike
+   * {@link findActiveByOwner} this deliberately ignores the ownership context:
+   * an account-level enforcement action (ban, forced disconnect) must reach the
+   * user's personal calls and their calls in any organization alike.
+   */
+  async findActiveByUserId(userId: string): Promise<Call[]> {
+    return this.prisma.call.findMany({
+      where: {
+        userId,
+        endedAt: null,
+        status: {
+          in: [
+            CallStatus.pending,
+            CallStatus.ringing,
+            CallStatus.answered,
+            CallStatus.recording,
+          ],
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  /**
+   * Close a call that was terminated by the platform rather than by a hangup
+   * webhook. Kept idempotent: a late `call.hangup` may still arrive and will
+   * simply overwrite the timings with the provider's own values.
+   */
+  async markForciblyEnded(id: string, errorMessage: string): Promise<Call> {
+    const call = await this.prisma.call.findUnique({ where: { id } });
+    const endedAt = new Date();
+    const startedAt = call?.startedAt ?? call?.createdAt ?? endedAt;
+
+    return this.prisma.call.update({
+      where: { id },
+      data: {
+        status: CallStatus.completed,
+        endedAt,
+        durationSeconds:
+          call?.durationSeconds ??
+          Math.max(
+            0,
+            Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000),
+          ),
+        errorMessage,
+      },
+    });
+  }
+
   async updateStatus(callControlId: string, status: CallStatus): Promise<Call> {
     return this.prisma.call.update({
       where: { callControlId },

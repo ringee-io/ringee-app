@@ -14,6 +14,7 @@ import type {
   PageOrigin,
   TelephonyCredential,
 } from "@ringee/dialer-core/contracts";
+import { DEVICE_ID_HEADER, getDeviceId } from "./device-id";
 
 const API_URL =
   import.meta.env.VITE_RINGEE_API_URL ?? "https://api.ringee.io/api";
@@ -53,6 +54,7 @@ export type PrepareCallErrorCode =
   | "NO_CALLER_ID"
   | "INSUFFICIENT_CREDITS"
   | "DNC_BLOCKED"
+  | "CONCURRENT_CALL"
   | "FORBIDDEN"
   | "CONTACT_FAILED"
   | "UNKNOWN";
@@ -284,11 +286,15 @@ export class RingeeApi {
     forceRefresh: boolean,
   ): Promise<Response> {
     const token = await this.getToken({ forceRefresh }).catch(() => null);
+    // Identifies this install so the API's one-call-at-a-time rule can tell the
+    // extension apart from the web app running in the same browser.
+    const deviceId = await getDeviceId().catch(() => null);
     return fetch(`${API_URL}${path}`, {
       ...init,
       headers: {
         "Content-Type": "application/json",
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(deviceId ? { [DEVICE_ID_HEADER]: deviceId } : {}),
         ...(init?.headers ?? {}),
       },
     });

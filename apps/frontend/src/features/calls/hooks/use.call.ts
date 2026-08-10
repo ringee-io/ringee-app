@@ -15,7 +15,9 @@ import { useAuth } from '@clerk/nextjs';
 import { useNumbersStore } from '../store/number.selector.store';
 import { useAnalytics } from '@ringee/frontend-shared/hooks/use.analytics';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { ApiError } from '@ringee/frontend-shared/lib/api';
 import { useOnboardingComplete } from '@/features/onboarding/hooks/use.onboarding.complete';
+import { notifyConcurrentCall } from '@/features/security/store/concurrent-call.store';
 import { toast } from 'sonner';
 
 export function useCall(call?: Call | null) {
@@ -132,7 +134,8 @@ export function useCall(call?: Call | null) {
   const handleCall = async (number: string) => {
     if (!client) return console.warn('⚠️ Telnyx client not ready');
 
-    // Caller ID is decided by the backend. The user's selected number is sent
+    // This request is the dial pre-flight: it resolves the caller ID AND
+    // enforces the one-call-at-a-time rule. The user's selected number is sent
     // as the fallback so behavior is unchanged when number rotation is off;
     // when it's on, the backend rotates to the best country-matched number.
     let callerId = selectedNumber?.phoneNumber ?? null;
@@ -149,7 +152,15 @@ export function useCall(call?: Call | null) {
             : null
       });
       if (res) callerId = res.phoneNumber;
-    } catch {
+    } catch (err) {
+      // A 409 is a deliberate refusal, not a hiccup: the user is already on a
+      // call somewhere else. Dialing anyway would only get the leg torn down by
+      // the server, so stop here and explain the rule (plus the way around it —
+      // a seat per teammate) in a dialog rather than a toast that scrolls away.
+      if (err instanceof ApiError && err.status === 409) {
+        notifyConcurrentCall(err.data?.message ?? err.message);
+        return;
+      }
       // Network/permission hiccup — fall back to the locally selected number.
     }
 

@@ -156,5 +156,17 @@
     "failed": "Fallita",
     "processing": "In elaborazione",
     "ready": "Pronta"
+  },
+  "concurrentCall": {
+    "title": "Una chiamata alla volta",
+    "fallbackMessage": "Hai già una chiamata in corso su un altro dispositivo.",
+    "handoffMessage": "Hai provato ad avviare una seconda chiamata mentre ce n'era già una in corso su uno dei tuoi dispositivi.",
+    "explanation": "Ringee consente una sola chiamata attiva per utente su tutti i suoi dispositivi: il dialer web, l'estensione del browser, un telefono da scrivania o un dialer integrato. Termina la chiamata in corso prima di iniziarne un'altra.",
+    "teamPitch": "Ti serve che due o più persone chiamino contemporaneamente? È proprio a questo che serve il piano Organizzazione: invita il tuo team e ogni membro chiama dal proprio account, in parallelo.",
+    "subscriptionReadyNote": "Il tuo piano Organizzazione è pronto. Crea la tua organizzazione e invita il team, così più persone potranno chiamare contemporaneamente.",
+    "orgMemberNote": "Hai già il piano Organizzazione. Ogni membro chiama dal proprio account: invita i tuoi colleghi nella tua organizzazione invece di condividere un accesso.",
+    "upgrade": "Passa a Organizzazione",
+    "redirecting": "Reindirizzamento…",
+    "dismiss": "Ho capito"
   }
 }

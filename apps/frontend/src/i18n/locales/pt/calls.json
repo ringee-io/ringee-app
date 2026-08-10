@@ -156,5 +156,17 @@
     "failed": "Falhou",
     "processing": "A processar",
     "ready": "Pronta"
+  },
+  "concurrentCall": {
+    "title": "Apenas uma chamada de cada vez",
+    "fallbackMessage": "Já tem uma chamada em curso noutro dispositivo.",
+    "handoffMessage": "Tentou iniciar uma segunda chamada enquanto já existia outra em curso num dos seus dispositivos.",
+    "explanation": "O Ringee permite apenas uma chamada ativa por utilizador em todos os seus dispositivos: o marcador web, a extensão do navegador, um telefone de secretária ou um marcador integrado. Termine a chamada em curso antes de iniciar outra.",
+    "teamPitch": "Precisa que duas ou mais pessoas liguem ao mesmo tempo? É para isso que existe o plano Organização: convide a sua equipa e cada membro liga a partir da sua própria conta, em paralelo.",
+    "subscriptionReadyNote": "O seu plano Organização já está pronto. Crie a sua organização e convide a equipa para que várias pessoas possam ligar ao mesmo tempo.",
+    "orgMemberNote": "Já tem o plano Organização. Cada membro liga a partir da sua própria conta — convide os seus colegas para a sua organização em vez de partilhar um acesso.",
+    "upgrade": "Fazer upgrade para Organização",
+    "redirecting": "A redirecionar…",
+    "dismiss": "Entendido"
   }
 }

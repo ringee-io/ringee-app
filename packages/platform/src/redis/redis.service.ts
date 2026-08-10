@@ -17,6 +17,10 @@ interface RedisClient {
     options: { keys: string[]; arguments: string[] },
   ): Promise<unknown>;
   ttl(key: string): Promise<number>;
+  hSet(key: string, field: string, value: string): Promise<number>;
+  hDel(key: string, field: string): Promise<number>;
+  hGetAll(key: string): Promise<Record<string, string>>;
+  expire(key: string, seconds: number): Promise<unknown>;
 }
 
 @Injectable()
@@ -197,5 +201,42 @@ export class RedisService {
 
   async ttlSeconds(key: string): Promise<number> {
     return this.client.ttl(key);
+  }
+
+  /**
+   * Write one field of a hash and (re)arm the whole hash's expiry. Used for
+   * registries whose members come and go — the TTL is a safety net so a crashed
+   * process cannot leak entries forever.
+   */
+  async hashSet<T>(
+    key: string,
+    field: string,
+    value: T,
+    ttlSeconds?: number,
+  ): Promise<void> {
+    const serialized =
+      typeof value === "string" ? value : JSON.stringify(value);
+    await this.client.hSet(key, field, serialized);
+    if (ttlSeconds) {
+      await this.client.expire(key, ttlSeconds);
+    }
+  }
+
+  async hashDelete(key: string, field: string): Promise<void> {
+    await this.client.hDel(key, field);
+  }
+
+  /** Read a whole hash, skipping any field whose payload no longer parses. */
+  async hashGetAll<T>(key: string): Promise<Record<string, T>> {
+    const raw = await this.client.hGetAll(key);
+    const entries: Record<string, T> = {};
+    for (const [field, value] of Object.entries(raw ?? {})) {
+      try {
+        entries[field] = JSON.parse(value) as T;
+      } catch {
+        // Ignore corrupt members rather than failing the whole read.
+      }
+    }
+    return entries;
   }
 }

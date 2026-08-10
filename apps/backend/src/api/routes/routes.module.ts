@@ -10,6 +10,7 @@ import {
   NotificationModule,
   DeepgramModule,
   RedisModule,
+  RealtimeModule,
 } from "@ringee/platform";
 import { TranscriptionMediaGateway } from "@ringee/services";
 import { ClerkController } from "./clerk.controller";
@@ -147,6 +148,7 @@ import { UserAccessEnforcementService } from "./user-access-enforcement.service"
     TriggerLoopModule,
     DeepgramModule,
     RedisModule,
+    RealtimeModule,
   ],
 })
 export class RoutesModule {}

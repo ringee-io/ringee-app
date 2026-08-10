@@ -156,5 +156,17 @@
     "failed": "Fehlgeschlagen",
     "processing": "Wird verarbeitet",
     "ready": "Bereit"
+  },
+  "concurrentCall": {
+    "title": "Nur ein Anruf gleichzeitig",
+    "fallbackMessage": "Sie führen bereits ein Gespräch auf einem anderen Gerät.",
+    "handoffMessage": "Sie haben versucht, einen zweiten Anruf zu starten, während auf einem Ihrer Geräte bereits ein Gespräch lief.",
+    "explanation": "Ringee erlaubt pro Benutzer nur ein aktives Gespräch – über alle Geräte hinweg: den Web-Dialer, die Browser-Erweiterung, ein Tischtelefon oder einen eingebetteten Dialer. Beenden Sie das laufende Gespräch, bevor Sie ein neues starten.",
+    "teamPitch": "Sollen zwei oder mehr Personen gleichzeitig telefonieren? Genau dafür gibt es den Organisations-Tarif: Laden Sie Ihr Team ein – jedes Mitglied telefoniert über ein eigenes Konto, parallel.",
+    "subscriptionReadyNote": "Ihr Organisations-Tarif ist bereit. Erstellen Sie Ihre Organisation und laden Sie Ihr Team ein, damit mehrere Personen gleichzeitig telefonieren können.",
+    "orgMemberNote": "Sie nutzen bereits den Organisations-Tarif. Jedes Teammitglied telefoniert über ein eigenes Konto – laden Sie Ihre Kolleginnen und Kollegen in Ihre Organisation ein, statt Zugangsdaten zu teilen.",
+    "upgrade": "Auf Organisation upgraden",
+    "redirecting": "Weiterleitung…",
+    "dismiss": "Verstanden"
   }
 }

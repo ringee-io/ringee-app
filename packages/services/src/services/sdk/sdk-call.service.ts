@@ -2,6 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { CallRepository, CallStatus } from "@ringee/database";
 import { RedisService, signCallCorrelation } from "@ringee/platform";
 import { ComplianceService } from "../outbound/compliance.service";
+import { ConcurrentCallGuardService } from "../security";
 import { CreditService } from "../credit.service";
 import { SdkCallerIdResolver } from "./sdk-caller-id-resolver.service";
 import { SdkContactResolver } from "./sdk-contact-resolver.service";
@@ -50,6 +51,7 @@ export class SdkCallService {
     private readonly contacts: SdkContactResolver,
     private readonly calls: CallRepository,
     private readonly redis: RedisService,
+    private readonly concurrentCalls: ConcurrentCallGuardService,
   ) {}
 
   async authorize(
@@ -77,26 +79,18 @@ export class SdkCallService {
       if (cached) return cached;
     }
 
-    // One live call per agent (belt-and-braces; the SDK also holds a browser
-    // lock). Only ringing/answered/recording count — a stale `pending` never
-    // wedges the agent.
-    const live = await this.calls
-      .findActiveByOwner(ctx)
-      .then((rows) =>
-        rows.find(
-          (r) =>
-            r.userId === agent.user.id &&
-            (r.status === CallStatus.ringing ||
-              r.status === CallStatus.answered ||
-              r.status === CallStatus.recording),
-        ),
-      )
-      .catch(() => undefined);
-    if (live) {
-      throw new SdkError(
-        "CALL_ALREADY_ACTIVE",
-        "There is already an active call for this agent.",
-      );
+    // One call at a time per user, across every device — the same rule the web
+    // dialer, the extension and desk phones enforce. Each SDK session counts as
+    // its own device, so an agent embedded in two CRMs cannot dial from both.
+    const decision = await this.concurrentCalls.requestDial(agent.user.id, {
+      // Identity = which integration on which host page. Two tabs of the same
+      // CRM are one device; a second CRM (or the web dialer) is a second one.
+      deviceId: `sdk:${agent.claims.integrationId}:${agent.claims.origin}`,
+      deviceLabel: agent.integration.name,
+      source: "sdk",
+    });
+    if (!decision.allowed) {
+      throw new SdkError("CALL_ALREADY_ACTIVE", decision.message);
     }
 
     // DNC — blocking.

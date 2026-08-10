@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { toast } from 'sonner';
+import { notifyConcurrentCall } from '@/features/security/store/concurrent-call.store';
 import { useDialerSessionStore } from '../store/dialer-session.store';
 import { useDialerLeadStore } from '../store/dialer-lead.store';
 import { useDialerAttemptStore } from '../store/dialer-attempt.store';
@@ -69,6 +71,18 @@ export function useDialerEvents(
         }
         // Trigger actual WebRTC call via callback
         onCallInitiateRef.current?.(data);
+      });
+
+      // The backend refused to dial this lead. The lead stays reserved and the
+      // next poll retries it, so nothing is burned — the agent just has to be
+      // told why the session went quiet.
+      es.addEventListener('call.blocked', (e) => {
+        const data = JSON.parse(e.data);
+        if (data.reason === 'CONCURRENT_CALL') {
+          notifyConcurrentCall(data.message);
+        } else if (data.message) {
+          toast.error(data.message);
+        }
       });
 
       es.addEventListener('call.state', (e) => {

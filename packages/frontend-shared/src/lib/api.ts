@@ -1,3 +1,5 @@
+import { DEVICE_ID_HEADER, getRingeeDeviceId } from "../realtime/device-id";
+
 export interface ApiClientOptions {
   baseURL?: string;
   headers?: Record<string, string>;
@@ -64,9 +66,15 @@ export class ApiClient {
 
   private async buildHeaders() {
     const token = await this.getAuthToken();
+    // Identifies this browser profile so the API can tell "the same device
+    // re-dialing" from "a second device" for the one-call-at-a-time rule. It is
+    // the same id the realtime socket registers under, so the backoffice device
+    // list and that rule agree on what a device is.
+    const deviceId = getRingeeDeviceId();
     return {
       ...this.headers,
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(deviceId ? { [DEVICE_ID_HEADER]: deviceId } : {}),
     };
   }
 

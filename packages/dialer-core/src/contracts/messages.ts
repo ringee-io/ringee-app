@@ -91,6 +91,12 @@ export interface CallSnapshotMsg {
   callId?: string;
   telnyxSessionId?: string;
   dncBlocked?: boolean;
+  /**
+   * The dial was refused because the user is already on a call on another
+   * device. Surfaces the "one call at a time / add a seat" notice instead of a
+   * plain error line.
+   */
+  concurrentCall?: boolean;
   startedAt?: number;
   muted?: boolean;
   onHold?: boolean;

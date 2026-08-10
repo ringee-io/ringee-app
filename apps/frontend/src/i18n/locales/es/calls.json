@@ -150,5 +150,17 @@
       "willCost": "Tu llamada costará",
       "perMinute": "por minuto"
     }
+  },
+  "concurrentCall": {
+    "title": "Solo una llamada a la vez",
+    "fallbackMessage": "Ya tienes una llamada en curso en otro dispositivo.",
+    "handoffMessage": "Intentaste iniciar una segunda llamada mientras ya había otra en curso en uno de tus dispositivos.",
+    "explanation": "Ringee permite una sola llamada activa por usuario en todos sus dispositivos: el marcador web, la extensión del navegador, un teléfono de escritorio o un marcador integrado. Termina la llamada en curso antes de iniciar otra.",
+    "teamPitch": "¿Necesitas que dos o más personas llamen al mismo tiempo? Para eso está el plan Organización: invita a tu equipo y cada miembro llama desde su propia cuenta, en paralelo.",
+    "subscriptionReadyNote": "Tu plan Organización ya está listo. Crea tu organización e invita a tu equipo para que varias personas puedan llamar a la vez.",
+    "orgMemberNote": "Ya tienes el plan Organización. Cada compañero llama desde su propia cuenta: invítalo a tu organización en lugar de compartir un acceso.",
+    "upgrade": "Mejorar a Organización",
+    "redirecting": "Redirigiendo…",
+    "dismiss": "Entendido"
   }
 }

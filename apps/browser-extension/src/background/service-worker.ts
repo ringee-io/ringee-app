@@ -107,6 +107,7 @@ async function dial(target: DialTarget, tabId?: number) {
     callId: undefined,
     error: undefined,
     dncBlocked: false,
+    concurrentCall: false,
     startedAt: undefined,
     // Never let a previous call's Telnyx id leak into this call. Once the new
     // id arrives, callEventSnapshotPatch keeps it through the final SDK event.
@@ -137,11 +138,15 @@ async function dial(target: DialTarget, tabId?: number) {
     });
   } catch (e) {
     const code = e instanceof ApiError ? e.code : "UNKNOWN";
+    const serverMessage = e instanceof ApiError ? e.message : null;
     // If static env credentials are configured (web-app style), dial with them
-    // even when the backend prepare-call is unavailable. Compliance/permission
-    // blocks (DNC, forbidden) are NEVER bypassed this way.
+    // even when the backend prepare-call is unavailable. Deliberate refusals —
+    // compliance, permissions, and the one-call-at-a-time rule — are NEVER
+    // bypassed this way; only an unreachable/erroring backend is.
     const fallback =
-      code === "DNC_BLOCKED" || code === "FORBIDDEN"
+      code === "DNC_BLOCKED" ||
+      code === "FORBIDDEN" ||
+      code === "CONCURRENT_CALL"
         ? null
         : buildStaticStartCall(target, identity, preferredCallerId);
     if (fallback) {
@@ -156,7 +161,7 @@ async function dial(target: DialTarget, tabId?: number) {
       chrome.runtime.sendMessage(fallback).catch(() => {});
       return;
     }
-    setSnapshot(failureSnapshot(code));
+    setSnapshot(failureSnapshot(code, serverMessage));
     return;
   }
 
@@ -216,6 +221,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
       callId: undefined,
       error: undefined,
       dncBlocked: false,
+      concurrentCall: false,
       startedAt: undefined,
       telnyxSessionId: undefined,
     });

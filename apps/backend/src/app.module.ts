@@ -9,6 +9,7 @@ import { RedisModule } from "@ringee/platform";
 import { APP_GUARD } from "@nestjs/core";
 import { ClerkAuthGuard } from "./clerk.auth.guard";
 import { TriggerLoopModule } from "./triggerloop/triggerloop.module";
+import { BackendRealtimeModule } from "./realtime/realtime.module";
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { TriggerLoopModule } from "./triggerloop/triggerloop.module";
     ServicesModule,
     McpModule,
     RedisModule,
+    BackendRealtimeModule,
     TriggerLoopModule,
   ],
   controllers: [AppController],

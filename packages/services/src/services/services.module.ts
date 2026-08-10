@@ -144,6 +144,10 @@ import {
   SdkTelnyxTokenService,
   SdkCallService,
 } from "./sdk";
+import {
+  ActiveCallTerminationService,
+  ConcurrentCallGuardService,
+} from "./security";
 
 const servicesProviders = [
   UserService,
@@ -278,6 +282,9 @@ const servicesProviders = [
   SdkContactResolver,
   SdkTelnyxTokenService,
   SdkCallService,
+  // Account enforcement (ban / forced disconnect) + one-call-at-a-time rule
+  ActiveCallTerminationService,
+  ConcurrentCallGuardService,
 ];
 
 /**

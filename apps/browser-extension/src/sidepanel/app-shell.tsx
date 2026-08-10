@@ -13,6 +13,10 @@ import { CallbackDetailScreen } from "./screens/callback-detail-screen";
 import { MeetingDetailScreen } from "./screens/meeting-detail-screen";
 import { ScheduleScreen } from "./screens/schedule-screen";
 
+/** Web app host — the same one Clerk syncs the session from. */
+const APP_HOST =
+  import.meta.env.VITE_CLERK_SYNC_HOST ?? "https://www.ringee.io";
+
 /**
  * The signed-in side-panel shell: a branded header (with the admin-only credit
  * pill), the routed body, and a bottom tab bar. Header + tabs show on the two
@@ -21,10 +25,12 @@ import { ScheduleScreen } from "./screens/schedule-screen";
 export function AppShell({
   error,
   dncBlocked,
+  concurrentCall,
   creditRefreshKey,
 }: {
   error?: string;
   dncBlocked?: boolean;
+  concurrentCall?: boolean;
   creditRefreshKey?: number;
 }) {
   const nav = useNav();
@@ -65,7 +71,30 @@ export function AppShell({
           )}
         >
           <AlertCircle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          <span>{error}</span>
+          <div className="space-y-1.5">
+            <span>{error}</span>
+            {/* One call at a time is a per-user rule, so the way to have two
+                calls running is a second seat — send them to the plan. */}
+            {concurrentCall && (
+              <div>
+                <p className="opacity-90">
+                  Need two or more people calling at the same time? The
+                  Organization plan gives every teammate their own account.
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    chrome.tabs.create({
+                      url: `${APP_HOST}/dashboard?upgrade=organization`,
+                    })
+                  }
+                  className="mt-1.5 rounded-md bg-emerald-500/15 px-2 py-1 font-semibold text-emerald-700 hover:bg-emerald-500/25"
+                >
+                  Upgrade to Organization
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       )}
 

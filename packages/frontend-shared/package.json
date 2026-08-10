@@ -11,7 +11,8 @@
     "./lib/*": "./src/lib/*",
     "./types/*": "./src/types/*",
     "./constants/*": "./src/constants/*",
-    "./config/*": "./src/config/*"
+    "./config/*": "./src/config/*",
+    "./realtime": "./src/realtime/index.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "7.6.2",

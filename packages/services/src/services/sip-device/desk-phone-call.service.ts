@@ -15,6 +15,7 @@ import { UserService } from "../user.service";
 import { ContactService } from "../contact.service";
 import { NumberPurchasedService } from "../number.purchased.service";
 import { ComplianceService } from "../outbound/compliance.service";
+import { ConcurrentCallGuardService } from "../security";
 import { SipDeviceService } from "./sip-device.service";
 import { calculateCallCharge, readProfitMultiplier } from "../call-cost.util";
 
@@ -27,6 +28,7 @@ type BlockReason =
   | "NO_CALLER_ID"
   | "CALLER_ID_NOT_ALLOWED"
   | "DNC"
+  | "CONCURRENT_CALL"
   | "INSUFFICIENT_CREDITS";
 
 const E164 = /^\+[1-9]\d{6,14}$/;
@@ -58,6 +60,7 @@ export class DeskPhoneCallService {
     private readonly contactService: ContactService,
     private readonly complianceService: ComplianceService,
     private readonly telnyx: TelnyxService,
+    private readonly concurrentCallGuard: ConcurrentCallGuardService,
   ) {}
 
   async handleEvent(event: {
@@ -232,6 +235,17 @@ export class DeskPhoneCallService {
       .catch(() => null);
     if (user?.canCall === false) {
       return block("USER_CALLING_DISABLED");
+    }
+
+    // One call at a time per user, across every device. Lifting the handset
+    // while a browser call is up is exactly the case this rule forbids.
+    const decision = await this.concurrentCallGuard.requestDial(device.userId, {
+      deviceId: `sip:${device.id}`,
+      deviceLabel: device.label ?? "a desk phone",
+      source: "sip_device",
+    });
+    if (!decision.allowed) {
+      return block("CONCURRENT_CALL", decision.message);
     }
 
     // 2) Destination normalization.

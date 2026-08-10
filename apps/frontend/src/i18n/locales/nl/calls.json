@@ -156,5 +156,17 @@
     "failed": "Mislukt",
     "processing": "Bezig",
     "ready": "Gereed"
+  },
+  "concurrentCall": {
+    "title": "Eén gesprek tegelijk",
+    "fallbackMessage": "Je hebt al een gesprek lopen op een ander apparaat.",
+    "handoffMessage": "Je probeerde een tweede gesprek te starten terwijl er al een gesprek liep op een van je apparaten.",
+    "explanation": "Ringee staat één actief gesprek per gebruiker toe, op al je apparaten: de webdialer, de browserextensie, een bureautelefoon of een geïntegreerde dialer. Beëindig het lopende gesprek voordat je een nieuw gesprek start.",
+    "teamPitch": "Wil je dat twee of meer mensen tegelijk bellen? Daar is het Organisatie-abonnement voor: nodig je team uit en elk lid belt met een eigen account, tegelijkertijd.",
+    "subscriptionReadyNote": "Je Organisatie-abonnement staat klaar. Maak je organisatie aan en nodig je team uit, zodat meerdere mensen tegelijk kunnen bellen.",
+    "orgMemberNote": "Je hebt al het Organisatie-abonnement. Elke collega belt met een eigen account — nodig ze uit in je organisatie in plaats van een login te delen.",
+    "upgrade": "Upgraden naar Organisatie",
+    "redirecting": "Doorsturen…",
+    "dismiss": "Begrepen"
   }
 }

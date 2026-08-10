@@ -21,6 +21,7 @@ import {
   CallerIdRotationService,
   CallService,
   ComplianceService,
+  ConcurrentCallGuardService,
   ContactService,
   CreditService,
   MeetingService,
@@ -29,6 +30,10 @@ import {
   TranscriptionService,
 } from "@ringee/services";
 import type { Call } from "@ringee/database";
+import {
+  DialDevice,
+  type DialDeviceInfo,
+} from "../decorators/dial-device.decorator";
 
 /** Stable error codes the browser extension maps to user-facing states. */
 type PrepareCallErrorCode =
@@ -37,6 +42,7 @@ type PrepareCallErrorCode =
   | "CALLER_ID_CAP_REACHED"
   | "INSUFFICIENT_CREDITS"
   | "DNC_BLOCKED"
+  | "CONCURRENT_CALL"
   | "CONTACT_FAILED";
 
 interface PageOriginDto {
@@ -88,6 +94,7 @@ export class ExtensionController {
     private readonly callService: CallService,
     private readonly recordingService: RecordingService,
     private readonly transcriptionService: TranscriptionService,
+    private readonly concurrentCallGuard: ConcurrentCallGuardService,
   ) {}
 
   /**
@@ -308,6 +315,7 @@ export class ExtensionController {
   async prepareCall(
     @Body() body: PrepareCallDto,
     @CurrentUser() user: CurrentUserData,
+    @DialDevice() device: DialDeviceInfo,
   ) {
     const destination = (body?.destination ?? "").trim();
     if (!E164.test(destination)) {
@@ -318,6 +326,17 @@ export class ExtensionController {
     }
 
     const ctx = createOwnershipContext(user);
+
+    // 0) One call at a time per user, across every device — checked first so a
+    //    refused dial never burns a caller-ID rotation pick or a contact write.
+    const decision = await this.concurrentCallGuard.requestDial(user.id, {
+      deviceId: device.deviceId,
+      deviceLabel: device.deviceLabel,
+      source: "chrome_extension",
+    });
+    if (!decision.allowed) {
+      this.fail("CONCURRENT_CALL", decision.message, HttpStatus.CONFLICT);
+    }
 
     // 1) DNC compliance — blocking.
     const dnc = await this.complianceService.findOnDNC(ctx, destination);

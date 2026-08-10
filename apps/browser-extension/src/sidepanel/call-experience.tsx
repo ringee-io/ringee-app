@@ -299,6 +299,7 @@ export function CallExperience() {
               <AppShell
                 error={snap.state === "failed" ? snap.error : undefined}
                 dncBlocked={snap.state === "failed" && snap.dncBlocked}
+                concurrentCall={snap.state === "failed" && snap.concurrentCall}
                 creditRefreshKey={creditKey}
               />
             </div>

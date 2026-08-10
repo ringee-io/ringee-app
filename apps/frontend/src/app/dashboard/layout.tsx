@@ -8,6 +8,7 @@ import {
 } from '@ringee/frontend-shared/components/ui/sidebar';
 import { DialerShortcutView } from '@/features/calls/components/dialer.shortcut.view';
 import { OnboardingGuideWrapper } from '@/features/onboarding/components/onboarding-guide-wrapper';
+import { AccountLockdownProvider } from '@/features/security';
 import { cookies } from 'next/headers';
 import { currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
@@ -31,20 +32,24 @@ export default async function DashboardLayout({
 
   return (
     <ClerkAppProvider>
-      <KBar>
-        <SidebarProvider defaultOpen={defaultOpen}>
-          <AppMainSidebar />
-          <SidebarInset>
-            <Header />
-            <div className='flex gap-4'>
-              <div className='w-full'>{children}</div>
-              <DialerShortcutView defaultOpen={defaultDialerOpen} />
-            </div>
-          </SidebarInset>
-          <OnboardingGuideWrapper />
-          {/* <SupportButton /> */}
-        </SidebarProvider>
-      </KBar>
+      {/* Single realtime socket for this device: hangs up and locks the UI the
+          instant the backoffice bans the account. */}
+      <AccountLockdownProvider>
+        <KBar>
+          <SidebarProvider defaultOpen={defaultOpen}>
+            <AppMainSidebar />
+            <SidebarInset>
+              <Header />
+              <div className='flex gap-4'>
+                <div className='w-full'>{children}</div>
+                <DialerShortcutView defaultOpen={defaultDialerOpen} />
+              </div>
+            </SidebarInset>
+            <OnboardingGuideWrapper />
+            {/* <SupportButton /> */}
+          </SidebarProvider>
+        </KBar>
+      </AccountLockdownProvider>
     </ClerkAppProvider>
   );
 }

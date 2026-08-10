@@ -12,6 +12,7 @@ import { ComplianceService } from "./compliance.service";
 import { SSEBridgeService } from "./sse-bridge.service";
 import { DispositionService } from "./disposition.service";
 import { CallerIdRotationService } from "../caller-id-rotation/caller-id-rotation.service";
+import { ConcurrentCallGuardService } from "../security";
 
 const DIALER_POLL_INTERVAL_MS = 500;
 
@@ -32,6 +33,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     private readonly sseBridge: SSEBridgeService,
     private readonly dispositionService: DispositionService,
     private readonly callerIdRotationService: CallerIdRotationService,
+    private readonly concurrentCallGuard: ConcurrentCallGuardService,
   ) {}
 
   onModuleDestroy(): void {
@@ -316,6 +318,27 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     lead: { id: string; contact: { phoneNumber: string } },
     attemptId: string,
   ): Promise<void> {
+    // One call at a time per user, across every device. The agent may be on a
+    // manual call from the web dialer, the extension or a desk phone — don't
+    // push a campaign lead on top of it. The lead stays reserved, so the next
+    // poll retries once they are free; nothing is burned.
+    const decision = await this.concurrentCallGuard.requestDial(agent.userId, {
+      deviceId: `campaign-agent:${agent.id}`,
+      deviceLabel: "a campaign session",
+      source: "campaign",
+    });
+    if (!decision.allowed) {
+      this.logger.warn(
+        `Skipping campaign dial for agent ${agent.id} (lead ${lead.id}): ${decision.message}`,
+      );
+      this.sseBridge.emit(`agent:${agent.id}`, "call.blocked", {
+        attemptId,
+        reason: "CONCURRENT_CALL",
+        message: decision.message,
+      });
+      return;
+    }
+
     // Resolve caller ID phone number (rotation-aware; falls back to the
     // campaign's fixed caller ID / purchased number when rotation is off).
     const callerIdNumber = await this.resolveDialCallerId(

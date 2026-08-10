@@ -39,3 +39,4 @@ export * from "./backoffice-campaign.service";
 export * from "./sip-device";
 export * from "./infrastructure";
 export * from "./sdk";
+export * from "./security";

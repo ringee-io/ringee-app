@@ -1,5 +1,6 @@
 import {
   Body,
+  ConflictException,
   Controller,
   Get,
   Param,
@@ -13,7 +14,14 @@ import {
   OrgAdminOnly,
   createOwnershipContext,
 } from "@ringee/platform";
-import { CallerIdRotationService } from "@ringee/services";
+import {
+  CallerIdRotationService,
+  ConcurrentCallGuardService,
+} from "@ringee/services";
+import {
+  DialDevice,
+  type DialDeviceInfo,
+} from "../decorators/dial-device.decorator";
 
 interface CurrentUserData {
   id: string;
@@ -48,19 +56,42 @@ interface UpdatePoolMemberDto {
  */
 @Controller("caller-id-rotation")
 export class CallerIdRotationController {
-  constructor(private readonly rotationService: CallerIdRotationService) {}
+  constructor(
+    private readonly rotationService: CallerIdRotationService,
+    private readonly concurrentCallGuard: ConcurrentCallGuardService,
+  ) {}
 
   /**
    * Decide which caller ID the web manual dialer should present for a
    * destination. The client passes its currently-selected number as the
    * fallback so behavior is unchanged when rotation is off.
+   *
+   * This is also the web dialer's ONLY pre-dial round trip, so it doubles as
+   * its pre-flight: the one-call-at-a-time rule is checked here, before a
+   * caller ID is handed out. Refusing here means the browser never places the
+   * WebRTC leg at all, which is a much better experience than connecting a call
+   * and having the `call.initiated` backstop tear it down.
    */
   @Post("resolve")
   async resolve(
     @Body() body: ResolveCallerIdDto,
     @CurrentUser() user: CurrentUserData,
+    @DialDevice() device: DialDeviceInfo,
   ) {
     const ctx = createOwnershipContext(user);
+
+    const decision = await this.concurrentCallGuard.requestDial(user.id, {
+      deviceId: device.deviceId,
+      deviceLabel: device.deviceLabel,
+      source: "web",
+    });
+    if (!decision.allowed) {
+      throw new ConflictException({
+        code: "CONCURRENT_CALL",
+        message: decision.message,
+      });
+    }
+
     return this.rotationService.selectForDial(
       ctx,
       (body?.destination ?? "").trim(),
