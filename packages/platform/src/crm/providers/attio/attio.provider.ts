@@ -31,6 +31,7 @@ import type {
 import { ATTIO_CAPABILITIES } from "./attio.capabilities";
 import {
   attioIdempotencyTag,
+  buildAttioPersonName,
   buildCallLogNote,
   buildMeetingNote,
   mapAttioCompanyToMatch,
@@ -219,15 +220,8 @@ export class AttioProvider extends AbstractCrmProvider {
     const values: Record<string, unknown> = {};
     if (input.email) values.email_addresses = [input.email];
     values.phone_numbers = [input.phoneE164];
-    if (input.displayName || input.firstName || input.lastName) {
-      values.name = [
-        {
-          full_name: input.displayName ?? undefined,
-          first_name: input.firstName ?? undefined,
-          last_name: input.lastName ?? undefined,
-        },
-      ];
-    }
+    const name = buildAttioPersonName(input);
+    if (name) values.name = [name];
 
     if (input.email) {
       const res = await this.request<AttioRecordResponse<AttioPersonRecord>>({
@@ -250,11 +244,26 @@ export class AttioProvider extends AbstractCrmProvider {
       });
       if (matches.length > 0) {
         const recordId = matches[0].externalId;
+        // Phone-only match on an existing record: never clobber a name Attio
+        // already has with the one we derived from Ringee's contact (which is
+        // often just a first name, or the number itself).
+        const existingName = (matches[0].raw as AttioPersonRecord | undefined)
+          ?.values?.name?.[0];
+        const patchValues = { ...values };
+        if (
+          existingName &&
+          (existingName.full_name ||
+            existingName.first_name ||
+            existingName.last_name ||
+            existingName.value)
+        ) {
+          delete patchValues.name;
+        }
         const res = await this.request<AttioRecordResponse<AttioPersonRecord>>({
           method: "PATCH",
           url: `${this.config.apiBaseUrl}/v2/objects/people/records/${recordId}`,
           headers: this.authHeaders(creds.accessToken),
-          body: { data: { values } },
+          body: { data: { values: patchValues } },
         });
         return {
           externalId: res.data.id.record_id,

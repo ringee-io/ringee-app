@@ -1,13 +1,14 @@
 import { defineConfig } from "vitest/config";
 
 /**
- * Scoped to the pure Dialer SDK crypto/token utilities (`src/sdk`), which have
- * no NestJS or workspace-alias dependencies and so run without the full app
- * bootstrap. `APP_ENCRYPTION_SECRET` is provided so key derivation works.
+ * Scoped to pure utilities that have no NestJS or workspace-alias dependencies
+ * and so run without the full app bootstrap: the Dialer SDK crypto/token
+ * helpers (`src/sdk`) and the CRM provider mappers (`src/crm`).
+ * `APP_ENCRYPTION_SECRET` is provided so key derivation works.
  */
 export default defineConfig({
   test: {
-    include: ["src/sdk/**/*.test.ts"],
+    include: ["src/sdk/**/*.test.ts", "src/crm/**/*.test.ts"],
     env: {
       APP_ENCRYPTION_SECRET:
         process.env.APP_ENCRYPTION_SECRET ??

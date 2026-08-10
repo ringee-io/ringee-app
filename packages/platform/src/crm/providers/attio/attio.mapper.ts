@@ -52,6 +52,51 @@ export function mapAttioPersonToMatch(
   };
 }
 
+/**
+ * Build the value for Attio's `name` attribute (personal-name type).
+ *
+ * Attio validates the OBJECT syntax with all three sub-fields required —
+ * `first_name`, `last_name` AND `full_name` must each be a string. Only the
+ * *string* syntax ("Last, First") gets auto-split; the object syntax does not.
+ * Ringee contacts usually carry just `name` (firstName/lastName are null), so
+ * sending `{ full_name }` alone made Attio reject the whole record with
+ * `validation_type: first_name Required / last_name Required` — a
+ * non-retryable 400 that took the call-log note down with it.
+ *
+ * So we do the split ourselves and always emit the three fields. Returns null
+ * when there is no name at all (the caller then omits the attribute entirely,
+ * which is valid — a person can be created from a phone number alone).
+ */
+export function buildAttioPersonName(input: {
+  displayName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+}): { first_name: string; last_name: string; full_name: string } | null {
+  const first = input.firstName?.trim() ?? "";
+  const last = input.lastName?.trim() ?? "";
+  const display = input.displayName?.trim() ?? "";
+
+  if (first || last) {
+    return {
+      first_name: first,
+      last_name: last,
+      full_name: display || [first, last].filter(Boolean).join(" "),
+    };
+  }
+
+  if (!display) return null;
+
+  // Display name only: first whitespace-separated token is the first name, the
+  // rest is the last name. A single-token name keeps an empty last name, which
+  // is the same shape Attio produces itself for a comma-less string value.
+  const parts = display.split(/\s+/);
+  return {
+    first_name: parts[0],
+    last_name: parts.slice(1).join(" "),
+    full_name: display,
+  };
+}
+
 function formatCallDuration(seconds: number): string {
   const total = Math.max(0, Math.round(seconds));
   const mins = Math.floor(total / 60);
