@@ -12,6 +12,7 @@ import {
   RecordingProcessingService,
   ReminderService,
   RetryEngine,
+  StaleCallSweeperService,
   TranscriptionService,
 } from "@ringee/services";
 import { CampaignLeadRepository, CampaignRepository } from "@ringee/database";
@@ -48,6 +49,7 @@ export function createActivities(app: INestApplicationContext) {
   const numberPurchasedService = app.get(NumberPurchasedService);
   const pipelineRunService = app.get(PipelineRunService);
   const callerIdRotationService = app.get(CallerIdRotationService);
+  const staleCallSweeper = app.get(StaleCallSweeperService);
 
   return {
     // ── Event-driven jobs (started by the backend via OrchestratorService) ──
@@ -141,6 +143,14 @@ export function createActivities(app: INestApplicationContext) {
       const count = await pipelineRunService.runDueScheduled();
       if (count > 0)
         logger.debug(`PipelineScheduler: ${count} pipeline runs triggered`);
+    },
+
+    async sweepStaleCalls() {
+      const closed = await staleCallSweeper.sweep();
+      if (closed > 0)
+        logger.warn(
+          `StaleCallSweep: closed ${closed} calls with no hangup event — their owners were blocked from dialing`,
+        );
     },
 
     async recomputeCallerIdHealth() {

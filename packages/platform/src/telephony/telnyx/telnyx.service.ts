@@ -879,6 +879,33 @@ export class TelnyxService implements TelephonyService {
     });
   }
 
+  /**
+   * Telnyx's own view of a leg (`GET /calls/{id}` → `is_alive`).
+   *
+   * This is the tie-breaker for calls whose `call.hangup` webhook never
+   * arrived: our database says the call is up, Telnyx knows whether it really
+   * is. A 404 means Telnyx has no such leg any more, which is as good as dead.
+   * Anything else (network error, 5xx) returns `null` — unknown, not dead.
+   */
+  async isCallAlive(callControlId: string): Promise<boolean | null> {
+    try {
+      const { data } = await this.telnyxClient.get<{
+        data?: { is_alive?: boolean };
+      }>(`/calls/${callControlId}`);
+      return data?.is_alive ?? false;
+    } catch (error: unknown) {
+      const status =
+        error instanceof HttpException
+          ? error.getStatus()
+          : (error as { response?: { status?: number } })?.response?.status;
+      if (status === 404 || status === 422) return false;
+      this.logger.warn(
+        `Could not read call status for ${callControlId} from Telnyx (status=${status ?? "n/a"})`,
+      );
+      return null;
+    }
+  }
+
   async startRecording(callControlId: string): Promise<void> {
     await telnyx.calls.actions.startRecording(callControlId, {
       format: "mp3",

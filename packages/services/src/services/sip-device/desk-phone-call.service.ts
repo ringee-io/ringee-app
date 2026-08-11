@@ -85,15 +85,24 @@ export class DeskPhoneCallService {
           .updateStatus(callControlId, CallStatus.answered)
           .catch(() => undefined);
         return;
-      case "call.hangup":
-        await this.callRepository
+      case "call.hangup": {
+        const ended = await this.callRepository
           .completeCall(
             callControlId,
             payload.start_time ?? new Date().toISOString(),
             payload.end_time ?? new Date().toISOString(),
           )
-          .catch(() => undefined);
+          .catch(() => null);
+        // Desk-phone legs are parked on their own webhook, so the main call
+        // webhook never runs for them — free the single call slot here or the
+        // handset keeps the user "busy" until the lease TTL expires.
+        if (ended?.userId) {
+          await this.concurrentCallGuard
+            .release(ended.userId, callControlId)
+            .catch(() => undefined);
+        }
         return;
+      }
       case "call.cost":
         return this.onCost(callControlId, payload);
       default:

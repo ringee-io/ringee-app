@@ -147,6 +147,7 @@ import {
 import {
   ActiveCallTerminationService,
   ConcurrentCallGuardService,
+  StaleCallSweeperService,
 } from "./security";
 
 const servicesProviders = [
@@ -285,6 +286,7 @@ const servicesProviders = [
   // Account enforcement (ban / forced disconnect) + one-call-at-a-time rule
   ActiveCallTerminationService,
   ConcurrentCallGuardService,
+  StaleCallSweeperService,
 ];
 
 /**

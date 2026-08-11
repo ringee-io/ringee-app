@@ -125,3 +125,7 @@ export async function pipelineSchedulerWorkflow(): Promise<void> {
 export async function callerIdHealthRecomputeWorkflow(): Promise<void> {
   await periodicJobs.recomputeCallerIdHealth();
 }
+
+export async function staleCallSweepWorkflow(): Promise<void> {
+  await periodicJobs.sweepStaleCalls();
+}

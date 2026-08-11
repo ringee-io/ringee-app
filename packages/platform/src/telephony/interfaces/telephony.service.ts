@@ -23,6 +23,12 @@ export type TelephonyService = {
     },
   ): Promise<{ sipUsername: string; sipPassword: string }>;
   hangupCall(callControlId: string, commandId?: string): Promise<void>;
+  /**
+   * Ask the provider whether a leg is still up. `null` means "could not tell"
+   * (provider unreachable / unexpected response) and must NOT be read as "the
+   * call ended" — callers decide what to do with an unknown answer.
+   */
+  isCallAlive(callControlId: string): Promise<boolean | null>;
   startRecording(callControlId: string): Promise<void>;
   stopRecording(callControlId: string): Promise<void>;
   startStreaming(

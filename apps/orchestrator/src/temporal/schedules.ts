@@ -102,6 +102,15 @@ const SCHEDULES: ScheduleDef[] = [
     catchupWindow: "1h",
   },
   {
+    // Close calls whose `call.hangup` never arrived. Each one occupies its
+    // owner's single call slot, so this runs often: the cost of a miss is a
+    // user who simply cannot dial any more.
+    id: "ringee.stale-call-sweep",
+    workflow: WORKFLOW_NAMES.staleCallSweep,
+    every: "2m",
+    catchupWindow: "10m",
+  },
+  {
     // Recompute caller-ID health scores from a moving window and apply
     // active⇄cooling transitions. Reputation moves slowly, so a 30m cadence is
     // plenty and keeps workflow-history volume low.

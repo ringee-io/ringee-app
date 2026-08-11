@@ -43,6 +43,7 @@ export const WORKFLOW_NAMES = {
   numberVerificationCheck: "numberVerificationCheckWorkflow",
   pipelineScheduler: "pipelineSchedulerWorkflow",
   callerIdHealthRecompute: "callerIdHealthRecomputeWorkflow",
+  staleCallSweep: "staleCallSweepWorkflow",
 } as const;
 
 export type WorkflowName = (typeof WORKFLOW_NAMES)[keyof typeof WORKFLOW_NAMES];

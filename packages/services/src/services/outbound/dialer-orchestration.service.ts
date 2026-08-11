@@ -152,6 +152,23 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     },
     agent: { id: string; userId: string; organizationId: string },
   ): Promise<void> {
+    // Cheap pre-check BEFORE anything is locked or created: an agent who is
+    // already on a call elsewhere cannot take a lead, and burning an attempt +
+    // a lead lock on every poll tick while they talk would poison campaign
+    // analytics. The authoritative (lease-acquiring) check still happens in
+    // initiateCall.
+    if (campaign.dialerMode === "progressive") {
+      const busy = await this.concurrentCallGuard
+        .findOccupyingCall(agent.userId)
+        .catch(() => null);
+      if (busy) {
+        this.logger.debug(
+          `Agent ${agent.userId} is on call ${busy.id} — not assigning a lead this tick`,
+        );
+        return;
+      }
+    }
+
     // Select and lock next lead
     const lead = await this.leadQueueService.selectAndLockNext(
       campaign.id,
@@ -336,6 +353,12 @@ export class DialerOrchestrationService implements OnModuleDestroy {
         reason: "CONCURRENT_CALL",
         message: decision.message,
       });
+
+      // Hand the lead back and return the agent to `ready`. Leaving the
+      // session `reserved` wedged the whole dialer: the poller only assigns to
+      // ready agents, so one refused dial meant the agent never got another
+      // lead and the campaign silently went quiet for them.
+      await this.releaseAssignment(agent.id, lead.id);
       return;
     }
 
@@ -363,6 +386,33 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     this.logger.log(
       `Call initiated for lead ${lead.id} → ${lead.contact.phoneNumber} (attempt: ${attemptId}, callerId: ${callerIdNumber})`,
     );
+  }
+
+  /**
+   * Undo an assignment that could not be dialed: the lead goes back in the
+   * queue and the agent becomes eligible for the next poll again. Best-effort
+   * — the important half is the session state, since a stuck lead lock is
+   * recovered separately by the retry engine's orphaned-lock sweep.
+   */
+  private async releaseAssignment(
+    agentSessionId: string,
+    leadId: string,
+  ): Promise<void> {
+    await this.leadQueueService
+      .releaseLead(leadId)
+      .catch((err) =>
+        this.logger.warn(`Could not release lead ${leadId}: ${err}`),
+      );
+    await this.agentSessionService
+      .transitionTo(agentSessionId, AgentSessionStatus.ready, null)
+      .catch((err) =>
+        this.logger.warn(
+          `Could not return agent ${agentSessionId} to ready: ${err}`,
+        ),
+      );
+    this.sseBridge.emit(`agent:${agentSessionId}`, "session.state", {
+      status: "ready",
+    });
   }
 
   /**

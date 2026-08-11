@@ -11,6 +11,7 @@ import {
   NotificationService,
   OrchestratorService,
   OwnershipContext,
+  RedisService,
   TelephonyService,
   verifyCallCorrelation,
 } from "@ringee/platform";
@@ -50,6 +51,18 @@ const SHORT_CALL_SECONDS = 5;
 const LOW_BALANCE_USD = 2;
 const LOW_BALANCE_MAX_CALL_SECONDS = 5 * 60;
 
+/**
+ * How long a lifecycle event that arrived before its `Call` row is kept so the
+ * `call.initiated` handler can replay it. Generous: the only cost of an
+ * unclaimed key is a few hundred bytes in Redis.
+ */
+const ORPHAN_EVENT_TTL_SECONDS = 15 * 60;
+
+/** Redis key holding events that landed before the call they belong to. */
+function orphanEventsKey(callControlId: string): string {
+  return `ringee:orphan-call-events:v1:${callControlId}`;
+}
+
 @Injectable()
 export class CallService implements OnModuleDestroy {
   private readonly logger = new Logger(CallService.name);
@@ -78,6 +91,7 @@ export class CallService implements OnModuleDestroy {
     private readonly transcriptionOrchestrator: TranscriptionService,
     private readonly pipelineFanout: PipelineFanoutService,
     private readonly concurrentCallGuard: ConcurrentCallGuardService,
+    private readonly redis: RedisService,
   ) {}
 
   onModuleDestroy(): void {
@@ -195,6 +209,75 @@ export class CallService implements OnModuleDestroy {
           `stopRealtime on hangup failed for call ${call.id}: ${err.message}`,
         ),
       );
+  }
+
+  /**
+   * Park a lifecycle event whose `Call` row does not exist yet.
+   *
+   * Telnyx does not guarantee webhook ordering, and `call.initiated` is our
+   * slowest handler (ownership, credit, concurrency, contact lookup) — so on a
+   * fast-failing dial `call.hangup` regularly wins the race. Dropping it left
+   * the row the initiated handler was about to write stuck in `ringing`
+   * forever, which permanently occupied the user's single call slot and made
+   * every later dial fail with "you already have a call in progress".
+   */
+  private async parkOrphanCallEvent(
+    callControlId: string,
+    event: TelnyxWebhookEvent,
+  ): Promise<void> {
+    this.logger.warn(
+      `⏳ ${event.event_type} arrived before its call row (${callControlId}) — parking it for replay`,
+    );
+    const parked = await this.readParkedCallEvents(callControlId);
+    await this.redis
+      .set(
+        orphanEventsKey(callControlId),
+        JSON.stringify([...parked, event]),
+        ORPHAN_EVENT_TTL_SECONDS * 1000,
+      )
+      .catch((error: Error) =>
+        this.logger.error(
+          `Could not park ${event.event_type} for ${callControlId}: ${error.message}`,
+        ),
+      );
+  }
+
+  /**
+   * Replay whatever landed early, in arrival order, now that the row exists.
+   * Called at the end of every `call.initiated` path that persisted a call.
+   */
+  private async replayParkedCallEvents(callControlId: string): Promise<void> {
+    const parked = await this.readParkedCallEvents(callControlId);
+    if (parked.length === 0) return;
+
+    await this.redis.del(orphanEventsKey(callControlId)).catch(() => undefined);
+
+    for (const event of parked) {
+      this.logger.warn(
+        `↩️ Replaying out-of-order ${event.event_type} for ${callControlId}`,
+      );
+      await this.handleTelnyxEvent(event).catch((error: Error) =>
+        this.logger.error(
+          `Replay of ${event.event_type} for ${callControlId} failed: ${error.message}`,
+          error.stack,
+        ),
+      );
+    }
+  }
+
+  private async readParkedCallEvents(
+    callControlId: string,
+  ): Promise<TelnyxWebhookEvent[]> {
+    const raw = await this.redis
+      .get<TelnyxWebhookEvent[] | string>(orphanEventsKey(callControlId))
+      .catch(() => undefined);
+    if (!raw) return [];
+    try {
+      const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
+      return Array.isArray(parsed) ? (parsed as TelnyxWebhookEvent[]) : [];
+    } catch {
+      return [];
+    }
   }
 
   /**
@@ -651,6 +734,10 @@ export class CallService implements OnModuleDestroy {
             user.id,
           );
 
+          // A hangup that beat this webhook is waiting in Redis — apply it now
+          // so the row does not stay `ringing` forever.
+          await this.replayParkedCallEvents(callControlId);
+
           devices.length > 0 &&
             (await Promise.allSettled(
               devices.map((device) => {
@@ -698,6 +785,8 @@ export class CallService implements OnModuleDestroy {
               this.logger.warn(
                 `⚠️ SDK correlation present but not adoptable; dropping ${callControlId}`,
               );
+            } else {
+              await this.replayParkedCallEvents(callControlId);
             }
             return;
           }
@@ -825,16 +914,26 @@ export class CallService implements OnModuleDestroy {
         }
 
         this.logger.log(`📞 Llamada ${callControlId} iniciada`);
+
+        // Apply any answered/hangup that overtook this webhook. Without this
+        // the row below stays `ringing` with no `endedAt` forever and blocks
+        // every future dial by this user.
+        await this.replayParkedCallEvents(callControlId);
         break;
 
       case "call.answered": {
-        await this.callRepository.updateStatus(
+        if (!(await this.callRepository.findByControlId(callControlId))) {
+          // Beat `call.initiated` here too — park instead of throwing on a
+          // missing row (which used to 500 the webhook).
+          await this.parkOrphanCallEvent(callControlId, event);
+          break;
+        }
+
+        const answeredCall = await this.callRepository.updateStatus(
           callControlId,
           CallStatus.answered,
         );
         const answeredAttemptId = this.extractCallAttemptId(payload);
-        const answeredCall =
-          await this.callRepository.findByControlId(callControlId);
         if (answeredAttemptId && answeredCall) {
           await this.callAttemptService.handleWebhookEvent(
             answeredAttemptId,
@@ -870,15 +969,19 @@ export class CallService implements OnModuleDestroy {
 
         this.clearLowBalanceHangup(callControlId);
 
-        await this.callRepository.completeCall(
+        const hangupCall = await this.callRepository.completeCall(
           callControlId,
           hangupPayload.start_time!,
           hangupPayload.end_time!,
           hangupPayload.hangup_cause,
         );
 
-        const hangupCall =
-          await this.callRepository.findByControlId(callControlId);
+        if (!hangupCall) {
+          // The row does not exist YET: this hangup overtook `call.initiated`.
+          // Park it so that handler can close the call it is about to create.
+          await this.parkOrphanCallEvent(callControlId, event);
+          break;
+        }
 
         // Free the user's single call slot as soon as the leg is down, so they
         // can dial again from any device without waiting for a TTL.
@@ -924,7 +1027,17 @@ export class CallService implements OnModuleDestroy {
             );
         }
         if (hangupCall) {
-          void this.crmCallLogService.handleCallCompleted(hangupCall);
+          // Never let a background failure here bubble out as an unhandled
+          // rejection: that takes the process down mid-webhook and leaves the
+          // very orphaned "live" calls this rule chokes on.
+          void this.crmCallLogService
+            .handleCallCompleted(hangupCall)
+            .catch((err: Error) =>
+              this.logger.error(
+                `CRM handleCallCompleted failed for call ${hangupCall.id}: ${err.message}`,
+                err.stack,
+              ),
+            );
           // Custom Integrations outbound — choose the most specific event.
           const ciCtx = callOwnershipFromCall(hangupCall);
           if (ciCtx) {

@@ -182,6 +182,10 @@ export class TelephonyService implements TelephonyServiceInterface {
     return this.getServiceProvider().hangupCall(callControlId, commandId);
   }
 
+  isCallAlive(callControlId: string): Promise<boolean | null> {
+    return this.getServiceProvider().isCallAlive(callControlId);
+  }
+
   startRecording(callControlId: string): Promise<void> {
     return this.getServiceProvider().startRecording(callControlId);
   }

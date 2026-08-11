@@ -1,10 +1,12 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Logger } from "@nestjs/common";
 import { Prisma, Call, CallStatus, CallOutcome } from "@prisma/client";
 import { PrismaService } from "../prisma.service";
 import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
 
 @Injectable()
 export class CallRepository {
+  private readonly logger = new Logger(CallRepository.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async createCall(
@@ -120,6 +122,37 @@ export class CallRepository {
   }
 
   /**
+   * Every call that still claims to be live, across all users, whose row is
+   * older than the cutoff for its status. These are candidates for the stale
+   * call sweep: a call this old is almost always a `call.hangup` webhook that
+   * never arrived, and while the row stands it keeps occupying its owner's
+   * single call slot.
+   */
+  async findStuckActive(params: {
+    ringingBefore: Date;
+    connectedBefore: Date;
+    limit?: number;
+  }): Promise<Call[]> {
+    return this.prisma.call.findMany({
+      where: {
+        endedAt: null,
+        OR: [
+          {
+            status: CallStatus.ringing,
+            createdAt: { lt: params.ringingBefore },
+          },
+          {
+            status: { in: [CallStatus.answered, CallStatus.recording] },
+            createdAt: { lt: params.connectedBefore },
+          },
+        ],
+      },
+      orderBy: { createdAt: "asc" },
+      take: params.limit ?? 100,
+    });
+  }
+
+  /**
    * Close a call that was terminated by the platform rather than by a hangup
    * webhook. Kept idempotent: a late `call.hangup` may still arrive and will
    * simply overwrite the timings with the provider's own values.
@@ -128,6 +161,17 @@ export class CallRepository {
     const call = await this.prisma.call.findUnique({ where: { id } });
     const endedAt = new Date();
     const startedAt = call?.startedAt ?? call?.createdAt ?? endedAt;
+
+    // Same rule as completeCall: an outbound leg that ends without ever firing
+    // `call.answered` never connected, so it is a no_answer. Without this a
+    // force-closed call would sit outcome-less forever and never surface in
+    // dashboards/CRM (answered is measured from `outcome`, not `answeredAt`).
+    const neverConnected =
+      !!call &&
+      !call.answeredAt &&
+      !call.outcome &&
+      call.direction !== "inbound" &&
+      call.direction !== "incoming";
 
     return this.prisma.call.update({
       where: { id },
@@ -141,6 +185,7 @@ export class CallRepository {
             Math.floor((endedAt.getTime() - startedAt.getTime()) / 1000),
           ),
         errorMessage,
+        ...(neverConnected ? { outcome: CallOutcome.no_answer } : {}),
       },
     });
   }
@@ -156,24 +201,39 @@ export class CallRepository {
     });
   }
 
+  /**
+   * Close a call from its `call.hangup` webhook. Returns `null` when the row
+   * does not exist yet — the provider does not guarantee webhook ordering, so
+   * a hangup can genuinely arrive before the call was persisted. The caller is
+   * responsible for replaying it (see CallService.parkOrphanCallEvent);
+   * swallowing it here would leave the row `ringing` forever.
+   */
   async completeCall(
     callControlId: string,
     startedAt: string,
     endedAt: string,
     hangupCause?: string,
-  ): Promise<Call> {
-    const endedAtDate = new Date(endedAt);
-    const startedAtDate = new Date(startedAt);
-    const durationSeconds = Math.floor(
-      (endedAtDate.getTime() - startedAtDate.getTime()) / 1000,
-    );
-
+  ): Promise<Call | null> {
     const call = await this.findByControlId(callControlId);
 
     if (!call) {
-      console.log(call, "CALL NOT FOUND");
-      return call as unknown as Call;
+      this.logger.warn(
+        `call.hangup for unknown call ${callControlId} — nothing to complete`,
+      );
+      return null;
     }
+
+    // Never trust the provider's timestamps blindly: a missing/malformed
+    // start_time used to produce an Invalid Date, which made the update throw
+    // and left the call stuck in `ringing` — permanently occupying the user's
+    // single call slot.
+    const endedAtDate = this.parseDate(endedAt) ?? new Date();
+    const startedAtDate =
+      this.parseDate(startedAt) ?? call.startedAt ?? call.createdAt;
+    const durationSeconds = Math.max(
+      0,
+      Math.floor((endedAtDate.getTime() - startedAtDate.getTime()) / 1000),
+    );
 
     // An outbound call that ends without ever firing `call.answered` never
     // connected — auto-disposition it as no_answer so it surfaces in
@@ -196,6 +256,13 @@ export class CallRepository {
         ...(neverConnected ? { outcome: CallOutcome.no_answer } : {}),
       },
     });
+  }
+
+  /** `null` for a missing/unparseable provider timestamp. */
+  private parseDate(value: string | null | undefined): Date | null {
+    if (!value) return null;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 
   async updateControlState(

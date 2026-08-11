@@ -1,6 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Call, CallRepository, CallStatus } from "@ringee/database";
-import { RedisService } from "@ringee/platform";
+import { RedisService, TelephonyService } from "@ringee/platform";
 
 /** Redis key holding the single dial lease a user is allowed to have. */
 function leaseKey(userId: string): string {
@@ -39,6 +39,37 @@ const OCCUPYING_STATUSES: CallStatus[] = [
   CallStatus.answered,
   CallStatus.recording,
 ];
+
+/**
+ * A `Call` row younger than this is believed on sight. Past it, the row is
+ * confirmed against the provider BEFORE it is allowed to refuse a dial.
+ *
+ * Refusals are rare — they only happen to someone the database thinks is
+ * already on a call — so paying one provider round-trip to be sure is cheap,
+ * and it is what stops a single lost `call.hangup` webhook from bricking an
+ * account. It also covers the everyday campaign case: the agent hangs up and
+ * the next lead is dialed before the hangup webhook lands, which used to be
+ * refused as a "concurrent call".
+ */
+const LIVENESS_TRUST_MS = 15_000;
+
+/**
+ * Ages past which the periodic sweep bothers to look at a row at all. Higher
+ * than {@link LIVENESS_TRUST_MS} on purpose: the interactive path pays for
+ * certainty because a user is waiting, while the background pass must not ask
+ * the provider about every call in flight on the platform.
+ */
+export const RINGING_SUSPECT_MS = 2 * 60_000;
+export const CONNECTED_SUSPECT_MS = 4 * 60 * 60_000;
+
+/**
+ * When the provider cannot be reached, a call keeps blocking until it passes
+ * these ages — at which point it is closed anyway. Being permanently unable to
+ * call is a worse failure than the remote chance of a second leg on a call
+ * that really was still up.
+ */
+const RINGING_HARD_LIMIT_MS = 15 * 60_000;
+const CONNECTED_HARD_LIMIT_MS = 8 * 60 * 60_000;
 
 export interface DialLease {
   /** Stable identity of the device/surface that holds the lease. */
@@ -91,6 +122,12 @@ export interface DialRequest {
  *   database still shows a live call. Otherwise the stale lease is taken over.
  *   Inside the grace window the lease is trusted alone, because the winning
  *   dial has not produced a `Call` row yet.
+ * - **The provider is the referee.** Postgres only knows what the webhooks
+ *   told it, and a lost/late/out-of-order `call.hangup` leaves a row claiming
+ *   to be live forever. So before any call row is allowed to refuse a dial it
+ *   is confirmed against Telnyx (see {@link ConcurrentCallGuardService.confirmStillLive}),
+ *   and closed on the spot when the leg is gone. A missed webhook then costs
+ *   the user one round-trip instead of locking them out of calling for good.
  *
  * An inbound call that is merely ringing does NOT occupy the user — nobody has
  * picked it up, and it must not stop them from dialing out.
@@ -102,6 +139,7 @@ export class ConcurrentCallGuardService {
   constructor(
     private readonly redis: RedisService,
     private readonly callRepository: CallRepository,
+    private readonly telephonyService: TelephonyService,
   ) {}
 
   /**
@@ -232,6 +270,28 @@ export class ConcurrentCallGuardService {
   }
 
   /**
+   * Release ONLY when the lease is still bound to this exact call. Cleanup of
+   * an abandoned call can run long after the fact — possibly while a fresh
+   * dial is mid-flight — and deleting that dial's lease would hand the slot to
+   * a second device.
+   */
+  private async releaseIfBoundTo(
+    userId: string,
+    callControlId: string | null,
+  ): Promise<void> {
+    const holder = await this.readLease(userId);
+    if (!holder || !callControlId) return;
+    if (holder.callControlId !== callControlId) return;
+    await this.redis
+      .del(leaseKey(userId))
+      .catch((error) =>
+        this.logger.warn(
+          `Could not release dial lease for user ${userId}: ${this.message(error)}`,
+        ),
+      );
+  }
+
+  /**
    * The user's call that is genuinely occupying them, if any.
    *
    * `excludeCallControlId` lets the `call.initiated` backstop ignore the leg it
@@ -250,14 +310,108 @@ export class ConcurrentCallGuardService {
         return [] as Call[];
       });
 
-    return (
-      calls.find(
-        (call) =>
-          OCCUPYING_STATUSES.includes(call.status) &&
-          call.callControlId !== excludeCallControlId &&
-          this.occupiesTheUser(call),
-      ) ?? null
+    const candidates = calls.filter(
+      (call) =>
+        OCCUPYING_STATUSES.includes(call.status) &&
+        call.callControlId !== excludeCallControlId &&
+        this.occupiesTheUser(call),
     );
+
+    // Newest first (the repository orders by createdAt desc): the call the user
+    // is really on is the one most likely to confirm, and it short-circuits the
+    // rest.
+    for (const candidate of candidates) {
+      if (await this.confirmStillLive(candidate)) return candidate;
+    }
+    return null;
+  }
+
+  /**
+   * Is this call really still up?
+   *
+   * A row that was just written is believed as-is; anything older is checked
+   * against the provider and CLOSED here when the leg is gone. That write is
+   * what makes the rule self-healing: the same ghost call cannot block the
+   * next dial, and it stops sitting in history/dashboards as an eternal
+   * "in progress" call.
+   *
+   * Also used by the periodic sweep (see StaleCallSweeperService), so a user
+   * who never retries is unblocked without touching the product.
+   */
+  async confirmStillLive(call: Call): Promise<boolean> {
+    const connected =
+      call.status === CallStatus.answered ||
+      call.status === CallStatus.recording;
+    const age = Date.now() - this.livenessAnchor(call).getTime();
+
+    if (age < LIVENESS_TRUST_MS) return true;
+
+    const alive = call.callControlId
+      ? await this.telephonyService
+          .isCallAlive(call.callControlId)
+          .catch(() => null)
+      : false;
+
+    if (alive === true) return true;
+
+    if (alive === null) {
+      // The provider could not answer. Keep believing the row until it gets
+      // absurd, then close it anyway rather than lock the user out.
+      const hardLimit = connected
+        ? CONNECTED_HARD_LIMIT_MS
+        : RINGING_HARD_LIMIT_MS;
+      if (age < hardLimit) return true;
+    }
+
+    await this.closeAbandonedCall(
+      call,
+      alive === null
+        ? "provider could not be reached and the call is far past any plausible duration"
+        : "the provider has no such leg any more",
+    );
+    return false;
+  }
+
+  /**
+   * Close a call whose hangup never reached us, and free the slot it was
+   * holding. Best-effort on purpose: this runs inside dial pre-flight, and a
+   * failed cleanup must not turn into a failed dial.
+   */
+  private async closeAbandonedCall(call: Call, why: string): Promise<void> {
+    this.logger.warn(
+      `Closing abandoned call ${call.id} (leg=${call.callControlId ?? "none"}, ` +
+        `status=${call.status}, user=${call.userId ?? "none"}): ${why}`,
+    );
+
+    await this.callRepository
+      .markForciblyEnded(
+        call.id,
+        `Closed automatically — no hangup event received (${why})`,
+      )
+      .catch((error) =>
+        this.logger.error(
+          `Could not close abandoned call ${call.id}: ${this.message(error)}`,
+        ),
+      );
+
+    if (call.userId) {
+      await this.releaseIfBoundTo(call.userId, call.callControlId);
+    }
+  }
+
+  /**
+   * The moment from which this call's plausible lifetime is measured.
+   * `createdAt` is the backstop: `startedAt` comes from the provider payload
+   * and may be missing on rows written by other dial surfaces.
+   */
+  private livenessAnchor(call: Call): Date {
+    if (
+      call.status === CallStatus.answered ||
+      call.status === CallStatus.recording
+    ) {
+      return call.answeredAt ?? call.startedAt ?? call.createdAt;
+    }
+    return call.startedAt ?? call.createdAt;
   }
 
   /** Copy for a rejection that has no lease behind it (webhook backstop). */

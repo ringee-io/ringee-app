@@ -5,7 +5,8 @@
   "scripts": {
     "clean": "rimraf dist",
     "prebuild": "pnpm run clean",
-    "build": "nest build"
+    "build": "nest build",
+    "test": "TS_NODE_PROJECT=tsconfig.json node --env-file-if-exists=../../.env --require ts-node/register --require tsconfig-paths/register --test \"src/**/*.spec.ts\""
   },
   "dependencies": {
     "@nestjs/common": "~11.1.0",
