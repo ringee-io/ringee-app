@@ -189,7 +189,7 @@ export function ImportCsvModal({ open, onOpenChange }: ImportCsvModalProps) {
       // Search value is cleared inside TagMultiSelect
       return newTag;
     } catch (err) {
-      toast.error(t('failedToCreateTag') || 'Failed to create tag');
+      toast.error(t('failedToCreateTag'));
       throw err;
     }
   };

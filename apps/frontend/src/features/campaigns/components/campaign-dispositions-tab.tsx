@@ -41,6 +41,7 @@ import { Plus, Trash2, Loader2 } from 'lucide-react';
 import type { Disposition, DispositionCategory } from '../types/campaign.types';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 const CATEGORY_COLORS: Record<DispositionCategory, string> = {
   positive: 'bg-green-100 text-green-700',
@@ -60,6 +61,7 @@ export function CampaignDispositionsTab({
   canManage = false
 }: Props) {
   const api = useApi();
+  const t = useTranslations('campaigns');
   const [dispositions, setDispositions] = useState<Disposition[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -113,9 +115,9 @@ export function CampaignDispositionsTab({
         triggersCallback: false
       });
       await loadDispositions();
-      toast.success('Disposition created.');
+      toast.success(t('dispositions.toasts.created'));
     } catch (err: any) {
-      toast.error(err?.message || 'Could not create disposition.');
+      toast.error(err?.message || t('dispositions.toasts.createError'));
     } finally {
       setSaving(false);
     }
@@ -125,9 +127,9 @@ export function CampaignDispositionsTab({
     try {
       await api.delete(`/campaigns/${campaignId}/dispositions/${id}`);
       await loadDispositions();
-      toast.success('Disposition removed.');
+      toast.success(t('dispositions.toasts.removed'));
     } catch (err: any) {
-      toast.error(err?.message || 'Could not remove disposition.');
+      toast.error(err?.message || t('dispositions.toasts.removeError'));
     }
   }
 
@@ -136,34 +138,34 @@ export function CampaignDispositionsTab({
       <CardHeader>
         <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
           <div>
-            <CardTitle>Dispositions</CardTitle>
-            <CardDescription>
-              Configure outcome codes agents select after each call.
-            </CardDescription>
+            <CardTitle>{t('dispositions.title')}</CardTitle>
+            <CardDescription>{t('dispositions.description')}</CardDescription>
           </div>
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             {canManage && (
               <DialogTrigger asChild>
                 <Button size='sm'>
                   <Plus className='mr-2 h-4 w-4' />
-                  Add Disposition
+                  {t('dispositions.add')}
                 </Button>
               </DialogTrigger>
             )}
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Create Disposition</DialogTitle>
+                <DialogTitle>{t('dispositions.createTitle')}</DialogTitle>
                 <DialogDescription>
-                  Add a new call outcome disposition to this campaign.
+                  {t('dispositions.createDescription')}
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={createDisposition} className='space-y-4'>
                 <div className='grid gap-4 sm:grid-cols-2'>
                   <div className='space-y-2'>
-                    <Label htmlFor='dispo-code'>Code</Label>
+                    <Label htmlFor='dispo-code'>
+                      {t('dispositions.code')}
+                    </Label>
                     <Input
                       id='dispo-code'
-                      placeholder='e.g. meeting_booked'
+                      placeholder={t('dispositions.codePlaceholder')}
                       value={newDispo.code}
                       onChange={(e) =>
                         setNewDispo({ ...newDispo, code: e.target.value })
@@ -171,10 +173,12 @@ export function CampaignDispositionsTab({
                     />
                   </div>
                   <div className='space-y-2'>
-                    <Label htmlFor='dispo-label'>Label</Label>
+                    <Label htmlFor='dispo-label'>
+                      {t('dispositions.label')}
+                    </Label>
                     <Input
                       id='dispo-label'
-                      placeholder='e.g. Meeting Booked'
+                      placeholder={t('dispositions.labelPlaceholder')}
                       value={newDispo.label}
                       onChange={(e) =>
                         setNewDispo({ ...newDispo, label: e.target.value })
@@ -184,7 +188,7 @@ export function CampaignDispositionsTab({
                 </div>
                 <div className='grid gap-4 sm:grid-cols-2'>
                   <div className='space-y-2'>
-                    <Label>Category</Label>
+                    <Label>{t('dispositions.category')}</Label>
                     <Select
                       value={newDispo.category}
                       onValueChange={(v) =>
@@ -198,15 +202,25 @@ export function CampaignDispositionsTab({
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value='positive'>Positive</SelectItem>
-                        <SelectItem value='neutral'>Neutral</SelectItem>
-                        <SelectItem value='negative'>Negative</SelectItem>
-                        <SelectItem value='no_contact'>No Contact</SelectItem>
+                        <SelectItem value='positive'>
+                          {t('dispositions.categories.positive')}
+                        </SelectItem>
+                        <SelectItem value='neutral'>
+                          {t('dispositions.categories.neutral')}
+                        </SelectItem>
+                        <SelectItem value='negative'>
+                          {t('dispositions.categories.negative')}
+                        </SelectItem>
+                        <SelectItem value='no_contact'>
+                          {t('dispositions.categories.no_contact')}
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
                   <div className='space-y-2'>
-                    <Label htmlFor='dispo-color'>Color</Label>
+                    <Label htmlFor='dispo-color'>
+                      {t('dispositions.color')}
+                    </Label>
                     <Input
                       id='dispo-color'
                       type='color'
@@ -218,7 +232,7 @@ export function CampaignDispositionsTab({
                   </div>
                 </div>
                 <div className='space-y-3'>
-                  <Label>Workflow Triggers</Label>
+                  <Label>{t('dispositions.triggers.title')}</Label>
                   <div className='grid gap-3 sm:grid-cols-2'>
                     <label className='flex items-center gap-2 text-sm'>
                       <Checkbox
@@ -227,7 +241,7 @@ export function CampaignDispositionsTab({
                           setNewDispo({ ...newDispo, triggersCompletion: !!v })
                         }
                       />
-                      Marks lead as completed
+                      {t('dispositions.triggers.completion')}
                     </label>
                     <label className='flex items-center gap-2 text-sm'>
                       <Checkbox
@@ -236,7 +250,7 @@ export function CampaignDispositionsTab({
                           setNewDispo({ ...newDispo, triggersRetry: !!v })
                         }
                       />
-                      Triggers retry
+                      {t('dispositions.triggers.retry')}
                     </label>
                     <label className='flex items-center gap-2 text-sm'>
                       <Checkbox
@@ -245,7 +259,7 @@ export function CampaignDispositionsTab({
                           setNewDispo({ ...newDispo, triggersCallback: !!v })
                         }
                       />
-                      Schedules callback
+                      {t('dispositions.triggers.callback')}
                     </label>
                     <label className='flex items-center gap-2 text-sm'>
                       <Checkbox
@@ -254,7 +268,7 @@ export function CampaignDispositionsTab({
                           setNewDispo({ ...newDispo, triggersDnc: !!v })
                         }
                       />
-                      Adds to DNC list
+                      {t('dispositions.triggers.dnc')}
                     </label>
                   </div>
                 </div>
@@ -264,13 +278,13 @@ export function CampaignDispositionsTab({
                     variant='outline'
                     onClick={() => setDialogOpen(false)}
                   >
-                    Cancel
+                    {t('dispositions.cancel')}
                   </Button>
                   <Button type='submit' disabled={saving}>
                     {saving && (
                       <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                     )}
-                    Create
+                    {t('dispositions.create')}
                   </Button>
                 </div>
               </form>
@@ -288,21 +302,22 @@ export function CampaignDispositionsTab({
         ) : dispositions.length === 0 ? (
           <div className='flex flex-col items-center py-12 text-center'>
             <h3 className='text-lg font-semibold'>
-              No dispositions configured
+              {t('dispositions.empty.title')}
             </h3>
             <p className='text-muted-foreground mt-1 text-sm'>
-              Dispositions are seeded automatically when you activate the
-              campaign, or you can add them manually.
+              {t('dispositions.empty.description')}
             </p>
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Code</TableHead>
-                <TableHead>Label</TableHead>
-                <TableHead>Category</TableHead>
-                <TableHead className='hidden md:table-cell'>Triggers</TableHead>
+                <TableHead>{t('dispositions.table.code')}</TableHead>
+                <TableHead>{t('dispositions.table.label')}</TableHead>
+                <TableHead>{t('dispositions.table.category')}</TableHead>
+                <TableHead className='hidden md:table-cell'>
+                  {t('dispositions.table.triggers')}
+                </TableHead>
                 <TableHead className='w-[60px]'></TableHead>
               </TableRow>
             </TableHeader>
@@ -326,29 +341,29 @@ export function CampaignDispositionsTab({
                       variant='secondary'
                       className={CATEGORY_COLORS[d.category]}
                     >
-                      {d.category.replace(/_/g, ' ')}
+                      {t(`dispositions.categories.${d.category}`)}
                     </Badge>
                   </TableCell>
                   <TableCell className='hidden md:table-cell'>
                     <div className='flex flex-wrap gap-1'>
                       {d.triggersCompletion && (
                         <Badge variant='outline' className='text-xs'>
-                          completion
+                          {t('dispositions.triggers.badges.completion')}
                         </Badge>
                       )}
                       {d.triggersRetry && (
                         <Badge variant='outline' className='text-xs'>
-                          retry
+                          {t('dispositions.triggers.badges.retry')}
                         </Badge>
                       )}
                       {d.triggersCallback && (
                         <Badge variant='outline' className='text-xs'>
-                          callback
+                          {t('dispositions.triggers.badges.callback')}
                         </Badge>
                       )}
                       {d.triggersDnc && (
                         <Badge variant='outline' className='text-xs'>
-                          DNC
+                          {t('dispositions.triggers.badges.dnc')}
                         </Badge>
                       )}
                     </div>

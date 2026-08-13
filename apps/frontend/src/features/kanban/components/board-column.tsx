@@ -1,3 +1,5 @@
+'use client';
+
 import { Task } from '../utils/store';
 import { useDndContext, type UniqueIdentifier } from '@dnd-kit/core';
 import { SortableContext, useSortable } from '@dnd-kit/sortable';
@@ -17,6 +19,7 @@ import {
   ScrollArea,
   ScrollBar
 } from '@ringee/frontend-shared/components/ui/scroll-area';
+import { useTranslations } from 'next-intl';
 
 export interface Column {
   id: UniqueIdentifier;
@@ -37,6 +40,7 @@ interface BoardColumnProps {
 }
 
 export function BoardColumn({ column, tasks, isOverlay }: BoardColumnProps) {
+  const t = useTranslations('contacts.kanban.board');
   const tasksIds = useMemo(() => {
     return tasks.map((task) => task.id);
   }, [tasks]);
@@ -55,7 +59,7 @@ export function BoardColumn({ column, tasks, isOverlay }: BoardColumnProps) {
       column
     } satisfies ColumnDragData,
     attributes: {
-      roleDescription: `Column: ${column.title}`
+      roleDescription: t('columnRole', { title: column.title })
     }
   });
 
@@ -92,7 +96,9 @@ export function BoardColumn({ column, tasks, isOverlay }: BoardColumnProps) {
           {...listeners}
           className='text-primary/50 relative -ml-2 h-auto cursor-grab p-1'
         >
-          <span className='sr-only'>{`Move column: ${column.title}`}</span>
+          <span className='sr-only'>
+            {t('moveColumn', { title: column.title })}
+          </span>
           <IconGripVertical />
         </Button>
         {/* <span className="mr-auto mt-0!"> {column.title}</span> */}

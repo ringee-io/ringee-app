@@ -12,6 +12,16 @@
   "busy": "Occupato",
   "failed": "Fallita",
   "voicemail": "Segreteria",
+  "statusValues": {
+    "pending": "In attesa",
+    "ringing": "Squillo",
+    "answered": "Risposta",
+    "recording": "Registrazione",
+    "completed": "Completata",
+    "failed": "Fallita",
+    "processing": "In elaborazione",
+    "ready": "Pronta"
+  },
   "callDuration": "Durata",
   "callCost": "Costo",
   "from": "Da",
@@ -47,11 +57,11 @@
       "duration": "Durata",
       "date": "Data",
       "recording": "Registrazione",
+      "transcript": "Trascrizione",
       "unknown": "Sconosciuto",
       "callAgain": "Richiama",
       "noRecording": "Nessuna registrazione",
-      "downloadRecording": "Scarica registrazione",
-      "transcript": "Trascrizione"
+      "downloadRecording": "Scarica registrazione"
     },
     "rowActions": {
       "menu": "Azioni",
@@ -77,14 +87,14 @@
       "date": "Data",
       "status": "Stato",
       "recording": "Registrazione",
+      "transcript": "Trascrizione",
       "unknown": "Sconosciuto",
       "noRecording": "Nessuna registrazione",
       "processingShort": "In elaborazione…",
       "unavailable": "Non disponibile",
       "play": "Riproduci",
       "playRecording": "Riproduci registrazione",
-      "downloadRecording": "Scarica registrazione",
-      "transcript": "Trascrizione"
+      "downloadRecording": "Scarica registrazione"
     },
     "statusBadge": {
       "started": "In elaborazione",
@@ -97,12 +107,6 @@
       "callTitle": "Chiamata: {from} → {to}",
       "decrypting": "Decrittazione in corso…",
       "errorLoad": "Impossibile caricare la registrazione. Riprova."
-    },
-    "dateFilter": {
-      "filterByDate": "Filtra per data",
-      "from": "Da {date}",
-      "to": "Fino a {date}",
-      "clear": "Rimuovi filtro data"
     }
   },
   "callbacks": {
@@ -146,16 +150,6 @@
       "willCost": "La tua chiamata costerà",
       "perMinute": "al minuto"
     }
-  },
-  "statusValues": {
-    "pending": "In attesa",
-    "ringing": "Squillo",
-    "answered": "Risposta",
-    "recording": "Registrazione",
-    "completed": "Completata",
-    "failed": "Fallita",
-    "processing": "In elaborazione",
-    "ready": "Pronta"
   },
   "concurrentCall": {
     "title": "Una chiamata alla volta",

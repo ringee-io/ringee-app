@@ -30,6 +30,7 @@ export function NumberSelector({ useMock }: { useMock?: boolean }) {
   const api = useApi();
   const router = useRouter();
   const t = useTranslations('numberRotation');
+  const tCalls = useTranslations('calls.numberSelector');
   const rotationEnabled = useRotationEnabled();
 
   const {
@@ -54,24 +55,22 @@ export function NumberSelector({ useMock }: { useMock?: boolean }) {
     <div className='mb-4'>
       <div className='mb-1 flex items-center justify-between'>
         <p className='text-muted-foreground text-xs font-medium'>
-          Call from:{' '}
-          <b>{!hasNumbers && !rotationEnabled ? 'Public Number' : ''}</b>
+          {tCalls('callFrom')}{' '}
+          <b>{!hasNumbers && !rotationEnabled ? tCalls('publicNumber') : ''}</b>
         </p>
         {!rotationEnabled && (
           <Tooltip>
             <TooltipTrigger asChild>
               <span
-                title='Why buy a number?'
+                title={tCalls('whyBuy')}
                 onClick={() => router.push('/dashboard/buy-number')}
                 className='text-muted-foreground cursor-pointer text-xs underline'
               >
-                Why buy a number?
+                {tCalls('whyBuy')}
               </span>
             </TooltipTrigger>
             <TooltipContent side='top' className='max-w-[240px] text-sm'>
-              Buying a number allows you to make and receive real calls. Number
-              prices start at <strong>$1.00 USD</strong> monthly according to
-              the country and number type.
+              {tCalls('whyBuyDescription')}
             </TooltipContent>
           </Tooltip>
         )}
@@ -114,14 +113,14 @@ export function NumberSelector({ useMock }: { useMock?: boolean }) {
             )}
           >
             <SelectValue
-              placeholder='Select a number'
+              placeholder={tCalls('selectNumber')}
               className='text-foreground'
             />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value='public' key='public'>
               <Phone className='text-muted-foreground h-3.5 w-3.5' />
-              <span>Public number</span>
+              <span>{tCalls('publicNumber')}</span>
             </SelectItem>
 
             {numbers.map((n) => (
@@ -143,7 +142,7 @@ export function NumberSelector({ useMock }: { useMock?: boolean }) {
       {!rotationEnabled && !isLoading && !hasNumbers && (
         <div className='border-border/40 bg-muted/20 flex flex-col items-center justify-center rounded-md border py-4'>
           <p className='text-muted-foreground mb-2 text-sm'>
-            You don't need a number to call
+            {tCalls('notRequired')}
           </p>
           <Button
             variant='outline'
@@ -152,7 +151,7 @@ export function NumberSelector({ useMock }: { useMock?: boolean }) {
             onClick={() => router.push('/dashboard/buy-number')}
           >
             <ShoppingCart className='h-4 w-4' />
-            Buy number
+            {tCalls('buy')}
           </Button>
         </div>
       )}

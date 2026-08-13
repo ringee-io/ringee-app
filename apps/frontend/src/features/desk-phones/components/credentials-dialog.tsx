@@ -14,6 +14,7 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import type { SipDeviceCredentials } from '../types';
+import { useTranslations } from 'next-intl';
 
 interface Props {
   open: boolean;
@@ -23,12 +24,13 @@ interface Props {
 }
 
 function Row({ label, value }: { label: string; value: string }) {
+  const t = useTranslations('calls.deskPhones.credentials');
   const copy = async () => {
     try {
       await navigator.clipboard.writeText(value);
-      toast.success(`${label} copied`);
+      toast.success(t('copied', { label }));
     } catch {
-      toast.error('Copy failed');
+      toast.error(t('copyFailed'));
     }
   };
   return (
@@ -37,7 +39,7 @@ function Row({ label, value }: { label: string; value: string }) {
       <button
         type='button'
         onClick={copy}
-        title='Copy'
+        title={t('copy')}
         className='hover:bg-muted max-w-[60%] truncate rounded px-1.5 py-0.5 font-mono text-sm'
       >
         {value}
@@ -57,6 +59,7 @@ export function CredentialsDialog({
   credentials,
   deviceRef
 }: Props) {
+  const t = useTranslations('calls.deskPhones.credentials');
   const [revealed, setRevealed] = useState(false);
 
   if (!credentials) return null;
@@ -83,9 +86,9 @@ export function CredentialsDialog({
       .join('\n');
     try {
       await navigator.clipboard.writeText(lines);
-      toast.success('All settings copied');
+      toast.success(t('allCopied'));
     } catch {
-      toast.error('Copy failed');
+      toast.error(t('copyFailed'));
     }
   };
 
@@ -99,33 +102,38 @@ export function CredentialsDialog({
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>Desk phone credentials</DialogTitle>
+          <DialogTitle>{t('title')}</DialogTitle>
           <DialogDescription>
-            {deviceRef ? `${deviceRef} — ` : ''}Configure your SIP phone with
-            these settings. The password is shown only once.
+            {deviceRef ? `${deviceRef} — ` : ''}
+            {t('description')}
           </DialogDescription>
         </DialogHeader>
 
         <div className='flex items-center gap-2'>
           <Badge className='bg-orange-500 text-white'>
-            Pending registration
+            {t('pendingRegistration')}
           </Badge>
           <span className='text-muted-foreground text-xs'>
-            Status updates once the phone registers.
+            {t('statusHint')}
           </span>
         </div>
 
         <Separator />
 
         <div className='divide-y'>
-          <Row label='SIP Server' value={credentials.sipServer} />
-          <Row label='Outbound Proxy' value={credentials.outboundProxy} />
-          <Row label='Port' value={String(credentials.port)} />
-          <Row label='Transport' value={credentials.transport} />
-          <Row label='Username' value={credentials.username} />
-          <Row label='Auth ID' value={credentials.authId} />
+          <Row label={t('fields.sipServer')} value={credentials.sipServer} />
+          <Row
+            label={t('fields.outboundProxy')}
+            value={credentials.outboundProxy}
+          />
+          <Row label={t('fields.port')} value={String(credentials.port)} />
+          <Row label={t('fields.transport')} value={credentials.transport} />
+          <Row label={t('fields.username')} value={credentials.username} />
+          <Row label={t('fields.authId')} value={credentials.authId} />
           <div className='flex items-center justify-between gap-3 py-1.5'>
-            <span className='text-muted-foreground text-sm'>Password</span>
+            <span className='text-muted-foreground text-sm'>
+              {t('fields.password')}
+            </span>
             <div className='flex items-center gap-2'>
               <span className='font-mono text-sm'>
                 {revealed ? credentials.password : '••••••••••••'}
@@ -136,36 +144,43 @@ export function CredentialsDialog({
                 variant='ghost'
                 onClick={() => setRevealed((v) => !v)}
               >
-                {revealed ? 'Hide' : 'Reveal'}
+                {revealed ? t('hide') : t('reveal')}
               </Button>
             </div>
           </div>
           {credentials.callerId && (
-            <Row label='Caller ID' value={credentials.callerId} />
+            <Row label={t('fields.callerId')} value={credentials.callerId} />
           )}
           {credentials.inboundNumber && (
-            <Row label='Inbound Number' value={credentials.inboundNumber} />
+            <Row
+              label={t('fields.inboundNumber')}
+              value={credentials.inboundNumber}
+            />
           )}
           <div className='flex items-center justify-between gap-3 py-1.5'>
-            <span className='text-muted-foreground text-sm'>Inbound mode</span>
-            <Badge variant='secondary'>Desk phone only</Badge>
+            <span className='text-muted-foreground text-sm'>
+              {t('fields.inboundMode')}
+            </span>
+            <Badge variant='secondary'>{t('deskPhoneOnly')}</Badge>
           </div>
           <div className='flex items-center justify-between gap-3 py-1.5'>
-            <span className='text-muted-foreground text-sm'>Outbound</span>
+            <span className='text-muted-foreground text-sm'>
+              {t('fields.outbound')}
+            </span>
             <Badge
               variant={credentials.outboundEnabled ? 'default' : 'outline'}
             >
-              {credentials.outboundEnabled ? 'Enabled' : 'Disabled'}
+              {credentials.outboundEnabled ? t('enabled') : t('disabled')}
             </Badge>
           </div>
         </div>
 
         <DialogFooter className='gap-2 sm:justify-between'>
           <Button type='button' variant='outline' onClick={copyAll}>
-            Copy all settings
+            {t('copyAll')}
           </Button>
           <Button type='button' onClick={() => onOpenChange(false)}>
-            Done
+            {t('done')}
           </Button>
         </DialogFooter>
       </DialogContent>

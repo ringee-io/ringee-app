@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { SessionItemDto } from '../api';
 import type { CallSessionPhase } from '../use-call-session';
+import { useTranslations } from 'next-intl';
 
 const STATUS_ICON = {
   pending: Hash,
@@ -26,19 +27,6 @@ const STATUS_ICON = {
   skipped: SkipForward,
   failed: PhoneOff
 } as const;
-
-const OUTCOME_LABELS: Record<string, string> = {
-  meeting_booked: 'Meeting booked',
-  sale: 'Sale',
-  interested: 'Interested',
-  follow_up: 'Follow up',
-  callback_scheduled: 'Callback',
-  not_interested: 'Not interested',
-  no_answer: 'No answer',
-  voicemail: 'Voicemail',
-  wrong_number: 'Wrong number',
-  gatekeeper: 'Gatekeeper'
-};
 
 const OUTCOME_TONE: Record<
   string,
@@ -69,13 +57,14 @@ export function SessionLeadPanel({
   phase,
   onSelect
 }: Props) {
+  const t = useTranslations('dialer.publicSession.lead');
   if (items.length === 0) {
     return (
       <div className='flex h-full flex-col items-center justify-center p-6 text-center'>
         <Users className='text-muted-foreground mb-3 h-10 w-10' />
-        <h3 className='font-semibold'>No contacts in this session</h3>
+        <h3 className='font-semibold'>{t('empty')}</h3>
         <p className='text-muted-foreground mt-1 text-sm'>
-          The owner can add contacts and re-share the link.
+          {t('emptyDescription')}
         </p>
       </div>
     );
@@ -92,7 +81,7 @@ export function SessionLeadPanel({
             </div>
             <div className='min-w-0'>
               <h2 className='truncate text-lg font-semibold'>
-                {activeItem.displayName || 'Unknown contact'}
+                {activeItem.displayName || t('unknown')}
               </h2>
               <Badge variant='secondary' className='text-xs capitalize'>
                 {phase.replace('_', ' ')}
@@ -138,13 +127,15 @@ export function SessionLeadPanel({
             )}
             <div className='text-muted-foreground flex items-center gap-2'>
               <Hash className='h-4 w-4' />
-              <span>Position #{activeItem.positionIndex + 1}</span>
+              <span>
+                {t('position', { number: activeItem.positionIndex + 1 })}
+              </span>
             </div>
           </div>
         </div>
       ) : (
         <div className='text-muted-foreground space-y-3 p-4 text-center text-sm'>
-          Select a pending contact from the queue.
+          {t('selectPending')}
         </div>
       )}
 
@@ -153,7 +144,7 @@ export function SessionLeadPanel({
       {/* Queue */}
       <div className='flex-1 overflow-y-auto p-2'>
         <div className='text-muted-foreground px-2 pb-2 text-xs font-semibold tracking-wide uppercase'>
-          Queue
+          {t('queue')}
         </div>
         <ul className='space-y-1'>
           {items.map((item) => {
@@ -194,7 +185,7 @@ export function SessionLeadPanel({
                   />
                   <div className='min-w-0 flex-1'>
                     <div className='truncate font-medium'>
-                      {item.displayName || 'Unknown contact'}
+                      {item.displayName || t('unknown')}
                     </div>
                     <div className='text-muted-foreground truncate text-xs'>
                       {item.company ? `${item.company} · ` : ''}
@@ -206,7 +197,7 @@ export function SessionLeadPanel({
                       variant={OUTCOME_TONE[item.outcome] ?? 'outline'}
                       className='ml-auto text-[10px] whitespace-nowrap'
                     >
-                      {OUTCOME_LABELS[item.outcome] ?? item.outcome}
+                      {t(`outcomes.${item.outcome}`)}
                     </Badge>
                   )}
                 </button>

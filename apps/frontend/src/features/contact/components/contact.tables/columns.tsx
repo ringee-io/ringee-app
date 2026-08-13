@@ -17,7 +17,7 @@ interface ContactTag {
   };
 }
 
-interface ContactRow {
+export interface ContactRow {
   id: string;
   name?: string | null;
   firstName?: string | null;
@@ -36,19 +36,21 @@ interface ContactRow {
   notes?: { content: string }[];
 }
 
-export const columns: ColumnDef<ContactRow>[] = [
+export const getContactColumns = (
+  t: (key: string) => string
+): ColumnDef<ContactRow>[] => [
   {
     id: 'name',
     accessorKey: 'name',
     header: ({ column }: { column: Column<ContactRow, unknown> }) => (
-      <DataTableColumnHeader column={column} title='Name' />
+      <DataTableColumnHeader column={column} title={t('name')} />
     ),
     cell: ({ row }) => {
       const contact = row.original;
       const displayName =
         contact.name ||
         [contact.firstName, contact.lastName].filter(Boolean).join(' ') ||
-        'Unknown';
+        t('unknown');
       const initial = displayName.charAt(0)?.toUpperCase() || '?';
       const router = useRouter();
 
@@ -74,8 +76,8 @@ export const columns: ColumnDef<ContactRow>[] = [
       );
     },
     meta: {
-      label: 'Name',
-      placeholder: 'Search contacts...',
+      label: t('name'),
+      placeholder: t('searchPlaceholder'),
       variant: 'text',
       icon: Text
     },
@@ -85,7 +87,7 @@ export const columns: ColumnDef<ContactRow>[] = [
     id: 'organization',
     accessorFn: (row: ContactRow) => row.company,
     header: ({ column }: { column: Column<ContactRow, unknown> }) => (
-      <DataTableColumnHeader column={column} title='Company' />
+      <DataTableColumnHeader column={column} title={t('company')} />
     ),
     cell: ({ row }) => (
       <div>
@@ -106,12 +108,12 @@ export const columns: ColumnDef<ContactRow>[] = [
   },
   {
     accessorKey: 'email',
-    header: 'EMAIL',
+    header: t('email'),
     meta: { className: 'hidden lg:table-cell' }
   },
   {
     accessorKey: 'source',
-    header: 'SOURCE',
+    header: t('source'),
     meta: { className: 'hidden xl:table-cell' },
     cell: ({ cell }) => {
       const source = cell.getValue<string | null>();
@@ -126,7 +128,7 @@ export const columns: ColumnDef<ContactRow>[] = [
   },
   {
     accessorKey: 'tags',
-    header: 'TAGS',
+    header: t('tags'),
     cell: ({ cell }) => {
       const tags = (cell.getValue() as ContactTag[]) || [];
 
@@ -161,7 +163,7 @@ export const columns: ColumnDef<ContactRow>[] = [
   },
   {
     accessorKey: 'phoneNumber',
-    header: 'CALL',
+    header: t('call'),
     cell: ({ cell }) => {
       const phoneNumber = cell.getValue<string>();
       const router = useRouter();
@@ -181,7 +183,7 @@ export const columns: ColumnDef<ContactRow>[] = [
           >
             <PhoneCall className='h-4 w-4' />
             <span className='hidden sm:inline'>{phoneNumber}</span>
-            <span className='sm:hidden'>Call</span>
+            <span className='sm:hidden'>{t('call')}</span>
           </Button>
         </div>
       );

@@ -12,6 +12,7 @@ import {
 } from './api';
 import { useSessionTelnyx } from './use-session-telnyx';
 import { useSessionCall } from './use-session-call';
+import { useTranslations } from 'next-intl';
 
 export type CallSessionPhase =
   | 'loading'
@@ -70,6 +71,7 @@ function loadInitialMode(): DialerMode {
 }
 
 export function useCallSession(token: string) {
+  const t = useTranslations('dialer.publicSession.errors');
   const [phase, setPhase] = useState<CallSessionPhase>('loading');
   const [error, setError] = useState<CallSessionError | null>(null);
   const [session, setSession] = useState<SessionDto | null>(null);
@@ -92,7 +94,7 @@ export function useCallSession(token: string) {
 
   const load = useCallback(async () => {
     if (!token) {
-      setError(toError('invalid'));
+      setError(toError('invalid', t));
       setPhase('error');
       return;
     }
@@ -115,7 +117,7 @@ export function useCallSession(token: string) {
       if (res.session.status === 'completed') {
         setPhase('completed');
       } else if (!res.creditsOk) {
-        setError(toError('credits'));
+        setError(toError('credits', t));
         setPhase('error');
       } else {
         setPhase('preview');
@@ -123,10 +125,10 @@ export function useCallSession(token: string) {
     } catch (err) {
       const apiErr = err as SessionApiError;
       const variant = pickVariant(apiErr);
-      setError(toError(variant, apiErr?.message));
+      setError(toError(variant, t, apiErr?.message));
       setPhase('error');
     }
-  }, [token]);
+  }, [token, t]);
 
   useEffect(() => {
     void load();
@@ -224,13 +226,11 @@ export function useCallSession(token: string) {
   const dial = useCallback(async () => {
     if (!session || !activeItem || phase !== 'preview') return;
     if (!telnyx.client || telnyx.status !== 'registered') {
-      setTransientError(
-        'Phone line is still connecting. Try again in a moment.'
-      );
+      setTransientError(t('phoneConnecting'));
       return;
     }
     if (!creditsOk) {
-      setTransientError('Not enough credits to place this call.');
+      setTransientError(t('insufficientCredits'));
       return;
     }
     setBusy(true);
@@ -264,7 +264,8 @@ export function useCallSession(token: string) {
     telnyx.client,
     telnyx.status,
     creditsOk,
-    sessionCall
+    sessionCall,
+    t
   ]);
 
   const hangup = useCallback(async () => {
@@ -481,44 +482,59 @@ function pickVariant(
 
 function toError(
   variant: CallSessionErrorVariant,
+  t: (
+    key:
+      | 'expired.title'
+      | 'expired.message'
+      | 'revoked.title'
+      | 'revoked.message'
+      | 'credits.title'
+      | 'credits.message'
+      | 'completed.title'
+      | 'completed.message'
+      | 'invalid.title'
+      | 'invalid.message'
+      | 'generic.title'
+      | 'generic.message'
+  ) => string,
   fallbackMessage?: string
 ): CallSessionError {
   switch (variant) {
     case 'expired':
       return {
-        title: 'This call session has expired',
-        message: 'Ask the sender to generate a new session link.',
+        title: t('expired.title'),
+        message: t('expired.message'),
         variant
       };
     case 'revoked':
       return {
-        title: 'This call session is no longer available',
-        message: 'The session was revoked or deleted.',
+        title: t('revoked.title'),
+        message: t('revoked.message'),
         variant
       };
     case 'credits':
       return {
-        title: 'Not enough credits to continue',
-        message: 'No calls were placed. Ask the account owner to add credits.',
+        title: t('credits.title'),
+        message: t('credits.message'),
         variant
       };
     case 'completed':
       return {
-        title: 'Session completed',
-        message: 'All contacts in this session have been processed.',
+        title: t('completed.title'),
+        message: t('completed.message'),
         variant
       };
     case 'invalid':
       return {
-        title: 'Invalid session link',
-        message: 'Check the link or request a new one.',
+        title: t('invalid.title'),
+        message: t('invalid.message'),
         variant
       };
     case 'generic':
     default:
       return {
-        title: 'Something went wrong',
-        message: fallbackMessage || 'Please retry, or contact the sender.',
+        title: t('generic.title'),
+        message: fallbackMessage || t('generic.message'),
         variant: 'generic'
       };
   }

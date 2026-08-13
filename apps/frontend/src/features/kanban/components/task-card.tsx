@@ -1,3 +1,5 @@
+'use client';
+
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import {
   Card,
@@ -10,6 +12,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { cva } from 'class-variance-authority';
 import { IconGripVertical } from '@tabler/icons-react';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
+import { useTranslations } from 'next-intl';
 
 // export interface Task {
 //   id: UniqueIdentifier;
@@ -30,6 +33,7 @@ export interface TaskDragData {
 }
 
 export function TaskCard({ task, isOverlay }: TaskCardProps) {
+  const t = useTranslations('contacts.kanban.board');
   const {
     setNodeRef,
     attributes,
@@ -44,7 +48,7 @@ export function TaskCard({ task, isOverlay }: TaskCardProps) {
       task
     } satisfies TaskDragData,
     attributes: {
-      roleDescription: 'Task'
+      roleDescription: t('task')
     }
   });
 
@@ -77,11 +81,11 @@ export function TaskCard({ task, isOverlay }: TaskCardProps) {
           {...listeners}
           className='text-secondary-foreground/50 -ml-2 h-auto cursor-grab p-1'
         >
-          <span className='sr-only'>Move task</span>
+          <span className='sr-only'>{t('moveTask')}</span>
           <IconGripVertical />
         </Button>
         <Badge variant={'outline'} className='ml-auto font-semibold'>
-          Task
+          {t('task')}
         </Badge>
       </CardHeader>
       <CardContent className='px-3 pt-3 pb-6 text-left whitespace-pre-wrap'>

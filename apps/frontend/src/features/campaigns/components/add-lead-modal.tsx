@@ -14,6 +14,7 @@ import { Label } from '@ringee/frontend-shared/components/ui/label';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 interface ImportResult {
   success: boolean;
@@ -56,6 +57,7 @@ export function AddLeadModal({
   onAdded
 }: Props) {
   const api = useApi();
+  const t = useTranslations('campaigns.addLead');
   const [form, setForm] = useState({ ...EMPTY });
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -80,15 +82,13 @@ export function AddLeadModal({
     const phone = form.phone.trim();
     const email = form.email.trim();
 
-    if (!name) return setError('Name is required.');
-    if (!phone) return setError('Phone number is required.');
+    if (!name) return setError(t('errors.nameRequired'));
+    if (!phone) return setError(t('errors.phoneRequired'));
     if (!E164.test(phone)) {
-      return setError(
-        'Phone must be in international format, e.g. +14155552671.'
-      );
+      return setError(t('errors.phoneFormat'));
     }
     if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return setError('Please enter a valid email address.');
+      return setError(t('errors.emailInvalid'));
     }
 
     setSaving(true);
@@ -113,20 +113,17 @@ export function AddLeadModal({
       );
 
       if (res.summary.leadsAdded > 0) {
-        toast.success('Lead added to the campaign.');
+        toast.success(t('toasts.added'));
         setForm({ ...EMPTY });
         onAdded?.();
         onOpenChange(false);
       } else if (res.summary.duplicatesSkipped > 0) {
-        setError('This contact is already a lead in this campaign.');
+        setError(t('errors.duplicate'));
       } else {
-        setError(
-          'The lead could not be added. Please check the details and try again.'
-        );
+        setError(t('errors.notAdded'));
       }
     } catch (err: any) {
-      const message =
-        err?.message || 'Could not add the lead. Please try again.';
+      const message = err?.message || t('errors.generic');
       setError(message);
       toast.error(message);
     } finally {
@@ -138,11 +135,8 @@ export function AddLeadModal({
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className='max-h-[90vh] max-w-md overflow-y-auto'>
         <DialogHeader>
-          <DialogTitle>Add Lead Manually</DialogTitle>
-          <DialogDescription>
-            Type the contact details to add a single lead to this campaign. The
-            contact is created automatically if it doesn&apos;t exist yet.
-          </DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className='space-y-4'>
@@ -153,10 +147,10 @@ export function AddLeadModal({
           )}
 
           <div className='space-y-2'>
-            <Label htmlFor='lead-name'>Name *</Label>
+            <Label htmlFor='lead-name'>{t('name')}</Label>
             <Input
               id='lead-name'
-              placeholder='John Doe'
+              placeholder={t('namePlaceholder')}
               value={form.name}
               onChange={(e) => update({ name: e.target.value })}
               autoFocus
@@ -164,21 +158,19 @@ export function AddLeadModal({
           </div>
 
           <div className='space-y-2'>
-            <Label htmlFor='lead-phone'>Phone *</Label>
+            <Label htmlFor='lead-phone'>{t('phone')}</Label>
             <Input
               id='lead-phone'
               placeholder='+14155552671'
               value={form.phone}
               onChange={(e) => update({ phone: e.target.value })}
             />
-            <p className='text-muted-foreground text-xs'>
-              International format (E.164), e.g. +14155552671.
-            </p>
+            <p className='text-muted-foreground text-xs'>{t('phoneHint')}</p>
           </div>
 
           <div className='grid gap-4 sm:grid-cols-2'>
             <div className='space-y-2'>
-              <Label htmlFor='lead-email'>Email</Label>
+              <Label htmlFor='lead-email'>{t('email')}</Label>
               <Input
                 id='lead-email'
                 type='email'
@@ -188,7 +180,7 @@ export function AddLeadModal({
               />
             </div>
             <div className='space-y-2'>
-              <Label htmlFor='lead-company'>Company</Label>
+              <Label htmlFor='lead-company'>{t('company')}</Label>
               <Input
                 id='lead-company'
                 placeholder='Acme Inc'
@@ -200,16 +192,16 @@ export function AddLeadModal({
 
           <div className='grid gap-4 sm:grid-cols-2'>
             <div className='space-y-2'>
-              <Label htmlFor='lead-job-title'>Job title</Label>
+              <Label htmlFor='lead-job-title'>{t('jobTitle')}</Label>
               <Input
                 id='lead-job-title'
-                placeholder='Sales Manager'
+                placeholder={t('jobTitlePlaceholder')}
                 value={form.jobTitle}
                 onChange={(e) => update({ jobTitle: e.target.value })}
               />
             </div>
             <div className='space-y-2'>
-              <Label htmlFor='lead-state'>State / Region</Label>
+              <Label htmlFor='lead-state'>{t('state')}</Label>
               <Input
                 id='lead-state'
                 placeholder='New York'
@@ -220,7 +212,7 @@ export function AddLeadModal({
           </div>
 
           <div className='space-y-2'>
-            <Label htmlFor='lead-website'>Website</Label>
+            <Label htmlFor='lead-website'>{t('website')}</Label>
             <Input
               id='lead-website'
               placeholder='https://acme.com'
@@ -231,7 +223,7 @@ export function AddLeadModal({
 
           <div className='grid gap-4 sm:grid-cols-2'>
             <div className='space-y-2'>
-              <Label htmlFor='lead-revenue'>Revenue</Label>
+              <Label htmlFor='lead-revenue'>{t('revenue')}</Label>
               <Input
                 id='lead-revenue'
                 placeholder='$10M-$50M'
@@ -240,7 +232,7 @@ export function AddLeadModal({
               />
             </div>
             <div className='space-y-2'>
-              <Label htmlFor='lead-size'>Company size</Label>
+              <Label htmlFor='lead-size'>{t('companySize')}</Label>
               <Input
                 id='lead-size'
                 placeholder='51-200'
@@ -256,11 +248,11 @@ export function AddLeadModal({
               variant='outline'
               onClick={() => handleOpenChange(false)}
             >
-              Cancel
+              {t('cancel')}
             </Button>
             <Button type='submit' disabled={saving}>
               {saving && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-              Add Lead
+              {t('submit')}
             </Button>
           </div>
         </form>

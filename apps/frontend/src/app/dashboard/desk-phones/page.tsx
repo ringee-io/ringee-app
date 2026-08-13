@@ -3,22 +3,20 @@ import { Heading } from '@ringee/frontend-shared/components/ui/heading';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import { RoleGuard } from '@ringee/frontend-shared/components/role-guard';
 import { DeskPhonesView } from '@/features/desk-phones';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata = {
-  title: 'Desk Phones',
-  description:
-    'Connect a physical SIP phone or softphone to a Ringee number. Inbound rings the desk phone; the same number stays usable as an outbound caller ID everywhere.'
-};
+export async function generateMetadata() {
+  const t = await getTranslations('calls.deskPhones');
+  return { title: t('metaTitle'), description: t('metaDescription') };
+}
 
-export default function DeskPhonesPage() {
+export default async function DeskPhonesPage() {
+  const t = await getTranslations('calls.deskPhones');
   return (
     <PageContainer scrollable>
       <RoleGuard>
         <div className='flex flex-1 flex-col space-y-4'>
-          <Heading
-            title='Desk Phones'
-            description='Use a Yealink, Grandstream, Cisco, Zoiper or any SIP phone with your Ringee number.'
-          />
+          <Heading title={t('title')} description={t('description')} />
           <Separator />
           <DeskPhonesView />
         </div>

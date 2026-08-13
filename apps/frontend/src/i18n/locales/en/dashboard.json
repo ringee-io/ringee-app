@@ -356,6 +356,29 @@
       "empty": "No recent calls found.",
       "route": "From: {from} → To: {to}"
     },
+    "header": {
+      "welcome": "Hi, Welcome 👋",
+      "memberAnalytics": "{name} Analytics 📊",
+      "organizationAnalytics": "Organization Analytics 📊"
+    },
+    "legacy": {
+      "welcome": "Hi, Welcome back 👋",
+      "download": "Download",
+      "overview": "Overview",
+      "analytics": "Analytics",
+      "totalRevenue": "Total Revenue",
+      "trendingUp": "Trending up this month",
+      "visitors": "Visitors for the last 6 months",
+      "newCustomers": "New Customers",
+      "downThisPeriod": "Down 20% this period",
+      "acquisitionAttention": "Acquisition needs attention",
+      "activeAccounts": "Active Accounts",
+      "strongRetention": "Strong user retention",
+      "engagementTargets": "Engagement exceeds targets",
+      "growthRate": "Growth Rate",
+      "steadyPerformance": "Steady performance increase",
+      "meetsProjections": "Meets growth projections"
+    },
     "memberSelector": {
       "loading": "Loading…",
       "allMembers": "All Members",

@@ -19,8 +19,10 @@ import { ApiError } from '@ringee/frontend-shared/lib/api';
 import { useOnboardingComplete } from '@/features/onboarding/hooks/use.onboarding.complete';
 import { notifyConcurrentCall } from '@/features/security/store/concurrent-call.store';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 export function useCall(call?: Call | null) {
+  const t = useTranslations('calls.dialer');
   const analytics = useAnalytics();
   const {
     isMuted,
@@ -168,9 +170,7 @@ export function useCall(call?: Call | null) {
       console.warn(
         '⚠️ No caller ID available for this destination — add a number for its country.'
       );
-      toast.error(
-        'No caller ID available for this destination. Add or enable a number for its country in Caller ID Rotation settings.'
-      );
+      toast.error(t('callerIdUnavailable'));
       return;
     }
 

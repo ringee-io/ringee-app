@@ -2,12 +2,12 @@ import FormCardSkeleton from '@ringee/frontend-shared/components/form-card-skele
 import PageContainer from '@/components/layout/page-container';
 import { Suspense } from 'react';
 import ContactViewPage from '@/features/contact/components/product.view.page';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata = {
-  title: 'Contact — Edit | Ringee',
-  description:
-    'Edit contact details to keep your sales and calling workflow organized and efficient.'
-};
+export async function generateMetadata() {
+  const t = await getTranslations('contacts.editPage');
+  return { title: t('metaTitle'), description: t('metaDescription') };
+}
 
 type PageProps = { params: Promise<{ contactId: string }> };
 

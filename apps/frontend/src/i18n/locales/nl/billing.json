@@ -93,17 +93,8 @@
       },
       "footer": {
         "secureByStripe": "Beveiligd door Stripe",
-        "refundGuarantee": "100% terugbetalingsgarantie",
         "cardSafety": "Kaartgegevens komen nooit op de servers van Ringee",
         "creditsAfter": "Tegoed toegevoegd na bevestiging"
-      },
-      "amount": {
-        "currentBalance": "Huidig saldo",
-        "lastTopup": "Laatste aanvulling: {amount}",
-        "rechargeCta": "{amount} opwaarderen",
-        "continueCheckout": "Doorgaan naar veilig afrekenen",
-        "useAnotherMethod": "Ander betaalmiddel gebruiken",
-        "savedHint": "Afgeschreven van {brand} •••• {last4}."
       },
       "checkout": {
         "title": "Veilig afrekenen",
@@ -131,6 +122,14 @@
         "invoiceEmailLabel": "E-mail voor facturen",
         "emailPlaceholder": "jij@bedrijf.com",
         "emailHint": "Je Stripe-bon wordt hierheen gestuurd — pas het aan als je facturen elders wilt ontvangen."
+      },
+      "amount": {
+        "currentBalance": "Huidig saldo",
+        "lastTopup": "Laatste aanvulling: {amount}",
+        "rechargeCta": "{amount} opwaarderen",
+        "continueCheckout": "Doorgaan naar veilig afrekenen",
+        "useAnotherMethod": "Ander betaalmiddel gebruiken",
+        "savedHint": "Afgeschreven van {brand} •••• {last4}."
       },
       "saved": {
         "title": "Snel opwaarderen",
@@ -195,5 +194,13 @@
     "addCard": "Kaart toevoegen",
     "expiresOn": "Vervalt op {date}",
     "default": "Standaard"
+  },
+  "portal": {
+    "eyebrow": "Veilige facturatie via Stripe",
+    "title": "Je facturatieportaal wordt geopend",
+    "description": "Beheer abonnementen, betaalmethoden, facturen en factuurgegevens veilig in Stripe.",
+    "redirecting": "Doorsturen naar Stripe…",
+    "retry": "Stripe-facturatieportaal openen",
+    "error": "We konden het facturatieportaal niet openen. Probeer het zo meteen opnieuw."
   }
 }

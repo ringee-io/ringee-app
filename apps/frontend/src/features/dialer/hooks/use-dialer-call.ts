@@ -9,6 +9,7 @@ import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useAuth } from '@clerk/nextjs';
 import { setOutboundRingbackVolume } from '@ringee/dialer-core/engine';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 /**
  * Manages the actual Telnyx WebRTC call for the dialer.
@@ -16,6 +17,7 @@ import { toast } from 'sonner';
  * then exposes mute/hold/record/dtmf/hangup controls.
  */
 export function useDialerCall() {
+  const t = useTranslations('calls.dialer');
   const api = useApi();
   const { userId, orgId } = useAuth();
   const { client, notification } = useTelnyxStore();
@@ -96,9 +98,7 @@ export function useDialerCall() {
         console.warn(
           '⚠️ No caller ID resolved for this destination — refusing to dial with a fake number.'
         );
-        toast.error(
-          'No caller ID available for this destination. Add or enable a number for its country in Caller ID Rotation settings.'
-        );
+        toast.error(t('callerIdUnavailable'));
         setCallStatus('ended');
         return;
       }
@@ -137,7 +137,7 @@ export function useDialerCall() {
       });
       setOutboundRingbackVolume();
     },
-    [client, userId, orgId, setCallStatus]
+    [client, userId, orgId, setCallStatus, t]
   );
 
   const toggleMute = useCallback(async () => {

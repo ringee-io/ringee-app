@@ -97,5 +97,14 @@
     "view": "View Project",
     "share": "Share Project",
     "delete": "Delete Project"
+  },
+  "weekdaysShort": {
+    "sun": "Sun",
+    "mon": "Mon",
+    "tue": "Tue",
+    "wed": "Wed",
+    "thu": "Thu",
+    "fri": "Fri",
+    "sat": "Sat"
   }
 }

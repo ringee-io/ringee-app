@@ -8,6 +8,7 @@ import {
   DEFAULT_REGION,
   type CountryCode
 } from '@ringee/dialer-core/phone';
+import { useTranslations } from 'next-intl';
 
 export function DialPad({
   number,
@@ -29,6 +30,7 @@ export function DialPad({
   /** Currently selected dialing country — seeds the calling code for taps. */
   country?: CountryCode;
 }) {
+  const t = useTranslations('calls.dialer');
   const keys = [
     { n: '1' },
     { n: '2', s: 'ABC' },
@@ -142,11 +144,7 @@ export function DialPad({
           <button
             onClick={onCall}
             disabled={!number || callingDisabled}
-            title={
-              callingDisabled
-                ? 'Outbound calling is disabled for this account'
-                : undefined
-            }
+            title={callingDisabled ? t('outboundDisabled') : undefined}
             className={`flex h-20 w-20 items-center justify-center rounded-xl transition-all active:scale-95 ${
               isCalling
                 ? 'bg-red-600 hover:bg-red-700'

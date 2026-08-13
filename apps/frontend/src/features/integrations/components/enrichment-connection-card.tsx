@@ -11,6 +11,7 @@ import {
 import { AlertCircle, Sparkles, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { useEnrichmentMutations } from '../hooks/use-enrichment-connections';
 import {
   ENRICHMENT_PROVIDER_META,
@@ -25,16 +26,17 @@ interface Props {
 export function EnrichmentConnectionCard({ connection, onChange }: Props) {
   const meta = ENRICHMENT_PROVIDER_META[connection.provider];
   const { disconnect } = useEnrichmentMutations();
+  const t = useTranslations('integrations.enrichment.card');
   const [busy, setBusy] = useState(false);
 
   const handleDisconnect = async () => {
     setBusy(true);
     try {
       await disconnect(connection.id);
-      toast.success(`${meta.name} disconnected`);
+      toast.success(t('disconnected', { provider: meta.name }));
       onChange();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to disconnect');
+      toast.error(err instanceof Error ? err.message : t('disconnectError'));
     } finally {
       setBusy(false);
     }
@@ -66,21 +68,21 @@ export function EnrichmentConnectionCard({ connection, onChange }: Props) {
         )}
         <div className='flex flex-wrap gap-2 text-xs'>
           {connection.capabilities?.byEmail && (
-            <Badge variant='secondary'>By email</Badge>
+            <Badge variant='secondary'>{t('capabilities.byEmail')}</Badge>
           )}
           {connection.capabilities?.byLinkedIn && (
-            <Badge variant='secondary'>By LinkedIn</Badge>
+            <Badge variant='secondary'>{t('capabilities.byLinkedIn')}</Badge>
           )}
           {connection.capabilities?.byNameCompany && (
-            <Badge variant='secondary'>By name+company</Badge>
+            <Badge variant='secondary'>{t('capabilities.byNameCompany')}</Badge>
           )}
           {connection.capabilities?.byDomain && (
-            <Badge variant='secondary'>By domain</Badge>
+            <Badge variant='secondary'>{t('capabilities.byDomain')}</Badge>
           )}
           {connection.capabilities?.leadSearch && (
             <Badge className='gap-1'>
               <Sparkles className='h-3 w-3' />
-              Lead search
+              {t('capabilities.leadSearch')}
             </Badge>
           )}
         </div>
@@ -93,7 +95,7 @@ export function EnrichmentConnectionCard({ connection, onChange }: Props) {
             className='text-destructive hover:text-destructive'
           >
             <Trash2 className='mr-1 h-4 w-4' />
-            Disconnect
+            {t('disconnect')}
           </Button>
         </div>
       </CardContent>
@@ -106,12 +108,13 @@ function StatusBadge({
 }: {
   status: EnrichmentConnectionSummary['status'];
 }) {
+  const t = useTranslations('integrations.enrichment.card.status');
   switch (status) {
     case 'active':
-      return <Badge variant='default'>Active</Badge>;
+      return <Badge variant='default'>{t('active')}</Badge>;
     case 'error':
-      return <Badge variant='destructive'>Error</Badge>;
+      return <Badge variant='destructive'>{t('error')}</Badge>;
     case 'disconnected':
-      return <Badge variant='outline'>Disconnected</Badge>;
+      return <Badge variant='outline'>{t('disconnected')}</Badge>;
   }
 }

@@ -40,6 +40,7 @@ import {
 } from '@ringee/frontend-shared/components/ui/alert-dialog';
 import { Upload, UserPlus, Plus, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import type {
   CampaignLead,
   CampaignLeadListResponse,
@@ -73,18 +74,19 @@ const LEAD_STATUS_COLORS: Record<string, string> = {
 };
 
 // Statuses worth surfacing as filters in the UI (terminal + common states).
-const STATUS_FILTERS: { value: string; label: string }[] = [
-  { value: 'all', label: 'All statuses' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'queued', label: 'Queued' },
-  { value: 'dialing', label: 'Dialing' },
-  { value: 'in_call', label: 'In call' },
-  { value: 'dispositioned', label: 'Dispositioned' },
-  { value: 'scheduled', label: 'Scheduled' },
-  { value: 'completed', label: 'Completed' },
-  { value: 'exhausted', label: 'Exhausted' },
-  { value: 'dnc', label: 'DNC' }
-];
+// Labels come from `campaigns.leadStatus.*`; `all` is the unfiltered option.
+const STATUS_FILTERS = [
+  'all',
+  'pending',
+  'queued',
+  'dialing',
+  'in_call',
+  'dispositioned',
+  'scheduled',
+  'completed',
+  'exhausted',
+  'dnc'
+] as const;
 
 interface Props {
   campaignId: string;
@@ -101,6 +103,7 @@ export function CampaignLeadsTab({
   onLeadsChanged
 }: Props) {
   const api = useApi();
+  const t = useTranslations('campaigns');
   const [leads, setLeads] = useState<CampaignLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -145,7 +148,9 @@ export function CampaignLeadsTab({
     try {
       await api.delete(`/campaigns/${campaignId}/leads/${lead.id}`);
       toast.success(
-        `${lead.contact.name || 'Lead'} removed from the campaign.`
+        t('leads.toasts.removed', {
+          name: lead.contact.name || t('leads.fallbackName')
+        })
       );
       // If we just emptied the current page, step back one so the user isn't
       // left staring at a blank table.
@@ -156,9 +161,7 @@ export function CampaignLeadsTab({
       }
       onLeadsChanged?.();
     } catch (err: any) {
-      toast.error(
-        err?.message || 'Could not remove the lead. Please try again.'
-      );
+      toast.error(err?.message || t('leads.toasts.removeError'));
     } finally {
       setDeletingId(null);
     }
@@ -179,9 +182,9 @@ export function CampaignLeadsTab({
         <CardHeader>
           <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
             <div>
-              <CardTitle>Leads</CardTitle>
+              <CardTitle>{t('leads.title')}</CardTitle>
               <CardDescription>
-                {total} total leads in this campaign
+                {t('leads.total', { count: total })}
               </CardDescription>
             </div>
             <div className='flex items-center gap-2'>
@@ -193,12 +196,12 @@ export function CampaignLeadsTab({
                 }}
               >
                 <SelectTrigger className='w-[160px]'>
-                  <SelectValue placeholder='All statuses' />
+                  <SelectValue placeholder={t('list.allStatuses')} />
                 </SelectTrigger>
                 <SelectContent>
                   {STATUS_FILTERS.map((s) => (
-                    <SelectItem key={s.value} value={s.value}>
-                      {s.label}
+                    <SelectItem key={s} value={s}>
+                      {s === 'all' ? t('list.allStatuses') : t(`leadStatus.${s}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -211,11 +214,11 @@ export function CampaignLeadsTab({
                     onClick={() => setImportOpen(true)}
                   >
                     <Upload className='mr-2 h-4 w-4' />
-                    Import CSV
+                    {t('leads.importCsv')}
                   </Button>
                   <Button size='sm' onClick={() => setAddOpen(true)}>
                     <Plus className='mr-2 h-4 w-4' />
-                    Add Lead
+                    {t('leads.addLead')}
                   </Button>
                 </>
               )}
@@ -234,23 +237,23 @@ export function CampaignLeadsTab({
               <UserPlus className='text-muted-foreground mb-4 h-12 w-12' />
               <h3 className='text-lg font-semibold'>
                 {statusFilter === 'all'
-                  ? 'No leads yet'
-                  : 'No leads with this status'}
+                  ? t('leads.empty.title')
+                  : t('leads.empty.filteredTitle')}
               </h3>
               <p className='text-muted-foreground mt-1 text-sm'>
                 {statusFilter === 'all'
-                  ? 'Import a CSV file or add a lead manually to get started.'
-                  : 'Try a different status filter.'}
+                  ? t('leads.empty.description')
+                  : t('leads.empty.filteredDescription')}
               </p>
               {canImport && statusFilter === 'all' && (
                 <div className='mt-4 flex gap-2'>
                   <Button variant='outline' onClick={() => setImportOpen(true)}>
                     <Upload className='mr-2 h-4 w-4' />
-                    Import CSV
+                    {t('leads.importCsv')}
                   </Button>
                   <Button onClick={() => setAddOpen(true)}>
                     <Plus className='mr-2 h-4 w-4' />
-                    Add Lead
+                    {t('leads.addLead')}
                   </Button>
                 </div>
               )}
@@ -260,21 +263,23 @@ export function CampaignLeadsTab({
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Phone</TableHead>
+                    <TableHead>{t('leads.table.name')}</TableHead>
+                    <TableHead>{t('leads.table.phone')}</TableHead>
                     <TableHead className='hidden md:table-cell'>
-                      Company
+                      {t('leads.table.company')}
                     </TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>{t('leads.table.status')}</TableHead>
                     <TableHead className='hidden sm:table-cell'>
-                      Attempts
+                      {t('leads.table.attempts')}
                     </TableHead>
                     <TableHead className='hidden lg:table-cell'>
-                      Last Call
+                      {t('leads.table.lastCall')}
                     </TableHead>
                     {canManageLeads && (
                       <TableHead className='w-[60px] text-right'>
-                        <span className='sr-only'>Actions</span>
+                        <span className='sr-only'>
+                          {t('leads.table.actions')}
+                        </span>
                       </TableHead>
                     )}
                   </TableRow>
@@ -308,7 +313,7 @@ export function CampaignLeadsTab({
                           variant='secondary'
                           className={LEAD_STATUS_COLORS[lead.status] || ''}
                         >
-                          {lead.status.replace(/_/g, ' ')}
+                          {t(`leadStatus.${lead.status}`)}
                         </Badge>
                       </TableCell>
                       <TableCell className='hidden sm:table-cell'>
@@ -326,7 +331,7 @@ export function CampaignLeadsTab({
                               variant='ghost'
                               size='icon'
                               disabled
-                              title='This lead is currently being dialed and cannot be removed.'
+                              title={t('leads.inFlightHint')}
                             >
                               <Trash2 className='text-muted-foreground/40 h-4 w-4' />
                             </Button>
@@ -337,7 +342,11 @@ export function CampaignLeadsTab({
                                   variant='ghost'
                                   size='icon'
                                   disabled={deletingId === lead.id}
-                                  aria-label={`Remove ${lead.contact.name || 'lead'}`}
+                                  aria-label={t('leads.removeAria', {
+                                    name:
+                                      lead.contact.name ||
+                                      t('leads.fallbackName')
+                                  })}
                                 >
                                   {deletingId === lead.id ? (
                                     <Loader2 className='h-4 w-4 animate-spin' />
@@ -349,26 +358,26 @@ export function CampaignLeadsTab({
                               <AlertDialogContent>
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>
-                                    Remove this lead?
+                                    {t('leads.removeDialog.title')}
                                   </AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    <span className='text-foreground font-medium'>
-                                      {lead.contact.name || 'This lead'}
-                                    </span>{' '}
-                                    ({lead.contact.phoneNumber}) will be removed
-                                    from this campaign, along with its call
-                                    attempts and scheduled callbacks. The
-                                    contact itself is kept and can be added
-                                    again later. This can&apos;t be undone.
+                                    {t('leads.removeDialog.description', {
+                                      name:
+                                        lead.contact.name ||
+                                        t('leads.fallbackName'),
+                                      phone: lead.contact.phoneNumber
+                                    })}
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogCancel>
+                                    {t('leads.removeDialog.cancel')}
+                                  </AlertDialogCancel>
                                   <AlertDialogAction
                                     onClick={() => handleDelete(lead)}
                                     className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
                                   >
-                                    Remove lead
+                                    {t('leads.removeDialog.confirm')}
                                   </AlertDialogAction>
                                 </AlertDialogFooter>
                               </AlertDialogContent>
@@ -384,7 +393,7 @@ export function CampaignLeadsTab({
               {totalPages > 1 && (
                 <div className='mt-4 flex items-center justify-between'>
                   <p className='text-muted-foreground text-sm'>
-                    Page {page} of {totalPages}
+                    {t('list.page', { page, total: totalPages })}
                   </p>
                   <div className='flex gap-2'>
                     <Button
@@ -393,7 +402,7 @@ export function CampaignLeadsTab({
                       disabled={page <= 1}
                       onClick={() => setPage(page - 1)}
                     >
-                      Previous
+                      {t('list.previous')}
                     </Button>
                     <Button
                       variant='outline'
@@ -401,7 +410,7 @@ export function CampaignLeadsTab({
                       disabled={page >= totalPages}
                       onClick={() => setPage(page + 1)}
                     >
-                      Next
+                      {t('list.next')}
                     </Button>
                   </div>
                 </div>

@@ -17,7 +17,9 @@
   "tabs": {
     "crm": "CRM",
     "enrichment": "Enriquecimiento de datos",
-    "leads": "Buscar leads"
+    "leads": "Buscar leads",
+    "custom": "Integraciones personalizadas",
+    "connectors": "Conectores"
   },
   "connections": {
     "yourConnections": "Tus conexiones",
@@ -94,5 +96,17 @@
     "soon": "Próximamente"
   },
   "syncSuccess": "Sincronización iniciada — los contactos y empresas se están importando.",
-  "syncError": "No se pudo iniciar la sincronización. Inténtalo de nuevo."
+  "syncError": "No se pudo iniciar la sincronización. Inténtalo de nuevo.",
+  "toasts": {
+    "providerConnected": "{provider} conectado",
+    "connectionFailed": "La conexión falló. Inténtalo de nuevo.",
+    "connectionFailedReason": "La conexión falló: {reason}. Inténtalo de nuevo.",
+    "odooHint": "Usa la tarjeta de Odoo de abajo para volver a introducir tus credenciales y reconectar.",
+    "authStartError": "No se pudo iniciar la autorización",
+    "authError": "No se pudo iniciar la autenticación",
+    "disconnected": "Conexión desconectada",
+    "disconnectError": "No se pudo desconectar",
+    "forgotten": "Conexión olvidada",
+    "forgetError": "No se pudo olvidar"
+  }
 }

@@ -38,27 +38,28 @@ import {
   RunPreview,
   allRows
 } from '../types';
+import { useTranslations } from 'next-intl';
 
 const PIPELINE = 'follow_up_recommendations';
 
 const RESULT_FILTERS: {
   key: string;
-  label: string;
   filter?: string;
   status?: string;
 }[] = [
-  { key: 'pending', label: 'Pending', status: 'pending' },
-  { key: 'high', label: 'High priority', filter: 'high_priority' },
-  { key: 'due_today', label: 'Due today', filter: 'due_today' },
-  { key: 'overdue', label: 'Overdue', filter: 'overdue' },
-  { key: 'ai', label: 'AI-enhanced', filter: 'ai_generated' },
-  { key: 'rule', label: 'Rule-based', filter: 'rule_based' },
-  { key: 'dismissed', label: 'Dismissed', status: 'dismissed' },
-  { key: 'completed', label: 'Completed', status: 'completed' }
+  { key: 'pending', status: 'pending' },
+  { key: 'high', filter: 'high_priority' },
+  { key: 'due_today', filter: 'due_today' },
+  { key: 'overdue', filter: 'overdue' },
+  { key: 'ai', filter: 'ai_generated' },
+  { key: 'rule', filter: 'rule_based' },
+  { key: 'dismissed', status: 'dismissed' },
+  { key: 'completed', status: 'completed' }
 ];
 
 export function FollowUpRecommendations() {
   const api = useApi();
+  const t = useTranslations('ai.followUp');
   const [summary, setSummary] = useState<ActivationSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -146,7 +147,7 @@ export function FollowUpRecommendations() {
       );
       setRunPreview(preview);
     } catch {
-      setRunMessage('Could not load run preview.');
+      setRunMessage(t('run.previewFailed'));
     }
   };
 
@@ -160,16 +161,14 @@ export function FollowUpRecommendations() {
         { ...runContext.descriptor, contextType: runContext.contextType }
       );
       if (res.status === 'already_running') {
-        setRunMessage('A run is already in progress for this context.');
+        setRunMessage(t('run.alreadyRunning'));
       } else {
-        setRunMessage(
-          `Run complete — analyzed ${res.eligibleCount ?? 0} eligible calls.`
-        );
+        setRunMessage(t('run.complete', { count: res.eligibleCount ?? 0 }));
         await loadSummary();
         await loadResults();
       }
     } catch (e) {
-      setRunMessage((e as Error)?.message ?? 'Run failed.');
+      setRunMessage((e as Error)?.message ?? t('run.failed'));
     } finally {
       setRunBusy(false);
     }
@@ -189,7 +188,7 @@ export function FollowUpRecommendations() {
     return <Skeleton className='h-96 w-full' />;
   }
   if (!summary) {
-    return <p className='text-muted-foreground'>Could not load pipeline.</p>;
+    return <p className='text-muted-foreground'>{t('loadFailed')}</p>;
   }
 
   return (
@@ -197,13 +196,13 @@ export function FollowUpRecommendations() {
       {/* Context selector */}
       <div className='flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
         <div className='max-w-md'>
-          <label className='text-sm font-medium'>Context</label>
+          <label className='text-sm font-medium'>{t('context')}</label>
           <Select
             value={selectedId ?? undefined}
             onValueChange={(v) => setSelectedId(v)}
           >
             <SelectTrigger className='mt-1'>
-              <SelectValue placeholder='Select a context' />
+              <SelectValue placeholder={t('selectContext')} />
             </SelectTrigger>
             <SelectContent>
               {rows.map((r) => (
@@ -216,32 +215,32 @@ export function FollowUpRecommendations() {
         </div>
       </div>
 
-      <p className='text-muted-foreground text-sm'>
-        Results are separated by context. Campaign calls, organization calls
-        outside campaigns, and personal calls are analyzed independently.
-      </p>
+      <p className='text-muted-foreground text-sm'>{t('contextDescription')}</p>
 
       {/* Activation table */}
       <Card>
         <CardHeader>
-          <CardTitle>Activation</CardTitle>
-          <CardDescription>
-            Enable Follow-up per context. Enabling one context never enables
-            another.
-          </CardDescription>
+          <CardTitle>{t('activation.title')}</CardTitle>
+          <CardDescription>{t('activation.description')}</CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Context</TableHead>
-                <TableHead>Enabled</TableHead>
+                <TableHead>{t('context')}</TableHead>
+                <TableHead>{t('activation.enabled')}</TableHead>
                 <TableHead className='hidden sm:table-cell'>
-                  New eligible
+                  {t('activation.newEligible')}
                 </TableHead>
-                <TableHead className='hidden md:table-cell'>Last run</TableHead>
-                <TableHead className='hidden sm:table-cell'>Pending</TableHead>
-                <TableHead className='text-right'>Run</TableHead>
+                <TableHead className='hidden md:table-cell'>
+                  {t('activation.lastRun')}
+                </TableHead>
+                <TableHead className='hidden sm:table-cell'>
+                  {t('activation.pending')}
+                </TableHead>
+                <TableHead className='text-right'>
+                  {t('activation.run')}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -267,7 +266,7 @@ export function FollowUpRecommendations() {
                   <TableCell className='hidden md:table-cell'>
                     {r.lastRunAt
                       ? new Date(r.lastRunAt).toLocaleString()
-                      : 'Never'}
+                      : t('never')}
                   </TableCell>
                   <TableCell className='hidden sm:table-cell'>
                     {r.pendingActionCount}
@@ -282,7 +281,7 @@ export function FollowUpRecommendations() {
                       disabled={!r.enabled}
                       onClick={() => openRun(r)}
                     >
-                      <Play className='mr-1 h-3 w-3' /> Run analysis
+                      <Play className='mr-1 h-3 w-3' /> {t('run.analysis')}
                     </Button>
                   </TableCell>
                 </TableRow>
@@ -297,7 +296,7 @@ export function FollowUpRecommendations() {
         <Card className='border-primary/40'>
           <CardHeader>
             <CardTitle className='text-base'>
-              Run analysis — {runContext.label}
+              {t('run.title', { context: runContext.label })}
             </CardTitle>
           </CardHeader>
           <CardContent className='space-y-3'>
@@ -305,16 +304,16 @@ export function FollowUpRecommendations() {
               <>
                 <div className='flex flex-wrap gap-4 text-sm'>
                   <Stat
-                    label='Eligible calls'
+                    label={t('run.eligibleCalls')}
                     value={runPreview.eligibleCount}
                   />
                   <Stat
-                    label='New since last run'
+                    label={t('run.newSinceLastRun')}
                     value={runPreview.newEligibleSinceLastRun}
                   />
                   <div>
                     <div className='text-muted-foreground text-xs'>
-                      Estimated confidence
+                      {t('run.estimatedConfidence')}
                     </div>
                     <Badge variant='secondary' className='mt-0.5'>
                       {runPreview.estimatedConfidence}
@@ -324,13 +323,12 @@ export function FollowUpRecommendations() {
                 {runPreview.lowData && (
                   <div className='flex items-center gap-2 rounded-md bg-amber-50 p-2 text-sm text-amber-700'>
                     <AlertTriangle className='h-4 w-4' />
-                    Low data — fewer than the recommended minimum eligible
-                    calls.
+                    {t('run.lowData')}
                   </div>
                 )}
                 {runPreview.isRunning && (
                   <div className='text-sm text-amber-700'>
-                    A run is already in progress for this context.
+                    {t('run.alreadyRunning')}
                   </div>
                 )}
               </>
@@ -349,7 +347,7 @@ export function FollowUpRecommendations() {
                 ) : (
                   <Play className='mr-1 h-4 w-4' />
                 )}
-                Run now
+                {t('run.now')}
               </Button>
               <Button
                 size='sm'
@@ -360,7 +358,7 @@ export function FollowUpRecommendations() {
                   setRunMessage(null);
                 }}
               >
-                Close
+                {t('close')}
               </Button>
             </div>
           </CardContent>
@@ -370,10 +368,10 @@ export function FollowUpRecommendations() {
       {/* Results for selected context */}
       <Card>
         <CardHeader>
-          <CardTitle>Results — {selectedRow?.label ?? ''}</CardTitle>
-          <CardDescription>
-            Pending actions for this context only.
-          </CardDescription>
+          <CardTitle>
+            {t('results.title', { context: selectedRow?.label ?? '' })}
+          </CardTitle>
+          <CardDescription>{t('results.description')}</CardDescription>
         </CardHeader>
         <CardContent className='space-y-4'>
           <div className='flex flex-wrap gap-2'>
@@ -388,7 +386,7 @@ export function FollowUpRecommendations() {
                     : 'border-border hover:bg-muted'
                 )}
               >
-                {f.label}
+                {t(`results.filters.${f.key}`)}
               </button>
             ))}
           </div>
@@ -401,7 +399,7 @@ export function FollowUpRecommendations() {
             </div>
           ) : (results?.data.length ?? 0) === 0 ? (
             <p className='text-muted-foreground py-8 text-center text-sm'>
-              No actions in this view for this context.
+              {t('results.empty')}
             </p>
           ) : (
             <PendingActionsTable

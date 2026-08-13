@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useConnectionSyncs } from '../hooks/use-crm-connections';
 import type { CrmCallSyncRow, CrmSyncStatus } from '../types/crm';
@@ -42,17 +43,9 @@ const STATUS_ICON: Record<CrmSyncStatus, React.ReactNode> = {
   needs_resolution: <HelpCircle className='h-4 w-4 text-amber-500' />
 };
 
-const STATUS_LABEL: Record<CrmSyncStatus, string> = {
-  done: 'Synced',
-  pending: 'Pending',
-  in_progress: 'Running',
-  failed: 'Failed',
-  skipped: 'Skipped',
-  needs_resolution: 'Needs review'
-};
-
 export function SyncHistorySheet({ connectionId, open, onOpenChange }: Props) {
   const api = useApi();
+  const t = useTranslations('integrations.crm.syncHistory');
   const { syncs, loading, reload } = useConnectionSyncs(
     open ? connectionId : null
   );
@@ -62,10 +55,10 @@ export function SyncHistorySheet({ connectionId, open, onOpenChange }: Props) {
     setRetryingId(id);
     try {
       await api.post(`/crm/syncs/${id}/retry`);
-      toast.success('Sync queued for retry');
+      toast.success(t('toasts.retryQueued'));
       await reload();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Retry failed');
+      toast.error(err instanceof Error ? err.message : t('toasts.retryFailed'));
     } finally {
       setRetryingId(null);
     }
@@ -75,17 +68,16 @@ export function SyncHistorySheet({ connectionId, open, onOpenChange }: Props) {
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent className='w-full sm:max-w-xl'>
         <SheetHeader>
-          <SheetTitle>Sync history</SheetTitle>
-          <SheetDescription>
-            The last 50 call-log sync attempts for this connection. Failed syncs
-            can be retried manually.
-          </SheetDescription>
+          <SheetTitle>{t('sheetTitle')}</SheetTitle>
+          <SheetDescription>{t('sheetDescription')}</SheetDescription>
         </SheetHeader>
 
         <div className='mt-4 flex h-[calc(100vh-8rem)] flex-col'>
           <div className='mb-3 flex items-center justify-between'>
             <span className='text-muted-foreground text-xs'>
-              {loading ? 'Loading…' : `${syncs.length} events`}
+              {loading
+                ? t('loading')
+                : t('eventCount', { count: syncs.length })}
             </span>
             <Button
               variant='ghost'
@@ -97,7 +89,7 @@ export function SyncHistorySheet({ connectionId, open, onOpenChange }: Props) {
               <RefreshCw
                 className={cn('mr-1.5 h-3 w-3', loading && 'animate-spin')}
               />
-              Refresh
+              {t('refresh')}
             </Button>
           </div>
 
@@ -111,10 +103,9 @@ export function SyncHistorySheet({ connectionId, open, onOpenChange }: Props) {
             ) : syncs.length === 0 ? (
               <div className='flex h-64 flex-col items-center justify-center text-center'>
                 <Clock className='text-muted-foreground/40 h-10 w-10' />
-                <p className='mt-3 text-sm font-medium'>No activity yet</p>
+                <p className='mt-3 text-sm font-medium'>{t('empty.title')}</p>
                 <p className='text-muted-foreground mt-1 max-w-xs text-xs'>
-                  Call syncs will appear here as soon as your first call is
-                  logged to the CRM.
+                  {t('sheetEmptyDescription')}
                 </p>
               </div>
             ) : (
@@ -145,6 +136,7 @@ function SyncRow({
   onRetry: () => void;
   retrying: boolean;
 }) {
+  const t = useTranslations('integrations.crm.syncHistory');
   const canRetry =
     sync.status === 'failed' || sync.status === 'needs_resolution';
   return (
@@ -158,19 +150,23 @@ function SyncRow({
                 variant='outline'
                 className='h-5 px-1.5 text-[10px] font-normal'
               >
-                {STATUS_LABEL[sync.status]}
+                {t(`status.${sync.status}`)}
               </Badge>
               <span className='text-muted-foreground text-xs'>
-                attempt {sync.attemptCount}
+                {t('attempt', { count: sync.attemptCount })}
               </span>
             </div>
             <p className='text-muted-foreground mt-1 truncate font-mono text-[11px]'>
-              call {sync.callId.slice(0, 8)}… ·{' '}
-              {new Date(sync.updatedAt).toLocaleString()}
+              {t('callRow', {
+                callId: sync.callId.slice(0, 8),
+                date: new Date(sync.updatedAt).toLocaleString()
+              })}
             </p>
             {sync.externalActivityId && (
               <p className='mt-0.5 font-mono text-[11px] text-emerald-600/80'>
-                Activity: {sync.externalActivityId.slice(0, 24)}…
+                {t('activity', {
+                  id: sync.externalActivityId.slice(0, 24)
+                })}
               </p>
             )}
             {sync.lastError && (
@@ -193,7 +189,7 @@ function SyncRow({
             ) : (
               <RefreshCw className='mr-1 h-3 w-3' />
             )}
-            Retry
+            {t('retry')}
           </Button>
         )}
       </div>

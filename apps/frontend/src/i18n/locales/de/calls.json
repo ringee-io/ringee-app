@@ -12,6 +12,16 @@
   "busy": "Besetzt",
   "failed": "Fehlgeschlagen",
   "voicemail": "Voicemail",
+  "statusValues": {
+    "pending": "Ausstehend",
+    "ringing": "Klingelt",
+    "answered": "Angenommen",
+    "recording": "Aufzeichnung",
+    "completed": "Abgeschlossen",
+    "failed": "Fehlgeschlagen",
+    "processing": "Wird verarbeitet",
+    "ready": "Bereit"
+  },
   "callDuration": "Dauer",
   "callCost": "Kosten",
   "from": "Von",
@@ -47,11 +57,11 @@
       "duration": "Dauer",
       "date": "Datum",
       "recording": "Aufzeichnung",
+      "transcript": "Transkript",
       "unknown": "Unbekannt",
       "callAgain": "Erneut anrufen",
       "noRecording": "Keine Aufzeichnung",
-      "downloadRecording": "Aufzeichnung herunterladen",
-      "transcript": "Transkript"
+      "downloadRecording": "Aufzeichnung herunterladen"
     },
     "rowActions": {
       "menu": "Aktionen",
@@ -77,14 +87,14 @@
       "date": "Datum",
       "status": "Status",
       "recording": "Aufzeichnung",
+      "transcript": "Transkript",
       "unknown": "Unbekannt",
       "noRecording": "Keine Aufzeichnung",
       "processingShort": "Wird verarbeitet…",
       "unavailable": "Nicht verfügbar",
       "play": "Abspielen",
       "playRecording": "Aufzeichnung abspielen",
-      "downloadRecording": "Aufzeichnung herunterladen",
-      "transcript": "Transkript"
+      "downloadRecording": "Aufzeichnung herunterladen"
     },
     "statusBadge": {
       "started": "Wird verarbeitet",
@@ -97,12 +107,6 @@
       "callTitle": "Anruf: {from} → {to}",
       "decrypting": "Aufzeichnung wird entschlüsselt…",
       "errorLoad": "Aufzeichnung konnte nicht geladen werden. Bitte erneut versuchen."
-    },
-    "dateFilter": {
-      "filterByDate": "Nach Datum filtern",
-      "from": "Ab {date}",
-      "to": "Bis {date}",
-      "clear": "Datumsfilter löschen"
     }
   },
   "callbacks": {
@@ -146,16 +150,6 @@
       "willCost": "Ihr Anruf kostet",
       "perMinute": "pro Minute"
     }
-  },
-  "statusValues": {
-    "pending": "Ausstehend",
-    "ringing": "Klingelt",
-    "answered": "Angenommen",
-    "recording": "Aufzeichnung",
-    "completed": "Abgeschlossen",
-    "failed": "Fehlgeschlagen",
-    "processing": "Wird verarbeitet",
-    "ready": "Bereit"
   },
   "concurrentCall": {
     "title": "Nur ein Anruf gleichzeitig",

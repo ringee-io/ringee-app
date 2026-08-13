@@ -9,6 +9,7 @@ import { ChevronLeft, ChevronRight, Loader2, CalendarPlus } from 'lucide-react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { toast } from 'sonner';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
+import { useTranslations } from 'next-intl';
 
 interface AvailabilitySlot {
   time: string;
@@ -37,6 +38,7 @@ export function BookMeetingForm({
   onCancel
 }: BookMeetingFormProps) {
   const api = useApi();
+  const t = useTranslations('meetings.booking');
   const [weekStart, setWeekStart] = useState(startOfToday());
   const [selectedDate, setSelectedDate] = useState(startOfToday());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
@@ -135,7 +137,7 @@ export function BookMeetingForm({
     if (!selectedTime) return;
 
     if (isEmailMissing && !contactEmail) {
-      toast.error('Please provide an email for the contact');
+      toast.error(t('emailRequired'));
       return;
     }
 
@@ -156,11 +158,14 @@ export function BookMeetingForm({
       });
 
       toast.success(
-        `Meeting booked -- ${format(scheduledAt, 'EEE, MMM d')} at ${format(scheduledAt, 'h:mm a')}`
+        t('success', {
+          date: format(scheduledAt, 'EEE, MMM d'),
+          time: format(scheduledAt, 'h:mm a')
+        })
       );
       onBooked();
     } catch {
-      toast.error('Failed to book meeting');
+      toast.error(t('failed'));
     } finally {
       setIsSubmitting(false);
     }
@@ -238,7 +243,7 @@ export function BookMeetingForm({
           </div>
         ) : slots.length === 0 ? (
           <div className='text-muted-foreground flex h-[160px] items-center justify-center text-sm'>
-            No available slots
+            {t('noSlots')}
           </div>
         ) : (
           <div className='grid grid-cols-3 gap-1.5'>
@@ -269,7 +274,7 @@ export function BookMeetingForm({
       {/* Duration pills */}
       <div className='flex items-center gap-1.5'>
         <span className='text-muted-foreground text-[10px] font-medium tracking-wider uppercase'>
-          Duration
+          {t('duration')}
         </span>
         <div className='flex gap-1'>
           {DURATIONS.map((d) => (
@@ -295,11 +300,11 @@ export function BookMeetingForm({
           {isEmailMissing && (
             <div className='space-y-1.5'>
               <label className='text-muted-foreground block text-[10px] font-medium tracking-wider uppercase'>
-                Contact Email
+                {t('contactEmail')}
               </label>
               <Input
                 type='email'
-                placeholder='Required for calendar invite'
+                placeholder={t('emailPlaceholder')}
                 value={contactEmail}
                 onChange={(e) => setContactEmail(e.target.value)}
                 className='placeholder:text-muted-foreground/50 border-border/80 h-8 text-xs'
@@ -310,7 +315,7 @@ export function BookMeetingForm({
           {integrations.length > 1 && (
             <div className='space-y-1.5'>
               <label className='text-muted-foreground block text-[10px] font-medium tracking-wider uppercase'>
-                Select Calendar
+                {t('selectCalendar')}
               </label>
               <div className='flex gap-2'>
                 {integrations.map((i) => (
@@ -336,7 +341,7 @@ export function BookMeetingForm({
       {/* Confirm bar */}
       <div className='mt-1 flex gap-2'>
         <Button variant='ghost' size='sm' onClick={onCancel} className='flex-1'>
-          Cancel
+          {t('cancel')}
         </Button>
         <Button
           size='sm'
@@ -349,7 +354,7 @@ export function BookMeetingForm({
           ) : (
             <>
               <CalendarPlus className='mr-1.5 h-3.5 w-3.5' />
-              Confirm
+              {t('confirm')}
             </>
           )}
         </Button>

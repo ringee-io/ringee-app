@@ -14,12 +14,14 @@ import {
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Send, ClipboardList, Loader2, ArrowUpRight } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 interface CrmSyncActionsProps {
   contactId: string;
 }
 
 export function CrmSyncActions({ contactId }: CrmSyncActionsProps) {
+  const t = useTranslations('contacts.crmActions');
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [taskDialogOpen, setTaskDialogOpen] = useState(false);
 
@@ -32,7 +34,7 @@ export function CrmSyncActions({ contactId }: CrmSyncActionsProps) {
           onClick={() => setNoteDialogOpen(true)}
         >
           <Send className='mr-1.5 h-3.5 w-3.5' />
-          Push Note to CRM
+          {t('pushNote')}
         </Button>
         <Button
           variant='outline'
@@ -40,7 +42,7 @@ export function CrmSyncActions({ contactId }: CrmSyncActionsProps) {
           onClick={() => setTaskDialogOpen(true)}
         >
           <ClipboardList className='mr-1.5 h-3.5 w-3.5' />
-          Push Task to CRM
+          {t('pushTask')}
         </Button>
       </div>
 
@@ -68,6 +70,7 @@ function PushNoteDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const api = useApi();
+  const t = useTranslations('contacts.crmActions.note');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [loading, setLoading] = useState(false);
@@ -80,12 +83,12 @@ function PushNoteDialog({
         title: title.trim() || undefined,
         body: body.trim()
       });
-      toast.success('Note queued for CRM sync');
+      toast.success(t('queued'));
       setTitle('');
       setBody('');
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to push note');
+      toast.error(err instanceof Error ? err.message : t('failed'));
     } finally {
       setLoading(false);
     }
@@ -97,30 +100,27 @@ function PushNoteDialog({
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
             <ArrowUpRight className='h-4 w-4' />
-            Push Note to CRM
+            {t('title')}
           </DialogTitle>
-          <DialogDescription>
-            Send a note to the linked CRM record for this contact. The note will
-            be queued and synced in the background.
-          </DialogDescription>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         <div className='space-y-3'>
           <div className='space-y-1.5'>
-            <label className='text-sm font-medium'>Title (optional)</label>
+            <label className='text-sm font-medium'>{t('titleLabel')}</label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder='e.g. Follow-up call summary'
+              placeholder={t('titlePlaceholder')}
             />
           </div>
           <div className='space-y-1.5'>
-            <label className='text-sm font-medium'>Note Body *</label>
+            <label className='text-sm font-medium'>{t('bodyLabel')}</label>
             <textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={4}
-              placeholder='Write the note content...'
+              placeholder={t('bodyPlaceholder')}
               className='border-input bg-background ring-offset-background focus:ring-ring flex w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-offset-2 focus:outline-none'
             />
           </div>
@@ -128,7 +128,7 @@ function PushNoteDialog({
 
         <DialogFooter>
           <Button variant='outline' onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={!body.trim() || loading}>
             {loading ? (
@@ -136,7 +136,7 @@ function PushNoteDialog({
             ) : (
               <Send className='mr-1.5 h-3.5 w-3.5' />
             )}
-            Push Note
+            {t('submit')}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -154,6 +154,7 @@ function PushTaskDialog({
   onOpenChange: (open: boolean) => void;
 }) {
   const api = useApi();
+  const t = useTranslations('contacts.crmActions.task');
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [dueAt, setDueAt] = useState('');
@@ -170,14 +171,14 @@ function PushTaskDialog({
         dueAt: dueAt || undefined,
         assigneeEmail: assigneeEmail.trim() || undefined
       });
-      toast.success('Task queued for CRM sync');
+      toast.success(t('queued'));
       setTitle('');
       setBody('');
       setDueAt('');
       setAssigneeEmail('');
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to push task');
+      toast.error(err instanceof Error ? err.message : t('failed'));
     } finally {
       setLoading(false);
     }
@@ -189,38 +190,35 @@ function PushTaskDialog({
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
             <ClipboardList className='h-4 w-4' />
-            Push Task to CRM
+            {t('title')}
           </DialogTitle>
-          <DialogDescription>
-            Create a follow-up task on the linked CRM record. The task will be
-            queued and synced in the background.
-          </DialogDescription>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         <div className='space-y-3'>
           <div className='space-y-1.5'>
-            <label className='text-sm font-medium'>Title *</label>
+            <label className='text-sm font-medium'>{t('titleLabel')}</label>
             <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder='e.g. Follow up on proposal'
+              placeholder={t('titlePlaceholder')}
             />
           </div>
           <div className='space-y-1.5'>
             <label className='text-sm font-medium'>
-              Description (optional)
+              {t('descriptionLabel')}
             </label>
             <textarea
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={3}
-              placeholder='Additional details...'
+              placeholder={t('descriptionPlaceholder')}
               className='border-input bg-background ring-offset-background focus:ring-ring flex w-full rounded-md border px-3 py-2 text-sm focus:ring-2 focus:ring-offset-2 focus:outline-none'
             />
           </div>
           <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
             <div className='space-y-1.5'>
-              <label className='text-sm font-medium'>Due Date (optional)</label>
+              <label className='text-sm font-medium'>{t('dueDate')}</label>
               <Input
                 type='datetime-local'
                 value={dueAt}
@@ -229,7 +227,7 @@ function PushTaskDialog({
             </div>
             <div className='space-y-1.5'>
               <label className='text-sm font-medium'>
-                Assignee Email (optional)
+                {t('assigneeEmail')}
               </label>
               <Input
                 value={assigneeEmail}
@@ -243,7 +241,7 @@ function PushTaskDialog({
 
         <DialogFooter>
           <Button variant='outline' onClick={() => onOpenChange(false)}>
-            Cancel
+            {t('cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={!title.trim() || loading}>
             {loading ? (
@@ -251,7 +249,7 @@ function PushTaskDialog({
             ) : (
               <ClipboardList className='mr-1.5 h-3.5 w-3.5' />
             )}
-            Create Task
+            {t('submit')}
           </Button>
         </DialogFooter>
       </DialogContent>

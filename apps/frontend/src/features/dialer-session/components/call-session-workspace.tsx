@@ -7,12 +7,14 @@ import { SessionSoftphonePanel } from './session-softphone-panel';
 import { SessionDispositionPanel } from './session-disposition-panel';
 import { SessionLoadingView } from './session-loading-view';
 import { SessionErrorView } from './session-error-view';
+import { useTranslations } from 'next-intl';
 
 interface Props {
   token: string;
 }
 
 export function CallSessionWorkspace({ token }: Props) {
+  const t = useTranslations('dialer.publicSession');
   const {
     phase,
     error,
@@ -41,8 +43,8 @@ export function CallSessionWorkspace({ token }: Props) {
     return (
       <SessionErrorView
         error={{
-          title: 'Session unavailable',
-          message: 'Please retry, or ask the sender for a new link.',
+          title: t('unavailable'),
+          message: t('unavailableDescription'),
           variant: 'generic'
         }}
         onRetry={actions.reload}
@@ -53,7 +55,7 @@ export function CallSessionWorkspace({ token }: Props) {
   return (
     <div className='bg-background flex h-[100dvh] flex-col'>
       <SessionStatusBar
-        title={session.title ?? 'Ringee call session'}
+        title={session.title ?? t('defaultTitle')}
         phase={phase}
         creditsOk={creditsOk}
         creditBalance={creditBalance}
@@ -117,10 +119,7 @@ export function CallSessionWorkspace({ token }: Props) {
       </div>
 
       <footer className='bg-muted/30 text-muted-foreground border-t px-4 py-2 text-center text-[11px]'>
-        Powered by Ringee — calls placed via this browser via Telnyx WebRTC.
-        Mode:{' '}
-        <span className='text-foreground font-semibold capitalize'>{mode}</span>{' '}
-        dialer · Outcomes sync automatically to the owner's Ringee account.
+        {t('footer', { mode: t(`modes.${mode}`) })}
       </footer>
     </div>
   );

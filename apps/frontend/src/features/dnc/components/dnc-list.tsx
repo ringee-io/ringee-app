@@ -30,6 +30,7 @@ import {
 import { Label } from '@ringee/frontend-shared/components/ui/label';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { Plus, Trash2, Upload, Search, ShieldBan, Loader2 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface DNCEntry {
   id: string;
@@ -51,6 +52,7 @@ interface DNCListResponse {
 
 export function DNCList() {
   const api = useApi();
+  const t = useTranslations('calls.dnc.list');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [entries, setEntries] = useState<DNCEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -142,10 +144,9 @@ export function DNCList() {
       <CardHeader>
         <div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
           <div>
-            <CardTitle>Do Not Call List</CardTitle>
+            <CardTitle>{t('title')}</CardTitle>
             <CardDescription>
-              {total} numbers on the DNC list. These numbers will be skipped by
-              the dialer.
+              {t('description', { count: total })}
             </CardDescription>
           </div>
           <div className='flex items-center gap-2'>
@@ -167,25 +168,25 @@ export function DNCList() {
               ) : (
                 <Upload className='mr-2 h-4 w-4' />
               )}
-              Import CSV
+              {t('importCsv')}
             </Button>
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
                 <Button size='sm'>
                   <Plus className='mr-2 h-4 w-4' />
-                  Add Number
+                  {t('addNumber')}
                 </Button>
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Add to DNC List</DialogTitle>
+                  <DialogTitle>{t('dialog.title')}</DialogTitle>
                   <DialogDescription>
-                    Add a phone number to the Do Not Call list.
+                    {t('dialog.description')}
                   </DialogDescription>
                 </DialogHeader>
                 <form onSubmit={handleAdd} className='space-y-4'>
                   <div className='space-y-2'>
-                    <Label htmlFor='dnc-phone'>Phone Number</Label>
+                    <Label htmlFor='dnc-phone'>{t('dialog.phone')}</Label>
                     <Input
                       id='dnc-phone'
                       placeholder='+1234567890'
@@ -194,10 +195,10 @@ export function DNCList() {
                     />
                   </div>
                   <div className='space-y-2'>
-                    <Label htmlFor='dnc-reason'>Reason (optional)</Label>
+                    <Label htmlFor='dnc-reason'>{t('dialog.reason')}</Label>
                     <Input
                       id='dnc-reason'
-                      placeholder='e.g. Customer requested removal'
+                      placeholder={t('dialog.reasonPlaceholder')}
                       value={newReason}
                       onChange={(e) => setNewReason(e.target.value)}
                     />
@@ -208,13 +209,13 @@ export function DNCList() {
                       variant='outline'
                       onClick={() => setDialogOpen(false)}
                     >
-                      Cancel
+                      {t('dialog.cancel')}
                     </Button>
                     <Button type='submit' disabled={saving}>
                       {saving && (
                         <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                       )}
-                      Add
+                      {t('dialog.add')}
                     </Button>
                   </div>
                 </form>
@@ -229,7 +230,7 @@ export function DNCList() {
           <div className='relative flex-1'>
             <Search className='text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2' />
             <Input
-              placeholder='Search phone number...'
+              placeholder={t('searchPlaceholder')}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -247,9 +248,9 @@ export function DNCList() {
         ) : entries.length === 0 ? (
           <div className='flex flex-col items-center py-12 text-center'>
             <ShieldBan className='text-muted-foreground mb-4 h-12 w-12' />
-            <h3 className='text-lg font-semibold'>No DNC entries</h3>
+            <h3 className='text-lg font-semibold'>{t('empty.title')}</h3>
             <p className='text-muted-foreground mt-1 text-sm'>
-              Numbers added here will be automatically skipped during dialing.
+              {t('empty.description')}
             </p>
           </div>
         ) : (
@@ -257,10 +258,14 @@ export function DNCList() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Phone Number</TableHead>
-                  <TableHead>Reason</TableHead>
-                  <TableHead className='hidden md:table-cell'>Source</TableHead>
-                  <TableHead className='hidden sm:table-cell'>Added</TableHead>
+                  <TableHead>{t('columns.phone')}</TableHead>
+                  <TableHead>{t('columns.reason')}</TableHead>
+                  <TableHead className='hidden md:table-cell'>
+                    {t('columns.source')}
+                  </TableHead>
+                  <TableHead className='hidden sm:table-cell'>
+                    {t('columns.added')}
+                  </TableHead>
                   <TableHead className='w-[60px]'></TableHead>
                 </TableRow>
               </TableHeader>
@@ -294,7 +299,7 @@ export function DNCList() {
             {totalPages > 1 && (
               <div className='mt-4 flex items-center justify-between'>
                 <p className='text-muted-foreground text-sm'>
-                  Page {page} of {totalPages}
+                  {t('pagination', { page, totalPages })}
                 </p>
                 <div className='flex gap-2'>
                   <Button
@@ -303,7 +308,7 @@ export function DNCList() {
                     disabled={page <= 1}
                     onClick={() => setPage(page - 1)}
                   >
-                    Previous
+                    {t('previous')}
                   </Button>
                   <Button
                     variant='outline'
@@ -311,7 +316,7 @@ export function DNCList() {
                     disabled={page >= totalPages}
                     onClick={() => setPage(page + 1)}
                   >
-                    Next
+                    {t('next')}
                   </Button>
                 </div>
               </div>

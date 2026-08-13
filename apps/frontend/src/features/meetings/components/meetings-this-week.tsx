@@ -12,6 +12,7 @@ import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { CalendarCheck, Clock, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
 interface MeetingPreview {
   id: string;
@@ -25,6 +26,7 @@ interface MeetingPreview {
 
 export function MeetingsThisWeek() {
   const api = useApi();
+  const t = useTranslations('meetings.thisWeek');
   const [data, setData] = useState<{
     count: number;
     meetings: MeetingPreview[];
@@ -42,9 +44,7 @@ export function MeetingsThisWeek() {
   return (
     <Card>
       <CardHeader className='flex flex-row items-center justify-between space-y-0 pb-2'>
-        <CardTitle className='text-sm font-medium'>
-          Meetings This Week
-        </CardTitle>
+        <CardTitle className='text-sm font-medium'>{t('title')}</CardTitle>
         <CalendarCheck className='text-muted-foreground h-4 w-4' />
       </CardHeader>
       <CardContent>
@@ -59,9 +59,7 @@ export function MeetingsThisWeek() {
         ) : !data || data.count === 0 ? (
           <div className='py-3'>
             <p className='text-3xl font-bold tabular-nums'>0</p>
-            <p className='text-muted-foreground mt-1 text-xs'>
-              No meetings scheduled this week
-            </p>
+            <p className='text-muted-foreground mt-1 text-xs'>{t('empty')}</p>
           </div>
         ) : (
           <>
@@ -88,7 +86,7 @@ export function MeetingsThisWeek() {
                 href='/dashboard/meetings'
                 className='mt-3 flex items-center gap-1 text-xs font-medium text-emerald-600 hover:text-emerald-700'
               >
-                View all {data.count} meetings
+                {t('viewAll', { count: data.count })}
                 <ArrowRight className='h-3 w-3' />
               </Link>
             )}

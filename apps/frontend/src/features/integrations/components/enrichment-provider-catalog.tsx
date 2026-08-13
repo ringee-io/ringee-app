@@ -9,6 +9,7 @@ import {
 } from '@ringee/frontend-shared/components/ui/card';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { Sparkles } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { EnrichmentConnectDialog } from './enrichment-connect-dialog';
 import {
   ENRICHMENT_PROVIDER_META,
@@ -22,6 +23,7 @@ interface Props {
 }
 
 export function EnrichmentProviderCatalog({ connections, onChange }: Props) {
+  const t = useTranslations('integrations.enrichment.catalog');
   const providers: EnrichmentProviderType[] = ['apollo', 'prospeo'];
 
   return (
@@ -45,7 +47,7 @@ export function EnrichmentProviderCatalog({ connections, onChange }: Props) {
                 {meta.leadSearch && (
                   <Badge variant='secondary' className='gap-1'>
                     <Sparkles className='h-3 w-3' />
-                    Lead search
+                    {t('leadSearch')}
                   </Badge>
                 )}
               </CardTitle>
@@ -58,7 +60,7 @@ export function EnrichmentProviderCatalog({ connections, onChange }: Props) {
                 rel='noreferrer'
                 className='text-muted-foreground text-xs underline'
               >
-                API docs
+                {t('apiDocs')}
               </a>
               {meta.available ? (
                 <EnrichmentConnectDialog
@@ -67,7 +69,7 @@ export function EnrichmentProviderCatalog({ connections, onChange }: Props) {
                   onConnected={onChange}
                 />
               ) : (
-                <Badge variant='outline'>Coming soon</Badge>
+                <Badge variant='outline'>{t('comingSoon')}</Badge>
               )}
             </CardContent>
           </Card>

@@ -148,6 +148,21 @@
         "pending": "in attesa",
         "rejected": "rifiutato",
         "expired": "scaduto"
+      },
+      "transfer": {
+        "action": "Sposta",
+        "title": "Sposta il numero in un altro spazio di lavoro",
+        "description": "Scegli dove deve stare {phone}. Devi essere amministratore di entrambi gli spazi di lavoro dell'organizzazione.",
+        "placeholder": "Seleziona lo spazio di lavoro di destinazione",
+        "personal": "Spazio di lavoro personale",
+        "resetNotice": "Le assegnazioni di campagna, rotazione e telefono fisso specifiche dello spazio di lavoro verranno rimosse. L'abbonamento Stripe esistente continua a essere addebitato allo spazio di lavoro che ha acquistato originariamente il numero.",
+        "noTargets": "Non amministri altri spazi di lavoro.",
+        "cancel": "Annulla",
+        "confirm": "Sposta numero",
+        "moving": "Spostamento…",
+        "success": "Numero spostato correttamente.",
+        "error": "Impossibile spostare il numero.",
+        "loadError": "Impossibile caricare i tuoi spazi di lavoro."
       }
     },
     "verify": {
@@ -156,6 +171,8 @@
       "metaTitle": "Verifica del numero",
       "metaDescription": "Invia i documenti richiesti dal paese del tuo numero per attivarlo.",
       "back": "Torna ai miei numeri",
+      "title": "Verifica {phone}",
+      "subtitle": "Il paese di questo numero richiede la verifica dei documenti. Fornisci gli elementi sottostanti e li invieremo all'operatore per la revisione.",
       "requirementsHeading": "Cosa serve all'operatore",
       "progressLabel": "Avanzamento della verifica",
       "progressCount": "{done} di {total} elementi pronti",
@@ -171,8 +188,6 @@
       "noneTitle": "Niente altro da verificare",
       "underReviewTitle": "In revisione",
       "rejectedTitle": "Azione richiesta",
-      "title": "Verifica {phone}",
-      "subtitle": "Il paese di questo numero richiede la verifica dei documenti. Fornisci gli elementi sottostanti e li invieremo all'operatore per la revisione.",
       "underReview": "I tuoi documenti sono stati inviati e sono in fase di revisione da parte dell'operatore. Di solito richiede un paio di giorni lavorativi.",
       "rejectedBanner": "L'operatore non ha approvato alcuni elementi. Correggi quelli evidenziati in rosso qui sotto e inviali di nuovo.",
       "rejectedReason": "Motivo",

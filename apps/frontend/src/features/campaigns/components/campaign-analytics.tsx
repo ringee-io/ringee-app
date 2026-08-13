@@ -43,6 +43,7 @@ import {
   BarChart3,
   RefreshCw
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import type { Disposition } from '../types/campaign.types';
 
 /** Matches OutboundAnalyticsRepository.getCampaignSummary + leadsByStatus. */
@@ -116,6 +117,7 @@ interface Props {
 
 export function CampaignAnalytics({ campaignId }: Props) {
   const api = useApi();
+  const t = useTranslations('campaigns.analytics');
   const [summary, setSummary] = useState<AnalyticsSummary | null>(null);
   const [dispositions, setDispositions] = useState<DispositionDist[]>([]);
   const [agents, setAgents] = useState<AgentPerf[]>([]);
@@ -178,7 +180,10 @@ export function CampaignAnalytics({ campaignId }: Props) {
   }, [dispoConfig]);
 
   function getAgentName(userId: string): string {
-    return memberNameMap.get(userId) || `${userId?.slice(0, 8) ?? 'unknown'}…`;
+    return (
+      memberNameMap.get(userId) ||
+      `${userId?.slice(0, 8) ?? t('unknownAgent')}…`
+    );
   }
 
   function getDispoLabel(code: string): string {
@@ -232,7 +237,7 @@ export function CampaignAnalytics({ campaignId }: Props) {
 
   const barChartConfig: ChartConfig = {
     count: {
-      label: 'Count',
+      label: t('charts.count'),
       color: 'var(--primary)'
     }
   };
@@ -248,11 +253,11 @@ export function CampaignAnalytics({ campaignId }: Props) {
 
   const agentPerfChartConfig: ChartConfig = {
     attempts: {
-      label: 'Attempts',
+      label: t('charts.attempts'),
       color: 'var(--chart-1)'
     },
     connected: {
-      label: 'Connected',
+      label: t('charts.connected'),
       color: 'var(--chart-2)'
     }
   };
@@ -291,43 +296,47 @@ export function CampaignAnalytics({ campaignId }: Props) {
         <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-4'>
           <Card>
             <CardHeader className='flex flex-row items-center justify-between pb-2'>
-              <CardDescription>Total Calls</CardDescription>
+              <CardDescription>{t('cards.totalCalls')}</CardDescription>
               <Phone className='text-muted-foreground h-4 w-4' />
             </CardHeader>
             <CardContent>
               <div className='text-2xl font-bold'>{summary.totalAttempts}</div>
               <p className='text-muted-foreground text-xs'>
-                {summary.uniqueLeadsDialed} unique leads dialed
+                {t('cards.uniqueLeads', { count: summary.uniqueLeadsDialed })}
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className='flex flex-row items-center justify-between pb-2'>
-              <CardDescription>Connected</CardDescription>
+              <CardDescription>{t('cards.connected')}</CardDescription>
               <PhoneIncoming className='text-muted-foreground h-4 w-4' />
             </CardHeader>
             <CardContent>
               <div className='text-2xl font-bold'>{summary.connected}</div>
               <p className='text-muted-foreground text-xs'>
-                {Math.round(summary.contactRate)}% contact rate
+                {t('cards.contactRate', {
+                  rate: Math.round(summary.contactRate)
+                })}
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className='flex flex-row items-center justify-between pb-2'>
-              <CardDescription>Conversions</CardDescription>
+              <CardDescription>{t('cards.conversions')}</CardDescription>
               <TrendingUp className='text-muted-foreground h-4 w-4' />
             </CardHeader>
             <CardContent>
               <div className='text-2xl font-bold'>{summary.conversions}</div>
               <p className='text-muted-foreground text-xs'>
-                {Math.round(summary.conversionRate)}% conversion rate
+                {t('cards.conversionRate', {
+                  rate: Math.round(summary.conversionRate)
+                })}
               </p>
             </CardContent>
           </Card>
           <Card>
             <CardHeader className='flex flex-row items-center justify-between pb-2'>
-              <CardDescription>Avg Talk Time</CardDescription>
+              <CardDescription>{t('cards.avgTalkTime')}</CardDescription>
               <Clock className='text-muted-foreground h-4 w-4' />
             </CardHeader>
             <CardContent>
@@ -335,7 +344,7 @@ export function CampaignAnalytics({ campaignId }: Props) {
                 {formatTime(summary.avgHandleTimeSec)}
               </div>
               <p className='text-muted-foreground text-xs'>
-                per connected call
+                {t('cards.perConnectedCall')}
               </p>
             </CardContent>
           </Card>
@@ -346,11 +355,9 @@ export function CampaignAnalytics({ campaignId }: Props) {
         <Card>
           <CardContent className='flex flex-col items-center justify-center py-16 text-center'>
             <BarChart3 className='text-muted-foreground mb-4 h-12 w-12' />
-            <h3 className='text-lg font-semibold'>No call activity yet</h3>
+            <h3 className='text-lg font-semibold'>{t('empty.title')}</h3>
             <p className='text-muted-foreground mt-1 max-w-sm text-sm'>
-              Analytics appear here once agents start dialing this campaign.
-              Charts will populate automatically as calls are completed and
-              dispositioned.
+              {t('empty.description')}
             </p>
             <Button
               variant='outline'
@@ -359,7 +366,7 @@ export function CampaignAnalytics({ campaignId }: Props) {
               onClick={loadAnalytics}
             >
               <RefreshCw className='mr-2 h-4 w-4' />
-              Refresh
+              {t('empty.refresh')}
             </Button>
           </CardContent>
         </Card>
@@ -370,15 +377,13 @@ export function CampaignAnalytics({ campaignId }: Props) {
             {/* Disposition Distribution Pie Chart */}
             <Card>
               <CardHeader>
-                <CardTitle>Disposition Distribution</CardTitle>
-                <CardDescription>
-                  Breakdown of all call outcomes
-                </CardDescription>
+                <CardTitle>{t('distribution.title')}</CardTitle>
+                <CardDescription>{t('distribution.description')}</CardDescription>
               </CardHeader>
               <CardContent>
                 {dispositions.length === 0 ? (
                   <p className='text-muted-foreground py-12 text-center text-sm'>
-                    No dispositioned calls yet
+                    {t('distribution.empty')}
                   </p>
                 ) : (
                   <>
@@ -428,7 +433,7 @@ export function CampaignAnalytics({ campaignId }: Props) {
                                       y={(viewBox.cy || 0) + 24}
                                       className='fill-muted-foreground text-sm'
                                     >
-                                      Dispositions
+                                      {t('distribution.centerLabel')}
                                     </tspan>
                                   </text>
                                 );
@@ -469,15 +474,15 @@ export function CampaignAnalytics({ campaignId }: Props) {
             {/* Agent Performance Bar Chart */}
             <Card>
               <CardHeader>
-                <CardTitle>Agent Performance</CardTitle>
+                <CardTitle>{t('agentPerformance.title')}</CardTitle>
                 <CardDescription>
-                  Attempts vs connected calls per agent
+                  {t('agentPerformance.description')}
                 </CardDescription>
               </CardHeader>
               <CardContent>
                 {agents.length === 0 ? (
                   <p className='text-muted-foreground py-12 text-center text-sm'>
-                    No agent activity yet
+                    {t('agentPerformance.empty')}
                   </p>
                 ) : (
                   <>
@@ -534,9 +539,21 @@ export function CampaignAnalytics({ campaignId }: Props) {
                             {getAgentName(a.agentUserId)}
                           </span>
                           <div className='text-muted-foreground flex gap-4 text-xs'>
-                            <span>{a.attempts} calls</span>
-                            <span>{Math.round(a.contactRate)}% rate</span>
-                            <span>{formatTime(a.totalTalkSec)} talk</span>
+                            <span>
+                              {t('agentPerformance.calls', {
+                                count: a.attempts
+                              })}
+                            </span>
+                            <span>
+                              {t('agentPerformance.rate', {
+                                rate: Math.round(a.contactRate)
+                              })}
+                            </span>
+                            <span>
+                              {t('agentPerformance.talk', {
+                                time: formatTime(a.totalTalkSec)
+                              })}
+                            </span>
                           </div>
                         </div>
                       ))}
@@ -551,17 +568,15 @@ export function CampaignAnalytics({ campaignId }: Props) {
           <Card>
             <CardHeader className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
               <div>
-                <CardTitle>Dispositions by Agent</CardTitle>
-                <CardDescription>
-                  Disposition breakdown filtered by agent
-                </CardDescription>
+                <CardTitle>{t('byAgent.title')}</CardTitle>
+                <CardDescription>{t('byAgent.description')}</CardDescription>
               </div>
               <Select value={selectedAgent} onValueChange={setSelectedAgent}>
                 <SelectTrigger className='w-full sm:w-[200px]'>
-                  <SelectValue placeholder='All agents' />
+                  <SelectValue placeholder={t('byAgent.allAgents')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value='all'>All Agents</SelectItem>
+                  <SelectItem value='all'>{t('byAgent.allAgents')}</SelectItem>
                   {agents.map((a) => (
                     <SelectItem key={a.agentUserId} value={a.agentUserId}>
                       {getAgentName(a.agentUserId)}
@@ -573,7 +588,7 @@ export function CampaignAnalytics({ campaignId }: Props) {
             <CardContent>
               {agentDispositionBarData.length === 0 ? (
                 <p className='text-muted-foreground py-12 text-center text-sm'>
-                  No disposition data available
+                  {t('byAgent.empty')}
                 </p>
               ) : (
                 <ChartContainer

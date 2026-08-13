@@ -222,7 +222,7 @@ export default function ContactDetail({
   const displayName =
     contact.name ||
     [contact.firstName, contact.lastName].filter(Boolean).join(' ') ||
-    'Unknown';
+    t('unknown');
   const initial = displayName.charAt(0)?.toUpperCase() || '?';
 
   async function handleDeleteNote() {
@@ -241,12 +241,10 @@ export default function ContactDetail({
     setLoading(true);
     try {
       await api.delete(`/contacts/${contact.id}`);
-      toast.success(
-        t('deleteContact') + ' ' + tCommon('success') || 'Contact deleted'
-      );
+      toast.success(`${t('deleteContact')} ${tCommon('success')}`);
       router.push('/dashboard/contact');
     } catch {
-      toast.error(tCommon('somethingWentWrong') || 'Failed to delete contact');
+      toast.error(tCommon('somethingWentWrong'));
     } finally {
       setLoading(false);
     }
@@ -271,7 +269,7 @@ export default function ContactDetail({
             <h1 className='text-2xl font-bold'>{displayName}</h1>
             <div className='text-muted-foreground flex items-center gap-2 text-sm'>
               {contact.jobTitle && <span>{contact.jobTitle}</span>}
-              {contact.jobTitle && contact.company && <span>at</span>}
+              {contact.jobTitle && contact.company && <span>{t('at')}</span>}
               {contact.company && <span>{contact.company}</span>}
             </div>
           </div>
@@ -581,12 +579,12 @@ export default function ContactDetail({
               },
               contact.websiteUrl && {
                 icon: Globe,
-                label: 'Website',
+                label: t('website'),
                 url: contact.websiteUrl
               },
               contact.blogUrl && {
                 icon: Globe,
-                label: 'Blog',
+                label: t('blog'),
                 url: contact.blogUrl
               },
               contact.calendlyUrl && {
@@ -845,7 +843,7 @@ export default function ContactDetail({
           {/* Call History */}
           <Card>
             <CardHeader>
-              <CardTitle className='text-base'>Recent Calls</CardTitle>
+              <CardTitle className='text-base'>{t('recentCalls')}</CardTitle>
             </CardHeader>
             <CardContent>
               {contact.calls.length > 0 ? (
@@ -868,8 +866,8 @@ export default function ContactDetail({
                         <div>
                           <p className='text-sm font-medium'>
                             {call.direction === 'outbound'
-                              ? 'Outbound'
-                              : 'Inbound'}{' '}
+                              ? t('outbound')
+                              : t('inbound')}{' '}
                             Call
                           </p>
                           <p className='text-muted-foreground text-xs'>
@@ -890,7 +888,7 @@ export default function ContactDetail({
                 </div>
               ) : (
                 <p className='text-muted-foreground py-4 text-center text-sm'>
-                  No calls yet
+                  {t('noCallsYet')}
                 </p>
               )}
             </CardContent>
@@ -922,20 +920,19 @@ export default function ContactDetail({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete note</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteNote')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this note? This action cannot be
-              undone.
+              {t('deleteNoteConfirm')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteNote}
               disabled={loading}
               className='bg-red-600 text-white hover:bg-red-700'
             >
-              {loading ? 'Deleting...' : 'Delete'}
+              {loading ? t('deleting') : t('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -947,20 +944,19 @@ export default function ContactDetail({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete contact</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteContact')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete {displayName}? This action cannot
-              be undone.
+              {t('deleteContactConfirm', { name: displayName })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteContact}
               disabled={loading}
               className='bg-red-600 text-white hover:bg-red-700'
             >
-              {loading ? 'Deleting...' : 'Delete Contact'}
+              {loading ? t('deleting') : t('deleteContact')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

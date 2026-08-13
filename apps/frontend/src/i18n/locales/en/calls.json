@@ -129,13 +129,222 @@
         "mustBeFuture": "Pick a time in the future",
         "saveFailed": "Couldn't schedule callback"
       }
+    },
+    "list": {
+      "title": "Scheduled Callbacks",
+      "description": "Callbacks scheduled by agents during dialing sessions.",
+      "emptyTitle": "No callbacks scheduled",
+      "emptyDescription": "When agents schedule callbacks during calls, they will appear here.",
+      "columns": {
+        "contact": "Contact",
+        "campaign": "Campaign",
+        "scheduled": "Scheduled",
+        "status": "Status",
+        "note": "Note"
+      },
+      "unknown": "Unknown",
+      "cancel": "Cancel callback",
+      "statuses": {
+        "scheduled": "Scheduled",
+        "due": "Due",
+        "in_progress": "In progress",
+        "completed": "Completed",
+        "missed": "Missed",
+        "cancelled": "Cancelled"
+      }
     }
   },
   "dnc": {
     "title": "Do Not Call",
     "description": "Manage numbers that should never be dialed",
     "metaTitle": "Do Not Call List | Ringee",
-    "metaDescription": "Manage your Do Not Call list to ensure compliance."
+    "metaDescription": "Manage your Do Not Call list to ensure compliance.",
+    "list": {
+      "title": "Do Not Call List",
+      "description": "{count, plural, =1 {# number} other {# numbers}} on the DNC list. These numbers will be skipped by the dialer.",
+      "importCsv": "Import CSV",
+      "addNumber": "Add Number",
+      "dialog": {
+        "title": "Add to DNC List",
+        "description": "Add a phone number to the Do Not Call list.",
+        "phone": "Phone Number",
+        "reason": "Reason (optional)",
+        "reasonPlaceholder": "e.g. Customer requested removal",
+        "cancel": "Cancel",
+        "add": "Add"
+      },
+      "searchPlaceholder": "Search phone number...",
+      "empty": {
+        "title": "No DNC entries",
+        "description": "Numbers added here will be automatically skipped during dialing."
+      },
+      "columns": {
+        "phone": "Phone Number",
+        "reason": "Reason",
+        "source": "Source",
+        "added": "Added"
+      },
+      "pagination": "Page {page} of {totalPages}",
+      "previous": "Previous",
+      "next": "Next"
+    }
+  },
+  "deskPhones": {
+    "title": "Desk Phones",
+    "description": "Use a Yealink, Grandstream, Cisco, Zoiper or any SIP phone with your Ringee number.",
+    "metaTitle": "Desk Phones | Ringee",
+    "metaDescription": "Connect a physical SIP phone or softphone to a Ringee number.",
+    "add": "Add desk phone",
+    "columns": {
+      "device": "Device",
+      "number": "Number",
+      "inbound": "Inbound",
+      "outbound": "Outbound",
+      "status": "Status",
+      "lastSeen": "Last seen",
+      "actions": "Actions"
+    },
+    "statuses": {
+      "registered": "Registered",
+      "pending": "Pending",
+      "offline": "Offline",
+      "disabled": "Disabled",
+      "deleted": "Deleted"
+    },
+    "empty": "No desk phones yet. Connect a physical SIP phone or softphone to a Ringee number.",
+    "deskPhoneOnly": "Desk phone only",
+    "off": "Off",
+    "enabled": "Enabled",
+    "credentials": {
+      "title": "Desk phone credentials",
+      "description": "Configure your SIP phone with these settings. The password is shown only once.",
+      "pendingRegistration": "Pending registration",
+      "statusHint": "Status updates once the phone registers.",
+      "fields": {
+        "sipServer": "SIP Server",
+        "outboundProxy": "Outbound Proxy",
+        "port": "Port",
+        "transport": "Transport",
+        "username": "Username",
+        "authId": "Auth ID",
+        "password": "Password",
+        "callerId": "Caller ID",
+        "inboundNumber": "Inbound Number",
+        "inboundMode": "Inbound mode",
+        "outbound": "Outbound"
+      },
+      "copied": "{label} copied",
+      "copyFailed": "Copy failed",
+      "copy": "Copy",
+      "allCopied": "All settings copied",
+      "hide": "Hide",
+      "reveal": "Reveal",
+      "deskPhoneOnly": "Desk phone only",
+      "enabled": "Enabled",
+      "disabled": "Disabled",
+      "copyAll": "Copy all settings",
+      "done": "Done"
+    },
+    "actions": {
+      "menu": "Actions",
+      "checkRegistration": "Check registration",
+      "changeNumber": "Change number",
+      "regeneratePassword": "Regenerate password",
+      "enable": "Enable",
+      "disable": "Disable",
+      "delete": "Delete",
+      "cancel": "Cancel",
+      "save": "Save",
+      "regenerate": {
+        "title": "Regenerate SIP password?",
+        "description": "The current password stops working immediately. You will need to update the phone with the new credentials.",
+        "confirm": "Regenerate"
+      },
+      "remove": {
+        "title": "Delete {name}?",
+        "description": "This removes the SIP connection and credentials. This cannot be undone.",
+        "rerouteLabel": "What should happen to inbound for {number}?",
+        "ringeeOption": "Move number back to Ringee Web/Mobile (recommended)",
+        "deviceOption": "Assign to desk phone: {name}"
+      },
+      "change": {
+        "title": "Change number",
+        "description": "The new number becomes desk-phone-only for inbound. The previous number returns to Ringee Web/Mobile.",
+        "number": "Number",
+        "placeholder": "Select a number",
+        "none": "No number (clear)",
+        "ringInbound": "Ring inbound on this phone"
+      },
+      "toasts": {
+        "registrationRefreshed": "Registration refreshed",
+        "checkFailed": "Check failed",
+        "enabled": "Device enabled",
+        "disabled": "Device disabled",
+        "updateFailed": "Update failed",
+        "regenerateFailed": "Regenerate failed",
+        "deleted": "Desk phone deleted",
+        "deleteFailed": "Delete failed",
+        "numberUpdated": "Number updated"
+      }
+    },
+    "create": {
+      "steps": {
+        "0": "Connect a desk phone",
+        "1": "Device details",
+        "2": "Select a number",
+        "3": "Review"
+      },
+      "stepCount": "Step {step} of 4",
+      "failed": "Failed to create desk phone",
+      "intro": "Use a physical SIP phone or softphone with your Ringee number. Incoming calls can ring directly on the desk phone, while outbound calls can still use the same Ringee number everywhere.",
+      "important": "Important",
+      "importantDescription": "If you assign a number to this desk phone, inbound calls for that number will ring only on this desk phone.",
+      "deviceName": "Device name",
+      "deviceNamePlaceholder": "Office Yealink",
+      "deviceType": "Device type (optional)",
+      "deviceTypePlaceholder": "Select a type",
+      "allowOutbound": "Allow outbound calls",
+      "allowOutboundHint": "Place calls from the desk phone (validated by Ringee).",
+      "allowInbound": "Allow inbound calls",
+      "allowInboundHint": "Ring the assigned number on this desk phone only.",
+      "assignmentHint": "The device is assigned to you. Team assignment can be changed later.",
+      "noNumbers": "No purchased numbers available. You can create the device now and assign a number later.",
+      "numberRequired": "Number (required)",
+      "callerIdNumber": "Caller ID number",
+      "numberPlaceholder": "Select a number",
+      "numberDeskPhone": " — desk phone: {name}",
+      "numberRingee": " — Ringee Web/Mobile",
+      "assigned": "assigned",
+      "currentInbound": "Current inbound destination:",
+      "deskPhoneDestination": "Desk phone ({name})",
+      "ringeeDestination": "Ringee Web/Mobile",
+      "outboundAvailability": "Outbound availability:",
+      "allOutboundChannels": "Web, Chrome Extension, Mobile, Desk Phone",
+      "moveWarning": {
+        "title": "This number currently receives calls in Ringee",
+        "description": "Assigning it to this desk phone will move inbound calls to the desk phone only.",
+        "confirm": "I understand inbound for this number will ring only on the desk phone."
+      },
+      "review": {
+        "deviceName": "Device name",
+        "deviceType": "Device type",
+        "selectedNumber": "Selected number",
+        "none": "None (assign later)",
+        "inboundBehavior": "Inbound behavior",
+        "deskPhoneOnly": "Desk phone only",
+        "disabled": "Disabled",
+        "outboundBehavior": "Outbound behavior",
+        "outboundChannels": "Web, Chrome Extension, Mobile, and desk phone",
+        "validation": "Credit & DNC validation",
+        "validationEnabled": "Enabled for desk phone outbound",
+        "parkCalls": "Park Outbound Calls",
+        "enabled": "Enabled"
+      },
+      "back": "Back",
+      "continue": "Continue",
+      "creating": "Creating…",
+      "submit": "Create desk phone credentials"
+    }
   },
   "rates": {
     "metaTitle": "Call Rates — View and Compare Costs | Ringee",
@@ -150,6 +359,64 @@
       "willCost": "Your call will cost",
       "perMinute": "per minute"
     }
+  },
+  "dialer": {
+    "freeTrial": "🎉 Free trial call available",
+    "freeTrialHint": "Limited to 1 minute — call ends automatically",
+    "balance": "Balance",
+    "outboundDisabled": "Outbound calling is disabled for this account.",
+    "enterNumber": "Enter number",
+    "callerIdUnavailable": "No caller ID available for this destination. Add or enable a number for its country in Caller ID Rotation settings."
+  },
+  "activeCallStatus": {
+    "recording": "Recording...",
+    "connected": "Connected",
+    "connecting": "Connecting..."
+  },
+  "contactSelector": {
+    "singleMatch": "1 contact match 👆",
+    "multipleMatches": "{count} contacts match",
+    "notFound": "No contacts found",
+    "addContact": "Add contact"
+  },
+  "inCallScript": {
+    "empty": "You don't have a script yet",
+    "emptyDescription": "Create your script in Settings → Overview → Script so it appears here during the call.",
+    "configure": "Configure script",
+    "untitled": "Untitled",
+    "noContent": "(No content)"
+  },
+  "inCallContact": {
+    "loadFailed": "Could not load contact",
+    "phoneRequired": "Phone number is required",
+    "updated": "Contact updated",
+    "saveFailed": "Could not save",
+    "notFound": "No contact information was found.",
+    "cancel": "Cancel",
+    "saving": "Saving...",
+    "save": "Save",
+    "edit": "Edit",
+    "firstName": "First name",
+    "lastName": "Last name",
+    "displayName": "Display name",
+    "displayNamePlaceholder": "Auto-generated from first and last name",
+    "email": "Email",
+    "phone": "Phone",
+    "company": "Company",
+    "jobTitle": "Job title",
+    "state": "State / Province",
+    "website": "Website",
+    "revenue": "Revenue",
+    "companySize": "Company size"
+  },
+  "numberSelector": {
+    "callFrom": "Call from:",
+    "publicNumber": "Public number",
+    "whyBuy": "Why buy a number?",
+    "whyBuyDescription": "Buying a number allows you to make and receive real calls. Prices start at $1.00 USD per month depending on country and number type.",
+    "selectNumber": "Select a number",
+    "notRequired": "You don't need a number to call",
+    "buy": "Buy number"
   },
   "concurrentCall": {
     "title": "One call at a time",

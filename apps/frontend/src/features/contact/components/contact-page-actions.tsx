@@ -11,9 +11,11 @@ import { IconPlus, IconUpload, IconTag } from '@tabler/icons-react';
 import { ImportCsvModal } from './import-csv-modal';
 import { EditTagsModal } from './edit-tags-modal';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 export function ContactPageActions() {
   const router = useRouter();
+  const t = useTranslations('contacts.pageActions');
   const [importModalOpen, setImportModalOpen] = useState(false);
   const [tagsModalOpen, setTagsModalOpen] = useState(false);
 
@@ -26,7 +28,7 @@ export function ContactPageActions() {
           onClick={() => setTagsModalOpen(true)}
         >
           <IconTag className='h-4 w-4 sm:mr-2' />
-          <span className='hidden sm:inline'>Manage Tags</span>
+          <span className='hidden sm:inline'>{t('manageTags')}</span>
         </Button>
 
         <Button
@@ -35,7 +37,7 @@ export function ContactPageActions() {
           onClick={() => setImportModalOpen(true)}
         >
           <IconUpload className='h-4 w-4 sm:mr-2' />
-          <span className='hidden sm:inline'>Import CSV</span>
+          <span className='hidden sm:inline'>{t('importCsv')}</span>
         </Button>
 
         <Link
@@ -43,7 +45,7 @@ export function ContactPageActions() {
           className={cn(buttonVariants({ size: 'sm' }), 'text-xs md:text-sm')}
         >
           <IconPlus className='h-4 w-4 sm:mr-2' />
-          <span className='hidden sm:inline'>Add Contact</span>
+          <span className='hidden sm:inline'>{t('addContact')}</span>
         </Link>
       </div>
 

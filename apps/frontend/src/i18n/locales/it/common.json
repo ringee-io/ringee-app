@@ -55,8 +55,30 @@
   "theme": "Tema",
   "selectTheme": "Seleziona un tema:",
   "selectThemePlaceholder": "Seleziona un tema",
+  "toggleTheme": "Cambia tema",
+  "toggleSidebar": "Mostra/nascondi barra laterale",
   "platform": "Piattaforma",
   "projects": "Progetti",
+  "accessRestricted": {
+    "title": "Accesso limitato",
+    "description": "Non hai accesso a questa funzionalità. Contatta un amministratore dell'organizzazione se ti serve."
+  },
+  "memberFilter": {
+    "all": "Tutti i membri",
+    "search": "Cerca membri…",
+    "noMembers": "Nessun membro trovato",
+    "member": "Membro"
+  },
+  "dateFilter": {
+    "filterByDate": "Filtra per data",
+    "from": "Da {date}",
+    "to": "Fino a {date}",
+    "clear": "Rimuovi filtro data"
+  },
+  "scope": {
+    "mine": "I miei",
+    "all": "Tutti"
+  },
   "fileUpload": {
     "dropHere": "Trascina i file qui",
     "dragAndDrop": "Trascina e rilascia i file qui, o clicca per selezionare",
@@ -76,6 +98,13 @@
     "share": "Condividi progetto",
     "delete": "Elimina progetto"
   },
-  "toggleTheme": "Cambia tema",
-  "toggleSidebar": "Mostra/nascondi barra laterale"
+  "weekdaysShort": {
+    "sun": "Dom",
+    "mon": "Lun",
+    "tue": "Mar",
+    "wed": "Mer",
+    "thu": "Gio",
+    "fri": "Ven",
+    "sat": "Sab"
+  }
 }

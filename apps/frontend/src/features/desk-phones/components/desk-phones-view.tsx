@@ -19,29 +19,32 @@ import type { CreatedSipDevice, SipDevice, SipDeviceStatus } from '../types';
 import { CreateDeskPhoneDialog } from './create-desk-phone-dialog';
 import { CredentialsDialog } from './credentials-dialog';
 import { DeviceActions } from './device-actions';
+import { useTranslations } from 'next-intl';
 
 const STATUS: Record<
   SipDeviceStatus,
-  { label: string; className?: string; variant?: 'secondary' | 'outline' }
+  { className?: string; variant?: 'secondary' | 'outline' }
 > = {
-  registered: { label: 'Registered', className: 'bg-emerald-600 text-white' },
-  pending: { label: 'Pending', className: 'bg-orange-500 text-white' },
-  offline: { label: 'Offline', variant: 'secondary' },
-  disabled: { label: 'Disabled', variant: 'outline' },
-  deleted: { label: 'Deleted', variant: 'outline' }
+  registered: { className: 'bg-emerald-600 text-white' },
+  pending: { className: 'bg-orange-500 text-white' },
+  offline: { variant: 'secondary' },
+  disabled: { variant: 'outline' },
+  deleted: { variant: 'outline' }
 };
 
 function StatusBadge({ status }: { status: SipDeviceStatus }) {
+  const t = useTranslations('calls.deskPhones');
   const s = STATUS[status] ?? STATUS.pending;
   return (
     <Badge variant={s.variant} className={s.className}>
-      {s.label}
+      {t(`statuses.${status}`)}
     </Badge>
   );
 }
 
 export function DeskPhonesView() {
   const dp = useDeskPhones();
+  const t = useTranslations('calls.deskPhones');
   const [createOpen, setCreateOpen] = useState(false);
   const [credentials, setCredentials] = useState<CreatedSipDevice | null>(null);
 
@@ -50,7 +53,7 @@ export function DeskPhonesView() {
   return (
     <div className='space-y-4'>
       <div className='flex justify-end'>
-        <Button onClick={() => setCreateOpen(true)}>Add desk phone</Button>
+        <Button onClick={() => setCreateOpen(true)}>{t('add')}</Button>
       </div>
 
       <Card>
@@ -58,13 +61,15 @@ export function DeskPhonesView() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Device</TableHead>
-                <TableHead>Number</TableHead>
-                <TableHead>Inbound</TableHead>
-                <TableHead>Outbound</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Last seen</TableHead>
-                <TableHead className='text-right'>Actions</TableHead>
+                <TableHead>{t('columns.device')}</TableHead>
+                <TableHead>{t('columns.number')}</TableHead>
+                <TableHead>{t('columns.inbound')}</TableHead>
+                <TableHead>{t('columns.outbound')}</TableHead>
+                <TableHead>{t('columns.status')}</TableHead>
+                <TableHead>{t('columns.lastSeen')}</TableHead>
+                <TableHead className='text-right'>
+                  {t('columns.actions')}
+                </TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -80,8 +85,7 @@ export function DeskPhonesView() {
                 <TableRow>
                   <TableCell colSpan={7} className='py-10 text-center'>
                     <p className='text-muted-foreground text-sm'>
-                      No desk phones yet. Connect a physical SIP phone or
-                      softphone to a Ringee number.
+                      {t('empty')}
                     </p>
                   </TableCell>
                 </TableRow>
@@ -102,16 +106,20 @@ export function DeskPhonesView() {
                     </TableCell>
                     <TableCell>
                       {d.allowInbound ? (
-                        <Badge variant='secondary'>Desk phone only</Badge>
+                        <Badge variant='secondary'>{t('deskPhoneOnly')}</Badge>
                       ) : (
-                        <span className='text-muted-foreground'>Off</span>
+                        <span className='text-muted-foreground'>
+                          {t('off')}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell>
                       {d.allowOutbound ? (
-                        <Badge variant='outline'>Enabled</Badge>
+                        <Badge variant='outline'>{t('enabled')}</Badge>
                       ) : (
-                        <span className='text-muted-foreground'>Off</span>
+                        <span className='text-muted-foreground'>
+                          {t('off')}
+                        </span>
                       )}
                     </TableCell>
                     <TableCell>

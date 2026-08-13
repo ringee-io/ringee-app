@@ -57,30 +57,35 @@ const SOURCE_OPTIONS = [
   'other'
 ];
 
-const formSchema = z.object({
-  firstName: z.string().optional(),
-  lastName: z.string().optional(),
-  name: z.string().optional(),
-  email: z
-    .union([z.literal(''), z.string().email('Invalid email format')])
-    .optional(),
-  phoneNumber: z.string().min(5, 'Phone number is required'),
-  organization: z
-    .string()
-    .min(2, { message: 'Organization name must be at least 2 characters.' })
-    .optional()
-    .or(z.literal('')),
-  jobTitle: z.string().optional(),
-  state: z.string().optional(),
-  website: z.string().optional(),
-  revenue: z.string().optional(),
-  companySize: z.string().optional(),
-  source: z.string().optional(),
-  note: z.string().optional(),
-  tagIds: z.array(z.string()).optional()
-});
+const createFormSchema = (messages: {
+  invalidEmail: string;
+  phoneRequired: string;
+  organizationTooShort: string;
+}) =>
+  z.object({
+    firstName: z.string().optional(),
+    lastName: z.string().optional(),
+    name: z.string().optional(),
+    email: z
+      .union([z.literal(''), z.string().email(messages.invalidEmail)])
+      .optional(),
+    phoneNumber: z.string().min(5, messages.phoneRequired),
+    organization: z
+      .string()
+      .min(2, { message: messages.organizationTooShort })
+      .optional()
+      .or(z.literal('')),
+    jobTitle: z.string().optional(),
+    state: z.string().optional(),
+    website: z.string().optional(),
+    revenue: z.string().optional(),
+    companySize: z.string().optional(),
+    source: z.string().optional(),
+    note: z.string().optional(),
+    tagIds: z.array(z.string()).optional()
+  });
 
-type ContactFormValues = z.infer<typeof formSchema>;
+type ContactFormValues = z.infer<ReturnType<typeof createFormSchema>>;
 
 export interface ContactFormData {
   id: string;
@@ -129,7 +134,13 @@ export default function ContactForm({
   });
 
   const form = useForm<ContactFormValues>({
-    resolver: zodResolver(formSchema),
+    resolver: zodResolver(
+      createFormSchema({
+        invalidEmail: t('validation.invalidEmail'),
+        phoneRequired: t('validation.phoneRequired'),
+        organizationTooShort: t('validation.organizationTooShort')
+      })
+    ),
     defaultValues: {
       firstName: initialData?.firstName || '',
       lastName: initialData?.lastName || '',
@@ -317,13 +328,13 @@ export default function ContactForm({
                   control={form.control}
                   name='organization'
                   label={t('companyOrOrg')}
-                  placeholder={t('companyPlaceholder') || 'Acme Inc.'}
+                  placeholder={t('companyPlaceholder')}
                 />
                 <FormInput
                   control={form.control}
                   name='jobTitle'
                   label={t('jobTitle')}
-                  placeholder={t('jobTitlePlaceholder') || 'Sales Manager'}
+                  placeholder={t('jobTitlePlaceholder')}
                 />
               </div>
 
@@ -372,9 +383,7 @@ export default function ContactForm({
                         <option value=''>{t('selectSource')}</option>
                         {SOURCE_OPTIONS.map((src) => (
                           <option key={src} value={src}>
-                            {src
-                              .replace(/_/g, ' ')
-                              .replace(/\b\w/g, (c) => c.toUpperCase())}
+                            {t(`sources.${src}` as 'sources.manual')}
                           </option>
                         ))}
                       </select>
@@ -436,13 +445,15 @@ export default function ContactForm({
         <Card>
           <CardHeader>
             <div className='flex items-center justify-between'>
-              <CardTitle className='text-lg font-semibold'>Notes</CardTitle>
+              <CardTitle className='text-lg font-semibold'>
+                {t('notes')}
+              </CardTitle>
               <Button
                 size='sm'
                 className='gap-1'
                 onClick={() => setNoteModalOpen(true)}
               >
-                <Plus className='h-4 w-4' /> Add Note
+                <Plus className='h-4 w-4' /> {t('addNote')}
               </Button>
             </div>
           </CardHeader>
@@ -468,14 +479,16 @@ export default function ContactForm({
                       onClick={() =>
                         setDeleteModal({ open: true, id: note.id })
                       }
-                      title='Delete note'
+                      title={t('deleteNote')}
                     >
                       <Trash className='text-muted-foreground h-4 w-4 hover:text-red-600' />
                     </Button>
                   </div>
                 ))
               ) : (
-                <p className='text-muted-foreground text-sm'>No notes yet</p>
+                <p className='text-muted-foreground text-sm'>
+                  {t('noNotesYet')}
+                </p>
               )}
             </div>
           </CardContent>
@@ -498,20 +511,19 @@ export default function ContactForm({
       >
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete note</AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteNote')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete this note? This action cannot be
-              undone.
+              {t('deleteNoteConfirm')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteNote}
               disabled={loading}
               className='bg-red-600 text-white hover:bg-red-700'
             >
-              {loading ? 'Deleting...' : 'Delete'}
+              {loading ? t('deleting') : t('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -7,33 +7,28 @@ import {
 } from '@ringee/frontend-shared/components/ui/alert';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { Sparkles } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useEnrichmentConnections } from '../../hooks/use-enrichment-connections';
 import { EnrichmentConnectionCard } from '../enrichment-connection-card';
 import { EnrichmentProviderCatalog } from '../enrichment-provider-catalog';
 
 export function EnrichmentTab() {
   const { connections, loading, reload } = useEnrichmentConnections();
+  const t = useTranslations('integrations.enrichment.tab');
 
   return (
     <div className='space-y-6'>
       <div>
         <h2 className='flex items-center gap-2 text-lg font-semibold'>
           <Sparkles className='h-5 w-5' />
-          Data Enrichment
+          {t('title')}
         </h2>
-        <p className='text-muted-foreground text-sm'>
-          Connect a provider to enrich your contacts with phone, email,
-          LinkedIn, company size, tech stack and more — and to find new leads.
-        </p>
+        <p className='text-muted-foreground text-sm'>{t('description')}</p>
       </div>
 
       <Alert>
-        <AlertTitle>How billing works</AlertTitle>
-        <AlertDescription>
-          Ringee never debits your calling credits for enrichment, lead search,
-          import, or reveal. Search and reveal may use credits from your
-          connected Apollo or Prospeo account.
-        </AlertDescription>
+        <AlertTitle>{t('billing.title')}</AlertTitle>
+        <AlertDescription>{t('billing.description')}</AlertDescription>
       </Alert>
 
       {loading ? (
@@ -46,7 +41,7 @@ export function EnrichmentTab() {
           {connections.length > 0 && (
             <div className='space-y-2'>
               <h3 className='text-muted-foreground text-sm font-medium'>
-                Your connections
+                {t('yourConnections')}
               </h3>
               <div className='grid gap-3 md:grid-cols-2'>
                 {connections.map((c) => (
@@ -62,7 +57,7 @@ export function EnrichmentTab() {
 
           <div className='space-y-2'>
             <h3 className='text-muted-foreground text-sm font-medium'>
-              Available providers
+              {t('availableProviders')}
             </h3>
             <EnrichmentProviderCatalog
               connections={connections}

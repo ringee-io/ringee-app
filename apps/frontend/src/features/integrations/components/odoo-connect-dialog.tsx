@@ -27,6 +27,7 @@ import { useOrganization } from '@clerk/nextjs';
 import { AlertCircle, Plus, User, Users } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import {
   ODOO_VALIDATION_MESSAGES,
   PROVIDER_META,
@@ -66,6 +67,7 @@ export function OdooConnectDialog({
   const { organization } = useOrganization();
   const meta = PROVIDER_META[provider];
   const loginRequired = provider === 'odoo_14_18';
+  const t = useTranslations('integrations.odoo');
 
   const [open, setOpen] = useState(false);
   const [scope, setScope] = useState<'personal' | 'organization'>(
@@ -105,30 +107,32 @@ export function OdooConnectDialog({
       });
       if (!res) {
         setError({
-          title: 'Unexpected response',
-          body: 'Empty response from server.'
+          title: t('errors.unexpectedResponse'),
+          body: t('errors.emptyResponse')
         });
         return;
       }
       if (res.ok) {
-        toast.success(`${meta.name} connected`);
+        toast.success(t('toasts.connected', { provider: meta.name }));
         setOpen(false);
         setForm({ baseUrl: '', database: '', login: '', apiKey: '' });
         onConnected();
         return;
       }
-      const hint =
-        ODOO_VALIDATION_MESSAGES[res.reason] ??
-        ODOO_VALIDATION_MESSAGES.unknown_odoo_error;
+      const reason =
+        res.reason in ODOO_VALIDATION_MESSAGES
+          ? res.reason
+          : 'unknown_odoo_error';
+      const hint = t(`errors.reasons.${reason}`);
       setError({
-        title: titleForReason(res.reason),
+        title: titleForReason(reason, t as TFunc),
         body: `${hint}${res.message ? ` — ${res.message}` : ''}`,
         field: res.field
       });
     } catch (err) {
       setError({
-        title: 'Could not connect',
-        body: err instanceof Error ? err.message : 'Unknown error'
+        title: t('errors.couldNotConnect'),
+        body: err instanceof Error ? err.message : t('errors.unknown')
       });
     } finally {
       setSubmitting(false);
@@ -150,22 +154,24 @@ export function OdooConnectDialog({
           className='w-full'
         >
           <Plus className='mr-1.5 h-3.5 w-3.5' />
-          {alreadyConnected ? 'Add another' : `Connect ${meta.name}`}
+          {alreadyConnected
+            ? t('addAnother')
+            : t('connect', { provider: meta.name })}
         </Button>
       </DialogTrigger>
       <DialogContent className='sm:max-w-[520px]'>
         <DialogHeader>
-          <DialogTitle>Connect {meta.name}</DialogTitle>
+          <DialogTitle>{t('connect', { provider: meta.name })}</DialogTitle>
           <DialogDescription>
             {provider === 'odoo_14_18'
-              ? "Uses Odoo's legacy RPC compatibility. Compatible with versions 14 through 18."
-              : "Uses Odoo's modern JSON-2 API. Available from version 19."}
+              ? t('description.legacy')
+              : t('description.modern')}
           </DialogDescription>
         </DialogHeader>
 
         <div className='flex flex-col gap-4 py-1'>
           <div className='flex flex-col gap-1.5'>
-            <Label htmlFor={`${provider}-url`}>Odoo URL</Label>
+            <Label htmlFor={`${provider}-url`}>{t('fields.url')}</Label>
             <Input
               id={`${provider}-url`}
               placeholder='https://mycompany.odoo.com'
@@ -178,7 +184,7 @@ export function OdooConnectDialog({
           </div>
 
           <div className='flex flex-col gap-1.5'>
-            <Label htmlFor={`${provider}-db`}>Database name</Label>
+            <Label htmlFor={`${provider}-db`}>{t('fields.database')}</Label>
             <Input
               id={`${provider}-db`}
               placeholder='mycompany-main'
@@ -192,7 +198,7 @@ export function OdooConnectDialog({
 
           <div className='flex flex-col gap-1.5'>
             <Label htmlFor={`${provider}-login`}>
-              Login / Email {loginRequired ? '' : '(optional)'}
+              {loginRequired ? t('fields.login') : t('fields.loginOptional')}
             </Label>
             <Input
               id={`${provider}-login`}
@@ -205,13 +211,13 @@ export function OdooConnectDialog({
             />
             {!loginRequired && (
               <p className='text-muted-foreground text-[11px]'>
-                Only needed for owner mapping on leads/activities.
+                {t('fields.loginHint')}
               </p>
             )}
           </div>
 
           <div className='flex flex-col gap-1.5'>
-            <Label htmlFor={`${provider}-apikey`}>API key</Label>
+            <Label htmlFor={`${provider}-apikey`}>{t('fields.apiKey')}</Label>
             <Input
               id={`${provider}-apikey`}
               type='password'
@@ -223,18 +229,14 @@ export function OdooConnectDialog({
               aria-invalid={error?.field === 'apiKey'}
             />
             <p className='text-muted-foreground text-[11px]'>
-              Generate one from{' '}
-              <strong>
-                Odoo &rarr; Preferences &rarr; Account Security &rarr; New API
-                Key
-              </strong>
-              .
+              {t('fields.apiKeyHintPrefix')}{' '}
+              <strong>{t('fields.apiKeyHintPath')}</strong>.
             </p>
           </div>
 
           <div className='flex flex-col gap-2 pt-1'>
             <Label className='text-muted-foreground text-xs tracking-wide uppercase'>
-              Workspace
+              {t('workspace.title')}
             </Label>
             <RadioGroup
               value={scope}
@@ -254,11 +256,10 @@ export function OdooConnectDialog({
                 />
                 <div className='flex-1'>
                   <div className='flex items-center gap-2 text-sm font-medium'>
-                    <User className='h-3.5 w-3.5' /> Personal workspace
+                    <User className='h-3.5 w-3.5' /> {t('workspace.personal')}
                   </div>
                   <p className='text-muted-foreground mt-0.5 text-xs'>
-                    Only your calls are logged. Your credentials stay on your
-                    account.
+                    {t('workspace.personalHint')}
                   </p>
                 </div>
               </Label>
@@ -282,12 +283,12 @@ export function OdooConnectDialog({
                     <Users className='h-3.5 w-3.5' />
                     {organization
                       ? organization.name
-                      : 'Organization (no active team)'}
+                      : t('workspace.orgNoTeam')}
                   </div>
                   <p className='text-muted-foreground mt-0.5 text-xs'>
                     {organization
-                      ? 'All teammates in this org share this connection.'
-                      : 'Switch to an organization from the top-left to enable org-level sync.'}
+                      ? t('workspace.orgHint')
+                      : t('workspace.orgSwitchHint')}
                   </p>
                 </div>
               </Label>
@@ -309,10 +310,12 @@ export function OdooConnectDialog({
             onClick={() => setOpen(false)}
             disabled={submitting}
           >
-            Cancel
+            {t('cancel')}
           </Button>
           <Button disabled={!canSubmit || submitting} onClick={handleSubmit}>
-            {submitting ? 'Validating…' : `Connect ${meta.name}`}
+            {submitting
+              ? t('validating')
+              : t('connect', { provider: meta.name })}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -320,27 +323,8 @@ export function OdooConnectDialog({
   );
 }
 
-function titleForReason(reason: string): string {
-  switch (reason) {
-    case 'invalid_credentials':
-      return 'Invalid credentials';
-    case 'database_not_found':
-      return 'Database not found';
-    case 'invalid_base_url':
-      return 'URL unreachable';
-    case 'unsupported_version':
-      return 'Unsupported Odoo version';
-    case 'api_mode_not_available':
-      return 'API mode not available';
-    case 'crm_module_missing':
-      return 'CRM module not installed';
-    case 'insufficient_permissions':
-      return 'Insufficient permissions';
-    case 'partner_access_denied':
-      return 'Partner access denied';
-    case 'activity_access_denied':
-      return 'Activity access denied';
-    default:
-      return 'Could not connect';
-  }
+type TFunc = (key: string, values?: Record<string, unknown>) => string;
+
+function titleForReason(reason: string, t: TFunc): string {
+  return t(`errors.reasonTitles.${reason}`);
 }

@@ -8,16 +8,7 @@ import {
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { Pause, Play, Square, ArrowLeft } from 'lucide-react';
-
-const STATUS_LABELS: Record<AgentSessionStatus, string> = {
-  ready: 'Ready',
-  reserved: 'Assigning Lead...',
-  dialing: 'Dialing',
-  in_call: 'In Call',
-  wrap_up: 'Wrap Up',
-  paused: 'Paused',
-  offline: 'Offline'
-};
+import { useTranslations } from 'next-intl';
 
 const STATUS_COLORS: Record<AgentSessionStatus, string> = {
   ready: 'bg-green-500',
@@ -54,6 +45,7 @@ export function DialerStatusBar({
   onEnd
 }: Props) {
   const router = useRouter();
+  const t = useTranslations('dialer.statusBar');
   const stats = useDialerSessionStore((s) => s.stats);
   const contactRate =
     stats.callsAttempted > 0
@@ -75,14 +67,14 @@ export function DialerStatusBar({
           <div
             className={`h-2.5 w-2.5 rounded-full ${STATUS_COLORS[status]}`}
           />
-          <span className='text-sm font-medium'>{STATUS_LABELS[status]}</span>
+          <span className='text-sm font-medium'>{t(`statuses.${status}`)}</span>
         </div>
 
         <div className='text-muted-foreground hidden items-center gap-4 text-sm sm:flex'>
-          <span>Calls: {stats.callsAttempted}</span>
-          <span>Connected: {stats.callsConnected}</span>
-          <span>Rate: {contactRate}%</span>
-          <span>Talk: {formatTalkTime(stats.totalTalkSec)}</span>
+          <span>{t('calls', { count: stats.callsAttempted })}</span>
+          <span>{t('connected', { count: stats.callsConnected })}</span>
+          <span>{t('rate', { rate: contactRate })}</span>
+          <span>{t('talk', { time: formatTalkTime(stats.totalTalkSec) })}</span>
         </div>
       </div>
 
@@ -90,14 +82,14 @@ export function DialerStatusBar({
         {status === 'paused' ? (
           <Button variant='outline' size='sm' onClick={onResume}>
             <Play className='mr-1 h-3.5 w-3.5' />
-            Resume
+            {t('resume')}
           </Button>
         ) : (
           status !== 'in_call' &&
           status !== 'dialing' && (
             <Button variant='outline' size='sm' onClick={onPause}>
               <Pause className='mr-1 h-3.5 w-3.5' />
-              Pause
+              {t('pause')}
             </Button>
           )
         )}
@@ -108,7 +100,7 @@ export function DialerStatusBar({
           disabled={status === 'in_call' || status === 'dialing'}
         >
           <Square className='mr-1 h-3.5 w-3.5' />
-          End Session
+          {t('endSession')}
         </Button>
       </div>
     </div>

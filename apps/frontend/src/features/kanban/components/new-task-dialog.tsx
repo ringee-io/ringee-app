@@ -14,9 +14,11 @@ import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Textarea } from '@ringee/frontend-shared/components/ui/textarea';
 
 import { useTaskStore } from '../utils/store';
+import { useTranslations } from 'next-intl';
 
 export default function NewTaskDialog() {
   const addTask = useTaskStore((state) => state.addTask);
+  const t = useTranslations('contacts.kanban.board');
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -33,15 +35,13 @@ export default function NewTaskDialog() {
     <Dialog>
       <DialogTrigger asChild>
         <Button variant='secondary' size='sm'>
-          ＋ Add New Todo
+          ＋ {t('addTodo')}
         </Button>
       </DialogTrigger>
       <DialogContent className='sm:max-w-[425px]'>
         <DialogHeader>
-          <DialogTitle>Add New Todo</DialogTitle>
-          <DialogDescription>
-            What do you want to get done today?
-          </DialogDescription>
+          <DialogTitle>{t('newTodo.title')}</DialogTitle>
+          <DialogDescription>{t('newTodo.description')}</DialogDescription>
         </DialogHeader>
         <form
           id='todo-form'
@@ -52,7 +52,7 @@ export default function NewTaskDialog() {
             <Input
               id='title'
               name='title'
-              placeholder='Todo title...'
+              placeholder={t('newTodo.titlePlaceholder')}
               className='col-span-4'
             />
           </div>
@@ -60,7 +60,7 @@ export default function NewTaskDialog() {
             <Textarea
               id='description'
               name='description'
-              placeholder='Description...'
+              placeholder={t('newTodo.descriptionPlaceholder')}
               className='col-span-4'
             />
           </div>
@@ -68,7 +68,7 @@ export default function NewTaskDialog() {
         <DialogFooter>
           <DialogTrigger asChild>
             <Button type='submit' size='sm' form='todo-form'>
-              Add Todo
+              {t('newTodo.submit')}
             </Button>
           </DialogTrigger>
         </DialogFooter>

@@ -10,8 +10,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useDialerSessionStore } from '@/features/dialer/store/dialer-session.store';
 import { useCallIdBySession } from '@/features/transcription';
+import { useTranslations } from 'next-intl';
 
 export function ShowActiveCall() {
+  const t = useTranslations('calls.activeCallStatus');
   const dialerSessionId = useDialerSessionStore((s) => s.sessionId);
   const { activeCall, setActiveCall } = useTelnyxStore();
   const { postCallPhase, reset, setCallContact } = useCallStore();
@@ -101,10 +103,10 @@ export function ShowActiveCall() {
   }, [setActiveCall, reset]);
 
   const statusText = isRecording
-    ? 'Recording...'
+    ? t('recording')
     : activeCall?.state === 'active'
-      ? 'Connected'
-      : 'Connecting...';
+      ? t('connected')
+      : t('connecting');
 
   // Don't show the global call modal when a dialer session is active —
   // the campaign agent workspace handles the call UI.
@@ -116,26 +118,26 @@ export function ShowActiveCall() {
     <FrontendDialerProvider>
       <ActiveCallModal
         open={isOpen}
-      isMuted={isMuted}
-      isOnHold={isOnHold}
-      isRecording={isRecording}
-      isRecordingLoading={isRecordingLoading}
-      isFreeTrialCall={isFreeTrialCall}
-      freeTrialRemainingSeconds={remainingSeconds}
-      freeTrialTotalSeconds={totalSeconds}
-      onClose={handleHangup}
-      number={activeCall?.options?.destinationNumber || '+CALL'}
-      contactName={contactName}
-      statusText={statusText}
-      isConnected={activeCall?.state === 'active'}
-      onHangup={handleHangup}
-      onToggleHold={handleHold}
-      onToggleMute={async () => await handleMute(!isMuted)}
-      onToggleRecording={async () => await handleRecord(!isRecording)}
-      onSendDTMF={handleSendDTMF}
-      remoteStream={activeCall?.remoteStream ?? null}
-      isPostCall={postCallPhase}
-      onPostCallClose={handlePostCallClose}
+        isMuted={isMuted}
+        isOnHold={isOnHold}
+        isRecording={isRecording}
+        isRecordingLoading={isRecordingLoading}
+        isFreeTrialCall={isFreeTrialCall}
+        freeTrialRemainingSeconds={remainingSeconds}
+        freeTrialTotalSeconds={totalSeconds}
+        onClose={handleHangup}
+        number={activeCall?.options?.destinationNumber || '+CALL'}
+        contactName={contactName}
+        statusText={statusText}
+        isConnected={activeCall?.state === 'active'}
+        onHangup={handleHangup}
+        onToggleHold={handleHold}
+        onToggleMute={async () => await handleMute(!isMuted)}
+        onToggleRecording={async () => await handleRecord(!isRecording)}
+        onSendDTMF={handleSendDTMF}
+        remoteStream={activeCall?.remoteStream ?? null}
+        isPostCall={postCallPhase}
+        onPostCallClose={handlePostCallClose}
         contactId={contactId}
         callId={callId}
       />

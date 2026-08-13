@@ -12,6 +12,16 @@
   "busy": "Bezet",
   "failed": "Mislukt",
   "voicemail": "Voicemail",
+  "statusValues": {
+    "pending": "In afwachting",
+    "ringing": "Belt",
+    "answered": "Beantwoord",
+    "recording": "Opname",
+    "completed": "Voltooid",
+    "failed": "Mislukt",
+    "processing": "Bezig",
+    "ready": "Gereed"
+  },
   "callDuration": "Duur",
   "callCost": "Kosten",
   "from": "Van",
@@ -47,11 +57,11 @@
       "duration": "Duur",
       "date": "Datum",
       "recording": "Opname",
+      "transcript": "Transcriptie",
       "unknown": "Onbekend",
       "callAgain": "Opnieuw bellen",
       "noRecording": "Geen opname",
-      "downloadRecording": "Opname downloaden",
-      "transcript": "Transcriptie"
+      "downloadRecording": "Opname downloaden"
     },
     "rowActions": {
       "menu": "Acties",
@@ -77,14 +87,14 @@
       "date": "Datum",
       "status": "Status",
       "recording": "Opname",
+      "transcript": "Transcriptie",
       "unknown": "Onbekend",
       "noRecording": "Geen opname",
       "processingShort": "Bezig…",
       "unavailable": "Niet beschikbaar",
       "play": "Afspelen",
       "playRecording": "Opname afspelen",
-      "downloadRecording": "Opname downloaden",
-      "transcript": "Transcriptie"
+      "downloadRecording": "Opname downloaden"
     },
     "statusBadge": {
       "started": "Bezig",
@@ -97,12 +107,6 @@
       "callTitle": "Gesprek: {from} → {to}",
       "decrypting": "Opname wordt ontsleuteld…",
       "errorLoad": "Opname kon niet worden geladen. Probeer het opnieuw."
-    },
-    "dateFilter": {
-      "filterByDate": "Filter op datum",
-      "from": "Vanaf {date}",
-      "to": "Tot {date}",
-      "clear": "Datumfilter wissen"
     }
   },
   "callbacks": {
@@ -146,16 +150,6 @@
       "willCost": "Je gesprek kost",
       "perMinute": "per minuut"
     }
-  },
-  "statusValues": {
-    "pending": "In afwachting",
-    "ringing": "Belt",
-    "answered": "Beantwoord",
-    "recording": "Opname",
-    "completed": "Voltooid",
-    "failed": "Mislukt",
-    "processing": "Bezig",
-    "ready": "Gereed"
   },
   "concurrentCall": {
     "title": "Eén gesprek tegelijk",

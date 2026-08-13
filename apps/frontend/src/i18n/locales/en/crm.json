@@ -17,7 +17,9 @@
   "tabs": {
     "crm": "CRM",
     "enrichment": "Data Enrichment",
-    "leads": "Find Leads"
+    "leads": "Find Leads",
+    "custom": "Custom Integrations",
+    "connectors": "Connectors"
   },
   "connections": {
     "yourConnections": "Your connections",
@@ -94,5 +96,17 @@
     "soon": "Soon"
   },
   "syncSuccess": "Sync started — contacts and companies are being imported.",
-  "syncError": "Failed to start sync. Please try again."
+  "syncError": "Failed to start sync. Please try again.",
+  "toasts": {
+    "providerConnected": "{provider} connected",
+    "connectionFailed": "Connection failed. Please try again.",
+    "connectionFailedReason": "Connection failed: {reason}. Please try again.",
+    "odooHint": "Use the Odoo card below to re-enter your credentials and reconnect.",
+    "authStartError": "Could not start authorization",
+    "authError": "Failed to start auth",
+    "disconnected": "Connection disconnected",
+    "disconnectError": "Failed to disconnect",
+    "forgotten": "Connection forgotten",
+    "forgetError": "Failed to forget"
+  }
 }

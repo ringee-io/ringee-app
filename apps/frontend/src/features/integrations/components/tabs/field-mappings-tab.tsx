@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useFieldMappings } from '../../hooks/use-crm-connections';
 import type { CrmConnectionSummary, CrmFieldMapping } from '../../types/crm';
@@ -26,18 +27,13 @@ const DIRECTION_ICON: Record<string, React.ReactNode> = {
   pull: <ArrowLeft className='h-3 w-3 text-violet-500' />
 };
 
-const DIRECTION_LABEL: Record<string, string> = {
-  bidirectional: 'Bidirectional',
-  push: 'Push (Ringee → CRM)',
-  pull: 'Pull (CRM → Ringee)'
-};
-
 export function FieldMappingsTab({
   connection
 }: {
   connection: CrmConnectionSummary;
 }) {
   const api = useApi();
+  const t = useTranslations('integrations.crm.fieldMappings');
   const { mappings, loading, reload } = useFieldMappings(connection.id);
   const [seeding, setSeeding] = useState(false);
   const meta = PROVIDER_META[connection.provider];
@@ -47,12 +43,10 @@ export function FieldMappingsTab({
     setSeeding(true);
     try {
       await api.post(`/crm/connections/${connection.id}/field-mappings/seed`);
-      toast.success('Default field mappings created');
+      toast.success(t('toasts.seeded'));
       await reload();
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Failed to seed mappings'
-      );
+      toast.error(err instanceof Error ? err.message : t('toasts.seedError'));
     } finally {
       setSeeding(false);
     }
@@ -72,10 +66,9 @@ export function FieldMappingsTab({
     <div className='flex flex-col gap-6'>
       <div className='flex items-start justify-between gap-3'>
         <div>
-          <h3 className='text-sm font-semibold'>Field Mappings</h3>
+          <h3 className='text-sm font-semibold'>{t('title')}</h3>
           <p className='text-muted-foreground mt-1 text-xs'>
-            Control how Ringee fields map to {meta.name} fields when syncing
-            contacts and companies.
+            {t('description', { provider: meta.name })}
           </p>
         </div>
         <div className='flex shrink-0 items-center gap-2'>
@@ -89,7 +82,7 @@ export function FieldMappingsTab({
             <RefreshCw
               className={`mr-1.5 h-3 w-3 ${loading ? 'animate-spin' : ''}`}
             />
-            Refresh
+            {t('refresh')}
           </Button>
         </div>
       </div>
@@ -97,7 +90,7 @@ export function FieldMappingsTab({
       {!isActive && (
         <div className='flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs'>
           <AlertCircle className='mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500' />
-          <p>Reconnect to manage field mappings.</p>
+          <p>{t('reconnectHint')}</p>
         </div>
       )}
 
@@ -113,12 +106,9 @@ export function FieldMappingsTab({
             <Settings2 className='text-muted-foreground h-5 w-5' />
           </div>
           <div>
-            <h4 className='text-sm font-semibold'>
-              No field mappings configured
-            </h4>
+            <h4 className='text-sm font-semibold'>{t('empty.title')}</h4>
             <p className='text-muted-foreground mt-1 max-w-sm text-xs'>
-              Seed the default mappings for {meta.name} to get started. You can
-              customize them later.
+              {t('empty.description', { provider: meta.name })}
             </p>
           </div>
           <Button
@@ -131,7 +121,7 @@ export function FieldMappingsTab({
             ) : (
               <Sparkles className='mr-1.5 h-3.5 w-3.5' />
             )}
-            Seed Default Mappings
+            {t('seedDefaults')}
           </Button>
         </div>
       ) : (
@@ -144,7 +134,7 @@ export function FieldMappingsTab({
                   {entityKey}
                 </span>
                 <Badge variant='outline' className='ml-auto text-[10px]'>
-                  {fields.length} field{fields.length !== 1 ? 's' : ''}
+                  {t('fieldCount', { count: fields.length })}
                 </Badge>
               </div>
               <div className='divide-y'>
@@ -167,7 +157,7 @@ export function FieldMappingsTab({
               ) : (
                 <Sparkles className='mr-1.5 h-3.5 w-3.5' />
               )}
-              Re-seed Defaults
+              {t('reseedDefaults')}
             </Button>
           </div>
         </div>
@@ -177,6 +167,7 @@ export function FieldMappingsTab({
 }
 
 function MappingRow({ mapping }: { mapping: CrmFieldMapping }) {
+  const t = useTranslations('integrations.crm.fieldMappings');
   const transformType = mapping.transform
     ? ((mapping.transform as Record<string, unknown>).type as string) ||
       'custom'
@@ -191,7 +182,9 @@ function MappingRow({ mapping }: { mapping: CrmFieldMapping }) {
       <div className='flex shrink-0 items-center gap-1.5'>
         {DIRECTION_ICON[mapping.direction]}
         <span className='text-muted-foreground hidden text-[10px] sm:inline'>
-          {DIRECTION_LABEL[mapping.direction]}
+          {t.has(`direction.${mapping.direction}`)
+            ? t(`direction.${mapping.direction}`)
+            : mapping.direction}
         </span>
       </div>
 

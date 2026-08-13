@@ -10,28 +10,99 @@
     "metaTitle": "Nieuwe campagne | Ringee",
     "metaDescription": "Maak een nieuwe uitgaande belcampagne aan.",
     "namePlaceholder": "Q1 outbound — VS enterprise",
-    "submit": "Campagne aanmaken"
+    "submit": "Campagne aanmaken",
+    "nameRequired": "De campagnenaam is verplicht",
+    "created": "Campagne aangemaakt.",
+    "error": "Campagne aanmaken mislukt",
+    "detailsTitle": "Campagnedetails",
+    "detailsDescription": "Geef je uitgaande campagne een naam en beschrijving.",
+    "nameLabel": "Campagnenaam *",
+    "descriptionPlaceholder": "Korte beschrijving van deze campagne…",
+    "dialerTitle": "Dialer-instellingen",
+    "dialerDescription": "Stel in hoe gesprekken worden gestart.",
+    "callerIdHint": "Verouderde geverifieerde beller-ID, alleen gebruikt als hierboven geen nummer is toegewezen. Laat op standaard staan om het campagnenummer te gebruiken."
   },
   "edit": {
     "title": "Campagne bewerken"
   },
   "detail": {
     "metaTitle": "Campagnedetails | Ringee",
-    "metaDescription": "Bekijk en beheer je uitgaande belcampagne."
+    "metaDescription": "Bekijk en beheer je uitgaande belcampagne.",
+    "notFound": {
+      "title": "Campagne niet gevonden",
+      "description": "Deze campagne is mogelijk verwijderd of de link klopt niet."
+    },
+    "noAccess": {
+      "title": "Je hebt geen toegang tot deze campagne",
+      "description": "Alleen organisatiebeheerders en toegewezen leden kunnen deze campagne openen. Vraag een beheerder om je toe te voegen."
+    },
+    "back": "Terug naar campagnes",
+    "activate": "Activeren",
+    "pause": "Pauzeren",
+    "resume": "Hervatten",
+    "complete": "Afronden",
+    "openDialer": "Dialer openen",
+    "completeDialog": {
+      "title": "Campagne afronden?",
+      "description": "Zodra deze campagne als afgerond is gemarkeerd, kan ze niet meer worden geactiveerd of bewerkt en kunnen er geen nieuwe leads worden toegevoegd. Alle actieve agentsessies worden beëindigd en er worden geen gesprekken meer gevoerd. Deze actie is onomkeerbaar.",
+      "cancel": "Annuleren",
+      "confirm": "Ja, campagne afronden"
+    },
+    "actionError": "De actie kon niet worden uitgevoerd",
+    "notReady": {
+      "title": "Deze campagne is nog niet klaar",
+      "description": "Importeer minstens één lead via het tabblad Leads voordat je activeert. Je hebt ook een telefoonnummer (of beller-ID) nodig waarmee de campagne kan bellen."
+    },
+    "stats": {
+      "totalLeads": "Totaal leads",
+      "dialerMode": "Dialer-modus",
+      "maxAttempts": "Max. pogingen",
+      "timezone": "Tijdzone"
+    },
+    "tabs": {
+      "leads": "Leads",
+      "members": "Leden",
+      "dispositions": "Classificaties",
+      "analytics": "Analyses",
+      "settings": "Instellingen"
+    },
+    "toasts": {
+      "activated": "Campagne geactiveerd.",
+      "paused": "Campagne gepauzeerd.",
+      "completed": "Campagne afgerond.",
+      "updated": "Campagne bijgewerkt.",
+      "statusError": "Kan de campagnestatus niet bijwerken. Probeer het opnieuw."
+    }
   },
   "fields": {
     "name": "Naam",
     "list": "Contactlijst",
     "mode": "Dialer-modus",
     "callerId": "Beller-ID",
-    "script": "Script"
+    "script": "Script",
+    "description": "Beschrijving",
+    "phoneNumber": "Telefoonnummer",
+    "phoneNumberPlaceholder": "Selecteer een nummer…",
+    "noPurchasedNumbers": "Geen gekochte nummers",
+    "phoneNumberHint": "Gesprekken in deze campagne worden vanaf dit gekochte nummer gevoerd.",
+    "callerIdOptional": "Beller-ID (optioneel)",
+    "callerIdPlaceholder": "Campagnenummer gebruiken",
+    "callerIdDefault": "Campagnenummer gebruiken (standaard)",
+    "callerIdHint": "Verouderde geverifieerde beller-ID, alleen gebruikt als hierboven geen nummer is toegewezen.",
+    "maxAttempts": "Max. pogingen",
+    "maxAttemptsPerLead": "Max. pogingen per lead",
+    "wrapUp": "Afrondtijd (seconden)",
+    "wrapUpShort": "Afrondtijd (sec)",
+    "retryDelay": "Standaard wachttijd voor nieuwe poging (minuten)",
+    "retryDelayShort": "Wachttijd voor nieuwe poging (min)"
   },
   "status": {
     "draft": "Concept",
     "scheduled": "Gepland",
     "running": "Actief",
     "paused": "Gepauzeerd",
-    "completed": "Voltooid"
+    "completed": "Voltooid",
+    "active": "Actief"
   },
   "actions": {
     "start": "Starten",
@@ -43,6 +114,311 @@
   "empty": {
     "title": "Nog geen campagnes",
     "description": "Maak je eerste campagne om op grote schaal te beginnen.",
-    "action": "Campagne aanmaken"
+    "action": "Campagne aanmaken",
+    "memberDescription": "Je bent nog niet aan een campagne toegevoegd."
+  },
+  "modes": {
+    "progressive": "Progressive Dialer",
+    "preview": "Preview Dialer",
+    "progressiveHint": "Progressive — belt de volgende lead automatisch",
+    "previewHint": "Preview — agent controleert voor het bellen"
+  },
+  "leadStatus": {
+    "pending": "In afwachting",
+    "queued": "In wachtrij",
+    "locked": "Vergrendeld",
+    "dialing": "Aan het bellen",
+    "in_call": "In gesprek",
+    "wrap_up": "Afronding",
+    "dispositioned": "Geclassificeerd",
+    "scheduled": "Gepland",
+    "completed": "Afgerond",
+    "exhausted": "Uitgeput",
+    "dnc": "Niet bellen"
+  },
+  "schedule": {
+    "title": "Belschema",
+    "description": "Stel in wanneer agenten mogen bellen.",
+    "timezone": "Tijdzone",
+    "startTime": "Starttijd",
+    "endTime": "Eindtijd",
+    "workingDays": "Werkdagen"
+  },
+  "card": {
+    "leads": "{count} leads",
+    "maxAttempts": "max. {count} pogingen",
+    "created": "Aangemaakt op {date}"
+  },
+  "list": {
+    "searchPlaceholder": "Campagnes zoeken…",
+    "allStatuses": "Alle statussen",
+    "showing": "{from}–{to} van {total} weergegeven",
+    "page": "Pagina {page} van {total}",
+    "previous": "Vorige",
+    "next": "Volgende"
+  },
+  "leads": {
+    "title": "Leads",
+    "total": "{count} leads in totaal in deze campagne",
+    "importCsv": "CSV importeren",
+    "addLead": "Lead toevoegen",
+    "fallbackName": "Deze lead",
+    "inFlightHint": "Deze lead wordt op dit moment gebeld en kan niet worden verwijderd.",
+    "removeAria": "{name} verwijderen",
+    "empty": {
+      "title": "Nog geen leads",
+      "description": "Importeer een CSV-bestand of voeg handmatig een lead toe om te beginnen.",
+      "filteredTitle": "Geen leads met deze status",
+      "filteredDescription": "Probeer een ander statusfilter."
+    },
+    "table": {
+      "name": "Naam",
+      "phone": "Telefoon",
+      "company": "Bedrijf",
+      "status": "Status",
+      "attempts": "Pogingen",
+      "lastCall": "Laatste gesprek",
+      "actions": "Acties"
+    },
+    "removeDialog": {
+      "title": "Deze lead verwijderen?",
+      "description": "{name} ({phone}) wordt uit deze campagne verwijderd, samen met de belpogingen en geplande terugbelverzoeken. Het contact zelf blijft bestaan en kan later opnieuw worden toegevoegd. Dit kan niet ongedaan worden gemaakt.",
+      "cancel": "Annuleren",
+      "confirm": "Lead verwijderen"
+    },
+    "toasts": {
+      "removed": "{name} is uit de campagne verwijderd.",
+      "removeError": "Kan de lead niet verwijderen. Probeer het opnieuw."
+    }
+  },
+  "addLead": {
+    "title": "Lead handmatig toevoegen",
+    "description": "Voer de contactgegevens in om één lead aan deze campagne toe te voegen. Het contact wordt automatisch aangemaakt als het nog niet bestaat.",
+    "name": "Naam *",
+    "namePlaceholder": "Jan Jansen",
+    "phone": "Telefoon *",
+    "phoneHint": "Internationaal formaat (E.164), bijv. +14155552671.",
+    "email": "E-mail",
+    "company": "Bedrijf",
+    "jobTitle": "Functie",
+    "jobTitlePlaceholder": "Salesmanager",
+    "state": "Provincie / Regio",
+    "website": "Website",
+    "revenue": "Omzet",
+    "companySize": "Bedrijfsgrootte",
+    "cancel": "Annuleren",
+    "submit": "Lead toevoegen",
+    "errors": {
+      "nameRequired": "De naam is verplicht.",
+      "phoneRequired": "Het telefoonnummer is verplicht.",
+      "phoneFormat": "Het telefoonnummer moet in internationaal formaat staan, bijv. +14155552671.",
+      "emailInvalid": "Voer een geldig e-mailadres in.",
+      "duplicate": "Dit contact is al een lead in deze campagne.",
+      "notAdded": "De lead kon niet worden toegevoegd. Controleer de gegevens en probeer het opnieuw.",
+      "generic": "Kan de lead niet toevoegen. Probeer het opnieuw."
+    },
+    "toasts": {
+      "added": "Lead toegevoegd aan de campagne."
+    }
+  },
+  "csvImport": {
+    "title": "Leads importeren uit CSV",
+    "description": "Upload een CSV-bestand om leads aan deze campagne toe te voegen. Nieuwe contacten worden automatisch aangemaakt en duplicaten worden overgeslagen.",
+    "tagsPlaceholder": "Tags toewijzen aan nieuw aangemaakte contacten",
+    "cancel": "Annuleren",
+    "importing": "Bezig met importeren…",
+    "submit": "Leads importeren",
+    "dropzone": {
+      "prompt": "Sleep je CSV hierheen of klik om te bladeren",
+      "selected": "{size} KB — klik om een ander bestand te kiezen",
+      "limits": "Max. {size} MB • {rows} rijen"
+    },
+    "summary": {
+      "complete": "Import voltooid",
+      "totalRows": "Totaal aantal rijen",
+      "leadsAdded": "Leads toegevoegd",
+      "newContacts": "Nieuwe contacten",
+      "duplicates": "Duplicaten overgeslagen",
+      "invalidRows": "{count} ongeldige rij(en) zijn overgeslagen",
+      "rowError": "Rij {row}: {message}",
+      "andMore": "…en nog {count}",
+      "importAnother": "Nog een bestand importeren",
+      "done": "Klaar"
+    },
+    "format": {
+      "title": "Vereist bestandsformaat",
+      "downloadTemplate": "Sjabloon downloaden",
+      "required": "Verplicht",
+      "optional": "Optioneel",
+      "fieldHint": "{description} (bijv. {example})",
+      "note": "De eerste rij moet de bovenstaande kolomkoppen bevatten. De volgorde van de kolommen maakt niet uit en koppen zijn niet hoofdlettergevoelig.",
+      "fields": {
+        "phoneNumber": "Telefoonnummer in E.164-formaat",
+        "name": "Volledige naam van het contact",
+        "email": "E-mail van het contact",
+        "company": "Bedrijfsnaam",
+        "jobTitle": "Functie",
+        "state": "Provincie of regio",
+        "website": "Bedrijfswebsite",
+        "revenue": "Bedrijfsomzet",
+        "companySize": "Bedrijfsgrootte",
+        "location": "Locatie"
+      }
+    },
+    "errors": {
+      "notCsv": "Alleen .csv-bestanden worden geaccepteerd.",
+      "tooLarge": "Het bestand is te groot. De maximale grootte is {size} MB.",
+      "importFailed": "Importeren van leads mislukt. Controleer je bestand en probeer het opnieuw."
+    },
+    "toasts": {
+      "imported": "{count} lead(s) succesvol geïmporteerd.",
+      "none": "Er zijn geen nieuwe leads toegevoegd.",
+      "failed": "Importeren van leads mislukt."
+    }
+  },
+  "dispositions": {
+    "title": "Classificaties",
+    "description": "Stel de resultaatcodes in die agenten na elk gesprek selecteren.",
+    "add": "Classificatie toevoegen",
+    "createTitle": "Classificatie aanmaken",
+    "createDescription": "Voeg een nieuwe gespreksresultaat-classificatie toe aan deze campagne.",
+    "code": "Code",
+    "codePlaceholder": "bijv. meeting_booked",
+    "label": "Label",
+    "labelPlaceholder": "bijv. Afspraak gepland",
+    "category": "Categorie",
+    "color": "Kleur",
+    "cancel": "Annuleren",
+    "create": "Aanmaken",
+    "categories": {
+      "positive": "Positief",
+      "neutral": "Neutraal",
+      "negative": "Negatief",
+      "no_contact": "Geen contact"
+    },
+    "triggers": {
+      "title": "Workflow-triggers",
+      "completion": "Markeert de lead als afgerond",
+      "retry": "Start een nieuwe poging",
+      "callback": "Plant een terugbelverzoek",
+      "dnc": "Voegt toe aan de niet-bellen-lijst",
+      "badges": {
+        "completion": "afgerond",
+        "retry": "nieuwe poging",
+        "callback": "terugbellen",
+        "dnc": "Niet bellen"
+      }
+    },
+    "empty": {
+      "title": "Geen classificaties ingesteld",
+      "description": "Classificaties worden automatisch aangemaakt wanneer je de campagne activeert, of je voegt ze handmatig toe."
+    },
+    "table": {
+      "code": "Code",
+      "label": "Label",
+      "category": "Categorie",
+      "triggers": "Triggers"
+    },
+    "toasts": {
+      "created": "Classificatie aangemaakt.",
+      "createError": "Kan de classificatie niet aanmaken.",
+      "removed": "Classificatie verwijderd.",
+      "removeError": "Kan de classificatie niet verwijderen."
+    }
+  },
+  "members": {
+    "unknown": "Onbekend",
+    "roles": {
+      "admin": "Beheerder",
+      "member": "Lid",
+      "agent": "Agent",
+      "owner": "Eigenaar"
+    },
+    "add": {
+      "title": "Lid toevoegen",
+      "description": "Wijs organisatieleden toe aan deze campagne. Alleen toegewezen leden kunnen als agent deelnemen.",
+      "placeholder": "Selecteer een lid…",
+      "noneAvailable": "Geen beschikbare leden",
+      "submit": "Toevoegen"
+    },
+    "list": {
+      "title": "Campagneleden ({count})",
+      "description": "Gebruikers die aan deze campagne zijn toegewezen en als agent kunnen deelnemen.",
+      "empty": "Nog geen leden toegewezen. Voeg leden toe zodat ze aan deze campagne kunnen deelnemen."
+    },
+    "removeDialog": {
+      "title": "Lid verwijderen?",
+      "description": "{name} uit deze campagne verwijderen? Deze persoon kan dan niet meer als agent deelnemen.",
+      "cancel": "Annuleren",
+      "confirm": "Verwijderen"
+    },
+    "toasts": {
+      "added": "Lid toegevoegd aan de campagne.",
+      "addError": "Kan het lid niet toevoegen.",
+      "removed": "Lid verwijderd uit de campagne.",
+      "removeError": "Kan het lid niet verwijderen."
+    }
+  },
+  "settings": {
+    "general": "Algemeen",
+    "dialer": "Dialer",
+    "lockedHint": "Sommige instellingen kunnen niet worden gewijzigd zolang de campagne actief is.",
+    "deleteAction": "Campagne verwijderen",
+    "save": "Instellingen opslaan",
+    "deleteDialog": {
+      "title": "Campagne verwijderen?",
+      "description": "Hiermee worden “{name}” en alle bijbehorende gegevens permanent verwijderd. Dit kan niet ongedaan worden gemaakt.",
+      "cancel": "Annuleren",
+      "confirm": "Verwijderen"
+    },
+    "toasts": {
+      "saved": "Instellingen opgeslagen.",
+      "saveError": "Instellingen opslaan mislukt",
+      "deleted": "Campagne verwijderd.",
+      "deleteError": "Campagne verwijderen mislukt"
+    }
+  },
+  "analytics": {
+    "unknownAgent": "onbekend",
+    "charts": {
+      "count": "Aantal",
+      "attempts": "Pogingen",
+      "connected": "Verbonden"
+    },
+    "cards": {
+      "totalCalls": "Totaal gesprekken",
+      "uniqueLeads": "{count} unieke leads gebeld",
+      "connected": "Verbonden",
+      "contactRate": "{rate}% contactpercentage",
+      "conversions": "Conversies",
+      "conversionRate": "{rate}% conversiepercentage",
+      "avgTalkTime": "Gem. gesprekstijd",
+      "perConnectedCall": "per verbonden gesprek"
+    },
+    "empty": {
+      "title": "Nog geen belactiviteit",
+      "description": "Analyses verschijnen hier zodra agenten voor deze campagne beginnen te bellen. De grafieken vullen zich automatisch naarmate gesprekken worden afgerond en geclassificeerd.",
+      "refresh": "Vernieuwen"
+    },
+    "distribution": {
+      "title": "Verdeling van classificaties",
+      "description": "Overzicht van alle gespreksresultaten",
+      "empty": "Nog geen geclassificeerde gesprekken",
+      "centerLabel": "Classificaties"
+    },
+    "agentPerformance": {
+      "title": "Prestaties per agent",
+      "description": "Pogingen versus verbonden gesprekken per agent",
+      "empty": "Nog geen agentactiviteit",
+      "calls": "{count} gesprekken",
+      "rate": "{rate}% percentage",
+      "talk": "{time} gesprek"
+    },
+    "byAgent": {
+      "title": "Classificaties per agent",
+      "description": "Overzicht van classificaties gefilterd op agent",
+      "allAgents": "Alle agenten",
+      "empty": "Geen classificatiegegevens beschikbaar"
+    }
   }
 }

@@ -37,7 +37,32 @@
     "updateContact": "Update Contact",
     "addContact": "Add Contact",
     "savedSuccessfully": "Contact saved successfully",
-    "somethingWentWrong": "Something went wrong"
+    "somethingWentWrong": "Something went wrong",
+    "addNote": "Add Note",
+    "deleteNote": "Delete note",
+    "noNotesYet": "No notes yet",
+    "deleting": "Deleting...",
+    "delete": "Delete",
+    "cancel": "Cancel",
+    "addNoteDescription": "Write a new note for this contact.",
+    "writeNotePlaceholder": "Write your note...",
+    "saveNote": "Save Note",
+    "deleteNoteConfirm": "Are you sure you want to delete this note? This action cannot be undone.",
+    "validation": {
+      "invalidEmail": "Invalid email format",
+      "phoneRequired": "Phone number is required",
+      "organizationTooShort": "Organization name must be at least 2 characters."
+    },
+    "sources": {
+      "manual": "Manual",
+      "csv_import": "CSV import",
+      "crm_sync": "CRM sync",
+      "web_form": "Web form",
+      "referral": "Referral",
+      "cold_outreach": "Cold outreach",
+      "inbound_call": "Inbound call",
+      "other": "Other"
+    }
   },
   "table": {
     "name": "Name",
@@ -45,7 +70,11 @@
     "email": "Email",
     "company": "Company",
     "lastCall": "Last call",
-    "tags": "Tags"
+    "tags": "Tags",
+    "source": "Source",
+    "call": "Call",
+    "unknown": "Unknown",
+    "searchPlaceholder": "Search contacts..."
   },
   "empty": {
     "title": "No contacts yet",
@@ -114,6 +143,8 @@
     "location": "Location",
     "timezone": "Timezone",
     "socialProfiles": "Social profiles",
+    "website": "Website",
+    "blog": "Blog",
     "phoneNumbers": "Phone Numbers",
     "emailAddresses": "Email Addresses",
     "companies": "Companies",
@@ -131,7 +162,15 @@
     "delete": "Delete",
     "deleteContact": "Delete contact",
     "deleteNote": "Delete note",
-    "deleteNoteConfirm": "Are you sure you want to delete this note? This action cannot be undone."
+    "deleteNoteConfirm": "Are you sure you want to delete this note? This action cannot be undone.",
+    "at": "at",
+    "recentCalls": "Recent Calls",
+    "outbound": "Outbound",
+    "inbound": "Inbound",
+    "deleting": "Deleting...",
+    "unknown": "Unknown",
+    "noCallsYet": "No calls yet",
+    "deleteContactConfirm": "Are you sure you want to delete {name}? This action cannot be undone."
   },
   "tags": {
     "selectTags": "Select tags...",
@@ -143,7 +182,8 @@
     "availableTags": "Available tags",
     "manageAll": "Manage all tags...",
     "tagCreated": "Tag \"{name}\" created",
-    "failedToCreate": "Failed to create tag"
+    "failedToCreate": "Failed to create tag",
+    "noTags": "No tags"
   },
   "manageTags": {
     "title": "Manage Tags",
@@ -158,17 +198,139 @@
     "noTagsYet": "No tags created yet",
     "deleteTitle": "Delete tag?",
     "deleteDescription": "This will permanently delete \"{name}\" and remove it from all contacts. This action cannot be undone.",
-    "deleteConfirm": "Yes, delete tag"
+    "deleteConfirm": "Yes, delete tag",
+    "chooseCustomColor": "Choose custom color",
+    "createdSuccess": "Tag created",
+    "updatedSuccess": "Tag updated",
+    "deletedSuccess": "Tag deleted"
   },
   "editPage": {
     "metaTitle": "Contact — Edit | Ringee",
     "metaDescription": "Edit contact details to keep your sales and calling workflow organized and efficient."
   },
+  "formPage": {
+    "create": "Create New Contact",
+    "edit": "Edit Contact"
+  },
   "kanban": {
     "title": "Sales Pipeline",
     "description": "Manage your leads visually",
     "metaTitle": "Sales Pipeline — Visualize and Organize Leads | Ringee",
-    "metaDescription": "Manage your sales pipeline visually with Ringee. Organize leads, track calls, and move deals through every stage with clarity and efficiency."
+    "metaDescription": "Manage your sales pipeline visually with Ringee. Organize leads, track calls, and move deals through every stage with clarity and efficiency.",
+    "board": {
+      "title": "Board",
+      "description": "Manage tasks and workflow",
+      "addSection": "Add New Section",
+      "addTodo": "Add New Todo",
+      "task": "Task",
+      "moveTask": "Move task",
+      "actions": "Actions",
+      "rename": "Rename",
+      "deleteSection": "Delete Section",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "columnUpdated": "{title} updated to {name}",
+      "columnDeleted": "This column has been deleted.",
+      "columnRole": "Column: {title}",
+      "moveColumn": "Move column: {title}",
+      "todo": "Todo",
+      "inProgress": "In progress",
+      "done": "Done",
+      "announcements": {
+        "pickUpColumn": "Picked up column {title} at position {position} of {total}",
+        "pickUpTask": "Picked up task {title} at position {position} of {total} in column {column}",
+        "columnMovedOver": "Column {title} was moved over {over} at position {position} of {total}",
+        "taskMovedToColumn": "Task {title} was moved over column {column} in position {position} of {total}",
+        "taskMovedOver": "Task was moved over position {position} of {total} in column {column}",
+        "columnDropped": "Column {title} was dropped into position {position} of {total}",
+        "taskDroppedInColumn": "Task was dropped into column {column} in position {position} of {total}",
+        "taskDropped": "Task was dropped into position {position} of {total} in column {column}",
+        "cancelled": "Dragging {type} cancelled."
+      },
+      "newSection": {
+        "title": "Add New Section",
+        "description": "What section do you want to add today?",
+        "placeholder": "Section title...",
+        "submit": "Add Section"
+      },
+      "newTodo": {
+        "title": "Add New Todo",
+        "description": "What do you want to get done today?",
+        "titlePlaceholder": "Todo title...",
+        "descriptionPlaceholder": "Description...",
+        "submit": "Add Todo"
+      },
+      "deleteDialog": {
+        "title": "Are you sure you want to delete this column?",
+        "description": "Note: All tasks related to this category will also be deleted."
+      }
+    }
+  },
+  "pageActions": {
+    "manageTags": "Manage Tags",
+    "importCsv": "Import CSV",
+    "addContact": "Add Contact"
+  },
+  "contactTags": {
+    "title": "Manage Tags",
+    "description": "Add or remove tags for this contact",
+    "placeholder": "Select tags...",
+    "loadFailed": "Failed to load tags",
+    "updateFailed": "Failed to update tags"
+  },
+  "tagFilter": {
+    "label": "Filter by tags",
+    "count": "{count} tags",
+    "clear": "Clear tag filter",
+    "empty": "No tags"
+  },
+  "crmActions": {
+    "pushNote": "Push Note to CRM",
+    "pushTask": "Push Task to CRM",
+    "note": {
+      "title": "Push Note to CRM",
+      "description": "Send a note to the linked CRM record for this contact. The note will be queued and synced in the background.",
+      "titleLabel": "Title (optional)",
+      "titlePlaceholder": "e.g. Follow-up call summary",
+      "bodyLabel": "Note Body *",
+      "bodyPlaceholder": "Write the note content...",
+      "cancel": "Cancel",
+      "submit": "Push Note",
+      "queued": "Note queued for CRM sync",
+      "failed": "Failed to push note"
+    },
+    "task": {
+      "title": "Push Task to CRM",
+      "description": "Create a follow-up task on the linked CRM record. The task will be queued and synced in the background.",
+      "titleLabel": "Title *",
+      "titlePlaceholder": "e.g. Follow up on proposal",
+      "descriptionLabel": "Description (optional)",
+      "descriptionPlaceholder": "Additional details...",
+      "dueDate": "Due Date (optional)",
+      "assigneeEmail": "Assignee Email (optional)",
+      "cancel": "Cancel",
+      "submit": "Create Task",
+      "queued": "Task queued for CRM sync",
+      "failed": "Failed to push task"
+    }
+  },
+  "bulkDelete": {
+    "action": "Delete by Tag",
+    "title": "Delete Contacts by Tag",
+    "description": "Select a tag to delete all associated contacts. This permanently removes the contacts but keeps the tag.",
+    "selectTag": "Select Tag",
+    "selectPlaceholder": "Select tag...",
+    "searchPlaceholder": "Search tag...",
+    "noTag": "No tag found.",
+    "preview": "Contacts Preview",
+    "loading": "Loading...",
+    "found": "{count} found",
+    "more": "And {count} more...",
+    "empty": "No contacts found with this tag.",
+    "cancel": "Cancel",
+    "confirm": "Delete {count} Contacts",
+    "success": "Successfully deleted {count} contacts",
+    "failed": "Failed to delete contacts"
   },
   "rowActions": {
     "menu": "Actions",

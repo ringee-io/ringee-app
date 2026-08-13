@@ -32,6 +32,7 @@
   "location": "Location",
   "fromCall": "From call on {date}",
   "min": "min",
+  "at": "at",
   "cancelMeeting": "Cancel Meeting",
   "defaultTitle": "Meeting",
   "status": {
@@ -41,6 +42,15 @@
     "rescheduled": "Rescheduled"
   },
   "calendar": {
+    "weekdays": {
+      "sun": "Sun",
+      "mon": "Mon",
+      "tue": "Tue",
+      "wed": "Wed",
+      "thu": "Thu",
+      "fri": "Fri",
+      "sat": "Sat"
+    },
     "month": "month",
     "week": "week",
     "day": "day"
@@ -50,6 +60,49 @@
     "description": "Once you book a meeting it will show up here.",
     "noMeetings": "No meetings yet",
     "noMeetingsDescription": "Book your first meeting during a call. Every booked meeting shows up here."
+  },
+  "integrations": {
+    "title": "Calendar Integrations",
+    "description": "Connect your calendar to auto-sync meetings booked during cold calls and check availability in real-time.",
+    "comingSoon": "Coming Soon",
+    "connected": "Connected",
+    "connect": "Connect {provider}",
+    "disconnect": "Disconnect",
+    "connectedSuccess": "{provider} connected successfully!",
+    "connectFailed": "Failed to connect calendar. Please try again.",
+    "disconnected": "Calendar disconnected",
+    "disconnectFailed": "Failed to disconnect calendar",
+    "howItWorks": "How it works",
+    "howItWorksPrefix": "When you book a meeting during a cold call, Ringee automatically creates a calendar event with a",
+    "or": "or",
+    "howItWorksSuffix": "link. Your availability is also checked in real-time when scheduling.",
+    "providers": {
+      "google": {
+        "name": "Google Calendar",
+        "description": "Sync meetings with Google Calendar and auto-create Google Meet links."
+      },
+      "microsoft": {
+        "name": "Microsoft Outlook",
+        "description": "Sync meetings with Outlook Calendar and auto-create Teams links."
+      }
+    }
+  },
+  "thisWeek": {
+    "title": "Meetings This Week",
+    "empty": "No meetings scheduled this week",
+    "viewAll": "View all {count} meetings"
+  },
+  "booking": {
+    "emailRequired": "Please provide an email for the contact",
+    "success": "Meeting booked — {date} at {time}",
+    "failed": "Failed to book meeting",
+    "noSlots": "No available slots",
+    "duration": "Duration",
+    "contactEmail": "Contact Email",
+    "emailPlaceholder": "Required for calendar invite",
+    "selectCalendar": "Select Calendar",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
   },
   "toasts": {
     "failedToLoad": "Failed to load meetings",

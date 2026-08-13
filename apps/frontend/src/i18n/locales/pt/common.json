@@ -55,8 +55,30 @@
   "theme": "Tema",
   "selectTheme": "Selecionar tema:",
   "selectThemePlaceholder": "Selecionar tema",
+  "toggleTheme": "Alternar tema",
+  "toggleSidebar": "Alternar barra lateral",
   "platform": "Plataforma",
   "projects": "Projetos",
+  "accessRestricted": {
+    "title": "Acesso restrito",
+    "description": "Não tem acesso a esta funcionalidade. Contacte um administrador da organização se precisar dela."
+  },
+  "memberFilter": {
+    "all": "Todos os membros",
+    "search": "Procurar membros…",
+    "noMembers": "Nenhum membro encontrado",
+    "member": "Membro"
+  },
+  "dateFilter": {
+    "filterByDate": "Filtrar por data",
+    "from": "Desde {date}",
+    "to": "Até {date}",
+    "clear": "Limpar filtro de data"
+  },
+  "scope": {
+    "mine": "Meus",
+    "all": "Todos"
+  },
   "fileUpload": {
     "dropHere": "Largue os ficheiros aqui",
     "dragAndDrop": "Arraste e largue ficheiros aqui, ou clique para selecionar",
@@ -76,6 +98,13 @@
     "share": "Partilhar projeto",
     "delete": "Eliminar projeto"
   },
-  "toggleTheme": "Alternar tema",
-  "toggleSidebar": "Alternar barra lateral"
+  "weekdaysShort": {
+    "sun": "Dom",
+    "mon": "Seg",
+    "tue": "Ter",
+    "wed": "Qua",
+    "thu": "Qui",
+    "fri": "Sex",
+    "sat": "Sáb"
+  }
 }

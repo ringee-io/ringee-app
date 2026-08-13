@@ -211,6 +211,230 @@
     "unavailable": "This pipeline isn't available yet.",
     "viewDetails": "View details & enable"
   },
+  "pipelinePage": {
+    "title": "AI Pipeline",
+    "description": "Independent pipelines that analyze your calls by context. Open one to see exactly what it does and the value it brings before you enable it.",
+    "metaTitle": "AI Pipeline",
+    "metaDescription": "Configuration + intelligence: turn call outcomes into the next best action."
+  },
+  "followUp": {
+    "page": {
+      "title": "Follow-up Recommendations",
+      "description": "Turn every call outcome into the next best action.",
+      "longDescription": "Turn every call outcome into the next best action — analyzed independently per context."
+    },
+    "loadFailed": "Could not load pipeline.",
+    "context": "Context",
+    "selectContext": "Select a context",
+    "contextDescription": "Results are separated by context. Campaign calls, organization calls outside campaigns, and personal calls are analyzed independently.",
+    "never": "Never",
+    "close": "Close",
+    "activation": {
+      "title": "Activation",
+      "description": "Enable Follow-up per context. Enabling one context never enables another.",
+      "enabled": "Enabled",
+      "newEligible": "New eligible",
+      "lastRun": "Last run",
+      "pending": "Pending",
+      "run": "Run"
+    },
+    "run": {
+      "previewFailed": "Could not load run preview.",
+      "alreadyRunning": "A run is already in progress for this context.",
+      "complete": "Run complete — analyzed {count} eligible calls.",
+      "failed": "Run failed.",
+      "analysis": "Run analysis",
+      "title": "Run analysis — {context}",
+      "eligibleCalls": "Eligible calls",
+      "newSinceLastRun": "New since last run",
+      "estimatedConfidence": "Estimated confidence",
+      "lowData": "Low data — fewer than the recommended minimum eligible calls.",
+      "now": "Run now"
+    },
+    "results": {
+      "title": "Results — {context}",
+      "description": "Pending actions for this context only.",
+      "empty": "No actions in this view for this context.",
+      "filters": {
+        "pending": "Pending",
+        "high": "High priority",
+        "due_today": "Due today",
+        "overdue": "Overdue",
+        "ai": "AI-enhanced",
+        "rule": "Rule-based",
+        "dismissed": "Dismissed",
+        "completed": "Completed"
+      }
+    }
+  },
+  "objections": {
+    "types": {
+      "send_me_information": "Send me information",
+      "no_time": "No time",
+      "too_expensive": "Too expensive",
+      "using_another_solution": "Using another solution",
+      "not_interested": "Not interested",
+      "call_me_later": "Call me later",
+      "not_the_right_person": "Not the right person",
+      "need_to_ask_boss": "Need to ask my boss",
+      "bad_timing": "Bad timing",
+      "we_do_this_internally": "We do this internally",
+      "other": "Other"
+    },
+    "page": {
+      "title": "Objection Intelligence",
+      "description": "Discover what blocks your prospects and how to respond.",
+      "longDescription": "Discover what blocks your prospects and how to respond — analyzed independently per context."
+    },
+    "loadFailed": "Could not load pipeline.",
+    "selectContext": "Select a context",
+    "enabled": "Enabled",
+    "disabled": "Disabled",
+    "explanation": "Each eligible call's complete transcript is analyzed once. Later runs process only new calls and recalculate cumulative insights; results from different contexts never mix.",
+    "manageContexts": "Manage all contexts ({count})",
+    "newCount": "{count} new",
+    "neverRun": "Never run",
+    "pendingCount": "{count} pending",
+    "ranked": "Objections — ranked by prevalence",
+    "selectObjection": "Select an objection to see the breakdown.",
+    "callsCount": "{count} calls",
+    "sinceLastRun": "{count} since last run",
+    "confidence": "{level} confidence",
+    "confidenceLevels": {
+      "low": "low",
+      "medium": "medium",
+      "high": "high"
+    },
+    "run": {
+      "previewFailed": "Could not load run preview.",
+      "alreadyRunning": "A run is already in progress for this context.",
+      "complete": "Analysis complete — {count} calls analyzed cumulatively.",
+      "failed": "Run failed.",
+      "analysis": "Run analysis",
+      "title": "Run analysis — {context}",
+      "eligibleCalls": "Eligible calls",
+      "newSinceLastRun": "New since last run",
+      "estimatedConfidence": "Estimated confidence",
+      "lowData": "This recommendation is based on limited data. Treat it as directional until more calls are analyzed.",
+      "now": "Run now"
+    },
+    "kpis": {
+      "detected": "Objections detected",
+      "eligible": "Eligible analyzed",
+      "topBlocker": "Top blocker",
+      "pending": "New calls pending"
+    },
+    "detail": {
+      "discovered": "Discovered by AI",
+      "saved": "Saved",
+      "appeared": "Appeared in {count} calls · {rate} of analyzed conversations",
+      "trend": "Trend across runs",
+      "prevalence": "Prevalence",
+      "stillConverted": "Still converted",
+      "correlationHint": "Correlational: the share of calls where this objection appeared and the call still converted. It is not a measure of any single response.",
+      "hiddenConfidence": "Hidden below medium confidence",
+      "noAi": "Measured from your calls. Run analysis with AI enabled to surface what this objection really means, the winning and losing patterns, and a recommended response.",
+      "reallyMean": "What they really mean",
+      "whatWorks": "What works",
+      "whatKills": "What kills it",
+      "fromCalls": "From your calls",
+      "outcomes": {
+        "handled": "handled",
+        "killed": "killed",
+        "example": "example"
+      },
+      "recommendedResponse": "Recommended response — edit it to your voice",
+      "saveResponse": "Save response",
+      "addToScript": "Add to script",
+      "createReview": "Create review action",
+      "dismiss": "Dismiss"
+    },
+    "empty": {
+      "title": "No objections analyzed yet",
+      "enabled": "Run analysis once this context has enough eligible calls. Ringee will rank what blocks your prospects and even discover objections you have not predefined.",
+      "disabled": "Enable this context above, then run analysis to discover what blocks your prospects and how to respond."
+    }
+  },
+  "pendingActions": {
+    "title": "Pending Actions",
+    "description": "What to do next. Actions are grouped, prioritized and decay automatically so the list stays useful.",
+    "metaTitle": "Pending Actions | Ringee",
+    "metaDescription": "Your execution center — what to do next, grouped and prioritized.",
+    "filters": {
+      "all": "All",
+      "high_priority": "High priority",
+      "due_today": "Due today",
+      "overdue": "Overdue",
+      "lead_followups": "Lead follow-ups",
+      "script_reviews": "Script reviews",
+      "objection_responses": "Objection responses",
+      "crm_updates": "CRM updates",
+      "ai_generated": "AI generated",
+      "rule_based": "Rule-based",
+      "campaign": "Campaign",
+      "organization": "Organization calls",
+      "personal": "Personal calls"
+    },
+    "empty": {
+      "title": "You're all caught up",
+      "description": "New next-best-actions from your calls will show up here."
+    },
+    "columns": {
+      "contact": "Contact",
+      "recommendedAction": "Recommended action",
+      "context": "Context",
+      "priority": "Priority",
+      "due": "Due",
+      "source": "Source",
+      "status": "Status",
+      "actions": "Actions"
+    },
+    "unknown": "Unknown",
+    "actionTypes": {
+      "send_follow_up": "Send follow-up",
+      "create_callback": "Make callback",
+      "book_meeting": "Book meeting",
+      "ask_for_referral": "Ask for referral",
+      "send_pricing_or_info": "Send info / pricing",
+      "update_crm": "Update CRM",
+      "add_to_nurture": "Add to nurture",
+      "mark_not_interested": "Mark not interested",
+      "review_call": "Review call",
+      "review_script_suggestion": "Review script suggestion",
+      "approve_script_version": "Approve script version",
+      "review_objection_response": "Review objection response",
+      "add_objection_response_to_script": "Add objection response",
+      "review_campaign_insight": "Review campaign insight"
+    },
+    "priorities": {
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High"
+    },
+    "sources": {
+      "ai": "AI",
+      "rule": "Rule",
+      "manual": "Manual"
+    },
+    "statuses": {
+      "pending": "Pending",
+      "completed": "Completed",
+      "dismissed": "Dismissed",
+      "snoozed": "Snoozed"
+    },
+    "contexts": {
+      "campaign": "Campaign",
+      "organization_outside_campaign": "Organization (outside campaigns)",
+      "personal": "Personal"
+    },
+    "actions": {
+      "copyMessage": "Copy suggested message",
+      "openContact": "Open contact",
+      "snooze": "Snooze",
+      "dismiss": "Dismiss",
+      "complete": "Complete"
+    }
+  },
   "pipelines": {
     "follow_up_recommendations": {
       "tagline": "Turn every call outcome into the next best action.",

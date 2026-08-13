@@ -22,6 +22,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import {
   Tag,
   TagMultiSelect
@@ -32,40 +33,21 @@ const CSV_CONFIG = {
   MAX_ROWS: 10000
 };
 
-const REQUIRED_FIELDS: {
-  name: string;
-  description: string;
-  example: string;
-}[] = [
-  {
-    name: 'phoneNumber',
-    description: 'E.164 phone number',
-    example: '+14155552671'
-  },
-  { name: 'name', description: 'Full contact name', example: 'John Doe' }
+/** CSV column names are literal — only the human description is translated. */
+const REQUIRED_FIELDS: { name: string; example: string }[] = [
+  { name: 'phoneNumber', example: '+14155552671' },
+  { name: 'name', example: 'John Doe' }
 ];
 
-const OPTIONAL_FIELDS: {
-  name: string;
-  description: string;
-  example: string;
-}[] = [
-  { name: 'email', description: 'Contact email', example: 'john@acme.com' },
-  { name: 'company', description: 'Company name', example: 'Acme Inc' },
-  { name: 'jobTitle', description: 'Job title', example: 'Sales Manager' },
-  { name: 'state', description: 'State or region', example: 'New York' },
-  {
-    name: 'website',
-    description: 'Company website',
-    example: 'https://acme.com'
-  },
-  { name: 'revenue', description: 'Company revenue', example: '$10M-$50M' },
-  {
-    name: 'companySize',
-    description: 'Company size',
-    example: '51-200'
-  },
-  { name: 'location', description: 'Location', example: 'New York' }
+const OPTIONAL_FIELDS: { name: string; example: string }[] = [
+  { name: 'email', example: 'john@acme.com' },
+  { name: 'company', example: 'Acme Inc' },
+  { name: 'jobTitle', example: 'Sales Manager' },
+  { name: 'state', example: 'New York' },
+  { name: 'website', example: 'https://acme.com' },
+  { name: 'revenue', example: '$10M-$50M' },
+  { name: 'companySize', example: '51-200' },
+  { name: 'location', example: 'New York' }
 ];
 
 interface ImportSummary {
@@ -98,6 +80,7 @@ export function ImportLeadsModal({
   onImported
 }: Props) {
   const api = useApi();
+  const t = useTranslations('campaigns.csvImport');
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [state, setState] = useState<ImportState>('idle');
@@ -145,26 +128,34 @@ export function ImportLeadsModal({
     }
   }
 
-  function validateFile(f: File): string | null {
-    if (!f.name.toLowerCase().endsWith('.csv')) {
-      return 'Only .csv files are accepted.';
-    }
-    if (f.size > CSV_CONFIG.MAX_FILE_SIZE) {
-      return `File is too large. Maximum size is ${CSV_CONFIG.MAX_FILE_SIZE / (1024 * 1024)}MB.`;
-    }
-    return null;
-  }
+  const validateFile = useCallback(
+    (f: File): string | null => {
+      if (!f.name.toLowerCase().endsWith('.csv')) {
+        return t('errors.notCsv');
+      }
+      if (f.size > CSV_CONFIG.MAX_FILE_SIZE) {
+        return t('errors.tooLarge', {
+          size: CSV_CONFIG.MAX_FILE_SIZE / (1024 * 1024)
+        });
+      }
+      return null;
+    },
+    [t]
+  );
 
-  const handleFileSelect = useCallback((selected: File) => {
-    const validationError = validateFile(selected);
-    if (validationError) {
-      setError(validationError);
-      setFile(null);
-      return;
-    }
-    setFile(selected);
-    setError(null);
-  }, []);
+  const handleFileSelect = useCallback(
+    (selected: File) => {
+      const validationError = validateFile(selected);
+      if (validationError) {
+        setError(validationError);
+        setFile(null);
+        return;
+      }
+      setFile(selected);
+      setError(null);
+    },
+    [validateFile]
+  );
 
   const handleDrop = useCallback(
     (e: React.DragEvent) => {
@@ -193,22 +184,17 @@ export function ImportLeadsModal({
       setSummary(res.summary);
       setState('success');
       if (res.summary.leadsAdded > 0) {
-        toast.success(
-          `Imported ${res.summary.leadsAdded} lead(s) successfully.`
-        );
+        toast.success(t('toasts.imported', { count: res.summary.leadsAdded }));
         // Refresh the leads table / campaign counts immediately so the data
         // behind the modal is fresh regardless of how the modal is closed.
         onImported?.();
       } else {
-        toast.info('No new leads were added.');
+        toast.info(t('toasts.none'));
       }
     } catch (err: any) {
-      setError(
-        err?.message ||
-          'Failed to import leads. Please check your file and try again.'
-      );
+      setError(err?.message || t('errors.importFailed'));
       setState('idle');
-      toast.error('Lead import failed.');
+      toast.error(t('toasts.failed'));
     }
   }
 
@@ -233,39 +219,44 @@ export function ImportLeadsModal({
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className='max-h-[90vh] w-[95vw] max-w-lg overflow-y-auto'>
         <DialogHeader>
-          <DialogTitle>Import Leads from CSV</DialogTitle>
-          <DialogDescription>
-            Upload a CSV file to add leads to this campaign. New contacts are
-            created automatically and duplicates are skipped.
-          </DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         {state === 'success' && summary ? (
           <div className='space-y-4'>
             <div className='flex items-center gap-2 rounded-lg border border-green-500/20 bg-green-500/10 p-4 text-green-600'>
               <CheckCircle2 className='h-5 w-5' />
-              <span className='font-medium'>Import complete</span>
+              <span className='font-medium'>{t('summary.complete')}</span>
             </div>
 
             <div className='grid grid-cols-2 gap-3 text-sm'>
               <div className='bg-muted rounded-lg p-3'>
-                <div className='text-muted-foreground'>Total rows</div>
+                <div className='text-muted-foreground'>
+                  {t('summary.totalRows')}
+                </div>
                 <div className='text-xl font-semibold'>{summary.totalRows}</div>
               </div>
               <div className='bg-muted rounded-lg p-3'>
-                <div className='text-muted-foreground'>Leads added</div>
+                <div className='text-muted-foreground'>
+                  {t('summary.leadsAdded')}
+                </div>
                 <div className='text-xl font-semibold text-green-600'>
                   {summary.leadsAdded}
                 </div>
               </div>
               <div className='bg-muted rounded-lg p-3'>
-                <div className='text-muted-foreground'>New contacts</div>
+                <div className='text-muted-foreground'>
+                  {t('summary.newContacts')}
+                </div>
                 <div className='text-xl font-semibold'>
                   {summary.contactsCreated}
                 </div>
               </div>
               <div className='bg-muted rounded-lg p-3'>
-                <div className='text-muted-foreground'>Duplicates skipped</div>
+                <div className='text-muted-foreground'>
+                  {t('summary.duplicates')}
+                </div>
                 <div className='text-xl font-semibold text-yellow-600'>
                   {summary.duplicatesSkipped}
                 </div>
@@ -276,17 +267,22 @@ export function ImportLeadsModal({
               <div className='border-destructive/20 rounded-lg border p-3'>
                 <div className='text-destructive mb-2 flex items-center gap-2 text-sm font-medium'>
                   <AlertTriangle className='h-4 w-4' />
-                  {summary.invalidRows} invalid row(s) were skipped
+                  {t('summary.invalidRows', { count: summary.invalidRows })}
                 </div>
                 <div className='max-h-32 space-y-1 overflow-y-auto'>
                   {summary.errors.slice(0, 10).map((err, i) => (
                     <div key={i} className='text-muted-foreground text-xs'>
-                      Row {err.row}: {err.message}
+                      {t('summary.rowError', {
+                        row: err.row,
+                        message: err.message
+                      })}
                     </div>
                   ))}
                   {summary.errors.length > 10 && (
                     <div className='text-muted-foreground text-xs'>
-                      …and {summary.errors.length - 10} more
+                      {t('summary.andMore', {
+                        count: summary.errors.length - 10
+                      })}
                     </div>
                   )}
                 </div>
@@ -295,10 +291,10 @@ export function ImportLeadsModal({
 
             <div className='flex gap-2'>
               <Button variant='outline' className='flex-1' onClick={resetState}>
-                Import another file
+                {t('summary.importAnother')}
               </Button>
               <Button className='flex-1' onClick={() => handleClose(false)}>
-                Done
+                {t('summary.done')}
               </Button>
             </div>
           </div>
@@ -339,18 +335,20 @@ export function ImportLeadsModal({
                   <FileText className='text-primary mb-2 h-10 w-10' />
                   <span className='font-medium'>{file.name}</span>
                   <span className='text-muted-foreground text-sm'>
-                    {(file.size / 1024).toFixed(1)} KB — click to choose another
+                    {t('dropzone.selected', {
+                      size: (file.size / 1024).toFixed(1)
+                    })}
                   </span>
                 </>
               ) : (
                 <>
                   <Upload className='text-muted-foreground mb-2 h-10 w-10' />
-                  <span className='font-medium'>
-                    Drop your CSV here or click to browse
-                  </span>
+                  <span className='font-medium'>{t('dropzone.prompt')}</span>
                   <span className='text-muted-foreground text-sm'>
-                    Max {CSV_CONFIG.MAX_FILE_SIZE / (1024 * 1024)}MB •{' '}
-                    {CSV_CONFIG.MAX_ROWS.toLocaleString()} rows
+                    {t('dropzone.limits', {
+                      size: CSV_CONFIG.MAX_FILE_SIZE / (1024 * 1024),
+                      rows: CSV_CONFIG.MAX_ROWS.toLocaleString()
+                    })}
                   </span>
                 </>
               )}
@@ -362,7 +360,7 @@ export function ImportLeadsModal({
                 selectedTagIds={selectedTagIds}
                 onSelectionChange={setSelectedTagIds}
                 onCreateTag={handleCreateTag}
-                placeholder='Assign tags to newly created contacts'
+                placeholder={t('tagsPlaceholder')}
                 className='w-full'
               />
             )}
@@ -378,7 +376,7 @@ export function ImportLeadsModal({
             {/* Format reference */}
             <div className='bg-muted/40 rounded-lg border p-3 text-sm'>
               <div className='mb-2 flex items-center justify-between'>
-                <span className='font-medium'>Required file format</span>
+                <span className='font-medium'>{t('format.title')}</span>
                 <Button
                   variant='link'
                   size='sm'
@@ -389,14 +387,14 @@ export function ImportLeadsModal({
                   }}
                 >
                   <Download className='mr-1 h-3 w-3' />
-                  Download template
+                  {t('format.downloadTemplate')}
                 </Button>
               </div>
               <div className='space-y-2'>
                 <div>
                   <div className='mb-1 flex items-center gap-2'>
                     <Badge className='bg-green-100 text-green-700 hover:bg-green-100'>
-                      Required
+                      {t('format.required')}
                     </Badge>
                   </div>
                   <ul className='space-y-1'>
@@ -409,7 +407,10 @@ export function ImportLeadsModal({
                           {f.name}
                         </code>
                         <span className='text-muted-foreground'>
-                          {f.description} (e.g. {f.example})
+                          {t('format.fieldHint', {
+                            description: t(`format.fields.${f.name}`),
+                            example: f.example
+                          })}
                         </span>
                       </li>
                     ))}
@@ -417,7 +418,7 @@ export function ImportLeadsModal({
                 </div>
                 <div>
                   <div className='mb-1 flex items-center gap-2'>
-                    <Badge variant='secondary'>Optional</Badge>
+                    <Badge variant='secondary'>{t('format.optional')}</Badge>
                   </div>
                   <ul className='space-y-1'>
                     {OPTIONAL_FIELDS.map((f) => (
@@ -429,7 +430,10 @@ export function ImportLeadsModal({
                           {f.name}
                         </code>
                         <span className='text-muted-foreground'>
-                          {f.description} (e.g. {f.example})
+                          {t('format.fieldHint', {
+                            description: t(`format.fields.${f.name}`),
+                            example: f.example
+                          })}
                         </span>
                       </li>
                     ))}
@@ -437,8 +441,7 @@ export function ImportLeadsModal({
                 </div>
               </div>
               <p className='text-muted-foreground mt-2 text-xs'>
-                The first row must contain the column headers above. Column
-                order does not matter and headers are case-insensitive.
+                {t('format.note')}
               </p>
             </div>
 
@@ -449,7 +452,7 @@ export function ImportLeadsModal({
                 className='flex-1'
                 onClick={() => handleClose(false)}
               >
-                Cancel
+                {t('cancel')}
               </Button>
               <Button
                 className='flex-1'
@@ -459,10 +462,10 @@ export function ImportLeadsModal({
                 {state === 'uploading' ? (
                   <>
                     <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-                    Importing…
+                    {t('importing')}
                   </>
                 ) : (
-                  'Import Leads'
+                  t('submit')
                 )}
               </Button>
             </div>

@@ -12,6 +12,7 @@ import {
   DialogTitle,
   DialogDescription
 } from '@ringee/frontend-shared/components/ui/dialog';
+import { useTranslations } from 'next-intl';
 
 interface ManageContactTagsModalProps {
   contactId: string;
@@ -27,6 +28,7 @@ export function ManageContactTagsModal({
   onTagsUpdated
 }: ManageContactTagsModalProps) {
   const api = useApi();
+  const t = useTranslations('contacts.contactTags');
   const [loading, setLoading] = useState(false);
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [selectedTagIds, setSelectedTagIds] = useState<string[]>([]);
@@ -44,7 +46,7 @@ export function ManageContactTagsModal({
       setSelectedTagIds(currentIds);
       setInitialTagIds(currentIds);
     } catch (err) {
-      toast.error('Failed to load tags');
+      toast.error(t('loadFailed'));
     } finally {
       setLoading(false);
     }
@@ -63,7 +65,7 @@ export function ManageContactTagsModal({
       await api.post(`/contacts/${contactId}/tags`, { tagIds: newTagIds });
       onTagsUpdated?.();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to update tags');
+      toast.error(err.message || t('updateFailed'));
       setSelectedTagIds(initialTagIds);
     }
   };
@@ -80,11 +82,9 @@ export function ManageContactTagsModal({
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
             <IconTag className='h-5 w-5' />
-            Manage Tags
+            {t('title')}
           </DialogTitle>
-          <DialogDescription>
-            Add or remove tags for this contact
-          </DialogDescription>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         <div className='py-4'>
@@ -98,7 +98,7 @@ export function ManageContactTagsModal({
               selectedTagIds={selectedTagIds}
               onSelectionChange={handleSelectionChange}
               onCreateTag={handleCreateTag}
-              placeholder='Select tags...'
+              placeholder={t('placeholder')}
               showCreateOption={true}
             />
           )}

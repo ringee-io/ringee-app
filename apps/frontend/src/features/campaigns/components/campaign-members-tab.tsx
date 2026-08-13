@@ -33,6 +33,7 @@ import {
 } from '@ringee/frontend-shared/components/ui/alert-dialog';
 import { UserPlus, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import type { CampaignStatus } from '../types/campaign.types';
 
 interface CampaignMember {
@@ -70,6 +71,7 @@ export function CampaignMembersTab({
   canManage = false
 }: Props) {
   const api = useApi();
+  const t = useTranslations('campaigns.members');
   const { organization, isLoaded: isOrgLoaded } = useOrganization();
 
   const [members, setMembers] = useState<CampaignMember[]>([]);
@@ -152,9 +154,9 @@ export function CampaignMembersTab({
       });
       setSelectedUserId('');
       await loadMembers();
-      toast.success('Member added to campaign.');
+      toast.success(t('toasts.added'));
     } catch (err: any) {
-      toast.error(err?.message || 'Could not add member.');
+      toast.error(err?.message || t('toasts.addError'));
     } finally {
       setAdding(false);
     }
@@ -165,9 +167,9 @@ export function CampaignMembersTab({
     try {
       await api.delete(`/campaigns/${campaignId}/members/${userId}`);
       await loadMembers();
-      toast.success('Member removed from campaign.');
+      toast.success(t('toasts.removed'));
     } catch (err: any) {
-      toast.error(err?.message || 'Could not remove member.');
+      toast.error(err?.message || t('toasts.removeError'));
     } finally {
       setRemovingId(null);
     }
@@ -181,7 +183,7 @@ export function CampaignMembersTab({
   function getMemberName(member: CampaignMember): string {
     const { firstName, lastName } = member.user;
     const name = `${firstName || ''} ${lastName || ''}`.trim();
-    return name || 'Unknown';
+    return name || t('unknown');
   }
 
   function getMemberEmail(member: CampaignMember): string {
@@ -201,11 +203,8 @@ export function CampaignMembersTab({
       {canManage && !isCompleted && (
         <Card>
           <CardHeader>
-            <CardTitle>Add Member</CardTitle>
-            <CardDescription>
-              Assign organization members to this campaign. Only assigned
-              members can participate as agents.
-            </CardDescription>
+            <CardTitle>{t('add.title')}</CardTitle>
+            <CardDescription>{t('add.description')}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className='flex items-end gap-3'>
@@ -215,12 +214,12 @@ export function CampaignMembersTab({
                   onValueChange={setSelectedUserId}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder='Select a member...' />
+                    <SelectValue placeholder={t('add.placeholder')} />
                   </SelectTrigger>
                   <SelectContent>
                     {availableMembers.length === 0 ? (
                       <SelectItem value='__none' disabled>
-                        No available members
+                        {t('add.noneAvailable')}
                       </SelectItem>
                     ) : (
                       availableMembers.map((m) => (
@@ -243,7 +242,7 @@ export function CampaignMembersTab({
                 ) : (
                   <UserPlus className='mr-2 h-4 w-4' />
                 )}
-                Add
+                {t('add.submit')}
               </Button>
             </div>
           </CardContent>
@@ -252,17 +251,12 @@ export function CampaignMembersTab({
 
       <Card>
         <CardHeader>
-          <CardTitle>Campaign Members ({members.length})</CardTitle>
-          <CardDescription>
-            Users assigned to this campaign who can participate as agents.
-          </CardDescription>
+          <CardTitle>{t('list.title', { count: members.length })}</CardTitle>
+          <CardDescription>{t('list.description')}</CardDescription>
         </CardHeader>
         <CardContent>
           {members.length === 0 ? (
-            <p className='text-muted-foreground text-sm'>
-              No members assigned yet. Add members to allow them to participate
-              in this campaign.
-            </p>
+            <p className='text-muted-foreground text-sm'>{t('list.empty')}</p>
           ) : (
             <div className='space-y-2'>
               {members.map((member) => (
@@ -276,8 +270,13 @@ export function CampaignMembersTab({
                         <span className='font-medium'>
                           {getMemberName(member)}
                         </span>
-                        <Badge variant='outline' className='text-xs capitalize'>
-                          {member.role}
+                        <Badge
+                          variant='outline'
+                          className='text-xs capitalize'
+                        >
+                          {t.has(`roles.${member.role}`)
+                            ? t(`roles.${member.role}`)
+                            : member.role}
                         </Badge>
                       </div>
                       {getMemberEmail(member) && (
@@ -304,19 +303,23 @@ export function CampaignMembersTab({
                       </AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader>
-                          <AlertDialogTitle>Remove Member?</AlertDialogTitle>
+                          <AlertDialogTitle>
+                            {t('removeDialog.title')}
+                          </AlertDialogTitle>
                           <AlertDialogDescription>
-                            Remove {getMemberName(member)} from this campaign?
-                            They will no longer be able to participate as an
-                            agent.
+                            {t('removeDialog.description', {
+                              name: getMemberName(member)
+                            })}
                           </AlertDialogDescription>
                         </AlertDialogHeader>
                         <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogCancel>
+                            {t('removeDialog.cancel')}
+                          </AlertDialogCancel>
                           <AlertDialogAction
                             onClick={() => handleRemove(member.userId)}
                           >
-                            Remove
+                            {t('removeDialog.confirm')}
                           </AlertDialogAction>
                         </AlertDialogFooter>
                       </AlertDialogContent>

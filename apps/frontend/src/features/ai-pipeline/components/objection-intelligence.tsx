@@ -52,13 +52,14 @@ import {
   ObjectionInsight,
   ObjectionInsightsView,
   RunPreview,
-  allRows,
-  insightLabel
+  allRows
 } from '../types';
+import { useTranslations } from 'next-intl';
 const PIPELINE = 'objection_intelligence';
 
 export function ObjectionIntelligence() {
   const api = useApi();
+  const t = useTranslations('ai.objections');
   const [summary, setSummary] = useState<ActivationSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -143,7 +144,7 @@ export function ObjectionIntelligence() {
       );
       setRunPreview(preview);
     } catch {
-      setRunMessage('Could not load run preview.');
+      setRunMessage(t('run.previewFailed'));
     }
   };
 
@@ -157,16 +158,14 @@ export function ObjectionIntelligence() {
         { ...runContext.descriptor, contextType: runContext.contextType }
       );
       if (res.status === 'already_running') {
-        setRunMessage('A run is already in progress for this context.');
+        setRunMessage(t('run.alreadyRunning'));
       } else {
-        setRunMessage(
-          `Analysis complete — ${res.eligibleCount ?? 0} calls analyzed cumulatively.`
-        );
+        setRunMessage(t('run.complete', { count: res.eligibleCount ?? 0 }));
         await loadSummary();
         await loadResults();
       }
     } catch (e) {
-      setRunMessage((e as Error)?.message ?? 'Run failed.');
+      setRunMessage((e as Error)?.message ?? t('run.failed'));
     } finally {
       setRunBusy(false);
     }
@@ -230,7 +229,7 @@ export function ObjectionIntelligence() {
     return <Skeleton className='h-96 w-full rounded-xl' />;
   }
   if (!summary) {
-    return <p className='text-muted-foreground'>Could not load pipeline.</p>;
+    return <p className='text-muted-foreground'>{t('loadFailed')}</p>;
   }
 
   const confidence = view?.confidence ?? null;
@@ -252,7 +251,7 @@ export function ObjectionIntelligence() {
               onValueChange={(v) => setSelectedId(v)}
             >
               <SelectTrigger className='h-9'>
-                <SelectValue placeholder='Select a context' />
+                <SelectValue placeholder={t('selectContext')} />
               </SelectTrigger>
               <SelectContent>
                 {rows.map((r) => (
@@ -269,7 +268,7 @@ export function ObjectionIntelligence() {
                 checked={selectedRow.enabled}
                 onCheckedChange={(v) => toggle(selectedRow, v)}
               />
-              {selectedRow.enabled ? 'Enabled' : 'Disabled'}
+              {selectedRow.enabled ? t('enabled') : t('disabled')}
             </label>
           )}
         </div>
@@ -280,16 +279,14 @@ export function ObjectionIntelligence() {
             disabled={!selectedRow?.enabled}
             onClick={() => selectedRow && openRun(selectedRow)}
           >
-            <Play className='mr-1 h-3.5 w-3.5' /> Run analysis
+            <Play className='mr-1 h-3.5 w-3.5' /> {t('run.analysis')}
           </Button>
         </div>
       </div>
 
       <p className='text-muted-foreground flex items-start gap-1.5 text-xs'>
         <Info className='mt-0.5 h-3.5 w-3.5 shrink-0' />
-        Each eligible call&apos;s complete transcript is analyzed once. Later
-        runs process only new calls and recalculate cumulative insights; results
-        from different contexts never mix.
+        {t('explanation')}
       </p>
 
       {/* Contexts manager (de-emphasized) */}
@@ -299,7 +296,7 @@ export function ObjectionIntelligence() {
             onClick={() => setContextsOpen((o) => !o)}
             className='hover:bg-muted/40 flex w-full items-center justify-between rounded-xl px-4 py-2.5 text-sm font-medium'
           >
-            <span>Manage all contexts ({rows.length})</span>
+            <span>{t('manageContexts', { count: rows.length })}</span>
             <ChevronDown
               className={cn(
                 'h-4 w-4 transition-transform',
@@ -322,13 +319,17 @@ export function ObjectionIntelligence() {
                     <span className='font-medium'>{r.label}</span>
                   </div>
                   <div className='text-muted-foreground flex items-center gap-3 text-xs'>
-                    <span>{r.newEligibleSinceLastRun} new</span>
+                    <span>
+                      {t('newCount', { count: r.newEligibleSinceLastRun })}
+                    </span>
                     <span className='hidden sm:inline'>
                       {r.lastRunAt
                         ? new Date(r.lastRunAt).toLocaleDateString()
-                        : 'Never run'}
+                        : t('neverRun')}
                     </span>
-                    <span>{r.pendingActionCount} pending</span>
+                    <span>
+                      {t('pendingCount', { count: r.pendingActionCount })}
+                    </span>
                     <Button
                       variant='ghost'
                       size='sm'
@@ -352,7 +353,7 @@ export function ObjectionIntelligence() {
           <CardContent className='space-y-3 p-4'>
             <div className='flex items-center justify-between'>
               <span className='text-sm font-medium'>
-                Run analysis — {runContext.label}
+                {t('run.title', { context: runContext.label })}
               </span>
               <Button
                 variant='ghost'
@@ -367,16 +368,16 @@ export function ObjectionIntelligence() {
               <>
                 <div className='flex flex-wrap gap-5 text-sm'>
                   <Stat
-                    label='Eligible calls'
+                    label={t('run.eligibleCalls')}
                     value={runPreview.eligibleCount}
                   />
                   <Stat
-                    label='New since last run'
+                    label={t('run.newSinceLastRun')}
                     value={runPreview.newEligibleSinceLastRun}
                   />
                   <div>
                     <div className='text-muted-foreground text-xs'>
-                      Estimated confidence
+                      {t('run.estimatedConfidence')}
                     </div>
                     <Badge variant='secondary' className='mt-0.5'>
                       {runPreview.estimatedConfidence}
@@ -386,13 +387,12 @@ export function ObjectionIntelligence() {
                 {runPreview.lowData && (
                   <div className='flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-sm text-amber-800'>
                     <AlertTriangle className='mt-0.5 h-4 w-4 shrink-0' />
-                    This recommendation is based on limited data. Treat it as
-                    directional until more calls are analyzed.
+                    {t('run.lowData')}
                   </div>
                 )}
                 {runPreview.isRunning && (
                   <div className='text-sm text-amber-700'>
-                    A run is already in progress for this context.
+                    {t('run.alreadyRunning')}
                   </div>
                 )}
               </>
@@ -410,7 +410,7 @@ export function ObjectionIntelligence() {
               ) : (
                 <Play className='mr-1 h-4 w-4' />
               )}
-              Run now
+              {t('run.now')}
             </Button>
           </CardContent>
         </Card>
@@ -421,23 +421,28 @@ export function ObjectionIntelligence() {
         <div className='grid grid-cols-2 gap-3 lg:grid-cols-4'>
           <KpiTile
             icon={<ShieldAlert className='h-4 w-4' />}
-            label='Objections detected'
+            label={t('kpis.detected')}
             value={`${activeInsights.length}`}
           />
           <KpiTile
             icon={<Target className='h-4 w-4' />}
-            label='Eligible analyzed'
+            label={t('kpis.eligible')}
             value={`${view?.eligibleCount ?? 0}`}
           />
           <KpiTile
             icon={<ThumbsDown className='h-4 w-4' />}
-            label='Top blocker'
-            value={topBlocker ? insightLabel(topBlocker) : '—'}
+            label={t('kpis.topBlocker')}
+            value={
+              topBlocker
+                ? (topBlocker.label ??
+                  t(`types.${topBlocker.objectionType}` as 'types.other'))
+                : '—'
+            }
             small
           />
           <KpiTile
             icon={<Sparkles className='h-4 w-4' />}
-            label='New calls pending'
+            label={t('kpis.pending')}
             value={`${selectedRow?.newEligibleSinceLastRun ?? 0}`}
             accent
           />
@@ -454,7 +459,7 @@ export function ObjectionIntelligence() {
           {/* Leaderboard */}
           <div className='space-y-2'>
             <div className='text-muted-foreground px-1 text-xs font-medium tracking-wide uppercase'>
-              Objections — ranked by prevalence
+              {t('ranked')}
             </div>
             {activeInsights.map((insight, idx) => (
               <ObjectionRow
@@ -486,7 +491,7 @@ export function ObjectionIntelligence() {
             ) : (
               <Card>
                 <CardContent className='text-muted-foreground p-8 text-center text-sm'>
-                  Select an objection to see the breakdown.
+                  {t('selectObjection')}
                 </CardContent>
               </Card>
             )}
@@ -512,6 +517,7 @@ function ObjectionRow({
   selected: boolean;
   onSelect: () => void;
 }) {
+  const t = useTranslations('ai.objections');
   return (
     <button
       onClick={onSelect}
@@ -535,7 +541,8 @@ function ObjectionRow({
             {rank}
           </span>
           <span className='truncate text-sm font-medium'>
-            {insightLabel(insight)}
+            {insight.label ??
+              t(`types.${insight.objectionType}` as 'types.other')}
           </span>
         </div>
         <div className='flex shrink-0 items-center gap-1'>
@@ -558,7 +565,7 @@ function ObjectionRow({
           className='h-1.5 flex-1'
         />
         <span className='text-muted-foreground w-16 shrink-0 text-right text-xs'>
-          {insight.count} calls
+          {t('callsCount', { count: insight.count })}
         </span>
       </div>
       {delta !== 0 && (
@@ -573,7 +580,7 @@ function ObjectionRow({
           ) : (
             <ArrowDownRight className='h-3 w-3' />
           )}
-          {Math.abs(delta)} since last run
+          {t('sinceLastRun', { count: Math.abs(delta) })}
         </div>
       )}
     </button>
@@ -599,6 +606,7 @@ function ObjectionDetail({
   onReview: () => Promise<void>;
   onDismiss: () => Promise<void>;
 }) {
+  const t = useTranslations('ai.objections');
   const [draft, setDraft] = useState(
     insight.savedResponse ?? insight.recommendedResponse ?? ''
   );
@@ -628,10 +636,13 @@ function ObjectionDetail({
         <div className='flex flex-wrap items-start justify-between gap-3'>
           <div className='space-y-1'>
             <div className='flex flex-wrap items-center gap-2'>
-              <h3 className='text-lg font-semibold'>{insightLabel(insight)}</h3>
+              <h3 className='text-lg font-semibold'>
+                {insight.label ??
+                  t(`types.${insight.objectionType}` as 'types.other')}
+              </h3>
               {insight.dynamic && (
                 <Badge className='gap-1 bg-violet-100 text-violet-700 hover:bg-violet-100'>
-                  <Sparkles className='h-3 w-3' /> Discovered by AI
+                  <Sparkles className='h-3 w-3' /> {t('detail.discovered')}
                 </Badge>
               )}
               {insight.status === 'saved' && (
@@ -639,22 +650,21 @@ function ObjectionDetail({
                   variant='secondary'
                   className='gap-1 bg-green-100 text-green-700'
                 >
-                  <CheckCircle2 className='h-3 w-3' /> Saved
+                  <CheckCircle2 className='h-3 w-3' /> {t('detail.saved')}
                 </Badge>
               )}
             </div>
             <p className='text-muted-foreground text-sm'>
-              Appeared in{' '}
-              <span className='text-foreground font-semibold'>
-                {insight.count}
-              </span>{' '}
-              calls · {pct(insight.appearanceRate)} of analyzed conversations
+              {t('detail.appeared', {
+                count: insight.count,
+                rate: pct(insight.appearanceRate)
+              })}
             </p>
           </div>
           {series.length >= 2 && (
             <div className='text-right'>
               <div className='text-muted-foreground mb-1 text-[11px]'>
-                Trend across runs
+                {t('detail.trend')}
               </div>
               <Sparkline series={series} />
             </div>
@@ -663,7 +673,10 @@ function ObjectionDetail({
 
         {/* Stat row */}
         <div className='flex flex-wrap gap-2'>
-          <MiniStat label='Prevalence' value={pct(insight.appearanceRate)} />
+          <MiniStat
+            label={t('detail.prevalence')}
+            value={pct(insight.appearanceRate)}
+          />
           {showConverted && insight.convertedRate != null ? (
             <TooltipProvider>
               <Tooltip>
@@ -671,7 +684,8 @@ function ObjectionDetail({
                   <div className='bg-muted/50 flex cursor-default items-center gap-1.5 rounded-lg px-3 py-1.5'>
                     <div>
                       <div className='text-muted-foreground flex items-center gap-1 text-[11px]'>
-                        Still converted <Info className='h-3 w-3' />
+                        {t('detail.stillConverted')}{' '}
+                        <Info className='h-3 w-3' />
                       </div>
                       <div className='text-sm font-semibold'>
                         {pct(insight.convertedRate)}
@@ -680,18 +694,16 @@ function ObjectionDetail({
                   </div>
                 </TooltipTrigger>
                 <TooltipContent className='max-w-xs'>
-                  Correlational: the share of calls where this objection
-                  appeared and the call still converted. It is not a measure of
-                  any single response.
+                  {t('detail.correlationHint')}
                 </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           ) : (
             !insight.dynamic && (
               <MiniStat
-                label='Still converted'
+                label={t('detail.stillConverted')}
                 value='—'
-                hint='Hidden below medium confidence'
+                hint={t('detail.hiddenConfidence')}
               />
             )
           )}
@@ -700,11 +712,7 @@ function ObjectionDetail({
         {!hasAi && (
           <div className='text-muted-foreground bg-muted/40 flex items-start gap-2 rounded-lg p-3 text-sm'>
             <Sparkles className='mt-0.5 h-4 w-4 shrink-0' />
-            <span>
-              Measured from your calls. Run analysis with AI enabled to surface
-              what this objection really means, the winning and losing patterns,
-              and a recommended response.
-            </span>
+            <span>{t('detail.noAi')}</span>
           </div>
         )}
 
@@ -712,7 +720,7 @@ function ObjectionDetail({
         {insight.underlyingObjection && (
           <div className='border-primary/40 bg-primary/5 rounded-lg border-l-2 p-3'>
             <div className='text-muted-foreground text-[11px] font-semibold tracking-wide uppercase'>
-              What they really mean
+              {t('detail.reallyMean')}
             </div>
             <p className='mt-1 text-sm'>{insight.underlyingObjection}</p>
           </div>
@@ -724,14 +732,14 @@ function ObjectionDetail({
             {insight.winningPattern && (
               <PatternPanel
                 tone='win'
-                title='What works'
+                title={t('detail.whatWorks')}
                 value={insight.winningPattern}
               />
             )}
             {insight.losingPattern && (
               <PatternPanel
                 tone='lose'
-                title='What kills it'
+                title={t('detail.whatKills')}
                 value={insight.losingPattern}
               />
             )}
@@ -742,7 +750,7 @@ function ObjectionDetail({
         {insight.examples && insight.examples.length > 0 && (
           <div className='space-y-1.5'>
             <div className='text-muted-foreground text-[11px] font-semibold tracking-wide uppercase'>
-              From your calls
+              {t('detail.fromCalls')}
             </div>
             {insight.examples.map((ex, i) => (
               <div
@@ -760,7 +768,9 @@ function ObjectionDetail({
                         : 'text-muted-foreground'
                   )}
                 >
-                  {ex.outcome ?? 'example'}
+                  {ex.outcome
+                    ? t(`detail.outcomes.${ex.outcome}`)
+                    : t('detail.outcomes.example')}
                 </Badge>
                 <span className='text-muted-foreground italic'>
                   &ldquo;{ex.excerpt}&rdquo;
@@ -775,7 +785,7 @@ function ObjectionDetail({
           <div className='space-y-2'>
             <div className='text-muted-foreground flex items-center gap-1.5 text-[11px] font-semibold tracking-wide uppercase'>
               <Sparkles className='h-3.5 w-3.5' />
-              Recommended response — edit it to your voice
+              {t('detail.recommendedResponse')}
             </div>
             <Textarea
               value={draft}
@@ -792,7 +802,7 @@ function ObjectionDetail({
                 {busy === 'save' && (
                   <Loader2 className='mr-1 h-3 w-3 animate-spin' />
                 )}
-                Save response
+                {t('detail.saveResponse')}
               </Button>
               <Button
                 size='sm'
@@ -803,7 +813,7 @@ function ObjectionDetail({
                 {busy === 'script' && (
                   <Loader2 className='mr-1 h-3 w-3 animate-spin' />
                 )}
-                Add to script
+                {t('detail.addToScript')}
               </Button>
               <Button
                 size='sm'
@@ -814,7 +824,7 @@ function ObjectionDetail({
                 {busy === 'review' && (
                   <Loader2 className='mr-1 h-3 w-3 animate-spin' />
                 )}
-                Create review action
+                {t('detail.createReview')}
               </Button>
               <Button
                 size='sm'
@@ -823,7 +833,7 @@ function ObjectionDetail({
                 disabled={busy !== null}
                 onClick={() => run('dismiss', onDismiss)}
               >
-                Dismiss
+                {t('detail.dismiss')}
               </Button>
             </div>
           </div>
@@ -840,6 +850,7 @@ function ConfidenceBadge({
 }: {
   confidence: 'low' | 'medium' | 'high';
 }) {
+  const t = useTranslations('ai.objections');
   const styles: Record<string, string> = {
     low: 'border-amber-200 bg-amber-50 text-amber-700',
     medium: 'border-blue-200 bg-blue-50 text-blue-700',
@@ -852,7 +863,7 @@ function ConfidenceBadge({
         styles[confidence]
       )}
     >
-      {confidence} confidence
+      {t('confidence', { level: t(`confidenceLevels.${confidence}`) })}
     </span>
   );
 }
@@ -984,17 +995,16 @@ function Sparkline({ series }: { series: number[] }) {
 }
 
 function EmptyResults({ enabled }: { enabled: boolean }) {
+  const t = useTranslations('ai.objections');
   return (
     <Card>
       <CardContent className='flex flex-col items-center gap-2 py-16 text-center'>
         <div className='bg-primary/10 text-primary flex h-14 w-14 items-center justify-center rounded-2xl'>
           <ShieldAlert className='h-7 w-7' />
         </div>
-        <p className='text-base font-medium'>No objections analyzed yet</p>
+        <p className='text-base font-medium'>{t('empty.title')}</p>
         <p className='text-muted-foreground max-w-sm text-sm'>
-          {enabled
-            ? 'Run analysis once this context has enough eligible calls. Ringee will rank what blocks your prospects and even discover objections you have not predefined.'
-            : 'Enable this context above, then run analysis to discover what blocks your prospects and how to respond.'}
+          {enabled ? t('empty.enabled') : t('empty.disabled')}
         </p>
       </CardContent>
     </Card>

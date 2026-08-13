@@ -55,6 +55,8 @@
   "theme": "Tema",
   "selectTheme": "Seleccionar tema:",
   "selectThemePlaceholder": "Seleccionar tema",
+  "toggleTheme": "Cambiar tema",
+  "toggleSidebar": "Mostrar/ocultar barra lateral",
   "platform": "Plataforma",
   "projects": "Proyectos",
   "accessRestricted": {
@@ -96,6 +98,13 @@
     "share": "Compartir proyecto",
     "delete": "Eliminar proyecto"
   },
-  "toggleTheme": "Cambiar tema",
-  "toggleSidebar": "Mostrar/ocultar barra lateral"
+  "weekdaysShort": {
+    "sun": "Dom",
+    "mon": "Lun",
+    "tue": "Mar",
+    "wed": "Mié",
+    "thu": "Jue",
+    "fri": "Vie",
+    "sat": "Sáb"
+  }
 }

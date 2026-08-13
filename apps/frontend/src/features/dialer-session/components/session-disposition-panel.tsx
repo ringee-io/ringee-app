@@ -9,10 +9,10 @@ import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import { Calendar, CalendarClock, ClipboardList, Loader2 } from 'lucide-react';
 import type { CallOutcome, SessionItemDto } from '../api';
 import type { CallSessionPhase } from '../use-call-session';
+import { useTranslations } from 'next-intl';
 
 interface OutcomeMeta {
   value: CallOutcome;
-  label: string;
   tone: 'positive' | 'neutral' | 'negative';
   triggersCallback?: boolean;
   triggersMeeting?: boolean;
@@ -21,29 +21,26 @@ interface OutcomeMeta {
 const OUTCOMES: OutcomeMeta[] = [
   {
     value: 'meeting_booked',
-    label: 'Meeting booked',
     tone: 'positive',
     triggersMeeting: true
   },
-  { value: 'sale', label: 'Sale', tone: 'positive' },
-  { value: 'interested', label: 'Interested', tone: 'positive' },
+  { value: 'sale', tone: 'positive' },
+  { value: 'interested', tone: 'positive' },
   {
     value: 'follow_up',
-    label: 'Follow up',
     tone: 'neutral',
     triggersCallback: true
   },
   {
     value: 'callback_scheduled',
-    label: 'Callback scheduled',
     tone: 'neutral',
     triggersCallback: true
   },
-  { value: 'not_interested', label: 'Not interested', tone: 'negative' },
-  { value: 'no_answer', label: 'No answer', tone: 'neutral' },
-  { value: 'voicemail', label: 'Voicemail', tone: 'neutral' },
-  { value: 'wrong_number', label: 'Wrong number', tone: 'negative' },
-  { value: 'gatekeeper', label: 'Gatekeeper', tone: 'neutral' }
+  { value: 'not_interested', tone: 'negative' },
+  { value: 'no_answer', tone: 'neutral' },
+  { value: 'voicemail', tone: 'neutral' },
+  { value: 'wrong_number', tone: 'negative' },
+  { value: 'gatekeeper', tone: 'neutral' }
 ];
 
 interface Props {
@@ -67,6 +64,7 @@ interface Props {
 }
 
 export function SessionDispositionPanel(props: Props) {
+  const t = useTranslations('dialer.publicSession.disposition');
   const { phase, activeItem, busy, onSave } = props;
   const [selected, setSelected] = useState<OutcomeMeta | null>(null);
   const [note, setNote] = useState('');
@@ -93,15 +91,15 @@ export function SessionDispositionPanel(props: Props) {
     return (
       <div className='flex h-full flex-col items-center justify-center p-6 text-center'>
         <ClipboardList className='text-muted-foreground mb-3 h-10 w-10' />
-        <h3 className='font-semibold'>Disposition</h3>
+        <h3 className='font-semibold'>{t('title')}</h3>
         <p className='text-muted-foreground mt-1 text-sm'>
           {phase === 'preview'
-            ? 'Select a call outcome after each call.'
+            ? t('selectAfterCall')
             : phase === 'completed'
-              ? 'Session is complete — nothing more to record.'
+              ? t('complete')
               : phase === 'in_call' || phase === 'dialing'
-                ? 'Disposition will be available after the call ends.'
-                : 'Waiting…'}
+                ? t('availableAfterCall')
+                : t('waiting')}
         </p>
       </div>
     );
@@ -119,7 +117,7 @@ export function SessionDispositionPanel(props: Props) {
         scheduledAt: new Date(meetingAt).toISOString(),
         title:
           meetingTitle.trim() ||
-          `Meeting with ${activeItem?.displayName ?? 'contact'}`,
+          t('meetingWith', { name: activeItem?.displayName ?? t('contact') }),
         duration: meetingDuration,
         attendeeEmail: meetingEmail.trim() || undefined
       };
@@ -133,10 +131,8 @@ export function SessionDispositionPanel(props: Props) {
 
   return (
     <div className='flex h-full flex-col p-4'>
-      <h3 className='mb-1 text-sm font-semibold'>Select disposition</h3>
-      <p className='text-muted-foreground mb-3 text-xs'>
-        Outcome is required before continuing to the next contact.
-      </p>
+      <h3 className='mb-1 text-sm font-semibold'>{t('select')}</h3>
+      <p className='text-muted-foreground mb-3 text-xs'>{t('required')}</p>
 
       <div className='grid grid-cols-2 gap-2'>
         {OUTCOMES.map((o) => {
@@ -161,7 +157,7 @@ export function SessionDispositionPanel(props: Props) {
               className={'justify-start ' + toneCls}
               onClick={() => setSelected(o)}
             >
-              {o.label}
+              {t(`outcomes.${o.value}`)}
             </Button>
           );
         })}
@@ -172,11 +168,11 @@ export function SessionDispositionPanel(props: Props) {
       <div className='space-y-3'>
         <div className='space-y-1'>
           <Label htmlFor='dispo-note' className='text-xs'>
-            Notes (optional)
+            {t('notes')}
           </Label>
           <Textarea
             id='dispo-note'
-            placeholder='Add notes from the call...'
+            placeholder={t('notesPlaceholder')}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={3}
@@ -189,11 +185,11 @@ export function SessionDispositionPanel(props: Props) {
             <div className='space-y-2'>
               <div className='flex items-center gap-2 text-sm font-medium'>
                 <CalendarClock className='h-4 w-4' />
-                Schedule callback
+                {t('scheduleCallback')}
               </div>
               <div className='space-y-1'>
                 <Label htmlFor='callback-at' className='text-xs'>
-                  Date &amp; time
+                  {t('dateTime')}
                 </Label>
                 <Input
                   id='callback-at'
@@ -212,12 +208,12 @@ export function SessionDispositionPanel(props: Props) {
             <div className='space-y-2'>
               <div className='flex items-center gap-2 text-sm font-medium'>
                 <Calendar className='h-4 w-4' />
-                Book meeting
+                {t('bookMeeting')}
               </div>
               <div className='grid grid-cols-1 gap-2 sm:grid-cols-2'>
                 <div className='space-y-1'>
                   <Label htmlFor='meeting-at' className='text-xs'>
-                    Date &amp; time
+                    {t('dateTime')}
                   </Label>
                   <Input
                     id='meeting-at'
@@ -228,7 +224,7 @@ export function SessionDispositionPanel(props: Props) {
                 </div>
                 <div className='space-y-1'>
                   <Label htmlFor='meeting-duration' className='text-xs'>
-                    Duration (min)
+                    {t('duration')}
                   </Label>
                   <Input
                     id='meeting-duration'
@@ -243,19 +239,21 @@ export function SessionDispositionPanel(props: Props) {
                 </div>
                 <div className='space-y-1 sm:col-span-2'>
                   <Label htmlFor='meeting-title' className='text-xs'>
-                    Title
+                    {t('meetingTitle')}
                   </Label>
                   <Input
                     id='meeting-title'
                     type='text'
-                    placeholder={`Meeting with ${activeItem?.displayName ?? 'contact'}`}
+                    placeholder={t('meetingWith', {
+                      name: activeItem?.displayName ?? t('contact')
+                    })}
                     value={meetingTitle}
                     onChange={(e) => setMeetingTitle(e.target.value)}
                   />
                 </div>
                 <div className='space-y-1 sm:col-span-2'>
                   <Label htmlFor='meeting-email' className='text-xs'>
-                    Attendee email (optional)
+                    {t('attendeeEmail')}
                   </Label>
                   <Input
                     id='meeting-email'
@@ -274,14 +272,14 @@ export function SessionDispositionPanel(props: Props) {
       <div className='mt-auto flex flex-col gap-2 pt-4'>
         <Button onClick={() => submit('continue')} disabled={!canSubmit}>
           {busy && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-          Save outcome &amp; continue
+          {t('saveContinue')}
         </Button>
         <Button
           variant='outline'
           onClick={() => submit('stop')}
           disabled={!canSubmit}
         >
-          Save outcome &amp; stop
+          {t('saveStop')}
         </Button>
       </div>
     </div>

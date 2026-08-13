@@ -4,6 +4,7 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Loader2, Mail, Phone } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { useEnrichmentMutations } from '../hooks/use-enrichment-connections';
 
 type RevealKind = 'email' | 'phone';
@@ -29,6 +30,7 @@ export function ContactRevealButtons({
   onRevealed
 }: Props) {
   const { revealContact } = useEnrichmentMutations();
+  const t = useTranslations('integrations.enrichment.reveal');
   const [busy, setBusy] = useState<RevealKind | null>(null);
 
   const run = async (kind: RevealKind) => {
@@ -41,14 +43,16 @@ export function ContactRevealButtons({
       const revealed = kind === 'email' ? res.emailRevealed : res.phoneRevealed;
       if (revealed) {
         toast.success(
-          kind === 'email' ? 'Email revealed' : 'Phone number revealed'
+          kind === 'email'
+            ? t('toasts.emailRevealed')
+            : t('toasts.phoneRevealed')
         );
         onRevealed?.();
       } else {
-        toast.message('Provider returned no data for this contact');
+        toast.message(t('toasts.noData'));
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Reveal failed');
+      toast.error(err instanceof Error ? err.message : t('toasts.failed'));
     } finally {
       setBusy(null);
     }
@@ -58,13 +62,12 @@ export function ContactRevealButtons({
 
   const providerName =
     (provider && PROVIDER_LABEL[provider.toLowerCase()]) ||
-    (provider ?? 'provider');
+    (provider ?? t('genericProvider'));
 
   return (
     <div className='space-y-2'>
       <p className='text-muted-foreground text-xs'>
-        Imported from {providerName}. Reveal missing contact info using your{' '}
-        {providerName} credits.
+        {t('importedFrom', { provider: providerName })}
       </p>
       <div className='flex flex-wrap gap-2'>
         {!hasEmail && (
@@ -79,7 +82,7 @@ export function ContactRevealButtons({
             ) : (
               <Mail className='mr-1.5 h-3.5 w-3.5' />
             )}
-            Reveal email
+            {t('revealEmail')}
           </Button>
         )}
         {!hasPhone && (
@@ -93,7 +96,7 @@ export function ContactRevealButtons({
             ) : (
               <Phone className='mr-1.5 h-3.5 w-3.5' />
             )}
-            Reveal phone
+            {t('revealPhone')}
           </Button>
         )}
       </div>

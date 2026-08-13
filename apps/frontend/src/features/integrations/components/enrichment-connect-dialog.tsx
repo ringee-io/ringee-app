@@ -26,6 +26,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { useEnrichmentMutations } from '../hooks/use-enrichment-connections';
 import {
   ENRICHMENT_PROVIDER_META,
@@ -45,6 +46,7 @@ export function EnrichmentConnectDialog({
 }: Props) {
   const meta = ENRICHMENT_PROVIDER_META[provider];
   const { validate, connect } = useEnrichmentMutations();
+  const t = useTranslations('integrations.enrichment.connectDialog');
 
   const [open, setOpen] = useState(false);
   const [apiKey, setApiKey] = useState('');
@@ -64,10 +66,12 @@ export function EnrichmentConnectDialog({
       const r = await validate(provider, apiKey.trim());
       setTested({ accountName: r.accountName });
       toast.success(
-        `API key valid${r.accountName ? ` — ${r.accountName}` : ''}`
+        r.accountName
+          ? t('toasts.validWithAccount', { account: r.accountName })
+          : t('toasts.valid')
       );
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to validate');
+      setError(err instanceof Error ? err.message : t('toasts.validateError'));
     } finally {
       setValidating(false);
     }
@@ -79,13 +83,13 @@ export function EnrichmentConnectDialog({
     setError(null);
     try {
       await connect(provider, apiKey.trim());
-      toast.success(`${meta.name} connected`);
+      toast.success(t('toasts.connected', { provider: meta.name }));
       setApiKey('');
       setTested(null);
       setOpen(false);
       onConnected();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to connect');
+      setError(err instanceof Error ? err.message : t('toasts.connectError'));
     } finally {
       setSubmitting(false);
     }
@@ -96,10 +100,10 @@ export function EnrichmentConnectDialog({
       <DialogTrigger asChild>
         <Button size='sm' variant={alreadyConnected ? 'outline' : 'default'}>
           {alreadyConnected ? (
-            'Reconnect'
+            t('reconnect')
           ) : (
             <>
-              <Plus className='mr-1 h-4 w-4' /> Connect
+              <Plus className='mr-1 h-4 w-4' /> {t('connect')}
             </>
           )}
         </Button>
@@ -108,18 +112,17 @@ export function EnrichmentConnectDialog({
         <DialogHeader>
           <DialogTitle className='flex items-center gap-2'>
             <KeyRound className='h-5 w-5' />
-            Connect {meta.name}
+            {t('title', { provider: meta.name })}
           </DialogTitle>
           <DialogDescription>
-            Paste your {meta.name} API key. We&apos;ll encrypt it before
-            storing.{' '}
+            {t('description', { provider: meta.name })}{' '}
             <a
               className='underline'
               href={meta.docsUrl}
               target='_blank'
               rel='noreferrer'
             >
-              Find your key
+              {t('findKey')}
             </a>
             .
           </DialogDescription>
@@ -127,7 +130,7 @@ export function EnrichmentConnectDialog({
 
         <div className='space-y-3'>
           <div className='space-y-1'>
-            <Label htmlFor='apiKey'>API key</Label>
+            <Label htmlFor='apiKey'>{t('apiKey')}</Label>
             <Input
               id='apiKey'
               type='password'
@@ -143,17 +146,16 @@ export function EnrichmentConnectDialog({
           {error && (
             <Alert variant='destructive'>
               <AlertCircle className='h-4 w-4' />
-              <AlertTitle>Could not validate</AlertTitle>
+              <AlertTitle>{t('validateError')}</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
             </Alert>
           )}
           {tested && (
             <Alert>
               <CheckCircle2 className='h-4 w-4 text-green-600' />
-              <AlertTitle>Looks good</AlertTitle>
+              <AlertTitle>{t('looksGood')}</AlertTitle>
               <AlertDescription>
-                {tested.accountName ??
-                  'Account validated. Click Save to store the key.'}
+                {tested.accountName ?? t('accountValidated')}
               </AlertDescription>
             </Alert>
           )}
@@ -168,7 +170,7 @@ export function EnrichmentConnectDialog({
             {validating ? (
               <Loader2 className='mr-1 h-4 w-4 animate-spin' />
             ) : null}
-            Test connection
+            {t('testConnection')}
           </Button>
           <Button
             onClick={handleSubmit}
@@ -177,7 +179,7 @@ export function EnrichmentConnectDialog({
             {submitting ? (
               <Loader2 className='mr-1 h-4 w-4 animate-spin' />
             ) : null}
-            Save & connect
+            {t('saveAndConnect')}
           </Button>
         </DialogFooter>
       </DialogContent>

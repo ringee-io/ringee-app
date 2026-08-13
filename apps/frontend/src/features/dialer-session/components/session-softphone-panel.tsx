@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import type { SessionItemDto } from '../api';
 import type { CallSessionPhase } from '../use-call-session';
+import { useTranslations } from 'next-intl';
 
 interface CallState {
   state: 'idle' | 'dialing' | 'ringing' | 'connected' | 'held' | 'ended';
@@ -63,6 +64,7 @@ function formatDuration(sec: number): string {
 }
 
 export function SessionSoftphonePanel(props: Props) {
+  const t = useTranslations('dialer.publicSession.softphone');
   const {
     phase,
     activeItem,
@@ -109,9 +111,9 @@ export function SessionSoftphonePanel(props: Props) {
       <div className='flex flex-col items-center justify-center gap-4 p-8 text-center'>
         <CheckCircle2 className='h-16 w-16 text-emerald-500' />
         <div>
-          <h2 className='text-xl font-semibold'>All calls completed</h2>
+          <h2 className='text-xl font-semibold'>{t('completed')}</h2>
           <p className='text-muted-foreground mt-1 text-sm'>
-            Every contact in this session has been processed.
+            {t('completedDescription')}
           </p>
         </div>
       </div>
@@ -122,9 +124,7 @@ export function SessionSoftphonePanel(props: Props) {
     return (
       <div className='flex flex-col items-center justify-center gap-3 p-8 text-center'>
         <Phone className='text-muted-foreground/40 h-16 w-16' />
-        <p className='text-muted-foreground text-sm'>
-          Pick a contact from the queue to start.
-        </p>
+        <p className='text-muted-foreground text-sm'>{t('pickContact')}</p>
       </div>
     );
   }
@@ -138,10 +138,10 @@ export function SessionSoftphonePanel(props: Props) {
       <div className='flex flex-col items-center justify-center gap-6 p-8'>
         <div className='text-center'>
           <div className='text-muted-foreground text-xs tracking-wide uppercase'>
-            Preview dialer
+            {t('preview')}
           </div>
           <p className='mt-2 text-2xl font-semibold'>
-            {activeItem.displayName || 'Unknown contact'}
+            {activeItem.displayName || t('unknown')}
           </p>
           {activeItem.company && (
             <p className='text-muted-foreground text-sm'>
@@ -154,12 +154,13 @@ export function SessionSoftphonePanel(props: Props) {
           {rotationEnabled ? (
             <p className='mt-1 flex items-center justify-center gap-1 text-xs text-emerald-600'>
               <Shuffle className='h-3 w-3' />
-              Automatic · number rotation
+              {t('automaticRotation')}
             </p>
           ) : (
             callerIdNumber && (
               <p className='text-muted-foreground mt-1 text-xs'>
-                Calling from <span className='font-mono'>{callerIdNumber}</span>
+                {t('callingFrom')}{' '}
+                <span className='font-mono'>{callerIdNumber}</span>
               </p>
             )
           )}
@@ -168,23 +169,21 @@ export function SessionSoftphonePanel(props: Props) {
         <div className='flex gap-3'>
           <Button size='lg' onClick={onDial} disabled={dialDisabled}>
             <Phone className='mr-2 h-5 w-5' />
-            Dial
+            {t('dial')}
           </Button>
           <Button variant='outline' size='lg' onClick={onSkip} disabled={busy}>
             <SkipForward className='mr-2 h-5 w-5' />
-            Skip
+            {t('skip')}
           </Button>
         </div>
 
         {!lineReady && (
           <p className='text-xs text-amber-600'>
-            Connecting phone line… ({telnyxStatus})
+            {t('connecting', { status: telnyxStatus })}
           </p>
         )}
         {!creditsOk && (
-          <p className='text-xs text-red-600'>
-            Not enough credits to place this call.
-          </p>
+          <p className='text-xs text-red-600'>{t('insufficientCredits')}</p>
         )}
       </div>
     );
@@ -197,7 +196,7 @@ export function SessionSoftphonePanel(props: Props) {
         <div className='text-center'>
           <Loader2 className='mx-auto h-10 w-10 animate-spin text-orange-500' />
           <p className='mt-3 text-lg font-semibold'>
-            {call.state === 'ringing' ? 'Ringing…' : 'Dialing…'}
+            {call.state === 'ringing' ? t('ringing') : t('dialing')}
           </p>
           <p className='text-muted-foreground text-sm'>
             {activeItem.displayName} · {activeItem.phoneNumberMasked}
@@ -212,7 +211,7 @@ export function SessionSoftphonePanel(props: Props) {
           className='h-14 w-14 rounded-full'
           onClick={onHangup}
           disabled={busy}
-          title='End call'
+          title={t('endCall')}
         >
           <PhoneOff className='h-6 w-6' />
         </Button>
@@ -227,7 +226,7 @@ export function SessionSoftphonePanel(props: Props) {
       <div className='flex flex-col items-center justify-center gap-6 p-8'>
         <div className='text-center'>
           <div className='text-xs tracking-wide text-red-500 uppercase'>
-            {call.state === 'held' ? 'On hold' : 'In call'}
+            {call.state === 'held' ? t('onHold') : t('inCall')}
           </div>
           <p className='mt-2 text-xl font-semibold'>{activeItem.displayName}</p>
           <p className='text-muted-foreground text-sm'>
@@ -239,11 +238,11 @@ export function SessionSoftphonePanel(props: Props) {
           {call.isRecording && (
             <div className='mt-1 flex items-center justify-center gap-1 text-xs text-red-500'>
               <Circle className='h-2 w-2 fill-red-500' />
-              Recording
+              {t('recording')}
             </div>
           )}
           {call.isOnHold && (
-            <div className='mt-1 text-xs text-yellow-600'>On hold</div>
+            <div className='mt-1 text-xs text-yellow-600'>{t('onHold')}</div>
           )}
         </div>
 
@@ -254,7 +253,7 @@ export function SessionSoftphonePanel(props: Props) {
             className='h-12 w-12 rounded-full'
             onClick={onToggleMute}
             disabled={!inCall}
-            title={call.isMuted ? 'Unmute' : 'Mute'}
+            title={call.isMuted ? t('unmute') : t('mute')}
           >
             {call.isMuted ? (
               <MicOff className='h-5 w-5' />
@@ -269,7 +268,7 @@ export function SessionSoftphonePanel(props: Props) {
             className='h-12 w-12 rounded-full'
             onClick={onToggleHold}
             disabled={!inCall}
-            title={call.isOnHold ? 'Resume' : 'Hold'}
+            title={call.isOnHold ? t('resume') : t('hold')}
           >
             {call.isOnHold ? (
               <Play className='h-5 w-5' />
@@ -286,10 +285,10 @@ export function SessionSoftphonePanel(props: Props) {
             disabled={!inCall || call.isRecordingLoading || recordAllCalls}
             title={
               recordAllCalls
-                ? 'Auto-recording is on for all calls'
+                ? t('autoRecording')
                 : call.isRecording
-                  ? 'Stop recording'
-                  : 'Start recording'
+                  ? t('stopRecording')
+                  : t('startRecording')
             }
           >
             {call.isRecordingLoading ? (
@@ -307,7 +306,7 @@ export function SessionSoftphonePanel(props: Props) {
             className='h-12 w-12 rounded-full'
             onClick={() => setShowDTMF((v) => !v)}
             disabled={!inCall}
-            title='Send DTMF'
+            title={t('sendDtmf')}
           >
             <Grid3X3 className='h-5 w-5' />
           </Button>
@@ -319,7 +318,7 @@ export function SessionSoftphonePanel(props: Props) {
           className='h-14 w-14 rounded-full'
           onClick={onHangup}
           disabled={busy}
-          title='End call'
+          title={t('endCall')}
         >
           <PhoneOff className='h-6 w-6' />
         </Button>
@@ -345,12 +344,10 @@ export function SessionSoftphonePanel(props: Props) {
   return (
     <div className='flex flex-col items-center justify-center gap-4 p-8 text-center'>
       <div className='text-xs tracking-wide text-purple-600 uppercase'>
-        Wrap up
+        {t('wrapUp')}
       </div>
-      <p className='text-lg font-semibold'>Call ended</p>
-      <p className='text-muted-foreground text-sm'>
-        Record the outcome on the right to continue to the next contact.
-      </p>
+      <p className='text-lg font-semibold'>{t('ended')}</p>
+      <p className='text-muted-foreground text-sm'>{t('recordOutcome')}</p>
     </div>
   );
 }

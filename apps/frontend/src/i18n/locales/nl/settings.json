@@ -148,6 +148,21 @@
         "pending": "in afwachting",
         "rejected": "afgewezen",
         "expired": "verlopen"
+      },
+      "transfer": {
+        "action": "Verplaatsen",
+        "title": "Nummer naar een andere werkruimte verplaatsen",
+        "description": "Kies waar {phone} thuishoort. Je moet beheerder zijn van beide organisatiewerkruimtes.",
+        "placeholder": "Selecteer de doelwerkruimte",
+        "personal": "Persoonlijke werkruimte",
+        "resetNotice": "Werkruimtespecifieke toewijzingen voor campagnes, rotatie en bureautelefoons worden gewist. Het bestaande Stripe-abonnement blijft in rekening gebracht bij de werkruimte die het nummer oorspronkelijk heeft gekocht.",
+        "noTargets": "Je beheert geen andere werkruimtes.",
+        "cancel": "Annuleren",
+        "confirm": "Nummer verplaatsen",
+        "moving": "Bezig met verplaatsen…",
+        "success": "Nummer succesvol verplaatst.",
+        "error": "Kan het nummer niet verplaatsen.",
+        "loadError": "Kan je werkruimtes niet laden."
       }
     },
     "verify": {
@@ -156,6 +171,8 @@
       "metaTitle": "Nummerverificatie",
       "metaDescription": "Dien de documenten in die het land van uw nummer vereist om het te activeren.",
       "back": "Terug naar mijn nummers",
+      "title": "{phone} verifiëren",
+      "subtitle": "Het land van dit nummer vereist documentverificatie. Lever de onderstaande gegevens aan en wij dienen ze ter beoordeling in bij de provider.",
       "requirementsHeading": "Wat de provider nodig heeft",
       "progressLabel": "Voortgang van de verificatie",
       "progressCount": "{done} van {total} items gereed",
@@ -171,8 +188,6 @@
       "noneTitle": "Niets meer te verifiëren",
       "underReviewTitle": "In beoordeling",
       "rejectedTitle": "Actie vereist",
-      "title": "{phone} verifiëren",
-      "subtitle": "Het land van dit nummer vereist documentverificatie. Lever de onderstaande gegevens aan en wij dienen ze ter beoordeling in bij de provider.",
       "underReview": "Uw documenten zijn ingediend en worden door de provider beoordeeld. Dit duurt meestal enkele werkdagen.",
       "rejectedBanner": "De provider heeft sommige items niet goedgekeurd. Corrigeer de hieronder rood gemarkeerde items en dien ze opnieuw in.",
       "rejectedReason": "Reden",

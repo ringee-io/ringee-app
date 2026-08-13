@@ -5,8 +5,10 @@ import { MemberSelector } from './member-selector';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { useSearchParams, useRouter } from 'next/navigation';
 import { useOrganization } from '@clerk/nextjs';
+import { useTranslations } from 'next-intl';
 
 export function DashboardHeader() {
+  const t = useTranslations('dashboard.overview.header');
   const { isOrgAdmin, hasOrg, isLoaded } = useOrgRole();
   const { organization } = useOrganization();
   const searchParams = useSearchParams();
@@ -34,14 +36,14 @@ export function DashboardHeader() {
   if (!isLoaded || !hasOrg || !isOrgAdmin) {
     return (
       <div className='flex items-center justify-between'>
-        <h2 className='text-2xl font-bold tracking-tight'>Hi, Welcome 👋</h2>
+        <h2 className='text-2xl font-bold tracking-tight'>{t('welcome')}</h2>
       </div>
     );
   }
 
   const title = memberName
-    ? `${memberName} Analytics 📊`
-    : 'Organization Analytics 📊';
+    ? t('memberAnalytics', { name: memberName })
+    : t('organizationAnalytics');
 
   return (
     <div className='flex items-center justify-between'>

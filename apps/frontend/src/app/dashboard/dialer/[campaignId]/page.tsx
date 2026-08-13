@@ -1,9 +1,10 @@
 import { AgentWorkspace } from '@/features/dialer/components/agent-workspace';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata = {
-  title: 'Dialer — Agent Workspace | Ringee',
-  description: 'Make outbound calls with the progressive dialer.'
-};
+export async function generateMetadata() {
+  const t = await getTranslations('dialer.workspace');
+  return { title: t('metaTitle'), description: t('metaDescription') };
+}
 
 interface Props {
   params: Promise<{ campaignId: string }>;

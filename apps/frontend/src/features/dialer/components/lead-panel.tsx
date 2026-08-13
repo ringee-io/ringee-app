@@ -16,8 +16,10 @@ import {
   BadgeDollarSign,
   Building
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 export function LeadPanel() {
+  const t = useTranslations('dialer.lead');
   const currentLead = useDialerLeadStore((s) => s.currentLead);
   const callStatus = useDialerAttemptStore((s) => s.callStatus);
 
@@ -25,9 +27,9 @@ export function LeadPanel() {
     return (
       <div className='flex h-full flex-col items-center justify-center p-6 text-center'>
         <Users className='text-muted-foreground mb-3 h-10 w-10' />
-        <h3 className='font-semibold'>Waiting for lead</h3>
+        <h3 className='font-semibold'>{t('waiting')}</h3>
         <p className='text-muted-foreground mt-1 text-sm'>
-          The dialer will assign the next lead automatically.
+          {t('waitingDescription')}
         </p>
       </div>
     );
@@ -45,7 +47,7 @@ export function LeadPanel() {
           </div>
           <div>
             <h2 className='text-lg font-semibold'>
-              {contact.name || 'Unknown'}
+              {contact.name || t('unknown')}
             </h2>
             {callStatus && (
               <Badge variant='secondary' className='text-xs capitalize'>
@@ -96,7 +98,7 @@ export function LeadPanel() {
           )}
           <div className='text-muted-foreground flex items-center gap-2'>
             <Clock className='h-4 w-4' />
-            <span>Attempt #{attempts + 1}</span>
+            <span>{t('attempt', { number: attempts + 1 })}</span>
           </div>
         </div>
       </div>
@@ -105,16 +107,16 @@ export function LeadPanel() {
 
       {/* Call History */}
       <div className='flex-1 overflow-y-auto'>
-        <h3 className='mb-2 text-sm font-semibold'>Previous Attempts</h3>
+        <h3 className='mb-2 text-sm font-semibold'>{t('previousAttempts')}</h3>
         {history.length === 0 ? (
-          <p className='text-muted-foreground text-sm'>No previous attempts</p>
+          <p className='text-muted-foreground text-sm'>{t('noAttempts')}</p>
         ) : (
           <div className='space-y-2'>
             {history.map((h, i) => (
               <div key={i} className='rounded-md border px-3 py-2 text-sm'>
                 <div className='flex items-center justify-between'>
                   <span className='font-medium'>
-                    Attempt #{h.attemptNumber}
+                    {t('attempt', { number: h.attemptNumber })}
                   </span>
                   {h.durationSec != null && (
                     <span className='text-muted-foreground text-xs'>
@@ -125,7 +127,7 @@ export function LeadPanel() {
                 <div className='text-muted-foreground mt-1 text-xs'>
                   {h.dispositionCode
                     ? h.dispositionCode.replace(/_/g, ' ')
-                    : 'No disposition'}
+                    : t('noDisposition')}
                   {h.endedAt && (
                     <> &middot; {new Date(h.endedAt).toLocaleDateString()}</>
                   )}

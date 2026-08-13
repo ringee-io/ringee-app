@@ -51,6 +51,7 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import type { Campaign, CampaignStatus } from '../types/campaign.types';
 import { CampaignLeadsTab } from './campaign-leads-tab';
 import { CampaignDispositionsTab } from './campaign-dispositions-tab';
@@ -72,6 +73,7 @@ interface Props {
 export function CampaignDetail({ campaignId }: Props) {
   const api = useApi();
   const router = useRouter();
+  const t = useTranslations('campaigns');
   // Members get read-only access; only admins can manage the campaign.
   const { isOrgAdmin } = useOrgRole();
   const [campaign, setCampaign] = useState<Campaign | null>(null);
@@ -112,11 +114,9 @@ export function CampaignDetail({ campaignId }: Props) {
             : newStatus === 'completed'
               ? 'completed'
               : 'updated';
-      toast.success(`Campaign ${verb}.`);
+      toast.success(t(`detail.toasts.${verb}`));
     } catch (err: any) {
-      const message =
-        err?.message ||
-        'Could not update the campaign status. Please try again.';
+      const message = err?.message || t('detail.toasts.statusError');
       setActionError(message);
       toast.error(message);
     } finally {
@@ -140,20 +140,20 @@ export function CampaignDetail({ campaignId }: Props) {
         <CardContent className='flex flex-col items-center py-16 text-center'>
           <h3 className='text-lg font-semibold'>
             {accessDenied
-              ? "You don't have access to this campaign"
-              : 'Campaign not found'}
+              ? t('detail.noAccess.title')
+              : t('detail.notFound.title')}
           </h3>
           <p className='text-muted-foreground mt-1 max-w-sm text-sm'>
             {accessDenied
-              ? 'Only organization admins and assigned members can open this campaign. Ask an admin to add you to it.'
-              : 'This campaign may have been deleted or the link is incorrect.'}
+              ? t('detail.noAccess.description')
+              : t('detail.notFound.description')}
           </p>
           <Button
             variant='outline'
             className='mt-4'
             onClick={() => router.push('/dashboard/campaigns')}
           >
-            Back to Campaigns
+            {t('detail.back')}
           </Button>
         </CardContent>
       </Card>
@@ -181,7 +181,7 @@ export function CampaignDetail({ campaignId }: Props) {
                 variant='outline'
                 className={STATUS_COLORS[campaign.status]}
               >
-                {campaign.status}
+                {t(`status.${campaign.status}`)}
               </Badge>
             </div>
             {campaign.description && (
@@ -203,7 +203,7 @@ export function CampaignDetail({ campaignId }: Props) {
               ) : (
                 <Play className='mr-2 h-4 w-4' />
               )}
-              Activate
+              {t('detail.activate')}
             </Button>
           )}
           {isOrgAdmin && campaign.status === 'active' && (
@@ -218,34 +218,35 @@ export function CampaignDetail({ campaignId }: Props) {
                 ) : (
                   <Pause className='mr-2 h-4 w-4' />
                 )}
-                Pause
+                {t('detail.pause')}
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant='outline' disabled={transitioning}>
                     <CheckCircle2 className='mr-2 h-4 w-4' />
-                    Complete
+                    {t('detail.complete')}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Complete Campaign?</AlertDialogTitle>
+                    <AlertDialogTitle>
+                      {t('detail.completeDialog.title')}
+                    </AlertDialogTitle>
                     <AlertDialogDescription>
-                      Once this campaign is marked as completed, it cannot be
-                      reactivated, edited, or have new leads added. All active
-                      agent sessions will end and no further calls will be made.
-                      This action is irreversible.
+                      {t('detail.completeDialog.description')}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>
+                      {t('detail.completeDialog.cancel')}
+                    </AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => transitionStatus('completed')}
                     >
                       {transitioning && (
                         <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                       )}
-                      Yes, Complete Campaign
+                      {t('detail.completeDialog.confirm')}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -263,34 +264,35 @@ export function CampaignDetail({ campaignId }: Props) {
                 ) : (
                   <Play className='mr-2 h-4 w-4' />
                 )}
-                Resume
+                {t('detail.resume')}
               </Button>
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button variant='outline' disabled={transitioning}>
                     <CheckCircle2 className='mr-2 h-4 w-4' />
-                    Complete
+                    {t('detail.complete')}
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
-                    <AlertDialogTitle>Complete Campaign?</AlertDialogTitle>
+                    <AlertDialogTitle>
+                      {t('detail.completeDialog.title')}
+                    </AlertDialogTitle>
                     <AlertDialogDescription>
-                      Once this campaign is marked as completed, it cannot be
-                      reactivated, edited, or have new leads added. All active
-                      agent sessions will end and no further calls will be made.
-                      This action is irreversible.
+                      {t('detail.completeDialog.description')}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>
+                      {t('detail.completeDialog.cancel')}
+                    </AlertDialogCancel>
                     <AlertDialogAction
                       onClick={() => transitionStatus('completed')}
                     >
                       {transitioning && (
                         <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                       )}
-                      Yes, Complete Campaign
+                      {t('detail.completeDialog.confirm')}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -303,7 +305,7 @@ export function CampaignDetail({ campaignId }: Props) {
               onClick={() => router.push(`/dashboard/dialer/${campaign.id}`)}
             >
               <Phone className='mr-2 h-4 w-4' />
-              Open Dialer
+              {t('detail.openDialer')}
             </Button>
           )}
         </div>
@@ -315,7 +317,7 @@ export function CampaignDetail({ campaignId }: Props) {
       {actionError && (
         <Alert variant='destructive'>
           <AlertTriangle className='h-4 w-4' />
-          <AlertTitle>Action could not be completed</AlertTitle>
+          <AlertTitle>{t('detail.actionError')}</AlertTitle>
           <AlertDescription>{actionError}</AlertDescription>
         </Alert>
       )}
@@ -324,12 +326,8 @@ export function CampaignDetail({ campaignId }: Props) {
       {campaign.status === 'draft' && leadCount === 0 && !actionError && (
         <Alert>
           <AlertTriangle className='h-4 w-4' />
-          <AlertTitle>This campaign isn&apos;t ready yet</AlertTitle>
-          <AlertDescription>
-            Import at least one lead from the Leads tab before activating.
-            You&apos;ll also need a phone number (or caller ID) the campaign can
-            dial from.
-          </AlertDescription>
+          <AlertTitle>{t('detail.notReady.title')}</AlertTitle>
+          <AlertDescription>{t('detail.notReady.description')}</AlertDescription>
         </Alert>
       )}
 
@@ -337,7 +335,7 @@ export function CampaignDetail({ campaignId }: Props) {
       <div className='grid gap-4 sm:grid-cols-4'>
         <Card>
           <CardHeader className='pb-2'>
-            <CardDescription>Total Leads</CardDescription>
+            <CardDescription>{t('detail.stats.totalLeads')}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className='text-2xl font-bold'>{leadCount}</div>
@@ -345,17 +343,17 @@ export function CampaignDetail({ campaignId }: Props) {
         </Card>
         <Card>
           <CardHeader className='pb-2'>
-            <CardDescription>Dialer Mode</CardDescription>
+            <CardDescription>{t('detail.stats.dialerMode')}</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className='text-2xl font-bold capitalize'>
-              {campaign.dialerMode}
+            <div className='text-2xl font-bold'>
+              {t(`modes.${campaign.dialerMode}`)}
             </div>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className='pb-2'>
-            <CardDescription>Max Attempts</CardDescription>
+            <CardDescription>{t('detail.stats.maxAttempts')}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className='text-2xl font-bold'>{campaign.maxAttempts}</div>
@@ -363,7 +361,7 @@ export function CampaignDetail({ campaignId }: Props) {
         </Card>
         <Card>
           <CardHeader className='pb-2'>
-            <CardDescription>Timezone</CardDescription>
+            <CardDescription>{t('detail.stats.timezone')}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className='text-lg font-bold'>
@@ -378,24 +376,24 @@ export function CampaignDetail({ campaignId }: Props) {
         <TabsList>
           <TabsTrigger value='leads'>
             <Users className='mr-2 h-4 w-4' />
-            Leads
+            {t('detail.tabs.leads')}
           </TabsTrigger>
           <TabsTrigger value='members'>
             <UserPlus className='mr-2 h-4 w-4' />
-            Members
+            {t('detail.tabs.members')}
           </TabsTrigger>
           <TabsTrigger value='dispositions'>
             <ListChecks className='mr-2 h-4 w-4' />
-            Dispositions
+            {t('detail.tabs.dispositions')}
           </TabsTrigger>
           <TabsTrigger value='analytics'>
             <BarChart3 className='mr-2 h-4 w-4' />
-            Analytics
+            {t('detail.tabs.analytics')}
           </TabsTrigger>
           {isOrgAdmin && (
             <TabsTrigger value='settings'>
               <Settings className='mr-2 h-4 w-4' />
-              Settings
+              {t('detail.tabs.settings')}
             </TabsTrigger>
           )}
         </TabsList>

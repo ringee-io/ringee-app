@@ -26,5 +26,538 @@
   "empty": {
     "title": "Geen integraties verbonden",
     "description": "Bekijk de catalogus en verbind je eerste tool."
+  },
+  "custom": {
+    "detail": {
+      "createdOn": "Aangepaste integratie aangemaakt op {date}.",
+      "status": {
+        "active": "actief",
+        "disabled": "uitgeschakeld"
+      },
+      "logStatus": {
+        "processed": "verwerkt",
+        "sent": "verzonden",
+        "failed": "mislukt",
+        "skipped": "overgeslagen",
+        "pending": "in afwachting"
+      },
+      "tabs": {
+        "settings": "Instellingen",
+        "inbound": "Inkomend",
+        "outbound": "Uitgaand",
+        "logs": "Logboeken",
+        "docs": "Documentatie"
+      },
+      "settings": {
+        "name": "Naam",
+        "enabled": "Ingeschakeld",
+        "enabledHint": "Wanneer uitgeschakeld accepteert de API-sleutel geen verzoeken meer en worden er geen uitgaande events afgeleverd.",
+        "apiKeyPrefix": "API-sleutelprefix",
+        "apiKeyHint": "Om veiligheidsredenen wordt na het aanmaken alleen een prefix getoond. Genereer opnieuw voor een nieuwe sleutel.",
+        "regenerateApiKey": "API-sleutel opnieuw genereren",
+        "regenerateSecret": "Ondertekeningsgeheim opnieuw genereren",
+        "newApiKey": "Nieuwe API-sleutel",
+        "newSigningSecret": "Nieuw ondertekeningsgeheim",
+        "rotateError": "Opnieuw genereren mislukt",
+        "delete": "Integratie verwijderen",
+        "deleted": "Integratie verwijderd",
+        "deleteError": "Verwijderen mislukt",
+        "save": "Opslaan",
+        "saving": "Bezig met opslaan…",
+        "saved": "Instellingen opgeslagen",
+        "saveError": "Opslaan mislukt"
+      },
+      "sdk": {
+        "title": "Dialer-SDK · Publiceerbare sleutels",
+        "description": "Browserveilige <code>pk_live_…</code> voor <code>@ringee/dialer-sdk</code>. Beperk deze tot precies de origins waar de SDK wordt geladen.",
+        "allowedOrigins": "Toegestane origins",
+        "add": "Toevoegen",
+        "quickAdd": "Snel toevoegen:",
+        "thisDashboard": "Dit dashboard",
+        "playground": "https://playground.ringee.io (playground)",
+        "removeOrigin": "{origin} verwijderen",
+        "invalidOrigin": "Voer een volledige origin in, bijv. https://crm.example.com",
+        "generate": "Publiceerbare sleutel genereren",
+        "generated": "Publiceerbare sleutel gegenereerd",
+        "generateError": "Kan de sleutel niet genereren",
+        "publishableKey": "Publiceerbare sleutel",
+        "scopedTo": "Beperkt tot: {origins}. Het opnieuw genereren van de API-sleutel trekt alle publiceerbare sleutels van deze integratie in."
+      },
+      "secret": {
+        "dismiss": "Sluiten",
+        "hint": "Kopieer dit nu — het wordt niet opnieuw getoond.",
+        "copied": "Gekopieerd"
+      },
+      "inbound": {
+        "intro": "Stuur events vanuit je systeem naar deze URL. Authenticeer elk verzoek met je API-sleutel.",
+        "webhookUrl": "Webhook-URL",
+        "requiredHeader": "Vereiste header",
+        "exampleRequest": "Voorbeeldverzoek",
+        "supportedEvents": "Ondersteunde inkomende events:",
+        "seeDocs": "Bekijk het tabblad Documentatie voor de volledige schema’s."
+      },
+      "outbound": {
+        "destinationUrl": "Bestemmings-URL",
+        "test": "Testen",
+        "testOk": "Webhook OK — {status} in {latency} ms",
+        "testFailed": "Webhook mislukt — {reason}",
+        "testError": "Test mislukt",
+        "signatureHint": "Ringee ondertekent elk verzoek met je ondertekeningsgeheim. De header <code>Ringee-Signature</code> bevat <code>t=&lt;unixSec&gt;,v1=&lt;hex&gt;</code>.",
+        "subscribedEvents": "Geabonneerde events",
+        "saved": "Uitgaande webhook bijgewerkt"
+      },
+      "logs": {
+        "attempts": "pogingen={count}",
+        "refresh": "Vernieuwen",
+        "empty": "Nog geen events."
+      }
+    },
+    "card": {
+      "active": "Actief",
+      "disabled": "Uitgeschakeld",
+      "configure": "Configureren",
+      "delete": "Verwijderen",
+      "deleteDialog": {
+        "title": "Deze integratie verwijderen?",
+        "description": "De API-sleutel, het ondertekeningsgeheim, de contact-/bedrijfskoppelingen en de logboeken worden verwijderd. Dit kan niet ongedaan worden gemaakt.",
+        "cancel": "Annuleren",
+        "confirm": "Verwijderen"
+      },
+      "outboundUrl": "Uitgaande URL",
+      "notConfigured": "Niet geconfigureerd",
+      "events": "Events",
+      "lastUsed": "Laatst gebruikt",
+      "never": "Nooit"
+    },
+    "create": {
+      "title": "Nieuwe aangepaste integratie",
+      "description": "Verbind Ringee met elk extern systeem via een API-sleutel, webhooks en click-to-call.",
+      "name": "Naam",
+      "namePlaceholder": "bijv. Mijn interne CRM",
+      "nameRequired": "De naam is verplicht",
+      "cancel": "Annuleren",
+      "creating": "Bezig met aanmaken…",
+      "submit": "Aanmaken",
+      "error": "Aanmaken mislukt",
+      "reveal": {
+        "title": "Sla je inloggegevens nu op",
+        "warning": "De API-sleutel en het webhook-ondertekeningsgeheim worden <strong>maar één keer getoond</strong>. Kopieer ze nu en bewaar ze op een veilige plek. Je kunt ze later opnieuw genereren, maar niet nogmaals bekijken.",
+        "apiKey": "API-sleutel",
+        "signingSecret": "Webhook-ondertekeningsgeheim",
+        "done": "Ik heb ze opgeslagen",
+        "copied": "Gekopieerd naar klembord"
+      }
+    },
+    "tab": {
+      "title": "Je aangepaste integraties",
+      "description": "Verbind Ringee met elk extern systeem via een API-sleutel, webhooks en click-to-call. Jouw systeem stuurt contacten en bedrijven naar Ringee; Ringee stuurt gesprekken, resultaten, notities, terugbelverzoeken, vergaderingen en opnames terug.",
+      "refresh": "Vernieuwen",
+      "new": "Nieuwe aangepaste integratie",
+      "loadError": "Kan aangepaste integraties niet laden",
+      "deleted": "Integratie verwijderd",
+      "deleteError": "Verwijderen mislukt",
+      "empty": {
+        "title": "Nog geen aangepaste integraties",
+        "description": "Maak er een aan om een API-sleutel beschikbaar te stellen, uitgaande webhooks te configureren en events te gaan uitwisselen."
+      }
+    }
+  },
+  "enrichment": {
+    "card": {
+      "disconnect": "Verbinding verbreken",
+      "disconnected": "Verbinding met {provider} verbroken",
+      "disconnectError": "Verbinding verbreken mislukt",
+      "status": {
+        "active": "Actief",
+        "error": "Fout",
+        "disconnected": "Niet verbonden"
+      },
+      "capabilities": {
+        "byEmail": "Op e-mail",
+        "byLinkedIn": "Op LinkedIn",
+        "byNameCompany": "Op naam+bedrijf",
+        "byDomain": "Op domein",
+        "leadSearch": "Leadzoekopdracht"
+      }
+    },
+    "button": {
+      "enrich": "Verrijken",
+      "toasts": {
+        "enriched": "Contact verrijkt",
+        "notFound": "Geen match gevonden voor dit contact",
+        "notFoundDescription": "De provider had geen gegevens — probeer meer informatie aan het contact toe te voegen.",
+        "skipped": "Recent verrijkt (uit cache)",
+        "skippedDescription": "Resultaat uit cache van de afgelopen 30 dagen gebruikt.",
+        "failed": "Verrijking mislukt",
+        "rejected": "Provider heeft deze zoekopdracht geweigerd",
+        "rejectedDescription": "Het contact heeft mogelijk onvoldoende informatie (naam, e-mail, LinkedIn) om door de provider te worden gematcht. Probeer het contact te bewerken en meer gegevens toe te voegen.",
+        "otherStatus": "Verrijking {status}"
+      }
+    },
+    "connectDialog": {
+      "reconnect": "Opnieuw verbinden",
+      "connect": "Verbinden",
+      "title": "{provider} verbinden",
+      "description": "Plak je {provider} API-sleutel. We versleutelen deze voordat we hem opslaan.",
+      "findKey": "Vind je sleutel",
+      "apiKey": "API-sleutel",
+      "validateError": "Kan niet valideren",
+      "looksGood": "Ziet er goed uit",
+      "accountValidated": "Account gevalideerd. Klik op Opslaan om de sleutel op te slaan.",
+      "testConnection": "Verbinding testen",
+      "saveAndConnect": "Opslaan en verbinden",
+      "toasts": {
+        "valid": "API-sleutel geldig",
+        "validWithAccount": "API-sleutel geldig — {account}",
+        "validateError": "Valideren mislukt",
+        "connected": "{provider} verbonden",
+        "connectError": "Verbinden mislukt"
+      }
+    },
+    "catalog": {
+      "leadSearch": "Leadzoekopdracht",
+      "apiDocs": "API-documentatie",
+      "comingSoon": "Binnenkort beschikbaar"
+    },
+    "tab": {
+      "title": "Dataverrijking",
+      "description": "Verbind een provider om je contacten te verrijken met telefoon, e-mail, LinkedIn, bedrijfsgrootte, tech stack en meer — en om nieuwe leads te vinden.",
+      "billing": {
+        "title": "Hoe facturering werkt",
+        "description": "Ringee belast je belcredits nooit voor verrijking, leadzoekopdrachten, import of onthulling. Zoeken en onthullen kunnen credits van je gekoppelde Apollo- of Prospeo-account gebruiken."
+      },
+      "yourConnections": "Je verbindingen",
+      "availableProviders": "Beschikbare providers"
+    },
+    "reveal": {
+      "genericProvider": "provider",
+      "importedFrom": "Geïmporteerd van {provider}. Onthul ontbrekende contactgegevens met je {provider}-credits.",
+      "revealEmail": "E-mail onthullen",
+      "revealPhone": "Telefoon onthullen",
+      "toasts": {
+        "emailRevealed": "E-mail onthuld",
+        "phoneRevealed": "Telefoonnummer onthuld",
+        "noData": "Provider gaf geen gegevens terug voor dit contact",
+        "failed": "Onthullen mislukt"
+      }
+    }
+  },
+  "leadSearch": {
+    "title": "Leads zoeken",
+    "description": "Zoek op bedrijf, functie, locatie en meer — of zoek één profiel op via een LinkedIn-URL. Onthul per rij het e-mailadres of mobiele nummer; elke onthulling wordt als contact opgeslagen.",
+    "noProviders": {
+      "title": "Verbind eerst een provider",
+      "description": "Verbind Prospeo of Apollo op het tabblad Dataverrijking om naar leads te zoeken."
+    },
+    "provider": "Provider",
+    "usingProvider": "{provider} in gebruik",
+    "useCache": "Resultaten uit cache gebruiken (bespaart providercredits)",
+    "search": "Zoeken",
+    "tabs": {
+      "filters": "Filters",
+      "linkedin": "LinkedIn-URL"
+    },
+    "filters": {
+      "companyDomains": "Bedrijfsdomeinen",
+      "jobTitles": "Functies",
+      "seniorities": "Senioriteitsniveaus",
+      "departments": "Afdelingen",
+      "personLocations": "Locaties van de persoon",
+      "industries": "Sectoren",
+      "keywords": "Trefwoorden",
+      "keywordsPlaceholder": "Vrije trefwoorden (bijv. fintech-oprichter)",
+      "separatorHint": "Scheid meerdere waarden met komma’s of regeleindes."
+    },
+    "linkedin": {
+      "label": "LinkedIn-profiel-URL",
+      "hint": "Plak de URL van een openbaar LinkedIn-profiel om de bijbehorende lead te vinden.",
+      "lookup": "Profiel opzoeken"
+    },
+    "results": {
+      "count": "{count} resultaten",
+      "countOf": "{count} van {total} resultaten",
+      "fromCache": "uit cache",
+      "previous": "Vorige",
+      "next": "Volgende",
+      "findEmail": "E-mail zoeken",
+      "emailFound": "E-mail gevonden",
+      "findPhone": "Telefoon zoeken",
+      "phoneFound": "Telefoon gevonden",
+      "emptyTitle": "Geen resultaten",
+      "emptyDescription": "Probeer andere filters, wissel van provider of plak een LinkedIn-URL."
+    },
+    "toasts": {
+      "fromCache": "Uit cache geladen — geen providercredits gebruikt",
+      "revealedEmail": "E-mail onthuld en opgeslagen als contact",
+      "revealedWithPhone": "E-mail en mobiel nummer onthuld en opgeslagen als contact",
+      "noContactInfo": "Geen contactgegevens gevonden voor deze persoon"
+    },
+    "errors": {
+      "noProvider": "Verbind eerst Prospeo of Apollo",
+      "noFilter": "Voer minstens één filter in (domein, functie, locatie…)",
+      "invalidLinkedin": "Voer een geldige LinkedIn-profiel-URL in",
+      "searchFailed": "Zoeken mislukt",
+      "lookupFailed": "Opzoeken mislukt",
+      "revealFailed": "Onthullen mislukt"
+    }
+  },
+  "connectors": {
+    "title": "Connectors",
+    "description": "Verbind externe AI-assistenten en automatiseringstools rechtstreeks met je Ringee-account. Connectors stellen je Ringee-gegevens en -acties (gesprekken, contacten, terugbelverzoeken, vergaderingen) beschikbaar via een gestandaardiseerd protocol, zodat elke compatibele client ze kan gebruiken.",
+    "mcp": {
+      "badge": "AI-connector",
+      "description": "Het Model Context Protocol (MCP) stelt AI-clients zoals Claude Desktop, ChatGPT en andere agents in staat om je Ringee-gegevens te lezen en erop te reageren. Plak de onderstaande URL in je client om te verbinden.",
+      "refresh": "Vernieuwen",
+      "loadError": "Kan MCP-verbindingsinformatie niet laden",
+      "scopeOrganization": "Deze URL geeft toegang tot de actieve organisatie.",
+      "scopeFreelancer": "Deze URL geeft toegang tot je persoonlijke (freelance) werkruimte.",
+      "modeOrganization": "Organisatiemodus",
+      "modeFreelancer": "Freelancemodus",
+      "urlCopied": "MCP-URL gekopieerd",
+      "copyError": "Kan niet naar klembord kopiëren",
+      "copied": "Gekopieerd",
+      "copy": "Kopiëren"
+    },
+    "security": {
+      "title": "Behandel deze URL als een geheim",
+      "description": "Iedereen met deze URL kan via MCP je Ringee-gegevens lezen en ernaar handelen. Deel deze alleen met vertrouwde AI-clients. Als hij lekt, neem dan contact op met support om je account te roteren."
+    },
+    "howTo": {
+      "title": "Zo verbind je",
+      "step1": "Kopieer de bovenstaande URL.",
+      "step2": "Open je MCP-compatibele client (Claude Desktop, ChatGPT, Cursor, enz.) en voeg een nieuwe externe MCP-server toe.",
+      "step3": "Plak de URL als SSE-eindpunt. Er is geen extra API-sleutel nodig — de URL is de referentie.",
+      "step4": "Eenmaal verbonden ziet de client Ringee-tools voor het zoeken van contacten, starten van gesprekken, plannen van terugbelverzoeken en vergaderingen, en het vastleggen van uitkomsten."
+    }
+  },
+  "crm": {
+    "syncHistory": {
+      "title": "Synchronisatiegeschiedenis gespreksregistratie",
+      "description": "Laatste 50 synchronisatiepogingen. Mislukte of dubbelzinnige synchronisaties kunnen opnieuw worden geprobeerd of opgelost.",
+      "sheetTitle": "Synchronisatiegeschiedenis",
+      "sheetDescription": "De laatste 50 synchronisatiepogingen voor gespreksregistratie voor deze verbinding. Mislukte synchronisaties kunnen handmatig opnieuw worden geprobeerd.",
+      "sheetEmptyDescription": "Gespreksynchronisaties verschijnen hier zodra je eerste gesprek in het CRM is geregistreerd.",
+      "loading": "Laden…",
+      "eventCount": "{count} gebeurtenissen",
+      "refresh": "Vernieuwen",
+      "empty": {
+        "title": "Nog geen activiteit",
+        "description": "Gespreksynchronisaties verschijnen hier zodra je eerste gesprek in het CRM is geregistreerd."
+      },
+      "status": {
+        "done": "Gesynchroniseerd",
+        "pending": "In afwachting",
+        "in_progress": "Bezig",
+        "failed": "Mislukt",
+        "skipped": "Overgeslagen",
+        "needs_resolution": "Controle nodig"
+      },
+      "attempt": "poging {count}",
+      "callRow": "gesprek {callId}… · {date}",
+      "activity": "Activiteit: {id}…",
+      "resolve": "Oplossen",
+      "retry": "Opnieuw proberen",
+      "toasts": {
+        "retryQueued": "Synchronisatie in wachtrij voor nieuwe poging",
+        "retryFailed": "Nieuwe poging mislukt"
+      },
+      "resolveDialog": {
+        "title": "Dubbelzinnige match oplossen",
+        "description": "Meerdere CRM-records komen overeen met dit gesprek. Geef de externe ID van het juiste record op om dit gesprek eraan te koppelen.",
+        "callIdLabel": "Gespreks-ID:",
+        "recordType": "Recordtype",
+        "person": "Persoon",
+        "company": "Bedrijf",
+        "externalRecordId": "Externe record-ID",
+        "externalRecordIdPlaceholder": "Plak hier de CRM-record-ID...",
+        "externalRecordIdHint": "Je vindt dit in de URL of het detailvenster van je CRM-record.",
+        "cancel": "Annuleren",
+        "submit": "Oplossen en opnieuw proberen",
+        "toasts": {
+          "resolved": "Match opgelost — synchronisatie wordt automatisch opnieuw geprobeerd",
+          "resolveError": "Kan niet worden opgelost"
+        }
+      }
+    },
+    "fieldMappings": {
+      "title": "Veldtoewijzingen",
+      "description": "Bepaal hoe Ringee-velden worden toegewezen aan {provider}-velden bij het synchroniseren van contacten en bedrijven.",
+      "refresh": "Vernieuwen",
+      "reconnectHint": "Maak opnieuw verbinding om veldtoewijzingen te beheren.",
+      "empty": {
+        "title": "Geen veldtoewijzingen geconfigureerd",
+        "description": "Genereer de standaardtoewijzingen voor {provider} om te beginnen. Je kunt ze later aanpassen."
+      },
+      "seedDefaults": "Standaardtoewijzingen genereren",
+      "reseedDefaults": "Standaardwaarden opnieuw genereren",
+      "fieldCount": "{count, plural, one {# veld} other {# velden}}",
+      "direction": {
+        "bidirectional": "Tweerichtingsverkeer",
+        "push": "Push (Ringee → CRM)",
+        "pull": "Pull (CRM → Ringee)"
+      },
+      "toasts": {
+        "seeded": "Standaard veldtoewijzingen aangemaakt",
+        "seedError": "Kan toewijzingen niet genereren"
+      }
+    },
+    "team": {
+      "title": "{provider}-werkruimte",
+      "description": "Teamleden en lijsten uit je {provider}-werkruimte. Gebruik e-mailadressen van leden voor taaktoewijzing en lijst-ID’s voor gerichte synchronisaties.",
+      "refresh": "Vernieuwen",
+      "members": "Werkruimteleden",
+      "lists": "Lijsten",
+      "noMembers": "Geen werkruimteleden gevonden, of deze provider ondersteunt geen ledenoverzicht.",
+      "noLists": "Geen lijsten gevonden, of deze provider ondersteunt geen lijsten."
+    },
+    "inboundSync": {
+      "title": "Importeren vanuit {provider}",
+      "description": "Haal individuele contacten of bedrijven op basis van hun record-ID uit je CRM naar Ringee. Bestaande records worden bijgewerkt; nieuwe worden aangemaakt.",
+      "inactiveHint": "Deze verbinding is niet actief. Maak opnieuw verbinding om imports in te schakelen.",
+      "contact": {
+        "title": "Contact synchroniseren",
+        "description": "Importeer een persoonsrecord uit je CRM. Naam, e-mail, telefoonnummers en functie worden gesynchroniseerd.",
+        "placeholder": "bijv. person_01abc123..."
+      },
+      "company": {
+        "title": "Bedrijf synchroniseren",
+        "description": "Importeer een bedrijfsrecord. Naam, domein, branche en grootte worden gesynchroniseerd. Als er contacten aan gekoppeld zijn in het CRM, worden hun affiliaties aangemaakt.",
+        "placeholder": "bijv. company_01xyz789..."
+      },
+      "entity": {
+        "contact": "contact",
+        "company": "bedrijf"
+      },
+      "sync": "Synchroniseren",
+      "resultCreated": "{type} aangemaakt",
+      "resultUpdated": "{type} bijgewerkt",
+      "toasts": {
+        "imported": "{type, select, contact {Contact} other {Bedrijf}} geïmporteerd",
+        "updated": "{type, select, contact {Contact} other {Bedrijf}} bijgewerkt",
+        "syncFailed": "Kan {type} niet synchroniseren"
+      }
+    }
+  },
+  "attio": {
+    "token": {
+      "title": "Ringee voor Attio",
+      "badge": "App-token",
+      "description": "Maakt click-to-call, gespreksgeschiedenis en synchronisatie van activiteiten binnen Attio mogelijk",
+      "empty": {
+        "title": "Nog geen token gegenereerd",
+        "description": "Genereer een token om je Ringee-account te koppelen aan de Attio-app. Het token is gekoppeld aan je huidige gebruiker en organisatiecontext."
+      },
+      "generate": "Token genereren",
+      "context": {
+        "organization": "Organisatie",
+        "personal": "Persoonlijk"
+      },
+      "hide": "Verbergen",
+      "reveal": "Tonen",
+      "copiedBang": "Gekopieerd!",
+      "copyToken": "Token kopiëren",
+      "regenerate": "Opnieuw genereren",
+      "regenerateDialog": {
+        "title": "Token opnieuw genereren?",
+        "description": "Hierdoor wordt een nieuw token aangemaakt. Het vorige token werkt dan niet meer — je moet het bijwerken in je Attio-werkruimte-instellingen.",
+        "cancel": "Annuleren"
+      },
+      "howTo": {
+        "title": "Zo verbind je",
+        "step1": "Kopieer het bovenstaande token",
+        "step2Prefix": "Ga in Attio naar",
+        "step2Path": "Settings → Apps → Ringee",
+        "step3Prefix": "Plak het token in het veld",
+        "step3Field": "Integration Token",
+        "step3Suffix": "",
+        "step4": "Sla op — de verbindingsstatus wordt groen"
+      },
+      "toasts": {
+        "generated": "Token gegenereerd — kopieer het en plak het in je Attio-werkruimte-instellingen.",
+        "generateError": "Kan token niet genereren",
+        "copied": "Token gekopieerd naar klembord",
+        "copyError": "Kopiëren mislukt — probeer het token handmatig te selecteren"
+      }
+    },
+    "dialer": {
+      "invalidLink": {
+        "title": "Ongeldige gesprekslink",
+        "description": "Deze link mist vereiste parameters. Start een nieuw gesprek vanuit Attio."
+      },
+      "viaAttio": "via Attio",
+      "callingFrom": "Bellen vanaf",
+      "connectingToVoice": "Verbinden met spraakservice...",
+      "startCall": "Gesprek starten",
+      "connecting": "Verbinden...",
+      "callInitiated": "Gesprek gestart",
+      "callHint": "Gebruik de gespreksbediening in de pop-up om je gesprek te beheren.",
+      "tryAgain": "Opnieuw proberen",
+      "errors": {
+        "missingParams": "Ontbrekende gespreksparameters of verbinding nog niet gereed.",
+        "initiateFailed": "Kan gesprek niet starten",
+        "somethingWrong": "Er is iets misgegaan"
+      }
+    }
+  },
+  "odoo": {
+    "addAnother": "Nog een toevoegen",
+    "connect": "{provider} verbinden",
+    "cancel": "Annuleren",
+    "validating": "Bezig met valideren…",
+    "description": {
+      "legacy": "Gebruikt de verouderde RPC-compatibiliteit van Odoo. Compatibel met versies 14 t/m 18.",
+      "modern": "Gebruikt de moderne JSON-2 API van Odoo. Beschikbaar vanaf versie 19."
+    },
+    "fields": {
+      "url": "Odoo-URL",
+      "database": "Databasenaam",
+      "login": "Login / E-mail",
+      "loginOptional": "Login / E-mail (optioneel)",
+      "loginHint": "Alleen nodig voor eigenaartoewijzing bij leads/activiteiten.",
+      "apiKey": "API-sleutel",
+      "apiKeyHintPrefix": "Genereer er een via",
+      "apiKeyHintPath": "Odoo → Voorkeuren → Accountbeveiliging → Nieuwe API-sleutel"
+    },
+    "workspace": {
+      "title": "Werkruimte",
+      "personal": "Persoonlijke werkruimte",
+      "personalHint": "Alleen je eigen gesprekken worden geregistreerd. Je gegevens blijven op je account.",
+      "orgNoTeam": "Organisatie (geen actief team)",
+      "orgHint": "Alle teamgenoten in deze organisatie delen deze verbinding.",
+      "orgSwitchHint": "Schakel linksboven over naar een organisatie om synchronisatie op organisatieniveau in te schakelen."
+    },
+    "toasts": {
+      "connected": "{provider} verbonden"
+    },
+    "errors": {
+      "unexpectedResponse": "Onverwacht antwoord",
+      "emptyResponse": "Leeg antwoord van de server.",
+      "couldNotConnect": "Kan geen verbinding maken",
+      "unknown": "Onbekende fout",
+      "reasonTitles": {
+        "invalid_credentials": "Ongeldige inloggegevens",
+        "database_not_found": "Database niet gevonden",
+        "invalid_base_url": "URL niet bereikbaar",
+        "unsupported_version": "Niet-ondersteunde Odoo-versie",
+        "api_mode_not_available": "API-modus niet beschikbaar",
+        "crm_module_missing": "CRM-module niet geïnstalleerd",
+        "insufficient_permissions": "Onvoldoende rechten",
+        "partner_access_denied": "Toegang tot partner geweigerd",
+        "activity_access_denied": "Toegang tot activiteit geweigerd",
+        "unknown_odoo_error": "Kan geen verbinding maken"
+      },
+      "reasons": {
+        "invalid_credentials": "De login of API-sleutel is geweigerd. Controleer de API-sleutel en — voor Odoo 14–18 — je login/e-mail.",
+        "database_not_found": "De databasenaam is niet gevonden op deze Odoo-server.",
+        "invalid_base_url": "De Odoo-URL is niet bereikbaar. Controleer de URL en probeer het opnieuw.",
+        "unsupported_version": "Deze Odoo-versie is ouder dan 14 en wordt niet ondersteund.",
+        "api_mode_not_available": "De geselecteerde API-modus is niet beschikbaar op deze server. Probeer de andere Odoo-optie.",
+        "crm_module_missing": "De Odoo CRM-module is niet geïnstalleerd. Lead-synchronisatie werkt niet.",
+        "insufficient_permissions": "Deze API-sleutel heeft geen toestemming om res.partner te wijzigen.",
+        "partner_access_denied": "Deze API-sleutel kan res.partner niet lezen op de geselecteerde database.",
+        "activity_access_denied": "Deze API-sleutel kan geen mail.activity-records aanmaken.",
+        "unknown_odoo_error": "Odoo gaf een fout terug die we niet konden herkennen. Controleer de serverlogs."
+      }
+    }
   }
 }

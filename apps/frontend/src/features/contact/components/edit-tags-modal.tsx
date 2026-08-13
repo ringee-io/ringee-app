@@ -73,6 +73,7 @@ function ColorPickerButton({
   className
 }: ColorPickerButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const t = useTranslations('contacts.manageTags');
 
   return (
     <div className={cn('relative', className)}>
@@ -85,7 +86,7 @@ function ColorPickerButton({
           borderStyle: 'solid',
           borderColor: 'transparent'
         }}
-        title='Choose custom color'
+        title={t('chooseCustomColor')}
       >
         <div className='absolute inset-0 rounded-lg bg-black/0 transition-all group-hover:bg-black/10' />
         <IconPalette className='h-4 w-4 text-white drop-shadow-md transition-transform group-hover:scale-110' />
@@ -162,7 +163,7 @@ export function EditTagsModal({
         DEFAULT_COLORS[Math.floor(Math.random() * DEFAULT_COLORS.length)]
       );
       setIsCreating(false);
-      toast.success(tCommon('success') || 'Tag created');
+      toast.success(t('createdSuccess'));
       onTagsUpdated?.();
     } catch (err: any) {
       toast.error(err.message || tCommon('somethingWentWrong'));
@@ -194,7 +195,7 @@ export function EditTagsModal({
       });
       setTags(tags.map((t) => (t.id === editingId ? updated : t)));
       handleCancelEdit();
-      toast.success(tCommon('success') || 'Tag updated');
+      toast.success(t('updatedSuccess'));
       onTagsUpdated?.();
     } catch (err: any) {
       toast.error(err.message || tCommon('somethingWentWrong'));
@@ -214,7 +215,7 @@ export function EditTagsModal({
     try {
       await api.delete(`/tags/${tagToDelete.id}`);
       setTags(tags.filter((t) => t.id !== tagToDelete.id));
-      toast.success(tCommon('success') || 'Tag deleted');
+      toast.success(t('deletedSuccess'));
       onTagsUpdated?.();
     } catch (err: any) {
       toast.error(err.message || tCommon('somethingWentWrong'));

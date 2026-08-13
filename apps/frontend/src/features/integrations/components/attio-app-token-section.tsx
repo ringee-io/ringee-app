@@ -33,10 +33,12 @@ import {
 } from 'lucide-react';
 import { useCallback, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { useAttioAppToken } from '../hooks/use-attio-app-token';
 import { PROVIDER_META } from '../types/crm';
 
 export function AttioAppTokenSection() {
+  const t = useTranslations('integrations.attio.token');
   const { token, context, generating, error, generate, clear } =
     useAttioAppToken();
   const [copied, setCopied] = useState(false);
@@ -49,26 +51,24 @@ export function AttioAppTokenSection() {
     try {
       await generate();
       setRevealed(true);
-      toast.success(
-        'Token generated — copy it and paste it into your Attio workspace settings.'
-      );
+      toast.success(t('toasts.generated'));
     } catch {
-      toast.error('Failed to generate token');
+      toast.error(t('toasts.generateError'));
     }
-  }, [generate]);
+  }, [generate, t]);
 
   const handleCopy = useCallback(async () => {
     if (!token) return;
     try {
       await navigator.clipboard.writeText(token);
       setCopied(true);
-      toast.success('Token copied to clipboard');
+      toast.success(t('toasts.copied'));
       if (copyTimeout.current) clearTimeout(copyTimeout.current);
       copyTimeout.current = setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Failed to copy — try selecting the token manually');
+      toast.error(t('toasts.copyError'));
     }
-  }, [token]);
+  }, [token, t]);
 
   const maskedToken = token
     ? `${token.slice(0, 12)}${'•'.repeat(32)}${token.slice(-8)}`
@@ -97,17 +97,16 @@ export function AttioAppTokenSection() {
           </div>
           <div className='min-w-0 flex-1'>
             <div className='flex items-center gap-2'>
-              <h3 className='text-sm font-semibold'>Ringee for Attio</h3>
+              <h3 className='text-sm font-semibold'>{t('title')}</h3>
               <Badge
                 variant='outline'
                 className='border-violet-500/30 bg-violet-500/10 text-[10px] text-violet-500'
               >
-                App Token
+                {t('badge')}
               </Badge>
             </div>
             <p className='text-muted-foreground mt-0.5 text-xs'>
-              Enables click-to-call, call history, and activity sync from within
-              Attio
+              {t('description')}
             </p>
           </div>
         </div>
@@ -120,11 +119,9 @@ export function AttioAppTokenSection() {
                 <Key className='h-5 w-5 text-violet-500' />
               </div>
               <div>
-                <p className='text-sm font-medium'>No token generated yet</p>
+                <p className='text-sm font-medium'>{t('empty.title')}</p>
                 <p className='text-muted-foreground mt-1 max-w-sm text-xs'>
-                  Generate a token to link your Ringee account to the Attio app.
-                  The token is tied to your current user and organization
-                  context.
+                  {t('empty.description')}
                 </p>
               </div>
               <Button onClick={handleGenerate} disabled={generating}>
@@ -133,7 +130,7 @@ export function AttioAppTokenSection() {
                 ) : (
                   <Key className='mr-1.5 h-3.5 w-3.5' />
                 )}
-                Generate Token
+                {t('generate')}
               </Button>
               {error && <p className='text-destructive text-xs'>{error}</p>}
             </div>
@@ -146,11 +143,11 @@ export function AttioAppTokenSection() {
                     {context.scope === 'organization' ? (
                       <>
                         <Users className='h-3 w-3' />{' '}
-                        {context.organizationName ?? 'Organization'}
+                        {context.organizationName ?? t('context.organization')}
                       </>
                     ) : (
                       <>
-                        <User className='h-3 w-3' /> Personal
+                        <User className='h-3 w-3' /> {t('context.personal')}
                       </>
                     )}
                   </span>
@@ -186,7 +183,7 @@ export function AttioAppTokenSection() {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent side='top'>
-                        {revealed ? 'Hide' : 'Reveal'}
+                        {revealed ? t('hide') : t('reveal')}
                       </TooltipContent>
                     </Tooltip>
                     <Tooltip>
@@ -205,7 +202,7 @@ export function AttioAppTokenSection() {
                         </Button>
                       </TooltipTrigger>
                       <TooltipContent side='top'>
-                        {copied ? 'Copied!' : 'Copy token'}
+                        {copied ? t('copiedBang') : t('copyToken')}
                       </TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
@@ -231,22 +228,24 @@ export function AttioAppTokenSection() {
                       ) : (
                         <RotateCcw className='mr-1.5 h-3 w-3' />
                       )}
-                      Regenerate
+                      {t('regenerate')}
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Regenerate token?</AlertDialogTitle>
+                      <AlertDialogTitle>
+                        {t('regenerateDialog.title')}
+                      </AlertDialogTitle>
                       <AlertDialogDescription>
-                        This creates a new token. The previous token will no
-                        longer work — you&apos;ll need to update it in your
-                        Attio workspace settings.
+                        {t('regenerateDialog.description')}
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                      <AlertDialogCancel>
+                        {t('regenerateDialog.cancel')}
+                      </AlertDialogCancel>
                       <AlertDialogAction onClick={handleGenerate}>
-                        Regenerate
+                        {t('regenerate')}
                       </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
@@ -256,24 +255,24 @@ export function AttioAppTokenSection() {
               {/* Setup instructions */}
               <div className='bg-muted/20 rounded-lg border border-dashed px-4 py-3'>
                 <p className='text-foreground text-xs font-medium'>
-                  How to connect
+                  {t('howTo.title')}
                 </p>
                 <ol className='text-muted-foreground mt-2 list-inside list-decimal space-y-1 text-xs'>
-                  <li>Copy the token above</li>
+                  <li>{t('howTo.step1')}</li>
                   <li>
-                    In Attio, go to{' '}
+                    {t('howTo.step2Prefix')}{' '}
                     <span className='text-foreground font-medium'>
-                      Settings &rarr; Apps &rarr; Ringee
+                      {t('howTo.step2Path')}
                     </span>
                   </li>
                   <li>
-                    Paste the token into the{' '}
+                    {t('howTo.step3Prefix')}{' '}
                     <span className='text-foreground font-medium'>
-                      Integration Token
+                      {t('howTo.step3Field')}
                     </span>{' '}
-                    field
+                    {t('howTo.step3Suffix')}
                   </li>
-                  <li>Save — the connection status will turn green</li>
+                  <li>{t('howTo.step4')}</li>
                 </ol>
               </div>
             </div>

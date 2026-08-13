@@ -32,6 +32,238 @@
     "doNotCall": "Don't call",
     "callAnyway": "Call anyway"
   },
+  "workspace": {
+    "title": "Agent Workspace",
+    "metaTitle": "Dialer — Agent Workspace | Ringee",
+    "metaDescription": "Make outbound calls with the progressive dialer.",
+    "ready": "Ready to start dialing?",
+    "description": "Start a session to begin making calls for this campaign. The dialer will automatically assign leads based on the campaign configuration.",
+    "notAssigned": "You're not assigned to this campaign. Ask an admin to add you as a member.",
+    "startFailed": "Could not start the session. Please try again.",
+    "starting": "Starting…",
+    "start": "Start Session"
+  },
+  "statusBar": {
+    "statuses": {
+      "ready": "Ready",
+      "reserved": "Assigning Lead...",
+      "dialing": "Dialing",
+      "in_call": "In Call",
+      "wrap_up": "Wrap Up",
+      "paused": "Paused",
+      "offline": "Offline"
+    },
+    "calls": "Calls: {count}",
+    "connected": "Connected: {count}",
+    "rate": "Rate: {rate}%",
+    "talk": "Talk: {time}",
+    "resume": "Resume",
+    "pause": "Pause",
+    "endSession": "End Session"
+  },
+  "disposition": {
+    "title": "Disposition",
+    "select": "Select Disposition",
+    "availableAfterCall": "Disposition will be available after the call ends.",
+    "waiting": "Waiting for call to complete...",
+    "selectAfterCall": "Select a call outcome after each call.",
+    "callbackRequired": "Please choose a date and time for the callback.",
+    "saved": "Disposition saved.",
+    "saveFailed": "Could not save disposition. Please try again.",
+    "notes": "Notes (optional)",
+    "notesPlaceholder": "Call notes...",
+    "scheduleCallback": "Schedule Callback",
+    "dateTime": "Date & Time",
+    "callbackNote": "Callback Note",
+    "callbackPlaceholder": "Reason for callback...",
+    "submit": "Submit Disposition"
+  },
+  "lead": {
+    "waiting": "Waiting for lead",
+    "waitingDescription": "The dialer will assign the next lead automatically.",
+    "unknown": "Unknown",
+    "attempt": "Attempt #{number}",
+    "previousAttempts": "Previous Attempts",
+    "noAttempts": "No previous attempts",
+    "noDisposition": "No disposition"
+  },
+  "softphone": {
+    "dialFailed": "Could not start the call.",
+    "skipFailed": "Could not skip this lead.",
+    "paused": "Session paused",
+    "waiting": "Waiting for next lead...",
+    "dial": "Dial",
+    "skip": "Skip",
+    "dialing": "Dialing...",
+    "ended": "Call ended",
+    "recording": "Recording",
+    "onHold": "On Hold",
+    "unmute": "Unmute",
+    "mute": "Mute",
+    "resume": "Resume",
+    "hold": "Hold",
+    "autoRecording": "Auto-recording is on for all calls",
+    "stopRecording": "Stop recording",
+    "startRecording": "Start recording",
+    "sendDtmf": "Send DTMF",
+    "hideSubtitles": "Hide subtitles",
+    "showSubtitles": "Show subtitles",
+    "hangup": "Hang up"
+  },
+  "publicSession": {
+    "errors": {
+      "phoneConnecting": "Phone line is still connecting. Try again in a moment.",
+      "insufficientCredits": "Not enough credits to place this call.",
+      "expired": {
+        "title": "This call session has expired",
+        "message": "Ask the sender to generate a new session link."
+      },
+      "revoked": {
+        "title": "This call session is no longer available",
+        "message": "The session was revoked or deleted."
+      },
+      "credits": {
+        "title": "Not enough credits to continue",
+        "message": "No calls were placed. Ask the account owner to add credits."
+      },
+      "completed": {
+        "title": "Session completed",
+        "message": "All contacts in this session have been processed."
+      },
+      "invalid": {
+        "title": "Invalid session link",
+        "message": "Check the link or request a new one."
+      },
+      "generic": {
+        "title": "Something went wrong",
+        "message": "Please retry, or contact the sender."
+      }
+    },
+    "retry": "Retry",
+    "unavailable": "Session unavailable",
+    "unavailableDescription": "Please retry, or ask the sender for a new link.",
+    "defaultTitle": "Ringee call session",
+    "footer": "Powered by Ringee — calls placed via this browser via Telnyx WebRTC. Mode: {mode} dialer · Outcomes sync automatically to the owner's Ringee account.",
+    "modes": {
+      "preview": "preview",
+      "progressive": "progressive"
+    },
+    "page": {
+      "title": "Ringee Call Session",
+      "description": "Open call session — dial contacts one by one and record outcomes."
+    },
+    "status": {
+      "phases": {
+        "loading": "Loading…",
+        "error": "Error",
+        "preview": "Ready",
+        "dialing": "Dialing",
+        "in_call": "In Call",
+        "wrap_up": "Wrap Up",
+        "completed": "Completed"
+      },
+      "pending": "{count} pending",
+      "positive": "{rate}% positive",
+      "preview": "Preview",
+      "previewHint": "Show contact, then click Dial",
+      "progressive": "Progressive",
+      "progressiveHint": "Auto-dial the next contact after each outcome",
+      "line": "Line {status}",
+      "lineStatuses": {
+        "idle": "idle",
+        "connecting": "connecting",
+        "registered": "registered",
+        "reconnecting": "reconnecting",
+        "disconnected": "disconnected",
+        "error": "error"
+      },
+      "expired": "Expired",
+      "expiresIn": "Expires in {time}"
+    },
+    "lead": {
+      "empty": "No contacts in this session",
+      "emptyDescription": "The owner can add contacts and re-share the link.",
+      "unknown": "Unknown contact",
+      "position": "Position #{number}",
+      "selectPending": "Select a pending contact from the queue.",
+      "queue": "Queue",
+      "outcomes": {
+        "meeting_booked": "Meeting booked",
+        "sale": "Sale",
+        "interested": "Interested",
+        "follow_up": "Follow up",
+        "callback_scheduled": "Callback",
+        "not_interested": "Not interested",
+        "no_answer": "No answer",
+        "voicemail": "Voicemail",
+        "wrong_number": "Wrong number",
+        "gatekeeper": "Gatekeeper"
+      }
+    },
+    "softphone": {
+      "completed": "All calls completed",
+      "completedDescription": "Every contact in this session has been processed.",
+      "pickContact": "Pick a contact from the queue to start.",
+      "preview": "Preview dialer",
+      "unknown": "Unknown contact",
+      "automaticRotation": "Automatic · number rotation",
+      "callingFrom": "Calling from",
+      "dial": "Dial",
+      "skip": "Skip",
+      "connecting": "Connecting phone line… ({status})",
+      "insufficientCredits": "Not enough credits to place this call.",
+      "ringing": "Ringing…",
+      "dialing": "Dialing…",
+      "endCall": "End call",
+      "onHold": "On hold",
+      "inCall": "In call",
+      "recording": "Recording",
+      "unmute": "Unmute",
+      "mute": "Mute",
+      "resume": "Resume",
+      "hold": "Hold",
+      "autoRecording": "Auto-recording is on for all calls",
+      "stopRecording": "Stop recording",
+      "startRecording": "Start recording",
+      "sendDtmf": "Send DTMF",
+      "wrapUp": "Wrap up",
+      "ended": "Call ended",
+      "recordOutcome": "Record the outcome on the right to continue to the next contact."
+    },
+    "disposition": {
+      "title": "Disposition",
+      "select": "Select disposition",
+      "selectAfterCall": "Select a call outcome after each call.",
+      "complete": "Session is complete — nothing more to record.",
+      "availableAfterCall": "Disposition will be available after the call ends.",
+      "waiting": "Waiting…",
+      "required": "Outcome is required before continuing to the next contact.",
+      "outcomes": {
+        "meeting_booked": "Meeting booked",
+        "sale": "Sale",
+        "interested": "Interested",
+        "follow_up": "Follow up",
+        "callback_scheduled": "Callback scheduled",
+        "not_interested": "Not interested",
+        "no_answer": "No answer",
+        "voicemail": "Voicemail",
+        "wrong_number": "Wrong number",
+        "gatekeeper": "Gatekeeper"
+      },
+      "notes": "Notes (optional)",
+      "notesPlaceholder": "Add notes from the call...",
+      "scheduleCallback": "Schedule callback",
+      "dateTime": "Date & time",
+      "bookMeeting": "Book meeting",
+      "duration": "Duration (min)",
+      "meetingTitle": "Title",
+      "attendeeEmail": "Attendee email (optional)",
+      "meetingWith": "Meeting with {name}",
+      "contact": "contact",
+      "saveContinue": "Save outcome & continue",
+      "saveStop": "Save outcome & stop"
+    }
+  },
   "sidePanel": {
     "workQueue": "Work queue",
     "dueCount": "{count} due",

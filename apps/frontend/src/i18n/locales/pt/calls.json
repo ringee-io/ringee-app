@@ -12,6 +12,16 @@
   "busy": "Ocupado",
   "failed": "Falhou",
   "voicemail": "Correio de voz",
+  "statusValues": {
+    "pending": "Pendente",
+    "ringing": "A chamar",
+    "answered": "Atendida",
+    "recording": "A gravar",
+    "completed": "Concluída",
+    "failed": "Falhou",
+    "processing": "A processar",
+    "ready": "Pronta"
+  },
   "callDuration": "Duração",
   "callCost": "Custo",
   "from": "De",
@@ -47,11 +57,11 @@
       "duration": "Duração",
       "date": "Data",
       "recording": "Gravação",
+      "transcript": "Transcrição",
       "unknown": "Desconhecido",
       "callAgain": "Voltar a chamar",
       "noRecording": "Sem gravação",
-      "downloadRecording": "Transferir gravação",
-      "transcript": "Transcrição"
+      "downloadRecording": "Transferir gravação"
     },
     "rowActions": {
       "menu": "Ações",
@@ -77,14 +87,14 @@
       "date": "Data",
       "status": "Estado",
       "recording": "Gravação",
+      "transcript": "Transcrição",
       "unknown": "Desconhecido",
       "noRecording": "Sem gravação",
       "processingShort": "A processar…",
       "unavailable": "Indisponível",
       "play": "Reproduzir",
       "playRecording": "Reproduzir gravação",
-      "downloadRecording": "Transferir gravação",
-      "transcript": "Transcrição"
+      "downloadRecording": "Transferir gravação"
     },
     "statusBadge": {
       "started": "A processar",
@@ -97,12 +107,6 @@
       "callTitle": "Chamada: {from} → {to}",
       "decrypting": "A desencriptar gravação…",
       "errorLoad": "Não foi possível carregar a gravação. Tente novamente."
-    },
-    "dateFilter": {
-      "filterByDate": "Filtrar por data",
-      "from": "Desde {date}",
-      "to": "Até {date}",
-      "clear": "Limpar filtro de data"
     }
   },
   "callbacks": {
@@ -146,16 +150,6 @@
       "willCost": "A sua chamada custa",
       "perMinute": "por minuto"
     }
-  },
-  "statusValues": {
-    "pending": "Pendente",
-    "ringing": "A chamar",
-    "answered": "Atendida",
-    "recording": "A gravar",
-    "completed": "Concluída",
-    "failed": "Falhou",
-    "processing": "A processar",
-    "ready": "Pronta"
   },
   "concurrentCall": {
     "title": "Apenas uma chamada de cada vez",

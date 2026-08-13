@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useDialerStore } from '../store/dialer.store';
 import { Dialer } from './dialer';
+import { useTranslations } from 'next-intl';
 
 export function DialerShortcutView({
   defaultOpen,
@@ -11,6 +12,7 @@ export function DialerShortcutView({
   defaultOpen?: boolean;
   useMock?: boolean;
 }) {
+  const t = useTranslations('dialer');
   const { quickDial, quickDialState, setQuickDial } = useDialerStore();
 
   useEffect(() => {
@@ -22,7 +24,7 @@ export function DialerShortcutView({
   if (quickDialState === 'idle' && defaultOpen) {
     return (
       <div className='mt-4 hidden pr-4 md:block md:w-[30%]'>
-        <p className='mb-4 text-xl font-bold'>Quick Dial</p>
+        <p className='mb-4 text-xl font-bold'>{t('quickCall')}</p>
 
         <Dialer full useMock={useMock} />
       </div>
@@ -33,7 +35,7 @@ export function DialerShortcutView({
 
   return (
     <div className='mt-4 hidden pr-4 md:block md:w-[30%]'>
-      <p className='mb-4 text-xl font-bold'>Quick Dial</p>
+      <p className='mb-4 text-xl font-bold'>{t('quickCall')}</p>
 
       <Dialer full useMock={useMock} />
     </div>

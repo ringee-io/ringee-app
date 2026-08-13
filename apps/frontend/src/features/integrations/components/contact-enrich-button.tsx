@@ -4,6 +4,7 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Loader2, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { useEnrichmentMutations } from '../hooks/use-enrichment-connections';
 import type { EnrichmentJobRow } from '../types/enrichment';
 
@@ -23,6 +24,7 @@ export function ContactEnrichButton({
   waterfall = true
 }: Props) {
   const { enrichContact } = useEnrichmentMutations();
+  const t = useTranslations('integrations.enrichment.button');
   const [busy, setBusy] = useState(false);
 
   const handleClick = async () => {
@@ -31,25 +33,23 @@ export function ContactEnrichButton({
       const job = await enrichContact(contactId, { waterfall });
       switch (job.status) {
         case 'done':
-          toast.success('Contact enriched');
+          toast.success(t('toasts.enriched'));
           break;
         case 'not_found':
-          toast.message('No match found for this contact', {
-            description:
-              'Provider had no data — try adding more info to the contact.'
+          toast.message(t('toasts.notFound'), {
+            description: t('toasts.notFoundDescription')
           });
           break;
         case 'skipped':
-          toast.message('Recently enriched (cached)', {
-            description: 'Used cached result from last 30 days.'
+          toast.message(t('toasts.skipped'), {
+            description: t('toasts.skippedDescription')
           });
           break;
         case 'failed': {
-          const err = job.lastError ?? 'Enrichment failed';
+          const err = job.lastError ?? t('toasts.failed');
           if (/^VALIDATION/i.test(err)) {
-            toast.error('Provider rejected this lookup', {
-              description:
-                'The contact may lack enough info (name, email, LinkedIn) for the provider to match. Try editing the contact and adding more data.'
+            toast.error(t('toasts.rejected'), {
+              description: t('toasts.rejectedDescription')
             });
           } else {
             toast.error(err);
@@ -57,11 +57,11 @@ export function ContactEnrichButton({
           break;
         }
         default:
-          toast.message(`Enrichment ${job.status}`);
+          toast.message(t('toasts.otherStatus', { status: job.status }));
       }
       onEnriched?.(job);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Enrichment failed');
+      toast.error(err instanceof Error ? err.message : t('toasts.failed'));
     } finally {
       setBusy(false);
     }
@@ -74,7 +74,7 @@ export function ContactEnrichButton({
       ) : (
         <Sparkles className='mr-2 h-4 w-4' />
       )}
-      Enrich
+      {t('enrich')}
     </Button>
   );
 }

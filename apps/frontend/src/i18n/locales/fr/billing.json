@@ -93,17 +93,8 @@
       },
       "footer": {
         "secureByStripe": "Sécurisé par Stripe",
-        "refundGuarantee": "100 % de remboursement garanti",
         "cardSafety": "Les données de carte ne transitent jamais par les serveurs de Ringee",
         "creditsAfter": "Crédits ajoutés après confirmation"
-      },
-      "amount": {
-        "currentBalance": "Solde actuel",
-        "lastTopup": "Dernière recharge : {amount}",
-        "rechargeCta": "Recharger {amount}",
-        "continueCheckout": "Continuer vers le paiement sécurisé",
-        "useAnotherMethod": "Utiliser un autre moyen de paiement",
-        "savedHint": "Débité sur {brand} •••• {last4}."
       },
       "checkout": {
         "title": "Paiement sécurisé",
@@ -131,6 +122,14 @@
         "invoiceEmailLabel": "E-mail pour les factures",
         "emailPlaceholder": "vous@entreprise.com",
         "emailHint": "Votre reçu Stripe est envoyé ici — modifiez-le si vous souhaitez recevoir les factures ailleurs."
+      },
+      "amount": {
+        "currentBalance": "Solde actuel",
+        "lastTopup": "Dernière recharge : {amount}",
+        "rechargeCta": "Recharger {amount}",
+        "continueCheckout": "Continuer vers le paiement sécurisé",
+        "useAnotherMethod": "Utiliser un autre moyen de paiement",
+        "savedHint": "Débité sur {brand} •••• {last4}."
       },
       "saved": {
         "title": "Recharge rapide",
@@ -195,5 +194,13 @@
     "addCard": "Ajouter une carte",
     "expiresOn": "Expire le {date}",
     "default": "Par défaut"
+  },
+  "portal": {
+    "eyebrow": "Facturation sécurisée par Stripe",
+    "title": "Ouverture de votre portail de facturation",
+    "description": "Gérez vos abonnements, moyens de paiement, factures et informations de facturation en toute sécurité dans Stripe.",
+    "redirecting": "Redirection vers Stripe…",
+    "retry": "Ouvrir le portail de facturation Stripe",
+    "error": "Nous n'avons pas pu ouvrir le portail de facturation. Veuillez réessayer dans un instant."
   }
 }

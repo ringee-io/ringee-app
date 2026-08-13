@@ -12,16 +12,7 @@ import {
   Zap
 } from 'lucide-react';
 import type { CallSessionPhase, DialerMode } from '../use-call-session';
-
-const PHASE_LABELS: Record<CallSessionPhase, string> = {
-  loading: 'Loading…',
-  error: 'Error',
-  preview: 'Ready',
-  dialing: 'Dialing',
-  in_call: 'In Call',
-  wrap_up: 'Wrap Up',
-  completed: 'Completed'
-};
+import { useTranslations } from 'next-intl';
 
 const PHASE_COLORS: Record<CallSessionPhase, string> = {
   loading: 'bg-gray-300',
@@ -81,6 +72,7 @@ export function SessionStatusBar({
   onModeChange,
   stats
 }: Props) {
+  const t = useTranslations('dialer.publicSession.status');
   const expiresInMs = useExpiry(expiresAt);
 
   const lineDot =
@@ -104,7 +96,7 @@ export function SessionStatusBar({
 
         <div className='flex items-center gap-2'>
           <div className={`h-2.5 w-2.5 rounded-full ${PHASE_COLORS[phase]}`} />
-          <span className='text-sm font-medium'>{PHASE_LABELS[phase]}</span>
+          <span className='text-sm font-medium'>{t(`phases.${phase}`)}</span>
         </div>
 
         <div className='text-muted-foreground hidden items-center gap-4 text-sm sm:flex'>
@@ -114,11 +106,11 @@ export function SessionStatusBar({
           </span>
           <span className='flex items-center gap-1'>
             <PhoneCall className='h-3.5 w-3.5' />
-            {stats.remaining} pending
+            {t('pending', { count: stats.remaining })}
           </span>
           <span className='flex items-center gap-1'>
             <ShieldCheck className='h-3.5 w-3.5' />
-            {stats.contactRate}% positive
+            {t('positive', { rate: stats.contactRate })}
           </span>
         </div>
       </div>
@@ -133,9 +125,9 @@ export function SessionStatusBar({
             className='h-7 rounded-sm px-2.5'
             disabled={!canChangeMode}
             onClick={() => onModeChange('preview')}
-            title='Show contact, then click Dial'
+            title={t('previewHint')}
           >
-            Preview
+            {t('preview')}
           </Button>
           <Button
             type='button'
@@ -144,17 +136,17 @@ export function SessionStatusBar({
             className='h-7 gap-1 rounded-sm px-2.5'
             disabled={!canChangeMode}
             onClick={() => onModeChange('progressive')}
-            title='Auto-dial the next contact after each outcome'
+            title={t('progressiveHint')}
           >
             <Zap className='h-3 w-3' />
-            Progressive
+            {t('progressive')}
           </Button>
         </div>
 
         {/* Line status */}
         <Badge variant='outline' className='gap-1'>
           <span className={`h-2 w-2 rounded-full ${lineDot}`} />
-          Line {telnyxStatus}
+          {t('line', { status: t(`lineStatuses.${telnyxStatus}`) })}
         </Badge>
 
         {/* Credit balance */}
@@ -174,8 +166,8 @@ export function SessionStatusBar({
           >
             <Clock className='h-3 w-3' />
             {expiresInMs <= 0
-              ? 'Expired'
-              : `Expires in ${formatExpiry(expiresInMs)}`}
+              ? t('expired')
+              : t('expiresIn', { time: formatExpiry(expiresInMs) ?? '' })}
           </Badge>
         )}
       </div>

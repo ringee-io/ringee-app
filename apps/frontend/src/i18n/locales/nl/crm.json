@@ -17,7 +17,9 @@
   "tabs": {
     "crm": "CRM",
     "enrichment": "Gegevensverrijking",
-    "leads": "Leads zoeken"
+    "leads": "Leads zoeken",
+    "custom": "Aangepaste integraties",
+    "connectors": "Connectors"
   },
   "connections": {
     "yourConnections": "Jouw verbindingen",
@@ -94,5 +96,17 @@
     "soon": "Binnenkort"
   },
   "syncSuccess": "Synchronisatie gestart — contacten en bedrijven worden geïmporteerd.",
-  "syncError": "Synchronisatie kon niet worden gestart. Probeer het opnieuw."
+  "syncError": "Synchronisatie kon niet worden gestart. Probeer het opnieuw.",
+  "toasts": {
+    "providerConnected": "{provider} verbonden",
+    "connectionFailed": "Verbinding mislukt. Probeer het opnieuw.",
+    "connectionFailedReason": "Verbinding mislukt: {reason}. Probeer het opnieuw.",
+    "odooHint": "Gebruik de Odoo-kaart hieronder om je gegevens opnieuw in te voeren en opnieuw te verbinden.",
+    "authStartError": "Kan autorisatie niet starten",
+    "authError": "Kan authenticatie niet starten",
+    "disconnected": "Verbinding verbroken",
+    "disconnectError": "Verbinding verbreken mislukt",
+    "forgotten": "Verbinding vergeten",
+    "forgetError": "Vergeten mislukt"
+  }
 }

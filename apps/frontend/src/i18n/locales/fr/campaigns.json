@@ -10,28 +10,99 @@
     "metaTitle": "Nouvelle campagne | Ringee",
     "metaDescription": "Créez une nouvelle campagne d'appels sortants.",
     "namePlaceholder": "T1 outbound — Entreprises US",
-    "submit": "Créer la campagne"
+    "submit": "Créer la campagne",
+    "nameRequired": "Le nom de la campagne est obligatoire",
+    "created": "Campagne créée.",
+    "error": "Échec de la création de la campagne",
+    "detailsTitle": "Détails de la campagne",
+    "detailsDescription": "Nommez et décrivez votre campagne sortante.",
+    "nameLabel": "Nom de la campagne *",
+    "descriptionPlaceholder": "Brève description de cette campagne…",
+    "dialerTitle": "Paramètres du composeur",
+    "dialerDescription": "Configurez la façon dont les appels sont passés.",
+    "callerIdHint": "Identifiant d'appelant vérifié hérité, utilisé uniquement si aucun numéro n'est attribué ci-dessus. Laissez la valeur par défaut pour utiliser le numéro de la campagne."
   },
   "edit": {
     "title": "Modifier la campagne"
   },
   "detail": {
     "metaTitle": "Détail de la campagne | Ringee",
-    "metaDescription": "Consultez et gérez votre campagne d'appels sortants."
+    "metaDescription": "Consultez et gérez votre campagne d'appels sortants.",
+    "notFound": {
+      "title": "Campagne introuvable",
+      "description": "Cette campagne a peut-être été supprimée ou le lien est incorrect."
+    },
+    "noAccess": {
+      "title": "Vous n'avez pas accès à cette campagne",
+      "description": "Seuls les administrateurs de l'organisation et les membres assignés peuvent l'ouvrir. Demandez à un administrateur de vous y ajouter."
+    },
+    "back": "Retour aux campagnes",
+    "activate": "Activer",
+    "pause": "Mettre en pause",
+    "resume": "Reprendre",
+    "complete": "Terminer",
+    "openDialer": "Ouvrir le composeur",
+    "completeDialog": {
+      "title": "Terminer la campagne ?",
+      "description": "Une fois cette campagne marquée comme terminée, elle ne peut plus être réactivée ni modifiée, et aucun nouveau lead ne peut y être ajouté. Toutes les sessions d'agents actives prendront fin et plus aucun appel ne sera passé. Cette action est irréversible.",
+      "cancel": "Annuler",
+      "confirm": "Oui, terminer la campagne"
+    },
+    "actionError": "L'action n'a pas pu être effectuée",
+    "notReady": {
+      "title": "Cette campagne n'est pas encore prête",
+      "description": "Importez au moins un lead depuis l'onglet Leads avant de l'activer. Vous aurez aussi besoin d'un numéro de téléphone (ou d'un identifiant d'appelant) depuis lequel la campagne peut composer."
+    },
+    "stats": {
+      "totalLeads": "Total des leads",
+      "dialerMode": "Mode de composition",
+      "maxAttempts": "Tentatives max.",
+      "timezone": "Fuseau horaire"
+    },
+    "tabs": {
+      "leads": "Leads",
+      "members": "Membres",
+      "dispositions": "Qualifications",
+      "analytics": "Analyses",
+      "settings": "Paramètres"
+    },
+    "toasts": {
+      "activated": "Campagne activée.",
+      "paused": "Campagne mise en pause.",
+      "completed": "Campagne terminée.",
+      "updated": "Campagne mise à jour.",
+      "statusError": "Impossible de mettre à jour le statut de la campagne. Veuillez réessayer."
+    }
   },
   "fields": {
     "name": "Nom",
     "list": "Liste de contacts",
     "mode": "Mode du composeur",
     "callerId": "Identifiant d'appelant",
-    "script": "Script"
+    "script": "Script",
+    "description": "Description",
+    "phoneNumber": "Numéro de téléphone",
+    "phoneNumberPlaceholder": "Sélectionnez un numéro…",
+    "noPurchasedNumbers": "Aucun numéro acheté",
+    "phoneNumberHint": "Les appels de cette campagne sont passés depuis ce numéro acheté.",
+    "callerIdOptional": "Identifiant d'appelant (facultatif)",
+    "callerIdPlaceholder": "Utiliser le numéro de la campagne",
+    "callerIdDefault": "Utiliser le numéro de la campagne (par défaut)",
+    "callerIdHint": "Identifiant d'appelant vérifié hérité, utilisé uniquement si aucun numéro n'est attribué ci-dessus.",
+    "maxAttempts": "Tentatives max.",
+    "maxAttemptsPerLead": "Tentatives max. par lead",
+    "wrapUp": "Temps de clôture (secondes)",
+    "wrapUpShort": "Temps de clôture (s)",
+    "retryDelay": "Délai avant nouvelle tentative (minutes)",
+    "retryDelayShort": "Délai avant nouvelle tentative (min)"
   },
   "status": {
     "draft": "Brouillon",
     "scheduled": "Planifiée",
     "running": "En cours",
     "paused": "En pause",
-    "completed": "Terminée"
+    "completed": "Terminée",
+    "active": "Active"
   },
   "actions": {
     "start": "Démarrer",
@@ -43,6 +114,311 @@
   "empty": {
     "title": "Aucune campagne",
     "description": "Créez votre première campagne pour passer à l'action à grande échelle.",
-    "action": "Créer une campagne"
+    "action": "Créer une campagne",
+    "memberDescription": "Vous n'avez encore été ajouté à aucune campagne."
+  },
+  "modes": {
+    "progressive": "Progressif",
+    "preview": "Prévisualisation",
+    "progressiveHint": "Progressif — compose automatiquement le lead suivant",
+    "previewHint": "Prévisualisation — l'agent vérifie avant de composer"
+  },
+  "leadStatus": {
+    "pending": "En attente",
+    "queued": "En file",
+    "locked": "Verrouillé",
+    "dialing": "Composition",
+    "in_call": "En appel",
+    "wrap_up": "Clôture",
+    "dispositioned": "Qualifié",
+    "scheduled": "Planifié",
+    "completed": "Terminé",
+    "exhausted": "Épuisé",
+    "dnc": "Ne pas appeler"
+  },
+  "schedule": {
+    "title": "Plage horaire d'appel",
+    "description": "Définissez quand les agents peuvent appeler.",
+    "timezone": "Fuseau horaire",
+    "startTime": "Heure de début",
+    "endTime": "Heure de fin",
+    "workingDays": "Jours ouvrés"
+  },
+  "card": {
+    "leads": "{count} leads",
+    "maxAttempts": "{count} tentatives max.",
+    "created": "Créée le {date}"
+  },
+  "list": {
+    "searchPlaceholder": "Rechercher des campagnes…",
+    "allStatuses": "Tous les statuts",
+    "showing": "Affichage de {from}–{to} sur {total}",
+    "page": "Page {page} sur {total}",
+    "previous": "Précédent",
+    "next": "Suivant"
+  },
+  "leads": {
+    "title": "Leads",
+    "total": "{count} leads au total dans cette campagne",
+    "importCsv": "Importer un CSV",
+    "addLead": "Ajouter un lead",
+    "fallbackName": "Ce lead",
+    "inFlightHint": "Ce lead est en cours de composition et ne peut pas être supprimé.",
+    "removeAria": "Supprimer {name}",
+    "empty": {
+      "title": "Aucun lead pour le moment",
+      "description": "Importez un fichier CSV ou ajoutez un lead manuellement pour commencer.",
+      "filteredTitle": "Aucun lead avec ce statut",
+      "filteredDescription": "Essayez un autre filtre de statut."
+    },
+    "table": {
+      "name": "Nom",
+      "phone": "Téléphone",
+      "company": "Entreprise",
+      "status": "Statut",
+      "attempts": "Tentatives",
+      "lastCall": "Dernier appel",
+      "actions": "Actions"
+    },
+    "removeDialog": {
+      "title": "Supprimer ce lead ?",
+      "description": "{name} ({phone}) sera retiré de cette campagne, ainsi que ses tentatives d'appel et ses rappels planifiés. Le contact est conservé et pourra être ajouté à nouveau plus tard. Cette action est irréversible.",
+      "cancel": "Annuler",
+      "confirm": "Supprimer le lead"
+    },
+    "toasts": {
+      "removed": "{name} a été retiré de la campagne.",
+      "removeError": "Impossible de supprimer le lead. Veuillez réessayer."
+    }
+  },
+  "addLead": {
+    "title": "Ajouter un lead manuellement",
+    "description": "Saisissez les coordonnées du contact pour ajouter un lead à cette campagne. Le contact est créé automatiquement s'il n'existe pas encore.",
+    "name": "Nom *",
+    "namePlaceholder": "Jean Dupont",
+    "phone": "Téléphone *",
+    "phoneHint": "Format international (E.164), p. ex. +14155552671.",
+    "email": "E-mail",
+    "company": "Entreprise",
+    "jobTitle": "Fonction",
+    "jobTitlePlaceholder": "Directeur commercial",
+    "state": "État / Région",
+    "website": "Site web",
+    "revenue": "Chiffre d'affaires",
+    "companySize": "Taille de l'entreprise",
+    "cancel": "Annuler",
+    "submit": "Ajouter le lead",
+    "errors": {
+      "nameRequired": "Le nom est obligatoire.",
+      "phoneRequired": "Le numéro de téléphone est obligatoire.",
+      "phoneFormat": "Le téléphone doit être au format international, p. ex. +14155552671.",
+      "emailInvalid": "Veuillez saisir une adresse e-mail valide.",
+      "duplicate": "Ce contact est déjà un lead de cette campagne.",
+      "notAdded": "Le lead n’a pas pu être ajouté. Vérifiez les informations et réessayez.",
+      "generic": "Impossible d'ajouter le lead. Veuillez réessayer."
+    },
+    "toasts": {
+      "added": "Lead ajouté à la campagne."
+    }
+  },
+  "csvImport": {
+    "title": "Importer des leads depuis un CSV",
+    "description": "Téléversez un fichier CSV pour ajouter des leads à cette campagne. Les nouveaux contacts sont créés automatiquement et les doublons sont ignorés.",
+    "tagsPlaceholder": "Attribuer des étiquettes aux nouveaux contacts",
+    "cancel": "Annuler",
+    "importing": "Importation…",
+    "submit": "Importer les leads",
+    "dropzone": {
+      "prompt": "Déposez votre CSV ici ou cliquez pour parcourir",
+      "selected": "{size} Ko — cliquez pour en choisir un autre",
+      "limits": "Max. {size} Mo • {rows} lignes"
+    },
+    "summary": {
+      "complete": "Importation terminée",
+      "totalRows": "Lignes totales",
+      "leadsAdded": "Leads ajoutés",
+      "newContacts": "Nouveaux contacts",
+      "duplicates": "Doublons ignorés",
+      "invalidRows": "{count} ligne(s) non valides ont été ignorées",
+      "rowError": "Ligne {row} : {message}",
+      "andMore": "…et {count} de plus",
+      "importAnother": "Importer un autre fichier",
+      "done": "Terminé"
+    },
+    "format": {
+      "title": "Format de fichier requis",
+      "downloadTemplate": "Télécharger le modèle",
+      "required": "Obligatoire",
+      "optional": "Facultatif",
+      "fieldHint": "{description} (p. ex. {example})",
+      "note": "La première ligne doit contenir les en-têtes de colonne ci-dessus. L'ordre des colonnes n'a pas d'importance et les en-têtes ne sont pas sensibles à la casse.",
+      "fields": {
+        "phoneNumber": "Numéro de téléphone E.164",
+        "name": "Nom complet du contact",
+        "email": "E-mail du contact",
+        "company": "Nom de l'entreprise",
+        "jobTitle": "Fonction",
+        "state": "État ou région",
+        "website": "Site web de l'entreprise",
+        "revenue": "Chiffre d'affaires de l'entreprise",
+        "companySize": "Taille de l'entreprise",
+        "location": "Localisation"
+      }
+    },
+    "errors": {
+      "notCsv": "Seuls les fichiers .csv sont acceptés.",
+      "tooLarge": "Le fichier est trop volumineux. La taille maximale est {size} Mo.",
+      "importFailed": "Échec de l'importation des leads. Vérifiez votre fichier et réessayez."
+    },
+    "toasts": {
+      "imported": "{count} lead(s) importés avec succès.",
+      "none": "Aucun nouveau lead n'a été ajouté.",
+      "failed": "Échec de l'importation des leads."
+    }
+  },
+  "dispositions": {
+    "title": "Qualifications",
+    "description": "Configurez les codes de résultat que les agents choisissent après chaque appel.",
+    "add": "Ajouter une qualification",
+    "createTitle": "Créer une qualification",
+    "createDescription": "Ajoutez une nouvelle qualification de résultat d'appel à cette campagne.",
+    "code": "Code",
+    "codePlaceholder": "p. ex. meeting_booked",
+    "label": "Libellé",
+    "labelPlaceholder": "p. ex. Rendez-vous fixé",
+    "category": "Catégorie",
+    "color": "Couleur",
+    "cancel": "Annuler",
+    "create": "Créer",
+    "categories": {
+      "positive": "Positive",
+      "neutral": "Neutre",
+      "negative": "Négative",
+      "no_contact": "Sans contact"
+    },
+    "triggers": {
+      "title": "Déclencheurs de workflow",
+      "completion": "Marque le lead comme terminé",
+      "retry": "Déclenche une nouvelle tentative",
+      "callback": "Planifie un rappel",
+      "dnc": "Ajoute à la liste « ne pas appeler »",
+      "badges": {
+        "completion": "terminé",
+        "retry": "nouvelle tentative",
+        "callback": "rappel",
+        "dnc": "Ne pas appeler"
+      }
+    },
+    "empty": {
+      "title": "Aucune qualification configurée",
+      "description": "Les qualifications sont créées automatiquement lorsque vous activez la campagne, ou vous pouvez les ajouter manuellement."
+    },
+    "table": {
+      "code": "Code",
+      "label": "Libellé",
+      "category": "Catégorie",
+      "triggers": "Déclencheurs"
+    },
+    "toasts": {
+      "created": "Qualification créée.",
+      "createError": "Impossible de créer la qualification.",
+      "removed": "Qualification supprimée.",
+      "removeError": "Impossible de supprimer la qualification."
+    }
+  },
+  "members": {
+    "unknown": "Inconnu",
+    "roles": {
+      "admin": "Administrateur",
+      "member": "Membre",
+      "agent": "Agent",
+      "owner": "Propriétaire"
+    },
+    "add": {
+      "title": "Ajouter un membre",
+      "description": "Assignez des membres de l'organisation à cette campagne. Seuls les membres assignés peuvent y participer comme agents.",
+      "placeholder": "Sélectionnez un membre…",
+      "noneAvailable": "Aucun membre disponible",
+      "submit": "Ajouter"
+    },
+    "list": {
+      "title": "Membres de la campagne ({count})",
+      "description": "Utilisateurs assignés à cette campagne pouvant participer comme agents.",
+      "empty": "Aucun membre assigné pour le moment. Ajoutez des membres pour leur permettre de participer à cette campagne."
+    },
+    "removeDialog": {
+      "title": "Retirer le membre ?",
+      "description": "Retirer {name} de cette campagne ? Cette personne ne pourra plus y participer comme agent.",
+      "cancel": "Annuler",
+      "confirm": "Retirer"
+    },
+    "toasts": {
+      "added": "Membre ajouté à la campagne.",
+      "addError": "Impossible d'ajouter le membre.",
+      "removed": "Membre retiré de la campagne.",
+      "removeError": "Impossible de retirer le membre."
+    }
+  },
+  "settings": {
+    "general": "Général",
+    "dialer": "Composeur",
+    "lockedHint": "Certains paramètres ne peuvent pas être modifiés tant que la campagne est active.",
+    "deleteAction": "Supprimer la campagne",
+    "save": "Enregistrer les paramètres",
+    "deleteDialog": {
+      "title": "Supprimer la campagne ?",
+      "description": "Cela supprimera définitivement « {name} » et toutes les données associées. Cette action est irréversible.",
+      "cancel": "Annuler",
+      "confirm": "Supprimer"
+    },
+    "toasts": {
+      "saved": "Paramètres enregistrés.",
+      "saveError": "Échec de l'enregistrement des paramètres",
+      "deleted": "Campagne supprimée.",
+      "deleteError": "Échec de la suppression de la campagne"
+    }
+  },
+  "analytics": {
+    "unknownAgent": "inconnu",
+    "charts": {
+      "count": "Nombre",
+      "attempts": "Tentatives",
+      "connected": "Connectés"
+    },
+    "cards": {
+      "totalCalls": "Appels totaux",
+      "uniqueLeads": "{count} leads uniques composés",
+      "connected": "Connectés",
+      "contactRate": "{rate} % de taux de contact",
+      "conversions": "Conversions",
+      "conversionRate": "{rate} % de taux de conversion",
+      "avgTalkTime": "Temps de parole moyen",
+      "perConnectedCall": "par appel connecté"
+    },
+    "empty": {
+      "title": "Aucune activité d'appel pour le moment",
+      "description": "Les analyses apparaîtront ici dès que les agents commenceront à composer pour cette campagne. Les graphiques se remplissent automatiquement à mesure que les appels sont terminés et qualifiés.",
+      "refresh": "Actualiser"
+    },
+    "distribution": {
+      "title": "Répartition des qualifications",
+      "description": "Détail de tous les résultats d'appel",
+      "empty": "Aucun appel qualifié pour le moment",
+      "centerLabel": "Qualifications"
+    },
+    "agentPerformance": {
+      "title": "Performance des agents",
+      "description": "Tentatives vs appels connectés par agent",
+      "empty": "Aucune activité d'agent pour le moment",
+      "calls": "{count} appels",
+      "rate": "{rate} % de taux",
+      "talk": "{time} de parole"
+    },
+    "byAgent": {
+      "title": "Qualifications par agent",
+      "description": "Détail des qualifications filtré par agent",
+      "allAgents": "Tous les agents",
+      "empty": "Aucune donnée de qualification disponible"
+    }
   }
 }

@@ -1,12 +1,15 @@
 import type { Metadata } from 'next';
 import { CallSessionWorkspace } from '@/features/dialer-session/components/call-session-workspace';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata: Metadata = {
-  title: 'Ringee Call Session',
-  description:
-    'Open call session — dial contacts one by one and record outcomes.',
-  robots: { index: false, follow: false }
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const t = await getTranslations('dialer.publicSession.page');
+  return {
+    title: t('title'),
+    description: t('description'),
+    robots: { index: false, follow: false }
+  };
+}
 
 interface PageProps {
   searchParams: Promise<{ token?: string }>;

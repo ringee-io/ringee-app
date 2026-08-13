@@ -53,7 +53,7 @@ export function TagMultiSelect({
   onSelectionChange,
   onCreateTag,
   onManageTagsClick,
-  placeholder = 'Select tags...',
+  placeholder,
   className,
   disabled = false,
   showCreateOption = true

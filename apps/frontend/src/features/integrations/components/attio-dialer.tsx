@@ -13,6 +13,7 @@ import { useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { setOutboundRingbackVolume } from '@ringee/dialer-core/engine';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { useTranslations } from 'next-intl';
 
 type DialerState = 'ready' | 'connecting' | 'active' | 'ended' | 'error';
 
@@ -27,6 +28,7 @@ interface ContactSalesProfile {
 
 export function AttioDialer() {
   const api = useApi();
+  const t = useTranslations('integrations.attio.dialer');
   const searchParams = useSearchParams();
   const toNumber = searchParams.get('to');
   const fromNumber = searchParams.get('from');
@@ -54,7 +56,7 @@ export function AttioDialer() {
 
   const handleDial = useCallback(async () => {
     if (!client || !toNumber || !fromNumber || !userId) {
-      setErrorMsg('Missing call parameters or connection not ready.');
+      setErrorMsg(t('errors.missingParams'));
       setDialerState('error');
       return;
     }
@@ -85,11 +87,11 @@ export function AttioDialer() {
       setDialerState('active');
     } catch (err) {
       setErrorMsg(
-        err instanceof Error ? err.message : 'Failed to initiate call'
+        err instanceof Error ? err.message : t('errors.initiateFailed')
       );
       setDialerState('error');
     }
-  }, [client, toNumber, fromNumber, userId, orgId]);
+  }, [client, toNumber, fromNumber, userId, orgId, t]);
 
   useEffect(() => {
     if (isTelnyxReady && toNumber && fromNumber && !dialedRef.current) {
@@ -106,10 +108,9 @@ export function AttioDialer() {
             <AlertCircle className='text-destructive h-6 w-6' />
           </div>
           <div>
-            <h2 className='text-lg font-semibold'>Invalid Call Link</h2>
+            <h2 className='text-lg font-semibold'>{t('invalidLink.title')}</h2>
             <p className='text-muted-foreground mt-1 text-sm'>
-              This link is missing required parameters. Please start a new call
-              from Attio.
+              {t('invalidLink.description')}
             </p>
           </div>
         </div>
@@ -167,13 +168,13 @@ export function AttioDialer() {
             variant='outline'
             className='mt-1 border-violet-500/30 bg-violet-500/10 text-[10px] text-violet-500'
           >
-            via Attio
+            {t('viaAttio')}
           </Badge>
         </div>
 
         {/* From number */}
         <div className='text-muted-foreground flex items-center gap-2 text-xs'>
-          <span>Calling from</span>
+          <span>{t('callingFrom')}</span>
           <span className='text-foreground font-mono font-medium'>
             {fromNumber}
           </span>
@@ -185,7 +186,7 @@ export function AttioDialer() {
             {!isTelnyxReady ? (
               <div className='text-muted-foreground flex items-center gap-2 text-sm'>
                 <Loader2 className='h-4 w-4 animate-spin' />
-                Connecting to voice service...
+                {t('connectingToVoice')}
               </div>
             ) : (
               <Button
@@ -194,7 +195,7 @@ export function AttioDialer() {
                 onClick={handleDial}
               >
                 <Phone className='h-4 w-4' />
-                Start Call
+                {t('startCall')}
               </Button>
             )}
           </div>
@@ -203,7 +204,7 @@ export function AttioDialer() {
         {dialerState === 'connecting' && (
           <div className='flex flex-col items-center gap-2'>
             <Loader2 className='h-6 w-6 animate-spin text-emerald-500' />
-            <p className='text-sm font-medium'>Connecting...</p>
+            <p className='text-sm font-medium'>{t('connecting')}</p>
           </div>
         )}
 
@@ -212,12 +213,10 @@ export function AttioDialer() {
             <div className='flex items-center gap-2'>
               <CheckCircle2 className='h-4 w-4 text-emerald-500' />
               <p className='text-sm font-medium text-emerald-500'>
-                Call initiated
+                {t('callInitiated')}
               </p>
             </div>
-            <p className='text-muted-foreground text-xs'>
-              Use the call controls in the popup to manage your call.
-            </p>
+            <p className='text-muted-foreground text-xs'>{t('callHint')}</p>
           </div>
         )}
 
@@ -225,7 +224,7 @@ export function AttioDialer() {
           <div className='flex w-full flex-col items-center gap-3'>
             <div className='text-destructive flex items-center gap-2 text-sm'>
               <AlertCircle className='h-4 w-4' />
-              {errorMsg || 'Something went wrong'}
+              {errorMsg || t('errors.somethingWrong')}
             </div>
             <Button
               variant='outline'
@@ -236,7 +235,7 @@ export function AttioDialer() {
                 setErrorMsg(null);
               }}
             >
-              Try Again
+              {t('tryAgain')}
             </Button>
           </div>
         )}

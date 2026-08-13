@@ -14,6 +14,7 @@ import {
   CalendarDays
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 interface CalendarIntegration {
   id: string;
@@ -26,9 +27,8 @@ interface CalendarIntegration {
 const PROVIDERS = [
   {
     id: 'google' as const,
-    name: 'Google Calendar',
-    description:
-      'Sync meetings with Google Calendar and auto-create Google Meet links.',
+    nameKey: 'google.name',
+    descriptionKey: 'google.description',
     icon: (
       <svg viewBox='0 0 24 24' className='h-6 w-6' fill='none'>
         <path
@@ -54,9 +54,8 @@ const PROVIDERS = [
   },
   {
     id: 'microsoft' as const,
-    name: 'Microsoft Outlook',
-    description:
-      'Sync meetings with Outlook Calendar and auto-create Teams links.',
+    nameKey: 'microsoft.name',
+    descriptionKey: 'microsoft.description',
     icon: (
       <svg viewBox='0 0 24 24' className='h-6 w-6' fill='none'>
         <path d='M11.4 24H0V12L11.4 0v24z' fill='#0078D4' />
@@ -72,6 +71,7 @@ const PROVIDERS = [
 
 export function CalendarIntegrations() {
   const api = useApi();
+  const t = useTranslations('meetings.integrations');
   const [integrations, setIntegrations] = useState<CalendarIntegration[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [disconnectingId, setDisconnectingId] = useState<string | null>(null);
@@ -103,7 +103,7 @@ export function CalendarIntegrations() {
 
     if (calendarStatus === 'connected' && provider) {
       toast.success(
-        `${provider === 'google' ? 'Google Calendar' : 'Microsoft Outlook'} connected successfully!`
+        t('connectedSuccess', { provider: t(`providers.${provider}.name`) })
       );
       fetchIntegrations();
       // Clean up URL
@@ -112,7 +112,7 @@ export function CalendarIntegrations() {
       url.searchParams.delete('provider');
       window.history.replaceState({}, '', url.toString());
     } else if (calendarStatus === 'error') {
-      toast.error('Failed to connect calendar. Please try again.');
+      toast.error(t('connectFailed'));
       const url = new URL(window.location.href);
       url.searchParams.delete('calendar');
       url.searchParams.delete('provider');
@@ -131,10 +131,10 @@ export function CalendarIntegrations() {
     setDisconnectingId(integration.id);
     try {
       await api.delete(`/calendar/integrations/${integration.id}`);
-      toast.success('Calendar disconnected');
+      toast.success(t('disconnected'));
       setIntegrations((prev) => prev.filter((i) => i.id !== integration.id));
     } catch {
-      toast.error('Failed to disconnect calendar');
+      toast.error(t('disconnectFailed'));
     } finally {
       setDisconnectingId(null);
     }
@@ -167,10 +167,9 @@ export function CalendarIntegrations() {
       <div className='space-y-6'>
         {/* Header */}
         <div>
-          <h3 className='text-base font-semibold'>Calendar Integrations</h3>
+          <h3 className='text-base font-semibold'>{t('title')}</h3>
           <p className='text-muted-foreground mt-1 text-sm'>
-            Connect your calendar to auto-sync meetings booked during cold calls
-            and check availability in real-time.
+            {t('description')}
           </p>
         </div>
 
@@ -200,7 +199,7 @@ export function CalendarIntegrations() {
                   <div className='bg-background/50 absolute inset-0 z-20 flex flex-col items-center justify-center backdrop-blur-[1.5px]'>
                     <div className='border-primary/20 bg-card/95 rounded-full border px-3 py-1 shadow-sm'>
                       <span className='text-primary text-[10px] font-bold tracking-widest uppercase'>
-                        ✨ Coming Soon
+                        ✨ {t('comingSoon')}
                       </span>
                     </div>
                   </div>
@@ -213,7 +212,7 @@ export function CalendarIntegrations() {
                       className='gap-1 border-emerald-500/20 bg-emerald-500/10 text-[10px] text-emerald-400'
                     >
                       <Check className='h-3 w-3' />
-                      Connected
+                      {t('connected')}
                     </Badge>
                   </div>
                 )}
@@ -229,9 +228,11 @@ export function CalendarIntegrations() {
                     {provider.icon}
                   </div>
                   <div className='min-w-0 flex-1'>
-                    <h4 className='text-sm font-semibold'>{provider.name}</h4>
+                    <h4 className='text-sm font-semibold'>
+                      {t(`providers.${provider.nameKey}`)}
+                    </h4>
                     <p className='text-muted-foreground mt-0.5 text-xs leading-relaxed'>
-                      {provider.description}
+                      {t(`providers.${provider.descriptionKey}`)}
                     </p>
                     {connected?.email && (
                       <p className='text-foreground/80 mt-2 truncate text-xs font-medium'>
@@ -256,7 +257,7 @@ export function CalendarIntegrations() {
                       ) : (
                         <Unplug className='h-3.5 w-3.5' />
                       )}
-                      Disconnect
+                      {t('disconnect')}
                     </Button>
                   ) : (
                     <Button
@@ -265,7 +266,9 @@ export function CalendarIntegrations() {
                       onClick={() => handleConnect(provider.id)}
                     >
                       <ExternalLink className='h-3.5 w-3.5' />
-                      Connect {provider.name}
+                      {t('connect', {
+                        provider: t(`providers.${provider.nameKey}`)
+                      })}
                     </Button>
                   )}
                 </div>
@@ -279,17 +282,15 @@ export function CalendarIntegrations() {
           <div className='flex items-start gap-3'>
             <CalendarDays className='text-muted-foreground mt-0.5 h-5 w-5 shrink-0' />
             <div>
-              <p className='text-xs font-medium'>How it works</p>
+              <p className='text-xs font-medium'>{t('howItWorks')}</p>
               <p className='text-muted-foreground mt-1 text-xs leading-relaxed'>
-                When you book a meeting during a cold call, Ringee automatically
-                creates a calendar event with a{' '}
+                {t('howItWorksPrefix')}{' '}
                 <span className='text-foreground font-medium'>Google Meet</span>{' '}
-                or{' '}
+                {t('or')}{' '}
                 <span className='text-foreground font-medium'>
                   Microsoft Teams
                 </span>{' '}
-                link. Your availability is also checked in real-time when
-                scheduling.
+                {t('howItWorksSuffix')}
               </p>
             </div>
           </div>

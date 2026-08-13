@@ -10,28 +10,99 @@
     "metaTitle": "New Campaign | Ringee",
     "metaDescription": "Create a new outbound calling campaign.",
     "namePlaceholder": "Q1 outbound — US enterprise",
-    "submit": "Create campaign"
+    "submit": "Create campaign",
+    "nameRequired": "Campaign name is required",
+    "created": "Campaign created.",
+    "error": "Failed to create campaign",
+    "detailsTitle": "Campaign Details",
+    "detailsDescription": "Name and describe your outbound campaign.",
+    "nameLabel": "Campaign Name *",
+    "descriptionPlaceholder": "Brief description of this campaign…",
+    "dialerTitle": "Dialer Settings",
+    "dialerDescription": "Configure how calls are placed.",
+    "callerIdHint": "Legacy verified caller ID, used only when no phone number is assigned above. Leave as default to use the campaign phone number."
   },
   "edit": {
     "title": "Edit campaign"
   },
   "detail": {
     "metaTitle": "Campaign Detail | Ringee",
-    "metaDescription": "View and manage your outbound calling campaign."
+    "metaDescription": "View and manage your outbound calling campaign.",
+    "notFound": {
+      "title": "Campaign not found",
+      "description": "This campaign may have been deleted or the link is incorrect."
+    },
+    "noAccess": {
+      "title": "You don't have access to this campaign",
+      "description": "Only organization admins and assigned members can open this campaign. Ask an admin to add you to it."
+    },
+    "back": "Back to Campaigns",
+    "activate": "Activate",
+    "pause": "Pause",
+    "resume": "Resume",
+    "complete": "Complete",
+    "openDialer": "Open Dialer",
+    "completeDialog": {
+      "title": "Complete Campaign?",
+      "description": "Once this campaign is marked as completed, it cannot be reactivated, edited, or have new leads added. All active agent sessions will end and no further calls will be made. This action is irreversible.",
+      "cancel": "Cancel",
+      "confirm": "Yes, Complete Campaign"
+    },
+    "actionError": "Action could not be completed",
+    "notReady": {
+      "title": "This campaign isn't ready yet",
+      "description": "Import at least one lead from the Leads tab before activating. You'll also need a phone number (or caller ID) the campaign can dial from."
+    },
+    "stats": {
+      "totalLeads": "Total Leads",
+      "dialerMode": "Dialer Mode",
+      "maxAttempts": "Max Attempts",
+      "timezone": "Timezone"
+    },
+    "tabs": {
+      "leads": "Leads",
+      "members": "Members",
+      "dispositions": "Dispositions",
+      "analytics": "Analytics",
+      "settings": "Settings"
+    },
+    "toasts": {
+      "activated": "Campaign activated.",
+      "paused": "Campaign paused.",
+      "completed": "Campaign completed.",
+      "updated": "Campaign updated.",
+      "statusError": "Could not update the campaign status. Please try again."
+    }
   },
   "fields": {
     "name": "Name",
     "list": "Contact list",
     "mode": "Dialer mode",
     "callerId": "Caller ID",
-    "script": "Script"
+    "script": "Script",
+    "description": "Description",
+    "phoneNumber": "Phone Number",
+    "phoneNumberPlaceholder": "Select a phone number…",
+    "noPurchasedNumbers": "No purchased numbers",
+    "phoneNumberHint": "Calls in this campaign are placed from this purchased number.",
+    "callerIdOptional": "Caller ID (optional)",
+    "callerIdPlaceholder": "Use the campaign phone number",
+    "callerIdDefault": "Use the campaign phone number (default)",
+    "callerIdHint": "Legacy verified caller ID, used only when no phone number is assigned above.",
+    "maxAttempts": "Max Attempts",
+    "maxAttemptsPerLead": "Max Attempts per Lead",
+    "wrapUp": "Wrap-up Time (seconds)",
+    "wrapUpShort": "Wrap-up Time (sec)",
+    "retryDelay": "Default Retry Delay (minutes)",
+    "retryDelayShort": "Default Retry Delay (min)"
   },
   "status": {
     "draft": "Draft",
     "scheduled": "Scheduled",
     "running": "Running",
     "paused": "Paused",
-    "completed": "Completed"
+    "completed": "Completed",
+    "active": "Active"
   },
   "actions": {
     "start": "Start",
@@ -43,6 +114,311 @@
   "empty": {
     "title": "No campaigns yet",
     "description": "Create your first campaign to start reaching out at scale.",
-    "action": "Create campaign"
+    "action": "Create campaign",
+    "memberDescription": "You have not been added to any campaigns yet."
+  },
+  "modes": {
+    "progressive": "Progressive",
+    "preview": "Preview",
+    "progressiveHint": "Progressive — auto-dials next lead",
+    "previewHint": "Preview — agent reviews before dialing"
+  },
+  "leadStatus": {
+    "pending": "Pending",
+    "queued": "Queued",
+    "locked": "Locked",
+    "dialing": "Dialing",
+    "in_call": "In call",
+    "wrap_up": "Wrap-up",
+    "dispositioned": "Dispositioned",
+    "scheduled": "Scheduled",
+    "completed": "Completed",
+    "exhausted": "Exhausted",
+    "dnc": "DNC"
+  },
+  "schedule": {
+    "title": "Calling Schedule",
+    "description": "Set when agents can make calls.",
+    "timezone": "Timezone",
+    "startTime": "Start Time",
+    "endTime": "End Time",
+    "workingDays": "Working Days"
+  },
+  "card": {
+    "leads": "{count} leads",
+    "maxAttempts": "{count} max attempts",
+    "created": "Created {date}"
+  },
+  "list": {
+    "searchPlaceholder": "Search campaigns…",
+    "allStatuses": "All statuses",
+    "showing": "Showing {from}–{to} of {total}",
+    "page": "Page {page} of {total}",
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "leads": {
+    "title": "Leads",
+    "total": "{count} total leads in this campaign",
+    "importCsv": "Import CSV",
+    "addLead": "Add Lead",
+    "fallbackName": "This lead",
+    "inFlightHint": "This lead is currently being dialed and cannot be removed.",
+    "removeAria": "Remove {name}",
+    "empty": {
+      "title": "No leads yet",
+      "description": "Import a CSV file or add a lead manually to get started.",
+      "filteredTitle": "No leads with this status",
+      "filteredDescription": "Try a different status filter."
+    },
+    "table": {
+      "name": "Name",
+      "phone": "Phone",
+      "company": "Company",
+      "status": "Status",
+      "attempts": "Attempts",
+      "lastCall": "Last Call",
+      "actions": "Actions"
+    },
+    "removeDialog": {
+      "title": "Remove this lead?",
+      "description": "{name} ({phone}) will be removed from this campaign, along with its call attempts and scheduled callbacks. The contact itself is kept and can be added again later. This can't be undone.",
+      "cancel": "Cancel",
+      "confirm": "Remove lead"
+    },
+    "toasts": {
+      "removed": "{name} removed from the campaign.",
+      "removeError": "Could not remove the lead. Please try again."
+    }
+  },
+  "addLead": {
+    "title": "Add Lead Manually",
+    "description": "Type the contact details to add a single lead to this campaign. The contact is created automatically if it doesn't exist yet.",
+    "name": "Name *",
+    "namePlaceholder": "John Doe",
+    "phone": "Phone *",
+    "phoneHint": "International format (E.164), e.g. +14155552671.",
+    "email": "Email",
+    "company": "Company",
+    "jobTitle": "Job title",
+    "jobTitlePlaceholder": "Sales Manager",
+    "state": "State / Region",
+    "website": "Website",
+    "revenue": "Revenue",
+    "companySize": "Company size",
+    "cancel": "Cancel",
+    "submit": "Add Lead",
+    "errors": {
+      "nameRequired": "Name is required.",
+      "phoneRequired": "Phone number is required.",
+      "phoneFormat": "Phone must be in international format, e.g. +14155552671.",
+      "emailInvalid": "Please enter a valid email address.",
+      "duplicate": "This contact is already a lead in this campaign.",
+      "notAdded": "The lead could not be added. Please check the details and try again.",
+      "generic": "Could not add the lead. Please try again."
+    },
+    "toasts": {
+      "added": "Lead added to the campaign."
+    }
+  },
+  "csvImport": {
+    "title": "Import Leads from CSV",
+    "description": "Upload a CSV file to add leads to this campaign. New contacts are created automatically and duplicates are skipped.",
+    "tagsPlaceholder": "Assign tags to newly created contacts",
+    "cancel": "Cancel",
+    "importing": "Importing…",
+    "submit": "Import Leads",
+    "dropzone": {
+      "prompt": "Drop your CSV here or click to browse",
+      "selected": "{size} KB — click to choose another",
+      "limits": "Max {size}MB • {rows} rows"
+    },
+    "summary": {
+      "complete": "Import complete",
+      "totalRows": "Total rows",
+      "leadsAdded": "Leads added",
+      "newContacts": "New contacts",
+      "duplicates": "Duplicates skipped",
+      "invalidRows": "{count} invalid row(s) were skipped",
+      "rowError": "Row {row}: {message}",
+      "andMore": "…and {count} more",
+      "importAnother": "Import another file",
+      "done": "Done"
+    },
+    "format": {
+      "title": "Required file format",
+      "downloadTemplate": "Download template",
+      "required": "Required",
+      "optional": "Optional",
+      "fieldHint": "{description} (e.g. {example})",
+      "note": "The first row must contain the column headers above. Column order does not matter and headers are case-insensitive.",
+      "fields": {
+        "phoneNumber": "E.164 phone number",
+        "name": "Full contact name",
+        "email": "Contact email",
+        "company": "Company name",
+        "jobTitle": "Job title",
+        "state": "State or region",
+        "website": "Company website",
+        "revenue": "Company revenue",
+        "companySize": "Company size",
+        "location": "Location"
+      }
+    },
+    "errors": {
+      "notCsv": "Only .csv files are accepted.",
+      "tooLarge": "File is too large. Maximum size is {size}MB.",
+      "importFailed": "Failed to import leads. Please check your file and try again."
+    },
+    "toasts": {
+      "imported": "Imported {count} lead(s) successfully.",
+      "none": "No new leads were added.",
+      "failed": "Lead import failed."
+    }
+  },
+  "dispositions": {
+    "title": "Dispositions",
+    "description": "Configure outcome codes agents select after each call.",
+    "add": "Add Disposition",
+    "createTitle": "Create Disposition",
+    "createDescription": "Add a new call outcome disposition to this campaign.",
+    "code": "Code",
+    "codePlaceholder": "e.g. meeting_booked",
+    "label": "Label",
+    "labelPlaceholder": "e.g. Meeting Booked",
+    "category": "Category",
+    "color": "Color",
+    "cancel": "Cancel",
+    "create": "Create",
+    "categories": {
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative",
+      "no_contact": "No Contact"
+    },
+    "triggers": {
+      "title": "Workflow Triggers",
+      "completion": "Marks lead as completed",
+      "retry": "Triggers retry",
+      "callback": "Schedules callback",
+      "dnc": "Adds to DNC list",
+      "badges": {
+        "completion": "completion",
+        "retry": "retry",
+        "callback": "callback",
+        "dnc": "DNC"
+      }
+    },
+    "empty": {
+      "title": "No dispositions configured",
+      "description": "Dispositions are seeded automatically when you activate the campaign, or you can add them manually."
+    },
+    "table": {
+      "code": "Code",
+      "label": "Label",
+      "category": "Category",
+      "triggers": "Triggers"
+    },
+    "toasts": {
+      "created": "Disposition created.",
+      "createError": "Could not create disposition.",
+      "removed": "Disposition removed.",
+      "removeError": "Could not remove disposition."
+    }
+  },
+  "members": {
+    "unknown": "Unknown",
+    "roles": {
+      "admin": "Admin",
+      "member": "Member",
+      "agent": "Agent",
+      "owner": "Owner"
+    },
+    "add": {
+      "title": "Add Member",
+      "description": "Assign organization members to this campaign. Only assigned members can participate as agents.",
+      "placeholder": "Select a member…",
+      "noneAvailable": "No available members",
+      "submit": "Add"
+    },
+    "list": {
+      "title": "Campaign Members ({count})",
+      "description": "Users assigned to this campaign who can participate as agents.",
+      "empty": "No members assigned yet. Add members to allow them to participate in this campaign."
+    },
+    "removeDialog": {
+      "title": "Remove Member?",
+      "description": "Remove {name} from this campaign? They will no longer be able to participate as an agent.",
+      "cancel": "Cancel",
+      "confirm": "Remove"
+    },
+    "toasts": {
+      "added": "Member added to campaign.",
+      "addError": "Could not add member.",
+      "removed": "Member removed from campaign.",
+      "removeError": "Could not remove member."
+    }
+  },
+  "settings": {
+    "general": "General",
+    "dialer": "Dialer",
+    "lockedHint": "Some settings cannot be changed while the campaign is active.",
+    "deleteAction": "Delete Campaign",
+    "save": "Save Settings",
+    "deleteDialog": {
+      "title": "Delete Campaign?",
+      "description": "This will permanently delete “{name}” and all associated data. This action cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Delete"
+    },
+    "toasts": {
+      "saved": "Settings saved.",
+      "saveError": "Failed to save settings",
+      "deleted": "Campaign deleted.",
+      "deleteError": "Failed to delete campaign"
+    }
+  },
+  "analytics": {
+    "unknownAgent": "unknown",
+    "charts": {
+      "count": "Count",
+      "attempts": "Attempts",
+      "connected": "Connected"
+    },
+    "cards": {
+      "totalCalls": "Total Calls",
+      "uniqueLeads": "{count} unique leads dialed",
+      "connected": "Connected",
+      "contactRate": "{rate}% contact rate",
+      "conversions": "Conversions",
+      "conversionRate": "{rate}% conversion rate",
+      "avgTalkTime": "Avg Talk Time",
+      "perConnectedCall": "per connected call"
+    },
+    "empty": {
+      "title": "No call activity yet",
+      "description": "Analytics appear here once agents start dialing this campaign. Charts will populate automatically as calls are completed and dispositioned.",
+      "refresh": "Refresh"
+    },
+    "distribution": {
+      "title": "Disposition Distribution",
+      "description": "Breakdown of all call outcomes",
+      "empty": "No dispositioned calls yet",
+      "centerLabel": "Dispositions"
+    },
+    "agentPerformance": {
+      "title": "Agent Performance",
+      "description": "Attempts vs connected calls per agent",
+      "empty": "No agent activity yet",
+      "calls": "{count} calls",
+      "rate": "{rate}% rate",
+      "talk": "{time} talk"
+    },
+    "byAgent": {
+      "title": "Dispositions by Agent",
+      "description": "Disposition breakdown filtered by agent",
+      "allAgents": "All Agents",
+      "empty": "No disposition data available"
+    }
   }
 }

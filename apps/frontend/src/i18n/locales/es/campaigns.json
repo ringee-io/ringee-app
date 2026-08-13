@@ -10,28 +10,99 @@
     "metaTitle": "Nueva campaña | Ringee",
     "metaDescription": "Crea una nueva campaña de llamadas salientes.",
     "namePlaceholder": "Q1 outbound — Empresas EE. UU.",
-    "submit": "Crear campaña"
+    "submit": "Crear campaña",
+    "nameRequired": "El nombre de la campaña es obligatorio",
+    "created": "Campaña creada.",
+    "error": "No se pudo crear la campaña",
+    "detailsTitle": "Detalles de la campaña",
+    "detailsDescription": "Ponle nombre y describe tu campaña saliente.",
+    "nameLabel": "Nombre de la campaña *",
+    "descriptionPlaceholder": "Breve descripción de esta campaña…",
+    "dialerTitle": "Ajustes del marcador",
+    "dialerDescription": "Configura cómo se realizan las llamadas.",
+    "callerIdHint": "Identificador verificado heredado, solo se usa cuando no hay un número asignado arriba. Déjalo como predeterminado para usar el número de la campaña."
   },
   "edit": {
     "title": "Editar campaña"
   },
   "detail": {
     "metaTitle": "Detalle de campaña | Ringee",
-    "metaDescription": "Consulta y gestiona tu campaña de llamadas salientes."
+    "metaDescription": "Consulta y gestiona tu campaña de llamadas salientes.",
+    "notFound": {
+      "title": "Campaña no encontrada",
+      "description": "Puede que se haya eliminado o que el enlace sea incorrecto."
+    },
+    "noAccess": {
+      "title": "No tienes acceso a esta campaña",
+      "description": "Solo los administradores de la organización y los miembros asignados pueden abrirla. Pide a un administrador que te añada."
+    },
+    "back": "Volver a campañas",
+    "activate": "Activar",
+    "pause": "Pausar",
+    "resume": "Reanudar",
+    "complete": "Completar",
+    "openDialer": "Abrir marcador",
+    "completeDialog": {
+      "title": "¿Completar la campaña?",
+      "description": "Una vez marcada como completada, no se podrá reactivar ni editar, ni añadir nuevos leads. Todas las sesiones activas de agentes finalizarán y no se realizarán más llamadas. Esta acción es irreversible.",
+      "cancel": "Cancelar",
+      "confirm": "Sí, completar campaña"
+    },
+    "actionError": "No se pudo completar la acción",
+    "notReady": {
+      "title": "Esta campaña aún no está lista",
+      "description": "Importa al menos un lead desde la pestaña Leads antes de activarla. También necesitarás un número de teléfono (o identificador de llamada) desde el que la campaña pueda marcar."
+    },
+    "stats": {
+      "totalLeads": "Leads totales",
+      "dialerMode": "Modo de marcado",
+      "maxAttempts": "Intentos máximos",
+      "timezone": "Zona horaria"
+    },
+    "tabs": {
+      "leads": "Leads",
+      "members": "Miembros",
+      "dispositions": "Tipificaciones",
+      "analytics": "Analíticas",
+      "settings": "Ajustes"
+    },
+    "toasts": {
+      "activated": "Campaña activada.",
+      "paused": "Campaña pausada.",
+      "completed": "Campaña completada.",
+      "updated": "Campaña actualizada.",
+      "statusError": "No se pudo actualizar el estado de la campaña. Inténtalo de nuevo."
+    }
   },
   "fields": {
     "name": "Nombre",
     "list": "Lista de contactos",
     "mode": "Modo de marcador",
     "callerId": "ID de llamante",
-    "script": "Guion"
+    "script": "Guion",
+    "description": "Descripción",
+    "phoneNumber": "Número de teléfono",
+    "phoneNumberPlaceholder": "Selecciona un número…",
+    "noPurchasedNumbers": "No hay números comprados",
+    "phoneNumberHint": "Las llamadas de esta campaña se realizan desde este número comprado.",
+    "callerIdOptional": "Identificador de llamada (opcional)",
+    "callerIdPlaceholder": "Usar el número de la campaña",
+    "callerIdDefault": "Usar el número de la campaña (predeterminado)",
+    "callerIdHint": "Identificador verificado heredado, solo se usa cuando no hay un número asignado arriba.",
+    "maxAttempts": "Intentos máximos",
+    "maxAttemptsPerLead": "Intentos máximos por lead",
+    "wrapUp": "Tiempo de cierre (segundos)",
+    "wrapUpShort": "Tiempo de cierre (seg)",
+    "retryDelay": "Espera entre reintentos (minutos)",
+    "retryDelayShort": "Espera entre reintentos (min)"
   },
   "status": {
     "draft": "Borrador",
     "scheduled": "Programada",
     "running": "En curso",
     "paused": "En pausa",
-    "completed": "Completada"
+    "completed": "Completada",
+    "active": "Activa"
   },
   "actions": {
     "start": "Iniciar",
@@ -43,6 +114,311 @@
   "empty": {
     "title": "Aún no hay campañas",
     "description": "Crea tu primera campaña para empezar a llegar a más gente.",
-    "action": "Crear campaña"
+    "action": "Crear campaña",
+    "memberDescription": "Todavía no te han añadido a ninguna campaña."
+  },
+  "modes": {
+    "progressive": "Progresivo",
+    "preview": "Previo",
+    "progressiveHint": "Progresivo — marca el siguiente lead automáticamente",
+    "previewHint": "Previo — el agente revisa antes de marcar"
+  },
+  "leadStatus": {
+    "pending": "Pendiente",
+    "queued": "En cola",
+    "locked": "Bloqueado",
+    "dialing": "Marcando",
+    "in_call": "En llamada",
+    "wrap_up": "Cierre",
+    "dispositioned": "Tipificado",
+    "scheduled": "Programado",
+    "completed": "Completado",
+    "exhausted": "Agotado",
+    "dnc": "No llamar"
+  },
+  "schedule": {
+    "title": "Horario de llamadas",
+    "description": "Define cuándo los agentes pueden llamar.",
+    "timezone": "Zona horaria",
+    "startTime": "Hora de inicio",
+    "endTime": "Hora de fin",
+    "workingDays": "Días laborables"
+  },
+  "card": {
+    "leads": "{count} leads",
+    "maxAttempts": "{count} intentos máx.",
+    "created": "Creada el {date}"
+  },
+  "list": {
+    "searchPlaceholder": "Buscar campañas…",
+    "allStatuses": "Todos los estados",
+    "showing": "Mostrando {from}–{to} de {total}",
+    "page": "Página {page} de {total}",
+    "previous": "Anterior",
+    "next": "Siguiente"
+  },
+  "leads": {
+    "title": "Leads",
+    "total": "{count} leads en total en esta campaña",
+    "importCsv": "Importar CSV",
+    "addLead": "Añadir lead",
+    "fallbackName": "Este lead",
+    "inFlightHint": "Este lead se está marcando en este momento y no se puede eliminar.",
+    "removeAria": "Eliminar {name}",
+    "empty": {
+      "title": "Aún no hay leads",
+      "description": "Importa un archivo CSV o añade un lead manualmente para empezar.",
+      "filteredTitle": "No hay leads con este estado",
+      "filteredDescription": "Prueba con otro filtro de estado."
+    },
+    "table": {
+      "name": "Nombre",
+      "phone": "Teléfono",
+      "company": "Empresa",
+      "status": "Estado",
+      "attempts": "Intentos",
+      "lastCall": "Última llamada",
+      "actions": "Acciones"
+    },
+    "removeDialog": {
+      "title": "¿Eliminar este lead?",
+      "description": "{name} ({phone}) se eliminará de esta campaña, junto con sus intentos de llamada y devoluciones programadas. El contacto se conserva y podrá añadirse de nuevo más adelante. Esta acción no se puede deshacer.",
+      "cancel": "Cancelar",
+      "confirm": "Eliminar lead"
+    },
+    "toasts": {
+      "removed": "{name} se eliminó de la campaña.",
+      "removeError": "No se pudo eliminar el lead. Inténtalo de nuevo."
+    }
+  },
+  "addLead": {
+    "title": "Añadir lead manualmente",
+    "description": "Escribe los datos del contacto para añadir un lead a esta campaña. El contacto se crea automáticamente si aún no existe.",
+    "name": "Nombre *",
+    "namePlaceholder": "Juan Pérez",
+    "phone": "Teléfono *",
+    "phoneHint": "Formato internacional (E.164), p. ej. +14155552671.",
+    "email": "Correo electrónico",
+    "company": "Empresa",
+    "jobTitle": "Puesto",
+    "jobTitlePlaceholder": "Director comercial",
+    "state": "Estado / Región",
+    "website": "Sitio web",
+    "revenue": "Facturación",
+    "companySize": "Tamaño de la empresa",
+    "cancel": "Cancelar",
+    "submit": "Añadir lead",
+    "errors": {
+      "nameRequired": "El nombre es obligatorio.",
+      "phoneRequired": "El número de teléfono es obligatorio.",
+      "phoneFormat": "El teléfono debe estar en formato internacional, p. ej. +14155552671.",
+      "emailInvalid": "Introduce una dirección de correo válida.",
+      "duplicate": "Este contacto ya es un lead de esta campaña.",
+      "notAdded": "No se pudo añadir el lead. Revisa los datos e inténtalo de nuevo.",
+      "generic": "No se pudo añadir el lead. Inténtalo de nuevo."
+    },
+    "toasts": {
+      "added": "Lead añadido a la campaña."
+    }
+  },
+  "csvImport": {
+    "title": "Importar leads desde CSV",
+    "description": "Sube un archivo CSV para añadir leads a esta campaña. Los contactos nuevos se crean automáticamente y los duplicados se omiten.",
+    "tagsPlaceholder": "Asignar etiquetas a los contactos nuevos",
+    "cancel": "Cancelar",
+    "importing": "Importando…",
+    "submit": "Importar leads",
+    "dropzone": {
+      "prompt": "Suelta tu CSV aquí o haz clic para buscarlo",
+      "selected": "{size} KB — haz clic para elegir otro",
+      "limits": "Máx. {size} MB • {rows} filas"
+    },
+    "summary": {
+      "complete": "Importación completada",
+      "totalRows": "Filas totales",
+      "leadsAdded": "Leads añadidos",
+      "newContacts": "Contactos nuevos",
+      "duplicates": "Duplicados omitidos",
+      "invalidRows": "Se omitieron {count} fila(s) no válidas",
+      "rowError": "Fila {row}: {message}",
+      "andMore": "…y {count} más",
+      "importAnother": "Importar otro archivo",
+      "done": "Listo"
+    },
+    "format": {
+      "title": "Formato de archivo requerido",
+      "downloadTemplate": "Descargar plantilla",
+      "required": "Obligatorio",
+      "optional": "Opcional",
+      "fieldHint": "{description} (p. ej. {example})",
+      "note": "La primera fila debe contener los encabezados de columna anteriores. El orden de las columnas no importa y los encabezados no distinguen mayúsculas.",
+      "fields": {
+        "phoneNumber": "Número de teléfono E.164",
+        "name": "Nombre completo del contacto",
+        "email": "Correo del contacto",
+        "company": "Nombre de la empresa",
+        "jobTitle": "Puesto",
+        "state": "Estado o región",
+        "website": "Sitio web de la empresa",
+        "revenue": "Facturación de la empresa",
+        "companySize": "Tamaño de la empresa",
+        "location": "Ubicación"
+      }
+    },
+    "errors": {
+      "notCsv": "Solo se aceptan archivos .csv.",
+      "tooLarge": "El archivo es demasiado grande. El tamaño máximo es {size} MB.",
+      "importFailed": "No se pudieron importar los leads. Revisa el archivo e inténtalo de nuevo."
+    },
+    "toasts": {
+      "imported": "Se importaron {count} lead(s) correctamente.",
+      "none": "No se añadió ningún lead nuevo.",
+      "failed": "Falló la importación de leads."
+    }
+  },
+  "dispositions": {
+    "title": "Tipificaciones",
+    "description": "Configura los códigos de resultado que los agentes eligen tras cada llamada.",
+    "add": "Añadir tipificación",
+    "createTitle": "Crear tipificación",
+    "createDescription": "Añade una nueva tipificación de resultado a esta campaña.",
+    "code": "Código",
+    "codePlaceholder": "p. ej. meeting_booked",
+    "label": "Etiqueta",
+    "labelPlaceholder": "p. ej. Reunión agendada",
+    "category": "Categoría",
+    "color": "Color",
+    "cancel": "Cancelar",
+    "create": "Crear",
+    "categories": {
+      "positive": "Positiva",
+      "neutral": "Neutra",
+      "negative": "Negativa",
+      "no_contact": "Sin contacto"
+    },
+    "triggers": {
+      "title": "Disparadores del flujo",
+      "completion": "Marca el lead como completado",
+      "retry": "Activa un reintento",
+      "callback": "Programa una devolución de llamada",
+      "dnc": "Añade a la lista de no llamar",
+      "badges": {
+        "completion": "completado",
+        "retry": "reintento",
+        "callback": "devolución",
+        "dnc": "No llamar"
+      }
+    },
+    "empty": {
+      "title": "No hay tipificaciones configuradas",
+      "description": "Las tipificaciones se crean automáticamente al activar la campaña, o puedes añadirlas manualmente."
+    },
+    "table": {
+      "code": "Código",
+      "label": "Etiqueta",
+      "category": "Categoría",
+      "triggers": "Disparadores"
+    },
+    "toasts": {
+      "created": "Tipificación creada.",
+      "createError": "No se pudo crear la tipificación.",
+      "removed": "Tipificación eliminada.",
+      "removeError": "No se pudo eliminar la tipificación."
+    }
+  },
+  "members": {
+    "unknown": "Desconocido",
+    "roles": {
+      "admin": "Administrador",
+      "member": "Miembro",
+      "agent": "Agente",
+      "owner": "Propietario"
+    },
+    "add": {
+      "title": "Añadir miembro",
+      "description": "Asigna miembros de la organización a esta campaña. Solo los miembros asignados pueden participar como agentes.",
+      "placeholder": "Selecciona un miembro…",
+      "noneAvailable": "No hay miembros disponibles",
+      "submit": "Añadir"
+    },
+    "list": {
+      "title": "Miembros de la campaña ({count})",
+      "description": "Usuarios asignados a esta campaña que pueden participar como agentes.",
+      "empty": "Aún no hay miembros asignados. Añade miembros para que puedan participar en esta campaña."
+    },
+    "removeDialog": {
+      "title": "¿Eliminar miembro?",
+      "description": "¿Eliminar a {name} de esta campaña? Ya no podrá participar como agente.",
+      "cancel": "Cancelar",
+      "confirm": "Eliminar"
+    },
+    "toasts": {
+      "added": "Miembro añadido a la campaña.",
+      "addError": "No se pudo añadir el miembro.",
+      "removed": "Miembro eliminado de la campaña.",
+      "removeError": "No se pudo eliminar el miembro."
+    }
+  },
+  "settings": {
+    "general": "General",
+    "dialer": "Marcador",
+    "lockedHint": "Algunos ajustes no se pueden cambiar mientras la campaña está activa.",
+    "deleteAction": "Eliminar campaña",
+    "save": "Guardar ajustes",
+    "deleteDialog": {
+      "title": "¿Eliminar campaña?",
+      "description": "Se eliminará permanentemente «{name}» y todos sus datos asociados. Esta acción no se puede deshacer.",
+      "cancel": "Cancelar",
+      "confirm": "Eliminar"
+    },
+    "toasts": {
+      "saved": "Ajustes guardados.",
+      "saveError": "No se pudieron guardar los ajustes",
+      "deleted": "Campaña eliminada.",
+      "deleteError": "No se pudo eliminar la campaña"
+    }
+  },
+  "analytics": {
+    "unknownAgent": "desconocido",
+    "charts": {
+      "count": "Cantidad",
+      "attempts": "Intentos",
+      "connected": "Conectadas"
+    },
+    "cards": {
+      "totalCalls": "Llamadas totales",
+      "uniqueLeads": "{count} leads únicos marcados",
+      "connected": "Conectadas",
+      "contactRate": "{rate}% de tasa de contacto",
+      "conversions": "Conversiones",
+      "conversionRate": "{rate}% de tasa de conversión",
+      "avgTalkTime": "Tiempo medio de conversación",
+      "perConnectedCall": "por llamada conectada"
+    },
+    "empty": {
+      "title": "Aún no hay actividad de llamadas",
+      "description": "Las analíticas aparecerán aquí cuando los agentes empiecen a marcar en esta campaña. Los gráficos se rellenan automáticamente a medida que se completan y tipifican las llamadas.",
+      "refresh": "Actualizar"
+    },
+    "distribution": {
+      "title": "Distribución de tipificaciones",
+      "description": "Desglose de todos los resultados de llamada",
+      "empty": "Aún no hay llamadas tipificadas",
+      "centerLabel": "Tipificaciones"
+    },
+    "agentPerformance": {
+      "title": "Rendimiento por agente",
+      "description": "Intentos frente a llamadas conectadas por agente",
+      "empty": "Aún no hay actividad de agentes",
+      "calls": "{count} llamadas",
+      "rate": "{rate}% de tasa",
+      "talk": "{time} de conversación"
+    },
+    "byAgent": {
+      "title": "Tipificaciones por agente",
+      "description": "Desglose de tipificaciones filtrado por agente",
+      "allAgents": "Todos los agentes",
+      "empty": "No hay datos de tipificación disponibles"
+    }
   }
 }

@@ -10,6 +10,7 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { AlertCircle, Plug, Plus, RefreshCw } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { useCustomIntegrations } from '../../hooks/use-custom-integrations';
 import type { CustomIntegrationSummary } from '../../types/custom-integrations';
 import { CustomIntegrationCard } from '../custom-integration-card';
@@ -17,6 +18,7 @@ import { CustomIntegrationCreateDialog } from '../custom-integration-create-dial
 import { CustomIntegrationDetailSheet } from '../custom-integration-detail-sheet';
 
 export function CustomIntegrationsTab() {
+  const t = useTranslations('integrations.custom.tab');
   const { items, loading, error, reload, remove } = useCustomIntegrations();
   const [createOpen, setCreateOpen] = useState(false);
   const [detailId, setDetailId] = useState<string | null>(null);
@@ -37,9 +39,9 @@ export function CustomIntegrationsTab() {
     try {
       await remove(id);
       if (detailId === id) setDetailId(null);
-      toast.success('Integration deleted');
+      toast.success(t('deleted'));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Delete failed');
+      toast.error(err instanceof Error ? err.message : t('deleteError'));
     }
   };
 
@@ -48,13 +50,10 @@ export function CustomIntegrationsTab() {
       <div className='flex items-end justify-between gap-4'>
         <div>
           <h2 className='text-muted-foreground text-sm font-semibold tracking-wide uppercase'>
-            Your custom integrations
+            {t('title')}
           </h2>
           <p className='text-muted-foreground mt-1 max-w-2xl text-xs'>
-            Connect Ringee to any external system using an API Key, webhooks,
-            and click-to-call. Your system sends contacts and companies to
-            Ringee; Ringee returns calls, outcomes, notes, callbacks, meetings,
-            and recordings.
+            {t('description')}
           </p>
         </div>
         <div className='flex items-center gap-2'>
@@ -67,10 +66,10 @@ export function CustomIntegrationsTab() {
             <RefreshCw
               className={`mr-1.5 h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`}
             />
-            Refresh
+            {t('refresh')}
           </Button>
           <Button size='sm' onClick={() => setCreateOpen(true)}>
-            <Plus className='mr-1.5 h-3.5 w-3.5' /> New custom integration
+            <Plus className='mr-1.5 h-3.5 w-3.5' /> {t('new')}
           </Button>
         </div>
       </div>
@@ -78,7 +77,7 @@ export function CustomIntegrationsTab() {
       {error ? (
         <Alert variant='destructive'>
           <AlertCircle className='h-4 w-4' />
-          <AlertTitle>Failed to load custom integrations</AlertTitle>
+          <AlertTitle>{t('loadError')}</AlertTitle>
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       ) : loading ? (
@@ -119,18 +118,18 @@ export function CustomIntegrationsTab() {
 }
 
 function EmptyState({ onCreate }: { onCreate: () => void }) {
+  const t = useTranslations('integrations.custom.tab');
   return (
     <div className='bg-muted/20 flex flex-col items-center gap-3 rounded-xl border border-dashed px-6 py-12 text-center'>
       <div className='bg-muted flex h-12 w-12 items-center justify-center rounded-full'>
         <Plug className='text-muted-foreground h-5 w-5' />
       </div>
-      <h3 className='text-sm font-semibold'>No custom integrations yet</h3>
+      <h3 className='text-sm font-semibold'>{t('empty.title')}</h3>
       <p className='text-muted-foreground max-w-sm text-xs'>
-        Create one to expose an API Key, configure outbound webhooks, and start
-        exchanging events.
+        {t('empty.description')}
       </p>
       <Button size='sm' onClick={onCreate}>
-        <Plus className='mr-1.5 h-3.5 w-3.5' /> New custom integration
+        <Plus className='mr-1.5 h-3.5 w-3.5' /> {t('new')}
       </Button>
     </div>
   );

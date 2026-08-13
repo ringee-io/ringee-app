@@ -32,8 +32,7 @@ export function BarGraph({ data }: BarGraphProps) {
 
   const chartConfig = {
     answered: { label: t('answered'), color: 'var(--primary)' },
-    missed: { label: t('missed'), color: 'var(--primary)' },
-    error: { label: t('error'), color: 'var(--primary)' }
+    missed: { label: t('missed'), color: 'var(--primary)' }
   } satisfies ChartConfig;
 
   const [activeChart, setActiveChart] =

@@ -61,7 +61,8 @@ const TIMEZONES = [
   'Australia/Sydney'
 ];
 
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/** Indexes match `Date.getDay()`; labels come from `common.weekdaysShort`. */
+const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
 function minutesToTime(min: number): string {
   const h = Math.floor(min / 60);
@@ -78,6 +79,8 @@ export function CampaignCreateForm() {
   const api = useApi();
   const router = useRouter();
   const t = useTranslations('numberRotation');
+  const tc = useTranslations('campaigns');
+  const tCommon = useTranslations('common');
   const rotationEnabled = useRotationEnabled();
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -141,17 +144,17 @@ export function CampaignCreateForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.name.trim()) {
-      setError('Campaign name is required');
+      setError(tc('create.nameRequired'));
       return;
     }
     setError(null);
     setSaving(true);
     try {
       const campaign = await api.post<Campaign>('/campaigns', form);
-      toast.success('Campaign created.');
+      toast.success(tc('create.created'));
       router.push(`/dashboard/campaigns/${campaign.id}`);
     } catch (err: any) {
-      const message = err?.message || 'Failed to create campaign';
+      const message = err?.message || tc('create.error');
       setError(message);
       toast.error(message);
     } finally {
@@ -170,26 +173,24 @@ export function CampaignCreateForm() {
       {/* Basic Info */}
       <Card>
         <CardHeader>
-          <CardTitle>Campaign Details</CardTitle>
-          <CardDescription>
-            Name and describe your outbound campaign.
-          </CardDescription>
+          <CardTitle>{tc('create.detailsTitle')}</CardTitle>
+          <CardDescription>{tc('create.detailsDescription')}</CardDescription>
         </CardHeader>
         <CardContent className='space-y-4'>
           <div className='space-y-2'>
-            <Label htmlFor='name'>Campaign Name *</Label>
+            <Label htmlFor='name'>{tc('create.nameLabel')}</Label>
             <Input
               id='name'
-              placeholder='e.g. Q2 Outreach'
+              placeholder={tc('create.namePlaceholder')}
               value={form.name}
               onChange={(e) => updateForm({ name: e.target.value })}
             />
           </div>
           <div className='space-y-2'>
-            <Label htmlFor='description'>Description</Label>
+            <Label htmlFor='description'>{tc('fields.description')}</Label>
             <Textarea
               id='description'
-              placeholder='Brief description of this campaign...'
+              placeholder={tc('create.descriptionPlaceholder')}
               value={form.description || ''}
               onChange={(e) => updateForm({ description: e.target.value })}
               rows={3}
@@ -201,8 +202,8 @@ export function CampaignCreateForm() {
       {/* Dialer Config */}
       <Card>
         <CardHeader>
-          <CardTitle>Dialer Settings</CardTitle>
-          <CardDescription>Configure how calls are placed.</CardDescription>
+          <CardTitle>{tc('create.dialerTitle')}</CardTitle>
+          <CardDescription>{tc('create.dialerDescription')}</CardDescription>
         </CardHeader>
         <CardContent className='space-y-4'>
           {rotationEnabled && (
@@ -250,7 +251,7 @@ export function CampaignCreateForm() {
           {!rotationEnabled && (
             <>
               <div className='space-y-2'>
-                <Label>Phone Number</Label>
+                <Label>{tc('fields.phoneNumber')}</Label>
                 <Select
                   value={form.numberPurchasedId || ''}
                   onValueChange={(v) =>
@@ -258,7 +259,9 @@ export function CampaignCreateForm() {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder='Select a phone number...' />
+                    <SelectValue
+                      placeholder={tc('fields.phoneNumberPlaceholder')}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {phoneNumbers.map((num) => (
@@ -271,18 +274,18 @@ export function CampaignCreateForm() {
                     ))}
                     {phoneNumbers.length === 0 && (
                       <SelectItem value='__none' disabled>
-                        No purchased numbers
+                        {tc('fields.noPurchasedNumbers')}
                       </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
                 <p className='text-muted-foreground text-xs'>
-                  Calls in this campaign are placed from this purchased number.
+                  {tc('fields.phoneNumberHint')}
                 </p>
               </div>
 
               <div className='space-y-2'>
-                <Label>Caller ID (optional)</Label>
+                <Label>{tc('fields.callerIdOptional')}</Label>
                 <Select
                   value={form.callerIdId || '__default'}
                   onValueChange={(v) =>
@@ -292,11 +295,13 @@ export function CampaignCreateForm() {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder='Use the campaign phone number' />
+                    <SelectValue
+                      placeholder={tc('fields.callerIdPlaceholder')}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value='__default'>
-                      Use the campaign phone number (default)
+                      {tc('fields.callerIdDefault')}
                     </SelectItem>
                     {callerIds
                       .filter((c) => c.verified && c.active !== false)
@@ -311,16 +316,14 @@ export function CampaignCreateForm() {
                   </SelectContent>
                 </Select>
                 <p className='text-muted-foreground text-xs'>
-                  Legacy verified caller ID, used only when no phone number is
-                  assigned above. Leave as default to use the campaign phone
-                  number.
+                  {tc('create.callerIdHint')}
                 </p>
               </div>
             </>
           )}
           <div className='grid gap-4 sm:grid-cols-2'>
             <div className='space-y-2'>
-              <Label>Dialer Mode</Label>
+              <Label>{tc('fields.mode')}</Label>
               <Select
                 value={form.dialerMode}
                 onValueChange={(v) =>
@@ -332,16 +335,18 @@ export function CampaignCreateForm() {
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value='progressive'>
-                    Progressive — auto-dials next lead
+                    {tc('modes.progressiveHint')}
                   </SelectItem>
                   <SelectItem value='preview'>
-                    Preview — agent reviews before dialing
+                    {tc('modes.previewHint')}
                   </SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className='space-y-2'>
-              <Label htmlFor='maxAttempts'>Max Attempts per Lead</Label>
+              <Label htmlFor='maxAttempts'>
+                {tc('fields.maxAttemptsPerLead')}
+              </Label>
               <Input
                 id='maxAttempts'
                 type='number'
@@ -354,7 +359,7 @@ export function CampaignCreateForm() {
               />
             </div>
             <div className='space-y-2'>
-              <Label htmlFor='wrapUp'>Wrap-up Time (seconds)</Label>
+              <Label htmlFor='wrapUp'>{tc('fields.wrapUp')}</Label>
               <Input
                 id='wrapUp'
                 type='number'
@@ -367,7 +372,7 @@ export function CampaignCreateForm() {
               />
             </div>
             <div className='space-y-2'>
-              <Label htmlFor='retryDelay'>Default Retry Delay (minutes)</Label>
+              <Label htmlFor='retryDelay'>{tc('fields.retryDelay')}</Label>
               <Input
                 id='retryDelay'
                 type='number'
@@ -386,12 +391,12 @@ export function CampaignCreateForm() {
       {/* Schedule */}
       <Card>
         <CardHeader>
-          <CardTitle>Calling Schedule</CardTitle>
-          <CardDescription>Set when agents can make calls.</CardDescription>
+          <CardTitle>{tc('schedule.title')}</CardTitle>
+          <CardDescription>{tc('schedule.description')}</CardDescription>
         </CardHeader>
         <CardContent className='space-y-4'>
           <div className='space-y-2'>
-            <Label>Timezone</Label>
+            <Label>{tc('schedule.timezone')}</Label>
             <Select
               value={form.timezone}
               onValueChange={(v) => updateForm({ timezone: v })}
@@ -410,7 +415,7 @@ export function CampaignCreateForm() {
           </div>
           <div className='grid gap-4 sm:grid-cols-2'>
             <div className='space-y-2'>
-              <Label htmlFor='workStart'>Start Time</Label>
+              <Label htmlFor='workStart'>{tc('schedule.startTime')}</Label>
               <Input
                 id='workStart'
                 type='time'
@@ -421,7 +426,7 @@ export function CampaignCreateForm() {
               />
             </div>
             <div className='space-y-2'>
-              <Label htmlFor='workEnd'>End Time</Label>
+              <Label htmlFor='workEnd'>{tc('schedule.endTime')}</Label>
               <Input
                 id='workEnd'
                 type='time'
@@ -433,19 +438,19 @@ export function CampaignCreateForm() {
             </div>
           </div>
           <div className='space-y-2'>
-            <Label>Working Days</Label>
+            <Label>{tc('schedule.workingDays')}</Label>
             <div className='flex flex-wrap gap-2'>
-              {DAY_LABELS.map((label, idx) => {
+              {DAY_KEYS.map((day, idx) => {
                 const selected = (form.workDays ?? []).includes(idx);
                 return (
                   <Button
-                    key={idx}
+                    key={day}
                     type='button'
                     variant={selected ? 'default' : 'outline'}
                     size='sm'
                     onClick={() => toggleDay(idx)}
                   >
-                    {label}
+                    {tCommon(`weekdaysShort.${day}`)}
                   </Button>
                 );
               })}
@@ -461,11 +466,11 @@ export function CampaignCreateForm() {
           variant='outline'
           onClick={() => router.push('/dashboard/campaigns')}
         >
-          Cancel
+          {tCommon('cancel')}
         </Button>
         <Button type='submit' disabled={saving}>
           {saving && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-          Create Campaign
+          {tc('create.submit')}
         </Button>
       </div>
     </form>

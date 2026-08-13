@@ -23,6 +23,7 @@ import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useTelnyxStore } from '../store/telnyx.store';
 import { useCall } from '../hooks/use.call';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
+import { useTranslations } from 'next-intl';
 
 export enum CallStatus {
   idle = 'idle',
@@ -56,6 +57,7 @@ export function Dialer({
   useMock?: boolean;
 }) {
   const searchParams = useSearchParams();
+  const t = useTranslations('calls.dialer');
   const { client, activeCall } = useTelnyxStore();
   const { handleCall } = useCall();
   const { number, setNumber } = useDialerStore();
@@ -139,16 +141,18 @@ export function Dialer({
                     <Clock className='h-4 w-4 shrink-0 text-amber-500' />
                     <div>
                       <p className='text-sm font-semibold text-amber-600 dark:text-amber-400'>
-                        🎉 Free trial call available
+                        {t('freeTrial')}
                       </p>
                       <p className='text-muted-foreground text-xs'>
-                        Limited to 1 minute — call ends automatically
+                        {t('freeTrialHint')}
                       </p>
                     </div>
                   </div>
                 ) : (
                   <>
-                    <p className='text-muted-foreground text-sm'>Balance</p>
+                    <p className='text-muted-foreground text-sm'>
+                      {t('balance')}
+                    </p>
                     <p className='text-base font-semibold'>
                       ${balance.toFixed(2)}
                     </p>
@@ -166,7 +170,7 @@ export function Dialer({
           <CardContent className='space-y-3'>
             {!canCall && balanceStatus === 'success' && (
               <p className='rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-600 dark:text-red-400'>
-                Outbound calling is disabled for this account.
+                {t('outboundDisabled')}
               </p>
             )}
             <NumberSelector useMock={useMock} />
@@ -178,7 +182,7 @@ export function Dialer({
               defaultCountry='US'
               country={country}
               onCountryChange={(c) => c && setCountry(c)}
-              placeholder='Enter number'
+              placeholder={t('enterNumber')}
               // @ts-ignore
               value={number}
               onChange={(v) => setNumber(v || '')}

@@ -12,9 +12,11 @@ import {
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 
 import { useTaskStore } from '../utils/store';
+import { useTranslations } from 'next-intl';
 
 export default function NewSectionDialog() {
   const addCol = useTaskStore((state) => state.addCol);
+  const t = useTranslations('contacts.kanban.board');
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -31,15 +33,13 @@ export default function NewSectionDialog() {
     <Dialog>
       <DialogTrigger asChild>
         <Button variant='secondary' size='lg' className='w-full'>
-          ＋ Add New Section
+          ＋ {t('addSection')}
         </Button>
       </DialogTrigger>
       <DialogContent className='sm:max-w-[425px]'>
         <DialogHeader>
-          <DialogTitle>Add New Section</DialogTitle>
-          <DialogDescription>
-            What section you want to add today?
-          </DialogDescription>
+          <DialogTitle>{t('newSection.title')}</DialogTitle>
+          <DialogDescription>{t('newSection.description')}</DialogDescription>
         </DialogHeader>
         <form
           id='todo-form'
@@ -50,7 +50,7 @@ export default function NewSectionDialog() {
             <Input
               id='title'
               name='title'
-              placeholder='Section title...'
+              placeholder={t('newSection.placeholder')}
               className='col-span-4'
             />
           </div>
@@ -58,7 +58,7 @@ export default function NewSectionDialog() {
         <DialogFooter>
           <DialogTrigger asChild>
             <Button type='submit' size='sm' form='todo-form'>
-              Add Section
+              {t('newSection.submit')}
             </Button>
           </DialogTrigger>
         </DialogFooter>

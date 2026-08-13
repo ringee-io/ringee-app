@@ -13,13 +13,12 @@ import {
 } from '@ringee/frontend-shared/components/ui/table';
 import { Check, Clock, Copy, ExternalLink, X } from 'lucide-react';
 import {
-  ACTION_TYPE_LABELS,
   PRIORITY_COLORS,
   SOURCE_COLORS,
   STATUS_COLORS,
-  contextLabel,
   PendingActionView
 } from '../types';
+import { useTranslations } from 'next-intl';
 
 interface Props {
   actions: PendingActionView[];
@@ -36,6 +35,7 @@ export function PendingActionsTable({
   onSnooze,
   showContext = true
 }: Props) {
+  const t = useTranslations('ai.pendingActions');
   const copy = (text: string) => {
     navigator.clipboard?.writeText(text).catch(() => {});
   };
@@ -44,18 +44,24 @@ export function PendingActionsTable({
     <Table>
       <TableHeader>
         <TableRow>
-          <TableHead>Contact</TableHead>
+          <TableHead>{t('columns.contact')}</TableHead>
           <TableHead className='hidden md:table-cell'>
-            Recommended action
+            {t('columns.recommendedAction')}
           </TableHead>
           {showContext && (
-            <TableHead className='hidden lg:table-cell'>Context</TableHead>
+            <TableHead className='hidden lg:table-cell'>
+              {t('columns.context')}
+            </TableHead>
           )}
-          <TableHead>Priority</TableHead>
-          <TableHead className='hidden sm:table-cell'>Due</TableHead>
-          <TableHead className='hidden lg:table-cell'>Source</TableHead>
-          <TableHead>Status</TableHead>
-          <TableHead className='text-right'>Actions</TableHead>
+          <TableHead>{t('columns.priority')}</TableHead>
+          <TableHead className='hidden sm:table-cell'>
+            {t('columns.due')}
+          </TableHead>
+          <TableHead className='hidden lg:table-cell'>
+            {t('columns.source')}
+          </TableHead>
+          <TableHead>{t('columns.status')}</TableHead>
+          <TableHead className='text-right'>{t('columns.actions')}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -65,7 +71,7 @@ export function PendingActionsTable({
             <TableRow key={a.id}>
               <TableCell>
                 <div className='font-medium'>
-                  {a.contact?.name || a.contact?.phoneNumber || 'Unknown'}
+                  {a.contact?.name || a.contact?.phoneNumber || t('unknown')}
                 </div>
                 <div className='text-muted-foreground text-xs'>
                   {a.contact?.company ||
@@ -75,9 +81,7 @@ export function PendingActionsTable({
               </TableCell>
 
               <TableCell className='hidden md:table-cell'>
-                <div className='font-medium'>
-                  {ACTION_TYPE_LABELS[a.type] ?? a.type}
-                </div>
+                <div className='font-medium'>{t(`actionTypes.${a.type}`)}</div>
                 {a.reason && (
                   <div className='text-muted-foreground line-clamp-2 text-xs'>
                     {a.reason}
@@ -88,7 +92,9 @@ export function PendingActionsTable({
               {showContext && (
                 <TableCell className='hidden lg:table-cell'>
                   <span className='text-muted-foreground text-sm'>
-                    {contextLabel(a)}
+                    {a.contextType === 'campaign'
+                      ? (a.campaign?.name ?? t('contexts.campaign'))
+                      : t(`contexts.${a.contextType}`)}
                   </span>
                 </TableCell>
               )}
@@ -98,7 +104,7 @@ export function PendingActionsTable({
                   variant='secondary'
                   className={PRIORITY_COLORS[a.priority] || ''}
                 >
-                  {a.priority}
+                  {t(`priorities.${a.priority}`)}
                 </Badge>
               </TableCell>
 
@@ -113,7 +119,7 @@ export function PendingActionsTable({
                   variant='secondary'
                   className={SOURCE_COLORS[a.source] || ''}
                 >
-                  {a.source === 'ai' ? 'AI' : a.source}
+                  {t(`sources.${a.source}`)}
                 </Badge>
               </TableCell>
 
@@ -122,7 +128,7 @@ export function PendingActionsTable({
                   variant='secondary'
                   className={STATUS_COLORS[a.status] || ''}
                 >
-                  {a.status}
+                  {t(`statuses.${a.status}`)}
                 </Badge>
               </TableCell>
 
@@ -132,7 +138,7 @@ export function PendingActionsTable({
                     <Button
                       variant='ghost'
                       size='icon'
-                      title='Copy suggested message'
+                      title={t('actions.copyMessage')}
                       onClick={() => copy(a.suggestedMessage!)}
                     >
                       <Copy className='h-4 w-4' />
@@ -143,7 +149,7 @@ export function PendingActionsTable({
                       asChild
                       variant='ghost'
                       size='icon'
-                      title='Open contact'
+                      title={t('actions.openContact')}
                     >
                       <Link href={`/dashboard/contact/${a.contactId}`}>
                         <ExternalLink className='h-4 w-4' />
@@ -155,7 +161,7 @@ export function PendingActionsTable({
                       <Button
                         variant='ghost'
                         size='icon'
-                        title='Snooze'
+                        title={t('actions.snooze')}
                         onClick={() => onSnooze(a.id)}
                       >
                         <Clock className='h-4 w-4' />
@@ -163,7 +169,7 @@ export function PendingActionsTable({
                       <Button
                         variant='ghost'
                         size='icon'
-                        title='Dismiss'
+                        title={t('actions.dismiss')}
                         onClick={() => onDismiss(a.id)}
                       >
                         <X className='h-4 w-4' />
@@ -171,7 +177,7 @@ export function PendingActionsTable({
                       <Button
                         variant='ghost'
                         size='icon'
-                        title='Complete'
+                        title={t('actions.complete')}
                         onClick={() => onComplete(a.id)}
                       >
                         <Check className='h-4 w-4 text-emerald-600' />

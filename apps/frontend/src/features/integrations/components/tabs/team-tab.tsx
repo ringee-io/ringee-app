@@ -5,6 +5,7 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { Users, List, Mail, RefreshCw, User } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useCrmMembers, useCrmLists } from '../../hooks/use-crm-connections';
 import type { CrmProviderType } from '../../types/crm';
 import { PROVIDER_META } from '../../types/crm';
@@ -27,6 +28,7 @@ export function TeamTab({
     reload: reloadLists
   } = useCrmLists(connectionId);
   const meta = PROVIDER_META[provider];
+  const t = useTranslations('integrations.crm.team');
   const loading = membersLoading || listsLoading;
 
   const handleReload = () => {
@@ -38,10 +40,11 @@ export function TeamTab({
     <div className='flex flex-col gap-6'>
       <div className='flex items-start justify-between gap-3'>
         <div>
-          <h3 className='text-sm font-semibold'>{meta.name} Workspace</h3>
+          <h3 className='text-sm font-semibold'>
+            {t('title', { provider: meta.name })}
+          </h3>
           <p className='text-muted-foreground mt-1 text-xs'>
-            Team members and lists from your {meta.name} workspace. Use member
-            emails for task assignment and list IDs for targeted syncs.
+            {t('description', { provider: meta.name })}
           </p>
         </div>
         <Button
@@ -54,7 +57,7 @@ export function TeamTab({
           <RefreshCw
             className={`mr-1.5 h-3 w-3 ${loading ? 'animate-spin' : ''}`}
           />
-          Refresh
+          {t('refresh')}
         </Button>
       </div>
 
@@ -62,7 +65,7 @@ export function TeamTab({
       <section className='space-y-3'>
         <div className='flex items-center gap-2'>
           <Users className='text-muted-foreground h-4 w-4' />
-          <h4 className='text-sm font-medium'>Workspace Members</h4>
+          <h4 className='text-sm font-medium'>{t('members')}</h4>
           {!membersLoading && (
             <Badge variant='secondary' className='text-[10px]'>
               {members.length}
@@ -78,8 +81,7 @@ export function TeamTab({
           </div>
         ) : members.length === 0 ? (
           <p className='text-muted-foreground py-4 text-center text-xs'>
-            No workspace members found, or this provider doesn&apos;t support
-            member listing.
+            {t('noMembers')}
           </p>
         ) : (
           <div className='divide-y rounded-lg border'>
@@ -113,7 +115,7 @@ export function TeamTab({
       <section className='space-y-3'>
         <div className='flex items-center gap-2'>
           <List className='text-muted-foreground h-4 w-4' />
-          <h4 className='text-sm font-medium'>Lists</h4>
+          <h4 className='text-sm font-medium'>{t('lists')}</h4>
           {!listsLoading && (
             <Badge variant='secondary' className='text-[10px]'>
               {lists.length}
@@ -129,7 +131,7 @@ export function TeamTab({
           </div>
         ) : lists.length === 0 ? (
           <p className='text-muted-foreground py-4 text-center text-xs'>
-            No lists found, or this provider doesn&apos;t support lists.
+            {t('noLists')}
           </p>
         ) : (
           <div className='divide-y rounded-lg border'>

@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import type { CrmConnectionSummary } from '../../types/crm';
 import { PROVIDER_META } from '../../types/crm';
@@ -31,22 +32,21 @@ export function InboundSyncTab({
 }) {
   const meta = PROVIDER_META[connection.provider];
   const isActive = connection.status === 'active';
+  const t = useTranslations('integrations.crm.inboundSync');
 
   return (
     <div className='flex flex-col gap-6'>
       <div>
-        <h3 className='text-sm font-semibold'>Import from {meta.name}</h3>
-        <p className='text-muted-foreground mt-1 text-xs'>
-          Pull individual contacts or companies from your CRM into Ringee by
-          their record ID. Existing records will be updated; new ones will be
-          created.
-        </p>
+        <h3 className='text-sm font-semibold'>
+          {t('title', { provider: meta.name })}
+        </h3>
+        <p className='text-muted-foreground mt-1 text-xs'>{t('description')}</p>
       </div>
 
       {!isActive && (
         <div className='flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs'>
           <AlertCircle className='mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500' />
-          <p>This connection is not active. Reconnect to enable imports.</p>
+          <p>{t('inactiveHint')}</p>
         </div>
       )}
 
@@ -54,9 +54,9 @@ export function InboundSyncTab({
         connectionId={connection.id}
         type='contact'
         icon={<Contact className='h-4 w-4' />}
-        title='Sync Contact'
-        description='Import a person record from your CRM. Their name, email, phone numbers, and job title will sync.'
-        placeholder='e.g. person_01abc123...'
+        title={t('contact.title')}
+        description={t('contact.description')}
+        placeholder={t('contact.placeholder')}
         disabled={!isActive}
       />
 
@@ -66,9 +66,9 @@ export function InboundSyncTab({
         connectionId={connection.id}
         type='company'
         icon={<Building2 className='h-4 w-4' />}
-        title='Sync Company'
-        description='Import a company record. Name, domain, industry, and size will sync. If contacts are linked in the CRM, their affiliations will be created.'
-        placeholder='e.g. company_01xyz789...'
+        title={t('company.title')}
+        description={t('company.description')}
+        placeholder={t('company.placeholder')}
         disabled={!isActive}
       />
     </div>
@@ -93,6 +93,7 @@ function SyncForm({
   disabled: boolean;
 }) {
   const api = useApi();
+  const t = useTranslations('integrations.crm.inboundSync');
   const [externalId, setExternalId] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<SyncResult | null>(null);
@@ -114,13 +115,15 @@ function SyncForm({
       setResult({ type, id: id || '', created: res.created ?? false });
       toast.success(
         res.created
-          ? `${type === 'contact' ? 'Contact' : 'Company'} imported`
-          : `${type === 'contact' ? 'Contact' : 'Company'} updated`
+          ? t('toasts.imported', { type: t(`entity.${type}`) })
+          : t('toasts.updated', { type: t(`entity.${type}`) })
       );
       setExternalId('');
     } catch (err) {
       toast.error(
-        err instanceof Error ? err.message : `Failed to sync ${type}`
+        err instanceof Error
+          ? err.message
+          : t('toasts.syncFailed', { type: t(`entity.${type}`) })
       );
     } finally {
       setLoading(false);
@@ -158,7 +161,7 @@ function SyncForm({
           ) : (
             <ArrowDownToLine className='mr-1.5 h-3.5 w-3.5' />
           )}
-          Sync
+          {t('sync')}
         </Button>
       </div>
 
@@ -166,8 +169,9 @@ function SyncForm({
         <div className='flex items-center gap-2 rounded-md border border-emerald-500/30 bg-emerald-500/5 p-2.5 text-xs'>
           <CheckCircle2 className='h-3.5 w-3.5 shrink-0 text-emerald-500' />
           <span>
-            {result.created ? 'Created' : 'Updated'}{' '}
-            {result.type === 'contact' ? 'contact' : 'company'}
+            {result.created
+              ? t('resultCreated', { type: t(`entity.${result.type}`) })
+              : t('resultUpdated', { type: t(`entity.${result.type}`) })}
           </span>
           <Badge variant='outline' className='ml-auto font-mono text-[10px]'>
             {result.id.slice(0, 12)}…

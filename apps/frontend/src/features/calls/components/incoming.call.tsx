@@ -3,6 +3,7 @@ import { Phone, PhoneOff } from 'lucide-react';
 import { useCallback } from 'react';
 import { useTelnyxStore } from '../store/telnyx.store';
 import { Call } from '@telnyx/webrtc';
+import { useTranslations } from 'next-intl';
 
 export function IncomingCall({
   call,
@@ -11,6 +12,7 @@ export function IncomingCall({
   call: Call;
   onClose: () => void;
 }) {
+  const t = useTranslations('calls');
   const { setActiveCall, activeCall } = useTelnyxStore();
 
   const handleHangup = useCallback(() => {
@@ -39,7 +41,9 @@ export function IncomingCall({
             {call.options?.callerNumber}
           </p>
         </div>
-        <span className='text-muted-foreground text-[10px]'>Incoming call</span>
+        <span className='text-muted-foreground text-[10px]'>
+          {t('incomingCall')}
+        </span>
       </div>
 
       <div className='flex justify-center gap-3'>

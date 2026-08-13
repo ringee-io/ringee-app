@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 type ConnectionMode = 'organization' | 'freelancer';
 
@@ -42,17 +43,15 @@ interface ConnectionInfo {
 }
 
 export function ConnectorsTab() {
+  const t = useTranslations('integrations.connectors');
   return (
     <div className='flex flex-col gap-6'>
       <header className='flex flex-col gap-1'>
         <h2 className='text-muted-foreground text-sm font-semibold tracking-wide uppercase'>
-          Connectors
+          {t('title')}
         </h2>
         <p className='text-muted-foreground max-w-2xl text-xs'>
-          Connect external AI assistants and automation tools directly to your
-          Ringee account. Connectors expose your Ringee data and actions (calls,
-          contacts, callbacks, meetings) through a standardized protocol so any
-          compatible client can use them.
+          {t('description')}
         </p>
       </header>
 
@@ -63,6 +62,7 @@ export function ConnectorsTab() {
 
 function McpSection() {
   const api = useApi();
+  const t = useTranslations('integrations.connectors');
   const [info, setInfo] = useState<ConnectionInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -74,11 +74,11 @@ function McpSection() {
       const data = await api.get<ConnectionInfo>('/mcp/connection-info');
       setInfo(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load MCP info');
+      setError(err instanceof Error ? err.message : t('mcp.loadError'));
     } finally {
       setLoading(false);
     }
-  }, [api]);
+  }, [api, t]);
 
   useEffect(() => {
     load();
@@ -96,13 +96,11 @@ function McpSection() {
               <CardTitle className='flex items-center gap-2 text-base'>
                 MCP
                 <Badge variant='secondary' className='gap-1 text-[10px]'>
-                  <Sparkles className='h-3 w-3' /> AI connector
+                  <Sparkles className='h-3 w-3' /> {t('mcp.badge')}
                 </Badge>
               </CardTitle>
               <CardDescription className='max-w-xl'>
-                The Model Context Protocol (MCP) lets AI clients like Claude
-                Desktop, ChatGPT and other agents read and act on your Ringee
-                data. Paste the URL below into your client to connect.
+                {t('mcp.description')}
               </CardDescription>
             </div>
           </div>
@@ -116,7 +114,7 @@ function McpSection() {
             <RefreshCw
               className={`mr-1.5 h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`}
             />
-            Refresh
+            {t('mcp.refresh')}
           </Button>
         </div>
       </CardHeader>
@@ -131,7 +129,7 @@ function McpSection() {
         ) : error ? (
           <Alert variant='destructive'>
             <AlertCircle className='h-4 w-4' />
-            <AlertTitle>Could not load MCP connection info</AlertTitle>
+            <AlertTitle>{t('mcp.loadError')}</AlertTitle>
             <AlertDescription>{error}</AlertDescription>
           </Alert>
         ) : info ? (
@@ -146,14 +144,15 @@ function McpSection() {
 }
 
 function McpDetails({ info }: { info: ConnectionInfo }) {
+  const t = useTranslations('integrations.connectors.mcp');
   return (
     <div className='flex flex-col gap-3'>
       <div className='flex flex-wrap items-center gap-2'>
         <ModeBadge mode={info.mode} />
         <span className='text-muted-foreground text-xs'>
           {info.mode === 'organization'
-            ? 'This URL gives access to the active organization.'
-            : 'This URL gives access to your personal (freelancer) workspace.'}
+            ? t('scopeOrganization')
+            : t('scopeFreelancer')}
         </span>
       </div>
 
@@ -170,31 +169,33 @@ function McpDetails({ info }: { info: ConnectionInfo }) {
 }
 
 function ModeBadge({ mode }: { mode: ConnectionMode }) {
+  const t = useTranslations('integrations.connectors.mcp');
   if (mode === 'organization') {
     return (
       <Badge variant='default' className='gap-1.5'>
-        <Building2 className='h-3 w-3' /> Organization mode
+        <Building2 className='h-3 w-3' /> {t('modeOrganization')}
       </Badge>
     );
   }
   return (
     <Badge variant='outline' className='gap-1.5'>
-      <UserIcon className='h-3 w-3' /> Freelancer mode
+      <UserIcon className='h-3 w-3' /> {t('modeFreelancer')}
     </Badge>
   );
 }
 
 function CopyableUrl({ url }: { url: string }) {
+  const t = useTranslations('integrations.connectors.mcp');
   const [copied, setCopied] = useState(false);
 
   const handleCopy = async () => {
     try {
       await navigator.clipboard.writeText(url);
       setCopied(true);
-      toast.success('MCP URL copied');
+      toast.success(t('urlCopied'));
       setTimeout(() => setCopied(false), 1500);
     } catch {
-      toast.error('Could not copy to clipboard');
+      toast.error(t('copyError'));
     }
   };
 
@@ -214,11 +215,11 @@ function CopyableUrl({ url }: { url: string }) {
       >
         {copied ? (
           <>
-            <Check className='mr-1.5 h-3.5 w-3.5' /> Copied
+            <Check className='mr-1.5 h-3.5 w-3.5' /> {t('copied')}
           </>
         ) : (
           <>
-            <Copy className='mr-1.5 h-3.5 w-3.5' /> Copy
+            <Copy className='mr-1.5 h-3.5 w-3.5' /> {t('copy')}
           </>
         )}
       </Button>
@@ -238,41 +239,31 @@ function Detail({ label, value }: { label: string; value: string }) {
 }
 
 function SecurityNote() {
+  const t = useTranslations('integrations.connectors.security');
   return (
     <Alert>
       <ShieldCheck className='h-4 w-4' />
-      <AlertTitle className='text-sm'>Treat this URL as a secret</AlertTitle>
+      <AlertTitle className='text-sm'>{t('title')}</AlertTitle>
       <AlertDescription className='text-xs'>
-        Anyone with this URL can read and act on your Ringee data via MCP. Only
-        share it with trusted AI clients. If it leaks, contact support to rotate
-        your account.
+        {t('description')}
       </AlertDescription>
     </Alert>
   );
 }
 
 function HowToConnect() {
+  const t = useTranslations('integrations.connectors.howTo');
   return (
     <div className='bg-muted/20 flex flex-col gap-2 rounded-lg border p-4'>
       <div className='flex items-center gap-2 text-sm font-medium'>
         <ExternalLink className='h-3.5 w-3.5' />
-        How to connect
+        {t('title')}
       </div>
       <ol className='text-muted-foreground ml-4 list-decimal space-y-1 text-xs'>
-        <li>Copy the URL above.</li>
-        <li>
-          Open your MCP-compatible client (Claude Desktop, ChatGPT, Cursor,
-          etc.) and add a new remote MCP server.
-        </li>
-        <li>
-          Paste the URL as the SSE endpoint. No additional API key is required —
-          the URL is the credential.
-        </li>
-        <li>
-          Once connected, the client will see Ringee tools for searching
-          contacts, starting calls, scheduling callbacks and meetings, and
-          logging outcomes.
-        </li>
+        <li>{t('step1')}</li>
+        <li>{t('step2')}</li>
+        <li>{t('step3')}</li>
+        <li>{t('step4')}</li>
       </ol>
     </div>
   );

@@ -148,6 +148,21 @@
         "pending": "pendente",
         "rejected": "rejeitado",
         "expired": "expirado"
+      },
+      "transfer": {
+        "action": "Mover",
+        "title": "Mover número para outro espaço de trabalho",
+        "description": "Escolha onde {phone} deve ficar. Tem de ser administrador de ambos os espaços de trabalho de organização.",
+        "placeholder": "Selecione o espaço de trabalho de destino",
+        "personal": "Espaço de trabalho pessoal",
+        "resetNotice": "As atribuições de campanha, rotação e telefone de secretária específicas do espaço de trabalho serão removidas. A subscrição Stripe existente continua a ser faturada ao espaço de trabalho que comprou o número originalmente.",
+        "noTargets": "Não administra mais nenhum espaço de trabalho.",
+        "cancel": "Cancelar",
+        "confirm": "Mover número",
+        "moving": "A mover…",
+        "success": "Número movido com sucesso.",
+        "error": "Não foi possível mover o número.",
+        "loadError": "Não foi possível carregar os seus espaços de trabalho."
       }
     },
     "verify": {
@@ -156,6 +171,8 @@
       "metaTitle": "Verificação do número",
       "metaDescription": "Envie os documentos exigidos pelo país do seu número para o ativar.",
       "back": "Voltar aos meus números",
+      "title": "Verificar {phone}",
+      "subtitle": "O país deste número exige verificação de documentos. Forneça os itens abaixo e nós os enviaremos à operadora para análise.",
       "requirementsHeading": "O que a operadora precisa",
       "progressLabel": "Progresso da verificação",
       "progressCount": "{done} de {total} itens prontos",
@@ -171,8 +188,6 @@
       "noneTitle": "Nada por verificar",
       "underReviewTitle": "Em análise",
       "rejectedTitle": "Ação necessária",
-      "title": "Verificar {phone}",
-      "subtitle": "O país deste número exige verificação de documentos. Forneça os itens abaixo e nós os enviaremos à operadora para análise.",
       "underReview": "Os seus documentos foram enviados e estão a ser analisados pela operadora. Normalmente demora alguns dias úteis.",
       "rejectedBanner": "A operadora não aprovou alguns itens. Corrija os marcados a vermelho abaixo e reenvie.",
       "rejectedReason": "Motivo",

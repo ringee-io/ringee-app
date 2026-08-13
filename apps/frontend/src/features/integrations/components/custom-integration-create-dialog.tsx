@@ -14,6 +14,7 @@ import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
 import { AlertTriangle, Copy, Check } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import type { CustomIntegrationWithSecrets } from '../types/custom-integrations';
 import { useCustomIntegrations } from '../hooks/use-custom-integrations';
 
@@ -29,6 +30,7 @@ export function CustomIntegrationCreateDialog({
   onCreated
 }: Props) {
   const { create } = useCustomIntegrations();
+  const t = useTranslations('integrations.custom.create');
   const [name, setName] = useState('');
   const [creating, setCreating] = useState(false);
   const [result, setResult] = useState<CustomIntegrationWithSecrets | null>(
@@ -37,7 +39,7 @@ export function CustomIntegrationCreateDialog({
 
   const handleCreate = async () => {
     if (!name.trim()) {
-      toast.error('Name is required');
+      toast.error(t('nameRequired'));
       return;
     }
     setCreating(true);
@@ -46,7 +48,7 @@ export function CustomIntegrationCreateDialog({
       setResult(item);
       onCreated(item);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Create failed');
+      toast.error(err instanceof Error ? err.message : t('error'));
     } finally {
       setCreating(false);
     }
@@ -67,31 +69,28 @@ export function CustomIntegrationCreateDialog({
         {!result ? (
           <>
             <DialogHeader>
-              <DialogTitle>New Custom Integration</DialogTitle>
-              <DialogDescription>
-                Connect Ringee to any external system using an API key, webhooks
-                and click-to-call.
-              </DialogDescription>
+              <DialogTitle>{t('title')}</DialogTitle>
+              <DialogDescription>{t('description')}</DialogDescription>
             </DialogHeader>
             <div className='space-y-2 py-2'>
-              <Label htmlFor='ci-name'>Name</Label>
+              <Label htmlFor='ci-name'>{t('name')}</Label>
               <Input
                 id='ci-name'
                 value={name}
-                placeholder='e.g. My internal CRM'
+                placeholder={t('namePlaceholder')}
                 onChange={(e) => setName(e.target.value)}
                 autoFocus
               />
             </div>
             <DialogFooter>
               <Button variant='ghost' onClick={handleClose} disabled={creating}>
-                Cancel
+                {t('cancel')}
               </Button>
               <Button
                 onClick={handleCreate}
                 disabled={creating || !name.trim()}
               >
-                {creating ? 'Creating…' : 'Create'}
+                {creating ? t('creating') : t('submit')}
               </Button>
             </DialogFooter>
           </>
@@ -110,40 +109,41 @@ function SecretsReveal({
   item: CustomIntegrationWithSecrets;
   onDone: () => void;
 }) {
+  const t = useTranslations('integrations.custom.create.reveal');
   return (
     <>
       <DialogHeader>
-        <DialogTitle>Save your credentials now</DialogTitle>
+        <DialogTitle>{t('title')}</DialogTitle>
         <DialogDescription className='flex gap-1.5'>
           <AlertTriangle className='mt-0.5 h-4 w-4 shrink-0 text-amber-500' />
           <span>
-            The API key and webhook signing secret will{' '}
-            <strong>only be shown once</strong>. Copy them now and store them in
-            a secure location. You can rotate them later, but you cannot view
-            them again.
+            {t.rich('warning', {
+              strong: (chunks) => <strong>{chunks}</strong>
+            })}
           </span>
         </DialogDescription>
       </DialogHeader>
       <div className='space-y-4 py-2'>
-        <CopyableSecret label='API Key' value={item.apiKey ?? ''} />
+        <CopyableSecret label={t('apiKey')} value={item.apiKey ?? ''} />
         <CopyableSecret
-          label='Webhook signing secret'
+          label={t('signingSecret')}
           value={item.signingSecret ?? ''}
         />
       </div>
       <DialogFooter>
-        <Button onClick={onDone}>I&apos;ve saved them</Button>
+        <Button onClick={onDone}>{t('done')}</Button>
       </DialogFooter>
     </>
   );
 }
 
 function CopyableSecret({ label, value }: { label: string; value: string }) {
+  const t = useTranslations('integrations.custom.create.reveal');
   const [copied, setCopied] = useState(false);
   const copy = async () => {
     await navigator.clipboard.writeText(value);
     setCopied(true);
-    toast.success('Copied to clipboard');
+    toast.success(t('copied'));
     setTimeout(() => setCopied(false), 1500);
   };
   return (

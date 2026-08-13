@@ -93,17 +93,8 @@
       },
       "footer": {
         "secureByStripe": "Sicuro con Stripe",
-        "refundGuarantee": "Rimborso garantito al 100%",
         "cardSafety": "I dati della carta non passano mai dai server di Ringee",
         "creditsAfter": "Crediti aggiunti dopo la conferma"
-      },
-      "amount": {
-        "currentBalance": "Saldo attuale",
-        "lastTopup": "Ultima ricarica: {amount}",
-        "rechargeCta": "Ricarica {amount}",
-        "continueCheckout": "Continua al pagamento sicuro",
-        "useAnotherMethod": "Usa un altro metodo di pagamento",
-        "savedHint": "Addebitato su {brand} •••• {last4}."
       },
       "checkout": {
         "title": "Pagamento sicuro",
@@ -131,6 +122,14 @@
         "invoiceEmailLabel": "Email per le fatture",
         "emailPlaceholder": "tu@azienda.com",
         "emailHint": "La tua ricevuta Stripe viene inviata qui — modificala se vuoi ricevere le fatture altrove."
+      },
+      "amount": {
+        "currentBalance": "Saldo attuale",
+        "lastTopup": "Ultima ricarica: {amount}",
+        "rechargeCta": "Ricarica {amount}",
+        "continueCheckout": "Continua al pagamento sicuro",
+        "useAnotherMethod": "Usa un altro metodo di pagamento",
+        "savedHint": "Addebitato su {brand} •••• {last4}."
       },
       "saved": {
         "title": "Ricarica veloce",
@@ -195,5 +194,13 @@
     "addCard": "Aggiungi carta",
     "expiresOn": "Scade il {date}",
     "default": "Predefinito"
+  },
+  "portal": {
+    "eyebrow": "Fatturazione sicura con Stripe",
+    "title": "Apertura del portale di fatturazione",
+    "description": "Gestisci abbonamenti, metodi di pagamento, fatture e dati di fatturazione in modo sicuro su Stripe.",
+    "redirecting": "Reindirizzamento a Stripe…",
+    "retry": "Apri il portale di fatturazione Stripe",
+    "error": "Non siamo riusciti ad aprire il portale di fatturazione. Riprova tra un momento."
   }
 }

@@ -27,6 +27,7 @@ import {
   Plug,
   Trash2
 } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import type { CustomIntegrationSummary } from '../types/custom-integrations';
 
 interface Props {
@@ -36,6 +37,7 @@ interface Props {
 }
 
 export function CustomIntegrationCard({ item, onConfigure, onDelete }: Props) {
+  const t = useTranslations('integrations.custom.card');
   const subscribedCount = item.subscribedEvents.length;
   return (
     <div className='bg-card rounded-xl border p-4'>
@@ -57,14 +59,14 @@ export function CustomIntegrationCard({ item, onConfigure, onDelete }: Props) {
               variant='outline'
               className='border-emerald-500/30 bg-emerald-500/10 text-emerald-500'
             >
-              <CheckCircle2 className='mr-1 h-3 w-3' /> Active
+              <CheckCircle2 className='mr-1 h-3 w-3' /> {t('active')}
             </Badge>
           ) : (
             <Badge
               variant='outline'
               className='border-muted-foreground/30 text-muted-foreground'
             >
-              <PauseCircle className='mr-1 h-3 w-3' /> Disabled
+              <PauseCircle className='mr-1 h-3 w-3' /> {t('disabled')}
             </Badge>
           )}
           <DropdownMenu>
@@ -75,7 +77,7 @@ export function CustomIntegrationCard({ item, onConfigure, onDelete }: Props) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align='end'>
               <DropdownMenuItem onClick={() => onConfigure(item.id)}>
-                Configure
+                {t('configure')}
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <AlertDialog>
@@ -84,23 +86,24 @@ export function CustomIntegrationCard({ item, onConfigure, onDelete }: Props) {
                     onSelect={(e) => e.preventDefault()}
                     className='text-red-500 focus:text-red-500'
                   >
-                    <Trash2 className='mr-2 h-3.5 w-3.5' /> Delete
+                    <Trash2 className='mr-2 h-3.5 w-3.5' /> {t('delete')}
                   </DropdownMenuItem>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>
-                      Delete this integration?
+                      {t('deleteDialog.title')}
                     </AlertDialogTitle>
                     <AlertDialogDescription>
-                      The API key, signing secret, contact/company links and
-                      logs will be removed. This cannot be undone.
+                      {t('deleteDialog.description')}
                     </AlertDialogDescription>
                   </AlertDialogHeader>
                   <AlertDialogFooter>
-                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogCancel>
+                      {t('deleteDialog.cancel')}
+                    </AlertDialogCancel>
                     <AlertDialogAction onClick={() => onDelete(item.id)}>
-                      Delete
+                      {t('deleteDialog.confirm')}
                     </AlertDialogAction>
                   </AlertDialogFooter>
                 </AlertDialogContent>
@@ -111,23 +114,25 @@ export function CustomIntegrationCard({ item, onConfigure, onDelete }: Props) {
       </div>
       <dl className='mt-4 grid grid-cols-3 gap-3 text-xs'>
         <div>
-          <dt className='text-muted-foreground'>Outbound URL</dt>
+          <dt className='text-muted-foreground'>{t('outboundUrl')}</dt>
           <dd className='mt-0.5 truncate font-medium'>
             {item.outboundUrl ?? (
-              <span className='text-muted-foreground'>Not configured</span>
+              <span className='text-muted-foreground'>
+                {t('notConfigured')}
+              </span>
             )}
           </dd>
         </div>
         <div>
-          <dt className='text-muted-foreground'>Events</dt>
+          <dt className='text-muted-foreground'>{t('events')}</dt>
           <dd className='mt-0.5 font-medium'>{subscribedCount}</dd>
         </div>
         <div>
-          <dt className='text-muted-foreground'>Last used</dt>
+          <dt className='text-muted-foreground'>{t('lastUsed')}</dt>
           <dd className='mt-0.5 font-medium'>
             {item.apiKeyLastUsedAt
               ? new Date(item.apiKeyLastUsedAt).toLocaleString()
-              : 'Never'}
+              : t('never')}
           </dd>
         </div>
       </dl>
@@ -137,7 +142,7 @@ export function CustomIntegrationCard({ item, onConfigure, onDelete }: Props) {
           size='sm'
           onClick={() => onConfigure(item.id)}
         >
-          Configure
+          {t('configure')}
         </Button>
       </div>
     </div>

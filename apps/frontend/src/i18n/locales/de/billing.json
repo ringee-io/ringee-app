@@ -93,17 +93,8 @@
       },
       "footer": {
         "secureByStripe": "Gesichert durch Stripe",
-        "refundGuarantee": "100 % Geld-zurück-Garantie",
         "cardSafety": "Kartendaten erreichen niemals die Server von Ringee",
         "creditsAfter": "Guthaben wird nach Bestätigung hinzugefügt"
-      },
-      "amount": {
-        "currentBalance": "Aktuelles Guthaben",
-        "lastTopup": "Letzte Aufladung: {amount}",
-        "rechargeCta": "{amount} aufladen",
-        "continueCheckout": "Weiter zur sicheren Kasse",
-        "useAnotherMethod": "Andere Zahlungsmethode verwenden",
-        "savedHint": "Belastet auf {brand} •••• {last4}."
       },
       "checkout": {
         "title": "Sichere Kasse",
@@ -131,6 +122,14 @@
         "invoiceEmailLabel": "E-Mail für Rechnungen",
         "emailPlaceholder": "sie@unternehmen.de",
         "emailHint": "Ihr Stripe-Beleg wird hierhin gesendet – ändern Sie sie, wenn Rechnungen woanders hingehen sollen."
+      },
+      "amount": {
+        "currentBalance": "Aktuelles Guthaben",
+        "lastTopup": "Letzte Aufladung: {amount}",
+        "rechargeCta": "{amount} aufladen",
+        "continueCheckout": "Weiter zur sicheren Kasse",
+        "useAnotherMethod": "Andere Zahlungsmethode verwenden",
+        "savedHint": "Belastet auf {brand} •••• {last4}."
       },
       "saved": {
         "title": "Schnellaufladung",
@@ -195,5 +194,13 @@
     "addCard": "Karte hinzufügen",
     "expiresOn": "Läuft ab am {date}",
     "default": "Standard"
+  },
+  "portal": {
+    "eyebrow": "Sichere Abrechnung über Stripe",
+    "title": "Ihr Abrechnungsportal wird geöffnet",
+    "description": "Verwalten Sie Abonnements, Zahlungsmethoden, Rechnungen und Rechnungsdaten sicher in Stripe.",
+    "redirecting": "Weiterleitung zu Stripe…",
+    "retry": "Stripe-Abrechnungsportal öffnen",
+    "error": "Das Abrechnungsportal konnte nicht geöffnet werden. Bitte versuchen Sie es gleich noch einmal."
   }
 }

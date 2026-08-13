@@ -11,11 +11,10 @@ import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
   DialogTrigger
 } from '@ringee/frontend-shared/components/ui/dialog';
 import ContactForm from '@/features/contact/components/contact.form';
+import { useTranslations } from 'next-intl';
 
 interface Props {
   number: string;
@@ -23,6 +22,7 @@ interface Props {
 }
 
 export function ContactSelector({ number, onSelectNumber }: Props) {
+  const t = useTranslations('calls.contactSelector');
   const api = useApi();
   const {
     matches,
@@ -156,9 +156,9 @@ export function ContactSelector({ number, onSelectNumber }: Props) {
         onClick={() => total > 1 && setShowAll(!showAll)}
         className='text-muted-foreground hover:text-foreground flex items-center justify-center gap-1 text-xs transition'
       >
-        {total === 1 ? '1 contact match 👆' : null}
+        {total === 1 ? t('singleMatch') : null}
 
-        {total > 1 ? `${total} contacts match` : null}
+        {total > 1 ? t('multipleMatches', { count: total }) : null}
 
         {total > 1 &&
           (showAll ? (
@@ -171,9 +171,7 @@ export function ContactSelector({ number, onSelectNumber }: Props) {
       {/* No results */}
       {((!isLoading && noResults) || status === 'idle') && (
         <div className='flex flex-col items-center py-2'>
-          <p className='text-muted-foreground mb-2 text-sm'>
-            No contacts found
-          </p>
+          <p className='text-muted-foreground mb-2 text-sm'>{t('notFound')}</p>
 
           <Dialog open={openModal} onOpenChange={setOpenModal} modal>
             <DialogTrigger asChild>
@@ -183,7 +181,7 @@ export function ContactSelector({ number, onSelectNumber }: Props) {
                 className='flex items-center gap-2'
               >
                 <UserPlus2 className='h-4 w-4' />
-                Add contact
+                {t('addContact')}
               </Button>
             </DialogTrigger>
 
@@ -197,7 +195,7 @@ export function ContactSelector({ number, onSelectNumber }: Props) {
                     phoneNumber: number
                   } as never
                 }
-                pageTitle='Add contact'
+                pageTitle={t('addContact')}
                 className='md:grid-cols-1'
                 onSaved={() => {
                   setOpenModal(false);

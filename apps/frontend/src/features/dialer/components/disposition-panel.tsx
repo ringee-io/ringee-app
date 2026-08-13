@@ -11,6 +11,7 @@ import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import { Loader2, ClipboardList, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 interface Props {
   campaignId: string;
@@ -19,6 +20,7 @@ interface Props {
 
 export function DispositionPanel({ campaignId, sessionId }: Props) {
   const api = useApi();
+  const t = useTranslations('dialer.disposition');
   const attemptId = useDialerAttemptStore((s) => s.attemptId);
   const dispositionRequired = useDialerAttemptStore(
     (s) => s.dispositionRequired
@@ -44,7 +46,7 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
     if (!attemptId || !selectedCode) return;
     // A callback disposition needs a scheduled date to actually create the callback.
     if (showCallbackFields && !callbackDate) {
-      toast.error('Please choose a date and time for the callback.');
+      toast.error(t('callbackRequired'));
       return;
     }
     setSubmitting(true);
@@ -64,11 +66,9 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
       setNote('');
       setCallbackDate('');
       setCallbackNote('');
-      toast.success('Disposition saved.');
+      toast.success(t('saved'));
     } catch (err: any) {
-      toast.error(
-        err?.message || 'Could not save disposition. Please try again.'
-      );
+      toast.error(err?.message || t('saveFailed'));
     } finally {
       setSubmitting(false);
     }
@@ -99,13 +99,13 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
     return (
       <div className='flex h-full flex-col items-center justify-center p-6 text-center'>
         <ClipboardList className='text-muted-foreground mb-3 h-10 w-10' />
-        <h3 className='font-semibold'>Disposition</h3>
+        <h3 className='font-semibold'>{t('title')}</h3>
         <p className='text-muted-foreground mt-1 text-sm'>
           {callActive
-            ? 'Disposition will be available after the call ends.'
+            ? t('availableAfterCall')
             : attemptId
-              ? 'Waiting for call to complete...'
-              : 'Select a call outcome after each call.'}
+              ? t('waiting')
+              : t('selectAfterCall')}
         </p>
       </div>
     );
@@ -113,7 +113,7 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
 
   return (
     <div className='flex h-full flex-col p-4'>
-      <h3 className='mb-3 text-sm font-semibold'>Select Disposition</h3>
+      <h3 className='mb-3 text-sm font-semibold'>{t('select')}</h3>
 
       {/* Disposition buttons grid */}
       <div className='grid grid-cols-2 gap-2'>
@@ -143,11 +143,11 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
       <div className='space-y-3'>
         <div className='space-y-1'>
           <Label htmlFor='dispo-note' className='text-xs'>
-            Notes (optional)
+            {t('notes')}
           </Label>
           <Textarea
             id='dispo-note'
-            placeholder='Call notes...'
+            placeholder={t('notesPlaceholder')}
             value={note}
             onChange={(e) => setNote(e.target.value)}
             rows={3}
@@ -161,11 +161,11 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
             <div className='space-y-2'>
               <div className='flex items-center gap-2 text-sm font-medium'>
                 <Calendar className='h-4 w-4' />
-                Schedule Callback
+                {t('scheduleCallback')}
               </div>
               <div className='space-y-1'>
                 <Label htmlFor='callback-date' className='text-xs'>
-                  Date &amp; Time
+                  {t('dateTime')}
                 </Label>
                 <Input
                   id='callback-date'
@@ -176,11 +176,11 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
               </div>
               <div className='space-y-1'>
                 <Label htmlFor='callback-note' className='text-xs'>
-                  Callback Note
+                  {t('callbackNote')}
                 </Label>
                 <Textarea
                   id='callback-note'
-                  placeholder='Reason for callback...'
+                  placeholder={t('callbackPlaceholder')}
                   value={callbackNote}
                   onChange={(e) => setCallbackNote(e.target.value)}
                   rows={2}
@@ -199,7 +199,7 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
           onClick={handleSubmit}
         >
           {submitting && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-          Submit Disposition
+          {t('submit')}
         </Button>
       </div>
     </div>

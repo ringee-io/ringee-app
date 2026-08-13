@@ -10,6 +10,7 @@ import {
   Wallet
 } from 'lucide-react';
 import type { CallSessionError } from '../use-call-session';
+import { useTranslations } from 'next-intl';
 
 const ICONS = {
   expired: Clock,
@@ -26,6 +27,7 @@ interface Props {
 }
 
 export function SessionErrorView({ error, onRetry }: Props) {
+  const t = useTranslations('dialer.publicSession');
   const Icon = ICONS[error.variant];
   const isFatal = error.variant === 'invalid' || error.variant === 'revoked';
   return (
@@ -41,7 +43,7 @@ export function SessionErrorView({ error, onRetry }: Props) {
           </p>
           {!isFatal && (
             <Button variant='outline' className='mt-6' onClick={onRetry}>
-              Retry
+              {t('retry')}
             </Button>
           )}
         </CardContent>

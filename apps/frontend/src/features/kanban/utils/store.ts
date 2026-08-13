@@ -28,18 +28,7 @@ export type State = {
   draggedTask: string | null;
 };
 
-const initialTasks: Task[] = [
-  {
-    id: 'task1',
-    status: 'TODO',
-    title: 'Project initiation and planning'
-  },
-  {
-    id: 'task2',
-    status: 'TODO',
-    title: 'Gather requirements from stakeholders'
-  }
-];
+const initialTasks: Task[] = [];
 
 export type Actions = {
   addTask: (title: string, description?: string) => void;

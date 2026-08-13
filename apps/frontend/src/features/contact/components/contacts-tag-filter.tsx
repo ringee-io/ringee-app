@@ -12,6 +12,7 @@ import { useQueryState, parseAsArrayOf, parseAsString } from 'nuqs';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Checkbox } from '@ringee/frontend-shared/components/ui/checkbox';
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import { useTranslations } from 'next-intl';
 
 interface Tag {
   id: string;
@@ -21,6 +22,7 @@ interface Tag {
 
 export function ContactsTagFilter() {
   const api = useApi();
+  const t = useTranslations('contacts.tagFilter');
   const [tags, setTags] = useState<Tag[]>([]);
   const [open, setOpen] = useState(false);
   // shallow: false triggers full page navigation which re-runs the Server Component
@@ -66,13 +68,13 @@ export function ContactsTagFilter() {
   const hasValue = selectedTags.length > 0;
 
   const formatLabel = () => {
-    if (!hasValue) return 'Filter by tags';
+    if (!hasValue) return t('label');
     // If tags loaded, show name(s); otherwise show count
     const selected = tags.filter((t) => selectedTags.includes(t.id));
     if (selected.length === 1) return selected[0].name;
-    if (selected.length > 0) return `${selected.length} tags`;
+    if (selected.length > 0) return t('count', { count: selected.length });
     // Tags not loaded yet, show count from URL
-    return `${selectedTags.length} tags`;
+    return t('count', { count: selectedTags.length });
   };
 
   return (
@@ -86,7 +88,7 @@ export function ContactsTagFilter() {
           {hasValue ? (
             <div
               role='button'
-              aria-label='Clear tag filter'
+              aria-label={t('clear')}
               tabIndex={0}
               onClick={handleClear}
               className='focus-visible:ring-ring rounded-sm opacity-70 transition-opacity hover:opacity-100 focus-visible:ring-1 focus-visible:outline-none'
@@ -118,7 +120,7 @@ export function ContactsTagFilter() {
             </label>
           ))}
           {tags.length === 0 && (
-            <p className='text-muted-foreground py-2 text-sm'>No tags</p>
+            <p className='text-muted-foreground py-2 text-sm'>{t('empty')}</p>
           )}
         </div>
       </PopoverContent>

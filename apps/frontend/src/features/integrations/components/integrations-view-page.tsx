@@ -65,12 +65,16 @@ export default function IntegrationsViewPage() {
     notifiedRef.current = key;
     if (crm === 'connected' && provider) {
       toast.success(
-        `${PROVIDER_META[provider as CrmProviderType]?.name ?? provider} connected`
+        t('toasts.providerConnected', {
+          provider: PROVIDER_META[provider as CrmProviderType]?.name ?? provider
+        })
       );
       reload();
     } else if (crm === 'error') {
       toast.error(
-        `Connection failed${reason ? `: ${reason}` : ''}. Please try again.`
+        reason
+          ? t('toasts.connectionFailedReason', { reason })
+          : t('toasts.connectionFailed')
       );
     }
     const url = new URL(window.location.href);
@@ -88,9 +92,7 @@ export default function IntegrationsViewPage() {
     // Odoo uses credential-based auth (not OAuth) — we show a hint and let
     // the user re-enter credentials via the dialog in the catalog below.
     if (provider === 'odoo_14_18' || provider === 'odoo_19_plus') {
-      toast.info(
-        'Use the Odoo card below to re-enter your credentials and reconnect.'
-      );
+      toast.info(t('toasts.odooHint'));
       return;
     }
     try {
@@ -105,10 +107,10 @@ export default function IntegrationsViewPage() {
       if (res?.url) {
         window.location.href = res.url;
       } else {
-        toast.error('Could not start authorization');
+        toast.error(t('toasts.authStartError'));
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to start auth');
+      toast.error(err instanceof Error ? err.message : t('toasts.authError'));
     }
   };
 
@@ -116,10 +118,12 @@ export default function IntegrationsViewPage() {
     setDisconnectingId(id);
     try {
       await api.delete(`/crm/connections/${id}`);
-      toast.success('Connection disconnected');
+      toast.success(t('toasts.disconnected'));
       await reload();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to disconnect');
+      toast.error(
+        err instanceof Error ? err.message : t('toasts.disconnectError')
+      );
     } finally {
       setDisconnectingId(null);
     }
@@ -129,10 +133,10 @@ export default function IntegrationsViewPage() {
     setDisconnectingId(id);
     try {
       await api.post(`/crm/connections/${id}/forget`);
-      toast.success('Connection forgotten');
+      toast.success(t('toasts.forgotten'));
       await reload();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Failed to forget');
+      toast.error(err instanceof Error ? err.message : t('toasts.forgetError'));
     } finally {
       setDisconnectingId(null);
     }
@@ -191,13 +195,13 @@ export default function IntegrationsViewPage() {
         </TabsTrigger>
         {canAccessAdminFeatures && (
           <TabsTrigger value='custom' className='gap-1.5'>
-            <PlugZap className='h-3.5 w-3.5' /> Custom Integrations
+            <PlugZap className='h-3.5 w-3.5' /> {t('tabs.custom')}
           </TabsTrigger>
         )}
         {/* {canAccessAdminFeatures && ( */}
-          <TabsTrigger value='connectors' className='gap-1.5'>
-            <Bot className='h-3.5 w-3.5' /> Connectors
-          </TabsTrigger>
+        <TabsTrigger value='connectors' className='gap-1.5'>
+          <Bot className='h-3.5 w-3.5' /> {t('tabs.connectors')}
+        </TabsTrigger>
         {/* )} */}
       </TabsList>
 
@@ -218,9 +222,9 @@ export default function IntegrationsViewPage() {
       )}
 
       {/* {canAccessAdminFeatures && ( */}
-        <TabsContent value='connectors' className='mt-6'>
-          <ConnectorsTab />
-        </TabsContent>
+      <TabsContent value='connectors' className='mt-6'>
+        <ConnectorsTab />
+      </TabsContent>
       {/* )} */}
 
       {canAccessAdminFeatures && (

@@ -55,8 +55,30 @@
   "theme": "Thema",
   "selectTheme": "Thema wählen:",
   "selectThemePlaceholder": "Thema wählen",
+  "toggleTheme": "Design umschalten",
+  "toggleSidebar": "Seitenleiste umschalten",
   "platform": "Plattform",
   "projects": "Projekte",
+  "accessRestricted": {
+    "title": "Zugriff eingeschränkt",
+    "description": "Sie haben keinen Zugriff auf diese Funktion. Wenden Sie sich an einen Administrator der Organisation, wenn Sie sie benötigen."
+  },
+  "memberFilter": {
+    "all": "Alle Mitglieder",
+    "search": "Mitglieder suchen…",
+    "noMembers": "Keine Mitglieder gefunden",
+    "member": "Mitglied"
+  },
+  "dateFilter": {
+    "filterByDate": "Nach Datum filtern",
+    "from": "Ab {date}",
+    "to": "Bis {date}",
+    "clear": "Datumsfilter löschen"
+  },
+  "scope": {
+    "mine": "Meine",
+    "all": "Alle"
+  },
   "fileUpload": {
     "dropHere": "Dateien hier ablegen",
     "dragAndDrop": "Dateien hierher ziehen oder klicken zum Auswählen",
@@ -76,6 +98,13 @@
     "share": "Projekt teilen",
     "delete": "Projekt löschen"
   },
-  "toggleTheme": "Design umschalten",
-  "toggleSidebar": "Seitenleiste umschalten"
+  "weekdaysShort": {
+    "sun": "So",
+    "mon": "Mo",
+    "tue": "Di",
+    "wed": "Mi",
+    "thu": "Do",
+    "fri": "Fr",
+    "sat": "Sa"
+  }
 }

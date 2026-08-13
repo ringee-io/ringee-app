@@ -2,21 +2,19 @@ import PageContainer from '@/components/layout/page-container';
 import { Heading } from '@ringee/frontend-shared/components/ui/heading';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import { PendingActionsList } from '@/features/pending-actions/components/pending-actions-list';
+import { getTranslations } from 'next-intl/server';
 
-export const metadata = {
-  title: 'Pending Actions',
-  description:
-    'Your execution center — what to do next, grouped and prioritized.'
-};
+export async function generateMetadata() {
+  const t = await getTranslations('ai.pendingActions');
+  return { title: t('metaTitle'), description: t('metaDescription') };
+}
 
-export default function PendingActionsPage() {
+export default async function PendingActionsPage() {
+  const t = await getTranslations('ai.pendingActions');
   return (
     <PageContainer scrollable>
       <div className='flex flex-1 flex-col space-y-4'>
-        <Heading
-          title='Pending Actions'
-          description='What to do next. Actions are grouped, prioritized and decay automatically so the list stays useful.'
-        />
+        <Heading title={t('title')} description={t('description')} />
         <Separator />
         <PendingActionsList />
       </div>

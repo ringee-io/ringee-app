@@ -32,6 +32,7 @@ import {
   useCallIdBySession,
   useRecordingSettings
 } from '@/features/transcription';
+import { useTranslations } from 'next-intl';
 
 function formatDuration(sec: number): string {
   const m = Math.floor(sec / 60);
@@ -46,6 +47,7 @@ interface Props {
 
 export function SoftphonePanel({ campaignId, sessionId }: Props) {
   const api = useApi();
+  const t = useTranslations('dialer.softphone');
   const status = useDialerSessionStore((s) => s.status);
   const currentLead = useDialerLeadStore((s) => s.currentLead);
   const callStatus = useDialerAttemptStore((s) => s.callStatus);
@@ -143,7 +145,7 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
     try {
       await api.post('/dialer/dial', { sessionId, campaignId });
     } catch (err: any) {
-      toast.error(err?.message || 'Could not start the call.');
+      toast.error(err?.message || t('dialFailed'));
     }
   }
 
@@ -151,7 +153,7 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
     try {
       await api.post('/dialer/skip', { sessionId, campaignId });
     } catch (err: any) {
-      toast.error(err?.message || 'Could not skip this lead.');
+      toast.error(err?.message || t('skipFailed'));
     }
   }
 
@@ -171,7 +173,7 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
         {remoteAudio}
         <Phone className='text-muted-foreground/40 mb-3 h-16 w-16' />
         <p className='text-muted-foreground text-sm'>
-          {status === 'paused' ? 'Session paused' : 'Waiting for next lead...'}
+          {status === 'paused' ? t('paused') : t('waiting')}
         </p>
       </div>
     );
@@ -191,11 +193,11 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
         <div className='flex gap-3'>
           <Button size='lg' onClick={handleDial}>
             <Phone className='mr-2 h-5 w-5' />
-            Dial
+            {t('dial')}
           </Button>
           <Button variant='outline' size='lg' onClick={handleSkip}>
             <SkipForward className='mr-2 h-5 w-5' />
-            Skip
+            {t('skip')}
           </Button>
         </div>
       </div>
@@ -219,7 +221,7 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
       <div className='text-center'>
         {isDialing && !isInCall && (
           <div className='text-muted-foreground animate-pulse text-lg'>
-            Dialing...
+            {t('dialing')}
           </div>
         )}
         {isInCall && (
@@ -228,7 +230,7 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
           </div>
         )}
         {!isInCall && !isDialing && callStatus === 'ended' && (
-          <div className='text-muted-foreground text-lg'>Call ended</div>
+          <div className='text-muted-foreground text-lg'>{t('ended')}</div>
         )}
         {currentLead && (
           <p className='text-muted-foreground mt-1 text-sm'>
@@ -239,11 +241,11 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
         {isRecording && (
           <div className='mt-1 flex items-center justify-center gap-1 text-xs text-red-500'>
             <Circle className='h-2 w-2 fill-red-500' />
-            Recording
+            {t('recording')}
           </div>
         )}
         {isOnHold && (
-          <div className='mt-1 text-xs text-yellow-500'>On Hold</div>
+          <div className='mt-1 text-xs text-yellow-500'>{t('onHold')}</div>
         )}
       </div>
 
@@ -258,7 +260,7 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
               className='h-12 w-12 rounded-full'
               onClick={toggleMute}
               disabled={!isInCall}
-              title={isMuted ? 'Unmute' : 'Mute'}
+              title={isMuted ? t('unmute') : t('mute')}
             >
               {isMuted ? (
                 <MicOff className='h-5 w-5' />
@@ -274,7 +276,7 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
               className='h-12 w-12 rounded-full'
               onClick={toggleHold}
               disabled={!isInCall}
-              title={isOnHold ? 'Resume' : 'Hold'}
+              title={isOnHold ? t('resume') : t('hold')}
             >
               {isOnHold ? (
                 <Play className='h-5 w-5' />
@@ -296,10 +298,10 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
               }
               title={
                 recordingSettings.recordAllCalls
-                  ? 'Auto-recording is on for all calls'
+                  ? t('autoRecording')
                   : isRecording
-                    ? 'Stop recording'
-                    : 'Start recording'
+                    ? t('stopRecording')
+                    : t('startRecording')
               }
             >
               <Circle
@@ -314,7 +316,7 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
               className='h-12 w-12 rounded-full'
               onClick={() => setShowDTMF(!showDTMF)}
               disabled={!isInCall}
-              title='Send DTMF'
+              title={t('sendDtmf')}
             >
               <Grid3X3 className='h-5 w-5' />
             </Button>
@@ -336,7 +338,7 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
               size='icon'
               className='h-10 w-10 rounded-full'
               onClick={() => setShowSubtitles((prev) => !prev)}
-              title={showSubtitles ? 'Hide subtitles' : 'Show subtitles'}
+              title={showSubtitles ? t('hideSubtitles') : t('showSubtitles')}
             >
               {showSubtitles ? (
                 <Captions className='h-4 w-4' />
@@ -352,7 +354,7 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
             size='lg'
             className='h-14 w-14 rounded-full'
             onClick={handleHangup}
-            title='Hang up'
+            title={t('hangup')}
           >
             <PhoneOff className='h-6 w-6' />
           </Button>

@@ -13,6 +13,7 @@ import { Card, CardContent } from '@ringee/frontend-shared/components/ui/card';
 import { Play, ArrowLeft } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 interface Props {
   campaignId: string;
@@ -20,6 +21,7 @@ interface Props {
 
 export function AgentWorkspace({ campaignId }: Props) {
   const router = useRouter();
+  const t = useTranslations('dialer.workspace');
   const {
     sessionId,
     status,
@@ -41,8 +43,8 @@ export function AgentWorkspace({ campaignId }: Props) {
     } catch (err: any) {
       const message =
         err?.status === 403
-          ? "You're not assigned to this campaign. Ask an admin to add you as a member."
-          : err?.message || 'Could not start the session. Please try again.';
+          ? t('notAssigned')
+          : err?.message || t('startFailed');
       setStartError(message);
       toast.error(message);
     } finally {
@@ -78,17 +80,15 @@ export function AgentWorkspace({ campaignId }: Props) {
           >
             <ArrowLeft className='h-4 w-4' />
           </Button>
-          <h1 className='text-lg font-semibold'>Agent Workspace</h1>
+          <h1 className='text-lg font-semibold'>{t('title')}</h1>
         </div>
         <div className='flex flex-1 items-center justify-center'>
           <Card className='w-full max-w-md'>
             <CardContent className='flex flex-col items-center py-12'>
               <Play className='text-muted-foreground mb-4 h-16 w-16' />
-              <h2 className='text-xl font-semibold'>Ready to start dialing?</h2>
+              <h2 className='text-xl font-semibold'>{t('ready')}</h2>
               <p className='text-muted-foreground mt-2 text-center text-sm'>
-                Start a session to begin making calls for this campaign. The
-                dialer will automatically assign leads based on the campaign
-                configuration.
+                {t('description')}
               </p>
               {startError && (
                 <p className='text-destructive mt-4 max-w-sm text-center text-sm'>
@@ -102,7 +102,7 @@ export function AgentWorkspace({ campaignId }: Props) {
                 disabled={starting}
               >
                 <Play className='mr-2 h-5 w-5' />
-                {starting ? 'Starting…' : 'Start Session'}
+                {starting ? t('starting') : t('start')}
               </Button>
             </CardContent>
           </Card>

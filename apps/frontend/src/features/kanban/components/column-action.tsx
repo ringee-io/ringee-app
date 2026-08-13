@@ -23,6 +23,7 @@ import { useTaskStore } from '../utils/store';
 import { UniqueIdentifier } from '@dnd-kit/core';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 
 export function ColumnActions({
   title,
@@ -31,6 +32,7 @@ export function ColumnActions({
   title: string;
   id: UniqueIdentifier;
 }) {
+  const t = useTranslations('contacts.kanban.board');
   const [name, setName] = React.useState(title);
   const updateCol = useTaskStore((state) => state.updateCol);
   const removeCol = useTaskStore((state) => state.removeCol);
@@ -45,7 +47,7 @@ export function ColumnActions({
           e.preventDefault();
           setIsEditDisable(!editDisable);
           updateCol(id, name);
-          toast(`${title} updated to ${name}`);
+          toast(t('columnUpdated', { title, name }));
         }}
       >
         <Input
@@ -59,7 +61,7 @@ export function ColumnActions({
       <DropdownMenu modal={false}>
         <DropdownMenuTrigger asChild>
           <Button variant='secondary' className='ml-1'>
-            <span className='sr-only'>Actions</span>
+            <span className='sr-only'>{t('actions')}</span>
             <DotsHorizontalIcon className='h-4 w-4' />
           </Button>
         </DropdownMenuTrigger>
@@ -72,7 +74,7 @@ export function ColumnActions({
               }, 500);
             }}
           >
-            Rename
+            {t('rename')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
 
@@ -80,22 +82,20 @@ export function ColumnActions({
             onSelect={() => setShowDeleteDialog(true)}
             className='text-red-600'
           >
-            Delete Section
+            {t('deleteSection')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
       <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>
-              Are you sure want to delete column?
-            </AlertDialogTitle>
+            <AlertDialogTitle>{t('deleteDialog.title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              NOTE: All tasks related to this category will also be deleted.
+              {t('deleteDialog.description')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <Button
               variant='destructive'
               onClick={() => {
@@ -104,10 +104,10 @@ export function ColumnActions({
 
                 setShowDeleteDialog(false);
                 removeCol(id);
-                toast('This column has been deleted.');
+                toast(t('columnDeleted'));
               }}
             >
-              Delete
+              {t('delete')}
             </Button>
           </AlertDialogFooter>
         </AlertDialogContent>

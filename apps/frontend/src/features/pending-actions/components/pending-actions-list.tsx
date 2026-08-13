@@ -12,25 +12,26 @@ import { ClipboardCheck } from 'lucide-react';
 import { PendingActionsTable } from './pending-actions-table';
 import { PaginatedActions } from '../types';
 
-const FILTERS: { key: string; label: string }[] = [
-  { key: 'all', label: 'All' },
-  { key: 'high_priority', label: 'High priority' },
-  { key: 'due_today', label: 'Due today' },
-  { key: 'overdue', label: 'Overdue' },
-  { key: 'lead_followups', label: 'Lead follow-ups' },
-  { key: 'script_reviews', label: 'Script reviews' },
-  { key: 'objection_responses', label: 'Objection responses' },
-  { key: 'crm_updates', label: 'CRM updates' },
-  { key: 'ai_generated', label: 'AI generated' },
-  { key: 'rule_based', label: 'Rule-based' },
-  { key: 'campaign', label: 'Campaign' },
-  { key: 'organization', label: 'Organization calls' },
-  { key: 'personal', label: 'Personal calls' }
-];
+const FILTER_KEYS = [
+  'all',
+  'high_priority',
+  'due_today',
+  'overdue',
+  'lead_followups',
+  'script_reviews',
+  'objection_responses',
+  'crm_updates',
+  'ai_generated',
+  'rule_based',
+  'campaign',
+  'organization',
+  'personal'
+] as const;
 
 export function PendingActionsList() {
   const api = useApi();
   const tScope = useTranslations('common.scope');
+  const t = useTranslations('ai.pendingActions');
   const { isOrgAdmin, hasOrg } = useOrgRole();
   const [filter, setFilter] = useState('all');
   // Admin-only scope: 'mine' (default) or 'all' (+ optional member narrowing).
@@ -40,9 +41,9 @@ export function PendingActionsList() {
   const [loading, setLoading] = useState(true);
 
   // Context chips only make sense for the workspace the user is actually in.
-  const visibleFilters = FILTERS.filter((f) => {
-    if (f.key === 'personal') return !hasOrg;
-    if (f.key === 'organization') return hasOrg;
+  const visibleFilters = FILTER_KEYS.filter((key) => {
+    if (key === 'personal') return !hasOrg;
+    if (key === 'organization') return hasOrg;
     return true;
   });
 
@@ -110,18 +111,18 @@ export function PendingActionsList() {
       )}
 
       <div className='flex flex-wrap gap-2'>
-        {visibleFilters.map((f) => (
+        {visibleFilters.map((key) => (
           <button
-            key={f.key}
-            onClick={() => setFilter(f.key)}
+            key={key}
+            onClick={() => setFilter(key)}
             className={cn(
               'rounded-full border px-3 py-1 text-sm transition-colors',
-              filter === f.key
+              filter === key
                 ? 'border-primary bg-primary text-primary-foreground'
                 : 'border-border hover:bg-muted'
             )}
           >
-            {f.label}
+            {t(`filters.${key}`)}
           </button>
         ))}
       </div>
@@ -137,11 +138,9 @@ export function PendingActionsList() {
           ) : actions.length === 0 ? (
             <div className='flex flex-col items-center py-12 text-center'>
               <ClipboardCheck className='text-muted-foreground mb-4 h-12 w-12' />
-              <h3 className='text-lg font-semibold'>
-                You&apos;re all caught up
-              </h3>
+              <h3 className='text-lg font-semibold'>{t('empty.title')}</h3>
               <p className='text-muted-foreground mt-1 text-sm'>
-                New next-best-actions from your calls will show up here.
+                {t('empty.description')}
               </p>
             </div>
           ) : (

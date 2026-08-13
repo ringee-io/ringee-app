@@ -43,6 +43,7 @@ import type {
   InboundReroute,
   SipDevice
 } from '../types';
+import { useTranslations } from 'next-intl';
 
 interface Props {
   device: SipDevice;
@@ -75,6 +76,7 @@ export function DeviceActions({
   onRemove,
   onCredentials
 }: Props) {
+  const t = useTranslations('calls.deskPhones.actions');
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [regenOpen, setRegenOpen] = useState(false);
   const [changeOpen, setChangeOpen] = useState(false);
@@ -107,7 +109,7 @@ export function DeviceActions({
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant='ghost' size='sm'>
-            Actions
+            {t('menu')}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align='end'>
@@ -115,29 +117,29 @@ export function DeviceActions({
             onClick={() =>
               run(
                 () => onCheckRegistration(device.id),
-                'Registration refreshed',
-                'Check failed'
+                t('toasts.registrationRefreshed'),
+                t('toasts.checkFailed')
               )
             }
           >
-            Check registration
+            {t('checkRegistration')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setChangeOpen(true)}>
-            Change number
+            {t('changeNumber')}
           </DropdownMenuItem>
           <DropdownMenuItem onClick={() => setRegenOpen(true)}>
-            Regenerate password
+            {t('regeneratePassword')}
           </DropdownMenuItem>
           <DropdownMenuItem
             onClick={() =>
               run(
                 () => onSetEnabled(device.id, disabled),
-                disabled ? 'Device enabled' : 'Device disabled',
-                'Update failed'
+                disabled ? t('toasts.enabled') : t('toasts.disabled'),
+                t('toasts.updateFailed')
               )
             }
           >
-            {disabled ? 'Enable' : 'Disable'}
+            {disabled ? t('enable') : t('disable')}
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem
@@ -147,7 +149,7 @@ export function DeviceActions({
               setDeleteOpen(true);
             }}
           >
-            Delete
+            {t('delete')}
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -156,25 +158,24 @@ export function DeviceActions({
       <AlertDialog open={regenOpen} onOpenChange={setRegenOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Regenerate SIP password?</AlertDialogTitle>
+            <AlertDialogTitle>{t('regenerate.title')}</AlertDialogTitle>
             <AlertDialogDescription>
-              The current password stops working immediately. You will need to
-              update the phone with the new credentials.
+              {t('regenerate.description')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={async () => {
                 try {
                   const result = await onRegenerate(device.id);
                   onCredentials(result);
                 } catch (err: any) {
-                  toast.error(err?.message || 'Regenerate failed');
+                  toast.error(err?.message || t('toasts.regenerateFailed'));
                 }
               }}
             >
-              Regenerate
+              {t('regenerate.confirm')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -184,18 +185,20 @@ export function DeviceActions({
       <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete {device.label}?</AlertDialogTitle>
+            <AlertDialogTitle>
+              {t('remove.title', { name: device.label })}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              This removes the SIP connection and credentials. This cannot be
-              undone.
+              {t('remove.description')}
             </AlertDialogDescription>
           </AlertDialogHeader>
 
           {device.assignedNumber && (
             <div className='space-y-1.5'>
               <Label>
-                What should happen to inbound for{' '}
-                {device.assignedNumber.phoneNumber}?
+                {t('remove.rerouteLabel', {
+                  number: device.assignedNumber.phoneNumber
+                })}
               </Label>
               <Select value={reroute} onValueChange={setReroute}>
                 <SelectTrigger>
@@ -203,11 +206,11 @@ export function DeviceActions({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value='ringee'>
-                    Move number back to Ringee Web/Mobile (recommended)
+                    {t('remove.ringeeOption')}
                   </SelectItem>
                   {otherDevices.map((d) => (
                     <SelectItem key={d.id} value={`device:${d.id}`}>
-                      Assign to desk phone: {d.label}
+                      {t('remove.deviceOption', { name: d.label })}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -216,7 +219,7 @@ export function DeviceActions({
           )}
 
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogCancel>{t('cancel')}</AlertDialogCancel>
             <AlertDialogAction
               className='bg-destructive hover:bg-destructive/90 text-white'
               onClick={async () => {
@@ -228,12 +231,12 @@ export function DeviceActions({
                       isDevice ? 'device' : 'ringee',
                       isDevice ? reroute.slice('device:'.length) : null
                     ),
-                  'Desk phone deleted',
-                  'Delete failed'
+                  t('toasts.deleted'),
+                  t('toasts.deleteFailed')
                 );
               }}
             >
-              Delete
+              {t('delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -246,21 +249,18 @@ export function DeviceActions({
           onInteractOutside={(e) => e.preventDefault()}
         >
           <DialogHeader>
-            <DialogTitle>Change number</DialogTitle>
-            <DialogDescription>
-              The new number becomes desk-phone-only for inbound. The previous
-              number returns to Ringee Web/Mobile.
-            </DialogDescription>
+            <DialogTitle>{t('change.title')}</DialogTitle>
+            <DialogDescription>{t('change.description')}</DialogDescription>
           </DialogHeader>
           <div className='space-y-3'>
             <div className='space-y-1.5'>
-              <Label>Number</Label>
+              <Label>{t('change.number')}</Label>
               <Select value={numberId} onValueChange={setNumberId}>
                 <SelectTrigger>
-                  <SelectValue placeholder='Select a number' />
+                  <SelectValue placeholder={t('change.placeholder')} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value='none'>No number (clear)</SelectItem>
+                  <SelectItem value='none'>{t('change.none')}</SelectItem>
                   {numbers.map((n) => (
                     <SelectItem key={n.id} value={n.id}>
                       {n.phoneNumber}
@@ -271,7 +271,7 @@ export function DeviceActions({
             </div>
             <div className='flex items-center justify-between rounded-md border p-3'>
               <span className='text-sm font-medium'>
-                Ring inbound on this phone
+                {t('change.ringInbound')}
               </span>
               <Switch
                 checked={allowInbound}
@@ -281,7 +281,7 @@ export function DeviceActions({
           </div>
           <DialogFooter>
             <Button variant='ghost' onClick={() => setChangeOpen(false)}>
-              Cancel
+              {t('cancel')}
             </Button>
             <Button
               onClick={async () => {
@@ -292,13 +292,13 @@ export function DeviceActions({
                       numberId === 'none' ? null : numberId,
                       allowInbound
                     ),
-                  'Number updated',
-                  'Update failed'
+                  t('toasts.numberUpdated'),
+                  t('toasts.updateFailed')
                 );
                 setChangeOpen(false);
               }}
             >
-              Save
+              {t('save')}
             </Button>
           </DialogFooter>
         </DialogContent>

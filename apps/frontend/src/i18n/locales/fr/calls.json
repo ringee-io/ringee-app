@@ -12,6 +12,16 @@
   "busy": "Occupé",
   "failed": "Échoué",
   "voicemail": "Messagerie vocale",
+  "statusValues": {
+    "pending": "En attente",
+    "ringing": "Sonne",
+    "answered": "Répondu",
+    "recording": "Enregistrement",
+    "completed": "Terminé",
+    "failed": "Échec",
+    "processing": "En cours",
+    "ready": "Prêt"
+  },
   "callDuration": "Durée",
   "callCost": "Coût",
   "from": "De",
@@ -47,11 +57,11 @@
       "duration": "Durée",
       "date": "Date",
       "recording": "Enregistrement",
+      "transcript": "Transcription",
       "unknown": "Inconnu",
       "callAgain": "Rappeler",
       "noRecording": "Aucun enregistrement",
-      "downloadRecording": "Télécharger l'enregistrement",
-      "transcript": "Transcription"
+      "downloadRecording": "Télécharger l'enregistrement"
     },
     "rowActions": {
       "menu": "Actions",
@@ -77,14 +87,14 @@
       "date": "Date",
       "status": "Statut",
       "recording": "Enregistrement",
+      "transcript": "Transcription",
       "unknown": "Inconnu",
       "noRecording": "Aucun enregistrement",
       "processingShort": "En cours…",
       "unavailable": "Indisponible",
       "play": "Lire",
       "playRecording": "Lire l'enregistrement",
-      "downloadRecording": "Télécharger l'enregistrement",
-      "transcript": "Transcription"
+      "downloadRecording": "Télécharger l'enregistrement"
     },
     "statusBadge": {
       "started": "En cours",
@@ -97,12 +107,6 @@
       "callTitle": "Appel : {from} → {to}",
       "decrypting": "Déchiffrement en cours…",
       "errorLoad": "Impossible de charger l'enregistrement. Veuillez réessayer."
-    },
-    "dateFilter": {
-      "filterByDate": "Filtrer par date",
-      "from": "À partir du {date}",
-      "to": "Jusqu'au {date}",
-      "clear": "Effacer le filtre de date"
     }
   },
   "callbacks": {
@@ -146,16 +150,6 @@
       "willCost": "Votre appel coûtera",
       "perMinute": "par minute"
     }
-  },
-  "statusValues": {
-    "pending": "En attente",
-    "ringing": "Sonne",
-    "answered": "Répondu",
-    "recording": "Enregistrement",
-    "completed": "Terminé",
-    "failed": "Échec",
-    "processing": "En cours",
-    "ready": "Prêt"
   },
   "concurrentCall": {
     "title": "Un seul appel à la fois",

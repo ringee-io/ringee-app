@@ -148,6 +148,21 @@
         "pending": "en attente",
         "rejected": "rejeté",
         "expired": "expiré"
+      },
+      "transfer": {
+        "action": "Déplacer",
+        "title": "Déplacer le numéro vers un autre espace de travail",
+        "description": "Choisissez où doit se trouver {phone}. Vous devez être administrateur des deux espaces de travail d'organisation.",
+        "placeholder": "Sélectionnez l'espace de travail de destination",
+        "personal": "Espace de travail personnel",
+        "resetNotice": "Les affectations de campagne, de rotation et de téléphone de bureau propres à l'espace de travail seront effacées. L'abonnement Stripe existant reste facturé à l'espace de travail qui a acheté le numéro à l'origine.",
+        "noTargets": "Vous n'administrez aucun autre espace de travail.",
+        "cancel": "Annuler",
+        "confirm": "Déplacer le numéro",
+        "moving": "Déplacement…",
+        "success": "Numéro déplacé avec succès.",
+        "error": "Impossible de déplacer le numéro.",
+        "loadError": "Impossible de charger vos espaces de travail."
       }
     },
     "verify": {
@@ -156,6 +171,8 @@
       "metaTitle": "Vérification du numéro",
       "metaDescription": "Soumettez les documents exigés par le pays de votre numéro pour l'activer.",
       "back": "Retour à mes numéros",
+      "title": "Vérifier {phone}",
+      "subtitle": "Le pays de ce numéro exige une vérification de documents. Fournissez les éléments ci-dessous et nous les soumettrons à l'opérateur pour examen.",
       "requirementsHeading": "Ce dont l'opérateur a besoin",
       "progressLabel": "Progression de la vérification",
       "progressCount": "{done} sur {total} éléments prêts",
@@ -171,8 +188,6 @@
       "noneTitle": "Plus rien à vérifier",
       "underReviewTitle": "En cours d'examen",
       "rejectedTitle": "Action requise",
-      "title": "Vérifier {phone}",
-      "subtitle": "Le pays de ce numéro exige une vérification de documents. Fournissez les éléments ci-dessous et nous les soumettrons à l'opérateur pour examen.",
       "underReview": "Vos documents ont été soumis et sont en cours d'examen par l'opérateur. Cela prend généralement quelques jours ouvrés.",
       "rejectedBanner": "L'opérateur n'a pas approuvé certains éléments. Corrigez ceux marqués en rouge ci-dessous et renvoyez-les.",
       "rejectedReason": "Motif",

@@ -33,6 +33,7 @@ import {
   X
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import {
   useCustomIntegrationActions,
   useCustomIntegrations
@@ -85,6 +86,7 @@ function Body({
 }) {
   const { update, remove } = useCustomIntegrations();
   const actions = useCustomIntegrationActions(item.id);
+  const t = useTranslations('integrations.custom.detail');
 
   return (
     <>
@@ -92,22 +94,23 @@ function Body({
         <SheetTitle className='flex items-center gap-2'>
           {item.name}
           <Badge variant='outline' className='text-[10px]'>
-            {item.status}
+            {t.has(`status.${item.status}`)
+              ? t(`status.${item.status}`)
+              : item.status}
           </Badge>
         </SheetTitle>
         <SheetDescription>
-          Custom integration created on{' '}
-          {new Date(item.createdAt).toLocaleString()}.
+          {t('createdOn', { date: new Date(item.createdAt).toLocaleString() })}
         </SheetDescription>
       </SheetHeader>
 
       <Tabs defaultValue='settings' className='mx-4 mt-6'>
         <TabsList>
-          <TabsTrigger value='settings'>Settings</TabsTrigger>
-          <TabsTrigger value='inbound'>Inbound</TabsTrigger>
-          <TabsTrigger value='outbound'>Outbound</TabsTrigger>
-          <TabsTrigger value='logs'>Logs</TabsTrigger>
-          <TabsTrigger value='docs'>Documentation</TabsTrigger>
+          <TabsTrigger value='settings'>{t('tabs.settings')}</TabsTrigger>
+          <TabsTrigger value='inbound'>{t('tabs.inbound')}</TabsTrigger>
+          <TabsTrigger value='outbound'>{t('tabs.outbound')}</TabsTrigger>
+          <TabsTrigger value='logs'>{t('tabs.logs')}</TabsTrigger>
+          <TabsTrigger value='docs'>{t('tabs.docs')}</TabsTrigger>
         </TabsList>
 
         <TabsContent value='settings' className='mt-5 space-y-6'>
@@ -162,6 +165,7 @@ function SettingsTab({
   actions: ReturnType<typeof useCustomIntegrationActions>;
   onClose: () => void;
 }) {
+  const t = useTranslations('integrations.custom.detail');
   const [name, setName] = useState(item.name);
   const [active, setActive] = useState(item.status === 'active');
   const [saving, setSaving] = useState(false);
@@ -173,9 +177,9 @@ function SettingsTab({
         name,
         status: active ? 'active' : 'disabled'
       });
-      toast.success('Settings saved');
+      toast.success(t('settings.saved'));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Save failed');
+      toast.error(err instanceof Error ? err.message : t('settings.saveError'));
     } finally {
       setSaving(false);
     }
@@ -184,7 +188,7 @@ function SettingsTab({
   return (
     <div className='space-y-6'>
       <div className='space-y-2'>
-        <Label htmlFor='ci-name'>Name</Label>
+        <Label htmlFor='ci-name'>{t('settings.name')}</Label>
         <Input
           id='ci-name'
           value={name}
@@ -194,10 +198,9 @@ function SettingsTab({
 
       <div className='flex items-center justify-between rounded-md border p-3'>
         <div>
-          <p className='text-sm font-medium'>Enabled</p>
+          <p className='text-sm font-medium'>{t('settings.enabled')}</p>
           <p className='text-muted-foreground text-xs'>
-            When disabled, the API key stops accepting requests and no outbound
-            events are delivered.
+            {t('settings.enabledHint')}
           </p>
         </div>
         <Switch checked={active} onCheckedChange={setActive} />
@@ -205,15 +208,14 @@ function SettingsTab({
 
       <div className='space-y-2'>
         <Label className='text-muted-foreground text-xs tracking-wide uppercase'>
-          API Key prefix
+          {t('settings.apiKeyPrefix')}
         </Label>
         <div className='bg-muted/30 flex items-center gap-2 rounded-md border px-3 py-2'>
           <code className='flex-1 font-mono text-xs'>{item.apiKeyPrefix}…</code>
         </div>
         <p className='text-muted-foreground flex gap-1.5 text-xs'>
           <AlertTriangle className='mt-0.5 h-3 w-3 text-amber-500' />
-          For security, only a prefix is shown after creation. Regenerate to get
-          a new key.
+          {t('settings.apiKeyHint')}
         </p>
       </div>
 
@@ -228,16 +230,18 @@ function SettingsTab({
             try {
               await remove(item.id);
               onClose();
-              toast.success('Integration deleted');
+              toast.success(t('settings.deleted'));
             } catch (err) {
-              toast.error(err instanceof Error ? err.message : 'Delete failed');
+              toast.error(
+                err instanceof Error ? err.message : t('settings.deleteError')
+              );
             }
           }}
         >
-          Delete integration
+          {t('settings.delete')}
         </Button>
         <Button onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? t('settings.saving') : t('settings.save')}
         </Button>
       </div>
     </div>
@@ -249,6 +253,7 @@ function RegenerateButtons({
 }: {
   actions: ReturnType<typeof useCustomIntegrationActions>;
 }) {
+  const t = useTranslations('integrations.custom.detail');
   const [revealed, setRevealed] = useState<{
     label: string;
     value: string;
@@ -259,9 +264,11 @@ function RegenerateButtons({
     setBusy('api');
     try {
       const res = await actions.regenerateApiKey();
-      setRevealed({ label: 'New API key', value: res.apiKey });
+      setRevealed({ label: t('settings.newApiKey'), value: res.apiKey });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Rotate failed');
+      toast.error(
+        err instanceof Error ? err.message : t('settings.rotateError')
+      );
     } finally {
       setBusy(null);
     }
@@ -270,9 +277,14 @@ function RegenerateButtons({
     setBusy('secret');
     try {
       const res = await actions.regenerateSigningSecret();
-      setRevealed({ label: 'New signing secret', value: res.signingSecret });
+      setRevealed({
+        label: t('settings.newSigningSecret'),
+        value: res.signingSecret
+      });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Rotate failed');
+      toast.error(
+        err instanceof Error ? err.message : t('settings.rotateError')
+      );
     } finally {
       setBusy(null);
     }
@@ -285,7 +297,7 @@ function RegenerateButtons({
           {busy === 'api' && (
             <Loader2 className='mr-1.5 h-3.5 w-3.5 animate-spin' />
           )}
-          Regenerate API Key
+          {t('settings.regenerateApiKey')}
         </Button>
         <Button
           variant='outline'
@@ -295,7 +307,7 @@ function RegenerateButtons({
           {busy === 'secret' && (
             <Loader2 className='mr-1.5 h-3.5 w-3.5 animate-spin' />
           )}
-          Regenerate signing secret
+          {t('settings.regenerateSecret')}
         </Button>
       </div>
       {revealed && (
@@ -330,6 +342,7 @@ function PublishableKeysSection({
 }: {
   actions: ReturnType<typeof useCustomIntegrationActions>;
 }) {
+  const t = useTranslations('integrations.custom.detail');
   const [origins, setOrigins] = useState<string[]>([]);
   const [draft, setDraft] = useState('');
   const [busy, setBusy] = useState(false);
@@ -341,7 +354,7 @@ function PublishableKeysSection({
   const addOrigin = (raw: string) => {
     const origin = normalizeOrigin(raw);
     if (!origin) {
-      toast.error('Enter a full origin, e.g. https://crm.example.com');
+      toast.error(t('sdk.invalidOrigin'));
       return;
     }
     setOrigins((prev) => (prev.includes(origin) ? prev : [...prev, origin]));
@@ -356,11 +369,9 @@ function PublishableKeysSection({
         publishableKey: res.publishableKey,
         allowedOrigins: res.allowedOrigins
       });
-      toast.success('Publishable key generated');
+      toast.success(t('sdk.generated'));
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : 'Could not generate key'
-      );
+      toast.error(err instanceof Error ? err.message : t('sdk.generateError'));
     } finally {
       setBusy(false);
     }
@@ -371,21 +382,20 @@ function PublishableKeysSection({
       <div className='flex items-start gap-2'>
         <KeyRound className='mt-0.5 h-4 w-4 text-indigo-500' />
         <div className='min-w-0'>
-          <p className='text-sm font-medium'>Dialer SDK · Publishable keys</p>
+          <p className='text-sm font-medium'>{t('sdk.title')}</p>
           <p className='text-muted-foreground text-xs'>
-            Browser-safe{' '}
-            <code className='bg-muted rounded px-1 py-0.5'>pk_live_…</code> for{' '}
-            <code className='bg-muted rounded px-1 py-0.5'>
-              @ringee/dialer-sdk
-            </code>
-            . Scope it to the exact origins where the SDK loads.
+            {t.rich('sdk.description', {
+              code: (chunks) => (
+                <code className='bg-muted rounded px-1 py-0.5'>{chunks}</code>
+              )
+            })}
           </p>
         </div>
       </div>
 
       <div className='space-y-2'>
         <Label htmlFor='ci-origin' className='text-xs'>
-          Allowed origins
+          {t('sdk.allowedOrigins')}
         </Label>
         <div className='flex gap-2'>
           <Input
@@ -405,19 +415,21 @@ function PublishableKeysSection({
             onClick={() => addOrigin(draft)}
             disabled={!draft.trim()}
           >
-            <Plus className='mr-1 h-3.5 w-3.5' /> Add
+            <Plus className='mr-1 h-3.5 w-3.5' /> {t('sdk.add')}
           </Button>
         </div>
 
         <div className='flex flex-wrap items-center gap-1.5'>
-          <span className='text-muted-foreground text-xs'>Quick add:</span>
+          <span className='text-muted-foreground text-xs'>
+            {t('sdk.quickAdd')}
+          </span>
           <Button
             size='sm'
             variant='ghost'
             className='h-6 px-2 text-xs'
             onClick={() => addOrigin(window.location.origin)}
           >
-            This dashboard
+            {t('sdk.thisDashboard')}
           </Button>
           <Button
             size='sm'
@@ -425,7 +437,7 @@ function PublishableKeysSection({
             className='h-6 px-2 text-xs'
             onClick={() => addOrigin('https://playground.ringee.io')}
           >
-            https://playground.ringee.io (playground)
+            {t('sdk.playground')}
           </Button>
         </div>
 
@@ -440,7 +452,7 @@ function PublishableKeysSection({
                 {o}
                 <button
                   type='button'
-                  aria-label={`Remove ${o}`}
+                  aria-label={t('sdk.removeOrigin', { origin: o })}
                   className='hover:text-destructive'
                   onClick={() =>
                     setOrigins((prev) => prev.filter((x) => x !== o))
@@ -460,19 +472,18 @@ function PublishableKeysSection({
         ) : (
           <KeyRound className='mr-1.5 h-3.5 w-3.5' />
         )}
-        Generate publishable key
+        {t('sdk.generate')}
       </Button>
 
       {result && (
         <div className='space-y-2'>
           <CopyableSecret
-            label='Publishable key'
+            label={t('sdk.publishableKey')}
             value={result.publishableKey}
             onDismiss={() => setResult(null)}
           />
           <p className='text-muted-foreground text-xs'>
-            Scoped to: {result.allowedOrigins.join(', ')}. Rotating the API key
-            revokes every publishable key for this integration.
+            {t('sdk.scopedTo', { origins: result.allowedOrigins.join(', ') })}
           </p>
         </div>
       )}
@@ -489,6 +500,7 @@ function CopyableSecret({
   value: string;
   onDismiss?: () => void;
 }) {
+  const t = useTranslations('integrations.custom.detail');
   const [copied, setCopied] = useState(false);
   return (
     <div className='rounded-md border border-amber-500/30 bg-amber-500/5 p-3'>
@@ -498,13 +510,11 @@ function CopyableSecret({
         </span>
         {onDismiss && (
           <Button size='sm' variant='ghost' onClick={onDismiss}>
-            Dismiss
+            {t('secret.dismiss')}
           </Button>
         )}
       </div>
-      <p className='text-muted-foreground mt-1 text-xs'>
-        Copy this now — it will not be shown again.
-      </p>
+      <p className='text-muted-foreground mt-1 text-xs'>{t('secret.hint')}</p>
       <div className='bg-background mt-2 flex items-center gap-2 rounded-md border px-3 py-2'>
         <code className='flex-1 truncate font-mono text-xs'>{value}</code>
         <Button
@@ -515,7 +525,7 @@ function CopyableSecret({
             await navigator.clipboard.writeText(value);
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
-            toast.success('Copied');
+            toast.success(t('secret.copied'));
           }}
         >
           {copied ? (
@@ -538,17 +548,15 @@ function InboundTab({
   apiBaseUrl: string;
   apiKeyPrefix: string;
 }) {
+  const t = useTranslations('integrations.custom.detail');
   const url = `${apiBaseUrl}/api/integrations/custom/webhook`;
   return (
     <div className='space-y-4'>
-      <p className='text-muted-foreground text-sm'>
-        Send events from your system to this URL. Authenticate every request
-        with your API key.
-      </p>
-      <UrlBlock label='Webhook URL' value={url} />
+      <p className='text-muted-foreground text-sm'>{t('inbound.intro')}</p>
+      <UrlBlock label={t('inbound.webhookUrl')} value={url} />
       <div className='space-y-1'>
         <Label className='text-muted-foreground text-xs tracking-wide uppercase'>
-          Required header
+          {t('inbound.requiredHeader')}
         </Label>
         <div className='bg-muted/30 rounded-md border px-3 py-2 font-mono text-xs'>
           X-Ringee-Api-Key: {apiKeyPrefix}…
@@ -556,7 +564,7 @@ function InboundTab({
       </div>
       <div className='space-y-1'>
         <Label className='text-muted-foreground text-xs tracking-wide uppercase'>
-          Example request
+          {t('inbound.exampleRequest')}
         </Label>
         <pre className='bg-muted overflow-x-auto rounded-md p-3 font-mono text-[11px] leading-relaxed'>
           {`curl -X POST ${url} \\
@@ -575,20 +583,21 @@ function InboundTab({
         </pre>
       </div>
       <p className='text-muted-foreground text-xs'>
-        Supported inbound events:{' '}
+        {t('inbound.supportedEvents')}{' '}
         <code className='bg-muted rounded px-1.5 py-0.5'>contact.upserted</code>
         ,{' '}
         <code className='bg-muted rounded px-1.5 py-0.5'>company.upserted</code>
         ,{' '}
         <code className='bg-muted rounded px-1.5 py-0.5'>contact.deleted</code>,{' '}
-        <code className='bg-muted rounded px-1.5 py-0.5'>company.deleted</code>.
-        See the Documentation tab for full schemas.
+        <code className='bg-muted rounded px-1.5 py-0.5'>company.deleted</code>.{' '}
+        {t('inbound.seeDocs')}
       </p>
     </div>
   );
 }
 
 function UrlBlock({ label, value }: { label: string; value: string }) {
+  const t = useTranslations('integrations.custom.detail');
   const [copied, setCopied] = useState(false);
   return (
     <div className='space-y-1'>
@@ -605,7 +614,7 @@ function UrlBlock({ label, value }: { label: string; value: string }) {
             await navigator.clipboard.writeText(value);
             setCopied(true);
             setTimeout(() => setCopied(false), 1500);
-            toast.success('Copied');
+            toast.success(t('secret.copied'));
           }}
         >
           {copied ? (
@@ -635,6 +644,7 @@ function OutboundTab({
     error?: string;
   }>;
 }) {
+  const t = useTranslations('integrations.custom.detail');
   const [url, setUrl] = useState(item.outboundUrl ?? '');
   const [events, setEvents] = useState<CustomIntegrationEventType[]>(
     item.subscribedEvents
@@ -655,9 +665,9 @@ function OutboundTab({
         outboundUrl: url.trim() || null,
         subscribedEvents: events
       });
-      toast.success('Outbound webhook updated');
+      toast.success(t('outbound.saved'));
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Save failed');
+      toast.error(err instanceof Error ? err.message : t('settings.saveError'));
     } finally {
       setSaving(false);
     }
@@ -668,14 +678,21 @@ function OutboundTab({
     try {
       const res = await testWebhook();
       if (res.ok) {
-        toast.success(`Webhook OK — ${res.statusCode} in ${res.latencyMs}ms`);
+        toast.success(
+          t('outbound.testOk', {
+            status: res.statusCode ?? '',
+            latency: res.latencyMs
+          })
+        );
       } else {
         toast.error(
-          `Webhook failed — ${res.error ?? `HTTP ${res.statusCode}`}`
+          t('outbound.testFailed', {
+            reason: res.error ?? `HTTP ${res.statusCode}`
+          })
         );
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Test failed');
+      toast.error(err instanceof Error ? err.message : t('outbound.testError'));
     } finally {
       setTesting(false);
     }
@@ -684,7 +701,7 @@ function OutboundTab({
   return (
     <div className='space-y-5'>
       <div className='space-y-2'>
-        <Label htmlFor='ci-url'>Destination URL</Label>
+        <Label htmlFor='ci-url'>{t('outbound.destinationUrl')}</Label>
         <div className='flex gap-2'>
           <Input
             id='ci-url'
@@ -702,22 +719,20 @@ function OutboundTab({
             ) : (
               <Send className='mr-1.5 h-3.5 w-3.5' />
             )}
-            Test
+            {t('outbound.test')}
           </Button>
         </div>
         <p className='text-muted-foreground text-xs'>
-          Ringee signs each request with your signing secret. The header{' '}
-          <code className='bg-muted rounded px-1 py-0.5'>Ringee-Signature</code>{' '}
-          contains{' '}
-          <code className='bg-muted rounded px-1 py-0.5'>
-            t=&lt;unixSec&gt;,v1=&lt;hex&gt;
-          </code>
-          .
+          {t.rich('outbound.signatureHint', {
+            code: (chunks) => (
+              <code className='bg-muted rounded px-1 py-0.5'>{chunks}</code>
+            )
+          })}
         </p>
       </div>
 
       <div className='space-y-2'>
-        <Label>Subscribed events</Label>
+        <Label>{t('outbound.subscribedEvents')}</Label>
         <div className='grid grid-cols-2 gap-2'>
           {ALL_OUTBOUND_EVENTS.map((evt) => (
             <label
@@ -738,7 +753,7 @@ function OutboundTab({
 
       <div className='flex justify-end border-t pt-4'>
         <Button onClick={handleSave} disabled={saving}>
-          {saving ? 'Saving…' : 'Save'}
+          {saving ? t('settings.saving') : t('settings.save')}
         </Button>
       </div>
     </div>
@@ -752,11 +767,12 @@ function LogsTab({
 }: {
   actions: ReturnType<typeof useCustomIntegrationActions>;
 }) {
+  const t = useTranslations('integrations.custom.detail');
   return (
     <Tabs defaultValue='inbound'>
       <TabsList>
-        <TabsTrigger value='inbound'>Inbound</TabsTrigger>
-        <TabsTrigger value='outbound'>Outbound</TabsTrigger>
+        <TabsTrigger value='inbound'>{t('tabs.inbound')}</TabsTrigger>
+        <TabsTrigger value='outbound'>{t('tabs.outbound')}</TabsTrigger>
       </TabsList>
       <TabsContent value='inbound' className='mt-4'>
         <InboundLogsList getLogs={actions.getInboundLogs} />
@@ -821,6 +837,7 @@ function OutboundLogsList({
 }: {
   getLogs: () => Promise<CustomIntegrationDeliveryLog[]>;
 }) {
+  const t = useTranslations('integrations.custom.detail');
   const [rows, setRows] = useState<CustomIntegrationDeliveryLog[] | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -852,7 +869,7 @@ function OutboundLogsList({
             <StatusBadge status={r.status} />
             <code className='truncate'>{r.eventType}</code>
             <span className='text-muted-foreground'>
-              attempts={r.attemptCount}
+              {t('logs.attempts', { count: r.attemptCount })}
             </span>
           </div>
           <span className='text-muted-foreground shrink-0'>
@@ -875,6 +892,7 @@ function LogsListShell({
   onRefresh: () => void;
   children: React.ReactNode;
 }) {
+  const t = useTranslations('integrations.custom.detail');
   return (
     <div>
       <div className='mb-2 flex justify-end'>
@@ -887,14 +905,14 @@ function LogsListShell({
           <RefreshCw
             className={`mr-1 h-3 w-3 ${loading ? 'animate-spin' : ''}`}
           />{' '}
-          Refresh
+          {t('logs.refresh')}
         </Button>
       </div>
       {loading && !empty ? (
         <Skeleton className='h-32 w-full rounded-md' />
       ) : empty ? (
         <div className='text-muted-foreground rounded-md border border-dashed py-8 text-center text-xs'>
-          No events yet.
+          {t('logs.empty')}
         </div>
       ) : (
         <ul className='divide-y rounded-md border'>{children}</ul>
@@ -904,6 +922,7 @@ function LogsListShell({
 }
 
 function StatusBadge({ status }: { status: string }) {
+  const t = useTranslations('integrations.custom.detail');
   const className = useMemo(() => {
     switch (status) {
       case 'processed':
@@ -919,7 +938,7 @@ function StatusBadge({ status }: { status: string }) {
   }, [status]);
   return (
     <Badge variant='outline' className={`text-[10px] ${className}`}>
-      {status}
+      {t.has(`logStatus.${status}`) ? t(`logStatus.${status}`) : status}
     </Badge>
   );
 }

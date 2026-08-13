@@ -55,8 +55,30 @@
   "theme": "Thema",
   "selectTheme": "Kies een thema:",
   "selectThemePlaceholder": "Kies een thema",
+  "toggleTheme": "Thema wisselen",
+  "toggleSidebar": "Zijbalk in-/uitklappen",
   "platform": "Platform",
   "projects": "Projecten",
+  "accessRestricted": {
+    "title": "Toegang beperkt",
+    "description": "Je hebt geen toegang tot deze functie. Neem contact op met een beheerder van de organisatie als je die nodig hebt."
+  },
+  "memberFilter": {
+    "all": "Alle leden",
+    "search": "Leden zoeken…",
+    "noMembers": "Geen leden gevonden",
+    "member": "Lid"
+  },
+  "dateFilter": {
+    "filterByDate": "Filter op datum",
+    "from": "Vanaf {date}",
+    "to": "Tot {date}",
+    "clear": "Datumfilter wissen"
+  },
+  "scope": {
+    "mine": "Van mij",
+    "all": "Alle"
+  },
   "fileUpload": {
     "dropHere": "Sleep bestanden hierheen",
     "dragAndDrop": "Sleep bestanden hierheen, of klik om te selecteren",
@@ -76,6 +98,13 @@
     "share": "Project delen",
     "delete": "Project verwijderen"
   },
-  "toggleTheme": "Thema wisselen",
-  "toggleSidebar": "Zijbalk in-/uitklappen"
+  "weekdaysShort": {
+    "sun": "Zo",
+    "mon": "Ma",
+    "tue": "Di",
+    "wed": "Wo",
+    "thu": "Do",
+    "fri": "Vr",
+    "sat": "Za"
+  }
 }

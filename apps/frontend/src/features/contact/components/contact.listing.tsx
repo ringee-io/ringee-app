@@ -1,13 +1,10 @@
 import { searchParamsCache } from '@ringee/frontend-shared/lib/searchparams';
-import { ContactTable } from './contact.tables';
-import { columns } from './contact.tables/columns';
+import { ContactTableClient } from './contact-table-client';
 import { apiServer } from '@ringee/frontend-shared/lib/api.server';
 import { serialize } from '@ringee/frontend-shared/lib/searchparams';
 import { unstable_noStore as noStore } from 'next/cache';
 
-type ContactListingPage = {};
-
-export default async function ContactListingPage({}: ContactListingPage) {
+export default async function ContactListingPage() {
   noStore();
 
   const page = searchParamsCache.get('page');
@@ -46,11 +43,5 @@ export default async function ContactListingPage({}: ContactListingPage) {
   const totalContacts = data.meta.total;
   const contacts = data.data;
 
-  return (
-    <ContactTable
-      data={contacts}
-      totalItems={totalContacts}
-      columns={columns}
-    />
-  );
+  return <ContactTableClient data={contacts} totalItems={totalContacts} />;
 }

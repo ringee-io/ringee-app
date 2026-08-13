@@ -36,6 +36,7 @@ import {
   Avatar,
   AvatarFallback
 } from '@ringee/frontend-shared/components/ui/avatar';
+import { useTranslations } from 'next-intl';
 
 interface ContactPreview {
   id: string;
@@ -46,6 +47,7 @@ interface ContactPreview {
 }
 
 export function ContactsBulkDelete() {
+  const t = useTranslations('contacts.bulkDelete');
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [fetchingPreview, setFetchingPreview] = useState(false);
@@ -99,12 +101,12 @@ export function ContactsBulkDelete() {
     setLoading(true);
     try {
       await api.delete('/contacts/by-tags', { tagIds: [selectedTag.id] });
-      toast.success(`Successfully deleted ${totalContacts} contacts`);
+      toast.success(t('success', { count: totalContacts }));
       setOpen(false);
       setSelectedTag(null);
       router.refresh();
     } catch (error) {
-      toast.error('Failed to delete contacts');
+      toast.error(t('failed'));
     } finally {
       setLoading(false);
     }
@@ -115,21 +117,18 @@ export function ContactsBulkDelete() {
       <DialogTrigger asChild>
         <Button variant='outline' size='sm' className='ml-0 sm:ml-2'>
           <Trash2 className='h-4 w-4 sm:mr-2' />
-          <span className='hidden sm:inline'>Delete by Tag</span>
+          <span className='hidden sm:inline'>{t('action')}</span>
         </Button>
       </DialogTrigger>
       <DialogContent className='max-h-[90vh] w-[95vw] max-w-[600px] overflow-y-auto'>
         <DialogHeader>
-          <DialogTitle>Delete Contacts by Tag</DialogTitle>
-          <DialogDescription>
-            Select a tag to delete all associated contacts. This will remove the
-            contacts permanently but keep the tag.
-          </DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
 
         <div className='space-y-4 py-4'>
           <div className='flex flex-col gap-2'>
-            <label className='text-sm font-medium'>Select Tag</label>
+            <label className='text-sm font-medium'>{t('selectTag')}</label>
             <Popover open={tagOpen} onOpenChange={setTagOpen}>
               <PopoverTrigger asChild>
                 <Button
@@ -151,16 +150,16 @@ export function ContactsBulkDelete() {
                       </Badge>
                     </div>
                   ) : (
-                    'Select tag...'
+                    t('selectPlaceholder')
                   )}
                   <ChevronsUpDown className='ml-2 h-4 w-4 shrink-0 opacity-50' />
                 </Button>
               </PopoverTrigger>
               <PopoverContent className='w-[calc(100vw-2rem)] max-w-[400px] p-0'>
                 <Command>
-                  <CommandInput placeholder='Search tag...' />
+                  <CommandInput placeholder={t('searchPlaceholder')} />
                   <CommandList>
-                    <CommandEmpty>No tag found.</CommandEmpty>
+                    <CommandEmpty>{t('noTag')}</CommandEmpty>
                     <CommandGroup>
                       {tags.map((tag) => (
                         <CommandItem
@@ -201,9 +200,12 @@ export function ContactsBulkDelete() {
             <div className='space-y-2 rounded-md border bg-slate-50 p-4 dark:bg-slate-900/50'>
               <div className='flex items-center justify-between'>
                 <h4 className='flex items-center gap-2 text-sm font-medium'>
-                  Contacts Preview
+                  {t('preview')}
                   <span className='text-muted-foreground font-normal'>
-                    ({fetchingPreview ? 'Loading...' : `${totalContacts} found`}
+                    (
+                    {fetchingPreview
+                      ? t('loading')
+                      : t('found', { count: totalContacts })}
                     )
                   </span>
                 </h4>
@@ -247,14 +249,14 @@ export function ContactsBulkDelete() {
                     ))}
                     {totalContacts > 50 && (
                       <p className='text-muted-foreground py-2 text-center text-xs'>
-                        And {totalContacts - 50} more...
+                        {t('more', { count: totalContacts - 50 })}
                       </p>
                     )}
                   </div>
                 </ScrollArea>
               ) : (
                 <div className='text-muted-foreground flex h-[100px] items-center justify-center text-sm'>
-                  No contacts found with this tag.
+                  {t('empty')}
                 </div>
               )}
             </div>
@@ -267,7 +269,7 @@ export function ContactsBulkDelete() {
             onClick={() => setOpen(false)}
             className='w-full sm:w-auto'
           >
-            Cancel
+            {t('cancel')}
           </Button>
           <Button
             variant='destructive'
@@ -280,7 +282,7 @@ export function ContactsBulkDelete() {
             ) : (
               <Trash2 className='mr-2 h-4 w-4' />
             )}
-            Delete {totalContacts} Contacts
+            {t('confirm', { count: totalContacts })}
           </Button>
         </DialogFooter>
       </DialogContent>

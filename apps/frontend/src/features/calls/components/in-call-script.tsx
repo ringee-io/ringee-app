@@ -7,8 +7,10 @@ import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useScriptSync } from '@/features/settings/hooks/use-script-sync';
 import { FileText } from 'lucide-react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 
 export function InCallScript() {
+  const t = useTranslations('calls.inCallScript');
   const { sections, status } = useScriptSync({ readOnly: true });
   const [selectedId, setSelectedId] = useState<string | null>(
     sections[0]?.id ?? null
@@ -49,16 +51,15 @@ export function InCallScript() {
         <div className='bg-muted/30 rounded-xl p-3'>
           <FileText className='text-muted-foreground h-6 w-6' />
         </div>
-        <h4 className='text-base font-bold'>Aún no tienes guion</h4>
+        <h4 className='text-base font-bold'>{t('empty')}</h4>
         <p className='text-muted-foreground max-w-[260px] text-xs'>
-          Crea tu guion en Settings → Overview → Guion para que aparezca aquí
-          durante la llamada.
+          {t('emptyDescription')}
         </p>
         <Link
           href='/dashboard/settings/overview'
           className='text-xs font-semibold text-emerald-500 hover:underline'
         >
-          Ir a configurar guion
+          {t('configure')}
         </Link>
       </div>
     );
@@ -82,7 +83,7 @@ export function InCallScript() {
                   )}
                   title={section.title}
                 >
-                  {section.title || 'Sin título'}
+                  {section.title || t('untitled')}
                 </button>
               </li>
             ))}
@@ -95,12 +96,12 @@ export function InCallScript() {
           {current ? (
             <div className='flex flex-col gap-3 p-4 md:p-6'>
               <h3 className='text-foreground text-base font-bold md:text-lg'>
-                {current.title || 'Sin título'}
+                {current.title || t('untitled')}
               </h3>
               <p className='text-foreground/90 text-sm leading-relaxed whitespace-pre-wrap'>
                 {current.body || (
                   <span className='text-muted-foreground italic'>
-                    (Sin contenido)
+                    {t('noContent')}
                   </span>
                 )}
               </p>

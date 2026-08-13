@@ -26,5 +26,538 @@
   "empty": {
     "title": "Nessuna integrazione collegata",
     "description": "Esplora il catalogo e collega il primo strumento."
+  },
+  "custom": {
+    "detail": {
+      "createdOn": "Integrazione personalizzata creata il {date}.",
+      "status": {
+        "active": "attiva",
+        "disabled": "disattivata"
+      },
+      "logStatus": {
+        "processed": "elaborato",
+        "sent": "inviato",
+        "failed": "non riuscito",
+        "skipped": "saltato",
+        "pending": "in attesa"
+      },
+      "tabs": {
+        "settings": "Impostazioni",
+        "inbound": "In entrata",
+        "outbound": "In uscita",
+        "logs": "Log",
+        "docs": "Documentazione"
+      },
+      "settings": {
+        "name": "Nome",
+        "enabled": "Attiva",
+        "enabledHint": "Se disattivata, la chiave API smette di accettare richieste e non viene consegnato alcun evento in uscita.",
+        "apiKeyPrefix": "Prefisso della chiave API",
+        "apiKeyHint": "Per sicurezza, dopo la creazione viene mostrato solo un prefisso. Rigenera per ottenere una nuova chiave.",
+        "regenerateApiKey": "Rigenera chiave API",
+        "regenerateSecret": "Rigenera segreto di firma",
+        "newApiKey": "Nuova chiave API",
+        "newSigningSecret": "Nuovo segreto di firma",
+        "rotateError": "Rigenerazione non riuscita",
+        "delete": "Elimina integrazione",
+        "deleted": "Integrazione eliminata",
+        "deleteError": "Eliminazione non riuscita",
+        "save": "Salva",
+        "saving": "Salvataggio…",
+        "saved": "Impostazioni salvate",
+        "saveError": "Salvataggio non riuscito"
+      },
+      "sdk": {
+        "title": "SDK del dialer · Chiavi pubblicabili",
+        "description": "Chiave <code>pk_live_…</code> sicura per il browser, per <code>@ringee/dialer-sdk</code>. Limitala esattamente alle origini in cui viene caricato l’SDK.",
+        "allowedOrigins": "Origini consentite",
+        "add": "Aggiungi",
+        "quickAdd": "Aggiunta rapida:",
+        "thisDashboard": "Questa dashboard",
+        "playground": "https://playground.ringee.io (playground)",
+        "removeOrigin": "Rimuovi {origin}",
+        "invalidOrigin": "Inserisci un’origine completa, es. https://crm.example.com",
+        "generate": "Genera chiave pubblicabile",
+        "generated": "Chiave pubblicabile generata",
+        "generateError": "Impossibile generare la chiave",
+        "publishableKey": "Chiave pubblicabile",
+        "scopedTo": "Limitata a: {origins}. Rigenerare la chiave API revoca tutte le chiavi pubblicabili di questa integrazione."
+      },
+      "secret": {
+        "dismiss": "Ignora",
+        "hint": "Copiala ora — non verrà mostrata di nuovo.",
+        "copied": "Copiato"
+      },
+      "inbound": {
+        "intro": "Invia gli eventi dal tuo sistema a questo URL. Autentica ogni richiesta con la tua chiave API.",
+        "webhookUrl": "URL del webhook",
+        "requiredHeader": "Header obbligatorio",
+        "exampleRequest": "Richiesta di esempio",
+        "supportedEvents": "Eventi in entrata supportati:",
+        "seeDocs": "Consulta la scheda Documentazione per gli schemi completi."
+      },
+      "outbound": {
+        "destinationUrl": "URL di destinazione",
+        "test": "Prova",
+        "testOk": "Webhook OK — {status} in {latency} ms",
+        "testFailed": "Webhook non riuscito — {reason}",
+        "testError": "Prova non riuscita",
+        "signatureHint": "Ringee firma ogni richiesta con il tuo segreto di firma. L’header <code>Ringee-Signature</code> contiene <code>t=&lt;unixSec&gt;,v1=&lt;hex&gt;</code>.",
+        "subscribedEvents": "Eventi sottoscritti",
+        "saved": "Webhook in uscita aggiornato"
+      },
+      "logs": {
+        "attempts": "tentativi={count}",
+        "refresh": "Aggiorna",
+        "empty": "Ancora nessun evento."
+      }
+    },
+    "card": {
+      "active": "Attiva",
+      "disabled": "Disattivata",
+      "configure": "Configura",
+      "delete": "Elimina",
+      "deleteDialog": {
+        "title": "Eliminare questa integrazione?",
+        "description": "La chiave API, il segreto di firma, i collegamenti a contatti/aziende e i log verranno rimossi. Questa azione non può essere annullata.",
+        "cancel": "Annulla",
+        "confirm": "Elimina"
+      },
+      "outboundUrl": "URL in uscita",
+      "notConfigured": "Non configurato",
+      "events": "Eventi",
+      "lastUsed": "Ultimo utilizzo",
+      "never": "Mai"
+    },
+    "create": {
+      "title": "Nuova integrazione personalizzata",
+      "description": "Collega Ringee a qualsiasi sistema esterno tramite una chiave API, webhook e click-to-call.",
+      "name": "Nome",
+      "namePlaceholder": "es. Il mio CRM interno",
+      "nameRequired": "Il nome è obbligatorio",
+      "cancel": "Annulla",
+      "creating": "Creazione…",
+      "submit": "Crea",
+      "error": "Creazione non riuscita",
+      "reveal": {
+        "title": "Salva subito le tue credenziali",
+        "warning": "La chiave API e il segreto di firma del webhook <strong>verranno mostrati una sola volta</strong>. Copiali ora e conservali in un luogo sicuro. Potrai rigenerarli in seguito, ma non visualizzarli di nuovo.",
+        "apiKey": "Chiave API",
+        "signingSecret": "Segreto di firma del webhook",
+        "done": "Li ho salvati",
+        "copied": "Copiato negli appunti"
+      }
+    },
+    "tab": {
+      "title": "Le tue integrazioni personalizzate",
+      "description": "Collega Ringee a qualsiasi sistema esterno tramite una chiave API, webhook e click-to-call. Il tuo sistema invia contatti e aziende a Ringee; Ringee restituisce chiamate, esiti, note, richiamate, riunioni e registrazioni.",
+      "refresh": "Aggiorna",
+      "new": "Nuova integrazione personalizzata",
+      "loadError": "Impossibile caricare le integrazioni personalizzate",
+      "deleted": "Integrazione eliminata",
+      "deleteError": "Eliminazione non riuscita",
+      "empty": {
+        "title": "Ancora nessuna integrazione personalizzata",
+        "description": "Creane una per esporre una chiave API, configurare webhook in uscita e iniziare a scambiare eventi."
+      }
+    }
+  },
+  "enrichment": {
+    "card": {
+      "disconnect": "Disconnetti",
+      "disconnected": "{provider} disconnesso",
+      "disconnectError": "Disconnessione non riuscita",
+      "status": {
+        "active": "Attiva",
+        "error": "Errore",
+        "disconnected": "Disconnessa"
+      },
+      "capabilities": {
+        "byEmail": "Per email",
+        "byLinkedIn": "Per LinkedIn",
+        "byNameCompany": "Per nome+azienda",
+        "byDomain": "Per dominio",
+        "leadSearch": "Ricerca lead"
+      }
+    },
+    "button": {
+      "enrich": "Arricchisci",
+      "toasts": {
+        "enriched": "Contatto arricchito",
+        "notFound": "Nessuna corrispondenza trovata per questo contatto",
+        "notFoundDescription": "Il provider non aveva dati — prova ad aggiungere più informazioni al contatto.",
+        "skipped": "Arricchito di recente (in cache)",
+        "skippedDescription": "Usato il risultato in cache degli ultimi 30 giorni.",
+        "failed": "Arricchimento non riuscito",
+        "rejected": "Il provider ha rifiutato questa ricerca",
+        "rejectedDescription": "Al contatto potrebbero mancare informazioni sufficienti (nome, email, LinkedIn) perché il provider possa trovare una corrispondenza. Prova a modificare il contatto e ad aggiungere altri dati.",
+        "otherStatus": "Arricchimento {status}"
+      }
+    },
+    "connectDialog": {
+      "reconnect": "Riconnetti",
+      "connect": "Connetti",
+      "title": "Connetti {provider}",
+      "description": "Incolla la tua chiave API di {provider}. La cifreremo prima di salvarla.",
+      "findKey": "Trova la tua chiave",
+      "apiKey": "Chiave API",
+      "validateError": "Impossibile convalidare",
+      "looksGood": "Tutto ok",
+      "accountValidated": "Account convalidato. Fai clic su Salva per memorizzare la chiave.",
+      "testConnection": "Testa connessione",
+      "saveAndConnect": "Salva e connetti",
+      "toasts": {
+        "valid": "Chiave API valida",
+        "validWithAccount": "Chiave API valida — {account}",
+        "validateError": "Convalida non riuscita",
+        "connected": "{provider} connesso",
+        "connectError": "Connessione non riuscita"
+      }
+    },
+    "catalog": {
+      "leadSearch": "Ricerca lead",
+      "apiDocs": "Documentazione API",
+      "comingSoon": "Prossimamente"
+    },
+    "tab": {
+      "title": "Arricchimento dati",
+      "description": "Collega un provider per arricchire i tuoi contatti con telefono, email, LinkedIn, dimensione aziendale, stack tecnologico e altro — e per trovare nuovi lead.",
+      "billing": {
+        "title": "Come funziona la fatturazione",
+        "description": "Ringee non addebita mai i tuoi crediti chiamate per arricchimento, ricerca lead, importazione o rivelazione. Ricerca e rivelazione possono usare crediti del tuo account Apollo o Prospeo collegato."
+      },
+      "yourConnections": "Le tue connessioni",
+      "availableProviders": "Provider disponibili"
+    },
+    "reveal": {
+      "genericProvider": "provider",
+      "importedFrom": "Importato da {provider}. Rivela le informazioni di contatto mancanti usando i tuoi crediti {provider}.",
+      "revealEmail": "Rivela email",
+      "revealPhone": "Rivela telefono",
+      "toasts": {
+        "emailRevealed": "Email rivelata",
+        "phoneRevealed": "Numero di telefono rivelato",
+        "noData": "Il provider non ha restituito dati per questo contatto",
+        "failed": "Rivelazione non riuscita"
+      }
+    }
+  },
+  "leadSearch": {
+    "title": "Trova lead",
+    "description": "Cerca per azienda, ruolo, località e altro — oppure consulta un singolo profilo tramite URL LinkedIn. Rivela l'email o il cellulare riga per riga; ogni rivelazione viene salvata come contatto.",
+    "noProviders": {
+      "title": "Collega prima un provider",
+      "description": "Collega Prospeo o Apollo nella scheda Arricchimento dati per cercare lead."
+    },
+    "provider": "Provider",
+    "usingProvider": "Stai usando {provider}",
+    "useCache": "Usa i risultati in cache (risparmia crediti del provider)",
+    "search": "Cerca",
+    "tabs": {
+      "filters": "Filtri",
+      "linkedin": "URL LinkedIn"
+    },
+    "filters": {
+      "companyDomains": "Domini aziendali",
+      "jobTitles": "Ruoli",
+      "seniorities": "Livelli di seniority",
+      "departments": "Reparti",
+      "personLocations": "Località della persona",
+      "industries": "Settori",
+      "keywords": "Parole chiave",
+      "keywordsPlaceholder": "Parole chiave libere (es. fondatore fintech)",
+      "separatorHint": "Separa più valori con virgole o a capo."
+    },
+    "linkedin": {
+      "label": "URL del profilo LinkedIn",
+      "hint": "Incolla l'URL di un profilo LinkedIn pubblico per trovare il lead corrispondente.",
+      "lookup": "Cerca profilo"
+    },
+    "results": {
+      "count": "{count} risultati",
+      "countOf": "{count} risultati su {total}",
+      "fromCache": "dalla cache",
+      "previous": "Precedente",
+      "next": "Successivo",
+      "findEmail": "Trova email",
+      "emailFound": "Email trovata",
+      "findPhone": "Trova telefono",
+      "phoneFound": "Telefono trovato",
+      "emptyTitle": "Nessun risultato",
+      "emptyDescription": "Prova filtri diversi, cambia provider oppure incolla un URL LinkedIn."
+    },
+    "toasts": {
+      "fromCache": "Caricato dalla cache — nessun credito del provider usato",
+      "revealedEmail": "Email rivelata e salvata come contatto",
+      "revealedWithPhone": "Email e cellulare rivelati e salvati come contatto",
+      "noContactInfo": "Nessun recapito trovato per questa persona"
+    },
+    "errors": {
+      "noProvider": "Collega prima Prospeo o Apollo",
+      "noFilter": "Inserisci almeno un filtro (dominio, ruolo, località…)",
+      "invalidLinkedin": "Inserisci un URL di profilo LinkedIn valido",
+      "searchFailed": "Ricerca non riuscita",
+      "lookupFailed": "Consultazione non riuscita",
+      "revealFailed": "Rivelazione non riuscita"
+    }
+  },
+  "connectors": {
+    "title": "Connettori",
+    "description": "Collega assistenti IA esterni e strumenti di automazione direttamente al tuo account Ringee. I connettori espongono i tuoi dati e le tue azioni Ringee (chiamate, contatti, richiamate, riunioni) tramite un protocollo standardizzato, così qualsiasi client compatibile può usarli.",
+    "mcp": {
+      "badge": "Connettore IA",
+      "description": "Il Model Context Protocol (MCP) consente a client IA come Claude Desktop, ChatGPT e altri agenti di leggere e agire sui tuoi dati Ringee. Incolla l’URL qui sotto nel tuo client per connetterti.",
+      "refresh": "Aggiorna",
+      "loadError": "Impossibile caricare le informazioni di connessione MCP",
+      "scopeOrganization": "Questo URL dà accesso all'organizzazione attiva.",
+      "scopeFreelancer": "Questo URL dà accesso al tuo spazio di lavoro personale (freelance).",
+      "modeOrganization": "Modalità organizzazione",
+      "modeFreelancer": "Modalità freelance",
+      "urlCopied": "URL MCP copiato",
+      "copyError": "Impossibile copiare negli appunti",
+      "copied": "Copiato",
+      "copy": "Copia"
+    },
+    "security": {
+      "title": "Tratta questo URL come un segreto",
+      "description": "Chiunque abbia questo URL può leggere e agire sui tuoi dati Ringee tramite MCP. Condividilo solo con client IA affidabili. Se viene divulgato, contatta il supporto per ruotare il tuo account."
+    },
+    "howTo": {
+      "title": "Come connettersi",
+      "step1": "Copia l'URL sopra.",
+      "step2": "Apri il tuo client compatibile con MCP (Claude Desktop, ChatGPT, Cursor, ecc.) e aggiungi un nuovo server MCP remoto.",
+      "step3": "Incolla l'URL come endpoint SSE. Non è richiesta alcuna chiave API aggiuntiva: l'URL è la credenziale.",
+      "step4": "Una volta connesso, il client vedrà gli strumenti Ringee per cercare contatti, avviare chiamate, pianificare richiamate e riunioni e registrare gli esiti."
+    }
+  },
+  "crm": {
+    "syncHistory": {
+      "title": "Cronologia di sincronizzazione delle chiamate",
+      "description": "Ultimi 50 tentativi di sincronizzazione. Le sincronizzazioni non riuscite o ambigue possono essere ritentate o risolte.",
+      "sheetTitle": "Cronologia sincronizzazione",
+      "sheetDescription": "Gli ultimi 50 tentativi di sincronizzazione delle chiamate per questa connessione. Le sincronizzazioni non riuscite possono essere ritentate manualmente.",
+      "sheetEmptyDescription": "Le sincronizzazioni delle chiamate appariranno qui non appena la tua prima chiamata verrà registrata nel CRM.",
+      "loading": "Caricamento…",
+      "eventCount": "{count} eventi",
+      "refresh": "Aggiorna",
+      "empty": {
+        "title": "Ancora nessuna attività",
+        "description": "Le sincronizzazioni delle chiamate appariranno qui non appena la tua prima chiamata verrà registrata nel CRM."
+      },
+      "status": {
+        "done": "Sincronizzato",
+        "pending": "In attesa",
+        "in_progress": "In corso",
+        "failed": "Non riuscito",
+        "skipped": "Saltato",
+        "needs_resolution": "Da verificare"
+      },
+      "attempt": "tentativo {count}",
+      "callRow": "chiamata {callId}… · {date}",
+      "activity": "Attività: {id}…",
+      "resolve": "Risolvi",
+      "retry": "Riprova",
+      "toasts": {
+        "retryQueued": "Sincronizzazione in coda per un nuovo tentativo",
+        "retryFailed": "Nuovo tentativo non riuscito"
+      },
+      "resolveDialog": {
+        "title": "Risolvi corrispondenza ambigua",
+        "description": "Più record CRM corrispondono a questa chiamata. Indica l’ID esterno del record corretto per collegare questa chiamata.",
+        "callIdLabel": "ID chiamata:",
+        "recordType": "Tipo di record",
+        "person": "Persona",
+        "company": "Azienda",
+        "externalRecordId": "ID record esterno",
+        "externalRecordIdPlaceholder": "Incolla qui l'ID del record CRM...",
+        "externalRecordIdHint": "Lo trovi nell'URL o nel pannello dei dettagli del record nel tuo CRM.",
+        "cancel": "Annulla",
+        "submit": "Risolvi e riprova",
+        "toasts": {
+          "resolved": "Corrispondenza risolta — la sincronizzazione verrà ritentata automaticamente",
+          "resolveError": "Impossibile risolvere"
+        }
+      }
+    },
+    "fieldMappings": {
+      "title": "Mappature dei campi",
+      "description": "Controlla come i campi di Ringee vengono mappati sui campi di {provider} durante la sincronizzazione di contatti e aziende.",
+      "refresh": "Aggiorna",
+      "reconnectHint": "Riconnettiti per gestire le mappature dei campi.",
+      "empty": {
+        "title": "Nessuna mappatura di campo configurata",
+        "description": "Genera le mappature predefinite per {provider} per iniziare. Potrai personalizzarle in seguito."
+      },
+      "seedDefaults": "Genera mappature predefinite",
+      "reseedDefaults": "Rigenera predefinite",
+      "fieldCount": "{count, plural, one {# campo} other {# campi}}",
+      "direction": {
+        "bidirectional": "Bidirezionale",
+        "push": "Invio (Ringee → CRM)",
+        "pull": "Ricezione (CRM → Ringee)"
+      },
+      "toasts": {
+        "seeded": "Mappature di campo predefinite create",
+        "seedError": "Impossibile generare le mappature"
+      }
+    },
+    "team": {
+      "title": "Spazio di lavoro {provider}",
+      "description": "Membri ed elenchi del tuo spazio di lavoro {provider}. Usa le email dei membri per l’assegnazione dei task e gli ID degli elenchi per sincronizzazioni mirate.",
+      "refresh": "Aggiorna",
+      "members": "Membri dello spazio di lavoro",
+      "lists": "Elenchi",
+      "noMembers": "Nessun membro dello spazio di lavoro trovato, oppure questo provider non supporta l’elenco dei membri.",
+      "noLists": "Nessun elenco trovato, oppure questo provider non supporta gli elenchi."
+    },
+    "inboundSync": {
+      "title": "Importa da {provider}",
+      "description": "Importa singoli contatti o aziende dal tuo CRM in Ringee tramite il loro ID record. I record esistenti verranno aggiornati; quelli nuovi verranno creati.",
+      "inactiveHint": "Questa connessione non è attiva. Riconnettiti per abilitare le importazioni.",
+      "contact": {
+        "title": "Sincronizza contatto",
+        "description": "Importa un record persona dal tuo CRM. Nome, email, numeri di telefono e ruolo verranno sincronizzati.",
+        "placeholder": "es. person_01abc123..."
+      },
+      "company": {
+        "title": "Sincronizza azienda",
+        "description": "Importa un record azienda. Nome, dominio, settore e dimensione verranno sincronizzati. Se ci sono contatti collegati nel CRM, verranno create le loro affiliazioni.",
+        "placeholder": "es. company_01xyz789..."
+      },
+      "entity": {
+        "contact": "contatto",
+        "company": "azienda"
+      },
+      "sync": "Sincronizza",
+      "resultCreated": "{type} creato/a",
+      "resultUpdated": "{type} aggiornato/a",
+      "toasts": {
+        "imported": "{type, select, contact {Contatto} other {Azienda}} importato/a",
+        "updated": "{type, select, contact {Contatto} other {Azienda}} aggiornato/a",
+        "syncFailed": "Impossibile sincronizzare {type}"
+      }
+    }
+  },
+  "attio": {
+    "token": {
+      "title": "Ringee per Attio",
+      "badge": "Token app",
+      "description": "Abilita il clic per chiamare, la cronologia chiamate e la sincronizzazione dell'attività direttamente da Attio",
+      "empty": {
+        "title": "Nessun token generato",
+        "description": "Genera un token per collegare il tuo account Ringee all'app Attio. Il token è associato al tuo utente e contesto organizzativo attuali."
+      },
+      "generate": "Genera token",
+      "context": {
+        "organization": "Organizzazione",
+        "personal": "Personale"
+      },
+      "hide": "Nascondi",
+      "reveal": "Mostra",
+      "copiedBang": "Copiato!",
+      "copyToken": "Copia token",
+      "regenerate": "Rigenera",
+      "regenerateDialog": {
+        "title": "Rigenerare il token?",
+        "description": "Verrà creato un nuovo token. Il token precedente smetterà di funzionare: dovrai aggiornarlo nelle impostazioni del tuo spazio di lavoro Attio.",
+        "cancel": "Annulla"
+      },
+      "howTo": {
+        "title": "Come connettersi",
+        "step1": "Copia il token sopra",
+        "step2Prefix": "In Attio, vai su",
+        "step2Path": "Settings → Apps → Ringee",
+        "step3Prefix": "Incolla il token nel campo",
+        "step3Field": "Integration Token",
+        "step3Suffix": "",
+        "step4": "Salva — lo stato della connessione diventerà verde"
+      },
+      "toasts": {
+        "generated": "Token generato — copialo e incollalo nelle impostazioni del tuo spazio di lavoro Attio.",
+        "generateError": "Impossibile generare il token",
+        "copied": "Token copiato negli appunti",
+        "copyError": "Copia non riuscita — prova a selezionare il token manualmente"
+      }
+    },
+    "dialer": {
+      "invalidLink": {
+        "title": "Link di chiamata non valido",
+        "description": "A questo link mancano parametri obbligatori. Avvia una nuova chiamata da Attio."
+      },
+      "viaAttio": "tramite Attio",
+      "callingFrom": "Chiamata da",
+      "connectingToVoice": "Connessione al servizio voce...",
+      "startCall": "Avvia chiamata",
+      "connecting": "Connessione...",
+      "callInitiated": "Chiamata avviata",
+      "callHint": "Usa i controlli di chiamata nel popup per gestire la chiamata.",
+      "tryAgain": "Riprova",
+      "errors": {
+        "missingParams": "Parametri di chiamata mancanti o connessione non pronta.",
+        "initiateFailed": "Impossibile avviare la chiamata",
+        "somethingWrong": "Qualcosa è andato storto"
+      }
+    }
+  },
+  "odoo": {
+    "addAnother": "Aggiungi un altro",
+    "connect": "Connetti {provider}",
+    "cancel": "Annulla",
+    "validating": "Convalida…",
+    "description": {
+      "legacy": "Usa la compatibilità RPC legacy di Odoo. Compatibile con le versioni dalla 14 alla 18.",
+      "modern": "Usa la moderna API JSON-2 di Odoo. Disponibile dalla versione 19."
+    },
+    "fields": {
+      "url": "URL Odoo",
+      "database": "Nome del database",
+      "login": "Login / Email",
+      "loginOptional": "Login / Email (facoltativo)",
+      "loginHint": "Necessario solo per l'associazione del proprietario su lead/attività.",
+      "apiKey": "Chiave API",
+      "apiKeyHintPrefix": "Generane una da",
+      "apiKeyHintPath": "Odoo → Preferenze → Sicurezza account → Nuova chiave API"
+    },
+    "workspace": {
+      "title": "Spazio di lavoro",
+      "personal": "Spazio di lavoro personale",
+      "personalHint": "Vengono registrate solo le tue chiamate. Le tue credenziali restano sul tuo account.",
+      "orgNoTeam": "Organizzazione (nessun team attivo)",
+      "orgHint": "Tutti i colleghi di questa organizzazione condividono questa connessione.",
+      "orgSwitchHint": "Passa a un'organizzazione in alto a sinistra per abilitare la sincronizzazione a livello organizzativo."
+    },
+    "toasts": {
+      "connected": "{provider} connesso"
+    },
+    "errors": {
+      "unexpectedResponse": "Risposta imprevista",
+      "emptyResponse": "Risposta vuota dal server.",
+      "couldNotConnect": "Impossibile connettersi",
+      "unknown": "Errore sconosciuto",
+      "reasonTitles": {
+        "invalid_credentials": "Credenziali non valide",
+        "database_not_found": "Database non trovato",
+        "invalid_base_url": "URL non raggiungibile",
+        "unsupported_version": "Versione di Odoo non supportata",
+        "api_mode_not_available": "Modalità API non disponibile",
+        "crm_module_missing": "Modulo CRM non installato",
+        "insufficient_permissions": "Permessi insufficienti",
+        "partner_access_denied": "Accesso partner negato",
+        "activity_access_denied": "Accesso attività negato",
+        "unknown_odoo_error": "Impossibile connettersi"
+      },
+      "reasons": {
+        "invalid_credentials": "L'accesso o la chiave API sono stati rifiutati. Controlla la chiave API e, per Odoo 14–18, il tuo login/email.",
+        "database_not_found": "Il nome del database non è stato trovato su questo server Odoo.",
+        "invalid_base_url": "L'URL di Odoo non è raggiungibile. Controlla l'URL e riprova.",
+        "unsupported_version": "Questa versione di Odoo è precedente alla 14 e non è supportata.",
+        "api_mode_not_available": "La modalità API selezionata non è disponibile su questo server. Prova l'altra opzione Odoo.",
+        "crm_module_missing": "Il modulo CRM di Odoo non è installato. La sincronizzazione dei lead non funzionerà.",
+        "insufficient_permissions": "Questa chiave API non ha il permesso di modificare res.partner.",
+        "partner_access_denied": "Questa chiave API non può leggere res.partner sul database selezionato.",
+        "activity_access_denied": "Questa chiave API non può creare record mail.activity.",
+        "unknown_odoo_error": "Odoo ha restituito un errore che non siamo riusciti a interpretare. Controlla i log del server."
+      }
+    }
   }
 }

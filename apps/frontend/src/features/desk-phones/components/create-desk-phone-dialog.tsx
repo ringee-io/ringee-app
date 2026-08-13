@@ -33,6 +33,7 @@ import type {
   CreatedSipDevice,
   SipDeviceType
 } from '../types';
+import { useTranslations } from 'next-intl';
 
 interface Props {
   open: boolean;
@@ -50,13 +51,6 @@ const DEVICE_TYPES: SipDeviceType[] = [
   'other'
 ];
 
-const STEP_TITLES = [
-  'Connect a desk phone',
-  'Device details',
-  'Select a number',
-  'Review'
-];
-
 export function CreateDeskPhoneDialog({
   open,
   onOpenChange,
@@ -64,6 +58,7 @@ export function CreateDeskPhoneDialog({
   onCreate,
   onCreated
 }: Props) {
+  const t = useTranslations('calls.deskPhones.create');
   const [step, setStep] = useState(0);
   const [label, setLabel] = useState('');
   const [deviceType, setDeviceType] = useState<SipDeviceType | ''>('');
@@ -115,9 +110,7 @@ export function CreateDeskPhoneDialog({
       onCreated(result);
       onOpenChange(false);
     } catch (err: any) {
-      toast.error(
-        err?.data?.message || err?.message || 'Failed to create desk phone'
-      );
+      toast.error(err?.data?.message || err?.message || t('failed'));
     } finally {
       setSubmitting(false);
     }
@@ -131,26 +124,19 @@ export function CreateDeskPhoneDialog({
         onInteractOutside={(e) => e.preventDefault()}
       >
         <DialogHeader>
-          <DialogTitle>{STEP_TITLES[step]}</DialogTitle>
-          <DialogDescription>Step {step + 1} of 4</DialogDescription>
+          <DialogTitle>{t(`steps.${step}`)}</DialogTitle>
+          <DialogDescription>
+            {t('stepCount', { step: step + 1 })}
+          </DialogDescription>
         </DialogHeader>
 
         {/* Screen 1 — intro */}
         {step === 0 && (
           <div className='space-y-4 text-sm'>
-            <p className='text-muted-foreground'>
-              Use a physical SIP phone or softphone with your Ringee number.
-              Incoming calls can ring directly on the desk phone, and outbound
-              calls can still use the same Ringee number from Web, Chrome
-              Extension, Mobile, and the desk phone.
-            </p>
+            <p className='text-muted-foreground'>{t('intro')}</p>
             <Alert>
-              <AlertTitle>Important</AlertTitle>
-              <AlertDescription>
-                If you assign a number to this desk phone, inbound calls for
-                that number will ring only on this desk phone. It will not ring
-                on Ringee Web, Chrome Extension, or Mobile.
-              </AlertDescription>
+              <AlertTitle>{t('important')}</AlertTitle>
+              <AlertDescription>{t('importantDescription')}</AlertDescription>
             </Alert>
           </div>
         )}
@@ -159,22 +145,22 @@ export function CreateDeskPhoneDialog({
         {step === 1 && (
           <div className='space-y-4'>
             <div className='space-y-1.5'>
-              <Label htmlFor='dp-label'>Device name</Label>
+              <Label htmlFor='dp-label'>{t('deviceName')}</Label>
               <Input
                 id='dp-label'
-                placeholder='Office Yealink'
+                placeholder={t('deviceNamePlaceholder')}
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
               />
             </div>
             <div className='space-y-1.5'>
-              <Label>Device type (optional)</Label>
+              <Label>{t('deviceType')}</Label>
               <Select
                 value={deviceType}
                 onValueChange={(v) => setDeviceType(v as SipDeviceType)}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder='Select a type' />
+                  <SelectValue placeholder={t('deviceTypePlaceholder')} />
                 </SelectTrigger>
                 <SelectContent>
                   {DEVICE_TYPES.map((t) => (
@@ -187,9 +173,9 @@ export function CreateDeskPhoneDialog({
             </div>
             <div className='flex items-center justify-between rounded-md border p-3'>
               <div>
-                <p className='text-sm font-medium'>Allow outbound calls</p>
+                <p className='text-sm font-medium'>{t('allowOutbound')}</p>
                 <p className='text-muted-foreground text-xs'>
-                  Place calls from the desk phone (validated by Ringee).
+                  {t('allowOutboundHint')}
                 </p>
               </div>
               <Switch
@@ -199,9 +185,9 @@ export function CreateDeskPhoneDialog({
             </div>
             <div className='flex items-center justify-between rounded-md border p-3'>
               <div>
-                <p className='text-sm font-medium'>Allow inbound calls</p>
+                <p className='text-sm font-medium'>{t('allowInbound')}</p>
                 <p className='text-muted-foreground text-xs'>
-                  Ring the assigned number on this desk phone only.
+                  {t('allowInboundHint')}
                 </p>
               </div>
               <Switch
@@ -210,8 +196,7 @@ export function CreateDeskPhoneDialog({
               />
             </div>
             <p className='text-muted-foreground text-xs'>
-              The device is assigned to you. Team assignment can be changed
-              later.
+              {t('assignmentHint')}
             </p>
           </div>
         )}
@@ -220,26 +205,25 @@ export function CreateDeskPhoneDialog({
         {step === 2 && (
           <div className='space-y-3'>
             {numbers.length === 0 ? (
-              <p className='text-muted-foreground text-sm'>
-                No purchased numbers available. You can create the device now
-                and assign a number later.
-              </p>
+              <p className='text-muted-foreground text-sm'>{t('noNumbers')}</p>
             ) : (
               <div className='space-y-1.5'>
                 <Label>
-                  {allowInbound ? 'Number (required)' : 'Caller ID number'}
+                  {allowInbound ? t('numberRequired') : t('callerIdNumber')}
                 </Label>
                 <Select value={numberId} onValueChange={setNumberId}>
                   <SelectTrigger>
-                    <SelectValue placeholder='Select a number' />
+                    <SelectValue placeholder={t('numberPlaceholder')} />
                   </SelectTrigger>
                   <SelectContent>
                     {numbers.map((n) => (
                       <SelectItem key={n.id} value={n.id}>
                         {n.phoneNumber}
                         {n.inboundMode === 'desk_phone_only'
-                          ? ` — desk phone: ${n.inboundDeviceLabel ?? 'assigned'}`
-                          : ' — Ringee Web/Mobile'}
+                          ? t('numberDeskPhone', {
+                              name: n.inboundDeviceLabel ?? t('assigned')
+                            })
+                          : t('numberRingee')}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -250,17 +234,20 @@ export function CreateDeskPhoneDialog({
             {selectedNumber && (
               <div className='text-muted-foreground space-y-1 text-xs'>
                 <div>
-                  Current inbound destination:{' '}
+                  {t('currentInbound')}{' '}
                   <span className='text-foreground'>
                     {selectedNumber.inboundMode === 'desk_phone_only'
-                      ? `Desk phone (${selectedNumber.inboundDeviceLabel ?? 'assigned'})`
-                      : 'Ringee Web/Mobile'}
+                      ? t('deskPhoneDestination', {
+                          name:
+                            selectedNumber.inboundDeviceLabel ?? t('assigned')
+                        })
+                      : t('ringeeDestination')}
                   </span>
                 </div>
                 <div>
-                  Outbound availability:{' '}
+                  {t('outboundAvailability')}{' '}
                   <span className='text-foreground'>
-                    Web, Chrome Extension, Mobile, Desk Phone
+                    {t('allOutboundChannels')}
                   </span>
                 </div>
               </div>
@@ -268,20 +255,16 @@ export function CreateDeskPhoneDialog({
 
             {requiresMoveConfirm && (
               <Alert variant='destructive'>
-                <AlertTitle>
-                  This number currently receives calls in Ringee
-                </AlertTitle>
+                <AlertTitle>{t('moveWarning.title')}</AlertTitle>
                 <AlertDescription>
-                  Assigning it to this desk phone will move inbound calls to the
-                  desk phone only.
+                  {t('moveWarning.description')}
                   <label className='mt-2 flex items-center gap-2 text-sm'>
                     <input
                       type='checkbox'
                       checked={confirmMove}
                       onChange={(e) => setConfirmMove(e.target.checked)}
                     />
-                    I understand inbound for this number will ring only on the
-                    desk phone.
+                    {t('moveWarning.confirm')}
                   </label>
                 </AlertDescription>
               </Alert>
@@ -292,32 +275,37 @@ export function CreateDeskPhoneDialog({
         {/* Screen 4 — review */}
         {step === 3 && (
           <div className='space-y-2 text-sm'>
-            <ReviewRow label='Device name' value={label || '—'} />
+            <ReviewRow label={t('review.deviceName')} value={label || '—'} />
             <ReviewRow
-              label='Device type'
+              label={t('review.deviceType')}
               value={deviceType ? deviceType : '—'}
             />
             <ReviewRow
-              label='Selected number'
-              value={selectedNumber?.phoneNumber ?? 'None (assign later)'}
+              label={t('review.selectedNumber')}
+              value={selectedNumber?.phoneNumber ?? t('review.none')}
             />
             <ReviewRow
-              label='Inbound behavior'
-              value={allowInbound ? 'Desk phone only' : 'Disabled'}
-            />
-            <ReviewRow
-              label='Outbound behavior'
+              label={t('review.inboundBehavior')}
               value={
-                allowOutbound
-                  ? 'Web, Chrome Extension, Mobile, and desk phone'
-                  : 'Disabled'
+                allowInbound ? t('review.deskPhoneOnly') : t('review.disabled')
               }
             />
             <ReviewRow
-              label='Credit & DNC validation'
-              value='Enabled for desk phone outbound'
+              label={t('review.outboundBehavior')}
+              value={
+                allowOutbound
+                  ? t('review.outboundChannels')
+                  : t('review.disabled')
+              }
             />
-            <ReviewRow label='Park Outbound Calls' value='Enabled' />
+            <ReviewRow
+              label={t('review.validation')}
+              value={t('review.validationEnabled')}
+            />
+            <ReviewRow
+              label={t('review.parkCalls')}
+              value={t('review.enabled')}
+            />
           </div>
         )}
 
@@ -328,7 +316,7 @@ export function CreateDeskPhoneDialog({
             disabled={step === 0 || submitting}
             onClick={() => setStep((s) => Math.max(0, s - 1))}
           >
-            Back
+            {t('back')}
           </Button>
           {step < 3 ? (
             <Button
@@ -339,11 +327,11 @@ export function CreateDeskPhoneDialog({
               }
               onClick={() => setStep((s) => s + 1)}
             >
-              Continue
+              {t('continue')}
             </Button>
           ) : (
             <Button type='button' disabled={submitting} onClick={submit}>
-              {submitting ? 'Creating…' : 'Create desk phone credentials'}
+              {submitting ? t('creating') : t('submit')}
             </Button>
           )}
         </DialogFooter>

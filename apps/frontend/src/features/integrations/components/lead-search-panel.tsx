@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import {
   useEnrichmentConnections,
   useEnrichmentMutations
@@ -76,6 +77,7 @@ export function LeadSearchPanel() {
     [connections]
   );
 
+  const t = useTranslations('integrations.leadSearch');
   const [provider, setProvider] = useState<EnrichmentProviderType | null>(null);
   const [useCache, setUseCache] = useState(true);
 
@@ -119,7 +121,7 @@ export function LeadSearchPanel() {
 
   const handleSearch = async (nextPage = 1) => {
     if (!provider) {
-      toast.error('Connect Prospeo or Apollo first');
+      toast.error(t('errors.noProvider'));
       return;
     }
     const filters = buildFilters();
@@ -132,7 +134,7 @@ export function LeadSearchPanel() {
         (filters.industries?.length ?? 0) >
         0 || !!filters.keywords;
     if (!hasAnyFilter) {
-      toast.error('Enter at least one filter (domain, job title, location…)');
+      toast.error(t('errors.noFilter'));
       return;
     }
     setSearching(true);
@@ -151,10 +153,12 @@ export function LeadSearchPanel() {
       setLastCached(!!res.cached);
       setContactIdByExternal({});
       if (res.cached) {
-        toast.success('Loaded from cache — no provider credits used');
+        toast.success(t('toasts.fromCache'));
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Search failed');
+      toast.error(
+        err instanceof Error ? err.message : t('errors.searchFailed')
+      );
     } finally {
       setSearching(false);
     }
@@ -162,12 +166,12 @@ export function LeadSearchPanel() {
 
   const handleLinkedinSearch = async () => {
     if (!provider) {
-      toast.error('Connect Prospeo or Apollo first');
+      toast.error(t('errors.noProvider'));
       return;
     }
     const url = linkedinUrl.trim();
     if (!/linkedin\.com\//i.test(url)) {
-      toast.error('Enter a valid LinkedIn profile URL');
+      toast.error(t('errors.invalidLinkedin'));
       return;
     }
     setSearching(true);
@@ -181,12 +185,14 @@ export function LeadSearchPanel() {
       setLastCached(!!res.cached);
       setContactIdByExternal({});
       if (res.cached) {
-        toast.success('Loaded from cache — no provider credits used');
+        toast.success(t('toasts.fromCache'));
       } else if (res.result.results.length === 0) {
         toast.message('No profile found for that URL');
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Lookup failed');
+      toast.error(
+        err instanceof Error ? err.message : t('errors.lookupFailed')
+      );
     } finally {
       setSearching(false);
     }
@@ -219,14 +225,16 @@ export function LeadSearchPanel() {
       if (res.emailRevealed || res.phoneRevealed) {
         toast.success(
           revealPhone
-            ? 'Email + mobile revealed and saved as contact'
-            : 'Email revealed and saved as contact'
+            ? t('toasts.revealedWithPhone')
+            : t('toasts.revealedEmail')
         );
       } else {
-        toast.message('No contact info found for this person');
+        toast.message(t('toasts.noContactInfo'));
       }
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Reveal failed');
+      toast.error(
+        err instanceof Error ? err.message : t('errors.revealFailed')
+      );
     } finally {
       setRevealing((prev) => {
         const next = { ...prev };
@@ -244,22 +252,15 @@ export function LeadSearchPanel() {
       <div>
         <h2 className='flex items-center gap-2 text-lg font-semibold'>
           <Sparkles className='h-5 w-5' />
-          Find Leads
+          {t('title')}
         </h2>
-        <p className='text-muted-foreground text-sm'>
-          Search by company, job title, location and more — or look up a single
-          profile by LinkedIn URL. Reveal email or mobile per row; each reveal
-          is saved as a contact.
-        </p>
+        <p className='text-muted-foreground text-sm'>{t('description')}</p>
       </div>
 
       {noProviders && (
         <Alert>
-          <AlertTitle>Connect a provider first</AlertTitle>
-          <AlertDescription>
-            Connect Prospeo or Apollo in the Data Enrichment tab to search for
-            leads.
-          </AlertDescription>
+          <AlertTitle>{t('noProviders.title')}</AlertTitle>
+          <AlertDescription>{t('noProviders.description')}</AlertDescription>
         </Alert>
       )}
 
@@ -268,7 +269,7 @@ export function LeadSearchPanel() {
           <div className='flex flex-wrap items-end justify-between gap-3'>
             {showProviderSelect ? (
               <div className='space-y-1'>
-                <Label>Provider</Label>
+                <Label>{t('provider')}</Label>
                 <Select
                   value={provider ?? undefined}
                   onValueChange={(v) =>
@@ -276,7 +277,7 @@ export function LeadSearchPanel() {
                   }
                 >
                   <SelectTrigger className='w-[180px]'>
-                    <SelectValue placeholder='Provider' />
+                    <SelectValue placeholder={t('provider')} />
                   </SelectTrigger>
                   <SelectContent>
                     {availableProviders.map((p) => (
@@ -289,7 +290,9 @@ export function LeadSearchPanel() {
               </div>
             ) : provider ? (
               <p className='text-muted-foreground text-xs'>
-                Using {ENRICHMENT_PROVIDER_META[provider]?.name ?? provider}
+                {t('usingProvider', {
+                  provider: ENRICHMENT_PROVIDER_META[provider]?.name ?? provider
+                })}
               </p>
             ) : null}
 
@@ -305,7 +308,7 @@ export function LeadSearchPanel() {
                 className='flex cursor-pointer items-center gap-1.5 text-xs'
               >
                 <Database className='h-3.5 w-3.5' />
-                Use cached results (save provider credits)
+                {t('useCache')}
               </Label>
             </div>
           </div>
@@ -316,18 +319,18 @@ export function LeadSearchPanel() {
             <TabsList>
               <TabsTrigger value='filters'>
                 <Search className='mr-1.5 h-3.5 w-3.5' />
-                Filters
+                {t('tabs.filters')}
               </TabsTrigger>
               <TabsTrigger value='linkedin'>
                 <Linkedin className='mr-1.5 h-3.5 w-3.5' />
-                LinkedIn URL
+                {t('tabs.linkedin')}
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value='filters' className='space-y-3 pt-4'>
               <div className='grid gap-3 sm:grid-cols-2'>
                 <div className='space-y-1'>
-                  <Label>Company domains</Label>
+                  <Label>{t('filters.companyDomains')}</Label>
                   <Input
                     value={domainsInput}
                     onChange={(e) => setDomainsInput(e.target.value)}
@@ -336,7 +339,7 @@ export function LeadSearchPanel() {
                   />
                 </div>
                 <div className='space-y-1'>
-                  <Label>Job titles</Label>
+                  <Label>{t('filters.jobTitles')}</Label>
                   <Input
                     value={jobTitlesInput}
                     onChange={(e) => setJobTitlesInput(e.target.value)}
@@ -345,7 +348,7 @@ export function LeadSearchPanel() {
                   />
                 </div>
                 <div className='space-y-1'>
-                  <Label>Seniorities</Label>
+                  <Label>{t('filters.seniorities')}</Label>
                   <Input
                     value={seniorityInput}
                     onChange={(e) => setSeniorityInput(e.target.value)}
@@ -354,7 +357,7 @@ export function LeadSearchPanel() {
                   />
                 </div>
                 <div className='space-y-1'>
-                  <Label>Departments</Label>
+                  <Label>{t('filters.departments')}</Label>
                   <Input
                     value={departmentInput}
                     onChange={(e) => setDepartmentInput(e.target.value)}
@@ -363,7 +366,7 @@ export function LeadSearchPanel() {
                   />
                 </div>
                 <div className='space-y-1'>
-                  <Label>Person locations</Label>
+                  <Label>{t('filters.personLocations')}</Label>
                   <Input
                     value={locationsInput}
                     onChange={(e) => setLocationsInput(e.target.value)}
@@ -372,7 +375,7 @@ export function LeadSearchPanel() {
                   />
                 </div>
                 <div className='space-y-1'>
-                  <Label>Industries</Label>
+                  <Label>{t('filters.industries')}</Label>
                   <Input
                     value={industriesInput}
                     onChange={(e) => setIndustriesInput(e.target.value)}
@@ -383,17 +386,17 @@ export function LeadSearchPanel() {
               </div>
 
               <div className='space-y-1'>
-                <Label>Keywords</Label>
+                <Label>{t('filters.keywords')}</Label>
                 <Input
                   value={keywords}
                   onChange={(e) => setKeywords(e.target.value)}
-                  placeholder='Free-form keywords (e.g. fintech founder)'
+                  placeholder={t('filters.keywordsPlaceholder')}
                   disabled={noProviders}
                 />
               </div>
 
               <p className='text-muted-foreground text-xs'>
-                Separate multiple values with commas or line breaks.
+                {t('filters.separatorHint')}
               </p>
 
               <div className='flex justify-end'>
@@ -406,14 +409,14 @@ export function LeadSearchPanel() {
                   ) : (
                     <Search className='mr-2 h-4 w-4' />
                   )}
-                  Search
+                  {t('search')}
                 </Button>
               </div>
             </TabsContent>
 
             <TabsContent value='linkedin' className='space-y-3 pt-4'>
               <div className='space-y-1'>
-                <Label>LinkedIn profile URL</Label>
+                <Label>{t('linkedin.label')}</Label>
                 <Input
                   value={linkedinUrl}
                   onChange={(e) => setLinkedinUrl(e.target.value)}
@@ -424,7 +427,7 @@ export function LeadSearchPanel() {
                   }}
                 />
                 <p className='text-muted-foreground text-xs'>
-                  Paste a public LinkedIn profile URL to find the matching lead.
+                  {t('linkedin.hint')}
                 </p>
               </div>
               <div className='flex justify-end'>
@@ -437,7 +440,7 @@ export function LeadSearchPanel() {
                   ) : (
                     <Linkedin className='mr-2 h-4 w-4' />
                   )}
-                  Look up profile
+                  {t('linkedin.lookup')}
                 </Button>
               </div>
             </TabsContent>
@@ -451,12 +454,17 @@ export function LeadSearchPanel() {
             <div className='flex items-center justify-between'>
               <div className='text-muted-foreground flex items-center gap-2 text-sm'>
                 <span>
-                  {results.length} results{total != null ? ` of ${total}` : ''}
+                  {total != null
+                    ? t('results.countOf', {
+                        count: results.length,
+                        total
+                      })
+                    : t('results.count', { count: results.length })}
                 </span>
                 {lastCached && (
                   <Badge variant='outline' className='text-[10px]'>
                     <Database className='mr-1 h-3 w-3' />
-                    from cache
+                    {t('results.fromCache')}
                   </Badge>
                 )}
               </div>
@@ -467,7 +475,7 @@ export function LeadSearchPanel() {
                   disabled={page <= 1 || searching}
                   onClick={() => handleSearch(page - 1)}
                 >
-                  Previous
+                  {t('results.previous')}
                 </Button>
                 <Button
                   size='sm'
@@ -475,7 +483,7 @@ export function LeadSearchPanel() {
                   disabled={!hasMore || searching}
                   onClick={() => handleSearch(page + 1)}
                 >
-                  Next
+                  {t('results.next')}
                 </Button>
               </div>
             </div>
@@ -563,7 +571,9 @@ export function LeadSearchPanel() {
                         ) : (
                           <Mail className='mr-1.5 h-3.5 w-3.5' />
                         )}
-                        {hasEmail ? 'Email found' : 'Find email'}
+                        {hasEmail
+                          ? t('results.emailFound')
+                          : t('results.findEmail')}
                       </Button>
                       <Button
                         size='sm'
@@ -575,7 +585,9 @@ export function LeadSearchPanel() {
                         ) : (
                           <Phone className='mr-1.5 h-3.5 w-3.5' />
                         )}
-                        {hasPhone ? 'Phone found' : 'Find phone'}
+                        {hasPhone
+                          ? t('results.phoneFound')
+                          : t('results.findPhone')}
                       </Button>
                     </div>
                   </div>
@@ -588,10 +600,8 @@ export function LeadSearchPanel() {
 
       {!searching && results.length === 0 && total !== null && (
         <Alert>
-          <AlertTitle>No results</AlertTitle>
-          <AlertDescription>
-            Try different filters, switch provider, or paste a LinkedIn URL.
-          </AlertDescription>
+          <AlertTitle>{t('results.emptyTitle')}</AlertTitle>
+          <AlertDescription>{t('results.emptyDescription')}</AlertDescription>
         </Alert>
       )}
     </div>

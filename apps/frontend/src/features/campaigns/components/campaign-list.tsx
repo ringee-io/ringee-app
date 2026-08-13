@@ -23,6 +23,7 @@ import {
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { Plus, Search, Target, Users, Phone, Clock } from 'lucide-react';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
+import { useTranslations } from 'next-intl';
 import type {
   Campaign,
   CampaignListResponse,
@@ -43,6 +44,7 @@ function CampaignCard({
   campaign: Campaign;
   onClick: () => void;
 }) {
+  const t = useTranslations('campaigns');
   const leadCount = campaign._count?.leads ?? 0;
 
   return (
@@ -61,7 +63,7 @@ function CampaignCard({
             )}
           </div>
           <Badge variant='outline' className={STATUS_COLORS[campaign.status]}>
-            {campaign.status}
+            {t(`status.${campaign.status}`)}
           </Badge>
         </div>
       </CardHeader>
@@ -69,19 +71,21 @@ function CampaignCard({
         <div className='text-muted-foreground flex items-center gap-4 text-sm'>
           <div className='flex items-center gap-1'>
             <Users className='h-4 w-4' />
-            <span>{leadCount} leads</span>
+            <span>{t('card.leads', { count: leadCount })}</span>
           </div>
           <div className='flex items-center gap-1'>
             <Phone className='h-4 w-4' />
-            <span className='capitalize'>{campaign.dialerMode}</span>
+            <span>{t(`modes.${campaign.dialerMode}`)}</span>
           </div>
           <div className='flex items-center gap-1'>
             <Clock className='h-4 w-4' />
-            <span>{campaign.maxAttempts} max attempts</span>
+            <span>{t('card.maxAttempts', { count: campaign.maxAttempts })}</span>
           </div>
         </div>
         <div className='text-muted-foreground mt-3 text-xs'>
-          Created {new Date(campaign.createdAt).toLocaleDateString()}
+          {t('card.created', {
+            date: new Date(campaign.createdAt).toLocaleDateString()
+          })}
         </div>
       </CardContent>
     </Card>
@@ -109,6 +113,7 @@ function CampaignListSkeleton() {
 export function CampaignList() {
   const api = useApi();
   const router = useRouter();
+  const t = useTranslations('campaigns');
   // Only org admins can create/manage campaigns; members get read-only access.
   const { isOrgAdmin } = useOrgRole();
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
@@ -153,7 +158,7 @@ export function CampaignList() {
         <div className='relative flex-1'>
           <Search className='text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2' />
           <Input
-            placeholder='Search campaigns...'
+            placeholder={t('list.searchPlaceholder')}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
@@ -168,20 +173,20 @@ export function CampaignList() {
           }}
         >
           <SelectTrigger className='w-full sm:w-[160px]'>
-            <SelectValue placeholder='All statuses' />
+            <SelectValue placeholder={t('list.allStatuses')} />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value='all'>All statuses</SelectItem>
-            <SelectItem value='draft'>Draft</SelectItem>
-            <SelectItem value='active'>Active</SelectItem>
-            <SelectItem value='paused'>Paused</SelectItem>
-            <SelectItem value='completed'>Completed</SelectItem>
+            <SelectItem value='all'>{t('list.allStatuses')}</SelectItem>
+            <SelectItem value='draft'>{t('status.draft')}</SelectItem>
+            <SelectItem value='active'>{t('status.active')}</SelectItem>
+            <SelectItem value='paused'>{t('status.paused')}</SelectItem>
+            <SelectItem value='completed'>{t('status.completed')}</SelectItem>
           </SelectContent>
         </Select>
         {isOrgAdmin && (
           <Button onClick={() => router.push('/dashboard/campaigns/new')}>
             <Plus className='mr-2 h-4 w-4' />
-            New Campaign
+            {t('newCampaign')}
           </Button>
         )}
       </div>
@@ -192,11 +197,9 @@ export function CampaignList() {
         <Card>
           <CardContent className='flex flex-col items-center justify-center py-16'>
             <Target className='text-muted-foreground mb-4 h-12 w-12' />
-            <h3 className='text-lg font-semibold'>No campaigns yet</h3>
+            <h3 className='text-lg font-semibold'>{t('empty.title')}</h3>
             <p className='text-muted-foreground mt-1 text-sm'>
-              {isOrgAdmin
-                ? 'Create your first outbound campaign to get started.'
-                : 'You have not been added to any campaigns yet.'}
+              {isOrgAdmin ? t('empty.description') : t('empty.memberDescription')}
             </p>
             {isOrgAdmin && (
               <Button
@@ -204,7 +207,7 @@ export function CampaignList() {
                 onClick={() => router.push('/dashboard/campaigns/new')}
               >
                 <Plus className='mr-2 h-4 w-4' />
-                Create Campaign
+                {t('empty.action')}
               </Button>
             )}
           </CardContent>
@@ -225,8 +228,11 @@ export function CampaignList() {
           {totalPages > 1 && (
             <div className='flex items-center justify-between'>
               <p className='text-muted-foreground text-sm'>
-                Showing {(page - 1) * limit + 1}–{Math.min(page * limit, total)}{' '}
-                of {total}
+                {t('list.showing', {
+                  from: (page - 1) * limit + 1,
+                  to: Math.min(page * limit, total),
+                  total
+                })}
               </p>
               <div className='flex gap-2'>
                 <Button
@@ -235,7 +241,7 @@ export function CampaignList() {
                   disabled={page <= 1}
                   onClick={() => setPage(page - 1)}
                 >
-                  Previous
+                  {t('list.previous')}
                 </Button>
                 <Button
                   variant='outline'
@@ -243,7 +249,7 @@ export function CampaignList() {
                   disabled={page >= totalPages}
                   onClick={() => setPage(page + 1)}
                 >
-                  Next
+                  {t('list.next')}
                 </Button>
               </div>
             </div>

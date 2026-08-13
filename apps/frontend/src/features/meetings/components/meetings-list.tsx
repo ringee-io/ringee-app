@@ -304,7 +304,10 @@ export function MeetingsList() {
   );
 }
 
-type TFunc = (key: string, values?: Record<string, unknown>) => string;
+type TFunc = (
+  key: string,
+  values?: Record<string, string | number | Date>
+) => string;
 
 function MeetingDetail({
   meeting,
@@ -489,7 +492,7 @@ function getColumns(
         return (
           <div>
             <p className='text-sm font-medium'>
-              {format(new Date(m.scheduledAt), 'EEE, MMM d')} at{' '}
+              {format(new Date(m.scheduledAt), 'EEE, MMM d')} {t('at')}{' '}
               {format(new Date(m.scheduledAt), 'h:mm a')}
             </p>
             {m.title && (
@@ -646,7 +649,15 @@ function FullCalendarView({
     else onDateChange(addDays(currentDate, 1));
   };
 
-  const weekDaysLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  const weekDaysLabels = [
+    t('calendar.weekdays.sun'),
+    t('calendar.weekdays.mon'),
+    t('calendar.weekdays.tue'),
+    t('calendar.weekdays.wed'),
+    t('calendar.weekdays.thu'),
+    t('calendar.weekdays.fri'),
+    t('calendar.weekdays.sat')
+  ];
   const hours = Array.from({ length: 24 }).map((_, i) => i);
 
   return (

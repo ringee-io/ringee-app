@@ -148,6 +148,21 @@
         "pending": "ausstehend",
         "rejected": "abgelehnt",
         "expired": "abgelaufen"
+      },
+      "transfer": {
+        "action": "Verschieben",
+        "title": "Nummer in einen anderen Workspace verschieben",
+        "description": "Wählen Sie, wo {phone} liegen soll. Sie müssen Administrator beider Organisations-Workspaces sein.",
+        "placeholder": "Ziel-Workspace auswählen",
+        "personal": "Persönlicher Workspace",
+        "resetNotice": "Workspace-spezifische Zuordnungen für Kampagnen, Rotation und Tischtelefone werden entfernt. Das bestehende Stripe-Abonnement wird weiterhin dem Workspace berechnet, der die Nummer ursprünglich gekauft hat.",
+        "noTargets": "Sie verwalten keine weiteren Workspaces.",
+        "cancel": "Abbrechen",
+        "confirm": "Nummer verschieben",
+        "moving": "Wird verschoben…",
+        "success": "Nummer erfolgreich verschoben.",
+        "error": "Die Nummer konnte nicht verschoben werden.",
+        "loadError": "Ihre Workspaces konnten nicht geladen werden."
       }
     },
     "verify": {
@@ -156,6 +171,8 @@
       "metaTitle": "Nummernverifizierung",
       "metaDescription": "Reichen Sie die vom Land Ihrer Nummer geforderten Dokumente ein, um sie zu aktivieren.",
       "back": "Zurück zu meinen Nummern",
+      "title": "{phone} verifizieren",
+      "subtitle": "Das Land dieser Nummer erfordert eine Dokumentenprüfung. Geben Sie die folgenden Angaben an, und wir übermitteln sie dem Anbieter zur Prüfung.",
       "requirementsHeading": "Was der Anbieter benötigt",
       "progressLabel": "Verifizierungsfortschritt",
       "progressCount": "{done} von {total} Elementen bereit",
@@ -171,8 +188,6 @@
       "noneTitle": "Nichts mehr zu verifizieren",
       "underReviewTitle": "In Prüfung",
       "rejectedTitle": "Aktion erforderlich",
-      "title": "{phone} verifizieren",
-      "subtitle": "Das Land dieser Nummer erfordert eine Dokumentenprüfung. Geben Sie die folgenden Angaben an, und wir übermitteln sie dem Anbieter zur Prüfung.",
       "underReview": "Ihre Dokumente wurden übermittelt und werden vom Anbieter geprüft. Dies dauert in der Regel einige Werktage.",
       "rejectedBanner": "Der Anbieter hat einige Angaben nicht akzeptiert. Korrigieren Sie die unten rot markierten Punkte und senden Sie sie erneut.",
       "rejectedReason": "Grund",

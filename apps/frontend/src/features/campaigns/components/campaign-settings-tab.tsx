@@ -68,7 +68,8 @@ const TIMEZONES = [
   'Australia/Sydney'
 ];
 
-const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/** Indexes match `Date.getDay()`; labels come from `common.weekdaysShort`. */
+const DAY_KEYS = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'] as const;
 
 function minutesToTime(min: number): string {
   const h = Math.floor(min / 60);
@@ -90,6 +91,8 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
   const api = useApi();
   const router = useRouter();
   const t = useTranslations('numberRotation');
+  const tc = useTranslations('campaigns');
+  const tCommon = useTranslations('common');
   const rotationEnabled = useRotationEnabled();
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -165,9 +168,9 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
         rotationNumberIds: form.rotationNumberIds
       });
       onUpdated();
-      toast.success('Settings saved.');
+      toast.success(tc('settings.toasts.saved'));
     } catch (err: any) {
-      const message = err?.message || 'Failed to save settings';
+      const message = err?.message || tc('settings.toasts.saveError');
       setError(message);
       toast.error(message);
     } finally {
@@ -179,10 +182,10 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
     setDeleting(true);
     try {
       await api.delete(`/campaigns/${campaign.id}`);
-      toast.success('Campaign deleted.');
+      toast.success(tc('settings.toasts.deleted'));
       router.push('/dashboard/campaigns');
     } catch (err: any) {
-      const message = err?.message || 'Failed to delete campaign';
+      const message = err?.message || tc('settings.toasts.deleteError');
       setError(message);
       toast.error(message);
     } finally {
@@ -202,11 +205,11 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
 
       <Card>
         <CardHeader>
-          <CardTitle>General</CardTitle>
+          <CardTitle>{tc('settings.general')}</CardTitle>
         </CardHeader>
         <CardContent className='space-y-4'>
           <div className='space-y-2'>
-            <Label htmlFor='settings-name'>Campaign Name</Label>
+            <Label htmlFor='settings-name'>{tc('fields.name')}</Label>
             <Input
               id='settings-name'
               value={form.name}
@@ -214,7 +217,7 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
             />
           </div>
           <div className='space-y-2'>
-            <Label htmlFor='settings-desc'>Description</Label>
+            <Label htmlFor='settings-desc'>{tc('fields.description')}</Label>
             <Textarea
               id='settings-desc'
               value={form.description}
@@ -227,10 +230,9 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Dialer</CardTitle>
+          <CardTitle>{tc('settings.dialer')}</CardTitle>
           <CardDescription>
-            {!isDraft &&
-              'Some settings cannot be changed while the campaign is active.'}
+            {!isDraft && tc('settings.lockedHint')}
           </CardDescription>
         </CardHeader>
         <CardContent className='space-y-4'>
@@ -277,13 +279,13 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
           {!rotationEnabled && (
             <>
               <div className='space-y-2'>
-                <Label>Phone Number</Label>
+                <Label>{tc('fields.phoneNumber')}</Label>
                 <Select
                   value={form.numberPurchasedId || ''}
                   onValueChange={(v) => updateForm({ numberPurchasedId: v })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder='Select a phone number...' />
+                    <SelectValue placeholder={tc('fields.phoneNumberPlaceholder')} />
                   </SelectTrigger>
                   <SelectContent>
                     {phoneNumbers.map((num) => (
@@ -296,18 +298,18 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
                     ))}
                     {phoneNumbers.length === 0 && (
                       <SelectItem value='__none' disabled>
-                        No purchased numbers
+                        {tc('fields.noPurchasedNumbers')}
                       </SelectItem>
                     )}
                   </SelectContent>
                 </Select>
                 <p className='text-muted-foreground text-xs'>
-                  Calls in this campaign are placed from this purchased number.
+                  {tc('fields.phoneNumberHint')}
                 </p>
               </div>
 
               <div className='space-y-2'>
-                <Label>Caller ID (optional)</Label>
+                <Label>{tc('fields.callerIdOptional')}</Label>
                 <Select
                   value={form.callerIdId || '__default'}
                   onValueChange={(v) =>
@@ -315,11 +317,11 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder='Use the campaign phone number' />
+                    <SelectValue placeholder={tc('fields.callerIdPlaceholder')} />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value='__default'>
-                      Use the campaign phone number (default)
+                      {tc('fields.callerIdDefault')}
                     </SelectItem>
                     {callerIds
                       .filter((c) => c.verified && c.active !== false)
@@ -334,15 +336,14 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
                   </SelectContent>
                 </Select>
                 <p className='text-muted-foreground text-xs'>
-                  Legacy verified caller ID, used only when no phone number is
-                  assigned above.
+                  {tc('fields.callerIdHint')}
                 </p>
               </div>
             </>
           )}
           <div className='grid gap-4 sm:grid-cols-2'>
             <div className='space-y-2'>
-              <Label>Dialer Mode</Label>
+              <Label>{tc('fields.mode')}</Label>
               <Select
                 value={form.dialerMode}
                 onValueChange={(v) =>
@@ -354,13 +355,15 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value='progressive'>Progressive</SelectItem>
-                  <SelectItem value='preview'>Preview</SelectItem>
+                  <SelectItem value='progressive'>
+                    {tc('modes.progressive')}
+                  </SelectItem>
+                  <SelectItem value='preview'>{tc('modes.preview')}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className='space-y-2'>
-              <Label htmlFor='s-attempts'>Max Attempts</Label>
+              <Label htmlFor='s-attempts'>{tc('fields.maxAttempts')}</Label>
               <Input
                 id='s-attempts'
                 type='number'
@@ -373,7 +376,7 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
               />
             </div>
             <div className='space-y-2'>
-              <Label htmlFor='s-wrap'>Wrap-up Time (sec)</Label>
+              <Label htmlFor='s-wrap'>{tc('fields.wrapUpShort')}</Label>
               <Input
                 id='s-wrap'
                 type='number'
@@ -386,7 +389,7 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
               />
             </div>
             <div className='space-y-2'>
-              <Label htmlFor='s-retry'>Default Retry Delay (min)</Label>
+              <Label htmlFor='s-retry'>{tc('fields.retryDelayShort')}</Label>
               <Input
                 id='s-retry'
                 type='number'
@@ -404,11 +407,11 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Calling Schedule</CardTitle>
+          <CardTitle>{tc('schedule.title')}</CardTitle>
         </CardHeader>
         <CardContent className='space-y-4'>
           <div className='space-y-2'>
-            <Label>Timezone</Label>
+            <Label>{tc('schedule.timezone')}</Label>
             <Select
               value={form.timezone}
               onValueChange={(v) => updateForm({ timezone: v })}
@@ -427,7 +430,7 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
           </div>
           <div className='grid gap-4 sm:grid-cols-2'>
             <div className='space-y-2'>
-              <Label>Start Time</Label>
+              <Label>{tc('schedule.startTime')}</Label>
               <Input
                 type='time'
                 value={minutesToTime(form.workStartMin)}
@@ -437,7 +440,7 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
               />
             </div>
             <div className='space-y-2'>
-              <Label>End Time</Label>
+              <Label>{tc('schedule.endTime')}</Label>
               <Input
                 type='time'
                 value={minutesToTime(form.workEndMin)}
@@ -448,17 +451,17 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
             </div>
           </div>
           <div className='space-y-2'>
-            <Label>Working Days</Label>
+            <Label>{tc('schedule.workingDays')}</Label>
             <div className='flex flex-wrap gap-2'>
-              {DAY_LABELS.map((label, idx) => (
+              {DAY_KEYS.map((day, idx) => (
                 <Button
-                  key={idx}
+                  key={day}
                   type='button'
                   variant={form.workDays.includes(idx) ? 'default' : 'outline'}
                   size='sm'
                   onClick={() => toggleDay(idx)}
                 >
-                  {label}
+                  {tCommon(`weekdaysShort.${day}`)}
                 </Button>
               ))}
             </div>
@@ -472,19 +475,24 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
             <AlertDialogTrigger asChild>
               <Button variant='destructive' size='sm'>
                 <Trash2 className='mr-2 h-4 w-4' />
-                Delete Campaign
+                {tc('settings.deleteAction')}
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete Campaign?</AlertDialogTitle>
+                <AlertDialogTitle>
+                  {tc('settings.deleteDialog.title')}
+                </AlertDialogTitle>
                 <AlertDialogDescription>
-                  This will permanently delete &ldquo;{campaign.name}&rdquo; and
-                  all associated data. This action cannot be undone.
+                  {tc('settings.deleteDialog.description', {
+                    name: campaign.name
+                  })}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogCancel>
+                  {tc('settings.deleteDialog.cancel')}
+                </AlertDialogCancel>
                 <AlertDialogAction
                   onClick={handleDelete}
                   className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
@@ -492,7 +500,7 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
                   {deleting && (
                     <Loader2 className='mr-2 h-4 w-4 animate-spin' />
                   )}
-                  Delete
+                  {tc('settings.deleteDialog.confirm')}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -503,7 +511,7 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
 
         <Button onClick={handleSave} disabled={saving}>
           {saving && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-          Save Settings
+          {tc('settings.save')}
         </Button>
       </div>
     </div>

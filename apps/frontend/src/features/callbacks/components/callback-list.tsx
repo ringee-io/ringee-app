@@ -21,6 +21,7 @@ import {
 } from '@ringee/frontend-shared/components/ui/table';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { CalendarClock, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 interface CallbackEntry {
   id: string;
@@ -57,6 +58,7 @@ const STATUS_COLORS: Record<string, string> = {
 
 export function CallbackList() {
   const api = useApi();
+  const t = useTranslations('calls.callbacks.list');
   const [callbacks, setCallbacks] = useState<CallbackEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -88,10 +90,8 @@ export function CallbackList() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Scheduled Callbacks</CardTitle>
-        <CardDescription>
-          Callbacks scheduled by agents during dialing sessions.
-        </CardDescription>
+        <CardTitle>{t('title')}</CardTitle>
+        <CardDescription>{t('description')}</CardDescription>
       </CardHeader>
       <CardContent>
         {loading ? (
@@ -103,21 +103,24 @@ export function CallbackList() {
         ) : callbacks.length === 0 ? (
           <div className='flex flex-col items-center py-12 text-center'>
             <CalendarClock className='text-muted-foreground mb-4 h-12 w-12' />
-            <h3 className='text-lg font-semibold'>No callbacks scheduled</h3>
+            <h3 className='text-lg font-semibold'>{t('emptyTitle')}</h3>
             <p className='text-muted-foreground mt-1 text-sm'>
-              When agents schedule callbacks during calls, they will appear
-              here.
+              {t('emptyDescription')}
             </p>
           </div>
         ) : (
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Contact</TableHead>
-                <TableHead className='hidden md:table-cell'>Campaign</TableHead>
-                <TableHead>Scheduled</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead className='hidden sm:table-cell'>Note</TableHead>
+                <TableHead>{t('columns.contact')}</TableHead>
+                <TableHead className='hidden md:table-cell'>
+                  {t('columns.campaign')}
+                </TableHead>
+                <TableHead>{t('columns.scheduled')}</TableHead>
+                <TableHead>{t('columns.status')}</TableHead>
+                <TableHead className='hidden sm:table-cell'>
+                  {t('columns.note')}
+                </TableHead>
                 <TableHead className='w-[60px]'></TableHead>
               </TableRow>
             </TableHeader>
@@ -127,7 +130,7 @@ export function CallbackList() {
                   <TableCell>
                     <div>
                       <div className='font-medium'>
-                        {cb.contact.name || 'Unknown'}
+                        {cb.contact.name || t('unknown')}
                       </div>
                       <div className='text-muted-foreground text-xs'>
                         {cb.contact.phoneNumber}
@@ -145,7 +148,7 @@ export function CallbackList() {
                       variant='secondary'
                       className={STATUS_COLORS[cb.status] || ''}
                     >
-                      {cb.status.replace(/_/g, ' ')}
+                      {t(`statuses.${cb.status}`)}
                     </Badge>
                   </TableCell>
                   <TableCell className='hidden sm:table-cell'>
@@ -159,7 +162,7 @@ export function CallbackList() {
                         variant='ghost'
                         size='icon'
                         onClick={() => handleCancel(cb.id)}
-                        title='Cancel callback'
+                        title={t('cancel')}
                       >
                         <X className='text-muted-foreground h-4 w-4' />
                       </Button>
