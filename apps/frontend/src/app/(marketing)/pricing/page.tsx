@@ -17,7 +17,7 @@ import {
   softwareAppJsonLd
 } from '@/features/marketing/components/json-ld';
 import { ScalabilityCalculator } from '@/features/marketing/components/scalability-calculator';
-import { PRICING, SIGN_UP_URL, SITE_URL } from '@/features/marketing/site';
+import { PRICING, REQUEST_DEMO_URL, SITE_URL } from '@/features/marketing/site';
 
 export const metadata: Metadata = buildMetadata({
   title: 'Pricing — Free Freelancer, $20/mo Organization | Ringee',
@@ -32,7 +32,7 @@ const PLANS = [
     price: PRICING.freelancer.price,
     period: 'forever',
     description: PRICING.freelancer.blurb,
-    cta: 'Start calling for free',
+    cta: 'Request Demo',
     highlighted: false,
     tagline: 'For one person — every feature, just no team.',
     features: [
@@ -52,7 +52,7 @@ const PLANS = [
     price: PRICING.organization.price,
     period: 'per organization / month',
     description: PRICING.organization.blurb,
-    cta: 'Start calling for free',
+    cta: 'Request Demo',
     highlighted: true,
     tagline: 'For teams that run outbound together.',
     features: [
@@ -170,7 +170,7 @@ export default function PricingPage() {
                   ))}
                 </ul>
                 <Link
-                  href={SIGN_UP_URL}
+                  href={REQUEST_DEMO_URL}
                   className={
                     plan.highlighted
                       ? 'mt-8 inline-flex h-11 items-center justify-center rounded-xl bg-emerald-700 px-6 text-sm font-semibold text-white hover:bg-emerald-700/90'

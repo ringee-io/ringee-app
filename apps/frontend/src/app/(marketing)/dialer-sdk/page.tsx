@@ -343,7 +343,7 @@ export default function DialerSdkPage() {
         <CtaSection
           title='Put a dialer in your product this afternoon'
           description='Create a free Ringee account, generate a publishable key for your origin, and drop in the SDK. Calling credits are pay-as-you-go — the SDK is free.'
-          primaryLabel='Start calling for free'
+          primaryLabel='Request Demo'
           secondaryHref={SDK_NPM_URL}
           secondaryLabel='View on npm'
         />

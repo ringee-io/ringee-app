@@ -22,6 +22,7 @@ export * from "./tag.service";
 export * from "./call-script.service";
 export * from "./onboarding.service";
 export * from "./free-trial.service";
+export * from "./demo-request.service";
 export * from "./meeting.service";
 export * from "./calendar.service";
 export * from "./crm";

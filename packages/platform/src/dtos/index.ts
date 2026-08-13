@@ -4,6 +4,7 @@ export * from "./contact.dto";
 export * from "./telephony.dto";
 export * from "./stripe.dto";
 export * from "./free-trial.dto";
+export * from "./demo-request.dto";
 export * from "./recording.dto";
 export * from "./csv-import.schema";
 export * from "./campaign.dto";

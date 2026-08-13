@@ -338,6 +338,7 @@ function MobileMenu() {
                   <Link href={CTA.primary.href} onClick={() => setOpen(false)}>
                     <Button className='w-full bg-emerald-700 text-white hover:bg-emerald-700/90'>
                       {CTA.primary.label}
+                      <ArrowRight className='h-4 w-4' aria-hidden />
                     </Button>
                   </Link>
                 </div>
@@ -400,6 +401,7 @@ export function MarketingNavbar() {
           <Link href={CTA.primary.href} className='hidden sm:inline-flex'>
             <Button className='bg-emerald-700 text-white shadow-sm hover:bg-emerald-700/90'>
               {CTA.primary.label}
+              <ArrowRight className='h-4 w-4' aria-hidden />
             </Button>
           </Link>
           <MobileMenu />

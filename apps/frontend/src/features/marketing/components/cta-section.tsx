@@ -3,9 +3,9 @@ import { Container, CtaButtons, Section } from './primitives';
 /** Conversion band used at the bottom of most pages. */
 export function CtaSection({
   title = 'Start calling more leads today',
-  description = 'Create a free Ringee account and place your first call in minutes. No credit card required to start.',
-  primaryHref = '/auth/sign-up',
-  primaryLabel = 'Start calling for free',
+  description = 'Book a personalized demo and see how Ringee fits your outbound workflow — pricing, setup, and your questions answered.',
+  primaryHref = '/request-demo',
+  primaryLabel = 'Request Demo',
   secondaryHref = '/pricing',
   secondaryLabel = 'View pricing'
 }: {

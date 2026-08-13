@@ -43,6 +43,7 @@ export const CLI_NPM_URL = 'https://www.npmjs.com/package/ringee';
 export const SDK_NPM_URL = 'https://www.npmjs.com/package/@ringee/dialer-sdk';
 export const SIGN_IN_URL = '/auth/sign-in';
 export const SIGN_UP_URL = '/auth/sign-up';
+export const REQUEST_DEMO_URL = '/request-demo';
 
 /**
  * ISO timestamp used as a freshness signal across the site (schema
@@ -72,7 +73,7 @@ export const SAME_AS = [
 
 /** Short, repeated calls to action. */
 export const CTA = {
-  primary: { label: 'Start calling for free', href: SIGN_UP_URL },
+  primary: { label: 'Request Demo', href: REQUEST_DEMO_URL },
   secondary: { label: 'View pricing', href: '/pricing' },
   login: { label: 'Log in', href: SIGN_IN_URL }
 } as const;

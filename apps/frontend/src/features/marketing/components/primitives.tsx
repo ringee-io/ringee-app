@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { ReactNode } from 'react';
-import { ArrowUpRight, Check } from 'lucide-react';
+import { ArrowRight, ArrowUpRight, Check } from 'lucide-react';
 
 import { cn } from '@ringee/frontend-shared/lib/utils';
 
@@ -169,7 +169,11 @@ export function ButtonLink({
     ? { target: '_blank', rel: 'noreferrer noopener' }
     : {};
   return (
-    <Link href={href} className={cn(base, styles, className)} {...externalProps}>
+    <Link
+      href={href}
+      className={cn(base, styles, className)}
+      {...externalProps}
+    >
       {children}
       {withArrow ? <ArrowUpRight className='h-4 w-4' aria-hidden /> : null}
     </Link>
@@ -178,8 +182,8 @@ export function ButtonLink({
 
 /** The primary + secondary CTA pair used in heroes and CTA bands. */
 export function CtaButtons({
-  primaryHref = '/auth/sign-up',
-  primaryLabel = 'Start calling for free',
+  primaryHref = '/request-demo',
+  primaryLabel = 'Request Demo',
   secondaryHref = '/pricing',
   secondaryLabel = 'View pricing',
   className
@@ -192,8 +196,9 @@ export function CtaButtons({
 }) {
   return (
     <div className={cn('flex flex-col gap-3 sm:flex-row sm:gap-4', className)}>
-      <ButtonLink href={primaryHref} withArrow>
+      <ButtonLink href={primaryHref}>
         {primaryLabel}
+        <ArrowRight className='h-4 w-4' aria-hidden />
       </ButtonLink>
       <ButtonLink href={secondaryHref} variant='secondary'>
         {secondaryLabel}

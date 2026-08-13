@@ -66,6 +66,7 @@ import { CallerIdRotationController } from "./caller-id-rotation.controller";
 import { SipDeviceController } from "./sip-device.controller";
 import { DeskPhoneWebhookController } from "./desk-phone.webhook.controller";
 import { FreeTrialController } from "./free-trial.controller";
+import { DemoRequestController } from "./demo-request.controller";
 import { InfrastructureController } from "./infrastructure.controller";
 import { StripeAbuseProtectionService } from "./stripe-abuse-protection.service";
 import { UserAccessEnforcementService } from "./user-access-enforcement.service";
@@ -129,6 +130,7 @@ import { UserAccessEnforcementService } from "./user-access-enforcement.service"
     DeskPhoneWebhookController,
     InfrastructureController,
     FreeTrialController,
+    DemoRequestController,
   ],
   // TranscriptionMediaGateway lives here (not in the shared ServicesModule) so
   // the Telnyx media-stream WS server binds its port only in the API process.

@@ -34,6 +34,7 @@ import { TagService } from "./tag.service";
 import { CallScriptService } from "./call-script.service";
 import { OnboardingService } from "./onboarding.service";
 import { FreeTrialService } from "./free-trial.service";
+import { DemoRequestService } from "./demo-request.service";
 import { MeetingService } from "./meeting.service";
 import { CalendarService } from "./calendar.service";
 import {
@@ -172,6 +173,7 @@ const servicesProviders = [
   CallScriptService,
   OnboardingService,
   FreeTrialService,
+  DemoRequestService,
   MeetingService,
   CalendarService,
   // Outbound system services

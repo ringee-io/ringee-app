@@ -461,6 +461,27 @@ model FreeTrialCallRequest {
   createdAt DateTime               @default(now())
 }
 
+/// A demo request submitted from the public marketing site (/request-demo).
+/// Not tied to a User — visitors are not signed in when they submit. The
+/// Ringee team and the requester are both emailed on creation; the team vets
+/// the profile and creates the account directly (no meeting).
+model DemoRequest {
+  id             String   @id @default(uuid()) @db.Uuid
+  firstName      String
+  lastName       String
+  email          String
+  phoneNumber    String
+  companyWebsite String
+  numberOfUsers  String
+  referralSource String
+  /// ISO 3166-1 alpha-2 country detected from the visitor's browser locale.
+  country        String?
+  createdAt      DateTime @default(now())
+
+  @@index([email])
+  @@index([createdAt])
+}
+
 model Organization {
   id            String   @id @default(uuid()) @db.Uuid
   clerkId       String   @unique

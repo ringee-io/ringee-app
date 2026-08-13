@@ -84,6 +84,7 @@ import { SipDeviceRepository } from "./repositories/sip-device.repository";
 import { BlockedCallLogRepository } from "./repositories/blocked-call-log.repository";
 import { InfrastructureRepository } from "./repositories/infrastructure.repository";
 import { FreeTrialCallRequestRepository } from "./repositories/free-trial-call-request.repository";
+import { DemoRequestRepository } from "./repositories/demo-request.repository";
 
 const databaseProviders = [
   PrismaService,
@@ -169,6 +170,7 @@ const databaseProviders = [
   BlockedCallLogRepository,
   InfrastructureRepository,
   FreeTrialCallRequestRepository,
+  DemoRequestRepository,
   InfrastructureRepository,
 ];
 
