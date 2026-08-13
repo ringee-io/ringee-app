@@ -7,7 +7,7 @@ import { Separator } from '@ringee/frontend-shared/components/ui/separator';
 import { Breadcrumbs } from '@ringee/frontend-shared/components/breadcrumbs';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 // import SearchInput from '@ringee/frontend-shared/components/search-input';
-import { UserNav } from './user-nav';
+import { LanguageSwitcher } from '@/components/i18n/language-switcher';
 import { CommunitySupportButton } from './community-support-button';
 import { CreditPopover } from '@/features/credit/components/credit.popover';
 import { useIsMobile } from '@ringee/frontend-shared/hooks/use-mobile';
@@ -84,7 +84,7 @@ export default function Header({ useMock }: { useMock?: boolean }) {
         {/* <div className='hidden sm:flex'>
           <SearchInput />
         </div> */}
-        <UserNav useMock={useMock} />
+        <LanguageSwitcher />
         {!mobile && <HeaderOnboardingButton />}
       </div>
     </header>
