@@ -44,7 +44,12 @@ export class CrmBulkSyncService {
   }
 
   async syncConnection(connection: CrmConnection): Promise<{
-    contacts: { synced: number; created: number; errors: number };
+    contacts: {
+      synced: number;
+      created: number;
+      errors: number;
+      skippedNoPhone: number;
+    };
     companies: { synced: number; created: number; errors: number };
   }> {
     const provider = this.registry.get(connection.provider);
@@ -80,7 +85,7 @@ export class CrmBulkSyncService {
     };
 
     const result = {
-      contacts: { synced: 0, created: 0, errors: 0 },
+      contacts: { synced: 0, created: 0, errors: 0, skippedNoPhone: 0 },
       companies: { synced: 0, created: 0, errors: 0 },
     };
 
@@ -141,6 +146,10 @@ export class CrmBulkSyncService {
                 contactResult,
                 ctx,
               );
+              if (r.skipped === "no_phone") {
+                result.contacts.skippedNoPhone++;
+                continue;
+              }
               result.contacts.synced++;
               if (r.created) result.contacts.created++;
             } catch (err) {
@@ -163,7 +172,8 @@ export class CrmBulkSyncService {
     await this.connectionService.touchLastSync(connection.id);
     this.logger.log(
       `BulkSync completed for ${connection.id}: ` +
-        `contacts(synced=${result.contacts.synced},created=${result.contacts.created},errors=${result.contacts.errors}) ` +
+        `contacts(synced=${result.contacts.synced},created=${result.contacts.created},` +
+        `errors=${result.contacts.errors},skippedNoPhone=${result.contacts.skippedNoPhone}) ` +
         `companies(synced=${result.companies.synced},created=${result.companies.created},errors=${result.companies.errors})`,
     );
 

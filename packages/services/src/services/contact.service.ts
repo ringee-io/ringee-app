@@ -7,6 +7,7 @@ import {
   CallOutcome,
   Contact,
   ContactRepository,
+  CrmConnection,
   TagRepository,
 } from "@ringee/database";
 import {
@@ -24,6 +25,16 @@ import {
 } from "@ringee/platform";
 import { CustomIntegrationOutboundService } from "./custom-integrations/custom-integration-outbound.service";
 import { buildNoteEventData } from "./custom-integrations/custom-integration-event-builders";
+import { CrmConnectionService } from "./crm/crm-connection.service";
+import { CrmContactSyncService } from "./crm/crm-contact-sync.service";
+import { CrmMatchingService } from "./crm/crm-matching.service";
+
+/**
+ * How long the dialer waits on the CRM before falling back to a bare contact.
+ * A slow or degraded CRM must never delay placing a call; the contact created
+ * on timeout is enriched and linked by the next sync pass anyway.
+ */
+const CRM_LOOKUP_TIMEOUT_MS = 4000;
 
 @Injectable()
 export class ContactService {
@@ -31,6 +42,9 @@ export class ContactService {
     private readonly repo: ContactRepository,
     private readonly tagRepo: TagRepository,
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
+    private readonly crmConnections: CrmConnectionService,
+    private readonly crmMatching: CrmMatchingService,
+    private readonly crmContactSync: CrmContactSyncService,
   ) {}
 
   async createContact(
@@ -190,7 +204,17 @@ export class ContactService {
   }
 
   /**
-   * Find a contact by phone number, or create one with name "Unknown" if not found.
+   * Find the contact for a dialed number, pulling it from a connected CRM when
+   * Ringee doesn't have it yet.
+   *
+   * The dialer used to auto-create a bare "Unknown" row here, so a call to a
+   * number that the CRM knows perfectly well landed against a nameless contact
+   * with no link back to the CRM record — the call history showed "Unknown"
+   * and nothing ever reconciled it. Now an exact phone match in the CRM is
+   * synced in first, which carries the name, email and the external link.
+   *
+   * Falls back to a bare contact (blank name, so the UI shows the number) when
+   * there is no CRM connection, no match, or the CRM is too slow to wait on.
    */
   async findOrCreateByPhone(
     ctx: OwnershipContext,
@@ -199,10 +223,68 @@ export class ContactService {
     const existing = await this.repo.findByPhone(ctx, phoneNumber);
     if (existing) return existing;
 
+    const fromCrm = await this.findOrCreateFromCrm(ctx, phoneNumber);
+    if (fromCrm) return fromCrm;
+
     return this.repo.create(ctx, {
-      name: "Unknown",
+      name: null,
       phoneNumber,
+      source: "dialer",
     });
+  }
+
+  /**
+   * Resolve a phone number against every active CRM connection and sync the
+   * matched person into Ringee. Best-effort: any failure returns null so the
+   * caller falls back to a bare contact rather than failing the call.
+   */
+  private async findOrCreateFromCrm(
+    ctx: OwnershipContext,
+    phoneNumber: string,
+  ): Promise<Contact | null> {
+    const connections = await this.crmConnections
+      .listActive(ctx)
+      .catch(() => [] as CrmConnection[]);
+
+    for (const connection of connections) {
+      const contact = await this.withTimeout(
+        this.syncPersonByPhone(connection, ctx, phoneNumber),
+      ).catch(() => null);
+      if (contact) return contact;
+    }
+
+    return null;
+  }
+
+  private async syncPersonByPhone(
+    connection: CrmConnection,
+    ctx: OwnershipContext,
+    phoneNumber: string,
+  ): Promise<Contact | null> {
+    const match = await this.crmMatching.resolveByPhone(
+      connection,
+      phoneNumber,
+    );
+    // Only an unambiguous person match is safe to auto-create from; company
+    // matches and multi-candidate results stay unlinked for the user to resolve.
+    if (match.link?.externalType !== "person") return null;
+
+    const synced = await this.crmContactSync.syncFromCrm(
+      connection,
+      match.link.externalId,
+      ctx,
+    );
+    if (!synced.contactId) return null;
+
+    return this.repo.findById(synced.contactId);
+  }
+
+  private withTimeout<T>(promise: Promise<T>): Promise<T | null> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const deadline = new Promise<null>((resolve) => {
+      timer = setTimeout(() => resolve(null), CRM_LOOKUP_TIMEOUT_MS);
+    });
+    return Promise.race([promise, deadline]).finally(() => clearTimeout(timer));
   }
 
   /**

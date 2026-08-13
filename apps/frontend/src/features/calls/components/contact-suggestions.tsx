@@ -30,10 +30,10 @@ export function ContactSuggestions({
           >
             <div className='flex items-center gap-2'>
               <Avatar className='h-7 w-7'>
-                <AvatarFallback>{c.name.charAt(0)}</AvatarFallback>
+                <AvatarFallback>{(c.name || c.phone).charAt(0)}</AvatarFallback>
               </Avatar>
               <div className='flex flex-col leading-tight'>
-                <span className='text-sm font-medium'>{c.name}</span>
+                <span className='text-sm font-medium'>{c.name || c.phone}</span>
                 <span className='text-muted-foreground text-xs'>{c.phone}</span>
               </div>
             </div>

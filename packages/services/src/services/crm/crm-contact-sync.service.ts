@@ -15,6 +15,21 @@ import {
 } from "@ringee/platform";
 import { CrmConnectionService } from "./crm-connection.service";
 
+/**
+ * Result of pulling one CRM person into Ringee. `contactId` is null when the
+ * person carried no dialable phone number and no existing contact matched —
+ * see {@link CrmContactSyncService.upsertContact}.
+ */
+/** A provider phone number that normalized cleanly, with its original form. */
+type DialablePhone = { raw: string; e164: string };
+
+export type CrmContactUpsertResult = {
+  contactId: string | null;
+  created: boolean;
+  /** Set when no contact row was written, with the reason. */
+  skipped?: "no_phone";
+};
+
 @Injectable()
 export class CrmContactSyncService {
   private readonly logger = new Logger(CrmContactSyncService.name);
@@ -32,7 +47,7 @@ export class CrmContactSyncService {
     connection: CrmConnection,
     externalId: string,
     ctx: OwnershipContext,
-  ): Promise<{ contactId: string; created: boolean }> {
+  ): Promise<CrmContactUpsertResult> {
     const provider = this.registry.get(connection.provider);
     if (!provider.fetchPerson) {
       throw new Error(`${connection.provider} does not support fetchPerson`);
@@ -54,8 +69,12 @@ export class CrmContactSyncService {
     connection: CrmConnection,
     result: CrmContactSyncResult,
     ctx: OwnershipContext,
-  ): Promise<{ contactId: string; created: boolean }> {
-    const primaryPhone = result.phones[0];
+  ): Promise<CrmContactUpsertResult> {
+    // Only dialable numbers are allowed into Contact.phoneNumber. Providers
+    // hand back whatever the CRM holds (blank, "n/a", extensions), and that
+    // column is what the dialer and inbound call matching key on.
+    const phones = this.dialablePhones(result.phones);
+    const primaryPhone = phones[0]?.e164 ?? null;
     const primaryEmail = result.emails[0];
 
     const existingLink = await this.linkRepo.findByExternalId(
@@ -65,8 +84,12 @@ export class CrmContactSyncService {
     );
 
     if (existingLink?.contactId) {
-      await this.updateExistingContact(existingLink.contactId, result);
-      await this.syncPhones(existingLink.contactId, result.phones);
+      await this.updateExistingContact(
+        existingLink.contactId,
+        result,
+        primaryPhone,
+      );
+      await this.syncPhones(existingLink.contactId, phones);
       await this.syncEmails(existingLink.contactId, result.emails);
       await this.linkRepo.upsertLink({
         connectionId: connection.id,
@@ -92,8 +115,8 @@ export class CrmContactSyncService {
         : null);
 
     if (existingContactId) {
-      await this.updateExistingContact(existingContactId, result);
-      await this.syncPhones(existingContactId, result.phones);
+      await this.updateExistingContact(existingContactId, result, primaryPhone);
+      await this.syncPhones(existingContactId, phones);
       await this.syncEmails(existingContactId, result.emails);
       await this.linkRepo.upsertLink({
         connectionId: connection.id,
@@ -108,11 +131,23 @@ export class CrmContactSyncService {
       return { contactId: existingContactId, created: false };
     }
 
+    // No dialable number and nothing already in the directory to enrich: do
+    // NOT invent one. A placeholder here ("unknown") produces an uncallable
+    // row that can never match an inbound call event, and thousands of them
+    // bury the real contacts in search. The person stays in the CRM; once it
+    // gains a phone number the next sync pass creates it for real.
+    if (!primaryPhone) {
+      this.logger.debug(
+        `skipping ${connection.provider} person ${result.contact.externalId}: no dialable phone number`,
+      );
+      return { contactId: null, created: false, skipped: "no_phone" };
+    }
+
     const contact = await this.contactRepo.create(ctx, {
       name: result.displayName ?? undefined,
       firstName: result.firstName ?? undefined,
       lastName: result.lastName ?? undefined,
-      phoneNumber: primaryPhone ?? "unknown",
+      phoneNumber: primaryPhone,
       email: primaryEmail ?? undefined,
       jobTitle: result.jobTitle ?? undefined,
       source: `crm:${connection.provider}`,
@@ -122,7 +157,7 @@ export class CrmContactSyncService {
       } as unknown as Prisma.InputJsonValue,
     });
 
-    await this.syncPhones(contact.id, result.phones);
+    await this.syncPhones(contact.id, phones);
     await this.syncEmails(contact.id, result.emails);
 
     await this.linkRepo.upsertLink({
@@ -142,6 +177,7 @@ export class CrmContactSyncService {
   private async updateExistingContact(
     contactId: string,
     result: CrmContactSyncResult,
+    primaryPhone: string | null,
   ): Promise<void> {
     const updates: Prisma.ContactUpdateInput = {};
     if (result.displayName) updates.name = result.displayName;
@@ -150,19 +186,53 @@ export class CrmContactSyncService {
     if (result.jobTitle) updates.jobTitle = result.jobTitle;
     if (result.emails[0]) updates.email = result.emails[0];
 
+    // Heal rows whose phone is a placeholder left by an earlier sync: as soon
+    // as the CRM has a real number, the contact becomes dialable again.
+    if (primaryPhone) {
+      const existing = await this.contactRepo.findBasicById(contactId);
+      if (existing && !normalizePhoneE164(existing.phoneNumber)) {
+        updates.phoneNumber = primaryPhone;
+      }
+    }
+
     if (Object.keys(updates).length > 0) {
-      await this.contactRepo.update(contactId, updates);
+      await this.contactRepo.update(contactId, updates).catch((err) => {
+        this.logger.warn(
+          `contact ${contactId} update failed: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+      });
     }
   }
 
-  private async syncPhones(contactId: string, phones: string[]): Promise<void> {
+  /**
+   * Dialable subset of the numbers a provider returned, in the provider's own
+   * order, each paired with its E.164 form. Anything that isn't E.164-able is
+   * dropped rather than stored — the dialer cannot use it and inbound call
+   * matching never hits it. The raw value is kept for display.
+   */
+  private dialablePhones(phones: string[]): DialablePhone[] {
+    const seen = new Set<string>();
+    const out: DialablePhone[] = [];
+    for (const raw of phones) {
+      const e164 = normalizePhoneE164(raw);
+      if (!e164 || seen.has(e164)) continue;
+      seen.add(e164);
+      out.push({ raw, e164 });
+    }
+    return out;
+  }
+
+  private async syncPhones(
+    contactId: string,
+    phones: DialablePhone[],
+  ): Promise<void> {
     for (let i = 0; i < phones.length; i++) {
-      const phone = phones[i];
-      const e164 = normalizePhoneE164(phone);
       await this.phoneRepo.upsert({
         contactId,
-        phone,
-        phoneE164: e164,
+        phone: phones[i].raw,
+        phoneE164: phones[i].e164,
         isPrimary: i === 0,
       });
     }
@@ -182,6 +252,13 @@ export class CrmContactSyncService {
     ctx: OwnershipContext,
     email: string,
   ): Promise<{ id: string } | null> {
+    // Primary email on the contact row first — it is written in the same
+    // statement that creates the contact, whereas the ContactEmail row lands a
+    // moment later. A concurrent sync pass that only consulted ContactEmail
+    // saw nothing and created a second copy of the same CRM person.
+    const byPrimary = await this.contactRepo.findByEmail(ctx, email);
+    if (byPrimary) return { id: byPrimary.id };
+
     const emailRecords = await this.emailRepo.findByEmail(email);
     if (emailRecords.length === 0) return null;
     for (const rec of emailRecords) {

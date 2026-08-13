@@ -225,12 +225,14 @@ export function ContactsBulkDelete() {
                       >
                         <Avatar className='h-8 w-8'>
                           <AvatarFallback>
-                            {contact.name.charAt(0).toUpperCase()}
+                            {(contact.name || contact.phoneNumber)
+                              .charAt(0)
+                              .toUpperCase()}
                           </AvatarFallback>
                         </Avatar>
                         <div className='grid gap-0.5 text-xs'>
                           <div className='text-sm font-medium'>
-                            {contact.name}
+                            {contact.name || contact.phoneNumber}
                           </div>
                           <div className='text-muted-foreground'>
                             {contact.email}

@@ -50,6 +50,20 @@ export class ContactRepository {
     });
   }
 
+  /**
+   * Minimal read of a contact — no relations. `findById` eager-loads calls,
+   * notes, meetings and tags, which is far too heavy for the per-record work a
+   * bulk CRM sync does thousands of times in a row.
+   */
+  async findBasicById(
+    id: string,
+  ): Promise<Pick<Contact, "id" | "phoneNumber" | "name" | "email"> | null> {
+    return this.prisma.contact.findFirst({
+      where: { id, deletedAt: null },
+      select: { id: true, phoneNumber: true, name: true, email: true },
+    });
+  }
+
   async findByPhone(
     ctx: OwnershipContext,
     phoneNumber: string,
@@ -57,6 +71,27 @@ export class ContactRepository {
     const ownershipFilter = buildOwnershipFilter(ctx);
     return this.prisma.contact.findFirst({
       where: { ...ownershipFilter, phoneNumber, deletedAt: null },
+    });
+  }
+
+  /**
+   * Find a contact by its primary email within the owner's scope. Complements
+   * the ContactEmail lookup: contacts imported before the multi-email table
+   * existed — and rows written concurrently, before their ContactEmail is
+   * flushed — only carry the address here.
+   */
+  async findByEmail(
+    ctx: OwnershipContext,
+    email: string,
+  ): Promise<Contact | null> {
+    const ownershipFilter = buildOwnershipFilter(ctx);
+    return this.prisma.contact.findFirst({
+      where: {
+        ...ownershipFilter,
+        email: { equals: email, mode: "insensitive" },
+        deletedAt: null,
+      },
+      orderBy: { createdAt: "asc" },
     });
   }
 
