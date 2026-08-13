@@ -21,6 +21,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarSeparator,
   useSidebar
 } from '@ringee/frontend-shared/components/ui/sidebar';
 import {
@@ -41,6 +42,7 @@ import { useUser, useOrganization } from '@clerk/nextjs';
 import {
   IconChevronsDown,
   IconLogout,
+  IconMail,
   IconPhoneCalling,
   IconShieldLock,
   IconTopologyStar3
@@ -60,6 +62,9 @@ import { cn } from '@ringee/frontend-shared/lib/utils';
 
 /** Groups that require an active organization session */
 const ORG_ONLY_GROUPS = [''];
+
+/** Direct support contact shown at the bottom of the sidebar. */
+const SUPPORT_EMAIL = 'edison@getringee.com';
 
 /** Maps the English labels in the shared `navGroups` constant to translation keys. */
 const GROUP_LABEL_KEYS: Record<string, string> = {
@@ -350,6 +355,28 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
 
       <SidebarFooter>
         <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              asChild
+              size='lg'
+              tooltip={`${tNav('sidebar.support')} — ${SUPPORT_EMAIL}`}
+            >
+              <a href={`mailto:${SUPPORT_EMAIL}`}>
+                <IconMail className='size-4' />
+                <div className='grid flex-1 text-left leading-tight'>
+                  <span className='truncate text-sm font-medium'>
+                    {tNav('sidebar.support')}
+                  </span>
+                  <span className='text-muted-foreground truncate text-xs'>
+                    {SUPPORT_EMAIL}
+                  </span>
+                </div>
+              </a>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+
+          <SidebarSeparator className='my-1' />
+
           <SidebarMenuItem>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

@@ -44,6 +44,7 @@
   },
   "sidebar": {
     "openQuickCall": "Open Quick call",
+    "support": "Support",
     "outreachLocked": "Available for organization level",
     "outreachLockedDescription": "Upgrade to unlock outreach tools.",
     "upgradeNow": "Upgrade now",
