@@ -22,6 +22,14 @@ export const navGroups: NavGroup[] = [
     label: "General",
     items: [
       {
+        title: "Journey",
+        url: "/dashboard/journey",
+        icon: "route",
+        isActive: false,
+        shortcut: ["j", "j"],
+        items: [],
+      },
+      {
         title: "Dashboard",
         url: "/dashboard/overview",
         icon: "dashboard",

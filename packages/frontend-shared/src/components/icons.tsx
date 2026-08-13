@@ -44,6 +44,7 @@ import {
   IconActivity,
   IconPlug,
   IconSparkles,
+  IconRoute,
 } from "@tabler/icons-react";
 import { MoreHorizontal } from "lucide-react";
 
@@ -95,4 +96,5 @@ export const Icons = {
   activity: IconActivity,
   plug: IconPlug,
   sparkles: IconSparkles,
+  route: IconRoute,
 };
