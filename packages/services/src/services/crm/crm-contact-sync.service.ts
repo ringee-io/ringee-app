@@ -15,14 +15,14 @@ import {
 } from "@ringee/platform";
 import { CrmConnectionService } from "./crm-connection.service";
 
+/** A provider phone number that normalized cleanly, with its original form. */
+type DialablePhone = { raw: string; e164: string };
+
 /**
  * Result of pulling one CRM person into Ringee. `contactId` is null when the
  * person carried no dialable phone number and no existing contact matched —
  * see {@link CrmContactSyncService.upsertContact}.
  */
-/** A provider phone number that normalized cleanly, with its original form. */
-type DialablePhone = { raw: string; e164: string };
-
 export type CrmContactUpsertResult = {
   contactId: string | null;
   created: boolean;
@@ -111,7 +111,14 @@ export class CrmContactSyncService {
     const existingContactId =
       existingByPhone?.id ??
       (primaryEmail
-        ? (await this.findContactByEmail(ctx, primaryEmail))?.id
+        ? (
+            await this.findContactByEmail(
+              ctx,
+              primaryEmail,
+              connection,
+              result.contact.externalId,
+            )
+          )?.id
         : null);
 
     if (existingContactId) {
@@ -248,27 +255,51 @@ export class CrmContactSyncService {
     }
   }
 
+  /**
+   * Find a contact to merge this CRM person into, by email.
+   *
+   * Email is a weak identity signal in a CRM: shared mailboxes
+   * (poststelle@…, info@…, sekretariat@…) legitimately belong to several
+   * different people. Merging on the address alone silently collapses distinct
+   * records into one contact, so a candidate already claimed by a *different*
+   * external record is rejected — those two are not the same person.
+   */
   private async findContactByEmail(
     ctx: OwnershipContext,
     email: string,
+    connection: CrmConnection,
+    externalId: string,
   ): Promise<{ id: string } | null> {
+    const candidates: string[] = [];
+
     // Primary email on the contact row first — it is written in the same
     // statement that creates the contact, whereas the ContactEmail row lands a
     // moment later. A concurrent sync pass that only consulted ContactEmail
     // saw nothing and created a second copy of the same CRM person.
     const byPrimary = await this.contactRepo.findByEmail(ctx, email);
-    if (byPrimary) return { id: byPrimary.id };
+    if (byPrimary) candidates.push(byPrimary.id);
 
-    const emailRecords = await this.emailRepo.findByEmail(email);
-    if (emailRecords.length === 0) return null;
-    for (const rec of emailRecords) {
+    for (const rec of await this.emailRepo.findByEmail(email)) {
+      if (candidates.includes(rec.contactId)) continue;
       const contact = await this.contactRepo.findById(rec.contactId);
       if (!contact || contact.deletedAt) continue;
       const matchesCtx = ctx.organizationId
         ? contact.organizationId === ctx.organizationId
         : contact.userId === ctx.userId && !contact.organizationId;
-      if (matchesCtx) return { id: contact.id };
+      if (matchesCtx) candidates.push(contact.id);
     }
+
+    for (const contactId of candidates) {
+      const claimed = await this.linkRepo
+        .findByContactId(connection.id, contactId)
+        .catch(() => []);
+      const takenByAnother = claimed.some(
+        (link) =>
+          link.externalType === "person" && link.externalId !== externalId,
+      );
+      if (!takenByAnother) return { id: contactId };
+    }
+
     return null;
   }
 }

@@ -42,6 +42,20 @@ export class CrmContactLinkRepository {
     });
   }
 
+  /**
+   * External records on this connection already claimed by a contact. Used to
+   * check whether a contact is spoken for before merging another CRM record
+   * into it.
+   */
+  findByContactId(
+    connectionId: string,
+    contactId: string,
+  ): Promise<CrmContactLink[]> {
+    return this.prisma.crmContactLink.findMany({
+      where: { connectionId, contactId },
+    });
+  }
+
   async upsertLink(input: {
     connectionId: string;
     provider: CrmProviderType;

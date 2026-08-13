@@ -1,34 +1,34 @@
 /**
- * Retires the contact rows left behind by the CRM sync placeholder-phone bug.
+ * Removes the DUPLICATE contact rows left behind by the CRM sync
+ * placeholder-phone bug.
  *
  * Before the fix, a CRM person with no phone number was imported with the
- * literal string "unknown" in Contact.phoneNumber. Those rows are uncallable,
- * never match an inbound call event, and — because dedup keyed on the phone —
- * the same CRM person was written over and over, producing large numbers of
- * duplicates that bury the real contacts in search.
+ * literal string "unknown" in Contact.phoneNumber. Because dedup keyed on the
+ * phone, and every such row carried the same phone, nothing ever matched and
+ * the same CRM person was written over and over.
  *
- * ── Safety model ────────────────────────────────────────────────────────────
- * The script NEVER merges contacts and NEVER deletes a child row. It only
- * soft-deletes placeholder contacts that carry no history of their own, so
- * there is nothing to lose by construction:
+ * ── What this does and does NOT do ──────────────────────────────────────────
+ * It removes only the redundant COPIES. One row per CRM record always
+ * survives. A phone-less contact is still a real person with a name, an email
+ * and a CRM link — it is simply not dialable yet — so retiring all of them
+ * would destroy the directory. (An earlier version of this script did exactly
+ * that; see restore-placeholder-contacts.js.)
  *
- *   • A placeholder with any call, note, meeting, callback, campaign lead,
+ * Identity is the CRM externalId, never the email. Shared mailboxes
+ * (poststelle@…, info@…, sekretariat@…) belong to several different people,
+ * so email is not an identity here.
+ *
+ * Safety rules:
+ *   • A copy holding any call, note, meeting, callback, campaign lead,
  *     message, inbox thread, call-session item, enrichment job, tag, custom
- *     field value or custom-integration link is LEFT UNTOUCHED and reported.
- *   • Everything else is pure sync output — re-derivable from the CRM at any
- *     time — and gets deletedAt stamped on it.
- *
- * Duplicates need no merge step under that rule: if every copy is junk they
- * are all retired together, and if one copy carries the history that copy is
- * the one that survives while its junk twins disappear.
- *
- * Soft delete, never hard delete: the relations that cascade on delete
- * (notes, meetings, tags, campaign leads…) are therefore never touched, and
- * the rows stay recoverable by clearing deletedAt.
- *
- * CrmContactLink.contactId is cleared for retired rows so the link keeps
- * mapping the CRM record but a later sync recreates the contact properly
- * instead of silently updating a soft-deleted ghost.
+ *     field value or custom-integration link is never retired — if a group
+ *     has such a copy, that copy is the one kept.
+ *   • Rows with no externalId cannot be deduped safely and are left alone.
+ *   • Soft delete only, so the relations that cascade on hard delete (notes,
+ *     meetings, tags, campaign leads…) are never touched and every change is
+ *     reversible by clearing deletedAt.
+ *   • Retired copies get their CrmContactLink detached so a later sync never
+ *     updates a soft-deleted ghost.
  *
  * Usage:
  *   node packages/database/scripts/cleanup-placeholder-contacts.js            # dry run
@@ -114,6 +114,27 @@ async function findContactsWithHistory(ids) {
   return { busy, tally };
 }
 
+function externalIdOf(contact) {
+  const meta = contact.crmMetadata;
+  if (!meta || typeof meta !== "object") return null;
+  return typeof meta.externalId === "string" ? meta.externalId : null;
+}
+
+/**
+ * Which copy of a CRM record to keep: history wins over everything, then the
+ * most recently synced row, then the original.
+ */
+function pickKeeper(rows, busy) {
+  return rows.reduce((best, row) => {
+    const rowBusy = busy.has(row.id);
+    const bestBusy = busy.has(best.id);
+    if (rowBusy !== bestBusy) return rowBusy ? row : best;
+    if (row.updatedAt > best.updatedAt) return row;
+    if (row.updatedAt < best.updatedAt) return best;
+    return row.createdAt < best.createdAt ? row : best;
+  });
+}
+
 function sample(contacts, n = 10) {
   return contacts
     .slice(0, n)
@@ -139,7 +160,11 @@ async function main() {
       name: true,
       email: true,
       phoneNumber: true,
+      crmMetadata: true,
+      userId: true,
+      organizationId: true,
       createdAt: true,
+      updatedAt: true,
     },
     orderBy: { createdAt: "asc" },
   });
@@ -151,24 +176,58 @@ async function main() {
 
   console.log(`Found ${contacts.length} placeholder contacts.`);
 
-  const ids = contacts.map((c) => c.id);
-  const { busy, tally } = await findContactsWithHistory(ids);
-
-  const keep = contacts.filter((c) => busy.has(c.id));
-  const retire = contacts.filter((c) => !busy.has(c.id));
-
-  if (keep.length > 0) {
-    console.log(
-      `\n🛡  Keeping ${keep.length} placeholder contacts that carry history ` +
-        `(${Object.entries(tally)
-          .map(([k, v]) => `${k}=${v}`)
-          .join(", ")}).\n` +
-        `   These are left completely untouched — review them by hand:\n` +
-        sample(keep),
-    );
+  // ── Group by CRM identity. Rows without one are never touched. ──
+  const groups = new Map();
+  let unkeyed = 0;
+  for (const c of contacts) {
+    const key = externalIdOf(c);
+    if (!key) {
+      unkeyed++;
+      continue;
+    }
+    const groupKey = `${c.organizationId ?? c.userId}|${key}`;
+    if (!groups.has(groupKey)) groups.set(groupKey, []);
+    groups.get(groupKey).push(c);
   }
 
-  console.log(`\n🧹 ${retire.length} placeholder contacts carry no history.`);
+  const dupeGroups = [...groups.values()].filter((g) => g.length > 1);
+  console.log(
+    `  ${groups.size} distinct CRM records; ` +
+      `${dupeGroups.length} of them have more than one copy.` +
+      (unkeyed > 0
+        ? `\n  ${unkeyed} rows have no externalId — left alone.`
+        : ""),
+  );
+
+  if (dupeGroups.length === 0) {
+    console.log("\n✅ No duplicates to remove.\n");
+    return;
+  }
+
+  // History decides which copy survives, so it must be known before choosing.
+  const dupeIds = dupeGroups.flat().map((c) => c.id);
+  const { busy, tally } = await findContactsWithHistory(dupeIds);
+
+  const retire = [];
+  for (const group of dupeGroups) {
+    const keeper = pickKeeper(group, busy);
+    for (const row of group) {
+      // Never retire a copy that carries history of its own, even a losing one.
+      if (row.id !== keeper.id && !busy.has(row.id)) retire.push(row);
+    }
+  }
+
+  const protectedCopies = dupeIds.length - dupeGroups.length - retire.length;
+  console.log(
+    `\n🛡  Keeping ${dupeGroups.length} winners` +
+      (protectedCopies > 0
+        ? ` plus ${protectedCopies} extra copies that carry history ` +
+          `(${Object.entries(tally)
+            .map(([k, v]) => `${k}=${v}`)
+            .join(", ")}) — review those by hand.`
+        : "."),
+  );
+  console.log(`\n🧹 ${retire.length} redundant copies can be retired.`);
 
   if (retire.length === 0) {
     console.log("   Nothing to retire.\n");
