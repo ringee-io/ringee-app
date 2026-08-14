@@ -62,13 +62,14 @@ const PIPELINE_META: Record<
   { name: string; valueProposition: string; detailRoute: string }
 > = {
   objection_intelligence: {
-    name: 'Objection Intelligence',
-    valueProposition: 'Discover what blocks your prospects and how to respond.',
+    name: 'Inteligencia de Objeciones',
+    valueProposition: 'Descubre qué frena a tus prospectos y cómo responder.',
     detailRoute: '/dashboard/ai-pipeline/objection-intelligence'
   },
   follow_up_recommendations: {
-    name: 'Follow-up Recommendations',
-    valueProposition: 'Turn every call outcome into the next best action.',
+    name: 'Recomendaciones de Seguimiento',
+    valueProposition:
+      'Convierte el resultado de cada llamada en la siguiente mejor acción.',
     detailRoute: '/dashboard/ai-pipeline/follow-up-recommendations'
   }
 };
@@ -84,7 +85,7 @@ export function mockActivationSummary(pipeline: string): ActivationSummary {
     {
       contextKey: CAMPAIGN_ONE,
       contextType: 'campaign',
-      label: 'Q3 Outbound — SaaS Founders',
+      label: 'Outbound Q3 — Fundadores SaaS',
       descriptor: {
         type: 'campaign',
         campaignId: CAMPAIGN_ONE.split(':')[1]
@@ -98,7 +99,7 @@ export function mockActivationSummary(pipeline: string): ActivationSummary {
     {
       contextKey: CAMPAIGN_TWO,
       contextType: 'campaign',
-      label: 'Renewals — EMEA',
+      label: 'Renovaciones — EMEA',
       descriptor: {
         type: 'campaign',
         campaignId: CAMPAIGN_TWO.split(':')[1]
@@ -114,7 +115,7 @@ export function mockActivationSummary(pipeline: string): ActivationSummary {
   const organization: ActivationRow = {
     contextKey: ORGANIZATION,
     contextType: 'organization_outside_campaign',
-    label: 'Organization (outside campaigns)',
+    label: 'Organización (fuera de campañas)',
     descriptor: { type: 'organization_outside_campaign' },
     enabled: false,
     newEligibleSinceLastRun: 41,
@@ -181,27 +182,28 @@ type InsightSeed = Omit<
 const INSIGHT_SEEDS: InsightSeed[] = [
   {
     objectionType: 'price_vs_current_stack',
-    label: 'Too expensive next to what they already pay',
+    label: 'Caro frente a lo que ya pagan',
     dynamic: true,
     count: 44,
     convertedRate: 0.19,
     underlyingObjection:
-      'They are not comparing you to nothing — they are comparing you to a tool they already pay for. The real question is what they can drop, not what your plan costs.',
+      'No te comparan contra nada: te comparan contra una herramienta que ya pagan. La pregunta real es qué pueden dar de baja, no cuánto cuesta tu plan.',
     winningPattern:
-      'Reps who asked "what are you paying for that today?" before quoting kept the conversation alive. Framing the price as a swap (not an addition) recovered most of these calls.',
+      'Los reps que preguntaron «¿qué están pagando hoy por eso?» antes de cotizar mantuvieron viva la conversación. Plantear el precio como un reemplazo (y no como un gasto extra) recuperó la mayoría de estas llamadas.',
     losingPattern:
-      'Jumping straight to a discount. Every call where the rep offered a percentage off in the first 60 seconds ended without a next step.',
+      'Saltar directo al descuento. Todas las llamadas donde el rep ofreció un porcentaje en los primeros 60 segundos terminaron sin próximo paso.',
     recommendedResponse:
-      "Totally fair — most teams we talk to are already paying for something here. Out of curiosity, what does that line item look like today? If we can't replace it, I'd rather tell you now than sell you a second tool.",
+      'Totalmente válido: casi todos los equipos con los que hablamos ya están pagando algo para esto. Por curiosidad, ¿cómo es hoy ese costo? Si no podemos reemplazarlo, prefiero decírtelo ahora antes que venderte una segunda herramienta.',
     savedResponse: null,
     examples: [
       {
         excerpt:
-          "It's more than we pay right now, and honestly I'd have to justify the jump to finance.",
+          'Es más de lo que pagamos hoy, y sinceramente tendría que justificar el salto ante finanzas.',
         outcome: 'handled'
       },
       {
-        excerpt: "We just renewed our current vendor, so the budget's gone.",
+        excerpt:
+          'Acabamos de renovar con el proveedor actual, así que ya no queda presupuesto.',
         outcome: 'killed'
       }
     ],
@@ -215,22 +217,23 @@ const INSIGHT_SEEDS: InsightSeed[] = [
     count: 37,
     convertedRate: 0.08,
     underlyingObjection:
-      'A polite exit in 4 of every 5 calls. When it is genuine, the prospect names who else needs to read it — that is the tell.',
+      'Una salida cortés en 4 de cada 5 llamadas. Cuando es genuina, el prospecto menciona quién más necesita leerlo: esa es la señal.',
     winningPattern:
-      'Asking "happy to — who else will read it?" before sending. Naming a second reader turned the brush-off into a real thread.',
+      'Preguntar «claro, ¿quién más lo va a leer?» antes de enviar. Nombrar a un segundo lector convirtió el cierre cortés en una conversación real.',
     losingPattern:
-      'Agreeing to send and hanging up without a date. None of those calls came back.',
+      'Aceptar enviar y cortar sin fecha. Ninguna de esas llamadas volvió.',
     recommendedResponse:
-      "Happy to send it over. So I don't fill your inbox with the wrong thing — who else on your side would read it, and what would you want it to answer?",
+      'Te lo envío sin problema. Para no llenarte la bandeja con lo que no sirve: ¿quién más lo leería de tu lado y qué te gustaría que responda?',
     savedResponse:
-      "Happy to send it. Quick one first — who else reads it with you? I'll cut it down to the part that matters to them.",
+      'Te lo envío. Antes, una rápida: ¿quién lo revisa contigo? Así lo recorto a la parte que le importa.',
     examples: [
       {
-        excerpt: 'Just send me some information and I’ll take a look.',
+        excerpt: 'Mándame información y le echo un vistazo.',
         outcome: 'killed'
       },
       {
-        excerpt: 'Send it to me and my ops lead, we review these on Fridays.',
+        excerpt:
+          'Envíamelo a mí y a mi responsable de operaciones, lo revisamos los viernes.',
         outcome: 'handled'
       }
     ],
@@ -239,22 +242,22 @@ const INSIGHT_SEEDS: InsightSeed[] = [
   },
   {
     objectionType: 'annual_contract_lock_in',
-    label: 'Locked into an annual contract',
+    label: 'Atados a un contrato anual',
     dynamic: true,
     count: 29,
     convertedRate: 0.14,
     underlyingObjection:
-      'Rarely about the contract itself — it is about not wanting to run a migration mid-quarter. The renewal date is the opening, not the wall.',
+      'Rara vez es por el contrato en sí: es por no querer migrar a mitad de trimestre. La fecha de renovación es la puerta de entrada, no el muro.',
     winningPattern:
-      'Getting the renewal month on the call and booking the follow-up against it. Those calls converted at more than twice the rate of the rest.',
+      'Conseguir el mes de renovación en la llamada y agendar el seguimiento contra esa fecha. Esas llamadas convirtieron más del doble que el resto.',
     losingPattern:
-      'Offering to buy out the contract. It moved the conversation to procurement and stalled every time.',
+      'Ofrecer cubrir el costo del contrato vigente. Llevó la conversación a compras y se frenó siempre.',
     recommendedResponse:
-      "Makes sense — no one rips out a tool mid-contract. When does it come up for renewal? I'd rather come back six weeks before that with numbers than push you now.",
+      'Tiene sentido, nadie cambia de herramienta a mitad de contrato. ¿Cuándo toca la renovación? Prefiero volver seis semanas antes con números concretos que insistir ahora.',
     savedResponse: null,
     examples: [
       {
-        excerpt: "We're locked in with them until March, so there's no rush.",
+        excerpt: 'Estamos atados con ellos hasta marzo, así que no hay apuro.',
         outcome: 'handled'
       }
     ],
@@ -268,17 +271,17 @@ const INSIGHT_SEEDS: InsightSeed[] = [
     count: 21,
     convertedRate: 0.26,
     underlyingObjection:
-      'Usually true, and the highest-converting objection you get — these calls end with a warm internal hand-off when the rep asks for one.',
+      'Casi siempre es cierta, y es la objeción que más convierte: estas llamadas terminan en una derivación interna cuando el rep la pide.',
     winningPattern:
-      'Asking for the name and offering to mention who sent you. Referred calls in this set converted at 26%.',
+      'Pedir el nombre y ofrecer mencionar quién te derivó. Las llamadas con referencia de este grupo convirtieron al 26 %.',
     losingPattern:
-      'Pitching anyway. Two thirds of those calls ended before the 90-second mark.',
+      'Seguir con el pitch igual. Dos tercios de esas llamadas terminaron antes de los 90 segundos.',
     recommendedResponse:
-      "Appreciate you saying so — who owns this on your side? If you're happy for me to mention we spoke, I'll keep it short with them.",
+      'Te agradezco la franqueza. ¿Quién lleva esto de tu lado? Si te parece bien, le menciono que hablamos y se lo hago corto.',
     savedResponse: null,
     examples: [
       {
-        excerpt: "That's really Marta's call, I just handle the day to day.",
+        excerpt: 'Eso lo decide Marta, yo solo llevo el día a día.',
         outcome: 'handled'
       }
     ],
@@ -303,22 +306,23 @@ const INSIGHT_SEEDS: InsightSeed[] = [
   },
   {
     objectionType: 'security_review_required',
-    label: 'Needs to clear a security review',
+    label: 'Tiene que pasar por revisión de seguridad',
     dynamic: true,
     count: 11,
     convertedRate: 0.31,
     underlyingObjection:
-      'Not a rejection — it is a buying signal with a queue in front of it. These prospects have already decided they want the tool.',
+      'No es un rechazo: es una señal de compra con una fila delante. Estos prospectos ya decidieron que quieren la herramienta.',
     winningPattern:
-      'Sending the security packet before the call ended and booking the next step in the same breath.',
+      'Enviar el paquete de seguridad antes de terminar la llamada y agendar el próximo paso en el mismo momento.',
     losingPattern:
-      'Waiting for them to ask for the documents. Those threads went quiet for weeks.',
+      'Esperar a que ellos pidan la documentación. Esos hilos quedaron en silencio por semanas.',
     recommendedResponse:
-      "Good — that's the part we're ready for. I'll send our SOC 2 report and the DPA today. Can we hold 20 minutes next week so your security lead can ask questions directly?",
+      'Perfecto, esa parte la tenemos lista. Hoy mismo te envío nuestro informe SOC 2 y el DPA. ¿Reservamos 20 minutos la semana que viene para que tu responsable de seguridad pregunte directamente?',
     savedResponse: null,
     examples: [
       {
-        excerpt: 'Anything new has to go through our security review first.',
+        excerpt:
+          'Todo lo nuevo tiene que pasar primero por nuestra revisión de seguridad.',
         outcome: 'handled'
       }
     ],
@@ -332,14 +336,14 @@ const INSIGHT_SEEDS: InsightSeed[] = [
     count: 9,
     convertedRate: 0.07,
     underlyingObjection:
-      'Half of these name a concrete event (end of quarter, a hire, a migration). The other half are soft nos.',
-    winningPattern: 'Asking what changes after the event they named.',
-    losingPattern: 'Accepting "call me next quarter" without a date.',
+      'La mitad menciona un evento concreto (cierre de trimestre, una contratación, una migración). La otra mitad son noes suaves.',
+    winningPattern: 'Preguntar qué cambia después del evento que mencionaron.',
+    losingPattern: 'Aceptar «llámame el próximo trimestre» sin una fecha.',
     recommendedResponse:
-      "Understood. What changes for you after that? If it's the right time then, I'd rather put a date on the calendar now than guess.",
+      'Entendido. ¿Qué cambia para ustedes después de eso? Si ese es el momento, prefiero dejar la fecha en el calendario ahora y no adivinar.',
     savedResponse: null,
     examples: [
-      { excerpt: 'Call me after the quarter closes.', outcome: 'killed' }
+      { excerpt: 'Llámame cuando cierre el trimestre.', outcome: 'killed' }
     ],
     // Dismissed rows stay out of the ranked list.
     status: 'dismissed',
@@ -440,12 +444,13 @@ const ACTION_SEEDS: ActionSeed[] = [
     status: 'pending',
     priority: 'high',
     source: 'ai',
-    title: 'Send the security packet to Marta Ferreira',
+    title: 'Enviar el paquete de seguridad a Marta Ferreira',
     reason:
-      'Asked for SOC 2 and the DPA before looping in her security lead. She named a decision date two weeks out.',
+      'Pidió el SOC 2 y el DPA antes de sumar a su responsable de seguridad. Mencionó una fecha de decisión en dos semanas.',
     suggestedMessage:
-      "Hi Marta — as promised, our SOC 2 Type II report and DPA are attached. Happy to jump on 20 minutes with your security lead if that's faster than a document review.",
-    nextBestAction: 'Attach SOC 2 + DPA and propose a 20-minute security call.',
+      'Hola Marta: como quedamos, te adjunto nuestro informe SOC 2 Tipo II y el DPA. Si les resulta más rápido que revisar documentos, agendamos 20 minutos con tu responsable de seguridad.',
+    nextBestAction:
+      'Adjuntar SOC 2 + DPA y proponer una llamada de seguridad de 20 minutos.',
     dueInDays: 0,
     contact: {
       id: 'mock-contact-1',
@@ -460,12 +465,12 @@ const ACTION_SEEDS: ActionSeed[] = [
     status: 'pending',
     priority: 'high',
     source: 'ai',
-    title: 'Book the technical demo with Daniel Reyes',
+    title: 'Agendar la demo técnica con Daniel Reyes',
     reason:
-      'Ran 14 minutes, asked about the API twice and pulled in his CTO at the end. Strongest signal in this context today.',
+      'Duró 14 minutos, preguntó dos veces por la API y sumó a su CTO al final. La señal más fuerte de este contexto hoy.',
     suggestedMessage:
-      "Daniel — great call. I've held two slots for the technical walkthrough: Thursday 10:00 or Friday 15:00. Which works for you and your CTO?",
-    nextBestAction: 'Offer two concrete slots this week.',
+      'Daniel, excelente llamada. Reservé dos horarios para la demo técnica: jueves 10:00 o viernes 15:00. ¿Cuál les queda mejor a vos y a tu CTO?',
+    nextBestAction: 'Ofrecer dos horarios concretos esta semana.',
     dueInDays: 0,
     contact: {
       id: 'mock-contact-2',
@@ -480,11 +485,11 @@ const ACTION_SEEDS: ActionSeed[] = [
     status: 'pending',
     priority: 'high',
     source: 'rule',
-    title: 'Call Aisha Karim back — she asked for Tuesday',
+    title: 'Devolver la llamada a Aisha Karim — pidió el martes',
     reason:
-      'Explicit callback request during the call. No callback has been scheduled yet.',
+      'Pidió expresamente que la vuelvan a llamar. Todavía no hay callback agendado.',
     suggestedMessage: null,
-    nextBestAction: 'Schedule the callback for Tuesday morning.',
+    nextBestAction: 'Agendar el callback para el martes por la mañana.',
     dueInDays: -1,
     contact: {
       id: 'mock-contact-3',
@@ -499,12 +504,13 @@ const ACTION_SEEDS: ActionSeed[] = [
     status: 'pending',
     priority: 'medium',
     source: 'ai',
-    title: 'Follow up with Tomás Ribeiro on the renewal date',
+    title: 'Dar seguimiento a Tomás Ribeiro por la fecha de renovación',
     reason:
-      'Locked into an annual contract until March. Agreed to a check-in six weeks before renewal.',
+      'Atado a un contrato anual hasta marzo. Acordó una revisión seis semanas antes de la renovación.',
     suggestedMessage:
-      "Tomás — noting your renewal for March as you mentioned. I'll come back mid-January with a like-for-like comparison so you can decide with numbers in hand.",
-    nextBestAction: 'Send the renewal-date recap and set a January reminder.',
+      'Tomás: dejo anotada la renovación de marzo, como me comentaste. Vuelvo a mediados de enero con una comparación equivalente para que decidan con números en la mano.',
+    nextBestAction:
+      'Enviar el resumen con la fecha de renovación y programar un recordatorio para enero.',
     dueInDays: 2,
     contact: {
       id: 'mock-contact-4',
@@ -519,12 +525,12 @@ const ACTION_SEEDS: ActionSeed[] = [
     status: 'pending',
     priority: 'medium',
     source: 'ai',
-    title: 'Ask Lena Vogt for the right owner',
+    title: 'Pedirle a Lena Vogt el contacto correcto',
     reason:
-      'Not the decision maker but offered to point you to the ops lead. Referred intros convert at 26% in this context.',
+      'No decide, pero se ofreció a derivarte al responsable de operaciones. Las presentaciones referidas convierten al 26 % en este contexto.',
     suggestedMessage:
-      "Lena — thanks for being straight with me. Could you point me to whoever owns this? Happy to mention we spoke so it isn't a cold call for them.",
-    nextBestAction: 'Request the introduction by name.',
+      'Lena, gracias por la franqueza. ¿Me podés indicar quién lleva esto? Le menciono que hablamos así no le llega como una llamada en frío.',
+    nextBestAction: 'Pedir la presentación con nombre y apellido.',
     dueInDays: 1,
     contact: {
       id: 'mock-contact-5',
@@ -539,10 +545,11 @@ const ACTION_SEEDS: ActionSeed[] = [
     status: 'pending',
     priority: 'low',
     source: 'rule',
-    title: 'Log the outcome for Priya Nair',
-    reason: 'Call completed 3 days ago with no CRM note attached.',
+    title: 'Registrar el resultado de Priya Nair',
+    reason: 'Llamada completada hace 3 días y sin nota en el CRM.',
     suggestedMessage: null,
-    nextBestAction: 'Add the call outcome and next step to the CRM record.',
+    nextBestAction:
+      'Cargar el resultado de la llamada y el próximo paso en el CRM.',
     dueInDays: 3,
     contact: {
       id: 'mock-contact-6',
@@ -557,11 +564,11 @@ const ACTION_SEEDS: ActionSeed[] = [
     status: 'pending',
     priority: 'low',
     source: 'rule',
-    title: 'Move Jonas Lindqvist to nurture',
+    title: 'Pasar a Jonas Lindqvist a nurturing',
     reason:
-      'Third no-answer in a row. Rule threshold for switching from dialing to nurture reached.',
+      'Tercera llamada sin respuesta seguida. Se alcanzó el umbral de la regla para dejar de marcar y pasar a nurturing.',
     suggestedMessage: null,
-    nextBestAction: 'Add to the quarterly nurture sequence.',
+    nextBestAction: 'Sumarlo a la secuencia de nurturing trimestral.',
     dueInDays: 5,
     contact: {
       id: 'mock-contact-7',
@@ -576,12 +583,12 @@ const ACTION_SEEDS: ActionSeed[] = [
     status: 'pending',
     priority: 'medium',
     source: 'ai',
-    title: 'Review the response for "locked into an annual contract"',
+    title: 'Revisar la respuesta para «atados a un contrato anual»',
     reason:
-      'Objection Intelligence drafted a response for the objection that appeared in 29 calls this month.',
+      'Inteligencia de Objeciones redactó una respuesta para la objeción que apareció en 29 llamadas este mes.',
     suggestedMessage: null,
     nextBestAction:
-      'Approve or edit the drafted response, then add it to the script.',
+      'Aprobar o editar la respuesta redactada y sumarla al guion.',
     dueInDays: 4,
     contact: {
       id: 'mock-contact-8',
@@ -596,10 +603,11 @@ const ACTION_SEEDS: ActionSeed[] = [
     status: 'completed',
     priority: 'medium',
     source: 'ai',
-    title: 'Recap sent to Owen Bradley',
-    reason: 'Asked for a one-pager after a positive discovery call.',
+    title: 'Resumen enviado a Owen Bradley',
+    reason:
+      'Pidió un resumen de una página tras una llamada de descubrimiento positiva.',
     suggestedMessage: null,
-    nextBestAction: 'Completed — recap sent with pricing tiers.',
+    nextBestAction: 'Completado: resumen enviado con los planes de precios.',
     dueInDays: -4,
     contact: {
       id: 'mock-contact-9',
@@ -614,15 +622,14 @@ const ACTION_SEEDS: ActionSeed[] = [
     status: 'dismissed',
     priority: 'low',
     source: 'rule',
-    title: 'Close out Sofia Almeida',
-    reason:
-      'Asked not to be contacted again. Marked and removed from the queue.',
+    title: 'Cerrar el caso de Sofía Almeida',
+    reason: 'Pidió no ser contactada de nuevo. Marcada y quitada de la cola.',
     suggestedMessage: null,
-    nextBestAction: 'No further action.',
+    nextBestAction: 'Sin acciones pendientes.',
     dueInDays: -6,
     contact: {
       id: 'mock-contact-10',
-      name: 'Sofia Almeida',
+      name: 'Sofía Almeida',
       phoneNumber: '+5511998877665',
       company: 'Vela Consultoria'
     },

@@ -211,6 +211,230 @@
     "unavailable": "Este pipeline aún no está disponible.",
     "viewDetails": "Ver detalles y activar"
   },
+  "pipelinePage": {
+    "title": "Pipeline de IA",
+    "description": "Pipelines independientes que analizan tus llamadas por contexto. Abre uno para ver exactamente qué hace y el valor que aporta antes de activarlo.",
+    "metaTitle": "Pipeline de IA",
+    "metaDescription": "Configuración + inteligencia: convierte los resultados de tus llamadas en la siguiente mejor acción."
+  },
+  "followUp": {
+    "page": {
+      "title": "Recomendaciones de Seguimiento",
+      "description": "Convierte el resultado de cada llamada en la siguiente mejor acción.",
+      "longDescription": "Convierte el resultado de cada llamada en la siguiente mejor acción, analizada de forma independiente por contexto."
+    },
+    "loadFailed": "No se pudo cargar el pipeline.",
+    "context": "Contexto",
+    "selectContext": "Selecciona un contexto",
+    "contextDescription": "Los resultados están separados por contexto. Las llamadas de campaña, las de la organización fuera de campañas y las personales se analizan de forma independiente.",
+    "never": "Nunca",
+    "close": "Cerrar",
+    "activation": {
+      "title": "Activación",
+      "description": "Activa Seguimiento por contexto. Activar un contexto nunca activa otro.",
+      "enabled": "Activado",
+      "newEligible": "Nuevas elegibles",
+      "lastRun": "Última ejecución",
+      "pending": "Pendientes",
+      "run": "Ejecutar"
+    },
+    "run": {
+      "previewFailed": "No se pudo cargar la vista previa de la ejecución.",
+      "alreadyRunning": "Ya hay una ejecución en curso para este contexto.",
+      "failed": "La ejecución falló.",
+      "analysis": "Ejecutar análisis",
+      "title": "Ejecutar análisis — {context}",
+      "eligibleCalls": "Llamadas elegibles",
+      "newSinceLastRun": "Nuevas desde la última ejecución",
+      "estimatedConfidence": "Confianza estimada",
+      "now": "Ejecutar ahora",
+      "complete": "Ejecución completada: se analizaron {count} llamadas elegibles.",
+      "lowData": "Pocos datos: hay menos llamadas elegibles que el mínimo recomendado."
+    },
+    "results": {
+      "title": "Resultados — {context}",
+      "description": "Acciones pendientes solo de este contexto.",
+      "empty": "No hay acciones en esta vista para este contexto.",
+      "filters": {
+        "pending": "Pendientes",
+        "high": "Prioridad alta",
+        "due_today": "Vencen hoy",
+        "overdue": "Atrasadas",
+        "ai": "Mejoradas con IA",
+        "rule": "Por reglas",
+        "dismissed": "Descartadas",
+        "completed": "Completadas"
+      }
+    }
+  },
+  "objections": {
+    "types": {
+      "send_me_information": "Envíame información",
+      "no_time": "No tengo tiempo",
+      "too_expensive": "Es muy caro",
+      "using_another_solution": "Usamos otra solución",
+      "not_interested": "No me interesa",
+      "call_me_later": "Llámame más adelante",
+      "not_the_right_person": "No soy la persona indicada",
+      "need_to_ask_boss": "Tengo que consultarlo con mi jefe",
+      "bad_timing": "No es buen momento",
+      "we_do_this_internally": "Lo hacemos internamente",
+      "other": "Otra"
+    },
+    "page": {
+      "title": "Inteligencia de Objeciones",
+      "description": "Descubre qué frena a tus prospectos y cómo responder.",
+      "longDescription": "Descubre qué frena a tus prospectos y cómo responder, con análisis independiente por contexto."
+    },
+    "loadFailed": "No se pudo cargar el pipeline.",
+    "selectContext": "Selecciona un contexto",
+    "enabled": "Activado",
+    "disabled": "Desactivado",
+    "explanation": "La transcripción completa de cada llamada elegible se analiza una sola vez. Las ejecuciones siguientes procesan solo las llamadas nuevas y recalculan los hallazgos acumulados; los resultados de distintos contextos nunca se mezclan.",
+    "manageContexts": "Gestionar todos los contextos ({count})",
+    "newCount": "{count} nuevas",
+    "neverRun": "Nunca ejecutado",
+    "pendingCount": "{count} pendientes",
+    "ranked": "Objeciones — ordenadas por frecuencia",
+    "selectObjection": "Selecciona una objeción para ver el detalle.",
+    "callsCount": "{count} llamadas",
+    "sinceLastRun": "{count} desde la última ejecución",
+    "confidence": "Confianza {level}",
+    "confidenceLevels": {
+      "low": "baja",
+      "medium": "media",
+      "high": "alta"
+    },
+    "run": {
+      "previewFailed": "No se pudo cargar la vista previa de la ejecución.",
+      "alreadyRunning": "Ya hay una ejecución en curso para este contexto.",
+      "failed": "La ejecución falló.",
+      "analysis": "Ejecutar análisis",
+      "title": "Ejecutar análisis — {context}",
+      "eligibleCalls": "Llamadas elegibles",
+      "newSinceLastRun": "Nuevas desde la última ejecución",
+      "estimatedConfidence": "Confianza estimada",
+      "now": "Ejecutar ahora",
+      "complete": "Análisis completado: {count} llamadas analizadas en total.",
+      "lowData": "Esta recomendación se basa en datos limitados. Tómala como orientativa hasta que se analicen más llamadas."
+    },
+    "kpis": {
+      "detected": "Objeciones detectadas",
+      "eligible": "Elegibles analizadas",
+      "topBlocker": "Principal bloqueo",
+      "pending": "Llamadas nuevas pendientes"
+    },
+    "detail": {
+      "discovered": "Descubierta por IA",
+      "saved": "Guardada",
+      "appeared": "Apareció en {count} llamadas · {rate} de las conversaciones analizadas",
+      "trend": "Tendencia entre ejecuciones",
+      "prevalence": "Frecuencia",
+      "stillConverted": "Convirtió igual",
+      "correlationHint": "Correlacional: el porcentaje de llamadas donde apareció esta objeción y aun así convirtieron. No mide el efecto de ninguna respuesta en particular.",
+      "hiddenConfidence": "Oculto por debajo de confianza media",
+      "noAi": "Medido a partir de tus llamadas. Ejecuta el análisis con IA activada para descubrir qué significa realmente esta objeción, los patrones que funcionan y los que no, y una respuesta recomendada.",
+      "reallyMean": "Qué quieren decir en realidad",
+      "whatWorks": "Qué funciona",
+      "whatKills": "Qué la mata",
+      "fromCalls": "De tus llamadas",
+      "outcomes": {
+        "handled": "manejada",
+        "killed": "perdida",
+        "example": "ejemplo"
+      },
+      "recommendedResponse": "Respuesta recomendada — adáptala a tu voz",
+      "saveResponse": "Guardar respuesta",
+      "addToScript": "Añadir al guion",
+      "createReview": "Crear acción de revisión",
+      "dismiss": "Descartar"
+    },
+    "empty": {
+      "title": "Todavía no hay objeciones analizadas",
+      "enabled": "Ejecuta el análisis cuando este contexto tenga suficientes llamadas elegibles. Ringee ordenará qué frena a tus prospectos e incluso descubrirá objeciones que no habías definido.",
+      "disabled": "Activa este contexto arriba y luego ejecuta el análisis para descubrir qué frena a tus prospectos y cómo responder."
+    }
+  },
+  "pendingActions": {
+    "title": "Acciones Pendientes",
+    "description": "Qué hacer a continuación. Las acciones se agrupan, se priorizan y caducan automáticamente para que la lista siga siendo útil.",
+    "metaTitle": "Acciones Pendientes | Ringee",
+    "metaDescription": "Tu centro de ejecución: qué hacer a continuación, agrupado y priorizado.",
+    "filters": {
+      "all": "Todas",
+      "high_priority": "Prioridad alta",
+      "due_today": "Vencen hoy",
+      "overdue": "Atrasadas",
+      "lead_followups": "Seguimientos de leads",
+      "script_reviews": "Revisiones de guion",
+      "objection_responses": "Respuestas a objeciones",
+      "crm_updates": "Actualizaciones de CRM",
+      "ai_generated": "Generadas por IA",
+      "rule_based": "Por reglas",
+      "campaign": "Campaña",
+      "organization": "Llamadas de la organización",
+      "personal": "Llamadas personales"
+    },
+    "empty": {
+      "title": "Estás al día",
+      "description": "Aquí aparecerán las nuevas acciones recomendadas a partir de tus llamadas."
+    },
+    "columns": {
+      "contact": "Contacto",
+      "recommendedAction": "Acción recomendada",
+      "context": "Contexto",
+      "priority": "Prioridad",
+      "due": "Vence",
+      "source": "Origen",
+      "status": "Estado",
+      "actions": "Acciones"
+    },
+    "unknown": "Desconocido",
+    "actionTypes": {
+      "send_follow_up": "Enviar seguimiento",
+      "create_callback": "Devolver la llamada",
+      "book_meeting": "Agendar reunión",
+      "ask_for_referral": "Pedir referencia",
+      "send_pricing_or_info": "Enviar info / precios",
+      "update_crm": "Actualizar CRM",
+      "add_to_nurture": "Añadir a nurturing",
+      "mark_not_interested": "Marcar como no interesado",
+      "review_call": "Revisar llamada",
+      "review_script_suggestion": "Revisar sugerencia de guion",
+      "approve_script_version": "Aprobar versión del guion",
+      "review_objection_response": "Revisar respuesta a objeción",
+      "add_objection_response_to_script": "Añadir respuesta a objeción",
+      "review_campaign_insight": "Revisar hallazgo de campaña"
+    },
+    "priorities": {
+      "low": "Baja",
+      "medium": "Media",
+      "high": "Alta"
+    },
+    "sources": {
+      "ai": "IA",
+      "rule": "Regla",
+      "manual": "Manual"
+    },
+    "statuses": {
+      "pending": "Pendiente",
+      "completed": "Completada",
+      "dismissed": "Descartada",
+      "snoozed": "Pospuesta"
+    },
+    "contexts": {
+      "campaign": "Campaña",
+      "organization_outside_campaign": "Organización (fuera de campañas)",
+      "personal": "Personal"
+    },
+    "actions": {
+      "copyMessage": "Copiar mensaje sugerido",
+      "openContact": "Abrir contacto",
+      "snooze": "Posponer",
+      "dismiss": "Descartar",
+      "complete": "Completar"
+    }
+  },
   "pipelines": {
     "follow_up_recommendations": {
       "tagline": "Convierte el resultado de cada llamada en la mejor acción siguiente.",
