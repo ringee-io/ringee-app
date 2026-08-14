@@ -54,12 +54,24 @@ import {
   RunPreview,
   allRows
 } from '../types';
+import {
+  isMockParam,
+  mockActivationSummary,
+  mockObjectionView,
+  mockRunPreview,
+  patchSummaryRow
+} from '../mock-data';
+import { MockBadge } from './mock-badge';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 const PIPELINE = 'objection_intelligence';
 
 export function ObjectionIntelligence() {
   const api = useApi();
   const t = useTranslations('ai.objections');
+  // `?mock=1` renders the demo dataset and keeps every mutation local.
+  const searchParams = useSearchParams();
+  const mock = isMockParam(searchParams.get('mock'));
   const [summary, setSummary] = useState<ActivationSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -84,7 +96,9 @@ export function ObjectionIntelligence() {
   const loadSummary = useCallback(async () => {
     setLoadingSummary(true);
     try {
-      const data = await api.get<ActivationSummary>(`/ai-pipeline/${PIPELINE}`);
+      const data = mock
+        ? mockActivationSummary(PIPELINE)
+        : await api.get<ActivationSummary>(`/ai-pipeline/${PIPELINE}`);
       setSummary(data);
       const first = allRows(data)[0];
       setSelectedId((prev) => prev ?? first?.contextKey ?? null);
@@ -93,7 +107,7 @@ export function ObjectionIntelligence() {
     } finally {
       setLoadingSummary(false);
     }
-  }, [api]);
+  }, [api, mock]);
 
   useEffect(() => {
     loadSummary();
@@ -101,6 +115,10 @@ export function ObjectionIntelligence() {
 
   const loadResults = useCallback(async () => {
     if (!selectedRow) return;
+    if (mock) {
+      setView(mockObjectionView(selectedRow));
+      return;
+    }
     setLoadingResults(true);
     try {
       const data = await api.post<ObjectionInsightsView>(
@@ -113,13 +131,19 @@ export function ObjectionIntelligence() {
     } finally {
       setLoadingResults(false);
     }
-  }, [api, selectedRow]);
+  }, [api, mock, selectedRow]);
 
   useEffect(() => {
     loadResults();
   }, [loadResults]);
 
   const toggle = async (row: ActivationRow, enabled: boolean) => {
+    if (mock) {
+      setSummary((prev) =>
+        prev ? patchSummaryRow(prev, row.contextKey, { enabled }) : prev
+      );
+      return;
+    }
     try {
       await api.post(`/ai-pipeline/${PIPELINE}/activation`, {
         ...row.descriptor,
@@ -137,6 +161,10 @@ export function ObjectionIntelligence() {
     setRunOpen(true);
     setRunMessage(null);
     setRunPreview(null);
+    if (mock) {
+      setRunPreview(mockRunPreview(row));
+      return;
+    }
     try {
       const preview = await api.post<RunPreview>(
         `/ai-pipeline/${PIPELINE}/run/preview`,
@@ -150,6 +178,24 @@ export function ObjectionIntelligence() {
 
   const confirmRun = async () => {
     if (!runContext) return;
+    if (mock) {
+      setRunBusy(true);
+      setRunMessage(null);
+      await new Promise((r) => setTimeout(r, 700));
+      setRunMessage(
+        t('run.complete', { count: runPreview?.eligibleCount ?? 0 })
+      );
+      setSummary((prev) =>
+        prev
+          ? patchSummaryRow(prev, runContext.contextKey, {
+              lastRunAt: new Date().toISOString(),
+              newEligibleSinceLastRun: 0
+            })
+          : prev
+      );
+      setRunBusy(false);
+      return;
+    }
     setRunBusy(true);
     setRunMessage(null);
     try {
@@ -176,7 +222,24 @@ export function ObjectionIntelligence() {
       ? { ...selectedRow.descriptor, contextType: selectedRow.contextType }
       : {};
 
+  // Demo-mode stand-in for the save/dismiss endpoints: patch the loaded view.
+  const patchInsight = (id: string, patch: Partial<ObjectionInsight>) =>
+    setView((prev) =>
+      prev
+        ? {
+            ...prev,
+            insights: prev.insights.map((i) =>
+              i.id === id ? { ...i, ...patch } : i
+            )
+          }
+        : prev
+    );
+
   const saveResponse = async (insight: ObjectionInsight, response: string) => {
+    if (mock) {
+      patchInsight(insight.id, { savedResponse: response, status: 'saved' });
+      return;
+    }
     await api.post(`/objection-insights/${insight.id}/save`, {
       ...descriptorBody(),
       response
@@ -185,6 +248,12 @@ export function ObjectionIntelligence() {
   };
 
   const insightAction = async (insight: ObjectionInsight, path: string) => {
+    if (mock) {
+      if (path === 'dismiss') patchInsight(insight.id, { status: 'dismissed' });
+      if (path === 'add-to-script')
+        patchInsight(insight.id, { status: 'saved' });
+      return;
+    }
     await api.post(
       `/objection-insights/${insight.id}/${path}`,
       descriptorBody()
@@ -273,6 +342,7 @@ export function ObjectionIntelligence() {
           )}
         </div>
         <div className='flex items-center gap-2'>
+          {mock && <MockBadge />}
           {confidence && <ConfidenceBadge confidence={confidence} />}
           <Button
             size='sm'

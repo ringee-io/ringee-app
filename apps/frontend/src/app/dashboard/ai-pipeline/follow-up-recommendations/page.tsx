@@ -1,6 +1,8 @@
+import { Suspense } from 'react';
 import PageContainer from '@/components/layout/page-container';
 import { Heading } from '@ringee/frontend-shared/components/ui/heading';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
+import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { RoleGuard } from '@ringee/frontend-shared/components/role-guard';
 import { FollowUpRecommendations } from '@/features/ai-pipeline/components/follow-up-recommendations';
 import { PipelineIntro } from '@/features/ai-pipeline/components/pipeline-intro';
@@ -20,7 +22,10 @@ export default async function FollowUpRecommendationsPage() {
           <Heading title={t('title')} description={t('longDescription')} />
           <Separator />
           <PipelineIntro type='follow_up_recommendations' />
-          <FollowUpRecommendations />
+          {/* Suspense: the client component reads the `?mock=1` search param. */}
+          <Suspense fallback={<Skeleton className='h-96 w-full rounded-xl' />}>
+            <FollowUpRecommendations />
+          </Suspense>
         </div>
       </RoleGuard>
     </PageContainer>

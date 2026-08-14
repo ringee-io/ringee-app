@@ -31,13 +31,27 @@ import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { AlertTriangle, Loader2, Play } from 'lucide-react';
 import { PendingActionsTable } from '@/features/pending-actions/components/pending-actions-table';
-import { PaginatedActions } from '@/features/pending-actions/types';
+import {
+  PaginatedActions,
+  PendingActionView
+} from '@/features/pending-actions/types';
 import {
   ActivationRow,
   ActivationSummary,
   RunPreview,
   allRows
 } from '../types';
+import {
+  MOCK_PENDING_ACTION_COUNT,
+  filterMockActions,
+  isMockParam,
+  mockActivationSummary,
+  mockFollowUpActions,
+  mockRunPreview,
+  patchSummaryRow
+} from '../mock-data';
+import { MockBadge } from './mock-badge';
+import { useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 const PIPELINE = 'follow_up_recommendations';
@@ -60,6 +74,14 @@ const RESULT_FILTERS: {
 export function FollowUpRecommendations() {
   const api = useApi();
   const t = useTranslations('ai.followUp');
+  // `?mock=1` renders the demo dataset and keeps every mutation local.
+  const searchParams = useSearchParams();
+  const mock = isMockParam(searchParams.get('mock'));
+  // Demo actions per context, mutated in place so complete/dismiss/snooze stick
+  // while the user moves between filters and contexts.
+  const [mockActions, setMockActions] = useState<
+    Record<string, PendingActionView[]>
+  >({});
   const [summary, setSummary] = useState<ActivationSummary | null>(null);
   const [loadingSummary, setLoadingSummary] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -80,7 +102,9 @@ export function FollowUpRecommendations() {
   const loadSummary = useCallback(async () => {
     setLoadingSummary(true);
     try {
-      const data = await api.get<ActivationSummary>(`/ai-pipeline/${PIPELINE}`);
+      const data = mock
+        ? mockActivationSummary(PIPELINE)
+        : await api.get<ActivationSummary>(`/ai-pipeline/${PIPELINE}`);
       setSummary(data);
       // Default to the first available context (org-first inside an org, else
       // personal for freelancers). personal is null inside an organization.
@@ -91,14 +115,30 @@ export function FollowUpRecommendations() {
     } finally {
       setLoadingSummary(false);
     }
-  }, []);
+  }, [mock]);
 
   useEffect(() => {
     loadSummary();
   }, [loadSummary]);
 
+  // Seed the demo action set the first time a context is opened, and again once
+  // a demo run gives a never-run context its first results.
+  useEffect(() => {
+    if (!mock || !selectedRow) return;
+    setMockActions((prev) => {
+      const existing = prev[selectedRow.contextKey];
+      if (existing && (existing.length > 0 || !selectedRow.lastRunAt)) {
+        return prev;
+      }
+      return {
+        ...prev,
+        [selectedRow.contextKey]: mockFollowUpActions(selectedRow)
+      };
+    });
+  }, [mock, selectedRow]);
+
   const loadResults = useCallback(async () => {
-    if (!selectedRow) return;
+    if (!selectedRow || mock) return;
     setLoadingResults(true);
     try {
       const f = RESULT_FILTERS.find((x) => x.key === resultFilter);
@@ -117,13 +157,19 @@ export function FollowUpRecommendations() {
     } finally {
       setLoadingResults(false);
     }
-  }, [selectedRow, resultFilter]);
+  }, [selectedRow, resultFilter, mock]);
 
   useEffect(() => {
     loadResults();
   }, [loadResults]);
 
   const toggle = async (row: ActivationRow, enabled: boolean) => {
+    if (mock) {
+      setSummary((prev) =>
+        prev ? patchSummaryRow(prev, row.contextKey, { enabled }) : prev
+      );
+      return;
+    }
     try {
       await api.post(`/ai-pipeline/${PIPELINE}/activation`, {
         ...row.descriptor,
@@ -140,6 +186,10 @@ export function FollowUpRecommendations() {
     setRunContext(row);
     setRunMessage(null);
     setRunPreview(null);
+    if (mock) {
+      setRunPreview(mockRunPreview(row));
+      return;
+    }
     try {
       const preview = await api.post<RunPreview>(
         `/ai-pipeline/${PIPELINE}/run/preview`,
@@ -153,6 +203,25 @@ export function FollowUpRecommendations() {
 
   const confirmRun = async () => {
     if (!runContext) return;
+    if (mock) {
+      setRunBusy(true);
+      setRunMessage(null);
+      await new Promise((r) => setTimeout(r, 700));
+      setRunMessage(
+        t('run.complete', { count: runPreview?.eligibleCount ?? 0 })
+      );
+      setSummary((prev) =>
+        prev
+          ? patchSummaryRow(prev, runContext.contextKey, {
+              lastRunAt: new Date().toISOString(),
+              newEligibleSinceLastRun: 0,
+              pendingActionCount: MOCK_PENDING_ACTION_COUNT
+            })
+          : prev
+      );
+      setRunBusy(false);
+      return;
+    }
     setRunBusy(true);
     setRunMessage(null);
     try {
@@ -184,6 +253,46 @@ export function FollowUpRecommendations() {
     }
   };
 
+  /** Complete / dismiss / snooze — local in demo mode, POST otherwise. */
+  const actOnAction = (
+    id: string,
+    action: 'complete' | 'dismiss' | 'snooze'
+  ) => {
+    if (!mock) {
+      mutate(`/pending-actions/${id}/${action}`);
+      return;
+    }
+    const now = new Date();
+    const patch: Partial<PendingActionView> =
+      action === 'complete'
+        ? { status: 'completed', completedAt: now.toISOString() }
+        : action === 'dismiss'
+          ? { status: 'dismissed' }
+          : {
+              status: 'snoozed',
+              snoozedUntil: new Date(
+                now.getTime() + 24 * 3600_000
+              ).toISOString()
+            };
+    setMockActions((prev) => {
+      const key = selectedRow?.contextKey;
+      if (!key || !prev[key]) return prev;
+      return {
+        ...prev,
+        [key]: prev[key].map((a) => (a.id === id ? { ...a, ...patch } : a))
+      };
+    });
+  };
+
+  // In demo mode the results table reads from the local action set so that
+  // filter chips and row actions stay consistent without a backend.
+  const displayedResults: PaginatedActions | null = mock
+    ? filterMockActions(
+        (selectedRow && mockActions[selectedRow.contextKey]) ?? [],
+        resultFilter
+      )
+    : results;
+
   if (loadingSummary) {
     return <Skeleton className='h-96 w-full' />;
   }
@@ -213,6 +322,7 @@ export function FollowUpRecommendations() {
             </SelectContent>
           </Select>
         </div>
+        {mock && <MockBadge />}
       </div>
 
       <p className='text-muted-foreground text-sm'>{t('contextDescription')}</p>
@@ -397,17 +507,17 @@ export function FollowUpRecommendations() {
                 <Skeleton key={i} className='h-12 w-full' />
               ))}
             </div>
-          ) : (results?.data.length ?? 0) === 0 ? (
+          ) : (displayedResults?.data.length ?? 0) === 0 ? (
             <p className='text-muted-foreground py-8 text-center text-sm'>
               {t('results.empty')}
             </p>
           ) : (
             <PendingActionsTable
-              actions={results!.data}
+              actions={displayedResults!.data}
               showContext={false}
-              onComplete={(id) => mutate(`/pending-actions/${id}/complete`)}
-              onDismiss={(id) => mutate(`/pending-actions/${id}/dismiss`)}
-              onSnooze={(id) => mutate(`/pending-actions/${id}/snooze`)}
+              onComplete={(id) => actOnAction(id, 'complete')}
+              onDismiss={(id) => actOnAction(id, 'dismiss')}
+              onSnooze={(id) => actOnAction(id, 'snooze')}
             />
           )}
         </CardContent>
