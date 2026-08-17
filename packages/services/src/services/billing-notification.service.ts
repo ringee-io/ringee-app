@@ -28,6 +28,7 @@ export interface SubscriptionPaymentFailedParams {
   attemptCount: number;
   /** When Stripe will retry, if it still will. */
   nextAttemptAt: Date | null;
+  /** Stripe-hosted page to settle this invoice with a new card. */
   hostedInvoiceUrl?: string | null;
   /** Billing address Stripe has on file; used when it differs from the app one. */
   billingEmail?: string | null;
@@ -163,14 +164,14 @@ export class BillingNotificationService {
     switch (params.kind) {
       case "phone_number":
         return params.phoneNumber
-          ? `Payment failed for ${params.phoneNumber} — update your payment method`
-          : "Payment failed for your Ringee number — update your payment method";
+          ? `Payment failed for ${params.phoneNumber}`
+          : "Payment failed for your Ringee number";
       case "credit_funding":
-        return "Your monthly credit funding payment failed — update your payment method";
+        return "Your monthly credit funding payment failed";
       case "organization":
-        return "Your Ringee subscription payment failed — update your payment method";
+        return "Your Ringee subscription payment failed";
       default:
-        return "Your Ringee payment failed — update your payment method";
+        return "Your Ringee payment failed";
     }
   }
 
@@ -192,64 +193,50 @@ export class BillingNotificationService {
     }
   }
 
+  /**
+   * Deliberately plain: a few sentences and one link, so it reads like a note
+   * from a person rather than a marketing blast — which is also what keeps it
+   * out of the spam folder.
+   */
   private buildHtml(params: SubscriptionPaymentFailedParams): string {
-    const billingUrl = `${apiConfiguration.FRONTEND_URL?.replace(/\/+$/, "")}/dashboard/billing`;
+    // Stripe's hosted invoice page settles the outstanding charge with a new
+    // card in one step, so it beats sending people into the dashboard. It only
+    // exists once the invoice is finalized — fall back to our billing page.
+    const invoiceUrl = params.hostedInvoiceUrl?.trim();
+    const link = invoiceUrl
+      ? { url: invoiceUrl, label: "Pay the invoice with another card" }
+      : {
+          url: `${apiConfiguration.FRONTEND_URL?.replace(/\/+$/, "")}/dashboard/billing`,
+          label: "Update your payment method",
+        };
     const amount =
       params.amountDue != null
-        ? this.formatAmount(params.amountDue, params.currency)
-        : null;
-
-    const rows = [
-      ["What failed", escapeHtml(this.describeSubscription(params))],
-      amount ? ["Amount due", escapeHtml(amount)] : null,
-      ["Attempt", String(params.attemptCount)],
-      params.nextAttemptAt
-        ? ["Next retry", escapeHtml(this.formatDate(params.nextAttemptAt))]
-        : null,
-    ]
-      .filter((row): row is [string, string] => row !== null)
-      .map(
-        ([label, value]) => `
-          <tr>
-            <td style="padding:6px 12px;color:#737373;">${label}</td>
-            <td style="padding:6px 12px;"><strong>${value}</strong></td>
-          </tr>`,
-      )
-      .join("");
+        ? ` (${this.formatAmount(params.amountDue, params.currency)})`
+        : "";
+    const what = escapeHtml(this.describeSubscription(params) + amount);
 
     // Stripe stops retrying eventually; say so plainly rather than implying the
-    // charge will keep being attempted forever.
+    // charge will keep being attempted forever. The wording has to agree with
+    // the link below — paying the invoice is immediate, our billing page only
+    // fixes the card in time for the retry.
     const nextStep = params.nextAttemptAt
-      ? `We'll try again on <strong>${escapeHtml(this.formatDate(params.nextAttemptAt))}</strong>. Update your card before then and the retry will go through.`
-      : `We won't retry this charge automatically. Update your card to keep ${escapeHtml(this.describeSubscription(params))} active.`;
-
-    const payNow = params.hostedInvoiceUrl
-      ? `<p style="margin:16px 0 0;">
-           Prefer to settle this invoice directly?
-           <a href="${escapeHtml(params.hostedInvoiceUrl)}" style="color:#2563eb;">Pay it here</a>.
-         </p>`
-      : "";
+      ? `We'll try again on ${escapeHtml(this.formatDate(params.nextAttemptAt))}${
+          invoiceUrl
+            ? ", or you can settle it now:"
+            : ". If you update your card before then, the retry will go through."
+        }`
+      : `We won't retry this charge automatically${
+          invoiceUrl
+            ? ", so it needs to be paid to keep it active:"
+            : ". Update your card to keep it active."
+        }`;
 
     return `
-      <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;color:#171717;max-width:560px;">
-        <h2 style="margin:0 0 12px;color:#b91c1c;">Your payment failed</h2>
-        <p style="margin:0 0 12px;">
-          We tried to charge ${escapeHtml(this.describeSubscription(params))} and your
-          payment method was declined. Nothing has been charged.
-        </p>
-        <table style="border-collapse:collapse;margin:12px 0;font-size:14px;">${rows}</table>
-        <p style="margin:0 0 20px;">${nextStep}</p>
-        <p style="margin:0 0 20px;">
-          <a href="${escapeHtml(billingUrl)}"
-             style="background:#171717;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;display:inline-block;font-weight:600;">
-            Update payment method
-          </a>
-        </p>
-        ${payNow}
-        <p style="margin-top:24px;color:#737373;font-size:12px;">
-          If your card details already changed, updating them in Ringee is enough — no
-          need to re-purchase anything. Reply to this email if you need a hand.
-        </p>
+      <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.6;color:#171717;max-width:520px;">
+        <p>We tried to charge ${what} and your card was declined.</p>
+        <p>${nextStep}</p>
+        <p><a href="${escapeHtml(link.url)}">${link.label}</a></p>
+        <p style="color:#737373;">Reply to this email if you need a hand.</p>
       </div>
     `;
   }
