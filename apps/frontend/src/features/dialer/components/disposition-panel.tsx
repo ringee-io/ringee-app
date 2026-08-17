@@ -4,12 +4,20 @@ import { useState } from 'react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useDialerAttemptStore } from '../store/dialer-attempt.store';
 import { useDialerSessionStore } from '../store/dialer-session.store';
+import { useDialerLeadStore } from '../store/dialer-lead.store';
+import { VoicemailDropSlot } from '@/features/voicemail';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Textarea } from '@ringee/frontend-shared/components/ui/textarea';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
-import { Loader2, ClipboardList, Calendar } from 'lucide-react';
+import {
+  Loader2,
+  ClipboardList,
+  Calendar,
+  Voicemail,
+  Check
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
@@ -21,6 +29,7 @@ interface Props {
 export function DispositionPanel({ campaignId, sessionId }: Props) {
   const api = useApi();
   const t = useTranslations('dialer.disposition');
+  const tVoicemail = useTranslations('voicemail');
   const attemptId = useDialerAttemptStore((s) => s.attemptId);
   const dispositionRequired = useDialerAttemptStore(
     (s) => s.dispositionRequired
@@ -31,11 +40,15 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
   const callStatus = useDialerAttemptStore((s) => s.callStatus);
   const status = useDialerSessionStore((s) => s.status);
 
+  const currentLead = useDialerLeadStore((s) => s.currentLead);
+
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
   const [note, setNote] = useState('');
   const [callbackDate, setCallbackDate] = useState('');
   const [callbackNote, setCallbackNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [showVoicemail, setShowVoicemail] = useState(false);
+  const [voicemailSent, setVoicemailSent] = useState(false);
 
   const selectedDispo = availableDispositions.find(
     (d) => d.code === selectedCode
@@ -66,6 +79,8 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
       setNote('');
       setCallbackDate('');
       setCallbackNote('');
+      setShowVoicemail(false);
+      setVoicemailSent(false);
       toast.success(t('saved'));
     } catch (err: any) {
       toast.error(err?.message || t('saveFailed'));
@@ -187,6 +202,46 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
                 />
               </div>
             </div>
+          </>
+        )}
+
+        {/* Voicemail drop — same conditional-section shape as the callback
+            fields above, so wrap-up reads as one column of steps. */}
+        {currentLead?.contact.phoneNumber && (
+          <>
+            <Separator />
+            {voicemailSent ? (
+              <div className='text-muted-foreground flex items-center gap-2 text-xs'>
+                <Check className='h-3.5 w-3.5' />
+                {tVoicemail('sent')}
+              </div>
+            ) : showVoicemail ? (
+              <VoicemailDropSlot
+                phoneNumber={currentLead.contact.phoneNumber}
+                contactId={currentLead.contact.id}
+                source='campaign'
+                destinationLabel={
+                  currentLead.contact.name || currentLead.contact.phoneNumber
+                }
+                onSent={() => {
+                  setVoicemailSent(true);
+                  setShowVoicemail(false);
+                  toast.success(tVoicemail('sent'));
+                }}
+                onCancel={() => setShowVoicemail(false)}
+              />
+            ) : (
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                className='w-full justify-start'
+                onClick={() => setShowVoicemail(true)}
+              >
+                <Voicemail className='mr-2 h-4 w-4' />
+                {tVoicemail('title')}
+              </Button>
+            )}
           </>
         )}
       </div>

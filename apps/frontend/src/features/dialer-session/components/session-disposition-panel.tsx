@@ -6,10 +6,19 @@ import { Textarea } from '@ringee/frontend-shared/components/ui/textarea';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
 import { Separator } from '@ringee/frontend-shared/components/ui/separator';
-import { Calendar, CalendarClock, ClipboardList, Loader2 } from 'lucide-react';
+import {
+  Calendar,
+  CalendarClock,
+  Check,
+  ClipboardList,
+  Loader2,
+  Voicemail
+} from 'lucide-react';
 import type { CallOutcome, SessionItemDto } from '../api';
 import type { CallSessionPhase } from '../use-call-session';
 import { useTranslations } from 'next-intl';
+import { VoicemailPanel } from '@/features/voicemail';
+import { useSessionVoicemailTransport } from '../hooks/use-session-voicemail-transport';
 
 interface OutcomeMeta {
   value: CallOutcome;
@@ -61,11 +70,14 @@ interface Props {
     },
     action: 'continue' | 'stop'
   ) => void | Promise<void>;
+  sessionId: string;
+  token: string;
 }
 
 export function SessionDispositionPanel(props: Props) {
   const t = useTranslations('dialer.publicSession.disposition');
-  const { phase, activeItem, busy, onSave } = props;
+  const tVoicemail = useTranslations('voicemail');
+  const { phase, activeItem, busy, onSave, sessionId, token } = props;
   const [selected, setSelected] = useState<OutcomeMeta | null>(null);
   const [note, setNote] = useState('');
   const [callbackAt, setCallbackAt] = useState('');
@@ -73,6 +85,8 @@ export function SessionDispositionPanel(props: Props) {
   const [meetingTitle, setMeetingTitle] = useState('');
   const [meetingDuration, setMeetingDuration] = useState(30);
   const [meetingEmail, setMeetingEmail] = useState('');
+  const [showVoicemail, setShowVoicemail] = useState(false);
+  const [voicemailSent, setVoicemailSent] = useState(false);
 
   // Reset form when we move on from wrap_up to another item.
   useEffect(() => {
@@ -84,6 +98,8 @@ export function SessionDispositionPanel(props: Props) {
       setMeetingTitle('');
       setMeetingDuration(30);
       setMeetingEmail('');
+      setShowVoicemail(false);
+      setVoicemailSent(false);
     }
   }, [phase, activeItem?.id]);
 
@@ -267,6 +283,45 @@ export function SessionDispositionPanel(props: Props) {
             </div>
           </>
         )}
+
+        {/* Voicemail drop — same conditional-section shape as the callback and
+            meeting blocks above, so wrap-up reads as one column of steps. */}
+        {activeItem && (
+          <>
+            <Separator />
+            {voicemailSent ? (
+              <div className='text-muted-foreground flex items-center gap-2 text-xs'>
+                <Check className='h-3.5 w-3.5' />
+                {tVoicemail('sent')}
+              </div>
+            ) : showVoicemail ? (
+              <SessionVoicemailSection
+                sessionId={sessionId}
+                itemId={activeItem.id}
+                token={token}
+                destinationLabel={
+                  activeItem.displayName || activeItem.phoneNumberMasked
+                }
+                onSent={() => {
+                  setVoicemailSent(true);
+                  setShowVoicemail(false);
+                }}
+                onCancel={() => setShowVoicemail(false)}
+              />
+            ) : (
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                className='w-full justify-start'
+                onClick={() => setShowVoicemail(true)}
+              >
+                <Voicemail className='mr-2 h-4 w-4' />
+                {tVoicemail('title')}
+              </Button>
+            )}
+          </>
+        )}
       </div>
 
       <div className='mt-auto flex flex-col gap-2 pt-4'>
@@ -283,5 +338,33 @@ export function SessionDispositionPanel(props: Props) {
         </Button>
       </div>
     </div>
+  );
+}
+
+/**
+ * Own component so the transport hook is never called conditionally — the
+ * parent renders this only once the agent opens the voicemail step.
+ */
+function SessionVoicemailSection(props: {
+  sessionId: string;
+  itemId: string;
+  token: string;
+  destinationLabel: string;
+  onSent: () => void;
+  onCancel: () => void;
+}) {
+  const transport = useSessionVoicemailTransport({
+    sessionId: props.sessionId,
+    itemId: props.itemId,
+    token: props.token
+  });
+
+  return (
+    <VoicemailPanel
+      transport={transport}
+      destinationLabel={props.destinationLabel}
+      onSent={props.onSent}
+      onCancel={props.onCancel}
+    />
   );
 }

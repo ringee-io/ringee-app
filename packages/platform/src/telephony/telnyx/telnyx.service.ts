@@ -964,17 +964,106 @@ export class TelnyxService implements TelephonyService {
     );
   }
 
-  async playbackStart(callControlId: string, audioUrl: string): Promise<void> {
+  async playbackStart(
+    callControlId: string,
+    audioUrl: string,
+    clientState?: Record<string, unknown>,
+  ): Promise<void> {
     await this.telnyxClient.post(
       `/calls/${callControlId}/actions/playback_start`,
       {
         audio_url: audioUrl,
         client_state: Buffer.from(
-          JSON.stringify({ action: "voicemail_drop" }),
+          JSON.stringify(clientState ?? { action: "voicemail_drop" }),
         ).toString("base64"),
         command_id: crypto.randomUUID(),
       },
     );
+  }
+
+  /**
+   * Originate an outbound call. Unlike the WebRTC path (where the browser
+   * places the leg and we only observe webhooks), this call has no human on
+   * our side — it exists to reach the destination's voicemail and play an
+   * audio asset, so answering-machine detection drives the whole flow.
+   */
+  async dial(params: {
+    to: string;
+    from: string;
+    connectionId?: string;
+    clientState?: Record<string, unknown>;
+    answeringMachineDetection?:
+      | "disabled"
+      | "detect"
+      | "detect_beep"
+      | "detect_words"
+      | "greeting_end"
+      | "premium";
+    timeoutSecs?: number;
+    timeLimitSecs?: number;
+  }): Promise<{
+    callControlId: string;
+    callSessionId: string | null;
+    callLegId: string | null;
+  }> {
+    // NOT TELNYX_CONNECTION_ID: that one backs the WebRTC SIP credentials
+    // (`POST /telephony_credentials`), and `POST /calls` rejects anything that
+    // is not a Call Control App with a webhook URL (error 10015).
+    const connectionId =
+      params.connectionId ?? apiConfiguration.TELNYX_CALL_CONTROL_APP_ID;
+
+    try {
+      const { data } = await this.telnyxClient.post("/calls", {
+        to: params.to,
+        from: params.from,
+        connection_id: connectionId,
+        command_id: crypto.randomUUID(),
+        ...(params.answeringMachineDetection
+          ? { answering_machine_detection: params.answeringMachineDetection }
+          : {}),
+        ...(params.timeoutSecs ? { timeout_secs: params.timeoutSecs } : {}),
+        ...(params.timeLimitSecs
+          ? { time_limit_secs: params.timeLimitSecs }
+          : {}),
+        ...(params.clientState
+          ? {
+              client_state: Buffer.from(
+                JSON.stringify(params.clientState),
+              ).toString("base64"),
+            }
+          : {}),
+      });
+
+      return {
+        callControlId: data?.call_control_id,
+        callSessionId: data?.call_session_id ?? null,
+        callLegId: data?.call_leg_id ?? null,
+      };
+    } catch (error: any) {
+      const telnyxError = error?.response?.data?.errors?.[0];
+      // 10015 is almost always a misconfiguration rather than a runtime fault,
+      // so name the variable to fix instead of surfacing a bare provider code.
+      if (telnyxError?.code === "10015") {
+        this.logger.error(
+          `Telnyx rejected connection_id ${connectionId} for outbound dial. ` +
+            `TELNYX_CALL_CONTROL_APP_ID must be a Call Control Application ` +
+            `(Telnyx → Voice → Call Control) with a webhook URL set — not the ` +
+            `Credential Connection used for WebRTC.`,
+        );
+        throw new HttpException(
+          "Outbound dialing is not configured: TELNYX_CALL_CONTROL_APP_ID must " +
+            "point to a Telnyx Call Control Application with a webhook URL.",
+          500,
+        );
+      }
+      this.logger.error(
+        `Telnyx dial failed: ${telnyxError?.detail || error?.message}`,
+      );
+      throw new HttpException(
+        telnyxError?.detail || "Failed to place the call",
+        error?.response?.status || 500,
+      );
+    }
   }
 
   // ────────────────────────────────────────────────────────────

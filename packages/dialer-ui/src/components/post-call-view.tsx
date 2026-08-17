@@ -126,6 +126,7 @@ export function PostCallView({ onClose }: PostCallViewProps) {
     callContactId,
     callId,
     callSessionId,
+    callPhoneNumber,
     setOutcome,
     setOutcomeNote,
     setMeetingBooked,
@@ -134,6 +135,8 @@ export function PostCallView({ onClose }: PostCallViewProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [showBooking, setShowBooking] = useState(false);
   const [showCallback, setShowCallback] = useState(false);
+  const [showVoicemail, setShowVoicemail] = useState(false);
+  const [voicemailSent, setVoicemailSent] = useState(false);
 
   const durationLabel = `${Math.floor(callDuration / 60)}:${(callDuration % 60).toString().padStart(2, "0")}`;
 
@@ -183,6 +186,12 @@ export function PostCallView({ onClose }: PostCallViewProps) {
     onClose();
   };
 
+  const handleVoicemailSent = () => {
+    setVoicemailSent(true);
+    setShowVoicemail(false);
+    notify("success", "Voicemail on its way");
+  };
+
   const handleOutcomeClick = (id: CallOutcome) => {
     setOutcome(id);
     // Selecting `callback_scheduled` immediately opens the date/time picker.
@@ -195,6 +204,15 @@ export function PostCallView({ onClose }: PostCallViewProps) {
       setShowCallback(false);
     }
   };
+
+  // Always on offer during wrap-up, matching the campaign and session dialers
+  // — the call is over, so a drop is just as valid after "interested" as
+  // after "no answer".
+  const showVoicemailPrompt =
+    !voicemailSent &&
+    !showVoicemail &&
+    !!slots.renderVoicemailDrop &&
+    !!callPhoneNumber;
 
   const showBookingPrompt =
     !meetingBooked &&
@@ -233,6 +251,16 @@ export function PostCallView({ onClose }: PostCallViewProps) {
           <PhoneCall className="h-4 w-4 text-amber-500" />
           <span className="text-sm font-medium text-amber-600">
             {labels.callbackBadge}
+          </span>
+        </div>
+      )}
+
+      {/* Voicemail sent badge */}
+      {voicemailSent && (
+        <div className="flex items-center gap-2 rounded-lg border border-purple-500/20 bg-purple-500/5 px-3 py-2.5">
+          <Voicemail className="h-4 w-4 text-purple-500" />
+          <span className="text-sm font-medium text-purple-600">
+            Voicemail sent
           </span>
         </div>
       )}
@@ -336,6 +364,28 @@ export function PostCallView({ onClose }: PostCallViewProps) {
           callId,
           onScheduled: handleCallbackScheduled,
           onCancel: () => setShowCallback(false),
+        })}
+
+      {/* Voicemail drop prompt */}
+      {showVoicemailPrompt && (
+        <button
+          onClick={() => setShowVoicemail(true)}
+          className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-purple-500/30 bg-purple-500/5 px-3 py-2.5 text-sm font-medium text-purple-600 transition-colors hover:border-purple-500/50 hover:bg-purple-500/10"
+        >
+          <Voicemail className="h-4 w-4" />
+          Send a voicemail
+        </button>
+      )}
+
+      {/* Inline voicemail picker/recorder (host-provided) */}
+      {showVoicemail &&
+        callPhoneNumber &&
+        slots.renderVoicemailDrop?.({
+          phoneNumber: callPhoneNumber,
+          contactId: callContactId,
+          callId,
+          onSent: handleVoicemailSent,
+          onCancel: () => setShowVoicemail(false),
         })}
 
       {/* Transcription (host-provided) */}

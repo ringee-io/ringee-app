@@ -10,6 +10,7 @@ import { InCallScript } from './in-call-script';
 import { InCallContactInfo } from './in-call-contact-info';
 import { BookMeetingForm } from './book-meeting.form';
 import { ScheduleCallbackForm } from './schedule-callback.form';
+import { VoicemailDropSlot } from '@/features/voicemail';
 import {
   CallSubtitles,
   LiveTranscriptPanel,
@@ -89,6 +90,22 @@ export function FrontendDialerProvider({ children }: { children: ReactNode }) {
           open={open}
           onOpenChange={onOpenChange}
           callId={callId}
+        />
+      ),
+      renderVoicemailDrop: ({
+        phoneNumber,
+        contactId,
+        callId,
+        onSent,
+        onCancel
+      }) => (
+        <VoicemailDropSlot
+          phoneNumber={phoneNumber}
+          contactId={contactId}
+          callId={callId}
+          source='web'
+          onSent={onSent}
+          onCancel={onCancel}
         />
       ),
       renderTranscribeButton: ({ callId, mode, onView }) =>

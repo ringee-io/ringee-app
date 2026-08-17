@@ -199,11 +199,13 @@ function VoiceDropCard({ event }: { event: InboxEvent }) {
   return (
     <div className='mx-auto w-full max-w-md rounded-xl border bg-violet-50/40 p-3 shadow-sm dark:bg-violet-950/20'>
       <div className='flex items-start gap-3'>
-        <div className='flex h-9 w-9 items-center justify-center rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-200'>
+        <div className='flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-200'>
           <Mic className='h-4 w-4' />
         </div>
-        <div className='flex-1'>
-          <div className='flex items-center gap-2'>
+        <div className='min-w-0 flex-1'>
+          {/* Wraps instead of overflowing: the asset name can be long and the
+              inbox column gets narrow on a phone. */}
+          <div className='flex flex-wrap items-center gap-x-2 gap-y-1'>
             <p className='text-sm font-medium'>{t('voicedropSent')}</p>
             <span className='text-muted-foreground text-xs'>
               {formatTime(event.occurredAt)}
@@ -215,9 +217,22 @@ function VoiceDropCard({ event }: { event: InboxEvent }) {
             )}
           </div>
           {event.body && (
-            <p className='text-muted-foreground mt-1 text-xs'>{event.body}</p>
+            <p className='text-muted-foreground mt-1 text-xs break-words'>
+              {event.body}
+            </p>
           )}
-          {event.audioUrl && <EncryptedAudio url={event.audioUrl} />}
+          {/* Plain <audio>, NOT EncryptedAudio: a voicemail asset is stored
+              unencrypted because Telnyx fetches it by URL to play it into the
+              mailbox — it could never read an encrypted file. Call recordings
+              are the encrypted ones. */}
+          {event.audioUrl && (
+            <audio
+              controls
+              preload='none'
+              src={event.audioUrl}
+              className='mt-2 h-8 w-full min-w-0'
+            />
+          )}
         </div>
       </div>
     </div>

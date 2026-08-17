@@ -16,7 +16,8 @@ export function ShowActiveCall() {
   const t = useTranslations('calls.activeCallStatus');
   const dialerSessionId = useDialerSessionStore((s) => s.sessionId);
   const { activeCall, setActiveCall } = useTelnyxStore();
-  const { postCallPhase, reset, setCallContact } = useCallStore();
+  const { postCallPhase, reset, setCallContact, setCallPhoneNumber } =
+    useCallStore();
   const api = useApi();
   const {
     isMuted,
@@ -65,6 +66,9 @@ export function ShowActiveCall() {
     resolvedNumberRef.current = destNumber;
     setContactId(null);
     setContactName(undefined);
+    // Kept in the store because the post-call voicemail drop places a brand
+    // new leg, long after the WebRTC call object is gone.
+    setCallPhoneNumber(destNumber);
 
     // Find or create contact by phone number
     api
@@ -78,7 +82,7 @@ export function ShowActiveCall() {
       .catch(() => {
         // Silently fail - contactId will remain null
       });
-  }, [activeCall?.options?.destinationNumber, api]);
+  }, [activeCall?.options?.destinationNumber, api, setCallPhoneNumber]);
 
   // Sync resolved contact into the call store for post-call phase
   useEffect(() => {

@@ -38,7 +38,41 @@ export type TelephonyService = {
   ): Promise<void>;
   stopStreaming(callControlId: string): Promise<void>;
   downloadRecording(url: string): Promise<ArrayBuffer>;
-  playbackStart(callControlId: string, audioUrl: string): Promise<void>;
+  playbackStart(
+    callControlId: string,
+    audioUrl: string,
+    clientState?: Record<string, unknown>,
+  ): Promise<void>;
+  /**
+   * Originate an outbound call server-side. Used by voicemail drops, which
+   * dial the prospect with answering-machine detection on and play an audio
+   * asset into the greeting instead of connecting a human agent.
+   */
+  dial(params: {
+    to: string;
+    from: string;
+    connectionId?: string;
+    clientState?: Record<string, unknown>;
+    /**
+     * `greeting_end` waits for the machine's greeting to finish before Telnyx
+     * emits `call.machine.greeting.ended` — the cue to start playback.
+     */
+    answeringMachineDetection?:
+      | "disabled"
+      | "detect"
+      | "detect_beep"
+      | "detect_words"
+      | "greeting_end"
+      | "premium";
+    /** Seconds to keep ringing before giving up. */
+    timeoutSecs?: number;
+    /** Hard cap (seconds) after which the provider auto-ends the call. */
+    timeLimitSecs?: number;
+  }): Promise<{
+    callControlId: string;
+    callSessionId: string | null;
+    callLegId: string | null;
+  }>;
   sendMessage(params: {
     from: string;
     to: string;

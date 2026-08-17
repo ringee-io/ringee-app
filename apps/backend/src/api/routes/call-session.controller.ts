@@ -10,7 +10,10 @@ import {
   Patch,
   Post,
   Query,
+  UseInterceptors,
+  UploadedFile,
 } from "@nestjs/common";
+import { FileInterceptor } from "@nestjs/platform-express";
 import {
   CurrentUser,
   CurrentUserData,
@@ -94,6 +97,20 @@ interface SkipBody extends TokenBody {
 interface StopRecordingBody extends TokenBody {
   recordingId: string;
 }
+
+interface CreateVoicemailAssetBody extends TokenBody {
+  name?: string;
+  description?: string;
+  fileUrl: string;
+  durationSec?: number;
+}
+
+interface SendVoicemailBody extends TokenBody {
+  assetId: string;
+}
+
+/** Voicemail greetings are short; 15 MB fits a 3-minute recording easily. */
+const MAX_VOICEMAIL_AUDIO_BYTES = 15 * 1024 * 1024;
 
 interface SafeSessionResponse {
   callSessionId: string;
@@ -425,6 +442,92 @@ export class CallSessionController {
       sessionId,
       itemId,
       body.recordingId,
+    );
+  }
+
+  // ── Voicemail drops (magic-link agents) ────────────────────
+
+  /** The session owner's reusable voicemail bucket. */
+  @Public()
+  @Get(":id/voicemail-assets")
+  async listVoicemailAssets(
+    @Param("id") sessionId: string,
+    @Query("token") token: string,
+  ) {
+    if (!token) {
+      throw new BadRequestException("token is required");
+    }
+    return this.service.listVoicemailAssetsForToken(token, sessionId);
+  }
+
+  /** Stores a greeting recorded in the session dialer and returns its URL. */
+  @Public()
+  @Post(":id/voicemail-assets/upload")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: { fileSize: MAX_VOICEMAIL_AUDIO_BYTES },
+      fileFilter: (_req, file, cb) => {
+        if (/^audio\//.test(file.mimetype)) {
+          cb(null, true);
+        } else {
+          cb(new BadRequestException("Only audio files are allowed"), false);
+        }
+      },
+    }),
+  )
+  async uploadVoicemailAudio(
+    @Param("id") sessionId: string,
+    @Body("token") token: string,
+    @UploadedFile()
+    file: { buffer: Buffer; originalname: string; mimetype: string },
+  ) {
+    if (!token) {
+      throw new BadRequestException("token is required");
+    }
+    if (!file) {
+      throw new BadRequestException("No file uploaded");
+    }
+    return this.service.uploadVoicemailAudioForToken(token, sessionId, {
+      buffer: file.buffer,
+      contentType: file.mimetype,
+      filename: file.originalname,
+    });
+  }
+
+  /** Adds an uploaded greeting to the owner's bucket so it can be reused. */
+  @Public()
+  @Post(":id/voicemail-assets")
+  async createVoicemailAsset(
+    @Param("id") sessionId: string,
+    @Body() body: CreateVoicemailAssetBody,
+  ) {
+    if (!body?.token || !body.fileUrl) {
+      throw new BadRequestException("token and fileUrl are required");
+    }
+    return this.service.createVoicemailAssetForToken(body.token, sessionId, {
+      name: body.name,
+      description: body.description,
+      fileUrl: body.fileUrl,
+      durationSec: body.durationSec,
+    });
+  }
+
+  /** Sends a voicemail to the item's contact once the call has ended. */
+  @Public()
+  @Post(":id/items/:itemId/voicemail")
+  async sendVoicemail(
+    @Param("id") sessionId: string,
+    @Param("itemId") itemId: string,
+    @Body() body: SendVoicemailBody,
+  ) {
+    if (!body?.token || !body.assetId) {
+      throw new BadRequestException("token and assetId are required");
+    }
+    return this.service.sendVoicemailForItem(
+      body.token,
+      sessionId,
+      itemId,
+      body.assetId,
     );
   }
 }

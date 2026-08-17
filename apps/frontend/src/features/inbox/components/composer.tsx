@@ -18,20 +18,22 @@ import {
   MessageSquare,
   Paperclip,
   X,
-  FileText
+  FileText,
+  Voicemail
 } from 'lucide-react';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { InboxThread } from '../types';
 import { useNumbers, useThreadActions } from '../hooks/use-inbox';
 import { useTranslations } from 'next-intl';
+import { VoicemailDropSlot } from '@/features/voicemail';
 
 interface Props {
   thread: InboxThread;
   onAfterAction: () => void;
 }
 
-type Mode = 'sms' | 'note';
+type Mode = 'sms' | 'note' | 'voicemail';
 
 interface Attachment {
   url: string;
@@ -44,6 +46,7 @@ const IMAGE_RE = /\.(png|jpe?g|gif|webp|bmp|heic)$/i;
 
 export function Composer({ thread, onAfterAction }: Props) {
   const t = useTranslations('inbox.composer');
+  const tVoicemail = useTranslations('voicemail');
   const api = useApi();
   const [mode, setMode] = useState<Mode>('sms');
   const [text, setText] = useState('');
@@ -158,12 +161,14 @@ export function Composer({ thread, onAfterAction }: Props) {
 
   return (
     <div className='bg-background border-t'>
-      <div className='flex items-center gap-2 px-3 pt-3'>
+      {/* Four controls no longer fit on one line on a phone, so the mode tabs
+          wrap and the number picker drops to its own row. */}
+      <div className='flex flex-wrap items-center gap-2 px-3 pt-3'>
         <button
           type='button'
           onClick={() => setMode('sms')}
           className={cn(
-            'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs',
+            'flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs',
             mode === 'sms'
               ? 'bg-primary text-primary-foreground'
               : 'bg-muted text-muted-foreground'
@@ -175,7 +180,7 @@ export function Composer({ thread, onAfterAction }: Props) {
           type='button'
           onClick={() => setMode('note')}
           className={cn(
-            'flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs',
+            'flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs',
             mode === 'note'
               ? 'bg-yellow-400 text-yellow-950'
               : 'bg-muted text-muted-foreground'
@@ -183,14 +188,26 @@ export function Composer({ thread, onAfterAction }: Props) {
         >
           <StickyNote className='h-3.5 w-3.5' /> {t('internalNote')}
         </button>
+        <button
+          type='button'
+          onClick={() => setMode('voicemail')}
+          className={cn(
+            'flex shrink-0 items-center gap-1.5 rounded-md px-2.5 py-1 text-xs',
+            mode === 'voicemail'
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-muted text-muted-foreground'
+          )}
+        >
+          <Voicemail className='h-3.5 w-3.5' /> {tVoicemail('openAction')}
+        </button>
 
         {mode === 'sms' && numbers.length > 0 && (
-          <div className='ml-auto'>
+          <div className='ml-auto min-w-0'>
             <Select
               value={fromNumber ?? undefined}
               onValueChange={(v) => setFromNumber(v)}
             >
-              <SelectTrigger className='h-7 w-[180px] text-xs'>
+              <SelectTrigger className='h-7 w-full max-w-[180px] text-xs sm:w-[180px]'>
                 <SelectValue placeholder={t('selectNumber')} />
               </SelectTrigger>
               <SelectContent>
@@ -248,7 +265,35 @@ export function Composer({ thread, onAfterAction }: Props) {
         </div>
       )}
 
-      <div className='flex items-end gap-2 p-3'>
+      {mode === 'voicemail' && (
+        <div className='p-3'>
+          <VoicemailDropSlot
+            phoneNumber={
+              thread.participantNumberE164 ?? thread.participantNumber
+            }
+            contactId={thread.contactId}
+            source='inbox'
+            destinationLabel={
+              thread.contact?.fullName ??
+              thread.contact?.name ??
+              thread.participantNumberE164 ??
+              thread.participantNumber
+            }
+            onSent={() => {
+              setMode('sms');
+              onAfterAction();
+            }}
+            onCancel={() => setMode('sms')}
+          />
+        </div>
+      )}
+
+      <div
+        className={cn(
+          'flex items-end gap-2 p-3',
+          mode === 'voicemail' && 'hidden'
+        )}
+      >
         {mode === 'sms' && (
           <>
             <input

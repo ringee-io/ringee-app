@@ -214,8 +214,38 @@ export class TelephonyService implements TelephonyServiceInterface {
     return this.getServiceProvider().downloadRecording(url);
   }
 
-  playbackStart(callControlId: string, audioUrl: string): Promise<void> {
-    return this.getServiceProvider().playbackStart(callControlId, audioUrl);
+  playbackStart(
+    callControlId: string,
+    audioUrl: string,
+    clientState?: Record<string, unknown>,
+  ): Promise<void> {
+    return this.getServiceProvider().playbackStart(
+      callControlId,
+      audioUrl,
+      clientState,
+    );
+  }
+
+  dial(params: {
+    to: string;
+    from: string;
+    connectionId?: string;
+    clientState?: Record<string, unknown>;
+    answeringMachineDetection?:
+      | "disabled"
+      | "detect"
+      | "detect_beep"
+      | "detect_words"
+      | "greeting_end"
+      | "premium";
+    timeoutSecs?: number;
+    timeLimitSecs?: number;
+  }): Promise<{
+    callControlId: string;
+    callSessionId: string | null;
+    callLegId: string | null;
+  }> {
+    return this.getServiceProvider().dial(params);
   }
 
   sendMessage(params: {

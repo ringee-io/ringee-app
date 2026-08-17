@@ -41,6 +41,7 @@ import { CrmCallLogService } from "../crm/crm-call-log.service";
 import { CallerIdRotationService } from "../caller-id-rotation/caller-id-rotation.service";
 import { UserService } from "../user.service";
 import { ConcurrentCallGuardService } from "../security";
+import { VoicemailDropService } from "../outbound/voicemail-drop.service";
 
 const MIN_CREDIT_BALANCE_TO_CALL = 0.01;
 const DEFAULT_EXPIRES_IN_MINUTES = 60;
@@ -117,6 +118,7 @@ export class CallSessionService {
     private readonly crmCallLog: CrmCallLogService,
     private readonly userService: UserService,
     private readonly concurrentCallGuard: ConcurrentCallGuardService,
+    private readonly voicemailDropService: VoicemailDropService,
   ) {}
 
   // ── Ownership & access ──────────────────────────────────────
@@ -998,6 +1000,89 @@ export class CallSessionService {
       .updateRecording(recordingId, { status: "processing" })
       .catch(() => undefined);
     return { recordingId };
+  }
+
+  // ── Voicemail drops (magic-link agents) ─────────────────────
+  //
+  // The session agent is not a Clerk user, so every voicemail action is
+  // re-authorized from the magic-link token and then executed under the
+  // session owner's ownership context. That keeps the bucket, the credit
+  // spend and the caller ID attributed to the workspace that opened the
+  // session, never to the anonymous agent.
+
+  async listVoicemailAssetsForToken(rawToken: string, sessionId: string) {
+    const session = await this.requireSessionForToken(rawToken, sessionId);
+    if (!session.organizationId) return [];
+    return this.voicemailDropService.listAssets(session.organizationId);
+  }
+
+  async uploadVoicemailAudioForToken(
+    rawToken: string,
+    sessionId: string,
+    file: { buffer: Buffer; contentType: string; filename?: string },
+  ) {
+    await this.requireSessionForToken(rawToken, sessionId);
+    return this.voicemailDropService.uploadAudio(file);
+  }
+
+  async createVoicemailAssetForToken(
+    rawToken: string,
+    sessionId: string,
+    data: {
+      name?: string | null;
+      description?: string | null;
+      fileUrl: string;
+      durationSec?: number;
+    },
+  ) {
+    const session = await this.requireSessionForToken(rawToken, sessionId);
+    return this.voicemailDropService.createAsset(
+      this.ownershipContext(session),
+      data,
+    );
+  }
+
+  /**
+   * Send a voicemail to the item's contact after the call has ended. The
+   * destination comes from the stored item, never from the request, so a
+   * leaked token cannot be used to dial arbitrary numbers.
+   */
+  async sendVoicemailForItem(
+    rawToken: string,
+    sessionId: string,
+    itemId: string,
+    assetId: string,
+  ) {
+    const session = await this.requireSessionForToken(rawToken, sessionId);
+    const item = await this.repo.findItemById(itemId);
+    if (!item || item.callSessionId !== sessionId) {
+      throw new NotFoundException("Item not found in session");
+    }
+    if (!item.phoneNumber) {
+      throw new BadRequestException("Item has no phone number");
+    }
+
+    return this.voicemailDropService.sendVoicemail(
+      this.ownershipContext(session),
+      {
+        assetId,
+        toNumber: item.phoneNumber,
+        contactId: item.contactId,
+        callId: item.callId,
+        source: "session",
+      },
+    );
+  }
+
+  private async requireSessionForToken(
+    rawToken: string,
+    sessionId: string,
+  ): Promise<CallSession> {
+    const { session } = await this.tokenService.validateToken(rawToken);
+    if (session.id !== sessionId) {
+      throw new ForbiddenException("Session mismatch");
+    }
+    return session;
   }
 
   async skipItem(

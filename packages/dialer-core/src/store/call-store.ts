@@ -30,6 +30,11 @@ interface CallState {
   callContactId: string | null;
   callId: string | null;
   callSessionId: string | null;
+  /**
+   * The number that was dialed, in E.164. Post-call actions that place a new
+   * leg (a voicemail drop) need it, since by then the WebRTC call is gone.
+   */
+  callPhoneNumber: string | null;
 
   // In-call booking panel
   bookingPanelOpen: boolean;
@@ -46,6 +51,7 @@ interface CallState {
     contactId: string | null,
     contactName: string | null,
   ) => void;
+  setCallPhoneNumber: (phoneNumber: string | null) => void;
 
   // Post-call actions
   enterPostCallPhase: (data: {
@@ -54,6 +60,7 @@ interface CallState {
     contactId: string | null;
     callId: string | null;
     callSessionId: string | null;
+    phoneNumber?: string | null;
   }) => void;
   setOutcome: (outcome: CallOutcome | null) => void;
   setOutcomeNote: (note: string) => void;
@@ -78,6 +85,7 @@ const initialState = {
   callContactId: null,
   callId: null,
   callSessionId: null,
+  callPhoneNumber: null,
   bookingPanelOpen: false,
 };
 
@@ -92,6 +100,7 @@ export const useCallStore = create<CallState>((set) => ({
   setCallId: (id) => set({ callId: id }),
   setCallContact: (contactId, contactName) =>
     set({ callContactId: contactId, callContactName: contactName }),
+  setCallPhoneNumber: (phoneNumber) => set({ callPhoneNumber: phoneNumber }),
 
   enterPostCallPhase: (data) =>
     set((state) => ({
@@ -102,6 +111,7 @@ export const useCallStore = create<CallState>((set) => ({
       callContactId: data.contactId ?? state.callContactId,
       callId: data.callId ?? state.callId,
       callSessionId: data.callSessionId ?? state.callSessionId,
+      callPhoneNumber: data.phoneNumber ?? state.callPhoneNumber,
       bookingPanelOpen: false,
     })),
   setOutcome: (outcome) => set({ outcome }),

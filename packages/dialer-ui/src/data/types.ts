@@ -72,6 +72,18 @@ export interface DialerSlots {
     mode: "active" | "history";
     onView?: () => void;
   }) => ReactNode;
+  /**
+   * Post-call voicemail drop: pick a greeting from the workspace bucket (or
+   * record one on the spot) and send it as its own call. Absent on hosts that
+   * cannot record audio, in which case the post-call view hides the action.
+   */
+  renderVoicemailDrop?: (args: {
+    phoneNumber: string;
+    contactId?: string | null;
+    callId?: string | null;
+    onSent: () => void;
+    onCancel: () => void;
+  }) => ReactNode;
 }
 
 /** A few strings the web app localizes; English defaults keep the modal usable. */

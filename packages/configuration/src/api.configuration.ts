@@ -36,6 +36,15 @@ const apiConfiguration = {
   APP_ENCRYPTION_SECRET: process.env.APP_ENCRYPTION_SECRET!,
   TELNYX_API_KEY: process.env.TELNYX_API_KEY!,
   TELNYX_CONNECTION_ID: process.env.TELNYX_CONNECTION_ID!,
+  /**
+   * Call Control Application used to ORIGINATE calls server-side (voicemail
+   * drops). `POST /calls` accepts only a Call Control App with a webhook URL —
+   * a Credential Connection (what TELNYX_CONNECTION_ID usually is, since it
+   * backs the WebRTC SIP credentials) is rejected with error 10015. Falls back
+   * to TELNYX_CONNECTION_ID for accounts where both are the same resource.
+   */
+  TELNYX_CALL_CONTROL_APP_ID:
+    process.env.TELNYX_CALL_CONTROL_APP_ID || process.env.TELNYX_CONNECTION_ID,
   TELNYX_PUBLIC_KEY: process.env.TELNYX_PUBLIC_KEY,
   TELNYX_MESSAGING_PROFILE_ID: process.env.TELNYX_MESSAGING_PROFILE_ID,
   // Shared Outbound Voice Profile assigned to every desk-phone SIP connection

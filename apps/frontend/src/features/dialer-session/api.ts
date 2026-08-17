@@ -94,6 +94,16 @@ export interface CreditResponse {
   creditsOk: boolean;
 }
 
+export interface VoicemailAssetDto {
+  id: string;
+  name: string;
+  description: string | null;
+  fileUrl: string;
+  durationSec: number | null;
+  isDefault: boolean;
+  createdAt: string;
+}
+
 export class SessionApiError extends Error {
   constructor(
     public status: number,
@@ -209,5 +219,60 @@ export const sessionApi = {
     request<{ recordingId: string }>(
       `/call-sessions/${sessionId}/items/${itemId}/recording/stop`,
       { method: 'POST', body: JSON.stringify({ token, recordingId }) }
+    ),
+
+  // ── Voicemail drops ───────────────────────────────────────
+  // The session agent has no Clerk identity, so each of these re-presents the
+  // magic-link token and the backend runs it under the session owner.
+
+  listVoicemailAssets: (sessionId: string, token: string) =>
+    request<VoicemailAssetDto[]>(
+      `/call-sessions/${sessionId}/voicemail-assets?token=${encodeURIComponent(token)}`
+    ),
+
+  uploadVoicemailAudio: async (
+    sessionId: string,
+    token: string,
+    blob: Blob,
+    filename: string
+  ) => {
+    const fd = new FormData();
+    fd.append('token', token);
+    fd.append('file', blob, filename);
+    // No Content-Type header: the browser must set the multipart boundary.
+    const res = await fetch(
+      `${API_URL}/call-sessions/${sessionId}/voicemail-assets/upload`,
+      { method: 'POST', body: fd, cache: 'no-store' }
+    );
+    if (!res.ok) {
+      throw new SessionApiError(res.status, `Upload failed (${res.status})`);
+    }
+    return (await res.json()) as { url: string };
+  },
+
+  createVoicemailAsset: (
+    sessionId: string,
+    token: string,
+    body: {
+      name?: string;
+      description?: string;
+      fileUrl: string;
+      durationSec?: number;
+    }
+  ) =>
+    request<VoicemailAssetDto>(`/call-sessions/${sessionId}/voicemail-assets`, {
+      method: 'POST',
+      body: JSON.stringify({ token, ...body })
+    }),
+
+  sendVoicemail: (
+    sessionId: string,
+    itemId: string,
+    token: string,
+    assetId: string
+  ) =>
+    request<{ callId: string; assetId: string; assetName: string }>(
+      `/call-sessions/${sessionId}/items/${itemId}/voicemail`,
+      { method: 'POST', body: JSON.stringify({ token, assetId }) }
     )
 };

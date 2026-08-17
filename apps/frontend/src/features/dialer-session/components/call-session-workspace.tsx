@@ -114,6 +114,8 @@ export function CallSessionWorkspace({ token }: Props) {
             activeItem={activeItem}
             busy={busy}
             onSave={actions.saveOutcome}
+            sessionId={session.id}
+            token={token}
           />
         </div>
       </div>

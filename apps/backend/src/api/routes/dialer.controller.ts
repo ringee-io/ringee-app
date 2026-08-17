@@ -27,6 +27,7 @@ import {
   CampaignRepository,
   DispositionRepository,
   CampaignMemberRepository,
+  CallRepository,
 } from "@ringee/database";
 
 interface CurrentUserData {
@@ -47,6 +48,7 @@ export class DialerController {
     private readonly dispositionRepo: DispositionRepository,
     private readonly sseBridge: SSEBridgeService,
     private readonly campaignMemberRepo: CampaignMemberRepository,
+    private readonly callRepo: CallRepository,
   ) {}
 
   /**
@@ -228,13 +230,20 @@ export class DialerController {
     return result;
   }
 
+  /**
+   * Drop a stored greeting onto the attempt's still-live call. Once the call
+   * has ended, the post-call flow sends the voicemail as its own outbound
+   * drop through `POST /voicemail-assets/send` instead.
+   */
   @Post("voicemail-drop")
   async voicemailDrop(
-    @Body() body: { callAttemptId: string; assetId?: string },
+    @Body() body: { callAttemptId: string; assetId: string },
     @CurrentUser() user: CurrentUserData,
   ) {
     const orgId = this.requireOrg(user);
-    // For MVP, voicemail drop needs a callControlId. Get it from the attempt.
+    if (!body?.assetId) {
+      throw new BadRequestException("assetId is required");
+    }
     const attempt = await this.callAttemptService.getAttemptById(
       body.callAttemptId,
     );
@@ -247,8 +256,18 @@ export class DialerController {
         "Attempt does not belong to your organization",
       );
     }
-    // TODO: resolve callControlId from Call and trigger playbackStart
-    return { status: "voicemail_drop_requested" };
+    const call = await this.callRepo.findById(attempt.callId);
+    if (!call?.callControlId) {
+      throw new BadRequestException("No active call for this attempt");
+    }
+    if (call.organizationId !== orgId) {
+      throw new ForbiddenException("Call does not belong to your organization");
+    }
+    await this.voicemailDropService.dropVoicemail(
+      call.callControlId,
+      body.assetId,
+    );
+    return { status: "voicemail_drop_started" };
   }
 
   @Get("sessions/:sessionId/state")

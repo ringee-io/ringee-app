@@ -33,6 +33,7 @@ import { CallerIdRotationService } from "./caller-id-rotation/caller-id-rotation
 import { UserDeviceService } from "./user.device.service";
 import { OrganizationService } from "./organization.service";
 import { CallAttemptService } from "./outbound/call-attempt.service";
+import { VoicemailDropService } from "./outbound/voicemail-drop.service";
 import { CrmCallLogService } from "./crm/crm-call-log.service";
 import { InboxTimelineService } from "./inbox/inbox.timeline.service";
 import { CustomIntegrationOutboundService } from "./custom-integrations/custom-integration-outbound.service";
@@ -92,6 +93,7 @@ export class CallService implements OnModuleDestroy {
     private readonly pipelineFanout: PipelineFanoutService,
     private readonly concurrentCallGuard: ConcurrentCallGuardService,
     private readonly redis: RedisService,
+    private readonly voicemailDropService: VoicemailDropService,
   ) {}
 
   onModuleDestroy(): void {
@@ -661,6 +663,102 @@ export class CallService implements OnModuleDestroy {
     return organization?.id || null;
   }
 
+  /**
+   * Consume the events belonging to a server-originated voicemail drop.
+   *
+   * Returns true when the event was fully handled here. Only the leg's own
+   * choreography is claimed (answer → machine detection → playback → hangup
+   * command); `call.hangup` and `call.cost` deliberately fall through so a
+   * drop is completed, priced and charged like any other call.
+   */
+  private async handleVoicemailDropEvent(
+    event: TelnyxWebhookEvent,
+    callControlId: string,
+  ): Promise<boolean> {
+    const { event_type, payload } = event;
+
+    switch (event_type) {
+      case "call.initiated":
+      case "call.answered":
+      case "call.machine.detection.ended":
+      case "call.machine.greeting.ended":
+      case "call.machine.premium.greeting.ended":
+      case "call.playback.started":
+      case "call.playback.ended":
+        break;
+      default:
+        return false;
+    }
+
+    const dropState = this.voicemailDropService.parseClientState(
+      payload?.client_state,
+    );
+    const isPlayback = this.voicemailDropService.isPlaybackState(
+      payload?.client_state,
+    );
+    if (!dropState && !isPlayback) {
+      return false;
+    }
+
+    switch (event_type) {
+      case "call.initiated":
+        // The Call row was written at dial time — nothing to adopt, and the
+        // WebRTC attribution path below would drop this leg anyway.
+        return true;
+
+      case "call.answered":
+        // Status only: a drop must not trigger recording, transcription or
+        // answer-rate credit for the presented caller ID.
+        await this.callRepository
+          .updateStatus(callControlId, CallStatus.answered)
+          .catch((err) =>
+            this.logger.warn(
+              `Failed to mark voicemail drop ${callControlId} answered: ${err.message}`,
+            ),
+          );
+        return true;
+
+      case "call.machine.detection.ended": {
+        // A drop exists to land in the mailbox. `machine` is the only verdict
+        // that leads to playback — and even then we wait for the greeting to
+        // finish, because talking over it means the mailbox records a message
+        // that starts mid-sentence. Anything else (a human picked up, or
+        // Telnyx could not tell) ends the leg without playing: a wrong guess
+        // here means a stranger answers to silence.
+        const result = payload?.result;
+        if (result !== "machine") {
+          this.logger.log(
+            `📼 Voicemail drop ${callControlId} not delivered (AMD result: ${
+              result ?? "unknown"
+            }) — hanging up without playback`,
+          );
+          await this.voicemailDropService.abortDrop(callControlId);
+        }
+        return true;
+      }
+
+      case "call.machine.greeting.ended":
+      case "call.machine.premium.greeting.ended":
+        if (dropState) {
+          await this.voicemailDropService.handleGreetingEnded(
+            callControlId,
+            dropState,
+          );
+        }
+        return true;
+
+      case "call.playback.started":
+        return true;
+
+      case "call.playback.ended":
+        await this.voicemailDropService.handlePlaybackEnded(callControlId);
+        return true;
+
+      default:
+        return false;
+    }
+  }
+
   async handleTelnyxEvent(event: TelnyxWebhookEvent) {
     const { event_type, payload } = event;
 
@@ -672,6 +770,14 @@ export class CallService implements OnModuleDestroy {
     }
 
     this.logger.debug(`📨 Evento Telnyx recibido: ${event_type}`);
+
+    // Voicemail drops are the one outbound leg we originate server-side: the
+    // Call row already exists and answering-machine detection — not a human
+    // agent — drives the leg. Everything up to hangup is handled here so the
+    // WebRTC-shaped logic below never sees it.
+    if (await this.handleVoicemailDropEvent(event, callControlId)) {
+      return;
+    }
 
     switch (event_type) {
       case "call.initiated":

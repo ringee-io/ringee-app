@@ -71,25 +71,19 @@ export const navGroups: NavGroup[] = [
       },
     ],
   },
-  // Temporarily hidden until messaging works reliably. "Call" moved to General.
-  // Restore this group (and the Inbox unread badge in app-sidebar.tsx) when the
-  // Inbox is ready — the /dashboard/inbox route still exists.
-  // {
-  //   label: "Communication",
-  //   items: [
-  //     {
-  //       title: "Inbox",
-  //       url: "/dashboard/inbox",
-  //       icon: "inbox",
-  //       shortcut: ["i", "b"],
-  //       isActive: false,
-  //       items: [],
-  //     },
-  //   ],
-  // },
   {
     label: "Outreach",
     items: [
+      // Inbound replies to outreach (SMS, missed calls, voicemails) land here,
+      // so the Inbox sits alongside the campaigns that generate them.
+      {
+        title: "Inbox",
+        url: "/dashboard/inbox",
+        icon: "inbox",
+        shortcut: ["i", "b"],
+        isActive: false,
+        items: [],
+      },
       {
         title: "Campaigns",
         url: "/dashboard/campaigns",

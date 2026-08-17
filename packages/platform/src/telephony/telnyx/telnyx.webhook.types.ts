@@ -10,6 +10,11 @@ export type TelnyxEventType =
   | "call.recording.error"
   | "call.transcription"
   | "call.cost"
+  | "call.machine.detection.ended"
+  | "call.machine.greeting.ended"
+  | "call.machine.premium.greeting.ended"
+  | "call.playback.started"
+  | "call.playback.ended"
   | "streaming.started"
   | "streaming.stopped"
   | "streaming.failed";
@@ -97,6 +102,31 @@ export interface StreamingPayload extends TelnyxBasePayload {
   /** Present on streaming.failed — why Telnyx could not stream the media. */
   failure_reason?: string;
 }
+
+/**
+ * Answering-machine detection verdict, emitted once per leg dialed with
+ * `answering_machine_detection`. Voicemail drops branch on it: `human` ends
+ * the leg, `machine` waits for the greeting to finish.
+ */
+export interface CallMachineDetectionPayload extends TelnyxBasePayload {
+  result?: "human" | "machine" | "not_sure" | "silence";
+  from?: string;
+  to?: string;
+}
+
+/** Fired when the detected machine's greeting has finished playing. */
+export interface CallMachineGreetingPayload extends TelnyxBasePayload {
+  result?: "ended" | "not_sure";
+  from?: string;
+  to?: string;
+}
+
+export interface CallPlaybackPayload extends TelnyxBasePayload {
+  media_url?: string;
+  media_name?: string;
+  overlay?: boolean;
+  status?: string;
+}
 // ======================================================
 // ✅ ENVELOPE GENERAL
 // ======================================================
@@ -135,6 +165,21 @@ export type TelnyxWebhookEvent =
     })
   | (TelnyxWebhookEnvelope<CallCostPayload> & {
       event_type: "call.cost";
+    })
+  | (TelnyxWebhookEnvelope<CallMachineDetectionPayload> & {
+      event_type: "call.machine.detection.ended";
+    })
+  | (TelnyxWebhookEnvelope<CallMachineGreetingPayload> & {
+      event_type: "call.machine.greeting.ended";
+    })
+  | (TelnyxWebhookEnvelope<CallMachineGreetingPayload> & {
+      event_type: "call.machine.premium.greeting.ended";
+    })
+  | (TelnyxWebhookEnvelope<CallPlaybackPayload> & {
+      event_type: "call.playback.started";
+    })
+  | (TelnyxWebhookEnvelope<CallPlaybackPayload> & {
+      event_type: "call.playback.ended";
     })
   | (TelnyxWebhookEnvelope<StreamingPayload> & {
       event_type: "streaming.started";
