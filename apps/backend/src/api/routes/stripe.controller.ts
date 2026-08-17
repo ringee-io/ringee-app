@@ -28,7 +28,9 @@ import {
   UserService,
   OrganizationService,
   SubscriptionService,
+  BillingNotificationService,
 } from "@ringee/services";
+import type { FailedSubscriptionKind } from "@ringee/services";
 import { apiConfiguration } from "@ringee/configuration";
 import {
   CreateCreditCheckoutDto,
@@ -70,6 +72,7 @@ export class StripeController {
     private readonly userService: UserService,
     private readonly organizationService: OrganizationService,
     private readonly subscriptionService: SubscriptionService,
+    private readonly billingNotifications: BillingNotificationService,
     private readonly triggerLoop: TriggerLoopEventPublisher,
     private readonly stripeAbuse: StripeAbuseProtectionService,
   ) {}
@@ -901,6 +904,44 @@ export class StripeController {
                 );
               }
             }
+          } else if (subscriptionId) {
+            // A renewal was declined (`subscription_cycle`, or an amount change
+            // mid-cycle). Stripe will retry on its dunning schedule and then
+            // cancel, so warn the owner now — while a new card can still save
+            // the number / funding / plan. The first invoice is excluded: the
+            // user is on the checkout screen and sees the decline there.
+            const info =
+              await this.stripeService.getSubscriptionMetadata(subscriptionId);
+            const metadata = info.metadata;
+
+            const kind: FailedSubscriptionKind =
+              metadata.fn === "creditSubscription"
+                ? "credit_funding"
+                : metadata.phoneNumber
+                  ? "phone_number"
+                  : metadata.type === "organization"
+                    ? "organization"
+                    : "unknown";
+
+            await this.billingNotifications.notifySubscriptionPaymentFailed({
+              userId: metadata.userId || null,
+              invoiceId: invoice.id ?? `sub:${subscriptionId}`,
+              kind,
+              phoneNumber: metadata.phoneNumber || null,
+              amountDue:
+                invoice.amount_due != null ? invoice.amount_due / 100 : null,
+              currency: invoice.currency ?? "usd",
+              attemptCount: invoice.attempt_count ?? 1,
+              nextAttemptAt: invoice.next_payment_attempt
+                ? new Date(invoice.next_payment_attempt * 1000)
+                : null,
+              hostedInvoiceUrl: invoice.hosted_invoice_url ?? null,
+              billingEmail: invoice.customer_email ?? null,
+            });
+
+            console.log(
+              `❌ Subscription renewal declined for user ${metadata.userId ?? "unknown"} (${kind}, invoice ${invoice.id}, attempt ${invoice.attempt_count ?? 1})`,
+            );
           }
           break;
         }

@@ -16,6 +16,7 @@ export * from "./recording.service";
 export * from "./recording-processing.service";
 export * from "./organization.service";
 export * from "./subscription.service";
+export * from "./billing-notification.service";
 export * from "./campaign.service";
 export * from "./outbound";
 export * from "./tag.service";

@@ -29,6 +29,7 @@ import { RecordingService } from "./recording.service";
 import { RecordingProcessingService } from "./recording-processing.service";
 import { OrganizationService } from "./organization.service";
 import { SubscriptionService } from "./subscription.service";
+import { BillingNotificationService } from "./billing-notification.service";
 import { CampaignService } from "./campaign.service";
 import { TagService } from "./tag.service";
 import { CallScriptService } from "./call-script.service";
@@ -168,6 +169,7 @@ const servicesProviders = [
   RecordingService,
   OrganizationService,
   SubscriptionService,
+  BillingNotificationService,
   CampaignService,
   TagService,
   CallScriptService,
