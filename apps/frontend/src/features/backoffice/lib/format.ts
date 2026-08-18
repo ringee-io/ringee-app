@@ -2,12 +2,16 @@ export function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error && err.message ? err.message : fallback;
 }
 
-export function formatNumber(n: number): string {
-  return n.toLocaleString();
+/**
+ * A metric the API did not send renders as zero rather than crashing the page.
+ * Matches how `formatDate` already tolerates a missing value.
+ */
+export function formatNumber(n: number | null | undefined): string {
+  return (n ?? 0).toLocaleString();
 }
 
-export function formatMoney(n: number): string {
-  return n.toLocaleString(undefined, {
+export function formatMoney(n: number | null | undefined): string {
+  return (n ?? 0).toLocaleString(undefined, {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   });
@@ -23,8 +27,8 @@ export function formatMoneyPrecise(n: number): string {
 }
 
 /** Values arrive from the API already scaled 0-100. */
-export function formatPercent(n: number): string {
-  return `${n.toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
+export function formatPercent(n: number | null | undefined): string {
+  return `${(n ?? 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}%`;
 }
 
 export function formatDuration(totalSeconds: number): string {

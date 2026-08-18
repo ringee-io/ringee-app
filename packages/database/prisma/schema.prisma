@@ -1529,6 +1529,32 @@ model CreditTopup {
   @@index([organizationId])
 }
 
+/// Idempotency ledger for credit GRANTS that are not Stripe purchases — offer
+/// rewards, promotional credits, goodwill adjustments. The mirror image of
+/// `CreditDebit`: the unique key and the balance increment commit in one
+/// transaction, so a retried approval can never credit a balance twice.
+/// Stripe top-ups keep their own ledger (`CreditTopup`) because they are keyed
+/// on payment objects instead.
+model CreditGrant {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String?  @db.Uuid
+  organizationId String?  @db.Uuid
+  amount         Float
+  balanceBefore  Float?
+  balanceAfter   Float?
+  idempotencyKey String   @unique
+  /// Coarse origin, e.g. "OFFER_REWARD". Traceability only — never branching logic.
+  source         String?
+  /// Free-form provenance: `{ offerId, participationId, offerSlug }`.
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([source])
+  @@index([createdAt])
+}
+
 model UserDevice {
   id       String @id @default(uuid()) @db.Uuid
   userId   String @db.Uuid
@@ -3666,4 +3692,208 @@ model InfrastructureEvent {
 
   @@index([resourceId, createdAt])
   @@index([organizationId, createdAt])
+}
+
+// ── Offers / Promotions ──
+// A generic promotion engine. An Offer is pure configuration: WHO can see it
+// (audienceType + eligibilityConfig), WHERE it renders (placement), WHAT the
+// user must do (actionConfig), and WHAT they get (rewardConfig). The engine
+// never knows what an individual offer "means" — adding a promotion is adding
+// a row, not a code path.
+
+enum OfferStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ENDED
+  ARCHIVED
+}
+
+/// Where an offer renders. Only TOP_BANNER has a frontend surface today; the
+/// rest exist so an offer can be authored for a placement before the surface
+/// that renders it ships.
+enum OfferPlacement {
+  TOP_BANNER
+  DASHBOARD_CARD
+  MODAL
+  SIDEBAR
+  SETTINGS
+  CHECKOUT
+  CAMPAIGN_PAGE
+  INBOX
+}
+
+/// Which workspace kind an offer targets. Ringee's workspace is implicit in the
+/// ownership context: organizationId set = ORGANIZATION, null = PERSONAL.
+enum OfferAudienceType {
+  PERSONAL
+  ORGANIZATION
+  BOTH
+}
+
+/// Participation state machine.
+///
+///   ELIGIBLE ─▶ STARTED ─▶ SUBMITTED ─┬▶ PENDING_APPROVAL ─┬▶ APPROVED ─▶ REWARDED
+///                                     │                    └▶ REJECTED
+///                                     └▶ COMPLETED ─▶ REWARDED   (auto-approve)
+enum OfferParticipationStatus {
+  ELIGIBLE
+  STARTED
+  SUBMITTED
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+  COMPLETED
+  REWARDED
+}
+
+/// Funnel events, the raw material for conversion metrics. Kept as its own
+/// table because Ringee has no product-analytics pipeline to emit into.
+enum OfferEventType {
+  IMPRESSION
+  CLICKED
+  DISMISSED
+  STARTED
+  SUBMITTED
+  APPROVED
+  REJECTED
+  REWARDED
+}
+
+model Offer {
+  id           String  @id @default(uuid()) @db.Uuid
+  /// Stable machine identifier used by seeds and deep links (e.g. "customer-review").
+  slug         String  @unique
+  /// Customer-facing name.
+  name         String
+  /// Ops-facing name for the backoffice list, when it differs from `name`.
+  internalName String?
+
+  /// Default copy. `displayConfig` may override per workspace kind; these are
+  /// the fallback so an offer always has something to render.
+  title       String
+  description String? @db.Text
+
+  status       OfferStatus       @default(DRAFT)
+  placement    OfferPlacement    @default(TOP_BANNER)
+  /// Higher wins when several offers compete for the same placement.
+  priority     Int               @default(50)
+  audienceType OfferAudienceType @default(BOTH)
+
+  /// Rule tree evaluated against the OfferEligibilityContext. Either a bare
+  /// rule group, or `{ personal, organization: { workspace, member } }`.
+  eligibilityConfig Json @default("{}")
+  /// What the user must do: `{ type: "EXTERNAL_URL_SUBMISSION", field, allowedDomains, unique }`.
+  actionConfig      Json @default("{}")
+  /// What they get: `{ type: "CREDIT", amount, currency, destination }`.
+  rewardConfig      Json @default("{}")
+  /// Copy templates per workspace kind, with `{{token}}` interpolation.
+  displayConfig     Json @default("{}")
+  /// `{ mode: "ONCE_PER_USER", dismissible, showAgainAfterHours }`.
+  frequencyConfig   Json @default("{}")
+
+  startsAt DateTime?
+  endsAt   DateTime?
+
+  /// Global cap across every participant; null = uncapped.
+  maxClaims        Int?
+  maxClaimsPerUser Int  @default(1)
+
+  /// When true a submission parks in PENDING_APPROVAL until an admin acts.
+  requiresApproval Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  /// Ringee user id of the admin who authored it (null for seeded offers).
+  createdBy String?
+
+  participations OfferParticipation[]
+  dismissals     OfferDismissal[]
+  events         OfferEvent[]
+
+  @@index([status, placement, priority])
+  @@index([status, startsAt, endsAt])
+}
+
+/// One user's claim on one offer. `claimIndex` is the attempt number, so the
+/// unique key gives a database-level guarantee of "one claim per user" for the
+/// usual `maxClaimsPerUser = 1` case while leaving room for repeatable offers.
+model OfferParticipation {
+  id             String  @id @default(uuid()) @db.Uuid
+  offerId        String  @db.Uuid
+  userId         String  @db.Uuid
+  /// The workspace the claim was made from — also the reward destination when
+  /// `rewardConfig.destination = ORGANIZATION`.
+  organizationId String? @db.Uuid
+  claimIndex     Int     @default(0)
+
+  status OfferParticipationStatus @default(STARTED)
+
+  /// Whatever the action type asked for: `{ "url": "..." }`, survey answers, …
+  /// Never an offer-specific column.
+  submissionData        Json?
+  /// Normalized form of the submission used to enforce cross-user uniqueness
+  /// (e.g. the canonical URL). Null when the offer does not require uniqueness;
+  /// Postgres allows many NULLs under a unique index.
+  submissionFingerprint String?
+
+  rewardAmount   Float?
+  rewardCurrency String?
+
+  startedAt   DateTime?
+  submittedAt DateTime?
+  approvedAt  DateTime?
+  rejectedAt  DateTime?
+  completedAt DateTime?
+  /// Set exactly once, in the same transaction as the credit grant.
+  rewardedAt  DateTime?
+
+  /// Ringee user id of the reviewing admin.
+  approvedBy      String?
+  rejectionReason String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  offer  Offer        @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  events OfferEvent[]
+
+  @@unique([offerId, userId, claimIndex])
+  @@unique([offerId, submissionFingerprint])
+  @@index([offerId, status])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([status, submittedAt])
+}
+
+/// "Not now". Hides an offer for `frequencyConfig.showAgainAfterHours`; never a
+/// terminal state and never confused with a claim.
+model OfferDismissal {
+  id          String   @id @default(uuid()) @db.Uuid
+  offerId     String   @db.Uuid
+  userId      String   @db.Uuid
+  dismissedAt DateTime @default(now())
+
+  offer Offer @relation(fields: [offerId], references: [id], onDelete: Cascade)
+
+  @@unique([offerId, userId])
+  @@index([userId])
+}
+
+model OfferEvent {
+  id              String          @id @default(uuid()) @db.Uuid
+  offerId         String          @db.Uuid
+  userId          String?         @db.Uuid
+  organizationId  String?         @db.Uuid
+  participationId String?         @db.Uuid
+  type            OfferEventType
+  placement       OfferPlacement?
+  metadata        Json?
+  createdAt       DateTime        @default(now())
+
+  offer         Offer               @relation(fields: [offerId], references: [id], onDelete: Cascade)
+  participation OfferParticipation? @relation(fields: [participationId], references: [id], onDelete: SetNull)
+
+  @@index([offerId, type, createdAt])
+  @@index([userId, createdAt])
 }

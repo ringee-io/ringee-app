@@ -11,7 +11,8 @@
     "prisma-format": "prisma format",
     "db:deploy": "prisma migrate deploy",
     "postinstall": "prisma generate",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate",
+    "seed:offers": "dotenv -e ../../.env -- ts-node prisma/seeds/offers.seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "~11.1.0",

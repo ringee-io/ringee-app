@@ -81,3 +81,8 @@ export * from "./infrastructure.repository";
 export * from "./free-trial-call-request.repository";
 export * from "./demo-request.repository";
 export * from "./infrastructure.repository";
+export * from "./offer.repository";
+export * from "./offer-participation.repository";
+export * from "./offer-dismissal.repository";
+export * from "./offer-event.repository";
+export * from "./offer-stats.repository";

@@ -21,6 +21,7 @@ import {
 import { ScrollArea } from '@ringee/frontend-shared/components/ui/scroll-area';
 import {
   IconArrowLeft,
+  IconGift,
   IconLayoutDashboard,
   IconShieldLock,
   IconSpeakerphone,
@@ -38,7 +39,8 @@ const NAV = [
     href: '/backoffice/campaigns',
     label: 'Campaigns',
     icon: IconSpeakerphone
-  }
+  },
+  { href: '/backoffice/offers', label: 'Offers', icon: IconGift }
 ];
 
 export function BackofficeShell({ children }: { children: React.ReactNode }) {

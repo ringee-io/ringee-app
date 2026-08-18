@@ -42,3 +42,4 @@ export * from "./sip-device";
 export * from "./infrastructure";
 export * from "./sdk";
 export * from "./security";
+export * from "./offers";

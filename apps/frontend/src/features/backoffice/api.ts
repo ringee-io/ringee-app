@@ -328,6 +328,111 @@ export interface CampaignAttemptsResult {
   total: number;
 }
 
+// ── Offers ───────────────────────────────────────────────────
+
+export type OfferStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'ENDED' | 'ARCHIVED';
+
+export type OfferPlacement =
+  | 'TOP_BANNER'
+  | 'DASHBOARD_CARD'
+  | 'MODAL'
+  | 'SIDEBAR'
+  | 'SETTINGS'
+  | 'CHECKOUT'
+  | 'CAMPAIGN_PAGE'
+  | 'INBOX';
+
+export type OfferAudienceType = 'PERSONAL' | 'ORGANIZATION' | 'BOTH';
+
+export type OfferParticipationStatus =
+  | 'ELIGIBLE'
+  | 'STARTED'
+  | 'SUBMITTED'
+  | 'PENDING_APPROVAL'
+  | 'APPROVED'
+  | 'REJECTED'
+  | 'COMPLETED'
+  | 'REWARDED';
+
+export interface OfferListItem {
+  id: string;
+  slug: string;
+  name: string;
+  internalName: string | null;
+  status: OfferStatus;
+  placement: OfferPlacement;
+  audienceType: OfferAudienceType;
+  priority: number;
+  requiresApproval: boolean;
+  startsAt: string | null;
+  endsAt: string | null;
+  participants: number;
+  completed: number;
+  rewardsIssued: number;
+  creditsIssued: number;
+  impressions: number;
+  dismissals: number;
+  pendingApproval: number;
+  createdAt: string;
+}
+
+export interface OfferDetail extends OfferListItem {
+  title: string;
+  description: string | null;
+  maxClaims: number | null;
+  maxClaimsPerUser: number;
+  eligibilityConfig: unknown;
+  actionConfig: unknown;
+  rewardConfig: unknown;
+  displayConfig: unknown;
+  frequencyConfig: unknown;
+  events: Record<string, number>;
+  conversion: { clickThrough: number; submission: number; completion: number };
+}
+
+export interface OfferParticipationRow {
+  id: string;
+  userId: string;
+  userName: string | null;
+  userEmail: string | null;
+  organizationId: string | null;
+  organizationName: string | null;
+  status: OfferParticipationStatus;
+  submissionData: unknown;
+  rewardAmount: number | null;
+  rewardCurrency: string | null;
+  submittedAt: string | null;
+  approvedAt: string | null;
+  rejectedAt: string | null;
+  rewardedAt: string | null;
+  approvedBy: string | null;
+  rejectionReason: string | null;
+  createdAt: string;
+}
+
+/** Only the fields the backoffice edits; the JSON blocks stay opaque. */
+export interface OfferWriteBody {
+  slug?: string;
+  name?: string;
+  internalName?: string | null;
+  title?: string;
+  description?: string | null;
+  status?: OfferStatus;
+  placement?: OfferPlacement;
+  audienceType?: OfferAudienceType;
+  priority?: number;
+  startsAt?: string;
+  endsAt?: string;
+  maxClaims?: number | null;
+  maxClaimsPerUser?: number;
+  requiresApproval?: boolean;
+  eligibilityConfig?: unknown;
+  actionConfig?: unknown;
+  rewardConfig?: unknown;
+  displayConfig?: unknown;
+  frequencyConfig?: unknown;
+}
+
 const BASE = '/backoffice';
 
 export function useBackofficeApi() {
@@ -472,6 +577,56 @@ export function useBackofficeApi() {
           start: params.start.toISOString(),
           end: params.end.toISOString()
         }),
+
+      listOffers: (params: {
+        status?: OfferStatus | 'all';
+        placement?: OfferPlacement | 'all';
+        search?: string;
+        page?: number;
+        pageSize?: number;
+      }) =>
+        api.get<{ items: OfferListItem[]; total: number }>(
+          `${BASE}/offers`,
+          params
+        ),
+
+      getOffer: (id: string) => api.get<OfferDetail>(`${BASE}/offers/${id}`),
+
+      createOffer: (body: OfferWriteBody) =>
+        api.post<OfferDetail>(`${BASE}/offers`, body),
+
+      updateOffer: (id: string, body: OfferWriteBody) =>
+        api.patch<OfferDetail>(`${BASE}/offers/${id}`, body),
+
+      /** Refused by the server once anyone has participated — archive instead. */
+      deleteOffer: (id: string) =>
+        api.delete<{ deleted: true }>(`${BASE}/offers/${id}`),
+
+      listOfferParticipations: (
+        id: string,
+        params?: {
+          status?: OfferParticipationStatus | 'all';
+          page?: number;
+          pageSize?: number;
+        }
+      ) =>
+        api.get<{ items: OfferParticipationRow[]; total: number }>(
+          `${BASE}/offers/${id}/participations`,
+          params
+        ),
+
+      /** Idempotent server-side: a double click still issues one reward. */
+      approveParticipation: (participationId: string) =>
+        api.post<OfferParticipationRow>(
+          `${BASE}/offers/participations/${participationId}/approve`,
+          {}
+        ),
+
+      rejectParticipation: (participationId: string, reason?: string) =>
+        api.post<OfferParticipationRow>(
+          `${BASE}/offers/participations/${participationId}/reject`,
+          reason ? { reason } : {}
+        ),
 
       assignNumber: (type: AccountType, id: string, numberId: string) =>
         api.post(`${BASE}/accounts/${type}/${id}/numbers`, { numberId }),

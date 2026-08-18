@@ -9,6 +9,7 @@ import {
 import { DialerShortcutView } from '@/features/calls/components/dialer.shortcut.view';
 import { OnboardingGuideWrapper } from '@/features/onboarding/components/onboarding-guide-wrapper';
 import { AccountLockdownProvider } from '@/features/security';
+import { OfferBanner } from '@/features/offers';
 import { cookies } from 'next/headers';
 import { currentUser } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
@@ -39,6 +40,10 @@ export default async function DashboardLayout({
           <SidebarProvider defaultOpen={defaultOpen}>
             <AppMainSidebar />
             <SidebarInset>
+              {/* Above the header on purpose: an offer banner shifts the whole
+                  dashboard down rather than competing with the toolbar. Renders
+                  nothing when no offer applies. */}
+              <OfferBanner placement='TOP_BANNER' />
               <Header />
               <div className='flex gap-4'>
                 <div className='w-full'>{children}</div>

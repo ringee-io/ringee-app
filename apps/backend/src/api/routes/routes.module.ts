@@ -62,6 +62,8 @@ import { PendingActionController } from "./pending-action.controller";
 import { ExtensionController } from "./extension.controller";
 import { BackofficeController } from "./backoffice.controller";
 import { BackofficeCampaignsController } from "./backoffice-campaigns.controller";
+import { BackofficeOffersController } from "./backoffice-offers.controller";
+import { OfferController } from "./offer.controller";
 import { CallerIdRotationController } from "./caller-id-rotation.controller";
 import { SipDeviceController } from "./sip-device.controller";
 import { DeskPhoneWebhookController } from "./desk-phone.webhook.controller";
@@ -125,6 +127,8 @@ import { UserAccessEnforcementService } from "./user-access-enforcement.service"
     ExtensionController,
     BackofficeController,
     BackofficeCampaignsController,
+    BackofficeOffersController,
+    OfferController,
     CallerIdRotationController,
     SipDeviceController,
     DeskPhoneWebhookController,

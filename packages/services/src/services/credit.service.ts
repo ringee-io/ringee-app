@@ -104,6 +104,44 @@ export class CreditService {
     return true;
   }
 
+  /**
+   * Adds credits EXACTLY ONCE for a non-purchase grant (offer rewards,
+   * promotional credits, goodwill).
+   *
+   * The counterpart of `creditTopupOnce` for money Ringee gives away rather
+   * than sells. Every such grant must come through here so there is a single
+   * audited path into a balance: the `CreditGrant` ledger records the
+   * idempotency key and the increment in one transaction. `granted: false`
+   * means the key was already spent and the balance was left alone — callers
+   * can gate side effects on it.
+   */
+  async grantCreditsOnce(
+    ctx: OwnershipContext,
+    amount: number,
+    ref: {
+      idempotencyKey: string;
+      source: string;
+      metadata?: Record<string, unknown> | null;
+    },
+  ): Promise<{ balance: number; granted: boolean }> {
+    if (!Number.isFinite(amount) || amount <= 0) {
+      throw new BadRequestException("The amount must be a positive number.");
+    }
+    if (!ref.idempotencyKey.trim() || !ref.source.trim()) {
+      throw new BadRequestException(
+        "Grant idempotency key and source must not be empty.",
+      );
+    }
+
+    const { credit, granted } = await this.creditRepository.grantOnce(
+      ctx,
+      amount,
+      ref,
+    );
+
+    return { balance: credit.amount, granted };
+  }
+
   async consumeCredits(
     ctx: OwnershipContext,
     amount: number,

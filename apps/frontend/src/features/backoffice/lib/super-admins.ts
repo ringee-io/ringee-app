@@ -9,7 +9,7 @@ export const SUPER_ADMIN_EMAILS = [
   'ringee.io@gmail.com',
   'edisonjpp@gmail.com',
   'publica.do.oficial@gmail.com',
-  "edison.padilla@coderio.com"
+  'edison.padilla@coderio.com'
 ];
 
 export function isSuperAdminEmail(email: string | null | undefined): boolean {

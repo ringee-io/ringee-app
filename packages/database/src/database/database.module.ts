@@ -85,6 +85,11 @@ import { BlockedCallLogRepository } from "./repositories/blocked-call-log.reposi
 import { InfrastructureRepository } from "./repositories/infrastructure.repository";
 import { FreeTrialCallRequestRepository } from "./repositories/free-trial-call-request.repository";
 import { DemoRequestRepository } from "./repositories/demo-request.repository";
+import { OfferRepository } from "./repositories/offer.repository";
+import { OfferParticipationRepository } from "./repositories/offer-participation.repository";
+import { OfferDismissalRepository } from "./repositories/offer-dismissal.repository";
+import { OfferEventRepository } from "./repositories/offer-event.repository";
+import { OfferStatsRepository } from "./repositories/offer-stats.repository";
 
 const databaseProviders = [
   PrismaService,
@@ -171,6 +176,11 @@ const databaseProviders = [
   InfrastructureRepository,
   FreeTrialCallRequestRepository,
   DemoRequestRepository,
+  OfferRepository,
+  OfferParticipationRepository,
+  OfferDismissalRepository,
+  OfferEventRepository,
+  OfferStatsRepository,
   InfrastructureRepository,
 ];
 

@@ -36,6 +36,17 @@ import { CallScriptService } from "./call-script.service";
 import { OnboardingService } from "./onboarding.service";
 import { FreeTrialService } from "./free-trial.service";
 import { DemoRequestService } from "./demo-request.service";
+import {
+  OfferService,
+  OfferAdminService,
+  OfferContextBuilder,
+  OfferEligibilityEngine,
+  OfferRewardCalculator,
+  OfferRewardService,
+  OfferActionService,
+  OfferPresenter,
+  OfferAnalyticsService,
+} from "./offers";
 import { MeetingService } from "./meeting.service";
 import { CalendarService } from "./calendar.service";
 import {
@@ -176,6 +187,15 @@ const servicesProviders = [
   OnboardingService,
   FreeTrialService,
   DemoRequestService,
+  OfferService,
+  OfferAdminService,
+  OfferContextBuilder,
+  OfferEligibilityEngine,
+  OfferRewardCalculator,
+  OfferRewardService,
+  OfferActionService,
+  OfferPresenter,
+  OfferAnalyticsService,
   MeetingService,
   CalendarService,
   // Outbound system services

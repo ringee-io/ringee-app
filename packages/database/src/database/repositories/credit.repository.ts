@@ -8,6 +8,12 @@ export interface CreditDebitReference {
   source: string;
 }
 
+export interface CreditGrantReference {
+  idempotencyKey: string;
+  source: string;
+  metadata?: Record<string, unknown> | null;
+}
+
 type CreditDebitTransactionClient = {
   creditDebit: {
     create(input: {
@@ -139,6 +145,71 @@ export class CreditRepository {
     }
   }
 
+  /**
+   * Atomically records an idempotency key and increments the balance.
+   *
+   * The credit mirror of `consumeOnce`, for grants that are NOT Stripe
+   * purchases (offer rewards, promotional credits). The unique key and the
+   * increment share a transaction, so a retried approval, a double-clicked
+   * button, or two processes racing on the same grant can only ever add the
+   * amount once. `granted: false` means the key was already spent.
+   */
+  async grantOnce(
+    ctx: OwnershipContext,
+    amount: number,
+    ref: CreditGrantReference,
+  ): Promise<{ credit: Credit; granted: boolean }> {
+    try {
+      const credit = await this.prisma.$transaction(async (tx) => {
+        const ownershipFilter = buildOwnershipFilter(ctx);
+        let existing = await tx.credit.findFirst({ where: ownershipFilter });
+        if (!existing) {
+          existing = await tx.credit.create({
+            data: {
+              amount: 0,
+              user: ctx.organizationId
+                ? undefined
+                : { connect: { id: ctx.userId } },
+              organization: ctx.organizationId
+                ? { connect: { id: ctx.organizationId } }
+                : undefined,
+            },
+          });
+        }
+
+        const creditAfterGrant = await tx.credit.update({
+          where: { id: existing.id },
+          data: { amount: { increment: amount } },
+        });
+
+        await tx.creditGrant.create({
+          data: {
+            userId: ctx.userId ?? null,
+            organizationId: ctx.organizationId ?? null,
+            amount,
+            balanceBefore: creditAfterGrant.amount - amount,
+            balanceAfter: creditAfterGrant.amount,
+            idempotencyKey: ref.idempotencyKey,
+            source: ref.source,
+            metadata: (ref.metadata ?? undefined) as never,
+          },
+        });
+
+        return creditAfterGrant;
+      });
+
+      return { credit, granted: true };
+    } catch (error) {
+      if (!this.isDuplicateDebitKey(error)) {
+        throw error;
+      }
+      return {
+        credit: await this.getOrCreateCredit(ctx),
+        granted: false,
+      };
+    }
+  }
+
   async getBalance(ctx: OwnershipContext): Promise<number> {
     const ownershipFilter = buildOwnershipFilter(ctx);
     const credit = await this.prisma.credit.findFirst({
@@ -152,6 +223,7 @@ export class CreditRepository {
     return this.prisma.credit.findFirst({ where: ownershipFilter });
   }
 
+  /** Shared by `consumeOnce` and `grantOnce` — both ledgers key on the same column. */
   private isDuplicateDebitKey(error: unknown): boolean {
     if (
       !(error instanceof Prisma.PrismaClientKnownRequestError) ||
