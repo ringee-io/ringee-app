@@ -16,6 +16,7 @@ import {
   SectionHeading
 } from '@/features/marketing/components/primitives';
 import { CtaSection } from '@/features/marketing/components/cta-section';
+import { AgenticCrmFlow } from '@/features/marketing/components/agentic-crm-flow';
 import { ScalabilityCalculator } from '@/features/marketing/components/scalability-calculator';
 import { TrustedBy } from '@/features/marketing/components/trusted-by';
 import {
@@ -69,12 +70,8 @@ export default async function HomePage() {
 
             <h1 className='text-4xl font-bold tracking-tight text-balance sm:text-5xl md:text-6xl'>
               {/* A modern low-cost outbound dialer built for modern sales teams */}
-
               {/* Low-cost outbound dialing for freelancers and teams */}
-
               Modern, low-cost outbound calling software
-
-              
               {/* The outbound dialer built for the AI era */}
             </h1>
 
@@ -125,6 +122,9 @@ export default async function HomePage() {
 
       {/* Social proof — companies running outbound on Ringee */}
       <TrustedBy />
+
+      {/* Agentic outbound loop — the agent preps, a human dials */}
+      <AgenticCrmFlow />
 
       {/* Full feature catalog — internal linking from the home page */}
       {/* <Section className='py-16 sm:py-20'>
