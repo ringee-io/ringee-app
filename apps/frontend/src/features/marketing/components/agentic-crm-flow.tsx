@@ -25,6 +25,12 @@ import { PRICING, REQUEST_DEMO_URL } from '../site';
  * the MCP server, the CLI, and the Claude Code plugin — and the panels below
  * alternate between a chat surface and a terminal so both are visible.
  *
+ * The section is deliberately short on prose. The left column states the thesis
+ * once and then hands over to a step rail — four verb phrases that spell out the
+ * loop at a glance — while the right column *shows* each step as a transcript
+ * instead of describing it. Anything the panel already demonstrates is not also
+ * written out above it.
+ *
  * The section paints no background of its own, so the layout's dot texture and
  * the reader's chosen theme both carry through — it reads as part of the page
  * rather than a band dropped on top of it.
@@ -41,33 +47,11 @@ import { PRICING, REQUEST_DEMO_URL } from '../site';
 /* agents                                                              */
 /* ------------------------------------------------------------------ */
 
-type Agent = {
-  name: string;
-  logo: (props: { className?: string }) => React.JSX.Element;
-  tip: string;
-};
-
-const AGENTS: Agent[] = [
-  {
-    name: 'ChatGPT',
-    logo: ChatGptLogo,
-    tip: 'Ringee ships as a ChatGPT app. Pull the segment, build the queue and file the outcome back to Attio without leaving the window your team already has open.'
-  },
-  {
-    name: 'Claude',
-    logo: ClaudeLogo,
-    tip: 'Add the Ringee connector in claude.ai, or install the plugin in Claude Code. The /ringee commands cover prospecting, queues and follow-ups from the terminal.'
-  },
-  {
-    name: 'OpenClaw',
-    logo: OpenClawLogo,
-    tip: 'Self-hosted and always on. Point OpenClaw at the Ringee MCP server and have tomorrow’s queue waiting for your reps before anyone opens a laptop.'
-  },
-  {
-    name: 'Hermes',
-    logo: HermesLogo,
-    tip: 'Nous Research’s self-improving agent connects Ringee as an MCP server, runs the prep on a schedule, and keeps the cadence that worked.'
-  }
+const AGENTS = [
+  { name: 'ChatGPT', logo: ChatGptLogo },
+  { name: 'Claude', logo: ClaudeLogo },
+  { name: 'OpenClaw', logo: OpenClawLogo },
+  { name: 'Hermes', logo: HermesLogo }
 ];
 
 /* ------------------------------------------------------------------ */
@@ -127,8 +111,10 @@ const LOGOS = {
 type Row = { label: string; value: string; accent?: boolean };
 
 type Scene = {
-  kicker: string;
+  /** Verb phrase for the step rail — also the kicker on stacked mobile. */
+  step: string;
   title: string;
+  /** One line. If the panel already shows it, it does not belong here. */
   body: string;
   /** Where this step runs: a chat surface or a terminal. */
   surface: { label: string; kind: 'chat' | 'cli' };
@@ -141,9 +127,9 @@ type Scene = {
 
 const SCENES: Scene[] = [
   {
-    kicker: 'Your agent finds them',
+    step: 'Find the segment',
     title: 'Ask for the segment, not for a list',
-    body: 'Ringee searches Apollo and Prospeo and reveals direct dials only for the ones you keep. Nobody builds a calling list by hand again.',
+    body: 'Apollo and Prospeo, searched in place. You only reveal the ones you keep.',
     surface: { label: 'chatgpt · ringee mcp', kind: 'chat' },
     prompt: 'Find VP Sales at Series A fintechs in Madrid. Reveal the top 25.',
     tool: 'ringee · search_leads',
@@ -159,9 +145,9 @@ const SCENES: Scene[] = [
     logos: { label: 'Sourced from', items: [LOGOS.apollo, LOGOS.prospeo] }
   },
   {
-    kicker: 'Your agent files them',
+    step: 'File it into Attio',
     title: 'Everything lands in Attio',
-    body: 'Imported, deduped and tagged, then reflected against your Attio records. Attio stays the source of truth — Ringee makes every row dialable.',
+    body: 'Imported, deduped, tagged. Attio stays the source of truth — every row becomes dialable.',
     surface: { label: 'claude code · ringee cli', kind: 'cli' },
     prompt: 'claude "/ringee import the fintech list and push it to Attio"',
     tool: 'ringee · import_leads_as_contacts',
@@ -176,9 +162,9 @@ const SCENES: Scene[] = [
     }
   },
   {
-    kicker: 'Your rep makes the call',
+    step: 'Hand the queue over',
     title: 'The queue is ready before they sit down',
-    body: 'The agent hands back a link; a person opens it and dials. Ringee doesn’t call for you — it clears everything standing between your rep and the conversation.',
+    body: 'One link, the whole day. Ringee never calls for you — it clears the way for your rep.',
     surface: { label: 'your agent · ringee mcp', kind: 'chat' },
     prompt: "Build today's queue from Attio and send the link to the team.",
     tool: 'ringee · create_call_session',
@@ -189,9 +175,9 @@ const SCENES: Scene[] = [
     ]
   },
   {
-    kicker: 'Your agent writes it up',
+    step: 'Write the call back',
     title: 'Nobody retypes their day into Attio',
-    body: 'The rep hangs up and moves to the next one. Outcome, notes and the next step land back on the Attio record from the transcript.',
+    body: 'Outcome, notes and the next step land back on the record, straight from the transcript.',
     surface: { label: 'claude code · ringee cli', kind: 'cli' },
     prompt: 'claude "/ringee-followup log that call and book the callback"',
     tool: 'ringee · log_call_outcome',
@@ -248,166 +234,122 @@ function ResultRow({ row, index }: { row: Row; index: number }) {
   );
 }
 
-/**
- * A tooltip-on-hover/focus agent chip. Kept as a CSS-only reveal (opacity +
- * visibility) rather than conditional rendering so the tip text stays in the
- * accessibility tree and the chip is reachable by keyboard.
- */
-function AgentBadge({ agent }: { agent: Agent }) {
-  const [open, setOpen] = useState(false);
-  const Logo = agent.logo;
-
-  return (
-    <div
-      className='relative'
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-    >
-      <div
-        tabIndex={0}
-        role='button'
-        aria-label={`${agent.name}: ${agent.tip}`}
-        onFocus={() => setOpen(true)}
-        onBlur={() => setOpen(false)}
-        className={cn(
-          'flex cursor-default items-center gap-2.5 rounded-xl border px-3.5 py-2.5 transition-colors duration-200 focus:outline-none',
-          open
-            ? 'border-emerald-500/45 bg-emerald-500/10'
-            : 'border-border/70 bg-card'
-        )}
-      >
-        <Logo
-          className={cn(
-            'h-[22px] w-[22px] shrink-0 transition-colors duration-200',
-            open ? 'text-emerald-600 dark:text-emerald-400' : 'text-foreground'
-          )}
-        />
-        <span
-          className={cn(
-            'text-sm font-medium transition-colors duration-200',
-            open ? 'text-foreground' : 'text-foreground'
-          )}
-        >
-          {agent.name}
-        </span>
-      </div>
-
-      <div
-        role='tooltip'
-        className={cn(
-          'bg-popover pointer-events-none absolute bottom-full left-0 z-20 mb-2.5 w-72 rounded-xl border border-emerald-500/25 p-3.5 shadow-xl transition-all duration-200',
-          open
-            ? 'visible translate-y-0 opacity-100'
-            : 'invisible translate-y-1.5 opacity-0'
-        )}
-      >
-        <p className='font-mono text-xs tracking-wider text-emerald-600 uppercase dark:text-emerald-400'>
-          {agent.name}
-        </p>
-        <p className='text-muted-foreground mt-1.5 text-xs leading-relaxed'>
-          {agent.tip}
-        </p>
-      </div>
-    </div>
-  );
-}
-
-/** The terminal-style panel: one prompt, the tool it calls, what came back. */
+/** The transcript panel: one prompt, the tool it calls, what came back. */
 function SceneCard({ scene, index }: { scene: Scene; index: number }) {
   const isCli = scene.surface.kind === 'cli';
 
   return (
     <div>
-      <div data-reveal='1' className='flex items-center gap-3'>
+      {/* The rail carries the numbering once it exists; below `md` it doesn't. */}
+      <div data-reveal='1' className='flex items-center gap-3 md:hidden'>
         <span className='font-mono text-xs text-emerald-600 dark:text-emerald-400'>
           {String(index + 1).padStart(2, '0')}
         </span>
         <span className='bg-border h-px w-7' />
         <span className='text-muted-foreground font-mono text-xs tracking-widest uppercase'>
-          {scene.kicker}
+          {scene.step}
         </span>
       </div>
 
       <h3
         data-reveal='2'
-        className='text-foreground mt-3 text-xl font-semibold tracking-tight sm:text-2xl'
+        className='text-foreground mt-3 text-xl font-semibold tracking-tight text-balance md:mt-0 lg:text-2xl'
       >
         {scene.title}
       </h3>
       <p
         data-reveal='3'
-        className='text-muted-foreground mt-2.5 text-sm leading-relaxed'
+        className='text-muted-foreground mt-2 text-sm leading-relaxed text-pretty'
       >
         {scene.body}
       </p>
 
-      <div
-        data-panel
-        className='border-border/70 bg-card mt-6 rounded-2xl border shadow-sm'
-      >
-        <div className='border-border/60 flex items-center gap-2.5 border-b px-4 py-2.5'>
-          <span className='flex gap-1.5' aria-hidden>
-            <span className='bg-muted-foreground/25 h-2 w-2 rounded-full' />
-            <span className='bg-muted-foreground/25 h-2 w-2 rounded-full' />
-            <span className='h-2 w-2 rounded-full bg-emerald-500/70' />
-          </span>
-          <p className='text-muted-foreground font-mono text-xs'>
-            {scene.surface.label}
-          </p>
-        </div>
-
-        <div className='p-4 sm:p-5'>
-          <div className='flex items-start gap-2.5'>
-            <span
-              className='shrink-0 font-mono text-xs text-emerald-600 dark:text-emerald-400'
-              aria-hidden
-            >
-              {isCli ? '$' : '▸'}
+      <div className='relative mt-5'>
+        {/* A breath of light behind the panel so it reads as the focal object
+            rather than one more bordered box on the page. */}
+        <div
+          aria-hidden
+          className='pointer-events-none absolute -inset-x-8 -top-10 -bottom-8 -z-10 bg-[radial-gradient(55%_50%_at_50%_0%,rgba(16,185,129,0.12),transparent_72%)]'
+        />
+        <div
+          data-panel
+          className='border-border/70 bg-card rounded-2xl border shadow-xl shadow-black/5 dark:shadow-black/30'
+        >
+          <div className='border-border/60 flex items-center gap-2.5 border-b px-4 py-2.5'>
+            <span className='flex gap-1.5' aria-hidden>
+              <span className='bg-muted-foreground/25 h-2 w-2 rounded-full' />
+              <span className='bg-muted-foreground/25 h-2 w-2 rounded-full' />
+              <span className='h-2 w-2 rounded-full bg-emerald-500/70' />
             </span>
-            <p
-              className={cn(
-                'font-mono text-xs leading-relaxed sm:text-sm',
-                isCli ? 'text-muted-foreground' : 'text-foreground'
-              )}
-            >
-              {scene.prompt}
-            </p>
-          </div>
-
-          <div className='mt-3.5 flex items-center gap-2'>
-            <span
-              className='ringee-pulse h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500'
-              aria-hidden
-            />
             <p className='text-muted-foreground font-mono text-xs'>
-              {scene.tool}
+              {scene.surface.label}
             </p>
           </div>
 
-          <div className='mt-3.5 space-y-2'>
-            {scene.rows.map((row, rowIndex) => (
-              <ResultRow key={row.label} row={row} index={rowIndex + 1} />
-            ))}
-          </div>
-
-          {scene.logos ? (
-            <div className='border-border/60 mt-4 flex flex-wrap items-center gap-x-5 gap-y-3 border-t pt-4'>
-              <span className='text-muted-foreground font-mono text-[11px] tracking-widest uppercase'>
-                {scene.logos.label}
+          <div className='p-4 sm:p-5'>
+            <div className='flex items-start gap-2.5'>
+              <span
+                className='shrink-0 font-mono text-xs text-emerald-600 dark:text-emerald-400'
+                aria-hidden
+              >
+                {isCli ? '$' : '▸'}
               </span>
-              {scene.logos.items.map((logo) => (
-                <CompanyLogo key={logo.alt} logo={logo} />
+              <p
+                className={cn(
+                  'font-mono text-xs leading-relaxed sm:text-sm',
+                  isCli ? 'text-muted-foreground' : 'text-foreground'
+                )}
+              >
+                {scene.prompt}
+              </p>
+            </div>
+
+            <div className='mt-3.5 flex items-center gap-2'>
+              <span
+                className='ringee-pulse h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500'
+                aria-hidden
+              />
+              <p className='text-muted-foreground font-mono text-xs'>
+                {scene.tool}
+              </p>
+            </div>
+
+            <div className='mt-3.5 space-y-2'>
+              {scene.rows.map((row, rowIndex) => (
+                <ResultRow key={row.label} row={row} index={rowIndex + 1} />
               ))}
             </div>
-          ) : null}
+
+            {scene.logos ? (
+              <div className='border-border/60 mt-4 flex flex-wrap items-center gap-x-5 gap-y-3 border-t pt-4'>
+                <span className='text-muted-foreground font-mono text-[11px] tracking-widest uppercase'>
+                  {scene.logos.label}
+                </span>
+                {scene.logos.items.map((logo) => (
+                  <CompanyLogo key={logo.alt} logo={logo} />
+                ))}
+              </div>
+            ) : null}
+          </div>
         </div>
       </div>
     </div>
   );
 }
 
-/** Agent chips, step progress, and the price/CTA band. */
-function Controls({
+/* ------------------------------------------------------------------ */
+/* left column                                                         */
+/* ------------------------------------------------------------------ */
+
+/**
+ * The four steps as a clickable rail. It replaces both the old horizontal
+ * progress bar and the prose block that used to spell out the division of
+ * labour: read top to bottom it *is* the argument, in eight words.
+ *
+ * Rows are equal height by construction, so the emerald marker is positioned by
+ * a single translate rather than measuring the DOM.
+ */
+function StepRail({
   active,
   onJump
 }: {
@@ -415,78 +357,64 @@ function Controls({
   onJump: (index: number) => void;
 }) {
   return (
-    <div>
-      <div className='flex flex-wrap items-center gap-2.5'>
-        <span className='text-muted-foreground mr-1 font-mono text-xs tracking-widest uppercase'>
-          Runs from
-        </span>
-        {AGENTS.map((agent) => (
-          <AgentBadge key={agent.name} agent={agent} />
-        ))}
-        <span className='text-muted-foreground ml-1 font-mono text-xs'>
-          + any MCP client, or the CLI
-        </span>
-      </div>
-
-      {/* Step jumps only mean something where the scenes are pinned. */}
-      <div className='mt-5 hidden gap-2 md:flex'>
-        {SCENES.map((scene, index) => (
-          <button
-            key={scene.kicker}
-            type='button'
-            onClick={() => onJump(index)}
-            aria-label={`Go to step ${index + 1}: ${scene.title}`}
-            aria-current={index === active}
-            className='flex-1 rounded-full py-2 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:outline-none'
-          >
-            <span
-              className={cn(
-                'block h-0.5 w-full rounded-full transition-colors duration-500',
-                index <= active ? 'bg-emerald-500' : 'bg-border'
-              )}
-            />
-          </button>
-        ))}
-      </div>
-
-      <div className='mt-4 flex flex-col items-start justify-between gap-4 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 to-transparent px-5 py-4 sm:flex-row sm:items-center'>
-        <p className='text-muted-foreground text-sm leading-relaxed'>
-          <span className='text-foreground font-semibold'>
-            ${PRICING.organization.price}/month flat
-          </span>{' '}
-          for the whole team, minutes from $0.012.{' '}
-          <span className='text-muted-foreground'>
-            The per-seat dialer charges $30 for every rep who picks up the
-            phone.
-          </span>
-        </p>
-        <Link
-          href={REQUEST_DEMO_URL}
-          className='focus-visible:ring-offset-background inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-700/20 transition-all hover:bg-emerald-700/90 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.98]'
-        >
-          Request demo
-          <ArrowRight className='h-4 w-4' aria-hidden />
-        </Link>
-      </div>
+    <div className='relative mt-8 hidden md:block'>
+      <span aria-hidden className='bg-border absolute inset-y-0 left-0 w-px' />
+      <span
+        aria-hidden
+        style={{
+          height: `${100 / SCENES.length}%`,
+          transform: `translateY(${active * 100}%)`
+        }}
+        className='absolute top-0 left-0 w-px bg-emerald-500 transition-transform duration-500 ease-out'
+      />
+      <ol>
+        {SCENES.map((scene, index) => {
+          const isActive = index === active;
+          return (
+            <li key={scene.step}>
+              <button
+                type='button'
+                onClick={() => onJump(index)}
+                aria-current={isActive}
+                className='group flex h-11 w-full items-center gap-3 pl-5 text-left focus-visible:outline-none'
+              >
+                <span
+                  className={cn(
+                    'font-mono text-xs transition-colors duration-300',
+                    isActive
+                      ? 'text-emerald-600 dark:text-emerald-400'
+                      : 'text-muted-foreground/60'
+                  )}
+                >
+                  {String(index + 1).padStart(2, '0')}
+                </span>
+                <span
+                  className={cn(
+                    'text-sm transition-colors duration-300',
+                    isActive
+                      ? 'text-foreground font-medium'
+                      : 'text-muted-foreground group-hover:text-foreground/80'
+                  )}
+                >
+                  {scene.step}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
     </div>
   );
 }
 
-/* ------------------------------------------------------------------ */
-/* section                                                             */
-/* ------------------------------------------------------------------ */
-
-/** The division of labour, spelled out — the point the whole section makes. */
-const SPLIT = [
-  {
-    who: 'Your agent',
-    does: 'Finds the segment, files it into Attio, builds the queue, writes the call back.'
-  },
-  { who: 'Your rep', does: 'Has the conversation.' }
-];
-
-/** The always-visible left column. */
-function Thesis() {
+/** The always-visible left column: the lockup, the thesis, the rail. */
+function Thesis({
+  active,
+  onJump
+}: {
+  active: number;
+  onJump: (index: number) => void;
+}) {
   return (
     <div>
       <div className='flex items-center gap-4'>
@@ -529,29 +457,43 @@ function Thesis() {
       </h2>
 
       <p className='text-muted-foreground mt-5 text-base leading-relaxed text-pretty'>
-        Attio is the agentic CRM. Ringee is the agentic dialer — an MCP server,
-        a CLI, and a plugin for Claude Code. Point the same agent at both and
-        everything around the call runs itself.
+        Attio is the agentic CRM. Ringee is the agentic dialer. Point one agent
+        at both: it does everything around the call, your rep just talks.
       </p>
 
-      <dl className='mt-8 flex flex-col gap-3'>
-        {SPLIT.map((item) => (
-          <div
-            key={item.who}
-            className='border-border/60 bg-background/60 flex flex-col gap-1 rounded-xl border px-4 py-3 sm:flex-row sm:items-baseline sm:gap-4'
-          >
-            <dt className='shrink-0 font-mono text-[11px] tracking-widest text-emerald-600 uppercase sm:w-24 dark:text-emerald-400'>
-              {item.who}
-            </dt>
-            <dd className='text-muted-foreground text-sm leading-relaxed'>
-              {item.does}
-            </dd>
-          </div>
-        ))}
-      </dl>
+      <StepRail active={active} onJump={onJump} />
+
+      <div className='border-border/60 mt-8 flex flex-wrap items-center gap-x-4 gap-y-3 border-t pt-5'>
+        <span className='text-muted-foreground font-mono text-[11px] tracking-widest uppercase'>
+          Runs from
+        </span>
+        <div className='flex items-center gap-4'>
+          {AGENTS.map((agent) => {
+            const Logo = agent.logo;
+            return (
+              <span
+                key={agent.name}
+                role='img'
+                aria-label={agent.name}
+                title={agent.name}
+                className='text-muted-foreground/70 hover:text-foreground transition-colors duration-200'
+              >
+                <Logo className='h-5 w-5' />
+              </span>
+            );
+          })}
+        </div>
+        <span className='text-muted-foreground text-xs'>
+          + any MCP client, or the CLI
+        </span>
+      </div>
     </div>
   );
 }
+
+/* ------------------------------------------------------------------ */
+/* section                                                             */
+/* ------------------------------------------------------------------ */
 
 export function AgenticCrmFlow() {
   const wrapRef = useRef<HTMLElement>(null);
@@ -631,9 +573,9 @@ export function AgenticCrmFlow() {
           flow on small screens, where a 400vh scroll-jack would be hostile. */}
       <div className='py-16 sm:py-20 md:sticky md:top-16 md:flex md:h-[calc(100svh-4rem)] md:flex-col md:justify-center md:overflow-hidden md:py-0'>
         <Container className='relative'>
-          <div className='flex flex-col gap-10 md:flex-row md:gap-12 lg:gap-16'>
+          <div className='flex flex-col gap-10 md:flex-row md:items-center md:gap-12 lg:gap-16'>
             <div className='md:w-5/12'>
-              <Thesis />
+              <Thesis active={active} onJump={jumpTo} />
             </div>
 
             {/* Stacked list on small screens. From `md` every scene collapses
@@ -645,7 +587,7 @@ export function AgenticCrmFlow() {
                 const isHidden = isPinned && !isActive;
                 return (
                   <div
-                    key={scene.kicker}
+                    key={scene.step}
                     className={cn(
                       'ringee-scene md:col-start-1 md:row-start-1',
                       !isActive && 'md:pointer-events-none'
@@ -661,8 +603,20 @@ export function AgenticCrmFlow() {
             </div>
           </div>
 
-          <div className='mt-10 md:mt-9'>
-            <Controls active={active} onJump={jumpTo} />
+          <div className='mt-10 flex flex-col items-start justify-between gap-4 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 to-transparent px-5 py-4 sm:flex-row sm:items-center md:mt-8'>
+            <p className='text-muted-foreground text-sm leading-relaxed text-pretty'>
+              <span className='text-foreground font-semibold'>
+                ${PRICING.organization.price}/month flat
+              </span>{' '}
+              for the whole team, minutes from $0.012 — instead of $30 a seat.
+            </p>
+            <Link
+              href={REQUEST_DEMO_URL}
+              className='focus-visible:ring-offset-background inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-700/20 transition-all hover:bg-emerald-700/90 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.98]'
+            >
+              Request demo
+              <ArrowRight className='h-4 w-4' aria-hidden />
+            </Link>
           </div>
         </Container>
       </div>
