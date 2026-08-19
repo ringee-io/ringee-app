@@ -317,23 +317,24 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* Scene cross-fade                                                   */
-/* Every scene lives in the same grid cell; only the active one is    */
-/* visible. Rather than fading the whole block as one flat layer, the */
-/* parts resolve in reading order — kicker, headline, body, then the  */
-/* panel and its rows — so the step lands like a considered cut       */
+/* Scene reveal                                                       */
+/* The four transcripts are a plain stacked list — none of them is    */
+/* ever hidden or swapped out. Each one simply eases in the first     */
+/* time it reaches the fold and then stays put, so scrolling back up  */
+/* finds the whole loop still on the page.                            */
+/*                                                                    */
+/* The parts resolve in reading order — kicker, headline, body, then  */
+/* the panel and its rows — so a step lands like a considered cut     */
 /* instead of a blink. The blur is what sells it: text arrives out of */
 /* focus and settles, which reads as depth rather than opacity.       */
 /*                                                                    */
-/* Scoped to `md` and up: below that the scenes are a plain stacked   */
-/* list and every one of them has to stay visible.                    */
+/* Scoped to `md` and up. On a phone the list is the whole layout and */
+/* every panel has to be there from the first paint.                  */
 /* ------------------------------------------------------------------ */
 @media (min-width: 768px) {
   .ringee-scene {
     --ringee-ease: cubic-bezier(0.16, 1, 0.3, 1);
     --ringee-in: 700ms;
-    /* Leaving is quicker than arriving, so the two never muddle. */
-    --ringee-out: 320ms;
   }
 
   .ringee-scene [data-reveal],
@@ -341,9 +342,9 @@
   .ringee-scene [data-row] {
     opacity: 0;
     transition:
-      opacity var(--ringee-out) var(--ringee-ease),
-      transform var(--ringee-out) var(--ringee-ease),
-      filter var(--ringee-out) var(--ringee-ease);
+      opacity var(--ringee-in) var(--ringee-ease),
+      transform var(--ringee-in) var(--ringee-ease),
+      filter var(--ringee-in) var(--ringee-ease);
   }
 
   /* Text blocks drift up out of a soft blur. */
@@ -369,10 +370,9 @@
     opacity: 1;
     transform: none;
     filter: none;
-    transition-duration: var(--ringee-in);
   }
 
-  /* The cascade. Only on the way in — exits leave together. */
+  /* The cascade. */
   .ringee-scene[data-active='true'] [data-reveal='1'] {
     transition-delay: 40ms;
   }
@@ -404,6 +404,7 @@
   .ringee-scene [data-reveal],
   .ringee-scene [data-panel],
   .ringee-scene [data-row] {
+    opacity: 1;
     transition: none;
     transform: none;
     filter: none;

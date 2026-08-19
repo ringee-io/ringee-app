@@ -17,8 +17,8 @@ import {
 import { PRICING, REQUEST_DEMO_URL } from '../site';
 
 /**
- * "Attio keeps the record, Ringee makes it dialable" — the scroll-driven pitch
- * on the home page, between the customer logos and the savings calculator.
+ * "Attio keeps the record, Ringee makes it dialable" — the pitch on the home
+ * page, between the customer logos and the savings calculator.
  *
  * The argument it makes: Attio and Ringee are both agentic, so the same agent
  * that keeps the CRM can also run the calling. Ringee reaches it three ways —
@@ -31,13 +31,15 @@ import { PRICING, REQUEST_DEMO_URL } from '../site';
  * instead of describing it. Anything the panel already demonstrates is not also
  * written out above it.
  *
+ * Layout: from `md` up the left column is sticky and the four transcripts scroll
+ * past it as one continuous list. Nothing is ever hidden or swapped out — every
+ * panel stays on the page once you've reached it, and the only thing that moves
+ * with the scroll is the marker on the rail. Each panel eases in the first time
+ * it comes into view and then stays put. Below `md` it is a plain stacked list.
+ *
  * The section paints no background of its own, so the layout's dot texture and
  * the reader's chosen theme both carry through — it reads as part of the page
  * rather than a band dropped on top of it.
- *
- * From `md` up the left column is pinned and the right column rotates through
- * the four steps as you scroll. Below `md` the pin is dropped and the scenes
- * stack — a 400vh scroll-jack on a phone is worse than a list.
  *
  * The positioning is deliberate: Ringee never places the call. The agent finds,
  * files, queues and writes up; a person dials.
@@ -342,9 +344,9 @@ function SceneCard({ scene, index }: { scene: Scene; index: number }) {
 /* ------------------------------------------------------------------ */
 
 /**
- * The four steps as a clickable rail. It replaces both the old horizontal
- * progress bar and the prose block that used to spell out the division of
- * labour: read top to bottom it *is* the argument, in eight words.
+ * The four steps as a clickable rail. It replaces both a horizontal progress
+ * bar and the prose block that used to spell out the division of labour: read
+ * top to bottom it *is* the argument, in eight words.
  *
  * Rows are equal height by construction, so the emerald marker is positioned by
  * a single translate rather than measuring the DOM.
@@ -357,7 +359,7 @@ function StepRail({
   onJump: (index: number) => void;
 }) {
   return (
-    <div className='relative mt-8 hidden md:block'>
+    <div className='relative mt-7 hidden md:block'>
       <span aria-hidden className='bg-border absolute inset-y-0 left-0 w-px' />
       <span
         aria-hidden
@@ -376,7 +378,7 @@ function StepRail({
                 type='button'
                 onClick={() => onJump(index)}
                 aria-current={isActive}
-                className='group flex h-11 w-full items-center gap-3 pl-5 text-left focus-visible:outline-none'
+                className='group flex h-10 w-full items-center gap-3 pl-5 text-left focus-visible:outline-none'
               >
                 <span
                   className={cn(
@@ -407,7 +409,37 @@ function StepRail({
   );
 }
 
-/** The always-visible left column: the lockup, the thesis, the rail. */
+/**
+ * Price and CTA. Rendered twice — inside the sticky column on desktop, and once
+ * more after the transcripts on mobile, where a CTA between the pitch and the
+ * proof would be asking for the sale too early.
+ */
+function PriceBand({ className }: { className?: string }) {
+  return (
+    <div
+      className={cn(
+        'flex flex-col items-start gap-3.5 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 to-transparent px-5 py-4',
+        className
+      )}
+    >
+      <p className='text-muted-foreground text-sm leading-relaxed text-pretty'>
+        <span className='text-foreground font-semibold'>
+          ${PRICING.organization.price}/month flat
+        </span>{' '}
+        for the whole team, minutes from $0.012 — instead of $30 a seat.
+      </p>
+      <Link
+        href={REQUEST_DEMO_URL}
+        className='focus-visible:ring-offset-background inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-700/20 transition-all hover:bg-emerald-700/90 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.98]'
+      >
+        Request demo
+        <ArrowRight className='h-4 w-4' aria-hidden />
+      </Link>
+    </div>
+  );
+}
+
+/** The sticky left column: the lockup, the thesis, the rail, the agents. */
 function Thesis({
   active,
   onJump
@@ -451,19 +483,19 @@ function Thesis({
         />
       </div>
 
-      <h2 className='text-foreground mt-7 text-3xl font-bold tracking-tight text-balance lg:text-4xl'>
+      <h2 className='text-foreground mt-6 text-3xl font-bold tracking-tight text-balance lg:text-4xl'>
         The calling layer that fits Attio.{' '}
         <span className='text-muted-foreground'>Both run from your agent.</span>
       </h2>
 
-      <p className='text-muted-foreground mt-5 text-base leading-relaxed text-pretty'>
+      <p className='text-muted-foreground mt-4 text-base leading-relaxed text-pretty'>
         Attio is the agentic CRM. Ringee is the agentic dialer. Point one agent
         at both: it does everything around the call, your rep just talks.
       </p>
 
       <StepRail active={active} onJump={onJump} />
 
-      <div className='border-border/60 mt-8 flex flex-wrap items-center gap-x-4 gap-y-3 border-t pt-5'>
+      <div className='border-border/60 mt-7 flex flex-wrap items-center gap-x-4 gap-y-3 border-t pt-5'>
         <span className='text-muted-foreground font-mono text-[11px] tracking-widest uppercase'>
           Runs from
         </span>
@@ -496,49 +528,47 @@ function Thesis({
 /* ------------------------------------------------------------------ */
 
 export function AgenticCrmFlow() {
-  const wrapRef = useRef<HTMLElement>(null);
+  const sceneRefs = useRef<(HTMLDivElement | null)[]>([]);
+  // Which step the rail marker sits on: the transcript nearest the reading line.
   const [active, setActive] = useState(0);
-  // Only true once JS has confirmed we're at `md` and up, where the scenes are
-  // pinned and only one is visible. It gates the a11y attributes, never the
-  // layout: the pinned/stacked split is pure CSS, so the server HTML and the
-  // first client paint are identical and the section never reflows on hydrate.
-  const [isPinned, setIsPinned] = useState(false);
+  // How far down the list the reader has got. Monotonic — a panel that has
+  // eased in stays in, including on the way back up. -1 until the first
+  // measurement so each one animates the first time it appears.
+  const [revealed, setRevealed] = useState(-1);
 
   useEffect(() => {
-    const query = window.matchMedia('(min-width: 768px)');
-    const sync = () => setIsPinned(query.matches);
-    sync();
-    query.addEventListener('change', sync);
-    return () => query.removeEventListener('change', sync);
-  }, []);
-
-  // Map scroll position through the section onto the visible scene. Only runs
-  // where the scenes are actually pinned; the stacked layout shows them all.
-  useEffect(() => {
-    if (!isPinned) return;
-
     let frame: number | null = null;
-    const onScroll = () => {
-      if (frame !== null) return;
-      frame = requestAnimationFrame(() => {
-        frame = null;
-        const element = wrapRef.current;
+
+    const measure = () => {
+      frame = null;
+      // Slightly above centre: the eye settles there, not at the midpoint.
+      const readingLine = window.innerHeight * 0.42;
+      let nearest = 0;
+      let nearestDistance = Infinity;
+      let lastInView = -1;
+
+      sceneRefs.current.forEach((element, index) => {
         if (!element) return;
-        const total = element.offsetHeight - window.innerHeight;
-        const progress =
-          total > 0
-            ? Math.min(
-                Math.max(-element.getBoundingClientRect().top / total, 0),
-                1
-              )
-            : 0;
-        setActive(
-          Math.min(SCENES.length - 1, Math.floor(progress * SCENES.length))
-        );
+        const rect = element.getBoundingClientRect();
+        const distance = Math.abs(rect.top + rect.height / 2 - readingLine);
+        if (distance < nearestDistance) {
+          nearestDistance = distance;
+          nearest = index;
+        }
+        // Scenes are in document order, so the last one whose top has crossed
+        // the fold is the furthest the reader has reached.
+        if (rect.top < window.innerHeight * 0.85) lastInView = index;
       });
+
+      setActive(nearest);
+      setRevealed((current) => Math.max(current, lastInView));
     };
 
-    onScroll();
+    const onScroll = () => {
+      if (frame === null) frame = requestAnimationFrame(measure);
+    };
+
+    measure();
     window.addEventListener('scroll', onScroll, { passive: true });
     window.addEventListener('resize', onScroll);
     return () => {
@@ -546,15 +576,14 @@ export function AgenticCrmFlow() {
       window.removeEventListener('resize', onScroll);
       if (frame !== null) cancelAnimationFrame(frame);
     };
-  }, [isPinned]);
+  }, []);
 
   const jumpTo = useCallback((index: number) => {
-    const element = wrapRef.current;
+    const element = sceneRefs.current[index];
     if (!element) return;
-    const total = element.offsetHeight - window.innerHeight;
-    // Land 35% into the step's band so the scene is settled, not mid-crossfade.
+    // Leave room for the 4rem navbar plus a little air above the heading.
     window.scrollTo({
-      top: element.offsetTop + (total * (index + 0.35)) / SCENES.length,
+      top: window.scrollY + element.getBoundingClientRect().top - 128,
       behavior: 'smooth'
     });
   }, []);
@@ -562,64 +591,38 @@ export function AgenticCrmFlow() {
   return (
     <section
       aria-label='Attio and Ringee, run from your AI agent'
-      ref={wrapRef}
-      // One viewport of scroll per scene, but only where the content is pinned.
-      // Driving the height off a custom property keeps it correct if a scene is
-      // ever added or removed.
-      style={{ '--scenes': SCENES.length } as React.CSSProperties}
-      className='relative w-full md:h-[calc(var(--scenes)*100vh)]'
+      className='relative w-full py-16 sm:py-24'
     >
-      {/* Pinned below the 4rem sticky navbar so nothing hides behind it. Plain
-          flow on small screens, where a 400vh scroll-jack would be hostile. */}
-      <div className='py-16 sm:py-20 md:sticky md:top-16 md:flex md:h-[calc(100svh-4rem)] md:flex-col md:justify-center md:overflow-hidden md:py-0'>
-        <Container className='relative'>
-          <div className='flex flex-col gap-10 md:flex-row md:items-center md:gap-12 lg:gap-16'>
-            <div className='md:w-5/12'>
+      <Container>
+        {/* Default `stretch` alignment is load-bearing: the left column has to
+            fill the row for the sticky block inside it to have somewhere to
+            travel as the transcripts scroll past. */}
+        <div className='flex flex-col gap-12 md:flex-row md:gap-12 lg:gap-16'>
+          <div className='md:w-5/12'>
+            <div className='md:sticky md:top-24'>
               <Thesis active={active} onJump={jumpTo} />
-            </div>
-
-            {/* Stacked list on small screens. From `md` every scene collapses
-                into the same grid cell, so the box is as tall as the tallest
-                scene and nothing reflows as they cross-fade. */}
-            <div className='mt-2 flex flex-col gap-12 md:mt-0 md:grid md:w-7/12 md:gap-0'>
-              {SCENES.map((scene, index) => {
-                const isActive = index === active;
-                const isHidden = isPinned && !isActive;
-                return (
-                  <div
-                    key={scene.step}
-                    className={cn(
-                      'ringee-scene md:col-start-1 md:row-start-1',
-                      !isActive && 'md:pointer-events-none'
-                    )}
-                    data-active={isActive}
-                    aria-hidden={isHidden || undefined}
-                    inert={isHidden || undefined}
-                  >
-                    <SceneCard scene={scene} index={index} />
-                  </div>
-                );
-              })}
+              <PriceBand className='mt-6 hidden md:flex' />
             </div>
           </div>
 
-          <div className='mt-10 flex flex-col items-start justify-between gap-4 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-500/10 to-transparent px-5 py-4 sm:flex-row sm:items-center md:mt-8'>
-            <p className='text-muted-foreground text-sm leading-relaxed text-pretty'>
-              <span className='text-foreground font-semibold'>
-                ${PRICING.organization.price}/month flat
-              </span>{' '}
-              for the whole team, minutes from $0.012 — instead of $30 a seat.
-            </p>
-            <Link
-              href={REQUEST_DEMO_URL}
-              className='focus-visible:ring-offset-background inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-700/20 transition-all hover:bg-emerald-700/90 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.98]'
-            >
-              Request demo
-              <ArrowRight className='h-4 w-4' aria-hidden />
-            </Link>
+          <div className='flex flex-col gap-16 md:w-7/12 lg:gap-24'>
+            {SCENES.map((scene, index) => (
+              <div
+                key={scene.step}
+                ref={(node) => {
+                  sceneRefs.current[index] = node;
+                }}
+                className='ringee-scene'
+                data-active={index <= revealed}
+              >
+                <SceneCard scene={scene} index={index} />
+              </div>
+            ))}
           </div>
-        </Container>
-      </div>
+        </div>
+
+        <PriceBand className='mt-12 md:hidden' />
+      </Container>
     </section>
   );
 }
