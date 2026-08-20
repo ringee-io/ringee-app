@@ -16,6 +16,9 @@ import {
   SectionHeading
 } from '@/features/marketing/components/primitives';
 import { CtaSection } from '@/features/marketing/components/cta-section';
+import { RunsFrom } from '@/features/marketing/components/agent-marks';
+import { AgenticMode } from '@/features/marketing/components/agentic-mode';
+import { AgenticCrmFlow } from '@/features/marketing/components/agentic-crm-flow';
 import { ScalabilityCalculator } from '@/features/marketing/components/scalability-calculator';
 import { TrustedBy } from '@/features/marketing/components/trusted-by';
 import {
@@ -40,7 +43,7 @@ export const metadata: Metadata = buildMetadata({
 const PROOF_POINTS = [
   'Free for freelancers, $20/mo for teams',
   'Pay-as-you-go from $0.012/min',
-  'Drive it from Claude, ChatGPT, MCP & CLI'
+  'Recording, transcripts & outcomes'
 ];
 
 const AI_TOOLS = integrationsByCategory('AI tools');
@@ -69,22 +72,22 @@ export default async function HomePage() {
 
             <h1 className='text-4xl font-bold tracking-tight text-balance sm:text-5xl md:text-6xl'>
               {/* A modern low-cost outbound dialer built for modern sales teams */}
-
               {/* Low-cost outbound dialing for freelancers and teams */}
-
               Modern, low-cost outbound calling software
-
-              
               {/* The outbound dialer built for the AI era */}
             </h1>
 
             <p className='text-muted-foreground mt-6 max-w-xl text-lg text-pretty'>
               Open source and pay-as-you-go from $0.012/min — no per-seat tax.
-              Built for freelancers and teams, and driven by your AI: Claude,
-              ChatGPT, MCP, and the CLI.
+              Built for freelancers and teams, and driven by the AI you already
+              have open.
             </p>
 
-            <CtaButtons className='mt-9 items-center justify-center lg:justify-start' />
+            {/* The agents themselves, so the copy above doesn't have to list
+                them. Same row as the one under the loop in Agentic mode. */}
+            <RunsFrom className='mt-7 justify-center lg:justify-start' />
+
+            <CtaButtons className='mt-8 items-center justify-center lg:justify-start' />
 
             <ul className='text-muted-foreground mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm lg:justify-start'>
               {PROOF_POINTS.map((point) => (
@@ -125,6 +128,12 @@ export default async function HomePage() {
 
       {/* Social proof — companies running outbound on Ringee */}
       <TrustedBy />
+
+      {/* Agentic mode — connect once, then the seven-step loop */}
+      <AgenticMode />
+
+      {/* Attio, specifically: the same loop, aimed at the agentic CRM */}
+      <AgenticCrmFlow />
 
       {/* Full feature catalog — internal linking from the home page */}
       {/* <Section className='py-16 sm:py-20'>

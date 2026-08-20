@@ -297,3 +297,117 @@
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* Agentic flow section (marketing home page)                         */
+/* The breathing dot next to the MCP tool name, standing in for the   */
+/* agent working. Purely decorative, so it stops for reduced motion.  */
+/* ------------------------------------------------------------------ */
+@keyframes ringee-pulse-breathe {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.ringee-pulse {
+  animation: ringee-pulse-breathe 2.4s ease-in-out infinite;
+}
+
+/* ------------------------------------------------------------------ */
+/* Scene reveal                                                       */
+/* The four transcripts are a plain stacked list — none of them is    */
+/* ever hidden or swapped out. Each one simply eases in the first     */
+/* time it reaches the fold and then stays put, so scrolling back up  */
+/* finds the whole loop still on the page.                            */
+/*                                                                    */
+/* The parts resolve in reading order — kicker, headline, body, then  */
+/* the panel and its rows — so a step lands like a considered cut     */
+/* instead of a blink. The blur is what sells it: text arrives out of */
+/* focus and settles, which reads as depth rather than opacity.       */
+/*                                                                    */
+/* Scoped to `md` and up. On a phone the list is the whole layout and */
+/* every panel has to be there from the first paint.                  */
+/* ------------------------------------------------------------------ */
+@media (min-width: 768px) {
+  .ringee-scene {
+    --ringee-ease: cubic-bezier(0.16, 1, 0.3, 1);
+    --ringee-in: 700ms;
+  }
+
+  .ringee-scene [data-reveal],
+  .ringee-scene [data-panel],
+  .ringee-scene [data-row] {
+    opacity: 0;
+    transition:
+      opacity var(--ringee-in) var(--ringee-ease),
+      transform var(--ringee-in) var(--ringee-ease),
+      filter var(--ringee-in) var(--ringee-ease);
+  }
+
+  /* Text blocks drift up out of a soft blur. */
+  .ringee-scene [data-reveal] {
+    transform: translateY(14px);
+    filter: blur(5px);
+  }
+
+  /* The panel is the largest surface, so it gets no blur — animating one
+     that big is expensive. Depth comes from the scale instead. */
+  .ringee-scene [data-panel] {
+    transform: translateY(20px) scale(0.985);
+    transform-origin: 50% 0;
+  }
+
+  .ringee-scene [data-row] {
+    transform: translateY(8px);
+  }
+
+  .ringee-scene[data-active='true'] [data-reveal],
+  .ringee-scene[data-active='true'] [data-panel],
+  .ringee-scene[data-active='true'] [data-row] {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+
+  /* The cascade. */
+  .ringee-scene[data-active='true'] [data-reveal='1'] {
+    transition-delay: 40ms;
+  }
+  .ringee-scene[data-active='true'] [data-reveal='2'] {
+    transition-delay: 110ms;
+  }
+  .ringee-scene[data-active='true'] [data-reveal='3'] {
+    transition-delay: 175ms;
+  }
+  .ringee-scene[data-active='true'] [data-panel] {
+    transition-delay: 240ms;
+  }
+  .ringee-scene[data-active='true'] [data-row='1'] {
+    transition-delay: 360ms;
+  }
+  .ringee-scene[data-active='true'] [data-row='2'] {
+    transition-delay: 420ms;
+  }
+  .ringee-scene[data-active='true'] [data-row='3'] {
+    transition-delay: 480ms;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ringee-pulse {
+    animation: none;
+  }
+
+  .ringee-scene [data-reveal],
+  .ringee-scene [data-panel],
+  .ringee-scene [data-row] {
+    opacity: 1;
+    transition: none;
+    transform: none;
+    filter: none;
+    transition-delay: 0ms !important;
+  }
+}
