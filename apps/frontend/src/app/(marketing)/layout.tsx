@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 
 import { CrispChat } from '@ringee/frontend-shared/components/crisp-chat';
 import { AskAi } from '@/features/marketing/components/ask-ai';
+import { MarketingTopBanner } from '@/features/marketing/components/banner-top';
 import { MarketingFooter } from '@/features/marketing/components/footer';
 import { MarketingNavbar } from '@/features/marketing/components/navbar';
 import {
@@ -39,6 +40,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
           <div className='absolute inset-x-0 top-0 h-[420px] bg-[radial-gradient(60%_100%_at_50%_0%,rgba(16,185,129,0.12),transparent_70%)]' />
         </div>
         <div className='relative z-10 flex min-h-dvh flex-col'>
+          <MarketingTopBanner />
           <MarketingNavbar />
           <main className='flex-1'>{children}</main>
           <MarketingFooter />
