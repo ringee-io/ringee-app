@@ -18,6 +18,7 @@ import {
 import { CtaSection } from '@/features/marketing/components/cta-section';
 import { RunsFrom } from '@/features/marketing/components/agent-marks';
 import { AgenticMode } from '@/features/marketing/components/agentic-mode';
+import { EverywhereMode } from '@/features/marketing/components/everywhere-mode';
 import { AgenticCrmFlow } from '@/features/marketing/components/agentic-crm-flow';
 import { ScalabilityCalculator } from '@/features/marketing/components/scalability-calculator';
 import { TrustedBy } from '@/features/marketing/components/trusted-by';
@@ -128,6 +129,9 @@ export default async function HomePage() {
 
       {/* Social proof — companies running outbound on Ringee */}
       <TrustedBy />
+
+      {/* Ringee everywhere — the same day on web, mobile and the extension */}
+      <EverywhereMode />
 
       {/* Agentic mode — connect once, then the seven-step loop */}
       <AgenticMode />

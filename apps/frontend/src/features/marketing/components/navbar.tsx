@@ -58,8 +58,10 @@ function ThemeToggle() {
 function ProductMenu() {
   const [open, setOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [panelTop, setPanelTop] = useState(64);
   const pathname = usePathname();
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const triggerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => setMounted(true), []);
 
@@ -74,6 +76,25 @@ function ProductMenu() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
+  }, [open]);
+
+  // The marketing banner sits above the sticky navbar. Keep the portalled
+  // panel aligned with the navbar while it moves into its sticky position.
+  useEffect(() => {
+    if (!open) return;
+
+    const updatePanelTop = () => {
+      const header = triggerRef.current?.closest('header');
+      if (header) setPanelTop(header.getBoundingClientRect().bottom);
+    };
+
+    updatePanelTop();
+    window.addEventListener('scroll', updatePanelTop, { passive: true });
+    window.addEventListener('resize', updatePanelTop);
+    return () => {
+      window.removeEventListener('scroll', updatePanelTop);
+      window.removeEventListener('resize', updatePanelTop);
+    };
   }, [open]);
 
   const cancelClose = () => {
@@ -97,6 +118,7 @@ function ProductMenu() {
 
   return (
     <div
+      ref={triggerRef}
       className='relative'
       onMouseEnter={openMenu}
       onMouseLeave={scheduleClose}
@@ -127,8 +149,9 @@ function ProductMenu() {
         ? createPortal(
             <div
               aria-hidden={!open}
+              style={{ top: panelTop }}
               className={cn(
-                'fixed inset-x-0 top-16 z-40 transition-all duration-200 ease-out',
+                'fixed inset-x-0 z-40 transition-all duration-200 ease-out',
                 open
                   ? 'visible translate-y-0 opacity-100'
                   : 'pointer-events-none invisible -translate-y-2 opacity-0'
