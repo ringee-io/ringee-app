@@ -38,21 +38,7 @@ export class UserRepository {
     });
   }
 
-  /**
-   * Prisma DROPS `undefined` filters instead of matching nothing, so a lookup
-   * by an identifier the caller never had degenerates to `where: {}` — a
-   * `findFirst` that cheerfully returns THE FIRST USER IN THE TABLE. That is
-   * how an unattributed call (a leg whose `X-User-Id` header was missing) got
-   * charged to, and blocked, an account with no connection to it whatsoever.
-   *
-   * A blank identifier has no owner. Say so, here, once, for every lookup.
-   */
-  private static missingId(value: string | null | undefined): boolean {
-    return typeof value !== "string" || value.trim() === "";
-  }
-
   async findByEmail(email: string): Promise<User | null> {
-    if (UserRepository.missingId(email)) return null;
     return this.prisma.user.findFirst({
       where: { emails: { some: { email } } },
       include: { emails: true },
@@ -60,7 +46,6 @@ export class UserRepository {
   }
 
   async findById(id: string): Promise<User | null> {
-    if (UserRepository.missingId(id)) return null;
     return this.prisma.user.findFirst({
       where: { id },
       include: { emails: true, chatAuths: true },
@@ -68,7 +53,6 @@ export class UserRepository {
   }
 
   async findByClerkId(clerkId: string): Promise<User | null> {
-    if (UserRepository.missingId(clerkId)) return null;
     return this.prisma.user.findFirst({
       where: { clerkId },
       include: { emails: true, chatAuths: true },
