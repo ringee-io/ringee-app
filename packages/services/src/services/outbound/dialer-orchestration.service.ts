@@ -368,7 +368,32 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       campaign,
       agent.userId,
       lead.contact.phoneNumber,
-    );
+    ).catch((err) => {
+      this.logger.warn(
+        `Could not resolve a caller ID for agent ${agent.id} (lead ${lead.id}): ${err}`,
+      );
+      return null;
+    });
+
+    // No caller ID means the workspace owns no number for this destination's
+    // country. The dialer refuses to place a call with a fabricated CLI, so
+    // this dial is over — give the slot back before returning, or the agent
+    // stays "busy" on a call that was never placed and the next poll tick
+    // refuses them too.
+    if (!callerIdNumber) {
+      await this.concurrentCallGuard.releasePending(
+        agent.userId,
+        `campaign-agent:${agent.id}`,
+      );
+      this.sseBridge.emit(`agent:${agent.id}`, "call.blocked", {
+        attemptId,
+        reason: "NO_CALLER_ID",
+        message:
+          "No caller ID is available for this destination's country. Add a number for it.",
+      });
+      await this.releaseAssignment(agent.id, lead.id);
+      return;
+    }
 
     // Transition states
     await this.agentSessionService.transitionTo(

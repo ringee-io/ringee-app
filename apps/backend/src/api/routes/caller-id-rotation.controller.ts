@@ -3,6 +3,8 @@ import {
   ConflictException,
   Controller,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   Patch,
   Post,
@@ -92,15 +94,45 @@ export class CallerIdRotationController {
       });
     }
 
-    return this.rotationService.selectForDial(
-      ctx,
-      (body?.destination ?? "").trim(),
-      {
-        phoneNumber: body?.fallbackPhoneNumber ?? null,
-        numberId: body?.fallbackNumberId ?? null,
-      },
-      { allowOverCap: body?.allowOverCap === true },
-    );
+    // From here on the slot is reserved. Anything that stops this request from
+    // becoming a call has to hand it straight back — a caller ID we could not
+    // resolve leaves the browser with nothing to dial, and a lease nobody is
+    // using would refuse the user's next attempt from any other surface.
+    try {
+      const selection = await this.rotationService.selectForDial(
+        ctx,
+        (body?.destination ?? "").trim(),
+        {
+          phoneNumber: body?.fallbackPhoneNumber ?? null,
+          numberId: body?.fallbackNumberId ?? null,
+        },
+        { allowOverCap: body?.allowOverCap === true },
+      );
+
+      if (!selection?.phoneNumber) {
+        await this.concurrentCallGuard.releasePending(user.id, device.deviceId);
+      }
+
+      return selection;
+    } catch (error) {
+      await this.concurrentCallGuard.releasePending(user.id, device.deviceId);
+      throw error;
+    }
+  }
+
+  /**
+   * The web dialer calls this when a pre-flight it already passed does not turn
+   * into a call — the WebRTC leg failed to start, or the user cancelled before
+   * it connected. Without it the reserved slot sits unused until its TTL and
+   * the next dial from the extension or a desk phone is refused for no reason.
+   */
+  @Post("abandon")
+  @HttpCode(HttpStatus.NO_CONTENT)
+  async abandon(
+    @CurrentUser() user: CurrentUserData,
+    @DialDevice() device: DialDeviceInfo,
+  ): Promise<void> {
+    await this.concurrentCallGuard.releasePending(user.id, device.deviceId);
   }
 
   @Get("settings")

@@ -166,22 +166,38 @@ export function useCall(call?: Call | null) {
       // Network/permission hiccup — fall back to the locally selected number.
     }
 
+    // The pre-flight above already reserved this user's single call slot. From
+    // here on, any exit that does not place a leg has to hand it back — a
+    // reservation nobody is using is what makes the next dial (from the
+    // extension, a desk phone, or after a reload) refuse for no reason.
+    const abandonDial = () =>
+      api.post('/caller-id-rotation/abandon', {}).catch(() => {
+        // Best effort: the reservation expires on its own either way.
+      });
+
     if (!callerId) {
       console.warn(
         '⚠️ No caller ID available for this destination — add a number for its country.'
       );
       toast.error(t('callerIdUnavailable'));
+      void abandonDial();
       return;
     }
 
-    placeCall({
-      client,
-      callerId,
-      destination: number,
-      userId: userId!,
-      organizationId: orgId ?? undefined,
-      debug: process.env.NODE_ENV === 'development'
-    });
+    try {
+      placeCall({
+        client,
+        callerId,
+        destination: number,
+        userId: userId!,
+        organizationId: orgId ?? undefined,
+        debug: process.env.NODE_ENV === 'development'
+      });
+    } catch (err) {
+      console.error('❌ Could not place the call:', err);
+      void abandonDial();
+      throw err;
+    }
 
     analytics.trackNewCall(`${callerId}-${number}`);
     completeOnboardingStep('first_call');
