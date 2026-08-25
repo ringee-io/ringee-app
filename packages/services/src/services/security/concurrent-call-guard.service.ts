@@ -21,19 +21,10 @@ const PENDING_LEASE_TTL_SECONDS = 90;
 const ACTIVE_LEASE_TTL_SECONDS = 4 * 60 * 60;
 
 /**
- * How long an *unbound* lease (a dial that pre-flight approved but that has not
- * reached `call.initiated` yet) may refuse another device on its own.
- *
- * This is the one and only window where a lease speaks without the database
- * behind it, so it is sized to the real race — the seconds between "the API
- * said yes" and "the provider says the leg is up" — and nothing more. Past it
- * an unbound lease is an ABANDONED pre-flight (the browser never placed the
- * leg, a later gate refused the dial, the tab was closed) and must not stand in
- * anyone's way. Erring towards "allow" is deliberate: a genuine second leg is
- * still killed by the `call.initiated` backstop, while a false refusal is a
- * user who simply cannot call.
+ * Below this age a lease is trusted on its own. Above it, a rejection is
+ * confirmed against the database first — see {@link ConcurrentCallGuardService}.
  */
-const DIAL_RACE_WINDOW_MS = 20_000;
+const LEASE_GRACE_MS = 60_000;
 
 /**
  * Statuses that mean "this row is a call that is really up right now".
@@ -79,34 +70,6 @@ export const CONNECTED_SUSPECT_MS = 4 * 60 * 60_000;
  */
 const RINGING_HARD_LIMIT_MS = 15 * 60_000;
 const CONNECTED_HARD_LIMIT_MS = 8 * 60 * 60_000;
-
-/**
- * Is this row a server-originated voicemail drop — a leg NOBODY is on?
- *
- * Telnyx dials it, answering-machine detection runs, the asset is played into
- * the greeting and it hangs up. The row lands as `outbound`/`ringing` under the
- * member who pressed "drop", so counting it marks them busy for the 20-40 s the
- * drop takes. In a campaign that is every no-answer lead, and the agent is
- * refused the very next dial they were about to make. Voicemail drops are an
- * organization-only feature, which is why this only ever bit teams.
- *
- * The marker is the `client_state` the drop stamps on its own leg, the same one
- * `CallService.handleVoicemailDropEvent` routes on — not `source`, which the
- * caller may override (the session dialer sends `source: "session"`).
- */
-function isServerOriginatedDrop(call: Call): boolean {
-  if (!call.clientState) return false;
-  try {
-    const decoded: unknown = JSON.parse(
-      Buffer.from(call.clientState, "base64").toString("utf-8"),
-    );
-    const action = (decoded as { action?: unknown } | null)?.action;
-    return typeof action === "string" && action.startsWith("voicemail_drop");
-  } catch {
-    // A normal leg carries the literal "initiate_call", which is not JSON.
-    return false;
-  }
-}
 
 export interface DialLease {
   /** Stable identity of the device/surface that holds the lease. */
@@ -154,11 +117,10 @@ export interface DialRequest {
  *   devices dialing in the same millisecond both pass a naive database check;
  *   only one can win a `SET NX`.
  * - **Postgres holds the truth.** A lease can outlive its call (a dropped
- *   `call.hangup` webhook, a Redis key that survived a crash, a pre-flight the
- *   browser never turned into a leg), so losing the `SET NX` is never on its
- *   own a reason to refuse: a rejection is only issued when the database still
- *   shows a live call. Otherwise the stale lease is taken over. The single
- *   exception is {@link DIAL_RACE_WINDOW_MS} — the seconds in which the winning
+ *   `call.hangup` webhook, a Redis key that survived a crash), so once a lease
+ *   is older than {@link LEASE_GRACE_MS} a rejection is only issued if the
+ *   database still shows a live call. Otherwise the stale lease is taken over.
+ *   Inside the grace window the lease is trusted alone, because the winning
  *   dial has not produced a `Call` row yet.
  * - **The provider is the referee.** Postgres only knows what the webhooks
  *   told it, and a lost/late/out-of-order `call.hangup` leaves a row claiming
@@ -169,14 +131,6 @@ export interface DialRequest {
  *
  * An inbound call that is merely ringing does NOT occupy the user — nobody has
  * picked it up, and it must not stop them from dialing out.
- *
- * Everything here is keyed on ONE user id and nothing else. The rule exists to
- * stop a single account being shared across people, so it must never be able to
- * refuse one teammate because of another teammate's call: an organization has
- * as many simultaneous calls as it has members. Whenever a dial is refused, the
- * owner of the lease and the owner of the live call are by construction the
- * same `userId` that asked — see {@link occupiesTheUser} for the one place
- * where a `Call` row can name someone other than the person on the call.
  */
 @Injectable()
 export class ConcurrentCallGuardService {
@@ -231,11 +185,29 @@ export class ConcurrentCallGuardService {
       return this.requestDialAfterRace(userId, lease);
     }
 
-    // Losing the SET NX only means SOMETHING holds the key. It is not yet a
-    // reason to refuse: a lease outlives its call whenever a `call.hangup` is
-    // lost, and it outlives a dial that was approved and never placed. So the
-    // database (checked against the provider) gets the first and last word, and
-    // the lease alone is trusted only inside the race window below.
+    // Same device: almost always a re-dial moments after hanging up, before the
+    // provider's hangup webhook landed — the lease is stale and should not stand
+    // in the user's way. It is NOT a licence to run two calls, so the database
+    // still has the last word.
+    if (holder.deviceId === request.deviceId) {
+      const stillOnACall = await this.findOccupyingCall(userId);
+      if (!stillOnACall) {
+        await this.writeLease(userId, lease);
+        return { allowed: true };
+      }
+      await this.writeLease(
+        userId,
+        { ...holder, callControlId: stillOnACall.callControlId },
+        ACTIVE_LEASE_TTL_SECONDS,
+      );
+      return this.reject(holder, true);
+    }
+
+    if (Date.now() - Date.parse(holder.at) < LEASE_GRACE_MS) {
+      return this.reject(holder);
+    }
+
+    // Old lease: only a real call in the database justifies refusing.
     const live = await this.findOccupyingCall(userId);
     if (live) {
       await this.writeLease(
@@ -243,39 +215,14 @@ export class ConcurrentCallGuardService {
         { ...holder, callControlId: live.callControlId },
         ACTIVE_LEASE_TTL_SECONDS,
       );
-      return this.reject(holder, holder.deviceId === request.deviceId);
-    }
-
-    // Nothing is live anywhere. The only honest reason left to refuse is a
-    // genuine race: another device won the lease seconds ago and its leg has
-    // not reached `call.initiated` yet, so no row exists to find. A lease that
-    // is already BOUND to a call the database no longer shows as live is a
-    // ghost, not a race — that user hung up and the webhook never landed.
-    if (
-      holder.deviceId !== request.deviceId &&
-      !holder.callControlId &&
-      this.ageMs(holder.at) < DIAL_RACE_WINDOW_MS
-    ) {
       return this.reject(holder);
     }
 
     this.logger.warn(
-      `Taking over a stale dial lease for user ${userId} ` +
-        `(was ${holder.source}/${holder.deviceId}, bound to ${holder.callControlId ?? "no leg"}, ` +
-        `taken ${holder.at}; no live call in the database)`,
+      `Taking over a stale dial lease for user ${userId} (was ${holder.source}/${holder.deviceId}, no live call in the database)`,
     );
     await this.writeLease(userId, lease);
     return { allowed: true };
-  }
-
-  /**
-   * Age of a lease in milliseconds, or `Infinity` when its timestamp cannot be
-   * read. An unparseable lease must read as OLD, never as "taken this instant":
-   * the fresh reading is the one that refuses a dial.
-   */
-  private ageMs(at: string): number {
-    const taken = Date.parse(at);
-    return Number.isNaN(taken) ? Number.POSITIVE_INFINITY : Date.now() - taken;
   }
 
   /**
@@ -299,21 +246,18 @@ export class ConcurrentCallGuardService {
   }
 
   /**
-   * Free the slot.
-   *
-   * With a `callControlId`, ONLY the lease bound to that exact leg is released.
-   * A lease bound to a different call belongs to the call that replaced this
-   * one, and an UNBOUND lease is a dial being placed right this moment — a late
-   * hangup from an older call (or from a voicemail drop, which never took a
-   * lease at all) freeing either would hand the slot to a second device.
-   *
-   * Without a `callControlId` the release is unconditional: that is the account
-   * termination path, where every call is being killed on purpose.
+   * Free the slot. A `callControlId` is required to release a lease that is
+   * already bound, so a late webhook from an older call cannot unlock the call
+   * that replaced it.
    */
   async release(userId: string, callControlId?: string | null): Promise<void> {
     const holder = await this.readLease(userId);
     if (!holder) return;
-    if (callControlId && holder.callControlId !== callControlId) {
+    if (
+      holder.callControlId &&
+      callControlId &&
+      holder.callControlId !== callControlId
+    ) {
       return;
     }
     await this.redis
@@ -321,34 +265,6 @@ export class ConcurrentCallGuardService {
       .catch((error) =>
         this.logger.warn(
           `Could not release dial lease for user ${userId}: ${this.message(error)}`,
-        ),
-      );
-  }
-
-  /**
-   * Give the slot back when an approved dial never became a call.
-   *
-   * Every surface reserves the slot in pre-flight and can still refuse the dial
-   * a few lines later — no caller ID for the destination's country, DNC, no
-   * credit, an invalid number — and the browser can simply fail to place the
-   * WebRTC leg. Without this the user keeps a lease they are not using for the
-   * whole {@link PENDING_LEASE_TTL_SECONDS}, which reaches them as a phantom
-   * "you already have a call in progress" on their very next attempt from
-   * another surface.
-   *
-   * Only an UNBOUND lease still owned by this device is dropped, so a dial that
-   * did connect in the meantime can never be unlocked by a late abandon.
-   */
-  async releasePending(userId: string, deviceId: string): Promise<void> {
-    const holder = await this.readLease(userId);
-    if (!holder || holder.callControlId || holder.deviceId !== deviceId) {
-      return;
-    }
-    await this.redis
-      .del(leaseKey(userId))
-      .catch((error) =>
-        this.logger.warn(
-          `Could not release the pending dial lease for user ${userId}: ${this.message(error)}`,
         ),
       );
   }
@@ -509,31 +425,16 @@ export class ConcurrentCallGuardService {
    * them when it is outbound: an inbound leg that is merely ringing has not
    * been picked up, and refusing to let someone dial out because a stranger is
    * calling them would be wrong.
-   *
-   * An inbound leg inside an ORGANIZATION never occupies anyone. Its row is
-   * attributed to the number's owner (`NumberPurchased.userId` — whoever bought
-   * it) and not to whichever teammate actually picked up, because at
-   * `call.initiated` nobody has answered yet. In a personal workspace those are
-   * the same person; in a team they are not, and counting it would mark the
-   * admin who bought the numbers busy for every call the rest of the team
-   * takes — one member's activity refusing another member's dial, which is
-   * exactly the cross-user block this rule must never produce.
    */
   private occupiesTheUser(call: Call): boolean {
-    if (isServerOriginatedDrop(call)) return false;
-
-    const direction = (call.direction ?? "outbound").toLowerCase();
-    const inbound = ["inbound", "incoming"].includes(direction);
-
-    if (inbound && call.organizationId) return false;
-
     if (
       call.status === CallStatus.answered ||
       call.status === CallStatus.recording
     ) {
       return true;
     }
-    return !inbound;
+    const direction = (call.direction ?? "outbound").toLowerCase();
+    return !["inbound", "incoming"].includes(direction);
   }
 
   private async requestDialAfterRace(

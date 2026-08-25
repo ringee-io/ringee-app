@@ -1,10 +1,9 @@
 import {
   Body,
-  ConflictException,
+  // ONE-CALL-GUARD-OFF: reactivar junto con el throw de resolve()
+  // ConflictException,
   Controller,
   Get,
-  HttpCode,
-  HttpStatus,
   Param,
   Patch,
   Post,
@@ -88,51 +87,32 @@ export class CallerIdRotationController {
       source: "web",
     });
     if (!decision.allowed) {
-      throw new ConflictException({
-        code: "CONCURRENT_CALL",
-        message: decision.message,
-      });
-    }
-
-    // From here on the slot is reserved. Anything that stops this request from
-    // becoming a call has to hand it straight back — a caller ID we could not
-    // resolve leaves the browser with nothing to dial, and a lease nobody is
-    // using would refuse the user's next attempt from any other surface.
-    try {
-      const selection = await this.rotationService.selectForDial(
-        ctx,
-        (body?.destination ?? "").trim(),
-        {
-          phoneNumber: body?.fallbackPhoneNumber ?? null,
-          numberId: body?.fallbackNumberId ?? null,
-        },
-        { allowOverCap: body?.allowOverCap === true },
+      // ── ONE-CALL-GUARD-OFF ──────────────────────────────────────────────
+      // Restricción "una llamada a la vez" DESACTIVADA temporalmente para
+      // depurar el falso positivo en organizaciones (el modal le sale a
+      // varios miembros a la vez). La regla se sigue evaluando y se deja el
+      // diagnóstico en el log, pero ya no rechaza la llamada.
+      // Reactivar = descomentar el throw de abajo y el import de arriba.
+      console.warn(
+        `[ONE-CALL-GUARD-OFF] web: user=${user.id} org=${ctx.organizationId ?? "-"} ` +
+          `device=${device.deviceId} lease=${decision.holder.source}/${decision.holder.deviceId} ` +
+          `leaseAt=${decision.holder.at} leaseCall=${decision.holder.callControlId ?? "-"}`,
       );
-
-      if (!selection?.phoneNumber) {
-        await this.concurrentCallGuard.releasePending(user.id, device.deviceId);
-      }
-
-      return selection;
-    } catch (error) {
-      await this.concurrentCallGuard.releasePending(user.id, device.deviceId);
-      throw error;
+      // throw new ConflictException({
+      //   code: "CONCURRENT_CALL",
+      //   message: decision.message,
+      // });
     }
-  }
 
-  /**
-   * The web dialer calls this when a pre-flight it already passed does not turn
-   * into a call — the WebRTC leg failed to start, or the user cancelled before
-   * it connected. Without it the reserved slot sits unused until its TTL and
-   * the next dial from the extension or a desk phone is refused for no reason.
-   */
-  @Post("abandon")
-  @HttpCode(HttpStatus.NO_CONTENT)
-  async abandon(
-    @CurrentUser() user: CurrentUserData,
-    @DialDevice() device: DialDeviceInfo,
-  ): Promise<void> {
-    await this.concurrentCallGuard.releasePending(user.id, device.deviceId);
+    return this.rotationService.selectForDial(
+      ctx,
+      (body?.destination ?? "").trim(),
+      {
+        phoneNumber: body?.fallbackPhoneNumber ?? null,
+        numberId: body?.fallbackNumberId ?? null,
+      },
+      { allowOverCap: body?.allowOverCap === true },
+    );
   }
 
   @Get("settings")
