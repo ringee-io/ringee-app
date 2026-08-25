@@ -1,7 +1,6 @@
 import {
   BadRequestException,
-  // ONE-CALL-GUARD-OFF: reactivar junto con el throw de startCallForItem()
-  // ConflictException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -667,14 +666,7 @@ export class CallSessionService {
       },
     );
     if (!decision.allowed) {
-      // ── ONE-CALL-GUARD-OFF ──  (ver caller-id-rotation.controller.ts)
-      // OJO: aquí compartir el slot SÍ es intencional — el invitado del
-      // magic link marca a nombre del dueño de la sesión.
-      this.logger.warn(
-        `[ONE-CALL-GUARD-OFF] session: owner=${session.userId} session=${sessionId} ` +
-          `lease=${decision.holder.source}/${decision.holder.deviceId}: ${decision.message}`,
-      );
-      // throw new ConflictException(decision.message);
+      throw new ConflictException(decision.message);
     }
     const balance = await this.creditService.getBalance(ctx);
     if (balance <= MIN_CREDIT_BALANCE_TO_CALL) {

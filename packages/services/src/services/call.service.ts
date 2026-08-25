@@ -308,26 +308,19 @@ export class CallService implements OnModuleDestroy {
       return true;
     }
 
-    // ── ONE-CALL-GUARD-OFF ──  (ver caller-id-rotation.controller.ts)
-    // Este es el backstop del webhook: si el pre-flight no bloqueó, aquí se
-    // colgaba la pata desde el servidor. Desactivado también, si no la
-    // segunda llamada se caería sola en vez de mostrar el modal.
     this.logger.warn(
-      `[ONE-CALL-GUARD-OFF] backstop: NO se cuelga ${callControlId}; user ${ctx.userId} ya figura ` +
-        `en la llamada ${busy.id} (${busy.callControlId}, status=${busy.status}, ` +
-        `source=${busy.source ?? "unknown"}, createdAt=${busy.createdAt.toISOString()})`,
+      `⛔ Hanging up call ${callControlId}: user ${ctx.userId} is already on call ` +
+        `${busy.id} (${busy.callControlId}, source=${busy.source ?? "unknown"})`,
     );
-    await this.concurrentCallGuard.bindToCall(ctx.userId, callControlId);
-    return true;
-    // await this.telephonyService
-    //   .hangupCall(callControlId)
-    //   .catch((err) =>
-    //     this.logger.error(
-    //       `Failed to hang up concurrent call ${callControlId}: ${err.message}`,
-    //       err.stack,
-    //     ),
-    //   );
-    // return false;
+    await this.telephonyService
+      .hangupCall(callControlId)
+      .catch((err) =>
+        this.logger.error(
+          `Failed to hang up concurrent call ${callControlId}: ${err.message}`,
+          err.stack,
+        ),
+      );
+    return false;
   }
 
   /**

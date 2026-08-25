@@ -254,12 +254,7 @@ export class DeskPhoneCallService {
       source: "sip_device",
     });
     if (!decision.allowed) {
-      // ── ONE-CALL-GUARD-OFF ──  (ver caller-id-rotation.controller.ts)
-      this.logger.warn(
-        `[ONE-CALL-GUARD-OFF] sip: user=${device.userId} device=sip:${device.id} ` +
-          `lease=${decision.holder.source}/${decision.holder.deviceId}: ${decision.message}`,
-      );
-      // return block("CONCURRENT_CALL", decision.message);
+      return block("CONCURRENT_CALL", decision.message);
     }
 
     // 2) Destination normalization.

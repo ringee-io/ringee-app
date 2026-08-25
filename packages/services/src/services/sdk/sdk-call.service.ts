@@ -90,12 +90,7 @@ export class SdkCallService {
       source: "sdk",
     });
     if (!decision.allowed) {
-      // ── ONE-CALL-GUARD-OFF ──  (ver caller-id-rotation.controller.ts)
-      this.logger.warn(
-        `[ONE-CALL-GUARD-OFF] sdk: user=${agent.user.id} ` +
-          `lease=${decision.holder.source}/${decision.holder.deviceId}: ${decision.message}`,
-      );
-      // throw new SdkError("CALL_ALREADY_ACTIVE", decision.message);
+      throw new SdkError("CALL_ALREADY_ACTIVE", decision.message);
     }
 
     // DNC — blocking.

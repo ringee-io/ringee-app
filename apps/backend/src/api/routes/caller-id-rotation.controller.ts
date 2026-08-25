@@ -1,7 +1,6 @@
 import {
   Body,
-  // ONE-CALL-GUARD-OFF: reactivar junto con el throw de resolve()
-  // ConflictException,
+  ConflictException,
   Controller,
   Get,
   Param,
@@ -87,21 +86,10 @@ export class CallerIdRotationController {
       source: "web",
     });
     if (!decision.allowed) {
-      // ── ONE-CALL-GUARD-OFF ──────────────────────────────────────────────
-      // Restricción "una llamada a la vez" DESACTIVADA temporalmente para
-      // depurar el falso positivo en organizaciones (el modal le sale a
-      // varios miembros a la vez). La regla se sigue evaluando y se deja el
-      // diagnóstico en el log, pero ya no rechaza la llamada.
-      // Reactivar = descomentar el throw de abajo y el import de arriba.
-      console.warn(
-        `[ONE-CALL-GUARD-OFF] web: user=${user.id} org=${ctx.organizationId ?? "-"} ` +
-          `device=${device.deviceId} lease=${decision.holder.source}/${decision.holder.deviceId} ` +
-          `leaseAt=${decision.holder.at} leaseCall=${decision.holder.callControlId ?? "-"}`,
-      );
-      // throw new ConflictException({
-      //   code: "CONCURRENT_CALL",
-      //   message: decision.message,
-      // });
+      throw new ConflictException({
+        code: "CONCURRENT_CALL",
+        message: decision.message,
+      });
     }
 
     return this.rotationService.selectForDial(

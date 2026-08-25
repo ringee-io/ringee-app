@@ -335,12 +335,7 @@ export class ExtensionController {
       source: "chrome_extension",
     });
     if (!decision.allowed) {
-      // ── ONE-CALL-GUARD-OFF ──  (ver caller-id-rotation.controller.ts)
-      console.warn(
-        `[ONE-CALL-GUARD-OFF] extension: user=${user.id} device=${device.deviceId} ` +
-          `lease=${decision.holder.source}/${decision.holder.deviceId}: ${decision.message}`,
-      );
-      // this.fail("CONCURRENT_CALL", decision.message, HttpStatus.CONFLICT);
+      this.fail("CONCURRENT_CALL", decision.message, HttpStatus.CONFLICT);
     }
 
     // 1) DNC compliance — blocking.
