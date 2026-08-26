@@ -1,6 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
-import { OutboxKind, TriggerLoopOutboxRepository } from "@ringee/database";
+import {
+  OutboxKind,
+  Prisma,
+  TriggerLoopOutboxRepository,
+} from "@ringee/database";
 import { TriggerLoopClient } from "./triggerloop.client";
 
 export interface OutboxSendInput {

@@ -12,7 +12,10 @@ export default tsEslint.config(
       "!.*",
       "**/dist",
       "**/build",
-      "**/.next",
+      // Covers `.next` and local variants such as `.next-mine` (see .gitignore).
+      // Linting a Next.js build output buries real findings under ~24k
+      // generated-file problems and makes `pnpm lint` unusable.
+      "**/.next*",
       "**/next-env.d.ts",
     ],
   },
@@ -34,6 +37,146 @@ export default tsEslint.config(
       react: {
         version: "detect",
       },
+    },
+  },
+
+  // ────────────────────────────────────────────────────────────────────────
+  //  Architecture boundaries (see AGENTS.md + docs/engineering/)
+  //  These encode rules an agent or a reviewer cannot infer from types.
+  //  Keep them additive: a new violation means the layering is being broken,
+  //  not that the rule needs relaxing.
+  // ────────────────────────────────────────────────────────────────────────
+
+  // ARCH-001 — External provider SDKs live in packages/platform adapters only.
+  // Domain services, the API layer and the worker speak Ringee abstractions
+  // (TelephonyService, StripeService, AiProviderRegistry), never a vendor SDK.
+  {
+    files: [
+      "packages/services/**/*.{ts,tsx}",
+      "apps/backend/**/*.{ts,tsx}",
+      "apps/orchestrator/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "telnyx",
+              message:
+                "Carrier SDKs belong in packages/platform/src/telephony/telnyx. Use TelephonyService instead.",
+            },
+            {
+              name: "@telnyx/webrtc",
+              message:
+                "The WebRTC client is browser-side only (packages/dialer-core/src/engine).",
+            },
+            {
+              name: "stripe",
+              allowTypeImports: true,
+              message:
+                "Use StripeService from @ringee/platform. Only `import type Stripe from \"stripe\"` is allowed, for webhook event types.",
+            },
+            {
+              name: "openai",
+              message:
+                "AI providers live in packages/platform/src/ai and src/ai-agents. Use the AI service / provider registry.",
+            },
+            {
+              name: "@anthropic-ai/sdk",
+              message:
+                "AI providers live in packages/platform/src/ai-agents/providers. Use the provider registry.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  // ARCH-002 — Prisma is reached through @ringee/database (repositories +
+  // re-exported types), never by importing the generated client directly.
+  {
+    files: [
+      "apps/**/*.{ts,tsx}",
+      "packages/services/**/*.{ts,tsx}",
+      "packages/platform/**/*.{ts,tsx}",
+      "packages/frontend-shared/**/*.{ts,tsx}",
+      "packages/dialer-*/**/*.{ts,tsx}",
+      "packages/agent/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [
+            {
+              name: "@prisma/client",
+              message:
+                "Import models, enums and Prisma types from @ringee/database (it re-exports @prisma/client).",
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  // ARCH-003 — Browser bundles must not pull in server-only packages. These
+  // carry secrets, Prisma and NestJS; a stray import ships them to the client.
+  {
+    files: [
+      "apps/frontend/**/*.{ts,tsx}",
+      "apps/browser-extension/**/*.{ts,tsx}",
+      "apps/chatgpt-app/**/*.{ts,tsx}",
+      "packages/frontend-shared/**/*.{ts,tsx}",
+      "packages/dialer-core/**/*.{ts,tsx}",
+      "packages/dialer-sdk/**/*.{ts,tsx}",
+      "packages/dialer-ui/**/*.{ts,tsx}",
+    ],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: [
+                "@ringee/services",
+                "@ringee/services/*",
+                "@ringee/database",
+                "@ringee/database/*",
+                "@ringee/configuration",
+                "@ringee/configuration/*",
+                "@ringee/platform",
+                "@ringee/platform/*",
+              ],
+              message:
+                "Server-only package. Browser code talks to the backend over /api (ApiClient) instead.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+
+  // ARCH-004 — Temporal workflow sandbox. workflows.ts is bundled into a
+  // deterministic V8 isolate: only @temporalio/workflow may be imported at
+  // runtime. Everything else must be a type-only import (erased at compile
+  // time). A runtime import here breaks the worker at startup.
+  {
+    files: ["apps/orchestrator/src/temporal/workflows.ts"],
+    rules: {
+      "@typescript-eslint/no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              group: ["@ringee/*", "@nestjs/*", "./activities", "../*"],
+              allowTypeImports: true,
+              message:
+                "Workflow code runs in Temporal's deterministic sandbox. Use `import type` only; runtime work belongs in activities.ts.",
+            },
+          ],
+        },
+      ],
     },
   },
 

@@ -1,6 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { Prisma } from "@prisma/client";
-import { TriggerLoopActionExecutionRepository } from "@ringee/database";
+import { Prisma, TriggerLoopActionExecutionRepository } from "@ringee/database";
 import { ActionHandlerRegistry } from "../actions/action-handler.registry";
 import {
   TriggerLoopAction,
