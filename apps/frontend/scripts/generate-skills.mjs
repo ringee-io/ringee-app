@@ -13,10 +13,22 @@
  *
  * Runs automatically on `pnpm --filter frontend build` (prebuild), so the
  * committed file cannot drift from the skills for more than one commit.
+ *
+ * The output is committed, which makes it the build input of record: if the
+ * skill sources are not in the tree at all — a Docker context that trims them,
+ * a partial checkout — this is a no-op that leaves the committed file in place
+ * rather than failing the build. Malformed skills still fail loudly, because
+ * that is an authoring mistake and not a missing-source situation.
  * Dependency-free.
  */
 import { createHash } from 'node:crypto';
-import { readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  readFileSync,
+  readdirSync,
+  statSync,
+  writeFileSync
+} from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -59,15 +71,39 @@ function parseFrontmatter(raw, file) {
   return { name, description };
 }
 
+/**
+ * Leave the committed output untouched and succeed. Only ever reached when the
+ * skill sources are absent — never when they are present but wrong.
+ */
+function skipWithCommittedFile(reason) {
+  if (!existsSync(outFile)) {
+    console.error(
+      `! ${reason}, and there is no committed module to fall back to`
+    );
+    process.exit(1);
+  }
+  console.log(`• ${reason} — keeping the committed skills module`);
+  process.exit(0);
+}
+
+if (!existsSync(skillsDir)) skipWithCommittedFile(`no skills at ${skillsDir}`);
+
 const directories = readdirSync(skillsDir)
   .filter((entry) => statSync(join(skillsDir, entry)).isDirectory())
   .sort();
 
 if (directories.length === 0)
-  throw new Error(`no skills found in ${skillsDir}`);
+  skipWithCommittedFile(`no skills in ${skillsDir}`);
 
-const skills = directories.map((directory) => {
-  const file = join(skillsDir, directory, 'SKILL.md');
+const files = directories.map((name) => join(skillsDir, name, 'SKILL.md'));
+const missing = files.filter((file) => !existsSync(file));
+if (missing.length > 0)
+  skipWithCommittedFile(
+    `${missing.length} of ${files.length} SKILL.md file(s) missing`
+  );
+
+const skills = directories.map((directory, index) => {
+  const file = files[index];
   // Read as bytes: the digest published in the discovery index must be the
   // sha256 of exactly what the route serves.
   const bytes = readFileSync(file);
