@@ -18,7 +18,18 @@ export class OrganizationRepository {
     return randomBytes(32).toString("hex");
   }
 
+  /**
+   * Prisma DROPS `undefined` filters rather than matching nothing, so a lookup
+   * by an id the caller never had collapses to `where: {}` and this `findFirst`
+   * hands back THE FIRST ORGANIZATION IN THE TABLE — another tenant entirely.
+   * A blank id has no organization; every lookup below says so first.
+   */
+  private static missingId(value: string | null | undefined): boolean {
+    return typeof value !== "string" || value.trim() === "";
+  }
+
   async findByClerkId(clerkId: string): Promise<Organization | null> {
+    if (OrganizationRepository.missingId(clerkId)) return null;
     return this.prisma.organization.findFirst({
       where: { clerkId },
       include: { members: true },
@@ -26,6 +37,7 @@ export class OrganizationRepository {
   }
 
   async findById(id: string): Promise<Organization | null> {
+    if (OrganizationRepository.missingId(id)) return null;
     return this.prisma.organization.findFirst({
       where: { id },
       include: { members: true },

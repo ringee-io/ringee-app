@@ -1,7 +1,6 @@
 import {
   BadRequestException,
-  // ONE-CALL-GUARD-OFF: reactivar junto con el throw de startCallForItem()
-  // ConflictException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -667,75 +666,81 @@ export class CallSessionService {
       },
     );
     if (!decision.allowed) {
-      // ── ONE-CALL-GUARD-OFF ──  (ver caller-id-rotation.controller.ts)
-      // OJO: aquí compartir el slot SÍ es intencional — el invitado del
-      // magic link marca a nombre del dueño de la sesión.
-      this.logger.warn(
-        `[ONE-CALL-GUARD-OFF] session: owner=${session.userId} session=${sessionId} ` +
-          `lease=${decision.holder.source}/${decision.holder.deviceId}: ${decision.message}`,
-      );
-      // throw new ConflictException(decision.message);
+      throw new ConflictException(decision.message);
     }
-    const balance = await this.creditService.getBalance(ctx);
-    if (balance <= MIN_CREDIT_BALANCE_TO_CALL) {
+    // The owner's single slot is reserved from here on. Insufficient credit,
+    // a caller ID that cannot be resolved, a write that fails — none of them
+    // become a call, so each has to hand the slot back. Every magic link of
+    // this owner shares that one slot, so a leaked reservation does not just
+    // stall this session: it refuses all of the owner's other sessions too.
+    try {
+      const balance = await this.creditService.getBalance(ctx);
+      if (balance <= MIN_CREDIT_BALANCE_TO_CALL) {
+        await this.repo.logEvent({
+          callSessionId: sessionId,
+          type: CallSessionEventType.credits_failed,
+          actorSource: CallSessionActorSource.magic_link,
+          payload: { balance },
+        });
+        throw new BadRequestException("Insufficient credits to start the call");
+      }
+
+      await this.repo.updateItem(item.id, {
+        status: CallSessionItemStatus.calling,
+        startedAt: new Date(),
+      });
+
+      if (session.status === CallSessionStatus.ready) {
+        await this.repo.update(session.id, {
+          status: CallSessionStatus.active,
+          startedAt: session.startedAt ?? new Date(),
+        });
+      }
+
+      // Per-call caller-ID selection using the session owner's pool. Rotation is
+      // keyed to the owner even though a magic-link guest may be the one dialing;
+      // when rotation is off this returns the owner's primary number unchanged.
+      const fixedCallerId = await this.resolvePrimaryCallerIdNumber(ctx);
+      const selection = await this.callerIdRotationService.selectForDial(
+        ctx,
+        item.phoneNumber,
+        { phoneNumber: fixedCallerId },
+      );
+      const callerIdNumber = selection.phoneNumber;
+      const customHeaders: Array<{ name: string; value: string }> = [
+        { name: "X-Ringee-Call-Session-Id", value: sessionId },
+        { name: "X-Ringee-Call-Session-Item-Id", value: item.id },
+      ];
+
       await this.repo.logEvent({
         callSessionId: sessionId,
-        type: CallSessionEventType.credits_failed,
+        type: CallSessionEventType.call_started,
         actorSource: CallSessionActorSource.magic_link,
-        payload: { balance },
+        ipAddress: audit.ipAddress ?? null,
+        userAgent: audit.userAgent ?? null,
+        payload: { itemId, phoneNumber: item.phoneNumber },
       });
-      throw new BadRequestException("Insufficient credits to start the call");
+
+      // We don't actively use these any more, but keep the deps so the wider
+      // service surface stays available to other paths.
+      void this.callRepo;
+      void this.userDeviceService;
+      void this.notificationService;
+      void CallStatus.pending;
+
+      return {
+        itemId: item.id,
+        phoneNumber: item.phoneNumber,
+        callerIdNumber,
+        customHeaders,
+      };
+    } catch (error) {
+      await this.concurrentCallGuard.releasePending(
+        session.userId,
+        `session:${sessionId}`,
+      );
+      throw error;
     }
-
-    await this.repo.updateItem(item.id, {
-      status: CallSessionItemStatus.calling,
-      startedAt: new Date(),
-    });
-
-    if (session.status === CallSessionStatus.ready) {
-      await this.repo.update(session.id, {
-        status: CallSessionStatus.active,
-        startedAt: session.startedAt ?? new Date(),
-      });
-    }
-
-    // Per-call caller-ID selection using the session owner's pool. Rotation is
-    // keyed to the owner even though a magic-link guest may be the one dialing;
-    // when rotation is off this returns the owner's primary number unchanged.
-    const fixedCallerId = await this.resolvePrimaryCallerIdNumber(ctx);
-    const selection = await this.callerIdRotationService.selectForDial(
-      ctx,
-      item.phoneNumber,
-      { phoneNumber: fixedCallerId },
-    );
-    const callerIdNumber = selection.phoneNumber;
-    const customHeaders: Array<{ name: string; value: string }> = [
-      { name: "X-Ringee-Call-Session-Id", value: sessionId },
-      { name: "X-Ringee-Call-Session-Item-Id", value: item.id },
-    ];
-
-    await this.repo.logEvent({
-      callSessionId: sessionId,
-      type: CallSessionEventType.call_started,
-      actorSource: CallSessionActorSource.magic_link,
-      ipAddress: audit.ipAddress ?? null,
-      userAgent: audit.userAgent ?? null,
-      payload: { itemId, phoneNumber: item.phoneNumber },
-    });
-
-    // We don't actively use these any more, but keep the deps so the wider
-    // service surface stays available to other paths.
-    void this.callRepo;
-    void this.userDeviceService;
-    void this.notificationService;
-    void CallStatus.pending;
-
-    return {
-      itemId: item.id,
-      phoneNumber: item.phoneNumber,
-      callerIdNumber,
-      customHeaders,
-    };
   }
 
   /**

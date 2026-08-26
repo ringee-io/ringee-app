@@ -214,6 +214,15 @@ export class DeskPhoneCallService {
       this.logger.warn(
         `Desk-phone outbound blocked (${reason}) device=${device.publicRef}: ${detail ?? ""}`,
       );
+      // A refusal that lands AFTER the one-call slot was reserved has to hand
+      // it back — a handset that was lifted and never connected must not keep
+      // its owner busy until the lease expires. No-op when the slot is held by
+      // something else (which is the case for CONCURRENT_CALL itself) or when
+      // it is already bound to a real leg.
+      await this.concurrentCallGuard.releasePending(
+        device.userId,
+        `sip:${device.id}`,
+      );
       await this.telnyx.hangupCall(callControlId).catch(() => undefined);
       await this.blockedCallRepo.record({
         organizationId: device.organizationId,
@@ -254,12 +263,7 @@ export class DeskPhoneCallService {
       source: "sip_device",
     });
     if (!decision.allowed) {
-      // ── ONE-CALL-GUARD-OFF ──  (ver caller-id-rotation.controller.ts)
-      this.logger.warn(
-        `[ONE-CALL-GUARD-OFF] sip: user=${device.userId} device=sip:${device.id} ` +
-          `lease=${decision.holder.source}/${decision.holder.deviceId}: ${decision.message}`,
-      );
-      // return block("CONCURRENT_CALL", decision.message);
+      return block("CONCURRENT_CALL", decision.message);
     }
 
     // 2) Destination normalization.
@@ -343,6 +347,13 @@ export class DeskPhoneCallService {
           `Failed to record desk-phone outbound call: ${err.message}`,
         ),
       );
+
+    // Bind the reservation to this leg. Desk phones are parked on their own
+    // webhook, so `CallService`'s `call.initiated` backstop — which binds every
+    // other surface — never sees them. Unbound, the reservation would expire
+    // mid-call after PENDING_LEASE_TTL_SECONDS (letting a second device in on a
+    // long call) and the hangup below could not identify which leg it frees.
+    await this.concurrentCallGuard.bindToCall(device.userId, callControlId);
   }
 
   /**

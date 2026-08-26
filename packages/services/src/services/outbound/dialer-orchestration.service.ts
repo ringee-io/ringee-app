@@ -157,18 +157,17 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     // a lead lock on every poll tick while they talk would poison campaign
     // analytics. The authoritative (lease-acquiring) check still happens in
     // initiateCall.
-    // ── ONE-CALL-GUARD-OFF ──  (ver caller-id-rotation.controller.ts)
-    // if (campaign.dialerMode === "progressive") {
-    //   const busy = await this.concurrentCallGuard
-    //     .findOccupyingCall(agent.userId)
-    //     .catch(() => null);
-    //   if (busy) {
-    //     this.logger.debug(
-    //       `Agent ${agent.userId} is on call ${busy.id} — not assigning a lead this tick`,
-    //     );
-    //     return;
-    //   }
-    // }
+    if (campaign.dialerMode === "progressive") {
+      const busy = await this.concurrentCallGuard
+        .findOccupyingCall(agent.userId)
+        .catch(() => null);
+      if (busy) {
+        this.logger.debug(
+          `Agent ${agent.userId} is on call ${busy.id} — not assigning a lead this tick`,
+        );
+        return;
+      }
+    }
 
     // Select and lock next lead
     const lead = await this.leadQueueService.selectAndLockNext(
@@ -346,25 +345,21 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       source: "campaign",
     });
     if (!decision.allowed) {
-      // ── ONE-CALL-GUARD-OFF ──  (ver caller-id-rotation.controller.ts)
-      // Ya no se salta el marcado ni se emite `call.blocked`, que es lo que
-      // levanta el modal en el workspace de campañas.
       this.logger.warn(
-        `[ONE-CALL-GUARD-OFF] campaign: agent=${agent.id} user=${agent.userId} lead=${lead.id} ` +
-          `lease=${decision.holder.source}/${decision.holder.deviceId}: ${decision.message}`,
+        `Skipping campaign dial for agent ${agent.id} (lead ${lead.id}): ${decision.message}`,
       );
-      // this.sseBridge.emit(`agent:${agent.id}`, "call.blocked", {
-      //   attemptId,
-      //   reason: "CONCURRENT_CALL",
-      //   message: decision.message,
-      // });
-      //
-      // // Hand the lead back and return the agent to `ready`. Leaving the
-      // // session `reserved` wedged the whole dialer: the poller only assigns to
-      // // ready agents, so one refused dial meant the agent never got another
-      // // lead and the campaign silently went quiet for them.
-      // await this.releaseAssignment(agent.id, lead.id);
-      // return;
+      this.sseBridge.emit(`agent:${agent.id}`, "call.blocked", {
+        attemptId,
+        reason: "CONCURRENT_CALL",
+        message: decision.message,
+      });
+
+      // Hand the lead back and return the agent to `ready`. Leaving the
+      // session `reserved` wedged the whole dialer: the poller only assigns to
+      // ready agents, so one refused dial meant the agent never got another
+      // lead and the campaign silently went quiet for them.
+      await this.releaseAssignment(agent.id, lead.id);
+      return;
     }
 
     // Resolve caller ID phone number (rotation-aware; falls back to the
@@ -373,7 +368,32 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       campaign,
       agent.userId,
       lead.contact.phoneNumber,
-    );
+    ).catch((err) => {
+      this.logger.warn(
+        `Could not resolve a caller ID for agent ${agent.id} (lead ${lead.id}): ${err}`,
+      );
+      return null;
+    });
+
+    // No caller ID means the workspace owns no number for this destination's
+    // country. The dialer refuses to place a call with a fabricated CLI, so
+    // this dial is over — give the slot back before returning, or the agent
+    // stays "busy" on a call that was never placed and the next poll tick
+    // refuses them too.
+    if (!callerIdNumber) {
+      await this.concurrentCallGuard.releasePending(
+        agent.userId,
+        `campaign-agent:${agent.id}`,
+      );
+      this.sseBridge.emit(`agent:${agent.id}`, "call.blocked", {
+        attemptId,
+        reason: "NO_CALLER_ID",
+        message:
+          "No caller ID is available for this destination's country. Add a number for it.",
+      });
+      await this.releaseAssignment(agent.id, lead.id);
+      return;
+    }
 
     // Transition states
     await this.agentSessionService.transitionTo(

@@ -32,6 +32,11 @@ export class OrganizationService {
   }
 
   async getByClerkId(clerkId: string): Promise<Organization | null> {
+    // No id, no organization. Without this the cache key becomes the literal
+    // `organization:undefined` and the lookup behind it used to resolve to an
+    // arbitrary tenant (see OrganizationRepository).
+    if (typeof clerkId !== "string" || !clerkId.trim()) return null;
+
     const cachedOrg = await this.redisService.get<Organization>(
       `organization:${clerkId}`,
     );
