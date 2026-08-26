@@ -179,6 +179,8 @@ The apps and the extension are free to install; you only pay for your Ringee pla
 - Open source: https://www.ringee.io/open-source
 - Self-hosted: https://www.ringee.io/self-hosted
 - About: https://www.ringee.io/about
+- Agent Skill: https://www.ringee.io/SKILL.md
+- Agent Skills index: https://www.ringee.io/.well-known/agent-skills/index.json
 - Developer documentation: https://docs.ringee.io
 - Blog: https://blog.ringee.io
 - CLI on npm: https://www.npmjs.com/package/ringee

@@ -4,6 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "dotenv -e ../../.env -- next dev -p 4200",
+    "generate:skills": "node scripts/generate-skills.mjs",
+    "prebuild": "node scripts/generate-skills.mjs",
     "build": "next build",
     "start": "next start --port 4200",
     "lint": "next lint",

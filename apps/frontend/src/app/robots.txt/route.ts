@@ -1,4 +1,5 @@
 import { SITE_URL } from '@/features/marketing/site';
+import { SKILLS_INDEX_PATH, SKILL_MD_PATH } from '@/features/marketing/skills';
 
 /**
  * robots.txt served as a route handler (instead of the `robots.ts` metadata
@@ -68,6 +69,11 @@ export function GET() {
   const body = [
     '# Ringee — https://www.ringee.io',
     '# AI crawlers are explicitly welcomed (search, retrieval and training).',
+    // Agent Skills are not a robots.txt directive, so they are advertised as
+    // comments — the machine-readable entry points stay `/.well-known` and
+    // `llms.txt`, this is just a signpost for anyone reading the file.
+    `# Agent Skills: ${SITE_URL}${SKILL_MD_PATH}`,
+    `# Agent Skills index: ${SITE_URL}${SKILLS_INDEX_PATH}`,
     '',
     // AI crawler groups first — order matters for some AI crawler parsers.
     ...AI_BOTS.flatMap(group),
