@@ -6,11 +6,11 @@ to `@ringee/services` through a NestJS application context.
 
 ## The three files, and what each may import
 
-| File | Runs in | Import rule |
-|---|---|---|
-| `src/temporal/workflows.ts` | Temporal's deterministic V8 sandbox | `@temporalio/workflow` only. Everything else **type-only** — enforced by ESLint `ARCH-004`. |
-| `src/temporal/activities.ts` | Normal Node | Anything. This is where real work belongs. |
-| `packages/platform/src/temporal/contracts.ts` | Both | **Zero imports**, ever. |
+| File                                          | Runs in                             | Import rule                                                                                 |
+| --------------------------------------------- | ----------------------------------- | ------------------------------------------------------------------------------------------- |
+| `src/temporal/workflows.ts`                   | Temporal's deterministic V8 sandbox | `@temporalio/workflow` only. Everything else **type-only** — enforced by ESLint `ARCH-004`. |
+| `src/temporal/activities.ts`                  | Normal Node                         | Anything. This is where real work belongs.                                                  |
+| `packages/platform/src/temporal/contracts.ts` | Both                                | **Zero imports**, ever.                                                                     |
 
 A runtime import in `workflows.ts` breaks the worker at startup, not at review
 time. Workflow code must also be deterministic: no `Date.now()`, no `Math.random()`,

@@ -8,17 +8,17 @@ place a third-party SDK may be imported (ESLint `ARCH-001`).
 
 Each provider gets a folder with an interface and an implementation:
 
-| Concern | Interface / registry | Implementation |
-|---|---|---|
-| Telephony (commands) | `telephony/interfaces/telephony.service.ts` | `telephony/telnyx/` |
-| Telephony (inbound events) | `telephony/interfaces/telephony.event.ts` | `telephony/telnyx/telnyx.event.normalizer.ts` |
-| Payments | `stripe/stripe.service.ts` | Stripe SDK |
-| Auth | `auth/clerk/` | Clerk |
-| Storage | `upload/upload.interface.ts` | `cloudflare.storage` / `local.storage` |
-| Email | `email/email.interface.ts` | `resend.provider` / `empy.provider` |
-| CRM | `crm/provider.ts` + `crm/registry.ts` | `crm/providers/*` |
-| Enrichment | `enrichment/provider.ts` + registry | `enrichment/providers/*` |
-| AI | `ai-agents/ai-provider.registry.ts` | `ai-agents/providers/*` |
+| Concern                    | Interface / registry                        | Implementation                                |
+| -------------------------- | ------------------------------------------- | --------------------------------------------- |
+| Telephony (commands)       | `telephony/interfaces/telephony.service.ts` | `telephony/telnyx/`                           |
+| Telephony (inbound events) | `telephony/interfaces/telephony.event.ts`   | `telephony/telnyx/telnyx.event.normalizer.ts` |
+| Payments                   | `stripe/stripe.service.ts`                  | Stripe SDK                                    |
+| Auth                       | `auth/clerk/`                               | Clerk                                         |
+| Storage                    | `upload/upload.interface.ts`                | `cloudflare.storage` / `local.storage`        |
+| Email                      | `email/email.interface.ts`                  | `resend.provider` / `empy.provider`           |
+| CRM                        | `crm/provider.ts` + `crm/registry.ts`       | `crm/providers/*`                             |
+| Enrichment                 | `enrichment/provider.ts` + registry         | `enrichment/providers/*`                      |
+| AI                         | `ai-agents/ai-provider.registry.ts`         | `ai-agents/providers/*`                       |
 
 When adding a provider capability:
 
@@ -34,7 +34,7 @@ work behind it; that switch is where a second carrier plugs in.
 Inbound events are the mirror image: `TelnyxEventNormalizer` translates carrier
 webhooks into `TelephonyEvent`, and the domain switches on `TelephonyEventType`.
 A new carrier writes a normalizer — it does not touch `CallService`. Event
-*bodies* are still provider-shaped behind `event.payload`; lift a field into the
+_bodies_ are still provider-shaped behind `event.payload`; lift a field into the
 normalized event rather than adding another cast downstream.
 
 ## Auth primitives

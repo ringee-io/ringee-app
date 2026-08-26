@@ -23,13 +23,13 @@ handler needs data that no service exposes, add the method to the owning service
 
 Every route is authenticated by default. The layers, in order:
 
-| Need | Use |
-|---|---|
-| Any signed-in user | nothing — the global guard covers it |
+| Need                                       | Use                                                           |
+| ------------------------------------------ | ------------------------------------------------------------- |
+| Any signed-in user                         | nothing — the global guard covers it                          |
 | Org admins only (freelancers unrestricted) | `@OrgAdminOnly()`; `@AllowOrgMember()` to re-open one handler |
-| Ringee staff | `@SuperAdminOnly()` (email allowlist) |
-| Dialer SDK agent | `@Public()` + `SdkSessionGuard` |
-| Unauthenticated | `@Public()` — and prove authorization another way |
+| Ringee staff                               | `@SuperAdminOnly()` (email allowlist)                         |
+| Dialer SDK agent                           | `@Public()` + `SdkSessionGuard`                               |
+| Unauthenticated                            | `@Public()` — and prove authorization another way             |
 
 `@Public()` removes the only authentication on a route. Every public route must
 carry its own proof: a verified provider signature, a hashed magic-link token, an

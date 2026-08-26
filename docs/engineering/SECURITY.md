@@ -1,6 +1,6 @@
 # Security
 
-Engineering notes. For vulnerability *reporting*, see the repository-root
+Engineering notes. For vulnerability _reporting_, see the repository-root
 `SECURITY.md`.
 
 Rules: `AUTH-*`, `HOOK-*`, `WRK-*`, `SESS-*` in
@@ -8,16 +8,16 @@ Rules: `AUTH-*`, `HOOK-*`, `WRK-*`, `SESS-*` in
 
 ## Trust boundaries
 
-| Boundary | Enforced by |
-|---|---|
-| Dashboard user | Clerk session → `ClerkAuthGuard` (global) |
-| Org role | `OrgAdminGuard` server-side; the UI mirror is cosmetic |
-| Ringee staff | `SuperAdminGuard`, verified-email allowlist |
-| Provider callback | request signature over the raw body, fail closed |
-| Embedded SDK | publishable key + `Origin` + OTP + live membership re-check |
-| Magic link | hashed opaque token, uniform failures |
-| Custom Integration | hashed API key, constant-time compare |
-| MCP connector | the workspace UUID in the URL — a capability URL |
+| Boundary           | Enforced by                                                 |
+| ------------------ | ----------------------------------------------------------- |
+| Dashboard user     | Clerk session → `ClerkAuthGuard` (global)                   |
+| Org role           | `OrgAdminGuard` server-side; the UI mirror is cosmetic      |
+| Ringee staff       | `SuperAdminGuard`, verified-email allowlist                 |
+| Provider callback  | request signature over the raw body, fail closed            |
+| Embedded SDK       | publishable key + `Origin` + OTP + live membership re-check |
+| Magic link         | hashed opaque token, uniform failures                       |
+| Custom Integration | hashed API key, constant-time compare                       |
+| MCP connector      | the workspace UUID in the URL — a capability URL            |
 
 ## `@Public()` is the highest-risk decorator in the codebase
 
@@ -53,13 +53,13 @@ bytes (`HOOK-002`).
 
 ## Tokens and keys
 
-| Secret | Shape | At rest |
-|---|---|---|
-| Integration API key | `cik_live_<64 hex>` | SHA-256 hash; only a `cik_live_<8 hex>` prefix is shown |
-| Webhook signing secret | `whsec_<64 hex>` | encrypted |
-| Publishable key | `pk_live_<payload>.<hmac>` | not stored — self-describing and signed |
-| Magic-link token | 32 random bytes, base64url | SHA-256 hash only |
-| SDK correlation | signed `X-Ringee-Call-Id` custom SIP header | not stored |
+| Secret                 | Shape                                       | At rest                                                 |
+| ---------------------- | ------------------------------------------- | ------------------------------------------------------- |
+| Integration API key    | `cik_live_<64 hex>`                         | SHA-256 hash; only a `cik_live_<8 hex>` prefix is shown |
+| Webhook signing secret | `whsec_<64 hex>`                            | encrypted                                               |
+| Publishable key        | `pk_live_<payload>.<hmac>`                  | not stored — self-describing and signed                 |
+| Magic-link token       | 32 random bytes, base64url                  | SHA-256 hash only                                       |
+| SDK correlation        | signed `X-Ringee-Call-Id` custom SIP header | not stored                                              |
 
 The publishable key is deliberately **not** a secret; it is meant to sit in
 browser source. Its safety comes from being Ringee-signed (claims cannot be

@@ -270,7 +270,6 @@ export function otpScreen(model: DialerModel): Screen {
 // ── Ready ────────────────────────────────────────────────────────────────────
 export function readyScreen(model: DialerModel): Screen {
   const slot = bannerSlot();
-  let phone: PhoneHandle;
 
   const callBtn = button({
     label: model.s.callButton,
@@ -282,7 +281,9 @@ export function readyScreen(model: DialerModel): Screen {
     onClick: () => void model.placeCall(),
   });
 
-  phone = phoneInput({
+  // `phone` is referenced from its own `onEnter` handler, which only runs
+  // after the binding is initialised.
+  const phone: PhoneHandle = phoneInput({
     label: model.s.numberLabel,
     placeholder: model.s.numberPlaceholder,
     value: model.number,

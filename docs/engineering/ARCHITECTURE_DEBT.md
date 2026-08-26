@@ -2,7 +2,7 @@
 
 Register of problems found while auditing the repository, and what happened to
 each. Rules and current behaviour are documented elsewhere — this is the one
-file where *proposed* improvements live, so "what is true" never blurs into
+file where _proposed_ improvements live, so "what is true" never blurs into
 "what should be".
 
 Status: **Fixed** · **Open** (deliberately deferred) · **Won't fix here**.
@@ -139,7 +139,7 @@ spellings of each direction collapse, and common fields (`from`, `to`,
 `direction`, `callSessionId`, `callLegId`, `clientState`, `startedAt`,
 `customHeaders`) are lifted out of the payload. 10 tests cover it.
 
-**Deliberately still partial:** event *bodies* (cost parts, recording URLs,
+**Deliberately still partial:** event _bodies_ (cost parts, recording URLs,
 transcription segments) remain provider-shaped and are reached through
 `event.payload` with a cast. Normalizing those too would be a rewrite of the
 call lifecycle rather than a boundary. The boundary is what mattered — a second
@@ -179,13 +179,13 @@ double-charged.
 sites were given keys matched to their semantics:
 
 - **Caller-ID verification** — real replay protection, keyed to the verification
-  *attempt* (`caller-id-verification:<numberId>:<requestedAt>`), so re-sending a
+  _attempt_ (`caller-id-verification:<numberId>:<requestedAt>`), so re-sending a
   code bills again while a double-submitted request does not. Its refund path
   moved from the unledgered `addCredits` to `grantCreditsOnce`.
 - **AI chat turns, summaries and pipeline runs** — keyed per invocation via the
   new `incurredCostDebitRef`. These charges have no natural replay key: the
   model call already happened and the provider already billed us, so a retry is
-  a *new* cost, not a duplicate. The unique suffix keeps each one in the ledger
+  a _new_ cost, not a duplicate. The unique suffix keeps each one in the ledger
   instead of collapsing them into one row or skipping it entirely.
 
 `addCredits` is marked `@deprecated` in favour of the ledgered paths.
@@ -212,7 +212,7 @@ ran eight raw `PrismaService` queries. **No controller does either now.**
   one refactor from dropping the other half.
 
 Still true, and much smaller: `user-access-enforcement.service.ts` and
-`stripe-abuse-protection.service.ts` are *services* that live under
+`stripe-abuse-protection.service.ts` are _services_ that live under
 `api/routes/`. Injecting repositories there is legitimate; they are just
 misplaced.
 

@@ -54,6 +54,7 @@ const Footer = () => {
               <a
                 href='https://startupfa.me/s/ringee?utm_source=www.ringee.io'
                 target='_blank'
+                rel='noreferrer'
               >
                 <img
                   src='https://startupfa.me/badges/featured-badge-small.webp'
@@ -65,7 +66,7 @@ const Footer = () => {
               <a
                 href='https://www.tinylaunch.com/launch/7675'
                 target='_blank'
-                rel='noopener'
+                rel='noopener noreferrer'
               >
                 <img
                   src='https://tinylaunch.com/tinylaunch_badge_3.svg'

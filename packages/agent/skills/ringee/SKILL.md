@@ -20,6 +20,7 @@ How to act, in order of preference:
 ## Capabilities (logical tool → what it does)
 
 Read (always safe):
+
 - `search_contacts` — find contacts by name/phone/email/company
 - `get_contact` — full record for one contact
 - `list_calls` — call history with outcome, transcription and recording URL
@@ -34,6 +35,7 @@ Read (always safe):
 - `list_ai_pipelines`, `get_ai_pipeline_results` — AI analyses (org admins)
 
 Write (normal intent is enough):
+
 - `create_contact`, `update_contact`
 - `log_call_outcome`, `create_callback`, `schedule_meeting`
 - `import_leads_as_contacts`
@@ -41,10 +43,12 @@ Write (normal intent is enough):
 - `add_to_dnc` — suppress numbers so they are never dialed again
 
 Sensitive (CONFIRM first — spends credits or mints shareable magic links):
+
 - `reveal_lead` (spends provider credits)
 - `create_call_session`, `update_call_session` (magic link)
 
 Destructive (STRICT confirmation):
+
 - `delete_contact` (double-confirmation)
 - `delete_call_session` (revokes the magic link)
 - `delete_campaign_lead` (drops the lead's attempts/callbacks)

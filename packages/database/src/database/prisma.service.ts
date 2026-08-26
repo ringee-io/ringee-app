@@ -1,5 +1,4 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
-// eslint-disable-next-line @typescript-eslint/ban-ts-comment
 // @ts-ignore
 import { PrismaClient } from "@prisma/client";
 
@@ -19,13 +18,11 @@ export class PrismaService
     });
   }
   async onModuleInit() {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     await this.$connect();
   }
 
   async onModuleDestroy() {
-    // eslint-disable-next-line @typescript-eslint/ban-ts-comment
     // @ts-ignore
     await this.$disconnect();
   }

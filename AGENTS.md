@@ -123,18 +123,31 @@ the full command list):
 
 ```bash
 node_modules/.bin/eslint <changed paths>   # or: pnpm lint (repo-wide)
+pnpm lint:fix                              # eslint --fix
+pnpm format:check                          # prettier, incl. Markdown/JSON/YAML
+pnpm format                                # prettier --write
 pnpm --filter <workspace> run test         # services, platform, dialer-core, dialer-sdk, agent, browser-extension
 pnpm --filter <workspace> run typecheck    # dialer-*, agent, agent-cli, browser-extension, chatgpt-app
 pnpm build:backend | build:frontend | build:database | build:orchestrator
 pnpm prisma:generate                       # after any schema.prisma change
 ```
 
-CI (`.github/workflows/ci.yml`) runs the same steps. Its **architecture-boundary
-gate fails the build on any new `ARCH-001`..`ARCH-004` violation** — those are at
-zero and must stay there. The general lint baseline (~557 findings:
-`no-explicit-any`, unused vars, `ban-ts-comment`) is advisory; add none, and do
-not mass-fix unrelated ones in a feature change. Never invent a command — read
-`package.json`.
+CI (`.github/workflows/ci.yml`) runs the same steps, and **`pnpm lint` and
+`pnpm format:check` both fail the build**. The **architecture-boundary gate on
+`ARCH-001`..`ARCH-004`** is the one that matters most — those are at zero and
+must stay there. Never invent a command — read `package.json`.
+
+**Errors vs. warnings.** The repo is at zero ESLint errors, so a new error is
+yours and blocks the merge. Warnings do not: they are a real backlog (unused
+bindings, `react-hooks/exhaustive-deps`, a handful of conditional hook calls in
+`app.main.sidebar.tsx` and `app-sidebar.tsx`). Add none, and do not mass-fix
+unrelated ones in a feature change.
+
+Rules that are off or set to `warn` are documented with their reason in the
+"Signal over volume" block of `eslint.config.mjs`. That block exists so every
+remaining `error` is worth stopping a merge for — reach for it before you reach
+for an inline `eslint-disable`, and do not weaken an architecture boundary with
+either.
 
 ## Keeping these rules current
 

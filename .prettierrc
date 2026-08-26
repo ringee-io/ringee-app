@@ -1,0 +1,19 @@
+{
+  "overrides": [
+    {
+      "comment": "Prettier parses .jsonc / tsconfig-style files with a parser that permits trailing commas, so the repo-wide `trailingComma: \"all\"` default would add them. Plenty of JSON consumers reject that, and a config file is not worth the risk.",
+      "files": [
+        "*.json",
+        "*.jsonc",
+        "*.json5",
+        "*.webmanifest",
+        ".swcrc",
+        ".babelrc",
+        "*.code-workspace"
+      ],
+      "options": {
+        "trailingComma": "none"
+      }
+    }
+  ]
+}

@@ -18,7 +18,9 @@ export class CallTranscriptionService {
     isFinal: boolean,
   ) {
     if (!callControlId) {
-      this.logger.warn("⚠️ Transcription event without call_control_id — ignored.");
+      this.logger.warn(
+        "⚠️ Transcription event without call_control_id — ignored.",
+      );
       return;
     }
 

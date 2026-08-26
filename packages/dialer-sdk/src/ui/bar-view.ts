@@ -275,7 +275,6 @@ export class BarView {
 
   private barReady(): Screen {
     const s = this.model.s;
-    let phone: PhoneHandle;
     const callBtn = button({
       label: s.callButton,
       variant: "call",
@@ -284,7 +283,9 @@ export class BarView {
       onClick: () => void this.model.placeCall(),
     });
 
-    phone = phoneInput({
+    // `phone` is referenced from its own `onEnter` handler, which only runs
+    // after the binding is initialised.
+    const phone: PhoneHandle = phoneInput({
       placeholder: s.numberPlaceholder,
       value: this.model.number,
       ariaLabel: s.numberLabel,

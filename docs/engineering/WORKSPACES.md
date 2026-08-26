@@ -10,7 +10,7 @@ Ringee serves two shapes of customer with one schema:
 - **Freelancer** — a `User` with no active organization. Their rows have
   `userId = <them>` and `organizationId = null`.
 - **Organization** — a `User` acting inside an org. Rows carry
-  `organizationId = <org>`; `userId` records *who* did it.
+  `organizationId = <org>`; `userId` records _who_ did it.
 
 There is no third shape. `OwnershipContext { userId, organizationId? }` collapses
 both into one predicate.
@@ -65,13 +65,13 @@ Two details worth knowing before touching this:
 Clerk roles: `org:admin`, `org:member`. Freelancers have no role and are
 unrestricted (`WRK-004`).
 
-| Layer | Mechanism |
-|---|---|
-| Server, admin features | `@OrgAdminOnly()` / `OrgAdminGuard`, with `@AllowOrgMember()` to re-open a read handler on an admin-only controller |
-| Server, Ringee staff | `@SuperAdminOnly()` / `SuperAdminGuard` (verified-email allowlist) |
-| Server, member data scoping | `resolveMemberFilter(user, memberId)` |
-| Server, analytics scoping | `createDashboardContext(user, { scope, filterMemberId, … })` |
-| Client, navigation & page bodies | `useOrgRole()`, `RoleGuard`, `hiddenForMember` |
+| Layer                            | Mechanism                                                                                                           |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| Server, admin features           | `@OrgAdminOnly()` / `OrgAdminGuard`, with `@AllowOrgMember()` to re-open a read handler on an admin-only controller |
+| Server, Ringee staff             | `@SuperAdminOnly()` / `SuperAdminGuard` (verified-email allowlist)                                                  |
+| Server, member data scoping      | `resolveMemberFilter(user, memberId)`                                                                               |
+| Server, analytics scoping        | `createDashboardContext(user, { scope, filterMemberId, … })`                                                        |
+| Client, navigation & page bodies | `useOrgRole()`, `RoleGuard`, `hiddenForMember`                                                                      |
 
 The client mirror exists so members do not see doors they cannot open. It is not
 the lock (`WRK-005`).
@@ -89,13 +89,13 @@ outright for a non-admin.
 Not every caller is a dashboard user. Each has its own boundary, and each must
 still resolve to an `OwnershipContext`:
 
-| Caller | Proves identity with | Resolves to |
-|---|---|---|
-| Dialer SDK agent | bearer SDK session + `Origin`, re-validated live per request | the agent's user + integration workspace |
-| Magic-link dialer | opaque token, matched by SHA-256 hash | the session's workspace |
-| Custom Integration | `cik_live_…` API key (hashed, constant-time) | the integration's workspace |
-| MCP client | the workspace UUID embedded in the connector URL | that user or organization |
-| Telnyx / Stripe / Clerk | request signature over the raw body | the owning workspace of the subject row |
+| Caller                  | Proves identity with                                         | Resolves to                              |
+| ----------------------- | ------------------------------------------------------------ | ---------------------------------------- |
+| Dialer SDK agent        | bearer SDK session + `Origin`, re-validated live per request | the agent's user + integration workspace |
+| Magic-link dialer       | opaque token, matched by SHA-256 hash                        | the session's workspace                  |
+| Custom Integration      | `cik_live_…` API key (hashed, constant-time)                 | the integration's workspace              |
+| MCP client              | the workspace UUID embedded in the connector URL             | that user or organization                |
+| Telnyx / Stripe / Clerk | request signature over the raw body                          | the owning workspace of the subject row  |
 
 The MCP case is a capability-URL model: possession of the URL is the credential.
 See [SECURITY.md](SECURITY.md).

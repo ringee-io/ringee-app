@@ -37,7 +37,7 @@ git commit -m "feat: Ringee Claude Code plugin + marketplace"
 git push
 ```
 
-That's it — there is no central submission. A public git repo *is* the marketplace.
+That's it — there is no central submission. A public git repo _is_ the marketplace.
 
 ### How users install it
 
@@ -85,8 +85,8 @@ Max/Team/Enterprise (Free = 1 connector).
 pnpm agent:package-skills   # → packages/agent/dist/skills/*.zip (one per skill)
 ```
 
-claude.ai → **Settings → Customize → Skills** → enable Skills (requires *code
-execution*) → **Upload skill** → upload each `*.zip`. Each zip has the skill folder
+claude.ai → **Settings → Customize → Skills** → enable Skills (requires _code
+execution_) → **Upload skill** → upload each `*.zip`. Each zip has the skill folder
 at its root with `SKILL.md` inside (the required format).
 
 In any chat, type `/` and pick (or just mention what you want):
@@ -95,7 +95,7 @@ In any chat, type `/` and pick (or just mention what you want):
 connector's tools; sensitive/destructive actions still ask for confirmation.
 
 > Team/Enterprise: upload once for everyone under **Organization settings →
-> Skills** (enable *Code execution & file creation* and *Skills*). Same zips.
+> Skills** (enable _Code execution & file creation_ and _Skills_). Same zips.
 
 ---
 
@@ -151,7 +151,7 @@ docker run -p 4250:4250 --env-file apps/chatgpt-app/.env ringee-chatgpt-mcp
 
 Put it behind HTTPS (Fly.io / Render / Railway / your own ingress). The connector
 URL is `https://<host>/mcp`. (`apps/chatgpt-app/vercel.json` optionally deploys the
-component *gallery* for design review — not needed for the app itself.)
+component _gallery_ for design review — not needed for the app itself.)
 
 ### Submit to OpenAI
 

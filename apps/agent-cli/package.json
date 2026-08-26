@@ -7,7 +7,10 @@
   "bin": {
     "ringee": "./dist/index.js"
   },
-  "files": ["dist", "README.md"],
+  "files": [
+    "dist",
+    "README.md"
+  ],
   "keywords": [
     "ringee",
     "cli",

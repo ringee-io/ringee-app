@@ -25,3 +25,5 @@ packages/database/prisma/migrations/*
 .local-sdk*/
 
 apps/frontend/.next-mine
+# CI writes this in the architecture-boundary step.
+eslint-report.json

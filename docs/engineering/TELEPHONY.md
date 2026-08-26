@@ -34,12 +34,12 @@ type appears in `@ringee/services`.
 
 The translation does real work:
 
-| Telnyx | Ringee | Why |
-|---|---|---|
+| Telnyx                                | Ringee                        | Why                                                          |
+| ------------------------------------- | ----------------------------- | ------------------------------------------------------------ |
 | `call.machine.premium.greeting.ended` | `call.machine.greeting.ended` | Same fact, different detection tier — the domain listed both |
-| `streaming.failed` | `call.streaming.failed` | Namespaced under the call it belongs to |
-| `inbound` / `incoming` | `inbound` | One spelling |
-| anything unhandled | `unknown` | Logged under its provider name and dropped |
+| `streaming.failed`                    | `call.streaming.failed`       | Namespaced under the call it belongs to                      |
+| `inbound` / `incoming`                | `inbound`                     | One spelling                                                 |
+| anything unhandled                    | `unknown`                     | Logged under its provider name and dropped                   |
 
 Common fields (`from`, `to`, `direction`, `callSessionId`, `callLegId`,
 `clientState`, `startedAt`, `customHeaders`) are lifted out of the payload. The
@@ -101,11 +101,11 @@ surface: `web`, `chrome_extension`, `mobile`, `campaign`, `session`, `sip_device
 The single most subtle piece of the system. `ConcurrentCallGuardService` uses
 three stores because no one of them is sufficient:
 
-| Store | Role | Why it alone is not enough |
-|---|---|---|
+| Store                  | Role                                       | Why it alone is not enough                     |
+| ---------------------- | ------------------------------------------ | ---------------------------------------------- |
 | Redis lease (`SET NX`) | atomic election between simultaneous dials | outlives its call when a `call.hangup` is lost |
-| Postgres `Call` rows | what is really up | only knows what webhooks told it |
-| The provider | referee | a round-trip, so only paid for on a refusal |
+| Postgres `Call` rows   | what is really up                          | only knows what webhooks told it               |
+| The provider           | referee                                    | a round-trip, so only paid for on a refusal    |
 
 Consequences to preserve:
 

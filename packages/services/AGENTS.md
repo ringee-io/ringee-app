@@ -10,11 +10,11 @@ Never assume the caller already checked.
 
 `CreditService` is the **only** way a balance moves. There are exactly three doors:
 
-| Direction | Method | Ledger |
-|---|---|---|
-| Purchase in | `creditTopupOnce` — Stripe webhook only | `CreditTopup` |
-| Grant in | `grantCreditsOnce` — offers, promos, goodwill | `CreditGrant` |
-| Out | `consumeCredits(ctx, amount, ref)` | `CreditDebit` |
+| Direction   | Method                                        | Ledger        |
+| ----------- | --------------------------------------------- | ------------- |
+| Purchase in | `creditTopupOnce` — Stripe webhook only       | `CreditTopup` |
+| Grant in    | `grantCreditsOnce` — offers, promos, goodwill | `CreditGrant` |
+| Out         | `consumeCredits(ctx, amount, ref)`            | `CreditDebit` |
 
 - The ledger row and the balance move in **one transaction**; a duplicate
   idempotency key returns `debited: false` / `granted: false` and leaves the

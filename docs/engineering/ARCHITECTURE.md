@@ -10,30 +10,30 @@ pnpm workspaces (`pnpm@10.16.1`), roots `apps/*` and `packages/*`.
 
 ### Apps
 
-| App | Package name | What it is |
-|---|---|---|
-| `apps/backend` | `backend` | NestJS REST API, port 3000, prefix `/api`. Also hosts the MCP server, the TriggerLoop module, the realtime gateways and the dialer poll loop. |
-| `apps/orchestrator` | `@ringee/orchestrator` | Temporal worker: durable workflows + periodic Schedules. |
-| `apps/frontend` | `frontend` | Next.js 15 dashboard, port 4200, React 19, App Router. |
-| `apps/browser-extension` | `browser-extension` | Chrome extension (click-to-dial, side panel, offscreen WebRTC). |
-| `apps/agent-cli` | `ringee` | Published CLI driving the Ringee MCP tools. |
-| `apps/chatgpt-app` | `@ringee-io/chatgpt-app` | ChatGPT Apps SDK surface + widget renderer. |
-| `apps/attio` | `ringee-io` | Attio CRM app (own SDK, own rules — see `apps/attio/AGENTS.md`). |
-| `apps/sdk-playground` | — | Static playgrounds exercising the published Dialer SDK bundle. |
+| App                      | Package name             | What it is                                                                                                                                    |
+| ------------------------ | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `apps/backend`           | `backend`                | NestJS REST API, port 3000, prefix `/api`. Also hosts the MCP server, the TriggerLoop module, the realtime gateways and the dialer poll loop. |
+| `apps/orchestrator`      | `@ringee/orchestrator`   | Temporal worker: durable workflows + periodic Schedules.                                                                                      |
+| `apps/frontend`          | `frontend`               | Next.js 15 dashboard, port 4200, React 19, App Router.                                                                                        |
+| `apps/browser-extension` | `browser-extension`      | Chrome extension (click-to-dial, side panel, offscreen WebRTC).                                                                               |
+| `apps/agent-cli`         | `ringee`                 | Published CLI driving the Ringee MCP tools.                                                                                                   |
+| `apps/chatgpt-app`       | `@ringee-io/chatgpt-app` | ChatGPT Apps SDK surface + widget renderer.                                                                                                   |
+| `apps/attio`             | `ringee-io`              | Attio CRM app (own SDK, own rules — see `apps/attio/AGENTS.md`).                                                                              |
+| `apps/sdk-playground`    | —                        | Static playgrounds exercising the published Dialer SDK bundle.                                                                                |
 
 ### Packages
 
-| Package | Role |
-|---|---|
-| `@ringee/database` | Prisma schema, generated client, ~90 repositories. Sole importer of `@prisma/client`. |
-| `@ringee/platform` | Cross-cutting concerns + every external-provider adapter. |
-| `@ringee/services` | Domain services — the business logic. |
-| `@ringee/configuration` | Env config with fail-fast startup validation (built with SWC). |
-| `@ringee/frontend-shared` | Shared React components, hooks, API client. |
-| `@ringee/dialer-core` | Framework-free browser call engine, phone normalization, DTMF, call store. |
-| `@ringee/dialer-sdk` | Published embeddable SDK (`@ringee/dialer-sdk`). |
-| `@ringee/dialer-ui` | React UI on top of dialer-core. |
-| `@ringee-io/agent` | MCP tool catalog, schemas, prompts, agent safety rules. |
+| Package                   | Role                                                                                  |
+| ------------------------- | ------------------------------------------------------------------------------------- |
+| `@ringee/database`        | Prisma schema, generated client, ~90 repositories. Sole importer of `@prisma/client`. |
+| `@ringee/platform`        | Cross-cutting concerns + every external-provider adapter.                             |
+| `@ringee/services`        | Domain services — the business logic.                                                 |
+| `@ringee/configuration`   | Env config with fail-fast startup validation (built with SWC).                        |
+| `@ringee/frontend-shared` | Shared React components, hooks, API client.                                           |
+| `@ringee/dialer-core`     | Framework-free browser call engine, phone normalization, DTMF, call store.            |
+| `@ringee/dialer-sdk`      | Published embeddable SDK (`@ringee/dialer-sdk`).                                      |
+| `@ringee/dialer-ui`       | React UI on top of dialer-core.                                                       |
+| `@ringee-io/agent`        | MCP tool catalog, schemas, prompts, agent safety rules.                               |
 
 ## Layers
 
@@ -109,15 +109,15 @@ pnpm prisma:format
 
 ### Per-workspace checks
 
-| Workspace | test | typecheck |
-|---|---|---|
-| `@ringee/services` | node:test over `src/**/*.spec.ts` | — |
-| `@ringee/platform` | vitest | — |
-| `@ringee/dialer-core` | vitest | ✔ |
-| `@ringee/dialer-sdk` | vitest | ✔ |
-| `@ringee-io/agent` | node --test | ✔ |
-| `browser-extension` | vitest | ✔ |
-| `@ringee/dialer-ui`, `ringee` (CLI), `chatgpt-app` | — | ✔ |
+| Workspace                                          | test                              | typecheck |
+| -------------------------------------------------- | --------------------------------- | --------- |
+| `@ringee/services`                                 | node:test over `src/**/*.spec.ts` | —         |
+| `@ringee/platform`                                 | vitest                            | —         |
+| `@ringee/dialer-core`                              | vitest                            | ✔        |
+| `@ringee/dialer-sdk`                               | vitest                            | ✔        |
+| `@ringee-io/agent`                                 | node --test                       | ✔        |
+| `browser-extension`                                | vitest                            | ✔        |
+| `@ringee/dialer-ui`, `ringee` (CLI), `chatgpt-app` | —                                 | ✔        |
 
 There are 29 test files / 244 tests, concentrated where a mistake costs money or
 duplicates a call: `call-cost.util`, `credit.repository`,

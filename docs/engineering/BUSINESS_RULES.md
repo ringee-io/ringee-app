@@ -8,7 +8,7 @@ make an implementation easier. If a feature requires changing a rule, say so
 explicitly, name the ID, and change the rule and this document deliberately.
 
 Rules marked **`Needs confirmation`** are behaviours visible in the code whose
-*intent* could not be verified. Do not treat them as binding.
+_intent_ could not be verified. Do not treat them as binding.
 
 ---
 
@@ -231,7 +231,7 @@ a zero charge (`AiPipelineChargeError`).
 
 Flat `CALLER_ID_VERIFICATION_FEE` (default $1.00). A caller with a balance below
 the fee is refused with HTTP 402. The debit is keyed to the verification
-*attempt*, so re-sending a code bills again while a double-submitted request does
+_attempt_, so re-sending a code bills again while a double-submitted request does
 not; a provider rejection refunds through the ledgered grant path.
 
 - **Source of truth:** `packages/services/src/services/caller.id.service.ts`
@@ -277,7 +277,7 @@ never refused because of a teammate's call.
 ### CALL-003 — Inbound ringing does not occupy the user; org inbound never does
 
 A ringing inbound leg has not been picked up. Inside an organization an inbound
-row is attributed to the number's *owner*, not the member who answers, so it must
+row is attributed to the number's _owner_, not the member who answers, so it must
 never mark anyone busy. Server-originated voicemail drops likewise occupy nobody.
 
 - **Source of truth:** `occupiesTheUser`, `isServerOriginatedDrop`
@@ -556,7 +556,7 @@ recorded on the header (`chargedOnHangup`) so it happens once.
 `messagingEnabled` (= sms OR mms) and `messagingStatus` from the provider's
 feature list. UI and callers read these flags to decide what a number can do.
 
-- **`Needs confirmation`** — no server-side check was found that *refuses* a send
+- **`Needs confirmation`** — no server-side check was found that _refuses_ a send
   on a number whose snapshot says messaging is unavailable. Treat the flags as
   capability metadata, not as an enforced gate, until confirmed.
 

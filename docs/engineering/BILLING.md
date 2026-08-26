@@ -9,14 +9,14 @@ the gate.
 
 ## How money is represented
 
-| Concept | Storage | Notes |
-|---|---|---|
-| Balance | `Credit.amount` — `Float`, USD | One row per workspace (user **or** organization) |
-| Purchase | `CreditTopup` — `amount` + `amountCents` | Stripe ids, `source` |
-| Grant | `CreditGrant` — `amount` | Non-purchase: offers, promos, goodwill |
-| Debit | `CreditDebit` — `amount`, `balanceBefore`, `balanceAfter` | Every consumption |
-| Call cost | `Call.totalCost` + `Call.costMeta` | `costMeta` keeps the full breakdown |
-| Margin | env multipliers | `CALL_PROFIT_MARGIN`, `CALL_RECORDING_PROFIT_MARGIN`, `MESSAGE_PROFIT_MARGIN`, `TRANSCRIPTION_CREDIT_PROFIT_MARGIN`, `AI_TOKEN_MARGIN` |
+| Concept   | Storage                                                   | Notes                                                                                                                                  |
+| --------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| Balance   | `Credit.amount` — `Float`, USD                            | One row per workspace (user **or** organization)                                                                                       |
+| Purchase  | `CreditTopup` — `amount` + `amountCents`                  | Stripe ids, `source`                                                                                                                   |
+| Grant     | `CreditGrant` — `amount`                                  | Non-purchase: offers, promos, goodwill                                                                                                 |
+| Debit     | `CreditDebit` — `amount`, `balanceBefore`, `balanceAfter` | Every consumption                                                                                                                      |
+| Call cost | `Call.totalCost` + `Call.costMeta`                        | `costMeta` keeps the full breakdown                                                                                                    |
+| Margin    | env multipliers                                           | `CALL_PROFIT_MARGIN`, `CALL_RECORDING_PROFIT_MARGIN`, `MESSAGE_PROFIT_MARGIN`, `TRANSCRIPTION_CREDIT_PROFIT_MARGIN`, `AI_TOKEN_MARGIN` |
 
 **There is a ledger.** `CreditDebit`, `CreditGrant` and `CreditTopup` are it. It
 is append-only and each row carries a unique idempotency key. `Credit.amount` is
@@ -50,17 +50,17 @@ a failure. Side effects are gated on the returned boolean (`BILL-004`).
 
 ### Idempotency key conventions
 
-| Source | Key |
-|---|---|
-| Call settlement | `call-cost:<callId>` (source `telnyx.call.cost`) |
-| Desk-phone call | `call-cost:<callId>` (source `telnyx.desk-phone.call.cost`) |
-| Message | `message-cost:<messageId>` |
-| Live transcription | `transcription-realtime:<headerId>` |
-| Recording transcription | `transcription-recording:<headerId>` |
-| Offer reward | `OfferRewardService.idempotencyKey(participationId)` |
-| Caller-ID verification | `caller-id-verification:<numberId>:<requestedAt>` |
-| Auto-reload (Stripe side) | `autoreload:<settingsId>:<minute>` |
-| AI chat / summary / pipeline | `incurredCostDebitRef(...)` — unique per invocation |
+| Source                       | Key                                                         |
+| ---------------------------- | ----------------------------------------------------------- |
+| Call settlement              | `call-cost:<callId>` (source `telnyx.call.cost`)            |
+| Desk-phone call              | `call-cost:<callId>` (source `telnyx.desk-phone.call.cost`) |
+| Message                      | `message-cost:<messageId>`                                  |
+| Live transcription           | `transcription-realtime:<headerId>`                         |
+| Recording transcription      | `transcription-recording:<headerId>`                        |
+| Offer reward                 | `OfferRewardService.idempotencyKey(participationId)`        |
+| Caller-ID verification       | `caller-id-verification:<numberId>:<requestedAt>`           |
+| Auto-reload (Stripe side)    | `autoreload:<settingsId>:<minute>`                          |
+| AI chat / summary / pipeline | `incurredCostDebitRef(...)` — unique per invocation         |
 
 `ref` is **required**. Two shapes, and picking the wrong one is a real bug:
 
@@ -107,11 +107,11 @@ until the user acts (`BILL-008`).
 
 ## Where a call is refused for money
 
-| Point | Check | On failure |
-|---|---|---|
-| Dial pre-flight | balance, `canCall`, caller ID, DNC | refuse the request |
-| `call.initiated` | `ensureCallAffordable` | hang up the live leg |
-| `call.answered` | `enforceAnsweredCreditPolicy` | hang up, or cap at 5 min under $2 |
+| Point            | Check                              | On failure                        |
+| ---------------- | ---------------------------------- | --------------------------------- |
+| Dial pre-flight  | balance, `canCall`, caller ID, DNC | refuse the request                |
+| `call.initiated` | `ensureCallAffordable`             | hang up the live leg              |
+| `call.answered`  | `enforceAnsweredCreditPolicy`      | hang up, or cap at 5 min under $2 |
 
 Three points, not one, because the browser places the WebRTC leg itself and can
 skip any purely client-side gate.

@@ -102,11 +102,11 @@ messaging, WebRTC) · Deepgram (transcription) · Resend (email) · Firebase (pu
 
 ## Contract change checklist
 
-| Changing | Also check |
-|---|---|
-| A Prisma enum | frontend labels, MCP schemas, SDK types, `event-spec.ts` |
-| An `/api` response shape | web, extension, CLI, Attio, ChatGPT app, SDK |
-| An MCP tool schema | `packages/agent` catalog + tests, CLI commands, skill files |
-| An SDK export | `dist` typings, playground, `package.json` version |
-| A webhook payload | `event-spec.ts`, the docs tab, live customer endpoints |
-| Auth or ownership behaviour | every non-Clerk identity in [WORKSPACES.md](WORKSPACES.md) |
+| Changing                    | Also check                                                  |
+| --------------------------- | ----------------------------------------------------------- |
+| A Prisma enum               | frontend labels, MCP schemas, SDK types, `event-spec.ts`    |
+| An `/api` response shape    | web, extension, CLI, Attio, ChatGPT app, SDK                |
+| An MCP tool schema          | `packages/agent` catalog + tests, CLI commands, skill files |
+| An SDK export               | `dist` typings, playground, `package.json` version          |
+| A webhook payload           | `event-spec.ts`, the docs tab, live customer endpoints      |
+| Auth or ownership behaviour | every non-Clerk identity in [WORKSPACES.md](WORKSPACES.md)  |

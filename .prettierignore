@@ -1,0 +1,44 @@
+# Prettier's ignore list mirrors ESLint's `ignores` in eslint.config.mjs.
+# Keep the two in sync: anything generated, vendored or built is formatted by
+# whatever produced it, not by us.
+
+# ── Dependencies & lockfiles ─────────────────────────────────────────────
+node_modules
+pnpm-lock.yaml
+
+# ── Build output ─────────────────────────────────────────────────────────
+**/dist
+**/build
+**/out
+**/coverage
+*.tsbuildinfo
+# Covers `.next` and local variants such as `.next-mine` (see .gitignore).
+**/.next*
+**/next-env.d.ts
+apps/frontend/.clerk
+
+# ── Generated & vendored sources ─────────────────────────────────────────
+# Workbox/service-worker output from the PWA build.
+apps/frontend/public/sw.js
+apps/frontend/public/workbox-*.js
+# Generated from packages/agent/skills by scripts/generate-skills.mjs.
+apps/frontend/src/features/marketing/content/skills.generated.ts
+# esbuild output and the vendored SDK bundle in the playgrounds.
+apps/sdk-playground/**/vendor/**
+apps/sdk-playground/ui-gallery/gallery.js
+apps/sdk-playground/ui-gallery/gallery.js.map
+packages/database/generated
+
+# ── Not ours to reformat ─────────────────────────────────────────────────
+CHANGELOG.md
+LICENSE
+
+# ── Verification tokens & machine-local settings ─────────────────────────
+# A plain-text token that only happens to end in .html — reformatting it as
+# HTML breaks Google Search Console verification.
+apps/frontend/public/google*.html
+apps/frontend/public/.well-known
+.claude/settings.local.json
+
+# CI writes this in the architecture-boundary step.
+eslint-report.json
