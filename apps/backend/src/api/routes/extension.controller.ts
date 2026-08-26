@@ -335,119 +335,111 @@ export class ExtensionController {
       source: "chrome_extension",
     });
     if (!decision.allowed) {
-      this.fail("CONCURRENT_CALL", decision.message, HttpStatus.CONFLICT);
+      // ── ONE-CALL-GUARD-OFF ──  (ver caller-id-rotation.controller.ts)
+      console.warn(
+        `[ONE-CALL-GUARD-OFF] extension: user=${user.id} device=${device.deviceId} ` +
+          `lease=${decision.holder.source}/${decision.holder.deviceId}: ${decision.message}`,
+      );
+      // this.fail("CONCURRENT_CALL", decision.message, HttpStatus.CONFLICT);
     }
 
-    // The slot is reserved from here on. Every path that stops this request
-    // from becoming a call — DNC, no credit, no caller ID for the country, a
-    // provider hiccup minting credentials — has to hand it straight back, or
-    // a dial that never happened keeps the user busy for the lease's TTL and
-    // their next attempt from the web app or a desk phone is refused for it.
-    try {
-      // 1) DNC compliance — blocking.
-      const dnc = await this.complianceService.findOnDNC(ctx, destination);
-      if (dnc) {
-        this.fail(
-          "DNC_BLOCKED",
-          dnc.reason ?? "This number is on the Do-Not-Call list.",
-          HttpStatus.FORBIDDEN,
-        );
-      }
-
-      // 2) Credits — blocking.
-      const balance = await this.creditService.getBalance(ctx).catch(() => 0);
-      if (balance <= 0) {
-        this.fail(
-          "INSUFFICIENT_CREDITS",
-          "Not enough credits to place this call.",
-          HttpStatus.PAYMENT_REQUIRED,
-        );
-      }
-
-      // 3) Caller ID — always resolved server-side. The user's explicit "call
-      //    from this number" pick wins when it is still a valid caller ID for this
-      //    workspace/surface; otherwise fall back to the rotation-aware resolver
-      //    (rotation ON → country-matched pool pick, OFF → the fixed caller ID).
-      let callerId = await this.resolvePreferredCallerId(
-        ctx,
-        user.id,
-        body.preferredCallerId,
+    // 1) DNC compliance — blocking.
+    const dnc = await this.complianceService.findOnDNC(ctx, destination);
+    if (dnc) {
+      this.fail(
+        "DNC_BLOCKED",
+        dnc.reason ?? "This number is on the Do-Not-Call list.",
+        HttpStatus.FORBIDDEN,
       );
+    }
+
+    // 2) Credits — blocking.
+    const balance = await this.creditService.getBalance(ctx).catch(() => 0);
+    if (balance <= 0) {
+      this.fail(
+        "INSUFFICIENT_CREDITS",
+        "Not enough credits to place this call.",
+        HttpStatus.PAYMENT_REQUIRED,
+      );
+    }
+
+    // 3) Caller ID — always resolved server-side. The user's explicit "call
+    //    from this number" pick wins when it is still a valid caller ID for this
+    //    workspace/surface; otherwise fall back to the rotation-aware resolver
+    //    (rotation ON → country-matched pool pick, OFF → the fixed caller ID).
+    let callerId = await this.resolvePreferredCallerId(
+      ctx,
+      user.id,
+      body.preferredCallerId,
+    );
+    if (!callerId) {
+      const fixedCallerId = await this.resolveCallerId(ctx);
+      const selection = await this.callerIdRotationService.selectForDial(
+        ctx,
+        destination,
+        { phoneNumber: fixedCallerId },
+        { allowOverCap: body.allowOverCap === true },
+      );
+      callerId = selection.phoneNumber;
       if (!callerId) {
-        const fixedCallerId = await this.resolveCallerId(ctx);
-        const selection = await this.callerIdRotationService.selectForDial(
-          ctx,
-          destination,
-          { phoneNumber: fixedCallerId },
-          { allowOverCap: body.allowOverCap === true },
-        );
-        callerId = selection.phoneNumber;
-        if (!callerId) {
-          if (selection.reason === "all_over_cap") {
-            this.fail(
-              "CALLER_ID_CAP_REACHED",
-              "Every number for this destination reached today's cap. Retry later or override.",
-              HttpStatus.CONFLICT,
-            );
-          }
-          if (selection.reason === "no_caller_id_for_country") {
-            this.fail(
-              "NO_CALLER_ID_FOR_COUNTRY",
-              "No caller ID is available for this destination's country. Add a number for it.",
-              HttpStatus.CONFLICT,
-            );
-          }
+        if (selection.reason === "all_over_cap") {
           this.fail(
-            "NO_CALLER_ID",
-            "No caller ID is available for this workspace.",
+            "CALLER_ID_CAP_REACHED",
+            "Every number for this destination reached today's cap. Retry later or override.",
             HttpStatus.CONFLICT,
           );
         }
-      }
-
-      // 4) Attach the call to a contact (so it lands in the CRM timeline).
-      let contact;
-      try {
-        contact = await this.contactService.findOrCreateByPhone(
-          ctx,
-          destination,
-        );
-      } catch {
+        if (selection.reason === "no_caller_id_for_country") {
+          this.fail(
+            "NO_CALLER_ID_FOR_COUNTRY",
+            "No caller ID is available for this destination's country. Add a number for it.",
+            HttpStatus.CONFLICT,
+          );
+        }
         this.fail(
-          "CONTACT_FAILED",
-          "Could not attach the call to a contact.",
-          HttpStatus.INTERNAL_SERVER_ERROR,
+          "NO_CALLER_ID",
+          "No caller ID is available for this workspace.",
+          HttpStatus.CONFLICT,
         );
       }
-
-      // 5) Record the basic page origin (best-effort, non-blocking). Only the
-      //    visible, non-sensitive context the user implicitly shared.
-      if (body.origin) {
-        await this.recordOrigin(user.id, contact!.id, body.origin).catch(
-          () => undefined,
-        );
-      }
-
-      // 6) Mint ephemeral WebRTC credentials (the extension never holds static ones).
-      const credential = await this.telephonyService.createTelephonyCredential(
-        user.id,
-      );
-
-      return {
-        callId: null,
-        contact: {
-          id: contact!.id,
-          name: contact!.name ?? undefined,
-          company: contact!.company ?? undefined,
-        },
-        callerId,
-        credential,
-        destination,
-      };
-    } catch (error) {
-      await this.concurrentCallGuard.releasePending(user.id, device.deviceId);
-      throw error;
     }
+
+    // 4) Attach the call to a contact (so it lands in the CRM timeline).
+    let contact;
+    try {
+      contact = await this.contactService.findOrCreateByPhone(ctx, destination);
+    } catch {
+      this.fail(
+        "CONTACT_FAILED",
+        "Could not attach the call to a contact.",
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+
+    // 5) Record the basic page origin (best-effort, non-blocking). Only the
+    //    visible, non-sensitive context the user implicitly shared.
+    if (body.origin) {
+      await this.recordOrigin(user.id, contact!.id, body.origin).catch(
+        () => undefined,
+      );
+    }
+
+    // 6) Mint ephemeral WebRTC credentials (the extension never holds static ones).
+    const credential = await this.telephonyService.createTelephonyCredential(
+      user.id,
+    );
+
+    return {
+      callId: null,
+      contact: {
+        id: contact!.id,
+        name: contact!.name ?? undefined,
+        company: contact!.company ?? undefined,
+      },
+      callerId,
+      credential,
+      destination,
+    };
   }
 
   /**

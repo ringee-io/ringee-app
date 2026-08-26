@@ -73,16 +73,6 @@ export class UserService {
     return `user:clerk:${clerkId}`;
   }
 
-  /**
-   * A caller that has no identifier must get `null`, never "some user".
-   * Without this an absent id builds the literal key `user:clerk:undefined` and
-   * falls through to a repository lookup, and the repository is where a missing
-   * filter used to resolve to an arbitrary account (see UserRepository).
-   */
-  private static missingId(value: string | null | undefined): boolean {
-    return typeof value !== "string" || value.trim() === "";
-  }
-
   /** How long a cached user stays warm (1 hour). */
   private static readonly USER_CACHE_TTL_MS = 60 * 60 * 1000;
 
@@ -114,7 +104,6 @@ export class UserService {
    * {@link getUserById} only when you explicitly need an uncached read.
    */
   async getCachedUserById(id: string): Promise<User | null> {
-    if (UserService.missingId(id)) return null;
     const cached = await this.redisService.get<User>(UserService.idKey(id));
     if (cached) {
       return cached;
@@ -128,13 +117,12 @@ export class UserService {
 
   /** Cached lookup by Clerk id (see {@link getCachedUserById}). */
   async getCachedByClerkId(clerkId: string): Promise<User | null> {
-    if (UserService.missingId(clerkId)) return null;
-    const cached = await this.redisService.get<User>(
-      UserService.clerkKey(clerkId),
-    );
-    if (cached) {
-      return cached;
-    }
+    // const cached = await this.redisService.get<User>(
+    //   UserService.clerkKey(clerkId),
+    // );
+    // if (cached) {
+    //   return cached;
+    // }
     const user = await this.userRepository.findByClerkId(clerkId);
     if (user) {
       await this.cacheUser(user);
