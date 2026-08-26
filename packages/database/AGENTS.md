@@ -14,8 +14,13 @@ else imports models, enums and `Prisma` types from `@ringee/database`.
   an ownership check in the caller — prefer a scoped finder instead.
 - Multi-step writes that must not half-apply use `prisma.$transaction`. The
   credit ledger methods (`consumeOnce`, `grantOnce`, `topupOnce`) are the
-  reference shape: unique idempotency key + balance change in one transaction,
-  duplicate key caught and reported rather than thrown.
+  reference shape: unique idempotency key + balance change in one transaction.
+  Only a `P2002` on that key's own columns (`idempotencyKey` for the debit and
+  grant ledgers, `stripeCheckoutSessionId` / `stripePaymentIntentId` for a
+  top-up) is caught and reported as "already applied". Every other unique
+  violation — including another `P2002` in the same transaction, such as two
+  requests racing to create the workspace's `Credit` row — is rethrown, so a
+  real write is never silently dropped.
 - Concurrent counters use atomic `{ increment }`, never read-modify-write.
 - Queue claims use `SELECT FOR UPDATE SKIP LOCKED` (`lockNextLead`).
 
