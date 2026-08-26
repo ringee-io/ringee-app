@@ -42,12 +42,20 @@ export class CallerIdService {
     return this.repo.listCallerIds(ctx);
   }
 
+  /**
+   * Request (or re-request) a caller-ID verification code.
+   *
+   * `resend` must be set only when the user explicitly asked for another code.
+   * Leaving it unset makes a repeated request idempotent: it rejoins the
+   * in-flight attempt instead of opening — and billing — a new one.
+   */
   async requestVerification(
     ctx: OwnershipContext,
     phoneNumber: string,
     method: "sms" | "call",
     extension?: string,
     isoCountry?: string,
+    resend = false,
   ): Promise<NumberPurchased> {
     if (!E164.test(phoneNumber)) {
       throw new BadRequestException("A valid E.164 phone number is required");
@@ -68,13 +76,28 @@ export class CallerIdService {
       );
     }
 
+    // The billed unit is the verification ATTEMPT, and `verificationRequestedAt`
+    // is its identifier. An attempt that is still pending keeps its original
+    // stamp, so a double-submitted or client-retried request rebuilds the SAME
+    // idempotency key and `consumeCredits` collapses it into a single charge.
+    // A new stamp — and therefore a new charge — happens only on an explicit
+    // resend, or when the previous attempt is no longer pending.
+    //
+    // Stamping unconditionally, as this used to do, handed every retry its own
+    // millisecond and so its own charge and its own verification SMS.
+    const inFlightSince =
+      existing?.verificationStatus === "pending"
+        ? existing.verificationRequestedAt
+        : null;
+    const requestedAt = !resend && inFlightSince ? inFlightSince : new Date();
+
     // Upsert the pending caller-id row before charging so a charge always has a
     // record to attach to.
     const callerId = existing
       ? await this.repo.updateCallerId(existing.id, {
           verificationStatus: "pending",
           verificationMethod: method,
-          verificationRequestedAt: new Date(),
+          verificationRequestedAt: requestedAt,
         })
       : await this.repo.createCallerId(ctx, {
           phoneNumber,
@@ -83,18 +106,12 @@ export class CallerIdService {
           status: null,
           verificationStatus: "pending",
           verificationMethod: method,
-          verificationRequestedAt: new Date(),
+          verificationRequestedAt: requestedAt,
         });
 
     // Charge the fee, then dispatch the verification. Refund if Telnyx rejects
     // the request so a failed send never costs the user.
-    //
-    // The key is the verification ATTEMPT, not the caller-id row: each attempt
-    // stamps a fresh `verificationRequestedAt`, so re-sending a code is billed
-    // again while a double-submitted request is not.
-    const attemptKey = `caller-id-verification:${callerId.id}:${(
-      callerId.verificationRequestedAt ?? new Date()
-    ).toISOString()}`;
+    const attemptKey = `caller-id-verification:${callerId.id}:${requestedAt.toISOString()}`;
     await this.creditService.consumeCredits(ctx, fee, {
       idempotencyKey: attemptKey,
       source: "telnyx.caller-id.verification",

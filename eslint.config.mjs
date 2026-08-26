@@ -229,11 +229,22 @@ export default tsEslint.config(
   // ARCH-001 — External provider SDKs live in packages/platform adapters only.
   // Domain services, the API layer and the worker speak Ringee abstractions
   // (TelephonyService, StripeService, AiProviderRegistry), never a vendor SDK.
+  //
+  // The scope is every server-side workspace *except* packages/platform, which
+  // is where the adapters legitimately import the SDKs. Listing the workspaces
+  // explicitly (rather than `packages/**` plus an ignore) is what keeps
+  // packages/platform out: the MCP tool surface, the repositories, the config
+  // package and the CLI are all server-side and all reach providers through
+  // the same adapters.
   {
     files: [
       "packages/services/**/*.{ts,tsx}",
+      "packages/agent/**/*.{ts,tsx}",
+      "packages/database/**/*.{ts,tsx}",
+      "packages/configuration/**/*.{ts,tsx}",
       "apps/backend/**/*.{ts,tsx}",
       "apps/orchestrator/**/*.{ts,tsx}",
+      "apps/agent-cli/**/*.{ts,tsx}",
     ],
     rules: {
       "@typescript-eslint/no-restricted-imports": [
@@ -340,6 +351,12 @@ export default tsEslint.config(
   // deterministic V8 isolate: only @temporalio/workflow may be imported at
   // runtime. Everything else must be a type-only import (erased at compile
   // time). A runtime import here breaks the worker at startup.
+  //
+  // This is deny-by-default on purpose. An enumerated group only covers the
+  // specifiers someone remembered to list — `node:fs`, `axios`, `@prisma/client`
+  // or a fresh `./helpers` sibling would all walk straight into the sandbox.
+  // The regex matches every specifier *except* @temporalio/workflow and its
+  // subpaths, and `allowTypeImports` lets the type-only imports back through.
   {
     files: ["apps/orchestrator/src/temporal/workflows.ts"],
     rules: {
@@ -348,7 +365,8 @@ export default tsEslint.config(
         {
           patterns: [
             {
-              group: ["@ringee/*", "@nestjs/*", "./activities", "../*"],
+              regex: "^(?!@temporalio/workflow(/|$))",
+              caseSensitive: true,
               allowTypeImports: true,
               message:
                 "Workflow code runs in Temporal's deterministic sandbox. Use `import type` only; runtime work belongs in activities.ts.",

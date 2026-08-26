@@ -29,6 +29,16 @@ export class RequestCallerIdVerificationDto {
   @IsString()
   @IsOptional()
   isoCountry?: string;
+
+  /**
+   * True only when the user deliberately asked for another code (the "resend"
+   * action in the verify modal). A plain retry of the same request — a double
+   * click, a client retry after a timeout — must leave this unset, so the
+   * server bills one attempt instead of one per delivery of the same request.
+   */
+  @IsBoolean()
+  @IsOptional()
+  resend?: boolean;
 }
 
 export class VerifyCallerIdDto {

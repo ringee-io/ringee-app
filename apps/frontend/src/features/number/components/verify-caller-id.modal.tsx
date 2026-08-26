@@ -64,7 +64,10 @@ export function VerifyCallerIdModal({
       await api.post('/telephony/caller-id', {
         phoneNumber: callerId.phoneNumber,
         method: callerId.verificationMethod === 'call' ? 'call' : 'sms',
-        isoCountry: callerId.isoCountry
+        isoCountry: callerId.isoCountry,
+        // Deliberate "send me another code": this is the one path that opens a
+        // new billable attempt. Plain retries omit it and rejoin the current one.
+        resend: true
       });
       toast.success(t('verifyModal.resent'));
     } catch (err) {

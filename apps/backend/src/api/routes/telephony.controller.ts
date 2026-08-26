@@ -68,13 +68,17 @@ export class TelephonyController {
     private readonly regulatoryDocumentService: RegulatoryDocumentService,
   ) {}
 
-  @Public()
+  // Not @Public(): the cached rate table is Ringee's own price list, and a
+  // @Public() route has to carry its own proof of authorization (a provider
+  // signature, a hashed token, an SDK session, an API key). These carry none,
+  // and their only consumer is the authenticated dashboard rate page, which
+  // already sends a Clerk token. If a signed-out pricing page ever needs these,
+  // give them a real public-read guard rather than restoring a bare @Public().
   @Get("rates")
   async getRates(): Promise<TelephonyCountryRate[]> {
     return this.telephonyRateService.listRates();
   }
 
-  @Public()
   @Get("rates/:codeOrName")
   async getRateByCountry(
     @Param("codeOrName") codeOrName: string,
@@ -148,6 +152,7 @@ export class TelephonyController {
       body.method,
       body.extension,
       body.isoCountry,
+      body.resend === true,
     );
   }
 
