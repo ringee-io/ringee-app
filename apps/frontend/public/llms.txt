@@ -85,6 +85,8 @@
 ## Resources
 
 - [Full text for LLMs](https://www.ringee.io/llms-full.txt): Concatenated long-form content for AI ingestion.
+- [Agent Skill](https://www.ringee.io/SKILL.md): How to operate Ringee as an agent — capabilities, safety rules, and the outbound flow.
+- [Agent Skills index](https://www.ringee.io/.well-known/agent-skills/index.json): Every published Ringee skill, installable with `npx skills add https://www.ringee.io`.
 - [Developer documentation](https://docs.ringee.io): Guides and API/MCP reference.
 - [Blog](https://blog.ringee.io): Outbound and product articles.
 - [Command-line interface](https://www.npmjs.com/package/ringee): The `ringee` CLI on npm.
