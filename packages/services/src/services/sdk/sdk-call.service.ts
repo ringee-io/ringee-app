@@ -90,80 +90,86 @@ export class SdkCallService {
       source: "sdk",
     });
     if (!decision.allowed) {
-      // ── ONE-CALL-GUARD-OFF ──  (ver caller-id-rotation.controller.ts)
-      this.logger.warn(
-        `[ONE-CALL-GUARD-OFF] sdk: user=${agent.user.id} ` +
-          `lease=${decision.holder.source}/${decision.holder.deviceId}: ${decision.message}`,
+      throw new SdkError("CALL_ALREADY_ACTIVE", decision.message);
+    }
+
+    // The slot is reserved from here on. Every refusal below — DNC, no
+    // credit, no caller ID — has to hand it back, or an authorize that never
+    // became a call keeps the agent busy for the lease's TTL.
+    try {
+      // DNC — blocking.
+      const dnc = await this.compliance.findOnDNC(ctx, to).catch(() => null);
+      if (dnc) {
+        throw new SdkError(
+          "DNC_BLOCKED",
+          dnc.reason ?? "This number is on the Do-Not-Call list.",
+        );
+      }
+
+      // Credit — blocking.
+      const balance = await this.credit.getBalance(ctx).catch(() => 0);
+      if (balance <= 0) {
+        throw new SdkError(
+          "INSUFFICIENT_CREDIT",
+          "Not enough credits to place this call.",
+        );
+      }
+
+      // Caller ID (explicit pick or rotation-aware fixed number).
+      const callerId = await this.callerIds.resolveForDial(
+        ctx,
+        agent.user.id,
+        to,
+        {
+          callerIdId: input.callerIdId,
+          allowOverCap: input.allowOverCap,
+        },
       );
-      // throw new SdkError("CALL_ALREADY_ACTIVE", decision.message);
-    }
 
-    // DNC — blocking.
-    const dnc = await this.compliance.findOnDNC(ctx, to).catch(() => null);
-    if (dnc) {
-      throw new SdkError(
-        "DNC_BLOCKED",
-        dnc.reason ?? "This number is on the Do-Not-Call list.",
+      // Contact (never auto-created).
+      const contactId = await this.contacts.resolve(ctx, agent.integration.id, {
+        contactId: input.contactId,
+        externalContactId: input.externalContactId,
+      });
+
+      // Pre-create the Call row; the webhook adopts it via the correlation token.
+      const call = await this.calls.createCall(ctx, {
+        fromNumber: callerId.phoneNumber,
+        toNumber: to,
+        direction: "outbound",
+        status: CallStatus.pending,
+        source: "sdk",
+        clientState: Buffer.from("initiate_call").toString("base64"),
+        contact: contactId ? { connect: { id: contactId } } : undefined,
+        callerId: callerId.callerIdId
+          ? { connect: { id: callerId.callerIdId } }
+          : undefined,
+      });
+
+      const result: SdkAuthorizeResult = {
+        callId: call.id,
+        destinationNumber: to,
+        callerIdNumber: callerId.phoneNumber,
+        correlationToken: signCallCorrelation(call.id),
+        clientState: call.clientState ?? "",
+      };
+
+      if (idemKey) {
+        await this.redis
+          .set(idemKey, result, IDEMPOTENCY_TTL_SECONDS * 1000)
+          .catch(() => undefined);
+      }
+
+      this.logger.log(
+        `SDK call authorized: ${call.id} (integration=${agent.integration.id})`,
       );
-    }
-
-    // Credit — blocking.
-    const balance = await this.credit.getBalance(ctx).catch(() => 0);
-    if (balance <= 0) {
-      throw new SdkError(
-        "INSUFFICIENT_CREDIT",
-        "Not enough credits to place this call.",
+      return result;
+    } catch (error) {
+      await this.concurrentCalls.releasePending(
+        agent.user.id,
+        `sdk:${agent.claims.integrationId}:${agent.claims.origin}`,
       );
+      throw error;
     }
-
-    // Caller ID (explicit pick or rotation-aware fixed number).
-    const callerId = await this.callerIds.resolveForDial(
-      ctx,
-      agent.user.id,
-      to,
-      {
-        callerIdId: input.callerIdId,
-        allowOverCap: input.allowOverCap,
-      },
-    );
-
-    // Contact (never auto-created).
-    const contactId = await this.contacts.resolve(ctx, agent.integration.id, {
-      contactId: input.contactId,
-      externalContactId: input.externalContactId,
-    });
-
-    // Pre-create the Call row; the webhook adopts it via the correlation token.
-    const call = await this.calls.createCall(ctx, {
-      fromNumber: callerId.phoneNumber,
-      toNumber: to,
-      direction: "outbound",
-      status: CallStatus.pending,
-      source: "sdk",
-      clientState: Buffer.from("initiate_call").toString("base64"),
-      contact: contactId ? { connect: { id: contactId } } : undefined,
-      callerId: callerId.callerIdId
-        ? { connect: { id: callerId.callerIdId } }
-        : undefined,
-    });
-
-    const result: SdkAuthorizeResult = {
-      callId: call.id,
-      destinationNumber: to,
-      callerIdNumber: callerId.phoneNumber,
-      correlationToken: signCallCorrelation(call.id),
-      clientState: call.clientState ?? "",
-    };
-
-    if (idemKey) {
-      await this.redis
-        .set(idemKey, result, IDEMPOTENCY_TTL_SECONDS * 1000)
-        .catch(() => undefined);
-    }
-
-    this.logger.log(
-      `SDK call authorized: ${call.id} (integration=${agent.integration.id})`,
-    );
-    return result;
   }
 }

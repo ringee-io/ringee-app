@@ -308,26 +308,19 @@ export class CallService implements OnModuleDestroy {
       return true;
     }
 
-    // ── ONE-CALL-GUARD-OFF ──  (ver caller-id-rotation.controller.ts)
-    // Este es el backstop del webhook: si el pre-flight no bloqueó, aquí se
-    // colgaba la pata desde el servidor. Desactivado también, si no la
-    // segunda llamada se caería sola en vez de mostrar el modal.
     this.logger.warn(
-      `[ONE-CALL-GUARD-OFF] backstop: NO se cuelga ${callControlId}; user ${ctx.userId} ya figura ` +
-        `en la llamada ${busy.id} (${busy.callControlId}, status=${busy.status}, ` +
-        `source=${busy.source ?? "unknown"}, createdAt=${busy.createdAt.toISOString()})`,
+      `⛔ Hanging up call ${callControlId}: user ${ctx.userId} is already on call ` +
+        `${busy.id} (${busy.callControlId}, source=${busy.source ?? "unknown"})`,
     );
-    await this.concurrentCallGuard.bindToCall(ctx.userId, callControlId);
-    return true;
-    // await this.telephonyService
-    //   .hangupCall(callControlId)
-    //   .catch((err) =>
-    //     this.logger.error(
-    //       `Failed to hang up concurrent call ${callControlId}: ${err.message}`,
-    //       err.stack,
-    //     ),
-    //   );
-    // return false;
+    await this.telephonyService
+      .hangupCall(callControlId)
+      .catch((err) =>
+        this.logger.error(
+          `Failed to hang up concurrent call ${callControlId}: ${err.message}`,
+          err.stack,
+        ),
+      );
+    return false;
   }
 
   /**
@@ -648,10 +641,22 @@ export class CallService implements OnModuleDestroy {
     return this.callRepository.listWithRecordings(params);
   }
 
-  getClerkUserIdFromHeaders(headers: any): string {
-    return Array.isArray(headers)
-      ? headers?.find((header: any) => header.name === "X-User-Id")?.value
-      : "";
+  /**
+   * The Clerk user id the dialing client attributed this leg to, or `null`.
+   *
+   * `null` is a real answer and callers MUST treat it as one: a leg with no
+   * `X-User-Id` (an old client, a direct SIP/WebRTC client, a browser that
+   * dialed before Clerk hydrated and sent an empty value) belongs to nobody we
+   * can name. It used to be handed to the user lookup as `undefined`, which
+   * resolved to an arbitrary account — that account was then billed for the
+   * call and had its single call slot taken by a stranger.
+   */
+  getClerkUserIdFromHeaders(headers: any): string | null {
+    if (!Array.isArray(headers)) return null;
+    const value = headers.find(
+      (header: any) => header?.name === "X-User-Id",
+    )?.value;
+    return typeof value === "string" && value.trim() ? value.trim() : null;
   }
 
   async getOrganizationIdFromHeaders(headers: any): Promise<string | null> {
@@ -932,14 +937,29 @@ export class CallService implements OnModuleDestroy {
             organizationId: callSession.organizationId,
           };
         } else {
-          const userId = this.getClerkUserIdFromHeaders(payload.custom_headers);
+          const clerkUserId = this.getClerkUserIdFromHeaders(
+            payload.custom_headers,
+          );
+
+          if (!clerkUserId) {
+            // Drop the leg rather than guess. Attributing an unidentified call
+            // to "whoever the lookup returns" bills a stranger and takes their
+            // one-call-at-a-time slot, which shows up as a teammate being told
+            // they are already on a call they never made.
+            this.logger.warn(
+              `⚠️ Dropping outbound call ${callControlId}: no X-User-Id custom header ` +
+                `(from=${payload.from} to=${payload.to}) — it cannot be attributed to a user`,
+            );
+            return;
+          }
+
           const organizationId = await this.getOrganizationIdFromHeaders(
             payload.custom_headers,
           );
-          const user = await this.userService.getCachedByClerkId(userId);
+          const user = await this.userService.getCachedByClerkId(clerkUserId);
 
           if (!user) {
-            this.logger.warn(`⚠️ User ${userId} not found`);
+            this.logger.warn(`⚠️ User ${clerkUserId} not found`);
             return;
           }
 
