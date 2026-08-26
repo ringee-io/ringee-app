@@ -87,8 +87,8 @@ Retries must never produce a duplicate call, charge, balance mutation, or event.
 
 - Every credit mutation goes through `CreditService`. Money in:
   `creditTopupOnce` (Stripe) or `grantCreditsOnce` (non-purchase grants). Money
-  out: `consumeCredits` **with an idempotency ref**. The ledger row and the
-  balance move in one transaction.
+  out: `consumeCredits`, whose idempotency ref is **required**. The ledger row
+  and the balance move in one transaction.
 - Webhook handlers must be safe to replay; guard on a stored marker (a ledger
   key, a settled `totalCost`, a status transition) before causing a side effect.
 - One call at a time per user is enforced by `ConcurrentCallGuardService`. Any
@@ -129,9 +129,12 @@ pnpm build:backend | build:frontend | build:database | build:orchestrator
 pnpm prisma:generate                       # after any schema.prisma change
 ```
 
-The lint baseline is **not** clean (pre-existing `no-explicit-any` /
-`no-unused-vars` / prettier findings). Do not "fix" unrelated ones; just make
-sure you add none. Never invent a command — read `package.json`.
+CI (`.github/workflows/ci.yml`) runs the same steps. Its **architecture-boundary
+gate fails the build on any new `ARCH-001`..`ARCH-004` violation** — those are at
+zero and must stay there. The general lint baseline (~557 findings:
+`no-explicit-any`, unused vars, `ban-ts-comment`) is advisory; add none, and do
+not mass-fix unrelated ones in a feature change. Never invent a command — read
+`package.json`.
 
 ## Keeping these rules current
 

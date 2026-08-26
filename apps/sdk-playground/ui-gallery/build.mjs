@@ -19,7 +19,10 @@ await build({
   logLevel: "info",
   alias: {
     "@ringee/dialer-core": resolve(repo, "packages/dialer-core/src/index.ts"),
-    "@ringee/dialer-core/engine": resolve(repo, "packages/dialer-core/src/engine/index.ts"),
+    "@ringee/dialer-core/engine": resolve(
+      repo,
+      "packages/dialer-core/src/engine/index.ts",
+    ),
   },
 });
 

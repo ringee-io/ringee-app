@@ -16,7 +16,7 @@ System knowledge, separated from agent instructions on purpose:
 | [SECURITY.md](SECURITY.md) | Public routes, signatures, tokens, secrets, encryption |
 | [INTEGRATIONS.md](INTEGRATIONS.md) | SDK, CLI, extension, MCP, CRM, Attio, outbound webhooks |
 | [CANONICAL_IMPLEMENTATIONS.md](CANONICAL_IMPLEMENTATIONS.md) | Before writing any new helper, service or abstraction |
-| [ARCHITECTURE_DEBT.md](ARCHITECTURE_DEBT.md) | You hit something that looks wrong — check whether it is already known |
+| [ARCHITECTURE_DEBT.md](ARCHITECTURE_DEBT.md) | You hit something that looks wrong — check whether it is known, and whether it was already fixed |
 | [decisions/](decisions/) | You are making a decision future readers will have to live with |
 
 ## Conventions

@@ -17,7 +17,8 @@ import { SKILLS_INDEX_PATH, SKILL_MD_PATH } from '@/features/marketing/skills';
 const DISALLOW = ['/dashboard', '/auth', '/dialer', '/api', '/monitoring'];
 
 // Maximally permissive content signal: AI may search, retrieve and train.
-const CONTENT_SIGNAL = 'Content-Signal: search=yes, ai-train=yes, ai-retrieval=yes';
+const CONTENT_SIGNAL =
+  'Content-Signal: search=yes, ai-train=yes, ai-retrieval=yes';
 
 // AI crawlers we explicitly welcome (training, search/retrieval and
 // user-triggered fetchers across the major providers).

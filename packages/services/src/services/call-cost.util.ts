@@ -24,14 +24,6 @@ const toNonNegativeNumber = (value: unknown): number => {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
 };
 
-export const readProfitMultiplier = (
-  value: string | undefined,
-  fallback = 1,
-): number => {
-  const parsed = value ? Number.parseFloat(value) : Number.NaN;
-  return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
-};
-
 /**
  * Applies the voice-call multiplier to every Telnyx cost part except recording,
  * which has its own multiplier. When Telnyx omits cost_parts, total_cost is

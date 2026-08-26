@@ -26,16 +26,76 @@ const OPTIONS: {
   color: string;
   active: string;
 }[] = [
-  { id: "meeting_booked", label: "Meeting booked", icon: CalendarCheck, color: "text-emerald-500", active: "border-emerald-500 bg-emerald-500/10 text-emerald-600" },
-  { id: "sale", label: "Sale", icon: DollarSign, color: "text-green-500", active: "border-green-500 bg-green-500/10 text-green-600" },
-  { id: "interested", label: "Interested", icon: ThumbsUp, color: "text-blue-500", active: "border-blue-500 bg-blue-500/10 text-blue-600" },
-  { id: "follow_up", label: "Follow up", icon: Clock, color: "text-amber-500", active: "border-amber-500 bg-amber-500/10 text-amber-600" },
-  { id: "callback_scheduled", label: "Callback", icon: PhoneCall, color: "text-amber-500", active: "border-amber-500 bg-amber-500/10 text-amber-600" },
-  { id: "no_answer", label: "No answer", icon: PhoneMissed, color: "text-gray-400", active: "border-gray-400 bg-gray-500/10 text-gray-500" },
-  { id: "voicemail", label: "Voicemail", icon: Voicemail, color: "text-purple-400", active: "border-purple-400 bg-purple-500/10 text-purple-500" },
-  { id: "gatekeeper", label: "Gatekeeper", icon: ShieldAlert, color: "text-orange-400", active: "border-orange-400 bg-orange-500/10 text-orange-500" },
-  { id: "wrong_number", label: "Wrong number", icon: PhoneOff, color: "text-red-400", active: "border-red-400 bg-red-500/10 text-red-500" },
-  { id: "not_interested", label: "Not interested", icon: ThumbsDown, color: "text-slate-400", active: "border-slate-400 bg-slate-500/10 text-slate-500" },
+  {
+    id: "meeting_booked",
+    label: "Meeting booked",
+    icon: CalendarCheck,
+    color: "text-emerald-500",
+    active: "border-emerald-500 bg-emerald-500/10 text-emerald-600",
+  },
+  {
+    id: "sale",
+    label: "Sale",
+    icon: DollarSign,
+    color: "text-green-500",
+    active: "border-green-500 bg-green-500/10 text-green-600",
+  },
+  {
+    id: "interested",
+    label: "Interested",
+    icon: ThumbsUp,
+    color: "text-blue-500",
+    active: "border-blue-500 bg-blue-500/10 text-blue-600",
+  },
+  {
+    id: "follow_up",
+    label: "Follow up",
+    icon: Clock,
+    color: "text-amber-500",
+    active: "border-amber-500 bg-amber-500/10 text-amber-600",
+  },
+  {
+    id: "callback_scheduled",
+    label: "Callback",
+    icon: PhoneCall,
+    color: "text-amber-500",
+    active: "border-amber-500 bg-amber-500/10 text-amber-600",
+  },
+  {
+    id: "no_answer",
+    label: "No answer",
+    icon: PhoneMissed,
+    color: "text-gray-400",
+    active: "border-gray-400 bg-gray-500/10 text-gray-500",
+  },
+  {
+    id: "voicemail",
+    label: "Voicemail",
+    icon: Voicemail,
+    color: "text-purple-400",
+    active: "border-purple-400 bg-purple-500/10 text-purple-500",
+  },
+  {
+    id: "gatekeeper",
+    label: "Gatekeeper",
+    icon: ShieldAlert,
+    color: "text-orange-400",
+    active: "border-orange-400 bg-orange-500/10 text-orange-500",
+  },
+  {
+    id: "wrong_number",
+    label: "Wrong number",
+    icon: PhoneOff,
+    color: "text-red-400",
+    active: "border-red-400 bg-red-500/10 text-red-500",
+  },
+  {
+    id: "not_interested",
+    label: "Not interested",
+    icon: ThumbsDown,
+    color: "text-slate-400",
+    active: "border-slate-400 bg-slate-500/10 text-slate-500",
+  },
 ];
 
 /** A bottom-sheet outcome picker + optional note, used from the call detail. */
@@ -81,7 +141,11 @@ export function OutcomeSheet({
           className="w-full"
           size="sm"
         >
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save outcome"}
+          {saving ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            "Save outcome"
+          )}
         </Button>
       }
     >
@@ -100,7 +164,9 @@ export function OutcomeSheet({
                   : "bg-muted/50 hover:bg-muted",
               )}
             >
-              <Icon className={cn("h-4 w-4 shrink-0", isActive ? "" : o.color)} />
+              <Icon
+                className={cn("h-4 w-4 shrink-0", isActive ? "" : o.color)}
+              />
               <span className="leading-tight">{o.label}</span>
             </button>
           );

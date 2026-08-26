@@ -26,7 +26,10 @@ async function requestMic(): Promise<void> {
     // We only needed the grant to persist — release the device so the offscreen
     // engine is the single owner of the mic during the call.
     stream.getTracks().forEach((t) => t.stop());
-    setStatus("Microphone enabled. You can close this tab and place your call.", "ok");
+    setStatus(
+      "Microphone enabled. You can close this tab and place your call.",
+      "ok",
+    );
     // Give the user a beat to read the message, then close the helper tab.
     setTimeout(() => window.close(), 1500);
   } catch (err) {

@@ -13,6 +13,7 @@ import {
   VoicemailDropAsset,
 } from "@ringee/database";
 import { TelephonyService, UploadFactory } from "@ringee/platform";
+import { apiConfiguration } from "@ringee/configuration";
 import { OwnershipContext } from "@ringee/platform";
 import { InboxTimelineService } from "../inbox/inbox.timeline.service";
 import { ComplianceService } from "./compliance.service";
@@ -311,7 +312,7 @@ export class VoicemailDropService {
       contact: contact ? { connect: { id: contact.id } } : undefined,
       fromNumber: callerId,
       toNumber: destination,
-      connectionId: process.env.TELNYX_CONNECTION_ID!,
+      connectionId: apiConfiguration.TELNYX_CONNECTION_ID,
       callControlId: leg.callControlId,
       callSessionId: leg.callSessionId ?? undefined,
       callLegId: leg.callLegId ?? undefined,

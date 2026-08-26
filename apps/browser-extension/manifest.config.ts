@@ -1,6 +1,6 @@
 import { defineManifest } from "@crxjs/vite-plugin";
 import { loadEnv } from "vite";
-import packageJson from "./package.json"
+import packageJson from "./package.json";
 
 /**
  * Pages where Ringee auto-detects phone numbers and drops a "Call with Ringee"
@@ -45,7 +45,9 @@ function unique<T>(arr: (T | null | undefined)[]): T[] {
  * (clerk.ringee.io); in development it's a *.clerk.accounts.dev host. Deriving it
  * keeps the manifest correct for whichever instance the .env points at.
  */
-function clerkFrontendApiOrigin(publishableKey: string | undefined): string | null {
+function clerkFrontendApiOrigin(
+  publishableKey: string | undefined,
+): string | null {
   if (!publishableKey) return null;
   const b64 = publishableKey.replace(/^pk_(test|live)_/, "");
   try {

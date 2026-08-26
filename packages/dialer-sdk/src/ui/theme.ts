@@ -68,6 +68,5 @@ export function applyTheme(host: HTMLElement, theme: RingeeTheme = {}): void {
   const scheme = theme.colorScheme ?? "auto";
   host.setAttribute("data-ringee-scheme", scheme);
   // `color-scheme` keeps native controls (scrollbars, autofill) on-theme.
-  host.style.colorScheme =
-    scheme === "auto" ? "light dark" : scheme;
+  host.style.colorScheme = scheme === "auto" ? "light dark" : scheme;
 }

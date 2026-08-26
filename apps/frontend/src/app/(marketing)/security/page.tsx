@@ -134,8 +134,8 @@ export default function SecurityPage() {
           </h1>
           <p className='text-muted-foreground mt-6 text-lg text-pretty'>
             We keep this page factual. Below is how Ringee handles your data,
-            recordings, access, and AI automation today — including the things we
-            don’t claim. For full control, Ringee is open source and
+            recordings, access, and AI automation today — including the things
+            we don’t claim. For full control, Ringee is open source and
             self-hostable.
           </p>
         </Container>

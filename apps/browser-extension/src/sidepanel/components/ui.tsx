@@ -1,5 +1,10 @@
 import type { ReactNode } from "react";
-import { ArrowLeft, ChevronRight, Loader2, type LucideIcon } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronRight,
+  Loader2,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@ringee/frontend-shared/lib/utils";
 
 /** Centered spinner. `inline` renders a small one without the vertical padding. */
@@ -137,7 +142,10 @@ export function Avatar({
   );
 }
 
-function computeInitials(name?: string | null, fallback?: string | null): string {
+function computeInitials(
+  name?: string | null,
+  fallback?: string | null,
+): string {
   const source = (name || "").trim();
   if (source) {
     const parts = source.split(/\s+/).filter(Boolean);

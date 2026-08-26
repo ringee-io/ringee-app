@@ -14,11 +14,7 @@ import {
 } from 'lucide-react';
 
 import { Logo } from '@/features/landing/components/navbar/logo';
-import {
-  DOCS_URL,
-  GITHUB_URL,
-  SITE_NAME
-} from '@/features/marketing/site';
+import { DOCS_URL, GITHUB_URL, SITE_NAME } from '@/features/marketing/site';
 
 /**
  * Branded 404 for every unmatched route. Next.js renders this (inside the root
@@ -77,7 +73,11 @@ export default function NotFound() {
 
         <div className='relative z-10 flex min-h-dvh flex-col'>
           <header className='mx-auto flex h-16 w-full max-w-6xl items-center px-6 lg:px-8'>
-            <Link href='/' aria-label={`${SITE_NAME} home`} className='shrink-0'>
+            <Link
+              href='/'
+              aria-label={`${SITE_NAME} home`}
+              className='shrink-0'
+            >
               <Logo />
             </Link>
           </header>
@@ -90,8 +90,8 @@ export default function NotFound() {
               This page is missing
             </h1>
             <p className='text-muted-foreground mt-5 max-w-md text-lg text-pretty'>
-              The page you’re looking for doesn’t exist or has moved. The rest of{' '}
-              {SITE_NAME} is working fine — here’s where to go next.
+              The page you’re looking for doesn’t exist or has moved. The rest
+              of {SITE_NAME} is working fine — here’s where to go next.
             </p>
 
             <div className='mt-9 flex flex-col items-center gap-3 sm:flex-row'>

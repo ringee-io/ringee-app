@@ -56,11 +56,7 @@ export default async function UseCaseDetailPage({ params }: Params) {
       ]}
       cta={<CtaSection />}
     >
-      <DetailHero
-        eyebrow='Use case'
-        title={useCase.h1}
-        intro={useCase.intro}
-      />
+      <DetailHero eyebrow='Use case' title={useCase.h1} intro={useCase.intro} />
       <ProblemSolution
         painPoints={useCase.painPoints}
         solutions={useCase.solutions}

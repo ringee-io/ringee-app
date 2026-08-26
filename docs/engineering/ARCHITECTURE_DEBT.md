@@ -1,68 +1,22 @@
 # Architecture debt
 
-Problems found while auditing the repository. **Nothing here was changed as part
-of writing this document** — it is a register, not a work order.
+Register of problems found while auditing the repository, and what happened to
+each. Rules and current behaviour are documented elsewhere — this is the one
+file where *proposed* improvements live, so "what is true" never blurs into
+"what should be".
 
-Rules and current behaviour are documented elsewhere. This file is the one place
-where *proposed* improvements live, so "what is true" never blurs into "what
-should be".
+Status: **Fixed** · **Open** (deliberately deferred) · **Won't fix here**.
 
-Severity: **Critical** = correctness/security exposure today · **High** = a
-recurring source of bugs or a real trap · **Medium** = friction and drift ·
-**Low** = tidy-up.
+Severity: **Critical** = correctness/security exposure · **High** = a recurring
+source of bugs · **Medium** = friction and drift · **Low** = tidy-up.
 
 ---
 
-## Critical
+## Open
 
-### DEBT-019 — The TriggerLoop webhook guard is disabled
+These three are deferred by an explicit decision, not by oversight.
 
-**Where:** `apps/backend/src/triggerloop/triggerloop-webhook.guard.ts`,
-`apps/backend/src/triggerloop/triggerloop.controller.ts`
-
-**What:** `POST /api/internal/triggerloop/webhook` is `@Public()` and protected by
-`TriggerLoopWebhookGuard`, whose entire body is commented out:
-
-```ts
-canActivate(context: ExecutionContext): boolean {
-  // …every check commented out…
-  return true;
-}
-```
-
-The endpoint dispatches `evaluate` and `executeAction` operations, and the action
-registry can create tasks, send email, send push notifications and emit internal
-events. `TRIGGERLOOP_WEBHOOK_SECRET` is defined in `@ringee/configuration` and
-never read.
-
-**Why it matters:** this is an unauthenticated endpoint that triggers side
-effects on named subjects — the clearest violation of `AUTH-002` in the codebase.
-
-**Direction:** restore the commented-out constant-time secret comparison, or
-remove the route until TriggerLoop is actually wired up. Verify whether it is
-exposed in deployed environments before anything else. Left unchanged here
-because re-enabling an auth check is a behaviour change that needs the owner's
-confirmation, not a documentation side effect.
-
-### DEBT-001 — No inbound provider-event normalization layer
-
-**Where:** `packages/services/src/services/call.service.ts` (`handleTelnyxEvent`,
-`TelnyxWebhookEvent` at lines 19, 228, 272, 687, 774), `apps/backend/src/api/routes/call.controller.ts`
-
-**What:** the domain's central call-lifecycle method takes Telnyx's raw webhook
-type and switches on Telnyx event names. The provider abstraction is one-way:
-outbound commands go through `TelephonyService`, but inbound events bypass it
-entirely. The browser side, by contrast, *does* normalize
-(`dialer-core/src/engine/state-map.ts`).
-
-**Why it matters:** a second carrier cannot be added without rewriting the call
-lifecycle. Provider payload shape changes reach business logic directly.
-
-**Direction:** introduce a `TelephonyEvent` union in
-`platform/src/telephony/interfaces`, translate in the Telnyx adapter, and switch
-`CallService` over to it. Doable incrementally, event type by event type.
-
-### DEBT-002 — Migration state is ambiguous and partly untracked
+### DEBT-002 — Migration state is ambiguous and partly untracked · Critical · Open
 
 **Where:** `packages/database/prisma/` — `migrations/`, `migrations-pending/`,
 `pending-migrations/`; `.gitignore`; root `package.json`
@@ -70,219 +24,307 @@ lifecycle. Provider payload shape changes reach business logic directly.
 **What:** three migration directories exist. `.gitignore` ignores
 `prisma/migrations` and its re-inclusion patterns are self-cancelling, so
 **zero** files under `migrations/` are tracked, while `migrations-pending/`
-(11 dirs) and `pending-migrations/` (3 `.sql` files) are. On top of that,
-`pnpm prisma:migrate` delegates to a script that does not exist in
-`packages/database/package.json`.
+(11 dirs) and `pending-migrations/` (3 `.sql` files) are. `pnpm prisma:migrate`
+also delegates to a script that does not exist in
+`packages/database/package.json`; what exists there is `prisma-db-push`,
+`db:deploy`, `prisma:generate`, `prisma-format` and `seed:offers`.
 
-**Why it matters:** there is no single, reproducible statement of the production
+**Why it matters:** there is no single reproducible statement of the production
 schema history in the repository, and the documented migration command fails.
 
 **Direction:** decide which folder is authoritative, fix the `.gitignore`
-patterns, consolidate, and either add a real `prisma:migrate` script or remove
-the root alias. This is a team decision, not a refactor to do incidentally.
+patterns, consolidate, and either add a real `prisma:migrate` script or drop the
+root alias. A team decision about production schema history — not something to
+resolve as a side effect of another task.
 
-### DEBT-003 — Unused `AuthGuard` with a hard-coded JWT secret
+**Knock-on:** `DEBT-013` is capped by this. `Campaign.status` should be a Prisma
+enum like every neighbouring status, but promoting a `String` column to an enum
+needs a migration, and the migration workflow is what is unresolved here. The
+TypeScript-level enforcement has been tightened in the meantime — see below.
 
-**Where:** `packages/platform/src/auth/auth.guard.ts`, exported from
-`packages/platform/src/auth/index.ts`
-
-**What:** a JWT guard that verifies with `secret: "secretKey"`. It is wired into
-nothing today — `ClerkAuthGuard` is the real global guard — but it is exported
-and named exactly like something a developer would reach for.
-
-**Why it matters:** any route that adopts it accepts tokens anyone can forge.
-
-**Direction:** delete it, or if a non-Clerk JWT path is genuinely planned, move
-the secret into `@ringee/configuration` and rename it so it cannot be confused
-with the real guard.
-
----
-
-## High
-
-### DEBT-004 — Two phone-normalization implementations
-
-**Where:** `packages/dialer-core/src/phone/normalize.ts` (libphonenumber,
-region-aware, validating) and `packages/platform/src/crm/phone.ts`
-(`normalizePhoneE164`, regex, length-bounded only)
-
-**What:** the browser path validates against real numbering plans; the server
-path accepts anything 6–15 digits and prefixes `+`.
-
-**Why it matters:** the two disagree. A number the CRM matcher normalizes may not
-be dialable, and a lead imported server-side can carry a number the dialer later
-rejects.
-
-**Direction:** publish one server-safe normalizer (libphonenumber already ships
-in `@ringee/platform` and `@ringee/services`) and have `crm/phone.ts` delegate,
-keeping `phoneSuffix` / `phoneMatchesSuffix` as the matching helpers.
-**Do not add a third normalizer in the meantime.**
-
-### DEBT-005 — MCP authorization is a capability URL, undocumented as such
+### DEBT-005 — MCP authorization is a capability URL · High · Open (intentional)
 
 **Where:** `apps/backend/src/api/routes/mcp.controller.ts`
 (`resolveContextById`, `resolveOrgContext`)
 
 **What:** `/api/mcp/:id/sse` and `/messages` are `@Public()`. The workspace is
 resolved from the UUID in the path — a valid user or organization UUID is the
-only thing required to drive the full tool surface. The org-scoped variant
-additionally acts "on behalf of" the first member it finds, or `createdBy`.
+only thing required to drive the full tool surface. The org-scoped variant acts
+"on behalf of" the first member it finds, or `createdBy`.
 
-**Why it matters:** workspace UUIDs then have to be treated as secrets, but
-nothing in the code, the docs or the UI says so. UUIDs leak through logs, support
-tickets and URLs far more casually than tokens do.
+**Status:** confirmed intentional for now. The connector URL is the credential,
+the same model as a Slack or Stripe webhook URL.
 
-**Direction:** confirm the intent. If it stays, document it prominently and
-consider a signed, revocable connector token instead of a bare UUID.
-**`Needs confirmation`.**
+**Consequence to keep in mind:** workspace UUIDs are therefore secrets. Do not
+log them, put them in error messages, or expose them in URLs that reach a third
+party. Revisit if MCP connectors are ever shared more widely than one operator
+per workspace — a signed, revocable connector token would be the upgrade.
 
-### DEBT-006 — Not every credit debit is idempotent
+### BILL-017 — Whether enrichment stays off Ringee credits · Open (needs product confirmation)
 
-**Where:** `caller.id.service.ts:93`, `ai-pipeline/ai-pipeline-credit.service.ts:73`,
-`ai-agents/ai-chat.orchestrator.ts:573`, `ai-agents/ai-summarizer.service.ts:131`
-
-**What:** `consumeCredits` takes an optional idempotency `ref`. Call, message,
-transcription and desk-phone debits pass one. These four do not, so they take the
-non-ledgered `updateBalance` path.
-
-**Why it matters:** a retry double-charges, and the debit leaves no `CreditDebit`
-row — so it is invisible in the ledger.
-
-**Direction:** give each a stable key (`caller-id-verification:<numberId>:<attempt>`,
-`ai-run:<runId>`, `ai-message:<messageId>`, `ai-summary:<conversationId>`), then
-make `ref` **required** so the gap cannot reopen.
-
-### DEBT-007 — Controllers that bypass the service layer
-
-**Where:** `chat.auth.controller.ts`, `clerk.controller.ts`,
-`custom-integrations.controller.ts`, `dialer.controller.ts`,
-`encryption.controller.ts`, `mobile.controller.ts`, `telephony.controller.ts`,
-`user-access-enforcement.service.ts`
-
-**What:** eight files inject repositories directly, putting persistence and some
-decision-making in the API layer.
-
-**Why it matters:** the ownership and business rules those services own get
-re-implemented, or silently skipped, per controller.
-
-**Direction:** move each to the owning service as those areas are touched. Do not
-add new ones — `apps/backend/AGENTS.md` says so.
-
-### DEBT-008 — Super-admin allowlist duplicated in two places
-
-**Where:** `apps/backend/src/api/guards/super-admin.guard.ts`
-(`DEFAULT_SUPER_ADMIN_EMAILS`) and
-`apps/frontend/src/features/backoffice/lib/super-admins.ts`
-
-**What:** two hard-coded lists of personal email addresses kept in sync by a code
-comment.
-
-**Why it matters:** drift silently changes who sees the backoffice UI vs. who can
-actually call it, and staff addresses are committed to a public repository.
-
-**Direction:** make `BACKOFFICE_SUPER_ADMIN_EMAILS` the only source and have the
-frontend ask the API "am I staff?" instead of holding a list.
+Lead search / reveal / import bill against the customer's own Apollo or Prospeo
+account, not the Ringee balance. Verified in code for the current provider set.
+Whether that is a permanent product rule or a property of these two providers is
+not stated anywhere, so it is documented as `Needs confirmation` in
+[BUSINESS_RULES.md](BUSINESS_RULES.md) rather than as a binding rule.
 
 ---
 
-## Medium
+## Won't fix here
 
-### DEBT-009 — The verified-caller-ID margin is dead code
-
-**Where:** `packages/services/src/services/call.service.ts:1349`
-
-```ts
-// Calls placed from a verified caller ID carry an extra 0.3 added to
-// the profit-margin multiplier.
-const profitMargin = usedCallerId ? baseMargin + 0 : baseMargin;
-```
-
-**What:** the comment describes `+ 0.3`; the code adds `0`. The `isVerifiedCallerId`
-lookup runs on every settlement and its result is discarded.
-
-**Why it matters:** either the pricing rule is not being applied, or the lookup is
-wasted work on every call. A reader cannot tell which is intended.
-
-**Direction:** decide, then either restore the surcharge (ideally as a named env
-multiplier) or delete the branch and the lookup.
-
-### DEBT-010 — Configuration read straight from `process.env` in domain code
-
-**Where:** 22 occurrences under `packages/services/src` — `calendar.service.ts`
-(Google/Microsoft OAuth credentials), `call.service.ts` (`CALL_PROFIT_MARGIN`,
-`TELNYX_CONNECTION_ID`), `caller.id.service.ts`
-(`CALLER_ID_VERIFICATION_FEE`), `inbox/message.service.ts`
-(`MESSAGE_PROFIT_MARGIN`)
-
-**What:** `@ringee/configuration` exists precisely to validate configuration at
-startup and fail fast, and these bypass it.
-
-**Why it matters:** a missing or malformed value degrades silently at runtime —
-a wrong margin quietly charges the wrong price — instead of refusing to boot.
-
-**Direction:** move them into `api.configuration.ts` with validation, as the
-transcription and AI margins already are.
-
-### DEBT-011 — Internal team email hard-coded in a service
-
-**Where:** `packages/services/src/services/free-trial.service.ts:18`
-
-A personal address is the destination for free-trial requests in a public,
-self-hostable repository. Self-hosters silently mail the Ringee maintainer.
-Should be configuration with a sensible default.
-
-### DEBT-012 — `ServicesModule` is a single 363-line module
+### DEBT-012 — `ServicesModule` is one 232-provider module · Medium
 
 **Where:** `packages/services/src/services/services.module.ts`
 
-Everything is registered in one module, so every consumer — including the
-orchestrator and the MCP layer — instantiates the entire service graph. Splitting
-by domain would make the dependency direction between domains explicit and
-enforceable.
+**What:** every service is registered in a single `allProviders` array used for
+both `providers` and `exports`, so every consumer — the backend, the
+orchestrator, the MCP layer — instantiates the whole graph.
 
-### DEBT-013 — Two campaign status vocabularies
+**Why it was not done:** splitting it into domain modules is not mechanical
+here. There are 52 cross-domain service imports and `CallService` alone injects
+22 other services, so domain modules would import each other circularly and need
+`forwardRef` in several places. NestJS resolves that at **runtime**: a wrong
+split compiles cleanly and fails at boot with "Nest can't resolve dependencies".
+Verifying it needs the app actually started against Postgres, Redis and
+Temporal, which was not available in this environment. Doing it blind would risk
+breaking startup for everyone to gain internal tidiness.
 
-`Campaign.status` is a plain `String` validated against `VALID_CAMPAIGN_STATUSES`
-in a DTO, while every neighbouring concept (`CampaignLeadStatus`,
-`AgentSessionStatus`, `CallAttemptStatus`, `CallSessionStatus`) is a Prisma enum.
-The database cannot reject an invalid campaign status.
+**Direction:** map the dependency graph first, extract the leaf domains that
+nothing else depends on (`offers`, `enrichment`, `reminders`), and verify each
+extraction by booting the backend before doing the next. Do it when someone can
+run the app.
 
-### DEBT-014 — Provider abstraction is single-implementation in places
+### Mixed-language user-facing copy · Low
 
-`TelephonyService.getServiceProvider()` is a `switch` with only a `default`
-returning Telnyx. Not wrong — but it means the abstraction is untested against a
-second implementation, and `DEBT-001` shows where it has already been bypassed.
+`packages/platform/src/ai/openai/openai.service.ts` returns a hard-coded Spanish
+fallback ("Hubo un error al intentar usar una herramienta.") to the user when a
+tool call cannot be parsed. Comments and logs have been translated (`DEBT-017`),
+but this one is **user-facing copy**, and the product ships two locales — so
+which language it should be, and whether it should be routed through i18n at
+all, is a product call rather than a comment cleanup.
 
 ---
 
-## Low
+## Fixed
 
-### DEBT-015 — Lint baseline is large
+### DEBT-019 — TriggerLoop webhook guard was disabled · Critical · Fixed
 
-~5,000 findings in source (overwhelmingly `prettier/prettier` and
-`no-unused-vars`), so `pnpm lint` cannot be used as a pass/fail gate. Prettier is
-run on staged files by lint-staged only in `apps/frontend`.
+`TriggerLoopWebhookGuard.canActivate` had its entire body commented out and
+returned `true`, leaving `POST /api/internal/triggerloop/webhook` — which
+executes actions that send email, push notifications and create tasks —
+unauthenticated behind a `@Public()` controller.
+`TRIGGERLOOP_WEBHOOK_SECRET` existed in configuration and was never read.
 
-**Direction:** run `prettier --write` across the repo once as an isolated,
-review-friendly commit, then make lint a gate.
+The constant-time secret comparison is restored and now fails closed: a missing
+header, or an unconfigured secret, rejects the request.
+**`TRIGGERLOOP_WEBHOOK_SECRET` must be set wherever TriggerLoop is enabled**, or
+that endpoint returns 401 — it is documented in `.env.example`.
 
-### DEBT-016 — No CI configuration in the repository
+### DEBT-001 — No inbound provider-event normalization · Critical · Fixed
 
-There is no `.github/workflows`. Every rule in `AGENTS.md` and every ESLint
-boundary rests on someone running the commands locally.
+The provider abstraction was one-way: outbound commands went through
+`TelephonyService`, but inbound webhooks reached the domain as raw
+`TelnyxWebhookEvent`s and `CallService` switched on Telnyx event names.
 
-**Direction:** a minimal workflow — install, `prisma:generate`, `eslint` on
-changed paths, `pnpm test`, `build:backend` + `build:frontend` — would make the
-boundaries real.
+Added `TelephonyEvent` / `TelephonyEventType`
+(`packages/platform/src/telephony/interfaces/telephony.event.ts`) and
+`TelnyxEventNormalizer` (`…/telnyx/telnyx.event.normalizer.ts`). The controller
+translates at the edge; `CallService.handleTelephonyEvent` switches on Ringee
+names. `TelnyxWebhookEvent` no longer appears anywhere in `@ringee/services`.
 
-### DEBT-017 — Mixed-language comments and error copy
+The normalization does real work rather than renaming: the premium
+answering-machine tier folds into `call.machine.greeting.ended` (the domain had
+to list both), `streaming.failed` becomes `call.streaming.failed`, both
+spellings of each direction collapse, and common fields (`from`, `to`,
+`direction`, `callSessionId`, `callLegId`, `clientState`, `startedAt`,
+`customHeaders`) are lifted out of the payload. 10 tests cover it.
 
-Comments and log messages alternate between English and Spanish
-(`"⚠️ Llamada ${callControlId} no encontrada"`, `"Error al obtener usuario:"`),
-sometimes inside the same file. Harmless, but it makes searching for a log line
-harder. New code is English.
+**Deliberately still partial:** event *bodies* (cost parts, recording URLs,
+transcription segments) remain provider-shaped and are reached through
+`event.payload` with a cast. Normalizing those too would be a rewrite of the
+call lifecycle rather than a boundary. The boundary is what mattered — a second
+carrier now needs a translator, not changes to `CallService`.
 
-### DEBT-018 — Duplicate hook file
+### DEBT-003 — Unused `AuthGuard` with a hard-coded JWT secret · Critical · Fixed
 
-`packages/frontend-shared/src/hooks/use-callback-ref.ts` and
-`use-callback-ref.tsx` both exist.
+The now-deleted `auth.guard.ts` in `packages/platform/src/auth` verified tokens
+with `secret: "secretKey"`. It was wired into nothing but exported from the
+package barrel, named exactly like something a developer would reach for. Gone,
+along with the `jwt.auth.ts` re-export that existed only to support it.
+
+### DEBT-004 — Two phone normalizers that disagreed · High · Fixed
+
+`packages/platform/src/crm/phone.ts` now uses libphonenumber, with the previous
+lenient digits-only path kept as a **fallback** for the unparseable-but-real
+values CRM records hold (extensions, partial prefixes, country-less locals) so
+nothing that used to match stops matching.
+
+Verified against the old implementation across 15 inputs: **zero** regressions,
+four improvements. Notably `"+1 415 555 2671 ext 22"` used to normalize to
+`+1415555267122` — the extension digits appended to the number — and now yields
+`+14155552671`. Country-less US numbers now get their country code instead of a
+different, wrong number. 7 tests lock this in.
+
+Browser and server normalizers still exist separately (libphonenumber in both
+now, different runtimes and lenience). That is the intended end state; the
+disagreement was the bug.
+
+### DEBT-006 — Not every credit debit was idempotent · High · Fixed
+
+Four debit sites passed no idempotency `ref`, taking a non-ledgered
+`updateBalance` path — so the debit was invisible in `CreditDebit` and a retry
+double-charged.
+
+`consumeCredits`' `ref` is now **required**, so the gap cannot reopen. The four
+sites were given keys matched to their semantics:
+
+- **Caller-ID verification** — real replay protection, keyed to the verification
+  *attempt* (`caller-id-verification:<numberId>:<requestedAt>`), so re-sending a
+  code bills again while a double-submitted request does not. Its refund path
+  moved from the unledgered `addCredits` to `grantCreditsOnce`.
+- **AI chat turns, summaries and pipeline runs** — keyed per invocation via the
+  new `incurredCostDebitRef`. These charges have no natural replay key: the
+  model call already happened and the provider already billed us, so a retry is
+  a *new* cost, not a duplicate. The unique suffix keeps each one in the ledger
+  instead of collapsing them into one row or skipping it entirely.
+
+`addCredits` is marked `@deprecated` in favour of the ledgered paths.
+
+### DEBT-007 — Controllers bypassing the service layer · High · Fixed
+
+Eight files injected repositories directly; the mobile controller additionally
+ran eight raw `PrismaService` queries. **No controller does either now.**
+
+- `EncryptionKeyService`, `TelephonyRateService` and `MobileReadService` created
+  for logic that had no owner.
+- `UserService` / `OrganizationService` gained the Clerk sync operations, so the
+  Clerk webhook controller orchestrates instead of persisting. The TriggerLoop
+  side effects stay in the controller — `@ringee/services` is deliberately kept
+  free of that module.
+- `CampaignService.assertDialableCampaign` / `assertCampaignInWorkspace` now own
+  the dialer's ownership + membership rule (CMP-002), which the controller had
+  reimplemented. Both preserve the dialer's existing Forbidden-for-missing
+  behaviour rather than adopting `getCampaignById`'s 404.
+- `UserDeviceService` owns push-token registration, including the mobile-specific
+  5-device cap that differed from its own 10.
+- `MobileReadService` keeps each mobile query together with its workspace
+  visibility check, which is the point — a controller owning half that pair is
+  one refactor from dropping the other half.
+
+Still true, and much smaller: `user-access-enforcement.service.ts` and
+`stripe-abuse-protection.service.ts` are *services* that live under
+`api/routes/`. Injecting repositories there is legitimate; they are just
+misplaced.
+
+### DEBT-008 — Super-admin allowlist duplicated · High · Fixed
+
+The two hard-coded lists had **already drifted** — five emails on the frontend,
+three on the backend — which is exactly the failure the entry predicted.
+
+`BACKOFFICE_SUPER_ADMIN_EMAILS` is now the only source, with **no built-in
+fallback**: Ringee is a public, self-hostable repository, and a committed
+default list made the upstream maintainers super-admins of every deployment.
+Unset now means "nobody has backoffice access here", which fails closed.
+
+The dashboard asks `GET /api/backoffice/access` (a new, authenticated,
+non-privileged endpoint) instead of holding a list, so the UI gate and
+`SuperAdminGuard` read the same source and cannot drift again.
+
+**Operational note:** `BACKOFFICE_SUPER_ADMIN_EMAILS` must now be set in any
+environment that needs backoffice access.
+
+### DEBT-009 — The verified-caller-ID margin was dead code · Medium · Fixed
+
+The comment described a `+0.3` surcharge; the code added `0`, and the
+`isVerifiedCallerId` lookup ran on every settlement with its result discarded.
+
+Now a named, validated setting, `CALLER_ID_PROFIT_MARGIN_SURCHARGE`, defaulting
+to **0** — the behaviour that was actually in effect. **Pricing is unchanged.**
+Restoring the surcharge is a deliberate `.env` change, because raising it
+changes what customers are billed and that is not a decision to make inside a
+cleanup. The provider lookup is now skipped entirely when the surcharge is 0.
+
+### DEBT-010 — Configuration read from `process.env` in domain code · Medium · Fixed
+
+All 22 reads under `packages/services/src` moved into `@ringee/configuration`
+with startup validation: the call/recording/message margins, the caller-ID
+verification fee, `TELNYX_CONNECTION_ID`, the Google/Microsoft calendar OAuth
+credentials and `RINGEE_PUBLIC_CALLER_ID`. A malformed margin now refuses to
+boot instead of quietly charging the wrong price.
+
+`readProfitMultiplier` was deleted with its test — configuration parses and
+validates these now, so it had no callers left.
+
+### DEBT-011 — Internal team email hard-coded · Medium · Fixed
+
+`free-trial.service.ts` mailed a personal address from every deployment of a
+public repository. Now `RINGEE_TEAM_EMAIL`, defaulting to `EMAIL_FROM_ADDRESS`.
+
+### DEBT-013 — Two campaign status vocabularies · Medium · Partially fixed
+
+`Campaign.status` is still a `String` column — promoting it to a Prisma enum
+needs a migration, and `DEBT-002` is unresolved. What was tightened:
+
+- `UpdateCampaignStatusDto` validates against `VALID_CAMPAIGN_STATUSES` instead
+  of a second hard-coded list, and is typed `CampaignStatus`.
+- New `isCampaignStatus` guard, used by both `CampaignService.updateStatus` and
+  `CampaignConfigService.transitionStatus` — the latter previously accepted any
+  string and consulted the transition table with it.
+- `CampaignRepository.updateStatus` takes `CampaignStatus`, so an invalid
+  literal is a compile error.
+
+The database still cannot reject an invalid value. That is the remaining half,
+and it is blocked on `DEBT-002`.
+
+### DEBT-014 — Provider abstraction single-implementation · Medium · Substantially addressed
+
+The substance of this was `DEBT-001`: the abstraction was being bypassed on the
+inbound path. With a normalizer in place, `TelephonyService.getServiceProvider()`
+being a one-case switch is now just an unexercised extension point rather than
+evidence of a leak.
+
+### DEBT-015 — Lint baseline too large to gate on · Low · Fixed
+
+**5,281 → 557 problems**, and every formatting finding is gone
+(`prettier/prettier`: 2,547 → 0).
+
+Two causes, and the larger one was not formatting: ~3.9k findings came from
+generated bundles ESLint was reading — `apps/sdk-playground/ui-gallery/gallery.js`
+(esbuild output), `apps/sdk-playground/live/vendor/` and the Workbox service
+worker. All are git-ignored build artifacts and are now ESLint-ignored too,
+alongside `.next-mine`-style local build directories. The rest was a
+`prettier --write` pass over source.
+
+What remains is real signal: 254 `no-explicit-any`, 140 unused vars, 57
+`ban-ts-comment`. Worth chipping at; no longer noise hiding findings.
+
+### DEBT-016 — No CI · Low · Fixed
+
+`.github/workflows/ci.yml`: install → `prisma:generate` → lint (advisory) →
+**architecture-boundary gate** → `pnpm test` → build.
+
+The boundary gate is the part that matters. `ARCH-001`..`ARCH-004` are at zero
+violations, so the workflow fails the build on any new one while the remaining
+lint baseline stays advisory. Placeholder env vars are supplied because
+`@ringee/configuration` exits at import time on missing values.
+
+### DEBT-017 — Mixed-language comments · Low · Fixed
+
+Spanish comments and log messages translated across
+`ownership.types.ts` (the canonical tenancy file), `current.user.ts`,
+`organization.repository.ts`, `call.transcription.service.ts`,
+`contact.service.ts`, `telnyx.webhook.types.ts` and `use.callback.dial.ts`.
+The `es` locale in `packages/dialer-sdk/src/ui/strings.ts` is shipped i18n copy
+and was left alone; the one remaining user-facing Spanish string is noted under
+"Won't fix here".
+
+### DEBT-018 — Duplicate hook file · Low · Fixed
+
+`use-callback-ref.ts` and `use-callback-ref.tsx` were byte-identical. The `.tsx`
+copy (which contained no JSX) is gone.
+
+### Vitest include list was an allowlist · Low · Fixed
+
+Found while adding tests: `packages/platform/vitest.config.ts` included only
+`src/sdk/**` and `src/crm/**`, so a new test file anywhere else in the package
+was silently never run. Widened to `src/**/*.test.ts`.

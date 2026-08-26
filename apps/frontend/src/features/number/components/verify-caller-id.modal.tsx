@@ -87,9 +87,7 @@ export function VerifyCallerIdModal({
           <DialogTitle>
             {t('verifyModal.title', { phone: callerId?.phoneNumber ?? '' })}
           </DialogTitle>
-          <DialogDescription>
-            {t('verifyModal.description')}
-          </DialogDescription>
+          <DialogDescription>{t('verifyModal.description')}</DialogDescription>
         </DialogHeader>
 
         <div className='flex flex-col items-center gap-4 py-2'>
@@ -99,9 +97,7 @@ export function VerifyCallerIdModal({
             autoFocus
             placeholder='••••••'
             value={code}
-            onChange={(e) =>
-              setCode(e.target.value.replace(/\D/g, ''))
-            }
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
             onKeyDown={(e) => {
               if (e.key === 'Enter') void submit(code);
             }}

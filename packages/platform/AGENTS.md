@@ -10,7 +10,8 @@ Each provider gets a folder with an interface and an implementation:
 
 | Concern | Interface / registry | Implementation |
 |---|---|---|
-| Telephony | `telephony/interfaces/telephony.service.ts` | `telephony/telnyx/` |
+| Telephony (commands) | `telephony/interfaces/telephony.service.ts` | `telephony/telnyx/` |
+| Telephony (inbound events) | `telephony/interfaces/telephony.event.ts` | `telephony/telnyx/telnyx.event.normalizer.ts` |
 | Payments | `stripe/stripe.service.ts` | Stripe SDK |
 | Auth | `auth/clerk/` | Clerk |
 | Storage | `upload/upload.interface.ts` | `cloudflare.storage` / `local.storage` |
@@ -30,6 +31,12 @@ When adding a provider capability:
 `TelephonyService` is a dispatcher with a single `telnyx` case today. Keep new
 work behind it; that switch is where a second carrier plugs in.
 
+Inbound events are the mirror image: `TelnyxEventNormalizer` translates carrier
+webhooks into `TelephonyEvent`, and the domain switches on `TelephonyEventType`.
+A new carrier writes a normalizer — it does not touch `CallService`. Event
+*bodies* are still provider-shaped behind `event.payload`; lift a field into the
+normalized event rather than adding another cast downstream.
+
 ## Auth primitives
 
 `auth/ownership.types.ts` is the tenancy contract for the whole product:
@@ -37,8 +44,9 @@ work behind it; that switch is where a second carrier plugs in.
 `resolveMemberFilter`, `createDashboardContext`. Do not write a second filter
 helper — fix this one.
 
-`auth/auth.guard.ts` (`AuthGuard`) is unused legacy with a hard-coded JWT secret.
-Do not wire it into anything; see `docs/engineering/ARCHITECTURE_DEBT.md`.
+There is no JWT guard in this package. Authentication is Clerk
+(`ClerkAuthGuard`, in the backend); a previous unused `AuthGuard` with a
+hard-coded secret was removed. Do not reintroduce one without configuration.
 
 ## Secrets and signatures
 

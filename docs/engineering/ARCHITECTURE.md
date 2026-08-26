@@ -119,10 +119,11 @@ pnpm prisma:format
 | `browser-extension` | vitest | ✔ |
 | `@ringee/dialer-ui`, `ringee` (CLI), `chatgpt-app` | — | ✔ |
 
-There are 26 test files; coverage is concentrated on the parts where a mistake
-costs money or duplicates a call: `call-cost.util`, `credit.repository`,
+There are 29 test files / 244 tests, concentrated where a mistake costs money or
+duplicates a call: `call-cost.util`, `credit.repository`,
 `concurrent-call-guard`, the offers engine, the AI-pipeline credit service, the
-dialer engine and phone normalization.
+dialer engine, phone normalization (browser and server) and the carrier event
+normalizer.
 
 ### Known command gaps
 

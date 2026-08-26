@@ -59,7 +59,7 @@ const PLANS = [
       'Everything in Freelancer, plus:',
       'Create an organization for your team',
       'Unlimited team members — invite and call together',
-      'Calling campaigns',
+      'Calling campaigns'
       // 'Shared contacts and call activity',
       // 'Team-wide recording and transcription settings'
     ]

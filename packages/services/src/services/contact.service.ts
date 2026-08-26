@@ -464,7 +464,7 @@ export class ContactService {
 
   private async ensureExists(id: string) {
     const exists = await this.repo.findById(id);
-    if (!exists) throw new NotFoundException("Contacto no encontrado");
+    if (!exists) throw new NotFoundException("Contact not found");
     return exists;
   }
 }

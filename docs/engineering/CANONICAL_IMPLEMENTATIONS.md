@@ -25,6 +25,7 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Idempotent debit | `CreditRepository.consumeOnce` |
 | Idempotent grant | `CreditRepository.grantOnce` |
 | Idempotent purchase | `CreditTopupRepository.recordIfNew` |
+| Debit ref for an already-incurred cost | `incurredCostDebitRef` — `services/credit.service.ts` |
 | Call price from provider cost | `calculateCallCharge` — `services/call-cost.util.ts` |
 | Margin env parsing | `readProfitMultiplier` — same file |
 | AI token pricing | `computeTokenCost` / `isModelPriced` — `platform/src/ai-agents/pricing.ts` |
@@ -37,7 +38,9 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Any provider command | `TelephonyService` — `platform/src/telephony/telephony.service.ts` |
 | Telnyx API calls | `TelnyxService` — `platform/src/telephony/telnyx/` (only importer of the SDK) |
 | Telnyx webhook signature | `TelnyxWebhookVerifier` |
-| Call lifecycle & `Call.status` | `CallService.handleTelnyxEvent` |
+| Carrier event → Ringee event | `TelnyxEventNormalizer` — `platform/src/telephony/telnyx/telnyx.event.normalizer.ts` |
+| Inbound event contract | `TelephonyEvent` — `platform/src/telephony/interfaces/telephony.event.ts` |
+| Call lifecycle & `Call.status` | `CallService.handleTelephonyEvent` |
 | One call at a time | `ConcurrentCallGuardService` — `services/security/` |
 | Stale call cleanup | `StaleCallSweeperService` — same folder |
 | Killing a user's live calls | `ActiveCallTerminationService` — same folder |
@@ -48,6 +51,12 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Calling-window / DNC checks | `ComplianceService` |
 | Caller-ID selection with rotation | `CallerIdRotationService` |
 | Caller-ID verification | `CallerIdService` |
+| Calling rates (cached table) | `TelephonyRateService` |
+| Dialer campaign authorization | `CampaignService.assertDialableCampaign` / `assertCampaignInWorkspace` |
+| Workspace encryption key (read) | `EncryptionKeyService` |
+| Mobile reads + their visibility check | `MobileReadService` |
+| Clerk user/org sync | `UserService.syncFromClerk`, `OrganizationService.syncFromClerk` |
+| Push-token registration | `UserDeviceService.registerPushToken` |
 
 ## Phone numbers
 
@@ -56,12 +65,13 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Browser-side normalize / validate / format | `packages/dialer-core/src/phone/normalize.ts` (libphonenumber) |
 | Finding numbers in page text | `packages/dialer-core/src/phone/detect.ts` |
 | Country calling code for a keypad | `countryCallingCode` — `normalize.ts` |
-| Server-side CRM matching | `normalizePhoneE164`, `phoneSuffix`, `phoneMatchesSuffix` — `platform/src/crm/phone.ts` |
+| Server-side normalize + CRM matching | `normalizePhoneE164`, `phoneSuffix`, `phoneMatchesSuffix` — `platform/src/crm/phone.ts` (libphonenumber, with a lenient fallback) |
 | E.164 validation in agent schemas | `E164_REGEX` — `packages/agent/src/schemas/common.ts` |
 
-Two normalizers coexist deliberately (browser + libphonenumber vs. server +
-regex). That is already one more than ideal — see `DEBT-004`. **Do not add a
-third.** Pick the one matching your runtime.
+Two normalizers exist because they run in different places; both are
+libphonenumber-backed and agree. The server one additionally keeps a lenient
+fallback for the unparseable values CRM records hold. **Do not add a third** —
+pick the one matching your runtime.
 
 ## Background work
 

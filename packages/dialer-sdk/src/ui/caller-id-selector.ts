@@ -25,10 +25,17 @@ export interface CallerIdHandle {
   close(): void;
 }
 
-export function callerIdSelector(opts: CallerIdSelectorOptions): CallerIdHandle {
+export function callerIdSelector(
+  opts: CallerIdSelectorOptions,
+): CallerIdHandle {
   const listId = uid("rg-cid");
-  const options: Array<{ id: string | undefined; label: string; sub?: string }> = [];
-  if (opts.allowAuto !== false) options.push({ id: undefined, label: opts.autoLabel });
+  const options: Array<{
+    id: string | undefined;
+    label: string;
+    sub?: string;
+  }> = [];
+  if (opts.allowAuto !== false)
+    options.push({ id: undefined, label: opts.autoLabel });
   for (const c of opts.callerIds) {
     options.push({
       id: c.id,
@@ -40,13 +47,18 @@ export function callerIdSelector(opts: CallerIdSelectorOptions): CallerIdHandle 
   // Default: the primary number, else auto, else first.
   const primary = opts.callerIds.find((c) => c.isPrimary);
   const fallback: string | undefined =
-    opts.allowAuto === false ? primary?.id ?? opts.callerIds[0]?.id : undefined;
+    opts.allowAuto === false
+      ? (primary?.id ?? opts.callerIds[0]?.id)
+      : undefined;
   // Honor a restored selection when it still maps to an available option.
   let selected: string | undefined =
     opts.selectedId != null && options.some((o) => o.id === opts.selectedId)
       ? opts.selectedId
       : fallback;
-  let activeIndex = Math.max(0, options.findIndex((o) => o.id === selected));
+  let activeIndex = Math.max(
+    0,
+    options.findIndex((o) => o.id === selected),
+  );
   let open = false;
 
   const valueEl = h("span", { class: "rg-select__val" });
@@ -97,14 +109,25 @@ export function callerIdSelector(opts: CallerIdSelectorOptions): CallerIdHandle 
         "span",
         { class: "rg-option__num" },
         o.label,
-        o.sub ? h("span", { class: "rg-select__cap", style: { marginLeft: "8px" } }, o.sub) : null,
+        o.sub
+          ? h(
+              "span",
+              { class: "rg-select__cap", style: { marginLeft: "8px" } },
+              o.sub,
+            )
+          : null,
       ),
       h("span", { class: "rg-option__check" }, icon("check", 16)),
     ),
   );
   optionEls.forEach((e) => menu.appendChild(e));
 
-  const el = h("div", { class: "rg-field", style: { position: "relative" } }, trigger, menu);
+  const el = h(
+    "div",
+    { class: "rg-field", style: { position: "relative" } },
+    trigger,
+    menu,
+  );
 
   function renderValue() {
     const opt = options.find((o) => o.id === selected) ?? options[0];
@@ -116,7 +139,9 @@ export function callerIdSelector(opts: CallerIdSelectorOptions): CallerIdHandle 
 
   function setActive(i: number) {
     activeIndex = (i + options.length) % options.length;
-    optionEls.forEach((e, k) => e.setAttribute("data-active", String(k === activeIndex)));
+    optionEls.forEach((e, k) =>
+      e.setAttribute("data-active", String(k === activeIndex)),
+    );
     optionEls[activeIndex]?.scrollIntoView({ block: "nearest" });
   }
 
@@ -133,7 +158,12 @@ export function callerIdSelector(opts: CallerIdSelectorOptions): CallerIdHandle 
     menu.hidden = !next;
     trigger.setAttribute("aria-expanded", String(next));
     if (next) {
-      setActive(Math.max(0, options.findIndex((o) => o.id === selected)));
+      setActive(
+        Math.max(
+          0,
+          options.findIndex((o) => o.id === selected),
+        ),
+      );
       document.addEventListener("pointerdown", onOutside, true);
     } else {
       document.removeEventListener("pointerdown", onOutside, true);

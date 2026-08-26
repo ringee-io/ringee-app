@@ -128,6 +128,9 @@ one-time top-ups, saved-card charges, auto-reload and monthly-fund cycles alike.
 
 ### BILL-003 — Every balance change is idempotent and ledgered in one transaction
 
+The `ref` on `consumeCredits` is required, so no debit can take an unledgered
+path. See [BILLING.md](BILLING.md) for which of the two key shapes to use.
+
 `CreditTopup`, `CreditGrant` and `CreditDebit` each hold a unique idempotency key
 written in the same transaction as the balance move. A duplicate key returns
 `false` / `debited: false` and leaves the balance untouched.
@@ -201,19 +204,21 @@ the idempotency guard, on top of the `call-cost:<callId>` ledger key.
 ### BILL-013 — Customer price = provider cost × margin, with recording priced separately
 
 `calculateCallCharge` applies `CALL_PROFIT_MARGIN` to every non-recording cost
-part and `CALL_RECORDING_PROFIT_MARGIN` to the `call-recording` part. When Telnyx
-omits `cost_parts`, `total_cost` is treated as voice cost.
+part and `CALL_RECORDING_PROFIT_MARGIN` to the `call-recording` part. When the
+carrier omits `cost_parts`, `total_cost` is treated as voice cost. A call that
+presented a verified caller ID adds `CALLER_ID_PROFIT_MARGIN_SURCHARGE`
+(default 0 — no surcharge).
 
-- **Source of truth:** `packages/services/src/services/call-cost.util.ts` (+ spec)
+- **Source of truth:** `packages/services/src/services/call-cost.util.ts` (+ spec);
+  multipliers validated at startup in `@ringee/configuration`
 - **Risk if violated:** silent margin loss on every call
 
 ### BILL-014 — Amounts are USD floats; margins are multipliers ≥ 0
 
 `Credit.amount`, `Call.totalCost` and top-up amounts are `Float` USD.
-`CreditTopup` additionally stores `amountCents`. Margin env vars are parsed by
-`readProfitMultiplier`, which falls back rather than throwing on bad input.
-`AI_TOKEN_MARGIN` and `TRANSCRIPTION_CREDIT_PROFIT_MARGIN` are validated `>= 1`
-at startup.
+`CreditTopup` additionally stores `amountCents`. Every margin is read and
+validated at startup by `@ringee/configuration` — a malformed value refuses to
+boot rather than quietly billing the wrong amount.
 
 ### BILL-015 — Messages, transcription and AI pipelines are billed like calls
 
@@ -225,7 +230,9 @@ a zero charge (`AiPipelineChargeError`).
 ### BILL-016 — Caller-ID verification is charged per attempt sent
 
 Flat `CALLER_ID_VERIFICATION_FEE` (default $1.00). A caller with a balance below
-the fee is refused with HTTP 402.
+the fee is refused with HTTP 402. The debit is keyed to the verification
+*attempt*, so re-sending a code bills again while a double-submitted request does
+not; a provider rejection refunds through the ledgered grant path.
 
 - **Source of truth:** `packages/services/src/services/caller.id.service.ts`
 
@@ -304,9 +311,9 @@ authorize time.
 - **Source of truth:** `CallStatus` in `schema.prisma`;
   browser-side mapping in `packages/dialer-core/src/engine/state-map.ts`
 
-### CALL-008 — `CallService.handleTelnyxEvent` is the single writer of call state
+### CALL-008 — `CallService.handleTelephonyEvent` is the single writer of call state
 
-Every provider event funnels through it. Voicemail-drop legs are routed out
+Every provider event is normalized at the controller and funnels through it. Voicemail-drop legs are routed out
 first; SDK legs are adopted via a signed correlation header rather than creating
 a duplicate row.
 
@@ -425,8 +432,13 @@ manual calls.
 `CampaignLeadStatus`: `pending`, `queued`, `locked`, `dialing`, `in_call`,
 `wrap_up`, `dispositioned`, `scheduled`, `completed`, `exhausted`, `dnc`.
 `AgentSessionStatus`: `ready`, `reserved`, `dialing`, `in_call`, `wrap_up`,
-`paused`, `offline`. Campaign status is a **string**, validated against
-`VALID_CAMPAIGN_STATUSES` (`draft | active | paused | completed`).
+`paused`, `offline`.
+
+Campaign status is the exception: a **`String` column**, not a Prisma enum, so
+the database cannot reject an invalid value. `CampaignStatus`,
+`VALID_CAMPAIGN_STATUSES`, the `isCampaignStatus` guard and the DTO validator are
+the enforcement, and `CampaignRepository.updateStatus` is typed to the union.
+Promoting the column to an enum is blocked on `DEBT-002`.
 
 ### CMP-010 — The dialer poll loop runs only in the API process
 

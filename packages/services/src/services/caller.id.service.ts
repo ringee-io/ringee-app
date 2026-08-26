@@ -8,10 +8,10 @@ import {
 } from "@nestjs/common";
 import { NumberPurchased, NumberPurchasedRepository } from "@ringee/database";
 import { TelephonyService, OwnershipContext } from "@ringee/platform";
+import { apiConfiguration } from "@ringee/configuration";
 import { CreditService } from "./credit.service";
 
 const E164 = /^\+[1-9]\d{6,14}$/;
-const DEFAULT_VERIFICATION_FEE = 1.0;
 
 /**
  * Manages verified caller IDs — external numbers a user owns elsewhere and
@@ -35,9 +35,7 @@ export class CallerIdService {
 
   /** The flat fee charged per verification sent (covers Telnyx base + channel). */
   getVerificationFee(): number {
-    const raw = process.env.CALLER_ID_VERIFICATION_FEE;
-    const fee = raw ? parseFloat(raw) : DEFAULT_VERIFICATION_FEE;
-    return Number.isFinite(fee) && fee >= 0 ? fee : DEFAULT_VERIFICATION_FEE;
+    return apiConfiguration.CALLER_ID_VERIFICATION_FEE;
   }
 
   async getCallerIds(ctx: OwnershipContext): Promise<NumberPurchased[]> {
@@ -90,7 +88,17 @@ export class CallerIdService {
 
     // Charge the fee, then dispatch the verification. Refund if Telnyx rejects
     // the request so a failed send never costs the user.
-    await this.creditService.consumeCredits(ctx, fee);
+    //
+    // The key is the verification ATTEMPT, not the caller-id row: each attempt
+    // stamps a fresh `verificationRequestedAt`, so re-sending a code is billed
+    // again while a double-submitted request is not.
+    const attemptKey = `caller-id-verification:${callerId.id}:${(
+      callerId.verificationRequestedAt ?? new Date()
+    ).toISOString()}`;
+    await this.creditService.consumeCredits(ctx, fee, {
+      idempotencyKey: attemptKey,
+      source: "telnyx.caller-id.verification",
+    });
     try {
       await this.telephonyService.requestCallIdVerification(
         phoneNumber,
@@ -98,8 +106,13 @@ export class CallerIdService {
         extension,
       );
     } catch (err) {
+      // Ledgered refund keyed to the same attempt, so a retried failure path
+      // cannot hand back the fee twice.
       await this.creditService
-        .addCredits(ctx, fee)
+        .grantCreditsOnce(ctx, fee, {
+          idempotencyKey: `${attemptKey}:refund`,
+          source: "telnyx.caller-id.verification.refund",
+        })
         .catch((refundErr) =>
           this.logger.error(
             `Failed to refund caller-id verification fee for ${phoneNumber}`,

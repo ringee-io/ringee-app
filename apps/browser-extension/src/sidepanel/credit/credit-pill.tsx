@@ -50,12 +50,7 @@ export function CreditPill({
         </span>
       </button>
 
-      <AddCreditSheet
-        open={open}
-        api={api}
-        notify={notify}
-        onClose={close}
-      />
+      <AddCreditSheet open={open} api={api} notify={notify} onClose={close} />
     </>
   );
 }

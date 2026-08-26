@@ -220,7 +220,7 @@ const COMPANIES: Company[] = [
     height: 60,
     displayHeight: 55,
     slotWidth: 170
-  },
+  }
   // {
   //   name: 'TravelM',
   //   darkLogo: '/trust-on-us/travelm_black_transparent.png',

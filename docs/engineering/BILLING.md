@@ -58,10 +58,20 @@ a failure. Side effects are gated on the returned boolean (`BILL-004`).
 | Live transcription | `transcription-realtime:<headerId>` |
 | Recording transcription | `transcription-recording:<headerId>` |
 | Offer reward | `OfferRewardService.idempotencyKey(participationId)` |
+| Caller-ID verification | `caller-id-verification:<numberId>:<requestedAt>` |
 | Auto-reload (Stripe side) | `autoreload:<settingsId>:<minute>` |
+| AI chat / summary / pipeline | `incurredCostDebitRef(...)` — unique per invocation |
 
-Follow the `<subject>:<row id>` shape for anything new, with a `source` naming
-the trigger.
+`ref` is **required**. Two shapes, and picking the wrong one is a real bug:
+
+- **Keyed on the thing paid for** (`<subject>:<row id>`) when a provider can
+  redeliver the same settlement event. A duplicate must be refused.
+- **Unique per invocation** (`incurredCostDebitRef`) when the cost was already
+  incurred upstream — an AI completion the provider has already billed us for.
+  Running twice means we were charged twice, so both belong in the ledger.
+
+Using a stable key for the second kind silently swallows real costs; using a
+unique key for the first kind double-charges the customer.
 
 ## Where a call's price comes from
 

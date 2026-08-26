@@ -11,7 +11,7 @@ import {
   computeTokenCost,
 } from "@ringee/platform";
 import type { AiUsage } from "@ringee/platform";
-import { CreditService } from "../credit.service";
+import { CreditService, incurredCostDebitRef } from "../credit.service";
 
 const SUMMARIZER_SYSTEM = `
 You are a conversation summarizer for an outbound-sales AI assistant.
@@ -128,7 +128,14 @@ export class AiSummarizerService {
       organizationId: conversation.organizationId,
     };
     try {
-      await this.credits.consumeCredits(ctx, cost);
+      await this.credits.consumeCredits(
+        ctx,
+        cost,
+        incurredCostDebitRef(
+          `ai-summary:${conversation.id}`,
+          "ai.conversation.summary",
+        ),
+      );
       await this.conversations.incrementCost(conversation.id, cost);
     } catch (err) {
       this.logger.warn(

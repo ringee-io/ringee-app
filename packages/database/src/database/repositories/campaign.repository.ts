@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
+import type { CampaignStatus } from "@ringee/platform";
 import { Prisma, Campaign } from "@prisma/client";
 
 export interface CampaignWithLeadsCount extends Campaign {
@@ -190,7 +191,12 @@ export class CampaignRepository {
     });
   }
 
-  async updateStatus(id: string, status: string): Promise<Campaign> {
+  /**
+   * `Campaign.status` is a String column, not a Prisma enum, so the type here
+   * is the only thing preventing an arbitrary value from being persisted.
+   * Keep it narrowed to CampaignStatus.
+   */
+  async updateStatus(id: string, status: CampaignStatus): Promise<Campaign> {
     return this.prisma.campaign.update({
       where: { id },
       data: { status },

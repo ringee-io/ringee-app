@@ -48,7 +48,9 @@ if (!skipBuild) {
   console.log("📦 building production bundle…\n");
   run("pnpm build", { cwd: root });
 } else if (!existsSync(join(dist, "manifest.json"))) {
-  console.error("✗ --no-build given but dist/manifest.json is missing. Run `pnpm build` first.");
+  console.error(
+    "✗ --no-build given but dist/manifest.json is missing. Run `pnpm build` first.",
+  );
   process.exit(1);
 }
 
@@ -76,7 +78,9 @@ if (manifest.key !== undefined) {
   const { key: _omit, ...withoutKey } = manifest;
   writeFileSync(manifestPath, `${JSON.stringify(withoutKey, null, 2)}\n`);
   manifestStripped = true;
-  console.log("🔑 stripped dev `key` field — the Chrome Web Store assigns the published ID\n");
+  console.log(
+    "🔑 stripped dev `key` field — the Chrome Web Store assigns the published ID\n",
+  );
 }
 
 try {
@@ -86,7 +90,9 @@ try {
   if (!withMaps) excludes.push("*.map");
   const excludeArgs = excludes.map((p) => `-x "${p}"`).join(" ");
 
-  console.log(`🗜  zipping dist/ → releases/${zipName}${withMaps ? " (with source maps)" : ""}\n`);
+  console.log(
+    `🗜  zipping dist/ → releases/${zipName}${withMaps ? " (with source maps)" : ""}\n`,
+  );
   run(`zip -r -X "${zipPath}" . ${excludeArgs}`, { cwd: dist });
 } finally {
   // Always put the unpacked dist/ manifest back the way it was built.

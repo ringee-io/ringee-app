@@ -14,8 +14,12 @@ const REQUEST_STEP = "request_free_call";
  * Internal inbox the Ringee team reviews. Free trial calls are granted
  * manually, so every request is emailed here (the same address used for
  * account/credit requests).
+ *
+ * Configuration, not a literal: this repository is public and self-hostable, so
+ * a hard-coded address would silently mail the upstream maintainer from every
+ * deployment. Falls back to the sender address when unset.
  */
-const RINGEE_TEAM_EMAIL = "edisonpadilla.dev@gmail.com";
+const RINGEE_TEAM_EMAIL = apiConfiguration.RINGEE_TEAM_EMAIL;
 
 export interface FreeTrialRequestState {
   hasRequested: boolean;

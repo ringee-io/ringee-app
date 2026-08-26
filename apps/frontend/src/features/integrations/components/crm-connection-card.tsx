@@ -206,7 +206,9 @@ export function CrmConnectionCard({
                 <AlertDialogContent>
                   <AlertDialogHeader>
                     <AlertDialogTitle>
-                      {t('dialogs.disconnectTitle', { provider: meta?.name ?? '' })}
+                      {t('dialogs.disconnectTitle', {
+                        provider: meta?.name ?? ''
+                      })}
                     </AlertDialogTitle>
                     <AlertDialogDescription>
                       {t('dialogs.disconnectDescription')}
@@ -239,7 +241,9 @@ export function CrmConnectionCard({
                     {t('dialogs.forgetTitle')}
                   </AlertDialogTitle>
                   <AlertDialogDescription>
-                    {t('dialogs.forgetDescription', { provider: meta?.name ?? '' })}
+                    {t('dialogs.forgetDescription', {
+                      provider: meta?.name ?? ''
+                    })}
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>

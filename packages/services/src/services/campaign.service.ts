@@ -25,7 +25,7 @@ import {
   ALL_CSV_FIELDS,
   CsvContactRow,
   CsvRowError,
-  VALID_CAMPAIGN_STATUSES,
+  isCampaignStatus,
 } from "@ringee/platform";
 
 export interface CampaignLeadsImportResult {
@@ -97,6 +97,58 @@ export class CampaignService {
     return campaign;
   }
 
+  /**
+   * Ownership + membership gate for the dialer (CMP-002).
+   *
+   * Same rule as `getCampaignById`, but a missing campaign is reported as
+   * Forbidden rather than NotFound: the dialer endpoints have always answered
+   * that way, and it keeps them from confirming whether a campaign id exists
+   * in someone else's organization.
+   */
+  async assertDialableCampaign(
+    ctx: OwnershipContext,
+    campaignId: string,
+    options: { isOrgAdmin: boolean },
+  ): Promise<Campaign> {
+    this.ensureOrganization(ctx);
+
+    const campaign = await this.campaignRepo.findById(campaignId);
+    if (!campaign || campaign.organizationId !== ctx.organizationId) {
+      throw new ForbiddenException("Campaign not found in your organization");
+    }
+
+    if (!options.isOrgAdmin) {
+      const isMember = await this.campaignMemberRepo.isMember(
+        campaignId,
+        ctx.userId,
+      );
+      if (!isMember) {
+        throw new ForbiddenException("You are not assigned to this campaign");
+      }
+    }
+
+    return campaign;
+  }
+
+  /**
+   * Confirm a campaign belongs to the caller's organization, without the
+   * membership requirement — for acting on an existing attempt, where the
+   * agent's assignment was already checked when the lead was handed to them.
+   */
+  async assertCampaignInWorkspace(
+    ctx: OwnershipContext,
+    campaignId: string,
+  ): Promise<Campaign> {
+    this.ensureOrganization(ctx);
+    const campaign = await this.campaignRepo.findById(campaignId);
+    if (!campaign || campaign.organizationId !== ctx.organizationId) {
+      throw new ForbiddenException(
+        "Attempt does not belong to your organization",
+      );
+    }
+    return campaign;
+  }
+
   async listCampaigns(
     ctx: OwnershipContext,
     options?: {
@@ -128,7 +180,7 @@ export class CampaignService {
       throw new ForbiddenException("Access denied");
     }
 
-    if (!VALID_CAMPAIGN_STATUSES.includes(dto.status)) {
+    if (!isCampaignStatus(dto.status)) {
       throw new BadRequestException(`Invalid status: ${dto.status}`);
     }
 

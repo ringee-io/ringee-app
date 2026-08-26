@@ -19,9 +19,12 @@ Never assume the caller already checked.
 - The ledger row and the balance move in **one transaction**; a duplicate
   idempotency key returns `debited: false` / `granted: false` and leaves the
   balance alone. Gate side effects on that boolean.
-- Always pass an idempotency `ref` when debiting. The convention is
-  `<subject>:<row id>` with a `source` naming the trigger
-  (`call-cost:<callId>` / `telnyx.call.cost`).
+- The idempotency `ref` on `consumeCredits` is **required** — that is what keeps
+  the ledger reconciled with the balance. Two valid shapes:
+  - keyed on the thing paid for (`call-cost:<callId>`) when a provider could
+    redeliver the same settlement event;
+  - `incurredCostDebitRef(subject, source)` when the cost was already incurred
+    upstream (an AI completion), so a retry is a NEW cost, not a replay.
 - Never write `prisma.credit.update` from a service. Never credit a balance from
   anywhere but the confirmed Stripe webhook.
 - Auto-reload charges are started by an atomic `active -> charging` CAS and are
@@ -31,8 +34,9 @@ Never assume the caller already checked.
 
 - Provider commands go through `TelephonyService` (`@ringee/platform`), never a
   Telnyx SDK import (ESLint `ARCH-001`).
-- `CallService.handleTelnyxEvent` owns the call lifecycle and is the single
-  writer of `Call.status`. Do not transition call state from elsewhere.
+- `CallService.handleTelephonyEvent` owns the call lifecycle and is the single
+  writer of `Call.status`. It takes a normalized `TelephonyEvent`, never a raw
+  carrier payload — do not reintroduce provider types here.
 - One call at a time per user is `ConcurrentCallGuardService`. Every dial surface
   reserves through `requestDial`, binds on `call.initiated`, and releases on
   hangup. A new surface that skips it is a bug, not a shortcut.

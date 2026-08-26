@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException } from "@nestjs/common";
+import { randomUUID } from "node:crypto";
 import {
   Credit,
   CreditAutoReload,
@@ -9,6 +10,32 @@ import {
 import { OwnershipContext, StripeService } from "@ringee/platform";
 import { UserService } from "./user.service";
 import { OrganizationService } from "./organization.service";
+
+/** Identifies a debit in the `CreditDebit` ledger. */
+export interface CreditDebitRef {
+  idempotencyKey: string;
+  source: string;
+}
+
+/**
+ * Builds a debit ref for a cost that was ALREADY incurred by an upstream
+ * provider call (an AI completion, a per-request API charge).
+ *
+ * Such a charge has no natural replay key: if the work runs twice the provider
+ * billed us twice, so the second debit is a new cost, not a duplicate of the
+ * first. The unique suffix keeps every one of them in the ledger instead of
+ * letting them collapse into a single row — or, worse, skip the ledger.
+ *
+ * Do NOT use this for settlement events a provider can redeliver (call cost,
+ * message cost, Stripe webhooks). Those must key on the thing being paid for so
+ * a redelivery is refused — see `call-cost:<callId>`.
+ */
+export function incurredCostDebitRef(
+  subject: string,
+  source: string,
+): CreditDebitRef {
+  return { idempotencyKey: `${subject}:${randomUUID()}`, source };
+}
 
 /** Shape returned to the "monthly funding active" UI. */
 export interface MonthlyFundSummary {
@@ -53,6 +80,13 @@ export class CreditService {
     };
   }
 
+  /**
+   * Unledgered balance increment.
+   *
+   * @deprecated Prefer {@link grantCreditsOnce} (ledgered + idempotent) or
+   * {@link creditTopupOnce} (Stripe purchases). Retained only for callers that
+   * predate the ledger; do not add new ones.
+   */
   async addCredits(ctx: OwnershipContext, amount: number): Promise<Credit> {
     if (amount <= 0) {
       throw new BadRequestException("The amount must be positive.");
@@ -142,28 +176,38 @@ export class CreditService {
     return { balance: credit.amount, granted };
   }
 
+  /**
+   * Debits a balance EXACTLY ONCE per idempotency key.
+   *
+   * `ref` is REQUIRED so every debit lands in the `CreditDebit` ledger and the
+   * ledger always reconciles with the balance — a debit with no key would take
+   * an unaudited path and silently reopen that gap.
+   *
+   * Two shapes of key, both legitimate:
+   *  - A key derived from the thing being paid for (`call-cost:<callId>`)
+   *    protects against a provider redelivering the same settlement event.
+   *  - A key unique per invocation (see {@link incurredCostDebitRef}) is
+   *    correct when the cost
+   *    was already incurred upstream, so a retry is a NEW cost rather than a
+   *    replay of the same one.
+   */
   async consumeCredits(
     ctx: OwnershipContext,
     amount: number,
-    ref?: { idempotencyKey: string; source: string },
+    ref: { idempotencyKey: string; source: string },
   ): Promise<Credit> {
     if (!Number.isFinite(amount) || amount < 0) {
       throw new BadRequestException(
         "The amount must be a finite positive number.",
       );
     }
-    if (ref && (!ref.idempotencyKey.trim() || !ref.source.trim())) {
+    if (!ref.idempotencyKey.trim() || !ref.source.trim()) {
       throw new BadRequestException(
         "Debit idempotency key and source must not be empty.",
       );
     }
 
-    const result = ref
-      ? await this.creditRepository.consumeOnce(ctx, amount, ref)
-      : {
-          credit: await this.creditRepository.updateBalance(ctx, -amount),
-          debited: true,
-        };
+    const result = await this.creditRepository.consumeOnce(ctx, amount, ref);
 
     // A replay must not re-trigger side effects either.
     if (result.debited) {

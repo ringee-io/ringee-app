@@ -48,7 +48,9 @@ export interface FloatingOptions
   container?: HTMLElement;
 }
 
-export interface BarOptions extends Partial<RingeeDialerOptions>, CommonUIOptions {
+export interface BarOptions
+  extends Partial<RingeeDialerOptions>,
+    CommonUIOptions {
   /** Target element (or its CSS selector / id) the bar renders into. Required. */
   container: HTMLElement | string;
 }
@@ -63,7 +65,10 @@ export interface FloatingController {
   /** Attach a contact/number, open the panel, and place the call when ready. */
   startCall(input: StartCallInput & { name?: string; imageUrl?: string }): void;
   setTheme(theme: RingeeTheme): void;
-  on<T extends RingeeEventName>(event: T, handler: RingeeEventHandler<T>): () => void;
+  on<T extends RingeeEventName>(
+    event: T,
+    handler: RingeeEventHandler<T>,
+  ): () => void;
   destroy(): void;
 }
 
@@ -73,11 +78,16 @@ export interface BarController {
   setContact(contact: DialerContact | null): void;
   prefill(number: string): void;
   setTheme(theme: RingeeTheme): void;
-  on<T extends RingeeEventName>(event: T, handler: RingeeEventHandler<T>): () => void;
+  on<T extends RingeeEventName>(
+    event: T,
+    handler: RingeeEventHandler<T>,
+  ): () => void;
   destroy(): void;
 }
 
-function makeDialer(opts: Partial<RingeeDialerOptions> & CommonUIOptions): RingeeDialer {
+function makeDialer(
+  opts: Partial<RingeeDialerOptions> & CommonUIOptions,
+): RingeeDialer {
   if (opts.dialer) return opts.dialer;
   if (!opts.key) {
     throw new Error(
@@ -92,7 +102,10 @@ function makeDialer(opts: Partial<RingeeDialerOptions> & CommonUIOptions): Ringe
   });
 }
 
-function makeModel(dialer: RingeeDialer, opts: CommonUIOptions & { agentEmail?: string }): DialerModel {
+function makeModel(
+  dialer: RingeeDialer,
+  opts: CommonUIOptions & { agentEmail?: string },
+): DialerModel {
   return new DialerModel(dialer, {
     strings: resolveStrings(opts.locale, opts.strings),
     agentEmail: opts.agentEmail,
@@ -113,7 +126,10 @@ function resolveContainer(target: HTMLElement | string): HTMLElement {
 export function createFloating(options: FloatingOptions): FloatingController {
   const dialer = makeDialer(options);
   const model = makeModel(dialer, options);
-  const mount = createShadowMount(options.container ?? document.body, options.theme);
+  const mount = createShadowMount(
+    options.container ?? document.body,
+    options.theme,
+  );
   const floating = new FloatingDialer(model, mount, {
     side: options.side,
     defaultOpen: options.defaultOpen,

@@ -195,7 +195,7 @@ export type TelnyxWebhookEvent =
 // ======================================================
 
 /**
- * Extrae el tipo de payload según el evento Telnyx
+ * Resolves the payload type for a given Telnyx event.
  */
 export type ExtractTelnyxPayload<T extends TelnyxEventType> = Extract<
   TelnyxWebhookEvent,

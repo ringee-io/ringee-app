@@ -29,7 +29,7 @@ export const CurrentUser = createParamDecorator(
         user = await ClerkUserRepository.findById(clerkUserId);
       }
     } catch (error) {
-      console.error("Error al obtener usuario:", error);
+      console.error("Failed to resolve the current user:", error);
       throw new InternalServerErrorException(
         "Failed to resolve user from Clerk",
       );

@@ -133,7 +133,8 @@ export class DialerModel {
 
   get loadingLabel(): string {
     if (this.authState === "checking") return this.s.restoring;
-    if (this.dialerState === "dialing" && !this.activeCall) return this.s.preparingCall;
+    if (this.dialerState === "dialing" && !this.activeCall)
+      return this.s.preparingCall;
     return this.s.connectingAudio;
   }
 
@@ -255,7 +256,9 @@ export class DialerModel {
           this.emit();
         }
         this.options.onError?.(
-          error instanceof RingeeError ? error : new RingeeError(error.code, error.message),
+          error instanceof RingeeError
+            ? error
+            : new RingeeError(error.code, error.message),
         );
       }),
     );
@@ -344,7 +347,10 @@ export class DialerModel {
     if (!this.challenge) return;
     this.banner = null;
     try {
-      await this.dialer.verifyEmailCode({ challengeId: this.challenge.id, code });
+      await this.dialer.verifyEmailCode({
+        challengeId: this.challenge.id,
+        code,
+      });
     } catch (err) {
       this.setBanner(err);
       this.otpInvalidNonce += 1;
@@ -466,11 +472,13 @@ export class DialerModel {
     const code =
       err instanceof RingeeError
         ? err.code
-        : (err as { code?: string } | null)?.code ?? "UNKNOWN_ERROR";
+        : ((err as { code?: string } | null)?.code ?? "UNKNOWN_ERROR");
     if (FATAL.has(code)) this.fatalError = true;
     this.setBannerCopy(code);
     this.options.onError?.(
-      err instanceof RingeeError ? err : new RingeeError(code as RingeeError["code"], String(code)),
+      err instanceof RingeeError
+        ? err
+        : new RingeeError(code as RingeeError["code"], String(code)),
     );
     this.emit();
   }
@@ -500,7 +508,9 @@ export class DialerModel {
     }
     // Only adopt it if the number is still assigned to the agent; otherwise auto.
     this.selectedCallerId =
-      stored && this.callerIds.some((c) => c.id === stored) ? stored : undefined;
+      stored && this.callerIds.some((c) => c.id === stored)
+        ? stored
+        : undefined;
   }
 
   private persistCallerId(id: string | undefined): void {
@@ -519,7 +529,7 @@ export class DialerModel {
     const code =
       err instanceof RingeeError
         ? err.code
-        : (err as { code?: string } | null)?.code ?? "UNKNOWN_ERROR";
+        : ((err as { code?: string } | null)?.code ?? "UNKNOWN_ERROR");
     this.setBannerCopy(code);
   }
 

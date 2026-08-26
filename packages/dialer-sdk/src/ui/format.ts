@@ -13,7 +13,9 @@ export function formatPhone(raw: string): string {
   // Split the last 10 into 3-3-4; whatever precedes it is the country code.
   const last = digits.slice(-10);
   const cc = digits.slice(0, -10);
-  const groups = [last.slice(0, 3), last.slice(3, 6), last.slice(6)].filter(Boolean);
+  const groups = [last.slice(0, 3), last.slice(3, 6), last.slice(6)].filter(
+    Boolean,
+  );
   const body = groups.join(" ");
   const head = cc ? `${plus ? "+" : ""}${cc} ` : plus ? "+" : "";
   return `${head}${body}`.trim();

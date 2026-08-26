@@ -190,7 +190,7 @@ export class OrganizationRepository {
       where: { clerkId: userClerkId },
     });
 
-    // Si el usuario existe, crear membresía con userId
+    // When the user already exists, create the membership with their userId.
     // Si no existe (invitación pendiente), crear con clerkUserId solamente
     await this.prisma.organizationMembership.upsert({
       where: {
@@ -206,7 +206,7 @@ export class OrganizationRepository {
         role,
       },
       update: {
-        userId: user?.id, // Actualizar userId si el usuario ahora existe
+        userId: user?.id, // Backfill userId once the user exists
         role,
         updatedAt: new Date(),
       },

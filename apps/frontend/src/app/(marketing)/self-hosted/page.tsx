@@ -64,19 +64,20 @@ const SELF_HOSTED_FAQS = [
 
 export default function SelfHostedPage() {
   return (
-    <DetailLayout items={[
-      { name: 'Home', href: '/' },
-      { name: 'Self-hosted', href: '/self-hosted' }
-    ]}
-
-      cta={<CtaSection
-        title='Start with the cloud, switch to self-hosted anytime'
-        description='Create a free account to try Ringee, or grab the code and run it yourself.'
-        secondaryHref={GITHUB_URL}
-        secondaryLabel='View on GitHub'
-      />}
+    <DetailLayout
+      items={[
+        { name: 'Home', href: '/' },
+        { name: 'Self-hosted', href: '/self-hosted' }
+      ]}
+      cta={
+        <CtaSection
+          title='Start with the cloud, switch to self-hosted anytime'
+          description='Create a free account to try Ringee, or grab the code and run it yourself.'
+          secondaryHref={GITHUB_URL}
+          secondaryLabel='View on GitHub'
+        />
+      }
     >
-
       <Section className='pt-8 pb-4'>
         <Container className='max-w-3xl'>
           <div className='border-border/70 bg-muted/40 text-muted-foreground mb-6 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium'>

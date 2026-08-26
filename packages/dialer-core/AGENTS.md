@@ -18,10 +18,11 @@ server packages (ESLint `ARCH-003`).
 - `contracts/` — cross-context message shapes. `store/call-store.ts` — call state.
 - `dtmf/tones.ts` — tone generation.
 
-There is a separate, older `normalizePhoneE164` in
-`packages/platform/src/crm/phone.ts` used for server-side CRM matching. The two
-coexist deliberately (browser vs. server, libphonenumber vs. regex) but the
-duplication is tracked as `DEBT-004`. Do not add a third.
+`normalizePhoneE164` in `packages/platform/src/crm/phone.ts` is the server-side
+counterpart, for CRM matching. Both are libphonenumber-backed and agree; the
+server one additionally keeps a lenient fallback for the unparseable values CRM
+records hold. Two exist because they run in different places — **do not add a
+third**, and pick the one matching your runtime.
 
 ## Rules
 

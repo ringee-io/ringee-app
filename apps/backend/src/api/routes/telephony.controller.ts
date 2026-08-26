@@ -30,6 +30,7 @@ import {
   CallerIdService,
   NumberPurchasedService,
   RegulatoryDocumentService,
+  TelephonyRateService,
 } from "@ringee/services";
 import {
   RequestCallerIdVerificationDto,
@@ -45,7 +46,6 @@ import {
   CallStatus,
   CallOutcome,
   NumberPurchased,
-  TelnyxRatePerMinuteRepository,
 } from "@ringee/database";
 import { UserService, RecordingService, CallService } from "@ringee/services";
 
@@ -63,7 +63,7 @@ export class TelephonyController {
     private readonly userService: UserService,
     private readonly numberPurchasedService: NumberPurchasedService,
     private readonly callService: CallService,
-    private readonly ratePerMinuteRepository: TelnyxRatePerMinuteRepository,
+    private readonly telephonyRateService: TelephonyRateService,
     private readonly recordingService: RecordingService,
     private readonly regulatoryDocumentService: RegulatoryDocumentService,
   ) {}
@@ -71,7 +71,7 @@ export class TelephonyController {
   @Public()
   @Get("rates")
   async getRates(): Promise<TelephonyCountryRate[]> {
-    return this.ratePerMinuteRepository.getRates();
+    return this.telephonyRateService.listRates();
   }
 
   @Public()
@@ -79,7 +79,7 @@ export class TelephonyController {
   async getRateByCountry(
     @Param("codeOrName") codeOrName: string,
   ): Promise<TelephonyCountryRate | null> {
-    return this.ratePerMinuteRepository.getRateByCountry(codeOrName);
+    return this.telephonyRateService.findRateByCountry(codeOrName);
   }
 
   @Public()

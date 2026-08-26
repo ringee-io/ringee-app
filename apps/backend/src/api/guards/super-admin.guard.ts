@@ -11,29 +11,43 @@ import { apiConfiguration } from "@ringee/configuration";
 import { ClerkUserRepository } from "@ringee/platform";
 
 /**
- * Hard-coded fallback allowlist for the internal super-admin (backoffice) area.
- * Used when BACKOFFICE_SUPER_ADMIN_EMAILS is not set so the module works out of
- * the box. Keep in sync with the frontend list in
- * apps/frontend/src/features/backoffice/lib/super-admins.ts.
+ * The one and only source of the backoffice allowlist: BACKOFFICE_SUPER_ADMIN_EMAILS.
+ *
+ * There is deliberately NO hard-coded fallback. Ringee is a public,
+ * self-hostable repository, so a committed default list would make the upstream
+ * maintainers super-admins of every deployment. An unset variable therefore
+ * means "nobody has backoffice access here", which fails closed.
+ *
+ * The frontend does not keep its own copy — it asks `GET /api/backoffice/access`
+ * (see BackofficeAccessController), so the UI gate and this guard can never
+ * drift apart.
  */
-export const DEFAULT_SUPER_ADMIN_EMAILS = [
-  "edisonpadilla.dev@gmail.com",
-  "ringee.io@gmail.com",
-  "edisonjpp@gmail.com",
-];
-
-/** Resolve the effective allowlist (env override ∪ default), lower-cased. */
 export function getSuperAdminEmails(): string[] {
   const raw = apiConfiguration.BACKOFFICE_SUPER_ADMIN_EMAILS;
-  const fromEnv = raw
-    ? raw
-        .split(",")
-        .map((e) => e.trim().toLowerCase())
-        .filter(Boolean)
-    : [];
-  return fromEnv.length > 0
-    ? fromEnv
-    : DEFAULT_SUPER_ADMIN_EMAILS.map((e) => e.toLowerCase());
+  if (!raw) return [];
+  return raw
+    .split(",")
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+/**
+ * Verified emails of a Clerk user that appear in the allowlist.
+ * Only verified addresses are trusted so an unverified alias cannot impersonate.
+ */
+export async function resolveSuperAdmin(clerkUserId: string): Promise<boolean> {
+  const allowlist = getSuperAdminEmails();
+  if (allowlist.length === 0) return false;
+
+  try {
+    const clerkUser = await ClerkUserRepository.findById(clerkUserId);
+    return clerkUser.emailAddresses
+      .filter((e) => e.verification?.status === "verified")
+      .map((e) => e.emailAddress.toLowerCase())
+      .some((email) => allowlist.includes(email));
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -53,21 +67,7 @@ export class SuperAdminGuard implements CanActivate {
       throw new UnauthorizedException("No authenticated user in request");
     }
 
-    const allowlist = getSuperAdminEmails();
-
-    let emails: string[] = [];
-    try {
-      const clerkUser = await ClerkUserRepository.findById(clerkUserId);
-      emails = clerkUser.emailAddresses
-        // Only trust verified emails so an unverified alias can't impersonate.
-        .filter((e) => e.verification?.status === "verified")
-        .map((e) => e.emailAddress.toLowerCase());
-    } catch {
-      throw new ForbiddenException("Backoffice access denied");
-    }
-
-    const isSuperAdmin = emails.some((email) => allowlist.includes(email));
-    if (!isSuperAdmin) {
+    if (!(await resolveSuperAdmin(clerkUserId))) {
       throw new ForbiddenException("Backoffice access denied");
     }
 

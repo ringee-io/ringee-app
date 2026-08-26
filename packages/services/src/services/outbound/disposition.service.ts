@@ -124,6 +124,14 @@ export class DispositionService {
     return this.dispositionRepo.findByCampaign(campaignId);
   }
 
+  /** Resolve a campaign's disposition by its code, or null when unknown. */
+  async findByCampaignAndCode(
+    campaignId: string,
+    code: string,
+  ): Promise<Disposition | null> {
+    return this.dispositionRepo.findByCampaignAndCode(campaignId, code);
+  }
+
   async getById(id: string): Promise<Disposition> {
     const disposition = await this.dispositionRepo.findById(id);
     if (!disposition) throw new NotFoundException("Disposition not found");

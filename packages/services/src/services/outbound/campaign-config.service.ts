@@ -13,7 +13,11 @@ import {
   Campaign,
   DialerMode,
 } from "@ringee/database";
-import { OwnershipContext } from "@ringee/platform";
+import {
+  CampaignStatus,
+  isCampaignStatus,
+  OwnershipContext,
+} from "@ringee/platform";
 import { DispositionService } from "./disposition.service";
 import { LeadQueueService } from "./lead-queue.service";
 
@@ -204,10 +208,18 @@ export class CampaignConfigService {
     newStatus: string,
   ): Promise<Campaign> {
     this.ensureOrganization(ctx);
+
+    // `Campaign.status` is a String column, so an unrecognised value would
+    // otherwise be persisted verbatim and break every consumer that switches
+    // on it. Reject it here, before the transition table is consulted.
+    if (!isCampaignStatus(newStatus)) {
+      throw new BadRequestException(`Invalid status: ${newStatus}`);
+    }
+
     const campaign = await this.getCampaignWithAuth(ctx, campaignId);
 
     // Validate transition
-    const validTransitions: Record<string, string[]> = {
+    const validTransitions: Record<string, CampaignStatus[]> = {
       draft: ["active"],
       active: ["paused", "completed"],
       paused: ["active", "completed"],

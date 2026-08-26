@@ -63,7 +63,11 @@ export function contactSummary(opts: {
   return h(
     "div",
     { class: "rg-contact" },
-    avatar({ name: showName ? opts.name : null, imageUrl: opts.imageUrl, size: opts.size === "sm" ? "sm" : "md" }),
+    avatar({
+      name: showName ? opts.name : null,
+      imageUrl: opts.imageUrl,
+      size: opts.size === "sm" ? "sm" : "md",
+    }),
     h(
       "div",
       { class: "rg-contact__meta" },
@@ -117,7 +121,9 @@ function control(opts: {
       title: opts.label,
       attrs: {
         "aria-label": opts.label,
-        ...(opts.pressed !== undefined ? { "aria-pressed": String(opts.pressed) } : {}),
+        ...(opts.pressed !== undefined
+          ? { "aria-pressed": String(opts.pressed) }
+          : {}),
       },
       on: { click: () => opts.onClick() },
     },
@@ -141,9 +147,19 @@ export function callControls(opts: CallControlsOptions): CallControlsHandle {
     onClick: opts.onToggleKeypad,
   });
   const hold = opts.allowHold
-    ? control({ icon: "pause", label: opts.labels.hold, pressed: false, onClick: opts.onToggleHold })
+    ? control({
+        icon: "pause",
+        label: opts.labels.hold,
+        pressed: false,
+        onClick: opts.onToggleHold,
+      })
     : null;
-  const hangup = control({ icon: "phoneOff", label: opts.labels.hangup, tone: "danger", onClick: opts.onHangup });
+  const hangup = control({
+    icon: "phoneOff",
+    label: opts.labels.hangup,
+    tone: "danger",
+    onClick: opts.onHangup,
+  });
 
   const el = h(
     "div",
@@ -158,7 +174,10 @@ export function callControls(opts: CallControlsOptions): CallControlsHandle {
     el,
     setMuted(on) {
       mute.el.setAttribute("aria-pressed", String(on));
-      mute.el.setAttribute("aria-label", on ? opts.labels.unmute : opts.labels.mute);
+      mute.el.setAttribute(
+        "aria-label",
+        on ? opts.labels.unmute : opts.labels.mute,
+      );
       mute.el.title = on ? opts.labels.unmute : opts.labels.mute;
       replaceChildren(mute.iconWrap, icon(on ? "micOff" : "mic", 20));
       mute.caption.textContent = on ? opts.labels.unmute : opts.labels.mute;
@@ -166,7 +185,10 @@ export function callControls(opts: CallControlsOptions): CallControlsHandle {
     setHeld(on) {
       if (!hold) return;
       hold.el.setAttribute("aria-pressed", String(on));
-      hold.el.setAttribute("aria-label", on ? opts.labels.resume : opts.labels.hold);
+      hold.el.setAttribute(
+        "aria-label",
+        on ? opts.labels.resume : opts.labels.hold,
+      );
       hold.el.title = on ? opts.labels.resume : opts.labels.hold;
       replaceChildren(hold.iconWrap, icon(on ? "play" : "pause", 20));
       hold.caption.textContent = on ? opts.labels.resume : opts.labels.hold;
@@ -176,7 +198,8 @@ export function callControls(opts: CallControlsOptions): CallControlsHandle {
     },
     setEnabled(on) {
       for (const b of [mute.el, keypad.el, hold?.el, hangup.el]) {
-        if (b && !b.classList.contains("rg-ctl--danger")) (b as HTMLButtonElement).disabled = !on;
+        if (b && !b.classList.contains("rg-ctl--danger"))
+          (b as HTMLButtonElement).disabled = !on;
       }
     },
   };
@@ -192,7 +215,12 @@ export function agentMenu(opts: {
 }): HTMLElement {
   const menu = h(
     "div",
-    { class: "rg-menu", role: "menu", hidden: true, style: { bottom: "calc(100% + 6px)", top: "auto" } },
+    {
+      class: "rg-menu",
+      role: "menu",
+      hidden: true,
+      style: { bottom: "calc(100% + 6px)", top: "auto" },
+    },
     h(
       "button",
       {

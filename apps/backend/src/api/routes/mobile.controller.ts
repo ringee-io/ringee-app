@@ -4,7 +4,6 @@ import {
   Controller,
   Delete,
   Get,
-  NotFoundException,
   Param,
   Patch,
   Post,
@@ -22,16 +21,15 @@ import {
   MeetingService,
   NotificationPreferences,
   ReminderService,
+  UserDeviceService,
   UserService,
+  MobileReadService,
 } from "@ringee/services";
-import { PrismaService, UserDeviceRepository } from "@ringee/database";
 import {
   Call,
   CallOutcome,
   CallStatus,
   CallbackStatus,
-  MeetingStatus,
-  TranscriptionStatus,
 } from "@ringee/database";
 
 /**
@@ -50,13 +48,13 @@ import {
 @Controller("mobile")
 export class MobileController {
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly mobileRead: MobileReadService,
     private readonly callService: CallService,
     private readonly contactService: ContactService,
     private readonly callbackService: CallbackService,
     private readonly meetingService: MeetingService,
     private readonly reminderService: ReminderService,
-    private readonly userDeviceRepository: UserDeviceRepository,
+    private readonly userDeviceService: UserDeviceService,
     private readonly userService: UserService,
   ) {}
 
@@ -164,26 +162,7 @@ export class MobileController {
   @Get("calls/:id")
   async getCall(@CurrentUser() user: CurrentUserData, @Param("id") id: string) {
     const ctx = createOwnershipContext(user);
-    const call = await this.prisma.call.findUnique({
-      where: { id },
-      include: {
-        contact: {
-          include: {
-            notes: {
-              where: { deletedAt: null },
-              orderBy: { createdAt: "desc" },
-              take: 10,
-            },
-          },
-        },
-        recordings: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-        },
-      },
-    });
-    if (!call) throw new NotFoundException("Call not found");
-    this.assertVisible(call, ctx);
+    const call = await this.mobileRead.getCallDetail(ctx, id);
     return this.toCallDetailDto(call);
   }
 
@@ -197,9 +176,8 @@ export class MobileController {
       throw new BadRequestException("outcome is required");
     }
     const ctx = createOwnershipContext(user);
-    const call = await this.prisma.call.findUnique({ where: { id } });
-    if (!call) throw new NotFoundException("Call not found");
-    this.assertVisible(call, ctx);
+    // Authorization guard: throws unless the call is in the caller's workspace.
+    await this.mobileRead.getVisibleCall(ctx, id);
 
     // Persist + push the CRM note immediately — the user's request is the only
     // thing that fires it for answered calls. See CallService.setOutcome.
@@ -221,9 +199,8 @@ export class MobileController {
     @Param("id") id: string,
   ) {
     const ctx = createOwnershipContext(user);
-    const call = await this.prisma.call.findUnique({ where: { id } });
-    if (!call) throw new NotFoundException("Call not found");
-    this.assertVisible(call, ctx);
+    // Authorization guard: throws unless the call is in the caller's workspace.
+    await this.mobileRead.getVisibleCall(ctx, id);
 
     await this.callService.setOutcome(id, {});
     return { ok: true };
@@ -239,9 +216,7 @@ export class MobileController {
     if (!content) throw new BadRequestException("content is required");
     const ctx = createOwnershipContext(user);
 
-    const call = await this.prisma.call.findUnique({ where: { id } });
-    if (!call) throw new NotFoundException("Call not found");
-    this.assertVisible(call, ctx);
+    const call = await this.mobileRead.getVisibleCall(ctx, id);
 
     // Notes are stored against the contact (single source of truth in the
     // existing schema). If the call has no contact, append to outcomeNote.
@@ -250,12 +225,7 @@ export class MobileController {
         content,
       });
     }
-    const stamped = `[${new Date().toISOString()}] ${content}`;
-    const next = call.outcomeNote ? `${call.outcomeNote}\n${stamped}` : stamped;
-    await this.prisma.call.update({
-      where: { id },
-      data: { outcomeNote: next },
-    });
+    await this.mobileRead.appendCallOutcomeNote(ctx, id, content);
     return { ok: true };
   }
 
@@ -318,40 +288,7 @@ export class MobileController {
     @Param("id") id: string,
   ) {
     const ctx = createOwnershipContext(user);
-    const contact = await this.prisma.contact.findUnique({
-      where: { id },
-      include: {
-        notes: {
-          where: { deletedAt: null },
-          orderBy: { createdAt: "desc" },
-          take: 20,
-        },
-        calls: {
-          orderBy: { createdAt: "desc" },
-          take: 15,
-          include: { recordings: { take: 1, orderBy: { createdAt: "desc" } } },
-        },
-        callbacks: {
-          where: {
-            status: { in: [CallbackStatus.scheduled, CallbackStatus.due] },
-          },
-          orderBy: { scheduledAt: "asc" },
-          take: 1,
-        },
-        meetings: {
-          where: {
-            scheduledAt: { gte: new Date() },
-            status: {
-              in: [MeetingStatus.scheduled, MeetingStatus.rescheduled],
-            },
-          },
-          orderBy: { scheduledAt: "asc" },
-          take: 1,
-        },
-      },
-    });
-    if (!contact) throw new NotFoundException("Contact not found");
-    this.assertVisible(contact, ctx);
+    const contact = await this.mobileRead.getContactDetail(ctx, id);
 
     return {
       ...this.toContactSummaryDto(contact),
@@ -381,9 +318,7 @@ export class MobileController {
     if (!content) throw new BadRequestException("content is required");
     const ctx = createOwnershipContext(user);
 
-    const contact = await this.prisma.contact.findUnique({ where: { id } });
-    if (!contact) throw new NotFoundException("Contact not found");
-    this.assertVisible(contact, ctx);
+    await this.mobileRead.getVisibleContact(ctx, id);
 
     return this.contactService.addNoteToContact(ctx.userId, id, { content });
   }
@@ -399,13 +334,10 @@ export class MobileController {
     @Body() body: { token: string; platform?: "ios" | "android" },
   ) {
     if (!body?.token) throw new BadRequestException("token is required");
-    const device = await this.userDeviceRepository.registerToken(
+    const device = await this.userDeviceService.registerPushToken(
       user.id,
       body.token,
     );
-    // Cap the number of active devices per user so a stale token churning
-    // doesn't accumulate forever. 5 is more than enough for phone + tablet.
-    await this.userDeviceRepository.revokeOldestForUser(user.id, 5);
     return { ok: true, deviceId: device.id };
   }
 
@@ -415,7 +347,7 @@ export class MobileController {
     @Body() body: { token: string },
   ) {
     if (!body?.token) throw new BadRequestException("token is required");
-    await this.userDeviceRepository.revokeToken(body.token);
+    await this.userDeviceService.revokePushToken(body.token);
     return { ok: true };
   }
 
@@ -459,24 +391,9 @@ export class MobileController {
     return false;
   }
 
-  private assertVisible(
-    row: { userId: string | null; organizationId: string | null },
-    ctx: { userId: string; organizationId?: string | null },
-  ) {
-    const visible = ctx.organizationId
-      ? row.organizationId === ctx.organizationId
-      : row.organizationId === null && row.userId === ctx.userId;
-    if (!visible) throw new NotFoundException("Not found");
-  }
-
   /** Set of call IDs (from the given list) that have a completed transcription. */
-  private async transcribedCallIds(ids: string[]): Promise<Set<string>> {
-    if (ids.length === 0) return new Set();
-    const rows = await this.prisma.callTranscription.findMany({
-      where: { callId: { in: ids }, status: TranscriptionStatus.completed },
-      select: { callId: true },
-    });
-    return new Set(rows.map((r) => r.callId));
+  private transcribedCallIds(ids: string[]): Promise<Set<string>> {
+    return this.mobileRead.transcribedCallIds(ids);
   }
 
   private toCallDto(c: any, opts?: { hasTranscription?: boolean }) {

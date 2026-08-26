@@ -15,8 +15,9 @@ async list(@CurrentUser() user: CurrentUserData) {
 }
 ```
 
-Some controllers inject repositories directly. That is existing debt, not a
-pattern — see `docs/engineering/ARCHITECTURE_DEBT.md`. Do not add more.
+No controller injects a repository or `PrismaService`; keep it that way. If a
+handler needs data that no service exposes, add the method to the owning service
+— together with its workspace check — rather than reaching past it.
 
 ## Authorization
 
@@ -43,7 +44,11 @@ of the `memberId` they ask for.
 Verify the signature **before** anything else and fail closed:
 
 - Telnyx (`call`, `messaging`, `desk-phone`) — `TelnyxWebhookVerifier` over
-  `req.rawBody`, Ed25519 + timestamp tolerance.
+  `req.rawBody`, Ed25519 + timestamp tolerance. Then normalize with
+  `TelnyxEventNormalizer` before handing off: the domain takes `TelephonyEvent`,
+  not a carrier payload.
+- TriggerLoop (`/internal/triggerloop/webhook`) — shared secret in
+  `x-triggerloop-secret`, compared constant-time, failing closed.
 - Stripe — `stripeService.validateWebhook(req.rawBody, signature, secret)`.
 - Clerk — raw body registered in `main.ts` for `/webhooks/clerk`.
 - Custom Integrations inbound — HMAC via `packages/platform/src/custom-integrations`.

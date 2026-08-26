@@ -177,7 +177,8 @@ export const es: Strings = {
   errors: {
     INVALID_PUBLISHABLE_KEY: {
       title: "Integración no válida",
-      message: "Esta integración de Ringee no es válida. Contacta al administrador.",
+      message:
+        "Esta integración de Ringee no es válida. Contacta al administrador.",
       action: "contactAdmin",
     },
     DOMAIN_NOT_ALLOWED: {
@@ -187,7 +188,8 @@ export const es: Strings = {
     },
     INTEGRATION_DISABLED: {
       title: "Integración deshabilitada",
-      message: "La integración de Ringee está deshabilitada. Contacta al administrador.",
+      message:
+        "La integración de Ringee está deshabilitada. Contacta al administrador.",
       action: "contactAdmin",
     },
     RATE_LIMITED: {
@@ -220,7 +222,8 @@ export const es: Strings = {
     },
     AGENT_NOT_ALLOWED: {
       title: "Cuenta sin acceso",
-      message: "Este correo no tiene acceso a Ringee. Contacta al administrador.",
+      message:
+        "Este correo no tiene acceso a Ringee. Contacta al administrador.",
       action: "changeEmail",
     },
     AGENT_NOT_IN_WORKSPACE: {
@@ -271,7 +274,8 @@ export const es: Strings = {
     },
     NO_CALLER_ID: {
       title: "Sin identificador",
-      message: "No hay un identificador de llamada disponible. Contacta al administrador.",
+      message:
+        "No hay un identificador de llamada disponible. Contacta al administrador.",
       action: "contactAdmin",
     },
     CALLER_ID_NOT_ALLOWED: {
@@ -286,7 +290,8 @@ export const es: Strings = {
     },
     DNC_BLOCKED: {
       title: "Número en lista de exclusión",
-      message: "Este número está en la lista de no llamar y no puede contactarse.",
+      message:
+        "Este número está en la lista de no llamar y no puede contactarse.",
       action: "none",
     },
     INVALID_PHONE_NUMBER: {
@@ -296,7 +301,8 @@ export const es: Strings = {
     },
     CALL_ALREADY_ACTIVE: {
       title: "Llamada activa en otra pestaña",
-      message: "Ya existe una llamada activa en otra pestaña. Ciérrala para continuar.",
+      message:
+        "Ya existe una llamada activa en otra pestaña. Ciérrala para continuar.",
       action: "none",
       tone: "warning",
     },
@@ -312,7 +318,8 @@ export const es: Strings = {
     },
     TELNYX_CONNECTION_FAILED: {
       title: "Error de conexión",
-      message: "No pudimos conectar el audio. Revisa tu conexión e inténtalo de nuevo.",
+      message:
+        "No pudimos conectar el audio. Revisa tu conexión e inténtalo de nuevo.",
       action: "retry",
     },
     CALL_FAILED: {
@@ -356,7 +363,8 @@ export const en: Strings = {
   emailInvalid: "Enter a valid email.",
   sendCode: "Send code",
   sending: "Sending code…",
-  emailSecurityNote: "We'll send you a verification code. Never share it with anyone.",
+  emailSecurityNote:
+    "We'll send you a verification code. Never share it with anyone.",
   otpTitle: "Check your email",
   otpSubtitle: (masked) => `We sent a 6-digit code to ${masked}.`,
   verify: "Verify",
@@ -406,37 +414,168 @@ export const en: Strings = {
   actionContactAdmin: "Contact your admin",
   actionSignIn: "Sign in",
   errors: {
-    INVALID_PUBLISHABLE_KEY: { title: "Invalid integration", message: "This Ringee integration is invalid. Contact your admin.", action: "contactAdmin" },
-    DOMAIN_NOT_ALLOWED: { title: "Domain not allowed", message: "This domain isn't authorized to use Ringee.", action: "contactAdmin" },
-    INTEGRATION_DISABLED: { title: "Integration disabled", message: "The Ringee integration is disabled. Contact your admin.", action: "contactAdmin" },
-    RATE_LIMITED: { title: "Too many attempts", message: "Please wait a few seconds and try again.", action: "retry", tone: "warning" },
-    INVALID_EMAIL: { title: "Invalid email", message: "Enter a valid email address.", action: "changeEmail" },
-    EMAIL_CHALLENGE_EXPIRED: { title: "Code expired", message: "The code expired. Request a new one to continue.", action: "resend", tone: "warning" },
-    INVALID_EMAIL_CODE: { title: "Incorrect code", message: "That code isn't right. Check it and try again.", action: "none" },
-    EMAIL_CODE_ATTEMPTS_EXCEEDED: { title: "Too many attempts", message: "You've used all attempts. Request a new code.", action: "resend", tone: "warning" },
-    AGENT_NOT_ALLOWED: { title: "No access", message: "This email doesn't have access to Ringee. Contact your admin.", action: "changeEmail" },
-    AGENT_NOT_IN_WORKSPACE: { title: "No access", message: "Your account isn't part of this workspace.", action: "contactAdmin" },
-    USER_BLOCKED: { title: "Account blocked", message: "Your account is blocked. Contact your admin.", action: "contactAdmin" },
-    CALLING_DISABLED: { title: "Calling disabled", message: "Calling is disabled for your account.", action: "contactAdmin" },
-    SESSION_EXPIRED: { title: "Session expired", message: "For your security, sign in again to continue.", action: "signIn", tone: "warning" },
-    SDK_NOT_INITIALIZED: { title: "Loading", message: "The dialer is still starting up. One moment.", action: "retry" },
-    AUTH_REQUIRED: { title: "Sign in", message: "Sign in to place a call.", action: "signIn" },
-    MICROPHONE_DENIED: { title: "Microphone blocked", message: "Ringee needs microphone access to place calls.", action: "allowMic" },
-    NO_AUDIO_DEVICE: { title: "No microphone", message: "We couldn't find a microphone. Connect one and try again.", action: "retry" },
-    AUDIO_PLAYBACK_BLOCKED: { title: "Audio blocked", message: "Tap to allow the call audio.", action: "retry" },
-    NO_CALLER_ID: { title: "No caller ID", message: "No caller ID is available. Contact your admin.", action: "contactAdmin" },
-    CALLER_ID_NOT_ALLOWED: { title: "Caller ID not allowed", message: "The selected caller ID isn't allowed.", action: "contactAdmin" },
-    INSUFFICIENT_CREDIT: { title: "Insufficient credit", message: "There isn't enough credit to place this call.", action: "contactAdmin" },
-    DNC_BLOCKED: { title: "Number on do-not-call list", message: "This number is on the do-not-call list and can't be contacted.", action: "none" },
-    INVALID_PHONE_NUMBER: { title: "Invalid number", message: "Enter a valid phone number in international format.", action: "none" },
-    CALL_ALREADY_ACTIVE: { title: "Call active in another tab", message: "There's already an active call in another tab. Close it to continue.", action: "none", tone: "warning" },
-    NO_ACTIVE_CALL: { title: "No active call", message: "There is no active call.", action: "none" },
-    INVALID_CALL_STATE: { title: "Action unavailable", message: "This action isn't available right now.", action: "none" },
-    TELNYX_CONNECTION_FAILED: { title: "Connection error", message: "We couldn't connect the audio. Check your connection and try again.", action: "retry" },
-    CALL_FAILED: { title: "Call failed", message: "The call couldn't be completed. Try again.", action: "retry" },
-    NETWORK_ERROR: { title: "No connection", message: "We couldn't reach Ringee. Check your internet connection.", action: "retry" },
-    TIMEOUT: { title: "Timed out", message: "The request took too long. Try again.", action: "retry" },
-    UNKNOWN_ERROR: { title: "Something went wrong", message: "An unexpected problem occurred. Try again.", action: "retry" },
+    INVALID_PUBLISHABLE_KEY: {
+      title: "Invalid integration",
+      message: "This Ringee integration is invalid. Contact your admin.",
+      action: "contactAdmin",
+    },
+    DOMAIN_NOT_ALLOWED: {
+      title: "Domain not allowed",
+      message: "This domain isn't authorized to use Ringee.",
+      action: "contactAdmin",
+    },
+    INTEGRATION_DISABLED: {
+      title: "Integration disabled",
+      message: "The Ringee integration is disabled. Contact your admin.",
+      action: "contactAdmin",
+    },
+    RATE_LIMITED: {
+      title: "Too many attempts",
+      message: "Please wait a few seconds and try again.",
+      action: "retry",
+      tone: "warning",
+    },
+    INVALID_EMAIL: {
+      title: "Invalid email",
+      message: "Enter a valid email address.",
+      action: "changeEmail",
+    },
+    EMAIL_CHALLENGE_EXPIRED: {
+      title: "Code expired",
+      message: "The code expired. Request a new one to continue.",
+      action: "resend",
+      tone: "warning",
+    },
+    INVALID_EMAIL_CODE: {
+      title: "Incorrect code",
+      message: "That code isn't right. Check it and try again.",
+      action: "none",
+    },
+    EMAIL_CODE_ATTEMPTS_EXCEEDED: {
+      title: "Too many attempts",
+      message: "You've used all attempts. Request a new code.",
+      action: "resend",
+      tone: "warning",
+    },
+    AGENT_NOT_ALLOWED: {
+      title: "No access",
+      message: "This email doesn't have access to Ringee. Contact your admin.",
+      action: "changeEmail",
+    },
+    AGENT_NOT_IN_WORKSPACE: {
+      title: "No access",
+      message: "Your account isn't part of this workspace.",
+      action: "contactAdmin",
+    },
+    USER_BLOCKED: {
+      title: "Account blocked",
+      message: "Your account is blocked. Contact your admin.",
+      action: "contactAdmin",
+    },
+    CALLING_DISABLED: {
+      title: "Calling disabled",
+      message: "Calling is disabled for your account.",
+      action: "contactAdmin",
+    },
+    SESSION_EXPIRED: {
+      title: "Session expired",
+      message: "For your security, sign in again to continue.",
+      action: "signIn",
+      tone: "warning",
+    },
+    SDK_NOT_INITIALIZED: {
+      title: "Loading",
+      message: "The dialer is still starting up. One moment.",
+      action: "retry",
+    },
+    AUTH_REQUIRED: {
+      title: "Sign in",
+      message: "Sign in to place a call.",
+      action: "signIn",
+    },
+    MICROPHONE_DENIED: {
+      title: "Microphone blocked",
+      message: "Ringee needs microphone access to place calls.",
+      action: "allowMic",
+    },
+    NO_AUDIO_DEVICE: {
+      title: "No microphone",
+      message: "We couldn't find a microphone. Connect one and try again.",
+      action: "retry",
+    },
+    AUDIO_PLAYBACK_BLOCKED: {
+      title: "Audio blocked",
+      message: "Tap to allow the call audio.",
+      action: "retry",
+    },
+    NO_CALLER_ID: {
+      title: "No caller ID",
+      message: "No caller ID is available. Contact your admin.",
+      action: "contactAdmin",
+    },
+    CALLER_ID_NOT_ALLOWED: {
+      title: "Caller ID not allowed",
+      message: "The selected caller ID isn't allowed.",
+      action: "contactAdmin",
+    },
+    INSUFFICIENT_CREDIT: {
+      title: "Insufficient credit",
+      message: "There isn't enough credit to place this call.",
+      action: "contactAdmin",
+    },
+    DNC_BLOCKED: {
+      title: "Number on do-not-call list",
+      message: "This number is on the do-not-call list and can't be contacted.",
+      action: "none",
+    },
+    INVALID_PHONE_NUMBER: {
+      title: "Invalid number",
+      message: "Enter a valid phone number in international format.",
+      action: "none",
+    },
+    CALL_ALREADY_ACTIVE: {
+      title: "Call active in another tab",
+      message:
+        "There's already an active call in another tab. Close it to continue.",
+      action: "none",
+      tone: "warning",
+    },
+    NO_ACTIVE_CALL: {
+      title: "No active call",
+      message: "There is no active call.",
+      action: "none",
+    },
+    INVALID_CALL_STATE: {
+      title: "Action unavailable",
+      message: "This action isn't available right now.",
+      action: "none",
+    },
+    TELNYX_CONNECTION_FAILED: {
+      title: "Connection error",
+      message:
+        "We couldn't connect the audio. Check your connection and try again.",
+      action: "retry",
+    },
+    CALL_FAILED: {
+      title: "Call failed",
+      message: "The call couldn't be completed. Try again.",
+      action: "retry",
+    },
+    NETWORK_ERROR: {
+      title: "No connection",
+      message: "We couldn't reach Ringee. Check your internet connection.",
+      action: "retry",
+    },
+    TIMEOUT: {
+      title: "Timed out",
+      message: "The request took too long. Try again.",
+      action: "retry",
+    },
+    UNKNOWN_ERROR: {
+      title: "Something went wrong",
+      message: "An unexpected problem occurred. Try again.",
+      action: "retry",
+    },
   },
 };
 
@@ -449,7 +588,11 @@ export function resolveStrings(
 ): Strings {
   const base = LOCALES[(locale ?? "en").slice(0, 2)] ?? en;
   if (!overrides) return base;
-  return { ...base, ...overrides, errors: { ...base.errors, ...overrides.errors } };
+  return {
+    ...base,
+    ...overrides,
+    errors: { ...base.errors, ...overrides.errors },
+  };
 }
 
 /** Translate a typed error code into human copy for the current locale. */
@@ -460,13 +603,21 @@ export function errorCopy(code: RingeeErrorCode, s: Strings): ErrorCopy {
 /** Label for a resolved {@link ErrorAction}. */
 export function actionLabel(action: ErrorAction, s: Strings): string {
   switch (action) {
-    case "retry": return s.actionRetry;
-    case "resend": return s.actionResend;
-    case "changeEmail": return s.actionChangeEmail;
-    case "allowMic": return s.actionAllowMic;
-    case "reload": return s.actionReload;
-    case "contactAdmin": return s.actionContactAdmin;
-    case "signIn": return s.actionSignIn;
-    default: return s.tryAgain;
+    case "retry":
+      return s.actionRetry;
+    case "resend":
+      return s.actionResend;
+    case "changeEmail":
+      return s.actionChangeEmail;
+    case "allowMic":
+      return s.actionAllowMic;
+    case "reload":
+      return s.actionReload;
+    case "contactAdmin":
+      return s.actionContactAdmin;
+    case "signIn":
+      return s.actionSignIn;
+    default:
+      return s.tryAgain;
   }
 }

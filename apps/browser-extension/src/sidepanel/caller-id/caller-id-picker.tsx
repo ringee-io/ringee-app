@@ -156,14 +156,19 @@ function OptionRow({
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5">
           <span className="truncate text-sm font-medium">{title}</span>
-          {badge && <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />}
+          {badge && (
+            <BadgeCheck className="h-3.5 w-3.5 shrink-0 text-emerald-600" />
+          )}
         </span>
         <span className="text-muted-foreground block truncate text-xs">
           {subtitle}
         </span>
       </span>
       {selected && (
-        <Check className="h-4 w-4 shrink-0 text-emerald-600" aria-label="Selected" />
+        <Check
+          className="h-4 w-4 shrink-0 text-emerald-600"
+          aria-label="Selected"
+        />
       )}
     </button>
   );
@@ -171,7 +176,11 @@ function OptionRow({
 
 type FlagMap = Record<
   string,
-  React.ComponentType<{ title?: string; className?: string; style?: React.CSSProperties }>
+  React.ComponentType<{
+    title?: string;
+    className?: string;
+    style?: React.CSSProperties;
+  }>
 >;
 const flags = flagComponents as unknown as FlagMap;
 

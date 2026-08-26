@@ -85,28 +85,37 @@ rotate a spoofed IP past the Stripe abuse limiter
 
 ## Known security-relevant observations
 
-Recorded here as facts, tracked in
-[ARCHITECTURE_DEBT.md](ARCHITECTURE_DEBT.md). None is a report of exploitation.
+Recorded here as facts. See [ARCHITECTURE_DEBT.md](ARCHITECTURE_DEBT.md) for the
+full register.
 
-- **`DEBT-019` — the TriggerLoop webhook guard is disabled.**
-  `TriggerLoopWebhookGuard.canActivate` has its entire body commented out and
-  returns `true`, leaving `POST /api/internal/triggerloop/webhook` — which
-  dispatches actions that send email, push notifications and create tasks —
-  unauthenticated. `TRIGGERLOOP_WEBHOOK_SECRET` exists in configuration and is
-  never read. **Highest-priority item in this list.**
-- **`DEBT-003` — unused `AuthGuard` with a hard-coded JWT secret.**
-  `packages/platform/src/auth/auth.guard.ts` verifies tokens with
-  `secret: "secretKey"`. It is exported from the package barrel but wired into
-  nothing. Harmless while unused, dangerous the moment someone reaches for it.
-- **`DEBT-005` — MCP transport authorization is a capability URL.**
-  `/api/mcp/:id/sse` is `@Public()` and resolves the workspace from the UUID in
-  the path. Knowing a workspace UUID is sufficient to drive the tool surface.
-  This is a coherent model (the connector URL is the credential, as with many
-  webhook URLs) but it means workspace UUIDs must be treated as secrets, and it
-  is not stated anywhere in the code. **`Needs confirmation`** that this is the
-  intended design.
-- **`DEBT-008` — super-admin fallback allowlist is hard-coded in two places** and
-  must be kept in sync manually.
+**Fixed:**
+
+- The TriggerLoop webhook guard had its body commented out, leaving
+  `POST /api/internal/triggerloop/webhook` unauthenticated behind `@Public()`
+  while it dispatched actions that send email, push notifications and create
+  tasks. The constant-time secret check is restored and fails closed
+  (`DEBT-019`). **`TRIGGERLOOP_WEBHOOK_SECRET` must be set** where TriggerLoop
+  runs, or that endpoint returns 401.
+- An unused `AuthGuard` verified JWTs with a hard-coded `"secretKey"`. Deleted
+  (`DEBT-003`).
+- The super-admin allowlist was hard-coded in two places that had already
+  drifted, and the committed default made the upstream maintainers super-admins
+  of every self-hosted deployment. `BACKOFFICE_SUPER_ADMIN_EMAILS` is now the
+  only source, with no fallback — unset means nobody has access (`DEBT-008`).
+  **It must be set** in any environment that needs the backoffice.
+- Every credit debit now writes a `CreditDebit` row; four paths previously moved
+  a balance with no ledger entry and no replay protection (`DEBT-006`).
+
+**Accepted, by decision:**
+
+- **MCP transport authorization is a capability URL.** `/api/mcp/:id/sse` is
+  `@Public()` and resolves the workspace from the UUID in the path — knowing a
+  workspace UUID is sufficient to drive the tool surface. This is intentional:
+  the connector URL is the credential, as with a Slack or Stripe webhook URL.
+  The consequence to hold onto is that **workspace UUIDs are secrets** — do not
+  log them, put them in error messages, or leak them to third parties. A signed,
+  revocable connector token is the upgrade path if MCP links are ever shared
+  beyond one operator per workspace.
 
 ## Checklist before merging anything security-adjacent
 
