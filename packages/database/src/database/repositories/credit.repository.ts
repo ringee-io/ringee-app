@@ -14,6 +14,12 @@ export interface CreditGrantReference {
   metadata?: Record<string, unknown> | null;
 }
 
+export interface CreditTopupReference {
+  stripeCheckoutSessionId: string | null;
+  stripePaymentIntentId: string | null;
+  source?: string | null;
+}
+
 type CreditDebitTransactionClient = {
   creditDebit: {
     create(input: {
@@ -210,6 +216,80 @@ export class CreditRepository {
     }
   }
 
+  /**
+   * Atomically records a completed Stripe top-up and increments the balance.
+   *
+   * The purchase counterpart of `grantOnce`. The `CreditTopup` row and the
+   * balance move share ONE transaction: recording the row first and crediting
+   * afterwards (as this used to do across two calls) means a crash in between
+   * leaves a ledger row for money the customer never received — and the Stripe
+   * replay that would have fixed it sees the row and skips the credit.
+   *
+   * Uniqueness comes from `stripeCheckoutSessionId` / `stripePaymentIntentId`,
+   * so a replayed `checkout.session.completed` returns `credited: false` with
+   * the balance untouched.
+   */
+  async topupOnce(
+    ctx: OwnershipContext,
+    amount: number,
+    ref: CreditTopupReference,
+  ): Promise<{ credit: Credit; credited: boolean }> {
+    try {
+      const credit = await this.prisma.$transaction(async (tx) => {
+        const ownershipFilter = buildOwnershipFilter(ctx);
+        let existing = await tx.credit.findFirst({ where: ownershipFilter });
+        if (!existing) {
+          existing = await tx.credit.create({
+            data: {
+              amount: 0,
+              user: ctx.organizationId
+                ? undefined
+                : { connect: { id: ctx.userId } },
+              organization: ctx.organizationId
+                ? { connect: { id: ctx.organizationId } }
+                : undefined,
+            },
+          });
+        }
+
+        // Written before the increment so a replayed Stripe event aborts the
+        // transaction on the unique constraint, leaving the balance alone.
+        await tx.creditTopup.create({
+          data: {
+            userId: ctx.userId ?? null,
+            organizationId: ctx.organizationId ?? null,
+            amount,
+            amountCents: Math.round(amount * 100),
+            stripeCheckoutSessionId: ref.stripeCheckoutSessionId,
+            stripePaymentIntentId: ref.stripePaymentIntentId,
+            source: ref.source ?? null,
+            status: "completed",
+          },
+        });
+
+        return tx.credit.update({
+          where: { id: existing.id },
+          data: {
+            amount: { increment: amount },
+            lastPurchaseDate: new Date(),
+            // The amount added this time (the top-up), not the prior balance.
+            lastPurchaseAmount: amount,
+          },
+        });
+      });
+
+      return { credit, credited: true };
+    } catch (error) {
+      if (!this.isDuplicateTopupRef(error)) {
+        throw error;
+      }
+      return {
+        credit: await this.getOrCreateCredit(ctx),
+        credited: false,
+      };
+    }
+  }
+
   async getBalance(ctx: OwnershipContext): Promise<number> {
     const ownershipFilter = buildOwnershipFilter(ctx);
     const credit = await this.prisma.credit.findFirst({
@@ -221,6 +301,27 @@ export class CreditRepository {
   async getCredit(ctx: OwnershipContext): Promise<Credit | null> {
     const ownershipFilter = buildOwnershipFilter(ctx);
     return this.prisma.credit.findFirst({ where: ownershipFilter });
+  }
+
+  /**
+   * A P2002 on the top-up's Stripe columns means the webhook was replayed. A
+   * P2002 raised anywhere else in that transaction — two requests racing to
+   * create the same workspace's `Credit` row — must NOT be read as "already
+   * credited", or a real top-up would be silently dropped.
+   */
+  private isDuplicateTopupRef(error: unknown): boolean {
+    if (
+      !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+      error.code !== "P2002"
+    ) {
+      return false;
+    }
+    const target = error.meta?.target;
+    const columns = Array.isArray(target) ? target.join(",") : String(target);
+    return (
+      columns.includes("stripeCheckoutSessionId") ||
+      columns.includes("stripePaymentIntentId")
+    );
   }
 
   /** Shared by `consumeOnce` and `grantOnce` — both ledgers key on the same column. */

@@ -57,12 +57,16 @@ export class UserDeviceRepository {
   }
 
   /**
-   * Revoke a specific token (sign-out). Idempotent — missing tokens are a
-   * no-op so a flaky sign-out flow doesn't error.
+   * Revoke a specific token for a specific user (sign-out). Idempotent —
+   * missing tokens are a no-op so a flaky sign-out flow doesn't error.
+   *
+   * Scoped by `userId` on purpose: tokens are guessable-by-possession, and an
+   * unscoped revoke let any authenticated caller sign another user's device
+   * out of push.
    */
-  async revokeToken(fcmToken: string): Promise<void> {
+  async revokeToken(userId: string, fcmToken: string): Promise<void> {
     await this.prisma.userDevice.updateMany({
-      where: { fcmToken, revokedAt: null },
+      where: { userId, fcmToken, revokedAt: null },
       data: { revokedAt: new Date() },
     });
   }

@@ -35,6 +35,19 @@ describe("TelnyxEventNormalizer", () => {
     expect(e?.providerEventType).toBe("call.bridged");
   });
 
+  it("keeps the envelope's event time when the payload carries none", () => {
+    // `call.answered` has no `start_time`, and `occurred_at` lives on the
+    // envelope, not the payload — reading only payload fields lost the time.
+    const answered = normalizer.normalize({
+      event_type: "call.answered",
+      occurred_at: "2026-08-26T18:04:05.000Z",
+      payload: { call_control_id: "cc-1" },
+    } as unknown as TelnyxWebhookEvent);
+
+    expect(answered?.occurredAt).toEqual(new Date("2026-08-26T18:04:05.000Z"));
+    expect(answered?.startedAt).toBeNull();
+  });
+
   it("drops an event with no call to act on", () => {
     expect(
       normalizer.normalize({

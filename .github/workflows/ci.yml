@@ -13,6 +13,12 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# This job runs code from the pull request (install scripts, lint, tests). It
+# only ever needs to read the repository, so the token it gets should not be
+# able to write to it.
+permissions:
+  contents: read
+
 env:
   # @ringee/configuration validates required vars at import time and exits when
   # any are missing, so type-checking and unit tests need placeholders. These
@@ -45,6 +51,9 @@ jobs:
     timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Don't leave the token in .git/config while PR-controlled commands run.
+          persist-credentials: false
 
       - uses: pnpm/action-setup@v4
         with:

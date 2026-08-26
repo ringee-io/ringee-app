@@ -136,7 +136,7 @@ written in the same transaction as the balance move. A duplicate key returns
 `false` / `debited: false` and leaves the balance untouched.
 
 - **Source of truth:** `packages/database/src/database/repositories/credit.repository.ts`
-  (`consumeOnce`, `grantOnce`), `credit-topup.repository.ts` (`recordIfNew`)
+  (`consumeOnce`, `grantOnce`, `topupOnce`)
 - **Risk if violated:** a Stripe webhook retry or a duplicated Telnyx `call.cost`
   double-charges the customer
 

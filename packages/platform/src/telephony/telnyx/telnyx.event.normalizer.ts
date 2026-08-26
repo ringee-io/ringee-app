@@ -96,8 +96,13 @@ export class TelnyxEventNormalizer {
       direction: normalizeDirection(payload.direction),
       from: str(payload.from),
       to: str(payload.to),
+      // The envelope's `occurred_at` is required and is the provider's own
+      // event time; the payload fields are per-event and often absent, so
+      // reading them first silently dropped the timestamp.
       occurredAt:
-        normalizeDate(payload.occurred_at) ?? normalizeDate(payload.start_time),
+        normalizeDate(event?.occurred_at) ??
+        normalizeDate(payload.occurred_at) ??
+        normalizeDate(payload.start_time),
       startedAt: normalizeDate(payload.start_time),
       customHeaders: normalizeCustomHeaders(payload.custom_headers),
       payload,

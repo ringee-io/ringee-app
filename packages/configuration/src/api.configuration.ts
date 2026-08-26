@@ -218,6 +218,17 @@ const apiConfiguration = {
 
 const errors = [];
 
+/**
+ * A margin or fee must be a REAL number, not just `>= min`.
+ *
+ * `Number("Infinity")` and `Number("1e309")` both pass a bare `>= 0` check, and
+ * an infinite margin silently produces an infinite call cost while an infinite
+ * fee refuses every operation the balance is checked against. `Number.isFinite`
+ * also rejects the `NaN` that a malformed value parses to.
+ */
+const isFiniteAtLeast = (value: number, min: number): boolean =>
+  Number.isFinite(value) && value >= min;
+
 if (!apiConfiguration.DATABASE_URL) {
   errors.push("DATABASE_URL is not defined");
 }
@@ -251,36 +262,42 @@ if (
   );
 }
 
-if (!(apiConfiguration.AI_TOKEN_MARGIN >= 1)) {
-  errors.push("AI_TOKEN_MARGIN must be a number >= 1");
+if (!isFiniteAtLeast(apiConfiguration.AI_TOKEN_MARGIN, 1)) {
+  errors.push("AI_TOKEN_MARGIN must be a finite number >= 1");
 }
 
-if (!(apiConfiguration.CALL_PROFIT_MARGIN >= 0)) {
-  errors.push("CALL_PROFIT_MARGIN must be a number >= 0");
+if (!isFiniteAtLeast(apiConfiguration.CALL_PROFIT_MARGIN, 0)) {
+  errors.push("CALL_PROFIT_MARGIN must be a finite number >= 0");
 }
 
-if (!(apiConfiguration.CALL_RECORDING_PROFIT_MARGIN >= 0)) {
-  errors.push("CALL_RECORDING_PROFIT_MARGIN must be a number >= 0");
+if (!isFiniteAtLeast(apiConfiguration.CALL_RECORDING_PROFIT_MARGIN, 0)) {
+  errors.push("CALL_RECORDING_PROFIT_MARGIN must be a finite number >= 0");
 }
 
-if (!(apiConfiguration.CALLER_ID_PROFIT_MARGIN_SURCHARGE >= 0)) {
-  errors.push("CALLER_ID_PROFIT_MARGIN_SURCHARGE must be a number >= 0");
+if (!isFiniteAtLeast(apiConfiguration.CALLER_ID_PROFIT_MARGIN_SURCHARGE, 0)) {
+  errors.push("CALLER_ID_PROFIT_MARGIN_SURCHARGE must be a finite number >= 0");
 }
 
-if (!(apiConfiguration.MESSAGE_PROFIT_MARGIN >= 0)) {
-  errors.push("MESSAGE_PROFIT_MARGIN must be a number >= 0");
+if (!isFiniteAtLeast(apiConfiguration.MESSAGE_PROFIT_MARGIN, 0)) {
+  errors.push("MESSAGE_PROFIT_MARGIN must be a finite number >= 0");
 }
 
-if (!(apiConfiguration.CALLER_ID_VERIFICATION_FEE >= 0)) {
-  errors.push("CALLER_ID_VERIFICATION_FEE must be a number >= 0");
+if (!isFiniteAtLeast(apiConfiguration.CALLER_ID_VERIFICATION_FEE, 0)) {
+  errors.push("CALLER_ID_VERIFICATION_FEE must be a finite number >= 0");
 }
 
-if (!(apiConfiguration.TRANSCRIPTION_CREDIT_COST_PER_MINUTE >= 0)) {
-  errors.push("TRANSCRIPTION_CREDIT_COST_PER_MINUTE must be a number >= 0");
+if (
+  !isFiniteAtLeast(apiConfiguration.TRANSCRIPTION_CREDIT_COST_PER_MINUTE, 0)
+) {
+  errors.push(
+    "TRANSCRIPTION_CREDIT_COST_PER_MINUTE must be a finite number >= 0",
+  );
 }
 
-if (!(apiConfiguration.TRANSCRIPTION_CREDIT_PROFIT_MARGIN >= 1)) {
-  errors.push("TRANSCRIPTION_CREDIT_PROFIT_MARGIN must be a number >= 1");
+if (!isFiniteAtLeast(apiConfiguration.TRANSCRIPTION_CREDIT_PROFIT_MARGIN, 1)) {
+  errors.push(
+    "TRANSCRIPTION_CREDIT_PROFIT_MARGIN must be a finite number >= 1",
+  );
 }
 
 if (!apiConfiguration.PUBLIC_BACKEND_URL) {

@@ -343,11 +343,11 @@ export class MobileController {
 
   @Delete("push/unregister")
   async unregisterPush(
-    @CurrentUser() _user: CurrentUserData,
+    @CurrentUser() user: CurrentUserData,
     @Body() body: { token: string },
   ) {
     if (!body?.token) throw new BadRequestException("token is required");
-    await this.userDeviceService.revokePushToken(body.token);
+    await this.userDeviceService.revokePushToken(user.id, body.token);
     return { ok: true };
   }
 

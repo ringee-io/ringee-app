@@ -30,6 +30,14 @@ describe("normalizePhoneE164", () => {
     expect(normalizePhoneE164("123456")).toBe("+123456");
   });
 
+  it("drops an extension from an unparseable number too", () => {
+    // The lenient fallback used to fold the extension into the digits and
+    // return "+555267122" — a number that is then dialled and stored.
+    expect(normalizePhoneE164("555-2671 ext 22")).toBe("+5552671");
+    expect(normalizePhoneE164("555-2671x22")).toBe("+5552671");
+    expect(normalizePhoneE164("555-2671;ext=22")).toBe("+5552671");
+  });
+
   it("rejects empty and out-of-range input", () => {
     expect(normalizePhoneE164(null)).toBeNull();
     expect(normalizePhoneE164(undefined)).toBeNull();

@@ -63,7 +63,8 @@ export class UserDeviceService {
     return device;
   }
 
-  revokePushToken(fcmToken: string): Promise<unknown> {
-    return this.userDeviceRepository.revokeToken(fcmToken);
+  /** Revokes one of the caller's OWN device tokens. */
+  revokePushToken(userId: string, fcmToken: string): Promise<unknown> {
+    return this.userDeviceRepository.revokeToken(userId, fcmToken);
   }
 }

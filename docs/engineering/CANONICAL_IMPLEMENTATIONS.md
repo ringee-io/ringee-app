@@ -24,7 +24,7 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Any balance mutation | `CreditService` — `packages/services/src/services/credit.service.ts` |
 | Idempotent debit | `CreditRepository.consumeOnce` |
 | Idempotent grant | `CreditRepository.grantOnce` |
-| Idempotent purchase | `CreditTopupRepository.recordIfNew` |
+| Idempotent purchase | `CreditRepository.topupOnce` |
 | Debit ref for an already-incurred cost | `incurredCostDebitRef` — `services/credit.service.ts` |
 | Call price from provider cost | `calculateCallCharge` — `services/call-cost.util.ts` |
 | Margin env parsing | `readProfitMultiplier` — same file |

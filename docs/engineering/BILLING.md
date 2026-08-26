@@ -30,7 +30,7 @@ another change.
 ```
                       ┌────────────────────────────────────────┐
 Stripe webhook ──────►│ creditTopupOnce(ctx, amount, ref)      │──► CreditTopup
-(confirmed payment)   │   recordIfNew → false = already done   │    + balance ↑
+(confirmed payment)   │   topupOnce → false = already done     │    + balance ↑
                       └────────────────────────────────────────┘
 
 offers / promos ─────►┌────────────────────────────────────────┐

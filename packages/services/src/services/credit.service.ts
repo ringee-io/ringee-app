@@ -5,7 +5,6 @@ import {
   CreditAutoReload,
   CreditRepository,
   CreditAutoReloadRepository,
-  CreditTopupRepository,
 } from "@ringee/database";
 import { OwnershipContext, StripeService } from "@ringee/platform";
 import { UserService } from "./user.service";
@@ -52,7 +51,6 @@ export class CreditService {
   constructor(
     private readonly creditRepository: CreditRepository,
     private readonly creditAutoReloadRepository: CreditAutoReloadRepository,
-    private readonly creditTopupRepository: CreditTopupRepository,
     private readonly stripeService: StripeService,
     private readonly userService: UserService,
     private readonly organizationService: OrganizationService,
@@ -100,12 +98,13 @@ export class CreditService {
    *
    * The only path that adds top-up credits (one-time, saved-card, auto-reload,
    * AND monthly-fund cycles), called exclusively from the Stripe webhook after
-   * the payment is confirmed. It records the top-up in the CreditTopup ledger
-   * first; if that row already exists (Stripe retried the webhook, or two events
-   * reference the same payment intent), it returns `false` WITHOUT touching the
-   * balance. Returns `true` only when the balance was actually credited, so the
-   * caller can gate side effects (notifications, analytics, re-arming
-   * auto-reload) on a genuine, first-time credit.
+   * the payment is confirmed. The CreditTopup ledger row and the balance move
+   * in one transaction (`CreditRepository.topupOnce`): if the row already
+   * exists (Stripe retried the webhook, or two events reference the same
+   * payment intent), it returns `false` WITHOUT touching the balance. Returns
+   * `true` only when the balance was actually credited, so the caller can gate
+   * side effects (notifications, analytics, re-arming auto-reload) on a
+   * genuine, first-time credit.
    */
   async creditTopupOnce(
     ctx: OwnershipContext,
@@ -120,22 +119,13 @@ export class CreditService {
       throw new BadRequestException("The amount must be positive.");
     }
 
-    const recorded = await this.creditTopupRepository.recordIfNew({
-      userId: ctx.userId ?? null,
-      organizationId: ctx.organizationId ?? null,
-      amount,
-      amountCents: Math.round(amount * 100),
+    const { credited } = await this.creditRepository.topupOnce(ctx, amount, {
       stripeCheckoutSessionId: ref.checkoutSessionId,
       stripePaymentIntentId: ref.paymentIntentId,
       source: ref.source ?? null,
     });
 
-    if (!recorded) {
-      return false;
-    }
-
-    await this.creditRepository.updateBalance(ctx, amount);
-    return true;
+    return credited;
   }
 
   /**

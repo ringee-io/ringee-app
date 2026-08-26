@@ -13,9 +13,9 @@ else imports models, enums and `Prisma` types from `@ringee/database`.
   bare `findUnique({ where: { id } })` on a tenant-owned row must be followed by
   an ownership check in the caller — prefer a scoped finder instead.
 - Multi-step writes that must not half-apply use `prisma.$transaction`. The
-  credit ledger methods (`consumeOnce`, `grantOnce`) are the reference shape:
-  unique idempotency key + balance change in one transaction, duplicate key
-  caught and reported rather than thrown.
+  credit ledger methods (`consumeOnce`, `grantOnce`, `topupOnce`) are the
+  reference shape: unique idempotency key + balance change in one transaction,
+  duplicate key caught and reported rather than thrown.
 - Concurrent counters use atomic `{ increment }`, never read-modify-write.
 - Queue claims use `SELECT FOR UPDATE SKIP LOCKED` (`lockNextLead`).
 

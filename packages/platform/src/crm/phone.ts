@@ -24,6 +24,9 @@ const DIGITS_ONLY = /[^\d+]/g;
 const MIN_DIGITS = 6;
 const MAX_DIGITS = 15;
 
+/** `x22`, `ext 22`, `ext. 22`, `#22`, and the RFC 3966 `;ext=22`. */
+const EXTENSION_SUFFIX = /(?:\s*(?:ext\.?|extension|x|#)\s*|;ext=)\d+\s*$/i;
+
 function lenientE164(cleaned: string): string | null {
   if (cleaned.startsWith("+")) {
     const digits = cleaned.slice(1).replace(DIGITS_ONLY, "");
@@ -47,13 +50,19 @@ export function normalizePhoneE164(
   const trimmed = raw.trim();
   if (!trimmed) return null;
 
+  // Drop a trailing extension BEFORE either path. libphonenumber handles one
+  // itself when the number is valid, but the lenient fallback only strips
+  // punctuation — so "555-2671 ext 22" used to come back as "+555267122", a
+  // number that is then dialled and persisted as if it were real.
+  const phonePart = trimmed.replace(EXTENSION_SUFFIX, "");
+
   const parsed = parsePhoneNumberFromString(
-    trimmed,
+    phonePart,
     region as Parameters<typeof parsePhoneNumberFromString>[1],
   );
   if (parsed?.isValid()) return parsed.number;
 
-  return lenientE164(trimmed.replace(/[\s()\-.]/g, ""));
+  return lenientE164(phonePart.replace(/[\s()\-.]/g, ""));
 }
 
 export function phoneSuffix(e164: string, length = 9): string {
