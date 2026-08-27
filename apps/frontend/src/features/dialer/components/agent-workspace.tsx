@@ -132,9 +132,9 @@ export function AgentWorkspace({ campaignId }: Props) {
           <SoftphonePanel campaignId={campaignId} sessionId={sessionId} />
         </div>
 
-        {/* Right — Disposition */}
+        {/* Right — Disposition, live from the moment we start dialing */}
         <div className='overflow-y-auto'>
-          <DispositionPanel campaignId={campaignId} sessionId={sessionId} />
+          <DispositionPanel />
         </div>
       </div>
     </div>

@@ -212,11 +212,15 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       campaign.id,
     );
 
-    // Emit lead.assigned event via SSE bridge
+    // Emit lead.assigned event via SSE bridge. `contact` carries the full
+    // briefing (CampaignLeadContact) and `metadata` whatever the import or the
+    // list attached to this lead — the agent panel renders both, so a rep opens
+    // a call already knowing who they are talking to.
     this.sseBridge.emit(`agent:${agent.id}`, "lead.assigned", {
       id: lead.id,
       campaignLeadId: lead.id,
       contact: lead.contact,
+      metadata: lead.metadata ?? null,
       attempts: lead.attempts,
       priority: lead.priority,
       attemptId: attempt.id,

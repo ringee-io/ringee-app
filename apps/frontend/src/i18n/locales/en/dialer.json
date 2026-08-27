@@ -41,7 +41,9 @@
     "notAssigned": "You're not assigned to this campaign. Ask an admin to add you as a member.",
     "startFailed": "Could not start the session. Please try again.",
     "starting": "Starting…",
-    "start": "Start Session"
+    "start": "Start Session",
+    "closedAfterLead": "Session closed — that was the last lead you asked for.",
+    "sessionEnded": "Your dialer session was ended."
   },
   "statusBar": {
     "statuses": {
@@ -59,13 +61,15 @@
     "talk": "Talk: {time}",
     "resume": "Resume",
     "pause": "Pause",
-    "endSession": "End Session"
+    "endSession": "End Session",
+    "closeAfterLead": "Close session after this lead"
   },
   "disposition": {
     "title": "Disposition",
     "select": "Select Disposition",
-    "availableAfterCall": "Disposition will be available after the call ends.",
-    "waiting": "Waiting for call to complete...",
+    "pickWhileTalking": "Pick the outcome while you talk — it is saved when the call ends.",
+    "pickToContinue": "Save an outcome to move on to the next lead.",
+    "availableOnDial": "Outcomes appear as soon as the call starts.",
     "selectAfterCall": "Select a call outcome after each call.",
     "callbackRequired": "Please choose a date and time for the callback.",
     "saved": "Disposition saved.",
@@ -76,7 +80,8 @@
     "dateTime": "Date & Time",
     "callbackNote": "Callback Note",
     "callbackPlaceholder": "Reason for callback...",
-    "submit": "Submit Disposition"
+    "submit": "Submit Disposition",
+    "submitOnHangup": "Saved when the call ends"
   },
   "lead": {
     "waiting": "Waiting for lead",
@@ -85,7 +90,18 @@
     "attempt": "Attempt #{number}",
     "previousAttempts": "Previous Attempts",
     "noAttempts": "No previous attempts",
-    "noDisposition": "No disposition"
+    "noDisposition": "No disposition",
+    "linkedin": "LinkedIn profile",
+    "localTime": "Local time",
+    "score": "Score {score}",
+    "lastCall": "Last call {date}",
+    "sections": {
+      "company": "Company",
+      "location": "Location",
+      "pipeline": "Pipeline",
+      "about": "About",
+      "custom": "Other details"
+    }
   },
   "softphone": {
     "dialFailed": "Could not start the call.",

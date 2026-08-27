@@ -1,7 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import {
   CampaignLeadRepository,
-  CampaignLeadWithContact,
+  CampaignLeadWithFullContact,
 } from "@ringee/database";
 
 @Injectable()
@@ -19,7 +19,7 @@ export class LeadQueueService {
     agentSessionId: string,
     maxAttempts: number,
     organizationId: string,
-  ): Promise<CampaignLeadWithContact | null> {
+  ): Promise<CampaignLeadWithFullContact | null> {
     const lead = await this.campaignLeadRepo.lockNextLead(
       campaignId,
       agentSessionId,

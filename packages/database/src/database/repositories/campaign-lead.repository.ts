@@ -2,20 +2,98 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
 import { CampaignLead, CampaignLeadStatus, Prisma } from "@prisma/client";
 
-export interface CampaignLeadWithContact extends CampaignLead {
-  contact: {
-    id: string;
-    name: string | null;
-    phoneNumber: string;
-    email: string | null;
-    company: string | null;
-    jobTitle: string | null;
-    locationRegion: string | null;
-    websiteUrl: string | null;
-    revenue: string | null;
-    companySize: string | null;
-  };
+/** Enough contact to render a row in the campaign's lead table. */
+export interface CampaignLeadContactSummary {
+  id: string;
+  name: string | null;
+  phoneNumber: string;
+  email: string | null;
+  company: string | null;
+  jobTitle: string | null;
+  locationRegion: string | null;
+  websiteUrl: string | null;
+  revenue: string | null;
+  companySize: string | null;
 }
+
+export interface CampaignLeadWithContact extends CampaignLead {
+  contact: CampaignLeadContactSummary;
+}
+
+/**
+ * The whole briefing an agent gets with the lead they are about to call.
+ *
+ * Deliberately more than "enough to place the call": whoever picks up expects
+ * the person calling them to already know who they are, and an agent who has
+ * to leave the dialer to look the company up is an agent who lost the opening.
+ * Long-form `summary` and the arbitrary `customFields` bag are here for the
+ * same reason — they are where an enriched or imported lead keeps everything
+ * that has no column of its own. The campaign's lead *table* keeps the narrow
+ * shape above; this one is paid for once, per call.
+ */
+export interface CampaignLeadContact extends CampaignLeadContactSummary {
+  firstName: string | null;
+  lastName: string | null;
+
+  // Role
+  seniority: string | null;
+  department: string | null;
+  headline: string | null;
+  summary: string | null;
+  linkedinUrl: string | null;
+
+  // Where they are — `locationRegion` is the state / province
+  locationCity: string | null;
+  locationCountry: string | null;
+  timezone: string | null;
+
+  // Where they stand
+  status: string | null;
+  lifecycleStage: string | null;
+  score: number | null;
+  source: string | null;
+  lastCallAt: Date | null;
+  customFields: Prisma.JsonValue | null;
+}
+
+export interface CampaignLeadWithFullContact extends CampaignLead {
+  contact: CampaignLeadContact;
+}
+
+/** One definition of {@link CampaignLeadContactSummary}, several queries. */
+const LEAD_CONTACT_SUMMARY_SELECT = {
+  id: true,
+  name: true,
+  phoneNumber: true,
+  email: true,
+  company: true,
+  jobTitle: true,
+  locationRegion: true,
+  websiteUrl: true,
+  revenue: true,
+  companySize: true,
+} as const;
+
+/** One definition of {@link CampaignLeadContact}, both dialer queries. */
+const LEAD_CONTACT_FULL_SELECT = {
+  ...LEAD_CONTACT_SUMMARY_SELECT,
+  firstName: true,
+  lastName: true,
+  seniority: true,
+  department: true,
+  headline: true,
+  summary: true,
+  linkedinUrl: true,
+  locationCity: true,
+  locationCountry: true,
+  timezone: true,
+  status: true,
+  lifecycleStage: true,
+  score: true,
+  source: true,
+  lastCallAt: true,
+  customFields: true,
+} as const;
 
 @Injectable()
 export class CampaignLeadRepository {
@@ -54,27 +132,14 @@ export class CampaignLeadRepository {
 
   async findByIdWithContact(
     id: string,
-  ): Promise<CampaignLeadWithContact | null> {
+  ): Promise<CampaignLeadWithFullContact | null> {
     const lead = await this.prisma.campaignLead.findUnique({
       where: { id },
       include: {
-        contact: {
-          select: {
-            id: true,
-            name: true,
-            phoneNumber: true,
-            email: true,
-            company: true,
-            jobTitle: true,
-            locationRegion: true,
-            websiteUrl: true,
-            revenue: true,
-            companySize: true,
-          },
-        },
+        contact: { select: LEAD_CONTACT_FULL_SELECT },
       },
     });
-    return lead as CampaignLeadWithContact | null;
+    return lead as CampaignLeadWithFullContact | null;
   }
 
   async findByCampaign(
@@ -115,20 +180,7 @@ export class CampaignLeadRepository {
     const data = await this.prisma.campaignLead.findMany({
       where,
       include: {
-        contact: {
-          select: {
-            id: true,
-            name: true,
-            phoneNumber: true,
-            email: true,
-            company: true,
-            jobTitle: true,
-            locationRegion: true,
-            websiteUrl: true,
-            revenue: true,
-            companySize: true,
-          },
-        },
+        contact: { select: LEAD_CONTACT_SUMMARY_SELECT },
       },
       orderBy: [{ nextCallAt: "asc" }, { createdAt: "asc" }],
       skip: (page - 1) * limit,
@@ -233,7 +285,7 @@ export class CampaignLeadRepository {
     agentSessionId: string,
     maxAttempts: number,
     organizationId: string,
-  ): Promise<CampaignLeadWithContact | null> {
+  ): Promise<CampaignLeadWithFullContact | null> {
     const result = await this.prisma.$queryRaw<{ id: string }[]>`
       UPDATE "CampaignLead" cl
       SET "lockedBy" = ${agentSessionId}::uuid,
@@ -265,24 +317,11 @@ export class CampaignLeadRepository {
     const lead = await this.prisma.campaignLead.findUnique({
       where: { id: result[0].id },
       include: {
-        contact: {
-          select: {
-            id: true,
-            name: true,
-            phoneNumber: true,
-            email: true,
-            company: true,
-            jobTitle: true,
-            locationRegion: true,
-            websiteUrl: true,
-            revenue: true,
-            companySize: true,
-          },
-        },
+        contact: { select: LEAD_CONTACT_FULL_SELECT },
       },
     });
 
-    return lead as CampaignLeadWithContact | null;
+    return lead as CampaignLeadWithFullContact | null;
   }
 
   /**

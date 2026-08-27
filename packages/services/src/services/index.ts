@@ -9,6 +9,8 @@ export * from "./caller-id-rotation/caller-id-rotation.service";
 export * from "./number.purchased.service";
 export * from "./regulatory-document.service";
 export * from "./credit.service";
+export * from "./credit-policy";
+export * from "./credit-balance-alert.service";
 export * from "./encryption-key.service";
 export * from "./telephony-rate.service";
 export * from "./mobile";

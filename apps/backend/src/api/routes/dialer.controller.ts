@@ -66,15 +66,23 @@ export class DialerController {
     const ctx = createOwnershipContext(user);
 
     // Ownership + membership gate (CMP-002) lives in the service.
-    await this.campaignService.assertDialableCampaign(ctx, body.campaignId, {
-      isOrgAdmin: user.activeOrgRole === "org:admin",
-    });
+    const campaign = await this.campaignService.assertDialableCampaign(
+      ctx,
+      body.campaignId,
+      { isOrgAdmin: user.activeOrgRole === "org:admin" },
+    );
 
-    return this.agentSessionService.startSession({
+    const session = await this.agentSessionService.startSession({
       campaignId: body.campaignId,
       userId: ctx.userId,
       organizationId: orgId,
     });
+
+    // The workspace UI needs the dial mode to decide what it may offer — the
+    // "close the session after this lead" control only makes sense while the
+    // dialer is the one choosing when to ring. Returned here so the agent
+    // screen does not have to fetch the campaign a second time.
+    return { ...session, dialerMode: campaign.dialerMode };
   }
 
   @Delete("sessions/:sessionId")
@@ -158,6 +166,8 @@ export class DialerController {
       note?: string;
       callbackScheduledAt?: string;
       callbackNote?: string;
+      /** Agent ticked "close session after this lead" before wrapping up. */
+      closeSession?: boolean;
     },
     @CurrentUser() user: CurrentUserData,
   ) {
@@ -169,6 +179,17 @@ export class DialerController {
       body.callAttemptId,
     );
     if (!attempt) throw new BadRequestException("Attempt not found");
+
+    // Organization scope is not enough here. `closeSession` ends the attempt's
+    // agent session, so without this an org member could reference another
+    // agent's attempt and force them offline — and the disposition's own side
+    // effects (DNC entry, callback) are attributed to `attempt.agentUserId`,
+    // not to the caller.
+    if (attempt.agentUserId !== ctx.userId) {
+      throw new ForbiddenException(
+        "You can only dispose your own call attempt",
+      );
+    }
 
     const campaign = await this.campaignService.assertCampaignInWorkspace(
       ctx,
@@ -197,13 +218,19 @@ export class DialerController {
         retryDelayMin: campaign.retryDelayMin,
       },
       organizationId: orgId,
+      closeSession: body.closeSession === true,
     });
 
-    // Emit session.state ready event so frontend moves to next lead
+    // Tell the workspace where the session went: on to the next lead, or
+    // offline because the agent asked to stop after this one.
     if (attempt.agentSessionId) {
-      this.sseBridge.emit(`agent:${attempt.agentSessionId}`, "session.state", {
-        status: "ready",
-      });
+      this.sseBridge.emit(
+        `agent:${attempt.agentSessionId}`,
+        "session.state",
+        result.sessionClosed
+          ? { status: "offline", reason: "closed_after_lead" }
+          : { status: "ready" },
+      );
     }
 
     return result;

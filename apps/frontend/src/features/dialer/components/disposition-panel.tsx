@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { useEffect, useRef, useState } from 'react';
 import { useDialerAttemptStore } from '../store/dialer-attempt.store';
 import { useDialerSessionStore } from '../store/dialer-session.store';
 import { useDialerLeadStore } from '../store/dialer-lead.store';
+import { useDisposeLead } from '../hooks/use-dispose-lead';
+import { DispositionGrid } from './disposition-grid';
 import { VoicemailDropSlot } from '@/features/voicemail';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Textarea } from '@ringee/frontend-shared/components/ui/textarea';
@@ -21,13 +22,7 @@ import {
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
-interface Props {
-  campaignId: string;
-  sessionId: string;
-}
-
-export function DispositionPanel({ campaignId, sessionId }: Props) {
-  const api = useApi();
+export function DispositionPanel() {
   const t = useTranslations('dialer.disposition');
   const tVoicemail = useTranslations('voicemail');
   const attemptId = useDialerAttemptStore((s) => s.attemptId);
@@ -46,14 +41,23 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
   const [note, setNote] = useState('');
   const [callbackDate, setCallbackDate] = useState('');
   const [callbackNote, setCallbackNote] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const [showVoicemail, setShowVoicemail] = useState(false);
   const [voicemailSent, setVoicemailSent] = useState(false);
+  const { dispose, submitting } = useDisposeLead();
 
   const selectedDispo = availableDispositions.find(
     (d) => d.code === selectedCode
   );
   const showCallbackFields = selectedDispo?.triggersCallback;
+
+  function resetForm() {
+    setSelectedCode(null);
+    setNote('');
+    setCallbackDate('');
+    setCallbackNote('');
+    setShowVoicemail(false);
+    setVoicemailSent(false);
+  }
 
   async function handleSubmit() {
     if (!attemptId || !selectedCode) return;
@@ -62,53 +66,79 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
       toast.error(t('callbackRequired'));
       return;
     }
-    setSubmitting(true);
-    try {
-      const body: any = {
-        callAttemptId: attemptId,
-        dispositionCode: selectedCode,
-        note: note || undefined
-      };
-      if (showCallbackFields && callbackDate) {
-        body.callbackScheduledAt = new Date(callbackDate).toISOString();
-        body.callbackNote = callbackNote || undefined;
-      }
-      await api.post('/dialer/dispose', body);
-      // Reset local state — SSE session.state event will transition us to ready
-      setSelectedCode(null);
-      setNote('');
-      setCallbackDate('');
-      setCallbackNote('');
-      setShowVoicemail(false);
-      setVoicemailSent(false);
-      toast.success(t('saved'));
-    } catch (err: any) {
-      toast.error(err?.message || t('saveFailed'));
-    } finally {
-      setSubmitting(false);
-    }
+    const saved = await dispose({
+      dispositionCode: selectedCode,
+      note,
+      ...(showCallbackFields && callbackDate
+        ? { callbackScheduledAt: callbackDate, callbackNote }
+        : {})
+    });
+    if (!saved) return;
+
+    // Reset local state — SSE session.state event will transition us to ready
+    resetForm();
   }
 
-  // Show disposition panel when we have dispositions AND:
-  // - call has ended, OR
-  // - we're in wrap_up, OR
-  // - dispositions were explicitly required by the backend, OR
-  // - we have an attempt but no active call (fallback for WebRTC state misses)
+  // A new lead means a blank form, whatever became of the last one.
+  useEffect(() => {
+    resetForm();
+  }, [attemptId]);
+
+  // Read by the call-ended effect below, which fires on one transition and has
+  // to see these as they are at that instant without re-running as they change.
+  const latest = useRef({
+    selectedCode,
+    callbackDate,
+    showCallbackFields,
+    handleSubmit
+  });
+  latest.current = {
+    selectedCode,
+    callbackDate,
+    showCallbackFields,
+    handleSubmit
+  };
+
+  // The call just ended. An outcome the agent already picked while talking is
+  // saved right here, so the dialer moves straight to the next lead. Anything
+  // still missing — no outcome, or a callback without its date — leaves the
+  // form up and the session waiting for the agent, which is the point.
+  const settledAttemptRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (callStatus !== 'ended' || !attemptId) return;
+    if (settledAttemptRef.current === attemptId) return;
+    settledAttemptRef.current = attemptId;
+
+    const { selectedCode, callbackDate, showCallbackFields, handleSubmit } =
+      latest.current;
+    if (!selectedCode) return;
+    if (showCallbackFields && !callbackDate) return;
+    void handleSubmit();
+  }, [callStatus, attemptId]);
+
+  // Show the panel from the moment the call is under way — dialing, ringing,
+  // live, or over — so the agent can pick the outcome while they are still
+  // talking. It stays up after the call until the disposition is saved.
   const callActive =
     callStatus === 'dialing' ||
     callStatus === 'ringing' ||
     callStatus === 'answered' ||
     callStatus === 'in_call';
 
+  // `dispositionRequired` is the backend saying the call is over; trust it over
+  // a WebRTC state that never arrived, or a missed hangup would leave the
+  // agent looking at a form they cannot submit.
+  const callLive = callActive && !dispositionRequired;
+
   const showPanel =
     availableDispositions.length > 0 &&
     attemptId != null &&
+    // Anything past `created` means a call for this lead is under way or done.
+    // `dispositionRequired` and `wrap_up` are kept as a backstop for the case
+    // where the backend asks for an outcome before a WebRTC state reached us.
     (dispositionRequired ||
-      callStatus === 'ended' ||
       status === 'wrap_up' ||
-      // Fallback: if we have an attempt + dispositions but no active call status,
-      // the call likely ended without the state propagating
-      (!callActive && callStatus !== null && callStatus !== 'created'));
+      (callStatus !== null && callStatus !== 'created'));
 
   if (!showPanel) {
     return (
@@ -116,11 +146,7 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
         <ClipboardList className='text-muted-foreground mb-3 h-10 w-10' />
         <h3 className='font-semibold'>{t('title')}</h3>
         <p className='text-muted-foreground mt-1 text-sm'>
-          {callActive
-            ? t('availableAfterCall')
-            : attemptId
-              ? t('waiting')
-              : t('selectAfterCall')}
+          {attemptId ? t('availableOnDial') : t('selectAfterCall')}
         </p>
       </div>
     );
@@ -128,29 +154,16 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
 
   return (
     <div className='flex h-full flex-col p-4'>
-      <h3 className='mb-3 text-sm font-semibold'>{t('select')}</h3>
+      <h3 className='text-sm font-semibold'>{t('select')}</h3>
+      <p className='text-muted-foreground mt-1 mb-3 text-xs'>
+        {callLive ? t('pickWhileTalking') : t('pickToContinue')}
+      </p>
 
-      {/* Disposition buttons grid */}
-      <div className='grid grid-cols-2 gap-2'>
-        {availableDispositions.map((d) => (
-          <Button
-            key={d.code}
-            variant={selectedCode === d.code ? 'default' : 'outline'}
-            size='sm'
-            className='justify-start'
-            style={
-              selectedCode === d.code && d.color
-                ? { backgroundColor: d.color, borderColor: d.color }
-                : d.color
-                  ? { borderColor: `${d.color}60`, color: d.color }
-                  : undefined
-            }
-            onClick={() => setSelectedCode(d.code)}
-          >
-            {d.label}
-          </Button>
-        ))}
-      </div>
+      <DispositionGrid
+        dispositions={availableDispositions}
+        selectedCode={selectedCode}
+        onSelect={(d) => setSelectedCode(d.code)}
+      />
 
       <Separator className='my-4' />
 
@@ -246,15 +259,17 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
         )}
       </div>
 
-      {/* Submit */}
+      {/* Submit. Disabled while the call is live: saving now would hand the
+          agent their next lead mid-conversation. It is saved for them the
+          moment the call ends instead. */}
       <div className='mt-auto pt-4'>
         <Button
           className='w-full'
-          disabled={!selectedCode || submitting}
+          disabled={!selectedCode || submitting || callLive}
           onClick={handleSubmit}
         >
           {submitting && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-          {t('submit')}
+          {callLive && selectedCode ? t('submitOnHangup') : t('submit')}
         </Button>
       </div>
     </div>

@@ -6,7 +6,8 @@ import {
   type AgentSessionStatus
 } from '../store/dialer-session.store';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
-import { Badge } from '@ringee/frontend-shared/components/ui/badge';
+import { Checkbox } from '@ringee/frontend-shared/components/ui/checkbox';
+import { Label } from '@ringee/frontend-shared/components/ui/label';
 import { Pause, Play, Square, ArrowLeft } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -47,13 +48,16 @@ export function DialerStatusBar({
   const router = useRouter();
   const t = useTranslations('dialer.statusBar');
   const stats = useDialerSessionStore((s) => s.stats);
+  const dialerMode = useDialerSessionStore((s) => s.dialerMode);
+  const closeAfterLead = useDialerSessionStore((s) => s.closeAfterLead);
+  const setCloseAfterLead = useDialerSessionStore((s) => s.setCloseAfterLead);
   const contactRate =
     stats.callsAttempted > 0
       ? Math.round((stats.callsConnected / stats.callsAttempted) * 100)
       : 0;
 
   return (
-    <div className='bg-muted/30 flex items-center justify-between border-b px-4 py-2'>
+    <div className='bg-muted/30 flex flex-wrap items-center justify-between gap-y-2 border-b px-4 py-2'>
       <div className='flex items-center gap-4'>
         <Button
           variant='ghost'
@@ -79,6 +83,26 @@ export function DialerStatusBar({
       </div>
 
       <div className='flex items-center gap-2'>
+        {/* Progressive only: in preview mode the agent already decides when the
+            next lead is dialed, so "stop after this one" is just not dialing.
+            Ending mid-call is refused below, which is exactly why this exists —
+            it lets an agent leave cleanly without hanging up on someone. */}
+        {dialerMode === 'progressive' && (
+          <div className='mr-2 flex items-center gap-2'>
+            <Checkbox
+              id='close-after-lead'
+              checked={closeAfterLead}
+              onCheckedChange={(checked) => setCloseAfterLead(checked === true)}
+            />
+            <Label
+              htmlFor='close-after-lead'
+              className='text-muted-foreground cursor-pointer text-xs font-normal'
+            >
+              {t('closeAfterLead')}
+            </Label>
+          </div>
+        )}
+
         {status === 'paused' ? (
           <Button variant='outline' size='sm' onClick={onResume}>
             <Play className='mr-1 h-3.5 w-3.5' />

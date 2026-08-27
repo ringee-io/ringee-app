@@ -48,12 +48,11 @@ import {
 import { PipelineFanoutService } from "./ai-pipeline";
 import { ConcurrentCallGuardService } from "./security";
 import { calculateCallCharge } from "./call-cost.util";
+import { LOW_BALANCE_MAX_CALL_SECONDS, LOW_BALANCE_USD } from "./credit-policy";
 
 /** Connected calls shorter than this (seconds) count as "very short" for
  * caller-ID reputation scoring (spec: <5s). */
 const SHORT_CALL_SECONDS = 5;
-const LOW_BALANCE_USD = 2;
-const LOW_BALANCE_MAX_CALL_SECONDS = 5 * 60;
 
 /**
  * How long a lifecycle event that arrived before its `Call` row is kept so the

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef } from 'react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import type { DialerMode } from '@/features/campaigns/types/campaign.types';
 import { useDialerSessionStore } from '../store/dialer-session.store';
 import { useDialerLeadStore } from '../store/dialer-lead.store';
 import { useDialerAttemptStore } from '../store/dialer-attempt.store';
@@ -14,6 +15,9 @@ export function useDialerSession(campaignId: string) {
 
   const sessionId = useDialerSessionStore((s) => s.sessionId);
   const status = useDialerSessionStore((s) => s.status);
+  const dialerMode = useDialerSessionStore((s) => s.dialerMode);
+  const closeAfterLead = useDialerSessionStore((s) => s.closeAfterLead);
+  const setCloseAfterLead = useDialerSessionStore((s) => s.setCloseAfterLead);
   const setSession = useDialerSessionStore((s) => s.setSession);
   const setStatus = useDialerSessionStore((s) => s.setStatus);
   const clearSession = useDialerSessionStore((s) => s.clear);
@@ -59,11 +63,12 @@ export function useDialerSession(campaignId: string) {
 
   const startSession = useCallback(async () => {
     try {
-      const res = await api.post<{ id: string; status: string }>(
-        '/dialer/sessions',
-        { campaignId }
-      );
-      setSession(res.id, campaignId);
+      const res = await api.post<{
+        id: string;
+        status: string;
+        dialerMode: DialerMode | null;
+      }>('/dialer/sessions', { campaignId });
+      setSession(res.id, campaignId, res.dialerMode ?? null);
       return res;
     } catch (err) {
       console.error('Failed to start session:', err);
@@ -106,6 +111,9 @@ export function useDialerSession(campaignId: string) {
   return {
     sessionId,
     status,
+    dialerMode,
+    closeAfterLead,
+    setCloseAfterLead,
     startSession,
     endSession,
     pauseSession,

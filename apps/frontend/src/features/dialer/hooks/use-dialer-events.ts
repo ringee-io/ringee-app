@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { notifyConcurrentCall } from '@/features/security/store/concurrent-call.store';
 import { useDialerSessionStore } from '../store/dialer-session.store';
 import { useDialerLeadStore } from '../store/dialer-lead.store';
@@ -26,8 +27,10 @@ export function useDialerEvents(
   const onCallInitiateRef = useRef(onCallInitiate);
   onCallInitiateRef.current = onCallInitiate;
 
+  const t = useTranslations('dialer.workspace');
   const setSessionStatus = useDialerSessionStore((s) => s.setStatus);
   const setSessionStats = useDialerSessionStore((s) => s.setStats);
+  const clearSession = useDialerSessionStore((s) => s.clear);
   const setLead = useDialerLeadStore((s) => s.setLead);
   const clearLead = useDialerLeadStore((s) => s.clear);
   const setAttempt = useDialerAttemptStore((s) => s.setAttempt);
@@ -112,6 +115,20 @@ export function useDialerEvents(
         if (data.status === 'ready') {
           clearLead();
           clearAttempt();
+        }
+        // The server ended the session — because the agent asked to stop after
+        // this lead, or because their account was disabled. Either way the
+        // browser has to let go, or it keeps heartbeating a dead session and
+        // sits on a "Waiting for lead" screen that will never fill.
+        if (data.status === 'offline') {
+          clearLead();
+          clearAttempt();
+          clearSession();
+          toast.success(
+            data.reason === 'closed_after_lead'
+              ? t('closedAfterLead')
+              : t('sessionEnded')
+          );
         }
       });
 

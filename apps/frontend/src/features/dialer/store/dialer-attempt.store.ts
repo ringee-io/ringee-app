@@ -11,26 +11,28 @@ export type CallAttemptStatus =
   | 'ended'
   | 'dispositioned';
 
+export interface DispositionOption {
+  id: string;
+  code: string;
+  label: string;
+  category: string;
+  color: string | null;
+  triggersCallback: boolean;
+}
+
 interface DialerAttemptState {
   attemptId: string | null;
   callStatus: CallAttemptStatus | null;
   callDuration: number;
   dispositionRequired: boolean;
-  availableDispositions: Array<{
-    id: string;
-    code: string;
-    label: string;
-    category: string;
-    color: string | null;
-    triggersCallback: boolean;
-  }>;
+  availableDispositions: DispositionOption[];
 
   setAttempt: (attemptId: string, status: CallAttemptStatus) => void;
   setCallStatus: (status: CallAttemptStatus) => void;
   setCallDuration: (sec: number) => void;
   setDispositionRequired: (
     required: boolean,
-    dispositions?: DialerAttemptState['availableDispositions']
+    dispositions?: DispositionOption[]
   ) => void;
   clear: () => void;
 }
@@ -40,7 +42,7 @@ const initialState = {
   callStatus: null as CallAttemptStatus | null,
   callDuration: 0,
   dispositionRequired: false,
-  availableDispositions: [] as DialerAttemptState['availableDispositions']
+  availableDispositions: [] as DispositionOption[]
 };
 
 export const useDialerAttemptStore = create<DialerAttemptState>((set) => ({

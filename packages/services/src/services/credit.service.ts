@@ -9,6 +9,7 @@ import {
 import { OwnershipContext, StripeService } from "@ringee/platform";
 import { UserService } from "./user.service";
 import { OrganizationService } from "./organization.service";
+import { CreditBalanceAlertService } from "./credit-balance-alert.service";
 
 /** Identifies a debit in the `CreditDebit` ledger. */
 export interface CreditDebitRef {
@@ -54,6 +55,7 @@ export class CreditService {
     private readonly stripeService: StripeService,
     private readonly userService: UserService,
     private readonly organizationService: OrganizationService,
+    private readonly creditBalanceAlert: CreditBalanceAlertService,
   ) {}
 
   async getBalance(ctx: OwnershipContext): Promise<number> {
@@ -201,6 +203,17 @@ export class CreditService {
 
     // A replay must not re-trigger side effects either.
     if (result.debited) {
+      // The ledger row this debit just wrote holds the same two numbers; they
+      // are recomputed here so the alert costs no extra read. Only the debit
+      // that actually crosses a threshold notifies anyone (BILL-019).
+      const balanceAfter = result.credit.amount;
+      this.creditBalanceAlert
+        .notifyIfCrossed(ctx, {
+          balanceBefore: balanceAfter + amount,
+          balanceAfter,
+        })
+        .catch((err) => console.error("Credit balance alert failed:", err));
+
       this.checkAutoReload(ctx, result.credit.amount).catch((err) =>
         console.error("Auto-reload check failed:", err),
       );

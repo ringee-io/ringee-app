@@ -255,6 +255,35 @@ team. `User.freeCallTrial` then bypasses the pre-answer credit gates.
   reads "Free-call trial intentionally disabled: always charge credits". Trial
   users can therefore reach a negative balance. **`Needs confirmation`**
 
+### BILL-019 — A falling balance is announced at the points where it changes what the product does
+
+`CreditService.consumeCredits` hands every ledgered debit to
+`CreditBalanceAlertService`, which alerts only when that debit **crossed** a
+threshold — so each tier fires once per drop and re-arms on the next top-up,
+without needing stored state to decide that.
+
+A second guard sits behind it: `isFirstDelivery` claims a per-workspace,
+per-tier Redis marker (`SET NX`, one-hour TTL) and suppresses the alert when
+the key already exists. It exists to stop two debits that commit in the same
+instant from both reporting one crossing; the side effect is that a workspace
+that tops up and crosses the same tier again inside the hour is not alerted a
+second time. A Redis failure allows the send rather than silencing it.
+
+| Tier            | Organization | Personal | What it means                                      |
+| --------------- | ------------ | -------- | -------------------------------------------------- |
+| `early_warning` | $5           | —        | nothing restricted yet                             |
+| `call_cap`      | $2           | $2       | answered calls are hung up at 5 minutes (BILL-010) |
+| `depleted`      | $0           | $0       | workspace inactive; no outbound call is placed     |
+
+- **Source of truth:** `packages/services/src/services/credit-policy.ts`
+  (thresholds, shared with the call gate) and `credit-balance-alert.service.ts`
+- **Delivery:** email to every recipient, plus push to each registered device.
+  Organizations alert their **admins**; a personal workspace alerts its owner.
+- **Why:** the $2 tier is not a courtesy — it is the point where BILL-010 starts
+  cutting conversations off mid-call, and a customer who is not told blames the
+  line, not the balance.
+- **Best-effort:** an alert failure must never fail the debit that triggered it.
+
 ---
 
 ## Telephony — calls (`CALL`)
@@ -447,6 +476,19 @@ Promoting the column to an enum is blocked on `DEBT-002`.
 in-process SSE. The worker imports the same module and must **not** poll.
 
 - **Risk if violated:** agents stuck on "Waiting for lead"
+
+### CMP-011 — Where a session goes after a lead is decided inside the disposition request
+
+`POST /dialer/dispose` carries `closeSession`, and
+`CallAttemptService.submitDisposition` either returns the agent to `ready` or
+ends the session — in the same request that wrote the disposition.
+
+- **Source of truth:** `packages/services/src/services/outbound/call-attempt.service.ts`
+- **Why:** the poll loop runs every 500ms (`CMP-010`), so a browser that
+  dispositioned and _then_ asked to end the session would already have been
+  handed the next lead and dialed it
+- **Do not** re-implement "stop after this lead" as a client-side end-session
+  call, a pause, or a flag the poller reads later — all three race the tick.
 
 ---
 
