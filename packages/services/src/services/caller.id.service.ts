@@ -66,16 +66,6 @@ export class CallerIdService {
       throw new BadRequestException("Caller ID already verified");
     }
 
-    // Billing gate: a user without enough credit cannot verify a caller ID.
-    const fee = this.getVerificationFee();
-    const balance = await this.creditService.getBalance(ctx);
-    if (balance < fee) {
-      throw new HttpException(
-        `Not enough credits. Verifying a caller ID costs $${fee.toFixed(2)}.`,
-        HttpStatus.PAYMENT_REQUIRED,
-      );
-    }
-
     // The billed unit is the verification ATTEMPT, and `verificationRequestedAt`
     // is its identifier. An attempt that is still pending keeps its original
     // stamp, so a double-submitted or client-retried request rebuilds the SAME
@@ -90,6 +80,20 @@ export class CallerIdService {
         ? existing.verificationRequestedAt
         : null;
     const requestedAt = !resend && inFlightSince ? inFlightSince : new Date();
+    const isRejoiningPendingAttempt = !resend && !!inFlightSince;
+
+    // Billing gate: a user without enough credit cannot verify a caller ID,
+    // unless they are rejoining an existing pending attempt that was already paid for.
+    const fee = this.getVerificationFee();
+    if (!isRejoiningPendingAttempt) {
+      const balance = await this.creditService.getBalance(ctx);
+      if (balance < fee) {
+        throw new HttpException(
+          `Not enough credits. Verifying a caller ID costs $${fee.toFixed(2)}.`,
+          HttpStatus.PAYMENT_REQUIRED,
+        );
+      }
+    }
 
     // Upsert the pending caller-id row before charging so a charge always has a
     // record to attach to.
