@@ -266,20 +266,23 @@ export class CampaignService {
    * state that otherwise only ends at activation. Without this, a lead added
    * to a live campaign stayed invisible to `lockNextLead` (which only claims
    * `queued` rows) until someone paused and resumed the campaign, which is
-   * exactly what `updateStatus(active)` re-runs.
+   * exactly what `CampaignConfigService.transitionStatus` re-runs.
+   *
+   * The status is re-read here rather than taken from the campaign the import
+   * loaded on entry: resolving contacts or parsing a large CSV takes long
+   * enough that someone can activate the campaign in the meantime, and acting
+   * on the stale `draft` would strand every lead the import just inserted.
    *
    * Only `active` needs it: a paused or draft campaign is released on its next
    * activation, and dialing is gated on campaign status anyway.
    */
-  private async releaseLeadsIfRunning(campaign: {
-    id: string;
-    status: string;
-  }): Promise<void> {
-    if (campaign.status !== "active") return;
-    const queued = await this.campaignLeadRepo.queueAllPending(campaign.id);
+  private async releaseLeadsIfRunning(campaignId: string): Promise<void> {
+    const campaign = await this.campaignRepo.findById(campaignId);
+    if (campaign?.status !== "active") return;
+    const queued = await this.campaignLeadRepo.queueAllPending(campaignId);
     if (queued > 0) {
       this.logger.log(
-        `Queued ${queued} newly added lead(s) into live campaign ${campaign.id}`,
+        `Queued ${queued} newly added lead(s) into live campaign ${campaignId}`,
       );
     }
   }
@@ -358,7 +361,7 @@ export class CampaignService {
     // release gated on `leadsAdded` would never reach them. `queueAllPending`
     // is campaign-wide and idempotent, so the unconditional call is what
     // recovers the stranded leads.
-    await this.releaseLeadsIfRunning(campaign);
+    await this.releaseLeadsIfRunning(campaignId);
 
     return {
       success: true,
@@ -531,7 +534,7 @@ export class CampaignService {
     // Unconditional, for the same reason as the manual path: leads left
     // `pending` by an earlier failed import are skipped as duplicates above,
     // so a count-gated release could never recover them.
-    await this.releaseLeadsIfRunning(campaign);
+    await this.releaseLeadsIfRunning(campaignId);
 
     if (validatedTagIds.length > 0 && insertedPhones.length > 0) {
       const newContactIds = await this.contactRepo.findContactIdsByPhoneNumbers(
