@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { Subscription, SubscriptionStatus } from "@prisma/client";
+import { Prisma, Subscription, SubscriptionStatus } from "@prisma/client";
 import { PrismaService } from "../prisma.service";
 
 @Injectable()
@@ -30,6 +30,28 @@ export class SubscriptionRepository {
     return this.prisma.subscription.findUnique({
       where: { stripeSubscriptionId },
     });
+  }
+
+  /**
+   * How many subscriptions this user has ever had, cancelled ones included.
+   * Only the organization plan is stored here, so zero means the user has
+   * never subscribed before.
+   */
+  async countByUserId(userId: string): Promise<number> {
+    return this.prisma.subscription.count({ where: { userId } });
+  }
+
+  /**
+   * True when `create` lost a race to another writer inserting the same
+   * `stripeSubscriptionId` — two deliveries of one Stripe event. The unique
+   * index is what actually serializes them; this just lets the caller tell that
+   * conflict apart from a real failure.
+   */
+  isUniqueViolation(err: unknown): boolean {
+    return (
+      err instanceof Prisma.PrismaClientKnownRequestError &&
+      err.code === "P2002"
+    );
   }
 
   async findUnassignedByUserId(userId: string): Promise<Subscription | null> {

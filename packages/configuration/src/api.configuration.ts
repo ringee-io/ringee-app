@@ -99,6 +99,11 @@ const apiConfiguration = {
   // Destination for internal free-trial / credit request notifications.
   RINGEE_TEAM_EMAIL:
     process.env.RINGEE_TEAM_EMAIL || process.env.EMAIL_FROM_ADDRESS,
+  // Trustpilot's BCC invitation address. Any transactional email blind-copied
+  // to it turns into a review invitation for that recipient, so it is only ever
+  // added to mail the customer already expects. Optional: unset means no
+  // invitation is triggered and the email is sent exactly as it is.
+  TRUSTPILOT_INVITE_BCC_EMAIL: process.env.TRUSTPILOT_INVITE_BCC_EMAIL,
   // ── Call Recording & Transcription (Deepgram) ──
   // Optional: when unset, recording still works but transcription is disabled
   // and the service surfaces a clear error instead of crashing at boot.
