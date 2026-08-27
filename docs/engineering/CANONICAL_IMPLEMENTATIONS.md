@@ -26,6 +26,8 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Idempotent grant                       | `CreditRepository.grantOnce`                                               |
 | Idempotent purchase                    | `CreditRepository.topupOnce`                                               |
 | Debit ref for an already-incurred cost | `incurredCostDebitRef` — `services/credit.service.ts`                      |
+| Balance policy thresholds              | `services/credit-policy.ts` (call gate **and** alerts read these)          |
+| Low-balance alerts                     | `CreditBalanceAlertService` — `services/credit-balance-alert.service.ts`   |
 | Call price from provider cost          | `calculateCallCharge` — `services/call-cost.util.ts`                       |
 | Margin env parsing                     | `readProfitMultiplier` — same file                                         |
 | AI token pricing                       | `computeTokenCost` / `isModelPriced` — `platform/src/ai-agents/pricing.ts` |

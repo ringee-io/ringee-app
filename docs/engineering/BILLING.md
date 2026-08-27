@@ -1,6 +1,6 @@
 # Billing and credits
 
-Rules: `BILL-001`..`BILL-018` in [BUSINESS_RULES.md](BUSINESS_RULES.md).
+Rules: `BILL-001`..`BILL-019` in [BUSINESS_RULES.md](BUSINESS_RULES.md).
 
 Ringee is prepaid. Customers buy **credits** (USD) through Stripe and consume them
 per call minute, per message, per transcription minute, per AI token and per
@@ -115,6 +115,29 @@ until the user acts (`BILL-008`).
 
 Three points, not one, because the browser places the WebRTC leg itself and can
 skip any purely client-side gate.
+
+## Telling the customer the balance is running out
+
+Every ledgered debit passes through `CreditBalanceAlertService`, which alerts
+only when _that_ debit crossed a threshold (`BILL-019`). Crossing — rather than
+"is currently below" — is what makes each tier fire once per drop and re-arm
+after a top-up, without storing any per-workspace alert state.
+
+| Tier            | Organization | Personal | What the customer is told                       |
+| --------------- | ------------ | -------- | ----------------------------------------------- |
+| `early_warning` | $5           | —        | top up at your leisure; nothing has changed yet |
+| `call_cap`      | $2           | $2       | answered calls are now cut off at 5 min         |
+| `depleted`      | $0           | $0       | the workspace is inactive; calls are refused    |
+
+Organizations get the extra $5 tier because topping one up is not a one-click
+card tap — an admin has to notice first. Recipients are the org admins, or the
+owner of a personal workspace; delivery is email plus a push to every registered
+device.
+
+The thresholds live in `packages/services/src/services/credit-policy.ts`,
+**shared with the call gate that enforces them**. The email that says "cut off
+at 5 minutes" is only true while `CallService` caps calls at exactly that
+balance for exactly that long — keep them in one place.
 
 ## Stripe
 

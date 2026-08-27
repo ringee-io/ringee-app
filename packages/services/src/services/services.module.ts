@@ -22,6 +22,7 @@ import { ContactService } from "./contact.service";
 import { CallerIdService } from "./caller.id.service";
 import { CallerIdRotationService } from "./caller-id-rotation/caller-id-rotation.service";
 import { CreditService } from "./credit.service";
+import { CreditBalanceAlertService } from "./credit-balance-alert.service";
 import { EncryptionKeyService } from "./encryption-key.service";
 import { TelephonyRateService } from "./telephony-rate.service";
 import { MobileReadService } from "./mobile";
@@ -177,6 +178,7 @@ const servicesProviders = [
   CallerIdService,
   CallerIdRotationService,
   CreditService,
+  CreditBalanceAlertService,
   EncryptionKeyService,
   TelephonyRateService,
   MobileReadService,

@@ -255,6 +255,28 @@ team. `User.freeCallTrial` then bypasses the pre-answer credit gates.
   reads "Free-call trial intentionally disabled: always charge credits". Trial
   users can therefore reach a negative balance. **`Needs confirmation`**
 
+### BILL-019 — A falling balance is announced at the points where it changes what the product does
+
+`CreditService.consumeCredits` hands every ledgered debit to
+`CreditBalanceAlertService`, which alerts only when that debit **crossed** a
+threshold — so each tier fires once per drop and re-arms on the next top-up,
+with no per-workspace alert state.
+
+| Tier            | Organization | Personal | What it means                                      |
+| --------------- | ------------ | -------- | -------------------------------------------------- |
+| `early_warning` | $5           | —        | nothing restricted yet                             |
+| `call_cap`      | $2           | $2       | answered calls are hung up at 5 minutes (BILL-010) |
+| `depleted`      | $0           | $0       | workspace inactive; no outbound call is placed     |
+
+- **Source of truth:** `packages/services/src/services/credit-policy.ts`
+  (thresholds, shared with the call gate) and `credit-balance-alert.service.ts`
+- **Delivery:** email to every recipient, plus push to each registered device.
+  Organizations alert their **admins**; a personal workspace alerts its owner.
+- **Why:** the $2 tier is not a courtesy — it is the point where BILL-010 starts
+  cutting conversations off mid-call, and a customer who is not told blames the
+  line, not the balance.
+- **Best-effort:** an alert failure must never fail the debit that triggered it.
+
 ---
 
 ## Telephony — calls (`CALL`)
