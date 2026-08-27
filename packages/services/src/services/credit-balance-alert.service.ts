@@ -145,22 +145,24 @@ export class CreditBalanceAlertService {
   }
 
   /**
-   * Org admins for an organization workspace, the owner for a personal one.
-   * The user whose call caused the debit is the fallback when an organization
-   * somehow has no resolved admin — better a slightly wrong recipient than a
-   * workspace that silently stops calling.
+   * Org admins for an organization workspace, the owner for a personal one —
+   * and nothing else. An organization with no resolvable admin yields no
+   * recipients rather than falling back to the member whose call caused the
+   * debit: the balance and the top-up link belong to the people who can act
+   * on them, and a non-admin agent is not one of them. The caller logs the
+   * empty result, so the case stays visible instead of silently mis-sending.
    */
   private async resolveRecipients(ctx: OwnershipContext): Promise<Recipient[]> {
     const users = new Map<string, UserWithEmails>();
 
     if (ctx.organizationId) {
+      // Admins are resolved by membership, not by whether they have an email:
+      // one without an address still gets the push.
       const admins = await this.orgRepo.findAdminMembersWithEmails(
         ctx.organizationId,
       );
       for (const admin of admins) users.set(admin.id, admin);
-    }
-
-    if (users.size === 0) {
+    } else {
       const owner = (await this.userRepo.findById(
         ctx.userId,
       )) as UserWithEmails | null;

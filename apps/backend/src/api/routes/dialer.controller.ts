@@ -180,6 +180,17 @@ export class DialerController {
     );
     if (!attempt) throw new BadRequestException("Attempt not found");
 
+    // Organization scope is not enough here. `closeSession` ends the attempt's
+    // agent session, so without this an org member could reference another
+    // agent's attempt and force them offline — and the disposition's own side
+    // effects (DNC entry, callback) are attributed to `attempt.agentUserId`,
+    // not to the caller.
+    if (attempt.agentUserId !== ctx.userId) {
+      throw new ForbiddenException(
+        "You can only dispose your own call attempt",
+      );
+    }
+
     const campaign = await this.campaignService.assertCampaignInWorkspace(
       ctx,
       attempt.campaignId,

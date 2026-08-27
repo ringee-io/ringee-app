@@ -350,8 +350,15 @@ export class CampaignService {
 
     if (newLeads.length > 0) {
       leadsAdded = await this.campaignLeadRepo.createMany(campaignId, newLeads);
-      await this.releaseLeadsIfRunning(campaign);
     }
+
+    // Released even when this import added nothing. An earlier import that
+    // created leads and then failed before releasing them leaves `pending`
+    // rows behind, and this retry skips those contacts as duplicates — so a
+    // release gated on `leadsAdded` would never reach them. `queueAllPending`
+    // is campaign-wide and idempotent, so the unconditional call is what
+    // recovers the stranded leads.
+    await this.releaseLeadsIfRunning(campaign);
 
     return {
       success: true,
@@ -521,9 +528,10 @@ export class CampaignService {
       }
     }
 
-    if (leadsAdded > 0) {
-      await this.releaseLeadsIfRunning(campaign);
-    }
+    // Unconditional, for the same reason as the manual path: leads left
+    // `pending` by an earlier failed import are skipped as duplicates above,
+    // so a count-gated release could never recover them.
+    await this.releaseLeadsIfRunning(campaign);
 
     if (validatedTagIds.length > 0 && insertedPhones.length > 0) {
       const newContactIds = await this.contactRepo.findContactIdsByPhoneNumbers(

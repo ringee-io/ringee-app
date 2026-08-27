@@ -121,7 +121,16 @@ skip any purely client-side gate.
 Every ledgered debit passes through `CreditBalanceAlertService`, which alerts
 only when _that_ debit crossed a threshold (`BILL-019`). Crossing — rather than
 "is currently below" — is what makes each tier fire once per drop and re-arm
-after a top-up, without storing any per-workspace alert state.
+after a top-up: a balance can only cross downwards again once a top-up has
+lifted it back over, so no alert state is needed to get that right.
+
+On top of the crossing test, `isFirstDelivery` claims a Redis marker
+(`credit:balance-alert:<org:id|user:id>:<tier>`, `SET NX` with a one-hour TTL)
+and stays silent when the key is already there. That is a race guard for two
+debits committing in the same instant, not the re-arm mechanism — but it is
+real per-workspace state, and it does swallow a second genuine crossing of the
+same tier within the hour. If Redis is unreachable the send goes ahead: a
+customer who cannot call must hear about it even when the dedupe is down.
 
 | Tier            | Organization | Personal | What the customer is told                       |
 | --------------- | ------------ | -------- | ----------------------------------------------- |

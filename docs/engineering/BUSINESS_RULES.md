@@ -260,7 +260,14 @@ team. `User.freeCallTrial` then bypasses the pre-answer credit gates.
 `CreditService.consumeCredits` hands every ledgered debit to
 `CreditBalanceAlertService`, which alerts only when that debit **crossed** a
 threshold — so each tier fires once per drop and re-arms on the next top-up,
-with no per-workspace alert state.
+without needing stored state to decide that.
+
+A second guard sits behind it: `isFirstDelivery` claims a per-workspace,
+per-tier Redis marker (`SET NX`, one-hour TTL) and suppresses the alert when
+the key already exists. It exists to stop two debits that commit in the same
+instant from both reporting one crossing; the side effect is that a workspace
+that tops up and crosses the same tier again inside the hour is not alerted a
+second time. A Redis failure allows the send rather than silencing it.
 
 | Tier            | Organization | Personal | What it means                                      |
 | --------------- | ------------ | -------- | -------------------------------------------------- |
