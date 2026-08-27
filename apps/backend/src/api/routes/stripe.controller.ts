@@ -779,14 +779,32 @@ export class StripeController {
             console.log(
               `🏢 Organization subscription created for user ${userId}`,
             );
-            await this.subscriptionService.createFromStripe(
-              subscription.id,
-              subscription.customer as string,
-              userId,
-              subscription.ended_at
-                ? new Date(subscription.ended_at * 1000)
-                : undefined,
-            );
+            const { isFirstEver } =
+              await this.subscriptionService.createFromStripe(
+                subscription.id,
+                subscription.customer as string,
+                userId,
+                subscription.ended_at
+                  ? new Date(subscription.ended_at * 1000)
+                  : undefined,
+              );
+
+            // Only the very first subscription is welcomed. A replayed webhook
+            // and a customer who cancelled and came back both report false, so
+            // nobody is invited to review us twice.
+            if (isFirstEver) {
+              const price = subscription.items.data[0]?.price;
+              await this.billingNotifications.notifyOrganizationSubscriptionStarted(
+                {
+                  userId,
+                  subscriptionId: subscription.id,
+                  billingInterval:
+                    metadata.billingInterval ?? price?.recurring?.interval,
+                  amount: monthlyPriceUsd || null,
+                  currency: price?.currency ?? "usd",
+                },
+              );
+            }
           }
           break;
         }

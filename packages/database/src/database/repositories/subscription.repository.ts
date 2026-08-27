@@ -32,6 +32,15 @@ export class SubscriptionRepository {
     });
   }
 
+  /**
+   * How many subscriptions this user has ever had, cancelled ones included.
+   * Only the organization plan is stored here, so zero means the user has
+   * never subscribed before.
+   */
+  async countByUserId(userId: string): Promise<number> {
+    return this.prisma.subscription.count({ where: { userId } });
+  }
+
   async findUnassignedByUserId(userId: string): Promise<Subscription | null> {
     return this.prisma.subscription.findFirst({
       where: {

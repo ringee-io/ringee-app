@@ -9,5 +9,6 @@ export interface EmailInterface {
     emailFromAddress?: string,
     replyTo?: string,
     cc?: string | string[],
+    bcc?: string | string[],
   ): Promise<any>;
 }

@@ -16,6 +16,7 @@ export class ResendProvider implements EmailInterface {
     // @ts-ignore
     replyTo?: string,
     cc?: string | string[],
+    bcc?: string | string[],
   ) {
     try {
       const sendReplyEmail = !emailFromAddress?.includes("no-reply")
@@ -28,6 +29,7 @@ export class ResendProvider implements EmailInterface {
         subject,
         html,
         ...(cc ? { cc } : {}),
+        ...(bcc ? { bcc } : {}),
         ...(sendReplyEmail && sendReplyEmail),
       });
 

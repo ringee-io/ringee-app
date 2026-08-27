@@ -6,6 +6,13 @@ import { apiConfiguration } from "@ringee/configuration";
 /** Long enough to cover Stripe's webhook retry window for a single attempt. */
 const FAILED_PAYMENT_DEDUP_SECONDS = 3 * 24 * 60 * 60;
 
+/**
+ * Race guard only. "First ever" is decided from the subscription table, so this
+ * exists to stop two subscriptions created for the same user in the same
+ * instant from both being welcomed.
+ */
+const SUBSCRIPTION_WELCOME_DEDUP_SECONDS = 30 * 24 * 60 * 60;
+
 /** What the declined subscription pays for, so the email names what is at risk. */
 export type FailedSubscriptionKind =
   | "credit_funding"
@@ -34,13 +41,26 @@ export interface SubscriptionPaymentFailedParams {
   billingEmail?: string | null;
 }
 
+export interface OrganizationSubscriptionStartedParams {
+  /** Owner from the subscription metadata. */
+  userId: string;
+  /** Stripe subscription id — the dedupe key for this welcome. */
+  subscriptionId: string;
+  /** Cadence chosen at checkout; anything else is treated as monthly. */
+  billingInterval?: string | null;
+  /** Price per cycle in major units (dollars), not cents. */
+  amount?: number | null;
+  currency?: string;
+}
+
 type UserWithEmails = User & { emails?: UserEmail[] };
 
 /**
- * Billing emails that are not tied to a single domain service — today, the
- * "your subscription renewal was declined" notice fired from the Stripe
- * webhook. Everything here is best-effort: a mail failure must never make the
- * webhook handler fail, or Stripe would retry the whole event.
+ * Billing emails that are not tied to a single domain service: the "your
+ * subscription renewal was declined" notice and the welcome a customer gets the
+ * first time they subscribe to the Organization plan — both fired from the
+ * Stripe webhook. Everything here is best-effort: a mail failure must never make
+ * the webhook handler fail, or Stripe would retry the whole event.
  */
 @Injectable()
 export class BillingNotificationService {
@@ -109,6 +129,81 @@ export class BillingNotificationService {
   }
 
   /**
+   * Welcomes a customer the first time they subscribe to the Organization plan.
+   * The caller decides what "first time" means (no prior subscription row); this
+   * only guards the race, so a user who cancels and comes back is never
+   * welcomed twice.
+   *
+   * The mail is blind-copied to Trustpilot's invitation address when one is
+   * configured, which is what turns it into a review invitation for this
+   * customer. That is also why it goes to a single recipient: Trustpilot invites
+   * the address in `To`.
+   */
+  async notifyOrganizationSubscriptionStarted(
+    params: OrganizationSubscriptionStartedParams,
+  ): Promise<void> {
+    try {
+      if (!(await this.isFirstWelcome(params.userId))) {
+        this.logger.log(
+          `↩️ Duplicate organization-subscription welcome suppressed for user ${params.userId}`,
+        );
+        return;
+      }
+
+      const user = (await this.userRepository.findById(
+        params.userId,
+      )) as UserWithEmails | null;
+      const recipient = (
+        user?.emails?.find((e) => e.isPrimary)?.email ??
+        user?.emails?.[0]?.email
+      )
+        ?.trim()
+        .toLowerCase();
+
+      if (!recipient) {
+        this.logger.warn(
+          `No email address to welcome user ${params.userId} to the Organization plan`,
+        );
+        return;
+      }
+
+      const bcc = apiConfiguration.TRUSTPILOT_INVITE_BCC_EMAIL?.trim();
+
+      const result = await this.email.sendEmail(
+        recipient,
+        "Welcome to Ringee — your organization is ready to set up",
+        this.buildWelcomeHtml(params, user?.firstName ?? null),
+        "Ringee",
+        apiConfiguration.EMAIL_FROM_ADDRESS,
+        undefined,
+        undefined,
+        bcc || undefined,
+      );
+
+      if (
+        result &&
+        typeof result === "object" &&
+        "sent" in result &&
+        result.sent === false
+      ) {
+        this.logger.warn(
+          `Organization-subscription welcome for user ${params.userId} was not sent`,
+        );
+        return;
+      }
+
+      this.logger.log(
+        `📧 Organization-subscription welcome sent to user ${params.userId} for subscription ${params.subscriptionId}` +
+          (bcc ? " (Trustpilot invitation requested)" : ""),
+      );
+    } catch (err) {
+      this.logger.error(
+        `Failed to send the organization-subscription welcome for user ${params.userId}: ${(err as Error).message}`,
+      );
+    }
+  }
+
+  /**
    * False when this (invoice, attempt) pair was already emailed. Redis being
    * down must not silence a genuine dunning notice, so failures allow the send.
    */
@@ -129,6 +224,59 @@ export class BillingNotificationService {
       );
       return true;
     }
+  }
+
+  /**
+   * False when this user was already welcomed. Redis being down must not cost a
+   * genuine customer their welcome, so failures allow the send — the caller's
+   * "no prior subscription" check is what actually keeps this to once.
+   */
+  private async isFirstWelcome(userId: string): Promise<boolean> {
+    const key = `billing:org-subscription-welcome:${userId}`;
+    try {
+      return await this.redis.setIfAbsent(
+        key,
+        new Date().toISOString(),
+        SUBSCRIPTION_WELCOME_DEDUP_SECONDS,
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Dedupe check failed for ${key}: ${(err as Error).message}`,
+      );
+      return true;
+    }
+  }
+
+  /**
+   * Same plain house style as the dunning email: a short note and one link.
+   * Creating the organization is the step the customer still has to take after
+   * paying, so that is the only thing this asks them to do.
+   */
+  private buildWelcomeHtml(
+    params: OrganizationSubscriptionStartedParams,
+    firstName: string | null,
+  ): string {
+    const greeting = firstName?.trim()
+      ? `Hi ${escapeHtml(firstName.trim())},`
+      : "Hi,";
+    const price =
+      params.amount != null
+        ? ` (${this.formatAmount(params.amount, params.currency ?? "usd")}${
+            params.billingInterval === "year" ? " a year" : " a month"
+          })`
+        : "";
+    const dashboardUrl = `${apiConfiguration.FRONTEND_URL?.replace(/\/+$/, "")}/dashboard/overview`;
+
+    return `
+      <div style="font-family:-apple-system,Segoe UI,Roboto,sans-serif;font-size:15px;line-height:1.6;color:#171717;max-width:520px;">
+        <p>${greeting}</p>
+        <p>Your Ringee Organization plan${price} is active. Thanks for subscribing.</p>
+        <p>The next step is creating your organization — that unlocks unlimited team members, campaigns and outreach, cheaper per-minute rates and advanced analytics.</p>
+        <p><a href="${escapeHtml(dashboardUrl)}">Create your organization</a></p>
+        <p>You can cancel any time from Billing.</p>
+        <p style="color:#737373;">Reply to this email if you need a hand getting set up.</p>
+      </div>
+    `;
   }
 
   /**
