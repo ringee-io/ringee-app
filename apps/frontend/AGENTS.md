@@ -56,3 +56,11 @@ WebRTC lives in `src/features/calls`, `src/features/dialer` and
 `src/features/dialer-session`. `@telnyx/webrtc` may be touched only there. Prefer
 the shared engine and state map in `@ringee/dialer-core` over new ad-hoc handling
 of Telnyx notification objects.
+
+**A live call is ended by the hang-up button or by the person on the other end,
+and by nothing else.** No other control may call `hangup()` — not a disposition,
+not a shortcut, not a timer. In the campaign dialer the outcome buttons are live
+during the call so the agent can choose while they talk; the choice is saved
+when the call ends, and saving it is what advances the session to the next lead.
+An outcome that still needs input (a callback without its date) leaves the
+session waiting for the agent, which is deliberate.

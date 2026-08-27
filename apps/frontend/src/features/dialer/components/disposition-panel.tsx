@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useDialerAttemptStore } from '../store/dialer-attempt.store';
 import { useDialerSessionStore } from '../store/dialer-session.store';
 import { useDialerLeadStore } from '../store/dialer-lead.store';
@@ -33,12 +33,6 @@ export function DispositionPanel() {
     (s) => s.availableDispositions
   );
   const callStatus = useDialerAttemptStore((s) => s.callStatus);
-  const preselectedDispositionCode = useDialerAttemptStore(
-    (s) => s.preselectedDispositionCode
-  );
-  const setPreselectedDisposition = useDialerAttemptStore(
-    (s) => s.setPreselectedDisposition
-  );
   const status = useDialerSessionStore((s) => s.status);
 
   const currentLead = useDialerLeadStore((s) => s.currentLead);
@@ -51,19 +45,19 @@ export function DispositionPanel() {
   const [voicemailSent, setVoicemailSent] = useState(false);
   const { dispose, submitting } = useDisposeLead();
 
-  // An outcome the agent already clicked in the live popup lands here — it was
-  // a callback, so the call is over but the date is still missing.
-  useEffect(() => {
-    if (preselectedDispositionCode) {
-      setSelectedCode(preselectedDispositionCode);
-      setPreselectedDisposition(null);
-    }
-  }, [preselectedDispositionCode, setPreselectedDisposition]);
-
   const selectedDispo = availableDispositions.find(
     (d) => d.code === selectedCode
   );
   const showCallbackFields = selectedDispo?.triggersCallback;
+
+  function resetForm() {
+    setSelectedCode(null);
+    setNote('');
+    setCallbackDate('');
+    setCallbackNote('');
+    setShowVoicemail(false);
+    setVoicemailSent(false);
+  }
 
   async function handleSubmit() {
     if (!attemptId || !selectedCode) return;
@@ -82,34 +76,69 @@ export function DispositionPanel() {
     if (!saved) return;
 
     // Reset local state — SSE session.state event will transition us to ready
-    setSelectedCode(null);
-    setNote('');
-    setCallbackDate('');
-    setCallbackNote('');
-    setShowVoicemail(false);
-    setVoicemailSent(false);
+    resetForm();
   }
 
-  // Show disposition panel when we have dispositions AND:
-  // - call has ended, OR
-  // - we're in wrap_up, OR
-  // - dispositions were explicitly required by the backend, OR
-  // - we have an attempt but no active call (fallback for WebRTC state misses)
+  // A new lead means a blank form, whatever became of the last one.
+  useEffect(() => {
+    resetForm();
+  }, [attemptId]);
+
+  // Read by the call-ended effect below, which fires on one transition and has
+  // to see these as they are at that instant without re-running as they change.
+  const latest = useRef({
+    selectedCode,
+    callbackDate,
+    showCallbackFields,
+    handleSubmit
+  });
+  latest.current = {
+    selectedCode,
+    callbackDate,
+    showCallbackFields,
+    handleSubmit
+  };
+
+  // The call just ended. An outcome the agent already picked while talking is
+  // saved right here, so the dialer moves straight to the next lead. Anything
+  // still missing — no outcome, or a callback without its date — leaves the
+  // form up and the session waiting for the agent, which is the point.
+  const settledAttemptRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (callStatus !== 'ended' || !attemptId) return;
+    if (settledAttemptRef.current === attemptId) return;
+    settledAttemptRef.current = attemptId;
+
+    const { selectedCode, callbackDate, showCallbackFields, handleSubmit } =
+      latest.current;
+    if (!selectedCode) return;
+    if (showCallbackFields && !callbackDate) return;
+    void handleSubmit();
+  }, [callStatus, attemptId]);
+
+  // Show the panel from the moment the call is under way — dialing, ringing,
+  // live, or over — so the agent can pick the outcome while they are still
+  // talking. It stays up after the call until the disposition is saved.
   const callActive =
     callStatus === 'dialing' ||
     callStatus === 'ringing' ||
     callStatus === 'answered' ||
     callStatus === 'in_call';
 
+  // `dispositionRequired` is the backend saying the call is over; trust it over
+  // a WebRTC state that never arrived, or a missed hangup would leave the
+  // agent looking at a form they cannot submit.
+  const callLive = callActive && !dispositionRequired;
+
   const showPanel =
     availableDispositions.length > 0 &&
     attemptId != null &&
+    // Anything past `created` means a call for this lead is under way or done.
+    // `dispositionRequired` and `wrap_up` are kept as a backstop for the case
+    // where the backend asks for an outcome before a WebRTC state reached us.
     (dispositionRequired ||
-      callStatus === 'ended' ||
       status === 'wrap_up' ||
-      // Fallback: if we have an attempt + dispositions but no active call status,
-      // the call likely ended without the state propagating
-      (!callActive && callStatus !== null && callStatus !== 'created'));
+      (callStatus !== null && callStatus !== 'created'));
 
   if (!showPanel) {
     return (
@@ -117,11 +146,7 @@ export function DispositionPanel() {
         <ClipboardList className='text-muted-foreground mb-3 h-10 w-10' />
         <h3 className='font-semibold'>{t('title')}</h3>
         <p className='text-muted-foreground mt-1 text-sm'>
-          {callActive
-            ? t('availableDuringCall')
-            : attemptId
-              ? t('waiting')
-              : t('selectAfterCall')}
+          {attemptId ? t('availableOnDial') : t('selectAfterCall')}
         </p>
       </div>
     );
@@ -129,7 +154,10 @@ export function DispositionPanel() {
 
   return (
     <div className='flex h-full flex-col p-4'>
-      <h3 className='mb-3 text-sm font-semibold'>{t('select')}</h3>
+      <h3 className='text-sm font-semibold'>{t('select')}</h3>
+      <p className='text-muted-foreground mt-1 mb-3 text-xs'>
+        {callLive ? t('pickWhileTalking') : t('pickToContinue')}
+      </p>
 
       <DispositionGrid
         dispositions={availableDispositions}
@@ -231,15 +259,17 @@ export function DispositionPanel() {
         )}
       </div>
 
-      {/* Submit */}
+      {/* Submit. Disabled while the call is live: saving now would hand the
+          agent their next lead mid-conversation. It is saved for them the
+          moment the call ends instead. */}
       <div className='mt-auto pt-4'>
         <Button
           className='w-full'
-          disabled={!selectedCode || submitting}
+          disabled={!selectedCode || submitting || callLive}
           onClick={handleSubmit}
         >
           {submitting && <Loader2 className='mr-2 h-4 w-4 animate-spin' />}
-          {t('submit')}
+          {callLive && selectedCode ? t('submitOnHangup') : t('submit')}
         </Button>
       </div>
     </div>

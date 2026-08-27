@@ -67,11 +67,9 @@
   "disposition": {
     "title": "Disposition",
     "select": "Select Disposition",
-    "liveTitle": "Call answered",
-    "liveDescription": "Pick an outcome to hang up and save it.",
-    "liveDismiss": "Hide until the call ends",
-    "availableDuringCall": "Pick an outcome from the popup to end the call — or wrap up here once it is over.",
-    "waiting": "Waiting for call to complete...",
+    "pickWhileTalking": "Pick the outcome while you talk — it is saved when the call ends.",
+    "pickToContinue": "Save an outcome to move on to the next lead.",
+    "availableOnDial": "Outcomes appear as soon as the call starts.",
     "selectAfterCall": "Select a call outcome after each call.",
     "callbackRequired": "Please choose a date and time for the callback.",
     "saved": "Disposition saved.",
@@ -82,7 +80,8 @@
     "dateTime": "Date & Time",
     "callbackNote": "Callback Note",
     "callbackPlaceholder": "Reason for callback...",
-    "submit": "Submit Disposition"
+    "submit": "Submit Disposition",
+    "submitOnHangup": "Saved when the call ends"
   },
   "lead": {
     "waiting": "Waiting for lead",

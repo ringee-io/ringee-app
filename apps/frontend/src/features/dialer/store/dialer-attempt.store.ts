@@ -26,12 +26,6 @@ interface DialerAttemptState {
   callDuration: number;
   dispositionRequired: boolean;
   availableDispositions: DispositionOption[];
-  /**
-   * An outcome the agent picked from the live popup that still needs the
-   * wrap-up form — a callback has to be given a date before it can be saved.
-   * The panel opens with it already selected so the click is not lost.
-   */
-  preselectedDispositionCode: string | null;
 
   setAttempt: (attemptId: string, status: CallAttemptStatus) => void;
   setCallStatus: (status: CallAttemptStatus) => void;
@@ -40,7 +34,6 @@ interface DialerAttemptState {
     required: boolean,
     dispositions?: DispositionOption[]
   ) => void;
-  setPreselectedDisposition: (code: string | null) => void;
   clear: () => void;
 }
 
@@ -49,8 +42,7 @@ const initialState = {
   callStatus: null as CallAttemptStatus | null,
   callDuration: 0,
   dispositionRequired: false,
-  availableDispositions: [] as DispositionOption[],
-  preselectedDispositionCode: null as string | null
+  availableDispositions: [] as DispositionOption[]
 };
 
 export const useDialerAttemptStore = create<DialerAttemptState>((set) => ({
@@ -67,9 +59,6 @@ export const useDialerAttemptStore = create<DialerAttemptState>((set) => ({
       dispositionRequired: required,
       ...(dispositions ? { availableDispositions: dispositions } : {})
     }),
-
-  setPreselectedDisposition: (code) =>
-    set({ preselectedDispositionCode: code }),
 
   clear: () => set(initialState)
 }));

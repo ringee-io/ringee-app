@@ -1,5 +1,6 @@
 import {
   Injectable,
+  Logger,
   ForbiddenException,
   NotFoundException,
   BadRequestException,
@@ -42,6 +43,8 @@ export interface CampaignLeadsImportResult {
 
 @Injectable()
 export class CampaignService {
+  private readonly logger = new Logger(CampaignService.name);
+
   constructor(
     private readonly campaignRepo: CampaignRepository,
     private readonly campaignLeadRepo: CampaignLeadRepository,
@@ -255,6 +258,32 @@ export class CampaignService {
     return { success: true };
   }
 
+  /**
+   * Put freshly added leads into the dial queue when the campaign is already
+   * running.
+   *
+   * A lead is created `pending`, which means "staged, not released yet" — a
+   * state that otherwise only ends at activation. Without this, a lead added
+   * to a live campaign stayed invisible to `lockNextLead` (which only claims
+   * `queued` rows) until someone paused and resumed the campaign, which is
+   * exactly what `updateStatus(active)` re-runs.
+   *
+   * Only `active` needs it: a paused or draft campaign is released on its next
+   * activation, and dialing is gated on campaign status anyway.
+   */
+  private async releaseLeadsIfRunning(campaign: {
+    id: string;
+    status: string;
+  }): Promise<void> {
+    if (campaign.status !== "active") return;
+    const queued = await this.campaignLeadRepo.queueAllPending(campaign.id);
+    if (queued > 0) {
+      this.logger.log(
+        `Queued ${queued} newly added lead(s) into live campaign ${campaign.id}`,
+      );
+    }
+  }
+
   async addLeadsManually(
     ctx: OwnershipContext,
     campaignId: string,
@@ -321,6 +350,7 @@ export class CampaignService {
 
     if (newLeads.length > 0) {
       leadsAdded = await this.campaignLeadRepo.createMany(campaignId, newLeads);
+      await this.releaseLeadsIfRunning(campaign);
     }
 
     return {
@@ -489,6 +519,10 @@ export class CampaignService {
         );
         leadsAdded += count;
       }
+    }
+
+    if (leadsAdded > 0) {
+      await this.releaseLeadsIfRunning(campaign);
     }
 
     if (validatedTagIds.length > 0 && insertedPhones.length > 0) {
