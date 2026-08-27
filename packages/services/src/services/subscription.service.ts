@@ -49,15 +49,32 @@ export class SubscriptionService {
       await this.subscriptionRepository.countByUserId(userId);
 
     this.logger.log(`Creating subscription for user ${userId}`);
-    const subscription = await this.subscriptionRepository.create({
-      stripeSubscriptionId,
-      stripeCustomerId,
-      userId,
-      status: SubscriptionStatus.active,
-      currentPeriodEnd,
-    });
+    try {
+      const subscription = await this.subscriptionRepository.create({
+        stripeSubscriptionId,
+        stripeCustomerId,
+        userId,
+        status: SubscriptionStatus.active,
+        currentPeriodEnd,
+      });
 
-    return { subscription, isFirstEver: priorSubscriptions === 0 };
+      return { subscription, isFirstEver: priorSubscriptions === 0 };
+    } catch (err) {
+      // Two deliveries of the same event raced past the lookup above. The
+      // unique index on `stripeSubscriptionId` let exactly one of them insert,
+      // so the loser reports the winner's row — and does NOT claim the welcome,
+      // which the winner has already taken.
+      if (!this.subscriptionRepository.isUniqueViolation(err)) throw err;
+
+      const winner =
+        await this.subscriptionRepository.findByStripeId(stripeSubscriptionId);
+      if (!winner) throw err;
+
+      this.logger.log(
+        `↩️ Subscription ${stripeSubscriptionId} was recorded concurrently for user ${userId}`,
+      );
+      return { subscription: winner, isFirstEver: false };
+    }
   }
 
   async findUnassignedByUserId(userId: string) {

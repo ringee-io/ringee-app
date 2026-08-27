@@ -779,29 +779,34 @@ export class StripeController {
             console.log(
               `🏢 Organization subscription created for user ${userId}`,
             );
+            // When this billing period ends, i.e. the renewal date. It lives on
+            // the subscription item in current API versions, the same place
+            // `getSubscriptionSummary` reads it from. NOT `ended_at`, which is
+            // when a cancelled subscription stopped and is null while it runs.
+            const item = subscription.items.data[0];
+            const periodEnd = item?.current_period_end;
+
             const { isFirstEver } =
               await this.subscriptionService.createFromStripe(
                 subscription.id,
                 subscription.customer as string,
                 userId,
-                subscription.ended_at
-                  ? new Date(subscription.ended_at * 1000)
-                  : undefined,
+                periodEnd ? new Date(periodEnd * 1000) : undefined,
               );
 
             // Only the very first subscription is welcomed. A replayed webhook
             // and a customer who cancelled and came back both report false, so
             // nobody is invited to review us twice.
             if (isFirstEver) {
-              const price = subscription.items.data[0]?.price;
               await this.billingNotifications.notifyOrganizationSubscriptionStarted(
                 {
                   userId,
                   subscriptionId: subscription.id,
                   billingInterval:
-                    metadata.billingInterval ?? price?.recurring?.interval,
+                    metadata.billingInterval ??
+                    item?.price?.recurring?.interval,
                   amount: monthlyPriceUsd || null,
-                  currency: price?.currency ?? "usd",
+                  currency: item?.price?.currency ?? "usd",
                 },
               );
             }
