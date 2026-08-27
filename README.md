@@ -8,11 +8,12 @@
 Make and receive calls worldwide, manage contacts, record conversations, and monitor team performance — with a modern, self-hostable stack.
 
 **Links**
-- Website: https://ringee.io  
-- Docs: https://docs.ringee.io  
-- Tutorials: https://www.youtube.com/watch?v=WiHE9RFmECc  
-- Register: https://www.ringee.io/auth/sign-up  
-- Issues: https://github.com/ringee-io/ringee/issues  
+
+- Website: https://ringee.io
+- Docs: https://docs.ringee.io
+- Tutorials: https://www.youtube.com/watch?v=WiHE9RFmECc
+- Register: https://www.ringee.io/auth/sign-up
+- Issues: https://github.com/ringee-io/ringee/issues
 
 ---
 
@@ -20,7 +21,7 @@ Make and receive calls worldwide, manage contacts, record conversations, and mon
 
 [![Ringee demo: setup and first call](https://img.youtube.com/vi/WiHE9RFmECc/maxresdefault.jpg)](https://www.youtube.com/watch?v=WiHE9RFmECc)
 
-*Setup and place your first call in under 30 seconds.*
+_Setup and place your first call in under 30 seconds._
 
 ---
 
@@ -28,12 +29,12 @@ Make and receive calls worldwide, manage contacts, record conversations, and mon
 
 ### Video highlights
 
-| | |
-|---|---|
-| [![Import contacts and organize with tags](https://img.youtube.com/vi/EBgjagSuHMg/hqdefault.jpg)](https://youtu.be/EBgjagSuHMg) | [![Team calling analytics dashboard](https://img.youtube.com/vi/VLWXO9K45vM/hqdefault.jpg)](https://youtu.be/VLWXO9K45vM) |
-| **Import contacts and organize with tags** | **Team calling analytics dashboard** |
-| [![Bulk import via CSV](https://img.youtube.com/vi/UK22507tZf0/hqdefault.jpg)](https://youtu.be/UK22507tZf0) | [![Quick setup and first call](https://img.youtube.com/vi/WiHE9RFmECc/hqdefault.jpg)](https://www.youtube.com/watch?v=WiHE9RFmECc) |
-| **Bulk import via CSV (no manual work)** | **Quick setup and first call** |
+|                                                                                                                                 |                                                                                                                                    |
+| ------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
+| [![Import contacts and organize with tags](https://img.youtube.com/vi/EBgjagSuHMg/hqdefault.jpg)](https://youtu.be/EBgjagSuHMg) | [![Team calling analytics dashboard](https://img.youtube.com/vi/VLWXO9K45vM/hqdefault.jpg)](https://youtu.be/VLWXO9K45vM)          |
+| **Import contacts and organize with tags**                                                                                      | **Team calling analytics dashboard**                                                                                               |
+| [![Bulk import via CSV](https://img.youtube.com/vi/UK22507tZf0/hqdefault.jpg)](https://youtu.be/UK22507tZf0)                    | [![Quick setup and first call](https://img.youtube.com/vi/WiHE9RFmECc/hqdefault.jpg)](https://www.youtube.com/watch?v=WiHE9RFmECc) |
+| **Bulk import via CSV (no manual work)**                                                                                        | **Quick setup and first call**                                                                                                     |
 
 ### Product capabilities
 
@@ -66,18 +67,18 @@ Full documentation: **https://docs.ringee.io**
 
 ## Tech Stack
 
-- **Monorepo:** pnpm workspaces  
-- **Frontend:** Next.js (React) — B2B admin app  
-- **Backend:** NestJS (REST & Webhooks)  
-- **Worker:** NestJS background job processor  
-- **Database:** PostgreSQL + Prisma ORM  
-- **Cache:** Redis  
-- **Telephony:** Telnyx WebRTC  
-- **Auth:** Clerk  
-- **Payments:** Stripe  
-- **Notifications:** Firebase Cloud Messaging  
-- **Storage:** Cloudflare R2  
-- **Email:** Resend  
+- **Monorepo:** pnpm workspaces
+- **Frontend:** Next.js (React) — B2B admin app
+- **Backend:** NestJS (REST & Webhooks)
+- **Worker:** NestJS background job processor
+- **Database:** PostgreSQL + Prisma ORM
+- **Cache:** Redis
+- **Telephony:** Telnyx WebRTC
+- **Auth:** Clerk
+- **Payments:** Stripe
+- **Notifications:** Firebase Cloud Messaging
+- **Storage:** Cloudflare R2
+- **Email:** Resend
 
 ---
 
@@ -95,7 +96,8 @@ docker-compose -f docker-compose.app.yml up --build -d
 ```
 
 Open:
-- Admin → http://localhost:4200  
+
+- Admin → http://localhost:4200
 
 ---
 

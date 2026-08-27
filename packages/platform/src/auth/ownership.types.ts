@@ -1,8 +1,8 @@
 /**
- * Contexto de propiedad para multi-tenancy B2B/B2C
+ * Ownership context for B2B/B2C multi-tenancy.
  *
- * - Si `organizationId` existe: filtra solo por organizationId
- * - Si `organizationId` es null/undefined: filtra por userId
+ * - `organizationId` set: scope to that organization alone.
+ * - `organizationId` null/undefined: scope to the user's personal data.
  */
 export interface OwnershipContext {
   userId: string;
@@ -10,7 +10,7 @@ export interface OwnershipContext {
 }
 
 /**
- * Datos del usuario actual extraídos del decorator @CurrentUser()
+ * The current user, as resolved by the @CurrentUser() decorator.
  */
 export interface CurrentUserData {
   id: string;
@@ -22,7 +22,7 @@ export interface CurrentUserData {
 }
 
 /**
- * Crea un contexto de propiedad desde los datos del usuario actual
+ * Builds an ownership context from the current user.
  */
 export function createOwnershipContext(
   user: CurrentUserData,
@@ -34,10 +34,12 @@ export function createOwnershipContext(
 }
 
 /**
- * Construye el filtro de Prisma basado en el contexto de propiedad
+ * Builds the Prisma filter for an ownership context (WRK-001).
  *
- * - Si hay organizationId: filtra solo por organizationId
- * - Si no hay organizationId: filtra por userId y organizationId = null
+ * - With an organizationId: filter by organizationId ONLY. Org data belongs to
+ *   the org, not to whoever created each row.
+ * - Without one: filter by userId AND organizationId = null. Omitting the null
+ *   check would pull in the same user's organization rows.
  */
 export function buildOwnershipFilter(ctx: OwnershipContext): {
   userId?: string;
@@ -55,7 +57,7 @@ export function buildOwnershipFilter(ctx: OwnershipContext): {
 }
 
 /**
- * Construye los datos de creación incluyendo ownership
+ * Builds the ownership fields to persist when creating a row.
  */
 export function buildOwnershipData(ctx: OwnershipContext): {
   userId: string;
@@ -92,7 +94,7 @@ export function resolveMemberFilter(
 }
 
 /**
- * Dashboard context extends ownership with role for analytics filtering
+ * Dashboard context: ownership plus the role and filters analytics needs.
  */
 export interface DashboardContext extends OwnershipContext {
   isOrgAdmin: boolean;
@@ -121,7 +123,7 @@ export interface DashboardContext extends OwnershipContext {
 }
 
 /**
- * Creates dashboard context from current user data
+ * Builds a dashboard context from the current user.
  */
 export function createDashboardContext(
   user: CurrentUserData,

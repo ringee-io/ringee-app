@@ -47,7 +47,7 @@ import {
   IconShieldLock,
   IconTopologyStar3
 } from '@tabler/icons-react';
-import { isSuperAdminEmail } from '@/features/backoffice/lib/super-admins';
+import { useIsSuperAdmin } from '@/features/backoffice/lib/use-is-super-admin';
 
 import { SignOutButton } from '@clerk/nextjs';
 import Link from 'next/link';
@@ -215,9 +215,10 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
 
   const router = useRouter();
 
-  const isSuperAdmin = !!user?.emailAddresses?.some(
-    (e: { emailAddress: string }) => isSuperAdminEmail(e.emailAddress)
-  );
+  // Resolved by the API (single allowlist) rather than a copy of the list here.
+  // The mock preview keeps showing the backoffice entry as it always did.
+  const resolvedSuperAdmin = useIsSuperAdmin(!useMock);
+  const isSuperAdmin = useMock ? true : resolvedSuperAdmin;
 
   const { canAccessAdminFeatures } = useMock
     ? { canAccessAdminFeatures: true }

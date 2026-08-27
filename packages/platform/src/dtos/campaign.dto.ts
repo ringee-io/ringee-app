@@ -15,6 +15,32 @@ import {
 } from "class-validator";
 import { Type } from "class-transformer";
 
+/**
+ * Campaign lifecycle states.
+ *
+ * NOTE: unlike every neighbouring concept (CampaignLeadStatus,
+ * AgentSessionStatus, CallAttemptStatus, CallSessionStatus) this is NOT a
+ * Prisma enum — `Campaign.status` is a plain `String` column, so the database
+ * cannot reject an invalid value. This union, the DTO validator and
+ * `isCampaignStatus` are the enforcement until the column is migrated to an
+ * enum. Anything that writes a campaign status must go through them.
+ */
+export type CampaignStatus = "draft" | "active" | "paused" | "completed";
+
+export const VALID_CAMPAIGN_STATUSES: CampaignStatus[] = [
+  "draft",
+  "active",
+  "paused",
+  "completed",
+];
+
+export function isCampaignStatus(value: unknown): value is CampaignStatus {
+  return (
+    typeof value === "string" &&
+    (VALID_CAMPAIGN_STATUSES as string[]).includes(value)
+  );
+}
+
 export class CreateCampaignDto {
   @IsString()
   @IsNotEmpty()
@@ -97,8 +123,8 @@ export class UpdateCampaignDto {
 export class UpdateCampaignStatusDto {
   @IsString()
   @IsNotEmpty()
-  @IsIn(["draft", "active", "paused", "completed"])
-  status!: "draft" | "active" | "paused" | "completed";
+  @IsIn(VALID_CAMPAIGN_STATUSES)
+  status!: CampaignStatus;
 }
 
 export class ManualLeadDto {
@@ -157,12 +183,3 @@ export class ImportLeadsManualDto {
   @Type(() => ManualLeadDto)
   leads!: ManualLeadDto[];
 }
-
-export type CampaignStatus = "draft" | "active" | "paused" | "completed";
-
-export const VALID_CAMPAIGN_STATUSES: CampaignStatus[] = [
-  "draft",
-  "active",
-  "paused",
-  "completed",
-];

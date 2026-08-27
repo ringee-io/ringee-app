@@ -19,18 +19,18 @@ Ringee backend / MCP   (source of truth — lives in apps/backend)
 
 ## What's inside
 
-| Path | Purpose |
-| --- | --- |
-| `src/config.ts` | Resolve the MCP connection from env (`RINGEE_MCP_URL`, or `RINGEE_BACKEND_URL` + `RINGEE_USER_ID`). |
-| `src/clients/mcp-client.ts` | `RingeeMcpClient` — transport wrapper around the MCP SDK SSE client. |
-| `src/clients/ringee-client.ts` | `RingeeClient` — typed facade: one method per capability. |
-| `src/schemas/*` | Shared zod input schemas mirroring the MCP tools. |
-| `src/types/*` | Typed result shapes the MCP returns. |
-| `src/tools/catalog.ts` | Canonical action → MCP tool map + sensitivity (read/write/sensitive/destructive). |
-| `src/flows/*` | The outbound flow (prospect → contact → session → outcome → follow-up). |
-| `src/rules/*` | Operating guardrails for sensitive/destructive actions. |
-| `src/prompts/*` | `buildSystemPrompt()` composed from catalog + flow + rules. |
-| `skills/*` | Distributable Claude Skills (`/ringee…`) — work in Claude Code AND claude.ai. |
+| Path                           | Purpose                                                                                             |
+| ------------------------------ | --------------------------------------------------------------------------------------------------- |
+| `src/config.ts`                | Resolve the MCP connection from env (`RINGEE_MCP_URL`, or `RINGEE_BACKEND_URL` + `RINGEE_USER_ID`). |
+| `src/clients/mcp-client.ts`    | `RingeeMcpClient` — transport wrapper around the MCP SDK SSE client.                                |
+| `src/clients/ringee-client.ts` | `RingeeClient` — typed facade: one method per capability.                                           |
+| `src/schemas/*`                | Shared zod input schemas mirroring the MCP tools.                                                   |
+| `src/types/*`                  | Typed result shapes the MCP returns.                                                                |
+| `src/tools/catalog.ts`         | Canonical action → MCP tool map + sensitivity (read/write/sensitive/destructive).                   |
+| `src/flows/*`                  | The outbound flow (prospect → contact → session → outcome → follow-up).                             |
+| `src/rules/*`                  | Operating guardrails for sensitive/destructive actions.                                             |
+| `src/prompts/*`                | `buildSystemPrompt()` composed from catalog + flow + rules.                                         |
+| `skills/*`                     | Distributable Claude Skills (`/ringee…`) — work in Claude Code AND claude.ai.                       |
 
 ## Usage
 
@@ -59,7 +59,11 @@ await ringee.close();
 Reuse the operating knowledge anywhere:
 
 ```ts
-import { buildSystemPrompt, TOOL_CATALOG, PRIMARY_FLOW } from "@ringee-io/agent";
+import {
+  buildSystemPrompt,
+  TOOL_CATALOG,
+  PRIMARY_FLOW,
+} from "@ringee-io/agent";
 ```
 
 ## Connection config

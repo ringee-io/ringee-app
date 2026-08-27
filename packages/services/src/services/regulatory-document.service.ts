@@ -149,7 +149,9 @@ export class RegulatoryDocumentService {
   async assertOwned(ctx: OwnershipContext, id: string): Promise<void> {
     const doc = await this.repo.findOwnedById(ctx, id);
     if (!doc) {
-      throw new ForbiddenException("Document does not belong to this workspace");
+      throw new ForbiddenException(
+        "Document does not belong to this workspace",
+      );
     }
   }
 }

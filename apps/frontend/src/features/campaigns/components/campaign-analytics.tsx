@@ -378,7 +378,9 @@ export function CampaignAnalytics({ campaignId }: Props) {
             <Card>
               <CardHeader>
                 <CardTitle>{t('distribution.title')}</CardTitle>
-                <CardDescription>{t('distribution.description')}</CardDescription>
+                <CardDescription>
+                  {t('distribution.description')}
+                </CardDescription>
               </CardHeader>
               <CardContent>
                 {dispositions.length === 0 ? (

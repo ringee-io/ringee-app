@@ -98,7 +98,10 @@ export function fatalScreen(model: DialerModel): Screen {
         "span",
         {
           class: "rg-avatar rg-avatar--lg",
-          style: { background: "var(--rg-danger-soft)", color: "var(--ringee-danger)" },
+          style: {
+            background: "var(--rg-danger-soft)",
+            color: "var(--ringee-danger)",
+          },
           attrs: { "aria-hidden": "true" },
         },
         icon("alert", 28),
@@ -267,7 +270,6 @@ export function otpScreen(model: DialerModel): Screen {
 // ── Ready ────────────────────────────────────────────────────────────────────
 export function readyScreen(model: DialerModel): Screen {
   const slot = bannerSlot();
-  let phone: PhoneHandle;
 
   const callBtn = button({
     label: model.s.callButton,
@@ -279,7 +281,9 @@ export function readyScreen(model: DialerModel): Screen {
     onClick: () => void model.placeCall(),
   });
 
-  phone = phoneInput({
+  // `phone` is referenced from its own `onEnter` handler, which only runs
+  // after the binding is initialised.
+  const phone: PhoneHandle = phoneInput({
     label: model.s.numberLabel,
     placeholder: model.s.numberPlaceholder,
     value: model.number,
@@ -318,7 +322,11 @@ export function readyScreen(model: DialerModel): Screen {
     model.setNumber(phone.value());
     callBtn.setDisabled(!phone.isValid());
   });
-  const padWrap = h("div", { hidden: !model.keypadOpen, style: { marginTop: "2px" } }, pad);
+  const padWrap = h(
+    "div",
+    { hidden: !model.keypadOpen, style: { marginTop: "2px" } },
+    pad,
+  );
 
   const keypadToggle = h(
     "button",
@@ -326,7 +334,10 @@ export function readyScreen(model: DialerModel): Screen {
       class: "rg-iconbtn",
       type: "button",
       title: model.s.keypadToggle,
-      attrs: { "aria-label": model.s.keypadToggle, "aria-pressed": String(model.keypadOpen) },
+      attrs: {
+        "aria-label": model.s.keypadToggle,
+        "aria-pressed": String(model.keypadOpen),
+      },
       on: {
         click: () => {
           model.toggleKeypad();
@@ -399,9 +410,16 @@ export function callingScreen(model: DialerModel): Screen {
       h(
         "span",
         { class: "rg-halo" },
-        avatar({ name: name || null, imageUrl: model.contact?.imageUrl, size: "lg" }),
+        avatar({
+          name: name || null,
+          imageUrl: model.contact?.imageUrl,
+          size: "lg",
+        }),
       ),
-      h("div", { class: "rg-callstage__name", text: name || model.s.unknownContact }),
+      h("div", {
+        class: "rg-callstage__name",
+        text: name || model.s.unknownContact,
+      }),
       h("div", { class: "rg-callstage__num", text: formatPhone(number) }),
       stateLine,
     ),
@@ -445,7 +463,9 @@ function cancelControl(model: DialerModel): HTMLElement {
 export function incallScreen(model: DialerModel): Screen {
   const slot = bannerSlot();
   const timer = callTimer();
-  const stateLine = h("span", { class: "rg-callstage__state rg-callstage__state--live" });
+  const stateLine = h("span", {
+    class: "rg-callstage__state rg-callstage__state--live",
+  });
   const call = model.activeCall;
   const name = (model.contact?.name ?? "").trim();
 
@@ -469,7 +489,11 @@ export function incallScreen(model: DialerModel): Screen {
   });
 
   const dtmfPad = keypad((d) => model.sendDigit(d));
-  const padWrap = h("div", { hidden: true, style: { marginTop: "4px" } }, dtmfPad);
+  const padWrap = h(
+    "div",
+    { hidden: true, style: { marginTop: "4px" } },
+    dtmfPad,
+  );
 
   const el = h(
     "div",
@@ -478,12 +502,26 @@ export function incallScreen(model: DialerModel): Screen {
     h(
       "div",
       { class: "rg-callstage" },
-      avatar({ name: name || null, imageUrl: model.contact?.imageUrl, size: "lg" }),
-      h("div", { class: "rg-callstage__name", text: name || model.s.unknownContact }),
-      h("div", { class: "rg-callstage__num", text: formatPhone(call?.to ?? model.number) }),
+      avatar({
+        name: name || null,
+        imageUrl: model.contact?.imageUrl,
+        size: "lg",
+      }),
+      h("div", {
+        class: "rg-callstage__name",
+        text: name || model.s.unknownContact,
+      }),
+      h("div", {
+        class: "rg-callstage__num",
+        text: formatPhone(call?.to ?? model.number),
+      }),
       stateLine,
     ),
-    h("div", { style: { display: "flex", justifyContent: "center", margin: "2px 0" } }, timer.el),
+    h(
+      "div",
+      { style: { display: "flex", justifyContent: "center", margin: "2px 0" } },
+      timer.el,
+    ),
     controls.el,
     padWrap,
   );
@@ -510,8 +548,10 @@ export function incallScreen(model: DialerModel): Screen {
       h("span", { text: label }),
     );
 
-    if (c?.answeredAt && m.dialerState === "active" && !held) timer.start(c.answeredAt);
-    else if (c?.answeredAt) timer.start(c.answeredAt); // keep counting while held
+    if (c?.answeredAt && m.dialerState === "active" && !held)
+      timer.start(c.answeredAt);
+    else if (c?.answeredAt)
+      timer.start(c.answeredAt); // keep counting while held
     else timer.reset();
   };
   render(model);
@@ -537,15 +577,16 @@ export function endedScreen(model: DialerModel): Screen {
       class: "rg-avatar rg-avatar--lg",
       style: failed
         ? { background: "var(--rg-danger-soft)", color: "var(--ringee-danger)" }
-        : { background: "var(--rg-accent-soft)", color: "var(--ringee-accent)" },
+        : {
+            background: "var(--rg-accent-soft)",
+            color: "var(--ringee-accent)",
+          },
       attrs: { "aria-hidden": "true" },
     },
     icon(failed ? "phoneOff" : "check", 28),
   );
 
-  const title = failed
-    ? model.s.callFailedTitle
-    : model.s.callEnded;
+  const title = failed ? model.s.callFailedTitle : model.s.callEnded;
 
   const detail = failed
     ? model.s.notConnected
@@ -560,7 +601,10 @@ export function endedScreen(model: DialerModel): Screen {
       "div",
       { class: "rg-callstage" },
       statusIcon,
-      h("div", { class: "rg-callstage__name", text: name || formatPhone(call?.to ?? "") }),
+      h("div", {
+        class: "rg-callstage__name",
+        text: name || formatPhone(call?.to ?? ""),
+      }),
       h("div", { class: "rg-callstage__state", text: title }),
       h(
         "div",
@@ -608,7 +652,11 @@ export function buildScreen(key: string, model: DialerModel): Screen {
 }
 
 function escapeHtml(s: string): string {
-  return s.replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!,
+  return s.replace(
+    /[&<>"']/g,
+    (c) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        c
+      ]!,
   );
 }

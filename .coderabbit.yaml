@@ -1,0 +1,658 @@
+# yaml-language-server: $schema=https://storage.googleapis.com/coderabbit_public_assets/schema.v2.json
+#
+# CodeRabbit configuration for Ringee.
+#
+# Ringee is a production communications platform: real phone calls, real money,
+# real tenant data. This config tunes CodeRabbit to review like a senior Ringee
+# engineer — correctness, security, multi-tenancy, telephony provider
+# boundaries, billing idempotency, regressions and tests — and to stay quiet
+# about everything CI, ESLint and Prettier already own.
+#
+# Source of truth for the rules referenced below: AGENTS.md and
+# docs/engineering/ (ARCHITECTURE, BUSINESS_RULES, WORKSPACES, TELEPHONY,
+# BILLING, SECURITY, CANONICAL_IMPLEMENTATIONS).
+
+language: en-US
+
+tone_instructions: >-
+  Review as a senior Ringee engineer: direct, factual, no praise and no filler.
+  Name what is wrong, why it matters, the failure scenario, and the smallest
+  fix. Never restate what the code does. If a change is clean, say nothing.
+
+reviews:
+  # `chill` is deliberate. The review voice is set by tone_instructions above;
+  # `profile` only controls how many low-confidence nitpicks get posted, and
+  # this repo already carries a large advisory lint baseline (~557 findings)
+  # that must not be re-litigated in every PR.
+  profile: chill
+
+  # CI is the merge gate (.github/workflows/ci.yml). CodeRabbit advises.
+  request_changes_workflow: false
+  commit_status: true
+  fail_commit_status: false
+
+  high_level_summary: true
+  high_level_summary_instructions: >-
+    Write for a reviewer deciding where to look first. Cover, in this order:
+    (1) behaviour that changed, in domain terms — dial, webhook, debit, campaign,
+    auth, workspace scope; (2) architectural impact — new layers, new owners of a
+    responsibility, provider types crossing an adapter boundary, changes to
+    @ringee/services, @ringee/platform or @ringee/database contracts;
+    (3) risk areas — money, call lifecycle, tenancy, retries, migrations, public
+    contracts (Prisma enums, REST shapes, MCP tool schemas, SDK exports, Custom
+    Integration webhook payloads); (4) the files that actually carry the risk.
+    Skip formatting-only files — mention them as one line at most. No praise.
+  changed_files_summary: true
+  sequence_diagrams: true
+  estimate_code_review_effort: true
+  assess_linked_issues: true
+  related_issues: true
+  related_prs: true
+  suggested_labels: true
+  auto_apply_labels: false
+  suggested_reviewers: false
+  auto_assign_reviewers: false
+  # No poems, no fortunes, no ASCII art in a production repo's PRs.
+  poem: false
+  in_progress_fortune: false
+  # Keeps the "Prompt for AI Agents" blocks — this repo is worked on with
+  # coding agents, and those blocks are the handoff format.
+  enable_prompt_for_ai_agents: true
+  abort_on_close: true
+
+  auto_review:
+    enabled: true
+    auto_incremental_review: true
+    drafts: false
+    # Feature branches are frequently stacked on other feature branches here.
+    base_branches:
+      - main
+      - "feat/.*"
+      - "fix/.*"
+    # Never stop reviewing a long-running branch half way through.
+    auto_pause_after_reviewed_commits: 0
+    ignore_title_keywords:
+      - wip
+      - "[skip review]"
+    labels:
+      - "!wip"
+      - "!no-review"
+
+  path_filters:
+    # Generated / build output — no review value.
+    - "!pnpm-lock.yaml"
+    - "!**/dist/**"
+    - "!**/build/**"
+    - "!**/.next/**"
+    - "!**/.next-*/**"
+    - "!**/next-env.d.ts"
+    - "!**/*.tsbuildinfo"
+    - "!**/coverage/**"
+    - "!.nyc_output/**"
+    - "!results/**"
+    - "!.local-sdk*/**"
+    # Vendored/bundled playground artifacts and PWA output (already ESLint-ignored).
+    - "!apps/sdk-playground/**/vendor/**"
+    - "!apps/sdk-playground/ui-gallery/gallery.js"
+    - "!apps/sdk-playground/ui-gallery/gallery.js.map"
+    - "!apps/frontend/public/sw.js"
+    - "!apps/frontend/public/workbox-*.js"
+    - "!**/*.map"
+    # Binary assets.
+    - "!**/*.{png,jpg,jpeg,gif,ico,webp,avif,mp3,mp4,wav,pdf,woff,woff2,ttf,eot}"
+    # NOTE: migrations, Dockerfiles, docker-compose, CI workflows, package.json,
+    # schema.prisma and .env.example are intentionally NOT excluded — they carry
+    # real risk.
+
+  path_instructions:
+    # ── Global policy ───────────────────────────────────────────────────────
+    - path: "**"
+      instructions: >-
+        Ringee is a production communications platform. Judge every change by
+        whether it preserves reliability, workspace isolation, billing
+        correctness, backwards compatibility for existing consumers, and the
+        ability to swap providers.
+
+        Priority order for findings: correctness > security > architecture
+        boundaries > regression risk > error handling > concurrency and race
+        conditions > telephony lifecycle correctness > data integrity > API
+        contract compatibility > tests.
+
+        Only raise a finding when you can name a concrete failure: specific
+        input or state, and the resulting wrong behaviour. If you cannot, say
+        nothing.
+
+        Do NOT comment on: formatting or anything Prettier/ESLint/Biome/
+        markdownlint/Stylelint already reports (unused vars, unused catch
+        bindings, no-case-declarations, missing markdown code-fence languages,
+        CSS casing, line wrapping); naming preferences; missing docstrings or
+        obvious comments; code outside this PR's diff; speculative refactors
+        with no concrete benefit; an existing repository pattern merely because
+        another style would also work.
+
+        Write each finding as: what is wrong, why it matters, the likely failure
+        scenario, and the smallest reasonable fix. One comment per distinct
+        problem.
+
+        Be concrete: prefer "this processes the webhook twice when Telnyx
+        retries the event, because the idempotency marker is written after the
+        side effect" over "consider improving idempotency".
+
+        Architecture recap — request flow is
+        frontend -> apps/backend /api controller -> @ringee/services ->
+        @ringee/database, with @ringee/platform supplying cross-cutting concerns
+        and every external-provider adapter through NestJS DI. Do not skip a
+        layer, do not build a parallel architecture next to an existing one, and
+        do not suggest architectural rewrites for aesthetics. Business rules
+        found in the code are system constraints (docs/engineering/
+        BUSINESS_RULES.md); flag any change that removes, weakens or bypasses
+        one without saying so explicitly.
+
+    # ── Backend controllers / API surface ───────────────────────────────────
+    - path: "apps/backend/src/api/routes/**/*.ts"
+      instructions: >-
+        Controllers stay thin: authenticate, build the ownership context,
+        delegate to a service in @ringee/services, shape the response.
+
+        Flag: business logic implemented in the controller; a controller
+        reaching into @ringee/database repositories or PrismaService instead of
+        a service; a controller importing a provider SDK or provider types.
+
+        Flag every `@Public()` route that does not carry its own proof of
+        authorization inside the handler — a verified provider signature, a
+        hashed magic-link token, an SDK session, or an API key (AUTH-002).
+        Flag `@Public()` being widened beyond the route that needs it.
+        Exception: a route that returns only public reference data with no
+        tenant scope (country rates, pricing, number availability) is
+        intentionally public. Raise it only if it exposes tenant data, performs
+        a mutation, or lets an unauthenticated caller drive a paid provider call
+        with no rate limit.
+
+        Flag identity or authorization derived from the request body or query:
+        a client-supplied userId, organizationId, memberId or resource id is
+        never an authorization claim (WRK-002). Identity comes from the auth
+        layer.
+
+        Flag: missing DTO validation on user input; unawaited async calls and
+        floating promises; internal exceptions or provider errors leaked to the
+        client; swallowed errors; materially wrong HTTP status codes;
+        inconsistent DTO/domain transformations; `any` or unsafe type assertions
+        that hide a real type problem.
+
+        Flag breaking changes to response shapes — the web app, Chrome
+        extension, dialer SDK, CLI, Attio app, ChatGPT app and MCP surface all
+        consume them. Additive is safe; renames and removals are not.
+
+    # ── Webhooks and other replayable entry points ──────────────────────────
+    - path: "apps/backend/src/{api/routes/{call,stripe,clerk,whatsapp,messaging.webhook,desk-phone.webhook,custom-integrations.webhook}.controller.ts,triggerloop/**}"
+      instructions: >-
+        These handlers are replayed by providers. Every one of them must be safe
+        to process twice.
+
+        Flag: a side effect (charge, balance mutation, call state transition,
+        outbound event, notification) that happens before the idempotency marker
+        is checked or written; a marker written outside the transaction that
+        performs the effect; a handler with no stored guard at all (ledger key,
+        settled totalCost, status transition).
+
+        Flag any webhook route that does not verify its signature or shared
+        secret before acting, and any secret comparison that is not
+        constant-time.
+
+        Flag unbounded or unguarded retries, and retry paths that can produce a
+        duplicate call, charge, balance mutation or event.
+
+        Flag raw provider payloads being interpreted here instead of going
+        through the normalizer in packages/platform/src/telephony.
+
+    # ── Guards / auth primitives ────────────────────────────────────────────
+    - path: "apps/backend/src/**/*.guard.ts"
+      instructions: >-
+        Guards are the authorization boundary. Flag any path where an error,
+        a missing claim, an unset config value or an empty allowlist results in
+        access being granted — guards must fail closed. Flag authorization
+        decisions based on client-supplied values, and any weakening of an
+        existing check (a removed role test, a broadened allowlist, a bypass
+        branch for a specific email or environment).
+
+    # ── Business logic layer ────────────────────────────────────────────────
+    - path: "packages/services/**/*.ts"
+      instructions: >-
+        This is where business logic belongs, and where workspace isolation is
+        enforced.
+
+        Flag any workspace-scoped read or write that does not go through the
+        ownership context: createOwnershipContext(user) ->
+        buildOwnershipFilter(ctx) from @ringee/platform. An organization scope
+        filters by organizationId; a personal scope filters by userId AND
+        organizationId: null. Never mixed.
+
+        Flag a service method that takes a resource id without an
+        OwnershipContext, or that loads a resource by id alone and acts on it
+        (WRK-002). Loading then checking ownership afterwards is acceptable only
+        when the check is unconditional and precedes every side effect; prefer
+        an ownership-filtered query.
+
+        The OwnershipContext itself is built by the controller from the
+        authenticated user (createOwnershipContext), so a service trusting
+        ctx.organizationId or ctx.userId is not by itself a vulnerability — do
+        not report it as one. Report it when a scope value can originate from
+        request input, or when the context is constructed inside the service
+        from something other than the auth layer.
+
+        Flag direct PrismaService use — data access goes through repositories in
+        @ringee/database. Flag provider SDK imports (telnyx, stripe, openai,
+        @anthropic-ai/sdk) and provider-specific conditionals; use the
+        @ringee/platform abstraction (ARCH-001).
+
+        Flag a second implementation of a responsibility that already has an
+        owner (see docs/engineering/CANONICAL_IMPLEMENTATIONS.md), and circular
+        dependencies between services.
+
+        Flag: new dial surfaces that bypass ConcurrentCallGuardService
+        (one call at a time per user); read-then-write sequences on shared state
+        that should be atomic; multi-write sequences that should be one
+        transaction; unawaited side effects.
+
+    # ── Money: credits, balances, call cost, offers, subscriptions ──────────
+    - path: "**/*{credit,billing,cost,price,pricing,offer,subscription,stripe,invoice,payment,rate}*.{ts,tsx}"
+      instructions: >-
+        Money paths. Treat every finding here as high severity.
+
+        Flag: a balance mutation that does not go through CreditService —
+        creditTopupOnce (Stripe) or grantCreditsOnce (non-purchase grants) for
+        money in, consumeCredits for money out (BILL-001). Flag a consumeCredits
+        call without a stable idempotency ref, or with a ref derived from a
+        value that changes between retries (a fresh timestamp, Date.now(), a new
+        uuid) — that key must be identical for a retried attempt and different
+        only for a genuinely new one.
+
+        Flag a ledger row and a balance move that are not in the same
+        transaction (BILL-003), read-modify-write balance updates instead of
+        atomic increments (BILL-005), and any path where a failure between the
+        two leaves a recorded key with no matching balance change.
+
+        Flag double charging, double crediting, and any retry path that can
+        charge twice. Flag a successful billable operation that records no
+        usage, and a failed operation that still consumes balance.
+
+        Flag balance or price arithmetic that loses precision where the codebase
+        uses a precise representation, and flag missing validation on
+        configured margins and fees (non-finite or negative values reaching a
+        price calculation).
+
+        Flag missing workspace ownership on any balance, ledger or usage row.
+
+    # ── Telephony provider boundary ─────────────────────────────────────────
+    - path: "packages/platform/src/telephony/**/*.ts"
+      instructions: >-
+        Telnyx is a provider, not the Ringee domain. Everything provider-shaped
+        stops here.
+
+        Inside the adapter (telnyx/**): flag normalization gaps — provider
+        fields dropped, timestamps taken from the wrong field (prefer the
+        envelope's event time over payload-specific fields), states mapped to
+        the wrong normalized value, and unknown or unsupported event types that
+        are silently dropped instead of being explicitly handled and logged.
+
+        Outside the adapter (interfaces/**, telephony.service.ts): flag any
+        Telnyx SDK type, raw webhook payload shape, provider enum or
+        provider-specific string leaking into the normalized contract
+        (TelephonyEvent, TelephonyEventType and friends). Flag anything that
+        makes adding a second telephony provider harder — a provider-specific
+        conditional in provider-independent code, a normalized type that only
+        Telnyx can satisfy.
+
+        Provider credentials come from @ringee/configuration, never from a
+        literal.
+
+    # ── Telephony consumers: call lifecycle ─────────────────────────────────
+    - path: "**/*{call,dial,voicemail,recording,transcription,campaign}*.{ts,tsx}"
+      instructions: >-
+        Call lifecycle correctness.
+
+        Flag: incorrect or missing call-state transitions (initiated, answered,
+        hangup, recording, streaming, voicemail, AMD, failure); transitions that
+        assume ordered delivery when provider events can arrive out of order or
+        twice; duplicate event processing; a terminal state that can be
+        overwritten by a late event; missing handling for unknown or
+        unsupported provider events.
+
+        Flag races between concurrent call events on the same call, and between
+        a call event and a settlement or debit.
+
+        Flag application or domain code consuming a provider-specific webhook
+        payload directly instead of the normalized telephony event, and new
+        provider-specific branches in provider-independent services.
+
+        Where provider types have already leaked (call webhooks — see
+        docs/engineering/ARCHITECTURE_DEBT.md), flag changes that widen the leak.
+
+    # ── Platform adapters generally ─────────────────────────────────────────
+    - path: "packages/platform/src/**/*.ts"
+      instructions: >-
+        @ringee/platform owns every external-provider adapter and the
+        cross-cutting primitives. Provider SDKs are imported only here.
+
+        Flag: provider types, enums or states exposed through the adapter's
+        public surface instead of being normalized; a second normalization layer
+        added next to an existing canonical one; credentials read from anywhere
+        other than @ringee/configuration; adapters that reach back into
+        @ringee/services or @ringee/database.
+
+    # ── Public integration contracts ────────────────────────────────────────
+    - path: "packages/platform/src/custom-integrations/**/*.ts"
+      instructions: >-
+        Outbound Custom Integration webhooks are a public contract with external
+        consumers. Flag renamed or removed event names and payload fields
+        (additive is safe), changes to signing or API-key handling that weaken
+        verification, non-constant-time secret comparison, and delivery paths
+        that can emit the same event twice.
+
+    - path: "{packages/agent/**/*.ts,apps/backend/src/mcp/**/*.ts,packages/dialer-sdk/src/**/*.ts,apps/attio/src/**/*.ts}"
+      instructions: >-
+        These are published or externally consumed contracts (MCP tool schemas,
+        the published dialer SDK, the Attio app). Flag renames, removals,
+        narrowed types, changed required/optional status and changed defaults —
+        additive changes are safe, breaking ones need to be intentional and
+        called out. Flag tool or SDK surfaces that expose data without a
+        workspace scope, and any secret or backend-only configuration reachable
+        from a client bundle.
+
+    # ── Data access ─────────────────────────────────────────────────────────
+    - path: "packages/database/src/database/repositories/**/*.ts"
+      instructions: >-
+        Repositories own data access; they do not own business logic.
+
+        Flag: a query on a workspace-scoped model that does not apply the
+        ownership filter, or applies it partially (missing organizationId: null
+        on a personal scope); findUnique/findFirst by id with no tenancy
+        predicate on a tenant-owned model that is then acted on.
+
+        Flag: multiple writes that must succeed together but are not in one
+        transaction; read-then-write sequences that should be an atomic update
+        or an upsert with a unique constraint; N+1 queries on paths that run per
+        call, per contact or per campaign lead; unbounded queries with no take
+        or pagination on high-volume tables (calls, contacts, campaign leads,
+        transcriptions, ledger rows).
+
+        Flag a newly introduced query filter or sort over a high-volume table
+        with no supporting index in schema.prisma. Do not speculate about
+        performance without evidence from the changed code.
+
+    - path: "packages/database/prisma/schema.prisma"
+      instructions: >-
+        Prisma enums and model shapes are public contracts consumed across the
+        repo and by external clients. Flag renamed or removed enum values,
+        fields and models; a required column added to a populated table with no
+        default; changed relation cardinality; and unique constraints removed
+        from anything used as an idempotency key. Flag new tenant-owned models
+        without organizationId/userId scoping, and new high-volume query fields
+        without an index.
+
+    - path: "packages/database/prisma/**/*.sql"
+      instructions: >-
+        Migration safety. Flag: destructive operations (DROP COLUMN, DROP TABLE,
+        type narrowing, NOT NULL added without a backfill) with no stated
+        migration strategy; a rename that breaks running application code during
+        deploy; index creation on a large table without CONCURRENTLY; data
+        backfills in the same statement as a blocking schema change; anything
+        that cannot be rolled forward safely. State the deploy-time failure, not
+        a style preference.
+
+    # ── Frontend ────────────────────────────────────────────────────────────
+    - path: "apps/frontend/src/**/*.{ts,tsx}"
+      instructions: >-
+        Review behaviour, not design. Do not comment on CSS, class ordering or
+        visual preferences unless they cause a functional or accessibility
+        regression.
+
+        Flag: broken or unreachable state transitions; stale state read after an
+        async boundary; missing or wrong query/cache invalidation after a
+        mutation; race conditions between concurrent requests or between a
+        request and unmount; effects with wrong dependencies that cause render
+        loops or duplicate requests; missing loading or error states where their
+        absence breaks the flow.
+
+        Flag authorization assumed on the client: useOrgRole and RoleGuard are
+        UX only (WRK-005). A UI-only gate on a privileged action is a finding
+        unless the server-side guard is also in place.
+
+        Flag secrets, backend-only configuration or server-only packages
+        (@ringee/services, @ringee/database, @ringee/platform,
+        @ringee/configuration) reaching the browser bundle, and any non-public
+        value in a NEXT_PUBLIC_ variable.
+
+    - path: "{apps/frontend/src/features/{dialer,dialer-session,calls}/**/*.{ts,tsx},packages/dialer-core/src/**/*.ts,packages/dialer-ui/src/**/*.{ts,tsx}}"
+      instructions: >-
+        Dialing and in-call state. Flag any regression in the call state machine:
+        a transition that can strand the UI in a non-terminal state, an event
+        handler that assumes ordered or single delivery, cleanup that does not
+        run on unmount or on error, a reconnect path that can produce a second
+        active call, and state derived from a stale closure during a call.
+
+    # ── Background work ─────────────────────────────────────────────────────
+    - path: "apps/orchestrator/src/**/*.ts"
+      instructions: >-
+        Temporal workers. workflows.ts runs in a deterministic sandbox: flag any
+        runtime import other than @temporalio/workflow (type-only imports are
+        fine), and any non-determinism — Date.now(), Math.random(), direct I/O,
+        uuid generation outside a workflow-safe API.
+
+        Flag activities that are not safe to retry: side effects without an
+        idempotency key, partial writes with no compensation, and unbounded
+        retry policies on operations that cost money or place calls.
+
+    # ── Tests ───────────────────────────────────────────────────────────────
+    - path: "**/*.{spec,test}.ts"
+      instructions: >-
+        Tests should assert observable behaviour, not implementation details.
+        Flag: assertions on mock call counts where an observable outcome is
+        available; tests that cannot fail; a regression fix whose test does not
+        reproduce the original bug; missing negative and error-path cases on
+        authorization, tenancy, billing and webhook tests.
+
+        Runners differ per workspace — node:test for @ringee/services and
+        @ringee-io/agent, vitest for @ringee/platform, dialer-core, dialer-sdk
+        and browser-extension. Match the surrounding file.
+
+    # ── Docs and agent rules ────────────────────────────────────────────────
+    - path: "{docs/**/*.md,AGENTS.md,CLAUDE.md,**/AGENTS.md}"
+      instructions: >-
+        These documents are the rulebook agents and contributors follow, so
+        review them for factual accuracy against the code in this PR: a
+        documented invariant that the implementation does not actually enforce,
+        a stale symbol, path or command, a rule ID whose description no longer
+        matches the code, or a business rule silently changed by this PR without
+        its documentation being updated. Do not report markdown style issues
+        (code-fence languages, heading style, line length, wording).
+
+    # ── CI / infrastructure ─────────────────────────────────────────────────
+    - path: "{.github/workflows/**,Dockerfile*,**/Dockerfile*,docker-compose*.yml}"
+      instructions: >-
+        Flag: workflows that grant more GITHUB_TOKEN permission than they need
+        or persist credentials while running pull-request-controlled code;
+        untrusted PR input interpolated into a run block; secrets exposed to
+        forks or echoed into logs; a quality gate weakened or made non-blocking
+        (the architecture-boundary gate must keep failing the build on new
+        ARCH-001..ARCH-004 violations); a required check removed from CI.
+        Real secrets in images or compose files are always a finding — CI
+        placeholder values are not.
+
+    - path: "{.env.example,**/*.config.{ts,js,mjs}}"
+      instructions: >-
+        Flag real credentials, tokens or private URLs committed as examples, new
+        required configuration added without a documented default or a startup
+        validation, and insecure defaults (permissive CORS, disabled signature
+        verification, debug or verbose logging of request bodies).
+
+  pre_merge_checks:
+    # Docstring coverage is not a Ringee convention; the default 80% threshold
+    # fails every PR in this repo for no benefit.
+    docstrings:
+      mode: "off"
+    title:
+      mode: warning
+      requirements: >-
+        Conventional-commit style (feat:, fix:, refactor:, docs:, chore:,
+        perf:, test:), under ~72 characters, naming the primary behaviour
+        changed. A branch name or a bare scope is not a title. Pass if the title
+        identifies what changed even when the PR touches several areas.
+    description:
+      mode: warning
+    issue_assessment:
+      mode: warning
+    custom_checks:
+      - name: Workspace isolation
+        mode: warning
+        instructions: >-
+          Pass if the PR adds no workspace-scoped read or write, or if every one
+          it adds derives identity from the auth layer and applies the ownership
+          context (createOwnershipContext / buildOwnershipFilter, or an
+          equivalent explicit organizationId/userId predicate) before returning
+          or mutating data. Fail if any new query, mutation or service method
+          reaches a tenant-owned resource by id alone, trusts a client-supplied
+          userId/organizationId/memberId as an authorization claim, or mixes
+          organization scope with personal scope. Ignore frontend-only role
+          checks; they are UX.
+      - name: Credit and call idempotency
+        mode: warning
+        instructions: >-
+          Pass if the PR touches no balance mutation, billable operation or
+          replayable provider handler. Otherwise fail if any of these is true:
+          a balance changes outside CreditService; a consumeCredits call has no
+          idempotency ref or uses a ref that differs between retries of the same
+          attempt; a ledger write and its balance move are not in one
+          transaction; a webhook or retryable handler performs a side effect
+          before checking its stored idempotency marker.
+      - name: Provider boundary
+        mode: warning
+        instructions: >-
+          Pass if the PR introduces no new import of a provider SDK (telnyx,
+          @telnyx/webrtc, stripe, openai, @anthropic-ai/sdk) outside
+          packages/platform, no new direct @prisma/client import outside
+          @ringee/database, no server-only package imported from a browser
+          bundle, and no raw provider webhook payload or provider-specific enum
+          consumed outside a packages/platform adapter. Type-only imports that
+          the repository's ESLint config already permits are acceptable. Fail
+          and name the file and the boundary otherwise.
+
+  finishing_touches:
+    # Docstring and CI-fixing bots are not wanted on a production repo; test
+    # scaffolding on request is.
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: true
+    simplify:
+      enabled: false
+    autofix:
+      enabled: true
+
+  tools:
+    # ── Disabled: CI already runs these, and their output here is pure noise ──
+    # `pnpm lint` runs ESLint (with eslint-plugin-prettier) in CI and the repo
+    # carries a large advisory baseline. Re-reporting Prettier diffs, unused
+    # vars and no-case-declarations per PR buries the real findings — and
+    # CodeRabbit's own ESLint runs fail on this monorepo's workspace resolution.
+    # Architecture boundaries (ARCH-001..ARCH-004) stay enforced by the CI gate
+    # and by the "Provider boundary" pre-merge check above.
+    eslint:
+      enabled: false
+    biome:
+      enabled: false
+    oxc:
+      enabled: false
+    stylelint:
+      enabled: false
+    htmlhint:
+      enabled: false
+    markdownlint:
+      enabled: false
+    languagetool:
+      enabled: false
+    vale:
+      enabled: false
+    yamllint:
+      enabled: false
+    # Irrelevant to this stack.
+    ruff:
+      enabled: false
+    pylint:
+      enabled: false
+    flake8:
+      enabled: false
+    rubocop:
+      enabled: false
+    brakeman:
+      enabled: false
+
+    # ── Enabled: deterministic signal CI does not already produce ────────────
+    gitleaks:
+      enabled: true
+    semgrep:
+      enabled: true
+    checkov:
+      enabled: true
+    actionlint:
+      enabled: true
+    zizmor:
+      enabled: true
+    hadolint:
+      enabled: true
+    shellcheck:
+      enabled: true
+    prismaLint:
+      enabled: true
+    squawk:
+      enabled: true
+    osvScanner:
+      enabled: true
+    dotenvLint:
+      enabled: true
+    github-checks:
+      enabled: true
+
+chat:
+  auto_reply: true
+  art: false
+
+knowledge_base:
+  code_guidelines:
+    enabled: true
+    filePatterns:
+      - AGENTS.md
+      - CLAUDE.md
+      - "apps/*/AGENTS.md"
+      - "packages/*/AGENTS.md"
+      - "docs/engineering/*.md"
+      - "docs/engineering/decisions/*.md"
+      - CONTRIBUTING.md
+      - SECURITY.md
+  learnings:
+    scope: auto
+  pull_requests:
+    scope: auto
+  issues:
+    scope: auto
+
+code_generation:
+  unit_tests:
+    path_instructions:
+      - path: "packages/services/src/**/*.ts"
+        instructions: >-
+          Use node:test with node:assert/strict, in a sibling *.spec.ts file
+          (the workspace test script globs src/**/*.spec.ts). Cover the
+          ownership-context path explicitly: a caller from another workspace
+          must not reach the resource. For billing paths, cover the duplicate
+          idempotency key case and assert the balance did not move twice.
+      - path: "packages/platform/src/**/*.ts"
+        instructions: >-
+          Use vitest (*.test.ts, colocated). For telephony normalization, drive
+          real provider envelope shapes, including events missing optional
+          payload fields and unknown event types, and assert on the normalized
+          contract rather than the provider payload.
+      - path: "packages/{dialer-core,dialer-sdk}/src/**/*.ts"
+        instructions: >-
+          Use vitest. Cover call-state transitions including out-of-order and
+          duplicate events, and cleanup on unmount/disconnect.

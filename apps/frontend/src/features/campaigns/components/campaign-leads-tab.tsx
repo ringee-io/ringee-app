@@ -201,7 +201,9 @@ export function CampaignLeadsTab({
                 <SelectContent>
                   {STATUS_FILTERS.map((s) => (
                     <SelectItem key={s} value={s}>
-                      {s === 'all' ? t('list.allStatuses') : t(`leadStatus.${s}`)}
+                      {s === 'all'
+                        ? t('list.allStatuses')
+                        : t(`leadStatus.${s}`)}
                     </SelectItem>
                   ))}
                 </SelectContent>

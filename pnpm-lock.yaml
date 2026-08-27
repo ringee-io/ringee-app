@@ -15,6 +15,9 @@ importers:
       '@eslint/js':
         specifier: ~9.35.0
         version: 9.35.0
+      '@next/eslint-plugin-next':
+        specifier: 15.1.0
+        version: 15.1.0
       doctoc:
         specifier: ~2.2.0
         version: 2.2.1
@@ -33,6 +36,9 @@ importers:
       eslint-plugin-react:
         specifier: ~7.37.4
         version: 7.37.5(eslint@9.35.0(jiti@2.7.0))
+      eslint-plugin-react-hooks:
+        specifier: 5.2.0
+        version: 5.2.0(eslint@9.35.0(jiti@2.7.0))
       globals:
         specifier: ~16.4.0
         version: 16.4.0
@@ -84,7 +90,7 @@ importers:
     dependencies:
       attio:
         specifier: latest
-        version: 0.0.1-experimental.20260805(@types/node@24.12.2)(bufferutil@4.1.0)(eslint@9.35.0(jiti@2.7.0))(react-dom@19.1.1(react@19.1.0))(react@19.1.0)(utf-8-validate@6.0.6)
+        version: 1.0.0(@types/node@24.12.2)(bufferutil@4.1.0)(eslint@9.35.0(jiti@2.7.0))(react-dom@19.1.1(react@19.1.0))(react@19.1.0)(utf-8-validate@6.0.6)
       react:
         specifier: 19.1.0
         version: 19.1.0
@@ -8407,8 +8413,8 @@ packages:
     resolution: {integrity: sha512-+q/t7Ekv1EDY2l6Gda6LLiX14rU9TV20Wa3ofeQmwPFZbOMo9DXrLbOjFaaclkXKWidIaopwAObQDqwWtGUjqg==}
     engines: {node: '>= 4.0.0'}
 
-  attio@0.0.1-experimental.20260805:
-    resolution: {integrity: sha512-7wjdbuH/q7gObjL2yQbpWqF19MlkG+bLxV9cWBkvUFbwIFk59lRoMObSvnGKMGqJTweNJA/tBCu6fPsbx8X2XQ==}
+  attio@1.0.0:
+    resolution: {integrity: sha512-10Hk28IspwOgh2HA863rwfu9luJjEICQSmmv/ncSS2u3udxxCM/THp/Ynkt2lNToaduLPyvRAMzWkypBoIN3pg==}
     hasBin: true
 
   attr-accept@2.2.5:
@@ -9649,6 +9655,7 @@ packages:
   eslint@9.35.0:
     resolution: {integrity: sha512-QePbBFMJFjgmlE+cXAlbHZbHpdFVS2E/6vzCy7aKlebddvl1vadiC4JFV5u/wqTkNUwEV8WrQi257jf5f06hrg==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
+    deprecated: This version is no longer supported. Please see https://eslint.org/version-support for other options.
     hasBin: true
     peerDependencies:
       jiti: '*'
@@ -23343,7 +23350,7 @@ snapshots:
 
   at-least-node@1.0.0: {}
 
-  attio@0.0.1-experimental.20260805(@types/node@24.12.2)(bufferutil@4.1.0)(eslint@9.35.0(jiti@2.7.0))(react-dom@19.1.1(react@19.1.0))(react@19.1.0)(utf-8-validate@6.0.6):
+  attio@1.0.0(@types/node@24.12.2)(bufferutil@4.1.0)(eslint@9.35.0(jiti@2.7.0))(react-dom@19.1.1(react@19.1.0))(react@19.1.0)(utf-8-validate@6.0.6):
     dependencies:
       '@attio/fetchable': 0.0.1-experimental.9
       '@babel/code-frame': 7.27.1
@@ -24838,6 +24845,10 @@ snapshots:
   eslint-plugin-react-hooks@5.2.0(eslint@8.48.0):
     dependencies:
       eslint: 8.48.0
+
+  eslint-plugin-react-hooks@5.2.0(eslint@9.35.0(jiti@2.7.0)):
+    dependencies:
+      eslint: 9.35.0(jiti@2.7.0)
 
   eslint-plugin-react@7.37.5(eslint@8.48.0):
     dependencies:

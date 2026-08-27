@@ -71,7 +71,6 @@ export default function AboutPage() {
       ]}
       cta={<CtaSection />}
     >
-
       <Section className='pt-8 pb-4'>
         <Container className='max-w-3xl'>
           <h1 className='text-4xl font-bold tracking-tight text-balance sm:text-5xl'>
@@ -87,10 +86,10 @@ export default function AboutPage() {
             </p>
             <p>
               The project started from a simple frustration: outbound calling
-              tools charge per seat, lock your data in, and were built before
-              AI agents could do real work. Ringee takes the opposite stance —
-              flat pricing, open source, self-hostable, and driven by the AI
-              tools teams already use.
+              tools charge per seat, lock your data in, and were built before AI
+              agents could do real work. Ringee takes the opposite stance — flat
+              pricing, open source, self-hostable, and driven by the AI tools
+              teams already use.
             </p>
           </div>
         </Container>
@@ -135,12 +134,7 @@ export default function AboutPage() {
             <ButtonLink href={GITHUB_ORG_URL} external withArrow>
               See the code on GitHub
             </ButtonLink>
-            <ButtonLink
-              href={DOCS_URL}
-              variant='secondary'
-              external
-              withArrow
-            >
+            <ButtonLink href={DOCS_URL} variant='secondary' external withArrow>
               Developer docs
             </ButtonLink>
           </div>

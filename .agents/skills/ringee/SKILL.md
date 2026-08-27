@@ -20,21 +20,25 @@ How to act, in order of preference:
 ## Capabilities (logical tool → what it does)
 
 Read (always safe):
+
 - `search_contacts` — find contacts by name/phone/email/company
 - `get_contact` — full record for one contact
 - `get_call_session` — session status/progress (never exposes the token)
 - `search_leads` — prospect candidates (returns a `jobId`; NOT contacts yet)
 
 Write (normal intent is enough):
+
 - `create_contact`, `update_contact`
 - `log_call_outcome`, `create_callback`, `schedule_meeting`
 - `import_leads_as_contacts`
 
 Sensitive (CONFIRM first — spends credits or mints shareable magic links):
+
 - `reveal_lead` (spends provider credits)
 - `create_call_session`, `update_call_session` (magic link)
 
 Destructive (STRICT confirmation):
+
 - `delete_contact` (double-confirmation)
 - `delete_call_session` (revokes the magic link)
 

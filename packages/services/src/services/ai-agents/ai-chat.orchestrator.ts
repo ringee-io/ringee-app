@@ -13,7 +13,7 @@ import {
 } from "@ringee/platform";
 import type { AiUsage } from "@ringee/platform";
 import { SSEBridgeService } from "../outbound/sse-bridge.service";
-import { CreditService } from "../credit.service";
+import { CreditService, incurredCostDebitRef } from "../credit.service";
 import { AgentRegistry, RunnableAgent } from "./agent.registry";
 import { AiContextBuilder } from "./ai-context.builder";
 import { AiConversationService } from "./ai-conversation.service";
@@ -570,7 +570,13 @@ export class AiChatOrchestrator {
     }
 
     try {
-      await this.credits.consumeCredits(ctx, cost);
+      // The model call already happened and the provider already billed us, so
+      // this is a new cost per turn rather than a replay of an earlier one.
+      await this.credits.consumeCredits(
+        ctx,
+        cost,
+        incurredCostDebitRef(`ai-chat:${conversationId}`, "ai.chat.turn"),
+      );
     } catch (err) {
       this.logger.warn(
         `AI credit debit failed for ${conversationId}: ${errorMessage(err)}`,

@@ -20,7 +20,10 @@ export function Breadcrumbs({ items }: { items: Crumb[] }) {
             return (
               <li key={item.href} className='flex items-center gap-1.5'>
                 {isLast ? (
-                  <span className='text-foreground font-medium' aria-current='page'>
+                  <span
+                    className='text-foreground font-medium'
+                    aria-current='page'
+                  >
                     {item.name}
                   </span>
                 ) : (

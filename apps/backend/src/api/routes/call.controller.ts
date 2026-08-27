@@ -11,6 +11,7 @@ import {
 } from "@nestjs/common";
 import {
   Public,
+  TelnyxEventNormalizer,
   TelnyxWebhookEvent,
   TelnyxWebhookVerifier,
 } from "@ringee/platform";
@@ -26,6 +27,7 @@ export class CallController {
     private readonly callService: CallService,
     private readonly activity: TriggerLoopActivityService,
     private readonly verifier: TelnyxWebhookVerifier,
+    private readonly normalizer: TelnyxEventNormalizer,
   ) {}
 
   @Public()
@@ -46,21 +48,29 @@ export class CallController {
       throw new UnauthorizedException("Invalid signature");
     }
 
-    const event = dto.data as TelnyxWebhookEvent;
+    const providerEvent = dto.data as TelnyxWebhookEvent;
     this.logger.debug(
-      `📨 Webhook Telnyx recibido: ${event?.event_type}`,
+      `📨 Telnyx webhook received: ${providerEvent?.event_type}`,
       new Date().getTime(),
     );
 
-    await this.callService.handleTelnyxEvent(event);
+    // Translate into Ringee's own event vocabulary here, at the edge. Nothing
+    // downstream of this line knows the carrier is Telnyx.
+    const event = this.normalizer.normalize(providerEvent);
+    if (!event) {
+      this.logger.warn(
+        `Dropping Telnyx event ${providerEvent?.event_type} with no call_control_id`,
+      );
+      return { received: true };
+    }
+
+    await this.callService.handleTelephonyEvent(event);
 
     // After a hangup, record activity and fire transition events. We fetch
     // the call here (in the controller layer) to avoid coupling
     // @ringee/services to the TriggerLoop module.
-    if (event.event_type === "call.hangup" && event.payload?.call_control_id) {
-      const call = await this.callService.findByControlId(
-        event.payload.call_control_id,
-      );
+    if (event.type === "call.hangup") {
+      const call = await this.callService.findByControlId(event.callControlId);
       if (call?.userId) {
         await this.activity.onCallCompleted(call.userId, call.id);
       }

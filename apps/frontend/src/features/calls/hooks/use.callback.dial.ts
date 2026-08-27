@@ -31,7 +31,7 @@ export function useCallbackDial() {
       setNumber(phone);
 
       // Fire-and-forget: marca completed en paralelo, no bloquea el dial.
-      // El agente sí intentó la llamada; si falla la marca, no revertimos.
+      // The agent did attempt the call; if marking it fails, don't revert.
       api
         .patch(`/callbacks/${callback.id}/complete`)
         .catch((err) => console.warn('Failed to mark callback completed', err));

@@ -62,7 +62,9 @@ export function CallDetailScreen({ id }: { id: string }) {
 
   const c = call;
   const inbound = c?.direction === "inbound" || c?.direction === "incoming";
-  const number = c ? c.phoneNumber || (inbound ? c.fromNumber : c.toNumber) : "";
+  const number = c
+    ? c.phoneNumber || (inbound ? c.fromNumber : c.toNumber)
+    : "";
   const name = c?.contactName || (number ? formatForDisplay(number) : "Call");
   const recordingUrl = c?.recordingUrl || detail?.recording?.url || null;
   const transcriptText = detail?.transcript?.text || null;
@@ -96,7 +98,9 @@ export function CallDetailScreen({ id }: { id: string }) {
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
           <div className="flex flex-col items-center gap-1.5 text-center">
             <Avatar name={c.contactName} fallback={number} size={64} />
-            <h2 className="mt-1 text-lg font-semibold tracking-tight">{name}</h2>
+            <h2 className="mt-1 text-lg font-semibold tracking-tight">
+              {name}
+            </h2>
             {number && name !== formatForDisplay(number) && (
               <p className="text-muted-foreground text-xs">
                 {formatForDisplay(number)}
@@ -117,7 +121,8 @@ export function CallDetailScreen({ id }: { id: string }) {
               {inbound ? "Inbound" : "Outbound"}
             </Field>
             <Field icon={Clock}>
-              {formatTime(c.startedAt ?? "")} · {formatDuration(c.durationSeconds)}
+              {formatTime(c.startedAt ?? "")} ·{" "}
+              {formatDuration(c.durationSeconds)}
             </Field>
             <div className="flex items-center gap-2 text-sm">
               <Tag className="text-muted-foreground h-3.5 w-3.5 shrink-0" />
@@ -157,7 +162,12 @@ export function CallDetailScreen({ id }: { id: string }) {
               <Mic className="h-3.5 w-3.5" /> Recording
             </h3>
             {recordingUrl ? (
-              <audio controls src={recordingUrl} className="w-full" preload="none" />
+              <audio
+                controls
+                src={recordingUrl}
+                className="w-full"
+                preload="none"
+              />
             ) : (
               <p className="text-muted-foreground text-xs">No recording.</p>
             )}

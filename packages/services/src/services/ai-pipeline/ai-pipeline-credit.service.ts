@@ -6,8 +6,8 @@ import {
   computeTokenCost,
   isModelPriced,
 } from "@ringee/platform";
-import { CreditService } from "../credit.service";
-import { PipelineContext } from "./pipeline-context";
+import { CreditService, incurredCostDebitRef } from "../credit.service";
+import { contextKey, PipelineContext } from "./pipeline-context";
 
 /** Billing failure that must not be downgraded to a successful AI run. */
 export class AiPipelineChargeError extends Error {
@@ -70,7 +70,14 @@ export class AiPipelineCreditService {
 
     const owner = billingOwner(input.context, input.fallbackUserId, operation);
     try {
-      await this.credits.consumeCredits(owner, cost);
+      await this.credits.consumeCredits(
+        owner,
+        cost,
+        incurredCostDebitRef(
+          `ai-pipeline:${contextKey(input.context)}`,
+          "ai.pipeline.run",
+        ),
+      );
     } catch (error) {
       throw new AiPipelineChargeError(
         `${operation} credit debit failed: ${errorMessage(error)}`,

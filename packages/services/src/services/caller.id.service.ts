@@ -8,10 +8,10 @@ import {
 } from "@nestjs/common";
 import { NumberPurchased, NumberPurchasedRepository } from "@ringee/database";
 import { TelephonyService, OwnershipContext } from "@ringee/platform";
+import { apiConfiguration } from "@ringee/configuration";
 import { CreditService } from "./credit.service";
 
 const E164 = /^\+[1-9]\d{6,14}$/;
-const DEFAULT_VERIFICATION_FEE = 1.0;
 
 /**
  * Manages verified caller IDs — external numbers a user owns elsewhere and
@@ -35,21 +35,27 @@ export class CallerIdService {
 
   /** The flat fee charged per verification sent (covers Telnyx base + channel). */
   getVerificationFee(): number {
-    const raw = process.env.CALLER_ID_VERIFICATION_FEE;
-    const fee = raw ? parseFloat(raw) : DEFAULT_VERIFICATION_FEE;
-    return Number.isFinite(fee) && fee >= 0 ? fee : DEFAULT_VERIFICATION_FEE;
+    return apiConfiguration.CALLER_ID_VERIFICATION_FEE;
   }
 
   async getCallerIds(ctx: OwnershipContext): Promise<NumberPurchased[]> {
     return this.repo.listCallerIds(ctx);
   }
 
+  /**
+   * Request (or re-request) a caller-ID verification code.
+   *
+   * `resend` must be set only when the user explicitly asked for another code.
+   * Leaving it unset makes a repeated request idempotent: it rejoins the
+   * in-flight attempt instead of opening — and billing — a new one.
+   */
   async requestVerification(
     ctx: OwnershipContext,
     phoneNumber: string,
     method: "sms" | "call",
     extension?: string,
     isoCountry?: string,
+    resend = false,
   ): Promise<NumberPurchased> {
     if (!E164.test(phoneNumber)) {
       throw new BadRequestException("A valid E.164 phone number is required");
@@ -60,14 +66,33 @@ export class CallerIdService {
       throw new BadRequestException("Caller ID already verified");
     }
 
-    // Billing gate: a user without enough credit cannot verify a caller ID.
+    // The billed unit is the verification ATTEMPT, and `verificationRequestedAt`
+    // is its identifier. An attempt that is still pending keeps its original
+    // stamp, so a double-submitted or client-retried request rebuilds the SAME
+    // idempotency key and `consumeCredits` collapses it into a single charge.
+    // A new stamp — and therefore a new charge — happens only on an explicit
+    // resend, or when the previous attempt is no longer pending.
+    //
+    // Stamping unconditionally, as this used to do, handed every retry its own
+    // millisecond and so its own charge and its own verification SMS.
+    const inFlightSince =
+      existing?.verificationStatus === "pending"
+        ? existing.verificationRequestedAt
+        : null;
+    const requestedAt = !resend && inFlightSince ? inFlightSince : new Date();
+    const isRejoiningPendingAttempt = !resend && !!inFlightSince;
+
+    // Billing gate: a user without enough credit cannot verify a caller ID,
+    // unless they are rejoining an existing pending attempt that was already paid for.
     const fee = this.getVerificationFee();
-    const balance = await this.creditService.getBalance(ctx);
-    if (balance < fee) {
-      throw new HttpException(
-        `Not enough credits. Verifying a caller ID costs $${fee.toFixed(2)}.`,
-        HttpStatus.PAYMENT_REQUIRED,
-      );
+    if (!isRejoiningPendingAttempt) {
+      const balance = await this.creditService.getBalance(ctx);
+      if (balance < fee) {
+        throw new HttpException(
+          `Not enough credits. Verifying a caller ID costs $${fee.toFixed(2)}.`,
+          HttpStatus.PAYMENT_REQUIRED,
+        );
+      }
     }
 
     // Upsert the pending caller-id row before charging so a charge always has a
@@ -76,7 +101,7 @@ export class CallerIdService {
       ? await this.repo.updateCallerId(existing.id, {
           verificationStatus: "pending",
           verificationMethod: method,
-          verificationRequestedAt: new Date(),
+          verificationRequestedAt: requestedAt,
         })
       : await this.repo.createCallerId(ctx, {
           phoneNumber,
@@ -85,12 +110,16 @@ export class CallerIdService {
           status: null,
           verificationStatus: "pending",
           verificationMethod: method,
-          verificationRequestedAt: new Date(),
+          verificationRequestedAt: requestedAt,
         });
 
     // Charge the fee, then dispatch the verification. Refund if Telnyx rejects
     // the request so a failed send never costs the user.
-    await this.creditService.consumeCredits(ctx, fee);
+    const attemptKey = `caller-id-verification:${callerId.id}:${requestedAt.toISOString()}`;
+    await this.creditService.consumeCredits(ctx, fee, {
+      idempotencyKey: attemptKey,
+      source: "telnyx.caller-id.verification",
+    });
     try {
       await this.telephonyService.requestCallIdVerification(
         phoneNumber,
@@ -98,8 +127,13 @@ export class CallerIdService {
         extension,
       );
     } catch (err) {
+      // Ledgered refund keyed to the same attempt, so a retried failure path
+      // cannot hand back the fee twice.
       await this.creditService
-        .addCredits(ctx, fee)
+        .grantCreditsOnce(ctx, fee, {
+          idempotencyKey: `${attemptKey}:refund`,
+          source: "telnyx.caller-id.verification.refund",
+        })
         .catch((refundErr) =>
           this.logger.error(
             `Failed to refund caller-id verification fee for ${phoneNumber}`,

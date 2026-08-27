@@ -68,10 +68,14 @@ console.log(`✓ vendor/${BUNDLE} (${kb} KB)`);
 
 // 3) Inject build-time defaults from env (safe no-op object if unset).
 const defaults = {};
-if (process.env.RINGEE_PLAYGROUND_PK) defaults.pk = process.env.RINGEE_PLAYGROUND_PK;
-if (process.env.RINGEE_PLAYGROUND_API) defaults.apiUrl = process.env.RINGEE_PLAYGROUND_API;
-if (process.env.RINGEE_PLAYGROUND_EMAIL) defaults.agentEmail = process.env.RINGEE_PLAYGROUND_EMAIL;
-if (process.env.RINGEE_PLAYGROUND_LOCALE) defaults.locale = process.env.RINGEE_PLAYGROUND_LOCALE;
+if (process.env.RINGEE_PLAYGROUND_PK)
+  defaults.pk = process.env.RINGEE_PLAYGROUND_PK;
+if (process.env.RINGEE_PLAYGROUND_API)
+  defaults.apiUrl = process.env.RINGEE_PLAYGROUND_API;
+if (process.env.RINGEE_PLAYGROUND_EMAIL)
+  defaults.agentEmail = process.env.RINGEE_PLAYGROUND_EMAIL;
+if (process.env.RINGEE_PLAYGROUND_LOCALE)
+  defaults.locale = process.env.RINGEE_PLAYGROUND_LOCALE;
 writeFileSync(
   resolve(vendor, "defaults.js"),
   "window.__RINGEE_PLAYGROUND_DEFAULTS__ = " + JSON.stringify(defaults) + ";\n",
@@ -101,7 +105,11 @@ if (has("--serve")) {
     if (path === "/") path = "/index.html";
     // Contain within `here` (no path traversal).
     const file = normalize(join(here, path));
-    if (!file.startsWith(here) || !existsSync(file) || statSync(file).isDirectory()) {
+    if (
+      !file.startsWith(here) ||
+      !existsSync(file) ||
+      statSync(file).isDirectory()
+    ) {
       res.writeHead(404, { "content-type": "text/plain" });
       res.end("Not found");
       return;

@@ -11,6 +11,7 @@ import {
   CalendarProvider,
 } from "@ringee/database";
 import { OwnershipContext } from "@ringee/platform";
+import { apiConfiguration } from "@ringee/configuration";
 
 export interface CalendarEvent {
   id: string;
@@ -41,7 +42,7 @@ export class CalendarService {
   // --- OAuth Flow Methods ---
 
   getGoogleOAuthUrl(redirectUri: string, state: string): string {
-    const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
+    const clientId = apiConfiguration.GOOGLE_CALENDAR_CLIENT_ID;
     if (!clientId)
       throw new BadRequestException("Google Calendar not configured");
 
@@ -59,7 +60,7 @@ export class CalendarService {
   }
 
   getMicrosoftOAuthUrl(redirectUri: string, state: string): string {
-    const clientId = process.env.MICROSOFT_CALENDAR_CLIENT_ID;
+    const clientId = apiConfiguration.MICROSOFT_CALENDAR_CLIENT_ID;
     if (!clientId)
       throw new BadRequestException("Microsoft Calendar not configured");
 
@@ -84,8 +85,8 @@ export class CalendarService {
     expiresAt?: Date;
     email?: string;
   }> {
-    const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
+    const clientId = apiConfiguration.GOOGLE_CALENDAR_CLIENT_ID;
+    const clientSecret = apiConfiguration.GOOGLE_CALENDAR_CLIENT_SECRET;
     if (!clientId || !clientSecret)
       throw new BadRequestException("Google Calendar not configured");
 
@@ -146,8 +147,8 @@ export class CalendarService {
     expiresAt?: Date;
     email?: string;
   }> {
-    const clientId = process.env.MICROSOFT_CALENDAR_CLIENT_ID;
-    const clientSecret = process.env.MICROSOFT_CALENDAR_CLIENT_SECRET;
+    const clientId = apiConfiguration.MICROSOFT_CALENDAR_CLIENT_ID;
+    const clientSecret = apiConfiguration.MICROSOFT_CALENDAR_CLIENT_SECRET;
     if (!clientId || !clientSecret)
       throw new BadRequestException("Microsoft Calendar not configured");
 
@@ -538,8 +539,8 @@ export class CalendarService {
   private async refreshGoogleToken(
     integration: CalendarIntegration,
   ): Promise<string> {
-    const clientId = process.env.GOOGLE_CALENDAR_CLIENT_ID;
-    const clientSecret = process.env.GOOGLE_CALENDAR_CLIENT_SECRET;
+    const clientId = apiConfiguration.GOOGLE_CALENDAR_CLIENT_ID;
+    const clientSecret = apiConfiguration.GOOGLE_CALENDAR_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
       throw new BadRequestException("Google Calendar not configured");
@@ -570,8 +571,8 @@ export class CalendarService {
   private async refreshMicrosoftToken(
     integration: CalendarIntegration,
   ): Promise<string> {
-    const clientId = process.env.MICROSOFT_CALENDAR_CLIENT_ID;
-    const clientSecret = process.env.MICROSOFT_CALENDAR_CLIENT_SECRET;
+    const clientId = apiConfiguration.MICROSOFT_CALENDAR_CLIENT_ID;
+    const clientSecret = apiConfiguration.MICROSOFT_CALENDAR_CLIENT_SECRET;
 
     if (!clientId || !clientSecret) {
       throw new BadRequestException("Microsoft Calendar not configured");

@@ -26,7 +26,13 @@ import type {
   TodayMeetingItem,
 } from "../../lib/ringee-api";
 import { formatTime, outcomeIsPositive, outcomeLabel } from "../../lib/format";
-import { EmptyState, ListRow, RowIcon, Section, Spinner } from "../components/ui";
+import {
+  EmptyState,
+  ListRow,
+  RowIcon,
+  Section,
+  Spinner,
+} from "../components/ui";
 import { useApp, useNav } from "../navigation";
 
 const flags = flagComponents as unknown as Flags;
@@ -72,7 +78,10 @@ export function TodayScreen() {
   };
 
   const empty =
-    data && !data.callbacks.length && !data.calls.length && !data.meetings.length;
+    data &&
+    !data.callbacks.length &&
+    !data.calls.length &&
+    !data.meetings.length;
 
   return (
     <div className="flex h-full flex-col">
@@ -133,7 +142,9 @@ export function TodayScreen() {
             className="text-muted-foreground hover:text-foreground hover:bg-accent flex h-7 w-7 items-center justify-center rounded-md transition"
             aria-label="Refresh"
           >
-            <RefreshCw className={"h-3.5 w-3.5" + (loading ? " animate-spin" : "")} />
+            <RefreshCw
+              className={"h-3.5 w-3.5" + (loading ? " animate-spin" : "")}
+            />
           </button>
         </div>
 
@@ -202,7 +213,11 @@ export function TodayScreen() {
               />
             </Section>
 
-            <Section title="Meetings" count={data.meetings.length} icon={Calendar}>
+            <Section
+              title="Meetings"
+              count={data.meetings.length}
+              icon={Calendar}
+            >
               <FeedList
                 empty={data.meetings.length === 0}
                 rows={data.meetings.map((m) => (
@@ -254,7 +269,13 @@ function CallbackRow({
   );
 }
 
-function CallRow({ item, onClick }: { item: TodayCallItem; onClick: () => void }) {
+function CallRow({
+  item,
+  onClick,
+}: {
+  item: TodayCallItem;
+  onClick: () => void;
+}) {
   const inbound = item.direction === "inbound" || item.direction === "incoming";
   const label = outcomeLabel(item.outcome);
   return (
@@ -283,10 +304,16 @@ function CallRow({ item, onClick }: { item: TodayCallItem; onClick: () => void }
         trailing={
           <span className="flex shrink-0 items-center gap-1.5">
             {item.hasRecording && (
-              <Mic className="h-3.5 w-3.5 text-emerald-600" aria-label="Has recording" />
+              <Mic
+                className="h-3.5 w-3.5 text-emerald-600"
+                aria-label="Has recording"
+              />
             )}
             {item.hasTranscription && (
-              <FileText className="h-3.5 w-3.5 text-emerald-600" aria-label="Has transcript" />
+              <FileText
+                className="h-3.5 w-3.5 text-emerald-600"
+                aria-label="Has transcript"
+              />
             )}
           </span>
         }

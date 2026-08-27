@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { apiConfiguration } from "@ringee/configuration";
 import { OwnershipContext } from "@ringee/platform";
 import { PrismaService } from "@ringee/database";
 import { NumberPurchasedService } from "../number.purchased.service";
@@ -125,7 +126,7 @@ export class SdkCallerIdResolver {
       .catch(() => [] as Array<{ phoneNumber?: string }>);
     if (numbers[0]?.phoneNumber) return numbers[0].phoneNumber;
 
-    return process.env.RINGEE_PUBLIC_CALLER_ID || null;
+    return apiConfiguration.RINGEE_PUBLIC_CALLER_ID || null;
   }
 
   static isE164(value: string): boolean {

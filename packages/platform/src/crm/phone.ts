@@ -1,20 +1,68 @@
+import { parsePhoneNumberFromString } from "libphonenumber-js/max";
+
+/**
+ * Server-side E.164 normalization, used for CRM matching and any place the
+ * backend has to reconcile a phone number it did not dial itself.
+ *
+ * libphonenumber is authoritative: it knows real numbering plans, so a number
+ * normalized here agrees with what the browser dialer
+ * (`@ringee/dialer-core/phone`) considers dialable. Previously this was a
+ * regex that accepted any 6–15 digits, which meant the two could disagree — a
+ * number the matcher accepted was not necessarily callable.
+ *
+ * The lenient path is KEPT as a fallback rather than removed. CRM records hold
+ * plenty of numbers libphonenumber cannot parse (extensions, partial
+ * international prefixes, country-less local numbers), and those rows already
+ * matched against each other under the old behaviour. Tightening to
+ * "valid or nothing" would silently stop syncing them, so an unparseable input
+ * still gets the digits-only treatment it used to get.
+ */
+
 const DIGITS_ONLY = /[^\d+]/g;
+
+/** Digit-count bounds for the fallback path, per E.164. */
+const MIN_DIGITS = 6;
+const MAX_DIGITS = 15;
+
+/** `x22`, `ext 22`, `ext. 22`, `#22`, and the RFC 3966 `;ext=22`. */
+const EXTENSION_SUFFIX = /(?:\s*(?:ext\.?|extension|x|#)\s*|;ext=)\d+\s*$/i;
+
+function lenientE164(cleaned: string): string | null {
+  if (cleaned.startsWith("+")) {
+    const digits = cleaned.slice(1).replace(DIGITS_ONLY, "");
+    if (digits.length < MIN_DIGITS || digits.length > MAX_DIGITS) return null;
+    return `+${digits}`;
+  }
+  const digits = cleaned.replace(/\D/g, "");
+  if (digits.length < MIN_DIGITS || digits.length > MAX_DIGITS) return null;
+  return `+${digits}`;
+}
 
 export function normalizePhoneE164(
   raw: string | null | undefined,
+  /**
+   * Region used to resolve a number with no country code. Defaults to `US`,
+   * matching `DEFAULT_REGION` in `@ringee/dialer-core/phone`.
+   */
+  region: string = "US",
 ): string | null {
   if (!raw) return null;
   const trimmed = raw.trim();
   if (!trimmed) return null;
-  const cleaned = trimmed.replace(/[\s()\-\.]/g, "");
-  if (cleaned.startsWith("+")) {
-    const digits = cleaned.slice(1).replace(DIGITS_ONLY, "");
-    if (digits.length < 6 || digits.length > 15) return null;
-    return `+${digits}`;
-  }
-  const digits = cleaned.replace(/\D/g, "");
-  if (digits.length < 6 || digits.length > 15) return null;
-  return `+${digits}`;
+
+  // Drop a trailing extension BEFORE either path. libphonenumber handles one
+  // itself when the number is valid, but the lenient fallback only strips
+  // punctuation — so "555-2671 ext 22" used to come back as "+555267122", a
+  // number that is then dialled and persisted as if it were real.
+  const phonePart = trimmed.replace(EXTENSION_SUFFIX, "");
+
+  const parsed = parsePhoneNumberFromString(
+    phonePart,
+    region as Parameters<typeof parsePhoneNumberFromString>[1],
+  );
+  if (parsed?.isValid()) return parsed.number;
+
+  return lenientE164(phonePart.replace(/[\s()\-.]/g, ""));
 }
 
 export function phoneSuffix(e164: string, length = 9): string {

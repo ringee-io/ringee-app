@@ -79,7 +79,9 @@ function CampaignCard({
           </div>
           <div className='flex items-center gap-1'>
             <Clock className='h-4 w-4' />
-            <span>{t('card.maxAttempts', { count: campaign.maxAttempts })}</span>
+            <span>
+              {t('card.maxAttempts', { count: campaign.maxAttempts })}
+            </span>
           </div>
         </div>
         <div className='text-muted-foreground mt-3 text-xs'>
@@ -199,7 +201,9 @@ export function CampaignList() {
             <Target className='text-muted-foreground mb-4 h-12 w-12' />
             <h3 className='text-lg font-semibold'>{t('empty.title')}</h3>
             <p className='text-muted-foreground mt-1 text-sm'>
-              {isOrgAdmin ? t('empty.description') : t('empty.memberDescription')}
+              {isOrgAdmin
+                ? t('empty.description')
+                : t('empty.memberDescription')}
             </p>
             {isOrgAdmin && (
               <Button

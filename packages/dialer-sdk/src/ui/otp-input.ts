@@ -29,7 +29,8 @@ export function otpInput(opts: OtpOptions = {}): OtpHandle {
   const cells: HTMLInputElement[] = [];
 
   const setFilledFlags = () => {
-    for (const c of cells) c.setAttribute("data-filled", c.value ? "true" : "false");
+    for (const c of cells)
+      c.setAttribute("data-filled", c.value ? "true" : "false");
   };
 
   const read = () => cells.map((c) => c.value).join("");
@@ -50,7 +51,10 @@ export function otpInput(opts: OtpOptions = {}): OtpHandle {
   };
 
   const fill = (chars: string, from = 0) => {
-    const digits = chars.replace(/\D/g, "").slice(0, length - from).split("");
+    const digits = chars
+      .replace(/\D/g, "")
+      .slice(0, length - from)
+      .split("");
     digits.forEach((d, k) => (cells[from + k]!.value = d));
     const next = Math.min(from + digits.length, length - 1);
     focusCell(next);

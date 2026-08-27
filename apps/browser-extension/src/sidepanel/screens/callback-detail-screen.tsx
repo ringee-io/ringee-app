@@ -13,12 +13,7 @@ import { formatForDisplay } from "@ringee/dialer-core/phone";
 import { Input } from "@ringee/frontend-shared/components/ui/input";
 import { Button } from "@ringee/frontend-shared/components/ui/button";
 import { formatTime } from "../../lib/format";
-import {
-  Avatar,
-  Field,
-  ScreenHeader,
-  StatusPill,
-} from "../components/ui";
+import { Avatar, Field, ScreenHeader, StatusPill } from "../components/ui";
 import { Sheet } from "../components/sheet";
 import { useApp, useNav, type CallbackNavItem } from "../navigation";
 
@@ -121,7 +116,11 @@ export function CallbackDetailScreen({ item }: { item: CallbackNavItem }) {
 
       <div className="flex-1 space-y-4 overflow-y-auto p-4">
         <div className="flex flex-col items-center gap-2 text-center">
-          <Avatar name={item.contactName} fallback={item.phoneNumber} size={64} />
+          <Avatar
+            name={item.contactName}
+            fallback={item.phoneNumber}
+            size={64}
+          />
           <h2 className="text-lg font-semibold tracking-tight">{name}</h2>
           <StatusPill label={status} tone={toneFor(status)} />
         </div>
@@ -182,7 +181,12 @@ export function CallbackDetailScreen({ item }: { item: CallbackNavItem }) {
         title="Reschedule callback"
         onClose={() => setReschedOpen(false)}
         footer={
-          <Button onClick={reschedule} disabled={busy} className="w-full" size="sm">
+          <Button
+            onClick={reschedule}
+            disabled={busy}
+            className="w-full"
+            size="sm"
+          >
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : "Reschedule"}
           </Button>
         }

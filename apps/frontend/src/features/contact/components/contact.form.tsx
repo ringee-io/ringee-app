@@ -498,7 +498,9 @@ export default function ContactForm({
       <CreateNoteModal
         open={noteModalOpen}
         onOpenChange={setNoteModalOpen}
-        contactId={initialData?.id!}
+        // The notes card, and so this modal, is only reachable while editing an
+        // existing contact.
+        contactId={initialData?.id as string}
         onSave={() => {
           router.refresh();
           setNoteModalOpen(false);

@@ -160,9 +160,7 @@ export function CampaignDispositionsTab({
               <form onSubmit={createDisposition} className='space-y-4'>
                 <div className='grid gap-4 sm:grid-cols-2'>
                   <div className='space-y-2'>
-                    <Label htmlFor='dispo-code'>
-                      {t('dispositions.code')}
-                    </Label>
+                    <Label htmlFor='dispo-code'>{t('dispositions.code')}</Label>
                     <Input
                       id='dispo-code'
                       placeholder={t('dispositions.codePlaceholder')}

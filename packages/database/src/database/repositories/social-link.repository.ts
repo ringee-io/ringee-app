@@ -116,7 +116,6 @@ export class SocialLinkRepository {
   }
 
   // Bulk read helper for joins
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   static _placeholder(_p: Prisma.JsonObject): void {
     /* keep import */
   }

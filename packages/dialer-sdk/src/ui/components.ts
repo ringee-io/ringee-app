@@ -8,7 +8,12 @@ import { h, uid } from "./dom";
 import { icon } from "./icons";
 
 // ── Button ──────────────────────────────────────────────────────────────────
-export type ButtonVariant = "primary" | "call" | "secondary" | "ghost" | "danger";
+export type ButtonVariant =
+  | "primary"
+  | "call"
+  | "secondary"
+  | "ghost"
+  | "danger";
 
 export interface ButtonOptions {
   label: string;
@@ -165,7 +170,9 @@ export function field(opts: FieldOptions): FieldHandle {
   const wrap = h(
     "div",
     { class: "rg-inputwrap" },
-    opts.icon ? h("span", { class: "rg-inputwrap__icon" }, icon(opts.icon, 18)) : null,
+    opts.icon
+      ? h("span", { class: "rg-inputwrap__icon" }, icon(opts.icon, 18))
+      : null,
     input,
   );
   const hint = h("div", { class: "rg-hint", id: hintId, hidden: true });
@@ -222,7 +229,9 @@ export interface PhoneHandle extends FieldHandle {
   isValid(): boolean;
 }
 
-export function phoneInput(opts: FieldOptions & { onValidityChange?: (ok: boolean) => void }): PhoneHandle {
+export function phoneInput(
+  opts: FieldOptions & { onValidityChange?: (ok: boolean) => void },
+): PhoneHandle {
   const base = field({
     ...opts,
     type: "tel",
@@ -235,7 +244,10 @@ export function phoneInput(opts: FieldOptions & { onValidityChange?: (ok: boolea
         const pos = base.input.selectionStart ?? clean.length;
         base.input.value = clean;
         try {
-          base.input.setSelectionRange(pos - (v.length - clean.length), pos - (v.length - clean.length));
+          base.input.setSelectionRange(
+            pos - (v.length - clean.length),
+            pos - (v.length - clean.length),
+          );
         } catch {
           /* ignore */
         }
@@ -252,7 +264,10 @@ export function phoneInput(opts: FieldOptions & { onValidityChange?: (ok: boolea
 }
 
 // ── Avatar ──────────────────────────────────────────────────────────────────
-export function initialsFrom(name?: string | null, email?: string | null): string {
+export function initialsFrom(
+  name?: string | null,
+  email?: string | null,
+): string {
   const source = (name ?? "").trim() || (email ?? "").trim();
   if (!source) return "?";
   if (source.includes("@")) return source[0]!.toUpperCase();
@@ -269,10 +284,20 @@ export function avatar(opts: {
   size?: "sm" | "md" | "lg";
 }): HTMLElement {
   const cls =
-    "rg-avatar" + (opts.size === "lg" ? " rg-avatar--lg" : opts.size === "sm" ? " rg-avatar--sm" : "");
+    "rg-avatar" +
+    (opts.size === "lg"
+      ? " rg-avatar--lg"
+      : opts.size === "sm"
+        ? " rg-avatar--sm"
+        : "");
   if (opts.imageUrl) {
     const img = h("img", {
-      attrs: { src: opts.imageUrl, alt: "", loading: "lazy", decoding: "async" },
+      attrs: {
+        src: opts.imageUrl,
+        alt: "",
+        loading: "lazy",
+        decoding: "async",
+      },
     });
     // Fall back to initials if the image fails to load.
     const el = h("span", { class: cls, attrs: { "aria-hidden": "true" } }, img);
@@ -294,7 +319,12 @@ export function badge(
   tone: "neutral" | "brand" | "danger" | "warning" = "neutral",
   withDot?: "ready" | "live" | "danger" | "warn",
 ): HTMLElement {
-  const map = { neutral: "", brand: " rg-badge--brand", danger: " rg-badge--danger", warning: " rg-badge--warning" };
+  const map = {
+    neutral: "",
+    brand: " rg-badge--brand",
+    danger: " rg-badge--danger",
+    warning: " rg-badge--warning",
+  };
   return h(
     "span",
     { class: "rg-badge" + map[tone] },
@@ -303,9 +333,14 @@ export function badge(
   );
 }
 
-export function statusDot(kind: "idle" | "ready" | "live" | "danger" | "warn"): HTMLElement {
+export function statusDot(
+  kind: "idle" | "ready" | "live" | "danger" | "warn",
+): HTMLElement {
   const suffix = kind === "idle" ? "" : ` rg-dot--${kind}`;
-  return h("span", { class: "rg-dot" + suffix, attrs: { "aria-hidden": "true" } });
+  return h("span", {
+    class: "rg-dot" + suffix,
+    attrs: { "aria-hidden": "true" },
+  });
 }
 
 // ── Spinner / loading block ─────────────────────────────────────────────────
@@ -340,7 +375,11 @@ export function errorBanner(opts: {
       role: "alert",
       attrs: { "aria-live": "assertive" },
     },
-    h("span", { class: "rg-error__icon" }, icon(opts.tone === "warning" ? "info" : "alert", 18)),
+    h(
+      "span",
+      { class: "rg-error__icon" },
+      icon(opts.tone === "warning" ? "info" : "alert", 18),
+    ),
     h(
       "div",
       { class: "rg-error__body" },

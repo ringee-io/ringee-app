@@ -12,7 +12,6 @@ import {
 } from "@ringee/platform";
 import { ChatAuthService } from "@ringee/services";
 import { CryptoService } from "@ringee/platform";
-import { UserRepository } from "@ringee/database";
 import { apiConfiguration } from "@ringee/configuration";
 import { Response } from "express";
 
@@ -26,7 +25,6 @@ export class ChatAuthController {
   constructor(
     private readonly chatAuthService: ChatAuthService,
     private readonly cryptoService: CryptoService,
-    private readonly userRepository: UserRepository,
   ) {}
 
   @Post("connect")

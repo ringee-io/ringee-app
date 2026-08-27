@@ -1,4 +1,5 @@
 import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
+import { apiConfiguration } from "@ringee/configuration";
 import {
   CallRepository,
   CallSessionRepository,
@@ -16,9 +17,11 @@ import {
   verifyCallCorrelation,
 } from "@ringee/platform";
 import type {
-  TelnyxWebhookEvent,
+  TelephonyEvent,
   CallTranscriptionPayload,
   CallRecordingErrorPayload,
+  CallRecordingSavedPayload,
+  CallMachineDetectionPayload,
   CallHangupPayload,
   CallCostPayload,
 } from "@ringee/platform";
@@ -44,7 +47,7 @@ import {
 } from "./custom-integrations/custom-integration-event-builders";
 import { PipelineFanoutService } from "./ai-pipeline";
 import { ConcurrentCallGuardService } from "./security";
-import { calculateCallCharge, readProfitMultiplier } from "./call-cost.util";
+import { calculateCallCharge } from "./call-cost.util";
 
 /** Connected calls shorter than this (seconds) count as "very short" for
  * caller-ID reputation scoring (spec: <5s). */
@@ -225,10 +228,10 @@ export class CallService implements OnModuleDestroy {
    */
   private async parkOrphanCallEvent(
     callControlId: string,
-    event: TelnyxWebhookEvent,
+    event: TelephonyEvent,
   ): Promise<void> {
     this.logger.warn(
-      `⏳ ${event.event_type} arrived before its call row (${callControlId}) — parking it for replay`,
+      `⏳ ${event.type} arrived before its call row (${callControlId}) — parking it for replay`,
     );
     const parked = await this.readParkedCallEvents(callControlId);
     await this.redis
@@ -239,7 +242,7 @@ export class CallService implements OnModuleDestroy {
       )
       .catch((error: Error) =>
         this.logger.error(
-          `Could not park ${event.event_type} for ${callControlId}: ${error.message}`,
+          `Could not park ${event.type} for ${callControlId}: ${error.message}`,
         ),
       );
   }
@@ -256,11 +259,11 @@ export class CallService implements OnModuleDestroy {
 
     for (const event of parked) {
       this.logger.warn(
-        `↩️ Replaying out-of-order ${event.event_type} for ${callControlId}`,
+        `↩️ Replaying out-of-order ${event.type} for ${callControlId}`,
       );
-      await this.handleTelnyxEvent(event).catch((error: Error) =>
+      await this.handleTelephonyEvent(event).catch((error: Error) =>
         this.logger.error(
-          `Replay of ${event.event_type} for ${callControlId} failed: ${error.message}`,
+          `Replay of ${event.type} for ${callControlId} failed: ${error.message}`,
           error.stack,
         ),
       );
@@ -269,14 +272,20 @@ export class CallService implements OnModuleDestroy {
 
   private async readParkedCallEvents(
     callControlId: string,
-  ): Promise<TelnyxWebhookEvent[]> {
+  ): Promise<TelephonyEvent[]> {
     const raw = await this.redis
-      .get<TelnyxWebhookEvent[] | string>(orphanEventsKey(callControlId))
+      .get<TelephonyEvent[] | string>(orphanEventsKey(callControlId))
       .catch(() => undefined);
     if (!raw) return [];
     try {
       const parsed = typeof raw === "string" ? JSON.parse(raw) : raw;
-      return Array.isArray(parsed) ? (parsed as TelnyxWebhookEvent[]) : [];
+      if (!Array.isArray(parsed)) return [];
+      // `occurredAt` is a Date on the way in and a string on the way back out
+      // of Redis; revive it so a replayed event is shaped like a fresh one.
+      return (parsed as TelephonyEvent[]).map((event) => ({
+        ...event,
+        occurredAt: event.occurredAt ? new Date(event.occurredAt) : null,
+      }));
     } catch {
       return [];
     }
@@ -383,12 +392,7 @@ export class CallService implements OnModuleDestroy {
   private async adoptSdkCall(
     correlationToken: string,
     callControlId: string,
-    payload: {
-      from?: string;
-      call_session_id?: string;
-      call_leg_id?: string;
-      start_time?: string;
-    },
+    event: TelephonyEvent,
   ): Promise<boolean> {
     const callId = verifyCallCorrelation(correlationToken);
     if (!callId) return false;
@@ -422,15 +426,15 @@ export class CallService implements OnModuleDestroy {
 
     // Audit which owned number presented as caller ID + count daily usage.
     const presentedNumberId = await this.callerIdRotationService
-      .registerOutboundCall(ctx, payload.from!)
+      .registerOutboundCall(ctx, event.from ?? "")
       .catch(() => null);
 
     const adopted = await this.callRepository.attachTelephony(existing.id, {
       callControlId,
-      callSessionId: payload.call_session_id,
-      callLegId: payload.call_leg_id,
-      connectionId: process.env.TELNYX_CONNECTION_ID,
-      startedAt: payload.start_time,
+      callSessionId: event.callSessionId ?? undefined,
+      callLegId: event.callLegId ?? undefined,
+      connectionId: apiConfiguration.TELNYX_CONNECTION_ID,
+      startedAt: event.startedAt ?? undefined,
       status: CallStatus.ringing,
       callerIdId: presentedNumberId ?? existing.callerIdId ?? undefined,
     });
@@ -574,15 +578,13 @@ export class CallService implements OnModuleDestroy {
   }
 
   /**
-   * Extract callAttemptId from Telnyx client_state if present.
+   * Extract callAttemptId from the leg's client state if present.
    * Returns null if the call is not a campaign call.
    */
-  private extractCallAttemptId(payload: any): string | null {
+  private extractCallAttemptId(clientState: string | null): string | null {
     try {
-      if (!payload.client_state) return null;
-      const decoded = Buffer.from(payload.client_state, "base64").toString(
-        "utf-8",
-      );
+      if (!clientState) return null;
+      const decoded = Buffer.from(clientState, "base64").toString("utf-8");
       const parsed = JSON.parse(decoded);
       return parsed.callAttemptId ?? null;
     } catch {
@@ -592,6 +594,10 @@ export class CallService implements OnModuleDestroy {
 
   async findOneBySessionId(callSessionId: string): Promise<Call | null> {
     return this.callRepository.findOneBySessionId(callSessionId);
+  }
+
+  async findById(id: string): Promise<Call | null> {
+    return this.callRepository.findById(id);
   }
 
   async findByControlId(callControlId: string): Promise<Call | null> {
@@ -684,17 +690,20 @@ export class CallService implements OnModuleDestroy {
    * drop is completed, priced and charged like any other call.
    */
   private async handleVoicemailDropEvent(
-    event: TelnyxWebhookEvent,
+    event: TelephonyEvent,
     callControlId: string,
   ): Promise<boolean> {
-    const { event_type, payload } = event;
+    const { type: eventType, payload } = event;
 
-    switch (event_type) {
+    // Events a drop's own choreography can consume. Note that the carrier's
+    // premium answering-machine tier is folded into
+    // `call.machine.greeting.ended` during normalization, so there is one case
+    // here where the raw provider feed has two.
+    switch (eventType) {
       case "call.initiated":
       case "call.answered":
       case "call.machine.detection.ended":
       case "call.machine.greeting.ended":
-      case "call.machine.premium.greeting.ended":
       case "call.playback.started":
       case "call.playback.ended":
         break;
@@ -703,16 +712,16 @@ export class CallService implements OnModuleDestroy {
     }
 
     const dropState = this.voicemailDropService.parseClientState(
-      payload?.client_state,
+      event.clientState ?? undefined,
     );
     const isPlayback = this.voicemailDropService.isPlaybackState(
-      payload?.client_state,
+      event.clientState ?? undefined,
     );
     if (!dropState && !isPlayback) {
       return false;
     }
 
-    switch (event_type) {
+    switch (eventType) {
       case "call.initiated":
         // The Call row was written at dial time — nothing to adopt, and the
         // WebRTC attribution path below would drop this leg anyway.
@@ -737,7 +746,7 @@ export class CallService implements OnModuleDestroy {
         // that starts mid-sentence. Anything else (a human picked up, or
         // Telnyx could not tell) ends the leg without playing: a wrong guess
         // here means a stranger answers to silence.
-        const result = payload?.result;
+        const result = (payload as CallMachineDetectionPayload)?.result;
         if (result !== "machine") {
           this.logger.log(
             `📼 Voicemail drop ${callControlId} not delivered (AMD result: ${
@@ -750,7 +759,6 @@ export class CallService implements OnModuleDestroy {
       }
 
       case "call.machine.greeting.ended":
-      case "call.machine.premium.greeting.ended":
         if (dropState) {
           await this.voicemailDropService.handleGreetingEnded(
             callControlId,
@@ -771,17 +779,28 @@ export class CallService implements OnModuleDestroy {
     }
   }
 
-  async handleTelnyxEvent(event: TelnyxWebhookEvent) {
-    const { event_type, payload } = event;
+  /**
+   * Single entry point for inbound telephony events, in Ringee's own
+   * vocabulary. The carrier adapter translates its webhooks into
+   * `TelephonyEvent` (see TelnyxEventNormalizer), so this switch — and the call
+   * lifecycle it drives — has no provider names in it.
+   */
+  async handleTelephonyEvent(event: TelephonyEvent) {
+    const { type: eventType, callControlId, payload } = event;
 
-    const callControlId = payload?.call_control_id;
-
-    if (!callControlId) {
-      this.logger.warn(`⚠️ Evento ${event_type} sin call_control_id`);
+    if (eventType === "unknown") {
+      // Carriers emit far more than Ringee acts on. Record it and move on.
+      await this.callRepository.logEvent(
+        callControlId,
+        event.providerEventType,
+        payload,
+      );
       return;
     }
 
-    this.logger.debug(`📨 Evento Telnyx recibido: ${event_type}`);
+    this.logger.debug(
+      `📨 Telephony event received: ${eventType} (${event.provider}:${event.providerEventType})`,
+    );
 
     // Voicemail drops are the one outbound leg we originate server-side: the
     // Call row already exists and answering-machine detection — not a human
@@ -791,15 +810,15 @@ export class CallService implements OnModuleDestroy {
       return;
     }
 
-    switch (event_type) {
+    switch (eventType) {
       case "call.initiated":
-        if (["inbound", "incoming"].includes(payload.direction || "")) {
-          const number = await this.numberPurchasedService.findOneByNumber(
-            payload.to!,
-          );
+        if (event.direction === "inbound") {
+          const toNumber = event.to ?? "";
+          const number =
+            await this.numberPurchasedService.findOneByNumber(toNumber);
 
           if (!number) {
-            this.logger.warn(`⚠️ Number ${payload.to} not found`);
+            this.logger.warn(`⚠️ Number ${toNumber} not found`);
             return;
           }
 
@@ -807,7 +826,7 @@ export class CallService implements OnModuleDestroy {
 
           if (!user) {
             this.logger.warn(
-              `⚠️ User ${number.userId} not found - ${payload.direction}`,
+              `⚠️ User ${number.userId} not found - ${event.direction}`,
             );
             return;
           }
@@ -818,22 +837,23 @@ export class CallService implements OnModuleDestroy {
             organizationId: number.organizationId,
           };
 
+          const fromNumber = event.from ?? "";
           const contact = await this.contactService.findByPhone(
             ctx,
-            payload.from!,
+            fromNumber,
           );
 
           const inboundCall = await this.callRepository.createCall(ctx, {
             contact: contact ? { connect: { id: contact.id } } : undefined,
-            fromNumber: payload.from!,
-            toNumber: payload.to!,
-            connectionId: process.env.TELNYX_CONNECTION_ID!,
+            fromNumber,
+            toNumber,
+            connectionId: apiConfiguration.TELNYX_CONNECTION_ID,
             callControlId,
-            direction: payload.direction || "inbound",
-            callSessionId: payload.call_session_id!,
-            callLegId: payload.call_leg_id!,
+            direction: event.direction ?? "inbound",
+            callSessionId: event.callSessionId ?? undefined,
+            callLegId: event.callLegId ?? undefined,
             status: CallStatus.ringing,
-            startedAt: payload.start_time!,
+            startedAt: event.startedAt ?? undefined,
             clientState: Buffer.from("initiate_call").toString("base64"),
           });
 
@@ -863,16 +883,16 @@ export class CallService implements OnModuleDestroy {
                   device.fcmToken,
                   {
                     title: "📞 Incoming Call",
-                    body: `Call from ${contact?.name || payload.from}`,
+                    body: `Call from ${contact?.name || fromNumber}`,
                     data: {
                       type: "INCOMING_CALL",
-                      callerNumber: payload.from!,
-                      toNumber: payload.to!,
+                      callerNumber: fromNumber,
+                      toNumber,
                       clerkUserId: user.clerkId!,
                       userId: user.id,
-                      callSessionId: payload.call_session_id!,
-                      callControlId: payload.call_control_id!,
-                      url: `/dashboard/call?control=${payload.call_session_id!}`,
+                      callSessionId: event.callSessionId ?? "",
+                      callControlId,
+                      url: `/dashboard/call?control=${event.callSessionId ?? ""}`,
                       title: "📞 Incoming Call",
                     },
                   },
@@ -890,14 +910,14 @@ export class CallService implements OnModuleDestroy {
         // fall through to the web-create path.
         {
           const sdkCorrelation = this.getCustomHeader(
-            payload.custom_headers,
+            event.customHeaders,
             "X-Ringee-Call-Id",
           );
           if (sdkCorrelation) {
             const handled = await this.adoptSdkCall(
               sdkCorrelation,
               callControlId,
-              payload,
+              event,
             );
             if (!handled) {
               this.logger.warn(
@@ -914,11 +934,11 @@ export class CallService implements OnModuleDestroy {
         // id and item id as custom headers so we can attribute the call to
         // the session owner without exposing their Clerk/DB ids in the URL.
         const ringeeSessionId = this.getCustomHeader(
-          payload.custom_headers,
+          event.customHeaders,
           "X-Ringee-Call-Session-Id",
         );
         const ringeeSessionItemId = this.getCustomHeader(
-          payload.custom_headers,
+          event.customHeaders,
           "X-Ringee-Call-Session-Item-Id",
         );
 
@@ -938,7 +958,7 @@ export class CallService implements OnModuleDestroy {
           };
         } else {
           const clerkUserId = this.getClerkUserIdFromHeaders(
-            payload.custom_headers,
+            event.customHeaders,
           );
 
           if (!clerkUserId) {
@@ -948,13 +968,13 @@ export class CallService implements OnModuleDestroy {
             // they are already on a call they never made.
             this.logger.warn(
               `⚠️ Dropping outbound call ${callControlId}: no X-User-Id custom header ` +
-                `(from=${payload.from} to=${payload.to}) — it cannot be attributed to a user`,
+                `(from=${event.from} to=${event.to}) — it cannot be attributed to a user`,
             );
             return;
           }
 
           const organizationId = await this.getOrganizationIdFromHeaders(
-            payload.custom_headers,
+            event.customHeaders,
           );
           const user = await this.userService.getCachedByClerkId(clerkUserId);
 
@@ -982,27 +1002,27 @@ export class CallService implements OnModuleDestroy {
 
         const contact = await this.contactService.findByPhone(
           outboundCtx,
-          payload.to!,
+          event.to ?? "",
         );
 
         // Resolve which owned number this call presents as caller ID (by its
         // `from`) so we can audit it on the Call row and count it toward the
         // number's daily usage / reputation. Best-effort: never block the call.
         const presentedNumberId = await this.callerIdRotationService
-          .registerOutboundCall(outboundCtx, payload.from!)
+          .registerOutboundCall(outboundCtx, event.from ?? "")
           .catch(() => null);
 
         const outboundCall = await this.callRepository.createCall(outboundCtx, {
           contact: contact ? { connect: { id: contact.id } } : undefined,
-          fromNumber: payload.from!,
-          toNumber: payload.to!,
-          connectionId: process.env.TELNYX_CONNECTION_ID!,
+          fromNumber: event.from ?? "",
+          toNumber: event.to ?? "",
+          connectionId: apiConfiguration.TELNYX_CONNECTION_ID,
           callControlId,
-          direction: payload.direction || "outbound",
-          callSessionId: payload.call_session_id!,
-          callLegId: payload.call_leg_id!,
+          direction: event.direction ?? "outbound",
+          callSessionId: event.callSessionId ?? undefined,
+          callLegId: event.callLegId ?? undefined,
           status: CallStatus.ringing,
-          startedAt: payload.start_time!,
+          startedAt: event.startedAt ?? undefined,
           clientState: Buffer.from("initiate_call").toString("base64"),
           callerId: presentedNumberId
             ? { connect: { id: presentedNumberId } }
@@ -1023,11 +1043,11 @@ export class CallService implements OnModuleDestroy {
         }
 
         // Link to campaign call attempt if present
-        const initiatedAttemptId = this.extractCallAttemptId(payload);
+        const initiatedAttemptId = this.extractCallAttemptId(event.clientState);
         if (initiatedAttemptId && outboundCall) {
           await this.callAttemptService.handleWebhookEvent(
             initiatedAttemptId,
-            event_type,
+            eventType,
             outboundCall.id,
           );
         }
@@ -1066,11 +1086,11 @@ export class CallService implements OnModuleDestroy {
           callControlId,
           CallStatus.answered,
         );
-        const answeredAttemptId = this.extractCallAttemptId(payload);
+        const answeredAttemptId = this.extractCallAttemptId(event.clientState);
         if (answeredAttemptId && answeredCall) {
           await this.callAttemptService.handleWebhookEvent(
             answeredAttemptId,
-            event_type,
+            eventType,
             answeredCall.id,
           );
         }
@@ -1139,11 +1159,11 @@ export class CallService implements OnModuleDestroy {
             hangupCall.callerIdId,
           );
         }
-        const hangupAttemptId = this.extractCallAttemptId(payload);
+        const hangupAttemptId = this.extractCallAttemptId(event.clientState);
         if (hangupAttemptId && hangupCall) {
           await this.callAttemptService.handleWebhookEvent(
             hangupAttemptId,
-            event_type,
+            eventType,
             hangupCall.id,
           );
         }
@@ -1210,14 +1230,15 @@ export class CallService implements OnModuleDestroy {
         this.logger.debug(
           `💾 Recording saved payload: ${JSON.stringify(payload)}`,
         );
+        const savedPayload = payload as CallRecordingSavedPayload;
         try {
           await this.orchestratorService.processCallRecording({
             callControlId,
             recording: {
-              publicUrl: payload.recording_urls?.mp3,
-              privateUrl: payload.recording_urls?.mp3,
-              recordingStartedAt: payload.recording_started_at,
-              recordingEndedAt: payload.recording_ended_at,
+              publicUrl: savedPayload.recording_urls?.mp3,
+              privateUrl: savedPayload.recording_urls?.mp3,
+              recordingStartedAt: savedPayload.recording_started_at,
+              recordingEndedAt: savedPayload.recording_ended_at,
             },
           });
 
@@ -1258,8 +1279,8 @@ export class CallService implements OnModuleDestroy {
         break;
       }
 
-      case "streaming.failed": {
-        // Telnyx could not establish/keep the media stream → fail the realtime
+      case "call.streaming.failed": {
+        // The carrier could not establish/keep the media stream → fail the realtime
         // transcript so the UI can offer "Try again".
         const failedCall =
           await this.callRepository.findByControlId(callControlId);
@@ -1285,7 +1306,7 @@ export class CallService implements OnModuleDestroy {
         const errorPayload = payload as CallRecordingErrorPayload;
         await this.callRepository.updateControlState(callControlId, {
           errorMessage: errorPayload.error,
-          lastEventType: event_type,
+          lastEventType: event.providerEventType,
         });
         break;
       }
@@ -1328,13 +1349,8 @@ export class CallService implements OnModuleDestroy {
             return;
           }
 
-          const baseMargin = readProfitMultiplier(
-            process.env.CALL_PROFIT_MARGIN,
-          );
-          const recordingMargin = readProfitMultiplier(
-            process.env.CALL_RECORDING_PROFIT_MARGIN,
-            baseMargin,
-          );
+          const baseMargin = apiConfiguration.CALL_PROFIT_MARGIN;
+          const recordingMargin = apiConfiguration.CALL_RECORDING_PROFIT_MARGIN;
 
           // Build context from call's ownership
           const callCtx: OwnershipContext = {
@@ -1342,12 +1358,23 @@ export class CallService implements OnModuleDestroy {
             organizationId: call.organizationId,
           };
 
-          // Calls placed from a verified caller ID carry an extra 0.3 added to
-          // the profit-margin multiplier.
-          const usedCallerId = await this.numberPurchasedService
-            .isVerifiedCallerId(callCtx, call.fromNumber)
-            .catch(() => false);
-          const profitMargin = usedCallerId ? baseMargin + 0 : baseMargin;
+          // Calls placed from a verified caller ID may carry a surcharge on the
+          // profit-margin multiplier. The surcharge is configuration
+          // (CALLER_ID_PROFIT_MARGIN_SURCHARGE) and defaults to 0, which is the
+          // behaviour that was actually in effect while it was hard-coded — so
+          // pricing is unchanged until it is set deliberately. The provider
+          // lookup is skipped entirely when there is no surcharge to apply.
+          const callerIdSurcharge =
+            apiConfiguration.CALLER_ID_PROFIT_MARGIN_SURCHARGE;
+          const usedCallerId =
+            callerIdSurcharge > 0
+              ? await this.numberPurchasedService
+                  .isVerifiedCallerId(callCtx, call.fromNumber)
+                  .catch(() => false)
+              : false;
+          const profitMargin = usedCallerId
+            ? baseMargin + callerIdSurcharge
+            : baseMargin;
           const chargeBreakdown = calculateCallCharge({
             costParts: costPayload.cost_parts,
             totalCost: costPayload.total_cost,
@@ -1371,7 +1398,7 @@ export class CallService implements OnModuleDestroy {
           }
 
           await this.callRepository.updateCost(callControlId, totalCost, {
-            ...payload,
+            ...(payload as Record<string, unknown>),
             ringeeCostBreakdown: {
               ...chargeBreakdown,
               callProfitMultiplier: profitMargin,
@@ -1389,7 +1416,11 @@ export class CallService implements OnModuleDestroy {
       }
 
       default:
-        await this.callRepository.logEvent(callControlId, event_type, payload);
+        await this.callRepository.logEvent(
+          callControlId,
+          event.providerEventType,
+          payload,
+        );
         break;
     }
   }

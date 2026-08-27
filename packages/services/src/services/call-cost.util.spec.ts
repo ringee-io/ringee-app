@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { calculateCallCharge, readProfitMultiplier } from "./call-cost.util";
+import { calculateCallCharge } from "./call-cost.util";
 
 describe("calculateCallCharge", () => {
   it("applies a separate multiplier to recording cost parts", () => {
@@ -49,12 +49,5 @@ describe("calculateCallCharge", () => {
     });
 
     assert.equal(result.computedTotalCost, 0.06);
-  });
-});
-
-describe("readProfitMultiplier", () => {
-  it("uses the provided fallback for a missing or invalid value", () => {
-    assert.equal(readProfitMultiplier(undefined, 2), 2);
-    assert.equal(readProfitMultiplier("invalid", 2), 2);
   });
 });

@@ -45,7 +45,11 @@ export class BarView {
 
     this.bar = h(
       "div",
-      { class: "rg-bar", role: "group", attrs: { "aria-label": model.s.brand } },
+      {
+        class: "rg-bar",
+        role: "group",
+        attrs: { "aria-label": model.s.brand },
+      },
       this.main,
     );
 
@@ -89,14 +93,23 @@ export class BarView {
       "div",
       {
         class: "rg-bar-popover",
-        style: { left: "0", right: "0", width: "auto", bottom: "calc(100% + 8px)" },
+        style: {
+          left: "0",
+          right: "0",
+          width: "auto",
+          bottom: "calc(100% + 8px)",
+        },
       },
       errorBanner({
         title: b.title,
         message: b.message,
         tone: b.tone,
-        actionLabel: b.action !== "none" ? actionLabel(b.action, this.model.s) : undefined,
-        onAction: b.action !== "none" ? () => this.model.handleAction(b.action) : undefined,
+        actionLabel:
+          b.action !== "none" ? actionLabel(b.action, this.model.s) : undefined,
+        onAction:
+          b.action !== "none"
+            ? () => this.model.handleAction(b.action)
+            : undefined,
       }),
     );
     replaceChildren(this.bannerHost, wrap);
@@ -130,8 +143,16 @@ export class BarView {
 
   // ── Bar screens ───────────────────────────────────────────────────────────
   private barLoading(): Screen {
-    const label = h("span", { class: "rg-loading__label", text: this.model.loadingLabel });
-    const el = h("div", { class: "rg-row", attrs: { role: "status" } }, spinner(), label);
+    const label = h("span", {
+      class: "rg-loading__label",
+      text: this.model.loadingLabel,
+    });
+    const el = h(
+      "div",
+      { class: "rg-row", attrs: { role: "status" } },
+      spinner(),
+      label,
+    );
     return { el, update: (m) => (label.textContent = m.loadingLabel) };
   }
 
@@ -141,11 +162,22 @@ export class BarView {
       { class: "rg-row rg-grow", style: { justifyContent: "space-between" } },
       h(
         "span",
-        { class: "rg-row", style: { color: "var(--ringee-danger)", minWidth: "0" } },
+        {
+          class: "rg-row",
+          style: { color: "var(--ringee-danger)", minWidth: "0" },
+        },
         icon("alert", 18),
-        h("span", { class: "rg-contact__name", text: this.model.banner?.title ?? this.model.s.genericErrorTitle }),
+        h("span", {
+          class: "rg-contact__name",
+          text: this.model.banner?.title ?? this.model.s.genericErrorTitle,
+        }),
       ),
-      button({ label: this.model.s.actionReload, variant: "secondary", icon: "refresh", onClick: () => this.model.handleAction("reload") }).el,
+      button({
+        label: this.model.s.actionReload,
+        variant: "secondary",
+        icon: "refresh",
+        onClick: () => this.model.handleAction("reload"),
+      }).el,
     );
     return { el, update: () => undefined };
   }
@@ -183,7 +215,8 @@ export class BarView {
       focus: () => emailField.focus(),
       update: (m) => {
         send.setLoading(m.authState === "sending_code", m.s.sending);
-        if (m.banner && m.banner.action === "none") emailField.setInvalid(m.banner.message);
+        if (m.banner && m.banner.action === "none")
+          emailField.setInvalid(m.banner.message);
       },
     };
   }
@@ -194,7 +227,11 @@ export class BarView {
       onComplete: (code) => void this.model.verify(code),
       onChange: () => otp.setInvalid(false),
     });
-    const verify = button({ label: s.verify, variant: "primary", onClick: () => void this.model.verify(otp.value()) });
+    const verify = button({
+      label: s.verify,
+      variant: "primary",
+      onClick: () => void this.model.verify(otp.value()),
+    });
     const change = h("button", {
       class: "rg-iconbtn",
       type: "button",
@@ -210,8 +247,13 @@ export class BarView {
       change,
       h(
         "span",
-        { class: "rg-contact__num", attrs: { "data-collapse": "callerid" }, style: { flex: "none" } },
-        formatPhone(this.model.challenge?.maskedEmail ?? "") || (this.model.challenge?.maskedEmail ?? ""),
+        {
+          class: "rg-contact__num",
+          attrs: { "data-collapse": "callerid" },
+          style: { flex: "none" },
+        },
+        formatPhone(this.model.challenge?.maskedEmail ?? "") ||
+          (this.model.challenge?.maskedEmail ?? ""),
       ),
       h("div", { class: "rg-grow", style: { maxWidth: "230px" } }, otp.el),
       verify.el,
@@ -233,7 +275,6 @@ export class BarView {
 
   private barReady(): Screen {
     const s = this.model.s;
-    let phone: PhoneHandle;
     const callBtn = button({
       label: s.callButton,
       variant: "call",
@@ -242,7 +283,9 @@ export class BarView {
       onClick: () => void this.model.placeCall(),
     });
 
-    phone = phoneInput({
+    // `phone` is referenced from its own `onEnter` handler, which only runs
+    // after the binding is initialised.
+    const phone: PhoneHandle = phoneInput({
       placeholder: s.numberPlaceholder,
       value: this.model.number,
       ariaLabel: s.numberLabel,
@@ -257,7 +300,10 @@ export class BarView {
     const primary = this.model.contact
       ? h(
           "div",
-          { class: "rg-bar__field", style: { display: "flex", alignItems: "center" } },
+          {
+            class: "rg-bar__field",
+            style: { display: "flex", alignItems: "center" },
+          },
           contactSummary({
             name: this.model.contact.name,
             number: this.model.contact.number ?? this.model.number,
@@ -272,7 +318,10 @@ export class BarView {
       this.model.callerIds.length > 0
         ? h(
             "div",
-            { attrs: { "data-collapse": "callerid" }, style: { flex: "0 1 250px", minWidth: "0" } },
+            {
+              attrs: { "data-collapse": "callerid" },
+              style: { flex: "0 1 250px", minWidth: "0" },
+            },
             callerIdSelector({
               callerIds: this.model.callerIds,
               autoLabel: s.callerIdAuto,
@@ -292,14 +341,18 @@ export class BarView {
       focus: () => {
         if (!this.model.contact) phone.focus();
       },
-      update: (m) => callBtn.setLoading(m.dialerState === "dialing", m.s.preparingCall),
+      update: (m) =>
+        callBtn.setLoading(m.dialerState === "dialing", m.s.preparingCall),
     };
   }
 
   private barCalling(): Screen {
     const s = this.model.s;
     const call = this.model.activeCall;
-    const state = h("span", { class: "rg-badge rg-badge--brand", attrs: { "data-collapse": "callerid" } });
+    const state = h("span", {
+      class: "rg-badge rg-badge--brand",
+      attrs: { "data-collapse": "callerid" },
+    });
     const el = h(
       "div",
       { class: "rg-bar__main" },
@@ -343,7 +396,12 @@ export class BarView {
 
     const controls = callControls({
       labels: {
-        mute: s.mute, unmute: s.unmute, hold: s.hold, resume: s.resume, keypad: s.keypad, hangup: s.hangup,
+        mute: s.mute,
+        unmute: s.unmute,
+        hold: s.hold,
+        resume: s.resume,
+        keypad: s.keypad,
+        hangup: s.hangup,
       },
       allowHold: this.model.options.allowHold,
       compact: true,
@@ -368,7 +426,9 @@ export class BarView {
     const onOutside = (ev: Event) => {
       // composedPath pierces the shadow boundary; `ev.target` would otherwise
       // retarget to the host and read every in-bar click as "outside".
-      const inside = (ev.composedPath?.() ?? []).includes(el) || el.contains(ev.target as Node);
+      const inside =
+        (ev.composedPath?.() ?? []).includes(el) ||
+        el.contains(ev.target as Node);
       if (this.model.keypadOpen && !inside) {
         this.model.setKeypadOpen(false);
         padPop.hidden = true;
@@ -422,7 +482,10 @@ export class BarView {
       { class: "rg-bar__main" },
       h(
         "span",
-        { class: "rg-badge" + (failed ? " rg-badge--danger" : " rg-badge--brand") },
+        {
+          class:
+            "rg-badge" + (failed ? " rg-badge--danger" : " rg-badge--brand"),
+        },
         icon(failed ? "phoneOff" : "check", 15),
         h("span", { text: failed ? s.callFailedTitle : s.callEnded }),
       ),

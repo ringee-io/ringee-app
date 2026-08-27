@@ -42,11 +42,11 @@ List my Ringee workspaces
 That calls `list_workspaces`. If you get your workspaces back, the connection is
 live. If you get nothing, check in order:
 
-| Symptom | Cause |
-| --- | --- |
-| No Ringee tools at all | Plugin disabled, or the session predates the config — restart Claude Code |
-| Connection/401 errors | Wrong or truncated URL — re-copy it from the dashboard |
-| Tools work but data is empty | You're on the wrong workspace — see below |
+| Symptom                      | Cause                                                                     |
+| ---------------------------- | ------------------------------------------------------------------------- |
+| No Ringee tools at all       | Plugin disabled, or the session predates the config — restart Claude Code |
+| Connection/401 errors        | Wrong or truncated URL — re-copy it from the dashboard                    |
+| Tools work but data is empty | You're on the wrong workspace — see below                                 |
 
 ## 4. Workspaces
 

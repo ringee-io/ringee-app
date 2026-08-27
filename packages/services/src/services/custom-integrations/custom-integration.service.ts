@@ -9,6 +9,10 @@ import {
   CustomIntegrationEventType,
   CustomIntegrationRepository,
   CustomIntegrationStatus,
+  CustomIntegrationInboundRepository,
+  CustomIntegrationInboundEvent,
+  CustomIntegrationDeliveryRepository,
+  CustomIntegrationDelivery,
 } from "@ringee/database";
 import {
   CryptoService,
@@ -41,6 +45,8 @@ export class CustomIntegrationService {
   constructor(
     private readonly repo: CustomIntegrationRepository,
     private readonly crypto: CryptoService,
+    private readonly inboundRepo: CustomIntegrationInboundRepository,
+    private readonly deliveryRepo: CustomIntegrationDeliveryRepository,
   ) {}
 
   list(ctx: OwnershipContext): Promise<CustomIntegration[]> {
@@ -143,6 +149,29 @@ export class CustomIntegrationService {
       s: string;
     };
     return obj.s;
+  }
+
+  /**
+   * Delivery logs for one integration, after the ownership check in `get`.
+   * Reads go through here rather than straight from a controller so the
+   * workspace check and the query stay in one place.
+   */
+  async listInboundEvents(
+    ctx: OwnershipContext,
+    id: string,
+    options: { limit?: number; cursor?: string },
+  ): Promise<CustomIntegrationInboundEvent[]> {
+    await this.get(ctx, id);
+    return this.inboundRepo.list(id, options);
+  }
+
+  async listOutboundDeliveries(
+    ctx: OwnershipContext,
+    id: string,
+    options: { limit?: number; cursor?: string },
+  ): Promise<CustomIntegrationDelivery[]> {
+    await this.get(ctx, id);
+    return this.deliveryRepo.list(id, options);
   }
 
   toSummary(i: CustomIntegration): CustomIntegrationSummary {

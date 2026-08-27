@@ -1,6 +1,9 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { User, UserRepository } from "@ringee/database";
-import { RedisService } from "@ringee/platform";
+
+/** The Clerk user record as the Clerk SDK returns it. */
+type ClerkUserRecord = Awaited<ReturnType<typeof ClerkUserRepository.findById>>;
+import { ClerkUserRepository, RedisService } from "@ringee/platform";
 
 export const CLERK_USER_BAN_REASON = "clerk_user_banned";
 
@@ -188,6 +191,59 @@ export class UserService {
     });
     await this.invalidateUserCache(updated);
     return next;
+  }
+
+  /**
+   * Create or refresh the local user row from Clerk, and drop the cache.
+   *
+   * Idempotent on purpose: `user.updated` can overtake `user.created` during
+   * signup, and `ClerkAuthGuard` may already have synced the row on the user's
+   * first request. Any of those paths must be able to establish it.
+   */
+  async syncFromClerk(
+    clerkUserId: string,
+    attribution?: { clientIp?: string; userAgent?: string },
+  ): Promise<{ user: User; clerkUser: ClerkUserRecord }> {
+    const clerkUser = await ClerkUserRepository.findById(clerkUserId);
+    // The repository records signup attribution only when both parts are
+    // present, so normalize a partial pair to "no attribution" here rather than
+    // passing half of one down.
+    const httpRequest =
+      attribution?.clientIp && attribution?.userAgent
+        ? { clientIp: attribution.clientIp, userAgent: attribution.userAgent }
+        : undefined;
+    const user = await this.userRepository.syncFromClerkUser(
+      clerkUser,
+      httpRequest,
+    );
+    await this.invalidateUserCache(user);
+    return { user, clerkUser };
+  }
+
+  /**
+   * Store the Ringee user id in Clerk private metadata so later requests can
+   * resolve it without a database lookup.
+   */
+  async linkRingeeIdToClerk(
+    clerkUserId: string,
+    clerkUser: ClerkUserRecord,
+    ringeeUserId: string,
+  ): Promise<void> {
+    await ClerkUserRepository.updateMetadata(clerkUserId, {
+      privateMetadata: {
+        ...(clerkUser.privateMetadata as Record<string, unknown>),
+        userId: ringeeUserId,
+      },
+    });
+  }
+
+  /** Remove the local row for a deleted Clerk user and drop its cache. */
+  async deleteFromClerk(clerkUserId: string): Promise<User | null> {
+    const deleted = await this.userRepository.deleteByClerkId(clerkUserId);
+    if (deleted) {
+      await this.invalidateUserCache(deleted);
+    }
+    return deleted;
   }
 
   async getUserById(id: string): Promise<User | null> {

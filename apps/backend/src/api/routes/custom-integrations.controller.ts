@@ -25,10 +25,7 @@ import {
   CustomIntegrationService,
   SdkPublishableKeyService,
 } from "@ringee/services";
-import {
-  CustomIntegrationInboundRepository,
-  CustomIntegrationDeliveryRepository,
-} from "@ringee/database";
+import {} from "@ringee/database";
 
 interface CreateBody {
   name: string;
@@ -47,8 +44,6 @@ export class CustomIntegrationsController {
   constructor(
     private readonly integrations: CustomIntegrationService,
     private readonly delivery: CustomIntegrationDeliveryService,
-    private readonly inboundRepo: CustomIntegrationInboundRepository,
-    private readonly deliveryRepo: CustomIntegrationDeliveryRepository,
     private readonly sdkKeys: SdkPublishableKeyService,
   ) {}
 
@@ -153,8 +148,7 @@ export class CustomIntegrationsController {
     @Query("cursor") cursor?: string,
   ) {
     const ctx = createOwnershipContext(user);
-    await this.integrations.get(ctx, id);
-    return this.inboundRepo.list(id, {
+    return this.integrations.listInboundEvents(ctx, id, {
       limit: limit ? Number(limit) : undefined,
       cursor,
     });
@@ -168,8 +162,7 @@ export class CustomIntegrationsController {
     @Query("cursor") cursor?: string,
   ) {
     const ctx = createOwnershipContext(user);
-    await this.integrations.get(ctx, id);
-    return this.deliveryRepo.list(id, {
+    return this.integrations.listOutboundDeliveries(ctx, id, {
       limit: limit ? Number(limit) : undefined,
       cursor,
     });

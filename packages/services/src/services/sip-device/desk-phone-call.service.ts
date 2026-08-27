@@ -17,7 +17,7 @@ import { NumberPurchasedService } from "../number.purchased.service";
 import { ComplianceService } from "../outbound/compliance.service";
 import { ConcurrentCallGuardService } from "../security";
 import { SipDeviceService } from "./sip-device.service";
-import { calculateCallCharge, readProfitMultiplier } from "../call-cost.util";
+import { calculateCallCharge } from "../call-cost.util";
 
 type BlockReason =
   | "DEVICE_NOT_FOUND"
@@ -374,11 +374,8 @@ export class DeskPhoneCallService {
       .getCachedUserById(call.userId!)
       .catch(() => null);
 
-    const baseMargin = readProfitMultiplier(process.env.CALL_PROFIT_MARGIN);
-    const recordingMargin = readProfitMultiplier(
-      process.env.CALL_RECORDING_PROFIT_MARGIN,
-      baseMargin,
-    );
+    const baseMargin = apiConfiguration.CALL_PROFIT_MARGIN;
+    const recordingMargin = apiConfiguration.CALL_RECORDING_PROFIT_MARGIN;
     const usedCallerId = await this.numberPurchasedService
       .isVerifiedCallerId(ctx, call.fromNumber)
       .catch(() => false);

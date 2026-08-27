@@ -1,17 +1,16 @@
 {
-    "jsc": {
-      "parser": {
-        "syntax": "typescript",
-        "tsx": false,
-        "decorators": true
-      },
-      "target": "es2020",
-      "loose": false,
-      "externalHelpers": true
+  "jsc": {
+    "parser": {
+      "syntax": "typescript",
+      "tsx": false,
+      "decorators": true
     },
-    "module": {
-      "type": "commonjs"
-    },
-    "sourceMaps": true
-  }
-  
+    "target": "es2020",
+    "loose": false,
+    "externalHelpers": true
+  },
+  "module": {
+    "type": "commonjs"
+  },
+  "sourceMaps": true
+}

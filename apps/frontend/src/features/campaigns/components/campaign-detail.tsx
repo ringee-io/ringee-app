@@ -327,7 +327,9 @@ export function CampaignDetail({ campaignId }: Props) {
         <Alert>
           <AlertTriangle className='h-4 w-4' />
           <AlertTitle>{t('detail.notReady.title')}</AlertTitle>
-          <AlertDescription>{t('detail.notReady.description')}</AlertDescription>
+          <AlertDescription>
+            {t('detail.notReady.description')}
+          </AlertDescription>
         </Alert>
       )}
 

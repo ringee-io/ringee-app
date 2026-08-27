@@ -65,6 +65,40 @@ const apiConfiguration = {
   TELNYX_WEBHOOK_TOLERANCE_SECONDS: Number(
     process.env.TELNYX_WEBHOOK_TOLERANCE_SECONDS ?? 300,
   ),
+  // ── Call & message pricing ──
+  // Multiplier applied to the provider's cost to reach the customer price.
+  // Read here (not from process.env at the call site) so a malformed value is
+  // caught at boot instead of silently billing the wrong amount.
+  CALL_PROFIT_MARGIN: Number(process.env.CALL_PROFIT_MARGIN ?? 1),
+  // Recording cost parts carry their own multiplier; defaults to the call one.
+  CALL_RECORDING_PROFIT_MARGIN: Number(
+    process.env.CALL_RECORDING_PROFIT_MARGIN ??
+      process.env.CALL_PROFIT_MARGIN ??
+      1,
+  ),
+  // Added to CALL_PROFIT_MARGIN when the call presented a verified caller ID.
+  // Defaults to 0 — i.e. no surcharge — which is the behaviour that was
+  // actually in effect while this was hard-coded. Set it deliberately.
+  CALLER_ID_PROFIT_MARGIN_SURCHARGE: Number(
+    process.env.CALLER_ID_PROFIT_MARGIN_SURCHARGE ?? 0,
+  ),
+  MESSAGE_PROFIT_MARGIN: Number(process.env.MESSAGE_PROFIT_MARGIN ?? 1),
+  // Flat fee charged per caller-ID verification attempt SENT.
+  CALLER_ID_VERIFICATION_FEE: Number(
+    process.env.CALLER_ID_VERIFICATION_FEE ?? 1.0,
+  ),
+  // ── Calendar OAuth (optional; the feature reports a clear error when unset) ──
+  GOOGLE_CALENDAR_CLIENT_ID: process.env.GOOGLE_CALENDAR_CLIENT_ID,
+  GOOGLE_CALENDAR_CLIENT_SECRET: process.env.GOOGLE_CALENDAR_CLIENT_SECRET,
+  MICROSOFT_CALENDAR_CLIENT_ID: process.env.MICROSOFT_CALENDAR_CLIENT_ID,
+  MICROSOFT_CALENDAR_CLIENT_SECRET:
+    process.env.MICROSOFT_CALENDAR_CLIENT_SECRET,
+  // Caller ID presented by Ringee-owned outbound flows when no workspace number
+  // applies (optional).
+  RINGEE_PUBLIC_CALLER_ID: process.env.RINGEE_PUBLIC_CALLER_ID,
+  // Destination for internal free-trial / credit request notifications.
+  RINGEE_TEAM_EMAIL:
+    process.env.RINGEE_TEAM_EMAIL || process.env.EMAIL_FROM_ADDRESS,
   // ── Call Recording & Transcription (Deepgram) ──
   // Optional: when unset, recording still works but transcription is disabled
   // and the service surfaces a clear error instead of crashing at boot.
@@ -184,6 +218,17 @@ const apiConfiguration = {
 
 const errors = [];
 
+/**
+ * A margin or fee must be a REAL number, not just `>= min`.
+ *
+ * `Number("Infinity")` and `Number("1e309")` both pass a bare `>= 0` check, and
+ * an infinite margin silently produces an infinite call cost while an infinite
+ * fee refuses every operation the balance is checked against. `Number.isFinite`
+ * also rejects the `NaN` that a malformed value parses to.
+ */
+const isFiniteAtLeast = (value: number, min: number): boolean =>
+  Number.isFinite(value) && value >= min;
+
 if (!apiConfiguration.DATABASE_URL) {
   errors.push("DATABASE_URL is not defined");
 }
@@ -217,16 +262,42 @@ if (
   );
 }
 
-if (!(apiConfiguration.AI_TOKEN_MARGIN >= 1)) {
-  errors.push("AI_TOKEN_MARGIN must be a number >= 1");
+if (!isFiniteAtLeast(apiConfiguration.AI_TOKEN_MARGIN, 1)) {
+  errors.push("AI_TOKEN_MARGIN must be a finite number >= 1");
 }
 
-if (!(apiConfiguration.TRANSCRIPTION_CREDIT_COST_PER_MINUTE >= 0)) {
-  errors.push("TRANSCRIPTION_CREDIT_COST_PER_MINUTE must be a number >= 0");
+if (!isFiniteAtLeast(apiConfiguration.CALL_PROFIT_MARGIN, 0)) {
+  errors.push("CALL_PROFIT_MARGIN must be a finite number >= 0");
 }
 
-if (!(apiConfiguration.TRANSCRIPTION_CREDIT_PROFIT_MARGIN >= 1)) {
-  errors.push("TRANSCRIPTION_CREDIT_PROFIT_MARGIN must be a number >= 1");
+if (!isFiniteAtLeast(apiConfiguration.CALL_RECORDING_PROFIT_MARGIN, 0)) {
+  errors.push("CALL_RECORDING_PROFIT_MARGIN must be a finite number >= 0");
+}
+
+if (!isFiniteAtLeast(apiConfiguration.CALLER_ID_PROFIT_MARGIN_SURCHARGE, 0)) {
+  errors.push("CALLER_ID_PROFIT_MARGIN_SURCHARGE must be a finite number >= 0");
+}
+
+if (!isFiniteAtLeast(apiConfiguration.MESSAGE_PROFIT_MARGIN, 0)) {
+  errors.push("MESSAGE_PROFIT_MARGIN must be a finite number >= 0");
+}
+
+if (!isFiniteAtLeast(apiConfiguration.CALLER_ID_VERIFICATION_FEE, 0)) {
+  errors.push("CALLER_ID_VERIFICATION_FEE must be a finite number >= 0");
+}
+
+if (
+  !isFiniteAtLeast(apiConfiguration.TRANSCRIPTION_CREDIT_COST_PER_MINUTE, 0)
+) {
+  errors.push(
+    "TRANSCRIPTION_CREDIT_COST_PER_MINUTE must be a finite number >= 0",
+  );
+}
+
+if (!isFiniteAtLeast(apiConfiguration.TRANSCRIPTION_CREDIT_PROFIT_MARGIN, 1)) {
+  errors.push(
+    "TRANSCRIPTION_CREDIT_PROFIT_MARGIN must be a finite number >= 1",
+  );
 }
 
 if (!apiConfiguration.PUBLIC_BACKEND_URL) {

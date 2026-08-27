@@ -64,7 +64,10 @@ export function VerifyCallerIdModal({
       await api.post('/telephony/caller-id', {
         phoneNumber: callerId.phoneNumber,
         method: callerId.verificationMethod === 'call' ? 'call' : 'sms',
-        isoCountry: callerId.isoCountry
+        isoCountry: callerId.isoCountry,
+        // Deliberate "send me another code": this is the one path that opens a
+        // new billable attempt. Plain retries omit it and rejoin the current one.
+        resend: true
       });
       toast.success(t('verifyModal.resent'));
     } catch (err) {
@@ -87,9 +90,7 @@ export function VerifyCallerIdModal({
           <DialogTitle>
             {t('verifyModal.title', { phone: callerId?.phoneNumber ?? '' })}
           </DialogTitle>
-          <DialogDescription>
-            {t('verifyModal.description')}
-          </DialogDescription>
+          <DialogDescription>{t('verifyModal.description')}</DialogDescription>
         </DialogHeader>
 
         <div className='flex flex-col items-center gap-4 py-2'>
@@ -99,9 +100,7 @@ export function VerifyCallerIdModal({
             autoFocus
             placeholder='••••••'
             value={code}
-            onChange={(e) =>
-              setCode(e.target.value.replace(/\D/g, ''))
-            }
+            onChange={(e) => setCode(e.target.value.replace(/\D/g, ''))}
             onKeyDown={(e) => {
               if (e.key === 'Enter') void submit(code);
             }}

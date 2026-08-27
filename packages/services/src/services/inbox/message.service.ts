@@ -1,3 +1,4 @@
+import { apiConfiguration } from "@ringee/configuration";
 import {
   Injectable,
   Logger,
@@ -417,9 +418,7 @@ export class MessageService {
       return;
     }
 
-    const profitMargin = process.env.MESSAGE_PROFIT_MARGIN
-      ? parseFloat(process.env.MESSAGE_PROFIT_MARGIN)
-      : 1;
+    const profitMargin = apiConfiguration.MESSAGE_PROFIT_MARGIN;
     const totalCost = rawAmount * profitMargin;
 
     const ctx: OwnershipContext = {

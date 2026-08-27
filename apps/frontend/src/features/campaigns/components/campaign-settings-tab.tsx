@@ -285,7 +285,9 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
                   onValueChange={(v) => updateForm({ numberPurchasedId: v })}
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={tc('fields.phoneNumberPlaceholder')} />
+                    <SelectValue
+                      placeholder={tc('fields.phoneNumberPlaceholder')}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     {phoneNumbers.map((num) => (
@@ -317,7 +319,9 @@ export function CampaignSettingsTab({ campaign, onUpdated }: Props) {
                   }
                 >
                   <SelectTrigger>
-                    <SelectValue placeholder={tc('fields.callerIdPlaceholder')} />
+                    <SelectValue
+                      placeholder={tc('fields.callerIdPlaceholder')}
+                    />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value='__default'>

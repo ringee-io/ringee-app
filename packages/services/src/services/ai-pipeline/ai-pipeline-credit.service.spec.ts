@@ -12,7 +12,13 @@ describe("AiPipelineCreditService", () => {
   it("charges the organization the priced token usage with margin", async () => {
     const debits: Array<{ owner: object; amount: number }> = [];
     const credits = {
-      consumeCredits: async (owner: object, amount: number) => {
+      consumeCredits: async (
+        owner: object,
+        amount: number,
+        ref: { idempotencyKey: string; source: string },
+      ) => {
+        assert.ok(ref.idempotencyKey.length > 0, "debit must carry a key");
+        assert.equal(ref.source, "ai.pipeline.run");
         debits.push({ owner, amount });
         return {};
       },

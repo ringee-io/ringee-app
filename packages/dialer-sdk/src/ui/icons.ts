@@ -17,7 +17,8 @@ const PATHS: Record<string, string> = {
   micOff:
     '<path d="M15 5a3 3 0 0 0-6 0v4M9 12a3 3 0 0 0 5.1 2.1M6 11a6 6 0 0 0 9.5 4.9M12 17v3"/><line x1="3" y1="3" x2="21" y2="21"/>',
   grid: '<rect x="4" y="4" width="4" height="4" rx="1"/><rect x="10" y="4" width="4" height="4" rx="1"/><rect x="16" y="4" width="4" height="4" rx="1"/><rect x="4" y="10" width="4" height="4" rx="1"/><rect x="10" y="10" width="4" height="4" rx="1"/><rect x="16" y="10" width="4" height="4" rx="1"/><rect x="4" y="16" width="4" height="4" rx="1"/><rect x="10" y="16" width="4" height="4" rx="1"/><rect x="16" y="16" width="4" height="4" rx="1"/>',
-  pause: '<line x1="9" y1="5" x2="9" y2="19"/><line x1="15" y1="5" x2="15" y2="19"/>',
+  pause:
+    '<line x1="9" y1="5" x2="9" y2="19"/><line x1="15" y1="5" x2="15" y2="19"/>',
   play: '<polygon points="7 4 19 12 7 20 7 4"/>',
   // Navigation / chrome
   x: '<line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/>',
@@ -25,7 +26,8 @@ const PATHS: Record<string, string> = {
   chevronDown: '<polyline points="6 9 12 15 18 9"/>',
   chevronLeft: '<polyline points="15 6 9 12 15 18"/>',
   check: '<polyline points="4 12 9 17 20 6"/>',
-  arrowLeft: '<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>',
+  arrowLeft:
+    '<line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>',
   // Status / feedback
   alert:
     '<path d="M12 3 2.5 20h19L12 3Z"/><line x1="12" y1="10" x2="12" y2="14"/><circle cx="12" cy="17.3" r=".4" fill="currentColor" stroke="none"/>',
@@ -38,12 +40,16 @@ const PATHS: Record<string, string> = {
   logout:
     '<path d="M14 4h4a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1h-4"/><polyline points="9 8 5 12 9 16"/><line x1="5" y1="12" x2="15" y2="12"/>',
   mail: '<rect x="3" y="5" width="18" height="14" rx="2"/><polyline points="4 7 12 13 20 7"/>',
-  delete: '<line x1="4" y1="12" x2="14" y2="12"/><polyline points="9 7 4 12 9 17"/>',
+  delete:
+    '<line x1="4" y1="12" x2="14" y2="12"/><polyline points="9 7 4 12 9 17"/>',
   clock: '<circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>',
 };
 
 /** Return an inline `<svg>` element for the named glyph. */
-export function icon(name: keyof typeof PATHS | string, size = 20): SVGSVGElement {
+export function icon(
+  name: keyof typeof PATHS | string,
+  size = 20,
+): SVGSVGElement {
   const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
   svg.setAttribute("viewBox", "0 0 24 24");
   svg.setAttribute("width", String(size));

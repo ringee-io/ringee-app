@@ -38,7 +38,9 @@ export type ComparisonContent = {
 };
 
 /** Shared comparison rows; competitor-specific notes can override per page. */
-function baseRows(overrides: Partial<Record<string, string>> = {}): ComparisonRow[] {
+function baseRows(
+  overrides: Partial<Record<string, string>> = {}
+): ComparisonRow[] {
   return [
     {
       label: 'Pricing model',
@@ -80,7 +82,8 @@ function baseRows(overrides: Partial<Record<string, string>> = {}): ComparisonRo
     {
       label: 'Pay-as-you-go calling credits',
       ringee: 'Yes — from $0.012/min, pay only for minutes used',
-      competitor: overrides.minutes ?? 'Typically bundled minutes or paid add-ons'
+      competitor:
+        overrides.minutes ?? 'Typically bundled minutes or paid add-ons'
     }
   ];
 }
@@ -125,7 +128,8 @@ export const COMPARISONS: ComparisonContent[] = [
           'Aircall charges per user per month, usually with a seat minimum, so your bill scales with headcount. Ringee is a flat $20/month per organization with unlimited users, plus pay-as-you-go calling credits from $0.012/min — so cost scales with usage, not team size.'
       },
       {
-        question: 'Can I self-host Ringee instead of using a SaaS phone system?',
+        question:
+          'Can I self-host Ringee instead of using a SaaS phone system?',
         answer:
           'Yes. Ringee is open source under the MIT license and can be self-hosted on your own infrastructure, which Aircall does not offer.'
       }

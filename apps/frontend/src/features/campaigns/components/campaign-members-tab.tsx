@@ -270,10 +270,7 @@ export function CampaignMembersTab({
                         <span className='font-medium'>
                           {getMemberName(member)}
                         </span>
-                        <Badge
-                          variant='outline'
-                          className='text-xs capitalize'
-                        >
+                        <Badge variant='outline' className='text-xs capitalize'>
                           {t.has(`roles.${member.role}`)
                             ? t(`roles.${member.role}`)
                             : member.role}

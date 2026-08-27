@@ -1,0 +1,117 @@
+name: CI
+
+# Every rule in AGENTS.md and every ESLint architecture boundary
+# (ARCH-001..ARCH-004) previously rested on someone running the commands
+# locally. This is what makes them real.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# This job runs code from the pull request (install scripts, lint, tests). It
+# only ever needs to read the repository, so the token it gets should not be
+# able to write to it.
+permissions:
+  contents: read
+
+env:
+  # @ringee/configuration validates required vars at import time and exits when
+  # any are missing, so type-checking and unit tests need placeholders. These
+  # are inert stand-ins — no build step contacts a provider.
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/ringee_ci
+  REDIS_URL: redis://localhost:6379
+  FRONTEND_URL: http://localhost:4200
+  BACKEND_URL: http://localhost:3000
+  PUBLIC_BACKEND_URL: http://localhost:3000
+  APP_ENCRYPTION_SECRET: ci-only-encryption-secret-not-a-real-key
+  OPENAI_API_KEY: ci-placeholder
+  RESEND_API_KEY: ci-placeholder
+  EMAIL_FROM_NAME: Ringee CI
+  EMAIL_FROM_ADDRESS: ci@example.invalid
+  CLERK_WEBHOOK_SIGNING_SECRET: ci-placeholder
+  CLERK_PUBLISHABLE_KEY: ci-placeholder
+  CLERK_SECRET_KEY: ci-placeholder
+  TELNYX_API_KEY: ci-placeholder
+  TELNYX_CONNECTION_ID: ci-placeholder
+  STRIPE_SECRET_KEY: ci-placeholder
+  STRIPE_WEBHOOK_SECRET: ci-placeholder
+  WHATSAPP_PHONE_ID: ci-placeholder
+  WHATSAPP_PHONE_NUMBER: ci-placeholder
+  WHATSAPP_TOKEN: ci-placeholder
+  WHATSAPP_VERIFY_TOKEN: ci-placeholder
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Don't leave the token in .git/config while PR-controlled commands run.
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      # Repositories and services are typed against the generated client, so
+      # nothing type-checks until this has run.
+      - name: Generate Prisma client
+        run: pnpm prisma:generate
+
+      # Blocking. The lint baseline used to be ~557 findings, so this step
+      # could only ever be advisory; the rules behind it were retuned (see the
+      # "Signal over volume" block in eslint.config.mjs) and the repo is now at
+      # zero errors. Warnings still report and do not fail the build, so a
+      # `no-unused-vars` backlog never blocks an unrelated merge — but a new
+      # error does.
+      - name: Lint
+        run: pnpm lint
+
+      # Prettier runs inside ESLint for .ts/.tsx, but not for Markdown, JSON,
+      # YAML or the docs under docs/engineering. This covers the rest.
+      - name: Format check
+        run: pnpm format:check
+
+      # Belt and braces. `pnpm lint` above already fails on these, but this
+      # step names the offending import explicitly, and it keys off the rule
+      # id rather than the severity — so it still fires if someone downgrades
+      # ARCH-001..ARCH-004 to warnings.
+      - name: Architecture boundaries must hold
+        run: |
+          npx eslint . -f json -o eslint-report.json || true
+          node -e "
+            const r = require('./eslint-report.json');
+            const hits = r.flatMap(f =>
+              f.messages
+                .filter(m => (m.ruleId || '').includes('no-restricted-imports'))
+                .map(m => \`\${f.filePath}:\${m.line} \${m.message}\`)
+            );
+            if (hits.length) {
+              console.error('Architecture boundary violations:\n' + hits.join('\n'));
+              process.exit(1);
+            }
+            console.log('Architecture boundaries hold (0 violations).');
+          "
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        run: |
+          pnpm build:database
+          pnpm build:backend
+          pnpm build:orchestrator

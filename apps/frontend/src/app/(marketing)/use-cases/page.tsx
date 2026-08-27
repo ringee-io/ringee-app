@@ -35,8 +35,8 @@ export default function UseCasesPage() {
           </h1>
           <p className='text-muted-foreground mt-6 text-lg text-pretty'>
             Ringee gives outbound operators calling, follow-up, CRM sync, and AI
-            automation without enterprise complexity. See how different teams put
-            it to work.
+            automation without enterprise complexity. See how different teams
+            put it to work.
           </p>
         </Container>
       </Section>

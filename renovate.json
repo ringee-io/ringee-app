@@ -1,10 +1,6 @@
 {
-  "extends": [
-    "config:recommended"
-  ],
-  "ignorePresets": [
-    ":ignoreModulesAndTests"
-  ],
+  "extends": ["config:recommended"],
+  "ignorePresets": [":ignoreModulesAndTests"],
   "rangeStrategy": "replace",
   "automerge": true,
   "automergeType": "branch",

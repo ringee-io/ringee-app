@@ -1,13 +1,12 @@
 import { Controller, Post, Req, Res, HttpStatus } from "@nestjs/common";
 import type { Request as ExpressRequest, Response } from "express";
 import { verifyWebhook, type WebhookEvent } from "@clerk/backend/webhooks";
+import { Public } from "@ringee/platform";
 import {
-  ClerkUserRepository,
-  ClerkOrganizationRepository,
-  Public,
-} from "@ringee/platform";
-import { UserRepository, OrganizationRepository } from "@ringee/database";
-import { SubscriptionService, UserService } from "@ringee/services";
+  OrganizationService,
+  SubscriptionService,
+  UserService,
+} from "@ringee/services";
 import { apiConfiguration } from "@ringee/configuration";
 import { TriggerLoopEventPublisher } from "../../triggerloop/services/triggerloop-event-publisher.service";
 import { UserAccessEnforcementService } from "./user-access-enforcement.service";
@@ -16,10 +15,9 @@ import { UserAccessEnforcementService } from "./user-access-enforcement.service"
 @Controller("webhooks")
 export class ClerkController {
   constructor(
-    private readonly userRepository: UserRepository,
-    private readonly organizationRepository: OrganizationRepository,
     private readonly subscriptionService: SubscriptionService,
     private readonly userService: UserService,
+    private readonly organizationService: OrganizationService,
     private readonly triggerLoop: TriggerLoopEventPublisher,
     private readonly userAccess: UserAccessEnforcementService,
   ) {}
@@ -62,19 +60,15 @@ export class ClerkController {
       switch (evt.type) {
         case "user.created": {
           const userId = (evt.data as any).id;
-          const clerkUser = await ClerkUserRepository.findById(userId);
-          const user = await this.userRepository.syncFromClerkUser(clerkUser, {
-            clientIp: ip,
-            userAgent: userAgent,
-          });
-          await this.userService.invalidateUserCache(user);
-
-          await ClerkUserRepository.updateMetadata(userId, {
-            privateMetadata: {
-              ...(clerkUser.privateMetadata as Record<string, unknown>),
-              userId: user.id,
-            },
-          });
+          const { user, clerkUser } = await this.userService.syncFromClerk(
+            userId,
+            { clientIp: ip, userAgent },
+          );
+          await this.userService.linkRingeeIdToClerk(
+            userId,
+            clerkUser,
+            user.id,
+          );
 
           await this.triggerLoop.startWorkflow("signupFollowup", {
             type: "user",
@@ -88,14 +82,12 @@ export class ClerkController {
           const userAgent = evt.event_attributes?.http_request?.user_agent;
           const userId = (evt.data as any).id;
 
-          const clerkUser = await ClerkUserRepository.findById(userId);
-          // `user.updated` can overtake `user.created` during signup. Use the
-          // idempotent sync path so either event can establish the local row.
-          const user = await this.userRepository.syncFromClerkUser(clerkUser, {
-            clientIp: ip,
-            userAgent: userAgent,
-          });
-          await this.userService.invalidateUserCache(user);
+          // `user.updated` can overtake `user.created` during signup. The sync
+          // path is idempotent so either event can establish the local row.
+          const { user, clerkUser } = await this.userService.syncFromClerk(
+            userId,
+            { clientIp: ip, userAgent },
+          );
 
           await this.userAccess.syncClerkAccessToRingee(
             user.id,
@@ -113,8 +105,7 @@ export class ClerkController {
 
         case "user.deleted": {
           const userId = (evt.data as any).id;
-          const deleted = await this.userRepository.deleteByClerkId(userId);
-          await this.userService.invalidateUserCache(deleted);
+          await this.userService.deleteFromClerk(userId);
           break;
         }
 
@@ -122,15 +113,11 @@ export class ClerkController {
           const orgId = (evt.data as any).id;
           const createdBy = (evt.data as any).created_by;
 
-          const clerkOrg = await ClerkOrganizationRepository.findById(orgId);
-          const org =
-            await this.organizationRepository.syncFromClerkOrganization(
-              clerkOrg,
-            );
+          const org = await this.organizationService.syncFromClerk(orgId);
 
           // Find user's unassigned subscription and assign it to this org
           if (createdBy) {
-            const user = await this.userRepository.findByClerkId(createdBy);
+            const user = await this.userService.getByClerkId(createdBy);
             if (user) {
               await this.subscriptionService.assignToOrganization(
                 user.id,
@@ -144,50 +131,40 @@ export class ClerkController {
 
         case "organization.updated": {
           const orgId = (evt.data as any).id;
-          const clerkOrg = await ClerkOrganizationRepository.findById(orgId);
-          await this.organizationRepository.updateFromClerkOrganization(
-            clerkOrg,
-          );
+          await this.organizationService.updateFromClerk(orgId);
           break;
         }
 
         case "organization.deleted": {
           const orgId = (evt.data as any).id;
-          await this.organizationRepository.deleteByClerkId(orgId);
+          await this.organizationService.deleteFromClerk(orgId);
           break;
         }
 
         case "organizationMembership.created": {
           const membership = evt.data as any;
 
-          // Sincronizar organización (upsert maneja si existe o no)
-          const clerkOrg = await ClerkOrganizationRepository.findById(
+          // Upsert the organization first (handles created-or-existing).
+          await this.organizationService.syncFromClerk(
             membership.organization.id,
           );
-          await this.organizationRepository.syncFromClerkOrganization(clerkOrg);
 
-          // Sincronizar usuario si existe en Clerk (upsert maneja si existe o no)
+          // Then the member, if they exist in Clerk yet.
           try {
-            const clerkUser = await ClerkUserRepository.findById(
+            await this.userService.syncFromClerk(
               membership.public_user_data.user_id,
+              { clientIp: ip, userAgent },
             );
-            const syncedMember = await this.userRepository.syncFromClerkUser(
-              clerkUser,
-              {
-                clientIp: ip,
-                userAgent: userAgent,
-              },
-            );
-            await this.userService.invalidateUserCache(syncedMember);
           } catch (error) {
-            // Usuario aún no existe (invitación pendiente), continuar sin error
+            // The user does not exist in Clerk yet (pending invitation) —
+            // continue without failing the webhook.
             console.log(
               `User ${membership.public_user_data.user_id} not found in Clerk - pending invitation`,
             );
           }
 
-          // Crear la membresía
-          await this.organizationRepository.addMembership(
+          // Create the membership.
+          await this.organizationService.addMembership(
             membership.organization.id,
             membership.public_user_data.user_id,
             membership.role,
@@ -197,7 +174,7 @@ export class ClerkController {
 
         case "organizationMembership.deleted": {
           const membership = evt.data as any;
-          await this.organizationRepository.removeMembership(
+          await this.organizationService.removeMembership(
             membership.organization.id,
             membership.public_user_data.user_id,
           );

@@ -44,7 +44,11 @@ export class CardView {
     }
     if (cb.onClose) {
       actions.appendChild(
-        iconButton({ icon: "x", label: model.s.close, onClick: () => cb.onClose?.() }),
+        iconButton({
+          icon: "x",
+          label: model.s.close,
+          onClick: () => cb.onClose?.(),
+        }),
       );
     }
 
@@ -60,7 +64,12 @@ export class CardView {
     this.body = h("div", { class: "rg-body" });
     this.footer = h("div", {
       class: "rg-header",
-      style: { borderBottom: "0", borderTop: "1px solid var(--ringee-border)", minHeight: "auto", padding: "8px" },
+      style: {
+        borderBottom: "0",
+        borderTop: "1px solid var(--ringee-border)",
+        minHeight: "auto",
+        padding: "8px",
+      },
       hidden: true,
     });
     this.live = h("div", {
@@ -70,7 +79,11 @@ export class CardView {
 
     this.el = h(
       "div",
-      { class: "rg-card", role: "dialog", attrs: { "aria-label": model.s.brand } },
+      {
+        class: "rg-card",
+        role: "dialog",
+        attrs: { "aria-label": model.s.brand },
+      },
       header,
       this.body,
       this.footer,
@@ -106,7 +119,11 @@ export class CardView {
       dot = statusDot("live");
       label = this.model.s.ongoingCall;
     }
-    replaceChildren(this.statusEl, dot, label ? h("span", { text: label }) : null);
+    replaceChildren(
+      this.statusEl,
+      dot,
+      label ? h("span", { text: label }) : null,
+    );
 
     // Minimize is only meaningful during a live call.
     if (this.minimizeBtn) {
@@ -114,8 +131,7 @@ export class CardView {
     }
 
     // Footer agent menu on idle authenticated screens only.
-    const showFooter =
-      this.model.agent && (key === "ready" || key === "ended");
+    const showFooter = this.model.agent && (key === "ready" || key === "ended");
     this.footer.hidden = !showFooter;
     if (showFooter && this.model.agent) {
       const a = this.model.agent;
@@ -152,12 +168,16 @@ export class CardView {
       ready: "",
       calling: this.model.dialerState === "ringing" ? s.ringing : s.dialing,
       incall: this.model.activeCall?.held ? s.onHold : s.inCall,
-      ended: this.model.lastEndedCall?.state === "error" ? s.callFailedTitle : s.callEnded,
+      ended:
+        this.model.lastEndedCall?.state === "error"
+          ? s.callFailedTitle
+          : s.callEnded,
       fatal: this.model.banner?.title ?? s.genericErrorTitle,
     };
-    const msg = this.model.banner && key !== "ready"
-      ? `${map[key]}. ${this.model.banner.message}`
-      : map[key];
+    const msg =
+      this.model.banner && key !== "ready"
+        ? `${map[key]}. ${this.model.banner.message}`
+        : map[key];
     if (msg && msg !== this.lastAnnounced) {
       this.lastAnnounced = msg;
       this.live.textContent = msg;

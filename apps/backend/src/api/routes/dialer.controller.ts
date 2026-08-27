@@ -22,13 +22,10 @@ import {
   DispositionService,
   VoicemailDropService,
   SSEBridgeService,
+  CampaignService,
+  CallService,
 } from "@ringee/services";
-import {
-  CampaignRepository,
-  DispositionRepository,
-  CampaignMemberRepository,
-  CallRepository,
-} from "@ringee/database";
+import {} from "@ringee/database";
 
 interface CurrentUserData {
   id: string;
@@ -43,12 +40,10 @@ export class DialerController {
     private readonly dialerOrchestration: DialerOrchestrationService,
     private readonly callAttemptService: CallAttemptService,
     private readonly dispositionService: DispositionService,
+    private readonly campaignService: CampaignService,
+    private readonly callService: CallService,
     private readonly voicemailDropService: VoicemailDropService,
-    private readonly campaignRepo: CampaignRepository,
-    private readonly dispositionRepo: DispositionRepository,
     private readonly sseBridge: SSEBridgeService,
-    private readonly campaignMemberRepo: CampaignMemberRepository,
-    private readonly callRepo: CallRepository,
   ) {}
 
   /**
@@ -70,24 +65,10 @@ export class DialerController {
     const orgId = this.requireOrg(user);
     const ctx = createOwnershipContext(user);
 
-    // Ensure the campaign exists and belongs to the caller's org before
-    // creating a session against it.
-    const campaign = await this.campaignRepo.findById(body.campaignId);
-    if (!campaign || campaign.organizationId !== orgId) {
-      throw new ForbiddenException("Campaign not found in your organization");
-    }
-
-    // Non-admins must be assigned to the campaign to dial it.
-    const isAdmin = user.activeOrgRole === "org:admin";
-    if (!isAdmin) {
-      const isMember = await this.campaignMemberRepo.isMember(
-        body.campaignId,
-        ctx.userId,
-      );
-      if (!isMember) {
-        throw new ForbiddenException("You are not assigned to this campaign");
-      }
-    }
+    // Ownership + membership gate (CMP-002) lives in the service.
+    await this.campaignService.assertDialableCampaign(ctx, body.campaignId, {
+      isOrgAdmin: user.activeOrgRole === "org:admin",
+    });
 
     return this.agentSessionService.startSession({
       campaignId: body.campaignId,
@@ -181,6 +162,7 @@ export class DialerController {
     @CurrentUser() user: CurrentUserData,
   ) {
     const orgId = this.requireOrg(user);
+    const ctx = createOwnershipContext(user);
 
     // Resolve the disposition by code from the attempt's campaign
     const attempt = await this.callAttemptService.getAttemptById(
@@ -188,15 +170,12 @@ export class DialerController {
     );
     if (!attempt) throw new BadRequestException("Attempt not found");
 
-    const campaign = await this.campaignRepo.findById(attempt.campaignId);
-    if (!campaign) throw new BadRequestException("Campaign not found");
-    if (campaign.organizationId !== orgId) {
-      throw new ForbiddenException(
-        "Attempt does not belong to your organization",
-      );
-    }
+    const campaign = await this.campaignService.assertCampaignInWorkspace(
+      ctx,
+      attempt.campaignId,
+    );
 
-    const disposition = await this.dispositionRepo.findByCampaignAndCode(
+    const disposition = await this.dispositionService.findByCampaignAndCode(
       attempt.campaignId,
       body.dispositionCode,
     );
@@ -241,6 +220,7 @@ export class DialerController {
     @CurrentUser() user: CurrentUserData,
   ) {
     const orgId = this.requireOrg(user);
+    const ctx = createOwnershipContext(user);
     if (!body?.assetId) {
       throw new BadRequestException("assetId is required");
     }
@@ -250,13 +230,11 @@ export class DialerController {
     if (!attempt?.callId) {
       throw new BadRequestException("No active call for this attempt");
     }
-    const campaign = await this.campaignRepo.findById(attempt.campaignId);
-    if (!campaign || campaign.organizationId !== orgId) {
-      throw new ForbiddenException(
-        "Attempt does not belong to your organization",
-      );
-    }
-    const call = await this.callRepo.findById(attempt.callId);
+    await this.campaignService.assertCampaignInWorkspace(
+      ctx,
+      attempt.campaignId,
+    );
+    const call = await this.callService.findById(attempt.callId);
     if (!call?.callControlId) {
       throw new BadRequestException("No active call for this attempt");
     }

@@ -53,8 +53,18 @@ export const DEMO_AGENT: RingeeAgent = {
 };
 
 export const DEMO_CALLER_IDS: RingeeCallerId[] = [
-  { id: "cid_1", phoneNumber: "+13055550198", isPrimary: true, canRecord: true },
-  { id: "cid_2", phoneNumber: "+525512345678", isPrimary: false, canRecord: true },
+  {
+    id: "cid_1",
+    phoneNumber: "+13055550198",
+    isPrimary: true,
+    canRecord: true,
+  },
+  {
+    id: "cid_2",
+    phoneNumber: "+525512345678",
+    isPrimary: false,
+    canRecord: true,
+  },
 ];
 
 export class MockDialer {
@@ -74,28 +84,53 @@ export class MockDialer {
   }
 
   // ── Event bus ─────────────────────────────────────────────────────────────
-  on<T extends RingeeEventName>(event: T, handler: RingeeEventHandler<T>): () => void {
+  on<T extends RingeeEventName>(
+    event: T,
+    handler: RingeeEventHandler<T>,
+  ): () => void {
     const set = (this.handlers[event] ??= new Set<AnyHandler>());
     set.add(handler as AnyHandler);
     return () => set.delete(handler as AnyHandler);
   }
 
-  emit<T extends RingeeEventName>(event: T, payload: RingeeEventPayloads[T]): void {
+  emit<T extends RingeeEventName>(
+    event: T,
+    payload: RingeeEventPayloads[T],
+  ): void {
     const set = this.handlers[event];
     if (!set) return;
-    for (const fn of [...set]) (fn as (p: RingeeEventPayloads[T]) => void)(payload);
+    for (const fn of [...set])
+      (fn as (p: RingeeEventPayloads[T]) => void)(payload);
   }
 
   // ── Getters the model reads ───────────────────────────────────────────────
-  getAuthState() { return this.auth; }
-  getState() { return this.state; }
-  getAgent() { return this.agent; }
-  getCallerIds() { return [...this.callerIds]; }
-  getActiveCall() { return this.current; }
+  getAuthState() {
+    return this.auth;
+  }
+  getState() {
+    return this.state;
+  }
+  getAgent() {
+    return this.agent;
+  }
+  getCallerIds() {
+    return [...this.callerIds];
+  }
+  getActiveCall() {
+    return this.current;
+  }
 
-  private setAuth(a: AuthState) { this.auth = a; this.emit("authStateChanged", { state: a }); }
-  private setState(s: DialerState) { this.state = s; this.emit("stateChanged", { state: s }); }
-  private after(ms: number, fn: () => void) { this.timers.push(setTimeout(fn, ms)); }
+  private setAuth(a: AuthState) {
+    this.auth = a;
+    this.emit("authStateChanged", { state: a });
+  }
+  private setState(s: DialerState) {
+    this.state = s;
+    this.emit("stateChanged", { state: s });
+  }
+  private after(ms: number, fn: () => void) {
+    this.timers.push(setTimeout(fn, ms));
+  }
 
   // ── Public API surface (interactive) ──────────────────────────────────────
   async initialize() {
@@ -119,7 +154,10 @@ export class MockDialer {
     return challenge;
   }
 
-  async verifyEmailCode(_input: { challengeId: string; code: string }): Promise<RingeeAgent> {
+  async verifyEmailCode(_input: {
+    challengeId: string;
+    code: string;
+  }): Promise<RingeeAgent> {
     this.setAuth("verifying");
     if (this.cfg.failVerify) {
       await sleep(650);
@@ -145,9 +183,17 @@ export class MockDialer {
 
   async call(input: { to: string }): Promise<RingeeCall> {
     this.current = {
-      id: "call_1", to: input.to, from: this.callerIds[0]!.phoneNumber,
-      direction: "outbound", state: "dialing", startedAt: new Date(),
-      answeredAt: null, endedAt: null, durationSeconds: 0, muted: false, held: false,
+      id: "call_1",
+      to: input.to,
+      from: this.callerIds[0]!.phoneNumber,
+      direction: "outbound",
+      state: "dialing",
+      startedAt: new Date(),
+      answeredAt: null,
+      endedAt: null,
+      durationSeconds: 0,
+      muted: false,
+      held: false,
     };
     this.setState("dialing");
     this.emit("dialing", { call: this.current });
@@ -162,7 +208,11 @@ export class MockDialer {
     } else {
       this.after(3000, () => {
         if (!this.current) return;
-        this.current = { ...this.current, state: "active", answeredAt: new Date() };
+        this.current = {
+          ...this.current,
+          state: "active",
+          answeredAt: new Date(),
+        };
         this.setState("active");
         this.emit("answered", { call: this.current });
       });
@@ -170,40 +220,107 @@ export class MockDialer {
     return this.current;
   }
 
-  async hangup() { this.finish("ended"); }
-  mute() { if (this.current) { this.current = { ...this.current, muted: true }; this.emit("muted", { call: this.current }); } }
-  unmute() { if (this.current) { this.current = { ...this.current, muted: false }; this.emit("unmuted", { call: this.current }); } }
-  async hold() { if (this.current) { this.current = { ...this.current, held: true }; this.setState("held"); this.emit("held", { call: this.current }); } }
-  async resume() { if (this.current) { this.current = { ...this.current, held: false }; this.setState("active"); this.emit("resumed", { call: this.current }); } }
-  sendDigits(_d: string) { /* no-op */ }
-  async destroy() { this.clear(); }
-  getInputDevices() { return Promise.resolve([]); }
-  getOutputDevices() { return Promise.resolve([]); }
-  setInputDevice() { return Promise.resolve(); }
-  setOutputDevice() { return Promise.resolve(); }
+  async hangup() {
+    this.finish("ended");
+  }
+  mute() {
+    if (this.current) {
+      this.current = { ...this.current, muted: true };
+      this.emit("muted", { call: this.current });
+    }
+  }
+  unmute() {
+    if (this.current) {
+      this.current = { ...this.current, muted: false };
+      this.emit("unmuted", { call: this.current });
+    }
+  }
+  async hold() {
+    if (this.current) {
+      this.current = { ...this.current, held: true };
+      this.setState("held");
+      this.emit("held", { call: this.current });
+    }
+  }
+  async resume() {
+    if (this.current) {
+      this.current = { ...this.current, held: false };
+      this.setState("active");
+      this.emit("resumed", { call: this.current });
+    }
+  }
+  sendDigits(_d: string) {
+    /* no-op */
+  }
+  async destroy() {
+    this.clear();
+  }
+  getInputDevices() {
+    return Promise.resolve([]);
+  }
+  getOutputDevices() {
+    return Promise.resolve([]);
+  }
+  setInputDevice() {
+    return Promise.resolve();
+  }
+  setOutputDevice() {
+    return Promise.resolve();
+  }
 
   private finish(kind: "ended" | "error") {
     if (!this.current) return;
     const answeredAt = this.current.answeredAt;
     const endedAt = new Date();
-    const durationSeconds = answeredAt ? Math.max(0, Math.floor((endedAt.getTime() - answeredAt.getTime()) / 1000)) : 0;
-    const finished: RingeeCall = { ...this.current, state: kind === "error" ? "error" : "ended", endedAt, durationSeconds };
+    const durationSeconds = answeredAt
+      ? Math.max(
+          0,
+          Math.floor((endedAt.getTime() - answeredAt.getTime()) / 1000),
+        )
+      : 0;
+    const finished: RingeeCall = {
+      ...this.current,
+      state: kind === "error" ? "error" : "ended",
+      endedAt,
+      durationSeconds,
+    };
     this.current = null;
     this.setState("ready");
-    if (kind === "error") this.emit("failed", { call: finished, error: { code: "CALL_FAILED", message: "failed", retryable: true } });
+    if (kind === "error")
+      this.emit("failed", {
+        call: finished,
+        error: { code: "CALL_FAILED", message: "failed", retryable: true },
+      });
     else this.emit("ended", { call: finished });
   }
 
   private makeChallenge(email: string): EmailChallenge {
     const masked = maskEmail(email);
-    return { id: "ch_1", maskedEmail: masked, expiresAt: new Date(Date.now() + 300000), resendAvailableAt: new Date(Date.now() + 30000) };
+    return {
+      id: "ch_1",
+      maskedEmail: masked,
+      expiresAt: new Date(Date.now() + 300000),
+      resendAvailableAt: new Date(Date.now() + 30000),
+    };
   }
-  private clear() { for (const t of this.timers) clearTimeout(t); this.timers = []; }
+  private clear() {
+    for (const t of this.timers) clearTimeout(t);
+    this.timers = [];
+  }
 
   // ── Frozen-state presets used by the gallery ──────────────────────────────
-  presetAuth(a: AuthState) { this.auth = a; return this; }
-  presetState(s: DialerState) { this.state = s; return this; }
-  presetCall(c: RingeeCall | null) { this.current = c; return this; }
+  presetAuth(a: AuthState) {
+    this.auth = a;
+    return this;
+  }
+  presetState(s: DialerState) {
+    this.state = s;
+    return this;
+  }
+  presetCall(c: RingeeCall | null) {
+    this.current = c;
+    return this;
+  }
 }
 
 function maskEmail(email: string): string {
@@ -212,4 +329,6 @@ function maskEmail(email: string): string {
   const head = (name ?? "").slice(0, 2);
   return `${head}${"*".repeat(Math.max(2, (name ?? "").length - 2))}@${domain}`;
 }
-function sleep(ms: number) { return new Promise((r) => setTimeout(r, ms)); }
+function sleep(ms: number) {
+  return new Promise((r) => setTimeout(r, ms));
+}

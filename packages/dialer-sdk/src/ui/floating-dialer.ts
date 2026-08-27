@@ -52,7 +52,10 @@ export class FloatingDialer {
     this.panel.classList.add("rg-panel");
     this.panel.id = "rg-panel";
 
-    this.launcherBadge = h("span", { class: "rg-launcher__badge", hidden: true });
+    this.launcherBadge = h("span", {
+      class: "rg-launcher__badge",
+      hidden: true,
+    });
     this.launcher = h(
       "button",
       {
@@ -94,8 +97,7 @@ export class FloatingDialer {
     this.unsub = model.subscribe(() => this.syncLauncher());
     this.syncLauncher();
 
-    const remembered =
-      opts.rememberOpen !== false && sessionRead() === "1";
+    const remembered = opts.rememberOpen !== false && sessionRead() === "1";
     if (opts.defaultOpen || remembered) this.openPanel(false);
   }
 
@@ -165,7 +167,7 @@ export class FloatingDialer {
   // ── Internals ───────────────────────────────────────────────────────────
   private focusFirst(): void {
     const target = this.panel.querySelector<HTMLElement>(
-      'input:not([disabled]), button:not([disabled]):not(.rg-iconbtn)',
+      "input:not([disabled]), button:not([disabled]):not(.rg-iconbtn)",
     );
     (target ?? this.panel).focus?.();
   }
@@ -207,7 +209,10 @@ export class FloatingDialer {
 }
 
 function isNarrow(): boolean {
-  return typeof window !== "undefined" && window.matchMedia("(max-width: 480px)").matches;
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia("(max-width: 480px)").matches
+  );
 }
 
 function sessionRead(): string | null {

@@ -61,6 +61,7 @@ import { ObjectionInsightController } from "./objection-insight.controller";
 import { PendingActionController } from "./pending-action.controller";
 import { ExtensionController } from "./extension.controller";
 import { BackofficeController } from "./backoffice.controller";
+import { BackofficeAccessController } from "./backoffice-access.controller";
 import { BackofficeCampaignsController } from "./backoffice-campaigns.controller";
 import { BackofficeOffersController } from "./backoffice-offers.controller";
 import { OfferController } from "./offer.controller";
@@ -126,6 +127,7 @@ import { UserAccessEnforcementService } from "./user-access-enforcement.service"
     PendingActionController,
     ExtensionController,
     BackofficeController,
+    BackofficeAccessController,
     BackofficeCampaignsController,
     BackofficeOffersController,
     OfferController,

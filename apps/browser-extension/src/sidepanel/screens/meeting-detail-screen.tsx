@@ -94,13 +94,19 @@ export function MeetingDetailScreen({ id }: { id: string }) {
       {m && (
         <div className="flex-1 space-y-4 overflow-y-auto p-4">
           <div className="flex flex-col items-center gap-2 text-center">
-            <Avatar name={m.contactName || m.title} fallback={m.title} size={64} />
+            <Avatar
+              name={m.contactName || m.title}
+              fallback={m.title}
+              size={64}
+            />
             <h2 className="text-lg font-semibold tracking-tight">
               {m.title ||
                 (m.contactName ? `Meeting with ${m.contactName}` : "Meeting")}
             </h2>
             {m.contactCompany && (
-              <p className="text-muted-foreground text-sm">{m.contactCompany}</p>
+              <p className="text-muted-foreground text-sm">
+                {m.contactCompany}
+              </p>
             )}
             <StatusPill label={m.status} tone={toneFor(m.status)} />
           </div>

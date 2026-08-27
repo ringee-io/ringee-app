@@ -16,7 +16,11 @@ services:
       - ringee_pg_data:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-ringee-user} -d ${POSTGRES_DB:-ringee-db-local} -h 127.0.0.1 || exit 1"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-ringee-user} -d ${POSTGRES_DB:-ringee-db-local} -h 127.0.0.1 || exit 1",
+        ]
       interval: 10s
       timeout: 5s
       retries: 6
@@ -58,7 +62,16 @@ services:
       ringee-postgres:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "temporal", "operator", "cluster", "health", "--address", "127.0.0.1:7233"]
+      test:
+        [
+          "CMD",
+          "temporal",
+          "operator",
+          "cluster",
+          "health",
+          "--address",
+          "127.0.0.1:7233",
+        ]
       interval: 10s
       timeout: 5s
       retries: 10

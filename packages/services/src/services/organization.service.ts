@@ -1,6 +1,6 @@
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import { Organization, OrganizationRepository } from "@ringee/database";
-import { RedisService } from "@ringee/platform";
+import { ClerkOrganizationRepository, RedisService } from "@ringee/platform";
 
 /** One switchable workspace the user can scope their MCP session to. */
 export interface UserWorkspaceMembership {
@@ -53,6 +53,41 @@ export class OrganizationService {
 
     return org;
   }
+  /** Create or refresh the local organization row from Clerk. */
+  async syncFromClerk(clerkOrgId: string): Promise<Organization> {
+    const clerkOrg = await ClerkOrganizationRepository.findById(clerkOrgId);
+    return this.organizationRepository.syncFromClerkOrganization(clerkOrg);
+  }
+
+  /** Refresh mutable fields of an existing organization from Clerk. */
+  async updateFromClerk(clerkOrgId: string): Promise<void> {
+    const clerkOrg = await ClerkOrganizationRepository.findById(clerkOrgId);
+    await this.organizationRepository.updateFromClerkOrganization(clerkOrg);
+  }
+
+  async deleteFromClerk(clerkOrgId: string): Promise<void> {
+    await this.organizationRepository.deleteByClerkId(clerkOrgId);
+  }
+
+  async addMembership(
+    clerkOrgId: string,
+    clerkUserId: string,
+    role: string,
+  ): Promise<void> {
+    await this.organizationRepository.addMembership(
+      clerkOrgId,
+      clerkUserId,
+      role,
+    );
+  }
+
+  async removeMembership(
+    clerkOrgId: string,
+    clerkUserId: string,
+  ): Promise<void> {
+    await this.organizationRepository.removeMembership(clerkOrgId, clerkUserId);
+  }
+
   async updateCustomerId(
     id: string,
     customerId: string,

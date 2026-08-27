@@ -99,7 +99,10 @@ export function AppShell({
       )}
 
       <div className="min-h-0 flex-1 overflow-hidden">
-        <div key={routeKey(nav.route)} className="h-full animate-[screenIn_0.16s_ease]">
+        <div
+          key={routeKey(nav.route)}
+          className="h-full animate-[screenIn_0.16s_ease]"
+        >
           <ScreenForRoute route={nav.route} />
         </div>
       </div>

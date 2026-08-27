@@ -18,22 +18,24 @@ export class CallTranscriptionService {
     isFinal: boolean,
   ) {
     if (!callControlId) {
-      this.logger.warn("⚠️ Evento sin call_control_id, ignorado.");
+      this.logger.warn(
+        "⚠️ Transcription event without call_control_id — ignored.",
+      );
       return;
     }
 
     if (!transcription) {
-      this.logger.warn("⚠️ Evento sin texto de transcripción, ignorado.");
+      this.logger.warn("⚠️ Transcription event without text — ignored.");
       return;
     }
 
     if (!callId) {
-      this.logger.warn("⚠️ Evento sin call_id, ignorado.");
+      this.logger.warn("⚠️ Transcription event without call_id — ignored.");
       return;
     }
 
     if (!isFinal) {
-      this.logger.warn("⚠️ Evento sin is_final, ignorado.");
+      this.logger.warn("⚠️ Transcription event without is_final — ignored.");
       return;
     }
 

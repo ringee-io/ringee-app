@@ -1,25 +1,24 @@
+import { apiServer } from '@ringee/frontend-shared/lib/api.server';
+
 /**
- * Email allowlist for the internal super-admin (backoffice) area. This is the
- * UX gate only — real enforcement is the backend SuperAdminGuard. Keep in sync
- * with DEFAULT_SUPER_ADMIN_EMAILS in
- * apps/backend/src/api/guards/super-admin.guard.ts.
+ * Backoffice access, resolved by the API.
+ *
+ * The dashboard deliberately keeps NO copy of the allowlist. The backend's
+ * `SuperAdminGuard` and this gate read the same source
+ * (`BACKOFFICE_SUPER_ADMIN_EMAILS`), so they cannot drift — an earlier
+ * hard-coded list on each side had already fallen out of sync.
+ *
+ * This is a UX gate only; the real enforcement is `SuperAdminGuard` on every
+ * backoffice route.
  */
-export const SUPER_ADMIN_EMAILS = [
-  'edisonpadilla.dev@gmail.com',
-  'ringee.io@gmail.com',
-  'edisonjpp@gmail.com',
-  'publica.do.oficial@gmail.com',
-  'edison.padilla@coderio.com'
-];
-
-export function isSuperAdminEmail(email: string | null | undefined): boolean {
-  if (!email) return false;
-  return SUPER_ADMIN_EMAILS.includes(email.toLowerCase());
-}
-
-/** True when any of the given emails is in the allowlist. */
-export function hasSuperAdminEmail(
-  emails: (string | null | undefined)[]
-): boolean {
-  return emails.some((e) => isSuperAdminEmail(e));
+export async function fetchIsSuperAdmin(): Promise<boolean> {
+  try {
+    const res = await apiServer.get<{ isSuperAdmin: boolean }>(
+      '/backoffice/access'
+    );
+    return !!res?.isSuperAdmin;
+  } catch {
+    // Fail closed: an unreachable API must not open the backoffice.
+    return false;
+  }
 }

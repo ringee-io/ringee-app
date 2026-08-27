@@ -365,7 +365,10 @@ export class CampaignController {
     if (tagIdsRaw) {
       try {
         const parsed: unknown = JSON.parse(tagIdsRaw);
-        if (!Array.isArray(parsed) || !parsed.every((id) => typeof id === "string")) {
+        if (
+          !Array.isArray(parsed) ||
+          !parsed.every((id) => typeof id === "string")
+        ) {
           throw new BadRequestException("tagIds must be an array of strings");
         }
         tagIds = parsed;

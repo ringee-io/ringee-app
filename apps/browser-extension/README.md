@@ -14,10 +14,10 @@ the exact same dialer engine and Active Call Modal as `apps/frontend`.
 The extension does **not** contain its own dialer or its own call modal. It
 consumes the same monorepo packages the web app does:
 
-| Concern | Shared package | Used by |
-| --- | --- | --- |
+| Concern                                                                                                                           | Shared package                                      | Used by                                        |
+| --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ---------------------------------------------- |
 | Telnyx client, place/mute/hold/hangup/DTMF, call-state mapping, DTMF tones, phone detect/normalize, call store, message contracts | [`@ringee/dialer-core`](../../packages/dialer-core) | web app **and** extension offscreen/side panel |
-| The Active Call Modal + post-call (outcome/notes) UI | [`@ringee/dialer-ui`](../../packages/dialer-ui) | web app **and** extension side panel |
+| The Active Call Modal + post-call (outcome/notes) UI                                                                              | [`@ringee/dialer-ui`](../../packages/dialer-ui)     | web app **and** extension side panel           |
 
 - **One dialer engine.** `createTelnyxClient` / `placeCall` / `muteCall` /
   `holdCall` / `hangupCall` / `sendDtmf` live only in
@@ -100,12 +100,12 @@ cp apps/browser-extension/.env.example apps/browser-extension/.env
 
 Fill in `apps/browser-extension/.env`:
 
-| Var | Meaning |
-| --- | --- |
+| Var                          | Meaning                                                        |
+| ---------------------------- | -------------------------------------------------------------- |
 | `VITE_CLERK_PUBLISHABLE_KEY` | **Same Clerk instance as the web app** (so the session syncs). |
-| `VITE_CLERK_SYNC_HOST` | The web app origin, e.g. `https://www.ringee.io`. |
-| `VITE_RINGEE_API_URL` | Backend base incl. `/api`, e.g. `https://api.ringee.io/api`. |
-| `VITE_DEFAULT_REGION` | Default region for numbers without a country code (e.g. `US`). |
+| `VITE_CLERK_SYNC_HOST`       | The web app origin, e.g. `https://www.ringee.io`.              |
+| `VITE_RINGEE_API_URL`        | Backend base incl. `/api`, e.g. `https://api.ringee.io/api`.   |
+| `VITE_DEFAULT_REGION`        | Default region for numbers without a country code (e.g. `US`). |
 
 ### 2. Build
 
@@ -187,7 +187,7 @@ unpacked, or zip `dist/` for the Chrome Web Store / Edge Add-ons.
   a **dev build loaded without the dev server**. The `dev` task writes a `dist/`
   that imports from `http://localhost:5173`; if you load that as unpacked, the
   pages fail. Fix: stop the dev server, run `pnpm --filter browser-extension
-  build` (standalone), then click the reload ↻ icon in `chrome://extensions`.
+build` (standalone), then click the reload ↻ icon in `chrome://extensions`.
   (Both HTML pages are built as explicit Vite inputs because this CRX beta
   otherwise emits a dev-mode loader for manifest HTML during `vite build`.)
 - **Panel loads but is blank / Clerk error** — `apps/browser-extension/.env` is
@@ -198,15 +198,15 @@ unpacked, or zip `dist/` for the Chrome Web Store / Edge Add-ons.
 
 ## Permissions & why
 
-| Permission | Why |
-| --- | --- |
-| `offscreen` | Host the WebRTC engine + audio (never in the service worker). |
-| `sidePanel` | Mount the shared Active Call Modal. |
-| `storage` | Settings + cached call snapshot. |
-| `contextMenus` | Right-click "Call with Ringee" on selected text. |
-| `cookies` | Clerk `syncHost` session sharing with the web app. |
-| `host_permissions`: `api.ringee.io`, `app.ringee.io`, Clerk | Reach the Ringee API + Clerk. |
-| `optional_host_permissions`: `https://*/*` | Opt-in number detection on additional sites (not granted by default). |
+| Permission                                                  | Why                                                                   |
+| ----------------------------------------------------------- | --------------------------------------------------------------------- |
+| `offscreen`                                                 | Host the WebRTC engine + audio (never in the service worker).         |
+| `sidePanel`                                                 | Mount the shared Active Call Modal.                                   |
+| `storage`                                                   | Settings + cached call snapshot.                                      |
+| `contextMenus`                                              | Right-click "Call with Ringee" on selected text.                      |
+| `cookies`                                                   | Clerk `syncHost` session sharing with the web app.                    |
+| `host_permissions`: `api.ringee.io`, `app.ringee.io`, Clerk | Reach the Ringee API + Clerk.                                         |
+| `optional_host_permissions`: `https://*/*`                  | Opt-in number detection on additional sites (not granted by default). |
 
 **We deliberately avoid `<all_urls>` content scripts.** Detection runs only on a
 small allowlist of priority CRM/prospecting domains; everywhere else uses the

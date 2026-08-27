@@ -78,12 +78,24 @@
     } catch (_) {}
     // URL query overrides everything (shareable links).
     var q = new URLSearchParams(window.location.search);
-    var map = { pk: "pk", api: "apiUrl", email: "agentEmail", mode: "mode", locale: "locale", theme: "scheme", hold: "allowHold", debug: "debug", to: "cNumber", name: "cName" };
+    var map = {
+      pk: "pk",
+      api: "apiUrl",
+      email: "agentEmail",
+      mode: "mode",
+      locale: "locale",
+      theme: "scheme",
+      hold: "allowHold",
+      debug: "debug",
+      to: "cNumber",
+      name: "cName",
+    };
     Object.keys(map).forEach(function (qk) {
       if (q.has(qk)) {
         var v = q.get(qk);
         var f = map[qk];
-        cfg[f] = f === "allowHold" || f === "debug" ? v === "1" || v === "true" : v;
+        cfg[f] =
+          f === "allowHold" || f === "debug" ? v === "1" || v === "true" : v;
       }
     });
     return cfg;
@@ -140,7 +152,9 @@
     if (cfg.debug) q.set("debug", "1");
     if (cfg.cNumber) q.set("to", cfg.cNumber);
     if (cfg.cName) q.set("name", cfg.cName);
-    return window.location.origin + window.location.pathname + "?" + q.toString();
+    return (
+      window.location.origin + window.location.pathname + "?" + q.toString()
+    );
   }
 
   // ── Logging + status pills ───────────────────────────────────────────────
@@ -167,7 +181,10 @@
   function setMode(mode, doPersist) {
     document.body.setAttribute("data-mode", mode);
     Array.prototype.forEach.call($("modeSeg").children, function (b) {
-      b.setAttribute("aria-pressed", String(b.getAttribute("data-mode") === mode));
+      b.setAttribute(
+        "aria-pressed",
+        String(b.getAttribute("data-mode") === mode),
+      );
     });
     if (doPersist !== false) {
       var cfg = readForm();
@@ -210,7 +227,7 @@
       allowHold: cfg.allowHold,
       theme: { colorScheme: cfg.scheme },
       onError: function (e) {
-        log("onError: " + (e && (e.code || e.message) || e), "ev-err");
+        log("onError: " + ((e && (e.code || e.message)) || e), "ev-err");
       },
     };
   }
@@ -245,7 +262,7 @@
         });
       }
     } catch (e) {
-      log("Could not mount: " + (e && e.message || e), "ev-err");
+      log("Could not mount: " + ((e && e.message) || e), "ev-err");
       return;
     }
 
@@ -258,8 +275,11 @@
           log("initialize() ok", "ev-ok");
         },
         function (e) {
-          log("initialize() failed: " + (e.code || "") + " — " + e.message, "ev-err");
-        }
+          log(
+            "initialize() failed: " + (e.code || "") + " — " + e.message,
+            "ev-err",
+          );
+        },
       );
     }
     // Floating/Bar call initialize() internally.
@@ -270,12 +290,26 @@
     d.on("authStateChanged", function (p) {
       var okStates = { authenticated: 1 };
       var errStates = { error: 1, expired: 1 };
-      setPill("auth", p.state, okStates[p.state] ? "ok" : errStates[p.state] ? "err" : "");
+      setPill(
+        "auth",
+        p.state,
+        okStates[p.state] ? "ok" : errStates[p.state] ? "err" : "",
+      );
     });
     d.on("stateChanged", function (p) {
       var active = { active: 1, held: 1 };
-      var busy = { dialing: 1, ringing: 1, connecting: 1, initializing: 1, reconnecting: 1 };
-      setPill("call", p.state, active[p.state] ? "ok" : busy[p.state] ? "warn" : "");
+      var busy = {
+        dialing: 1,
+        ringing: 1,
+        connecting: 1,
+        initializing: 1,
+        reconnecting: 1,
+      };
+      setPill(
+        "call",
+        p.state,
+        active[p.state] ? "ok" : busy[p.state] ? "warn" : "",
+      );
       refreshHeadlessButtons(p.state);
     });
     d.on("authRequired", function () {
@@ -289,7 +323,14 @@
     });
     d.on("signedIn", function (p) {
       var a = p.agent;
-      log("signedIn: " + (a.firstName || a.email) + " (" + (a.role || "personal") + ")", "ev-ok");
+      log(
+        "signedIn: " +
+          (a.firstName || a.email) +
+          " (" +
+          (a.role || "personal") +
+          ")",
+        "ev-ok",
+      );
       populateCallerIds();
     });
     d.on("signedOut", function () {
@@ -371,19 +412,31 @@
 
   // ── Headless call-control buttons ────────────────────────────────────────
   function refreshHeadlessButtons(state) {
-    var inCall = { dialing: 1, ringing: 1, active: 1, held: 1, connecting: 1, reconnecting: 1 }[state];
+    var inCall = {
+      dialing: 1,
+      ringing: 1,
+      active: 1,
+      held: 1,
+      connecting: 1,
+      reconnecting: 1,
+    }[state];
     var ready = state === "ready" || state === "ended";
     $("hlCall").disabled = !ready;
-    ["hlMute", "hlUnmute", "hlHold", "hlResume", "hlDtmf", "hlHangup"].forEach(function (id) {
-      $(id).disabled = !inCall;
-    });
+    ["hlMute", "hlUnmute", "hlHold", "hlResume", "hlDtmf", "hlHangup"].forEach(
+      function (id) {
+        $(id).disabled = !inCall;
+      },
+    );
   }
 
   var guard = function (fn) {
     return function () {
       try {
         var r = fn();
-        if (r && r.catch) r.catch(function (e) { log((e.code || "ERR") + ": " + e.message, "ev-err"); });
+        if (r && r.catch)
+          r.catch(function (e) {
+            log((e.code || "ERR") + ": " + e.message, "ev-err");
+          });
       } catch (e) {
         log((e.code || "ERR") + ": " + (e.message || e), "ev-err");
       }
@@ -396,7 +449,10 @@
     return dialer.requestEmailCode($("hlEmail").value.trim());
   });
   $("hlVerify").onclick = guard(function () {
-    return dialer.verifyEmailCode({ challengeId: challengeId, code: $("hlCode").value.trim() });
+    return dialer.verifyEmailCode({
+      challengeId: challengeId,
+      code: $("hlCode").value.trim(),
+    });
   });
   $("hlResend").onclick = guard(function () {
     return dialer.resendEmailCode(challengeId);
@@ -409,20 +465,38 @@
       externalContactId: cfg.cExt || undefined,
     });
   });
-  $("hlMute").onclick = guard(function () { return dialer.mute(); });
-  $("hlUnmute").onclick = guard(function () { return dialer.unmute(); });
-  $("hlHold").onclick = guard(function () { return dialer.hold(); });
-  $("hlResume").onclick = guard(function () { return dialer.resume(); });
-  $("hlDtmf").onclick = guard(function () { return dialer.sendDigits("1"); });
-  $("hlHangup").onclick = guard(function () { return dialer.hangup(); });
+  $("hlMute").onclick = guard(function () {
+    return dialer.mute();
+  });
+  $("hlUnmute").onclick = guard(function () {
+    return dialer.unmute();
+  });
+  $("hlHold").onclick = guard(function () {
+    return dialer.hold();
+  });
+  $("hlResume").onclick = guard(function () {
+    return dialer.resume();
+  });
+  $("hlDtmf").onclick = guard(function () {
+    return dialer.sendDigits("1");
+  });
+  $("hlHangup").onclick = guard(function () {
+    return dialer.hangup();
+  });
   $("hlSignout").onclick = guard(function () {
     if (dialer) return dialer.signOut();
   });
 
   // Floating panel handlers
-  $("openBtn").onclick = function () { controller && controller.open && controller.open(); };
-  $("closeBtn").onclick = function () { controller && controller.close && controller.close(); };
-  $("toggleBtn").onclick = function () { controller && controller.toggle && controller.toggle(); };
+  $("openBtn").onclick = function () {
+    controller && controller.open && controller.open();
+  };
+  $("closeBtn").onclick = function () {
+    controller && controller.close && controller.close();
+  };
+  $("toggleBtn").onclick = function () {
+    controller && controller.toggle && controller.toggle();
+  };
 
   // Contact handlers (Floating + Bar)
   $("setContactBtn").onclick = function () {
@@ -433,7 +507,10 @@
       controller.setContact(c);
       log("setContact(" + (c ? c.number || c.name : "null") + ")");
     } else {
-      log("setContact only applies to Floating/Bar (mount one first).", "ev-err");
+      log(
+        "setContact only applies to Floating/Bar (mount one first).",
+        "ev-err",
+      );
     }
   };
   $("prefillBtn").onclick = function () {
@@ -455,14 +532,19 @@
       });
       log("startCall(" + cfg.cNumber + ")");
     } else {
-      log("startCall only applies to Floating (mount Floating first).", "ev-err");
+      log(
+        "startCall only applies to Floating (mount Floating first).",
+        "ev-err",
+      );
     }
   };
 
   // ── Sidebar buttons ──────────────────────────────────────────────────────
   $("mountBtn").onclick = mount;
   $("resetBtn").onclick = function () {
-    try { localStorage.removeItem(STORE_KEY); } catch (_) {}
+    try {
+      localStorage.removeItem(STORE_KEY);
+    } catch (_) {}
     teardown();
     var fresh = loadConfig();
     fresh.pk = ""; // don't re-inject stored pk after a reset
@@ -473,8 +555,12 @@
     var url = shareUrl(readForm());
     if (navigator.clipboard) {
       navigator.clipboard.writeText(url).then(
-        function () { log("Link copied to clipboard.", "ev-ok"); },
-        function () { log("Could not copy; link: " + url); }
+        function () {
+          log("Link copied to clipboard.", "ev-ok");
+        },
+        function () {
+          log("Could not copy; link: " + url);
+        },
       );
     } else {
       log("Link: " + url);
@@ -486,7 +572,9 @@
     var el = $(id === "mode" ? null : id);
     if (!el) return;
     var ev = el.type === "checkbox" ? "change" : "input";
-    el.addEventListener(ev, function () { persist(readForm()); });
+    el.addEventListener(ev, function () {
+      persist(readForm());
+    });
   });
 
   // ── Boot ─────────────────────────────────────────────────────────────────

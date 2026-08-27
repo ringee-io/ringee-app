@@ -14,7 +14,7 @@ import {
   RawBodyRequest,
 } from "@nestjs/common";
 import { Response, Request } from "express";
-import Stripe from "stripe";
+import type Stripe from "stripe";
 import {
   createOwnershipContext,
   CurrentUser,

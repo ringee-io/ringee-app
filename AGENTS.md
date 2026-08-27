@@ -1,82 +1,157 @@
 # AGENTS.md
 
-This file provides guidance to Codex (Codex.ai/code) when working with code in this repository.
+Operating rules for AI agents and contributors working on Ringee.
+Deep system knowledge lives in `docs/engineering/` — read it when a task touches
+that domain, not before.
 
-## Project Overview
+## Product nature
 
-Ringee is an open-source, self-hostable VoIP communication platform for browser-based international voice calling. It provides contact management, call recording, team analytics, campaigns, and multi-tenant organization support. Telephony is powered by Telnyx, authentication by Clerk, payments by Stripe.
+Ringee is a **production communications platform**: real phone calls, real money,
+real tenant data. A change is only correct if it preserves reliability, workspace
+isolation, billing correctness, backwards compatibility with existing consumers,
+and the ability to swap providers.
 
-## Monorepo Structure
+Providers are infrastructure, not the domain. **Telnyx is a provider, not the
+Ringee domain.** Same for Stripe, Clerk, Deepgram, Apollo/Prospeo, OpenAI.
 
-pnpm workspaces monorepo (`pnpm@10.16.1`). Two workspace roots: `apps/*` and `packages/*`.
+## Before changing code
 
-**Apps:**
-- `apps/backend` — NestJS REST API (port 3000), global prefix `/api`, Clerk auth guard
-- `apps/orchestrator` — Temporal worker (durable background jobs + schedules; NestJS app context for DI)
-- `apps/frontend` — Next.js 15 B2B admin dashboard (port 4200, React 19, App Router)
+1. Read the existing implementation of the thing you are about to change.
+2. **Search before creating.** Before adding a service, repository, hook, util,
+   component, DTO, type, guard or API client, search for the existing owner of
+   that responsibility. See `docs/engineering/CANONICAL_IMPLEMENTATIONS.md`.
+3. Identify the current owner of the responsibility and extend it instead of
+   adding a second one.
+4. Check the callers and consumers of anything you change (`grep` the symbol).
+5. Understand the whole flow the change sits in — a dial, a webhook, a debit.
+6. Make the smallest coherent change. Do not refactor unrelated code.
 
-**Packages (shared libraries):**
-- `@ringee/database` — Prisma ORM client, schema, migrations (`packages/database/prisma/schema.prisma`)
-- `@ringee/platform` — Shared NestJS modules: auth (Clerk), Redis, email (Resend), storage (S3/R2), Stripe, telephony (Telnyx), notifications (Firebase), AI (OpenAI), crypto
-- `@ringee/services` — Domain services: call, contact, campaign, credit, subscription, recording, dashboard, onboarding, etc.
-- `@ringee/configuration` — Centralized env var config with startup validation (built with SWC)
-- `@ringee/frontend-shared` — Shared React components, hooks, types, utilities
+## Architecture
 
-## Common Commands
+Request flow: **frontend → `/api` controller → `@ringee/services` → `@ringee/database`**.
+`@ringee/platform` supplies cross-cutting concerns and every external-provider
+adapter, injected through NestJS DI.
+
+- Do not skip a layer. Controllers stay thin: authenticate, build the ownership
+  context, delegate, shape the response.
+- Business logic belongs in `@ringee/services`, never in a controller, a React
+  component, or a Prisma repository.
+- Database access goes through repositories in `@ringee/database`.
+- Do not build a parallel architecture next to an existing one.
+- Provider SDKs are imported only inside their `@ringee/platform` adapter.
+  ESLint enforces this (`ARCH-001`..`ARCH-004` in `eslint.config.mjs`).
+
+Directory-level rules exist where a domain needs them — read the nearest one:
+`apps/backend`, `apps/frontend`, `apps/orchestrator`, `apps/attio`,
+`packages/services`, `packages/platform`, `packages/database`,
+`packages/dialer-core`, `packages/dialer-sdk`, `packages/agent`.
+
+## Business rules
+
+Rules found in the code are **system constraints**, catalogued with stable IDs in
+`docs/engineering/BUSINESS_RULES.md`. They are not obstacles to route around.
+
+- Never remove, weaken or bypass a rule to make an implementation easier.
+- If a feature genuinely requires changing one, say so explicitly, name the rule
+  ID, and change the rule deliberately — including its documentation.
+- A rule marked `Needs confirmation` is unverified: do not treat it as binding,
+  and do not silently make it binding either.
+
+## Workspace isolation
+
+Every workspace-scoped read and write goes through the ownership context:
+`createOwnershipContext(user)` → `buildOwnershipFilter(ctx)` (`@ringee/platform`).
+
+- An organization scope filters by `organizationId`; a personal scope filters by
+  `userId` **and** `organizationId: null`. Never mix them.
+- Never look a resource up by its id alone and act on it. Load it, then verify it
+  belongs to the caller's workspace.
+- Never trust a `userId`, `organizationId`, `memberId` or resource id sent by the
+  client as an authorization claim. Derive identity from the auth layer.
+- Frontend role checks (`useOrgRole`, `RoleGuard`) are UX only. The server-side
+  guard is the boundary.
+
+## External providers
+
+- Keep provider types, enums and states behind the adapter. Where a normalization
+  layer already exists, it is canonical — use it instead of re-reading raw
+  provider payloads.
+- Where provider types have already leaked into the domain (call webhooks), do
+  not widen the leak. See `docs/engineering/ARCHITECTURE_DEBT.md`.
+- Provider credentials come from `@ringee/configuration`, never from a literal.
+
+## Critical operations
+
+Calls, credits, campaigns, webhooks and outbox deliveries are all retried.
+Retries must never produce a duplicate call, charge, balance mutation, or event.
+
+- Every credit mutation goes through `CreditService`. Money in:
+  `creditTopupOnce` (Stripe) or `grantCreditsOnce` (non-purchase grants). Money
+  out: `consumeCredits`, whose idempotency ref is **required**. The ledger row
+  and the balance move in one transaction.
+- Webhook handlers must be safe to replay; guard on a stored marker (a ledger
+  key, a settled `totalCost`, a status transition) before causing a side effect.
+- One call at a time per user is enforced by `ConcurrentCallGuardService`. Any
+  new dial surface must go through it.
+
+## Security
+
+Never: commit or log secrets, credentials, tokens or raw recordings; trust
+frontend authorization; skip a validation to unblock yourself; accept a webhook
+without verifying its signature; or widen `@Public()` beyond what a route needs.
+
+Every `@Public()` route must carry its own proof of authorization — a verified
+provider signature, a hashed magic-link token, an SDK session, or an API key.
+
+## Backwards compatibility
+
+Shared contracts have consumers inside this repo. Before changing one, check all
+of them: the web app, the Chrome extension (`apps/browser-extension`), the Dialer
+SDK (`packages/dialer-sdk`, published), the CLI (`apps/agent-cli`), the Attio app
+(`apps/attio`), the ChatGPT app, the MCP tool surface (`packages/agent`,
+`apps/backend/src/mcp`), and outbound Custom Integration webhooks
+(`packages/platform/src/custom-integrations/event-spec.ts`).
+
+Prisma enums, REST response shapes, MCP tool schemas, SDK exports and webhook
+event payloads are all public contracts. Additive changes are safe; renames and
+removals are not.
+
+## Definition of Done
+
+Run what your change actually touches (see `docs/engineering/ARCHITECTURE.md` for
+the full command list):
 
 ```bash
-# Install dependencies
-pnpm install
-
-# Start infrastructure (PostgreSQL 17 + Redis 7.4 + Temporal + Temporal UI on :8080)
-docker-compose up -d
-
-# Run database migrations
-pnpm prisma:migrate
-
-# Generate Prisma client (also runs on postinstall)
-pnpm prisma:generate
-
-# Development (backend + frontend in parallel)
-pnpm dev
-
-# Individual app dev
-pnpm dev:backend          # NestJS watch mode with .env from root
-pnpm dev:frontend         # Next.js on :4200
-pnpm dev:orchestrator     # Temporal worker watch mode
-
-# Build
-pnpm build                # Build all packages and apps
-pnpm build:backend        # Build backend only
-pnpm build:frontend       # Build frontend only
-pnpm build:database       # Build database package only
-
-# Lint
-pnpm lint                 # ESLint across entire repo
-
-# Run built apps
-pnpm start:backend        # node apps/backend/dist/apps/backend/src/main
-pnpm start:frontend       # next start --port 4200
+node_modules/.bin/eslint <changed paths>   # or: pnpm lint (repo-wide)
+pnpm lint:fix                              # eslint --fix
+pnpm format:check                          # prettier, incl. Markdown/JSON/YAML
+pnpm format                                # prettier --write
+pnpm --filter <workspace> run test         # services, platform, dialer-core, dialer-sdk, agent, browser-extension
+pnpm --filter <workspace> run typecheck    # dialer-*, agent, agent-cli, browser-extension, chatgpt-app
+pnpm build:backend | build:frontend | build:database | build:orchestrator
+pnpm prisma:generate                       # after any schema.prisma change
 ```
 
-## Architecture Details
+CI (`.github/workflows/ci.yml`) runs the same steps, and **`pnpm lint` and
+`pnpm format:check` both fail the build**. The **architecture-boundary gate on
+`ARCH-001`..`ARCH-004`** is the one that matters most — those are at zero and
+must stay there. Never invent a command — read `package.json`.
 
-**Request flow:** Frontend (Next.js) -> `/api/*` (NestJS backend) -> `@ringee/services` (domain logic) -> `@ringee/database` (Prisma/PostgreSQL). Platform modules (`@ringee/platform`) provide cross-cutting concerns injected via NestJS DI.
+**Errors vs. warnings.** The repo is at zero ESLint errors, so a new error is
+yours and blocks the merge. Warnings do not: they are a real backlog (unused
+bindings, `react-hooks/exhaustive-deps`, a handful of conditional hook calls in
+`app.main.sidebar.tsx` and `app-sidebar.tsx`). Add none, and do not mass-fix
+unrelated ones in a feature change.
 
-**Background jobs (Temporal):** The backend starts durable workflows via `OrchestratorService` (`packages/platform/src/temporal/`); `apps/orchestrator` runs the Temporal Worker that executes them (activities delegate to `@ringee/services`) and owns the periodic Schedules (drains, retry/callback/reminder pollers). Workflow names/inputs are shared via `packages/platform/src/temporal/contracts.ts` (zero-import file; workflows.ts may only use type-only imports). Config: `TEMPORAL_ADDRESS`/`TEMPORAL_NAMESPACE`/`TEMPORAL_TASK_QUEUE`.
+Rules that are off or set to `warn` are documented with their reason in the
+"Signal over volume" block of `eslint.config.mjs`. That block exists so every
+remaining `error` is worth stopping a merge for — reach for it before you reach
+for an inline `eslint-disable`, and do not weaken an architecture boundary with
+either.
 
-**Backend API:** Controllers in `apps/backend/src/api/routes/` delegate to services in `packages/services/src/services/`. Global Clerk auth middleware + `ClerkAuthGuard` protect all routes. Raw body parsing enabled for `/webhooks/clerk` (Clerk webhook verification). CORS configured for frontend origins.
+## Keeping these rules current
 
-**Multi-tenancy:** Users belong to Organizations via OrganizationMembership. Most entities (calls, contacts, numbers, credits, campaigns) have both `userId` and optional `organizationId` fields. Clerk handles org-level auth.
-
-**TypeScript path aliases:** `@ringee/*` maps to `packages/*/src` and `@ringee/components/*` maps to `packages/components/src/*` (tsconfig.json).
-
-**Environment config:** All env vars defined in `.env` at repo root. Backend reads via `@ringee/configuration` which validates required vars at startup and exits on missing ones. Frontend apps use `dotenv -e ../../.env` to load from root. See `.env.example` for the full list.
-
-**Database:** PostgreSQL 17 via Prisma. Schema at `packages/database/prisma/schema.prisma`. Key models: User, Organization, Call, Contact, Campaign, NumberPurchased, Credit, Subscription, Recording, Tag. All IDs are UUIDs. Soft deletes via `deletedAt` on contacts, tags, caller IDs.
-
-**Frontend:** Next.js App Router with feature-based organization (`src/features/`). UI built on Radix UI primitives + Tailwind CSS 4. State management with Zustand. Forms with React Hook Form + Zod. WebRTC calling via `@telnyx/webrtc`. Push notifications via Firebase.
-
-**Telephony:** Telnyx for call control, number purchasing, and WebRTC. Call costs tracked with profit margins. Rate data stored in `TelnyxRatePerMinute` table.
-
-**Lint/Format:** ESLint 9 flat config + Prettier. Husky + lint-staged runs Prettier on commit for staged JS/TS/CSS files.
+When you discover a recurring architectural mistake or an undocumented invariant
+while implementing a task, update the right `AGENTS.md` or the matching document
+under `docs/engineering/`. Only capture **durable** knowledge — a one-off bug is
+a commit message, not a rule.
