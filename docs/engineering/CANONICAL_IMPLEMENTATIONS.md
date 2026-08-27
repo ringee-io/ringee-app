@@ -94,16 +94,18 @@ pick the one matching your runtime.
 
 ## Frontend
 
-| Responsibility        | Owner                                                                               |
-| --------------------- | ----------------------------------------------------------------------------------- |
-| Client HTTP           | `useApi()` → `ApiClient` — `frontend-shared/src/hooks/use.api.ts`, `lib/api.ts`     |
-| Server-component HTTP | `apiServer` — `frontend-shared/src/lib/api.server.ts`                               |
-| Device identity       | `getRingeeDeviceId` / `DEVICE_ID_HEADER` — `frontend-shared/src/realtime/device-id` |
-| UI primitives         | `frontend-shared/src/components/ui`                                                 |
-| Form controls         | `frontend-shared/src/components/forms/form-*`                                       |
-| Tables                | `useDataTable` + `config/data-table.ts`                                             |
-| Admin page gate       | `RoleGuard` — `frontend-shared/src/components/role-guard.tsx`                       |
-| Realtime user events  | `frontend-shared/src/realtime/user-events-client.ts`                                |
+| Responsibility             | Owner                                                                                   |
+| -------------------------- | --------------------------------------------------------------------------------------- |
+| Client HTTP                | `useApi()` → `ApiClient` — `frontend-shared/src/hooks/use.api.ts`, `lib/api.ts`         |
+| Server-component HTTP      | `apiServer` — `frontend-shared/src/lib/api.server.ts`                                   |
+| Device identity            | `getRingeeDeviceId` / `DEVICE_ID_HEADER` — `frontend-shared/src/realtime/device-id`     |
+| UI primitives              | `frontend-shared/src/components/ui`                                                     |
+| Form controls              | `frontend-shared/src/components/forms/form-*`                                           |
+| Tables                     | `useDataTable` + `config/data-table.ts`                                                 |
+| Admin page gate            | `RoleGuard` — `frontend-shared/src/components/role-guard.tsx`                           |
+| Realtime user events       | `frontend-shared/src/realtime/user-events-client.ts`                                    |
+| Campaign disposition write | `useDisposeLead` — `apps/frontend/src/features/dialer/hooks/use-dispose-lead.ts`        |
+| Campaign outcome buttons   | `DispositionGrid` — `apps/frontend/src/features/dialer/components/disposition-grid.tsx` |
 
 ## Security primitives
 

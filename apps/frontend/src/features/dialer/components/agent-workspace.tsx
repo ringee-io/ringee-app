@@ -8,6 +8,7 @@ import { DialerStatusBar } from './dialer-status-bar';
 import { LeadPanel } from './lead-panel';
 import { SoftphonePanel } from './softphone-panel';
 import { DispositionPanel } from './disposition-panel';
+import { LiveDispositionPopup } from './live-disposition-popup';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Card, CardContent } from '@ringee/frontend-shared/components/ui/card';
 import { Play, ArrowLeft } from 'lucide-react';
@@ -31,7 +32,7 @@ export function AgentWorkspace({ campaignId }: Props) {
     resumeSession
   } = useDialerSession(campaignId);
 
-  const { dial } = useDialerCall();
+  const { dial, hangup } = useDialerCall();
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
 
@@ -134,9 +135,13 @@ export function AgentWorkspace({ campaignId }: Props) {
 
         {/* Right — Disposition */}
         <div className='overflow-y-auto'>
-          <DispositionPanel campaignId={campaignId} sessionId={sessionId} />
+          <DispositionPanel />
         </div>
       </div>
+
+      {/* Outcome buttons over the whole workspace while the call is live, so
+          wrapping up is one click instead of hang-up-then-find-the-panel. */}
+      <LiveDispositionPopup onHangup={hangup} />
     </div>
   );
 }

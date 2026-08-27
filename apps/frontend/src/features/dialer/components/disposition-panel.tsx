@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
-import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { useEffect, useState } from 'react';
 import { useDialerAttemptStore } from '../store/dialer-attempt.store';
 import { useDialerSessionStore } from '../store/dialer-session.store';
 import { useDialerLeadStore } from '../store/dialer-lead.store';
+import { useDisposeLead } from '../hooks/use-dispose-lead';
+import { DispositionGrid } from './disposition-grid';
 import { VoicemailDropSlot } from '@/features/voicemail';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Textarea } from '@ringee/frontend-shared/components/ui/textarea';
@@ -21,13 +22,7 @@ import {
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 
-interface Props {
-  campaignId: string;
-  sessionId: string;
-}
-
-export function DispositionPanel({ campaignId, sessionId }: Props) {
-  const api = useApi();
+export function DispositionPanel() {
   const t = useTranslations('dialer.disposition');
   const tVoicemail = useTranslations('voicemail');
   const attemptId = useDialerAttemptStore((s) => s.attemptId);
@@ -38,6 +33,12 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
     (s) => s.availableDispositions
   );
   const callStatus = useDialerAttemptStore((s) => s.callStatus);
+  const preselectedDispositionCode = useDialerAttemptStore(
+    (s) => s.preselectedDispositionCode
+  );
+  const setPreselectedDisposition = useDialerAttemptStore(
+    (s) => s.setPreselectedDisposition
+  );
   const status = useDialerSessionStore((s) => s.status);
 
   const currentLead = useDialerLeadStore((s) => s.currentLead);
@@ -46,9 +47,18 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
   const [note, setNote] = useState('');
   const [callbackDate, setCallbackDate] = useState('');
   const [callbackNote, setCallbackNote] = useState('');
-  const [submitting, setSubmitting] = useState(false);
   const [showVoicemail, setShowVoicemail] = useState(false);
   const [voicemailSent, setVoicemailSent] = useState(false);
+  const { dispose, submitting } = useDisposeLead();
+
+  // An outcome the agent already clicked in the live popup lands here — it was
+  // a callback, so the call is over but the date is still missing.
+  useEffect(() => {
+    if (preselectedDispositionCode) {
+      setSelectedCode(preselectedDispositionCode);
+      setPreselectedDisposition(null);
+    }
+  }, [preselectedDispositionCode, setPreselectedDisposition]);
 
   const selectedDispo = availableDispositions.find(
     (d) => d.code === selectedCode
@@ -62,31 +72,22 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
       toast.error(t('callbackRequired'));
       return;
     }
-    setSubmitting(true);
-    try {
-      const body: any = {
-        callAttemptId: attemptId,
-        dispositionCode: selectedCode,
-        note: note || undefined
-      };
-      if (showCallbackFields && callbackDate) {
-        body.callbackScheduledAt = new Date(callbackDate).toISOString();
-        body.callbackNote = callbackNote || undefined;
-      }
-      await api.post('/dialer/dispose', body);
-      // Reset local state — SSE session.state event will transition us to ready
-      setSelectedCode(null);
-      setNote('');
-      setCallbackDate('');
-      setCallbackNote('');
-      setShowVoicemail(false);
-      setVoicemailSent(false);
-      toast.success(t('saved'));
-    } catch (err: any) {
-      toast.error(err?.message || t('saveFailed'));
-    } finally {
-      setSubmitting(false);
-    }
+    const saved = await dispose({
+      dispositionCode: selectedCode,
+      note,
+      ...(showCallbackFields && callbackDate
+        ? { callbackScheduledAt: callbackDate, callbackNote }
+        : {})
+    });
+    if (!saved) return;
+
+    // Reset local state — SSE session.state event will transition us to ready
+    setSelectedCode(null);
+    setNote('');
+    setCallbackDate('');
+    setCallbackNote('');
+    setShowVoicemail(false);
+    setVoicemailSent(false);
   }
 
   // Show disposition panel when we have dispositions AND:
@@ -117,7 +118,7 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
         <h3 className='font-semibold'>{t('title')}</h3>
         <p className='text-muted-foreground mt-1 text-sm'>
           {callActive
-            ? t('availableAfterCall')
+            ? t('availableDuringCall')
             : attemptId
               ? t('waiting')
               : t('selectAfterCall')}
@@ -130,27 +131,11 @@ export function DispositionPanel({ campaignId, sessionId }: Props) {
     <div className='flex h-full flex-col p-4'>
       <h3 className='mb-3 text-sm font-semibold'>{t('select')}</h3>
 
-      {/* Disposition buttons grid */}
-      <div className='grid grid-cols-2 gap-2'>
-        {availableDispositions.map((d) => (
-          <Button
-            key={d.code}
-            variant={selectedCode === d.code ? 'default' : 'outline'}
-            size='sm'
-            className='justify-start'
-            style={
-              selectedCode === d.code && d.color
-                ? { backgroundColor: d.color, borderColor: d.color }
-                : d.color
-                  ? { borderColor: `${d.color}60`, color: d.color }
-                  : undefined
-            }
-            onClick={() => setSelectedCode(d.code)}
-          >
-            {d.label}
-          </Button>
-        ))}
-      </div>
+      <DispositionGrid
+        dispositions={availableDispositions}
+        selectedCode={selectedCode}
+        onSelect={(d) => setSelectedCode(d.code)}
+      />
 
       <Separator className='my-4' />
 

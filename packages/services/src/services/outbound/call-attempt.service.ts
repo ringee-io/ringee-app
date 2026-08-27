@@ -181,7 +181,9 @@ export class CallAttemptService {
     callback?: { scheduledAt: Date; note?: string };
     campaignDefaults: { maxAttempts: number; retryDelayMin: number };
     organizationId: string;
-  }): Promise<{ action: string }> {
+    /** The agent asked to stop dialing once this lead was wrapped up. */
+    closeSession?: boolean;
+  }): Promise<{ action: string; sessionClosed: boolean }> {
     const disposition = await this.dispositionService.getById(
       data.dispositionId,
     );
@@ -294,13 +296,28 @@ export class CallAttemptService {
       }
     }
 
-    // Transition agent back to ready and clear the finished lead reference.
+    // Return the agent to `ready` — clearing the finished lead reference — so
+    // the poller can hand them another one. Unless they asked to stop after
+    // this lead, in which case the session ends right here.
+    //
+    // That decision has to be taken server-side, inside this request: a
+    // progressive campaign polls every 500ms, so an agent whose browser sent
+    // "end session" a moment after the disposition would already be ringing
+    // the next lead by the time it arrived.
+    let sessionClosed = false;
     if (attempt.agentSessionId) {
-      await this.agentSessionService.transitionTo(
-        attempt.agentSessionId,
-        AgentSessionStatus.ready,
-        null,
-      );
+      if (data.closeSession) {
+        // A dispositioned lead is terminal, so the lock release inside
+        // endSession is a no-op — the lead is not resurrected into the queue.
+        await this.agentSessionService.endSession(attempt.agentSessionId);
+        sessionClosed = true;
+      } else {
+        await this.agentSessionService.transitionTo(
+          attempt.agentSessionId,
+          AgentSessionStatus.ready,
+          null,
+        );
+      }
     }
 
     // Persist the disposition on the linked Call and push the CRM call-log
@@ -312,10 +329,11 @@ export class CallAttemptService {
     }
 
     this.logger.log(
-      `Disposition '${disposition.code}' submitted for attempt ${data.callAttemptId}, action: ${action}`,
+      `Disposition '${disposition.code}' submitted for attempt ${data.callAttemptId}, action: ${action}` +
+        (sessionClosed ? " (session closed at the agent's request)" : ""),
     );
 
-    return { action };
+    return { action, sessionClosed };
   }
 
   /**

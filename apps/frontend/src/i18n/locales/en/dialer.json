@@ -41,7 +41,9 @@
     "notAssigned": "You're not assigned to this campaign. Ask an admin to add you as a member.",
     "startFailed": "Could not start the session. Please try again.",
     "starting": "Starting…",
-    "start": "Start Session"
+    "start": "Start Session",
+    "closedAfterLead": "Session closed — that was the last lead you asked for.",
+    "sessionEnded": "Your dialer session was ended."
   },
   "statusBar": {
     "statuses": {
@@ -59,12 +61,16 @@
     "talk": "Talk: {time}",
     "resume": "Resume",
     "pause": "Pause",
-    "endSession": "End Session"
+    "endSession": "End Session",
+    "closeAfterLead": "Close session after this lead"
   },
   "disposition": {
     "title": "Disposition",
     "select": "Select Disposition",
-    "availableAfterCall": "Disposition will be available after the call ends.",
+    "liveTitle": "Call answered",
+    "liveDescription": "Pick an outcome to hang up and save it.",
+    "liveDismiss": "Hide until the call ends",
+    "availableDuringCall": "Pick an outcome from the popup to end the call — or wrap up here once it is over.",
     "waiting": "Waiting for call to complete...",
     "selectAfterCall": "Select a call outcome after each call.",
     "callbackRequired": "Please choose a date and time for the callback.",
@@ -85,7 +91,18 @@
     "attempt": "Attempt #{number}",
     "previousAttempts": "Previous Attempts",
     "noAttempts": "No previous attempts",
-    "noDisposition": "No disposition"
+    "noDisposition": "No disposition",
+    "linkedin": "LinkedIn profile",
+    "localTime": "Local time",
+    "score": "Score {score}",
+    "lastCall": "Last call {date}",
+    "sections": {
+      "company": "Company",
+      "location": "Location",
+      "pipeline": "Pipeline",
+      "about": "About",
+      "custom": "Other details"
+    }
   },
   "softphone": {
     "dialFailed": "Could not start the call.",

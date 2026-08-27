@@ -470,6 +470,19 @@ in-process SSE. The worker imports the same module and must **not** poll.
 
 - **Risk if violated:** agents stuck on "Waiting for lead"
 
+### CMP-011 — Where a session goes after a lead is decided inside the disposition request
+
+`POST /dialer/dispose` carries `closeSession`, and
+`CallAttemptService.submitDisposition` either returns the agent to `ready` or
+ends the session — in the same request that wrote the disposition.
+
+- **Source of truth:** `packages/services/src/services/outbound/call-attempt.service.ts`
+- **Why:** the poll loop runs every 500ms (`CMP-010`), so a browser that
+  dispositioned and _then_ asked to end the session would already have been
+  handed the next lead and dialed it
+- **Do not** re-implement "stop after this lead" as a client-side end-session
+  call, a pause, or a flag the poller reads later — all three race the tick.
+
 ---
 
 ## Call sessions / magic links (`SESS`)
