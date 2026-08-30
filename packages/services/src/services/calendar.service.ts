@@ -32,6 +32,79 @@ export interface AvailabilitySlot {
   eventName?: string;
 }
 
+/** A slot that can actually be booked, as absolute times. */
+export interface BookableSlot {
+  /** ISO 8601 instant. */
+  start: string;
+  end: string;
+  /** How the slot reads in its own time zone, e.g. "Friday, 2:30 PM". */
+  label: string;
+}
+
+/**
+ * The UTC offset of `timeZone` at a given instant, in milliseconds.
+ *
+ * Derived by formatting the instant in that zone and reading the wall-clock
+ * time back — the standard way to do this without a date library.
+ */
+function zoneOffsetMs(instant: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hour12: false,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(instant);
+
+  const get = (type: string) =>
+    Number(parts.find((p) => p.type === type)?.value ?? "0");
+
+  const asUtc = Date.UTC(
+    get("year"),
+    get("month") - 1,
+    get("day"),
+    get("hour") % 24,
+    get("minute"),
+    get("second"),
+  );
+  return asUtc - instant.getTime();
+}
+
+/**
+ * The instant at which the wall clock in `timeZone` reads the given date and
+ * time. Applied twice so a slot that straddles a daylight-saving change still
+ * lands on the right instant.
+ */
+function zonedTimeToUtc(
+  dateStr: string,
+  hour: number,
+  minute: number,
+  timeZone: string,
+): Date {
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  const naive = new Date(`${dateStr}T${pad(hour)}:${pad(minute)}:00Z`);
+  if (Number.isNaN(naive.getTime())) {
+    throw new BadRequestException(`"${dateStr}" is not a valid date.`);
+  }
+  const firstPass = new Date(naive.getTime() - zoneOffsetMs(naive, timeZone));
+  return new Date(naive.getTime() - zoneOffsetMs(firstPass, timeZone));
+}
+
+/** "Friday, 2:30 PM" — how the agent says a slot out loud. */
+function formatInZone(instant: Date, timeZone: string): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(instant);
+}
+
 @Injectable()
 export class CalendarService {
   constructor(
@@ -269,6 +342,106 @@ export class CalendarService {
   }
 
   /**
+   * Real, bookable slots for one day, as absolute times.
+   *
+   * `getAvailability` above is the human picker: it works in server-local time
+   * and, when a calendar is missing or the provider errors, deliberately falls
+   * back to "everything is free" so the UI still renders something. Neither
+   * behaviour is safe for an AI agent, which offers these times out loud and
+   * then books one — a fabricated slot double-books a real meeting. So this
+   * variant works in an explicit time zone and **fails** rather than guessing.
+   */
+  async getBookableSlots(
+    ctx: OwnershipContext,
+    opts: {
+      /** Day to check, as YYYY-MM-DD in `timeZone`. */
+      date: string;
+      /** IANA zone the day and the returned times are expressed in. */
+      timeZone: string;
+      durationMinutes: number;
+      /** The specific connected calendar to read, when one was chosen. */
+      integrationId?: string | null;
+      provider?: CalendarProvider;
+      /** Business hours in `timeZone`. Defaults to 09:00–18:00. */
+      dayStartHour?: number;
+      dayEndHour?: number;
+    },
+  ): Promise<BookableSlot[]> {
+    const integration = await this.requireIntegration(
+      ctx,
+      opts.provider,
+      opts.integrationId,
+    );
+
+    const dayStart = zonedTimeToUtc(
+      opts.date,
+      opts.dayStartHour ?? 9,
+      0,
+      opts.timeZone,
+    );
+    const dayEnd = zonedTimeToUtc(
+      opts.date,
+      opts.dayEndHour ?? 18,
+      0,
+      opts.timeZone,
+    );
+    if (!(dayStart.getTime() < dayEnd.getTime())) {
+      throw new BadRequestException(`"${opts.date}" is not a valid date.`);
+    }
+
+    // No catch: an unreachable calendar means "unknown", and an agent must not
+    // turn unknown into "free".
+    const busy = await this.fetchFreeBusyWindow(integration, dayStart, dayEnd);
+
+    const slots: BookableSlot[] = [];
+    const stepMs = opts.durationMinutes * 60_000;
+    const now = Date.now();
+
+    for (
+      let startMs = dayStart.getTime();
+      startMs + stepMs <= dayEnd.getTime();
+      startMs += stepMs
+    ) {
+      const start = new Date(startMs);
+      const end = new Date(startMs + stepMs);
+      if (startMs <= now) continue;
+      if (busy.some((b) => b.start < end && b.end > start)) continue;
+
+      slots.push({
+        start: start.toISOString(),
+        end: end.toISOString(),
+        label: formatInZone(start, opts.timeZone),
+      });
+    }
+    return slots;
+  }
+
+  /**
+   * The workspace's calendar, or a clear failure. Used by paths where silently
+   * proceeding without one would produce a wrong answer rather than a degraded
+   * one.
+   */
+  private async requireIntegration(
+    ctx: OwnershipContext,
+    provider?: CalendarProvider,
+    integrationId?: string | null,
+  ): Promise<CalendarIntegration> {
+    const integrations = await this.calendarRepo.findByUserOrOrg(
+      ctx.userId,
+      ctx.organizationId,
+    );
+    const integration = integrationId
+      ? integrations.find((i) => i.id === integrationId)
+      : provider
+        ? integrations.find((i) => i.provider === provider)
+        : integrations[0];
+    if (!integration) {
+      throw new BadRequestException("No calendar connected");
+    }
+    return integration;
+  }
+
+  /**
    * Create a calendar event via the provider API and return the external event ID + meet link.
    */
   async createCalendarEvent(
@@ -316,22 +489,30 @@ export class CalendarService {
     integration: CalendarIntegration,
     dateStr: string,
   ): Promise<FreeBusySlot[]> {
-    const accessToken = await this.ensureValidToken(integration);
     const date = new Date(dateStr);
     const startOfDay = new Date(date);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(date);
     endOfDay.setHours(23, 59, 59, 999);
+    return this.fetchFreeBusyWindow(integration, startOfDay, endOfDay);
+  }
+
+  private async fetchFreeBusyWindow(
+    integration: CalendarIntegration,
+    start: Date,
+    end: Date,
+  ): Promise<FreeBusySlot[]> {
+    const accessToken = await this.ensureValidToken(integration);
 
     if (integration.provider === "google") {
       return this.googleFreeBusy(
         accessToken,
         integration.calendarId || "primary",
-        startOfDay,
-        endOfDay,
+        start,
+        end,
       );
     } else {
-      return this.microsoftFreeBusy(accessToken, startOfDay, endOfDay);
+      return this.microsoftFreeBusy(accessToken, start, end);
     }
   }
 

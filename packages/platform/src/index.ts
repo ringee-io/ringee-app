@@ -8,6 +8,7 @@ export * from "./realtime";
 export * from "./temporal";
 export * from "./email";
 export * from "./telephony";
+export * from "./voice-agents";
 export * from "./deepgram";
 export * from "./notification";
 export * from "./newsletter";

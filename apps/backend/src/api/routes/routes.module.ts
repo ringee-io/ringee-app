@@ -57,6 +57,9 @@ import { WellKnownController } from "./well-known.controller";
 import { CallRecordingSettingsController } from "./call-recording-settings.controller";
 import { TranscriptionController } from "./transcription.controller";
 import { AiPipelineController } from "./ai-pipeline.controller";
+import { AiVoiceAgentController } from "./ai-voice-agent.controller";
+import { AiVoiceAgentWebhookController } from "./ai-voice-agent-webhook.controller";
+import { AiVoiceAgentToolController } from "./ai-voice-agent-tool.controller";
 import { ObjectionInsightController } from "./objection-insight.controller";
 import { PendingActionController } from "./pending-action.controller";
 import { ExtensionController } from "./extension.controller";
@@ -123,6 +126,9 @@ import { UserAccessEnforcementService } from "./user-access-enforcement.service"
     CallRecordingSettingsController,
     TranscriptionController,
     AiPipelineController,
+    AiVoiceAgentController,
+    AiVoiceAgentWebhookController,
+    AiVoiceAgentToolController,
     ObjectionInsightController,
     PendingActionController,
     ExtensionController,

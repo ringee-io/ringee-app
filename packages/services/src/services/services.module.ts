@@ -12,6 +12,7 @@ import {
   AiAgentsPlatformModule,
   DeepgramModule,
   TemporalModule,
+  VoiceAgentModule,
 } from "@ringee/platform";
 import { ChatAuthService } from "./chat.auth.service";
 import { CallTranscriptionService } from "./call.transcription.service";
@@ -52,6 +53,20 @@ import {
   OfferAnalyticsService,
 } from "./offers";
 import { MeetingService } from "./meeting.service";
+import {
+  AppointmentBookingBlueprint,
+  CompanyProfileService,
+  RemindersNotificationsBlueprint,
+  VoiceAgentBillingService,
+  VoiceAgentBlueprintRegistry,
+  VoiceAgentCallService,
+  VoiceAgentKnowledgeService,
+  VoiceAgentResultService,
+  VoiceAgentService,
+  VoiceAgentTestSessionService,
+  VoiceAgentToolService,
+  VOICE_AGENT_BLUEPRINTS,
+} from "./voice-agents";
 import { CalendarService } from "./calendar.service";
 import {
   ComplianceService,
@@ -319,6 +334,18 @@ const servicesProviders = [
   ActiveCallTerminationService,
   ConcurrentCallGuardService,
   StaleCallSweeperService,
+  // AI Voice Agents
+  AppointmentBookingBlueprint,
+  RemindersNotificationsBlueprint,
+  VoiceAgentBlueprintRegistry,
+  VoiceAgentService,
+  VoiceAgentCallService,
+  VoiceAgentResultService,
+  VoiceAgentBillingService,
+  VoiceAgentTestSessionService,
+  VoiceAgentKnowledgeService,
+  VoiceAgentToolService,
+  CompanyProfileService,
 ];
 
 /**
@@ -335,6 +362,19 @@ const pipelineDefinitionsProvider: Provider = {
   inject: [FollowUpRecommendationsPipeline, ObjectionIntelligencePipeline],
 };
 
+/**
+ * Blueprint registry source of truth. Adding an agent type = implement its
+ * blueprint, add the class to servicesProviders, and add it here (one line).
+ */
+const voiceAgentBlueprintsProvider: Provider = {
+  provide: VOICE_AGENT_BLUEPRINTS,
+  useFactory: (
+    appointments: AppointmentBookingBlueprint,
+    reminders: RemindersNotificationsBlueprint,
+  ) => [appointments, reminders],
+  inject: [AppointmentBookingBlueprint, RemindersNotificationsBlueprint],
+};
+
 const reminderChannelsProvider: Provider = {
   provide: REMINDER_CHANNELS,
   useFactory: (email: EmailReminderChannel, push: PushReminderChannel) => [
@@ -348,6 +388,7 @@ const allProviders: Provider[] = [
   ...servicesProviders,
   reminderChannelsProvider,
   pipelineDefinitionsProvider,
+  voiceAgentBlueprintsProvider,
 ];
 
 @Global()
@@ -364,6 +405,7 @@ const allProviders: Provider[] = [
     AiAgentsPlatformModule,
     DeepgramModule,
     TemporalModule,
+    VoiceAgentModule,
   ],
   providers: allProviders,
   exports: [...allProviders, NotificationModule],

@@ -682,3 +682,46 @@ export interface AiPipelineResults {
   /** Only for objection_intelligence: ranked objections + trend. */
   objections?: unknown;
 }
+
+// ── AI voice agents ─────────────────────────────────────────────────
+
+export interface AiVoiceAgentSummary {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  voice: string | null;
+  callCount: number;
+  createdAt: string;
+}
+
+export interface AiVoiceAgentVariable {
+  key: string;
+  required: boolean;
+  description: string;
+}
+
+export interface ListAiVoiceAgentsResult {
+  agents: AiVoiceAgentSummary[];
+  total: number;
+  /** Which variables each agent type accepts, keyed by type. */
+  variablesByType: Record<string, AiVoiceAgentVariable[]>;
+}
+
+export interface StartAiVoiceAgentCallResult {
+  ok: boolean;
+  callId: string;
+  status: string;
+  note?: string;
+}
+
+/** The normalized result of one agent call. */
+export interface AiVoiceAgentCallResult {
+  call_id: string;
+  status: string;
+  outcome: string | null;
+  summary: string | null;
+  sentiment: string | null;
+  extracted_data: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+}

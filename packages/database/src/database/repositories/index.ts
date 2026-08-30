@@ -86,3 +86,6 @@ export * from "./offer-participation.repository";
 export * from "./offer-dismissal.repository";
 export * from "./offer-event.repository";
 export * from "./offer-stats.repository";
+export * from "./ai-voice-agent.repository";
+export * from "./ai-voice-agent-call.repository";
+export * from "./workspace-company-profile.repository";

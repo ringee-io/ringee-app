@@ -596,6 +596,57 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
       openWorldHint: false,
     },
   },
+
+  // ── AI Voice Agents ───────────────────────────────────────────────
+  {
+    action: "voiceAgents.list",
+    tool: "list_ai_voice_agents",
+    title: "AI voice agents",
+    summary:
+      "The workspace's AI voice agents, and the variables each type accepts.",
+    sensitivity: "read",
+    cli: "ringee voice-agents list",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  {
+    action: "voiceAgents.call",
+    tool: "start_ai_voice_agent_call",
+    title: "Start an AI voice agent call",
+    summary:
+      "Have an agent call someone and hold the conversation. A real, billed call.",
+    // Spends credits and dials a real person, so the human confirms first —
+    // the same gate a magic-link session gets.
+    sensitivity: "sensitive",
+    consumesCredits: true,
+    requiresConfirmation: true,
+    cli: "ringee voice-agents call <agentId> --to +13055550123 --var first_name=Carlos",
+    annotations: {
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+  },
+  {
+    action: "voiceAgents.callResult",
+    tool: "get_ai_voice_agent_call",
+    title: "AI voice agent call result",
+    summary:
+      "Outcome, summary and extracted data for one agent call, once it has ended.",
+    sensitivity: "read",
+    cli: "ringee voice-agents call-result <callId>",
+    annotations: {
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
 ];
 
 export const TOOL_BY_ACTION: Record<string, ToolDescriptor> =

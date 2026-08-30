@@ -43,7 +43,38 @@ export type TelephonyEventType =
   | "call.playback.started"
   | "call.playback.ended"
   | "call.streaming.failed"
+  | "call.conversation.ended"
+  | "call.conversation.insights"
   | "unknown";
+
+/** One analysis result produced for a finished AI conversation. */
+export interface TelephonyConversationInsight {
+  /** The provider's id for the insight definition that produced this result. */
+  insightId: string;
+  /** Free text, or a JSON string when the insight declares a schema. */
+  result: string;
+}
+
+/**
+ * The AI-conversation half of a call, lifted out of the provider payload.
+ *
+ * Present on `call.conversation.*` events and null everywhere else. It is
+ * carried on the common event rather than read back out of `payload` because
+ * two different provider events fill in different halves of it, and the domain
+ * should not learn either shape.
+ */
+export interface TelephonyConversationDetails {
+  /** Provider handle for the conversation this call produced. */
+  conversationId: string | null;
+  /** Provider handle for the assistant that ran it. */
+  assistantId: string | null;
+  /** Connected seconds as the provider measured them. */
+  durationSec: number | null;
+  /** Why the conversation ended, e.g. "customer_disconnect". */
+  endReason: string | null;
+  insightGroupId: string | null;
+  insights: TelephonyConversationInsight[];
+}
 
 /**
  * A provider event, normalized.
@@ -80,6 +111,8 @@ export interface TelephonyEvent<TPayload = unknown> {
    * browser-placed SDK leg with the `Call` row created at authorize time.
    */
   customHeaders: TelephonyCustomHeader[];
+  /** Set on `call.conversation.*` events, null on every other event. */
+  conversation: TelephonyConversationDetails | null;
   /** Untouched provider body. */
   payload: TPayload;
 }

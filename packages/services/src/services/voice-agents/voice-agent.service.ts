@@ -1,0 +1,663 @@
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
+import { randomBytes } from "crypto";
+import { apiConfiguration } from "@ringee/configuration";
+import {
+  AiVoiceAgent,
+  AiVoiceAgentRepository,
+  AiVoiceAgentStatus,
+  AiVoiceAgentType,
+  CalendarIntegrationRepository,
+  type AiVoiceAgentWithSources,
+} from "@ringee/database";
+import {
+  hashApiKey,
+  LlmCredentialVerifier,
+  resolveVoiceAgentModel,
+  VoiceAgentProviderService,
+  type OwnershipContext,
+  type VoiceAgentConfig,
+  type VoiceAgentLlmProvider,
+  type VoiceAgentVoice,
+} from "@ringee/platform";
+import { VoiceAgentBlueprintRegistry } from "./blueprints/voice-agent-blueprint.registry";
+import { CompanyProfileService } from "./company-profile.service";
+import {
+  DEFAULT_ANALYSIS_SETTINGS,
+  voiceAgentKnowledgeStoreName,
+  type VoiceAgentAnalysisSettings,
+  type VoiceAgentBlueprintInsights,
+  type VoiceAgentExtractionField,
+} from "./voice-agent.types";
+
+/** How long the curated voice list is reused before refetching. */
+const VOICE_CACHE_TTL_MS = 60 * 60 * 1000;
+
+export interface SaveVoiceAgentInput {
+  name?: string;
+  modelProvider?: VoiceAgentLlmProvider;
+  /** Present only when the user is setting or replacing a credential. */
+  apiKey?: string;
+  voiceId?: string | null;
+  analysis?: Partial<
+    Pick<VoiceAgentAnalysisSettings, "summary" | "outcome" | "sentiment">
+  >;
+  extractionFields?: VoiceAgentExtractionField[];
+  calendarIntegrationId?: string | null;
+  meetingDurationMinutes?: number;
+  timezone?: string | null;
+  meetingTitle?: string | null;
+}
+
+/** An agent as the list screen shows it: the row plus its call count. */
+export interface VoiceAgentListItem extends AiVoiceAgent {
+  callCount: number;
+}
+
+export interface VoiceAgentListPage {
+  data: VoiceAgentListItem[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface CreateVoiceAgentInput extends SaveVoiceAgentInput {
+  name: string;
+  type: AiVoiceAgentType;
+}
+
+/**
+ * Agent lifecycle: what the user configures, and everything Ringee configures
+ * on their behalf.
+ *
+ * The provider assistant is a projection of the database row — the row is the
+ * source of truth, and every save re-derives the assistant from the blueprint,
+ * the workspace company context and the user's few choices. That is what keeps
+ * a user from ever having to see instructions, tools or greeting modes.
+ */
+@Injectable()
+export class VoiceAgentService {
+  private readonly logger = new Logger(VoiceAgentService.name);
+  private voiceCache: { voices: VoiceAgentVoice[]; fetchedAt: number } | null =
+    null;
+
+  constructor(
+    private readonly agents: AiVoiceAgentRepository,
+    private readonly blueprints: VoiceAgentBlueprintRegistry,
+    private readonly companyProfiles: CompanyProfileService,
+    private readonly provider: VoiceAgentProviderService,
+    private readonly credentials: LlmCredentialVerifier,
+    private readonly calendars: CalendarIntegrationRepository,
+  ) {}
+
+  // ── Catalogue ────────────────────────────────────────────────
+
+  /** The agent types offered on the create screen, with their variables. */
+  listTypes() {
+    return this.blueprints.all().map((blueprint) => ({
+      type: blueprint.type,
+      title: blueprint.title,
+      summary: blueprint.summary,
+      requiresCalendar: blueprint.requiresCalendar,
+      variables: blueprint.variables,
+      outcomes: blueprint.outcomes,
+    }));
+  }
+
+  async listVoices(): Promise<VoiceAgentVoice[]> {
+    const now = Date.now();
+    if (
+      this.voiceCache &&
+      now - this.voiceCache.fetchedAt < VOICE_CACHE_TTL_MS
+    ) {
+      return this.voiceCache.voices;
+    }
+    const voices = await this.provider.listVoices();
+    this.voiceCache = { voices, fetchedAt: now };
+    return voices;
+  }
+
+  // ── Reads ────────────────────────────────────────────────────
+
+  async list(
+    ctx: OwnershipContext,
+    options?: { page?: number; limit?: number; type?: AiVoiceAgentType },
+  ): Promise<VoiceAgentListPage> {
+    const page = await this.agents.listForOwner(ctx, options);
+    const counts = await this.agents.countCallsByAgent(
+      page.data.map((agent) => agent.id),
+    );
+    return {
+      ...page,
+      data: page.data.map((agent) => ({
+        ...agent,
+        callCount: counts.get(agent.id) ?? 0,
+      })),
+    };
+  }
+
+  async require(
+    ctx: OwnershipContext,
+    id: string,
+  ): Promise<AiVoiceAgentWithSources> {
+    const agent = await this.agents.findByIdForOwner(ctx, id);
+    if (!agent) throw new NotFoundException("AI voice agent not found");
+    return agent;
+  }
+
+  // ── Writes ───────────────────────────────────────────────────
+
+  async create(
+    ctx: OwnershipContext,
+    dto: CreateVoiceAgentInput,
+  ): Promise<AiVoiceAgent> {
+    const blueprint = this.blueprints.require(dto.type);
+    const name = this.requireName(dto.name);
+    const modelProvider = dto.modelProvider ?? "ringee";
+
+    // The credential is verified before anything is created, so a bad key
+    // fails while the user is still looking at the form.
+    const apiKeyRef = await this.provisionCredential(modelProvider, dto.apiKey);
+
+    if (dto.calendarIntegrationId) {
+      await this.assertCalendarInWorkspace(ctx, dto.calendarIntegrationId);
+    }
+
+    const voice = await this.resolveVoice(dto.voiceId);
+
+    const toolSecret = this.generateToolSecret();
+    const agent = await this.agents.create(ctx, {
+      name,
+      type: blueprint.type,
+      status: AiVoiceAgentStatus.draft,
+      modelProvider,
+      llmApiKeyRef: apiKeyRef,
+      voiceId: voice?.id ?? null,
+      voiceLabel: voice?.displayName ?? null,
+      voiceLanguage: voice?.language ?? null,
+      analysisSettings: this.mergeAnalysis(null, dto.analysis) as object,
+      extractionFields: (dto.extractionFields ?? []) as object,
+      calendarIntegrationId: dto.calendarIntegrationId ?? null,
+      meetingDurationMinutes: dto.meetingDurationMinutes ?? 30,
+      timezone: dto.timezone ?? null,
+      meetingTitle: dto.meetingTitle ?? null,
+      toolSecretHash: hashApiKey(toolSecret),
+    });
+
+    return this.syncToProvider(ctx, agent.id, { toolSecret });
+  }
+
+  async update(
+    ctx: OwnershipContext,
+    id: string,
+    dto: SaveVoiceAgentInput,
+  ): Promise<AiVoiceAgent> {
+    const agent = await this.require(ctx, id);
+
+    const apiKeyRef =
+      dto.modelProvider && dto.modelProvider !== agent.modelProvider
+        ? await this.provisionCredential(dto.modelProvider, dto.apiKey, agent)
+        : dto.apiKey
+          ? await this.provisionCredential(
+              (dto.modelProvider ??
+                agent.modelProvider) as VoiceAgentLlmProvider,
+              dto.apiKey,
+              agent,
+            )
+          : agent.llmApiKeyRef;
+
+    if (dto.calendarIntegrationId) {
+      await this.assertCalendarInWorkspace(ctx, dto.calendarIntegrationId);
+    }
+
+    const voice =
+      dto.voiceId === undefined
+        ? undefined
+        : await this.resolveVoice(dto.voiceId);
+
+    await this.agents.update(id, {
+      ...(dto.name !== undefined ? { name: this.requireName(dto.name) } : {}),
+      ...(dto.modelProvider ? { modelProvider: dto.modelProvider } : {}),
+      llmApiKeyRef: apiKeyRef,
+      ...(dto.voiceId !== undefined
+        ? {
+            voiceId: voice?.id ?? null,
+            voiceLabel: voice?.displayName ?? null,
+            voiceLanguage: voice?.language ?? null,
+          }
+        : {}),
+      ...(dto.analysis
+        ? {
+            analysisSettings: this.mergeAnalysis(
+              this.readAnalysis(agent),
+              dto.analysis,
+            ) as object,
+          }
+        : {}),
+      ...(dto.extractionFields
+        ? { extractionFields: dto.extractionFields as object }
+        : {}),
+      ...(dto.calendarIntegrationId !== undefined
+        ? { calendarIntegrationId: dto.calendarIntegrationId }
+        : {}),
+      ...(dto.meetingDurationMinutes !== undefined
+        ? { meetingDurationMinutes: dto.meetingDurationMinutes }
+        : {}),
+      ...(dto.timezone !== undefined ? { timezone: dto.timezone } : {}),
+      ...(dto.meetingTitle !== undefined
+        ? { meetingTitle: dto.meetingTitle }
+        : {}),
+    });
+
+    return this.syncToProvider(ctx, id);
+  }
+
+  /**
+   * Rebuilds the provider-side agent from the stored row. Callers that change
+   * something the assistant is derived from — knowledge finishing its indexing,
+   * the workspace company context being edited — use this instead of reaching
+   * into the sync themselves.
+   */
+  resync(ctx: OwnershipContext, agentId: string): Promise<AiVoiceAgent> {
+    return this.syncToProvider(ctx, agentId);
+  }
+
+  /**
+   * Deleting removes the provider-side resources first, then soft-deletes the
+   * row. An orphaned assistant would keep answering calls, and an orphaned
+   * secret would keep the customer's credential alive at the provider.
+   */
+  async delete(ctx: OwnershipContext, id: string): Promise<void> {
+    const agent = await this.require(ctx, id);
+
+    if (agent.providerAssistantId) {
+      await this.provider.deleteAssistant(agent.providerAssistantId);
+    }
+    if (agent.providerInsightGroupId) {
+      await this.provider.deleteInsightGroup(agent.providerInsightGroupId);
+    }
+    if (agent.llmApiKeyRef) {
+      await this.provider.deleteSecret(agent.llmApiKeyRef);
+    }
+    await this.provider.deleteSecret(this.toolSecretIdentifier(agent.id));
+    await this.provider
+      .deleteKnowledgeStore(voiceAgentKnowledgeStoreName(agent.id))
+      .catch((error: unknown) => {
+        // A stranded store costs storage but must not block the deletion the
+        // user asked for.
+        this.logger.warn(
+          `Could not delete the knowledge store for agent ${agent.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
+
+    await this.agents.softDelete(id);
+  }
+
+  async setStatus(
+    ctx: OwnershipContext,
+    id: string,
+    status: Extract<AiVoiceAgentStatus, "active" | "disabled">,
+  ): Promise<AiVoiceAgent> {
+    const agent = await this.require(ctx, id);
+    if (status === AiVoiceAgentStatus.active) {
+      this.assertReadyForCalls(agent);
+    }
+    return this.agents.update(id, { status });
+  }
+
+  /**
+   * Everything that must be true before an agent may place a call. Called both
+   * when the user activates the agent and again at dial time, because an
+   * integration can be disconnected after activation.
+   */
+  assertReadyForCalls(agent: AiVoiceAgent): void {
+    const blueprint = this.blueprints.require(agent.type);
+    if (!agent.providerAssistantId) {
+      throw new BadRequestException(
+        "This agent is not finished setting up yet. Save it again to retry.",
+      );
+    }
+    if (blueprint.requiresCalendar && !agent.calendarIntegrationId) {
+      throw new BadRequestException(
+        "Connect a calendar before this agent can book meetings.",
+      );
+    }
+    if (agent.modelProvider !== "ringee" && !agent.llmApiKeyRef) {
+      throw new BadRequestException(
+        "Add and verify an API key for the selected AI provider.",
+      );
+    }
+  }
+
+  // ── Credentials ──────────────────────────────────────────────
+
+  /**
+   * Verifies a bring-your-own key and hands it to the voice provider, which
+   * stores it. Ringee keeps only the reference — the key itself is never
+   * written to our database and never leaves this method.
+   */
+  async verifyCredential(
+    provider: VoiceAgentLlmProvider,
+    apiKey: string,
+  ): Promise<{ valid: boolean; reason?: string }> {
+    return this.credentials.verify(provider, apiKey);
+  }
+
+  private async provisionCredential(
+    modelProvider: VoiceAgentLlmProvider,
+    apiKey: string | undefined,
+    existing?: AiVoiceAgent,
+  ): Promise<string | null> {
+    if (modelProvider === "ringee") {
+      // Switching back to Ringee AI retires the customer's stored credential.
+      if (existing?.llmApiKeyRef) {
+        await this.provider.deleteSecret(existing.llmApiKeyRef);
+      }
+      return null;
+    }
+
+    if (!apiKey) {
+      if (existing?.llmApiKeyRef && existing.modelProvider === modelProvider) {
+        return existing.llmApiKeyRef;
+      }
+      throw new BadRequestException(
+        "An API key is required for the selected AI provider.",
+      );
+    }
+
+    const check = await this.credentials.verify(modelProvider, apiKey);
+    if (!check.valid) {
+      throw new BadRequestException(
+        check.reason ?? "The API key is not valid.",
+      );
+    }
+
+    const identifier = `ringee-voice-agent-llm-${randomBytes(8).toString("hex")}`;
+    await this.provider.storeSecret(identifier, apiKey);
+    if (existing?.llmApiKeyRef) {
+      await this.provider.deleteSecret(existing.llmApiKeyRef);
+    }
+    return identifier;
+  }
+
+  // ── Provider synchronisation ─────────────────────────────────
+
+  /**
+   * Re-derives the whole provider-side agent from the stored row. Runs on every
+   * save so the assistant can never drift from what the user configured.
+   *
+   * A provider failure is recorded on the row rather than thrown away: the
+   * agent lands in `error` with the reason, and saving again retries.
+   */
+  private async syncToProvider(
+    ctx: OwnershipContext,
+    agentId: string,
+    options?: { toolSecret?: string },
+  ): Promise<AiVoiceAgent> {
+    const agent = await this.require(ctx, agentId);
+    const blueprint = this.blueprints.require(agent.type);
+
+    try {
+      const toolSecret = options?.toolSecret;
+      if (toolSecret) {
+        await this.provider.storeSecret(
+          this.toolSecretIdentifier(agent.id),
+          toolSecret,
+        );
+      }
+
+      const insightGroupId =
+        agent.providerInsightGroupId ??
+        (await this.provider.createInsightGroup(`Ringee agent ${agent.id}`));
+
+      const insightIds = await this.syncInsights(agent, insightGroupId);
+      const config = await this.composeConfig(ctx, agent, insightGroupId);
+
+      const assistant = agent.providerAssistantId
+        ? await this.provider.updateAssistant(agent.providerAssistantId, config)
+        : await this.provider.createAssistant(config);
+
+      const analysis = this.readAnalysis(agent);
+      return await this.agents.update(agent.id, {
+        providerAssistantId: assistant.assistantId,
+        providerTexmlAppId: assistant.callingAppId,
+        providerInsightGroupId: insightGroupId,
+        analysisSettings: { ...analysis, insightIds } as object,
+        status: this.nextStatus(agent, blueprint.requiresCalendar),
+        lastError: null,
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Could not sync agent ${agent.id}: ${message}`);
+      return this.agents.update(agent.id, {
+        status: AiVoiceAgentStatus.error,
+        lastError: message,
+      });
+    }
+  }
+
+  /**
+   * Creates, updates or removes each analysis so the provider's insight group
+   * matches the user's post-call configuration exactly — no orphans left
+   * running and billing after a field is deleted.
+   */
+  private async syncInsights(
+    agent: AiVoiceAgentWithSources,
+    insightGroupId: string,
+  ): Promise<VoiceAgentAnalysisSettings["insightIds"]> {
+    const analysis = this.readAnalysis(agent);
+    const blueprint = this.blueprints.require(agent.type);
+    const wanted: VoiceAgentBlueprintInsights = blueprint.buildInsights({
+      analysis,
+      extractionFields: this.readExtractionFields(agent),
+    });
+
+    const slots = ["summary", "outcome", "sentiment", "extraction"] as const;
+    const ids: VoiceAgentAnalysisSettings["insightIds"] = {};
+
+    for (const slot of slots) {
+      const definition = wanted[slot];
+      const existingId = analysis.insightIds[slot];
+
+      if (definition && existingId) {
+        await this.provider.updateInsight(existingId, definition);
+        ids[slot] = existingId;
+      } else if (definition) {
+        ids[slot] = await this.provider.createInsight(
+          insightGroupId,
+          definition,
+        );
+      } else if (existingId) {
+        await this.provider.deleteInsight(insightGroupId, existingId);
+      }
+    }
+    return ids;
+  }
+
+  private async composeConfig(
+    ctx: OwnershipContext,
+    agent: AiVoiceAgentWithSources,
+    insightGroupId: string,
+  ): Promise<VoiceAgentConfig> {
+    const blueprint = this.blueprints.require(agent.type);
+    const company = await this.companyProfiles.resolveContext(ctx);
+    const language = agent.voiceLanguage ?? "en";
+
+    const promptContext = {
+      agentName: agent.name,
+      company,
+      language,
+      timezone: agent.timezone,
+      meetingDurationMinutes: agent.meetingDurationMinutes,
+      meetingTitle: agent.meetingTitle,
+    };
+
+    const tools = blueprint.buildTools({
+      agentId: agent.id,
+      toolBaseUrl: this.toolBaseUrl(),
+      toolSecretRef: this.toolSecretIdentifier(agent.id),
+      knowledgeBucketIds: this.readyKnowledgeBuckets(agent),
+    });
+
+    return {
+      name: agent.name,
+      instructions: blueprint.buildInstructions(promptContext),
+      greeting: blueprint.buildGreeting(promptContext),
+      modelId: resolveVoiceAgentModel(
+        agent.modelProvider as VoiceAgentLlmProvider,
+      ).modelId,
+      llmApiKeyRef: agent.llmApiKeyRef,
+      voiceId: agent.voiceId,
+      dynamicVariables: this.defaultDynamicVariables(agent, company),
+      tools,
+      insightGroupId,
+      maxCallSeconds: apiConfiguration.AI_VOICE_AGENT_MAX_CALL_SECONDS,
+      recordCalls: true,
+    };
+  }
+
+  /**
+   * Defaults for every variable the instructions interpolate. Ringee's own
+   * variables carry real values; the per-call ones default to empty so an
+   * unset optional variable reads as absent instead of leaving `{{reason}}`
+   * in what the agent says.
+   *
+   * Public because a browser test session temporarily replaces these and has to
+   * be able to put them back exactly as they were.
+   */
+  async resolveDefaultVariables(
+    ctx: OwnershipContext,
+    agent: AiVoiceAgent,
+  ): Promise<Record<string, string>> {
+    const company = await this.companyProfiles.resolveContext(ctx);
+    return this.defaultDynamicVariables(agent, company);
+  }
+
+  private defaultDynamicVariables(
+    agent: AiVoiceAgent,
+    company: { name: string; description: string; website: string },
+  ): Record<string, string> {
+    const blueprint = this.blueprints.require(agent.type);
+    const variables: Record<string, string> = {
+      agent_name: agent.name,
+      company_name: company.name,
+      company_description: company.description,
+      company_website: company.website,
+    };
+    for (const variable of blueprint.variables) {
+      variables[variable.key] = "";
+    }
+    return variables;
+  }
+
+  private readyKnowledgeBuckets(agent: AiVoiceAgentWithSources): string[] {
+    const buckets = agent.knowledgeSources
+      .filter((source) => source.status === "ready" && source.providerBucket)
+      .map((source) => source.providerBucket!);
+    return [...new Set(buckets)];
+  }
+
+  private nextStatus(
+    agent: AiVoiceAgent,
+    requiresCalendar: boolean,
+  ): AiVoiceAgentStatus {
+    if (agent.status === AiVoiceAgentStatus.disabled) return agent.status;
+    if (requiresCalendar && !agent.calendarIntegrationId) {
+      return AiVoiceAgentStatus.draft;
+    }
+    if (agent.modelProvider !== "ringee" && !agent.llmApiKeyRef) {
+      return AiVoiceAgentStatus.draft;
+    }
+    return AiVoiceAgentStatus.active;
+  }
+
+  // ── Small helpers ────────────────────────────────────────────
+
+  readAnalysis(agent: AiVoiceAgent | null): VoiceAgentAnalysisSettings {
+    const raw = agent?.analysisSettings as VoiceAgentAnalysisSettings | null;
+    return {
+      ...DEFAULT_ANALYSIS_SETTINGS,
+      ...(raw ?? {}),
+      insightIds: raw?.insightIds ?? {},
+    };
+  }
+
+  readExtractionFields(agent: AiVoiceAgent): VoiceAgentExtractionField[] {
+    const raw = agent.extractionFields;
+    return Array.isArray(raw)
+      ? (raw as unknown as VoiceAgentExtractionField[])
+      : [];
+  }
+
+  private mergeAnalysis(
+    current: VoiceAgentAnalysisSettings | null,
+    patch: SaveVoiceAgentInput["analysis"],
+  ): VoiceAgentAnalysisSettings {
+    const base = current ?? DEFAULT_ANALYSIS_SETTINGS;
+    return {
+      ...base,
+      ...(patch ?? {}),
+      // The outcome is what callers branch on, so it is not optional.
+      outcome: true,
+      insightIds: base.insightIds ?? {},
+    };
+  }
+
+  private requireName(name: string): string {
+    const trimmed = name?.trim() ?? "";
+    if (!trimmed) throw new BadRequestException("The agent needs a name.");
+    if (trimmed.length > 60) {
+      throw new BadRequestException("The agent name is too long.");
+    }
+    return trimmed;
+  }
+
+  private async assertCalendarInWorkspace(
+    ctx: OwnershipContext,
+    calendarIntegrationId: string,
+  ): Promise<void> {
+    const integrations = await this.calendars.findByUserOrOrg(
+      ctx.userId,
+      ctx.organizationId ?? null,
+    );
+    if (!integrations.some((i) => i.id === calendarIntegrationId)) {
+      throw new NotFoundException("Calendar integration not found");
+    }
+  }
+
+  /**
+   * Resolves a chosen voice against the curated catalogue. The voice's language
+   * decides what language the agent speaks, so an unknown id is rejected rather
+   * than stored and discovered mid-call.
+   */
+  private async resolveVoice(
+    voiceId: string | null | undefined,
+  ): Promise<VoiceAgentVoice | null> {
+    if (!voiceId) return null;
+    const voices = await this.listVoices();
+    const voice = voices.find((v) => v.id === voiceId);
+    if (!voice) {
+      throw new BadRequestException("That voice is not available.");
+    }
+    return voice;
+  }
+
+  private generateToolSecret(): string {
+    return `rva_${randomBytes(32).toString("hex")}`;
+  }
+
+  private toolSecretIdentifier(agentId: string): string {
+    return `ringee-voice-agent-tool-${agentId}`;
+  }
+
+  private toolBaseUrl(): string {
+    const base = apiConfiguration.PUBLIC_BACKEND_URL.replace(/\/+$/, "");
+    return `${base}/api/ai-voice-agents/tools`;
+  }
+}

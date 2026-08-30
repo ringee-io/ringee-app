@@ -284,6 +284,23 @@ second time. A Redis failure allows the send rather than silencing it.
   line, not the balance.
 - **Best-effort:** an alert failure must never fail the debit that triggered it.
 
+### BILL-020 — An AI voice agent call settles twice, from two different meters
+
+The voice leg settles like any other call (BILL-012). The AI half — the
+provider's conversation engine and its LLM tokens — is metered separately, is
+not in `cost_parts`, and is only published to the provider's usage records some
+minutes after the call ends. So it settles on its own:
+
+- Price is the provider's **own reported cost** × `AI_VOICE_AGENT_PROFIT_MARGIN`.
+- Debited once under `ai-voice-agent-cost:<callId>`, with
+  `AiVoiceAgentCall.costSettledAt` claimed before the debit as the replay guard.
+- **An empty usage response means "not published yet", never "free".** Settling
+  at zero on an empty answer silently gives the call away, so the reconciler
+  retries on a schedule instead.
+
+- **Source of truth:** `services/voice-agents/voice-agent-billing.service.ts`
+  (+ spec); swept by the `ringee.voice-agent-sweep` Temporal Schedule
+
 ---
 
 ## Telephony — calls (`CALL`)
@@ -307,9 +324,13 @@ never refused because of a teammate's call.
 
 A ringing inbound leg has not been picked up. Inside an organization an inbound
 row is attributed to the number's _owner_, not the member who answers, so it must
-never mark anyone busy. Server-originated voicemail drops likewise occupy nobody.
+never mark anyone busy. Server-originated voicemail drops likewise occupy nobody,
+and so do AI voice agent calls: the agent is the one talking, and counting its
+call would lock the owner out of their own dialer for its whole duration.
 
-- **Source of truth:** `occupiesTheUser`, `isServerOriginatedDrop`
+- **Source of truth:** `occupiesTheUser`, `isServerOriginatedDrop`,
+  `isVoiceAgentCall` (the last reads `Call.source`, which is safe because only
+  the agent call service ever writes that value)
 
 ### CALL-004 — A call row older than the trust window must be confirmed live before it refuses a dial
 
@@ -624,6 +645,62 @@ It pushes to the user's active devices. With no active device, nothing happens.
 ### MCP-005 — Phone numbers are E.164; datetimes are ISO-8601 with an offset
 
 `E164_REGEX = /^\+[1-9]\d{1,14}$/` in `packages/agent/src/schemas/common.ts`.
+
+---
+
+## AI voice agents (`AGENT`)
+
+### AGENT-001 — The user configures the agent, never the conversation
+
+Instructions, greeting, tools, conversation rules, the dynamic-variable schema
+and the default analyses belong to the agent type's **blueprint**. A user picks
+a name, a model, a voice, knowledge and what to extract — nothing else. A
+feature that needs a new behaviour writes a blueprint; it does not expose the
+prompt.
+
+- **Source of truth:** `services/voice-agents/blueprints/*` +
+  `VoiceAgentBlueprintRegistry`
+
+### AGENT-002 — An agent never states availability it has not just looked up
+
+The booking agent may only offer a time returned by `get_available_slots`, and
+may only say a meeting is booked after `book_appointment` returns success. This
+is why the tool path uses `CalendarService.getBookableSlots` — which **fails**
+when the calendar is missing or unreachable — rather than `getAvailability`,
+which deliberately falls back to "everything is free" for the human picker.
+
+- **Risk if violated:** the agent books over real meetings and tells the person
+  a time that was never free
+
+### AGENT-003 — A provider tool callback proves itself, and derives its workspace
+
+The tool routes are `@Public()` because the voice provider calls them
+mid-conversation. Each carries the agent's shared secret (stored hashed, held by
+the provider as a secret reference, compared in constant time), and the
+workspace, calendar and contact are read from the stored agent row. The call's
+identity comes from a header the provider fills from a system variable — never
+from the model's own arguments.
+
+- **Source of truth:** `services/voice-agents/voice-agent-tool.service.ts`
+
+### AGENT-004 — One execution path, whatever started the call
+
+Web, the public API, the CLI and MCP all reach `VoiceAgentCallService.startCall`,
+which applies the calling-rights, DNC, balance and caller-ID gates in that order.
+A new surface calls it; it does not re-implement the gates.
+
+### AGENT-005 — A browser test session opens the agent only while it runs
+
+Testing an agent from the browser requires the provider to accept an
+unauthenticated web call, which makes the agent reachable by anyone holding its
+id. The window is opened on start and closed on stop, on unmount, and by the
+`ringee.voice-agent-sweep` schedule if the tab simply went away.
+
+### AGENT-006 — The tool's result outranks the transcript analysis
+
+When `book_appointment` created a meeting, the outcome is
+`appointment_booked` and the post-call analysis may not overwrite it. The tool
+knows a row exists; the analysis is only reading what was said.
 
 ---
 

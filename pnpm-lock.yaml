@@ -728,6 +728,8 @@ importers:
         specifier: ^1.2.4
         version: 1.4.0
 
+  apps/frontend/out/types: {}
+
   apps/orchestrator:
     dependencies:
       '@anthropic-ai/sdk':

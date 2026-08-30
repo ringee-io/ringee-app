@@ -8,6 +8,7 @@ import { registerCampaigns } from "./commands/campaigns.js";
 import { registerAnalytics } from "./commands/analytics.js";
 import { registerDnc } from "./commands/dnc.js";
 import { registerPipelines } from "./commands/pipelines.js";
+import { registerVoiceAgents } from "./commands/voice-agents.js";
 import { registerConfig } from "./commands/config.js";
 import { c } from "./ui.js";
 
@@ -46,6 +47,7 @@ registerCampaigns(program);
 registerAnalytics(program);
 registerDnc(program);
 registerPipelines(program);
+registerVoiceAgents(program);
 registerConfig(program);
 
 program.parseAsync(process.argv).catch((err) => {

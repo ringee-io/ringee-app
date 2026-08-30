@@ -51,6 +51,30 @@ export class TelnyxClient {
     }
   }
 
+  /**
+   * POSTs and returns raw bytes. The shared instance asks for JSON, so audio
+   * endpoints (text-to-speech) need their own response type.
+   */
+  async postBinary(
+    path: string,
+    body?: any,
+  ): Promise<{ data: Buffer; contentType: string }> {
+    try {
+      const response = await this.client.post(path, body, {
+        responseType: "arraybuffer",
+        headers: { Accept: "*/*" },
+      });
+      return {
+        data: Buffer.from(response.data as ArrayBuffer),
+        contentType:
+          (response.headers?.["content-type"] as string | undefined) ??
+          "application/octet-stream",
+      };
+    } catch (error) {
+      this.handleError(error);
+    }
+  }
+
   async delete<T = any>(path: string): Promise<T> {
     try {
       const { data } = await this.client.delete<T>(path);

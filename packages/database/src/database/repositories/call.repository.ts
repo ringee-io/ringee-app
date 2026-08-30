@@ -42,6 +42,12 @@ export class CallRepository {
       callLegId?: string | null;
       connectionId?: string | null;
       startedAt?: string | Date | null;
+      /**
+       * Set for a leg Ringee did not place itself: a provider-originated call
+       * reports when it was answered on its own callback, and `completeCall`
+       * reads `answeredAt` to decide whether the call ever connected.
+       */
+      answeredAt?: string | Date | null;
       status?: CallStatus;
       callerIdId?: string | null;
     },
@@ -54,6 +60,7 @@ export class CallRepository {
         callLegId: data.callLegId ?? undefined,
         connectionId: data.connectionId ?? undefined,
         startedAt: data.startedAt ? new Date(data.startedAt) : undefined,
+        answeredAt: data.answeredAt ? new Date(data.answeredAt) : undefined,
         status: data.status ?? undefined,
         callerId: data.callerIdId
           ? { connect: { id: data.callerIdId } }

@@ -1185,3 +1185,70 @@ export type GetAiPipelineResultsInput = {
     (typeof GetAiPipelineResultsSchema)[K]
   >;
 };
+
+// ── AI Voice Agents ────────────────────────────────────────────
+
+export const ListAiVoiceAgentsSchema = {
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(100)
+    .optional()
+    .describe("How many agents to return. Defaults to 20."),
+};
+
+export type ListAiVoiceAgentsInput = {
+  [K in keyof typeof ListAiVoiceAgentsSchema]: z.infer<
+    (typeof ListAiVoiceAgentsSchema)[K]
+  >;
+};
+
+export const StartAiVoiceAgentCallSchema = {
+  agentId: z
+    .string()
+    .uuid()
+    .describe("UUID of the AI voice agent that should place the call."),
+  to: z
+    .string()
+    .regex(E164_REGEX)
+    .describe("Destination phone number in E.164 format, e.g. +13055550123."),
+  fromNumberId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe(
+      "UUID of the Ringee number to call from. Defaults to the first number allowed for AI agent calls.",
+    ),
+  variables: z
+    .record(z.string(), z.string())
+    .optional()
+    .describe(
+      "Values for the agent type's own variables — list_ai_voice_agents reports which ones it accepts. Unknown names are rejected.",
+    ),
+  metadata: z
+    .record(z.string(), z.unknown())
+    .optional()
+    .describe(
+      "Free-form values echoed back on the call result, e.g. a CRM record id.",
+    ),
+};
+
+export type StartAiVoiceAgentCallInput = {
+  [K in keyof typeof StartAiVoiceAgentCallSchema]: z.infer<
+    (typeof StartAiVoiceAgentCallSchema)[K]
+  >;
+};
+
+export const GetAiVoiceAgentCallSchema = {
+  callId: z
+    .string()
+    .uuid()
+    .describe("UUID returned by start_ai_voice_agent_call."),
+};
+
+export type GetAiVoiceAgentCallInput = {
+  [K in keyof typeof GetAiVoiceAgentCallSchema]: z.infer<
+    (typeof GetAiVoiceAgentCallSchema)[K]
+  >;
+};

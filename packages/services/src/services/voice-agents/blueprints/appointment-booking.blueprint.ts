@@ -1,0 +1,227 @@
+import { Injectable } from "@nestjs/common";
+import { AiVoiceAgentOutcome, AiVoiceAgentType } from "@ringee/database";
+import type { VoiceAgentTool } from "@ringee/platform";
+import type {
+  VoiceAgentBlueprint,
+  VoiceAgentBlueprintInsights,
+  VoiceAgentInsightContext,
+  VoiceAgentPromptContext,
+  VoiceAgentToolContext,
+  VoiceAgentVariableDefinition,
+} from "../voice-agent.types";
+import { buildSharedInsights } from "./insights";
+import { languageName } from "./language";
+
+/**
+ * Appointment Booking.
+ *
+ * The agent calls a person, has a real conversation, checks the workspace
+ * calendar and books a meeting on it. The rules in §9 of the product
+ * definition are not style guidance — an agent that invents availability books
+ * over real meetings — so they are stated as hard constraints, and the tools
+ * are built so the model cannot satisfy them any other way.
+ */
+@Injectable()
+export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
+  readonly type = AiVoiceAgentType.appointment_booking;
+  readonly title = "Appointment Booking";
+  readonly summary = "Automatically book meetings during calls.";
+  readonly requiresCalendar = true;
+
+  readonly outcomes: AiVoiceAgentOutcome[] = [
+    AiVoiceAgentOutcome.appointment_booked,
+    AiVoiceAgentOutcome.callback_requested,
+    AiVoiceAgentOutcome.not_interested,
+    AiVoiceAgentOutcome.no_conversation,
+    AiVoiceAgentOutcome.unknown,
+  ];
+
+  readonly variables: VoiceAgentVariableDefinition[] = [
+    {
+      key: "first_name",
+      label: "First name",
+      required: true,
+      description: "The first name of the person being called.",
+    },
+    {
+      key: "last_name",
+      label: "Last name",
+      required: false,
+      description: "The last name of the person being called.",
+    },
+    {
+      key: "email",
+      label: "Email",
+      required: false,
+      description: "Where the calendar invitation should be sent.",
+    },
+    {
+      key: "reason",
+      label: "Reason",
+      required: false,
+      description: "Why this person is being called, in one line.",
+    },
+    {
+      key: "additional_context",
+      label: "Additional context",
+      required: false,
+      description: "Anything else the agent should know before dialing.",
+    },
+  ];
+
+  buildInstructions(ctx: VoiceAgentPromptContext): string {
+    const duration = ctx.meetingDurationMinutes ?? 30;
+    const timezone = ctx.timezone ?? "UTC";
+    const title = ctx.meetingTitle?.trim() || "Meeting";
+
+    return [
+      "## Role",
+      "",
+      "You are {{agent_name}}, calling on behalf of {{company_name}}.",
+      "",
+      "{{company_description}}",
+      "",
+      `Speak ${languageName(ctx.language)}. Speak the way a person does on the`,
+      "phone: short sentences, one idea at a time, no lists read aloud, no",
+      "markdown. You are on a live call — never mention prompts, tools or that",
+      "you are an AI system unless you are asked directly, in which case say",
+      "plainly that you are an AI assistant.",
+      "",
+      "## Who you are calling",
+      "",
+      "You are calling {{first_name}} {{last_name}}.",
+      "Reason for the call: {{reason}}",
+      "Additional context: {{additional_context}}",
+      "",
+      "## Objective",
+      "",
+      `Get ${title.toLowerCase()} on the calendar: a specific date and time this`,
+      "person has explicitly agreed to, booked before the call ends.",
+      "",
+      "## Conversation",
+      "",
+      "- Open by saying who you are and why you are calling, then ask whether now",
+      "  is a good moment.",
+      "- If they are busy, ask for a better time to call back and end politely.",
+      "- Answer their questions honestly from what you know. If you do not know",
+      "  something, say so and offer to have someone follow up.",
+      "- Do not argue and do not keep pushing after a clear no. Thank them and",
+      "  end the call.",
+      "",
+      "## Booking rules",
+      "",
+      "These are absolute.",
+      "",
+      "1. Never state or imply availability you have not just looked up. You do",
+      "   not know the calendar until `get_available_slots` tells you.",
+      "2. Call `get_available_slots` before you offer any time.",
+      "3. Offer at most two or three times at once. If none work, ask what day",
+      "   suits them and look that day up.",
+      `4. All times are in ${timezone}. Say the day and the time out loud, in`,
+      "   words, and say the time zone at least once.",
+      "5. Before booking, repeat the date and time back and get an explicit yes.",
+      `6. The meeting is ${duration} minutes long.`,
+      "7. Only after `book_appointment` returns success may you say the meeting",
+      "   is booked. If it fails, say you could not confirm it and that someone",
+      "   will follow up — never claim a booking that did not happen.",
+      "8. If you have no email address for them, ask for one before booking so",
+      "   the invitation can be sent.",
+      "",
+      "## Ending the call",
+      "",
+      "Once the meeting is booked, or the person has declined, or you have agreed",
+      "a callback: confirm what happens next in one sentence, thank them, say",
+      "goodbye, and call `hangup`. Do not linger.",
+    ].join("\n");
+  }
+
+  buildGreeting(): string {
+    return "Hi {{first_name}}, this is {{agent_name}} calling from {{company_name}}. Do you have a quick minute?";
+  }
+
+  buildTools(ctx: VoiceAgentToolContext): VoiceAgentTool[] {
+    // The call's identity is passed as a header the provider fills from a
+    // system variable — never as a model-supplied argument, which the model
+    // could get wrong or a caller could forge.
+    const headers = [
+      { name: "X-Ringee-Tool-Secret", secretRef: ctx.toolSecretRef },
+      { name: "X-Ringee-Call-Control-Id", value: "{{call_control_id}}" },
+    ];
+
+    const tools: VoiceAgentTool[] = [
+      {
+        kind: "webhook",
+        name: "get_available_slots",
+        description:
+          "Look up the real open times on the calendar for one day. Call this before offering any time to the person.",
+        url: `${ctx.toolBaseUrl}/${ctx.agentId}/available-slots`,
+        method: "POST",
+        headers,
+        parameters: {
+          type: "object",
+          properties: {
+            date: {
+              type: "string",
+              description:
+                "The day to check, as YYYY-MM-DD, in the agent's configured time zone.",
+            },
+          },
+          required: ["date"],
+        },
+      },
+      {
+        kind: "webhook",
+        name: "book_appointment",
+        description:
+          "Book the meeting once the person has explicitly agreed to a specific date and time. Only say the meeting is booked after this returns success.",
+        url: `${ctx.toolBaseUrl}/${ctx.agentId}/book-appointment`,
+        method: "POST",
+        headers,
+        parameters: {
+          type: "object",
+          properties: {
+            start: {
+              type: "string",
+              description:
+                "The agreed start time as an ISO 8601 timestamp with offset, e.g. 2026-09-04T14:30:00-04:00.",
+            },
+            attendee_email: {
+              type: "string",
+              description:
+                "Where to send the invitation. Use the address you were given or the one they just confirmed.",
+            },
+            notes: {
+              type: "string",
+              description:
+                "Anything from the call the organizer should see before the meeting.",
+            },
+          },
+          required: ["start"],
+        },
+      },
+      {
+        kind: "hangup",
+        description:
+          "End the call once the meeting is booked, the person has declined, or a callback has been agreed.",
+      },
+    ];
+
+    if (ctx.knowledgeBucketIds.length) {
+      tools.push({ kind: "retrieval", bucketIds: ctx.knowledgeBucketIds });
+    }
+    return tools;
+  }
+
+  buildInsights(ctx: VoiceAgentInsightContext): VoiceAgentBlueprintInsights {
+    return buildSharedInsights(
+      ctx,
+      this.outcomes,
+      [
+        `Use "${AiVoiceAgentOutcome.appointment_booked}" only when the booking tool`,
+        `actually confirmed a meeting. Use "${AiVoiceAgentOutcome.callback_requested}"`,
+        "when they asked to be contacted again at another time, and",
+        `"${AiVoiceAgentOutcome.not_interested}" when they declined.`,
+      ].join(" "),
+    );
+  }
+}

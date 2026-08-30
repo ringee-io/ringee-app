@@ -13,6 +13,8 @@ import {
   ReminderService,
   RetryEngine,
   StaleCallSweeperService,
+  VoiceAgentBillingService,
+  VoiceAgentTestSessionService,
   TranscriptionService,
 } from "@ringee/services";
 import { CampaignLeadRepository, CampaignRepository } from "@ringee/database";
@@ -50,6 +52,8 @@ export function createActivities(app: INestApplicationContext) {
   const pipelineRunService = app.get(PipelineRunService);
   const callerIdRotationService = app.get(CallerIdRotationService);
   const staleCallSweeper = app.get(StaleCallSweeperService);
+  const voiceAgentBilling = app.get(VoiceAgentBillingService);
+  const voiceAgentTestSessions = app.get(VoiceAgentTestSessionService);
 
   return {
     // ── Event-driven jobs (started by the backend via OrchestratorService) ──
@@ -151,6 +155,25 @@ export function createActivities(app: INestApplicationContext) {
         logger.warn(
           `StaleCallSweep: closed ${closed} calls with no hangup event — their owners were blocked from dialing`,
         );
+    },
+
+    /**
+     * AI voice agent housekeeping. The two halves are unrelated but share a
+     * cadence: settle the AI usage the provider publishes after a call ends,
+     * and close any test session that left an agent open to anonymous calls.
+     */
+    async sweepVoiceAgents() {
+      const { settled, pending } = await voiceAgentBilling.sweep();
+      if (settled > 0 || pending > 0) {
+        logger.log(
+          `VoiceAgentSweep: settled ${settled} agent calls, ${pending} still awaiting provider usage records`,
+        );
+      }
+
+      const closed = await voiceAgentTestSessions.sweepExpired();
+      if (closed > 0) {
+        logger.log(`VoiceAgentSweep: closed ${closed} expired test sessions`);
+      }
     },
 
     async recomputeCallerIdHealth() {

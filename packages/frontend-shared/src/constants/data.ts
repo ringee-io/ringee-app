@@ -123,6 +123,14 @@ export const navGroups: NavGroup[] = [
         items: [],
       },
       {
+        title: "AI Voice Agents",
+        url: "/dashboard/ai-voice-agents",
+        icon: "bot",
+        shortcut: ["a", "v"],
+        isActive: false,
+        items: [],
+      },
+      {
         title: "AI Agents",
         url: "/dashboard/ai",
         icon: "activity",

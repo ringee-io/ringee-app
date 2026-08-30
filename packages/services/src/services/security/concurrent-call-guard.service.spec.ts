@@ -237,6 +237,33 @@ describe("ConcurrentCallGuardService.findOccupyingCall", () => {
     );
   });
 
+  it("never counts an AI voice agent's call against its owner", async () => {
+    // The agent is the one having the conversation, not the user. Counting it
+    // would lock the owner out of their own dialer for the length of every
+    // agent call they started.
+    const started = new Date(Date.now() - 30_000);
+    const h = harness({
+      calls: [
+        buildCall({
+          source: "ai_voice_agent",
+          organizationId: "org-1",
+          startedAt: started,
+          createdAt: started,
+          answeredAt: started,
+          status: CallStatus.answered,
+        }),
+      ],
+      alive: true,
+    });
+
+    assert.equal(await h.guard.findOccupyingCall(USER), null);
+    assert.equal(
+      h.aliveChecks(),
+      0,
+      "an agent call is discarded before the provider is even asked",
+    );
+  });
+
   it("still counts a drop-sourced row that is a real call", async () => {
     // `source` is caller-controlled (the session dialer sends "session"), so
     // the client_state marker is what decides — a real leg keeps blocking.

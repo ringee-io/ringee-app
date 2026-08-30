@@ -1,6 +1,6 @@
 # Telephony
 
-Rules: `CALL-*`, `NUM-*`, `CMP-*`, `SESS-*`, `REC-*`, `MSG-*` in
+Rules: `CALL-*`, `NUM-*`, `CMP-*`, `SESS-*`, `REC-*`, `MSG-*`, `AGENT-*` in
 [BUSINESS_RULES.md](BUSINESS_RULES.md).
 
 ## Provider boundary
@@ -93,8 +93,8 @@ Out-of-order delivery is expected: a hangup that beats `call.initiated` is parke
 in Redis and replayed once the row exists (`CALL-009`).
 
 `Call.status` is written **only** by `CallService`. `Call.source` records the dial
-surface: `web`, `chrome_extension`, `mobile`, `campaign`, `session`, `sip_device`
-(plus `sdk` for SDK-created rows); null means legacy web.
+surface: `web`, `chrome_extension`, `mobile`, `campaign`, `session`, `sip_device`,
+`ai_voice_agent` (plus `sdk` for SDK-created rows); null means legacy web.
 
 ## One call at a time (`CALL-001`..`CALL-006`)
 
@@ -164,6 +164,38 @@ with a hard `time_limit_secs` (`DESK_PHONE_MAX_CALL_MINUTES`, default 120) so an
 unattended phone cannot run up unbounded spend; the real cost still settles from
 the CDR. `SipDeviceService` and `DeskPhoneCallService` are the only services that
 inject `TelnyxService` directly.
+
+## AI voice agent calls
+
+A different shape of call: the provider runs the conversation, and nobody is on
+Ringee's end of it.
+
+```
+POST /api/ai-voice-agents/:id/calls   (or the API / CLI / MCP — one path)
+        │  VoiceAgentCallService.startCall
+        │  canCall · DNC · balance · caller ID · variable validation
+        ▼
+provider places the call  ──►  Call row (source = "ai_voice_agent") + AiVoiceAgentCall
+        │
+        ├─ call status callback   ──► token-authenticated route, binds the leg
+        │                             and settles the Call row on completion
+        ├─ call.conversation.ended ──► the ordinary signed webhook, normalized
+        └─ call.conversation.insights ──► summary / outcome / extracted data
+        │
+        ▼
+ringee.voice-agent-sweep  ──► AI usage settled from the provider's own
+                              usage records × margin, once (BILL-020)
+```
+
+Consequences worth keeping:
+
+- The agent's call **occupies nobody** (CALL-003). It is server-originated, and
+  counting it would lock its owner out of their own dialer.
+- The tools the agent calls mid-conversation come back into Ringee on `@Public()`
+  routes that carry the agent's shared secret and take the call's identity from
+  a provider-filled header, never from the model (AGENT-003).
+- The booking tool uses `CalendarService.getBookableSlots`, which fails rather
+  than inventing availability (AGENT-002).
 
 ## Recordings and transcription
 
