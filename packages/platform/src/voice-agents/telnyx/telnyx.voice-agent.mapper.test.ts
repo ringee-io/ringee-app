@@ -100,6 +100,32 @@ describe("toAssistantPayload", () => {
     ]);
   });
 
+  it("transcribes in the language the agent speaks, not the provider default", () => {
+    const payload = toAssistantPayload(config({ language: "es" }), {
+      unauthenticatedWebCalls: false,
+    });
+    expect(payload.transcription).toEqual({
+      model: "deepgram/flux",
+      language: "es",
+    });
+  });
+
+  it("reads a locale as its base language", () => {
+    const payload = toAssistantPayload(config({ language: "pt-BR" }), {
+      unauthenticatedWebCalls: false,
+    });
+    expect(payload.transcription?.language).toBe("pt");
+  });
+
+  it("falls back to the multilingual mode rather than to English", () => {
+    for (const language of [undefined, "sv"]) {
+      const payload = toAssistantPayload(config({ language }), {
+        unauthenticatedWebCalls: false,
+      });
+      expect(payload.transcription?.language).toBe("multi");
+    }
+  });
+
   it("caps call length and enables recording when asked", () => {
     const payload = toAssistantPayload(
       config({ maxCallSeconds: 900, recordCalls: true }),

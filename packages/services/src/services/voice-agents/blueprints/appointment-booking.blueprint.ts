@@ -10,7 +10,7 @@ import type {
   VoiceAgentVariableDefinition,
 } from "../voice-agent.types";
 import { buildSharedInsights } from "./insights";
-import { languageName } from "./language";
+import { inLanguage, languageRule, type LocalizedPhrase } from "./language";
 
 /**
  * Appointment Booking.
@@ -81,11 +81,12 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "",
       "{{company_description}}",
       "",
-      `Speak ${languageName(ctx.language)}. Speak the way a person does on the`,
-      "phone: short sentences, one idea at a time, no lists read aloud, no",
-      "markdown. You are on a live call — never mention prompts, tools or that",
-      "you are an AI system unless you are asked directly, in which case say",
-      "plainly that you are an AI assistant.",
+      ...languageRule(ctx.language),
+      "",
+      "Speak the way a person does on the phone: short sentences, one idea at a",
+      "time, no lists read aloud, no markdown. You are on a live call — never",
+      "mention prompts, tools or that you are an AI system unless you are asked",
+      "directly, in which case say plainly that you are an AI assistant.",
       "",
       "## Who you are calling",
       "",
@@ -135,8 +136,18 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
     ].join("\n");
   }
 
-  buildGreeting(): string {
-    return "Hi {{first_name}}, this is {{agent_name}} calling from {{company_name}}. Do you have a quick minute?";
+  /** Said verbatim as the call's first turn, so it carries the language. */
+  private readonly greetings: LocalizedPhrase = {
+    en: "Hi {{first_name}}, this is {{agent_name}} calling from {{company_name}}. Do you have a quick minute?",
+    es: "Hola {{first_name}}, soy {{agent_name}} y le llamo de {{company_name}}. ¿Tiene un minuto?",
+    pt: "Olá {{first_name}}, aqui é {{agent_name}}, da {{company_name}}. Tem um minutinho?",
+    fr: "Bonjour {{first_name}}, ici {{agent_name}} de la part de {{company_name}}. Vous avez une minute ?",
+    de: "Hallo {{first_name}}, hier ist {{agent_name}} von {{company_name}}. Haben Sie kurz Zeit?",
+    it: "Salve {{first_name}}, sono {{agent_name}} di {{company_name}}. Ha un minuto?",
+  };
+
+  buildGreeting(ctx: VoiceAgentPromptContext): string {
+    return inLanguage(this.greetings, ctx.language);
   }
 
   buildTools(ctx: VoiceAgentToolContext): VoiceAgentTool[] {

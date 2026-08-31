@@ -74,6 +74,13 @@ export interface VoiceAgentConfig {
   llmApiKeyRef?: string | null;
   /** Curated voice id, or null to leave the provider default in place. */
   voiceId?: string | null;
+  /**
+   * Base language the conversation is held in, e.g. "es" — taken from the
+   * chosen voice. It decides what the agent *hears*, not only what it says: a
+   * provider transcribing in the wrong language returns nothing usable, and an
+   * agent that never receives a turn simply stays silent.
+   */
+  language?: string;
   /** Default values for the variables the instructions interpolate. */
   dynamicVariables?: Record<string, string>;
   tools: VoiceAgentTool[];

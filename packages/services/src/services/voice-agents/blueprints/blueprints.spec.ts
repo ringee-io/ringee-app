@@ -48,6 +48,25 @@ describe("AppointmentBookingBlueprint", () => {
     );
   });
 
+  it("opens the call in the agent's own language, not in English", () => {
+    assert.match(blueprint.buildGreeting(promptContext), /^Hola /);
+    assert.match(
+      blueprint.buildGreeting({ ...promptContext, language: "en" }),
+      /^Hi /,
+    );
+    // A language Ringee curates no greeting for still opens the call.
+    assert.match(
+      blueprint.buildGreeting({ ...promptContext, language: "sv" }),
+      /^Hi /,
+    );
+  });
+
+  it("holds that language unless the person asks it to change", () => {
+    const instructions = blueprint.buildInstructions(promptContext);
+    assert.match(instructions, /Stay in Spanish even if the other person/);
+    assert.match(instructions, /Change language only if they explicitly ask/);
+  });
+
   it("carries the configured meeting length and time zone into the prompt", () => {
     const instructions = blueprint.buildInstructions({
       ...promptContext,
@@ -224,6 +243,16 @@ describe("RemindersNotificationsBlueprint", () => {
     const instructions = blueprint.buildInstructions(promptContext);
     assert.match(instructions, /cannot reschedule on this/);
     assert.match(instructions, /Never invent a detail/);
+  });
+
+  it("opens in the agent's language and names what the call is about", () => {
+    const greeting = blueprint.buildGreeting(promptContext);
+    assert.match(greeting, /^Hola /);
+    assert.ok(greeting.includes("{{notification}}"));
+    assert.match(
+      blueprint.buildGreeting({ ...promptContext, language: "en" }),
+      /^Hi /,
+    );
   });
 
   it("offers the reminder outcomes, not the booking ones", () => {

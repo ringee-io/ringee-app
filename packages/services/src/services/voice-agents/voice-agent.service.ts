@@ -603,6 +603,7 @@ export class VoiceAgentService {
       ).modelId,
       llmApiKeyRef: agent.llmApiKeyRef,
       voiceId: agent.voiceId,
+      language,
       dynamicVariables: this.defaultDynamicVariables(agent, company),
       tools,
       insightGroupId,

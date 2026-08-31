@@ -10,7 +10,7 @@ import type {
   VoiceAgentVariableDefinition,
 } from "../voice-agent.types";
 import { buildSharedInsights } from "./insights";
-import { languageName } from "./language";
+import { inLanguage, languageRule, type LocalizedPhrase } from "./language";
 
 /**
  * Reminders & Notifications.
@@ -85,11 +85,12 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
       "",
       "{{company_description}}",
       "",
-      `Speak ${languageName(ctx.language)}. Speak the way a person does on the`,
-      "phone: short sentences, one idea at a time, no lists read aloud, no",
-      "markdown. You are on a live call — never mention prompts, tools or that",
-      "you are an AI system unless you are asked directly, in which case say",
-      "plainly that you are an AI assistant.",
+      ...languageRule(ctx.language),
+      "",
+      "Speak the way a person does on the phone: short sentences, one idea at a",
+      "time, no lists read aloud, no markdown. You are on a live call — never",
+      "mention prompts, tools or that you are an AI system unless you are asked",
+      "directly, in which case say plainly that you are an AI assistant.",
       "",
       "## What this call is about",
       "",
@@ -127,8 +128,18 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
     ].join("\n");
   }
 
-  buildGreeting(): string {
-    return "Hi {{first_name}}, this is {{agent_name}} calling from {{company_name}} about {{notification}}. Is now an okay time?";
+  /** Said verbatim as the call's first turn, so it carries the language. */
+  private readonly greetings: LocalizedPhrase = {
+    en: "Hi {{first_name}}, this is {{agent_name}} calling from {{company_name}} about {{notification}}. Is now an okay time?",
+    es: "Hola {{first_name}}, soy {{agent_name}} de {{company_name}} y le llamo por {{notification}}. ¿Es buen momento?",
+    pt: "Olá {{first_name}}, aqui é {{agent_name}} da {{company_name}}, sobre {{notification}}. É um bom momento?",
+    fr: "Bonjour {{first_name}}, ici {{agent_name}} de {{company_name}}, au sujet de {{notification}}. C'est le bon moment ?",
+    de: "Hallo {{first_name}}, hier ist {{agent_name}} von {{company_name}}, es geht um {{notification}}. Passt es Ihnen gerade?",
+    it: "Salve {{first_name}}, sono {{agent_name}} di {{company_name}}, la chiamo per {{notification}}. È un buon momento?",
+  };
+
+  buildGreeting(ctx: VoiceAgentPromptContext): string {
+    return inLanguage(this.greetings, ctx.language);
   }
 
   buildTools(ctx: VoiceAgentToolContext): VoiceAgentTool[] {

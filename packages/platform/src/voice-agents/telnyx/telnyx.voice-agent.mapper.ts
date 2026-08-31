@@ -33,6 +33,7 @@ export interface TelnyxAssistantPayload {
   tools: Record<string, unknown>[];
   dynamic_variables?: Record<string, string>;
   voice_settings?: { voice: string };
+  transcription?: { model: string; language: string };
   insight_settings?: { insight_group_id: string };
   telephony_settings: {
     supports_unauthenticated_web_calls: boolean;
@@ -42,6 +43,48 @@ export interface TelnyxAssistantPayload {
       channels: "dual";
       format: "mp3";
     };
+  };
+}
+
+/**
+ * Deepgram Flux is what Telnyx already puts on a new assistant, and it is the
+ * model built for turn-taking in a live conversation — so Ringee pins the one
+ * it gets anyway rather than trading turn detection for something else.
+ *
+ * What is *not* safe to leave alone is the language beside it: Telnyx defaults
+ * that to `en`, so a Spanish agent greets its caller in Spanish and is then
+ * transcribed as if the reply were English. Nothing usable comes back, the
+ * agent never receives a turn, and the call reads as an agent that cannot hear.
+ */
+const TRANSCRIPTION_MODEL = "deepgram/flux";
+
+/** The languages Deepgram Flux transcribes on Telnyx. */
+const TRANSCRIBED_LANGUAGES = new Set([
+  "en",
+  "es",
+  "fr",
+  "de",
+  "hi",
+  "ru",
+  "pt",
+  "ja",
+  "it",
+  "nl",
+]);
+
+/**
+ * A single language transcribes more accurately, and with lower latency, than
+ * the multilingual mode — so `multi` is the fallback for a language the model
+ * does not list (and for an agent with no voice chosen yet), never the default.
+ */
+function toTranscription(language: string | undefined): {
+  model: string;
+  language: string;
+} {
+  const base = (language ?? "").split("-")[0]!.toLowerCase();
+  return {
+    model: TRANSCRIPTION_MODEL,
+    language: TRANSCRIBED_LANGUAGES.has(base) ? base : "multi",
   };
 }
 
@@ -104,6 +147,7 @@ export function toAssistantPayload(
       ? { dynamic_variables: config.dynamicVariables }
       : {}),
     ...(config.voiceId ? { voice_settings: { voice: config.voiceId } } : {}),
+    transcription: toTranscription(config.language),
     ...(config.insightGroupId
       ? { insight_settings: { insight_group_id: config.insightGroupId } }
       : {}),
