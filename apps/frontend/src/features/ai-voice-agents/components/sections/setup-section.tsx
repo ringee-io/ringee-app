@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { AlertTriangle, Check, Loader2, Server, Sparkles } from 'lucide-react';
 import {
   Alert,
@@ -22,11 +23,6 @@ import type { VoiceAgentType } from '../../types';
 import { Field, controlClass, selectTriggerClass } from '../fields/field';
 import { Section } from './section';
 
-const CALENDAR_LABELS: Record<string, string> = {
-  google: 'Google Calendar',
-  microsoft: 'Outlook Calendar'
-};
-
 /** Who the agent is, which model runs it, and — for booking — where it books. */
 export function SetupSection({
   draft,
@@ -35,20 +31,19 @@ export function SetupSection({
   draft: AgentDraft;
   type: VoiceAgentType;
 }) {
+  const t = useTranslations('aiVoiceAgents.setup');
+  const tCommon = useTranslations('aiVoiceAgents.common');
   const booking = type === 'appointment_booking';
 
   return (
     <div className='space-y-8'>
-      <Section
-        title='Identity'
-        hint='The name the agent gives when someone picks up.'
-      >
+      <Section title={t('identity')} hint={t('identityHint')}>
         <Field
-          label='Agent name'
+          label={t('agentName')}
           htmlFor='agent-name'
           required
           error={draft.errors.name}
-          hint='Something a person would say back — "Sofia", not "Booking bot v2".'
+          hint={t('agentNameHint')}
           className='max-w-md'
         >
           <Input
@@ -63,10 +58,7 @@ export function SetupSection({
         </Field>
       </Section>
 
-      <Section
-        title='Model'
-        hint='What thinks during the conversation. Ringee AI needs no setup.'
-      >
+      <Section title={t('model')} hint={t('modelHint')}>
         <div className='grid gap-3 sm:grid-cols-2'>
           {draft.models.map((model) => {
             const active = draft.modelProvider === model.provider;
@@ -88,7 +80,7 @@ export function SetupSection({
                   {model.recommended ? (
                     <Badge variant='secondary' className='rounded-lg'>
                       <Sparkles className='size-3' />
-                      Recommended
+                      {t('recommended')}
                     </Badge>
                   ) : null}
                   {active ? (
@@ -103,8 +95,8 @@ export function SetupSection({
                   <span className='truncate'>{model.modelId}</span>
                 </p>
                 <p className='text-muted-foreground mt-1.5 text-xs'>
-                  {model.hosting === 'ringee' ? 'Self-hosted' : 'Your API key'}{' '}
-                  · {model.summary}
+                  {model.hosting === 'ringee' ? t('selfHosted') : t('ownKey')} ·{' '}
+                  {model.summary}
                 </p>
               </button>
             );
@@ -113,11 +105,13 @@ export function SetupSection({
 
         {draft.needsKey ? (
           <Field
-            label={`${draft.selectedModel?.displayName ?? 'Provider'} API key`}
+            label={t('apiKey', {
+              provider: draft.selectedModel?.displayName ?? t('provider')
+            })}
             htmlFor='agent-key'
             required
             error={draft.errors.apiKey}
-            hint='Held by the voice provider. Ringee never stores it.'
+            hint={t('apiKeyHint')}
             className='max-w-xl'
           >
             <div className='flex gap-2'>
@@ -126,11 +120,7 @@ export function SetupSection({
                 type='password'
                 value={draft.apiKey}
                 onChange={(e) => draft.setApiKey(e.target.value)}
-                placeholder={
-                  draft.keyAlreadySaved
-                    ? 'Saved — enter a new key to replace it'
-                    : 'sk-…'
-                }
+                placeholder={draft.keyAlreadySaved ? t('keySaved') : 'sk-…'}
                 aria-invalid={Boolean(draft.errors.apiKey)}
                 className={controlClass}
               />
@@ -146,10 +136,10 @@ export function SetupSection({
                 ) : draft.keyVerified ? (
                   <>
                     <Check className='size-4' />
-                    Verified
+                    {tCommon('verified')}
                   </>
                 ) : (
-                  'Verify'
+                  tCommon('verify')
                 )}
               </Button>
             </div>
@@ -158,29 +148,28 @@ export function SetupSection({
       </Section>
 
       {booking ? (
-        <Section title='Meetings' hint='Where and how the agent books.'>
+        <Section title={t('meetings')} hint={t('meetingsHint')}>
           {draft.calendars.length === 0 ? (
             <Alert className='rounded-lg'>
               <AlertTriangle className='size-4' />
               <AlertDescription className='flex flex-wrap items-center gap-2'>
-                No calendar connected — the agent can be saved, but it cannot be
-                activated until it has one.
+                {t('noCalendar')}
                 <Button
                   asChild
                   variant='outline'
                   size='sm'
                   className='rounded-lg'
                 >
-                  <Link href='/dashboard/meetings'>Connect a calendar</Link>
+                  <Link href='/dashboard/meetings'>{t('connectCalendar')}</Link>
                 </Button>
               </AlertDescription>
             </Alert>
           ) : (
             <Field
-              label='Calendar'
+              label={t('calendar')}
               required
               error={draft.errors.calendarIntegrationId}
-              hint='The agent reads free time from here and books into it.'
+              hint={t('calendarHint')}
               className='max-w-md'
             >
               <Select
@@ -191,12 +180,14 @@ export function SetupSection({
                   className={selectTriggerClass}
                   aria-invalid={Boolean(draft.errors.calendarIntegrationId)}
                 >
-                  <SelectValue placeholder='Choose a calendar' />
+                  <SelectValue placeholder={t('chooseCalendar')} />
                 </SelectTrigger>
                 <SelectContent>
                   {draft.calendars.map((calendar) => (
                     <SelectItem key={calendar.id} value={calendar.id}>
-                      {CALENDAR_LABELS[calendar.provider] ?? calendar.provider}
+                      {t.has(`calendars.${calendar.provider}`)
+                        ? t(`calendars.${calendar.provider}`)
+                        : calendar.provider}
                       {calendar.email ? ` · ${calendar.email}` : ''}
                     </SelectItem>
                   ))}
@@ -207,10 +198,10 @@ export function SetupSection({
 
           <div className='grid gap-4 sm:grid-cols-3'>
             <Field
-              label='Duration'
+              label={t('duration')}
               htmlFor='meeting-duration'
               error={draft.errors.meetingDurationMinutes}
-              hint='In minutes.'
+              hint={t('durationHint')}
             >
               <Input
                 id='meeting-duration'
@@ -225,10 +216,10 @@ export function SetupSection({
             </Field>
 
             <Field
-              label='Time zone'
+              label={t('timezone')}
               htmlFor='meeting-timezone'
               error={draft.errors.timezone}
-              hint='The times the agent offers.'
+              hint={t('timezoneHint')}
             >
               <Input
                 id='meeting-timezone'
@@ -241,10 +232,10 @@ export function SetupSection({
             </Field>
 
             <Field
-              label='Meeting title'
+              label={t('meetingTitle')}
               htmlFor='meeting-title'
               error={draft.errors.meetingTitle}
-              hint='What lands in the calendar.'
+              hint={t('meetingTitleHint')}
             >
               <Input
                 id='meeting-title'

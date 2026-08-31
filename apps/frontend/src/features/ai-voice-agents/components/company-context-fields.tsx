@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { ChevronDown, Copy, Loader2, Sparkles } from 'lucide-react';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
@@ -38,6 +39,7 @@ export function CompanyContextFields({
   currentAgentId,
   errors = {}
 }: Props) {
+  const t = useTranslations('aiVoiceAgents.company');
   const api = useVoiceAgentApi();
   const [reusable, setReusable] = useState<ReusableCompanyContext[]>([]);
   const [generating, setGenerating] = useState(false);
@@ -67,7 +69,7 @@ export function CompanyContextFields({
   const generate = async () => {
     const website = value.companyWebsite?.trim();
     if (!website) {
-      setGenerateError('Add the website first, then draft from it.');
+      setGenerateError(t('addWebsiteFirst'));
       return;
     }
     setGenerateError(null);
@@ -75,9 +77,9 @@ export function CompanyContextFields({
     try {
       const { description } = await api.generateCompanyDescription(website);
       set({ companyDescription: description });
-      toast.success('Drafted from the website — review it before saving');
+      toast.success(t('drafted'));
     } catch (error) {
-      setGenerateError(describeApiError(error, 'Could not read that website.'));
+      setGenerateError(describeApiError(error, t('readError')));
     } finally {
       setGenerating(false);
     }
@@ -88,7 +90,7 @@ export function CompanyContextFields({
       {reusable.length > 0 ? (
         <div className='bg-muted/40 flex flex-wrap items-center gap-3 rounded-lg border p-3'>
           <Copy className='text-muted-foreground size-4 shrink-0' />
-          <span className='text-sm'>Reuse a context</span>
+          <span className='text-sm'>{t('reuse')}</span>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button
@@ -96,7 +98,7 @@ export function CompanyContextFields({
                 variant='outline'
                 className='bg-background ml-auto h-10 w-full justify-between rounded-lg sm:w-64'
               >
-                Copy from…
+                {t('copyFrom')}
                 <ChevronDown className='size-4' />
               </Button>
             </DropdownMenuTrigger>
@@ -122,10 +124,10 @@ export function CompanyContextFields({
 
       <div className='grid gap-4 sm:grid-cols-2'>
         <Field
-          label='Company name'
+          label={t('name')}
           htmlFor='company-name'
           error={errors.companyName}
-          hint='The name the agent says it is calling from.'
+          hint={t('nameHint')}
         >
           <Input
             id='company-name'
@@ -139,10 +141,10 @@ export function CompanyContextFields({
         </Field>
 
         <Field
-          label='Website'
+          label={t('website')}
           htmlFor='company-website'
           error={errors.companyWebsite}
-          hint='acme.com is enough — Ringee can read it for you.'
+          hint={t('websiteHint')}
         >
           <Input
             id='company-website'
@@ -157,10 +159,10 @@ export function CompanyContextFields({
       </div>
 
       <Field
-        label='What the company does'
+        label={t('description')}
         htmlFor='company-description'
         error={errors.companyDescription ?? generateError ?? undefined}
-        hint='The agent introduces itself with this on every call.'
+        hint={t('descriptionHint')}
         action={
           <Button
             type='button'
@@ -175,7 +177,7 @@ export function CompanyContextFields({
             ) : (
               <Sparkles className='size-3.5' />
             )}
-            Draft from website
+            {t('draftFromWebsite')}
           </Button>
         }
       >
@@ -185,7 +187,7 @@ export function CompanyContextFields({
           onChange={(e) => set({ companyDescription: e.target.value })}
           rows={6}
           maxLength={4000}
-          placeholder='What you do, who you serve, what you offer.'
+          placeholder={t('descriptionPlaceholder')}
           aria-invalid={Boolean(errors.companyDescription)}
           className={textAreaClass}
         />

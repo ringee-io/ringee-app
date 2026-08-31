@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import { ArrowRight, BellRing, CalendarCheck } from 'lucide-react';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import type { VoiceAgentType, VoiceAgentTypeInfo } from '../types';
@@ -21,6 +22,7 @@ export function AgentTypeCards({
   types: VoiceAgentTypeInfo[];
   className?: string;
 }) {
+  const t = useTranslations('aiVoiceAgents.list');
   return (
     <div className={cn('grid gap-3 sm:grid-cols-2', className)}>
       {types.map((type) => {
@@ -39,7 +41,7 @@ export function AgentTypeCards({
               {type.summary}
             </p>
             <span className='text-primary mt-3 flex items-center gap-1 text-sm font-medium'>
-              Create
+              {t('create')}
               <ArrowRight className='size-4 transition-transform group-hover:translate-x-0.5' />
             </span>
           </Link>

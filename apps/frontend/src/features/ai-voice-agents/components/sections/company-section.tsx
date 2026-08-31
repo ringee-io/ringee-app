@@ -1,5 +1,6 @@
 'use client';
 
+import { useTranslations } from 'next-intl';
 import type { AgentDraft } from '../../hooks/use-agent-draft';
 import { CompanyContextFields } from '../company-context-fields';
 import { Section } from './section';
@@ -12,11 +13,9 @@ export function CompanySection({
   draft: AgentDraft;
   agentId?: string;
 }) {
+  const t = useTranslations('aiVoiceAgents.company');
   return (
-    <Section
-      title='Company'
-      hint='Who this agent says it is calling from. Each agent has its own.'
-    >
+    <Section title={t('title')} hint={t('hint')}>
       <CompanyContextFields
         value={draft.company}
         onChange={draft.setCompany}

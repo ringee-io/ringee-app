@@ -38,18 +38,16 @@ export function languageName(code: string): string {
   }
 }
 
-const GENDER_LABELS: Record<VoiceAgentVoice['gender'], string> = {
-  female: 'Female',
-  male: 'Male',
-  unspecified: 'Neutral'
-};
-
-export function genderLabel(gender: VoiceAgentVoice['gender']): string {
-  return GENDER_LABELS[gender] ?? GENDER_LABELS.unspecified;
-}
-
-/** What sits next to a voice's name: 🇲🇽 Mexico · Female. */
-export function voiceOrigin(voice: VoiceAgentVoice): string {
+/**
+ * What sits next to a voice's name: 🇲🇽 Mexico · Female.
+ *
+ * The gender word is passed in rather than looked up here, because it is copy
+ * and copy comes from `next-intl` — this file only knows how to join the two.
+ */
+export function voiceOrigin(
+  voice: VoiceAgentVoice,
+  genderLabel: string
+): string {
   const country = countryName(voice.countryCode) || voice.accent;
-  return [country, genderLabel(voice.gender)].filter(Boolean).join(' · ');
+  return [country, genderLabel].filter(Boolean).join(' · ');
 }

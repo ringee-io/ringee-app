@@ -13,6 +13,7 @@ import {
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
+import { apiConfiguration } from "@ringee/configuration";
 import {
   AddKnowledgeTextDto,
   AddKnowledgeUrlDto,
@@ -258,7 +259,17 @@ export class AiVoiceAgentController {
   }
 
   @Post(":id/knowledge/document")
-  @UseInterceptors(FileInterceptor("file"))
+  // The limit is enforced here as well as in the service: multer buffers the
+  // whole upload into memory before any handler runs, so an application-level
+  // check alone is a memory-exhaustion vector. Same number from the same
+  // configuration value, so the two can never disagree.
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: {
+        fileSize: apiConfiguration.AI_VOICE_AGENT_MAX_DOCUMENT_MB * 1024 * 1024,
+      },
+    }),
+  )
   addKnowledgeDocument(
     @CurrentUser() user: CurrentUserData,
     @Param("id", ParseUUIDPipe) id: string,

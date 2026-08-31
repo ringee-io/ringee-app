@@ -11,7 +11,8 @@ import {
   Download,
   Loader2,
   AlertCircle,
-  CheckCircle2
+  CheckCircle2,
+  ChevronRight
 } from 'lucide-react';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { cn } from '@ringee/frontend-shared/lib/utils';
@@ -25,6 +26,15 @@ import { useQuickDialerCall } from '@/features/calls/hooks/use.quick.dialer.call
 import { RecordingPlayButton } from '@/features/recordings/components/recordings.tables/recording-play-button';
 import { useTranslations } from 'next-intl';
 import { CallTranscriptionActions } from '@/features/transcription';
+// Imported from the modules themselves, not the feature barrel: the barrel
+// re-exports the detail screen, and pulling that into the history bundle would
+// ship the whole page to a route that only renders a badge.
+import { CallSourceBadge } from '@/features/call-detail/components/call-source-badge';
+import type {
+  CallListAgentRef,
+  CallSource
+} from '@/features/call-detail/types';
+import Link from 'next/link';
 
 type RecordingData = {
   id: string;
@@ -43,6 +53,10 @@ type Call = {
   startedAt: string | null;
   recordings?: RecordingData[];
   contact?: { name?: string | null };
+  /** Origin channel. Null on rows that predate the column (web dialer). */
+  source?: CallSource;
+  /** Present only on a call an AI voice agent placed. */
+  aiVoiceAgentCall?: CallListAgentRef | null;
 };
 
 const statusConfig: Record<
@@ -174,6 +188,22 @@ export const columns: ColumnDef<Call>[] = [
       <span className='text-muted-foreground font-mono text-sm'>
         {cell.getValue<string>()}
       </span>
+    )
+  },
+  {
+    id: 'source',
+    header: () => {
+      const t = useTranslations('calls.history.table');
+      return <>{t('source')}</>;
+    },
+    // How the call was placed, and by which agent when an agent placed it.
+    // A workspace running agents alongside people needs to tell the two apart
+    // in the list, not by opening rows one at a time.
+    cell: ({ row }) => (
+      <CallSourceBadge
+        source={row.original.source ?? null}
+        agentName={row.original.aiVoiceAgentCall?.agent?.name}
+      />
     )
   },
   {
@@ -317,5 +347,20 @@ export const columns: ColumnDef<Call>[] = [
       return <>{t('transcript')}</>;
     },
     cell: ({ row }) => <CallTranscriptionActions callId={row.original.id} />
+  },
+  {
+    id: 'details',
+    header: () => null,
+    cell: ({ row }) => {
+      const t = useTranslations('calls.history.table');
+      return (
+        <Button asChild size='sm' variant='ghost' className='rounded-lg'>
+          <Link href={`/dashboard/call/${row.original.id}`}>
+            {t('details')}
+            <ChevronRight className='h-4 w-4' />
+          </Link>
+        </Button>
+      );
+    }
   }
 ];

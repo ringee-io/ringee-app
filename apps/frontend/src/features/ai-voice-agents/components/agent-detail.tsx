@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import {
   AlertTriangle,
@@ -58,16 +59,18 @@ import { StartCallDialog } from './start-call-dialog';
 import { TestPanel } from './test-panel';
 
 const TABS = [
-  { value: 'setup', label: 'Setup', icon: Settings2 },
-  { value: 'voice', label: 'Voice', icon: AudioLines },
-  { value: 'company', label: 'Company', icon: Building2 },
-  { value: 'results', label: 'Results', icon: ClipboardList },
-  { value: 'knowledge', label: 'Knowledge', icon: Library },
-  { value: 'test', label: 'Test', icon: Mic },
-  { value: 'calls', label: 'Calls', icon: PhoneCall }
+  { value: 'setup', icon: Settings2 },
+  { value: 'voice', icon: AudioLines },
+  { value: 'company', icon: Building2 },
+  { value: 'results', icon: ClipboardList },
+  { value: 'knowledge', icon: Library },
+  { value: 'test', icon: Mic },
+  { value: 'calls', icon: PhoneCall }
 ] as const;
 
 export function AgentDetail({ agentId }: { agentId: string }) {
+  const t = useTranslations('aiVoiceAgents.detail');
+  const tCommon = useTranslations('aiVoiceAgents.common');
   const api = useVoiceAgentApi();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -87,11 +90,11 @@ export function AgentDetail({ agentId }: { agentId: string }) {
       setAgent(loaded);
       setTypeInfo(types.find((t) => t.type === loaded.type));
     } catch (error) {
-      setLoadError(describeApiError(error, 'Could not open this agent.'));
+      setLoadError(describeApiError(error, t('openError')));
     } finally {
       setLoading(false);
     }
-  }, [api, agentId]);
+  }, [api, agentId, t]);
 
   useEffect(() => {
     void load();
@@ -101,7 +104,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
 
   if (loading) {
     return (
-      <AgentScreen title='Loading agent…' onClose={leave}>
+      <AgentScreen title={t('loading')} onClose={leave}>
         <div className='space-y-4'>
           <Skeleton className='h-10 w-full rounded-lg' />
           <Skeleton className='h-96 w-full rounded-lg' />
@@ -112,12 +115,12 @@ export function AgentDetail({ agentId }: { agentId: string }) {
 
   if (loadError || !agent) {
     return (
-      <AgentScreen title='Agent' onClose={leave}>
+      <AgentScreen title={t('agent')} onClose={leave}>
         <Alert variant='destructive' className='rounded-lg'>
           <AlertTriangle className='size-4' />
-          <AlertTitle>This agent did not open</AlertTitle>
+          <AlertTitle>{t('openErrorTitle')}</AlertTitle>
           <AlertDescription className='flex flex-wrap items-center gap-3'>
-            {loadError ?? 'Could not open this agent.'}
+            {loadError ?? t('openError')}
             <Button
               variant='outline'
               size='sm'
@@ -125,7 +128,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
               onClick={() => void load()}
             >
               <RotateCw className='size-3.5' />
-              Try again
+              {tCommon('tryAgain')}
             </Button>
           </AlertDescription>
         </Alert>
@@ -168,6 +171,8 @@ function AgentDetailView({
   onClose: () => void;
   onDeleted: () => void;
 }) {
+  const t = useTranslations('aiVoiceAgents.detail');
+  const tCommon = useTranslations('aiVoiceAgents.common');
   const api = useVoiceAgentApi();
   const draft = useAgentDraft(agent.type, agent);
   const [tab, setTab] = useState(initialTab);
@@ -196,11 +201,9 @@ function AgentDetailView({
     // the reason on `lastError` is the agent telling you it cannot take calls
     // yet, and claiming "Saved" over that is how a broken agent goes unnoticed.
     if (saved.status === 'error') {
-      toast.warning(
-        'Saved, but the agent could not be set up. See the reason above.'
-      );
+      toast.warning(t('savedWithError'));
     } else {
-      toast.success('Saved');
+      toast.success(t('saved'));
     }
   };
 
@@ -213,13 +216,11 @@ function AgentDetailView({
         active ? 'disabled' : 'active'
       );
       onChanged(updated);
-      toast.success(active ? 'Agent disabled' : 'Agent activated');
+      toast.success(active ? t('disabled') : t('activated'));
     } catch (error) {
       // Activation fails for a reason the user can act on — no calendar, no
       // verified key — so it belongs on the screen, not in a toast that goes.
-      setStatusError(
-        describeApiError(error, 'Could not change the agent’s status.')
-      );
+      setStatusError(describeApiError(error, t('statusError')));
     } finally {
       setBusy(false);
     }
@@ -228,10 +229,10 @@ function AgentDetailView({
   const remove = async () => {
     try {
       await api.remove(agent.id);
-      toast.success('Agent deleted');
+      toast.success(t('deleted'));
       onDeleted();
     } catch (error) {
-      toast.error(describeApiError(error, 'Could not delete the agent.'));
+      toast.error(describeApiError(error, t('deleteError')));
     }
   };
 
@@ -258,10 +259,10 @@ function AgentDetailView({
               checked={active}
               disabled={busy}
               onCheckedChange={() => void toggleStatus()}
-              aria-label={active ? 'Deactivate agent' : 'Activate agent'}
+              aria-label={active ? t('deactivateAria') : t('activateAria')}
             />
             <span className='hidden sm:inline'>
-              {active ? 'Active' : 'Inactive'}
+              {active ? t('activeLabel') : t('inactiveLabel')}
             </span>
           </label>
 
@@ -278,7 +279,7 @@ function AgentDetailView({
             <AlertDialogTrigger asChild>
               <Button
                 variant='ghost'
-                aria-label='Delete agent'
+                aria-label={t('deleteAria')}
                 className='size-10 rounded-lg p-0'
               >
                 <Trash2 className='size-4' />
@@ -286,21 +287,22 @@ function AgentDetailView({
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle>Delete {agent.name}?</AlertDialogTitle>
+                <AlertDialogTitle>
+                  {t('deleteTitle', { name: agent.name })}
+                </AlertDialogTitle>
                 <AlertDialogDescription>
-                  The agent stops answering and its call history stays. This
-                  cannot be undone.
+                  {t('deleteHint')}
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel className='rounded-lg'>
-                  Cancel
+                  {tCommon('cancel')}
                 </AlertDialogCancel>
                 <AlertDialogAction
                   className='rounded-lg'
                   onClick={() => void remove()}
                 >
-                  Delete
+                  {tCommon('delete')}
                 </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
@@ -311,7 +313,7 @@ function AgentDetailView({
         draft.dirty ? (
           <>
             <span className='text-muted-foreground flex-1 text-sm'>
-              Unsaved changes
+              {t('unsaved')}
             </span>
             <Button
               className='rounded-lg'
@@ -321,7 +323,7 @@ function AgentDetailView({
               {draft.saving ? (
                 <Loader2 className='size-4 animate-spin' />
               ) : null}
-              Save changes
+              {t('saveChanges')}
             </Button>
           </>
         ) : undefined
@@ -333,7 +335,7 @@ function AgentDetailView({
         {agent.status === 'error' && agent.lastError ? (
           <Alert variant='destructive' className='rounded-lg'>
             <AlertTriangle className='size-4' />
-            <AlertTitle>This agent could not be set up</AlertTitle>
+            <AlertTitle>{t('setupFailedTitle')}</AlertTitle>
             <AlertDescription className='flex flex-wrap items-center gap-3'>
               {agent.lastError}
               <Button
@@ -348,7 +350,7 @@ function AgentDetailView({
                 ) : (
                   <RotateCw className='size-3.5' />
                 )}
-                Retry setup
+                {t('retrySetup')}
               </Button>
             </AlertDescription>
           </Alert>
@@ -364,7 +366,7 @@ function AgentDetailView({
         {statusError ? (
           <Alert variant='destructive' className='rounded-lg'>
             <AlertTriangle className='size-4' />
-            <AlertTitle>Could not activate this agent</AlertTitle>
+            <AlertTitle>{t('activateErrorTitle')}</AlertTitle>
             <AlertDescription>{statusError}</AlertDescription>
           </Alert>
         ) : null}
@@ -373,21 +375,21 @@ function AgentDetailView({
           <Alert className='rounded-lg'>
             <AlertTriangle className='size-4' />
             <AlertDescription>
-              Before this agent can call, it needs {draft.blockers.join(', ')}.
+              {t('blockers', { items: draft.blockers.join(', ') })}
             </AlertDescription>
           </Alert>
         ) : null}
 
         <Tabs value={tab} onValueChange={setTab}>
           <TabsList className='h-auto flex-wrap justify-start rounded-lg'>
-            {TABS.map(({ value, label, icon: Icon }) => (
+            {TABS.map(({ value, icon: Icon }) => (
               <TabsTrigger
                 key={value}
                 value={value}
                 className='gap-1.5 rounded-lg'
               >
                 <Icon className='size-3.5' />
-                {label}
+                {t(`tabs.${value}`)}
               </TabsTrigger>
             ))}
           </TabsList>

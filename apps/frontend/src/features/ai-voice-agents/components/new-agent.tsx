@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { useVoiceAgentApi } from '../api';
 import type { VoiceAgentType, VoiceAgentTypeInfo } from '../types';
@@ -10,6 +11,7 @@ import { AgentWizard } from './agent-wizard';
 
 /** Loads the type's definition, then hands off to the create wizard. */
 export function NewAgent({ type }: { type: VoiceAgentType }) {
+  const t = useTranslations('aiVoiceAgents.wizard');
   const api = useVoiceAgentApi();
   const router = useRouter();
   const [typeInfo, setTypeInfo] = useState<VoiceAgentTypeInfo>();
@@ -28,7 +30,7 @@ export function NewAgent({ type }: { type: VoiceAgentType }) {
   if (loading) {
     return (
       <AgentScreen
-        title='New agent'
+        title={t('title')}
         onClose={() => router.push('/dashboard/ai-voice-agents')}
       >
         <div className='space-y-4'>

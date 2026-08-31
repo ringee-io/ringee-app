@@ -13,7 +13,7 @@ import {
   type OwnershipContext,
 } from "@ringee/platform";
 import { CreditService, incurredCostDebitRef } from "../credit.service";
-import { requirePublicUrl } from "./public-url";
+import { fetchPublicPage, requirePublicUrl } from "./public-url";
 import type { VoiceAgentCompanyContext } from "./voice-agent.types";
 
 /** How much of a fetched page is worth sending to the model. */
@@ -195,12 +195,13 @@ export class CompanyProfileService {
 
   private async fetchPageText(url: URL): Promise<string | null> {
     try {
-      const response = await fetch(url, {
-        redirect: "follow",
-        signal: AbortSignal.timeout(10_000),
+      // Not a bare `fetch`: the address came from a user, so every hop is
+      // re-checked against the public-host policy before it is requested.
+      const response = await fetchPublicPage(url, {
+        timeoutMs: 10_000,
         headers: { Accept: "text/html,application/xhtml+xml" },
       });
-      if (!response.ok) return null;
+      if (!response?.ok) return null;
       const html = await response.text();
       return this.stripHtml(html).slice(0, MAX_PAGE_CHARACTERS) || null;
     } catch (error) {

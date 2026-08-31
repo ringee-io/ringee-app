@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useTranslations } from 'next-intl';
 import {
   AlertTriangle,
   BellRing,
@@ -37,6 +38,8 @@ const TYPE_ICONS: Record<VoiceAgentType, typeof CalendarCheck> = {
 
 /** The module's home: the agents you have, and one way to add another. */
 export function AgentsList() {
+  const t = useTranslations('aiVoiceAgents.list');
+  const tCommon = useTranslations('aiVoiceAgents.common');
   const api = useVoiceAgentApi();
   const [types, setTypes] = useState<VoiceAgentTypeInfo[]>([]);
   const [agents, setAgents] = useState<VoiceAgent[]>([]);
@@ -59,11 +62,11 @@ export function AgentsList() {
         Object.fromEntries(voices.map((v) => [v.id, flagEmoji(v.countryCode)]))
       );
     } catch (error) {
-      setFailure(describeApiError(error, 'Could not load your agents.'));
+      setFailure(describeApiError(error, t('loadError')));
     } finally {
       setLoading(false);
     }
-  }, [api]);
+  }, [api, t]);
 
   useEffect(() => {
     void load();
@@ -93,7 +96,7 @@ export function AgentsList() {
           onClick={() => void load()}
         >
           <RotateCw className='size-3.5' />
-          Try again
+          {tCommon('tryAgain')}
         </Button>
       </Card>
     );
@@ -106,10 +109,8 @@ export function AgentsList() {
           <Bot className='size-6' />
         </div>
         <div>
-          <p className='font-medium'>Create your first agent</p>
-          <p className='text-muted-foreground text-sm'>
-            Pick what it should do. Ringee writes the conversation.
-          </p>
+          <p className='font-medium'>{t('emptyTitle')}</p>
+          <p className='text-muted-foreground text-sm'>{t('emptyHint')}</p>
         </div>
         <AgentTypeCards types={types} className='w-full max-w-2xl' />
       </Card>
@@ -123,15 +124,13 @@ export function AgentsList() {
           <DialogTrigger asChild>
             <Button className='h-10 rounded-lg'>
               <Plus className='size-4' />
-              New agent
+              {t('newAgent')}
             </Button>
           </DialogTrigger>
           <DialogContent className='sm:max-w-2xl'>
             <DialogHeader>
-              <DialogTitle>What should the agent do?</DialogTitle>
-              <DialogDescription>
-                Ringee writes the conversation, the tools and the follow-up.
-              </DialogDescription>
+              <DialogTitle>{t('pickTitle')}</DialogTitle>
+              <DialogDescription>{t('pickHint')}</DialogDescription>
             </DialogHeader>
             <AgentTypeCards types={types} />
           </DialogContent>
@@ -178,10 +177,10 @@ export function AgentsList() {
                   {agent.voiceId ? (
                     <>
                       <span aria-hidden>{voiceFlags[agent.voiceId] ?? ''}</span>{' '}
-                      {agent.voiceLabel ?? 'Voice set'}
+                      {agent.voiceLabel ?? t('voiceSet')}
                     </>
                   ) : (
-                    'No voice yet'
+                    t('noVoice')
                   )}
                 </span>
                 <span className='flex items-center gap-1'>
@@ -200,12 +199,12 @@ export function AgentsList() {
                     href={`/dashboard/ai-voice-agents/${agent.id}?tab=test`}
                   >
                     <Mic className='size-3.5' />
-                    Test
+                    {t('test')}
                   </Link>
                 </Button>
                 <Button asChild className='h-10 flex-1 rounded-lg'>
                   <Link href={`/dashboard/ai-voice-agents/${agent.id}`}>
-                    Open
+                    {tCommon('open')}
                   </Link>
                 </Button>
               </div>

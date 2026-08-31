@@ -61,7 +61,9 @@
       "unknown": "Sconosciuto",
       "callAgain": "Richiama",
       "noRecording": "Nessuna registrazione",
-      "downloadRecording": "Scarica registrazione"
+      "downloadRecording": "Scarica registrazione",
+      "source": "Origine",
+      "details": "Dettagli"
     },
     "rowActions": {
       "menu": "Azioni",
@@ -162,5 +164,141 @@
     "upgrade": "Passa a Organizzazione",
     "redirecting": "Reindirizzamento…",
     "dismiss": "Ho capito"
+  },
+  "detail": {
+    "back": "Cronologia chiamate",
+    "errorTitle": "Questa chiamata non si è aperta",
+    "errorFallback": "Impossibile aprire questa chiamata.",
+    "retry": "Riprova",
+    "callAgain": "Richiama",
+    "open": "Apri",
+    "notSet": "Non impostato",
+    "aiAgent": "Agente IA",
+    "minutes": "{count} min",
+    "credits": "{value} crediti",
+    "stats": {
+      "outcome": "Esito",
+      "talkTime": "Tempo di conversazione",
+      "cost": "Costo"
+    },
+    "ai": {
+      "analysis": "Analisi IA",
+      "noSummary": "Questo agente non è configurato per scrivere un riassunto.",
+      "pending": "L'analisi non è ancora arrivata. Arriva poco dopo la fine della chiamata.",
+      "extracted": "Dati estratti",
+      "extractedHint": "I campi che questo agente doveva ricavare dalla conversazione.",
+      "notEstablished": "Non rilevato",
+      "yes": "Sì",
+      "no": "No",
+      "agent": "Agente",
+      "agentName": "Nome",
+      "agentType": "Tipo",
+      "voice": "Voce",
+      "providerDefault": "Voce predefinita del fornitore",
+      "speakingFor": "Parla per conto di",
+      "agentDeleted": "L'agente che ha effettuato questa chiamata è stato eliminato.",
+      "variables": "Variabili ricevute",
+      "meetingBooked": "Riunione fissata",
+      "meetingTitle": "Titolo",
+      "meetingWhen": "Quando",
+      "meetingLength": "Durata",
+      "meetingWhere": "Dove",
+      "joinLink": "Link di accesso",
+      "meetingFallback": "Riunione",
+      "providerCost": "Costo del fornitore IA",
+      "charged": "IA addebitata"
+    },
+    "contact": {
+      "title": "Contatto",
+      "name": "Nome",
+      "phone": "Telefono",
+      "email": "Email",
+      "company": "Azienda",
+      "role": "Ruolo",
+      "unnamed": "Senza nome",
+      "none": "Questo numero non è salvato come contatto."
+    },
+    "routing": {
+      "title": "Instradamento",
+      "direction": "Direzione",
+      "from": "Da",
+      "to": "A",
+      "placedFrom": "Effettuata da",
+      "callerId": "ID chiamante",
+      "deskPhone": "Telefono fisso",
+      "member": "Membro"
+    },
+    "timeline": {
+      "title": "Cronologia",
+      "created": "Creata",
+      "dialing": "In composizione",
+      "answered": "Risposta",
+      "ended": "Terminata",
+      "never": "Mai avvenuto",
+      "started": "Iniziata",
+      "talkTime": "Tempo di conversazione"
+    },
+    "cost": {
+      "title": "Costo",
+      "telephony": "Telefonia"
+    },
+    "campaign": {
+      "title": "Campagna",
+      "campaign": "Campagna",
+      "attempt": "Tentativo",
+      "disposition": "Esito",
+      "notDispositioned": "Senza esito",
+      "removed": "Rimossa"
+    },
+    "followUp": {
+      "title": "Follow-up",
+      "callback": "Richiamata",
+      "meeting": "Riunione"
+    },
+    "diagnostics": {
+      "title": "Diagnostica",
+      "callId": "ID chiamata",
+      "providerCall": "Chiamata fornitore",
+      "controlId": "ID di controllo",
+      "session": "Sessione"
+    },
+    "note": {
+      "title": "Nota"
+    },
+    "sources": {
+      "web": "Dialer web",
+      "chrome_extension": "Estensione Chrome",
+      "mobile": "App mobile",
+      "campaign": "Campagna",
+      "session": "Sessione di chiamate",
+      "sip_device": "Telefono fisso",
+      "ai_voice_agent": "Agente IA"
+    },
+    "outcomes": {
+      "meeting_booked": "Riunione fissata",
+      "sale": "Vendita",
+      "interested": "Interessato",
+      "follow_up": "Da ricontattare",
+      "callback_scheduled": "Richiamata programmata",
+      "not_interested": "Non interessato",
+      "no_answer": "Nessuna risposta",
+      "voicemail": "Segreteria",
+      "wrong_number": "Numero errato",
+      "gatekeeper": "Filtro centralino"
+    },
+    "agentOutcomes": {
+      "appointment_booked": "Appuntamento fissato",
+      "confirmed": "Confermato",
+      "cannot_attend": "Non può partecipare",
+      "callback_requested": "Richiamata richiesta",
+      "not_interested": "Non interessato",
+      "no_conversation": "Nessuna conversazione",
+      "unknown": "Sconosciuto"
+    },
+    "sentiments": {
+      "positive": "Positivo",
+      "neutral": "Neutro",
+      "negative": "Negativo"
+    }
   }
 }

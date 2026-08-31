@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import {
   AlertTriangle,
   FileText,
@@ -25,13 +26,6 @@ import type { VoiceAgentKnowledgeSource } from '../types';
 import { Field, controlClass, textAreaClass } from './fields/field';
 import { Section } from './sections/section';
 
-const STATUS_LABEL: Record<VoiceAgentKnowledgeSource['status'], string> = {
-  pending: 'Queued',
-  processing: 'Indexing',
-  ready: 'Ready',
-  failed: 'Failed'
-};
-
 const ICONS = {
   url: Globe,
   text: Type,
@@ -42,6 +36,7 @@ const ICONS = {
 
 /** Per-agent knowledge (§7): add a URL, a document or some text. */
 export function KnowledgePanel({ agentId }: { agentId: string }) {
+  const t = useTranslations('aiVoiceAgents.knowledge');
   const api = useVoiceAgentApi();
   const fileInput = useRef<HTMLInputElement>(null);
   const [sources, setSources] = useState<VoiceAgentKnowledgeSource[]>([]);
@@ -75,7 +70,7 @@ export function KnowledgePanel({ agentId }: { agentId: string }) {
       // they used, not into a toast that disappears before they read it.
       setError({
         field,
-        message: describeApiError(failure, 'Could not add that source.')
+        message: describeApiError(failure, t('addError'))
       });
     } finally {
       setBusy(false);
@@ -86,22 +81,19 @@ export function KnowledgePanel({ agentId }: { agentId: string }) {
 
   return (
     <div className='space-y-8'>
-      <Section
-        title='Knowledge'
-        hint='What this agent can draw on during a conversation. A source is used once it finishes indexing.'
-      >
+      <Section title={t('title')} hint={t('hint')}>
         <Field
-          label='Website'
+          label={t('website')}
           htmlFor='knowledge-url'
           error={error?.field === 'url' ? error.message : undefined}
-          hint='One page at a time — a pricing page, a FAQ, a policy.'
+          hint={t('websiteHint')}
         >
           <div className='flex gap-2'>
             <Input
               id='knowledge-url'
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              placeholder='https://company.com/pricing'
+              placeholder={t('urlPlaceholder')}
               aria-invalid={error?.field === 'url'}
               className={controlClass}
             />
@@ -113,7 +105,7 @@ export function KnowledgePanel({ agentId }: { agentId: string }) {
                 void guard('url', async () => {
                   await api.addKnowledgeUrl(agentId, url.trim());
                   setUrl('');
-                  toast.success('Page queued for indexing');
+                  toast.success(t('queuedPage'));
                 })
               }
             >
@@ -123,9 +115,9 @@ export function KnowledgePanel({ agentId }: { agentId: string }) {
         </Field>
 
         <Field
-          label='Documents'
+          label={t('documents')}
           error={error?.field === 'file' ? error.message : undefined}
-          hint='PDF, TXT or DOCX.'
+          hint={t('documentsHint')}
         >
           <input
             ref={fileInput}
@@ -138,7 +130,7 @@ export function KnowledgePanel({ agentId }: { agentId: string }) {
               void guard('file', async () => {
                 await api.addKnowledgeDocument(agentId, file);
                 if (fileInput.current) fileInput.current.value = '';
-                toast.success('Document queued for indexing');
+                toast.success(t('queuedDocument'));
               });
             }}
           />
@@ -154,17 +146,17 @@ export function KnowledgePanel({ agentId }: { agentId: string }) {
         </Field>
 
         <Field
-          label='Text'
+          label={t('text')}
           htmlFor='knowledge-text-label'
           error={error?.field === 'text' ? error.message : undefined}
-          hint='Anything that is not written down anywhere else.'
+          hint={t('textHint')}
         >
           <div className='space-y-2'>
             <Input
               id='knowledge-text-label'
               value={textLabel}
               onChange={(e) => setTextLabel(e.target.value)}
-              placeholder='Title, e.g. Refund policy'
+              placeholder={t('textTitlePlaceholder')}
               maxLength={120}
               aria-invalid={error?.field === 'text'}
               className={controlClass}
@@ -173,7 +165,7 @@ export function KnowledgePanel({ agentId }: { agentId: string }) {
               value={text}
               onChange={(e) => setText(e.target.value)}
               rows={5}
-              placeholder='Anything the agent should know.'
+              placeholder={t('textBodyPlaceholder')}
               className={textAreaClass}
             />
             <div className='flex justify-end'>
@@ -186,7 +178,7 @@ export function KnowledgePanel({ agentId }: { agentId: string }) {
                     await api.addKnowledgeText(agentId, textLabel.trim(), text);
                     setTextLabel('');
                     setText('');
-                    toast.success('Note queued for indexing');
+                    toast.success(t('queuedNote'));
                   })
                 }
               >
@@ -239,12 +231,12 @@ export function KnowledgePanel({ agentId }: { agentId: string }) {
                   {source.status === 'processing' ? (
                     <Loader2 className='size-3 animate-spin' />
                   ) : null}
-                  {STATUS_LABEL[source.status]}
+                  {t(`status.${source.status}`)}
                 </Badge>
                 <Button
                   variant='ghost'
                   className='size-10 shrink-0 rounded-lg p-0'
-                  aria-label={`Remove ${source.label}`}
+                  aria-label={t('remove', { name: source.label })}
                   disabled={busy}
                   onClick={() =>
                     void guard('list', () =>
@@ -260,8 +252,7 @@ export function KnowledgePanel({ agentId }: { agentId: string }) {
         </div>
       ) : (
         <p className='text-muted-foreground rounded-lg border border-dashed py-8 text-center text-sm'>
-          No sources yet. The agent still works — it just answers from its
-          instructions and the company context.
+          {t('empty')}
         </p>
       )}
 

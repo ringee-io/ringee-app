@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { useVoiceAgentApi } from '../api';
 
 /**
@@ -13,6 +14,7 @@ import { useVoiceAgentApi } from '../api';
  * render.
  */
 export function useVoicePreview() {
+  const t = useTranslations('aiVoiceAgents.voice');
   const api = useVoiceAgentApi();
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const cacheRef = useRef(new Map<string, string>());
@@ -58,16 +60,12 @@ export function useVoicePreview() {
         await audio.play();
         setPlayingId(voiceId);
       } catch (error) {
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : 'Could not play that voice sample'
-        );
+        toast.error(error instanceof Error ? error.message : t('previewError'));
       } finally {
         setLoadingId(null);
       }
     },
-    [api, playingId, stop]
+    [api, playingId, stop, t]
   );
 
   return { play, stop, playingId, loadingId };

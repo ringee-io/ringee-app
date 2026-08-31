@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { useVoiceAgentApi, type SaveAgentBody } from '../api';
 import { describeApiError, fieldErrorsFrom } from '../lib/api-error';
 import type {
@@ -68,6 +69,8 @@ function isKnownTimezone(value: string): boolean {
 }
 
 export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
+  const t = useTranslations('aiVoiceAgents.validation');
+  const tBlockers = useTranslations('aiVoiceAgents.blockers');
   const api = useVoiceAgentApi();
 
   const [name, setName] = useState(agent?.name ?? '');
@@ -156,40 +159,34 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
   const liveErrors = useMemo<DraftErrors>(() => {
     const found: DraftErrors = {};
 
-    if (!name.trim()) found.name = 'Give the agent a name.';
+    if (!name.trim()) found.name = t('nameRequired');
     else if (name.trim().length > 60) {
-      found.name = 'The name has to be 60 characters or fewer.';
+      found.name = t('nameTooLong');
     }
 
     if (needsKey && !keyAlreadySaved && !keyVerified) {
-      found.apiKey = apiKey
-        ? 'Verify this key before saving.'
-        : 'This model runs on your own key — paste and verify it.';
+      found.apiKey = apiKey ? t('verifyKey') : t('pasteKey');
     }
 
     const website = company.companyWebsite?.trim();
     if (website && !looksLikeWebsite(website)) {
-      found.companyWebsite =
-        'Enter a website like acme.com or https://acme.com.';
+      found.companyWebsite = t('websiteInvalid');
     }
 
     if (type === 'appointment_booking') {
       if (!Number.isInteger(duration) || duration < 5 || duration > 240) {
-        found.meetingDurationMinutes =
-          'Meetings have to be between 5 and 240 minutes.';
+        found.meetingDurationMinutes = t('durationRange');
       }
       if (timezone && !isKnownTimezone(timezone)) {
-        found.timezone = 'Use a time zone like America/New_York.';
+        found.timezone = t('timezoneInvalid');
       }
     }
 
     fields.forEach((field, index) => {
       if (!field.label.trim()) {
-        found[`extractionFields.${index}.label`] =
-          'Name the thing you want extracted.';
+        found[`extractionFields.${index}.label`] = t('fieldLabelRequired');
       } else if (!/^[a-z][a-z0-9_]*$/.test(field.key)) {
-        found[`extractionFields.${index}.key`] =
-          'Use letters, numbers and underscores, starting with a letter.';
+        found[`extractionFields.${index}.key`] = t('fieldKeyInvalid');
       }
     });
 
@@ -204,7 +201,8 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
     type,
     duration,
     timezone,
-    fields
+    fields,
+    t
   ]);
 
   const errors = useMemo<DraftErrors>(
@@ -227,22 +225,22 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
           const { apiKey: _cleared, ...rest } = prev;
           return rest;
         });
-        toast.success('API key verified');
+        toast.success(t('keyVerified'));
       } else {
         setSubmittedErrors((prev) => ({
           ...prev,
-          apiKey: result.reason ?? 'That key was rejected by the provider.'
+          apiKey: result.reason ?? t('keyRejected')
         }));
       }
     } catch (error) {
       setSubmittedErrors((prev) => ({
         ...prev,
-        apiKey: describeApiError(error, 'Could not check that key.')
+        apiKey: describeApiError(error, t('keyCheckError'))
       }));
     } finally {
       setVerifying(false);
     }
-  }, [api, apiKey, modelProvider]);
+  }, [api, apiKey, modelProvider, t]);
 
   const chooseModel = useCallback((provider: VoiceAgentModelProvider) => {
     setModelProvider(provider);
@@ -261,13 +259,23 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
    */
   const blockers = useMemo(() => {
     const list: string[] = [];
-    if (!name.trim()) list.push('a name');
-    if (!voiceId) list.push('a voice');
+    if (!name.trim()) list.push(tBlockers('name'));
+    if (!voiceId) list.push(tBlockers('voice'));
     if (needsKey && !keyAlreadySaved && !keyVerified)
-      list.push('a verified API key');
-    if (type === 'appointment_booking' && !calendarId) list.push('a calendar');
+      list.push(tBlockers('apiKey'));
+    if (type === 'appointment_booking' && !calendarId)
+      list.push(tBlockers('calendar'));
     return list;
-  }, [name, voiceId, needsKey, keyAlreadySaved, keyVerified, type, calendarId]);
+  }, [
+    name,
+    voiceId,
+    needsKey,
+    keyAlreadySaved,
+    keyVerified,
+    type,
+    calendarId,
+    tBlockers
+  ]);
 
   const body = useMemo<SaveAgentBody>(
     () => ({
@@ -351,7 +359,7 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
     } catch (error) {
       const fromFields = fieldErrorsFrom(error);
       setSubmittedErrors(fromFields);
-      const message = describeApiError(error, 'Could not save the agent.');
+      const message = describeApiError(error, t('saveError'));
       // A field-addressed failure is already on the inputs; a general one is
       // the only thing the user has to go on, so it is kept at the top.
       if (Object.keys(fromFields).length === 0) setSaveError(message);
@@ -360,7 +368,7 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
     } finally {
       setSaving(false);
     }
-  }, [agent, api, body, liveErrors, persisted, type]);
+  }, [agent, api, body, liveErrors, persisted, type, t]);
 
   return {
     name,

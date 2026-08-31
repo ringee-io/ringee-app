@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { Loader2, Mic, PhoneOff, Sparkles } from 'lucide-react';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Card, CardContent } from '@ringee/frontend-shared/components/ui/card';
@@ -31,6 +32,7 @@ export function TestPanel({
   agentId: string;
   variables: VoiceAgentVariable[];
 }) {
+  const t = useTranslations('aiVoiceAgents.test');
   const api = useVoiceAgentApi();
   const [phase, setPhase] = useState<Phase>('idle');
   const [values, setValues] = useState<Record<string, string>>({});
@@ -93,7 +95,7 @@ export function TestPanel({
       });
 
       client.on('telnyx.error', () => {
-        toast.error('The test connection failed');
+        toast.error(t('connectionFailed'));
         void stop();
       });
 
@@ -106,7 +108,7 @@ export function TestPanel({
 
       await client.connect();
     } catch (error) {
-      toast.error(describeApiError(error, 'Could not start the test.'));
+      toast.error(describeApiError(error, t('startError')));
       await stop();
     }
   };
@@ -143,22 +145,20 @@ export function TestPanel({
           <div className='text-center'>
             <p className='font-medium'>
               {phase === 'live'
-                ? `Live · ${clock}`
+                ? t('live', { clock })
                 : phase === 'connecting'
-                  ? 'Connecting…'
-                  : 'Talk to your agent'}
+                  ? t('connecting')
+                  : t('idleTitle')}
             </p>
             <p className='text-muted-foreground text-sm'>
-              {phase === 'live'
-                ? 'Speak into your microphone.'
-                : 'No phone call, no credits — straight from this browser.'}
+              {phase === 'live' ? t('liveHint') : t('idleHint')}
             </p>
           </div>
 
           {phase === 'live' ? (
             <Button size='lg' variant='destructive' onClick={() => void stop()}>
               <PhoneOff className='mr-2 size-4' />
-              End conversation
+              {t('end')}
             </Button>
           ) : (
             <Button
@@ -171,7 +171,7 @@ export function TestPanel({
               ) : (
                 <Mic className='mr-2 size-4' />
               )}
-              Start conversation
+              {t('start')}
             </Button>
           )}
         </CardContent>
@@ -182,17 +182,13 @@ export function TestPanel({
           <div>
             <p className='flex items-center gap-1.5 text-sm font-medium'>
               <Sparkles className='size-3.5' />
-              Pretend it is calling
+              {t('pretend')}
             </p>
-            <p className='text-muted-foreground text-xs'>
-              Values the agent should use in this test.
-            </p>
+            <p className='text-muted-foreground text-xs'>{t('pretendHint')}</p>
           </div>
 
           {variables.length === 0 ? (
-            <p className='text-muted-foreground text-sm'>
-              This agent needs nothing extra — just start.
-            </p>
+            <p className='text-muted-foreground text-sm'>{t('nothingExtra')}</p>
           ) : (
             variables.map((variable) => (
               <div key={variable.key} className='space-y-1.5'>

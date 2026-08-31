@@ -3,6 +3,119 @@ import { Prisma, Call, CallStatus, CallOutcome } from "@prisma/client";
 import { PrismaService } from "../prisma.service";
 import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
 
+/**
+ * The relations the call-detail screen reads.
+ *
+ * Every relation is an explicit `select`, never `include: true`. A `Call` row
+ * hangs off `User`, and that model carries `privateMetadata`, `customerId`,
+ * `clientIp` and `userAgent` — none of which belong in a screen payload. The
+ * rule here is that a field is listed because the detail screen renders it.
+ *
+ * Transcript segments are ordered by their offset into the call rather than by
+ * insertion: a provider redelivers them out of order, and a transcript read
+ * back in arrival order is unreadable.
+ */
+export const CALL_DETAIL_INCLUDE = {
+  contact: {
+    select: {
+      id: true,
+      name: true,
+      fullName: true,
+      phoneNumber: true,
+      email: true,
+      company: true,
+      jobTitle: true,
+    },
+  },
+  user: {
+    select: { id: true, firstName: true, lastName: true, imageUrl: true },
+  },
+  callerId: { select: { id: true, phoneNumber: true, isoCountry: true } },
+  sipDevice: { select: { id: true, label: true, publicRef: true } },
+  recordings: {
+    orderBy: { createdAt: "asc" },
+    select: {
+      id: true,
+      url: true,
+      format: true,
+      status: true,
+      durationSec: true,
+      createdAt: true,
+    },
+  },
+  meetings: {
+    orderBy: { scheduledAt: "desc" },
+    select: {
+      id: true,
+      title: true,
+      scheduledAt: true,
+      duration: true,
+      location: true,
+      status: true,
+    },
+  },
+  callbacks: {
+    orderBy: { scheduledAt: "desc" },
+    select: { id: true, scheduledAt: true, note: true, status: true },
+  },
+  callAttempts: {
+    orderBy: { createdAt: "desc" },
+    select: {
+      id: true,
+      attemptNumber: true,
+      status: true,
+      dispositionCode: true,
+      dispositionNote: true,
+      campaign: { select: { id: true, name: true, status: true } },
+      disposition: {
+        select: { id: true, code: true, label: true, color: true },
+      },
+    },
+  },
+  aiVoiceAgentCall: {
+    select: {
+      id: true,
+      status: true,
+      outcome: true,
+      summary: true,
+      sentiment: true,
+      extractedData: true,
+      variables: true,
+      metadata: true,
+      aiCostUsd: true,
+      aiChargedCredits: true,
+      lastError: true,
+      createdAt: true,
+      agent: {
+        select: {
+          id: true,
+          name: true,
+          type: true,
+          status: true,
+          voiceLabel: true,
+          voiceLanguage: true,
+          companyName: true,
+        },
+      },
+      meeting: {
+        select: {
+          id: true,
+          title: true,
+          scheduledAt: true,
+          duration: true,
+          location: true,
+          status: true,
+        },
+      },
+    },
+  },
+} satisfies Prisma.CallInclude;
+
+/** A call with every relation the detail screen needs. */
+export type CallDetail = Prisma.CallGetPayload<{
+  include: typeof CALL_DETAIL_INCLUDE;
+}>;
+
 @Injectable()
 export class CallRepository {
   private readonly logger = new Logger(CallRepository.name);
@@ -417,6 +530,17 @@ export class CallRepository {
             : true,
           user: true,
           recordings: true,
+          // Which agent placed the call. Always selected, and deliberately
+          // narrow: the history table only needs to name the agent, and the
+          // rest of an agent call (summary, transcript, extracted data) is
+          // what the detail screen is for.
+          aiVoiceAgentCall: {
+            select: {
+              id: true,
+              outcome: true,
+              agent: { select: { id: true, name: true, type: true } },
+            },
+          },
           ...(includeTranscriptions ? { callTranscriptions: true } : {}),
           ...(includeMeetings
             ? { meetings: { orderBy: { scheduledAt: "desc" }, take: 1 } }
@@ -432,6 +556,32 @@ export class CallRepository {
       page,
       totalPages: Math.ceil(total / limit),
     };
+  }
+
+  /**
+   * Everything the call-detail screen shows, in one owner-scoped read.
+   *
+   * The ownership filter is applied in the `where`, not checked afterwards, so
+   * a call from another workspace is indistinguishable from one that does not
+   * exist — the id alone never proves the caller may see the row.
+   *
+   * `filterUserId` carries the same member scoping the list uses: an
+   * organization member may only open their own calls, an admin any call in
+   * the workspace. Passing it here rather than re-deriving it keeps one rule.
+   */
+  async findDetailForOwner(
+    ctx: OwnershipContext,
+    id: string,
+    options: { filterUserId?: string } = {},
+  ): Promise<CallDetail | null> {
+    return this.prisma.call.findFirst({
+      where: {
+        id,
+        ...buildOwnershipFilter(ctx),
+        ...(options.filterUserId ? { userId: options.filterUserId } : {}),
+      },
+      include: CALL_DETAIL_INCLUDE,
+    });
   }
 
   async updateCost(

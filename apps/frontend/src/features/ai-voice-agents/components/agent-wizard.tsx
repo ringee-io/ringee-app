@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -28,10 +29,10 @@ import { SetupSection } from './sections/setup-section';
 import { VoiceSection } from './sections/voice-section';
 
 const STEPS = [
-  { id: 'setup', label: 'Setup', icon: Settings2 },
-  { id: 'voice', label: 'Voice', icon: AudioLines },
-  { id: 'company', label: 'Company', icon: Building2 },
-  { id: 'results', label: 'Results', icon: ClipboardList }
+  { id: 'setup', icon: Settings2 },
+  { id: 'voice', icon: AudioLines },
+  { id: 'company', icon: Building2 },
+  { id: 'results', icon: ClipboardList }
 ] as const;
 
 type StepId = (typeof STEPS)[number]['id'];
@@ -54,6 +55,8 @@ export function AgentWizard({
   type: VoiceAgentType;
   typeInfo?: VoiceAgentTypeInfo;
 }) {
+  const t = useTranslations('aiVoiceAgents.wizard');
+  const tCommon = useTranslations('aiVoiceAgents.common');
   const router = useRouter();
   const draft = useAgentDraft(type);
   const [step, setStep] = useState<StepId>('setup');
@@ -104,8 +107,8 @@ export function AgentWizard({
 
   return (
     <AgentScreen
-      title='New agent'
-      subtitle={typeInfo?.title ?? 'Ringee writes the conversation.'}
+      title={t('title')}
+      subtitle={typeInfo?.title ?? t('defaultSubtitle')}
       onClose={leave}
       confirmClose={draft.dirty}
       footer={
@@ -113,12 +116,10 @@ export function AgentWizard({
           <div className='text-muted-foreground min-w-0 flex-1 text-sm'>
             {draft.blockers.length > 0 ? (
               <span className='truncate'>
-                Still needed to go live: {draft.blockers.join(', ')}
+                {t('stillNeeded', { items: draft.blockers.join(', ') })}
               </span>
             ) : (
-              <span className='text-foreground'>
-                Ready — you can talk to it right after.
-              </span>
+              <span className='text-foreground'>{t('ready')}</span>
             )}
           </div>
 
@@ -130,7 +131,7 @@ export function AgentWizard({
             }
           >
             <ArrowLeft className='size-4' />
-            {index === 0 ? 'Cancel' : 'Back'}
+            {index === 0 ? tCommon('cancel') : tCommon('back')}
           </Button>
 
           {isLast ? (
@@ -142,14 +143,14 @@ export function AgentWizard({
               {draft.saving ? (
                 <Loader2 className='size-4 animate-spin' />
               ) : null}
-              Create agent
+              {t('createAgent')}
             </Button>
           ) : (
             <Button
               className='rounded-lg'
               onClick={() => setStep(STEPS[index + 1]!.id)}
             >
-              Next
+              {tCommon('next')}
               <ArrowRight className='size-4' />
             </Button>
           )}
@@ -187,7 +188,7 @@ export function AgentWizard({
                   ) : (
                     <Icon className='size-3.5' />
                   )}
-                  <span className='hidden sm:inline'>{s.label}</span>
+                  <span className='hidden sm:inline'>{t(`steps.${s.id}`)}</span>
                   <span className='sm:hidden'>{i + 1}</span>
                 </button>
               </li>

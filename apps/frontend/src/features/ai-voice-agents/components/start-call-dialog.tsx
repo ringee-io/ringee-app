@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { useTranslations } from 'next-intl';
 import { AlertTriangle, Loader2, PhoneOutgoing } from 'lucide-react';
 import {
   Alert,
@@ -32,6 +33,7 @@ interface Props {
 
 /** Run the agent from Ringee Web (§13) — the same path the API uses. */
 export function StartCallDialog({ agentId, variables, onStarted }: Props) {
+  const t = useTranslations('aiVoiceAgents.startCall');
   const api = useVoiceAgentApi();
   const [open, setOpen] = useState(false);
   const [to, setTo] = useState('');
@@ -44,14 +46,14 @@ export function StartCallDialog({ agentId, variables, onStarted }: Props) {
   const start = async () => {
     setError(null);
     if (!to.trim()) {
-      setError('Enter the number to call.');
+      setError(t('enterNumber'));
       return;
     }
 
     setStarting(true);
     try {
       await api.startCall(agentId, { to: to.trim(), variables: values });
-      toast.success('Calling now — the result appears here when it ends');
+      toast.success(t('calling'));
       setOpen(false);
       setTo('');
       setValues({});
@@ -60,7 +62,7 @@ export function StartCallDialog({ agentId, variables, onStarted }: Props) {
       // 402 (out of credit), 409 (already on a call) and "not dialable" all
       // arrive here with a sentence worth reading, so it stays on the dialog
       // rather than vanishing with a toast.
-      setError(describeApiError(failure, 'Could not start the call.'));
+      setError(describeApiError(failure, t('startError')));
     } finally {
       setStarting(false);
     }
@@ -77,17 +79,14 @@ export function StartCallDialog({ agentId, variables, onStarted }: Props) {
       <DialogTrigger asChild>
         <Button className='h-10 rounded-lg'>
           <PhoneOutgoing className='size-4' />
-          <span className='hidden sm:inline'>Start AI call</span>
-          <span className='sm:hidden'>Call</span>
+          <span className='hidden sm:inline'>{t('trigger')}</span>
+          <span className='sm:hidden'>{t('triggerShort')}</span>
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Start an AI call</DialogTitle>
-          <DialogDescription>
-            The agent places the call and holds the conversation. This is a
-            real, billed call.
-          </DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('hint')}</DialogDescription>
         </DialogHeader>
 
         <div className='space-y-4'>
@@ -99,10 +98,10 @@ export function StartCallDialog({ agentId, variables, onStarted }: Props) {
           ) : null}
 
           <Field
-            label='Phone number'
+            label={t('phone')}
             htmlFor='call-to'
             required
-            hint='International format, e.g. +13055550123.'
+            hint={t('phoneHint')}
           >
             <Input
               id='call-to'
@@ -143,7 +142,7 @@ export function StartCallDialog({ agentId, variables, onStarted }: Props) {
             disabled={starting || !to.trim() || missing.length > 0}
           >
             {starting ? <Loader2 className='size-4 animate-spin' /> : null}
-            Start AI call
+            {t('trigger')}
           </Button>
         </DialogFooter>
       </DialogContent>

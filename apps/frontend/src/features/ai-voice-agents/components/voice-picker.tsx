@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { useTranslations } from 'next-intl';
 import { Check, Loader2, Pause, Play, Search, Volume2 } from 'lucide-react';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
@@ -8,22 +9,13 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { useVoicePreview } from '../hooks/use-voice-preview';
-import {
-  flagEmoji,
-  genderLabel,
-  languageName,
-  voiceOrigin
-} from '../lib/voice-format';
+import { flagEmoji, languageName, voiceOrigin } from '../lib/voice-format';
 import { controlClass } from './fields/field';
 import type { VoiceAgentVoice } from '../types';
 
 type GenderFilter = 'all' | VoiceAgentVoice['gender'];
 
-const GENDER_FILTERS: Array<{ value: GenderFilter; label: string }> = [
-  { value: 'all', label: 'All' },
-  { value: 'female', label: 'Female' },
-  { value: 'male', label: 'Male' }
-];
+const GENDER_FILTERS: GenderFilter[] = ['all', 'female', 'male'];
 
 interface Props {
   voices: VoiceAgentVoice[];
@@ -41,6 +33,7 @@ interface Props {
  * hearing it, so a user can audition the whole list without changing anything.
  */
 export function VoicePicker({ voices, loading, selectedId, onSelect }: Props) {
+  const t = useTranslations('aiVoiceAgents.voice');
   const { play, playingId, loadingId } = useVoicePreview();
   const [language, setLanguage] = useState<string | null>(null);
   const [gender, setGender] = useState<GenderFilter>('all');
@@ -87,7 +80,7 @@ export function VoicePicker({ voices, loading, selectedId, onSelect }: Props) {
   if (voices.length === 0) {
     return (
       <div className='text-muted-foreground rounded-lg border border-dashed py-10 text-center text-sm'>
-        No voices available right now. Try again in a moment.
+        {t('noVoices')}
       </div>
     );
   }
@@ -121,17 +114,17 @@ export function VoicePicker({ voices, loading, selectedId, onSelect }: Props) {
         <div className='bg-muted flex h-10 items-center rounded-lg p-1'>
           {GENDER_FILTERS.map((option) => (
             <button
-              key={option.value}
+              key={option}
               type='button'
-              onClick={() => setGender(option.value)}
+              onClick={() => setGender(option)}
               className={cn(
                 'h-8 rounded-lg px-3 text-sm transition-colors',
-                gender === option.value
+                gender === option
                   ? 'bg-background shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
               )}
             >
-              {option.label}
+              {t(`genders.${option}`)}
             </button>
           ))}
         </div>
@@ -140,7 +133,7 @@ export function VoicePicker({ voices, loading, selectedId, onSelect }: Props) {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder='Search voices'
+            placeholder={t('search')}
             className={cn(controlClass, 'pl-9')}
           />
         </div>
@@ -148,12 +141,12 @@ export function VoicePicker({ voices, loading, selectedId, onSelect }: Props) {
 
       {shown.length === 0 ? (
         <div className='text-muted-foreground rounded-lg border border-dashed py-10 text-center text-sm'>
-          No voice matches those filters.
+          {t('noMatch')}
         </div>
       ) : (
         <div
           role='radiogroup'
-          aria-label='Voice'
+          aria-label={t('group')}
           className='grid gap-3 sm:grid-cols-2'
         >
           {shown.map((voice) => {
@@ -187,8 +180,8 @@ export function VoicePicker({ voices, loading, selectedId, onSelect }: Props) {
                   className='size-10 shrink-0 rounded-lg'
                   aria-label={
                     isPlaying
-                      ? `Stop ${voice.displayName}`
-                      : `Play ${voice.displayName}`
+                      ? t('stop', { name: voice.displayName })
+                      : t('play', { name: voice.displayName })
                   }
                   onClick={(e) => {
                     e.stopPropagation();
@@ -217,18 +210,19 @@ export function VoicePicker({ voices, loading, selectedId, onSelect }: Props) {
                     ) : null}
                   </div>
                   <p className='text-muted-foreground truncate text-xs'>
-                    {voice.description || voiceOrigin(voice)}
+                    {voice.description ||
+                      voiceOrigin(voice, t(`genders.${voice.gender}`))}
                   </p>
                 </div>
 
                 {selected ? (
                   <Badge className='shrink-0 gap-1 rounded-lg'>
                     <Check className='size-3' />
-                    Selected
+                    {t('selectedBadge')}
                   </Badge>
                 ) : (
                   <span className='text-muted-foreground shrink-0 text-xs'>
-                    {genderLabel(voice.gender)}
+                    {t(`genders.${voice.gender}`)}
                   </span>
                 )}
               </div>

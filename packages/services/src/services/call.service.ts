@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  OnModuleDestroy,
+} from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import {
   CallRepository,
@@ -7,6 +12,7 @@ import {
   CallOutcome,
   Call,
   RecordingRepository,
+  type CallDetail,
 } from "@ringee/database";
 import {
   NotificationService,
@@ -630,6 +636,24 @@ export class CallService implements OnModuleDestroy {
     totalPages: number;
   }> {
     return this.callRepository.listByOwnerPaginated(ctx, options);
+  }
+
+  /**
+   * One call with everything the detail screen shows.
+   *
+   * `NotFoundException` is deliberately the only failure: a call in another
+   * workspace, a call belonging to a teammate a member may not see, and a call
+   * that never existed are all the same answer, so the id cannot be used to
+   * probe for what exists.
+   */
+  async getDetailForOwner(
+    ctx: OwnershipContext,
+    id: string,
+    options: { filterUserId?: string } = {},
+  ): Promise<CallDetail> {
+    const call = await this.callRepository.findDetailForOwner(ctx, id, options);
+    if (!call) throw new NotFoundException("Call not found");
+    return call;
   }
 
   async listWithRecordings(params: {

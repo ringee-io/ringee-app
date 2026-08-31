@@ -61,7 +61,9 @@
       "unknown": "Unbekannt",
       "callAgain": "Erneut anrufen",
       "noRecording": "Keine Aufzeichnung",
-      "downloadRecording": "Aufzeichnung herunterladen"
+      "downloadRecording": "Aufzeichnung herunterladen",
+      "source": "Quelle",
+      "details": "Details"
     },
     "rowActions": {
       "menu": "Aktionen",
@@ -162,5 +164,141 @@
     "upgrade": "Auf Organisation upgraden",
     "redirecting": "Weiterleitung…",
     "dismiss": "Verstanden"
+  },
+  "detail": {
+    "back": "Anrufverlauf",
+    "errorTitle": "Dieser Anruf konnte nicht geöffnet werden",
+    "errorFallback": "Dieser Anruf konnte nicht geöffnet werden.",
+    "retry": "Erneut versuchen",
+    "callAgain": "Erneut anrufen",
+    "open": "Öffnen",
+    "notSet": "Nicht gesetzt",
+    "aiAgent": "KI-Agent",
+    "minutes": "{count} Min.",
+    "credits": "{value} Credits",
+    "stats": {
+      "outcome": "Ergebnis",
+      "talkTime": "Gesprächszeit",
+      "cost": "Kosten"
+    },
+    "ai": {
+      "analysis": "KI-Analyse",
+      "noSummary": "Dieser Agent ist nicht für eine Zusammenfassung konfiguriert.",
+      "pending": "Die Analyse steht noch aus. Sie trifft kurz nach Gesprächsende ein.",
+      "extracted": "Extrahierte Daten",
+      "extractedHint": "Die Felder, die dieser Agent aus dem Gespräch ziehen sollte.",
+      "notEstablished": "Nicht ermittelt",
+      "yes": "Ja",
+      "no": "Nein",
+      "agent": "Agent",
+      "agentName": "Name",
+      "agentType": "Typ",
+      "voice": "Stimme",
+      "providerDefault": "Standardstimme des Anbieters",
+      "speakingFor": "Spricht für",
+      "agentDeleted": "Der Agent, der diesen Anruf getätigt hat, wurde gelöscht.",
+      "variables": "Übergebene Variablen",
+      "meetingBooked": "Termin gebucht",
+      "meetingTitle": "Titel",
+      "meetingWhen": "Wann",
+      "meetingLength": "Dauer",
+      "meetingWhere": "Wo",
+      "joinLink": "Teilnahmelink",
+      "meetingFallback": "Termin",
+      "providerCost": "KI-Anbieterkosten",
+      "charged": "KI berechnet"
+    },
+    "contact": {
+      "title": "Kontakt",
+      "name": "Name",
+      "phone": "Telefon",
+      "email": "E-Mail",
+      "company": "Unternehmen",
+      "role": "Position",
+      "unnamed": "Ohne Namen",
+      "none": "Diese Nummer ist nicht als Kontakt gespeichert."
+    },
+    "routing": {
+      "title": "Routing",
+      "direction": "Richtung",
+      "from": "Von",
+      "to": "An",
+      "placedFrom": "Getätigt über",
+      "callerId": "Anrufer-ID",
+      "deskPhone": "Tischtelefon",
+      "member": "Mitglied"
+    },
+    "timeline": {
+      "title": "Zeitverlauf",
+      "created": "Erstellt",
+      "dialing": "Wählt",
+      "answered": "Angenommen",
+      "ended": "Beendet",
+      "never": "Nie eingetreten",
+      "started": "Gestartet",
+      "talkTime": "Gesprächszeit"
+    },
+    "cost": {
+      "title": "Kosten",
+      "telephony": "Telefonie"
+    },
+    "campaign": {
+      "title": "Kampagne",
+      "campaign": "Kampagne",
+      "attempt": "Versuch",
+      "disposition": "Ergebniscode",
+      "notDispositioned": "Nicht kategorisiert",
+      "removed": "Entfernt"
+    },
+    "followUp": {
+      "title": "Nachfassen",
+      "callback": "Rückruf",
+      "meeting": "Termin"
+    },
+    "diagnostics": {
+      "title": "Diagnose",
+      "callId": "Anruf-ID",
+      "providerCall": "Anbieter-Anruf",
+      "controlId": "Control-ID",
+      "session": "Sitzung"
+    },
+    "note": {
+      "title": "Notiz"
+    },
+    "sources": {
+      "web": "Web-Dialer",
+      "chrome_extension": "Chrome-Erweiterung",
+      "mobile": "Mobile App",
+      "campaign": "Kampagne",
+      "session": "Anrufsitzung",
+      "sip_device": "Tischtelefon",
+      "ai_voice_agent": "KI-Agent"
+    },
+    "outcomes": {
+      "meeting_booked": "Termin gebucht",
+      "sale": "Verkauf",
+      "interested": "Interessiert",
+      "follow_up": "Nachfassen",
+      "callback_scheduled": "Rückruf geplant",
+      "not_interested": "Kein Interesse",
+      "no_answer": "Keine Antwort",
+      "voicemail": "Mailbox",
+      "wrong_number": "Falsche Nummer",
+      "gatekeeper": "Vorzimmer"
+    },
+    "agentOutcomes": {
+      "appointment_booked": "Termin gebucht",
+      "confirmed": "Bestätigt",
+      "cannot_attend": "Kann nicht teilnehmen",
+      "callback_requested": "Rückruf erbeten",
+      "not_interested": "Kein Interesse",
+      "no_conversation": "Kein Gespräch",
+      "unknown": "Unbekannt"
+    },
+    "sentiments": {
+      "positive": "Positiv",
+      "neutral": "Neutral",
+      "negative": "Negativ"
+    }
   }
 }

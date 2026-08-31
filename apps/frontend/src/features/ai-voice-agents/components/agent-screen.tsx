@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, type ReactNode } from 'react';
+import { useTranslations } from 'next-intl';
 import * as DialogPrimitive from '@radix-ui/react-dialog';
 import { ArrowLeft } from 'lucide-react';
 import {
@@ -51,6 +52,8 @@ export function AgentScreen({
   confirmClose?: boolean;
   children: ReactNode;
 }) {
+  const t = useTranslations('aiVoiceAgents.detail');
+  const tCommon = useTranslations('aiVoiceAgents.common');
   const [confirming, setConfirming] = useState(false);
 
   const requestClose = () => {
@@ -91,7 +94,7 @@ export function AgentScreen({
                 onClick={requestClose}
               >
                 <ArrowLeft className='size-4' />
-                <span className='hidden sm:inline'>Back</span>
+                <span className='hidden sm:inline'>{tCommon('back')}</span>
               </Button>
 
               <div className='min-w-0 flex-1'>
@@ -107,7 +110,7 @@ export function AgentScreen({
                   </DialogPrimitive.Description>
                 ) : (
                   <DialogPrimitive.Description className='sr-only'>
-                    Configure this AI voice agent.
+                    {t('configureDescription')}
                   </DialogPrimitive.Description>
                 )}
               </div>
@@ -139,18 +142,15 @@ export function AgentScreen({
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Leave without saving?</AlertDialogTitle>
-            <AlertDialogDescription>
-              The changes you made here have not been saved yet. Leaving now
-              discards them.
-            </AlertDialogDescription>
+            <AlertDialogTitle>{t('leaveTitle')}</AlertDialogTitle>
+            <AlertDialogDescription>{t('leaveHint')}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className='rounded-lg'>
-              Keep editing
+              {t('keepEditing')}
             </AlertDialogCancel>
             <AlertDialogAction className='rounded-lg' onClick={onClose}>
-              Discard changes
+              {t('discard')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
