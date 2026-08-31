@@ -198,7 +198,11 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
     insightId: string,
     definition: VoiceAgentInsightDefinition,
   ): Promise<void> {
-    await this.telnyxClient.post(
+    // PUT, not POST. An assistant is updated with POST (see `updateAssistant`),
+    // and following that convention here answers 404 "Resource not found" on an
+    // insight that plainly exists — which then lands on the agent row as the
+    // reason its knowledge never got attached.
+    await this.telnyxClient.put(
       `/ai/conversations/insights/${insightId}`,
       this.insightBody(definition),
     );
@@ -356,6 +360,13 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
     contentType: string,
   ): Promise<void> {
     return this.knowledgeStore.putObject(store, fileName, body, contentType);
+  }
+
+  readKnowledgeDocument(
+    store: string,
+    fileName: string,
+  ): Promise<{ body: Buffer; contentType: string }> {
+    return this.knowledgeStore.getObject(store, fileName);
   }
 
   deleteKnowledgeDocument(store: string, fileName: string): Promise<void> {

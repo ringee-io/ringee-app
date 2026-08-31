@@ -309,6 +309,11 @@ export class AddKnowledgeTextDto {
   content!: string;
 }
 
+export class ReuseKnowledgeSourceDto {
+  @IsUUID("4", { message: "Pick a source to reuse." })
+  sourceId!: string;
+}
+
 export class StartVoiceAgentTestSessionDto {
   /** Values to use for this test conversation; validated against the type. */
   @IsOptional()

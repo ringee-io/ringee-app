@@ -11,6 +11,7 @@ import type {
   VoiceAgentCall,
   VoiceAgentCallResult,
   VoiceAgentExtractionField,
+  VoiceAgentKnowledgeLibraryEntry,
   VoiceAgentKnowledgeSource,
   VoiceAgentModelOption,
   VoiceAgentModelProvider,
@@ -112,6 +113,15 @@ export function useVoiceAgentApi() {
           form
         );
       },
+      /** Sources already uploaded on the workspace's other agents. */
+      listKnowledgeLibrary: (id: string) =>
+        api.get<VoiceAgentKnowledgeLibraryEntry[]>(
+          `${BASE}/${id}/knowledge/library`
+        ),
+      reuseKnowledge: (id: string, sourceId: string) =>
+        api.post<VoiceAgentKnowledgeSource>(`${BASE}/${id}/knowledge/reuse`, {
+          sourceId
+        }),
       removeKnowledge: (id: string, sourceId: string) =>
         api.delete<{ removed: boolean }>(`${BASE}/${id}/knowledge/${sourceId}`),
 

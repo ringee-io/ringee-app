@@ -18,6 +18,12 @@ export interface AiVoiceAgentWithSources extends AiVoiceAgent {
   knowledgeSources: AiVoiceAgentKnowledgeSource[];
 }
 
+/** A knowledge source together with the agent it currently belongs to. */
+export interface AiVoiceAgentKnowledgeSourceWithAgent
+  extends AiVoiceAgentKnowledgeSource {
+  agent: { id: string; name: string };
+}
+
 /**
  * Agents and their knowledge sources. Every workspace-scoped read goes through
  * the ownership filter; `findByIdForOwner` is the only lookup services should
@@ -191,6 +197,32 @@ export class AiVoiceAgentRepository {
   ): Promise<AiVoiceAgentKnowledgeSource | null> {
     return this.prisma.aiVoiceAgentKnowledgeSource.findFirst({
       where: { id, agentId },
+    });
+  }
+
+  /**
+   * Every source in the caller's workspace, whichever agent it sits on, so one
+   * document can be reused instead of uploaded again. Scoped through the
+   * agent's own ownership fields — a source has no tenancy of its own.
+   */
+  listKnowledgeSourcesForOwner(
+    ctx: OwnershipContext,
+  ): Promise<AiVoiceAgentKnowledgeSourceWithAgent[]> {
+    return this.prisma.aiVoiceAgentKnowledgeSource.findMany({
+      where: { agent: { deletedAt: null, ...buildOwnershipFilter(ctx) } },
+      include: { agent: { select: { id: true, name: true } } },
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  /** The workspace-checked lookup for a source the caller named by id alone. */
+  findKnowledgeSourceForOwner(
+    ctx: OwnershipContext,
+    id: string,
+  ): Promise<AiVoiceAgentKnowledgeSourceWithAgent | null> {
+    return this.prisma.aiVoiceAgentKnowledgeSource.findFirst({
+      where: { id, agent: { deletedAt: null, ...buildOwnershipFilter(ctx) } },
+      include: { agent: { select: { id: true, name: true } } },
     });
   }
 

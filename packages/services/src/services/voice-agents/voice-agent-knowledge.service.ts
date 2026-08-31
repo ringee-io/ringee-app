@@ -8,8 +8,10 @@ import { apiConfiguration } from "@ringee/configuration";
 import {
   AiVoiceAgentKnowledgeKind,
   AiVoiceAgentKnowledgeSource,
+  AiVoiceAgentKnowledgeSourceWithAgent,
   AiVoiceAgentKnowledgeStatus,
   AiVoiceAgentRepository,
+  AiVoiceAgentStatus,
 } from "@ringee/database";
 import {
   VoiceAgentProviderService,
@@ -46,6 +48,20 @@ export interface AddKnowledgeDocumentInput {
   buffer: Buffer;
 }
 
+/** One entry of the workspace's reusable knowledge, as the picker shows it. */
+export interface KnowledgeLibraryEntry {
+  id: string;
+  kind: AiVoiceAgentKnowledgeKind;
+  label: string;
+  sourceUrl: string | null;
+  status: AiVoiceAgentKnowledgeStatus;
+  createdAt: Date;
+  agentId: string;
+  agentName: string;
+  /** True when this agent already has a copy, so the picker can say so. */
+  alreadyAdded: boolean;
+}
+
 /**
  * Per-agent knowledge (§7).
  *
@@ -69,9 +85,28 @@ export class VoiceAgentKnowledgeService {
     ctx: OwnershipContext,
     agentId: string,
   ): Promise<AiVoiceAgentKnowledgeSource[]> {
-    await this.agents.require(ctx, agentId);
+    const agent = await this.agents.require(ctx, agentId);
     const sources = await this.repository.listKnowledgeSources(agentId);
-    return this.refreshPending(ctx, agentId, sources);
+    const { refreshed, resynced } = await this.refreshPending(
+      ctx,
+      agentId,
+      sources,
+    );
+
+    // A source can sit at `ready` while the assistant still does not point at
+    // its store. The re-sync that attaches it runs exactly once — on the read
+    // that flips the status — so a provider failure at that moment strands the
+    // knowledge for good: the status never changes again, nothing retries, and
+    // the agent keeps answering as if the document had never been added.
+    // Retrying here is what makes that recoverable without re-uploading.
+    const usable = refreshed.some(
+      (source) => source.status === AiVoiceAgentKnowledgeStatus.ready,
+    );
+    if (!resynced && usable && agent.status === AiVoiceAgentStatus.error) {
+      await this.agents.resync(ctx, agentId);
+    }
+
+    return refreshed;
   }
 
   async addUrl(
@@ -173,6 +208,89 @@ export class VoiceAgentKnowledgeService {
     );
   }
 
+  /**
+   * Everything the workspace has already uploaded, on any agent, so a document
+   * can be put on a second agent without hunting down the original file. The
+   * agent's own sources are excluded — they are already on the page — and each
+   * entry carries whether an identical copy is present, because re-adding the
+   * same PDF twice only makes the retrieval worse.
+   */
+  async library(
+    ctx: OwnershipContext,
+    agentId: string,
+  ): Promise<KnowledgeLibraryEntry[]> {
+    await this.agents.require(ctx, agentId);
+    const all = await this.repository.listKnowledgeSourcesForOwner(ctx);
+
+    const mine = all.filter((source) => source.agentId === agentId);
+    const taken = new Set(mine.map((source) => this.identity(source)));
+
+    return all
+      .filter((source) => source.agentId !== agentId)
+      .map((source) => ({
+        id: source.id,
+        kind: source.kind,
+        label: source.label,
+        sourceUrl: source.sourceUrl,
+        status: source.status,
+        createdAt: source.createdAt,
+        agentId: source.agentId,
+        agentName: source.agent.name,
+        alreadyAdded: taken.has(this.identity(source)),
+      }));
+  }
+
+  /**
+   * Puts an existing source on this agent as a copy of its own.
+   *
+   * A copy, not a shared reference: every agent owns its store, and deleting
+   * the agent deletes the bucket — pointing two agents at one bucket would let
+   * one deletion silently empty the other agent's knowledge.
+   */
+  async reuse(
+    ctx: OwnershipContext,
+    agentId: string,
+    sourceId: string,
+  ): Promise<AiVoiceAgentKnowledgeSource> {
+    await this.agents.require(ctx, agentId);
+    const origin = await this.repository.findKnowledgeSourceForOwner(
+      ctx,
+      sourceId,
+    );
+    if (!origin) throw new NotFoundException("Knowledge source not found");
+    if (origin.agentId === agentId) {
+      throw new BadRequestException("This agent already has that source.");
+    }
+
+    const existing = await this.repository.listKnowledgeSources(agentId);
+    const identity = this.identity(origin);
+    if (existing.some((source) => this.identity(source) === identity)) {
+      throw new BadRequestException("This agent already has that source.");
+    }
+
+    if (origin.kind === AiVoiceAgentKnowledgeKind.url) {
+      if (!origin.sourceUrl) {
+        throw new BadRequestException("That page has no address to re-index.");
+      }
+      return this.addUrl(ctx, agentId, {
+        url: origin.sourceUrl,
+        label: origin.label,
+      });
+    }
+
+    if (origin.kind === AiVoiceAgentKnowledgeKind.text) {
+      if (!origin.content) {
+        throw new BadRequestException("That note has no text left to copy.");
+      }
+      return this.addText(ctx, agentId, {
+        label: origin.label,
+        content: origin.content,
+      });
+    }
+
+    return this.copyDocument(ctx, agentId, origin);
+  }
+
   async remove(
     ctx: OwnershipContext,
     agentId: string,
@@ -201,6 +319,68 @@ export class VoiceAgentKnowledgeService {
   }
 
   // ── Internals ────────────────────────────────────────────────
+
+  /**
+   * What makes two sources "the same" to a person: a page is its address, a
+   * document or a note is its title. Ids differ on every copy, so they cannot
+   * answer this.
+   */
+  private identity(source: AiVoiceAgentKnowledgeSource): string {
+    return source.kind === AiVoiceAgentKnowledgeKind.url
+      ? `url:${source.sourceUrl ?? source.label}`
+      : `${source.kind}:${source.label.trim().toLowerCase()}`;
+  }
+
+  /**
+   * Copies an uploaded file into this agent's own store. The bytes only live at
+   * the provider, so they are read back out of the original bucket rather than
+   * asking the user for the file again.
+   */
+  private async copyDocument(
+    ctx: OwnershipContext,
+    agentId: string,
+    origin: AiVoiceAgentKnowledgeSourceWithAgent,
+  ): Promise<AiVoiceAgentKnowledgeSource> {
+    if (!origin.providerBucket || !origin.providerFileName) {
+      throw new BadRequestException(
+        "That document is no longer stored, so it cannot be reused. Upload it again.",
+      );
+    }
+
+    const document = await this.provider
+      .readKnowledgeDocument(origin.providerBucket, origin.providerFileName)
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `Could not read ${origin.providerFileName} from ${origin.providerBucket}: ${message}`,
+        );
+        throw new BadRequestException(
+          "That document could not be read back. Upload it again.",
+        );
+      });
+
+    const store = await this.ensureStore(agentId);
+    const fileName = this.fileName(origin.label, "bin");
+    await this.provider.putKnowledgeDocument(
+      store,
+      fileName,
+      document.body,
+      document.contentType,
+    );
+
+    const source = await this.repository.createKnowledgeSource({
+      agentId,
+      kind: origin.kind,
+      label: origin.label,
+      providerBucket: store,
+      providerFileName: fileName,
+      status: AiVoiceAgentKnowledgeStatus.processing,
+    });
+
+    return this.startIndexing(ctx, agentId, source, () =>
+      this.provider.indexKnowledgeStore(store),
+    );
+  }
 
   private async ensureStore(agentId: string): Promise<string> {
     const store = this.storeName(agentId);
@@ -252,14 +432,17 @@ export class VoiceAgentKnowledgeService {
     ctx: OwnershipContext,
     agentId: string,
     sources: AiVoiceAgentKnowledgeSource[],
-  ): Promise<AiVoiceAgentKnowledgeSource[]> {
+  ): Promise<{
+    refreshed: AiVoiceAgentKnowledgeSource[];
+    resynced: boolean;
+  }> {
     const pending = sources.filter(
       (source) =>
         source.embeddingTaskId &&
         (source.status === AiVoiceAgentKnowledgeStatus.pending ||
           source.status === AiVoiceAgentKnowledgeStatus.processing),
     );
-    if (pending.length === 0) return sources;
+    if (pending.length === 0) return { refreshed: sources, resynced: false };
 
     let anyBecameReady = false;
     const refreshed = new Map<string, AiVoiceAgentKnowledgeSource>();
@@ -286,7 +469,10 @@ export class VoiceAgentKnowledgeService {
       await this.agents.resync(ctx, agentId);
     }
 
-    return sources.map((source) => refreshed.get(source.id) ?? source);
+    return {
+      refreshed: sources.map((source) => refreshed.get(source.id) ?? source),
+      resynced: anyBecameReady,
+    };
   }
 
   private toKnowledgeStatus(

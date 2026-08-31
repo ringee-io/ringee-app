@@ -182,6 +182,16 @@ function AgentDetailView({
 
   const active = agent.status === 'active';
 
+  /**
+   * Re-reads the agent without the skeleton. Used when knowledge finishes
+   * indexing: the server re-syncs the assistant at that moment, so the header's
+   * status and any provider error shown here are stale until this runs.
+   */
+  const refreshAgent = useCallback(async () => {
+    const loaded = await api.get(agent.id).catch(() => null);
+    if (loaded) onChanged(loaded);
+  }, [api, agent.id, onChanged]);
+
   const save = async () => {
     const { saved, errors } = await draft.save();
     if (!saved) {
@@ -411,7 +421,10 @@ function AgentDetailView({
           </TabsContent>
 
           <TabsContent value='knowledge' className='pt-6'>
-            <KnowledgePanel agentId={agent.id} />
+            <KnowledgePanel
+              agentId={agent.id}
+              onSourceReady={() => void refreshAgent()}
+            />
           </TabsContent>
 
           <TabsContent value='test' className='pt-6'>

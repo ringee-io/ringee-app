@@ -256,6 +256,11 @@ export interface VoiceAgentProvider {
     body: Buffer,
     contentType: string,
   ): Promise<void>;
+  /** Reads a stored document back, so it can be copied onto another agent. */
+  readKnowledgeDocument(
+    store: string,
+    fileName: string,
+  ): Promise<{ body: Buffer; contentType: string }>;
   deleteKnowledgeDocument(store: string, fileName: string): Promise<void>;
   /** Indexes everything currently in the store. Returns the task id. */
   indexKnowledgeStore(store: string): Promise<string>;

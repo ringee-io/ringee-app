@@ -91,6 +91,24 @@ export interface VoiceAgentKnowledgeSource {
   createdAt: string;
 }
 
+/**
+ * A source that lives on another agent in the workspace, offered for reuse.
+ * `alreadyAdded` is the server's answer to "is this the same thing I already
+ * have", so the picker can say so instead of letting the user create a
+ * duplicate and find out afterwards.
+ */
+export interface VoiceAgentKnowledgeLibraryEntry {
+  id: string;
+  kind: VoiceAgentKnowledgeSource['kind'];
+  label: string;
+  sourceUrl: string | null;
+  status: VoiceAgentKnowledgeSource['status'];
+  createdAt: string;
+  agentId: string;
+  agentName: string;
+  alreadyAdded: boolean;
+}
+
 export interface VoiceAgent {
   id: string;
   name: string;

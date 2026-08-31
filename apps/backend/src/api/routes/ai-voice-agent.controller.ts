@@ -21,6 +21,7 @@ import {
   CurrentUser,
   CurrentUserData,
   GenerateCompanyProfileDto,
+  ReuseKnowledgeSourceDto,
   SaveCompanyProfileDto,
   SaveVoiceAgentDto,
   SetVoiceAgentStatusDto,
@@ -238,6 +239,27 @@ export class AiVoiceAgentController {
     @Param("id", ParseUUIDPipe) id: string,
   ) {
     return this.knowledge.list(createOwnershipContext(user), id);
+  }
+
+  /**
+   * Everything the workspace has already uploaded, on the other agents, so the
+   * same document can be put on this one without finding the original file.
+   */
+  @Get(":id/knowledge/library")
+  listKnowledgeLibrary(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.knowledge.library(createOwnershipContext(user), id);
+  }
+
+  @Post(":id/knowledge/reuse")
+  reuseKnowledge(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Body() dto: ReuseKnowledgeSourceDto,
+  ) {
+    return this.knowledge.reuse(createOwnershipContext(user), id, dto.sourceId);
   }
 
   @Post(":id/knowledge/url")

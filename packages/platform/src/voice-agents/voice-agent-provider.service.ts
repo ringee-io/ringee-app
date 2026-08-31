@@ -135,6 +135,13 @@ export class VoiceAgentProviderService implements VoiceAgentProvider {
     );
   }
 
+  readKnowledgeDocument(
+    store: string,
+    fileName: string,
+  ): Promise<{ body: Buffer; contentType: string }> {
+    return this.getServiceProvider().readKnowledgeDocument(store, fileName);
+  }
+
   deleteKnowledgeDocument(store: string, fileName: string): Promise<void> {
     return this.getServiceProvider().deleteKnowledgeDocument(store, fileName);
   }

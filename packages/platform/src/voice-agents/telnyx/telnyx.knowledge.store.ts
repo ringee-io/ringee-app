@@ -3,6 +3,7 @@ import {
   CreateBucketCommand,
   DeleteBucketCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
   ListObjectsV2Command,
   PutObjectCommand,
   S3Client,
@@ -59,6 +60,28 @@ export class TelnyxKnowledgeStore {
         ContentType: contentType,
       }),
     );
+  }
+
+  /**
+   * Reads an object back out. Reusing a document on a second agent means
+   * copying the bytes into that agent's own bucket — each agent owns its
+   * store, so deleting one agent must never empty another one's knowledge.
+   */
+  async getObject(
+    bucket: string,
+    key: string,
+  ): Promise<{ body: Buffer; contentType: string }> {
+    const response = await this.client.send(
+      new GetObjectCommand({ Bucket: bucket, Key: key }),
+    );
+    if (!response.Body) {
+      throw new Error(`${key} is empty in ${bucket}`);
+    }
+    const bytes = await response.Body.transformToByteArray();
+    return {
+      body: Buffer.from(bytes),
+      contentType: response.ContentType ?? "application/octet-stream",
+    };
   }
 
   async deleteObject(bucket: string, key: string): Promise<void> {
