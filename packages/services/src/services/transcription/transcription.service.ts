@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ForbiddenException,
-  HttpException,
   Injectable,
   Logger,
   NotFoundException,
@@ -18,6 +17,7 @@ import {
 } from "@ringee/database";
 import {
   DeepgramService,
+  describeTelnyxError,
   OrchestratorService,
   OwnershipContext,
   RedisService,
@@ -187,24 +187,6 @@ export class TranscriptionService {
     return null;
   }
 
-  /**
-   * Telnyx errors surface as Nest HttpExceptions whose `.message` is just
-   * "Http Exception"; the real provider detail lives in the response body.
-   * Flatten it into a readable string for logs and the stored errorMessage.
-   */
-  private describeError(err: unknown): string {
-    if (err instanceof HttpException) {
-      const res = err.getResponse() as any;
-      const detail =
-        res?.errors?.[0]?.detail ||
-        res?.errors?.[0]?.title ||
-        res?.message ||
-        (typeof res === "string" ? res : null);
-      return detail ? `${detail}` : JSON.stringify(res);
-    }
-    return (err as Error)?.message ?? String(err);
-  }
-
   // ── Realtime (live) ───────────────────────────────────────────────────
 
   /**
@@ -263,7 +245,10 @@ export class TranscriptionService {
       );
       this.logger.log(`▶️ Realtime transcription started for call ${call.id}`);
     } catch (err) {
-      const detail = this.describeError(err);
+      const detail = describeTelnyxError(
+        err,
+        "The carrier refused to start the media stream.",
+      );
       await this.transcriptionRepo.markStatus(
         header.id,
         TranscriptionStatus.failed,

@@ -15,6 +15,7 @@ import {
   type AiVoiceAgentWithSources,
 } from "@ringee/database";
 import {
+  describeTelnyxError,
   hashApiKey,
   LlmCredentialVerifier,
   resolveVoiceAgentModel,
@@ -37,12 +38,38 @@ import {
 /** How long the curated voice list is reused before refetching. */
 const VOICE_CACHE_TTL_MS = 60 * 60 * 1000;
 
+/**
+ * What a voice says in its preview. One line per language Ringee curates, so a
+ * user hears the voice speaking the language the agent will actually use rather
+ * than an English sample with a foreign accent.
+ */
+const VOICE_PREVIEW_SAMPLES: Record<string, string> = {
+  en: "Hi, this is Alex. I'm calling about your appointment tomorrow — does ten in the morning still work for you?",
+  es: "Hola, le llamo por su cita de mañana. ¿Le sigue viniendo bien a las diez de la mañana?",
+  pt: "Olá, estou ligando por causa do seu agendamento de amanhã. As dez da manhã ainda funciona para você?",
+  fr: "Bonjour, je vous appelle au sujet de votre rendez-vous de demain. Dix heures du matin vous convient toujours ?",
+  de: "Hallo, ich rufe wegen Ihres Termins morgen an. Passt Ihnen zehn Uhr morgens immer noch?",
+  it: "Salve, la chiamo per il suo appuntamento di domani. Le dieci di mattina va ancora bene?",
+};
+
+/**
+ * Previews are the same few seconds of audio every time, and the provider bills
+ * per render, so a rendered sample is kept for the process's lifetime. The
+ * catalogue is capped per locale, which bounds this map to the size of the
+ * picker.
+ */
+const VOICE_PREVIEW_CACHE_LIMIT = 200;
+
 export interface SaveVoiceAgentInput {
   name?: string;
   modelProvider?: VoiceAgentLlmProvider;
   /** Present only when the user is setting or replacing a credential. */
   apiKey?: string;
   voiceId?: string | null;
+  /** Company context this agent speaks for; see `CompanyProfileService`. */
+  companyName?: string | null;
+  companyWebsite?: string | null;
+  companyDescription?: string | null;
   analysis?: Partial<
     Pick<VoiceAgentAnalysisSettings, "summary" | "outcome" | "sentiment">
   >;
@@ -51,6 +78,15 @@ export interface SaveVoiceAgentInput {
   meetingDurationMinutes?: number;
   timezone?: string | null;
   meetingTitle?: string | null;
+}
+
+/** A rendered voice sample, inlined so the browser can play it as a data URL. */
+export interface VoiceAgentVoicePreview {
+  voiceId: string;
+  /** What the sample says, shown under the player. */
+  text: string;
+  contentType: string;
+  audioBase64: string;
 }
 
 /** An agent as the list screen shows it: the row plus its call count. */
@@ -84,6 +120,7 @@ export class VoiceAgentService {
   private readonly logger = new Logger(VoiceAgentService.name);
   private voiceCache: { voices: VoiceAgentVoice[]; fetchedAt: number } | null =
     null;
+  private readonly voicePreviews = new Map<string, VoiceAgentVoicePreview>();
 
   constructor(
     private readonly agents: AiVoiceAgentRepository,
@@ -119,6 +156,39 @@ export class VoiceAgentService {
     const voices = await this.provider.listVoices();
     this.voiceCache = { voices, fetchedAt: now };
     return voices;
+  }
+
+  /**
+   * A short sample of a voice, so the user hears it before choosing it rather
+   * than after the first real call. Only curated voices can be previewed — the
+   * id comes from the picker, and an id that is not in the catalogue is not a
+   * voice this workspace may ever select.
+   */
+  async previewVoice(voiceId: string): Promise<VoiceAgentVoicePreview> {
+    const cached = this.voicePreviews.get(voiceId);
+    if (cached) return cached;
+
+    const voice = await this.resolveVoice(voiceId);
+    if (!voice) throw new BadRequestException("That voice is not available.");
+
+    const text =
+      VOICE_PREVIEW_SAMPLES[voice.language] ?? VOICE_PREVIEW_SAMPLES.en!;
+    const { audio, contentType } = await this.provider.renderVoicePreview(
+      voice.id,
+      text,
+    );
+
+    const preview: VoiceAgentVoicePreview = {
+      voiceId: voice.id,
+      text,
+      contentType,
+      audioBase64: audio.toString("base64"),
+    };
+    if (this.voicePreviews.size >= VOICE_PREVIEW_CACHE_LIMIT) {
+      this.voicePreviews.clear();
+    }
+    this.voicePreviews.set(voiceId, preview);
+    return preview;
   }
 
   // ── Reads ────────────────────────────────────────────────────
@@ -179,6 +249,9 @@ export class VoiceAgentService {
       voiceId: voice?.id ?? null,
       voiceLabel: voice?.displayName ?? null,
       voiceLanguage: voice?.language ?? null,
+      companyName: dto.companyName?.trim() || null,
+      companyWebsite: dto.companyWebsite?.trim() || null,
+      companyDescription: dto.companyDescription?.trim() || null,
       analysisSettings: this.mergeAnalysis(null, dto.analysis) as object,
       extractionFields: (dto.extractionFields ?? []) as object,
       calendarIntegrationId: dto.calendarIntegrationId ?? null,
@@ -229,6 +302,15 @@ export class VoiceAgentService {
             voiceLabel: voice?.displayName ?? null,
             voiceLanguage: voice?.language ?? null,
           }
+        : {}),
+      ...(dto.companyName !== undefined
+        ? { companyName: dto.companyName?.trim() || null }
+        : {}),
+      ...(dto.companyWebsite !== undefined
+        ? { companyWebsite: dto.companyWebsite?.trim() || null }
+        : {}),
+      ...(dto.companyDescription !== undefined
+        ? { companyDescription: dto.companyDescription?.trim() || null }
         : {}),
       ...(dto.analysis
         ? {
@@ -433,7 +515,14 @@ export class VoiceAgentService {
         lastError: null,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      // The provider's own failures arrive as `HttpException`s whose `.message`
+      // is the placeholder "Http Exception" — storing that verbatim is how a
+      // user ends up looking at an error that says nothing. `lastError` is read
+      // straight out onto the agent screen, so it has to be a sentence.
+      const message = describeTelnyxError(
+        error,
+        "The voice provider rejected this configuration. Save again to retry.",
+      );
       this.logger.error(`Could not sync agent ${agent.id}: ${message}`);
       return this.agents.update(agent.id, {
         status: AiVoiceAgentStatus.error,
@@ -486,7 +575,7 @@ export class VoiceAgentService {
     insightGroupId: string,
   ): Promise<VoiceAgentConfig> {
     const blueprint = this.blueprints.require(agent.type);
-    const company = await this.companyProfiles.resolveContext(ctx);
+    const company = await this.companyProfiles.resolveForAgent(ctx, agent);
     const language = agent.voiceLanguage ?? "en";
 
     const promptContext = {
@@ -535,7 +624,7 @@ export class VoiceAgentService {
     ctx: OwnershipContext,
     agent: AiVoiceAgent,
   ): Promise<Record<string, string>> {
-    const company = await this.companyProfiles.resolveContext(ctx);
+    const company = await this.companyProfiles.resolveForAgent(ctx, agent);
     return this.defaultDynamicVariables(agent, company);
   }
 

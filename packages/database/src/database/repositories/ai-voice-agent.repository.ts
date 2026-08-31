@@ -119,6 +119,41 @@ export class AiVoiceAgentRepository {
     return new Map(rows.map((r) => [r.agentId, r._count._all]));
   }
 
+  /**
+   * The company contexts already written in this workspace, newest first, so a
+   * new agent can adopt one instead of retyping it. Only the company columns
+   * are selected — this feeds a picker, not an agent load.
+   */
+  listCompanyContextsForOwner(ctx: OwnershipContext): Promise<
+    Array<{
+      id: string;
+      name: string;
+      companyName: string | null;
+      companyWebsite: string | null;
+      companyDescription: string | null;
+    }>
+  > {
+    return this.prisma.aiVoiceAgent.findMany({
+      where: {
+        deletedAt: null,
+        ...buildOwnershipFilter(ctx),
+        OR: [
+          { companyName: { not: null } },
+          { companyDescription: { not: null } },
+        ],
+      },
+      select: {
+        id: true,
+        name: true,
+        companyName: true,
+        companyWebsite: true,
+        companyDescription: true,
+      },
+      orderBy: { updatedAt: "desc" },
+      take: 50,
+    });
+  }
+
   update(
     id: string,
     data: Prisma.AiVoiceAgentUncheckedUpdateInput,

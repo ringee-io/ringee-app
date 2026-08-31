@@ -5,6 +5,7 @@ import { useMemo } from 'react';
 import type {
   CompanyProfile,
   Paginated,
+  ReusableCompanyContext,
   TestSession,
   VoiceAgent,
   VoiceAgentCall,
@@ -15,8 +16,10 @@ import type {
   VoiceAgentModelProvider,
   VoiceAgentType,
   VoiceAgentTypeInfo,
-  VoiceAgentVoice
+  VoiceAgentVoice,
+  VoiceAgentVoicePreview
 } from './types';
+import type { CalendarIntegrationOption } from './types';
 
 const BASE = '/ai-voice-agents';
 
@@ -26,6 +29,9 @@ export interface SaveAgentBody {
   modelProvider?: VoiceAgentModelProvider;
   apiKey?: string;
   voiceId?: string | null;
+  companyName?: string | null;
+  companyWebsite?: string | null;
+  companyDescription?: string | null;
   analysis?: { summary?: boolean; sentiment?: boolean };
   extractionFields?: VoiceAgentExtractionField[];
   calendarIntegrationId?: string | null;
@@ -46,7 +52,19 @@ export function useVoiceAgentApi() {
     () => ({
       listTypes: () => api.get<VoiceAgentTypeInfo[]>(`${BASE}/types`),
       listVoices: () => api.get<VoiceAgentVoice[]>(`${BASE}/voices`),
+      previewVoice: (voiceId: string) =>
+        api.get<VoiceAgentVoicePreview>(
+          `${BASE}/voices/${encodeURIComponent(voiceId)}/preview`
+        ),
       listModels: () => api.get<VoiceAgentModelOption[]>(`${BASE}/models`),
+
+      /**
+       * The workspace's connected calendars. An appointment-booking agent
+       * cannot go active without one, so the form has to offer the choice
+       * rather than send the user off to find it.
+       */
+      listCalendars: () =>
+        api.get<CalendarIntegrationOption[]>('/calendar/integrations'),
 
       verifyCredential: (provider: VoiceAgentModelProvider, apiKey: string) =>
         api.post<{ valid: boolean; reason?: string }>(
@@ -56,6 +74,8 @@ export function useVoiceAgentApi() {
 
       getCompanyProfile: () =>
         api.get<CompanyProfile | null>(`${BASE}/company-profile`),
+      listCompanyContexts: () =>
+        api.get<ReusableCompanyContext[]>(`${BASE}/company-contexts`),
       saveCompanyProfile: (body: CompanyProfile) =>
         api.patch<CompanyProfile>(`${BASE}/company-profile`, body),
       generateCompanyDescription: (website: string) =>

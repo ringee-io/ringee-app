@@ -171,6 +171,12 @@ export interface VoiceAgentVoice {
   language: string;
   /** Full locale when the provider reports one, e.g. "es-MX". */
   locale: string | null;
+  /**
+   * ISO 3166-1 alpha-2 region of the locale, e.g. "MX". Null when the provider
+   * reports a bare language. The picker shows it so a user hears "Spanish" and
+   * sees which Spanish before choosing.
+   */
+  countryCode: string | null;
   accent: string | null;
   gender: "female" | "male" | "unspecified";
 }

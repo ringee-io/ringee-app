@@ -4002,6 +4002,14 @@ model AiVoiceAgent {
   voiceLabel    String?
   voiceLanguage String?
 
+  /// Company this agent speaks for. Per agent, because one workspace runs
+  /// agents for several brands, products or clients. Left unset the agent
+  /// falls back to `WorkspaceCompanyProfile`, so agents created before this
+  /// existed keep the context they were built with.
+  companyName        String?
+  companyWebsite     String?
+  companyDescription String? @db.Text
+
   /// Provider-side resources owned by this agent.
   providerAssistantId    String? @unique
   providerTexmlAppId     String?
@@ -4136,9 +4144,11 @@ model AiVoiceAgentCall {
   @@index([status])
 }
 
-/// Company context shared by every AI voice agent in a workspace, so the user
-/// does not restate it per agent or per call. One row per workspace: a personal
-/// workspace sets userId, an organization sets organizationId.
+/// Workspace-wide company context: the fallback an AI voice agent uses when it
+/// carries no company context of its own. Agents set theirs on the agent row —
+/// this is what agents created before that keep speaking with. One row per
+/// workspace: a personal workspace sets userId, an organization sets
+/// organizationId.
 model WorkspaceCompanyProfile {
   id             String  @id @default(uuid()) @db.Uuid
   userId         String? @unique @db.Uuid

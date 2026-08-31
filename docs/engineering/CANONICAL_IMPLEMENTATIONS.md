@@ -40,6 +40,7 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Any provider command                  | `TelephonyService` — `platform/src/telephony/telephony.service.ts`                   |
 | Telnyx API calls                      | `TelnyxService` — `platform/src/telephony/telnyx/` (only importer of the SDK)        |
 | Telnyx webhook signature              | `TelnyxWebhookVerifier`                                                              |
+| Provider failure → readable reason    | `describeTelnyxError` — `platform/src/telephony/telnyx/telnyx.error.ts`              |
 | Carrier event → Ringee event          | `TelnyxEventNormalizer` — `platform/src/telephony/telnyx/telnyx.event.normalizer.ts` |
 | Inbound event contract                | `TelephonyEvent` — `platform/src/telephony/interfaces/telephony.event.ts`            |
 | Call lifecycle & `Call.status`        | `CallService.handleTelephonyEvent`                                                   |
@@ -74,12 +75,14 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Agent tool callbacks                  | `VoiceAgentToolService`                                                  |
 | Knowledge bases                       | `VoiceAgentKnowledgeService` + `TelnyxKnowledgeStore`                    |
 | Browser test sessions                 | `VoiceAgentTestSessionService` (AGENT-005)                               |
-| Workspace company context             | `CompanyProfileService`                                                  |
+| Agent company context (AGENT-007)     | `CompanyProfileService.resolveForAgent`                                  |
+| Voice sample playback                 | `VoiceAgentService.previewVoice` → `renderVoicePreview`                  |
 | Curated voice list                    | `curateVoices` — `platform/src/voice-agents/voices.catalog.ts`           |
 | Model behind each user choice         | `resolveVoiceAgentModel` — `platform/src/voice-agents/models.catalog.ts` |
 | BYO LLM key verification              | `LlmCredentialVerifier`                                                  |
 | Bookable slots for an agent           | `CalendarService.getBookableSlots` (strict; AGENT-002)                   |
 | Fetching a user-supplied web page     | `requirePublicUrl` — `services/voice-agents/public-url.ts`               |
+| Create / edit surface (full screen)   | `AgentScreen` + `useAgentDraft` — `features/ai-voice-agents/`            |
 
 ## Phone numbers
 
@@ -115,18 +118,20 @@ pick the one matching your runtime.
 
 ## Frontend
 
-| Responsibility             | Owner                                                                                   |
-| -------------------------- | --------------------------------------------------------------------------------------- |
-| Client HTTP                | `useApi()` → `ApiClient` — `frontend-shared/src/hooks/use.api.ts`, `lib/api.ts`         |
-| Server-component HTTP      | `apiServer` — `frontend-shared/src/lib/api.server.ts`                                   |
-| Device identity            | `getRingeeDeviceId` / `DEVICE_ID_HEADER` — `frontend-shared/src/realtime/device-id`     |
-| UI primitives              | `frontend-shared/src/components/ui`                                                     |
-| Form controls              | `frontend-shared/src/components/forms/form-*`                                           |
-| Tables                     | `useDataTable` + `config/data-table.ts`                                                 |
-| Admin page gate            | `RoleGuard` — `frontend-shared/src/components/role-guard.tsx`                           |
-| Realtime user events       | `frontend-shared/src/realtime/user-events-client.ts`                                    |
-| Campaign disposition write | `useDisposeLead` — `apps/frontend/src/features/dialer/hooks/use-dispose-lead.ts`        |
-| Campaign outcome buttons   | `DispositionGrid` — `apps/frontend/src/features/dialer/components/disposition-grid.tsx` |
+| Responsibility                 | Owner                                                                                   |
+| ------------------------------ | --------------------------------------------------------------------------------------- |
+| Client HTTP                    | `useApi()` → `ApiClient` — `frontend-shared/src/hooks/use.api.ts`, `lib/api.ts`         |
+| Server-component HTTP          | `apiServer` — `frontend-shared/src/lib/api.server.ts`                                   |
+| Device identity                | `getRingeeDeviceId` / `DEVICE_ID_HEADER` — `frontend-shared/src/realtime/device-id`     |
+| UI primitives                  | `frontend-shared/src/components/ui`                                                     |
+| Form controls                  | `frontend-shared/src/components/forms/form-*`                                           |
+| Tables                         | `useDataTable` + `config/data-table.ts`                                                 |
+| Admin page gate                | `RoleGuard` — `frontend-shared/src/components/role-guard.tsx`                           |
+| Realtime user events           | `frontend-shared/src/realtime/user-events-client.ts`                                    |
+| Campaign disposition write     | `useDisposeLead` — `apps/frontend/src/features/dialer/hooks/use-dispose-lead.ts`        |
+| Campaign outcome buttons       | `DispositionGrid` — `apps/frontend/src/features/dialer/components/disposition-grid.tsx` |
+| Validation 400 → `fields` map  | `validationExceptionFactory` — `apps/backend/src/api/validation-error.ts`               |
+| `ApiError` → sentence / fields | `describeApiError`, `fieldErrorsFrom` — `features/ai-voice-agents/lib/api-error.ts`     |
 
 ## Security primitives
 

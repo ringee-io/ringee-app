@@ -658,6 +658,13 @@ a name, a model, a voice, knowledge and what to extract — nothing else. A
 feature that needs a new behaviour writes a blueprint; it does not expose the
 prompt.
 
+"A model" is a _family_ — "Ringee AI", or a provider they already pay for.
+Which model id that maps to stays Ringee's decision, in `models.catalog.ts`. The
+id and where it runs are **shown** on the choice ("moonshotai/Kimi-K2.6",
+self-hosted), because someone comparing Ringee AI against their own key is
+comparing two concrete models; being able to read it is not the same as being
+able to set it.
+
 - **Source of truth:** `services/voice-agents/blueprints/*` +
   `VoiceAgentBlueprintRegistry`
 
@@ -701,6 +708,21 @@ id. The window is opened on start and closed on stop, on unmount, and by the
 When `book_appointment` created a meeting, the outcome is
 `appointment_booked` and the post-call analysis may not overwrite it. The tool
 knows a row exists; the analysis is only reading what was said.
+
+### AGENT-007 — Company context belongs to the agent, and falls back to the workspace
+
+One workspace runs agents for several brands, products or clients, so the
+company an agent introduces itself with is stored on the agent row. An agent
+that carries none of its own reads `WorkspaceCompanyProfile` instead, which is
+what keeps agents built before per-agent context saying exactly what they said
+before. "Carries its own" means it names a company or describes one — a blank
+description on a named company is a choice, not a reason to inherit.
+
+Copying another agent's context is a client-side convenience: the values are
+duplicated onto the new agent, never referenced, so editing one agent's context
+never changes what another agent says.
+
+- **Source of truth:** `CompanyProfileService.resolveForAgent`
 
 ---
 

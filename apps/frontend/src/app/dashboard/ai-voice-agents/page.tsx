@@ -15,7 +15,7 @@ export default function AiVoiceAgentsPage() {
       <div className='flex flex-1 flex-col space-y-4'>
         <Heading
           title='AI Voice Agents'
-          description='Agents that call a person, hold the conversation, and come back with a result.'
+          description='They call, they talk, they come back with a result.'
         />
         <Separator />
         <AgentsList />

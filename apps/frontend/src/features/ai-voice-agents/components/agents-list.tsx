@@ -2,42 +2,64 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Bot } from 'lucide-react';
-import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@ringee/frontend-shared/components/ui/table';
+  AlertTriangle,
+  BellRing,
+  Bot,
+  CalendarCheck,
+  Mic,
+  PhoneCall,
+  Plus,
+  RotateCw
+} from 'lucide-react';
+import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Card } from '@ringee/frontend-shared/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger
+} from '@ringee/frontend-shared/components/ui/dialog';
+import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { useVoiceAgentApi } from '../api';
-import type { VoiceAgent, VoiceAgentTypeInfo } from '../types';
+import { describeApiError } from '../lib/api-error';
+import { flagEmoji } from '../lib/voice-format';
+import type { VoiceAgent, VoiceAgentType, VoiceAgentTypeInfo } from '../types';
 import { AgentStatusBadge } from './agent-status-badge';
 import { AgentTypeCards } from './agent-type-cards';
-import { CompanyProfileCard } from './company-profile-card';
 
-const MODEL_LABELS: Record<string, string> = {
-  ringee: 'Ringee AI',
-  openai: 'OpenAI',
-  anthropic: 'Claude',
-  google: 'Gemini'
+const TYPE_ICONS: Record<VoiceAgentType, typeof CalendarCheck> = {
+  appointment_booking: CalendarCheck,
+  reminders_notifications: BellRing
 };
 
-/** The module's home: what you can create, and what already exists (§3). */
+/** The module's home: the agents you have, and one way to add another. */
 export function AgentsList() {
   const api = useVoiceAgentApi();
   const [types, setTypes] = useState<VoiceAgentTypeInfo[]>([]);
   const [agents, setAgents] = useState<VoiceAgent[]>([]);
+  const [voiceFlags, setVoiceFlags] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
+  const [failure, setFailure] = useState<string | null>(null);
 
   const load = useCallback(async () => {
+    setLoading(true);
+    setFailure(null);
     try {
-      const [typeList, page] = await Promise.all([api.listTypes(), api.list()]);
+      const [typeList, page, voices] = await Promise.all([
+        api.listTypes(),
+        api.list(),
+        api.listVoices().catch(() => [])
+      ]);
       setTypes(typeList);
       setAgents(page.data);
+      setVoiceFlags(
+        Object.fromEntries(voices.map((v) => [v.id, flagEmoji(v.countryCode)]))
+      );
+    } catch (error) {
+      setFailure(describeApiError(error, 'Could not load your agents.'));
     } finally {
       setLoading(false);
     }
@@ -49,79 +71,148 @@ export function AgentsList() {
 
   const titleByType = new Map(types.map((t) => [t.type, t.title]));
 
+  if (loading) {
+    return (
+      <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className='h-40 w-full rounded-lg' />
+        ))}
+      </div>
+    );
+  }
+
+  if (failure) {
+    return (
+      <Card className='flex flex-col items-center gap-3 rounded-lg py-12 text-center'>
+        <AlertTriangle className='text-destructive size-6' />
+        <p className='text-sm'>{failure}</p>
+        <Button
+          variant='outline'
+          size='sm'
+          className='rounded-lg'
+          onClick={() => void load()}
+        >
+          <RotateCw className='size-3.5' />
+          Try again
+        </Button>
+      </Card>
+    );
+  }
+
+  if (agents.length === 0) {
+    return (
+      <Card className='flex flex-col items-center gap-4 rounded-lg px-6 py-12 text-center'>
+        <div className='bg-primary/10 text-primary flex size-12 items-center justify-center rounded-lg'>
+          <Bot className='size-6' />
+        </div>
+        <div>
+          <p className='font-medium'>Create your first agent</p>
+          <p className='text-muted-foreground text-sm'>
+            Pick what it should do. Ringee writes the conversation.
+          </p>
+        </div>
+        <AgentTypeCards types={types} className='w-full max-w-2xl' />
+      </Card>
+    );
+  }
+
   return (
-    <div className='space-y-8'>
-      <section className='space-y-3'>
-        <h2 className='text-lg font-medium'>Create an AI Agent</h2>
-        {loading ? (
-          <div className='grid gap-4 sm:grid-cols-2'>
-            <Skeleton className='h-40 w-full' />
-            <Skeleton className='h-40 w-full' />
-          </div>
-        ) : (
-          <AgentTypeCards types={types} />
-        )}
-      </section>
+    <div className='space-y-4'>
+      <div className='flex justify-end'>
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button className='h-10 rounded-lg'>
+              <Plus className='size-4' />
+              New agent
+            </Button>
+          </DialogTrigger>
+          <DialogContent className='sm:max-w-2xl'>
+            <DialogHeader>
+              <DialogTitle>What should the agent do?</DialogTitle>
+              <DialogDescription>
+                Ringee writes the conversation, the tools and the follow-up.
+              </DialogDescription>
+            </DialogHeader>
+            <AgentTypeCards types={types} />
+          </DialogContent>
+        </Dialog>
+      </div>
 
-      <CompanyProfileCard />
+      <div className='grid gap-4 sm:grid-cols-2 lg:grid-cols-3'>
+        {agents.map((agent) => {
+          const Icon = TYPE_ICONS[agent.type] ?? Bot;
+          return (
+            <Card
+              key={agent.id}
+              className='hover:border-primary/40 flex flex-col gap-3 rounded-lg p-4 transition-colors'
+            >
+              <div className='flex items-start justify-between gap-2'>
+                <div className='flex min-w-0 items-center gap-2'>
+                  <div className='bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-lg'>
+                    <Icon className='size-4' />
+                  </div>
+                  <Link
+                    href={`/dashboard/ai-voice-agents/${agent.id}`}
+                    className='truncate font-medium hover:underline'
+                  >
+                    {agent.name}
+                  </Link>
+                </div>
+                <AgentStatusBadge status={agent.status} />
+              </div>
 
-      <section className='space-y-3'>
-        <h2 className='text-lg font-medium'>Your agents</h2>
-        {loading ? (
-          <Skeleton className='h-40 w-full' />
-        ) : agents.length === 0 ? (
-          <Card className='text-muted-foreground flex flex-col items-center gap-2 py-10 text-sm'>
-            <Bot className='size-6' />
-            No agents yet. Pick one of the two above to get started.
-          </Card>
-        ) : (
-          <Card className='p-0'>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Voice</TableHead>
-                  <TableHead>AI model</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className='text-right'>Calls</TableHead>
-                  <TableHead>Created</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {agents.map((agent) => (
-                  <TableRow key={agent.id} className='cursor-pointer'>
-                    <TableCell className='font-medium'>
-                      <Link
-                        href={`/dashboard/ai-voice-agents/${agent.id}`}
-                        className='hover:underline'
-                      >
-                        {agent.name}
-                      </Link>
-                    </TableCell>
-                    <TableCell>
-                      {titleByType.get(agent.type) ?? agent.type}
-                    </TableCell>
-                    <TableCell>{agent.voiceLabel ?? '—'}</TableCell>
-                    <TableCell>
-                      {MODEL_LABELS[agent.modelProvider] ?? agent.modelProvider}
-                    </TableCell>
-                    <TableCell>
-                      <AgentStatusBadge status={agent.status} />
-                    </TableCell>
-                    <TableCell className='text-right'>
-                      {agent.callCount ?? 0}
-                    </TableCell>
-                    <TableCell>
-                      {new Date(agent.createdAt).toLocaleDateString()}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </Card>
-        )}
-      </section>
+              <p className='text-muted-foreground text-sm'>
+                {titleByType.get(agent.type) ?? agent.type}
+              </p>
+
+              {/* An agent in `error` is not going to answer anything; the
+                  reason belongs on the card, not two clicks away. */}
+              {agent.status === 'error' && agent.lastError ? (
+                <p className='text-destructive line-clamp-2 text-xs'>
+                  {agent.lastError}
+                </p>
+              ) : null}
+
+              <div className='text-muted-foreground flex flex-wrap items-center gap-x-3 gap-y-1 text-xs'>
+                <span>
+                  {agent.voiceId ? (
+                    <>
+                      <span aria-hidden>{voiceFlags[agent.voiceId] ?? ''}</span>{' '}
+                      {agent.voiceLabel ?? 'Voice set'}
+                    </>
+                  ) : (
+                    'No voice yet'
+                  )}
+                </span>
+                <span className='flex items-center gap-1'>
+                  <PhoneCall className='size-3' />
+                  {agent.callCount ?? 0}
+                </span>
+              </div>
+
+              <div className='mt-auto flex gap-2 pt-1'>
+                <Button
+                  asChild
+                  variant='outline'
+                  className='h-10 flex-1 rounded-lg'
+                >
+                  <Link
+                    href={`/dashboard/ai-voice-agents/${agent.id}?tab=test`}
+                  >
+                    <Mic className='size-3.5' />
+                    Test
+                  </Link>
+                </Button>
+                <Button asChild className='h-10 flex-1 rounded-lg'>
+                  <Link href={`/dashboard/ai-voice-agents/${agent.id}`}>
+                    Open
+                  </Link>
+                </Button>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }

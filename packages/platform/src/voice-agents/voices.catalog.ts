@@ -57,6 +57,16 @@ export function baseLanguage(locale: string): string {
 }
 
 /**
+ * "es-MX" → "MX"; "es" → null. The picker renders a flag next to the voice, so
+ * a region the provider did not report has to read as "unknown", not as a wrong
+ * country.
+ */
+export function localeCountry(locale: string): string | null {
+  const region = locale.split("-")[1];
+  return region && /^[A-Za-z]{2}$/.test(region) ? region.toUpperCase() : null;
+}
+
+/**
  * A provider voice name is often "Carolina - Friendly Guide": the part before
  * the dash is the persona, which is what a user picks by. The rest is a
  * description and belongs in the subtitle.
@@ -98,6 +108,7 @@ export function curateVoices(raw: RawProviderVoice[]): VoiceAgentVoice[] {
       description: voice.label?.trim() || suffix,
       language: baseLanguage(locale),
       locale: locale.includes("-") ? locale : null,
+      countryCode: localeCountry(locale),
       accent: voice.accent?.trim() || null,
       gender: normalizeGender(voice.gender),
     };

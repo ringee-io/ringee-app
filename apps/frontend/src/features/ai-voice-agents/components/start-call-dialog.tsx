@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2, PhoneOutgoing } from 'lucide-react';
+import { AlertTriangle, Loader2, PhoneOutgoing } from 'lucide-react';
+import {
+  Alert,
+  AlertDescription
+} from '@ringee/frontend-shared/components/ui/alert';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import {
   Dialog,
@@ -14,9 +18,10 @@ import {
   DialogTrigger
 } from '@ringee/frontend-shared/components/ui/dialog';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
-import { Label } from '@ringee/frontend-shared/components/ui/label';
 import { useVoiceAgentApi } from '../api';
+import { describeApiError } from '../lib/api-error';
 import type { VoiceAgentVariable } from '../types';
+import { Field, controlClass } from './fields/field';
 
 interface Props {
   agentId: string;
@@ -32,8 +37,17 @@ export function StartCallDialog({ agentId, variables, onStarted }: Props) {
   const [to, setTo] = useState('');
   const [values, setValues] = useState<Record<string, string>>({});
   const [starting, setStarting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const missing = variables.filter((v) => v.required && !values[v.key]?.trim());
 
   const start = async () => {
+    setError(null);
+    if (!to.trim()) {
+      setError('Enter the number to call.');
+      return;
+    }
+
     setStarting(true);
     try {
       await api.startCall(agentId, { to: to.trim(), variables: values });
@@ -42,21 +56,29 @@ export function StartCallDialog({ agentId, variables, onStarted }: Props) {
       setTo('');
       setValues({});
       onStarted?.();
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Could not start the call'
-      );
+    } catch (failure) {
+      // 402 (out of credit), 409 (already on a call) and "not dialable" all
+      // arrive here with a sentence worth reading, so it stays on the dialog
+      // rather than vanishing with a toast.
+      setError(describeApiError(failure, 'Could not start the call.'));
     } finally {
       setStarting(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog
+      open={open}
+      onOpenChange={(next) => {
+        setOpen(next);
+        if (!next) setError(null);
+      }}
+    >
       <DialogTrigger asChild>
-        <Button>
-          <PhoneOutgoing className='mr-2 size-4' />
-          Start AI call
+        <Button className='h-10 rounded-lg'>
+          <PhoneOutgoing className='size-4' />
+          <span className='hidden sm:inline'>Start AI call</span>
+          <span className='sm:hidden'>Call</span>
         </Button>
       </DialogTrigger>
       <DialogContent>
@@ -69,22 +91,36 @@ export function StartCallDialog({ agentId, variables, onStarted }: Props) {
         </DialogHeader>
 
         <div className='space-y-4'>
-          <div className='space-y-2'>
-            <Label htmlFor='call-to'>Phone number</Label>
+          {error ? (
+            <Alert variant='destructive' className='rounded-lg'>
+              <AlertTriangle className='size-4' />
+              <AlertDescription>{error}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          <Field
+            label='Phone number'
+            htmlFor='call-to'
+            required
+            hint='International format, e.g. +13055550123.'
+          >
             <Input
               id='call-to'
               value={to}
               onChange={(e) => setTo(e.target.value)}
               placeholder='+13055550123'
+              className={controlClass}
             />
-          </div>
+          </Field>
 
           {variables.map((variable) => (
-            <div key={variable.key} className='space-y-2'>
-              <Label htmlFor={`var-${variable.key}`}>
-                {variable.label}
-                {variable.required ? ' *' : ''}
-              </Label>
+            <Field
+              key={variable.key}
+              label={variable.label}
+              htmlFor={`var-${variable.key}`}
+              required={variable.required}
+              hint={variable.description}
+            >
               <Input
                 id={`var-${variable.key}`}
                 value={values[variable.key] ?? ''}
@@ -94,22 +130,19 @@ export function StartCallDialog({ agentId, variables, onStarted }: Props) {
                     [variable.key]: e.target.value
                   }))
                 }
-                placeholder={variable.description}
+                className={controlClass}
               />
-            </div>
+            </Field>
           ))}
         </div>
 
         <DialogFooter>
           <Button
-            onClick={start}
-            disabled={
-              starting ||
-              !to.trim() ||
-              variables.some((v) => v.required && !values[v.key]?.trim())
-            }
+            className='h-10 rounded-lg'
+            onClick={() => void start()}
+            disabled={starting || !to.trim() || missing.length > 0}
           >
-            {starting && <Loader2 className='mr-2 size-4 animate-spin' />}
+            {starting ? <Loader2 className='size-4 animate-spin' /> : null}
             Start AI call
           </Button>
         </DialogFooter>

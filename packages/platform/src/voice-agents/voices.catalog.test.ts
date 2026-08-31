@@ -3,6 +3,7 @@ import {
   baseLanguage,
   curateVoices,
   CURATED_VOICES_PER_LOCALE,
+  localeCountry,
   type RawProviderVoice,
 } from "./voices.catalog";
 
@@ -33,6 +34,7 @@ describe("curateVoices", () => {
       description: "Warm, approachable presence.",
       language: "es",
       locale: "es-MX",
+      countryCode: "MX",
       accent: "Mexican",
       gender: "female",
     });
@@ -76,5 +78,13 @@ describe("curateVoices", () => {
   it("treats a bare language as its own base language", () => {
     expect(baseLanguage("es")).toBe("es");
     expect(baseLanguage("pt-BR")).toBe("pt");
+  });
+
+  it("reports a region only when the provider gives one", () => {
+    expect(localeCountry("pt-BR")).toBe("BR");
+    expect(localeCountry("es")).toBeNull();
+    expect(
+      curateVoices([voice({ language: "es" })])[0]?.countryCode,
+    ).toBeNull();
   });
 });

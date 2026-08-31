@@ -1,7 +1,10 @@
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
-import { WorkspaceCompanyProfileRepository } from "@ringee/database";
-import type { WorkspaceCompanyProfile } from "@ringee/database";
+import {
+  AiVoiceAgentRepository,
+  WorkspaceCompanyProfileRepository,
+} from "@ringee/database";
+import type { AiVoiceAgent, WorkspaceCompanyProfile } from "@ringee/database";
 import {
   AiProviderRegistry,
   type AiUsage,
@@ -16,13 +19,28 @@ import type { VoiceAgentCompanyContext } from "./voice-agent.types";
 /** How much of a fetched page is worth sending to the model. */
 const MAX_PAGE_CHARACTERS = 12_000;
 
+/** The company context of one agent, offered for another agent to adopt. */
+export interface ReusableCompanyContext {
+  /** The agent this context was written on, or null for the workspace one. */
+  agentId: string | null;
+  /** What the picker shows: the agent's name, or "Workspace default". */
+  label: string;
+  companyName: string | null;
+  companyWebsite: string | null;
+  companyDescription: string | null;
+}
+
+/** A company context as an agent's prompt needs it: no holes, ever. */
+type ResolvedContext = VoiceAgentCompanyContext;
+
 /**
- * The company context every AI voice agent in a workspace shares (§6).
+ * The company context an AI voice agent speaks with (§6).
  *
- * It lives at workspace level on purpose: an agent's prompt should not carry a
- * copy of the company description, and a caller should not have to pass it on
- * every call. Agents read it at save time and it is interpolated into their
- * instructions as dynamic variables.
+ * It lives on the agent, because one workspace runs agents for several brands,
+ * products or clients. The workspace-level profile stays as the fallback for an
+ * agent that carries none of its own, so nothing an earlier agent was built
+ * with changes underneath it. Agents read the context at save time and it is
+ * interpolated into their instructions as dynamic variables.
  */
 @Injectable()
 export class CompanyProfileService {
@@ -30,6 +48,7 @@ export class CompanyProfileService {
 
   constructor(
     private readonly repository: WorkspaceCompanyProfileRepository,
+    private readonly agents: AiVoiceAgentRepository,
     private readonly providers: AiProviderRegistry,
     private readonly credits: CreditService,
   ) {}
@@ -58,10 +77,69 @@ export class CompanyProfileService {
    * text rather than leaving a template hole, so an agent whose workspace never
    * filled the profile in still speaks a coherent sentence.
    */
-  async resolveContext(
+  async resolveContext(ctx: OwnershipContext): Promise<ResolvedContext> {
+    return this.toContext(await this.repository.find(ctx));
+  }
+
+  /**
+   * The context one agent speaks with: its own when it has one, the workspace
+   * profile otherwise. An agent counts as having its own as soon as it names a
+   * company — a blank description is a choice, not a reason to inherit.
+   */
+  async resolveForAgent(
     ctx: OwnershipContext,
-  ): Promise<VoiceAgentCompanyContext> {
-    const profile = await this.repository.find(ctx);
+    agent: Pick<
+      AiVoiceAgent,
+      "companyName" | "companyWebsite" | "companyDescription"
+    >,
+  ): Promise<ResolvedContext> {
+    const own = agent.companyName?.trim() || agent.companyDescription?.trim();
+    return own ? this.toContext(agent) : this.resolveContext(ctx);
+  }
+
+  /**
+   * Every company context already written in this workspace, so a new agent can
+   * adopt one instead of retyping it. The workspace profile comes first because
+   * it is what every agent without its own already speaks with.
+   */
+  async listReusable(ctx: OwnershipContext): Promise<ReusableCompanyContext[]> {
+    const [workspace, agents] = await Promise.all([
+      this.repository.find(ctx),
+      this.agents.listCompanyContextsForOwner(ctx),
+    ]);
+
+    const contexts: ReusableCompanyContext[] = [];
+    if (
+      workspace?.companyName?.trim() ||
+      workspace?.companyDescription?.trim()
+    ) {
+      contexts.push({
+        agentId: null,
+        label: "Workspace default",
+        companyName: workspace.companyName,
+        companyWebsite: workspace.companyWebsite,
+        companyDescription: workspace.companyDescription,
+      });
+    }
+    for (const agent of agents) {
+      contexts.push({
+        agentId: agent.id,
+        label: agent.name,
+        companyName: agent.companyName,
+        companyWebsite: agent.companyWebsite,
+        companyDescription: agent.companyDescription,
+      });
+    }
+    return contexts;
+  }
+
+  private toContext(
+    profile: {
+      companyName: string | null;
+      companyWebsite: string | null;
+      companyDescription: string | null;
+    } | null,
+  ): ResolvedContext {
     return {
       name: profile?.companyName?.trim() || "our company",
       description:

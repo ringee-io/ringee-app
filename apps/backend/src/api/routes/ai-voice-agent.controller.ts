@@ -70,14 +70,21 @@ export class AiVoiceAgentController {
     return this.agents.listVoices();
   }
 
+  /**
+   * A short sample of one voice, inlined as base64 so the picker can play it
+   * with the same authenticated client it lists voices with.
+   */
+  @Get("voices/:voiceId/preview")
+  previewVoice(@Param("voiceId") voiceId: string) {
+    return this.agents.previewVoice(voiceId);
+  }
+
   @Get("models")
   listModels() {
-    // Only the user-facing choice and whether it needs a key — never the
-    // provider-side model id Ringee picked.
-    return listVoiceAgentModels().map(({ provider, requiresApiKey }) => ({
-      provider,
-      requiresApiKey,
-    }));
+    // The whole catalogue entry: someone choosing between Ringee AI and their
+    // own key is choosing between two named models, and the version is what
+    // tells them which one they are getting. Ringee still decides the mapping.
+    return listVoiceAgentModels();
   }
 
   @Post("credentials/verify")
@@ -90,6 +97,12 @@ export class AiVoiceAgentController {
   @Get("company-profile")
   getCompanyProfile(@CurrentUser() user: CurrentUserData) {
     return this.companyProfiles.get(createOwnershipContext(user));
+  }
+
+  /** Contexts already written in this workspace, for a new agent to adopt. */
+  @Get("company-contexts")
+  listCompanyContexts(@CurrentUser() user: CurrentUserData) {
+    return this.companyProfiles.listReusable(createOwnershipContext(user));
   }
 
   @Patch("company-profile")

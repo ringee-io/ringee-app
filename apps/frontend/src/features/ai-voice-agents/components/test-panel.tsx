@@ -2,19 +2,16 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Mic, PhoneOff } from 'lucide-react';
+import { Loader2, Mic, PhoneOff, Sparkles } from 'lucide-react';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from '@ringee/frontend-shared/components/ui/card';
+import { Card, CardContent } from '@ringee/frontend-shared/components/ui/card';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
+import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useVoiceAgentApi } from '../api';
+import { describeApiError } from '../lib/api-error';
 import type { VoiceAgentVariable } from '../types';
+import { controlClass } from './fields/field';
 
 type Phase = 'idle' | 'connecting' | 'live';
 
@@ -37,6 +34,7 @@ export function TestPanel({
   const api = useVoiceAgentApi();
   const [phase, setPhase] = useState<Phase>('idle');
   const [values, setValues] = useState<Record<string, string>>({});
+  const [seconds, setSeconds] = useState(0);
   const clientRef = useRef<{ disconnect: () => void } | null>(null);
   const callRef = useRef<{ hangup: () => void } | null>(null);
 
@@ -60,6 +58,15 @@ export function TestPanel({
   // A closed tab must not leave the agent reachable, so the session is ended
   // on unmount too. The server sweep is the backstop, not the first line.
   useEffect(() => () => void stop(), [stop]);
+
+  useEffect(() => {
+    if (phase !== 'live') {
+      setSeconds(0);
+      return;
+    }
+    const timer = setInterval(() => setSeconds((s) => s + 1), 1000);
+    return () => clearInterval(timer);
+  }, [phase]);
 
   const start = async () => {
     setPhase('connecting');
@@ -99,51 +106,63 @@ export function TestPanel({
 
       await client.connect();
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : 'Could not start the test'
-      );
+      toast.error(describeApiError(error, 'Could not start the test.'));
       await stop();
     }
   };
 
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Test agent</CardTitle>
-        <CardDescription>
-          Talk to the agent from your browser. Fill in the values you want it to
-          use, then start the conversation.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className='space-y-4'>
-        <div className='grid gap-3 sm:grid-cols-2'>
-          {variables.map((variable) => (
-            <div key={variable.key} className='space-y-2'>
-              <Label htmlFor={`test-${variable.key}`}>{variable.label}</Label>
-              <Input
-                id={`test-${variable.key}`}
-                value={values[variable.key] ?? ''}
-                disabled={phase !== 'idle'}
-                onChange={(e) =>
-                  setValues((prev) => ({
-                    ...prev,
-                    [variable.key]: e.target.value
-                  }))
-                }
-                placeholder={variable.description}
-              />
-            </div>
-          ))}
-        </div>
+  const clock = `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(
+    2,
+    '0'
+  )}`;
 
-        <div className='flex items-center gap-3'>
+  return (
+    <div className='grid gap-4 lg:grid-cols-[1fr_320px]'>
+      <Card>
+        <CardContent className='flex flex-col items-center gap-5 py-12'>
+          <div
+            className={cn(
+              'flex size-24 items-center justify-center rounded-lg transition-colors',
+              phase === 'live'
+                ? 'bg-primary/15 text-primary'
+                : 'bg-muted text-muted-foreground'
+            )}
+          >
+            {phase === 'live' ? (
+              <span className='relative flex size-24 items-center justify-center'>
+                <span className='bg-primary/20 absolute inline-flex size-full animate-ping rounded-lg' />
+                <Mic className='relative size-9' />
+              </span>
+            ) : phase === 'connecting' ? (
+              <Loader2 className='size-9 animate-spin' />
+            ) : (
+              <Mic className='size-9' />
+            )}
+          </div>
+
+          <div className='text-center'>
+            <p className='font-medium'>
+              {phase === 'live'
+                ? `Live · ${clock}`
+                : phase === 'connecting'
+                  ? 'Connecting…'
+                  : 'Talk to your agent'}
+            </p>
+            <p className='text-muted-foreground text-sm'>
+              {phase === 'live'
+                ? 'Speak into your microphone.'
+                : 'No phone call, no credits — straight from this browser.'}
+            </p>
+          </div>
+
           {phase === 'live' ? (
-            <Button variant='destructive' onClick={() => void stop()}>
+            <Button size='lg' variant='destructive' onClick={() => void stop()}>
               <PhoneOff className='mr-2 size-4' />
               End conversation
             </Button>
           ) : (
             <Button
+              size='lg'
               onClick={() => void start()}
               disabled={phase === 'connecting'}
             >
@@ -152,16 +171,52 @@ export function TestPanel({
               ) : (
                 <Mic className='mr-2 size-4' />
               )}
-              Start web conversation
+              Start conversation
             </Button>
           )}
-          {phase === 'live' ? (
-            <span className='text-muted-foreground text-sm'>
-              Connected — speak into your microphone.
-            </span>
-          ) : null}
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className='space-y-4 pt-6'>
+          <div>
+            <p className='flex items-center gap-1.5 text-sm font-medium'>
+              <Sparkles className='size-3.5' />
+              Pretend it is calling
+            </p>
+            <p className='text-muted-foreground text-xs'>
+              Values the agent should use in this test.
+            </p>
+          </div>
+
+          {variables.length === 0 ? (
+            <p className='text-muted-foreground text-sm'>
+              This agent needs nothing extra — just start.
+            </p>
+          ) : (
+            variables.map((variable) => (
+              <div key={variable.key} className='space-y-1.5'>
+                <Label htmlFor={`test-${variable.key}`} className='text-xs'>
+                  {variable.label}
+                </Label>
+                <Input
+                  id={`test-${variable.key}`}
+                  value={values[variable.key] ?? ''}
+                  disabled={phase !== 'idle'}
+                  onChange={(e) =>
+                    setValues((prev) => ({
+                      ...prev,
+                      [variable.key]: e.target.value
+                    }))
+                  }
+                  placeholder={variable.description}
+                  className={controlClass}
+                />
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 }

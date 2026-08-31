@@ -35,12 +35,33 @@ export interface VoiceAgentVoice {
   description: string | null;
   language: string;
   locale: string | null;
+  /** ISO 3166-1 alpha-2, e.g. "MX". Null when the provider reports no region. */
+  countryCode: string | null;
   accent: string | null;
   gender: 'female' | 'male' | 'unspecified';
 }
 
+/** A rendered sample of one voice, playable straight from the response. */
+export interface VoiceAgentVoicePreview {
+  voiceId: string;
+  text: string;
+  contentType: string;
+  audioBase64: string;
+}
+
+/**
+ * A model the user can put behind an agent. `modelId` and `hosting` are shown:
+ * choosing between Ringee AI and your own key is choosing between two named
+ * models, and the version is what says which one you are getting.
+ */
 export interface VoiceAgentModelOption {
   provider: VoiceAgentModelProvider;
+  /** Provider-side model id, e.g. "moonshotai/Kimi-K2.6". */
+  modelId: string;
+  displayName: string;
+  hosting: 'ringee' | 'byok';
+  recommended: boolean;
+  summary: string;
   requiresApiKey: boolean;
 }
 
@@ -79,6 +100,9 @@ export interface VoiceAgent {
   voiceId: string | null;
   voiceLabel: string | null;
   voiceLanguage: string | null;
+  companyName: string | null;
+  companyWebsite: string | null;
+  companyDescription: string | null;
   analysisSettings: VoiceAgentAnalysisSettings | null;
   extractionFields: VoiceAgentExtractionField[] | null;
   calendarIntegrationId: string | null;
@@ -124,6 +148,24 @@ export interface CompanyProfile {
   companyName: string | null;
   companyWebsite: string | null;
   companyDescription: string | null;
+}
+
+/** A company context already written in the workspace, offered for reuse. */
+export interface ReusableCompanyContext extends CompanyProfile {
+  /** The agent it belongs to, or null for the workspace-level fallback. */
+  agentId: string | null;
+  label: string;
+}
+
+/**
+ * A connected calendar, as the agent form needs it. `/calendar/integrations`
+ * returns more than this — only these fields are read here.
+ */
+export interface CalendarIntegrationOption {
+  id: string;
+  provider: string;
+  email: string | null;
+  isActive: boolean;
 }
 
 export interface TestSession {

@@ -27,6 +27,12 @@ When adding a provider capability:
    re-export provider enums for the domain to switch on.
 3. If the provider cannot answer, say so explicitly (`null`) rather than guessing
    — `isCallAlive` is the reference for this.
+4. When the provider **fails**, describe the failure with `describeTelnyxError`
+   before you store it or show it. `TelnyxClient` rethrows the provider's JSON
+   body as an `HttpException`, and Nest only copies a _string_ response onto
+   `.message` — so reading `error.message` on an object body yields the literal
+   `"Http Exception"`. That placeholder has already reached a user once, stored
+   verbatim on an agent row.
 
 `TelephonyService` is a dispatcher with a single `telnyx` case today. Keep new
 work behind it; that switch is where a second carrier plugs in.
