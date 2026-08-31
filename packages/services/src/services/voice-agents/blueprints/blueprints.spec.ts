@@ -123,6 +123,42 @@ describe("AppointmentBookingBlueprint", () => {
     );
   });
 
+  // The provider validates an insight's `json_schema` as a strict structured
+  // output: an object without `additionalProperties: false`, or with a
+  // `required` that does not name every property, is rejected and takes the
+  // whole agent sync down with it.
+  it("closes every insight schema the way the provider requires", () => {
+    const insights = blueprint.buildInsights({
+      analysis: { ...DEFAULT_ANALYSIS_SETTINGS, sentiment: true },
+      extractionFields: [
+        {
+          key: "budget",
+          label: "Budget",
+          type: "text",
+          description: "Any budget they mentioned",
+        },
+      ],
+    });
+
+    for (const definition of Object.values(insights)) {
+      const schema = definition.jsonSchema as
+        | {
+            properties: Record<string, unknown>;
+            required?: string[];
+            additionalProperties?: boolean;
+          }
+        | null
+        | undefined;
+      if (!schema) continue;
+
+      assert.equal(schema.additionalProperties, false);
+      assert.deepEqual(
+        [...(schema.required ?? [])].sort(),
+        Object.keys(schema.properties).sort(),
+      );
+    }
+  });
+
   it("builds one extraction insight from the user's fields", () => {
     const insights = blueprint.buildInsights({
       analysis: DEFAULT_ANALYSIS_SETTINGS,

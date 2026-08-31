@@ -15,6 +15,31 @@ import type {
  * the others, and so a result maps back to exactly one slot.
  */
 
+/**
+ * Closes an insight's result schema the way the provider demands.
+ *
+ * A `json_schema` on an insight is validated as an OpenAI *strict* structured
+ * output, which is stricter than JSON Schema: every object must set
+ * `additionalProperties: false`, and `required` must name **every** key in
+ * `properties` — a partial `required` is rejected outright. Getting either
+ * wrong fails the insight write, which fails the whole agent sync, so no schema
+ * here is written by hand.
+ *
+ * "Every key required" is not a semantic constraint, because a field that may
+ * legitimately have no value declares `null` in its own type. The model always
+ * emits the key; it emits `null` when the call did not establish a value.
+ */
+function strictObjectSchema(
+  properties: Record<string, unknown>,
+): Record<string, unknown> {
+  return {
+    type: "object",
+    properties,
+    required: Object.keys(properties),
+    additionalProperties: false,
+  };
+}
+
 function summaryInsight(): VoiceAgentInsightDefinition {
   return {
     name: "Ringee call summary",
@@ -46,21 +71,17 @@ function outcomeInsight(
       `"${AiVoiceAgentOutcome.unknown}" only when the transcript genuinely does not`,
       "support any other value.",
     ].join(" "),
-    jsonSchema: {
-      type: "object",
-      properties: {
-        outcome: {
-          type: "string",
-          enum: outcomes,
-          description: "The single outcome that best describes the call.",
-        },
-        reason: {
-          type: "string",
-          description: "One sentence quoting or paraphrasing what decided it.",
-        },
+    jsonSchema: strictObjectSchema({
+      outcome: {
+        type: "string",
+        enum: outcomes,
+        description: "The single outcome that best describes the call.",
       },
-      required: ["outcome", "reason"],
-    },
+      reason: {
+        type: "string",
+        description: "One sentence quoting or paraphrasing what decided it.",
+      },
+    }),
   };
 }
 
@@ -71,16 +92,12 @@ function sentimentInsight(): VoiceAgentInsightDefinition {
       "Judge how the person on the other end of this call felt about the",
       "interaction overall, from their tone and their words.",
     ].join(" "),
-    jsonSchema: {
-      type: "object",
-      properties: {
-        sentiment: {
-          type: "string",
-          enum: ["positive", "neutral", "negative"],
-        },
+    jsonSchema: strictObjectSchema({
+      sentiment: {
+        type: "string",
+        enum: ["positive", "neutral", "negative"],
       },
-      required: ["sentiment"],
-    },
+    }),
   };
 }
 
@@ -126,11 +143,7 @@ function extractionInsight(
       "Return null for any field the conversation does not actually establish —",
       "never guess, never infer a value from a similar-sounding statement.",
     ].join(" "),
-    jsonSchema: {
-      type: "object",
-      properties,
-      required: [],
-    },
+    jsonSchema: strictObjectSchema(properties),
   };
 }
 
