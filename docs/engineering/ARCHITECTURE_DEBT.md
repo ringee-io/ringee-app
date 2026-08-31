@@ -115,10 +115,12 @@ executes actions that send email, push notifications and create tasks —
 unauthenticated behind a `@Public()` controller.
 `TRIGGERLOOP_WEBHOOK_SECRET` existed in configuration and was never read.
 
-The constant-time secret comparison is restored and now fails closed: a missing
-header, or an unconfigured secret, rejects the request.
-**`TRIGGERLOOP_WEBHOOK_SECRET` must be set wherever TriggerLoop is enabled**, or
-that endpoint returns 401 — it is documented in `.env.example`.
+The constant-time comparison is restored and now fails closed: a missing
+header, or an unconfigured key, rejects the request. The credential has since
+been folded into `TRIGGERLOOP_API_KEY` (header `x-triggerloop-api-key`) — the
+same key this backend uses to call TriggerLoop — so the two sides cannot drift.
+**`TRIGGERLOOP_API_KEY` must be set wherever TriggerLoop is enabled**, or that
+endpoint returns 401 — it is documented in `.env.example`.
 
 ### DEBT-001 — No inbound provider-event normalization · Critical · Fixed
 
