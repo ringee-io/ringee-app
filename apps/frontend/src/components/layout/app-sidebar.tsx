@@ -48,6 +48,7 @@ import {
   IconTopologyStar3
 } from '@tabler/icons-react';
 import { useIsSuperAdmin } from '@/features/backoffice/lib/use-is-super-admin';
+import { useHasVoiceAgentAccess } from '@/features/ai-voice-agents/lib/use-voice-agent-access';
 
 import { SignOutButton } from '@clerk/nextjs';
 import Link from 'next/link';
@@ -66,6 +67,13 @@ const ORG_ONLY_GROUPS = [''];
 
 /** Direct support contact shown at the bottom of the sidebar. */
 const SUPPORT_EMAIL = 'edison@getringee.com';
+
+/**
+ * Entry withheld while AI Voice Agents runs as a closed production beta.
+ * Outside the beta the item stays visible but disabled — the allowlist itself
+ * lives on the API (`VoiceAgentBetaGuard`), never here.
+ */
+const VOICE_AGENTS_URL = '/dashboard/ai-voice-agents';
 
 /** Maps the English labels in the shared `navGroups` constant to translation keys. */
 const GROUP_LABEL_KEYS: Record<string, string> = {
@@ -220,6 +228,11 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
   const resolvedSuperAdmin = useIsSuperAdmin(!useMock);
   const isSuperAdmin = useMock ? true : resolvedSuperAdmin;
 
+  // Same shape as the backoffice gate: the API owns the allowlist, and the
+  // marketing preview keeps rendering the entry as it always did.
+  const resolvedVoiceAgentAccess = useHasVoiceAgentAccess(!useMock);
+  const hasVoiceAgentAccess = useMock ? true : resolvedVoiceAgentAccess;
+
   const { canAccessAdminFeatures } = useMock
     ? { canAccessAdminFeatures: true }
     : useOrgRole();
@@ -299,6 +312,42 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                     const Icon = item.icon ? Icons[item.icon] : Icons.logo;
                     const itemKey = ITEM_TITLE_KEYS[item.title];
                     const itemTitle = itemKey ? tNav(itemKey) : item.title;
+
+                    // Closed production beta: the entry stays visible so
+                    // the module is discoverable, but only the API's allowlist
+                    // can open it. The route gate blocks the URL as well.
+                    if (item.url === VOICE_AGENTS_URL && !hasVoiceAgentAccess) {
+                      return (
+                        <SidebarMenuItem key={item.title}>
+                          <Tooltip>
+                            {/* span wrapper needed — disabled button swallows pointer events */}
+                            <TooltipTrigger asChild>
+                              <span className='block w-full'>
+                                <SidebarMenuButton
+                                  disabled
+                                  className='w-full cursor-default opacity-50'
+                                >
+                                  {/* @ts-ignore */}
+                                  <Icon />
+                                  <span>{itemTitle}</span>
+                                  <span className='bg-muted text-muted-foreground ml-auto rounded-full px-1.5 py-0.5 text-[9px] font-semibold tracking-wide uppercase'>
+                                    {tCommon('beta')}
+                                  </span>
+                                </SidebarMenuButton>
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side='right' className='max-w-52'>
+                              <p className='text-xs font-semibold'>
+                                {tNav('voiceAgentsTooltip.title')}
+                              </p>
+                              <p className='text-muted-foreground mt-0.5 text-[11px]'>
+                                {tNav('voiceAgentsTooltip.description')}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </SidebarMenuItem>
+                      );
+                    }
 
                     if (item.disabled) {
                       return (

@@ -249,6 +249,11 @@ const apiConfiguration = {
   AI_VOICE_AGENT_MAX_DOCUMENT_MB: Number(
     process.env.AI_VOICE_AGENT_MAX_DOCUMENT_MB ?? 20,
   ),
+  // Comma-separated email allowlist for the AI Voice Agents closed beta. When
+  // unset, the backend falls back to a committed default (see
+  // VoiceAgentBetaGuard). Set it to an empty string to lift the gate and hand
+  // the module back to every workspace.
+  AI_VOICE_AGENTS_BETA_EMAILS: process.env.AI_VOICE_AGENTS_BETA_EMAILS,
   // AI Pipeline — Follow-up Intelligence batch enrichment. Context activation
   // is already explicit, so AI runs unless it is deliberately disabled.
   AI_FOLLOWUP_AI_ENABLED: process.env.AI_FOLLOWUP_AI_ENABLED !== "false",

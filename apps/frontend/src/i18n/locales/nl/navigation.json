@@ -49,6 +49,10 @@
     "title": "Inbox — binnenkort beschikbaar",
     "description": "Beheer al je inkomende berichten, gemiste gesprekken en voicemails op één plek."
   },
+  "voiceAgentsTooltip": {
+    "title": "AI Voice Agents — besloten bèta",
+    "description": "De module wordt in productie getest. Vraag het Ringee-team om je aan de bèta toe te voegen."
+  },
   "kbar": {
     "navigation": "Navigatie",
     "goTo": "Ga naar {page}"

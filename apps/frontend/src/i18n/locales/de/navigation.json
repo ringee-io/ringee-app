@@ -49,6 +49,10 @@
     "title": "Posteingang — demnächst verfügbar",
     "description": "Verwalten Sie eingehende Nachrichten, verpasste Anrufe und Voicemails an einem Ort."
   },
+  "voiceAgentsTooltip": {
+    "title": "AI Voice Agents — private Beta",
+    "description": "Das Modul wird in der Produktion getestet. Bitten Sie das Ringee-Team, Sie zur Beta hinzuzufügen."
+  },
   "kbar": {
     "navigation": "Navigation",
     "goTo": "Gehe zu {page}"

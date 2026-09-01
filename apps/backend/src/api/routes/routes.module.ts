@@ -60,6 +60,7 @@ import { AiPipelineController } from "./ai-pipeline.controller";
 import { AiVoiceAgentController } from "./ai-voice-agent.controller";
 import { AiVoiceAgentWebhookController } from "./ai-voice-agent-webhook.controller";
 import { AiVoiceAgentToolController } from "./ai-voice-agent-tool.controller";
+import { AiVoiceAgentAccessController } from "./ai-voice-agent-access.controller";
 import { ObjectionInsightController } from "./objection-insight.controller";
 import { PendingActionController } from "./pending-action.controller";
 import { ExtensionController } from "./extension.controller";
@@ -129,6 +130,7 @@ import { UserAccessEnforcementService } from "./user-access-enforcement.service"
     AiVoiceAgentController,
     AiVoiceAgentWebhookController,
     AiVoiceAgentToolController,
+    AiVoiceAgentAccessController,
     ObjectionInsightController,
     PendingActionController,
     ExtensionController,

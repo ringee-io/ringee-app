@@ -49,6 +49,10 @@
     "title": "Boîte de réception — bientôt disponible",
     "description": "Gérez tous vos messages entrants, appels manqués et messages vocaux dans une seule boîte unifiée."
   },
+  "voiceAgentsTooltip": {
+    "title": "AI Voice Agents — bêta privée",
+    "description": "Le module est en cours de test en production. Demandez à l'équipe Ringee de vous ajouter à la bêta."
+  },
   "kbar": {
     "navigation": "Navigation",
     "goTo": "Aller à {page}"

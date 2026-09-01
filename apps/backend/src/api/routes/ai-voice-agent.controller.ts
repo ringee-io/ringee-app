@@ -10,6 +10,7 @@ import {
   Post,
   Query,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
@@ -40,6 +41,7 @@ import {
   VoiceAgentTestSessionService,
 } from "@ringee/services";
 import { AiVoiceAgentType } from "@ringee/database";
+import { VoiceAgentBetaGuard } from "../guards/voice-agent-beta.guard";
 
 /**
  * AI Voice Agents.
@@ -47,7 +49,12 @@ import { AiVoiceAgentType } from "@ringee/database";
  * Thin by design: authenticate, build the ownership context, delegate. Every
  * rule about what an agent is and when it may call lives in `@ringee/services`,
  * because the same rules have to hold for the API, the CLI and the MCP tools.
+ *
+ * The whole controller sits behind `VoiceAgentBetaGuard` while the module is in
+ * a closed production beta. The provider-facing webhook and tool controllers
+ * are separate and stay open, so a call already in flight is unaffected.
  */
+@UseGuards(VoiceAgentBetaGuard)
 @Controller("ai-voice-agents")
 export class AiVoiceAgentController {
   constructor(

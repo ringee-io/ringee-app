@@ -49,6 +49,10 @@
     "title": "Caixa de entrada — em breve",
     "description": "Gerencie todas as suas mensagens, chamadas perdidas e correios de voz numa só caixa."
   },
+  "voiceAgentsTooltip": {
+    "title": "AI Voice Agents — beta privada",
+    "description": "O módulo está sendo testado em produção. Peça à equipe Ringee para adicionar você à beta."
+  },
   "kbar": {
     "navigation": "Navegação",
     "goTo": "Ir para {page}"
