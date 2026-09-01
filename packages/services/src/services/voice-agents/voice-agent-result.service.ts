@@ -234,12 +234,22 @@ export class VoiceAgentResultService {
     if (input.callControlId) {
       const call = await this.callRepository.findById(agentCall.callId);
       if (call && !call.callControlId) {
+        // Bind the leg on whichever callback first carries the identifiers,
+        // but only move `Call.status` when the leg actually connected. The
+        // first callback to carry a control id is often `initiated` or
+        // `ringing` — and for a leg that never connects it is `busy` or
+        // `failed`. Calling any of those "answered" both misreports the call
+        // and, if the terminal callback never arrives, leaves it parked in a
+        // connected state it never reached. Leaving the status alone lets
+        // `completeCall` settle it, where an absent `answeredAt` is what
+        // auto-dispositions the call as no-answer.
+        const connected = status === AiVoiceAgentCallStatus.in_progress;
         await this.callRepository.attachTelephony(call.id, {
           callControlId: input.callControlId,
           callSessionId: input.callSessionId,
           callLegId: input.callLegId,
           answeredAt: input.answeredAt,
-          status: CallStatus.answered,
+          ...(connected ? { status: CallStatus.answered } : {}),
         });
       }
     }

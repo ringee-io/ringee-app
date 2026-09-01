@@ -66,15 +66,30 @@ export class VoiceAgentTestSessionService {
     // values become the assistant's defaults for the length of the session and
     // are put back when it closes.
     const defaults = await this.agents.resolveDefaultVariables(ctx, agent);
-    await this.provider.configureTestAccess(agent.providerAssistantId, {
-      enabled: true,
-      dynamicVariables: { ...defaults, ...this.clean(variables) },
-    });
+
+    // The record goes in before the agent is opened, never after. The sweep
+    // closes what this hash says is open, so an agent opened to anonymous web
+    // calls with no entry yet written is an agent nothing will ever close —
+    // and the failure that leaves it that way (Redis unreachable) is exactly
+    // the one that also stops the sweep from noticing. Enabling second means
+    // the worst case is a recorded session that was never opened, which the
+    // sweep closes harmlessly.
     await this.redis.hashSet<OpenTestSession>(OPEN_SESSIONS_KEY, agent.id, {
       agentId: agent.id,
       assistantId: agent.providerAssistantId,
       expiresAt,
     });
+    try {
+      await this.provider.configureTestAccess(agent.providerAssistantId, {
+        enabled: true,
+        dynamicVariables: { ...defaults, ...this.clean(variables) },
+      });
+    } catch (error) {
+      await this.redis
+        .hashDelete(OPEN_SESSIONS_KEY, agent.id)
+        .catch(() => undefined);
+      throw error;
+    }
 
     this.logger.log(
       `🎧 Test session opened for agent ${agent.id} until ${expiresAt}`,

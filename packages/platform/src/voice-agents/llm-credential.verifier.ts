@@ -8,6 +8,16 @@ export interface LlmCredentialCheck {
 }
 
 /**
+ * How long to wait on the provider before giving up.
+ *
+ * The verify call sits in front of a user staring at a form, so a provider that
+ * accepts the connection and then stalls must not hold the request open: the
+ * deadline turns that into the ordinary "could not reach the provider" answer
+ * below instead of a hung save.
+ */
+const PROBE_TIMEOUT_MS = 8_000;
+
+/**
  * Checks a bring-your-own-key credential before Ringee hands it to the voice
  * provider, so a typo surfaces while the user is looking at the form instead
  * of as a failed call later.
@@ -62,10 +72,12 @@ export class LlmCredentialVerifier {
     switch (provider) {
       case "openai":
         return fetch("https://api.openai.com/v1/models", {
+          signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
           headers: { Authorization: `Bearer ${apiKey}` },
         });
       case "anthropic":
         return fetch("https://api.anthropic.com/v1/models", {
+          signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
           headers: {
             "x-api-key": apiKey,
             "anthropic-version": "2023-06-01",
@@ -74,7 +86,10 @@ export class LlmCredentialVerifier {
       case "google":
         return fetch(
           "https://generativelanguage.googleapis.com/v1beta/models",
-          { headers: { "x-goog-api-key": apiKey } },
+          {
+            signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+            headers: { "x-goog-api-key": apiKey },
+          },
         );
     }
   }

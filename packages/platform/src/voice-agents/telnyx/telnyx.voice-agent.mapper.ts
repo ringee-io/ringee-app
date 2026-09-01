@@ -20,6 +20,14 @@ export interface TelnyxAssistantResponse {
   telephony_settings?: {
     default_texml_app_id?: string | null;
     supports_unauthenticated_web_calls?: boolean | null;
+    // Read back so a change to the web-call flag alone can be re-sent with the
+    // rest of the block intact — Telnyx replaces `telephony_settings` whole.
+    time_limit_secs?: number | null;
+    recording_settings?: {
+      enabled?: boolean;
+      channels?: string;
+      format?: string;
+    } | null;
   } | null;
 }
 

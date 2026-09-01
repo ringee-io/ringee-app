@@ -12,6 +12,7 @@ const AGENT_CALL = {
   providerConversationId: "conv-1",
   providerCallControlId: "cc-1",
   costSettledAt: null,
+  aiCostDebitedAt: null,
   aiCostUsd: null,
   aiChargedCredits: null,
 };
@@ -35,6 +36,9 @@ function repository(row: Record<string, unknown> = AGENT_CALL) {
       state.aiChargedCredits = chargedCredits;
       claims.push({ cost: costUsd, charged: chargedCredits });
       return true;
+    },
+    markAiCostDebited: async () => {
+      state.aiCostDebitedAt = new Date();
     },
     listUnsettled: async () => [],
   };
@@ -182,6 +186,60 @@ describe("VoiceAgentBillingService", () => {
     assert.equal(debitCount, 0);
     // Settled, so the sweep stops chasing it.
     assert.ok(repo.state.costSettledAt);
+  });
+
+  it("finishes a debit that was claimed but never taken", async () => {
+    // What a crash between the claim and the debit leaves behind: priced, and
+    // marked settled, with no credits ever taken.
+    const debits: number[] = [];
+    const repo = repository({
+      ...AGENT_CALL,
+      costSettledAt: new Date(),
+      aiCostDebitedAt: null,
+      aiCostUsd: 0.05,
+      aiChargedCredits: 0.1,
+    });
+    const service = new VoiceAgentBillingService(
+      repo as never,
+      provider([{ costUsd: 0.05 }]) as never,
+      {
+        consumeCredits: async (_ctx: object, amount: number) => {
+          debits.push(amount);
+          return {};
+        },
+      } as never,
+    );
+
+    const settlement = await service.settle("call-1");
+
+    assert.equal(settlement.settled, true);
+    // The price was fixed when the claim was written, not recomputed here.
+    assert.deepEqual(debits, [0.1]);
+    assert.equal(repo.claims.length, 0);
+    assert.ok(repo.state.aiCostDebitedAt);
+
+    // And once debited it stays done.
+    await service.settle("call-1");
+    assert.deepEqual(debits, [0.1]);
+  });
+
+  it("leaves a claimed-but-undebited call for the sweep to retry", async () => {
+    const repo = repository();
+    const service = new VoiceAgentBillingService(
+      repo as never,
+      provider([{ costUsd: 0.05 }]) as never,
+      {
+        consumeCredits: async () => {
+          throw new Error("ledger unavailable");
+        },
+      } as never,
+    );
+
+    await assert.rejects(() => service.settle("call-1"), /ledger unavailable/);
+    // Claimed, but never debited — which is exactly what makes the sweep pick
+    // it up again rather than writing the call off.
+    assert.ok(repo.state.costSettledAt);
+    assert.equal(repo.state.aiCostDebitedAt, null);
   });
 
   it("keeps the settlement claim when the debit itself fails", async () => {

@@ -135,6 +135,30 @@ export class VoiceAgentToolService {
       throw new UnauthorizedException("Call does not belong to this agent");
     }
 
+    // One appointment per conversation. The agent can call this tool twice —
+    // it re-asks after a garbled reply, and the provider retries a timed-out
+    // tool call — and without this each attempt creates a second meeting on
+    // the user's calendar. The link recorded on the call is the marker, so a
+    // repeat returns the booking that already exists.
+    if (agentCall?.meetingId) {
+      const booked = await this.meetings.getMeetingById(
+        ctx,
+        agentCall.meetingId,
+      );
+      const bookedStart = new Date(booked.scheduledAt);
+      return {
+        ok: true,
+        appointment: {
+          id: booked.id,
+          start: bookedStart.toISOString(),
+          end: new Date(
+            bookedStart.getTime() + booked.duration * 60_000,
+          ).toISOString(),
+          ...(booked.location ? { link: booked.location } : {}),
+        },
+      };
+    }
+
     const contactId = await this.resolveContactId(ctx, agentCall);
     if (!contactId) {
       return {
@@ -161,6 +185,7 @@ export class VoiceAgentToolService {
       if (agentCall) {
         // Recorded before the analysis runs: the tool knows a meeting exists,
         // and that fact must survive whatever the transcript analysis concludes.
+        // It is also what the duplicate guard above reads on a retry.
         await this.agentCalls.update(agentCall.id, {
           meetingId: meeting.id,
           outcome: AiVoiceAgentOutcome.appointment_booked,

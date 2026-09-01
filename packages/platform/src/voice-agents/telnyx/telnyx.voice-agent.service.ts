@@ -20,6 +20,10 @@ import {
   type TelnyxAssistantResponse,
 } from "./telnyx.voice-agent.mapper";
 
+/** Page size and ceiling for walking the provider's integration-secret list. */
+const SECRET_PAGE_SIZE = 100;
+const MAX_SECRET_PAGES = 50;
+
 /**
  * The Telnyx implementation of the voice-agent contract, and the only place
  * these Telnyx routes are called. Every method returns Ringee-shaped values.
@@ -64,16 +68,8 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
   }
 
   async getAssistant(assistantId: string): Promise<VoiceAgentAssistant | null> {
-    try {
-      const raw = await this.telnyxClient.get<
-        TelnyxAssistantResponse | { data: TelnyxAssistantResponse }
-      >(`/ai/assistants/${assistantId}`);
-      const body = "data" in raw ? raw.data : raw;
-      return body?.id ? toVoiceAgentAssistant(body) : null;
-    } catch (error) {
-      if (this.isNotFound(error)) return null;
-      throw error;
-    }
+    const raw = await this.readAssistant(assistantId);
+    return raw ? toVoiceAgentAssistant(raw) : null;
   }
 
   async deleteAssistant(assistantId: string): Promise<void> {
@@ -92,8 +88,22 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
       dynamicVariables?: Record<string, string>;
     },
   ): Promise<void> {
+    // Telnyx replaces `telephony_settings` wholesale, so sending only the
+    // web-call flag drops the rest of the block — the per-call time limit and
+    // the recording settings among them. An agent opened for a browser test
+    // would come back with no time limit and recording off, and stay that way
+    // until the next full save. Carry the current values through.
+    const current = await this.readAssistant(assistantId);
+    const telephony = current?.telephony_settings ?? {};
+
     await this.telnyxClient.post(`/ai/assistants/${assistantId}`, {
       telephony_settings: {
+        ...(telephony.time_limit_secs != null
+          ? { time_limit_secs: telephony.time_limit_secs }
+          : {}),
+        ...(telephony.recording_settings
+          ? { recording_settings: telephony.recording_settings }
+          : {}),
         supports_unauthenticated_web_calls: options.enabled,
       },
       ...(options.dynamicVariables
@@ -107,8 +117,26 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
    * not silently close (or re-open) a running test session.
    */
   private async readWebCallFlag(assistantId: string): Promise<boolean> {
-    const current = await this.getAssistant(assistantId);
-    return current?.unauthenticatedWebCallsEnabled ?? false;
+    const current = await this.readAssistant(assistantId);
+    return (
+      current?.telephony_settings?.supports_unauthenticated_web_calls ?? false
+    );
+  }
+
+  /** The provider's own assistant body, for the fields the domain type drops. */
+  private async readAssistant(
+    assistantId: string,
+  ): Promise<TelnyxAssistantResponse | null> {
+    try {
+      const raw = await this.telnyxClient.get<
+        TelnyxAssistantResponse | { data: TelnyxAssistantResponse }
+      >(`/ai/assistants/${assistantId}`);
+      const body = "data" in raw ? raw.data : raw;
+      return body?.id ? body : null;
+    } catch (error) {
+      if (this.isNotFound(error)) return null;
+      throw error;
+    }
   }
 
   // ── Calls ────────────────────────────────────────────────────
@@ -244,17 +272,45 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
 
   async deleteSecret(identifier: string): Promise<void> {
     // The delete route takes the secret's own id, so the identifier Ringee
-    // stored has to be resolved first.
-    const list = await this.telnyxClient.get<{
-      data?: Array<{ id: string; identifier: string }>;
-    }>("/integration_secrets");
-    const match = list?.data?.find((row) => row.identifier === identifier);
-    if (!match) return;
+    // stored has to be resolved first — and the list is paginated. Reading
+    // only the first page means that, past one page of secrets, every delete
+    // silently finds nothing and a customer's revoked API key stays stored at
+    // the provider forever. Walk the pages until it is found.
+    const match = await this.findSecret(identifier);
+    if (!match) {
+      this.logger.warn(
+        `No stored secret matched ${identifier} — nothing to delete`,
+      );
+      return;
+    }
     try {
       await this.telnyxClient.delete(`/integration_secrets/${match.id}`);
     } catch (error) {
       if (!this.isNotFound(error)) throw error;
     }
+  }
+
+  private async findSecret(
+    identifier: string,
+  ): Promise<{ id: string; identifier: string } | null> {
+    for (let page = 1; page <= MAX_SECRET_PAGES; page++) {
+      const params = new URLSearchParams();
+      params.set("page[number]", String(page));
+      params.set("page[size]", String(SECRET_PAGE_SIZE));
+
+      const list = await this.telnyxClient.get<{
+        data?: Array<{ id: string; identifier: string }>;
+        meta?: { total_pages?: number };
+      }>(`/integration_secrets?${params.toString()}`);
+
+      const rows = list?.data ?? [];
+      const match = rows.find((row) => row.identifier === identifier);
+      if (match) return match;
+
+      const totalPages = list?.meta?.total_pages ?? 1;
+      if (page >= totalPages || rows.length === 0) break;
+    }
+    return null;
   }
 
   // ── Voices ───────────────────────────────────────────────────

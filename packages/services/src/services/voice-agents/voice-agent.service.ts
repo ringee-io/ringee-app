@@ -549,23 +549,42 @@ export class VoiceAgentService {
         );
       }
 
-      const insightGroupId =
-        agent.providerInsightGroupId ??
-        (await this.provider.createInsightGroup(`Ringee agent ${agent.id}`));
+      // Provider-side identifiers are written the moment they exist, not once
+      // at the end. Everything below here can fail, and the catch only records
+      // the error — so an id held in a local until then is an insight group or
+      // an insight left running on the provider that nothing owns: the next
+      // save creates a second set, and `delete` cannot clean up what the row
+      // never learned about.
+      let insightGroupId = agent.providerInsightGroupId;
+      if (!insightGroupId) {
+        insightGroupId = await this.provider.createInsightGroup(
+          `Ringee agent ${agent.id}`,
+        );
+        await this.agents.update(agent.id, {
+          providerInsightGroupId: insightGroupId,
+        });
+      }
 
       const insightIds = await this.syncInsights(agent, insightGroupId);
+      const analysisAfterSync = {
+        ...this.readAnalysis(agent),
+        insightIds,
+      } as object;
+      await this.agents.update(agent.id, {
+        analysisSettings: analysisAfterSync,
+      });
+
       const config = await this.composeConfig(ctx, agent, insightGroupId);
 
       const assistant = agent.providerAssistantId
         ? await this.provider.updateAssistant(agent.providerAssistantId, config)
         : await this.provider.createAssistant(config);
 
-      const analysis = this.readAnalysis(agent);
       return await this.agents.update(agent.id, {
         providerAssistantId: assistant.assistantId,
         providerTexmlAppId: assistant.callingAppId,
         providerInsightGroupId: insightGroupId,
-        analysisSettings: { ...analysis, insightIds } as object,
+        analysisSettings: analysisAfterSync,
         status: this.nextStatus(agent, blueprint.requiresCalendar),
         lastError: null,
       });

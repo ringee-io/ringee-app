@@ -28,10 +28,12 @@ function build(
     agentCall?: Record<string, unknown> | null;
     meeting?: Record<string, unknown>;
     meetingError?: Error;
+    bookedMeeting?: Record<string, unknown>;
   } = {},
 ) {
   const updates: Array<Record<string, unknown>> = [];
   const created: Array<Record<string, unknown>> = [];
+  const lookups: string[] = [];
 
   const service = new VoiceAgentToolService(
     {
@@ -68,11 +70,22 @@ function build(
           over.meeting ?? { id: "meeting-1", location: "https://meet.test/x" }
         );
       },
+      getMeetingById: async (_ctx: unknown, id: string) => {
+        lookups.push(id);
+        return (
+          over.bookedMeeting ?? {
+            id: "meeting-1",
+            scheduledAt: new Date(FUTURE),
+            duration: 30,
+            location: "https://meet.test/x",
+          }
+        );
+      },
     } as never,
     { findOrCreateByPhone: async () => ({ id: "contact-2" }) } as never,
   );
 
-  return { service, updates, created };
+  return { service, updates, created, lookups };
 }
 
 const FUTURE = new Date(Date.now() + 3 * 24 * 3600_000).toISOString();
@@ -177,6 +190,36 @@ describe("VoiceAgentToolService booking", () => {
     assert.deepEqual(updates, [
       { meetingId: "meeting-1", outcome: "appointment_booked" },
     ]);
+  });
+
+  it("returns the existing appointment instead of booking a second one", async () => {
+    // The agent re-asks after a garbled reply, and the provider retries a
+    // tool call it thinks timed out. Neither may put a second meeting on the
+    // user's calendar.
+    const { service, updates, created, lookups } = build({
+      agentCall: {
+        id: "call-1",
+        agentId: "agent-1",
+        contactId: "contact-1",
+        callId: "c-1",
+        toNumber: "+13055550123",
+        meetingId: "meeting-1",
+      },
+    });
+
+    const result = await service.bookAppointment("agent-1", SECRET, "cc-1", {
+      start: FUTURE,
+    });
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.appointment.id, "meeting-1");
+    assert.equal(result.appointment.start, FUTURE);
+    assert.equal(result.appointment.link, "https://meet.test/x");
+    // Nothing new was created, and nothing was re-recorded on the call.
+    assert.deepEqual(created, []);
+    assert.deepEqual(updates, []);
+    assert.deepEqual(lookups, ["meeting-1"]);
   });
 
   it("refuses a time in the past", async () => {

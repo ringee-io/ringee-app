@@ -120,13 +120,28 @@ export class AiVoiceAgentCallRepository {
     return res.count === 1;
   }
 
-  /** Rows whose AI cost has not settled yet, for the reconciliation sweep. */
+  /** Records that the debit for a claimed settlement actually went through. */
+  async markAiCostDebited(id: string): Promise<void> {
+    await this.prisma.aiVoiceAgentCall.update({
+      where: { id },
+      data: { aiCostDebitedAt: new Date() },
+    });
+  }
+
+  /**
+   * Rows the reconciliation sweep still owes work on.
+   *
+   * Two kinds, not one: a call that has not been priced yet, and a call whose
+   * settlement was claimed but whose debit never completed — a crash between
+   * the two leaves `costSettledAt` set with no credits taken, and filtering on
+   * `costSettledAt: null` alone would drop that call for good.
+   */
   listUnsettled(olderThan: Date, take = 50): Promise<AiVoiceAgentCall[]> {
     return this.prisma.aiVoiceAgentCall.findMany({
       where: {
-        costSettledAt: null,
         providerConversationId: { not: null },
         updatedAt: { lt: olderThan },
+        OR: [{ costSettledAt: null }, { aiCostDebitedAt: null }],
       },
       orderBy: { updatedAt: "asc" },
       take,

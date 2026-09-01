@@ -294,6 +294,14 @@ minutes after the call ends. So it settles on its own:
 - Price is the provider's **own reported cost** × `AI_VOICE_AGENT_PROFIT_MARGIN`.
 - Debited once under `ai-voice-agent-cost:<callId>`, with
   `AiVoiceAgentCall.costSettledAt` claimed before the debit as the replay guard.
+- **Claimed is not debited.** The claim and the debit are two writes with no
+  transaction around them, so `costSettledAt` (priced, and owned by this worker)
+  is tracked apart from `aiCostDebitedAt` (credits actually taken). A call
+  interrupted between the two is claimed but undebited, and the reconciler
+  looks for exactly that — `costSettledAt` alone as the sweep filter made such a
+  call invisible forever, and the revenue was silently written off. The retry
+  reuses the same `ai-voice-agent-cost:<callId>` key, so finishing a debit that
+  did land is a no-op rather than a second charge.
 - **An empty usage response means "not published yet", never "free".** Settling
   at zero on an empty answer silently gives the call away, so the reconciler
   retries on a schedule instead.

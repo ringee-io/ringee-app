@@ -113,15 +113,19 @@ export const navGroups: NavGroup[] = [
   {
     label: "Intelligence",
     items: [
-      {
-        title: "AI Pipeline",
-        url: "/dashboard/ai-pipeline",
-        icon: "sparkles",
-        shortcut: ["a", "p"],
-        adminOnly: true,
-        isActive: false,
-        items: [],
-      },
+      // "AI Pipeline" (/dashboard/ai-pipeline) and "AI Agents" (/dashboard/ai)
+      // are hidden from the sidebar. Both routes still exist and still work for
+      // anyone who has the URL — only the navigation entries are withdrawn, so
+      // restoring them is a matter of uncommenting.
+      // {
+      //   title: "AI Pipeline",
+      //   url: "/dashboard/ai-pipeline",
+      //   icon: "sparkles",
+      //   shortcut: ["a", "p"],
+      //   adminOnly: true,
+      //   isActive: false,
+      //   items: [],
+      // },
       {
         title: "AI Voice Agents",
         url: "/dashboard/ai-voice-agents",
@@ -130,14 +134,14 @@ export const navGroups: NavGroup[] = [
         isActive: false,
         items: [],
       },
-      {
-        title: "AI Agents",
-        url: "/dashboard/ai",
-        icon: "activity",
-        shortcut: ["a", "i"],
-        isActive: false,
-        items: [],
-      },
+      // {
+      //   title: "AI Agents",
+      //   url: "/dashboard/ai",
+      //   icon: "activity",
+      //   shortcut: ["a", "i"],
+      //   isActive: false,
+      //   items: [],
+      // },
     ],
   },
   {

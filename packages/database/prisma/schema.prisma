@@ -4131,8 +4131,14 @@ model AiVoiceAgentCall {
   /// Provider-reported AI cost in USD, and what Ringee charged for it.
   aiCostUsd        Float?
   aiChargedCredits Float?
-  /// Idempotency marker for the AI-usage debit (BILL-003/BILL-004).
+  /// Idempotency marker for the AI-usage debit (BILL-003/BILL-004): claimed
+  /// before the debit so a concurrent retry cannot double-charge.
   costSettledAt    DateTime?
+  /// Set only once the debit itself succeeded. Separate from `costSettledAt`
+  /// because a crash between the claim and the debit would otherwise leave the
+  /// call looking settled while no credits were ever taken — the reconciler
+  /// reads this to find claimed-but-undebited calls and retry them.
+  aiCostDebitedAt  DateTime?
 
   lastError String? @db.Text
 

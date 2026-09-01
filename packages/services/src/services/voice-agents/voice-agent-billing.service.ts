@@ -45,6 +45,10 @@ export class VoiceAgentBillingService {
    * is claimed before the debit, so a retry that arrives after a successful
    * settlement does nothing.
    *
+   * The claim and the debit are two writes with no transaction around them, so
+   * "claimed" is tracked apart from "debited". A call interrupted between the
+   * two comes back here and finishes the debit rather than being written off.
+   *
    * Returns `settled: false` when the provider has not published its records
    * yet — that is a "try again later", never a zero charge.
    */
@@ -54,11 +58,14 @@ export class VoiceAgentBillingService {
       return this.notSettled("The agent call no longer exists.");
     }
     if (agentCall.costSettledAt) {
-      return {
-        settled: true,
-        providerCostUsd: agentCall.aiCostUsd ?? 0,
-        chargedCredits: agentCall.aiChargedCredits ?? 0,
-      };
+      // Priced already. Finish the debit if it never landed — the price was
+      // fixed when the claim was written, so it is not recomputed here.
+      const providerCostUsd = agentCall.aiCostUsd ?? 0;
+      const chargedCredits = agentCall.aiChargedCredits ?? 0;
+      if (!agentCall.aiCostDebitedAt) {
+        await this.debit(agentCall, chargedCredits);
+      }
+      return { settled: true, providerCostUsd, chargedCredits };
     }
     if (!agentCall.providerConversationId && !agentCall.providerCallControlId) {
       return this.notSettled("The call has no provider handle yet.");
@@ -91,7 +98,9 @@ export class VoiceAgentBillingService {
     if (chargedCredits <= 0) {
       // A real conversation that cost nothing is possible for a call that never
       // connected. Mark it settled so the reconciler stops chasing it.
-      await this.agentCalls.settleAiCostOnce(agentCall.id, 0, 0);
+      if (await this.agentCalls.settleAiCostOnce(agentCall.id, 0, 0)) {
+        await this.agentCalls.markAiCostDebited(agentCall.id);
+      }
       return { settled: true, providerCostUsd: 0, chargedCredits: 0 };
     }
 
@@ -106,21 +115,7 @@ export class VoiceAgentBillingService {
       return this.notSettled("Another worker settled this call first.");
     }
 
-    try {
-      await this.credits.consumeCredits(this.owner(agentCall), chargedCredits, {
-        idempotencyKey: `ai-voice-agent-cost:${agentCall.id}`,
-        source: "ai.voice_agent.call",
-      });
-    } catch (error) {
-      // The claim stands: the ledger key is idempotent, so a later retry of the
-      // debit is safe, and releasing the claim here would risk a double charge.
-      this.logger.error(
-        `Agent call ${agentCall.id} was settled but the debit failed: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-      throw error;
-    }
+    await this.debit(agentCall, chargedCredits);
 
     this.logger.log(
       `💳 Agent call ${agentCall.id} settled: provider $${providerCostUsd}, charged ${chargedCredits}`,
@@ -160,6 +155,41 @@ export class VoiceAgentBillingService {
   listPending(olderThanMinutes = 5, take = 50): Promise<AiVoiceAgentCall[]> {
     const cutoff = new Date(Date.now() - olderThanMinutes * 60_000);
     return this.agentCalls.listUnsettled(cutoff, take);
+  }
+
+  /**
+   * Takes the credits for a claim that has already been written, then records
+   * that it happened.
+   *
+   * The claim is never released on failure: the ledger key makes the debit
+   * itself idempotent, so retrying is safe while un-claiming would open the
+   * door to charging twice. What makes the retry actually arrive is
+   * `aiCostDebitedAt` staying null — the sweep looks for exactly that.
+   */
+  private async debit(
+    agentCall: AiVoiceAgentCall,
+    chargedCredits: number,
+  ): Promise<void> {
+    try {
+      if (chargedCredits > 0) {
+        await this.credits.consumeCredits(
+          this.owner(agentCall),
+          chargedCredits,
+          {
+            idempotencyKey: `ai-voice-agent-cost:${agentCall.id}`,
+            source: "ai.voice_agent.call",
+          },
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        `Agent call ${agentCall.id} was settled but the debit failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      throw error;
+    }
+    await this.agentCalls.markAiCostDebited(agentCall.id);
   }
 
   private owner(agentCall: AiVoiceAgentCall): OwnershipContext {
