@@ -37,7 +37,10 @@ const RING_TIMEOUT_SECONDS = 45;
 export interface StartVoiceAgentCallInput {
   /** Destination in any dialable form; normalized to E.164 here. */
   to: string;
-  /** Which of the workspace's numbers to present. Defaults to the first usable one. */
+  /**
+   * Which of the workspace's numbers to present. Overrides the agent's own
+   * assignment; see `resolveCallerId` for the full order.
+   */
   fromNumberId?: string;
   /** Values for the agent type's dynamic variables (§11). */
   variables?: Record<string, string>;
@@ -88,7 +91,7 @@ export class VoiceAgentCallService {
 
     await this.assertCallingAllowed(ctx, to);
 
-    const from = await this.resolveCallerId(ctx, input.fromNumberId);
+    const from = await this.resolveCallerId(ctx, agent, input.fromNumberId);
     const contact = await this.contacts
       .findOrCreateByPhone(ctx, to)
       .catch((error: unknown) => {
@@ -246,12 +249,19 @@ export class VoiceAgentCallService {
   }
 
   /**
-   * Picks the number to present. An explicitly requested one is validated
-   * against the workspace's own outbound-capable list — a client-supplied id is
-   * never trusted as authorization to use a number.
+   * Picks the number to present, in one order for every trigger surface:
+   * the number chosen for this call, then the one assigned to the agent, then —
+   * only when the workspace has exactly one — that number.
+   *
+   * Beyond that the call is refused rather than guessed. A workspace runs
+   * agents for several brands or countries, and the number a stranger sees is
+   * not something to decide by list order. Whichever id the caller supplies is
+   * validated against the workspace's own outbound-capable list: an id from a
+   * client is never trusted as authorization to use a number.
    */
   private async resolveCallerId(
     ctx: OwnershipContext,
+    agent: AiVoiceAgent,
     fromNumberId?: string,
   ): Promise<string> {
     const usable = await this.numbers.listOutboundCallerIds(ctx, {
@@ -264,15 +274,33 @@ export class VoiceAgentCallService {
       );
     }
 
-    if (!fromNumberId) return usable[0]!.phoneNumber;
-
-    const chosen = usable.find((number) => number.id === fromNumberId);
-    if (!chosen) {
-      throw new NotFoundException(
-        "That number is not available for AI agent calls.",
-      );
+    if (fromNumberId) {
+      const chosen = usable.find((number) => number.id === fromNumberId);
+      if (!chosen) {
+        throw new NotFoundException(
+          "That number is not available for AI agent calls.",
+        );
+      }
+      return chosen.phoneNumber;
     }
-    return chosen.phoneNumber;
+
+    if (agent.callerNumberId) {
+      const assigned = usable.find(
+        (number) => number.id === agent.callerNumberId,
+      );
+      if (!assigned) {
+        throw new BadRequestException(
+          "The number assigned to this agent is no longer available. Assign another one, or choose a number for this call.",
+        );
+      }
+      return assigned.phoneNumber;
+    }
+
+    if (usable.length === 1) return usable[0]!.phoneNumber;
+
+    throw new BadRequestException(
+      "This agent has no number assigned. Assign one to the agent, or choose which number to call from.",
+    );
   }
 
   /**

@@ -724,6 +724,26 @@ never changes what another agent says.
 
 - **Source of truth:** `CompanyProfileService.resolveForAgent`
 
+### AGENT-008 — The number an agent presents is chosen, never guessed
+
+An agent may be assigned a number of its own (`AiVoiceAgent.callerNumberId`).
+At dial time the caller ID resolves in one order, the same for every surface:
+the number named on the call, then the agent's own, then — only when the
+workspace has exactly one usable number — that number. With several usable
+numbers and no assignment the call is **refused**, because a workspace runs
+agents for several brands and countries, and the number a stranger sees is not
+something to settle by list order.
+
+Whichever id arrives is validated against
+`NumberPurchasedService.listOutboundCallerIds(ctx, { source: ai_voice_agent })`:
+an id from a client is never authorization to use a number, and an assignment
+whose number was since released fails loudly rather than falling back.
+Activating an agent re-checks the same thing, so an agent that could not
+possibly place a call does not go live.
+
+- **Source of truth:** `VoiceAgentCallService.resolveCallerId` (+ spec),
+  `VoiceAgentService.assertCallerNumberUsable` / `assertCallerNumberReady`
+
 ---
 
 ## Onboarding & lifecycle (`LIFE`)

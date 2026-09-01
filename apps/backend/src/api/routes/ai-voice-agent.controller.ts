@@ -81,6 +81,16 @@ export class AiVoiceAgentController {
     return this.agents.previewVoice(voiceId);
   }
 
+  /**
+   * The numbers this workspace may present on an AI agent call — what the agent
+   * form assigns from, and what the trigger dialog offers when an agent carries
+   * no assignment of its own.
+   */
+  @Get("phone-numbers")
+  listCallerNumbers(@CurrentUser() user: CurrentUserData) {
+    return this.agents.listCallerNumbers(createOwnershipContext(user));
+  }
+
   @Get("models")
   listModels() {
     // The whole catalogue entry: someone choosing between Ringee AI and their

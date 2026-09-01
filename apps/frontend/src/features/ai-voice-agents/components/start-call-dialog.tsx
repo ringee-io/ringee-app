@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { AlertTriangle, Loader2, PhoneOutgoing } from 'lucide-react';
@@ -21,18 +22,29 @@ import {
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { useVoiceAgentApi } from '../api';
 import { describeApiError } from '../lib/api-error';
-import type { VoiceAgentVariable } from '../types';
+import type { VoiceAgentCallerNumber, VoiceAgentVariable } from '../types';
+import { CallerNumberSelect } from './caller-number-select';
 import { Field, controlClass } from './fields/field';
 
 interface Props {
   agentId: string;
+  /**
+   * The number assigned to the agent, if it has one. It is preselected here,
+   * and an agent without one makes the choice part of triggering the call.
+   */
+  callerNumberId: string | null;
   /** The fields shown depend on the agent's type (§13). */
   variables: VoiceAgentVariable[];
   onStarted?: () => void;
 }
 
 /** Run the agent from Ringee Web (§13) — the same path the API uses. */
-export function StartCallDialog({ agentId, variables, onStarted }: Props) {
+export function StartCallDialog({
+  agentId,
+  callerNumberId,
+  variables,
+  onStarted
+}: Props) {
   const t = useTranslations('aiVoiceAgents.startCall');
   const api = useVoiceAgentApi();
   const [open, setOpen] = useState(false);
@@ -40,6 +52,37 @@ export function StartCallDialog({ agentId, variables, onStarted }: Props) {
   const [values, setValues] = useState<Record<string, string>>({});
   const [starting, setStarting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [numbers, setNumbers] = useState<VoiceAgentCallerNumber[]>([]);
+  const [fromNumberId, setFromNumberId] = useState('');
+
+  /**
+   * Which number this call goes out from. Loaded when the dialog opens rather
+   * than with the screen, because the workspace's numbers can change between
+   * one call and the next — and re-read every time so a number released in the
+   * meantime is not offered.
+   */
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    void api
+      .listCallerNumbers()
+      .then((list) => {
+        if (cancelled) return;
+        setNumbers(list);
+        const assigned = list.some((n) => n.id === callerNumberId)
+          ? callerNumberId!
+          : '';
+        // One number is not a choice; with several, an unassigned agent leaves
+        // it empty on purpose so the user has to say which one.
+        setFromNumberId(assigned || (list.length === 1 ? list[0]!.id : ''));
+      })
+      .catch(() => {
+        if (!cancelled) setNumbers([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, api, callerNumberId]);
 
   const missing = variables.filter((v) => v.required && !values[v.key]?.trim());
 
@@ -52,7 +95,11 @@ export function StartCallDialog({ agentId, variables, onStarted }: Props) {
 
     setStarting(true);
     try {
-      await api.startCall(agentId, { to: to.trim(), variables: values });
+      await api.startCall(agentId, {
+        to: to.trim(),
+        ...(fromNumberId ? { from_number_id: fromNumberId } : {}),
+        variables: values
+      });
       toast.success(t('calling'));
       setOpen(false);
       setTo('');
@@ -97,6 +144,38 @@ export function StartCallDialog({ agentId, variables, onStarted }: Props) {
             </Alert>
           ) : null}
 
+          {numbers.length === 0 ? (
+            <Alert className='rounded-lg'>
+              <AlertTriangle className='size-4' />
+              <AlertDescription className='flex flex-wrap items-center gap-2'>
+                {t('noNumber')}
+                <Button
+                  asChild
+                  variant='outline'
+                  size='sm'
+                  className='rounded-lg'
+                >
+                  <Link href='/dashboard/buy-number'>{t('getNumber')}</Link>
+                </Button>
+              </AlertDescription>
+            </Alert>
+          ) : (
+            <Field
+              label={t('from')}
+              htmlFor='call-from'
+              required
+              hint={callerNumberId ? t('fromAssignedHint') : t('fromHint')}
+            >
+              <CallerNumberSelect
+                id='call-from'
+                numbers={numbers}
+                value={fromNumberId}
+                onChange={setFromNumberId}
+                placeholder={t('chooseNumber')}
+              />
+            </Field>
+          )}
+
           <Field
             label={t('phone')}
             htmlFor='call-to'
@@ -139,7 +218,9 @@ export function StartCallDialog({ agentId, variables, onStarted }: Props) {
           <Button
             className='h-10 rounded-lg'
             onClick={() => void start()}
-            disabled={starting || !to.trim() || missing.length > 0}
+            disabled={
+              starting || !to.trim() || !fromNumberId || missing.length > 0
+            }
           >
             {starting ? <Loader2 className='size-4 animate-spin' /> : null}
             {t('trigger')}

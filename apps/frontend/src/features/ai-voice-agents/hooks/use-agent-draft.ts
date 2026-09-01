@@ -9,6 +9,7 @@ import type {
   CalendarIntegrationOption,
   CompanyProfile,
   VoiceAgent,
+  VoiceAgentCallerNumber,
   VoiceAgentExtractionField,
   VoiceAgentModelOption,
   VoiceAgentModelProvider,
@@ -35,6 +36,7 @@ export const FIELD_STEPS: Record<string, 'setup' | 'voice' | 'company'> = {
   name: 'setup',
   modelProvider: 'setup',
   apiKey: 'setup',
+  callerNumberId: 'setup',
   calendarIntegrationId: 'setup',
   meetingDurationMinutes: 'setup',
   timezone: 'setup',
@@ -84,6 +86,16 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
   const [voices, setVoices] = useState<VoiceAgentVoice[]>([]);
   const [models, setModels] = useState<VoiceAgentModelOption[]>([]);
   const [calendars, setCalendars] = useState<CalendarIntegrationOption[]>([]);
+  const [callerNumbers, setCallerNumbers] = useState<VoiceAgentCallerNumber[]>(
+    []
+  );
+  /**
+   * Which number the agent presents. Empty means the agent has none of its own
+   * and whoever triggers a call picks one — see `StartCallDialog`.
+   */
+  const [callerNumberId, setCallerNumberId] = useState(
+    agent?.callerNumberId ?? ''
+  );
   const [catalogueLoading, setCatalogueLoading] = useState(true);
   const [voiceId, setVoiceId] = useState(agent?.voiceId ?? '');
 
@@ -127,14 +139,17 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
 
   useEffect(() => {
     void (async () => {
-      const [voiceList, modelList, calendarList] = await Promise.all([
-        api.listVoices().catch(() => []),
-        api.listModels().catch(() => []),
-        api.listCalendars().catch(() => [])
-      ]);
+      const [voiceList, modelList, calendarList, numberList] =
+        await Promise.all([
+          api.listVoices().catch(() => []),
+          api.listModels().catch(() => []),
+          api.listCalendars().catch(() => []),
+          api.listCallerNumbers().catch(() => [])
+        ]);
       setVoices(voiceList);
       setModels(modelList);
       setCalendars(calendarList.filter((c) => c.isActive));
+      setCallerNumbers(numberList);
       setCatalogueLoading(false);
     })();
   }, [api]);
@@ -288,6 +303,7 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
       companyDescription: company.companyDescription?.trim() || null,
       analysis: { summary, sentiment },
       extractionFields: fields.filter((f) => f.key && f.label),
+      callerNumberId: callerNumberId || null,
       ...(type === 'appointment_booking'
         ? {
             calendarIntegrationId: calendarId || null,
@@ -306,6 +322,7 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
       summary,
       sentiment,
       fields,
+      callerNumberId,
       type,
       calendarId,
       duration,
@@ -400,6 +417,9 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
     calendars,
     calendarId,
     setCalendarId,
+    callerNumbers,
+    callerNumberId,
+    setCallerNumberId,
     duration,
     setDuration,
     timezone,

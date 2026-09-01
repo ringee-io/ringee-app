@@ -951,7 +951,7 @@ model NumberPurchased {
 
   // Which Ringee surfaces may present this number as an outbound caller ID.
   // Empty list is treated as "no restriction" by callers.
-  allowedOutboundSources OutboundSource[] @default([web, chrome_extension, mobile, sip_device])
+  allowedOutboundSources OutboundSource[] @default([web, chrome_extension, mobile, sip_device, ai_voice_agent])
 
   // Optional per-user allow-list for using this number as a caller ID.
   // Empty means every member of the owning workspace may use it.
@@ -971,6 +971,7 @@ model NumberPurchased {
   requirementValues    NumberRequirementValue[]
   rotationMember       CallerIdPoolMember?
   rotationUsage        CallerIdDailyUsage[]
+  aiVoiceAgents        AiVoiceAgent[]           @relation("aiVoiceAgentCallerNumber")
 
   @@index([isoCountry])
   @@index([provider])
@@ -4021,6 +4022,12 @@ model AiVoiceAgent {
   /// Shape: [{ key, label, type, description, insightId }]
   extractionFields Json?
 
+  /// The number this agent presents when it calls. Optional on purpose: an
+  /// agent that runs from several numbers leaves it unset and the caller picks
+  /// one per call. Resolution order at dial time lives in
+  /// `VoiceAgentCallService.resolveCallerId`.
+  callerNumberId String? @db.Uuid
+
   /// Appointment booking only.
   calendarIntegrationId  String? @db.Uuid
   meetingDurationMinutes Int     @default(30)
@@ -4040,12 +4047,14 @@ model AiVoiceAgent {
   user                User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization        Organization?                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   calendarIntegration CalendarIntegration?          @relation(fields: [calendarIntegrationId], references: [id], onDelete: SetNull)
+  callerNumber        NumberPurchased?              @relation("aiVoiceAgentCallerNumber", fields: [callerNumberId], references: [id], onDelete: SetNull)
   knowledgeSources    AiVoiceAgentKnowledgeSource[]
   calls               AiVoiceAgentCall[]
 
   @@index([userId])
   @@index([organizationId])
   @@index([userId, type])
+  @@index([callerNumberId])
   @@index([deletedAt])
 }
 

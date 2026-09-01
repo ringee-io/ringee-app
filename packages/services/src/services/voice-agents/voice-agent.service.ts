@@ -12,6 +12,8 @@ import {
   AiVoiceAgentStatus,
   AiVoiceAgentType,
   CalendarIntegrationRepository,
+  NumberKind,
+  OutboundSource,
   type AiVoiceAgentWithSources,
 } from "@ringee/database";
 import {
@@ -25,6 +27,7 @@ import {
   type VoiceAgentLlmProvider,
   type VoiceAgentVoice,
 } from "@ringee/platform";
+import { NumberPurchasedService } from "../number.purchased.service";
 import { VoiceAgentBlueprintRegistry } from "./blueprints/voice-agent-blueprint.registry";
 import { CompanyProfileService } from "./company-profile.service";
 import {
@@ -74,6 +77,11 @@ export interface SaveVoiceAgentInput {
     Pick<VoiceAgentAnalysisSettings, "summary" | "outcome" | "sentiment">
   >;
   extractionFields?: VoiceAgentExtractionField[];
+  /**
+   * The number the agent presents. `null` clears the assignment, which puts the
+   * choice back on whoever triggers the call.
+   */
+  callerNumberId?: string | null;
   calendarIntegrationId?: string | null;
   meetingDurationMinutes?: number;
   timezone?: string | null;
@@ -87,6 +95,18 @@ export interface VoiceAgentVoicePreview {
   text: string;
   contentType: string;
   audioBase64: string;
+}
+
+/**
+ * A number this workspace may present on an AI agent call. The shape the picker
+ * needs and nothing more — the eligibility rule itself stays in
+ * `NumberPurchasedService.listOutboundCallerIds`.
+ */
+export interface VoiceAgentCallerNumber {
+  id: string;
+  phoneNumber: string;
+  isoCountry: string;
+  kind: NumberKind;
 }
 
 /** An agent as the list screen shows it: the row plus its call count. */
@@ -129,6 +149,7 @@ export class VoiceAgentService {
     private readonly provider: VoiceAgentProviderService,
     private readonly credentials: LlmCredentialVerifier,
     private readonly calendars: CalendarIntegrationRepository,
+    private readonly numbers: NumberPurchasedService,
   ) {}
 
   // ── Catalogue ────────────────────────────────────────────────
@@ -210,6 +231,26 @@ export class VoiceAgentService {
     };
   }
 
+  /**
+   * The numbers an agent in this workspace may call from. Used by the agent
+   * form to assign one, and by every trigger surface to offer the choice when
+   * the agent carries no assignment.
+   */
+  async listCallerNumbers(
+    ctx: OwnershipContext,
+  ): Promise<VoiceAgentCallerNumber[]> {
+    const numbers = await this.numbers.listOutboundCallerIds(ctx, {
+      source: OutboundSource.ai_voice_agent,
+      userId: ctx.userId,
+    });
+    return numbers.map((number) => ({
+      id: number.id,
+      phoneNumber: number.phoneNumber,
+      isoCountry: number.isoCountry,
+      kind: number.kind,
+    }));
+  }
+
   async require(
     ctx: OwnershipContext,
     id: string,
@@ -236,6 +277,9 @@ export class VoiceAgentService {
     if (dto.calendarIntegrationId) {
       await this.assertCalendarInWorkspace(ctx, dto.calendarIntegrationId);
     }
+    if (dto.callerNumberId) {
+      await this.assertCallerNumberUsable(ctx, dto.callerNumberId);
+    }
 
     const voice = await this.resolveVoice(dto.voiceId);
 
@@ -254,6 +298,7 @@ export class VoiceAgentService {
       companyDescription: dto.companyDescription?.trim() || null,
       analysisSettings: this.mergeAnalysis(null, dto.analysis) as object,
       extractionFields: (dto.extractionFields ?? []) as object,
+      callerNumberId: dto.callerNumberId ?? null,
       calendarIntegrationId: dto.calendarIntegrationId ?? null,
       meetingDurationMinutes: dto.meetingDurationMinutes ?? 30,
       timezone: dto.timezone ?? null,
@@ -285,6 +330,12 @@ export class VoiceAgentService {
 
     if (dto.calendarIntegrationId) {
       await this.assertCalendarInWorkspace(ctx, dto.calendarIntegrationId);
+    }
+    // Only a *changed* assignment is validated. Re-saving an agent whose number
+    // has since been released would otherwise fail on a field the user did not
+    // touch — activation and dial time both re-check it anyway.
+    if (dto.callerNumberId && dto.callerNumberId !== agent.callerNumberId) {
+      await this.assertCallerNumberUsable(ctx, dto.callerNumberId);
     }
 
     const voice =
@@ -322,6 +373,9 @@ export class VoiceAgentService {
         : {}),
       ...(dto.extractionFields
         ? { extractionFields: dto.extractionFields as object }
+        : {}),
+      ...(dto.callerNumberId !== undefined
+        ? { callerNumberId: dto.callerNumberId }
         : {}),
       ...(dto.calendarIntegrationId !== undefined
         ? { calendarIntegrationId: dto.calendarIntegrationId }
@@ -389,6 +443,7 @@ export class VoiceAgentService {
     const agent = await this.require(ctx, id);
     if (status === AiVoiceAgentStatus.active) {
       this.assertReadyForCalls(agent);
+      await this.assertCallerNumberReady(ctx, agent);
     }
     return this.agents.update(id, { status });
   }
@@ -706,6 +761,47 @@ export class VoiceAgentService {
       throw new BadRequestException("The agent name is too long.");
     }
     return trimmed;
+  }
+
+  /**
+   * A number may only be assigned to an agent if this workspace can present it
+   * on an AI agent call — the client sends an id, never the right to use it.
+   */
+  private async assertCallerNumberUsable(
+    ctx: OwnershipContext,
+    callerNumberId: string,
+  ): Promise<void> {
+    const usable = await this.listCallerNumbers(ctx);
+    if (!usable.some((number) => number.id === callerNumberId)) {
+      throw new NotFoundException(
+        "That number is not available for AI agent calls.",
+      );
+    }
+  }
+
+  /**
+   * Checked again at activation, not only at assignment: a number can be
+   * released or restricted after an agent was pointed at it, and an agent that
+   * goes live with no caller ID fails on its first call instead of here.
+   */
+  private async assertCallerNumberReady(
+    ctx: OwnershipContext,
+    agent: AiVoiceAgent,
+  ): Promise<void> {
+    const usable = await this.listCallerNumbers(ctx);
+    if (usable.length === 0) {
+      throw new BadRequestException(
+        "No number in this workspace can place AI agent calls. Buy a number or verify a caller ID first.",
+      );
+    }
+    if (
+      agent.callerNumberId &&
+      !usable.some((number) => number.id === agent.callerNumberId)
+    ) {
+      throw new BadRequestException(
+        "The number assigned to this agent is no longer available. Assign another one.",
+      );
+    }
   }
 
   private async assertCalendarInWorkspace(

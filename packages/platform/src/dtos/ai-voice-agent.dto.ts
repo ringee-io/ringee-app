@@ -179,6 +179,16 @@ export class SaveVoiceAgentDto {
   @Type(() => VoiceAgentExtractionFieldDto)
   extractionFields?: VoiceAgentExtractionFieldDto[];
 
+  /**
+   * The number this agent presents. Null clears the assignment and puts the
+   * choice back on whoever triggers the call.
+   */
+  @IsOptional()
+  @IsUUID(undefined, {
+    message: "Choose one of the numbers this workspace can call from.",
+  })
+  callerNumberId?: string | null;
+
   @IsOptional()
   @IsUUID(undefined, { message: "Choose one of your connected calendars." })
   calendarIntegrationId?: string | null;

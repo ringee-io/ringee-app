@@ -278,6 +278,7 @@ function AgentDetailView({
 
           <StartCallDialog
             agentId={agent.id}
+            callerNumberId={agent.callerNumberId}
             variables={typeInfo?.variables ?? []}
             onStarted={() => {
               setTab('calls');

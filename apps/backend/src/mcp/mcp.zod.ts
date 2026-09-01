@@ -1218,7 +1218,7 @@ export const StartAiVoiceAgentCallSchema = {
     .uuid()
     .optional()
     .describe(
-      "UUID of the Ringee number to call from. Defaults to the first number allowed for AI agent calls.",
+      "UUID of the Ringee number to call from — list_ai_voice_agents returns the ones this workspace may use. Defaults to the number assigned to the agent; required when the agent has none and the workspace has more than one.",
     ),
   variables: z
     .record(z.string(), z.string())

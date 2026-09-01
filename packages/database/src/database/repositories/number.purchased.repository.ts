@@ -18,6 +18,7 @@ const DEFAULT_OUTBOUND_SOURCES: OutboundSource[] = [
   "chrome_extension",
   "mobile",
   "sip_device",
+  "ai_voice_agent",
 ];
 
 @Injectable()

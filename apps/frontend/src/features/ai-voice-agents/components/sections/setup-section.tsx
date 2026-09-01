@@ -20,6 +20,7 @@ import {
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import type { AgentDraft } from '../../hooks/use-agent-draft';
 import type { VoiceAgentType } from '../../types';
+import { CallerNumberSelect } from '../caller-number-select';
 import { Field, controlClass, selectTriggerClass } from '../fields/field';
 import { Section } from './section';
 
@@ -56,6 +57,43 @@ export function SetupSection({
             className={controlClass}
           />
         </Field>
+      </Section>
+
+      <Section title={t('number')} hint={t('numberHint')}>
+        {draft.callerNumbers.length === 0 ? (
+          <Alert className='rounded-lg'>
+            <AlertTriangle className='size-4' />
+            <AlertDescription className='flex flex-wrap items-center gap-2'>
+              {t('noNumber')}
+              <Button
+                asChild
+                variant='outline'
+                size='sm'
+                className='rounded-lg'
+              >
+                <Link href='/dashboard/buy-number'>{t('getNumber')}</Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : (
+          <Field
+            label={t('callerNumber')}
+            htmlFor='agent-number'
+            error={draft.errors.callerNumberId}
+            hint={t('callerNumberHint')}
+            className='max-w-md'
+          >
+            <CallerNumberSelect
+              id='agent-number'
+              numbers={draft.callerNumbers}
+              value={draft.callerNumberId}
+              onChange={draft.setCallerNumberId}
+              placeholder={t('chooseNumber')}
+              unsetLabel={t('askEachCall')}
+              invalid={Boolean(draft.errors.callerNumberId)}
+            />
+          </Field>
+        )}
       </Section>
 
       <Section title={t('model')} hint={t('modelHint')}>

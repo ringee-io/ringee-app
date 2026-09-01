@@ -41,6 +41,7 @@ export function registerVoiceAgents(program: Command): void {
           kv("type", agent.type);
           kv("status", agent.status);
           kv("voice", agent.voice ?? "—");
+          kv("calls from", agent.callsFrom ?? "— (pass --from)");
           kv("calls", agent.callCount);
           const variables = res.variablesByType[agent.type] ?? [];
           kv(
@@ -52,6 +53,15 @@ export function registerVoiceAgents(program: Command): void {
         });
         line("");
         line(c.dim("* required"));
+        if (res.callerNumbers.length > 0) {
+          // An agent with no number of its own needs one named on the call, so
+          // the ids to pass to `--from` belong next to the list, not a page away.
+          line("");
+          heading("Numbers you can call from");
+          res.callerNumbers.forEach((number) => {
+            line(`${number.phoneNumber}  ${c.gray(number.id)}`);
+          });
+        }
       }),
     );
 

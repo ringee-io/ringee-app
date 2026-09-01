@@ -692,7 +692,21 @@ export interface AiVoiceAgentSummary {
   status: string;
   voice: string | null;
   callCount: number;
+  /**
+   * The number this agent presents, or null when it has none of its own — then
+   * `fromNumberId` has to be passed to start a call, unless the workspace has
+   * exactly one usable number.
+   */
+  callsFrom: string | null;
   createdAt: string;
+}
+
+/** A number an agent in this workspace may be told to call from. */
+export interface AiVoiceAgentCallerNumber {
+  id: string;
+  phoneNumber: string;
+  /** ISO 3166-1 alpha-2. */
+  country: string;
 }
 
 export interface AiVoiceAgentVariable {
@@ -706,6 +720,8 @@ export interface ListAiVoiceAgentsResult {
   total: number;
   /** Which variables each agent type accepts, keyed by type. */
   variablesByType: Record<string, AiVoiceAgentVariable[]>;
+  /** The numbers this workspace can place agent calls from. */
+  callerNumbers: AiVoiceAgentCallerNumber[];
 }
 
 export interface StartAiVoiceAgentCallResult {

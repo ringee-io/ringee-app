@@ -2262,8 +2262,9 @@ export class McpFunc {
     description:
       "List the workspace's AI voice agents — the pre-built agents that call a " +
       "person and hold a conversation. Returns each agent's id, name, type, " +
-      "status and how many calls it has placed, plus the variables its type " +
-      "accepts. Resolve an agentId here before calling start_ai_voice_agent_call.",
+      "status, how many calls it has placed and the number it calls from, plus " +
+      "the variables its type accepts and the numbers this workspace can call " +
+      "from. Resolve an agentId here before calling start_ai_voice_agent_call.",
     zod: ListAiVoiceAgentsSchema,
     annotations: {
       title: "List AI voice agents",
@@ -2277,10 +2278,13 @@ export class McpFunc {
     ctx: OwnershipContext,
     input: ListAiVoiceAgentsInput,
   ) {
-    const [page, types] = await Promise.all([
+    const [page, types, callerNumbers] = await Promise.all([
       this.voiceAgentService.list(ctx, { limit: input.limit ?? 20 }),
       Promise.resolve(this.voiceAgentService.listTypes()),
+      this.voiceAgentService.listCallerNumbers(ctx),
     ]);
+
+    const numbersById = new Map(callerNumbers.map((n) => [n.id, n]));
 
     return text({
       agents: page.data.map((agent) => ({
@@ -2290,9 +2294,20 @@ export class McpFunc {
         status: agent.status,
         voice: agent.voiceLabel,
         callCount: agent.callCount,
+        // Null means the agent has no number of its own: pass fromNumberId on
+        // start_ai_voice_agent_call unless the workspace has exactly one.
+        callsFrom: agent.callerNumberId
+          ? (numbersById.get(agent.callerNumberId)?.phoneNumber ?? null)
+          : null,
         createdAt: agent.createdAt,
       })),
       total: page.total,
+      /** The numbers an agent in this workspace may be told to call from. */
+      callerNumbers: callerNumbers.map((number) => ({
+        id: number.id,
+        phoneNumber: number.phoneNumber,
+        country: number.isoCountry,
+      })),
       variablesByType: Object.fromEntries(
         types.map((type) => [
           type.type,

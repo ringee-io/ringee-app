@@ -9,6 +9,7 @@ import type {
   TestSession,
   VoiceAgent,
   VoiceAgentCall,
+  VoiceAgentCallerNumber,
   VoiceAgentCallResult,
   VoiceAgentExtractionField,
   VoiceAgentKnowledgeLibraryEntry,
@@ -35,6 +36,7 @@ export interface SaveAgentBody {
   companyDescription?: string | null;
   analysis?: { summary?: boolean; sentiment?: boolean };
   extractionFields?: VoiceAgentExtractionField[];
+  callerNumberId?: string | null;
   calendarIntegrationId?: string | null;
   meetingDurationMinutes?: number;
   timezone?: string | null;
@@ -66,6 +68,13 @@ export function useVoiceAgentApi() {
        */
       listCalendars: () =>
         api.get<CalendarIntegrationOption[]>('/calendar/integrations'),
+
+      /**
+       * The numbers this workspace may call from. Eligibility is the server's
+       * call, so this is the only list the form and the trigger dialog offer.
+       */
+      listCallerNumbers: () =>
+        api.get<VoiceAgentCallerNumber[]>(`${BASE}/phone-numbers`),
 
       verifyCredential: (provider: VoiceAgentModelProvider, apiKey: string) =>
         api.post<{ valid: boolean; reason?: string }>(

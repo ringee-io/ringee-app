@@ -65,6 +65,17 @@ export interface VoiceAgentModelOption {
   requiresApiKey: boolean;
 }
 
+/**
+ * A number this workspace can present on an AI agent call. The server decides
+ * what is eligible — the picker only shows what it returns.
+ */
+export interface VoiceAgentCallerNumber {
+  id: string;
+  phoneNumber: string;
+  isoCountry: string;
+  kind: 'purchased' | 'verified_caller_id';
+}
+
 export type ExtractionFieldType = 'text' | 'number' | 'boolean' | 'select';
 
 export interface VoiceAgentExtractionField {
@@ -123,6 +134,8 @@ export interface VoiceAgent {
   companyDescription: string | null;
   analysisSettings: VoiceAgentAnalysisSettings | null;
   extractionFields: VoiceAgentExtractionField[] | null;
+  /** The number the agent calls from; null means "choose it at trigger time". */
+  callerNumberId: string | null;
   calendarIntegrationId: string | null;
   meetingDurationMinutes: number;
   timezone: string | null;
