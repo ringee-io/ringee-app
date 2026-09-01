@@ -439,6 +439,9 @@ model User {
   regulatoryDocuments     RegulatoryDocument[]
   callerIdRotation        CallerIdRotationSettings?
   callerIdPoolMembers     CallerIdPoolMember[]
+  aiVoiceAgents           AiVoiceAgent[]
+  aiVoiceAgentCalls       AiVoiceAgentCall[]
+  companyProfile          WorkspaceCompanyProfile?
 
   @@index([clerkId])
 }
@@ -527,6 +530,9 @@ model Organization {
   regulatoryDocuments    RegulatoryDocument[]
   callerIdRotation       CallerIdRotationSettings?
   callerIdPoolMembers    CallerIdPoolMember[]
+  aiVoiceAgents          AiVoiceAgent[]
+  aiVoiceAgentCalls      AiVoiceAgentCall[]
+  companyProfile         WorkspaceCompanyProfile?
 
   @@index([clerkId])
 }
@@ -655,7 +661,8 @@ model Call {
 
   // Origin channel of the call, used for history filtering/badges.
   // Values: "web" | "chrome_extension" | "mobile" | "campaign" | "session" |
-  // "sip_device". Null on legacy rows (treated as the default web dialer).
+  // "sip_device" | "ai_voice_agent". Null on legacy rows (treated as the
+  // default web dialer).
   source String?
 
   // Set when this call originated from a desk phone (source = "sip_device").
@@ -677,6 +684,7 @@ model Call {
   inboxEvents        InboxEvent[]
   callbacks          CallbackTask[]
   callSessionItems   CallSessionItem[]
+  aiVoiceAgentCall   AiVoiceAgentCall?
 
   @@index([userId])
   @@index([organizationId])
@@ -763,6 +771,7 @@ enum OutboundSource {
   chrome_extension
   mobile
   sip_device
+  ai_voice_agent
 }
 
 /// Lifecycle of a SIP desk phone as Ringee understands it.
@@ -942,7 +951,7 @@ model NumberPurchased {
 
   // Which Ringee surfaces may present this number as an outbound caller ID.
   // Empty list is treated as "no restriction" by callers.
-  allowedOutboundSources OutboundSource[] @default([web, chrome_extension, mobile, sip_device])
+  allowedOutboundSources OutboundSource[] @default([web, chrome_extension, mobile, sip_device, ai_voice_agent])
 
   // Optional per-user allow-list for using this number as a caller ID.
   // Empty means every member of the owning workspace may use it.
@@ -962,6 +971,7 @@ model NumberPurchased {
   requirementValues    NumberRequirementValue[]
   rotationMember       CallerIdPoolMember?
   rotationUsage        CallerIdDailyUsage[]
+  aiVoiceAgents        AiVoiceAgent[]           @relation("aiVoiceAgentCallerNumber")
 
   @@index([isoCountry])
   @@index([provider])
@@ -1221,6 +1231,7 @@ model Contact {
   callbacks              CallbackTask[]
   customIntegrationLinks CustomIntegrationContactLink[]
   callSessionItems       CallSessionItem[]
+  aiVoiceAgentCalls      AiVoiceAgentCall[]
 
   @@unique([userId, phoneNumber, deletedAt])
   @@index([userId])
@@ -1764,11 +1775,12 @@ model Meeting {
   createdAt       DateTime      @default(now())
   updatedAt       DateTime      @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  contact      Contact       @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  call         Call?         @relation(fields: [callId], references: [id], onDelete: SetNull)
-  inboxEvents  InboxEvent[]
+  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization      Organization?      @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  contact           Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  call              Call?              @relation(fields: [callId], references: [id], onDelete: SetNull)
+  inboxEvents       InboxEvent[]
+  aiVoiceAgentCalls AiVoiceAgentCall[]
 
   @@index([userId])
   @@index([organizationId])
@@ -1792,8 +1804,9 @@ model CalendarIntegration {
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization  Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  aiVoiceAgents AiVoiceAgent[]
 
   @@unique([userId, provider])
   @@index([organizationId])
@@ -3896,4 +3909,276 @@ model OfferEvent {
 
   @@index([offerId, type, createdAt])
   @@index([userId, createdAt])
+}
+
+// ── AI Voice Agents ──
+// Pre-built voice agents (appointment booking, reminders) that Ringee runs on
+// top of a provider assistant. The user configures name, model, voice,
+// knowledge and post-call extraction; Ringee owns the instructions, greeting,
+// tools and conversation rules per agent type.
+//
+// Not to be confused with AiConversation/AiAgentType above, which belong to the
+// in-app chat agent.
+
+/// The pre-built agent types shipped in V1. Each one owns its instructions,
+/// tools and dynamic-variable schema in @ringee/services.
+enum AiVoiceAgentType {
+  appointment_booking
+  reminders_notifications
+}
+
+enum AiVoiceAgentStatus {
+  draft
+  active
+  disabled
+  error
+}
+
+/// Which LLM runs the conversation. `ringee` needs no key; the others are the
+/// user's own credential, held by the provider as an integration secret.
+enum AiVoiceAgentModelProvider {
+  ringee
+  openai
+  anthropic
+  google
+}
+
+/// Telephony state of an agent call. Kept separate from the outcome: a call
+/// can be `completed` while the outcome is `not_interested`.
+enum AiVoiceAgentCallStatus {
+  created
+  initiating
+  ringing
+  in_progress
+  completed
+  no_answer
+  busy
+  voicemail
+  failed
+}
+
+/// What the conversation achieved. A closed set — new members are additive.
+enum AiVoiceAgentOutcome {
+  appointment_booked
+  confirmed
+  cannot_attend
+  callback_requested
+  not_interested
+  no_conversation
+  unknown
+}
+
+enum AiVoiceAgentKnowledgeKind {
+  url
+  pdf
+  txt
+  docx
+  text
+}
+
+enum AiVoiceAgentKnowledgeStatus {
+  pending
+  processing
+  ready
+  failed
+}
+
+model AiVoiceAgent {
+  id             String  @id @default(uuid()) @db.Uuid
+  userId         String  @db.Uuid
+  organizationId String? @db.Uuid
+
+  /// The name the agent introduces itself with during the conversation.
+  name   String
+  type   AiVoiceAgentType
+  status AiVoiceAgentStatus @default(draft)
+
+  modelProvider AiVoiceAgentModelProvider @default(ringee)
+  /// Reference to the provider-held integration secret for a BYO API key.
+  /// Never the key itself — the credential never lands in Ringee's database.
+  llmApiKeyRef  String?
+
+  /// Curated voice from the Ringee catalogue (see voices.catalog.ts).
+  voiceId       String?
+  voiceLabel    String?
+  voiceLanguage String?
+
+  /// Company this agent speaks for. Per agent, because one workspace runs
+  /// agents for several brands, products or clients. Left unset the agent
+  /// falls back to `WorkspaceCompanyProfile`, so agents created before this
+  /// existed keep the context they were built with.
+  companyName        String?
+  companyWebsite     String?
+  companyDescription String? @db.Text
+
+  /// Provider-side resources owned by this agent.
+  providerAssistantId    String? @unique
+  providerTexmlAppId     String?
+  providerInsightGroupId String?
+
+  /// Post-conversation processing: { summary, outcome, sentiment } toggles.
+  analysisSettings Json?
+  /// User-defined extraction fields, each mapped to a provider insight id.
+  /// Shape: [{ key, label, type, description, insightId }]
+  extractionFields Json?
+
+  /// The number this agent presents when it calls. Optional on purpose: an
+  /// agent that runs from several numbers leaves it unset and the caller picks
+  /// one per call. Resolution order at dial time lives in
+  /// `VoiceAgentCallService.resolveCallerId`.
+  callerNumberId String? @db.Uuid
+
+  /// Appointment booking only.
+  calendarIntegrationId  String? @db.Uuid
+  meetingDurationMinutes Int     @default(30)
+  timezone               String?
+  meetingTitle           String?
+
+  /// Hashed shared secret proving a provider tool callback really came from
+  /// this agent's assistant. Hashed with the custom-integration key util.
+  toolSecretHash String?
+
+  lastError String? @db.Text
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  user                User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization        Organization?                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  calendarIntegration CalendarIntegration?          @relation(fields: [calendarIntegrationId], references: [id], onDelete: SetNull)
+  callerNumber        NumberPurchased?              @relation("aiVoiceAgentCallerNumber", fields: [callerNumberId], references: [id], onDelete: SetNull)
+  knowledgeSources    AiVoiceAgentKnowledgeSource[]
+  calls               AiVoiceAgentCall[]
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([userId, type])
+  @@index([callerNumberId])
+  @@index([deletedAt])
+}
+
+/// One knowledge source attached to an agent. The embedded copy lives with the
+/// provider; this row is Ringee's record of what the user added.
+model AiVoiceAgentKnowledgeSource {
+  id      String                    @id @default(uuid()) @db.Uuid
+  agentId String                    @db.Uuid
+  kind    AiVoiceAgentKnowledgeKind
+  label   String
+
+  /// For `url` sources.
+  sourceUrl  String?
+  /// For uploaded documents: the key in Ringee's own storage.
+  storageKey String?
+  /// For `text` sources: the raw content the user typed.
+  content    String? @db.Text
+
+  providerBucket   String?
+  providerFileName String?
+  embeddingTaskId  String?
+  status           AiVoiceAgentKnowledgeStatus @default(pending)
+  lastError        String?                     @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agent AiVoiceAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+  @@index([status])
+}
+
+/// The agent-side half of a call. The telephony half is a normal `Call` row
+/// (source = "ai_voice_agent"), so recordings, transcripts, cost settlement,
+/// DNC and history all keep working unchanged.
+model AiVoiceAgentCall {
+  id             String  @id @default(uuid()) @db.Uuid
+  agentId        String  @db.Uuid
+  userId         String  @db.Uuid
+  organizationId String? @db.Uuid
+
+  /// Null until the provider accepts the call and the webhook binds the row.
+  callId String? @unique @db.Uuid
+
+  toNumber   String
+  fromNumber String
+  contactId  String? @db.Uuid
+
+  status  AiVoiceAgentCallStatus @default(created)
+  outcome AiVoiceAgentOutcome?
+
+  /// Hashed single-call token the provider presents on the status callback.
+  /// The callback route is public, so this is its proof of authorization.
+  callbackTokenHash String?
+
+  /// Provider conversation this call produced; the join key for insights and
+  /// for the usage records the cost reconciler reads.
+  providerConversationId String? @unique
+  providerCallControlId  String?
+
+  /// Dynamic variables the caller supplied, validated against the agent type's
+  /// schema before the call was placed.
+  variables Json?
+  /// Caller-supplied passthrough (e.g. `external_id`), echoed back on results.
+  metadata  Json?
+
+  summary       String? @db.Text
+  sentiment     String?
+  extractedData Json?
+  /// Set by the booking tool when the agent really created the appointment.
+  meetingId     String? @db.Uuid
+
+  /// Provider-reported AI cost in USD, and what Ringee charged for it.
+  aiCostUsd        Float?
+  aiChargedCredits Float?
+  /// Idempotency marker for the AI-usage debit (BILL-003/BILL-004): claimed
+  /// before the debit so a concurrent retry cannot double-charge.
+  costSettledAt    DateTime?
+  /// Set only once the debit itself succeeded. Separate from `costSettledAt`
+  /// because a crash between the claim and the debit would otherwise leave the
+  /// call looking settled while no credits were ever taken — the reconciler
+  /// reads this to find claimed-but-undebited calls and retry them.
+  aiCostDebitedAt  DateTime?
+
+  lastError String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agent        AiVoiceAgent  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  call         Call?         @relation(fields: [callId], references: [id], onDelete: SetNull)
+  contact      Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  meeting      Meeting?      @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+
+  @@index([agentId])
+  @@index([userId])
+  @@index([organizationId])
+  @@index([agentId, createdAt])
+  @@index([status])
+}
+
+/// Workspace-wide company context: the fallback an AI voice agent uses when it
+/// carries no company context of its own. Agents set theirs on the agent row —
+/// this is what agents created before that keep speaking with. One row per
+/// workspace: a personal workspace sets userId, an organization sets
+/// organizationId.
+model WorkspaceCompanyProfile {
+  id             String  @id @default(uuid()) @db.Uuid
+  userId         String? @unique @db.Uuid
+  organizationId String? @unique @db.Uuid
+
+  companyName        String?
+  companyWebsite     String?
+  companyDescription String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user         User?         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
 }

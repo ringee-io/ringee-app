@@ -11,6 +11,7 @@ import {
   Put,
   Query,
   ParseIntPipe,
+  ParseUUIDPipe,
   UseInterceptors,
   UploadedFile,
 } from "@nestjs/common";
@@ -372,6 +373,30 @@ export class TelephonyController {
     @Param("sessionId") sessionId: string,
   ): Promise<Call | null> {
     return this.callService.findOneBySessionId(sessionId);
+  }
+
+  /**
+   * One call, with every relation the detail screen renders.
+   *
+   * Declared after `calls/by-session/:sessionId` on purpose: Nest matches in
+   * declaration order, and a `:id` above it would swallow the literal segment.
+   *
+   * Member scoping is the same rule the list applies — an organization member
+   * may open their own calls, an admin any call in the workspace — so the two
+   * screens can never disagree about what a member is allowed to see.
+   */
+  @Get("calls/:id")
+  async getCallDetail(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id", ParseUUIDPipe) id: string,
+  ) {
+    return this.callService.getDetailForOwner(
+      createOwnershipContext(user),
+      id,
+      {
+        filterUserId: resolveMemberFilter(user),
+      },
+    );
   }
 
   @Post("recordings/start")

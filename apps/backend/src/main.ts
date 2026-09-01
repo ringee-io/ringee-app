@@ -11,6 +11,7 @@ import { apiConfiguration } from "@ringee/configuration";
 import express from "express";
 import { clerkMiddleware } from "@ringee/platform";
 import { sdkCors } from "./api/sdk/sdk-cors";
+import { validationExceptionFactory } from "./api/validation-error";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { rawBody: true });
@@ -49,6 +50,10 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       transform: true,
+      // A 400 that names the field it is about is what lets a form point at the
+      // input instead of dropping a generic toast. `message` keeps its existing
+      // `string[]` shape; `fields` is additive.
+      exceptionFactory: validationExceptionFactory,
     }),
   );
 

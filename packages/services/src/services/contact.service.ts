@@ -8,6 +8,7 @@ import {
   Contact,
   ContactRepository,
   CrmConnection,
+  Prisma,
   TagRepository,
 } from "@ringee/database";
 import {
@@ -35,6 +36,31 @@ import { CrmMatchingService } from "./crm/crm-matching.service";
  * on timeout is enriched and linked by the next sync pass anyway.
  */
 const CRM_LOOKUP_TIMEOUT_MS = 4000;
+
+/** `Contact.email` is a `VarChar(100)`; a longer address would fail the insert. */
+const EMAIL_MAX = 100;
+
+/**
+ * What a calling surface already knows about the person it is about to dial.
+ *
+ * Everything is optional and nothing is authoritative: it fills blanks on the
+ * contact, it never overwrites what somebody typed or what a CRM synced.
+ */
+export interface ContactIdentityHint {
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+  /** Attribution for a contact this hint creates, e.g. `ai-voice-agent`. */
+  source?: string;
+}
+
+/** A hint reduced to the columns a contact actually stores. */
+interface ContactIdentity {
+  name: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  email: string | null;
+}
 
 @Injectable()
 export class ContactService {
@@ -215,22 +241,71 @@ export class ContactService {
    *
    * Falls back to a bare contact (blank name, so the UI shows the number) when
    * there is no CRM connection, no match, or the CRM is too slow to wait on.
+   *
+   * A surface that already knows who it is dialing — an AI voice agent is given
+   * the person's name per call — passes a {@link ContactIdentityHint} so the
+   * contact it leaves behind in Ringee is a named one instead of a bare number.
    */
   async findOrCreateByPhone(
     ctx: OwnershipContext,
     phoneNumber: string,
+    hint?: ContactIdentityHint,
   ): Promise<Contact> {
+    const identity = this.readIdentity(hint);
+
     const existing = await this.repo.findByPhone(ctx, phoneNumber);
-    if (existing) return existing;
+    if (existing) return this.fillBlanks(existing, identity);
 
     const fromCrm = await this.findOrCreateFromCrm(ctx, phoneNumber);
-    if (fromCrm) return fromCrm;
+    if (fromCrm) return this.fillBlanks(fromCrm, identity);
 
     return this.repo.create(ctx, {
-      name: null,
+      name: identity.name,
+      firstName: identity.firstName,
+      lastName: identity.lastName,
+      fullName: identity.name,
+      email: identity.email,
       phoneNumber,
-      source: "dialer",
+      source: hint?.source ?? "dialer",
     });
+  }
+
+  /**
+   * Normalizes a caller's hint into the columns a contact actually has.
+   * `name` is what every list and call screen renders, so it is composed here
+   * rather than left to each surface.
+   */
+  private readIdentity(hint?: ContactIdentityHint): ContactIdentity {
+    const firstName = hint?.firstName?.trim() || null;
+    const lastName = hint?.lastName?.trim() || null;
+    const email = hint?.email?.trim().slice(0, EMAIL_MAX) || null;
+    const name = [firstName, lastName].filter(Boolean).join(" ") || null;
+    return { name, firstName, lastName, email };
+  }
+
+  /**
+   * Writes the hint onto an existing contact, but only where the contact has
+   * nothing. A number dialed by an agent is often a contact somebody already
+   * curated — or one a CRM owns — and a per-call variable is the weaker source
+   * of truth, so it may add a missing name, never replace a present one.
+   */
+  private async fillBlanks(
+    contact: Contact,
+    identity: ContactIdentity,
+  ): Promise<Contact> {
+    const patch: Prisma.ContactUpdateInput = {};
+    if (!contact.name && identity.name) patch.name = identity.name;
+    if (!contact.fullName && identity.name) patch.fullName = identity.name;
+    if (!contact.firstName && identity.firstName) {
+      patch.firstName = identity.firstName;
+    }
+    if (!contact.lastName && identity.lastName) {
+      patch.lastName = identity.lastName;
+    }
+    if (!contact.email && identity.email) patch.email = identity.email;
+
+    if (Object.keys(patch).length === 0) return contact;
+    return this.repo.update(contact.id, patch);
   }
 
   /**

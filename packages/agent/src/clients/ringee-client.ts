@@ -67,6 +67,12 @@ import {
   type SearchLeadsInput,
   type UpdateCallSessionInput,
   type UpdateContactInput,
+  ListAiVoiceAgentsSchema,
+  StartAiVoiceAgentCallSchema,
+  GetAiVoiceAgentCallSchema,
+  type ListAiVoiceAgentsInput,
+  type StartAiVoiceAgentCallInput,
+  type GetAiVoiceAgentCallInput,
 } from "../schemas/index.js";
 import type {
   AddCampaignLeadsResult,
@@ -100,6 +106,9 @@ import type {
   SearchContactsResult,
   SearchLeadsResult,
   UpdateCallSessionResult,
+  ListAiVoiceAgentsResult,
+  StartAiVoiceAgentCallResult,
+  AiVoiceAgentCallResult,
 } from "../types/index.js";
 
 /**
@@ -362,6 +371,35 @@ export class RingeeClient {
     return this.call(
       "get_ai_pipeline_results",
       GetAiPipelineResultsSchema.parse(input),
+    );
+  }
+
+  // ── AI voice agents ─────────────────────────────────────────────────
+
+  listAiVoiceAgents(
+    input: ListAiVoiceAgentsInput = {},
+  ): Promise<ListAiVoiceAgentsResult> {
+    return this.call(
+      "list_ai_voice_agents",
+      ListAiVoiceAgentsSchema.parse(input),
+    );
+  }
+
+  startAiVoiceAgentCall(
+    input: StartAiVoiceAgentCallInput,
+  ): Promise<StartAiVoiceAgentCallResult> {
+    return this.call(
+      "start_ai_voice_agent_call",
+      StartAiVoiceAgentCallSchema.parse(input),
+    );
+  }
+
+  getAiVoiceAgentCall(
+    input: GetAiVoiceAgentCallInput,
+  ): Promise<AiVoiceAgentCallResult> {
+    return this.call(
+      "get_ai_voice_agent_call",
+      GetAiVoiceAgentCallSchema.parse(input),
     );
   }
 }

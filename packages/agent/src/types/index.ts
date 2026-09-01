@@ -682,3 +682,62 @@ export interface AiPipelineResults {
   /** Only for objection_intelligence: ranked objections + trend. */
   objections?: unknown;
 }
+
+// ── AI voice agents ─────────────────────────────────────────────────
+
+export interface AiVoiceAgentSummary {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  voice: string | null;
+  callCount: number;
+  /**
+   * The number this agent presents, or null when it has none of its own — then
+   * `fromNumberId` has to be passed to start a call, unless the workspace has
+   * exactly one usable number.
+   */
+  callsFrom: string | null;
+  createdAt: string;
+}
+
+/** A number an agent in this workspace may be told to call from. */
+export interface AiVoiceAgentCallerNumber {
+  id: string;
+  phoneNumber: string;
+  /** ISO 3166-1 alpha-2. */
+  country: string;
+}
+
+export interface AiVoiceAgentVariable {
+  key: string;
+  required: boolean;
+  description: string;
+}
+
+export interface ListAiVoiceAgentsResult {
+  agents: AiVoiceAgentSummary[];
+  total: number;
+  /** Which variables each agent type accepts, keyed by type. */
+  variablesByType: Record<string, AiVoiceAgentVariable[]>;
+  /** The numbers this workspace can place agent calls from. */
+  callerNumbers: AiVoiceAgentCallerNumber[];
+}
+
+export interface StartAiVoiceAgentCallResult {
+  ok: boolean;
+  callId: string;
+  status: string;
+  note?: string;
+}
+
+/** The normalized result of one agent call. */
+export interface AiVoiceAgentCallResult {
+  call_id: string;
+  status: string;
+  outcome: string | null;
+  summary: string | null;
+  sentiment: string | null;
+  extracted_data: Record<string, unknown>;
+  metadata: Record<string, unknown>;
+}

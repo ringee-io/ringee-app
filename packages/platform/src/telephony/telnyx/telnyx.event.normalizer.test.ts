@@ -48,6 +48,48 @@ describe("TelnyxEventNormalizer", () => {
     expect(answered?.startedAt).toBeNull();
   });
 
+  it("lifts an AI conversation's end out of the provider payload", () => {
+    const ended = evt("call.conversation.ended", {
+      conversation_id: "conv-1",
+      assistant_id: "assistant-1",
+      duration_sec: 42,
+      reason: "customer_disconnect",
+    });
+
+    expect(ended?.type).toBe("call.conversation.ended");
+    expect(ended?.conversation).toEqual({
+      conversationId: "conv-1",
+      assistantId: "assistant-1",
+      durationSec: 42,
+      endReason: "customer_disconnect",
+      insightGroupId: null,
+      insights: [],
+    });
+  });
+
+  it("normalizes post-call insight results, dropping any with no insight id", () => {
+    const insights = evt("call.conversation_insights.generated", {
+      insight_group_id: "group-1",
+      results: [
+        { insight_id: "insight-1", result: "Booked a demo." },
+        { insight_id: "insight-2", result: { team_size: 12 } },
+        { result: "orphan with no id" },
+      ],
+    });
+
+    expect(insights?.type).toBe("call.conversation.insights");
+    expect(insights?.conversation?.insightGroupId).toBe("group-1");
+    expect(insights?.conversation?.insights).toEqual([
+      { insightId: "insight-1", result: "Booked a demo." },
+      { insightId: "insight-2", result: '{"team_size":12}' },
+    ]);
+  });
+
+  it("leaves conversation details null on ordinary call events", () => {
+    expect(evt("call.answered")?.conversation).toBeNull();
+    expect(evt("call.hangup")?.conversation).toBeNull();
+  });
+
   it("drops an event with no call to act on", () => {
     expect(
       normalizer.normalize({

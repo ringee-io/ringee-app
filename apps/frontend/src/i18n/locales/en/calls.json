@@ -61,7 +61,9 @@
       "unknown": "Unknown",
       "callAgain": "Call again",
       "noRecording": "No recording",
-      "downloadRecording": "Download recording"
+      "downloadRecording": "Download recording",
+      "source": "Source",
+      "details": "Details"
     },
     "rowActions": {
       "menu": "Actions",
@@ -429,5 +431,141 @@
     "upgrade": "Upgrade to Organization",
     "redirecting": "Redirecting…",
     "dismiss": "Got it"
+  },
+  "detail": {
+    "back": "Call history",
+    "errorTitle": "This call did not open",
+    "errorFallback": "Could not open this call.",
+    "retry": "Try again",
+    "callAgain": "Call again",
+    "open": "Open",
+    "notSet": "Not set",
+    "aiAgent": "AI agent",
+    "minutes": "{count} min",
+    "credits": "{value} credits",
+    "stats": {
+      "outcome": "Outcome",
+      "talkTime": "Talk time",
+      "cost": "Cost"
+    },
+    "ai": {
+      "analysis": "AI analysis",
+      "noSummary": "This agent is not configured to write a summary.",
+      "pending": "The analysis has not come back yet. It arrives shortly after the call ends.",
+      "extracted": "Extracted data",
+      "extractedHint": "The fields this agent was asked to pull out of the conversation.",
+      "notEstablished": "Not established",
+      "yes": "Yes",
+      "no": "No",
+      "agent": "Agent",
+      "agentName": "Name",
+      "agentType": "Type",
+      "voice": "Voice",
+      "providerDefault": "Provider default",
+      "speakingFor": "Speaking for",
+      "agentDeleted": "The agent that placed this call has been deleted.",
+      "variables": "Variables it was given",
+      "meetingBooked": "Meeting booked",
+      "meetingTitle": "Title",
+      "meetingWhen": "When",
+      "meetingLength": "Length",
+      "meetingWhere": "Where",
+      "joinLink": "Join link",
+      "meetingFallback": "Meeting",
+      "providerCost": "AI provider cost",
+      "charged": "AI charged"
+    },
+    "contact": {
+      "title": "Contact",
+      "name": "Name",
+      "phone": "Phone",
+      "email": "Email",
+      "company": "Company",
+      "role": "Role",
+      "unnamed": "Unnamed",
+      "none": "This number is not saved as a contact."
+    },
+    "routing": {
+      "title": "Routing",
+      "direction": "Direction",
+      "from": "From",
+      "to": "To",
+      "placedFrom": "Placed from",
+      "callerId": "Caller ID",
+      "deskPhone": "Desk phone",
+      "member": "Member"
+    },
+    "timeline": {
+      "title": "Timeline",
+      "created": "Created",
+      "dialing": "Dialing",
+      "answered": "Answered",
+      "ended": "Ended",
+      "never": "Never happened",
+      "started": "Started",
+      "talkTime": "Talk time"
+    },
+    "cost": {
+      "title": "Cost",
+      "telephony": "Telephony"
+    },
+    "campaign": {
+      "title": "Campaign",
+      "campaign": "Campaign",
+      "attempt": "Attempt",
+      "disposition": "Disposition",
+      "notDispositioned": "Not dispositioned",
+      "removed": "Removed"
+    },
+    "followUp": {
+      "title": "Follow-up",
+      "callback": "Callback",
+      "meeting": "Meeting"
+    },
+    "diagnostics": {
+      "title": "Diagnostics",
+      "callId": "Call ID",
+      "providerCall": "Provider call",
+      "controlId": "Control ID",
+      "session": "Session"
+    },
+    "note": {
+      "title": "Note"
+    },
+    "sources": {
+      "web": "Web dialer",
+      "chrome_extension": "Chrome extension",
+      "mobile": "Mobile app",
+      "campaign": "Campaign",
+      "session": "Call session",
+      "sip_device": "Desk phone",
+      "ai_voice_agent": "AI agent"
+    },
+    "outcomes": {
+      "meeting_booked": "Meeting booked",
+      "sale": "Sale",
+      "interested": "Interested",
+      "follow_up": "Follow up",
+      "callback_scheduled": "Callback scheduled",
+      "not_interested": "Not interested",
+      "no_answer": "No answer",
+      "voicemail": "Voicemail",
+      "wrong_number": "Wrong number",
+      "gatekeeper": "Gatekeeper"
+    },
+    "agentOutcomes": {
+      "appointment_booked": "Appointment booked",
+      "confirmed": "Confirmed",
+      "cannot_attend": "Cannot attend",
+      "callback_requested": "Callback requested",
+      "not_interested": "Not interested",
+      "no_conversation": "No conversation",
+      "unknown": "Unknown"
+    },
+    "sentiments": {
+      "positive": "Positive",
+      "neutral": "Neutral",
+      "negative": "Negative"
+    }
   }
 }

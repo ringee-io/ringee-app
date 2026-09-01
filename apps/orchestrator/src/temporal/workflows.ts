@@ -129,3 +129,7 @@ export async function callerIdHealthRecomputeWorkflow(): Promise<void> {
 export async function staleCallSweepWorkflow(): Promise<void> {
   await periodicJobs.sweepStaleCalls();
 }
+
+export async function voiceAgentSweepWorkflow(): Promise<void> {
+  await periodicJobs.sweepVoiceAgents();
+}

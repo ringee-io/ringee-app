@@ -3,6 +3,35 @@ packages:
   - apps/**
   - "!apps/browser-extension/files/**"
 
+# pnpm 10 runs no install scripts unless the package is named here. Every entry
+# below needs its build to be usable: native addons (bcrypt, sharp, keytar) and
+# the Prisma engines have nothing to run without it.
+#
+# This was previously written as `allowBuilds` with "set this to true or false"
+# placeholders — a key pnpm 10.16 does not read, so none of it took effect.
+onlyBuiltDependencies:
+  - "@clerk/shared"
+  - "@firebase/util"
+  - "@nestjs/core"
+  - "@parcel/watcher"
+  - "@prisma/client"
+  - "@prisma/engines"
+  - "@sentry/cli"
+  - "@swc/core"
+  - "@tailwindcss/oxide"
+  - bcrypt
+  - browser-tabs-lock
+  - bufferutil
+  - core-js
+  - esbuild
+  - prisma
+  - protobufjs
+  - sharp
+  - unrs-resolver
+  - utf-8-validate
+
+# keytar builds against system libsecret, which CI images do not carry. It is
+# only used by the CLI's optional credential store, so it stays unbuilt.
 ignoredBuiltDependencies:
   - keytar
 

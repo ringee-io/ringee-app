@@ -27,6 +27,20 @@ When adding a provider capability:
    re-export provider enums for the domain to switch on.
 3. If the provider cannot answer, say so explicitly (`null`) rather than guessing
    — `isCallAlive` is the reference for this.
+4. **Telnyx's write verbs are not uniform — check the reference, do not pattern
+   match.** An assistant is updated with `POST /ai/assistants/{id}`, but an
+   insight is updated with `PUT /ai/conversations/insights/{id}`. Using POST
+   there answers `404 Resource not found` for a resource that plainly exists,
+   which is indistinguishable from a deleted id and cost a whole feature once:
+   the agent re-sync failed, so a knowledge base that had finished indexing was
+   never attached to the assistant. `TelnyxClient` logs the method and path of
+   every failed request — that log line is how you tell the two apart.
+5. When the provider **fails**, describe the failure with `describeTelnyxError`
+   before you store it or show it. `TelnyxClient` rethrows the provider's JSON
+   body as an `HttpException`, and Nest only copies a _string_ response onto
+   `.message` — so reading `error.message` on an object body yields the literal
+   `"Http Exception"`. That placeholder has already reached a user once, stored
+   verbatim on an agent row.
 
 `TelephonyService` is a dispatcher with a single `telnyx` case today. Keep new
 work behind it; that switch is where a second carrier plugs in.

@@ -18,7 +18,13 @@ const apiConfiguration = {
   FRONTEND_URL: process.env.FRONTEND_URL!,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!,
-  PUBLIC_BACKEND_URL: process.env.PUBLIC_BACKEND_URL!,
+  /**
+   * Where the outside world reaches this backend. Trimmed on the way in
+   * because it is concatenated into the webhook and tool URLs handed to
+   * providers: a stray space in the env file yields a URL the provider
+   * rejects, and that failure surfaces far from its cause.
+   */
+  PUBLIC_BACKEND_URL: process.env.PUBLIC_BACKEND_URL?.trim() ?? "",
   REDIS_URL: process.env.REDIS_URL!,
   // ── Temporal (durable background jobs / orchestrator) ──
   // Plain gRPC address of the self-hosted Temporal frontend. For local dev,
@@ -165,7 +171,6 @@ const apiConfiguration = {
   ),
   TRIGGERLOOP_BASE_URL: process.env.TRIGGERLOOP_BASE_URL!,
   TRIGGERLOOP_API_KEY: process.env.TRIGGERLOOP_API_KEY!,
-  TRIGGERLOOP_WEBHOOK_SECRET: process.env.TRIGGERLOOP_WEBHOOK_SECRET!,
   TRIGGERLOOP_PROJECT_KEY: process.env.TRIGGERLOOP_PROJECT_KEY || "ringee",
   // ── CRM Integrations ──
   ATTIO_OAUTH_CLIENT_ID: process.env.ATTIO_OAUTH_CLIENT_ID,
@@ -208,6 +213,47 @@ const apiConfiguration = {
     process.env.AI_SUMMARY_TRIGGER_TOKENS ?? 6000,
   ),
   AI_PROMPT_CACHE_ENABLED: process.env.AI_PROMPT_CACHE_ENABLED !== "false",
+
+  // ── AI Voice Agents ──
+  // Margin multiplier applied to the provider's own reported cost for an agent
+  // conversation (voice engine + LLM tokens) before debiting credits.
+  // 1 = charge exactly what the provider charged.
+  AI_VOICE_AGENT_PROFIT_MARGIN: Number(
+    process.env.AI_VOICE_AGENT_PROFIT_MARGIN ?? 1,
+  ),
+  // The model behind each user-facing choice. "Ringee AI" runs on a model the
+  // provider hosts itself, so it needs no customer credential; the others are
+  // third-party models the customer brings a key for.
+  AI_VOICE_AGENT_RINGEE_MODEL:
+    process.env.AI_VOICE_AGENT_RINGEE_MODEL || "moonshotai/Kimi-K2.6",
+  AI_VOICE_AGENT_OPENAI_MODEL:
+    process.env.AI_VOICE_AGENT_OPENAI_MODEL || "openai/gpt-5.2",
+  AI_VOICE_AGENT_ANTHROPIC_MODEL:
+    process.env.AI_VOICE_AGENT_ANTHROPIC_MODEL || "anthropic/claude-haiku-4-5",
+  AI_VOICE_AGENT_GOOGLE_MODEL:
+    process.env.AI_VOICE_AGENT_GOOGLE_MODEL || "google/gemini-2.5-flash",
+  // Hard cap on an agent call, so an unattended conversation cannot run up
+  // unbounded spend. Mirrors DESK_PHONE_MAX_CALL_MINUTES in intent.
+  AI_VOICE_AGENT_MAX_CALL_SECONDS: Number(
+    process.env.AI_VOICE_AGENT_MAX_CALL_SECONDS ?? 900,
+  ),
+  // How long a browser test session may keep an agent open to anonymous web
+  // calls before the sweeper closes it again.
+  AI_VOICE_AGENT_TEST_SESSION_TTL_SECONDS: Number(
+    process.env.AI_VOICE_AGENT_TEST_SESSION_TTL_SECONDS ?? 600,
+  ),
+  // Region of the provider's object storage that holds agent knowledge bases.
+  AI_VOICE_AGENT_STORAGE_REGION:
+    process.env.AI_VOICE_AGENT_STORAGE_REGION || "us-central-1",
+  // Largest knowledge document a user may upload, in megabytes.
+  AI_VOICE_AGENT_MAX_DOCUMENT_MB: Number(
+    process.env.AI_VOICE_AGENT_MAX_DOCUMENT_MB ?? 20,
+  ),
+  // Comma-separated email allowlist for the AI Voice Agents closed beta. When
+  // unset, the backend falls back to a committed default (see
+  // VoiceAgentBetaGuard). Set it to an empty string to lift the gate and hand
+  // the module back to every workspace.
+  AI_VOICE_AGENTS_BETA_EMAILS: process.env.AI_VOICE_AGENTS_BETA_EMAILS,
   // AI Pipeline — Follow-up Intelligence batch enrichment. Context activation
   // is already explicit, so AI runs unless it is deliberately disabled.
   AI_FOLLOWUP_AI_ENABLED: process.env.AI_FOLLOWUP_AI_ENABLED !== "false",
@@ -269,6 +315,22 @@ if (
 
 if (!isFiniteAtLeast(apiConfiguration.AI_TOKEN_MARGIN, 1)) {
   errors.push("AI_TOKEN_MARGIN must be a finite number >= 1");
+}
+
+if (!isFiniteAtLeast(apiConfiguration.AI_VOICE_AGENT_PROFIT_MARGIN, 1)) {
+  errors.push("AI_VOICE_AGENT_PROFIT_MARGIN must be a finite number >= 1");
+}
+
+if (!isFiniteAtLeast(apiConfiguration.AI_VOICE_AGENT_MAX_CALL_SECONDS, 30)) {
+  errors.push("AI_VOICE_AGENT_MAX_CALL_SECONDS must be a finite number >= 30");
+}
+
+if (
+  !isFiniteAtLeast(apiConfiguration.AI_VOICE_AGENT_TEST_SESSION_TTL_SECONDS, 60)
+) {
+  errors.push(
+    "AI_VOICE_AGENT_TEST_SESSION_TTL_SECONDS must be a finite number >= 60",
+  );
 }
 
 if (!isFiniteAtLeast(apiConfiguration.CALL_PROFIT_MARGIN, 0)) {

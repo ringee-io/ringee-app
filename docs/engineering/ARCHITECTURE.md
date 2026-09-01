@@ -82,7 +82,8 @@ Core aggregates: `User`, `Organization`, `OrganizationMembership`, `Call`,
 `CallAttempt`, `Contact`, `Company`, `Campaign`, `CampaignLead`,
 `NumberPurchased`, `Credit` (+ `CreditDebit` / `CreditGrant` / `CreditTopup`),
 `Subscription`, `Recording`, `CallTranscription`, `CallSession`, `DNCEntry`,
-`CrmConnection`, `CustomIntegration`, `EnrichmentConnection`, `Offer`.
+`CrmConnection`, `CustomIntegration`, `EnrichmentConnection`, `Offer`,
+`AiVoiceAgent` (+ `AiVoiceAgentCall`).
 
 ## Commands
 

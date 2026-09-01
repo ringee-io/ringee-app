@@ -47,8 +47,9 @@ Verify the signature **before** anything else and fail closed:
   `req.rawBody`, Ed25519 + timestamp tolerance. Then normalize with
   `TelnyxEventNormalizer` before handing off: the domain takes `TelephonyEvent`,
   not a carrier payload.
-- TriggerLoop (`/internal/triggerloop/webhook`) — shared secret in
-  `x-triggerloop-secret`, compared constant-time, failing closed.
+- TriggerLoop (`/internal/triggerloop/webhook`) — `TRIGGERLOOP_API_KEY` in
+  `x-triggerloop-api-key`, compared constant-time, failing closed. Same key
+  this backend sends when calling TriggerLoop.
 - Stripe — `stripeService.validateWebhook(req.rawBody, signature, secret)`.
 - Clerk — raw body registered in `main.ts` for `/webhooks/clerk`.
 - Custom Integrations inbound — HMAC via `packages/platform/src/custom-integrations`.

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { Call, CallRepository, CallStatus } from "@ringee/database";
 import { RedisService, TelephonyService } from "@ringee/platform";
+import { AI_VOICE_AGENT_CALL_SOURCE } from "../voice-agents/voice-agent.types";
 
 /** Redis key holding the single dial lease a user is allowed to have. */
 function leaseKey(userId: string): string {
@@ -106,6 +107,19 @@ function isServerOriginatedDrop(call: Call): boolean {
     // A normal leg carries the literal "initiate_call", which is not JSON.
     return false;
   }
+}
+
+/**
+ * A call an AI voice agent placed. Like a voicemail drop it is originated
+ * server-side and nobody is on Ringee's end of it, so it must not consume the
+ * user's single call slot — otherwise a running agent would lock its owner out
+ * of their own dialer (CALL-003).
+ *
+ * Unlike a drop this reads `source`, which is safe here because no caller can
+ * set it: the agent call service is the only writer of this value.
+ */
+function isVoiceAgentCall(call: Call): boolean {
+  return call.source === AI_VOICE_AGENT_CALL_SOURCE;
 }
 
 export interface DialLease {
@@ -521,6 +535,7 @@ export class ConcurrentCallGuardService {
    */
   private occupiesTheUser(call: Call): boolean {
     if (isServerOriginatedDrop(call)) return false;
+    if (isVoiceAgentCall(call)) return false;
 
     const direction = (call.direction ?? "outbound").toLowerCase();
     const inbound = ["inbound", "incoming"].includes(direction);

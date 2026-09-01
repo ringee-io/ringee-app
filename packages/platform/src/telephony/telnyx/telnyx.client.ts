@@ -1,4 +1,4 @@
-import { Injectable, HttpException, HttpStatus } from "@nestjs/common";
+import { Injectable, HttpException, HttpStatus, Logger } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import axios, { AxiosInstance } from "axios";
 
@@ -17,10 +17,27 @@ export class TelnyxClient {
     });
   }
 
-  private handleError(error: any): never {
+  private readonly logger = new Logger(TelnyxClient.name);
+
+  /**
+   * Rethrows the provider's own body so `describeTelnyxError` can read it, and
+   * logs which request produced it.
+   *
+   * The body alone does not say what was called: Telnyx answers a wrong path,
+   * a missing resource and a stale id with the same sentence, so an error
+   * stored on a row ("The requested resource or URL could not be found.") is
+   * unattributable without this line.
+   */
+  private handleError(error: any, method: string, path: string): never {
+    const status = error.response?.status;
+    this.logger.warn(
+      `${method} ${path} failed${status ? ` with ${status}` : ""}: ${JSON.stringify(
+        error.response?.data ?? error.message,
+      ).slice(0, 500)}`,
+    );
     throw new HttpException(
       error.response?.data || error.message,
-      error.response?.status || HttpStatus.BAD_GATEWAY,
+      status || HttpStatus.BAD_GATEWAY,
     );
   }
 
@@ -29,7 +46,7 @@ export class TelnyxClient {
       const { data } = await this.client.post<T>(path, body);
       return data;
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, "POST", path);
     }
   }
 
@@ -38,7 +55,16 @@ export class TelnyxClient {
       const { data } = await this.client.get<T>(path);
       return data;
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, "GET", path);
+    }
+  }
+
+  async put<T = any>(path: string, body?: any): Promise<T> {
+    try {
+      const { data } = await this.client.put<T>(path, body);
+      return data;
+    } catch (error) {
+      this.handleError(error, "PUT", path);
     }
   }
 
@@ -47,7 +73,31 @@ export class TelnyxClient {
       const { data } = await this.client.patch<T>(path, body);
       return data;
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, "PATCH", path);
+    }
+  }
+
+  /**
+   * POSTs and returns raw bytes. The shared instance asks for JSON, so audio
+   * endpoints (text-to-speech) need their own response type.
+   */
+  async postBinary(
+    path: string,
+    body?: any,
+  ): Promise<{ data: Buffer; contentType: string }> {
+    try {
+      const response = await this.client.post(path, body, {
+        responseType: "arraybuffer",
+        headers: { Accept: "*/*" },
+      });
+      return {
+        data: Buffer.from(response.data as ArrayBuffer),
+        contentType:
+          (response.headers?.["content-type"] as string | undefined) ??
+          "application/octet-stream",
+      };
+    } catch (error) {
+      this.handleError(error, "POST", path);
     }
   }
 
@@ -56,7 +106,7 @@ export class TelnyxClient {
       const { data } = await this.client.delete<T>(path);
       return data;
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, "DELETE", path);
     }
   }
 
@@ -115,7 +165,7 @@ export class TelnyxClient {
 
       return blob;
     } catch (error) {
-      this.handleError(error);
+      this.handleError(error, "GET", path);
     }
   }
 }

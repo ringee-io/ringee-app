@@ -61,7 +61,9 @@
       "unknown": "Onbekend",
       "callAgain": "Opnieuw bellen",
       "noRecording": "Geen opname",
-      "downloadRecording": "Opname downloaden"
+      "downloadRecording": "Opname downloaden",
+      "source": "Bron",
+      "details": "Details"
     },
     "rowActions": {
       "menu": "Acties",
@@ -162,5 +164,141 @@
     "upgrade": "Upgraden naar Organisatie",
     "redirecting": "Doorsturen…",
     "dismiss": "Begrepen"
+  },
+  "detail": {
+    "back": "Oproepgeschiedenis",
+    "errorTitle": "Dit gesprek kon niet worden geopend",
+    "errorFallback": "Kon dit gesprek niet openen.",
+    "retry": "Opnieuw proberen",
+    "callAgain": "Opnieuw bellen",
+    "open": "Openen",
+    "notSet": "Niet ingesteld",
+    "aiAgent": "AI-agent",
+    "minutes": "{count} min",
+    "credits": "{value} credits",
+    "stats": {
+      "outcome": "Resultaat",
+      "talkTime": "Spreektijd",
+      "cost": "Kosten"
+    },
+    "ai": {
+      "analysis": "AI-analyse",
+      "noSummary": "Deze agent is niet ingesteld om een samenvatting te schrijven.",
+      "pending": "De analyse is er nog niet. Die komt kort na afloop van het gesprek.",
+      "extracted": "Geëxtraheerde gegevens",
+      "extractedHint": "De velden die deze agent uit het gesprek moest halen.",
+      "notEstablished": "Niet vastgesteld",
+      "yes": "Ja",
+      "no": "Nee",
+      "agent": "Agent",
+      "agentName": "Naam",
+      "agentType": "Type",
+      "voice": "Stem",
+      "providerDefault": "Standaardstem van provider",
+      "speakingFor": "Spreekt namens",
+      "agentDeleted": "De agent die dit gesprek voerde is verwijderd.",
+      "variables": "Meegegeven variabelen",
+      "meetingBooked": "Afspraak geboekt",
+      "meetingTitle": "Titel",
+      "meetingWhen": "Wanneer",
+      "meetingLength": "Duur",
+      "meetingWhere": "Waar",
+      "joinLink": "Deelnamelink",
+      "meetingFallback": "Afspraak",
+      "providerCost": "Kosten AI-provider",
+      "charged": "AI in rekening gebracht"
+    },
+    "contact": {
+      "title": "Contact",
+      "name": "Naam",
+      "phone": "Telefoon",
+      "email": "E-mail",
+      "company": "Bedrijf",
+      "role": "Functie",
+      "unnamed": "Naamloos",
+      "none": "Dit nummer is niet opgeslagen als contact."
+    },
+    "routing": {
+      "title": "Routering",
+      "direction": "Richting",
+      "from": "Van",
+      "to": "Naar",
+      "placedFrom": "Gebeld via",
+      "callerId": "Beller-ID",
+      "deskPhone": "Bureautelefoon",
+      "member": "Lid"
+    },
+    "timeline": {
+      "title": "Tijdlijn",
+      "created": "Aangemaakt",
+      "dialing": "Kiezen",
+      "answered": "Beantwoord",
+      "ended": "Beëindigd",
+      "never": "Nooit gebeurd",
+      "started": "Gestart",
+      "talkTime": "Spreektijd"
+    },
+    "cost": {
+      "title": "Kosten",
+      "telephony": "Telefonie"
+    },
+    "campaign": {
+      "title": "Campagne",
+      "campaign": "Campagne",
+      "attempt": "Poging",
+      "disposition": "Resultaatcode",
+      "notDispositioned": "Geen resultaatcode",
+      "removed": "Verwijderd"
+    },
+    "followUp": {
+      "title": "Opvolging",
+      "callback": "Terugbelverzoek",
+      "meeting": "Afspraak"
+    },
+    "diagnostics": {
+      "title": "Diagnostiek",
+      "callId": "Gesprek-ID",
+      "providerCall": "Provideroproep",
+      "controlId": "Control-ID",
+      "session": "Sessie"
+    },
+    "note": {
+      "title": "Notitie"
+    },
+    "sources": {
+      "web": "Webdialer",
+      "chrome_extension": "Chrome-extensie",
+      "mobile": "Mobiele app",
+      "campaign": "Campagne",
+      "session": "Belsessie",
+      "sip_device": "Bureautelefoon",
+      "ai_voice_agent": "AI-agent"
+    },
+    "outcomes": {
+      "meeting_booked": "Afspraak geboekt",
+      "sale": "Verkoop",
+      "interested": "Geïnteresseerd",
+      "follow_up": "Opvolgen",
+      "callback_scheduled": "Terugbellen gepland",
+      "not_interested": "Niet geïnteresseerd",
+      "no_answer": "Geen gehoor",
+      "voicemail": "Voicemail",
+      "wrong_number": "Verkeerd nummer",
+      "gatekeeper": "Poortwachter"
+    },
+    "agentOutcomes": {
+      "appointment_booked": "Afspraak geboekt",
+      "confirmed": "Bevestigd",
+      "cannot_attend": "Kan niet aanwezig zijn",
+      "callback_requested": "Terugbellen gevraagd",
+      "not_interested": "Niet geïnteresseerd",
+      "no_conversation": "Geen gesprek",
+      "unknown": "Onbekend"
+    },
+    "sentiments": {
+      "positive": "Positief",
+      "neutral": "Neutraal",
+      "negative": "Negatief"
+    }
   }
 }

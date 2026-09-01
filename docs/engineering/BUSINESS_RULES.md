@@ -284,6 +284,55 @@ second time. A Redis failure allows the send rather than silencing it.
   line, not the balance.
 - **Best-effort:** an alert failure must never fail the debit that triggered it.
 
+### BILL-020 — An AI voice agent call settles twice, from two different meters
+
+The voice leg settles like any other call (BILL-012). The AI half — the
+provider's conversation engine and its LLM tokens — is metered separately, is
+not in `cost_parts`, and is only published to the provider's usage records some
+minutes after the call ends. So it settles on its own:
+
+- Price is the provider's **own reported cost** × `AI_VOICE_AGENT_PROFIT_MARGIN`.
+- Debited once under `ai-voice-agent-cost:<callId>`, with
+  `AiVoiceAgentCall.costSettledAt` claimed before the debit as the replay guard.
+- **Claimed is not debited.** The claim and the debit are two writes with no
+  transaction around them, so `costSettledAt` (priced, and owned by this worker)
+  is tracked apart from `aiCostDebitedAt` (credits actually taken). A call
+  interrupted between the two is claimed but undebited, and the reconciler
+  looks for exactly that — `costSettledAt` alone as the sweep filter made such a
+  call invisible forever, and the revenue was silently written off. The retry
+  reuses the same `ai-voice-agent-cost:<callId>` key, so finishing a debit that
+  did land is a no-op rather than a second charge.
+- **An empty usage response means "not published yet", never "free".** Settling
+  at zero on an empty answer silently gives the call away, so the reconciler
+  retries on a schedule instead.
+
+**The voice leg of an agent call settles from the same reconciler**, not from
+the cost webhook. `call.cost` is an event of the calling application an agent's
+calls go out through, and that application can only deliver TeXML form
+callbacks — never the Call Control JSON envelope `/api/call/webhook` verifies.
+An agent call waiting on that webhook is an agent call priced at nothing.
+
+- Read from the provider's `sip-trunking` records, which are keyed by the
+  control id Ringee writes down when it places the call — so the leg is priced
+  from a handle that exists before any webhook could have arrived.
+- Priced with `CALL_PROFIT_MARGIN` through the same `calculateCallCharge` the
+  webhook uses, written to the same `Call.totalCost` / `costMeta`, and debited
+  under the same **`call-cost:<callId>`** key. The key is globally unique, so if
+  the webhook ever does arrive only one of the two paths can charge for the leg,
+  and `totalCost` is the marker both read before pricing.
+- All of a call's legs are summed, not just the first — a failed attempt before
+  the one that connected is its own record.
+
+**Either provider handle is enough to reconcile.** `providerConversationId` is
+only ever written by the conversation webhook, so requiring it in the sweep
+filter hid every call whose webhook never arrived — permanently, and silently,
+because those are exactly the calls nothing else was going to price. The sweep
+accepts `providerCallControlId` and backfills the conversation id from the
+records themselves.
+
+- **Source of truth:** `services/voice-agents/voice-agent-billing.service.ts`
+  (+ spec); swept by the `ringee.voice-agent-sweep` Temporal Schedule
+
 ---
 
 ## Telephony — calls (`CALL`)
@@ -307,9 +356,13 @@ never refused because of a teammate's call.
 
 A ringing inbound leg has not been picked up. Inside an organization an inbound
 row is attributed to the number's _owner_, not the member who answers, so it must
-never mark anyone busy. Server-originated voicemail drops likewise occupy nobody.
+never mark anyone busy. Server-originated voicemail drops likewise occupy nobody,
+and so do AI voice agent calls: the agent is the one talking, and counting its
+call would lock the owner out of their own dialer for its whole duration.
 
-- **Source of truth:** `occupiesTheUser`, `isServerOriginatedDrop`
+- **Source of truth:** `occupiesTheUser`, `isServerOriginatedDrop`,
+  `isVoiceAgentCall` (the last reads `Call.source`, which is safe because only
+  the agent call service ever writes that value)
 
 ### CALL-004 — A call row older than the trust window must be confirmed live before it refuses a dial
 
@@ -584,6 +637,32 @@ is explicitly guarded against duplication.
 Deepgram's cost is preferred; per-minute duration is the fallback. The charge is
 recorded on the header (`chargedOnHangup`) so it happens once.
 
+### REC-005 — An agent call is always recorded, and never transcribed twice
+
+Every other surface asks the workspace whether to record (`recordAllCalls`). An
+AI voice agent call is recorded unconditionally — the dial path sets it on the
+call itself — so turning workspace recording off does not turn agents off.
+
+Its transcript comes from the voice provider, not from Deepgram. The provider
+already transcribed the conversation in order to hold it, so the text exists,
+is attributed to a side by construction, and costs nothing to read back;
+running Deepgram over the recording would be paying a second time for the same
+words. It is stored in the `realtime` slot, because that is what it is —
+transcribed live, during the call — with `provider` naming who produced it and
+`chargedOnHangup` pre-set so the realtime debit cannot charge for text Deepgram
+never made.
+
+Neither artifact is delivered: the provider announces a saved recording as an
+event of the calling application, and never announces a transcript at all. Both
+are read from the provider in the agent sweep, which keeps looking for up to
+`ARTIFACT_RETRY_WINDOW_MS` after the call — a call routinely settles its money
+before its audio has finished being written, and a settled call has already
+left the billing list.
+
+- **Source of truth:** `VoiceAgentBillingService.recoverArtifacts` /
+  `sweepArtifacts`, `VoiceAgentResultService.recoverTranscript`,
+  `TranscriptionService.saveProviderTranscript`
+
 ---
 
 ## Messaging (`MSG`)
@@ -624,6 +703,130 @@ It pushes to the user's active devices. With no active device, nothing happens.
 ### MCP-005 — Phone numbers are E.164; datetimes are ISO-8601 with an offset
 
 `E164_REGEX = /^\+[1-9]\d{1,14}$/` in `packages/agent/src/schemas/common.ts`.
+
+---
+
+## AI voice agents (`AGENT`)
+
+### AGENT-001 — The user configures the agent, never the conversation
+
+Instructions, greeting, tools, conversation rules, the dynamic-variable schema
+and the default analyses belong to the agent type's **blueprint**. A user picks
+a name, a model, a voice, knowledge and what to extract — nothing else. A
+feature that needs a new behaviour writes a blueprint; it does not expose the
+prompt.
+
+"A model" is a _family_ — "Ringee AI", or a provider they already pay for.
+Which model id that maps to stays Ringee's decision, in `models.catalog.ts`. The
+id and where it runs are **shown** on the choice ("moonshotai/Kimi-K2.6",
+self-hosted), because someone comparing Ringee AI against their own key is
+comparing two concrete models; being able to read it is not the same as being
+able to set it.
+
+- **Source of truth:** `services/voice-agents/blueprints/*` +
+  `VoiceAgentBlueprintRegistry`
+
+### AGENT-002 — An agent never states availability it has not just looked up
+
+The booking agent may only offer a time returned by `get_available_slots`, and
+may only say a meeting is booked after `book_appointment` returns success. This
+is why the tool path uses `CalendarService.getBookableSlots` — which **fails**
+when the calendar is missing or unreachable — rather than `getAvailability`,
+which deliberately falls back to "everything is free" for the human picker.
+
+- **Risk if violated:** the agent books over real meetings and tells the person
+  a time that was never free
+
+### AGENT-003 — A provider tool callback proves itself, and derives its workspace
+
+The tool routes are `@Public()` because the voice provider calls them
+mid-conversation. Each carries the agent's shared secret (stored hashed, held by
+the provider as a secret reference, compared in constant time), and the
+workspace, calendar and contact are read from the stored agent row. The call's
+identity comes from a header the provider fills from a system variable — never
+from the model's own arguments.
+
+- **Source of truth:** `services/voice-agents/voice-agent-tool.service.ts`
+
+### AGENT-004 — One execution path, whatever started the call
+
+Web, the public API, the CLI and MCP all reach `VoiceAgentCallService.startCall`,
+which applies the calling-rights, DNC, balance and caller-ID gates in that order.
+A new surface calls it; it does not re-implement the gates.
+
+### AGENT-005 — A browser test session opens the agent only while it runs
+
+Testing an agent from the browser requires the provider to accept an
+unauthenticated web call, which makes the agent reachable by anyone holding its
+id. The window is opened on start and closed on stop, on unmount, and by the
+`ringee.voice-agent-sweep` schedule if the tab simply went away.
+
+### AGENT-006 — The tool's result outranks the transcript analysis
+
+When `book_appointment` created a meeting, the outcome is
+`appointment_booked` and the post-call analysis may not overwrite it. The tool
+knows a row exists; the analysis is only reading what was said.
+
+### AGENT-007 — Company context belongs to the agent, and falls back to the workspace
+
+One workspace runs agents for several brands, products or clients, so the
+company an agent introduces itself with is stored on the agent row. An agent
+that carries none of its own reads `WorkspaceCompanyProfile` instead, which is
+what keeps agents built before per-agent context saying exactly what they said
+before. "Carries its own" means it names a company or describes one — a blank
+description on a named company is a choice, not a reason to inherit.
+
+Copying another agent's context is a client-side convenience: the values are
+duplicated onto the new agent, never referenced, so editing one agent's context
+never changes what another agent says.
+
+- **Source of truth:** `CompanyProfileService.resolveForAgent`
+
+### AGENT-008 — The number an agent presents is chosen, never guessed
+
+An agent may be assigned a number of its own (`AiVoiceAgent.callerNumberId`).
+At dial time the caller ID resolves in one order, the same for every surface:
+the number named on the call, then the agent's own, then — only when the
+workspace has exactly one usable number — that number. With several usable
+numbers and no assignment the call is **refused**, because a workspace runs
+agents for several brands and countries, and the number a stranger sees is not
+something to settle by list order.
+
+Whichever id arrives is validated against
+`NumberPurchasedService.listOutboundCallerIds(ctx, { source: ai_voice_agent })`:
+an id from a client is never authorization to use a number, and an assignment
+whose number was since released fails loudly rather than falling back.
+Activating an agent re-checks the same thing, so an agent that could not
+possibly place a call does not go live.
+
+- **Source of truth:** `VoiceAgentCallService.resolveCallerId` (+ spec),
+  `VoiceAgentService.assertCallerNumberUsable` / `assertCallerNumberReady`
+
+### AGENT-009 — Post-call analysis reaches Ringee on its own callback, or not at all
+
+The summary, outcome, sentiment and extracted fields are produced provider-side
+minutes after the conversation ends. There is **no endpoint to read a finished
+conversation's analysis back** — so it is delivered or it is lost, and an
+analysis group configured without a webhook analyses every call the agent makes
+and tells nobody. That is not a theoretical failure: it is what an agent call
+with an empty result looks like.
+
+Ringee therefore owns the delivery. Every agent's analysis group is created
+with its callback URL, and **re-pointed on every save**, which is the only
+thing that recovers agents whose group predates the callback.
+
+The route is `@Public()`, because the provider calls it. A group stores a bare
+URL — no headers to set, no signature to pin — so the URL is the proof: a token
+derived by HMAC from the agent id under a key scrypt'd from
+`APP_ENCRYPTION_SECRET`, compared in constant time. Nothing is stored, so there
+is no plaintext at rest and the URL survives every save. A verified token
+proves _which agent_ asked for the analysis, never which call it may write to:
+the conversation it names must belong to a call of that same agent.
+
+- **Source of truth:** `voiceAgentInsightsToken` /
+  `voiceAgentInsightsTokenMatches` (`@ringee/platform`),
+  `VoiceAgentResultService.applyInsightCallback` (+ spec),
+  `AiVoiceAgentWebhookController.handleInsights`
 
 ---
 

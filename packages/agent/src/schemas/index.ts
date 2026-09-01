@@ -8,3 +8,4 @@ export * from "./campaigns.js";
 export * from "./analytics.js";
 export * from "./compliance.js";
 export * from "./ai-pipeline.js";
+export * from "./voice-agents.js";

@@ -111,6 +111,16 @@ const SCHEDULES: ScheduleDef[] = [
     catchupWindow: "10m",
   },
   {
+    // AI voice agent housekeeping: settle the provider's AI usage for finished
+    // calls, and close test sessions that left an agent open to anonymous web
+    // calls. Usage records are published a few minutes after a call ends, so a
+    // 5m cadence catches most calls on the first pass and the rest on the next.
+    id: "ringee.voice-agent-sweep",
+    workflow: WORKFLOW_NAMES.voiceAgentSweep,
+    every: "5m",
+    catchupWindow: "30m",
+  },
+  {
     // Recompute caller-ID health scores from a moving window and apply
     // active⇄cooling transitions. Reputation moves slowly, so a 30m cadence is
     // plenty and keeps workflow-history volume low.

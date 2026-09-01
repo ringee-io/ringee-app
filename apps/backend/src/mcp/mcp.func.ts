@@ -24,6 +24,9 @@ import {
   PipelineType,
   UserDeviceService,
   contextKey,
+  VoiceAgentCallService,
+  VoiceAgentResultService,
+  VoiceAgentService,
 } from "@ringee/services";
 import {
   DashboardContext,
@@ -47,6 +50,12 @@ import { McpTool } from "./mcp.tools";
 import {
   CreateCallSessionInput,
   CreateCallSessionSchema,
+  GetAiVoiceAgentCallInput,
+  GetAiVoiceAgentCallSchema,
+  ListAiVoiceAgentsInput,
+  ListAiVoiceAgentsSchema,
+  StartAiVoiceAgentCallInput,
+  StartAiVoiceAgentCallSchema,
   CreateCallbackInput,
   CreateCallbackSchema,
   CreateContactInput,
@@ -147,6 +156,9 @@ export class McpFunc {
     private readonly pipelineActivationService: PipelineActivationService,
     private readonly pendingActionService: PendingActionService,
     private readonly objectionInsightService: ObjectionInsightService,
+    private readonly voiceAgentService: VoiceAgentService,
+    private readonly voiceAgentCallService: VoiceAgentCallService,
+    private readonly voiceAgentResultService: VoiceAgentResultService,
   ) {}
 
   private buildJoinUrl(rawToken: string): string {
@@ -2241,5 +2253,139 @@ export class McpFunc {
           }
         : null,
     };
+  }
+
+  // ── AI Voice Agent tools ───────────────────────────────────
+
+  @McpTool({
+    toolName: "list_ai_voice_agents",
+    description:
+      "List the workspace's AI voice agents — the pre-built agents that call a " +
+      "person and hold a conversation. Returns each agent's id, name, type, " +
+      "status, how many calls it has placed and the number it calls from, plus " +
+      "the variables its type accepts and the numbers this workspace can call " +
+      "from. Resolve an agentId here before calling start_ai_voice_agent_call.",
+    zod: ListAiVoiceAgentsSchema,
+    annotations: {
+      title: "List AI voice agents",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  })
+  async listAiVoiceAgents(
+    ctx: OwnershipContext,
+    input: ListAiVoiceAgentsInput,
+  ) {
+    const [page, types, callerNumbers] = await Promise.all([
+      this.voiceAgentService.list(ctx, { limit: input.limit ?? 20 }),
+      Promise.resolve(this.voiceAgentService.listTypes()),
+      this.voiceAgentService.listCallerNumbers(ctx),
+    ]);
+
+    const numbersById = new Map(callerNumbers.map((n) => [n.id, n]));
+
+    return text({
+      agents: page.data.map((agent) => ({
+        id: agent.id,
+        name: agent.name,
+        type: agent.type,
+        status: agent.status,
+        voice: agent.voiceLabel,
+        callCount: agent.callCount,
+        // Null means the agent has no number of its own: pass fromNumberId on
+        // start_ai_voice_agent_call unless the workspace has exactly one.
+        callsFrom: agent.callerNumberId
+          ? (numbersById.get(agent.callerNumberId)?.phoneNumber ?? null)
+          : null,
+        createdAt: agent.createdAt,
+      })),
+      total: page.total,
+      /** The numbers an agent in this workspace may be told to call from. */
+      callerNumbers: callerNumbers.map((number) => ({
+        id: number.id,
+        phoneNumber: number.phoneNumber,
+        country: number.isoCountry,
+      })),
+      variablesByType: Object.fromEntries(
+        types.map((type) => [
+          type.type,
+          type.variables.map((variable) => ({
+            key: variable.key,
+            required: variable.required,
+            description: variable.description,
+          })),
+        ]),
+      ),
+    });
+  }
+
+  @McpTool({
+    toolName: "start_ai_voice_agent_call",
+    description:
+      "Have an AI voice agent call a phone number and hold the conversation it " +
+      "was built for — booking a meeting, or delivering a reminder and finding " +
+      "out where the person stands. Returns immediately with a call id; the " +
+      "conversation happens asynchronously. Read the transcript, summary, " +
+      "outcome and any extracted data afterwards with get_ai_voice_agent_call. " +
+      "This places a real billed phone call, so confirm with the human first.",
+    zod: StartAiVoiceAgentCallSchema,
+    annotations: {
+      title: "Start an AI voice agent call",
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    },
+  })
+  async startAiVoiceAgentCall(
+    ctx: OwnershipContext,
+    input: StartAiVoiceAgentCallInput,
+  ) {
+    const started = await this.voiceAgentCallService.startCall(
+      ctx,
+      input.agentId,
+      {
+        to: input.to,
+        fromNumberId: input.fromNumberId,
+        variables: input.variables,
+        metadata: input.metadata,
+      },
+    );
+
+    return text({
+      ok: true,
+      callId: started.id,
+      status: started.status,
+      note: "The conversation runs asynchronously. Poll get_ai_voice_agent_call for the outcome.",
+    });
+  }
+
+  @McpTool({
+    toolName: "get_ai_voice_agent_call",
+    description:
+      "Read the result of an AI voice agent call: its telephony status, the " +
+      "outcome the conversation reached, a summary, and any custom data the " +
+      "agent was configured to extract. Poll this after " +
+      "start_ai_voice_agent_call — analysis lands shortly after the call ends.",
+    zod: GetAiVoiceAgentCallSchema,
+    annotations: {
+      title: "Get an AI voice agent call",
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  })
+  async getAiVoiceAgentCall(
+    ctx: OwnershipContext,
+    input: GetAiVoiceAgentCallInput,
+  ) {
+    const call = await this.voiceAgentCallService.requireCall(
+      ctx,
+      input.callId,
+    );
+    return text(this.voiceAgentResultService.toResult(call));
   }
 }

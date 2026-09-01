@@ -43,6 +43,7 @@ import {
   IconInbox,
   IconActivity,
   IconPlug,
+  IconRobot,
   IconSparkles,
 } from "@tabler/icons-react";
 import { MoreHorizontal } from "lucide-react";
@@ -95,4 +96,5 @@ export const Icons = {
   activity: IconActivity,
   plug: IconPlug,
   sparkles: IconSparkles,
+  bot: IconRobot,
 };

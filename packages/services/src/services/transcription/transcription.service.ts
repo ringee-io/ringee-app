@@ -1,7 +1,6 @@
 import {
   BadRequestException,
   ForbiddenException,
-  HttpException,
   Injectable,
   Logger,
   NotFoundException,
@@ -18,6 +17,7 @@ import {
 } from "@ringee/database";
 import {
   DeepgramService,
+  describeTelnyxError,
   OrchestratorService,
   OwnershipContext,
   RedisService,
@@ -28,12 +28,14 @@ import { CreditService } from "../credit.service";
 import { CrmCallLogService } from "../crm/crm-call-log.service";
 import {
   CallTranscriptionView,
+  ProviderTranscriptTurn,
   TranscriptionView,
 } from "./transcription.types";
 import {
   formatTranscriptWithSpeakers,
   LivePartial,
   livePartialKey,
+  trackToSpeaker,
 } from "./transcription.constants";
 import { PipelineFanoutService } from "../ai-pipeline";
 
@@ -187,24 +189,6 @@ export class TranscriptionService {
     return null;
   }
 
-  /**
-   * Telnyx errors surface as Nest HttpExceptions whose `.message` is just
-   * "Http Exception"; the real provider detail lives in the response body.
-   * Flatten it into a readable string for logs and the stored errorMessage.
-   */
-  private describeError(err: unknown): string {
-    if (err instanceof HttpException) {
-      const res = err.getResponse() as any;
-      const detail =
-        res?.errors?.[0]?.detail ||
-        res?.errors?.[0]?.title ||
-        res?.message ||
-        (typeof res === "string" ? res : null);
-      return detail ? `${detail}` : JSON.stringify(res);
-    }
-    return (err as Error)?.message ?? String(err);
-  }
-
   // ── Realtime (live) ───────────────────────────────────────────────────
 
   /**
@@ -263,7 +247,10 @@ export class TranscriptionService {
       );
       this.logger.log(`▶️ Realtime transcription started for call ${call.id}`);
     } catch (err) {
-      const detail = this.describeError(err);
+      const detail = describeTelnyxError(
+        err,
+        "The carrier refused to start the media stream.",
+      );
       await this.transcriptionRepo.markStatus(
         header.id,
         TranscriptionStatus.failed,
@@ -396,6 +383,124 @@ export class TranscriptionService {
     });
 
     return header;
+  }
+
+  /**
+   * Whether the call already has a transcript worth keeping, from any source.
+   *
+   * A read the recovery paths make before they go to a provider for text they
+   * may already hold — the sweep revisits a call every few minutes until its
+   * artifacts are all in, and each of those visits would otherwise be a
+   * needless round-trip.
+   */
+  async hasTranscript(callId: string): Promise<boolean> {
+    const headers = await this.transcriptionRepo.findHeadersByCall(callId);
+    return headers.some(
+      (header) =>
+        header.status === TranscriptionStatus.completed &&
+        (header.text?.trim().length ?? 0) > 0,
+    );
+  }
+
+  /**
+   * Stores a transcript the provider produced itself.
+   *
+   * This is the AI voice agent path. The provider runs the speech stack to
+   * hold the conversation at all, so the text already exists, is attributed to
+   * a side by construction, and costs nothing to read back — transcribing the
+   * recording with Deepgram afterwards would be paying for text Ringee has
+   * already been given.
+   *
+   * It lands in the `realtime` slot because that is what it is: transcribed
+   * while the call was live, not afterwards from the audio. An agent call has
+   * no Deepgram stream of its own, so the two never contend for the slot.
+   *
+   * Safe to run twice. A call that already has a completed transcript is left
+   * exactly as it is, and a re-run replaces the segments atomically.
+   */
+  async saveProviderTranscript(
+    call: Call,
+    input: {
+      /** Which provider transcribed it, for the header. */
+      provider: string;
+      language?: string | null;
+      turns: ProviderTranscriptTurn[];
+    },
+  ): Promise<CallTranscription | null> {
+    const segments = input.turns
+      .map((turn) => ({
+        text: turn.text.trim(),
+        track: turn.side,
+        speaker: trackToSpeaker(turn.side),
+      }))
+      .filter((segment) => segment.text.length > 0);
+
+    // Nothing said yet is not an empty transcript: the provider publishes the
+    // conversation after it ends, so writing "" here would record silence as
+    // the final answer and stop anything from trying again.
+    if (segments.length === 0) return null;
+
+    const existing = await this.transcriptionRepo.findHeaderByCallAndSource(
+      call.id,
+      TranscriptionSource.realtime,
+    );
+    if (
+      existing?.status === TranscriptionStatus.completed &&
+      (existing.text?.trim().length ?? 0) > 0
+    ) {
+      return existing;
+    }
+
+    const header = await this.transcriptionRepo.upsertHeader({
+      callId: call.id,
+      source: TranscriptionSource.realtime,
+      userId: call.userId,
+      organizationId: call.organizationId,
+      status: TranscriptionStatus.processing,
+      provider: input.provider,
+    });
+
+    const saved = await this.transcriptionRepo.completeWithSegments(
+      header.id,
+      call.id,
+      {
+        text: segments.map((segment) => segment.text).join(" "),
+        language: input.language ?? undefined,
+        segments,
+        metadata: {
+          // The hangup debit reads this marker to decide whether realtime
+          // transcription still owes credits. This transcript came free with
+          // the conversation, so it is settled at zero here — otherwise a
+          // hangup arriving after the transcript was stored would charge
+          // Deepgram rates for text Deepgram never produced.
+          chargedOnHangup: true,
+          chargedCredits: 0,
+          chargeBasis: "provider_transcript",
+          transcriptProvider: input.provider,
+          storedAt: new Date().toISOString(),
+        },
+      },
+    );
+
+    this.logger.log(
+      `✅ ${input.provider} transcript stored for call ${call.id} (${segments.length} turns)`,
+    );
+
+    // The same two follow-ups the Deepgram path runs once its transcript is
+    // durable: refresh the shared call analysis, and push the speaker-labeled
+    // text onto the CRM record. Neither may break the transcript being saved.
+    this.pipelineFanout.handleCallFinalized(call.id);
+    await this.crmCallLogService
+      .enqueueTranscriptSync(call.id, {
+        transcript: formatTranscriptWithSpeakers(segments),
+      })
+      .catch((crmErr: Error) =>
+        this.logger.warn(
+          `CRM transcript sync enqueue failed for call ${call.id}: ${crmErr.message}`,
+        ),
+      );
+
+    return saved;
   }
 
   /**

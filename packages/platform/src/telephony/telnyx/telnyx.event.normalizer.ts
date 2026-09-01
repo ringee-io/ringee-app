@@ -1,6 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import type {
   CallDirection,
+  TelephonyConversationDetails,
+  TelephonyConversationInsight,
   TelephonyCustomHeader,
   TelephonyEvent,
   TelephonyEventType,
@@ -34,6 +36,8 @@ const TELNYX_EVENT_MAP: Record<string, TelephonyEventType> = {
   "call.playback.started": "call.playback.started",
   "call.playback.ended": "call.playback.ended",
   "streaming.failed": "call.streaming.failed",
+  "call.conversation.ended": "call.conversation.ended",
+  "call.conversation_insights.generated": "call.conversation.insights",
 };
 
 /** Telnyx reports `inbound`/`incoming` and `outbound`/`outgoing`. */
@@ -53,6 +57,53 @@ function normalizeDate(raw: unknown): Date | null {
 
 function str(raw: unknown): string | null {
   return typeof raw === "string" && raw ? raw : null;
+}
+
+function num(raw: unknown): number | null {
+  return typeof raw === "number" && Number.isFinite(raw) ? raw : null;
+}
+
+/**
+ * Telnyx reports insights as `{ insight_id, result }`. Entries without an id
+ * cannot be mapped back to the field that asked for them, so they are dropped
+ * rather than guessed at.
+ */
+function normalizeInsights(raw: unknown): TelephonyConversationInsight[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((entry) => {
+    const row = entry as { insight_id?: unknown; result?: unknown };
+    const insightId = str(row?.insight_id);
+    if (!insightId) return [];
+    const result =
+      typeof row.result === "string" ? row.result : JSON.stringify(row.result);
+    return [{ insightId, result }];
+  });
+}
+
+/**
+ * The two AI-conversation events fill in different halves of the same fact:
+ * `call.conversation.ended` carries the conversation and its duration,
+ * `call.conversation_insights.generated` carries the analysis results. Both
+ * normalize into one shape so the domain reads a single field.
+ */
+function normalizeConversation(
+  type: TelephonyEventType,
+  payload: Record<string, unknown>,
+): TelephonyConversationDetails | null {
+  if (
+    type !== "call.conversation.ended" &&
+    type !== "call.conversation.insights"
+  ) {
+    return null;
+  }
+  return {
+    conversationId: str(payload.conversation_id),
+    assistantId: str(payload.assistant_id),
+    durationSec: num(payload.duration_sec),
+    endReason: str(payload.reason),
+    insightGroupId: str(payload.insight_group_id),
+    insights: normalizeInsights(payload.results),
+  };
 }
 
 /**
@@ -84,9 +135,10 @@ export class TelnyxEventNormalizer {
     if (!callControlId) return null;
 
     const providerEventType = event.event_type ?? "";
+    const type = TELNYX_EVENT_MAP[providerEventType] ?? "unknown";
 
     return {
-      type: TELNYX_EVENT_MAP[providerEventType] ?? "unknown",
+      type,
       provider: "telnyx",
       providerEventType,
       callControlId,
@@ -105,6 +157,7 @@ export class TelnyxEventNormalizer {
         normalizeDate(payload.start_time),
       startedAt: normalizeDate(payload.start_time),
       customHeaders: normalizeCustomHeaders(payload.custom_headers),
+      conversation: normalizeConversation(type, payload),
       payload,
     };
   }

@@ -90,6 +90,9 @@ import { OfferParticipationRepository } from "./repositories/offer-participation
 import { OfferDismissalRepository } from "./repositories/offer-dismissal.repository";
 import { OfferEventRepository } from "./repositories/offer-event.repository";
 import { OfferStatsRepository } from "./repositories/offer-stats.repository";
+import { AiVoiceAgentRepository } from "./repositories/ai-voice-agent.repository";
+import { AiVoiceAgentCallRepository } from "./repositories/ai-voice-agent-call.repository";
+import { WorkspaceCompanyProfileRepository } from "./repositories/workspace-company-profile.repository";
 
 const databaseProviders = [
   PrismaService,
@@ -182,6 +185,9 @@ const databaseProviders = [
   OfferEventRepository,
   OfferStatsRepository,
   InfrastructureRepository,
+  AiVoiceAgentRepository,
+  AiVoiceAgentCallRepository,
+  WorkspaceCompanyProfileRepository,
 ];
 
 @Global()

@@ -61,7 +61,8 @@ const NAMESPACES = [
   'toasts',
   'modals',
   'transcription',
-  'voicemail'
+  'voicemail',
+  'aiVoiceAgents'
 ] as const;
 
 export type Namespace = (typeof NAMESPACES)[number];

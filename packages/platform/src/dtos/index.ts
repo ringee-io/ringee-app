@@ -10,3 +10,4 @@ export * from "./csv-import.schema";
 export * from "./campaign.dto";
 export * from "./tag.dto";
 export * from "./infrastructure.dto";
+export * from "./ai-voice-agent.dto";

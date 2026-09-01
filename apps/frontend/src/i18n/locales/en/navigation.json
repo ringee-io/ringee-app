@@ -54,6 +54,10 @@
     "title": "Inbox — coming soon",
     "description": "Manage all your inbound messages, missed calls, and voicemails in one unified inbox."
   },
+  "voiceAgentsTooltip": {
+    "title": "AI Voice Agents — private beta",
+    "description": "The module is being tested in production. Ask the Ringee team to be added to the beta."
+  },
   "kbar": {
     "navigation": "Navigation",
     "goTo": "Go to {page}"

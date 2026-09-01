@@ -14,10 +14,17 @@ apps/frontend/public/sw.js
 packages/database/prisma/migrations
 !packages/database/prisma/migrations/*
 packages/database/prisma/migrations/*
+!packages/database/prisma/migrations/migration_lock.toml
 !packages/database/prisma/migrations/20260727090000_add_user_access_block/
 !packages/database/prisma/migrations/20260727090000_add_user_access_block/migration.sql
 !packages/database/prisma/migrations/20260727100000_add_user_auth_phone/
 !packages/database/prisma/migrations/20260727100000_add_user_auth_phone/migration.sql
+!packages/database/prisma/migrations/20260831090000_outbound_source_ai_voice_agent/
+!packages/database/prisma/migrations/20260831090000_outbound_source_ai_voice_agent/migration.sql
+!packages/database/prisma/migrations/20260831091000_ai_voice_agents/
+!packages/database/prisma/migrations/20260831091000_ai_voice_agents/migration.sql
+!packages/database/prisma/migrations/20260831120000_ai_voice_agent_cost_debited_at/
+!packages/database/prisma/migrations/20260831120000_ai_voice_agent_cost_debited_at/migration.sql
 
 # Temporary local copy of @modelcontextprotocol/sdk@1.29.0 used while the
 # pnpm store has root-owned files. Remove after fixing pnpm permissions and
