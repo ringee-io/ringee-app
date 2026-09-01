@@ -19,6 +19,10 @@ import {
 import { CalendarService } from "../calendar.service";
 import { ContactService } from "../contact.service";
 import { MeetingService } from "../meeting.service";
+import {
+  AI_VOICE_AGENT_CONTACT_SOURCE,
+  contactIdentityFromVariables,
+} from "./voice-agent.types";
 
 /**
  * Headers the provider sends: the shared secret it holds for this agent, and
@@ -269,7 +273,10 @@ export class VoiceAgentToolService {
     if (!agentCall?.toNumber) return null;
 
     const contact = await this.contacts
-      .findOrCreateByPhone(ctx, agentCall.toNumber)
+      .findOrCreateByPhone(ctx, agentCall.toNumber, {
+        ...contactIdentityFromVariables(agentCall.variables),
+        source: AI_VOICE_AGENT_CONTACT_SOURCE,
+      })
       .catch(() => null);
     if (!contact) return null;
 

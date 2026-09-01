@@ -9,6 +9,8 @@ export interface NavItem {
   external?: boolean;
   shortcut?: [string, string];
   icon?: keyof typeof Icons;
+  /** Maturity pill rendered next to the title in the sidebar. */
+  badge?: "beta";
   label?: string;
   description?: string;
   isActive?: boolean;

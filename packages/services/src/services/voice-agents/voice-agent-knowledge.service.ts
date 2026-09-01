@@ -14,6 +14,7 @@ import {
   AiVoiceAgentStatus,
 } from "@ringee/database";
 import {
+  describeTelnyxError,
   VoiceAgentProviderService,
   type OwnershipContext,
   type VoiceAgentEmbeddingStatus,
@@ -86,7 +87,8 @@ export class VoiceAgentKnowledgeService {
     agentId: string,
   ): Promise<AiVoiceAgentKnowledgeSource[]> {
     const agent = await this.agents.require(ctx, agentId);
-    const sources = await this.repository.listKnowledgeSources(agentId);
+    const stored = await this.repository.listKnowledgeSources(agentId);
+    const sources = await this.resumeUnstarted(stored);
     const { refreshed, resynced } = await this.refreshPending(
       ctx,
       agentId,
@@ -127,7 +129,7 @@ export class VoiceAgentKnowledgeService {
       status: AiVoiceAgentKnowledgeStatus.processing,
     });
 
-    return this.startIndexing(ctx, agentId, source, () =>
+    return this.startIndexing(source, () =>
       this.provider.indexKnowledgeUrl(store, url.href),
     );
   }
@@ -160,7 +162,7 @@ export class VoiceAgentKnowledgeService {
       status: AiVoiceAgentKnowledgeStatus.processing,
     });
 
-    return this.startIndexing(ctx, agentId, source, () =>
+    return this.startIndexing(source, () =>
       this.provider.indexKnowledgeStore(store),
     );
   }
@@ -203,7 +205,7 @@ export class VoiceAgentKnowledgeService {
       status: AiVoiceAgentKnowledgeStatus.processing,
     });
 
-    return this.startIndexing(ctx, agentId, source, () =>
+    return this.startIndexing(source, () =>
       this.provider.indexKnowledgeStore(store),
     );
   }
@@ -377,7 +379,7 @@ export class VoiceAgentKnowledgeService {
       status: AiVoiceAgentKnowledgeStatus.processing,
     });
 
-    return this.startIndexing(ctx, agentId, source, () =>
+    return this.startIndexing(source, () =>
       this.provider.indexKnowledgeStore(store),
     );
   }
@@ -398,8 +400,6 @@ export class VoiceAgentKnowledgeService {
    * the agent's answers.
    */
   private async startIndexing(
-    ctx: OwnershipContext,
-    agentId: string,
     source: AiVoiceAgentKnowledgeSource,
     start: () => Promise<string>,
   ): Promise<AiVoiceAgentKnowledgeSource> {
@@ -411,7 +411,13 @@ export class VoiceAgentKnowledgeService {
         lastError: null,
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
+      // The provider's failures arrive as `HttpException`s whose `.message` is
+      // the placeholder "Http Exception"; `lastError` is rendered verbatim in
+      // the knowledge panel, so it has to be the provider's own sentence.
+      const message = describeTelnyxError(
+        error,
+        "The voice provider could not index this source. It will be retried the next time this page is opened.",
+      );
       this.logger.error(
         `Could not index knowledge source ${source.id}: ${message}`,
       );
@@ -421,6 +427,63 @@ export class VoiceAgentKnowledgeService {
         message,
       );
     }
+  }
+
+  /**
+   * Re-attempts sources whose indexing never started.
+   *
+   * `startIndexing` fails as a unit: the content is already in the agent's
+   * store, but the provider refused to open the embedding task, so the row is
+   * left `failed` with no `embeddingTaskId` and nothing ever looks at it again
+   * — the user's only way out is to delete the source and upload the same file
+   * a second time. The adapter already retries the provider's short blips, so
+   * what reaches here outlived them; picking it back up on the next read of the
+   * page is what makes an outage recoverable instead of destructive.
+   *
+   * Only sources that never got a task id are retried. A task the provider
+   * accepted and then failed is a problem with the document itself, and
+   * re-submitting it would fail the same way forever.
+   */
+  private async resumeUnstarted(
+    sources: AiVoiceAgentKnowledgeSource[],
+  ): Promise<AiVoiceAgentKnowledgeSource[]> {
+    const stalled = sources.filter(
+      (source) =>
+        source.status === AiVoiceAgentKnowledgeStatus.failed &&
+        !source.embeddingTaskId &&
+        Boolean(source.providerBucket),
+    );
+    if (stalled.length === 0) return sources;
+
+    const resumed = new Map<string, AiVoiceAgentKnowledgeSource>();
+    for (const source of stalled) {
+      const start = this.indexer(source);
+      if (!start) continue;
+      this.logger.log(`Resuming indexing of knowledge source ${source.id}`);
+      resumed.set(source.id, await this.startIndexing(source, start));
+    }
+
+    return sources.map((source) => resumed.get(source.id) ?? source);
+  }
+
+  /**
+   * How a stored source is handed back to the provider: a page is re-fetched
+   * from its address, anything else is already an object in the bucket.
+   */
+  private indexer(
+    source: AiVoiceAgentKnowledgeSource,
+  ): (() => Promise<string>) | null {
+    const store = source.providerBucket;
+    if (!store) return null;
+
+    if (source.kind === AiVoiceAgentKnowledgeKind.url) {
+      const url = source.sourceUrl;
+      return url ? () => this.provider.indexKnowledgeUrl(store, url) : null;
+    }
+
+    return source.providerFileName
+      ? () => this.provider.indexKnowledgeStore(store)
+      : null;
   }
 
   /**

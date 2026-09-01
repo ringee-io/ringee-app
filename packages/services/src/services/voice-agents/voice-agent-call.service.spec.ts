@@ -21,14 +21,28 @@ const NUMBERS = {
   madrid: { id: "num-madrid", phoneNumber: "+34910000002" },
 };
 
+/** What `findOrCreateByPhone` was asked to leave behind in the workspace. */
+interface ResolvedContact {
+  phoneNumber: string;
+  hint?: {
+    firstName?: string | null;
+    lastName?: string | null;
+    email?: string | null;
+    source?: string;
+  };
+}
+
 /** Builds the service with every gate open, so only caller-ID logic is left. */
 function build(options: {
   /** The agent's own assignment, if it has one. */
   callerNumberId?: string | null;
   /** What the workspace can call from. */
   usable: Array<{ id: string; phoneNumber: string }>;
+  /** The agent type's dynamic variables, when a test supplies any. */
+  variables?: Array<{ key: string; required: boolean }>;
 }) {
   const placed: Array<{ from: string }> = [];
+  const contacts: ResolvedContact[] = [];
   const agent = {
     id: "agent-1",
     name: "Sofia",
@@ -40,7 +54,7 @@ function build(options: {
 
   const service = new VoiceAgentCallService(
     { require: async () => agent, assertReadyForCalls: () => {} } as never,
-    { require: () => ({ variables: [] }) } as never,
+    { require: () => ({ variables: options.variables ?? [] }) } as never,
     {
       create: async () => ({ id: "agent-call-1" }),
       update: async (id: string, data: Record<string, unknown>) => ({
@@ -55,7 +69,16 @@ function build(options: {
         return { providerCallId: "prov-1", callControlId: "cc-1" };
       },
     } as never,
-    { findOrCreateByPhone: async () => ({ id: "contact-1" }) } as never,
+    {
+      findOrCreateByPhone: async (
+        _ctx: unknown,
+        phoneNumber: string,
+        hint?: ResolvedContact["hint"],
+      ) => {
+        contacts.push({ phoneNumber, hint });
+        return { id: "contact-1" };
+      },
+    } as never,
     { findOnDNC: async () => null } as never,
     { getBalance: async () => 100 } as never,
     { listOutboundCallerIds: async () => options.usable } as never,
@@ -64,7 +87,7 @@ function build(options: {
     } as never,
   );
 
-  return { service, placed };
+  return { service, placed, contacts };
 }
 
 const TO = "+13055559999";
@@ -149,5 +172,56 @@ describe("VoiceAgentCallService caller ID", () => {
       /No number in this workspace/i,
     );
     assert.deepEqual(placed, []);
+  });
+});
+
+/**
+ * Everyone an agent dials is kept in Ringee.
+ *
+ * The person's name only ever exists as a per-call variable, so if it is not
+ * written onto the contact here it is lost: the workspace ends up with a
+ * nameless row it cannot follow up on, which is indistinguishable from the
+ * agent never having called.
+ */
+describe("VoiceAgentCallService contacts", () => {
+  const NAMED = [
+    { key: "first_name", required: true },
+    { key: "last_name", required: false },
+    { key: "email", required: false },
+  ];
+
+  it("saves the person as a named contact in the workspace", async () => {
+    const { service, contacts } = build({
+      usable: [NUMBERS.miami],
+      variables: NAMED,
+    });
+
+    await service.startCall(CTX as never, "agent-1", {
+      to: TO,
+      variables: {
+        first_name: "Ana",
+        last_name: "Torres",
+        email: "ana@example.com",
+      },
+    });
+
+    assert.equal(contacts.length, 1);
+    assert.equal(contacts[0]!.phoneNumber, TO);
+    assert.deepEqual(contacts[0]!.hint, {
+      firstName: "Ana",
+      lastName: "Torres",
+      email: "ana@example.com",
+      source: "ai-voice-agent",
+    });
+  });
+
+  it("still saves the contact when the agent type carries no identity", async () => {
+    const { service, contacts } = build({ usable: [NUMBERS.miami] });
+
+    await service.startCall(CTX as never, "agent-1", { to: TO });
+
+    assert.equal(contacts.length, 1);
+    assert.equal(contacts[0]!.phoneNumber, TO);
+    assert.equal(contacts[0]!.hint?.source, "ai-voice-agent");
   });
 });

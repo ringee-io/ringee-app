@@ -29,7 +29,11 @@ import { ComplianceService } from "../outbound/compliance.service";
 import { UserService } from "../user.service";
 import { VoiceAgentBlueprintRegistry } from "./blueprints/voice-agent-blueprint.registry";
 import { VoiceAgentService } from "./voice-agent.service";
-import { AI_VOICE_AGENT_CALL_SOURCE } from "./voice-agent.types";
+import {
+  AI_VOICE_AGENT_CALL_SOURCE,
+  AI_VOICE_AGENT_CONTACT_SOURCE,
+  contactIdentityFromVariables,
+} from "./voice-agent.types";
 
 /** Seconds to keep ringing before the provider gives up. */
 const RING_TIMEOUT_SECONDS = 45;
@@ -92,8 +96,16 @@ export class VoiceAgentCallService {
     await this.assertCallingAllowed(ctx, to);
 
     const from = await this.resolveCallerId(ctx, agent, input.fromNumberId);
+    // Everyone an agent dials becomes a contact in the workspace, named from
+    // the variables the caller already supplied — otherwise the only record of
+    // the person is a phone number on a call row, and the follow-up, the DNC
+    // check and the booking tool all have nothing to hang off. Existing
+    // contacts keep whatever they already have; the hint only fills blanks.
     const contact = await this.contacts
-      .findOrCreateByPhone(ctx, to)
+      .findOrCreateByPhone(ctx, to, {
+        ...contactIdentityFromVariables(variables),
+        source: AI_VOICE_AGENT_CONTACT_SOURCE,
+      })
       .catch((error: unknown) => {
         // A contact is a convenience for history and for the booking tool, not
         // a precondition for placing the call.

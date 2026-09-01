@@ -25,6 +25,19 @@ const SECRET_PAGE_SIZE = 100;
 const MAX_SECRET_PAGES = 50;
 
 /**
+ * Provider statuses that mean "try again", not "your request was wrong".
+ *
+ * `/ai/embeddings` answers a perfectly valid bucket with `503` and the generic
+ * `10007 Unexpected error` often enough that treating the first reply as final
+ * is what strands a document the user just uploaded.
+ */
+const RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
+
+/** Attempts, and the base delay between them, for starting an embedding task. */
+const EMBEDDING_ATTEMPTS = 3;
+const EMBEDDING_RETRY_MS = 800;
+
+/**
  * The Telnyx implementation of the voice-agent contract, and the only place
  * these Telnyx routes are called. Every method returns Ringee-shaped values.
  */
@@ -429,24 +442,72 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
     return this.knowledgeStore.deleteObject(store, fileName);
   }
 
-  async indexKnowledgeStore(store: string): Promise<string> {
-    const raw = await this.telnyxClient.post<{ data?: { task_id?: string } }>(
-      "/ai/embeddings",
-      { bucket_name: store },
-    );
-    const taskId = raw?.data?.task_id;
-    if (!taskId) throw new Error("Telnyx returned no embedding task id");
-    return taskId;
+  indexKnowledgeStore(store: string): Promise<string> {
+    return this.startEmbedding("/ai/embeddings", { bucket_name: store });
   }
 
-  async indexKnowledgeUrl(store: string, url: string): Promise<string> {
-    const raw = await this.telnyxClient.post<{ data?: { task_id?: string } }>(
-      "/ai/embeddings/url",
-      { bucket_name: store, url },
-    );
-    const taskId = raw?.data?.task_id;
-    if (!taskId) throw new Error("Telnyx returned no embedding task id");
-    return taskId;
+  indexKnowledgeUrl(store: string, url: string): Promise<string> {
+    return this.startEmbedding("/ai/embeddings/url", {
+      bucket_name: store,
+      url,
+    });
+  }
+
+  /**
+   * Opens an embedding task, retrying the provider's own transient failures.
+   *
+   * The bytes are already in the bucket by the time this runs, so a single
+   * `503` here costs the user the whole upload: the source is marked failed and
+   * nothing ever re-reads it. Retrying a handful of times turns the provider's
+   * most common blip into a slower success instead of a lost document — and a
+   * `400` still fails immediately, because repeating a rejected request only
+   * delays telling the user what is actually wrong.
+   */
+  private async startEmbedding(
+    path: string,
+    body: Record<string, unknown>,
+  ): Promise<string> {
+    for (let attempt = 1; ; attempt++) {
+      try {
+        const raw = await this.telnyxClient.post<{
+          data?: { task_id?: string };
+        }>(path, body);
+        const taskId = raw?.data?.task_id;
+        if (!taskId) throw new Error("Telnyx returned no embedding task id");
+        return taskId;
+      } catch (error) {
+        if (attempt >= EMBEDDING_ATTEMPTS || !this.isRetryable(error))
+          throw error;
+        this.logger.warn(
+          `${path} failed on attempt ${attempt}/${EMBEDDING_ATTEMPTS} for ${
+            body.bucket_name
+          }; retrying`,
+        );
+        await this.pause(EMBEDDING_RETRY_MS * attempt);
+      }
+    }
+  }
+
+  private isRetryable(error: unknown): boolean {
+    const status = this.statusOf(error);
+    // No status at all is a transport failure (DNS, socket, timeout), which is
+    // exactly the kind of thing a second attempt fixes.
+    return status === null || RETRYABLE_STATUSES.has(status);
+  }
+
+  private statusOf(error: unknown): number | null {
+    const candidate = error as {
+      status?: number;
+      getStatus?: () => number;
+    } | null;
+    if (typeof candidate?.getStatus === "function") {
+      return candidate.getStatus.call(error);
+    }
+    return typeof candidate?.status === "number" ? candidate.status : null;
+  }
+
+  private pause(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   async getIndexingStatus(taskId: string): Promise<VoiceAgentEmbeddingStatus> {
@@ -467,10 +528,6 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
   }
 
   private isNotFound(error: unknown): boolean {
-    const status = (error as { status?: number; getStatus?: () => number })
-      ?.status;
-    if (status === 404) return true;
-    const getStatus = (error as { getStatus?: () => number })?.getStatus;
-    return typeof getStatus === "function" && getStatus.call(error) === 404;
+    return this.statusOf(error) === 404;
   }
 }

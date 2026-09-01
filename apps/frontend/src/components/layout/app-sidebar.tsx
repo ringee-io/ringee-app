@@ -337,7 +337,13 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                       <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton
                           asChild
-                          tooltip={itemTitle}
+                          // Collapsed to icons the pill is clipped, so the
+                          // tooltip is the only place the badge still shows.
+                          tooltip={
+                            item.badge === 'beta'
+                              ? `${itemTitle} · ${tCommon('beta')}`
+                              : itemTitle
+                          }
                           isActive={pathname === item.url}
                         >
                           {/* @ts-ignore */}
@@ -345,6 +351,11 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                             {/* @ts-ignore */}
                             <Icon />
                             <span>{itemTitle}</span>
+                            {item.badge === 'beta' && (
+                              <span className='ml-auto rounded-full bg-emerald-500/15 px-1.5 py-0.5 text-[9px] font-semibold tracking-wide text-emerald-500 uppercase'>
+                                {tCommon('beta')}
+                              </span>
+                            )}
                             {item.title === 'Inbox' && inboxUnread > 0 && (
                               <span className='bg-primary text-primary-foreground ml-auto flex h-5 min-w-5 items-center justify-center rounded-full px-1.5 text-[10px] font-semibold'>
                                 {inboxUnread > 99 ? '99+' : inboxUnread}

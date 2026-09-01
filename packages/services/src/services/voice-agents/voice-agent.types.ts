@@ -135,6 +135,52 @@ export interface VoiceAgentBlueprintInsights {
 export const AI_VOICE_AGENT_CALL_SOURCE = "ai_voice_agent";
 
 /**
+ * `Contact.source` for a contact first seen because an agent dialed it.
+ *
+ * Hyphenated, unlike `AI_VOICE_AGENT_CALL_SOURCE`: `Contact.source` is a free
+ * text attribution alongside `dialer`, `campaign` and `lead-search:*`, while
+ * `Call.source` is matched exactly by the concurrency guard.
+ */
+export const AI_VOICE_AGENT_CONTACT_SOURCE = "ai-voice-agent";
+
+/**
+ * The variables that describe the *person* rather than the call.
+ *
+ * Every blueprint asks for these under the same keys, and they are the only
+ * thing Ringee knows about someone an agent is told to dial — so they are what
+ * the contact left behind in the workspace is named from. A blueprint that does
+ * not declare one simply has nothing to contribute here.
+ */
+export const CONTACT_IDENTITY_VARIABLES = {
+  firstName: "first_name",
+  lastName: "last_name",
+  email: "email",
+} as const;
+
+/**
+ * Reads the person's identity out of a call's variables.
+ *
+ * Takes `unknown` because the same values are read twice: freshly validated
+ * when the call is placed, and back out of the call row's JSON column later.
+ * Anything that is not a string is dropped rather than trusted.
+ */
+export function contactIdentityFromVariables(variables: unknown): {
+  firstName?: string;
+  lastName?: string;
+  email?: string;
+} {
+  const read = (key: string): string | undefined => {
+    const value = (variables as Record<string, unknown> | null)?.[key];
+    return typeof value === "string" ? value : undefined;
+  };
+  return {
+    firstName: read(CONTACT_IDENTITY_VARIABLES.firstName),
+    lastName: read(CONTACT_IDENTITY_VARIABLES.lastName),
+    email: read(CONTACT_IDENTITY_VARIABLES.email),
+  };
+}
+
+/**
  * Name of the provider-side store holding one agent's knowledge. Shared so the
  * knowledge service and the agent's own teardown agree on what to delete.
  */
