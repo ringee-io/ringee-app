@@ -389,12 +389,20 @@ export class CalendarService {
       throw new BadRequestException(`"${opts.date}" is not a valid date.`);
     }
 
+    // A step that is not a positive number never advances the loop below, so
+    // an invalid duration is a hang rather than a wrong answer.
+    const stepMs = opts.durationMinutes * 60_000;
+    if (!Number.isFinite(stepMs) || stepMs <= 0) {
+      throw new BadRequestException(
+        `"${opts.durationMinutes}" is not a valid meeting length.`,
+      );
+    }
+
     // No catch: an unreachable calendar means "unknown", and an agent must not
     // turn unknown into "free".
     const busy = await this.fetchFreeBusyWindow(integration, dayStart, dayEnd);
 
     const slots: BookableSlot[] = [];
-    const stepMs = opts.durationMinutes * 60_000;
     const now = Date.now();
 
     for (

@@ -4,6 +4,7 @@ import {
   Injectable,
   Logger,
   NotFoundException,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import { randomBytes } from "crypto";
 import { apiConfiguration } from "@ringee/configuration";
@@ -131,6 +132,24 @@ export class VoiceAgentCallService {
       callbackTokenHash: hashApiKey(callbackToken),
     });
 
+    // The telephony row is created here, not on a webhook: a provider-placed
+    // leg carries none of the headers the browser path uses to attribute a
+    // call, so nothing downstream could build it. It is written *before* the
+    // leg is placed, because a row created afterwards is one failed write away
+    // from leaving a live, billable call with no history and nothing for its
+    // callbacks to land on.
+    const call = await this.callRepository.createCall(ctx, {
+      contact: contact ? { connect: { id: contact.id } } : undefined,
+      fromNumber: from,
+      toNumber: to,
+      direction: "outbound",
+      status: CallStatus.pending,
+      startedAt: new Date(),
+      source: AI_VOICE_AGENT_CALL_SOURCE,
+    });
+    await this.agentCalls.update(agentCall.id, { callId: call.id });
+
+    let legPlaced = false;
     try {
       await this.ensureInsightDelivery(agent);
       const handle = await this.provider.startCall({
@@ -146,27 +165,21 @@ export class VoiceAgentCallService {
         record: true,
       });
 
-      // The telephony row is created here, not on a webhook: a provider-placed
-      // leg carries none of the headers the browser path uses to attribute a
-      // call, so nothing downstream could build it. Whatever handles the
-      // provider gives back are written now — an event that arrives before the
-      // first status callback (the cost record, a saved recording) is looked up
-      // by control id and has nothing to land on until they are.
-      const call = await this.callRepository.createCall(ctx, {
-        contact: contact ? { connect: { id: contact.id } } : undefined,
-        fromNumber: from,
-        toNumber: to,
-        providerCallId: handle.providerCallId ?? undefined,
-        callControlId: handle.callControlId ?? undefined,
-        callSessionId: handle.callSessionId ?? undefined,
-        direction: "outbound",
-        status: CallStatus.pending,
-        startedAt: new Date(),
-        source: AI_VOICE_AGENT_CALL_SOURCE,
-      });
+      legPlaced = true;
+
+      // Whatever handles the provider gives back are written the moment they
+      // exist — an event that arrives before the first status callback (the
+      // cost record, a saved recording) is looked up by control id and has
+      // nothing to land on until they are.
+      if (handle.callControlId) {
+        await this.callRepository.attachTelephony(call.id, {
+          callControlId: handle.callControlId,
+          providerCallId: handle.providerCallId,
+          callSessionId: handle.callSessionId,
+        });
+      }
 
       const updated = await this.agentCalls.update(agentCall.id, {
-        callId: call.id,
         providerCallControlId: handle.callControlId,
         status: AiVoiceAgentCallStatus.initiating,
       });
@@ -177,6 +190,31 @@ export class VoiceAgentCallService {
       return { id: updated.id, status: updated.status };
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
+
+      if (legPlaced) {
+        // The leg is live and the row is already bound to it, so the provider's
+        // callbacks still carry this call to completion and its cost still
+        // settles. Only the linking half failed, and marking either row failed
+        // here would contradict the call the workspace is actually paying for.
+        this.logger.error(
+          `Agent call ${agentCall.id} was placed but could not be linked: ${message}`,
+        );
+        throw new BadRequestException(`Could not start the call: ${message}`);
+      }
+
+      // Nothing was dialed, so the row reserved for the leg is closed here: the
+      // stale-call sweep only reaches calls that made it to `ringing`.
+      await this.callRepository
+        .markForciblyEnded(call.id, message)
+        .catch((closeError: unknown) => {
+          this.logger.error(
+            `Could not close call ${call.id} for agent call ${agentCall.id}: ${
+              closeError instanceof Error
+                ? closeError.message
+                : String(closeError)
+            }`,
+          );
+        });
       await this.agentCalls.update(agentCall.id, {
         status: AiVoiceAgentCallStatus.failed,
         lastError: message,
@@ -204,7 +242,18 @@ export class VoiceAgentCallService {
       throw new ForbiddenException("Outbound calling is disabled");
     }
 
-    const onDnc = await this.compliance.findOnDNC(ctx, to).catch(() => null);
+    // Fail closed: a list that cannot be read is "unknown", and dialing a
+    // number this gate never cleared is the one outcome it exists to prevent.
+    // The balance gate below refuses on the same reasoning.
+    const onDnc = await this.compliance
+      .findOnDNC(ctx, to)
+      .catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(`DNC lookup failed for ${to}: ${message}`);
+        throw new ServiceUnavailableException(
+          "The Do-Not-Call list could not be checked, so the call was not placed.",
+        );
+      });
     if (onDnc) {
       throw new ForbiddenException(
         onDnc.reason

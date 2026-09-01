@@ -151,6 +151,8 @@ export class CallRepository {
     id: string,
     data: {
       callControlId: string;
+      /** The provider's own id for the call, when it reports one of its own. */
+      providerCallId?: string | null;
       callSessionId?: string | null;
       callLegId?: string | null;
       connectionId?: string | null;
@@ -169,6 +171,7 @@ export class CallRepository {
       where: { id },
       data: {
         callControlId: data.callControlId,
+        providerCallId: data.providerCallId ?? undefined,
         callSessionId: data.callSessionId ?? undefined,
         callLegId: data.callLegId ?? undefined,
         connectionId: data.connectionId ?? undefined,

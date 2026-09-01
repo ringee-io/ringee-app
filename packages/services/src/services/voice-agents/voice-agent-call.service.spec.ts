@@ -73,7 +73,11 @@ function build(options: {
         status: data.status,
       }),
     } as never,
-    { createCall: async () => ({ id: "call-1" }) } as never,
+    {
+      createCall: async () => ({ id: "call-1" }),
+      attachTelephony: async () => ({ id: "call-1" }),
+      markForciblyEnded: async () => ({ id: "call-1" }),
+    } as never,
     {
       startCall: async (input: { from: string }) => {
         placed.push({ from: input.from });
