@@ -101,6 +101,16 @@ export interface VoiceAgentAssistant {
   callingAppId: string | null;
   /** Whether an unauthenticated browser may currently talk to this agent. */
   unauthenticatedWebCallsEnabled: boolean;
+  /**
+   * Where the assistant currently calls Ringee back for its tools.
+   *
+   * Stored provider-side at the last save, so it goes stale the moment
+   * `PUBLIC_BACKEND_URL` changes — and a stale tool URL is not a degraded
+   * agent, it is one that says "I am having a technical problem" and books
+   * nothing. The dial path compares these against the current base so it can
+   * re-sync before the call instead of after the complaint.
+   */
+  toolWebhookUrls: string[];
 }
 
 export interface VoiceAgentCallRequest {
@@ -236,8 +246,23 @@ export interface VoiceAgentUsageRecord {
   kind: "telephony" | "voice_agent" | "inference";
   conversationId: string | null;
   callControlId: string | null;
+  /**
+   * The provider's own session handle for the leg, when the record names one.
+   * It is the only place a `telephony` record reports it, and it is what the
+   * recording of the same call is filed under.
+   */
+  callSessionId: string | null;
   costUsd: number;
   billedSeconds: number | null;
+  /**
+   * Seconds the two ends were actually connected, as the provider measured
+   * them. Zero on a leg that never answered — which is what distinguishes a
+   * failed attempt from the leg that carried the conversation.
+   */
+  connectedSeconds: number | null;
+  /** When the leg was placed and when it ended, per the provider's records. */
+  startedAt: Date | null;
+  endedAt: Date | null;
   occurredAt: Date | null;
 }
 
@@ -256,6 +281,37 @@ export interface VoiceAgentUsageQuery {
  * is not a delivery Ringee can rely on. `downloadUrl` is short-lived and signed
  * by the provider — fetch it now, never store it.
  */
+/**
+ * Which call to read recordings for.
+ *
+ * Both handles are accepted because only one of them is reliably known. A
+ * provider-placed agent leg reports a call control id when it is created and a
+ * session id only later, on an event Ringee may never receive — so a lookup
+ * that insists on the session id finds nothing for calls that were recorded
+ * perfectly well.
+ */
+export interface VoiceAgentRecordingQuery {
+  callControlId?: string | null;
+  callSessionId?: string | null;
+}
+
+/**
+ * A conversation the provider ran, as Ringee needs it: the handles that tie it
+ * back to a call.
+ *
+ * Post-call analysis names the conversation and nothing else, so this is the
+ * way back from a delivered analysis to the call it belongs to when the
+ * conversation was never bound to the row — the one event that would have
+ * bound it is also the one that may never arrive.
+ */
+export interface VoiceAgentConversation {
+  conversationId: string;
+  assistantId: string | null;
+  callControlId: string | null;
+  callSessionId: string | null;
+  callLegId: string | null;
+}
+
 export interface VoiceAgentRecording {
   providerRecordingId: string;
   callControlId: string | null;
@@ -398,7 +454,19 @@ export interface VoiceAgentProvider {
    * a recording is finalized after the call ends, so an early read is not
    * proof the call went unrecorded.
    */
-  fetchRecordings(callSessionId: string): Promise<VoiceAgentRecording[]>;
+  fetchRecordings(
+    query: VoiceAgentRecordingQuery,
+  ): Promise<VoiceAgentRecording[]>;
+
+  /**
+   * One conversation's handles. Null when the provider does not know it.
+   *
+   * Read on the recovery paths only: it is what turns a conversation id — all
+   * a post-call analysis carries — back into the call that produced it.
+   */
+  fetchConversation(
+    conversationId: string,
+  ): Promise<VoiceAgentConversation | null>;
 
   // ── Knowledge bases ──
   // A store holds one agent's documents; indexing it is asynchronous, so every

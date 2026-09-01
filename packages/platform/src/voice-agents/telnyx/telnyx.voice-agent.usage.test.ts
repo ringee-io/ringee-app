@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { assert, describe, expect, it, vi } from "vitest";
 import { TelnyxVoiceAgentService } from "./telnyx.voice-agent.service";
 import type { TelnyxClient } from "../../telephony/telnyx/telnyx.client";
 import type { TelnyxKnowledgeStore } from "./telnyx.knowledge.store";
@@ -91,6 +91,68 @@ describe("TelnyxVoiceAgentService usage records", () => {
     expect(records[1].conversationId).toBe("conv-1");
   });
 
+  it("reads the leg's timeline off the record that has one", async () => {
+    // Live shape, from a real agent call: the voice leg is the only record
+    // that carries a start, an end and time actually connected — the engine
+    // record reports none of the three — and `created_at` comes back null, so
+    // the leg's own start is what dates it.
+    const { service } = build({
+      "sip-trunking": [
+        {
+          call_control_id: "v3:cc-1",
+          telnyx_session_id: "cb647cc6-a61b-11f1-b5a0-02420a0dfb1f",
+          cost: "0.265",
+          billed_sec: 120,
+          call_sec: 97,
+          started_at: "2026-09-01T15:42:54Z",
+          finished_at: "2026-09-01T15:44:38Z",
+          created_at: null,
+          hangup_cause: "NORMAL_CLEARING",
+        },
+      ],
+    });
+
+    const [leg] = await service.fetchUsageRecords({ callControlId: "v3:cc-1" });
+
+    assert(leg);
+    expect(leg.connectedSeconds).toBe(97);
+    // Not the billed minute: what the two ends actually spent connected is
+    // what tells a conversation apart from a leg nobody picked up.
+    expect(leg.billedSeconds).toBe(120);
+    expect(leg.startedAt).toEqual(new Date("2026-09-01T15:42:54Z"));
+    expect(leg.endedAt).toEqual(new Date("2026-09-01T15:44:38Z"));
+    expect(leg.occurredAt).toEqual(new Date("2026-09-01T15:42:54Z"));
+    // The session the recording is filed under — named here and nowhere else.
+    expect(leg.callSessionId).toBe("cb647cc6-a61b-11f1-b5a0-02420a0dfb1f");
+  });
+
+  it("reports no timeline for a record that carries none", async () => {
+    // The engine record prices the conversation and knows nothing about the
+    // leg's clock. Reading zero out of it would close the call at once.
+    const { service } = build({
+      "ai-voice-assistant": [
+        {
+          call_control_id: "v3:cc-1",
+          conversation_id: "conv-1",
+          cost: "0.1",
+          billed_sec: 120,
+          call_sec: null,
+          started_at: null,
+          finished_at: null,
+        },
+      ],
+    });
+
+    const [engine] = await service.fetchUsageRecords({
+      callControlId: "v3:cc-1",
+    });
+
+    assert(engine);
+    expect(engine.connectedSeconds).toBeNull();
+    expect(engine.startedAt).toBeNull();
+    expect(engine.endedAt).toBeNull();
+  });
+
   it("keeps the other record types when one of them fails", async () => {
     const get = vi.fn(async (path: string) => {
       if (path.includes("sip-trunking")) throw new Error("upstream is down");
@@ -140,10 +202,12 @@ describe("TelnyxVoiceAgentService recordings", () => {
       {} as TelnyxKnowledgeStore,
     );
 
-    const recordings = await service.fetchRecordings("cs-1");
+    const recordings = await service.fetchRecordings({
+      callControlId: "v3:cc-1",
+    });
 
     expect(get).toHaveBeenCalledWith(
-      "/recordings?filter%5Bcall_session_id%5D=cs-1",
+      "/recordings?filter%5Bcall_control_id%5D=v3%3Acc-1",
     );
     expect(recordings).toEqual([
       {

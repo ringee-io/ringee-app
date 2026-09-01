@@ -229,6 +229,33 @@ Consequences worth keeping:
   it, which hid every call whose webhook never arrived — permanently, and
   silently, because those are exactly the calls nothing else would price. The
   sweep now backfills the conversation id from the records themselves.
+- **The call's own timeline is reconciled too, not waited for.** Nobody is on
+  Ringee's end of an agent leg, so the status callback is the only thing that
+  would ever move `Call.status` — and an agent call that never gets one sits at
+  `pending` for the rest of its life with no duration, no answer time and no
+  outcome, while the stale-call sweep passes over it (it only reaches calls that
+  got as far as `ringing`). The `sip-trunking` record that prices the leg also
+  dates it: `started_at`, `finished_at`, and `call_sec` — time **connected**,
+  which is zero on a leg that was refused and is what tells a real conversation
+  apart from an attempt that still billed a minute. So the pass that settles the
+  money closes the row, and a call whose money is already settled is swept for
+  that reason alone (`listUnsettled`, bounded by a stalled-call window).
+  `Call.answeredAt` has to be written there as well: absent, `completeCall`
+  auto-dispositions the call as `no_answer` — on a call that just held a full
+  conversation.
+- **An agent leg's recording is found by `call_control_id`.** The session id is
+  reported only on an event Ringee may never receive, so a recordings lookup
+  keyed on it answers "none" for calls that were recorded perfectly well. The
+  control id is written down the moment the leg is placed. The session handle is
+  worth keeping when it does surface — on the recording, on a callback, or in a
+  conversation's metadata — but nothing may depend on having it.
+- **A conversation id resolves back to its call.** Post-call analysis names the
+  conversation and nothing else, and `providerConversationId` is written by the
+  conversation webhook — the one delivery that may never arrive. On a miss the
+  conversation is read from the provider (`GET /ai/conversations/{id}`), whose
+  `metadata` carries `call_control_id`, `call_session_id` and `call_leg_id`.
+  Without that second look an analysis arriving before the sweep bound the
+  conversation is dropped, and it is delivered once or lost (AGENT-009).
 - The outbound voice profile (`TELNYX_OUTBOUND_VOICE_PROFILE_ID`) is still
   Ringee's to pin on the calling application, on every save and before every
   dial — that one the provider does honour.

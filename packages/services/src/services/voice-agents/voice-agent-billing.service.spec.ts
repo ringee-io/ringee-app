@@ -52,22 +52,40 @@ function repository(row: Record<string, unknown> = AGENT_CALL) {
 
 type Kind = "telephony" | "voice_agent" | "inference";
 
+interface UsageRow {
+  costUsd: number;
+  kind?: Kind;
+  /** Seconds the two ends were connected. Zero on a leg nobody picked up. */
+  connectedSeconds?: number;
+  startedAt?: Date | null;
+  endedAt?: Date | null;
+  callSessionId?: string | null;
+}
+
 function provider(
-  records: Array<{ costUsd: number; kind?: Kind }>,
+  records: UsageRow[],
   recordings: Array<{ downloadUrl: string | null }> = [],
 ) {
+  /** What the recording lookup was filtered on. */
+  const recordingQueries: Array<Record<string, unknown>> = [];
   return {
+    recordingQueries,
     fetchUsageRecords: async () =>
       records.map((r) => ({
         kind: r.kind ?? ("voice_agent" as const),
         conversationId: "conv-1",
         callControlId: "cc-1",
+        callSessionId: r.callSessionId ?? null,
         costUsd: r.costUsd,
         billedSeconds: 60,
+        connectedSeconds: r.connectedSeconds ?? null,
+        startedAt: r.startedAt ?? null,
+        endedAt: r.endedAt ?? null,
         occurredAt: new Date(),
       })),
-    fetchRecordings: async () =>
-      recordings.map((r, index) => ({
+    fetchRecordings: async (query: Record<string, unknown>) => {
+      recordingQueries.push(query);
+      return recordings.map((r, index) => ({
         providerRecordingId: `rec-${index}`,
         callControlId: "cc-1",
         callSessionId: "cs-1",
@@ -76,7 +94,8 @@ function provider(
         startedAt: new Date(),
         endedAt: new Date(),
         durationMillis: 1000,
-      })),
+      }));
+    },
   };
 }
 
@@ -92,8 +111,15 @@ function callRepository(
   },
 ) {
   const costs: Array<{ totalCost: number; meta: Record<string, unknown> }> = [];
+  const attached: Array<Record<string, unknown>> = [];
+  const completed: Array<{
+    startedAt: Date | null | undefined;
+    endedAt: Date | null | undefined;
+  }> = [];
   return {
     costs,
+    attached,
+    completed,
     call,
     findById: async () => call,
     updateCost: async (
@@ -103,6 +129,20 @@ function callRepository(
     ) => {
       if (call) call.totalCost = totalCost;
       costs.push({ totalCost, meta });
+      return call;
+    },
+    attachTelephony: async (id: string, data: Record<string, unknown>) => {
+      Object.assign(call ?? {}, data);
+      attached.push({ id, ...data });
+      return call;
+    },
+    completeCall: async (
+      _controlId: string,
+      startedAt: Date | null | undefined,
+      endedAt: Date | null | undefined,
+    ) => {
+      if (call) call.endedAt = endedAt ?? null;
+      completed.push({ startedAt, endedAt });
       return call;
     },
   };
@@ -139,6 +179,32 @@ function build(options: {
     {
       recoverTranscript: async (agentCall: { id: string }) => {
         transcribed.push(agentCall.id);
+      },
+      // The real one writes the conversation onto the agent call and the
+      // session onto the telephony row, and hands back the row to keep
+      // working from. Both writes are what later reads are keyed on.
+      bindConversation: async (
+        agentCall: { id: string; callId: string | null },
+        conversation: {
+          conversationId: string | null;
+          callSessionId?: string | null;
+        },
+      ) => {
+        if (conversation.conversationId && !repo.state.providerConversationId) {
+          await repo.update(agentCall.id, {
+            providerConversationId: conversation.conversationId,
+          });
+        }
+        if (agentCall.callId && conversation.callSessionId) {
+          const call = await calls.findById();
+          if (call && !call.callSessionId) {
+            await calls.attachTelephony(call.id as string, {
+              callControlId: call.callControlId,
+              callSessionId: conversation.callSessionId,
+            });
+          }
+        }
+        return repo.state;
       },
     } as never,
   );
@@ -476,6 +542,246 @@ describe("VoiceAgentBillingService", () => {
     });
   });
 
+  /**
+   * An agent call has nobody on Ringee's end of the leg, so nothing but the
+   * provider's status callback ever writes its timeline — and that callback is
+   * a delivery like any other. The records that price the call also say when it
+   * started, when it ended and whether it ever connected, so the read that
+   * settles the money settles the timeline with it.
+   */
+  describe("the call's timeline", () => {
+    const STARTED = new Date("2026-09-01T11:42:00.000Z");
+    const ENDED = new Date("2026-09-01T11:43:27.000Z");
+
+    const pending = () =>
+      callRepository({
+        id: "telephony-1",
+        userId: "user-1",
+        organizationId: "org-1",
+        callControlId: "cc-1",
+        callSessionId: "cs-1",
+        status: "pending",
+        answeredAt: null,
+        endedAt: null,
+        totalCost: null,
+      });
+
+    const linked = () =>
+      repository({
+        ...AGENT_CALL,
+        callId: "telephony-1",
+        status: "initiating",
+      });
+
+    it("closes a call whose status callback never arrived", async () => {
+      const calls = pending();
+      const repo = linked();
+      const { service } = build({
+        repo,
+        calls,
+        provider: provider([
+          {
+            costUsd: 0.66,
+            kind: "telephony",
+            connectedSeconds: 87,
+            startedAt: STARTED,
+            endedAt: ENDED,
+          },
+          { costUsd: 0.1, kind: "voice_agent" },
+        ]),
+      });
+
+      await service.settle("call-1");
+
+      // Dated from the provider's own record of the leg, not from the moment
+      // the sweep happened to run — which is what made every agent call read
+      // as a zero-second one.
+      assert.deepEqual(calls.completed, [
+        { startedAt: STARTED, endedAt: ENDED },
+      ]);
+      // The answer has to be dated too: an absent `answeredAt` is exactly what
+      // `completeCall` reads to file a call as one nobody picked up.
+      const answered = calls.attached.find((write) => write.answeredAt);
+      assert.ok(answered);
+      assert.deepEqual(
+        answered.answeredAt,
+        new Date(ENDED.getTime() - 87 * 1000),
+      );
+      assert.equal(answered.status, "answered");
+      // And the agent call leaves its dialing state, which is what the
+      // artifact sweep looks for.
+      assert.equal(repo.state.status, "completed");
+    });
+
+    it("files a leg nobody picked up as a no-answer", async () => {
+      // A refused leg reports an end time and a charge like any other. What
+      // tells it apart is that the two ends were never connected.
+      const calls = pending();
+      const repo = linked();
+      const { service } = build({
+        repo,
+        calls,
+        provider: provider([
+          {
+            costUsd: 0.02,
+            kind: "telephony",
+            connectedSeconds: 0,
+            startedAt: STARTED,
+            endedAt: ENDED,
+          },
+        ]),
+      });
+
+      await service.settle("call-1");
+
+      assert.deepEqual(calls.completed, [
+        { startedAt: STARTED, endedAt: ENDED },
+      ]);
+      assert.equal(
+        calls.attached.find((write) => write.answeredAt),
+        undefined,
+      );
+      assert.equal(repo.state.status, "no_answer");
+    });
+
+    it("leaves a call the callback already closed exactly as it is", async () => {
+      // The callback saw the leg; this only reads about it afterwards.
+      const calls = callRepository({
+        id: "telephony-1",
+        userId: "user-1",
+        organizationId: "org-1",
+        callControlId: "cc-1",
+        callSessionId: "cs-1",
+        status: "completed",
+        answeredAt: STARTED,
+        endedAt: ENDED,
+        totalCost: null,
+      });
+      const { service } = build({
+        repo: repository({
+          ...AGENT_CALL,
+          callId: "telephony-1",
+          status: "completed",
+        }),
+        calls,
+        provider: provider([
+          {
+            costUsd: 0.66,
+            kind: "telephony",
+            connectedSeconds: 87,
+            startedAt: STARTED,
+            endedAt: ENDED,
+          },
+        ]),
+      });
+
+      await service.settle("call-1");
+
+      assert.deepEqual(calls.completed, []);
+      assert.deepEqual(calls.attached, []);
+    });
+
+    it("waits rather than closing a call the provider has not finished", async () => {
+      // A leg still in progress is published without an end. Closing it from
+      // that would freeze the duration at whatever the sweep saw.
+      const calls = pending();
+      const repo = linked();
+      const { service } = build({
+        repo,
+        calls,
+        provider: provider([
+          { costUsd: 0.66, kind: "telephony", connectedSeconds: 12 },
+        ]),
+      });
+
+      await service.settle("call-1");
+
+      assert.deepEqual(calls.completed, []);
+      assert.equal(repo.state.status, "initiating");
+    });
+
+    it("closes a call whose money was already fully settled", async () => {
+      // The state the reported call was in: priced, debited, and still
+      // reading `pending` — because the two are settled by different things
+      // and only one of them ever ran. A pass that stopped at "nothing is
+      // owed" would leave it that way for good.
+      const calls = callRepository({
+        id: "telephony-1",
+        userId: "user-1",
+        organizationId: "org-1",
+        callControlId: "cc-1",
+        callSessionId: "cs-1",
+        status: "pending",
+        answeredAt: null,
+        endedAt: null,
+        totalCost: 0.66,
+      });
+      const repo = repository({
+        ...AGENT_CALL,
+        callId: "telephony-1",
+        status: "initiating",
+        costSettledAt: new Date(),
+        aiCostDebitedAt: new Date(),
+        aiCostUsd: 0.1,
+        aiChargedCredits: 0.2,
+      });
+      const { service } = build({
+        repo,
+        calls,
+        provider: provider([
+          {
+            costUsd: 0.265,
+            kind: "telephony",
+            connectedSeconds: 97,
+            startedAt: STARTED,
+            endedAt: ENDED,
+          },
+        ]),
+      });
+
+      await service.settle("call-1");
+
+      assert.deepEqual(calls.completed, [
+        { startedAt: STARTED, endedAt: ENDED },
+      ]);
+      assert.equal(repo.state.status, "completed");
+    });
+
+    it("takes the connected leg's answer when an earlier attempt failed", async () => {
+      // Two records, one call: the attempt that was refused and the one that
+      // carried the conversation.
+      const calls = pending();
+      const { service } = build({
+        repo: linked(),
+        calls,
+        provider: provider([
+          {
+            costUsd: 0.02,
+            kind: "telephony",
+            connectedSeconds: 0,
+            startedAt: STARTED,
+            endedAt: new Date(STARTED.getTime() + 8000),
+          },
+          {
+            costUsd: 0.66,
+            kind: "telephony",
+            connectedSeconds: 87,
+            startedAt: new Date(STARTED.getTime() + 10000),
+            endedAt: ENDED,
+          },
+        ]),
+      });
+
+      await service.settle("call-1");
+
+      // The whole span of the call, and the answer that actually happened.
+      assert.deepEqual(calls.completed, [
+        { startedAt: STARTED, endedAt: ENDED },
+      ]);
+      assert.ok(calls.attached.find((write) => write.answeredAt));
+    });
+  });
+
   describe("the recording", () => {
     const linked = () => repository({ ...AGENT_CALL, callId: "telephony-1" });
 
@@ -495,6 +801,55 @@ describe("VoiceAgentBillingService", () => {
         (processed[0] as { recording: { publicUrl: string } }).recording
           .publicUrl,
         "https://provider.example/rec.mp3",
+      );
+    });
+
+    it("looks the recording up by the handle the dial path wrote down", async () => {
+      // A provider-placed agent leg reports its session only on an event
+      // Ringee may never receive. Filtering on the session answered "no
+      // recording" for every agent call ever made, while the audio sat on the
+      // provider under the control id.
+      const providerDouble = provider(
+        [{ costUsd: 0.1, kind: "voice_agent" }],
+        [{ downloadUrl: "https://provider.example/rec.mp3" }],
+      );
+      const { service } = build({
+        repo: linked(),
+        provider: providerDouble,
+      });
+
+      await service.settle("call-1");
+
+      assert.equal(providerDouble.recordingQueries.length, 1);
+      assert.equal(providerDouble.recordingQueries[0]!.callControlId, "cc-1");
+    });
+
+    it("writes down the session the recording is filed under", async () => {
+      // The recording is one of the few places the session handle is ever
+      // reported. Keeping it is what makes every session-keyed read of this
+      // call find it.
+      const calls = callRepository({
+        id: "telephony-1",
+        userId: "user-1",
+        organizationId: "org-1",
+        callControlId: "cc-1",
+        callSessionId: null,
+        totalCost: null,
+      });
+      const { service } = build({
+        repo: linked(),
+        calls,
+        provider: provider(
+          [{ costUsd: 0.1, kind: "voice_agent" }],
+          [{ downloadUrl: "https://provider.example/rec.mp3" }],
+        ),
+      });
+
+      await service.settle("call-1");
+
+      assert.ok(
+        calls.attached.some((write) => write.callSessionId === "cs-1"),
+        "the session handle the recording reported was not kept",
       );
     });
 

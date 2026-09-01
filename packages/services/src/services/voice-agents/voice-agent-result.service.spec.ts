@@ -38,6 +38,11 @@ const ANALYSIS = {
 function build(
   over: {
     agentCall?: Record<string, unknown> | null;
+    /** The row the control id on a provider-read conversation leads to. */
+    byControlId?: Record<string, unknown> | null;
+    /** What the provider knows about the conversation, when asked directly. */
+    conversation?: Record<string, unknown> | null;
+    call?: Record<string, unknown> | null;
     turns?: Array<{ role: string; text: string; at: Date | null }>;
     transcriptError?: Error;
     alreadyTranscribed?: boolean;
@@ -45,11 +50,13 @@ function build(
 ) {
   const updates: Array<Record<string, unknown>> = [];
   const transcripts: Array<Record<string, unknown>> = [];
+  const attached: Array<Record<string, unknown>> = [];
 
   const service = new VoiceAgentResultService(
     {
       findByConversationId: async () =>
         over.agentCall === undefined ? AGENT_CALL : over.agentCall,
+      findByCallControlId: async () => over.byControlId ?? null,
       update: async (_id: string, data: Record<string, unknown>) => {
         updates.push(data);
         return AGENT_CALL;
@@ -60,7 +67,14 @@ function build(
     } as never,
     { readAnalysis: () => ANALYSIS } as never,
     {
-      findById: async () => ({ id: "telephony-1", userId: "user-1" }),
+      findById: async () =>
+        over.call === undefined
+          ? { id: "telephony-1", userId: "user-1", callControlId: "cc-1" }
+          : over.call,
+      attachTelephony: async (id: string, data: Record<string, unknown>) => {
+        attached.push({ id, ...data });
+        return { id };
+      },
     } as never,
     {
       // The real adapter's parser, in miniature: the domain never sees the
@@ -79,6 +93,7 @@ function build(
               ],
             }
           : null,
+      fetchConversation: async () => over.conversation ?? null,
       fetchTranscript: async () => {
         if (over.transcriptError) throw over.transcriptError;
         return (
@@ -102,7 +117,7 @@ function build(
     } as never,
   );
 
-  return { service, updates, transcripts };
+  return { service, updates, transcripts, attached };
 }
 
 describe("VoiceAgentResultService analysis callback", () => {
@@ -161,6 +176,48 @@ describe("VoiceAgentResultService analysis callback", () => {
       true,
     );
     assert.deepEqual(updates, []);
+  });
+
+  it("finds the call when nothing ever bound the conversation to it", async () => {
+    // `providerConversationId` is written by the conversation webhook — the
+    // one delivery an agent call cannot count on. Dropping the analysis
+    // because of that loses it for good: there is no endpoint to read a
+    // finished conversation's results back (AGENT-009). So the conversation
+    // is read from the provider, which knows the call it ran on.
+    const { service, updates, attached } = build({
+      agentCall: null,
+      byControlId: { ...AGENT_CALL, providerConversationId: null },
+      conversation: {
+        conversationId: "conv-1",
+        assistantId: "assistant-1",
+        callControlId: "cc-1",
+        callSessionId: "cs-1",
+        callLegId: "leg-1",
+      },
+      call: {
+        id: "telephony-1",
+        userId: "user-1",
+        callControlId: "cc-1",
+        callSessionId: null,
+      },
+    });
+
+    const accepted = await service.applyInsightCallback(AGENT_ID, TOKEN, {
+      conversation_id: "conv-1",
+    });
+
+    assert.equal(accepted, true);
+    // The conversation is written down on the way past, so the next read of
+    // this call finds it without asking the provider again...
+    assert.deepEqual(updates[0], { providerConversationId: "conv-1" });
+    // ...and so is the session the recording is filed under.
+    assert.equal(attached.length, 1);
+    assert.equal(attached[0]!.callSessionId, "cs-1");
+    // And the analysis lands on the call, which is the point of all of it.
+    assert.deepEqual(updates[1], {
+      summary: "Booked a demo.",
+      outcome: "appointment_booked",
+    });
   });
 });
 

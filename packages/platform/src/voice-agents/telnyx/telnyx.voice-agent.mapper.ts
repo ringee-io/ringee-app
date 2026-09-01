@@ -22,6 +22,10 @@ import type {
 export interface TelnyxAssistantResponse {
   id: string;
   name?: string;
+  tools?: Array<{
+    type?: string | null;
+    webhook?: { url?: string | null } | null;
+  }> | null;
   telephony_settings?: {
     default_texml_app_id?: string | null;
     supports_unauthenticated_web_calls?: boolean | null;
@@ -192,6 +196,10 @@ export function toVoiceAgentAssistant(
     callingAppId: raw.telephony_settings?.default_texml_app_id ?? null,
     unauthenticatedWebCallsEnabled:
       raw.telephony_settings?.supports_unauthenticated_web_calls ?? false,
+    toolWebhookUrls: (raw.tools ?? []).flatMap((tool) => {
+      const url = str(tool?.webhook?.url);
+      return tool?.type === "webhook" && url ? [url] : [];
+    }),
   };
 }
 

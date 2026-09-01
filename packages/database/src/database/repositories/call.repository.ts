@@ -333,8 +333,14 @@ export class CallRepository {
    */
   async completeCall(
     callControlId: string,
-    startedAt: string,
-    endedAt: string,
+    /**
+     * When the leg was placed, if the provider reported it. Null keeps the
+     * `startedAt` the row already has: a caller that substitutes "now" for a
+     * timestamp the provider never sent turns every call into a zero-second
+     * one, and the duration below is computed from exactly these two values.
+     */
+    startedAt: string | Date | null | undefined,
+    endedAt: string | Date | null | undefined,
     hangupCause?: string,
   ): Promise<Call | null> {
     const call = await this.findByControlId(callControlId);
@@ -382,9 +388,9 @@ export class CallRepository {
   }
 
   /** `null` for a missing/unparseable provider timestamp. */
-  private parseDate(value: string | null | undefined): Date | null {
+  private parseDate(value: string | Date | null | undefined): Date | null {
     if (!value) return null;
-    const parsed = new Date(value);
+    const parsed = value instanceof Date ? value : new Date(value);
     return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 

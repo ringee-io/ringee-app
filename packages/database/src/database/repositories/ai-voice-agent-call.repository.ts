@@ -146,21 +146,43 @@ export class AiVoiceAgentCallRepository {
    * `Call` row (`totalCost`), the same one the cost webhook claims, so the two
    * halves of an agent call are settled by whichever path gets there first and
    * neither can strand the other.
+   *
+   * A call still sitting in a dialing state is outstanding work as well, even
+   * once every penny of it is settled. Nobody is on Ringee's end of an agent
+   * leg, so the provider's status callback is the only thing that would ever
+   * move it — and a call whose callback never arrived is stuck at `initiating`
+   * with its money already taken, which no other list would ever pick up
+   * again. Bounded by `stalledAfter` so a call the provider will never report
+   * on stops being chased instead of holding a slot in the sweep forever.
    */
-  listUnsettled(olderThan: Date, take = 50): Promise<AiVoiceAgentCall[]> {
+  listUnsettled(
+    window: { updatedBefore: Date; stalledAfter: Date },
+    take = 50,
+  ): Promise<AiVoiceAgentCall[]> {
     return this.prisma.aiVoiceAgentCall.findMany({
       where: {
         OR: [
           { providerConversationId: { not: null } },
           { providerCallControlId: { not: null } },
         ],
-        updatedAt: { lt: olderThan },
+        updatedAt: { lt: window.updatedBefore },
         AND: [
           {
             OR: [
               { costSettledAt: null },
               { aiCostDebitedAt: null },
               { call: { is: { totalCost: null } } },
+              {
+                status: {
+                  in: [
+                    AiVoiceAgentCallStatus.created,
+                    AiVoiceAgentCallStatus.initiating,
+                    AiVoiceAgentCallStatus.ringing,
+                    AiVoiceAgentCallStatus.in_progress,
+                  ],
+                },
+                createdAt: { gte: window.stalledAfter },
+              },
             ],
           },
         ],

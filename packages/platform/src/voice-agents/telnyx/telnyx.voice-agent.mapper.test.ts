@@ -162,6 +162,7 @@ describe("toVoiceAgentAssistant", () => {
       assistantId: "assistant-1",
       callingAppId: "3035069911979263363",
       unauthenticatedWebCallsEnabled: true,
+      toolWebhookUrls: [],
     });
   });
 
@@ -169,6 +170,28 @@ describe("toVoiceAgentAssistant", () => {
     const assistant = toVoiceAgentAssistant({ id: "assistant-2" });
     expect(assistant.callingAppId).toBeNull();
     expect(assistant.unauthenticatedWebCallsEnabled).toBe(false);
+  });
+
+  // Where the assistant currently calls Ringee back. The dial path compares
+  // these against the configured base so an agent whose tools were written
+  // against an old address is re-synced before it dials, instead of holding a
+  // whole conversation and then failing to book.
+  it("reports the webhook tools' urls and ignores the other tool kinds", () => {
+    const assistant = toVoiceAgentAssistant({
+      id: "assistant-3",
+      tools: [
+        {
+          type: "webhook",
+          webhook: { url: "https://api.ringee.io/api/x/available-slots" },
+        },
+        { type: "hangup" },
+        { type: "retrieval" },
+        { type: "webhook", webhook: { url: null } },
+      ],
+    });
+    expect(assistant.toolWebhookUrls).toEqual([
+      "https://api.ringee.io/api/x/available-slots",
+    ]);
   });
 });
 
