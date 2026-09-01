@@ -18,7 +18,7 @@ const apiConfiguration = {
   FRONTEND_URL: process.env.FRONTEND_URL!,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!,
-  PUBLIC_BACKEND_URL: process.env.PUBLIC_BACKEND_URL,
+  PUBLIC_BACKEND_URL: process.env.BACKEND_URL,
   REDIS_URL: process.env.REDIS_URL!,
   // ── Temporal (durable background jobs / orchestrator) ──
   // Plain gRPC address of the self-hosted Temporal frontend. For local dev,
@@ -363,10 +363,6 @@ if (!isFiniteAtLeast(apiConfiguration.TRANSCRIPTION_CREDIT_PROFIT_MARGIN, 1)) {
 
 if (!apiConfiguration.PUBLIC_BACKEND_URL) {
   errors.push("PUBLIC_BACKEND_URL is not defined");
-} else if (!/^https?:\/\//.test(apiConfiguration.PUBLIC_BACKEND_URL)) {
-  errors.push(
-    `PUBLIC_BACKEND_URL is not a valid http(s) address: "${apiConfiguration.PUBLIC_BACKEND_URL}"`,
-  );
 }
 
 if (!apiConfiguration.WHATSAPP_VERIFY_TOKEN) {

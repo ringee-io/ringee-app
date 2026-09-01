@@ -1006,6 +1006,6 @@ export class VoiceAgentService {
   }
 
   private publicBase(): string {
-    return apiConfiguration.PUBLIC_BACKEND_URL.replace(/\/+$/, "");
+    return apiConfiguration.PUBLIC_BACKEND_URL!.replace(/\/+$/, "");
   }
 }

@@ -470,7 +470,7 @@ export class VoiceAgentCallService {
   }
 
   private publicBase(): string {
-    return apiConfiguration.PUBLIC_BACKEND_URL.replace(/\/+$/, "");
+    return apiConfiguration.PUBLIC_BACKEND_URL!.replace(/\/+$/, "");
   }
 
   // ── Reads ────────────────────────────────────────────────────

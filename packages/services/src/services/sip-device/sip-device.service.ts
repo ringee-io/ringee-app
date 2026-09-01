@@ -384,7 +384,7 @@ export class SipDeviceService {
   }
 
   private deskPhoneWebhookUrl(): string {
-    const base = apiConfiguration.PUBLIC_BACKEND_URL.replace(/\/+$/, "");
+    const base = apiConfiguration.PUBLIC_BACKEND_URL!.replace(/\/+$/, "");
     return `${base}/api/webhooks/telnyx/desk-phone`;
   }
 
