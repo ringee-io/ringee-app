@@ -1,8 +1,13 @@
 import type {
   VoiceAgentAssistant,
+  VoiceAgentCallingAppSettings,
   VoiceAgentConfig,
+  VoiceAgentInsightDelivery,
+  VoiceAgentInsightGroupSettings,
+  VoiceAgentInsightResult,
   VoiceAgentTool,
   VoiceAgentToolHeader,
+  VoiceAgentTranscriptTurn,
 } from "../interfaces/voice-agent.provider";
 
 /**
@@ -188,4 +193,205 @@ export function toVoiceAgentAssistant(
     unauthenticatedWebCallsEnabled:
       raw.telephony_settings?.supports_unauthenticated_web_calls ?? false,
   };
+}
+
+/**
+ * A Telnyx TeXML application — the resource an assistant's calls are placed
+ * through — as much of it as Ringee reads or writes.
+ */
+export interface TelnyxTexmlApplication {
+  id?: string;
+  friendly_name?: string | null;
+  voice_url?: string | null;
+  status_callback?: string | null;
+  status_callback_method?: string | null;
+  call_cost_in_webhooks?: boolean | null;
+  outbound?: {
+    channel_limit?: number | null;
+    outbound_voice_profile_id?: string | null;
+  } | null;
+}
+
+/** The body of a TeXML application update, as Telnyx accepts it. */
+export interface TelnyxTexmlApplicationPatch {
+  friendly_name: string;
+  voice_url: string;
+  call_cost_in_webhooks: boolean;
+  status_callback: string;
+  status_callback_method: "post";
+  outbound?: {
+    channel_limit?: number;
+    outbound_voice_profile_id: string;
+  };
+}
+
+/**
+ * The update that brings a Telnyx-provisioned TeXML application in line with
+ * what Ringee requires of it — or null when it already matches, so an ordinary
+ * save does not write to the provider for nothing.
+ *
+ * The update is a partial one: everything left out keeps the value Telnyx put
+ * there, which matters because Telnyx owns most of this application. Its
+ * `voice_url` points at the assistant's own TeXML document and is fetched with
+ * `voice_method: get` where the API's own default is `post` — resetting either
+ * is what would leave an agent unable to answer its own calls. `friendly_name`
+ * and `voice_url` are sent unchanged only because Telnyx requires them on an
+ * update at all.
+ */
+export function toCallingAppPatch(
+  current: TelnyxTexmlApplication,
+  settings: VoiceAgentCallingAppSettings,
+): TelnyxTexmlApplicationPatch | null {
+  const friendlyName = current.friendly_name?.trim();
+  const voiceUrl = current.voice_url?.trim();
+  // Without these Telnyx rejects the update, and inventing them would rewrite
+  // the application the provider built for the assistant.
+  if (!friendlyName || !voiceUrl) return null;
+
+  const profileId = settings.outboundProfileId?.trim() || null;
+  const matchesProfile =
+    !profileId || current.outbound?.outbound_voice_profile_id === profileId;
+  const matchesCost =
+    (current.call_cost_in_webhooks ?? false) === settings.callCostEvents;
+  const matchesCallback =
+    current.status_callback === settings.eventWebhookUrl &&
+    (current.status_callback_method ?? "").toLowerCase() === "post";
+  if (matchesProfile && matchesCost && matchesCallback) return null;
+
+  return {
+    friendly_name: friendlyName,
+    voice_url: voiceUrl,
+    call_cost_in_webhooks: settings.callCostEvents,
+    status_callback: settings.eventWebhookUrl,
+    status_callback_method: "post",
+    ...(profileId
+      ? {
+          outbound: {
+            // Telnyx replaces the whole `outbound` block, so a channel limit
+            // set on the application has to be sent back with it.
+            ...(current.outbound?.channel_limit != null
+              ? { channel_limit: current.outbound.channel_limit }
+              : {}),
+            outbound_voice_profile_id: profileId,
+          },
+        }
+      : {}),
+  };
+}
+
+// ── Post-call analysis ───────────────────────────────────────
+
+/** One message of a Telnyx conversation, as much of it as Ringee reads. */
+export interface TelnyxConversationMessage {
+  role?: string | null;
+  text?: string | null;
+  content?: string | null;
+  created_at?: string | null;
+  sent_at?: string | null;
+}
+
+/**
+ * Telnyx speaks in OpenAI roles. `assistant` is the agent, `user` is the person
+ * it called, and `system` is the prompt — which is configuration, not something
+ * anyone said, so it never reaches the transcript.
+ */
+const TRANSCRIPT_ROLES: Record<string, VoiceAgentTranscriptTurn["role"]> = {
+  assistant: "agent",
+  user: "customer",
+  tool: "tool",
+};
+
+function toDate(raw: unknown): Date | null {
+  if (typeof raw !== "string" || !raw) return null;
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/** Turns one page of conversation messages into the domain's transcript. */
+export function toTranscriptTurns(
+  rows: TelnyxConversationMessage[],
+): VoiceAgentTranscriptTurn[] {
+  return rows.flatMap((row) => {
+    const role = TRANSCRIPT_ROLES[(row.role ?? "").toLowerCase()];
+    if (!role) return [];
+    const text = (row.text ?? row.content ?? "").trim();
+    // A tool turn often carries no text of its own; an empty line in the
+    // transcript is noise, not a turn.
+    if (!text) return [];
+    return [{ role, text, at: toDate(row.sent_at ?? row.created_at) }];
+  });
+}
+
+function str(raw: unknown): string | null {
+  return typeof raw === "string" && raw ? raw : null;
+}
+
+function isRecord(raw: unknown): raw is Record<string, unknown> {
+  return typeof raw === "object" && raw !== null;
+}
+
+/**
+ * Telnyx reports one analysis result as `{ insight_id, result }`. A result that
+ * is not text is stored as the JSON it came as — the structured insights are
+ * read back with `JSON.parse` upstream — and an entry with no id is dropped,
+ * because there is no way back from it to the field that asked for it.
+ */
+function toInsightResults(raw: unknown): VoiceAgentInsightResult[] {
+  if (!Array.isArray(raw)) return [];
+  return raw.flatMap((entry) => {
+    if (!isRecord(entry)) return [];
+    const insightId = str(entry.insight_id);
+    if (!insightId) return [];
+    const result =
+      typeof entry.result === "string"
+        ? entry.result
+        : JSON.stringify(entry.result ?? null);
+    return [{ insightId, result }];
+  });
+}
+
+/**
+ * Reads an analysis delivery out of whatever Telnyx posted.
+ *
+ * Two shapes reach Ringee and both are handled here on purpose. An insight
+ * group posts a flat body (`conversation_id` plus `insights`), while the call
+ * event of the same analysis arrives in the Call Control envelope
+ * (`data.payload`, with the results under `results`). They are the same fact,
+ * they are both idempotent to apply, and which one an account sends is the
+ * provider's business — so the adapter accepts either rather than making the
+ * domain care.
+ *
+ * Returns null when the body carries no conversation to bind the results to.
+ */
+export function toInsightDelivery(
+  body: unknown,
+): VoiceAgentInsightDelivery | null {
+  if (!isRecord(body)) return null;
+
+  const envelope = isRecord(body.data) ? body.data : body;
+  const payload = isRecord(envelope.payload) ? envelope.payload : envelope;
+
+  const conversationId = str(payload.conversation_id);
+  if (!conversationId) return null;
+
+  return {
+    conversationId,
+    insightGroupId: str(payload.insight_group_id),
+    insights: [
+      ...toInsightResults(payload.results),
+      ...toInsightResults(payload.insights),
+    ],
+  };
+}
+
+/** The body of an insight-group create or update, as Telnyx accepts it. */
+export interface TelnyxInsightGroupPayload {
+  name: string;
+  webhook: string;
+}
+
+export function toInsightGroupPayload(
+  group: VoiceAgentInsightGroupSettings,
+): TelnyxInsightGroupPayload {
+  return { name: group.name, webhook: group.webhookUrl };
 }

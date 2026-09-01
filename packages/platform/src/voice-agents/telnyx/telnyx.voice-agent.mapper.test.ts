@@ -2,7 +2,12 @@ import { describe, expect, it } from "vitest";
 import type { VoiceAgentConfig } from "../interfaces/voice-agent.provider";
 import {
   toAssistantPayload,
+  toCallingAppPatch,
+  toInsightDelivery,
+  toInsightGroupPayload,
+  toTranscriptTurns,
   toVoiceAgentAssistant,
+  type TelnyxTexmlApplication,
 } from "./telnyx.voice-agent.mapper";
 
 const config = (over: Partial<VoiceAgentConfig> = {}): VoiceAgentConfig => ({
@@ -164,5 +169,201 @@ describe("toVoiceAgentAssistant", () => {
     const assistant = toVoiceAgentAssistant({ id: "assistant-2" });
     expect(assistant.callingAppId).toBeNull();
     expect(assistant.unauthenticatedWebCallsEnabled).toBe(false);
+  });
+});
+
+describe("toCallingAppPatch", () => {
+  const settings = {
+    eventWebhookUrl: "https://api.ringee.io/api/call/webhook",
+    callCostEvents: true,
+    outboundProfileId: "2806422605668",
+  };
+
+  /** What Telnyx provisions for a new assistant, before Ringee touches it. */
+  const provisioned = (
+    over: Partial<TelnyxTexmlApplication> = {},
+  ): TelnyxTexmlApplication => ({
+    id: "3039016314468304279",
+    friendly_name: "ai-assistant-5ba661d4",
+    voice_url:
+      "https://api.telnyx.com/v2/ai/assistants/assistant-5ba661d4/texml",
+    status_callback: null,
+    status_callback_method: "post",
+    call_cost_in_webhooks: false,
+    outbound: { channel_limit: null, outbound_voice_profile_id: null },
+    ...over,
+  });
+
+  it("asks for cost events, the event webhook and the outbound profile", () => {
+    const patch = toCallingAppPatch(provisioned(), settings);
+
+    expect(patch).toEqual({
+      friendly_name: "ai-assistant-5ba661d4",
+      voice_url:
+        "https://api.telnyx.com/v2/ai/assistants/assistant-5ba661d4/texml",
+      call_cost_in_webhooks: true,
+      status_callback: "https://api.ringee.io/api/call/webhook",
+      status_callback_method: "post",
+      outbound: { outbound_voice_profile_id: "2806422605668" },
+    });
+  });
+
+  it("writes nothing when the application already matches", () => {
+    const current = provisioned({
+      call_cost_in_webhooks: true,
+      status_callback: settings.eventWebhookUrl,
+      outbound: { outbound_voice_profile_id: "2806422605668" },
+    });
+
+    expect(toCallingAppPatch(current, settings)).toBeNull();
+  });
+
+  it("still fixes the webhook when only the outbound profile is in place", () => {
+    const current = provisioned({
+      outbound: { outbound_voice_profile_id: "2806422605668" },
+    });
+
+    const patch = toCallingAppPatch(current, settings);
+    expect(patch?.call_cost_in_webhooks).toBe(true);
+    expect(patch?.status_callback).toBe(settings.eventWebhookUrl);
+  });
+
+  it("keeps a channel limit that was set on the application", () => {
+    const current = provisioned({
+      outbound: { channel_limit: 4, outbound_voice_profile_id: null },
+    });
+
+    expect(toCallingAppPatch(current, settings)?.outbound).toEqual({
+      channel_limit: 4,
+      outbound_voice_profile_id: "2806422605668",
+    });
+  });
+
+  it("leaves the outbound route alone when none is configured", () => {
+    const patch = toCallingAppPatch(provisioned(), {
+      ...settings,
+      outboundProfileId: null,
+    });
+
+    expect(patch?.outbound).toBeUndefined();
+    expect(patch?.call_cost_in_webhooks).toBe(true);
+  });
+
+  it("refuses to update an application Telnyx has not finished writing", () => {
+    // `friendly_name` and `voice_url` are required on the update, and inventing
+    // either would rewrite the document the assistant answers its calls with.
+    expect(
+      toCallingAppPatch(provisioned({ voice_url: null }), settings),
+    ).toBeNull();
+  });
+});
+
+describe("toInsightGroupPayload", () => {
+  it("always names where the results are to be delivered", () => {
+    // A group without this analyses every call and tells nobody: there is no
+    // endpoint to read a finished conversation's results back.
+    expect(
+      toInsightGroupPayload({
+        name: "Ringee agent 7",
+        webhookUrl:
+          "https://api.ringee.io/api/ai-voice-agents/webhooks/insights/7/tok",
+      }),
+    ).toEqual({
+      name: "Ringee agent 7",
+      webhook:
+        "https://api.ringee.io/api/ai-voice-agents/webhooks/insights/7/tok",
+    });
+  });
+});
+
+describe("toInsightDelivery", () => {
+  it("reads the flat body an insight group posts", () => {
+    const delivery = toInsightDelivery({
+      conversation_id: "conv-1",
+      insight_group_id: "group-1",
+      insights: [
+        { insight_id: "insight-1", result: "Booked a demo." },
+        { insight_id: "insight-2", result: { team_size: 12 } },
+      ],
+    });
+
+    expect(delivery).toEqual({
+      conversationId: "conv-1",
+      insightGroupId: "group-1",
+      insights: [
+        { insightId: "insight-1", result: "Booked a demo." },
+        { insightId: "insight-2", result: '{"team_size":12}' },
+      ],
+    });
+  });
+
+  it("reads the same analysis out of the call-event envelope", () => {
+    // Telnyx publishes this fact twice, in two shapes. Both are the same
+    // results and both are idempotent to apply, so the adapter takes either
+    // rather than making the domain pick.
+    const delivery = toInsightDelivery({
+      data: {
+        event_type: "call.conversation_insights.generated",
+        payload: {
+          conversation_id: "conv-2",
+          insight_group_id: "group-1",
+          results: [{ insight_id: "insight-1", result: "Not interested." }],
+        },
+      },
+    });
+
+    expect(delivery?.conversationId).toBe("conv-2");
+    expect(delivery?.insights).toEqual([
+      { insightId: "insight-1", result: "Not interested." },
+    ]);
+  });
+
+  it("drops a result with no insight id, and a body with no conversation", () => {
+    // Without an id there is no way back to the field that asked for it, and
+    // without a conversation there is no call to write it onto.
+    expect(
+      toInsightDelivery({
+        conversation_id: "conv-3",
+        insights: [{ result: "orphan" }],
+      })?.insights,
+    ).toEqual([]);
+    expect(toInsightDelivery({ insights: [] })).toBeNull();
+    expect(toInsightDelivery("not a webhook")).toBeNull();
+  });
+});
+
+describe("toTranscriptTurns", () => {
+  it("maps provider roles onto the two sides of the call", () => {
+    expect(
+      toTranscriptTurns([
+        {
+          role: "assistant",
+          text: "Hi, this is Sofia.",
+          created_at: "2026-09-01T10:00:00Z",
+        },
+        { role: "user", text: "Hello?" },
+        { role: "tool", text: "{}" },
+      ]),
+    ).toEqual([
+      {
+        role: "agent",
+        text: "Hi, this is Sofia.",
+        at: new Date("2026-09-01T10:00:00Z"),
+      },
+      { role: "customer", text: "Hello?", at: null },
+      { role: "tool", text: "{}", at: null },
+    ]);
+  });
+
+  it("drops the prompt and anything with nothing said in it", () => {
+    // `system` is the agent's instructions — configuration, not a turn — and an
+    // empty line is noise in a transcript rather than a silence worth keeping.
+    expect(
+      toTranscriptTurns([
+        { role: "system", text: "You are Sofia." },
+        { role: "assistant", text: "   " },
+        { role: "assistant", text: null },
+      ]),
+    ).toEqual([]);
   });
 });

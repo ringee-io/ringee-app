@@ -158,15 +158,21 @@ export function createActivities(app: INestApplicationContext) {
     },
 
     /**
-     * AI voice agent housekeeping. The two halves are unrelated but share a
-     * cadence: settle the AI usage the provider publishes after a call ends,
-     * and close any test session that left an agent open to anonymous calls.
+     * AI voice agent housekeeping. The halves are unrelated but share a
+     * cadence: settle the usage the provider publishes after a call ends,
+     * fetch the recordings and transcripts it publishes alongside them, and
+     * close any test session that left an agent open to anonymous calls.
      */
     async sweepVoiceAgents() {
-      const { settled, pending } = await voiceAgentBilling.sweep();
+      const { settled, pending, recovered } = await voiceAgentBilling.sweep();
       if (settled > 0 || pending > 0) {
         logger.log(
           `VoiceAgentSweep: settled ${settled} agent calls, ${pending} still awaiting provider usage records`,
+        );
+      }
+      if (recovered > 0) {
+        logger.log(
+          `VoiceAgentSweep: recovered recordings/transcripts for ${recovered} agent calls`,
         );
       }
 

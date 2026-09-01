@@ -63,3 +63,78 @@ describe("TelnyxVoiceAgentService insights", () => {
     );
   });
 });
+
+describe("TelnyxVoiceAgentService insight groups", () => {
+  it("creates the group with the callback its results come back on", async () => {
+    const { service, client } = build();
+    client.post.mockResolvedValueOnce({ data: { id: "group-1" } });
+
+    const id = await service.createInsightGroup({
+      name: "Ringee agent 7",
+      webhookUrl: "https://api.ringee.io/insights/7",
+    });
+
+    expect(id).toBe("group-1");
+    expect(client.post).toHaveBeenCalledWith(
+      "/ai/conversations/insight-groups",
+      { name: "Ringee agent 7", webhook: "https://api.ringee.io/insights/7" },
+    );
+  });
+
+  it("re-points an existing group with PUT", async () => {
+    // Groups created before there was a callback are still analysing every
+    // call and delivering nowhere. This is the only thing that fixes them.
+    const { service, client } = build();
+
+    await service.updateInsightGroup("group-1", {
+      name: "Ringee agent 7",
+      webhookUrl: "https://api.ringee.io/insights/7",
+    });
+
+    expect(client.put).toHaveBeenCalledWith(
+      "/ai/conversations/insight-groups/group-1",
+      { name: "Ringee agent 7", webhook: "https://api.ringee.io/insights/7" },
+    );
+    expect(client.post).not.toHaveBeenCalled();
+  });
+});
+
+describe("TelnyxVoiceAgentService transcript", () => {
+  it("walks every page of the conversation", async () => {
+    const { service, client } = build();
+    client.get
+      .mockResolvedValueOnce({
+        data: [{ role: "assistant", text: "Hi." }],
+        meta: { total_pages: 2 },
+      })
+      .mockResolvedValueOnce({
+        data: [{ role: "user", text: "Hello." }],
+        meta: { total_pages: 2 },
+      });
+
+    const turns = await service.fetchTranscript("conv-1");
+
+    expect(turns).toEqual([
+      { role: "agent", text: "Hi.", at: null },
+      { role: "customer", text: "Hello.", at: null },
+    ]);
+    expect(client.get).toHaveBeenNthCalledWith(
+      1,
+      "/ai/conversations/conv-1/messages?page%5Bsize%5D=100&page%5Bnumber%5D=1",
+    );
+    expect(client.get).toHaveBeenNthCalledWith(
+      2,
+      "/ai/conversations/conv-1/messages?page%5Bsize%5D=100&page%5Bnumber%5D=2",
+    );
+  });
+
+  it("reports nothing rather than an empty transcript when the provider has none yet", async () => {
+    // The conversation is published after the call ends, so "no messages" is
+    // "not yet" — the caller retries instead of recording silence.
+    const { service, client } = build();
+    client.get.mockResolvedValueOnce({ data: [] });
+
+    expect(await service.fetchTranscript("conv-1")).toEqual([]);
+    expect(client.get).toHaveBeenCalledTimes(1);
+  });
+});

@@ -21,6 +21,7 @@ import {
   hashApiKey,
   LlmCredentialVerifier,
   resolveVoiceAgentModel,
+  voiceAgentInsightsToken,
   VoiceAgentProviderService,
   type OwnershipContext,
   type VoiceAgentConfig,
@@ -555,14 +556,24 @@ export class VoiceAgentService {
       // an insight left running on the provider that nothing owns: the next
       // save creates a second set, and `delete` cannot clean up what the row
       // never learned about.
+      const insightGroup = {
+        name: `Ringee agent ${agent.id}`,
+        webhookUrl: this.insightsCallbackUrl(agent.id),
+      };
       let insightGroupId = agent.providerInsightGroupId;
       if (!insightGroupId) {
-        insightGroupId = await this.provider.createInsightGroup(
-          `Ringee agent ${agent.id}`,
-        );
+        insightGroupId = await this.provider.createInsightGroup(insightGroup);
         await this.agents.update(agent.id, {
           providerInsightGroupId: insightGroupId,
         });
+      } else {
+        // On every save, not only at creation. The provider analyses each
+        // finished conversation and posts the result to the group's webhook —
+        // there is no endpoint to read it back — so a group created before
+        // Ringee had a callback to give it analyses every call this agent
+        // makes and delivers the results nowhere. Re-pointing it here is the
+        // only thing that ever fixes those agents.
+        await this.provider.updateInsightGroup(insightGroupId, insightGroup);
       }
 
       const insightIds = await this.syncInsights(agent, insightGroupId);
@@ -580,7 +591,10 @@ export class VoiceAgentService {
         ? await this.provider.updateAssistant(agent.providerAssistantId, config)
         : await this.provider.createAssistant(config);
 
-      return await this.agents.update(agent.id, {
+      // The identifiers land before anything else can fail — see above: an id
+      // the row never learns about is a provider resource nothing owns, and the
+      // next save would create a second assistant beside it.
+      const synced = await this.agents.update(agent.id, {
         providerAssistantId: assistant.assistantId,
         providerTexmlAppId: assistant.callingAppId,
         providerInsightGroupId: insightGroupId,
@@ -588,6 +602,9 @@ export class VoiceAgentService {
         status: this.nextStatus(agent, blueprint.requiresCalendar),
         lastError: null,
       });
+
+      await this.configureCallingApp(assistant.callingAppId);
+      return synced;
     } catch (error) {
       // The provider's own failures arrive as `HttpException`s whose `.message`
       // is the placeholder "Http Exception" — storing that verbatim is how a
@@ -603,6 +620,70 @@ export class VoiceAgentService {
         lastError: message,
       });
     }
+  }
+
+  /**
+   * Applies Ringee's requirements to the calling application the provider
+   * provisions for an assistant: where its events go, that it reports what a
+   * call cost, and which outbound route it bills through.
+   *
+   * Runs on every save because the application is created by the provider, on
+   * its own defaults, some moment after the assistant itself — so "configure it
+   * once at creation" would leave the first one unconfigured. A `null` id is
+   * simply "not provisioned yet"; `ensureCallingApp` catches up when it
+   * appears.
+   */
+  private async configureCallingApp(
+    callingAppId: string | null,
+  ): Promise<void> {
+    if (!callingAppId) return;
+    await this.provider.configureCallingApp(callingAppId, {
+      eventWebhookUrl: this.callEventWebhookUrl(),
+      callCostEvents: true,
+      outboundProfileId: apiConfiguration.TELNYX_OUTBOUND_VOICE_PROFILE_ID,
+    });
+  }
+
+  /**
+   * Configures the calling application a call is about to go out through, and
+   * writes its id down when the row does not have it yet.
+   *
+   * The dial path calls this rather than trusting the agent's last save: an
+   * agent saved before Ringee configured these applications at all, or one
+   * whose application the provider re-provisioned, would otherwise keep placing
+   * calls through an application that bills through the wrong route and reports
+   * no cost — with nothing to ever fix it but the user happening to save again.
+   */
+  async ensureCallingApp(
+    agent: AiVoiceAgent,
+    callingAppId: string,
+  ): Promise<void> {
+    await this.configureCallingApp(callingAppId);
+    if (agent.providerTexmlAppId !== callingAppId) {
+      await this.agents.update(agent.id, { providerTexmlAppId: callingAppId });
+    }
+  }
+
+  /**
+   * Points the agent's analysis group at Ringee's callback before a call goes
+   * out through it.
+   *
+   * Same reason as `ensureCallingApp`, and the same failure: an agent whose
+   * group was created before there was a callback to give it analyses every
+   * call it makes and delivers the results nowhere (AGENT-009). Waiting for the
+   * user to happen to save the agent again is not a repair — a call about to be
+   * placed is the moment to be sure.
+   *
+   * A group the agent does not have yet is not created here: the analyses that
+   * belong in it are synced on save, and an empty group would only analyse
+   * nothing more quietly.
+   */
+  async ensureInsightGroup(agent: AiVoiceAgent): Promise<void> {
+    if (!agent.providerInsightGroupId) return;
+    await this.provider.updateInsightGroup(agent.providerInsightGroupId, {
+      name: `Ringee agent ${agent.id}`,
+      webhookUrl: this.insightsCallbackUrl(agent.id),
+    });
   }
 
   /**
@@ -862,7 +943,32 @@ export class VoiceAgentService {
   }
 
   private toolBaseUrl(): string {
-    const base = apiConfiguration.PUBLIC_BACKEND_URL.replace(/\/+$/, "");
-    return `${base}/api/ai-voice-agents/tools`;
+    return `${this.publicBase()}/api/ai-voice-agents/tools`;
+  }
+
+  /**
+   * Where the provider delivers an agent's call events. It is the ordinary
+   * signed call webhook: cost records and saved recordings are the same events
+   * every other Ringee call already settles through, and they belong on the
+   * same normalizer rather than on a second path of their own.
+   */
+  private callEventWebhookUrl(): string {
+    return `${this.publicBase()}/api/call/webhook`;
+  }
+
+  /**
+   * Where the provider posts an agent's finished post-call analysis.
+   *
+   * A group carries a URL and nothing else — no headers, no signature Ringee
+   * can pin — so the URL is the authorization: a token derived from the agent
+   * id, which the route verifies before it writes a summary onto a call.
+   */
+  private insightsCallbackUrl(agentId: string): string {
+    const token = voiceAgentInsightsToken(agentId);
+    return `${this.publicBase()}/api/ai-voice-agents/webhooks/insights/${agentId}/${token}`;
+  }
+
+  private publicBase(): string {
+    return apiConfiguration.PUBLIC_BACKEND_URL.replace(/\/+$/, "");
   }
 }

@@ -130,13 +130,19 @@ export function StartCallDialog({
           <span className='sm:hidden'>{t('triggerShort')}</span>
         </Button>
       </DialogTrigger>
-      <DialogContent>
-        <DialogHeader>
+      {/*
+        The form grows with the agent type — a blueprint with several variables
+        is taller than the screen on a laptop, and taller still on a phone. The
+        dialog is capped and only its fields scroll, so the button that starts
+        the call is on screen whatever the agent asks for.
+      */}
+      <DialogContent className='flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden sm:max-h-[85vh]'>
+        <DialogHeader className='shrink-0'>
           <DialogTitle>{t('title')}</DialogTitle>
           <DialogDescription>{t('hint')}</DialogDescription>
         </DialogHeader>
 
-        <div className='space-y-4'>
+        <div className='-mx-6 min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-1'>
           {error ? (
             <Alert variant='destructive' className='rounded-lg'>
               <AlertTriangle className='size-4' />
@@ -214,7 +220,7 @@ export function StartCallDialog({
           ))}
         </div>
 
-        <DialogFooter>
+        <DialogFooter className='shrink-0'>
           <Button
             className='h-10 rounded-lg'
             onClick={() => void start()}

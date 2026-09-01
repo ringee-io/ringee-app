@@ -134,6 +134,8 @@ export class CallTranscriptionRepository {
     recordingId?: string | null;
     recordingUrl?: string | null;
     model?: string | null;
+    /** Who produced the text. Defaults to Deepgram, the usual answer. */
+    provider?: string | null;
   }): Promise<CallTranscription> {
     return this.prisma.callTranscription.upsert({
       where: {
@@ -148,6 +150,7 @@ export class CallTranscriptionRepository {
         recordingId: params.recordingId ?? null,
         recordingUrl: params.recordingUrl ?? null,
         model: params.model ?? null,
+        ...(params.provider ? { provider: params.provider } : {}),
         startedAt: new Date(),
       },
       update: {
@@ -155,6 +158,7 @@ export class CallTranscriptionRepository {
         recordingId: params.recordingId ?? undefined,
         recordingUrl: params.recordingUrl ?? undefined,
         model: params.model ?? undefined,
+        provider: params.provider ?? undefined,
         errorMessage: null,
       },
     });

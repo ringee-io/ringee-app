@@ -4,11 +4,16 @@ import { TelnyxKnowledgeStore } from "./telnyx.knowledge.store";
 import type {
   VoiceAgentAssistant,
   VoiceAgentCallHandle,
+  VoiceAgentCallingAppSettings,
   VoiceAgentCallRequest,
   VoiceAgentConfig,
   VoiceAgentEmbeddingStatus,
   VoiceAgentInsightDefinition,
+  VoiceAgentInsightDelivery,
+  VoiceAgentInsightGroupSettings,
   VoiceAgentProvider,
+  VoiceAgentRecording,
+  VoiceAgentTranscriptTurn,
   VoiceAgentUsageQuery,
   VoiceAgentUsageRecord,
   VoiceAgentVoice,
@@ -16,8 +21,14 @@ import type {
 import { curateVoices, type RawProviderVoice } from "../voices.catalog";
 import {
   toAssistantPayload,
+  toCallingAppPatch,
+  toInsightDelivery,
+  toInsightGroupPayload,
+  toTranscriptTurns,
   toVoiceAgentAssistant,
   type TelnyxAssistantResponse,
+  type TelnyxConversationMessage,
+  type TelnyxTexmlApplication,
 } from "./telnyx.voice-agent.mapper";
 
 /** Page size and ceiling for walking the provider's integration-secret list. */
@@ -36,6 +47,42 @@ const RETRYABLE_STATUSES = new Set([408, 425, 429, 500, 502, 503, 504]);
 /** Attempts, and the base delay between them, for starting an embedding task. */
 const EMBEDDING_ATTEMPTS = 3;
 const EMBEDDING_RETRY_MS = 800;
+
+/** How many detail records to ask for per record type. One call needs a few. */
+const USAGE_PAGE_SIZE = 50;
+
+/** Transcript paging. The provider caps a page at 100 messages. */
+const TRANSCRIPT_PAGE_SIZE = 100;
+const TRANSCRIPT_MAX_PAGES = 20;
+
+interface UsageRecordType {
+  recordType: string;
+  kind: VoiceAgentUsageRecord["kind"];
+  /** Handles this record type can be looked up by, best first. */
+  keys: Array<"conversationId" | "callControlId">;
+}
+
+/**
+ * What one agent call costs, and where each part of it is reported.
+ *
+ * Telnyx bills an agent call as separate products and tags each with only the
+ * handle its own subsystem knows about — the voice leg has no idea a
+ * conversation happened, and the token records have no idea which SIP leg
+ * carried them. Reading all three by the right handle is what makes an agent
+ * call cost what it actually cost.
+ */
+const USAGE_RECORD_TYPES: UsageRecordType[] = [
+  // The voice leg — the same charge every non-agent Ringee call settles from.
+  { recordType: "sip-trunking", kind: "telephony", keys: ["callControlId"] },
+  // The conversation engine, billed per minute. Tagged with both handles.
+  {
+    recordType: "ai-voice-assistant",
+    kind: "voice_agent",
+    keys: ["conversationId", "callControlId"],
+  },
+  // The model tokens. Only ever tagged with the conversation.
+  { recordType: "inference", kind: "inference", keys: ["conversationId"] },
+];
 
 /**
  * The Telnyx implementation of the voice-agent contract, and the only place
@@ -184,28 +231,117 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
         ...(request.timeLimitSeconds
           ? { TimeLimit: request.timeLimitSeconds }
           : {}),
-        ...(request.record === undefined ? {} : { Record: request.record }),
+        // Recorded on two channels like every other Ringee recording, so the
+        // caller and the agent stay separable once the audio is transcribed.
+        ...(request.record === undefined
+          ? {}
+          : { Record: request.record, RecordingChannels: "dual" }),
       },
     );
 
     const body = raw?.data ?? raw ?? {};
+    // In TeXML the call sid *is* the call control id (`v3:…`) — the same value
+    // every later callback reports as `CallSid`. Handing it back as both is
+    // what lets the telephony row be found by control id from the moment it
+    // exists, so a cost or recording event that arrives before the first
+    // status callback still lands on the call instead of being dropped.
+    const callSid = body.sid ?? body.call_sid ?? null;
     return {
-      providerCallId: body.sid ?? body.call_sid ?? null,
-      callControlId: body.call_control_id ?? null,
+      providerCallId: callSid,
+      callControlId: body.call_control_id ?? callSid,
       callSessionId: body.call_session_id ?? null,
     };
   }
 
+  /**
+   * Brings the assistant's TeXML application in line with what Ringee requires
+   * of it.
+   *
+   * Telnyx provisions one per assistant and leaves it on its own defaults: no
+   * cost webhook and nowhere to deliver the application's own events. Left that
+   * way an agent call is never told what it cost and its recording never
+   * arrives, because both are published as events of this application rather
+   * than as callbacks of the call. The outbound voice profile comes from
+   * configuration, so every agent bills through the same route as the rest of
+   * the account.
+   */
+  async configureCallingApp(
+    callingAppId: string,
+    settings: VoiceAgentCallingAppSettings,
+  ): Promise<void> {
+    const current = await this.readCallingApp(callingAppId);
+    if (!current) {
+      throw new Error(`Calling application ${callingAppId} was not found`);
+    }
+
+    const patch = toCallingAppPatch(current, settings);
+    // Already as it should be, or missing the fields Telnyx requires on an
+    // update — either way there is nothing safe to write.
+    if (!patch) return;
+
+    await this.telnyxClient.patch(`/texml_applications/${callingAppId}`, patch);
+    this.logger.log(
+      `Configured calling application ${callingAppId} (cost events, outbound profile, event webhook)`,
+    );
+  }
+
+  private async readCallingApp(
+    callingAppId: string,
+  ): Promise<TelnyxTexmlApplication | null> {
+    try {
+      const raw = await this.telnyxClient.get<{
+        data?: TelnyxTexmlApplication;
+      }>(`/texml_applications/${callingAppId}`);
+      return raw?.data ?? null;
+    } catch (error) {
+      if (this.isNotFound(error)) return null;
+      throw error;
+    }
+  }
+
   // ── Post-call analysis ───────────────────────────────────────
 
-  async createInsightGroup(name: string): Promise<string> {
+  /**
+   * Creates the group Ringee runs an agent's post-call analysis in.
+   *
+   * The webhook goes on at creation because it is the only way the results
+   * ever come back: Telnyx analyses the conversation minutes after it ends and
+   * exposes no endpoint to read a finished conversation's results, so a group
+   * created without one analyses every call and delivers nothing.
+   */
+  async createInsightGroup(
+    group: VoiceAgentInsightGroupSettings,
+  ): Promise<string> {
     const raw = await this.telnyxClient.post<{ data?: { id: string } }>(
       "/ai/conversations/insight-groups",
-      { name },
+      toInsightGroupPayload(group),
     );
     const id = raw?.data?.id;
     if (!id) throw new Error("Telnyx returned no insight group id");
     return id;
+  }
+
+  /**
+   * Re-points an existing group at Ringee's analysis callback.
+   *
+   * Runs on every save, for the groups created before there was a callback to
+   * point at: those agents are still analysing every call they make, and
+   * nothing but this brings their results back.
+   *
+   * PUT, not POST — see `updateInsight`.
+   */
+  async updateInsightGroup(
+    groupId: string,
+    group: VoiceAgentInsightGroupSettings,
+  ): Promise<void> {
+    await this.telnyxClient.put(
+      `/ai/conversations/insight-groups/${groupId}`,
+      toInsightGroupPayload(group),
+    );
+  }
+
+  parseInsightWebhook(body: unknown): VoiceAgentInsightDelivery | null {
+    return toInsightDelivery(body);
   }
 
   async deleteInsightGroup(groupId: string): Promise<void> {
@@ -346,53 +482,99 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
     return { audio: data, contentType };
   }
 
+  // ── Transcript ───────────────────────────────────────────────
+
+  /**
+   * The conversation as the provider transcribed it live.
+   *
+   * Read, not received: the transcript is never pushed anywhere, and it is the
+   * one artifact of an agent call that costs nothing to fetch — the provider
+   * ran the speech stack to hold the conversation at all, so transcribing the
+   * recording a second time would be paying for text that already exists.
+   *
+   * Pages are walked to a ceiling rather than to exhaustion. A call is capped
+   * at `AI_VOICE_AGENT_MAX_CALL_SECONDS`, so the ceiling is unreachable in
+   * practice — it is there so a provider that keeps answering "one more page"
+   * cannot spin this forever.
+   */
+  async fetchTranscript(
+    conversationId: string,
+  ): Promise<VoiceAgentTranscriptTurn[]> {
+    const turns: VoiceAgentTranscriptTurn[] = [];
+
+    for (let page = 1; page <= TRANSCRIPT_MAX_PAGES; page += 1) {
+      const params = new URLSearchParams({
+        "page[size]": String(TRANSCRIPT_PAGE_SIZE),
+        "page[number]": String(page),
+      });
+      const raw = await this.telnyxClient.get<{
+        data?: TelnyxConversationMessage[];
+        meta?: { total_pages?: number };
+      }>(`/ai/conversations/${conversationId}/messages?${params.toString()}`);
+
+      const rows = raw?.data ?? [];
+      turns.push(...toTranscriptTurns(rows));
+
+      const totalPages = raw?.meta?.total_pages ?? page;
+      if (rows.length === 0 || page >= totalPages) break;
+    }
+
+    return turns;
+  }
+
   // ── Usage ────────────────────────────────────────────────────
 
   /**
-   * Reads the provider's own billing records for a conversation. Records land
-   * with a lag after the call ends, so an empty result means "not yet", never
-   * "free" — the caller retries rather than settling at zero.
+   * Reads the provider's own billing records for one call. Records land with a
+   * lag after the call ends, so an empty result means "not yet", never "free"
+   * — the caller retries rather than settling at zero.
    */
   async fetchUsageRecords(
     query: VoiceAgentUsageQuery,
   ): Promise<VoiceAgentUsageRecord[]> {
-    const kinds: Array<{
-      recordType: string;
-      kind: VoiceAgentUsageRecord["kind"];
-    }> = [
-      { recordType: "ai-voice-assistant", kind: "voice_agent" },
-      { recordType: "inference", kind: "inference" },
-    ];
-
     const results = await Promise.all(
-      kinds.map(({ recordType, kind }) =>
-        this.fetchRecordsOfType(recordType, kind, query),
-      ),
+      USAGE_RECORD_TYPES.map((type) => this.fetchRecordsOfType(type, query)),
     );
     return results.flat();
   }
 
+  /**
+   * One record type's rows for one call.
+   *
+   * Which handle the lookup uses is the record type's own business: the voice
+   * leg is never tagged with the conversation and the token records are never
+   * tagged with the leg, so asking either one by the wrong handle answers a
+   * confident, wrong "no records" — and a call settled on that would be given
+   * away for free.
+   */
   private async fetchRecordsOfType(
-    recordType: string,
-    kind: VoiceAgentUsageRecord["kind"],
+    type: UsageRecordType,
     query: VoiceAgentUsageQuery,
   ): Promise<VoiceAgentUsageRecord[]> {
     const params = new URLSearchParams();
-    params.set("filter[record_type]", recordType);
-    if (query.conversationId) {
-      params.set("filter[conversation_id]", query.conversationId);
-    }
-    if (query.callControlId && !query.conversationId) {
-      params.set("filter[call_control_id]", query.callControlId);
-    }
-    params.set("page[size]", "50");
+    params.set("filter[record_type]", type.recordType);
+
+    const handle = type.keys
+      .map((key) => [key, query[key]] as const)
+      .find(([, value]) => Boolean(value));
+    // No handle this record type understands. Reporting nothing would read as
+    // "this call cost nothing", so the caller is left waiting instead.
+    if (!handle) return [];
+    const [key, value] = handle;
+    params.set(
+      key === "conversationId"
+        ? "filter[conversation_id]"
+        : "filter[call_control_id]",
+      value!,
+    );
+    params.set("page[size]", String(USAGE_PAGE_SIZE));
 
     try {
       const raw = await this.telnyxClient.get<{ data?: Record<string, any>[] }>(
         `/detail_records?${params.toString()}`,
       );
       return (raw?.data ?? []).map((row) => ({
-        kind,
+        kind: type.kind,
         conversationId: row.conversation_id ?? null,
         callControlId: row.call_control_id ?? null,
         costUsd: Number.parseFloat(row.cost ?? "0") || 0,
@@ -401,15 +583,57 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
         occurredAt: row.created_at ? new Date(row.created_at) : null,
       }));
     } catch (error) {
-      // One record type being unavailable must not hide the other; the caller
+      // One record type being unavailable must not hide the others; the caller
       // decides whether a partial answer is enough to settle on.
       this.logger.warn(
-        `Could not read ${recordType} usage records: ${
+        `Could not read ${type.recordType} usage records: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
       return [];
     }
+  }
+
+  /**
+   * The recordings the provider kept for one call session.
+   *
+   * Read rather than waited for: a recording is announced as an event of the
+   * calling application, and that application is the provider's to configure,
+   * so an agent call whose recording never arrived is the normal case rather
+   * than the exceptional one.
+   */
+  async fetchRecordings(callSessionId: string): Promise<VoiceAgentRecording[]> {
+    const params = new URLSearchParams();
+    params.set("filter[call_session_id]", callSessionId);
+
+    const raw = await this.telnyxClient.get<{ data?: Record<string, any>[] }>(
+      `/recordings?${params.toString()}`,
+    );
+    return (
+      (raw?.data ?? [])
+        // A recording still being written has no usable download URL yet.
+        .filter((row) => row.status === "completed")
+        .map((row) => ({
+          providerRecordingId: String(row.id),
+          callControlId: row.call_control_id ?? null,
+          callSessionId: row.call_session_id ?? null,
+          downloadUrl: row.download_urls?.mp3 ?? null,
+          channels:
+            row.channels === "dual" || row.channels === "single"
+              ? row.channels
+              : null,
+          startedAt: row.recording_started_at
+            ? new Date(row.recording_started_at)
+            : null,
+          endedAt: row.recording_ended_at
+            ? new Date(row.recording_ended_at)
+            : null,
+          durationMillis:
+            typeof row.duration_millis === "number"
+              ? row.duration_millis
+              : null,
+        }))
+    );
   }
 
   // ── Knowledge bases ──────────────────────────────────────────

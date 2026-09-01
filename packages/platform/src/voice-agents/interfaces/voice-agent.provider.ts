@@ -122,6 +122,32 @@ export interface VoiceAgentCallRequest {
 }
 
 /**
+ * What Ringee requires of the calling application an agent's calls go out
+ * through. The provider provisions one per assistant with its own defaults;
+ * these are the settings Ringee cannot leave to them.
+ */
+export interface VoiceAgentCallingAppSettings {
+  /**
+   * Where the provider delivers the application's own call events — the cost
+   * record and the saved recording among them. Ringee points it at the same
+   * signed webhook every other call event already arrives on.
+   */
+  eventWebhookUrl: string;
+  /**
+   * Whether the provider must publish a per-call cost event. Ringee always
+   * asks for it: without it the telephony leg of an agent call settles at
+   * nothing, because no cost is ever reported for it.
+   */
+  callCostEvents: boolean;
+  /**
+   * The provider-side outbound route these calls bill through (Telnyx calls it
+   * an outbound voice profile). Comes from configuration; null leaves whatever
+   * the provider defaults to in place.
+   */
+  outboundProfileId?: string | null;
+}
+
+/**
  * What the provider hands back when it accepts a call. Every field is nullable
  * because a provider may only learn some of them once the leg exists — treat a
  * null as "not known yet", never as "no call".
@@ -141,11 +167,73 @@ export interface VoiceAgentInsightDefinition {
 }
 
 /**
+ * The analysis group Ringee owns for one agent, and where its results are to
+ * be delivered.
+ *
+ * The webhook is the point of the group, not a detail of it. Post-call
+ * analysis runs provider-side minutes after the conversation ends, and there
+ * is no endpoint to read a finished conversation's results back — so a group
+ * configured without one analyses every call and tells nobody.
+ */
+export interface VoiceAgentInsightGroupSettings {
+  name: string;
+  /** Ringee route the provider posts finished analysis to. */
+  webhookUrl: string;
+}
+
+/** One analysis result, as the provider reports it after a conversation. */
+export interface VoiceAgentInsightResult {
+  /**
+   * The analysis that produced it. This is the only reliable way back to the
+   * field that asked for it: names are not unique across agents.
+   */
+  insightId: string;
+  /** Free text, or the JSON a structured analysis returned, verbatim. */
+  result: string;
+}
+
+/**
+ * A delivery of post-call analysis, lifted out of whatever shape the provider
+ * posted it in.
+ *
+ * `conversationId` is what binds it to a call — an analysis delivery names the
+ * conversation and nothing else, so a delivery without one cannot be placed
+ * and is dropped rather than guessed at.
+ */
+export interface VoiceAgentInsightDelivery {
+  conversationId: string | null;
+  insightGroupId: string | null;
+  insights: VoiceAgentInsightResult[];
+}
+
+/**
+ * One turn of a conversation, as the provider transcribed it while the call
+ * was live.
+ *
+ * This is the agent call's transcript: the provider runs the speech stack, so
+ * it already holds the text and Ringee does not pay to transcribe the audio a
+ * second time. `tool` turns are the agent's own function calls — kept because
+ * "the agent looked up availability here" is often the only explanation for
+ * what it said next.
+ */
+export interface VoiceAgentTranscriptTurn {
+  role: "agent" | "customer" | "tool";
+  text: string;
+  at: Date | null;
+}
+
+/**
  * A billable usage record, as the provider reports it after the fact.
  * `costUsd` is the provider's own charge — Ringee applies its margin on top.
+ *
+ * An agent call is billed in two unrelated halves and both arrive here:
+ * `telephony` is the voice leg, the same charge every other Ringee call
+ * settles from; `voice_agent` and `inference` are the conversation engine and
+ * its tokens. They carry different margins downstream, so the kind is what
+ * tells them apart — never the amount.
  */
 export interface VoiceAgentUsageRecord {
-  kind: "voice_agent" | "inference";
+  kind: "telephony" | "voice_agent" | "inference";
   conversationId: string | null;
   callControlId: string | null;
   costUsd: number;
@@ -158,6 +246,25 @@ export interface VoiceAgentUsageQuery {
   callControlId?: string;
   /** Inclusive lower bound on record creation time. */
   since?: Date;
+}
+
+/**
+ * A recording the provider kept for a call, as its own records report it.
+ *
+ * Ringee reads these rather than waiting to be told about them: the recording
+ * of an agent call is announced as an event of the calling application, which
+ * is not a delivery Ringee can rely on. `downloadUrl` is short-lived and signed
+ * by the provider — fetch it now, never store it.
+ */
+export interface VoiceAgentRecording {
+  providerRecordingId: string;
+  callControlId: string | null;
+  callSessionId: string | null;
+  downloadUrl: string | null;
+  channels: "single" | "dual" | null;
+  startedAt: Date | null;
+  endedAt: Date | null;
+  durationMillis: number | null;
 }
 
 /** How far along the provider is with indexing a knowledge base. */
@@ -221,7 +328,29 @@ export interface VoiceAgentProvider {
 
   startCall(request: VoiceAgentCallRequest): Promise<VoiceAgentCallHandle>;
 
-  createInsightGroup(name: string): Promise<string>;
+  /**
+   * Applies Ringee's own requirements to the calling application the provider
+   * provisioned for an assistant: the outbound route its calls bill through,
+   * where its events are delivered, and that it reports cost at all.
+   *
+   * Safe to call on every save — an application that already matches is left
+   * untouched.
+   */
+  configureCallingApp(
+    callingAppId: string,
+    settings: VoiceAgentCallingAppSettings,
+  ): Promise<void>;
+
+  createInsightGroup(group: VoiceAgentInsightGroupSettings): Promise<string>;
+  /**
+   * Brings an existing group in line with the settings above. Called on every
+   * save, because a group created before Ringee configured a webhook would
+   * otherwise keep analysing calls and delivering the results nowhere.
+   */
+  updateInsightGroup(
+    groupId: string,
+    group: VoiceAgentInsightGroupSettings,
+  ): Promise<void>;
   deleteInsightGroup(groupId: string): Promise<void>;
   createInsight(
     groupId: string,
@@ -247,9 +376,29 @@ export interface VoiceAgentProvider {
     text: string,
   ): Promise<{ audio: Buffer; contentType: string }>;
 
+  /**
+   * Reads an analysis delivery out of a provider request body. Returns null
+   * when the body is not one — the route is public, so "not ours" has to be a
+   * possible answer rather than an error.
+   */
+  parseInsightWebhook(body: unknown): VoiceAgentInsightDelivery | null;
+
+  /**
+   * The conversation's transcript, in order. Empty means the provider has not
+   * published it yet, never that nothing was said.
+   */
+  fetchTranscript(conversationId: string): Promise<VoiceAgentTranscriptTurn[]>;
+
   fetchUsageRecords(
     query: VoiceAgentUsageQuery,
   ): Promise<VoiceAgentUsageRecord[]>;
+
+  /**
+   * The recordings the provider holds for one call. Empty means "none yet" —
+   * a recording is finalized after the call ends, so an early read is not
+   * proof the call went unrecorded.
+   */
+  fetchRecordings(callSessionId: string): Promise<VoiceAgentRecording[]>;
 
   // ── Knowledge bases ──
   // A store holds one agent's documents; indexing it is asynchronous, so every

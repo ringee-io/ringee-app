@@ -132,6 +132,7 @@ export class VoiceAgentCallService {
     });
 
     try {
+      await this.ensureInsightDelivery(agent);
       const handle = await this.provider.startCall({
         assistantId: agent.providerAssistantId!,
         callingAppId: await this.requireCallingApp(agent),
@@ -147,9 +148,10 @@ export class VoiceAgentCallService {
 
       // The telephony row is created here, not on a webhook: a provider-placed
       // leg carries none of the headers the browser path uses to attribute a
-      // call, so nothing downstream could build it. The provider's call id is
-      // the only handle that exists this early; `callControlId` is bound when
-      // the first callback carrying one arrives.
+      // call, so nothing downstream could build it. Whatever handles the
+      // provider gives back are written now — an event that arrives before the
+      // first status callback (the cost record, a saved recording) is looked up
+      // by control id and has nothing to land on until they are.
       const call = await this.callRepository.createCall(ctx, {
         contact: contact ? { connect: { id: contact.id } } : undefined,
         fromNumber: from,
@@ -316,13 +318,52 @@ export class VoiceAgentCallService {
   }
 
   /**
-   * The provider provisions a calling application per assistant, sometimes a
-   * moment after the assistant itself. Re-reading it is cheaper than failing a
-   * call the user just asked for.
+   * The application this call goes out through, ready to place it.
+   *
+   * The provider provisions one per assistant, sometimes a moment after the
+   * assistant itself, so an agent that does not have one on its row yet is
+   * re-read rather than refused. Either way the application is configured
+   * before the call: it is what decides the outbound route the call bills
+   * through and whether its cost is ever reported back.
    */
-  private async requireCallingApp(agent: AiVoiceAgent): Promise<string> {
-    if (agent.providerTexmlAppId) return agent.providerTexmlAppId;
+  /**
+   * Makes sure this call's analysis will have somewhere to land.
+   *
+   * Best-effort, exactly like the calling application beside it: an agent whose
+   * analysis group still points nowhere produces a call with no summary and no
+   * outcome, which is worth fixing — and never worth refusing the call the user
+   * asked for.
+   */
+  private async ensureInsightDelivery(agent: AiVoiceAgent): Promise<void> {
+    await this.agents.ensureInsightGroup(agent).catch((error: unknown) => {
+      this.logger.warn(
+        `Could not configure the analysis callback for agent ${agent.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    });
+  }
 
+  private async requireCallingApp(agent: AiVoiceAgent): Promise<string> {
+    const callingAppId =
+      agent.providerTexmlAppId ?? (await this.discoverCallingApp(agent));
+
+    await this.agents
+      .ensureCallingApp(agent, callingAppId)
+      .catch((error: unknown) => {
+        // Worth a call that bills through the provider's default route and
+        // reports no cost, but not worth refusing the call the user asked for.
+        this.logger.warn(
+          `Could not configure the calling application for agent ${agent.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
+    return callingAppId;
+  }
+
+  /** Reads the calling application off the provider for an agent without one. */
+  private async discoverCallingApp(agent: AiVoiceAgent): Promise<string> {
     const assistant = await this.provider.getAssistant(
       agent.providerAssistantId!,
     );

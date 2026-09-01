@@ -306,6 +306,30 @@ minutes after the call ends. So it settles on its own:
   at zero on an empty answer silently gives the call away, so the reconciler
   retries on a schedule instead.
 
+**The voice leg of an agent call settles from the same reconciler**, not from
+the cost webhook. `call.cost` is an event of the calling application an agent's
+calls go out through, and that application can only deliver TeXML form
+callbacks — never the Call Control JSON envelope `/api/call/webhook` verifies.
+An agent call waiting on that webhook is an agent call priced at nothing.
+
+- Read from the provider's `sip-trunking` records, which are keyed by the
+  control id Ringee writes down when it places the call — so the leg is priced
+  from a handle that exists before any webhook could have arrived.
+- Priced with `CALL_PROFIT_MARGIN` through the same `calculateCallCharge` the
+  webhook uses, written to the same `Call.totalCost` / `costMeta`, and debited
+  under the same **`call-cost:<callId>`** key. The key is globally unique, so if
+  the webhook ever does arrive only one of the two paths can charge for the leg,
+  and `totalCost` is the marker both read before pricing.
+- All of a call's legs are summed, not just the first — a failed attempt before
+  the one that connected is its own record.
+
+**Either provider handle is enough to reconcile.** `providerConversationId` is
+only ever written by the conversation webhook, so requiring it in the sweep
+filter hid every call whose webhook never arrived — permanently, and silently,
+because those are exactly the calls nothing else was going to price. The sweep
+accepts `providerCallControlId` and backfills the conversation id from the
+records themselves.
+
 - **Source of truth:** `services/voice-agents/voice-agent-billing.service.ts`
   (+ spec); swept by the `ringee.voice-agent-sweep` Temporal Schedule
 
@@ -613,6 +637,32 @@ is explicitly guarded against duplication.
 Deepgram's cost is preferred; per-minute duration is the fallback. The charge is
 recorded on the header (`chargedOnHangup`) so it happens once.
 
+### REC-005 — An agent call is always recorded, and never transcribed twice
+
+Every other surface asks the workspace whether to record (`recordAllCalls`). An
+AI voice agent call is recorded unconditionally — the dial path sets it on the
+call itself — so turning workspace recording off does not turn agents off.
+
+Its transcript comes from the voice provider, not from Deepgram. The provider
+already transcribed the conversation in order to hold it, so the text exists,
+is attributed to a side by construction, and costs nothing to read back;
+running Deepgram over the recording would be paying a second time for the same
+words. It is stored in the `realtime` slot, because that is what it is —
+transcribed live, during the call — with `provider` naming who produced it and
+`chargedOnHangup` pre-set so the realtime debit cannot charge for text Deepgram
+never made.
+
+Neither artifact is delivered: the provider announces a saved recording as an
+event of the calling application, and never announces a transcript at all. Both
+are read from the provider in the agent sweep, which keeps looking for up to
+`ARTIFACT_RETRY_WINDOW_MS` after the call — a call routinely settles its money
+before its audio has finished being written, and a settled call has already
+left the billing list.
+
+- **Source of truth:** `VoiceAgentBillingService.recoverArtifacts` /
+  `sweepArtifacts`, `VoiceAgentResultService.recoverTranscript`,
+  `TranscriptionService.saveProviderTranscript`
+
 ---
 
 ## Messaging (`MSG`)
@@ -751,6 +801,32 @@ possibly place a call does not go live.
 
 - **Source of truth:** `VoiceAgentCallService.resolveCallerId` (+ spec),
   `VoiceAgentService.assertCallerNumberUsable` / `assertCallerNumberReady`
+
+### AGENT-009 — Post-call analysis reaches Ringee on its own callback, or not at all
+
+The summary, outcome, sentiment and extracted fields are produced provider-side
+minutes after the conversation ends. There is **no endpoint to read a finished
+conversation's analysis back** — so it is delivered or it is lost, and an
+analysis group configured without a webhook analyses every call the agent makes
+and tells nobody. That is not a theoretical failure: it is what an agent call
+with an empty result looks like.
+
+Ringee therefore owns the delivery. Every agent's analysis group is created
+with its callback URL, and **re-pointed on every save**, which is the only
+thing that recovers agents whose group predates the callback.
+
+The route is `@Public()`, because the provider calls it. A group stores a bare
+URL — no headers to set, no signature to pin — so the URL is the proof: a token
+derived by HMAC from the agent id under a key scrypt'd from
+`APP_ENCRYPTION_SECRET`, compared in constant time. Nothing is stored, so there
+is no plaintext at rest and the URL survives every save. A verified token
+proves _which agent_ asked for the analysis, never which call it may write to:
+the conversation it names must belong to a call of that same agent.
+
+- **Source of truth:** `voiceAgentInsightsToken` /
+  `voiceAgentInsightsTokenMatches` (`@ringee/platform`),
+  `VoiceAgentResultService.applyInsightCallback` (+ spec),
+  `AiVoiceAgentWebhookController.handleInsights`
 
 ---
 

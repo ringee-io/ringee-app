@@ -11,11 +11,18 @@ import {
 import {
   hashApiKey,
   safeHashEqual,
+  voiceAgentInsightsTokenMatches,
+  VoiceAgentProviderService,
   type TelephonyConversationDetails,
   type TelephonyEvent,
+  type VoiceAgentInsightResult,
 } from "@ringee/platform";
+import { TranscriptionService } from "../transcription/transcription.service";
 import { VoiceAgentService } from "./voice-agent.service";
 import type { VoiceAgentAnalysisSettings } from "./voice-agent.types";
+
+/** Who produced an agent call's transcript, recorded on the header. */
+const VOICE_AGENT_TRANSCRIPT_PROVIDER = "telnyx";
 
 /** Provider call statuses, mapped onto Ringee's own agent-call states. */
 const PROVIDER_STATUS_MAP: Record<string, AiVoiceAgentCallStatus> = {
@@ -62,7 +69,112 @@ export class VoiceAgentResultService {
     private readonly agents: AiVoiceAgentRepository,
     private readonly agentService: VoiceAgentService,
     private readonly callRepository: CallRepository,
+    private readonly provider: VoiceAgentProviderService,
+    private readonly transcriptions: TranscriptionService,
   ) {}
+
+  /**
+   * Entry point for the provider's post-call analysis callback.
+   *
+   * This is how a finished conversation's summary, outcome, sentiment and
+   * extracted fields reach the call at all: the analysis runs provider-side
+   * minutes after the call ends, and there is no endpoint to read a finished
+   * conversation's results back — so a result that is not delivered here is a
+   * result nothing ever recovers.
+   *
+   * The route is public, so authorization is proved here. The provider stores
+   * a URL against the agent's analysis group and nothing else — no headers to
+   * set, no signature to pin — so the URL carries a token derived from the
+   * agent id, compared in constant time. Everything that does not verify is
+   * treated identically: nothing written, nothing disclosed.
+   */
+  async applyInsightCallback(
+    agentId: string,
+    token: string,
+    body: unknown,
+  ): Promise<boolean> {
+    if (!voiceAgentInsightsTokenMatches(agentId, token)) {
+      this.logger.warn(
+        `Rejected an analysis callback for agent ${agentId} (bad token)`,
+      );
+      return false;
+    }
+
+    const delivery = this.provider.parseInsightWebhook(body);
+    if (!delivery?.conversationId) return true;
+
+    const agentCall = await this.agentCalls.findByConversationId(
+      delivery.conversationId,
+    );
+    // The token proves which agent asked for the analysis; the row has to
+    // agree. A conversation belonging to another agent is not this agent's to
+    // write to, however valid the token is.
+    if (!agentCall || agentCall.agentId !== agentId) {
+      this.logger.debug(
+        `Ignoring analysis for conversation ${delivery.conversationId}: no call of agent ${agentId}`,
+      );
+      return true;
+    }
+
+    await this.applyInsights(agentCall, delivery.insights);
+    this.logger.log(
+      `🧠 Analysis stored for agent call ${agentCall.id} (${delivery.insights.length} results)`,
+    );
+    return true;
+  }
+
+  /**
+   * Stores the conversation the provider transcribed while the call was live.
+   *
+   * Read from the provider rather than waited for: the transcript is never
+   * pushed anywhere, and it is the one artifact of an agent call that costs
+   * nothing — the provider transcribed the conversation in order to hold it,
+   * so running Deepgram over the recording afterwards would be paying twice
+   * for the same text.
+   *
+   * Best-effort, like the recording beside it: a transcript that cannot be
+   * fetched must never hold up a settlement, and the next sweep tries again.
+   */
+  async recoverTranscript(agentCall: AiVoiceAgentCall): Promise<void> {
+    if (!agentCall.callId || !agentCall.providerConversationId) return;
+
+    try {
+      const call = await this.callRepository.findById(agentCall.callId);
+      if (!call) return;
+      // Already stored. Asking the provider again would fetch text the call
+      // already has, on every sweep until the window closes.
+      if (await this.transcriptions.hasTranscript(call.id)) return;
+
+      const turns = await this.provider.fetchTranscript(
+        agentCall.providerConversationId,
+      );
+      const agent = await this.agents.findByIdForOwner(
+        { userId: agentCall.userId, organizationId: agentCall.organizationId },
+        agentCall.agentId,
+      );
+
+      await this.transcriptions.saveProviderTranscript(call, {
+        provider: VOICE_AGENT_TRANSCRIPT_PROVIDER,
+        // What the provider was told to transcribe in. Null while the agent
+        // has no voice chosen yet.
+        language: agent?.voiceLanguage ?? null,
+        turns: turns
+          // Tool turns are the agent's own function calls, not speech: they
+          // explain the conversation without being part of it.
+          .filter((turn) => turn.role !== "tool")
+          .map((turn) => ({
+            side: turn.role === "agent" ? ("outbound" as const) : "inbound",
+            text: turn.text,
+          })),
+      });
+    } catch (error) {
+      this.logger.warn(
+        `Could not recover the transcript for agent call ${agentCall.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
 
   /**
    * Handles the AI-conversation events. Returns true when the event belonged to
@@ -92,7 +204,7 @@ export class VoiceAgentResultService {
     if (event.type === "call.conversation.ended") {
       await this.applyConversationEnded(agentCall, event, conversation);
     } else {
-      await this.applyInsights(agentCall, conversation);
+      await this.applyInsights(agentCall, conversation.insights);
     }
     return true;
   }
@@ -139,8 +251,10 @@ export class VoiceAgentResultService {
    */
   private async applyInsights(
     agentCall: AiVoiceAgentCall,
-    conversation: TelephonyConversationDetails,
+    results: VoiceAgentInsightResult[],
   ): Promise<void> {
+    if (results.length === 0) return;
+
     const agent = await this.agents.findByIdForOwner(
       { userId: agentCall.userId, organizationId: agentCall.organizationId },
       agentCall.agentId,
@@ -158,7 +272,7 @@ export class VoiceAgentResultService {
       extractedData?: object;
     } = {};
 
-    for (const insight of conversation.insights) {
+    for (const insight of results) {
       const slot = bySlot.get(insight.insightId);
       if (!slot) continue;
 
@@ -201,10 +315,9 @@ export class VoiceAgentResultService {
    * Applies a provider call-status callback. This is what moves an agent call
    * through ringing → in progress → completed.
    *
-   * The telephony row is only settled at the end: the provider's intermediate
-   * callbacks carry no handle for the leg, and the terminal one carries them
-   * all, so binding and closing happen together through the same repository
-   * methods every other call surface uses.
+   * The telephony row is bound as soon as a callback names the leg and closed
+   * on the terminal one, both through the same repository methods every other
+   * call surface uses.
    */
   async applyStatus(
     agentCall: AiVoiceAgentCall,
@@ -221,31 +334,34 @@ export class VoiceAgentResultService {
   ): Promise<AiVoiceAgentCall> {
     const status =
       PROVIDER_STATUS_MAP[input.providerStatus.toLowerCase()] ?? null;
+    const callControlId = input.callControlId ?? null;
 
     const updated = await this.agentCalls.update(agentCall.id, {
       ...(status ? { status } : {}),
-      ...(input.callControlId
-        ? { providerCallControlId: input.callControlId }
-        : {}),
+      ...(callControlId ? { providerCallControlId: callControlId } : {}),
     });
 
     if (!agentCall.callId) return updated;
 
-    if (input.callControlId) {
+    if (callControlId) {
       const call = await this.callRepository.findById(agentCall.callId);
-      if (call && !call.callControlId) {
-        // Bind the leg on whichever callback first carries the identifiers,
-        // but only move `Call.status` when the leg actually connected. The
-        // first callback to carry a control id is often `initiated` or
-        // `ringing` — and for a leg that never connects it is `busy` or
-        // `failed`. Calling any of those "answered" both misreports the call
-        // and, if the terminal callback never arrives, leaves it parked in a
-        // connected state it never reached. Leaving the status alone lets
-        // `completeCall` settle it, where an absent `answeredAt` is what
-        // auto-dispositions the call as no-answer.
-        const connected = status === AiVoiceAgentCallStatus.in_progress;
+      // Only move `Call.status` when the leg actually connected. A callback
+      // carrying a control id is often `initiated` or `ringing` — and for a leg
+      // that never connects it is `busy` or `failed`. Calling any of those
+      // "answered" both misreports the call and, if the terminal callback never
+      // arrives, leaves it parked in a connected state it never reached.
+      // Leaving the status alone lets `completeCall` settle it, where an absent
+      // `answeredAt` is what auto-dispositions the call as no-answer.
+      const connected = status === AiVoiceAgentCallStatus.in_progress;
+      // The identifiers are written when the row is still missing them, and the
+      // answer is recorded whenever the leg connects — two separate reasons to
+      // write, because the row is now bound when the call is placed and would
+      // otherwise never be marked answered at all.
+      const binds = call && !call.callControlId;
+      const answers = call && connected && call.status !== CallStatus.answered;
+      if (call && (binds || answers)) {
         await this.callRepository.attachTelephony(call.id, {
-          callControlId: input.callControlId,
+          callControlId,
           callSessionId: input.callSessionId,
           callLegId: input.callLegId,
           answeredAt: input.answeredAt,
@@ -254,11 +370,11 @@ export class VoiceAgentResultService {
       }
     }
 
-    if (this.isTerminal(status) && input.callControlId) {
+    if (this.isTerminal(status) && callControlId) {
       // The shared settlement path: it computes the duration, records the
       // hangup cause and auto-dispositions a call that never connected.
       await this.callRepository.completeCall(
-        input.callControlId,
+        callControlId,
         input.startedAt ?? new Date().toISOString(),
         input.endedAt ?? new Date().toISOString(),
         input.hangupCause ?? undefined,
@@ -305,7 +421,12 @@ export class VoiceAgentResultService {
 
     await this.applyStatus(agentCall, {
       providerStatus: status,
-      callControlId: this.text(payload.CallControlId),
+      // The provider only names `CallControlId` on the terminal callback, but
+      // every one of them carries `CallSid` — which in its telephony markup is
+      // that same control id. Reading both binds the leg from the first
+      // callback instead of the last.
+      callControlId:
+        this.text(payload.CallControlId) ?? this.text(payload.CallSid),
       callLegId: this.text(payload.CallLegId),
       callSessionId: this.text(payload.CallSessionId),
       startedAt: this.text(payload.StartTime),

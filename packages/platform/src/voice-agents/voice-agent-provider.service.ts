@@ -2,11 +2,16 @@ import { Injectable } from "@nestjs/common";
 import type {
   VoiceAgentAssistant,
   VoiceAgentCallHandle,
+  VoiceAgentCallingAppSettings,
   VoiceAgentCallRequest,
   VoiceAgentConfig,
   VoiceAgentEmbeddingStatus,
   VoiceAgentInsightDefinition,
+  VoiceAgentInsightDelivery,
+  VoiceAgentInsightGroupSettings,
   VoiceAgentProvider,
+  VoiceAgentRecording,
+  VoiceAgentTranscriptTurn,
   VoiceAgentUsageQuery,
   VoiceAgentUsageRecord,
   VoiceAgentVoice,
@@ -62,8 +67,25 @@ export class VoiceAgentProviderService implements VoiceAgentProvider {
     return this.getServiceProvider().startCall(request);
   }
 
-  createInsightGroup(name: string): Promise<string> {
-    return this.getServiceProvider().createInsightGroup(name);
+  configureCallingApp(
+    callingAppId: string,
+    settings: VoiceAgentCallingAppSettings,
+  ): Promise<void> {
+    return this.getServiceProvider().configureCallingApp(
+      callingAppId,
+      settings,
+    );
+  }
+
+  createInsightGroup(group: VoiceAgentInsightGroupSettings): Promise<string> {
+    return this.getServiceProvider().createInsightGroup(group);
+  }
+
+  updateInsightGroup(
+    groupId: string,
+    group: VoiceAgentInsightGroupSettings,
+  ): Promise<void> {
+    return this.getServiceProvider().updateInsightGroup(groupId, group);
   }
 
   deleteInsightGroup(groupId: string): Promise<void> {
@@ -107,10 +129,22 @@ export class VoiceAgentProviderService implements VoiceAgentProvider {
     return this.getServiceProvider().renderVoicePreview(voiceId, text);
   }
 
+  parseInsightWebhook(body: unknown): VoiceAgentInsightDelivery | null {
+    return this.getServiceProvider().parseInsightWebhook(body);
+  }
+
+  fetchTranscript(conversationId: string): Promise<VoiceAgentTranscriptTurn[]> {
+    return this.getServiceProvider().fetchTranscript(conversationId);
+  }
+
   fetchUsageRecords(
     query: VoiceAgentUsageQuery,
   ): Promise<VoiceAgentUsageRecord[]> {
     return this.getServiceProvider().fetchUsageRecords(query);
+  }
+
+  fetchRecordings(callSessionId: string): Promise<VoiceAgentRecording[]> {
+    return this.getServiceProvider().fetchRecordings(callSessionId);
   }
 
   createKnowledgeStore(store: string): Promise<void> {

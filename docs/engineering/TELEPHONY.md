@@ -179,12 +179,14 @@ provider places the call  ──►  Call row (source = "ai_voice_agent") + AiVo
         │
         ├─ call status callback   ──► token-authenticated route, binds the leg
         │                             and settles the Call row on completion
-        ├─ call.conversation.ended ──► the ordinary signed webhook, normalized
-        └─ call.conversation.insights ──► summary / outcome / extracted data
+        ├─ analysis callback       ──► token-authenticated route: summary /
+        │                             outcome / sentiment / extracted data
+        └─ call.conversation.ended ──► the ordinary signed webhook, normalized
         │
         ▼
-ringee.voice-agent-sweep  ──► AI usage settled from the provider's own
-                              usage records × margin, once (BILL-020)
+ringee.voice-agent-sweep  ──► BOTH halves of the cost (BILL-020), and the
+                              recording and transcript (REC-005), read from
+                              the provider's own records
 ```
 
 Consequences worth keeping:
@@ -196,6 +198,52 @@ Consequences worth keeping:
   a provider-filled header, never from the model (AGENT-003).
 - The booking tool uses `CalendarService.getBookableSlots`, which fails rather
   than inventing availability (AGENT-002).
+- **An agent call is never priced by a webhook.** `call.cost` and
+  `call.recording.saved` are events of the _calling application_ an agent's
+  calls go out through, not callbacks of the call, so the per-call
+  `StatusCallback` never sees them. Nor can they be routed to
+  `/api/call/webhook`: a TeXML application only has `status_callback`, which
+  delivers `application/x-www-form-urlencoded` TeXML callbacks (`CallSid`,
+  `CallStatus`, …) — not the Call Control JSON envelope that route verifies and
+  normalizes. Every agent call priced this way is priced at nothing.
+- **`VoiceAgentBillingService` reconciles instead.** It reads the provider's own
+  usage records, keyed by the control id Ringee writes down when it places the
+  call, so settlement is replayable and depends on no delivery. One agent call
+  is billed as three provider record types, each tagged with only the handle
+  its own subsystem knows about — get the handle wrong and the answer is a
+  confident, empty "free":
+
+  | Record type          | Handle it carries      | What it is                       |
+  | -------------------- | ---------------------- | -------------------------------- |
+  | `sip-trunking`       | `call_control_id`      | the voice leg → `Call.totalCost` |
+  | `ai-voice-assistant` | both                   | the conversation engine          |
+  | `inference`          | `conversation_id` only | the model tokens                 |
+
+  The voice leg shares the cost webhook's ledger key (`call-cost:<call id>`) and
+  its `totalCost` marker, so whichever path arrives first prices the leg and the
+  other cannot charge for it twice. The AI half keeps its own claim
+  (`costSettledAt`) and margin (`AI_VOICE_AGENT_PROFIT_MARGIN`).
+
+- **Either provider handle is enough to settle a call.** `providerConversationId`
+  is only ever written by the conversation webhook. `listUnsettled` once required
+  it, which hid every call whose webhook never arrived — permanently, and
+  silently, because those are exactly the calls nothing else would price. The
+  sweep now backfills the conversation id from the records themselves.
+- The outbound voice profile (`TELNYX_OUTBOUND_VOICE_PROFILE_ID`) is still
+  Ringee's to pin on the calling application, on every save and before every
+  dial — that one the provider does honour.
+- The provider's `call_sid` for a TeXML call **is** the call control id, so the
+  `Call` row is bound the moment it is created. An event that lands before the
+  first status callback is looked up by control id and would otherwise be
+  dropped.
+- **Post-call analysis is delivered or it is lost** (AGENT-009). The provider
+  runs it minutes after the conversation ends and exposes no endpoint to read a
+  finished conversation's results back, so the analysis group carries Ringee's
+  own callback URL — set at creation and re-sent on every save, which is what
+  recovers agents whose group was created before there was a callback. The
+  results name the conversation and nothing else: no call handle, which is why
+  they cannot ride `/api/call/webhook`, whose normalizer drops any event with no
+  `call_control_id`.
 
 ## Recordings and transcription
 
@@ -204,6 +252,34 @@ private copy keyed to the workspace (`REC-002`), linked to the `Call`, then fed
 to CRM sync and optional auto-transcription — all inside a retryable Temporal
 activity that guards its own duplication (`REC-003`).
 
+**Who decides to record.** Every other call surface asks the workspace: the
+`recordAllCalls` preference resolved by `CallRecordingSettingsService`
+(organization settings win in an organization, personal settings otherwise).
+**An AI voice agent call is always recorded**, unconditionally — the agent dial
+path sets `record` on the call itself and never consults that preference, so
+turning workspace recording off does not turn agents off. Getting the audio
+back is a separate problem: the provider announces a saved recording as an
+event of the calling application, which is not a delivery Ringee can rely on,
+so `VoiceAgentBillingService` reads the recording from the provider's own
+records in the same sweep that prices the call. It is skipped when the call
+already has one, and a failure there never holds up the money.
+
 Transcription runs live over the Telnyx media stream (Deepgram) or after the fact
 over the recording URL. Billing prefers the provider's reported cost and falls
 back to per-minute duration, recorded once on the header (`REC-004`).
+
+**An agent call takes neither path.** There is no media stream to Ringee, and
+paying Deepgram to transcribe the recording would buy text the account already
+owns: the provider transcribed the conversation in order to hold it. So the
+sweep reads it — `GET /ai/conversations/{id}/messages` — and stores it through
+`TranscriptionService.saveProviderTranscript` (`REC-005`), in the `realtime`
+slot, mapped onto the same `outbound`/`inbound` tracks a live Deepgram
+transcript uses so every consumer that already renders one renders this. The
+header records `provider: "telnyx"` and carries `chargedOnHangup` pre-set, so
+the realtime debit cannot charge Deepgram rates for words Deepgram never heard.
+
+Both artifacts are published on their own schedule, not the usage records', so
+they get a pass of their own: `listMissingArtifacts` finds completed calls whose
+recording or transcript is still missing and retries them for a bounded window.
+Without it, a settled call — one that left the billing list on the first sweep —
+kept whatever it had at that moment and nothing ever went back for the rest.

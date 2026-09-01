@@ -52,8 +52,19 @@ function build(options: {
     callerNumberId: options.callerNumberId ?? null,
   };
 
+  const configured: string[] = [];
+  const analysisEnsured: string[] = [];
   const service = new VoiceAgentCallService(
-    { require: async () => agent, assertReadyForCalls: () => {} } as never,
+    {
+      require: async () => agent,
+      assertReadyForCalls: () => {},
+      ensureCallingApp: async (_agent: unknown, callingAppId: string) => {
+        configured.push(callingAppId);
+      },
+      ensureInsightGroup: async (target: { id: string }) => {
+        analysisEnsured.push(target.id);
+      },
+    } as never,
     { require: () => ({ variables: options.variables ?? [] }) } as never,
     {
       create: async () => ({ id: "agent-call-1" }),
@@ -87,7 +98,7 @@ function build(options: {
     } as never,
   );
 
-  return { service, placed, contacts };
+  return { service, placed, contacts, configured, analysisEnsured };
 }
 
 const TO = "+13055559999";
@@ -223,5 +234,32 @@ describe("VoiceAgentCallService contacts", () => {
     assert.equal(contacts.length, 1);
     assert.equal(contacts[0]!.phoneNumber, TO);
     assert.equal(contacts[0]!.hint?.source, "ai-voice-agent");
+  });
+});
+
+/**
+ * The calling application is what decides the outbound route an agent call
+ * bills through and whether the provider reports what it cost — so it is
+ * brought in line on every dial, not only when the agent is saved. An agent
+ * created before Ringee configured these at all would otherwise never get one.
+ */
+describe("VoiceAgentCallService calling application", () => {
+  it("configures the calling application before placing the call", async () => {
+    const { service, configured } = build({ usable: [NUMBERS.miami] });
+
+    await service.startCall(CTX as never, "agent-1", { to: TO });
+
+    assert.deepEqual(configured, ["app-1"]);
+  });
+
+  it("points the analysis group at Ringee before placing the call", async () => {
+    // An agent whose group predates the callback analyses every call and
+    // delivers the results nowhere. Waiting for the user to save the agent
+    // again is not a repair (AGENT-009).
+    const { service, analysisEnsured } = build({ usable: [NUMBERS.miami] });
+
+    await service.startCall(CTX as never, "agent-1", { to: TO });
+
+    assert.deepEqual(analysisEnsured, ["agent-1"]);
   });
 });

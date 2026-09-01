@@ -31,6 +31,20 @@ export interface LivePartialView {
 }
 
 /**
+ * One spoken turn of a transcript a provider produced itself, rather than one
+ * Ringee paid to make.
+ *
+ * `side` is the call's own vocabulary — outbound is the Ringee end of the
+ * call, inbound is the person on the other side — so the segments it becomes
+ * are labelled exactly like a live Deepgram transcript's, and every consumer
+ * that already renders those renders these.
+ */
+export interface ProviderTranscriptTurn {
+  side: "outbound" | "inbound";
+  text: string;
+}
+
+/**
  * Everything the UI needs to render the Transcribe button, the Live Transcript
  * panel and the Final Transcript view for a single call.
  */
