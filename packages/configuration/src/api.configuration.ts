@@ -8,40 +8,6 @@ const nonNegativeInteger = (name: string, fallback: number): number => {
   return Number.isInteger(value) && value >= 0 ? value : fallback;
 };
 
-/**
- * The origin the outside world reaches this backend on.
- *
- * Everything that hands a URL to a provider builds it as `<base>/api/...` —
- * `api` is this app's global prefix — so the base has to be an origin and
- * nothing more. A value carrying a path (`https://api.example.com/public`)
- * produces URLs that 404 on every single provider callback: the agent's tools,
- * the call status callback, the post-call analysis webhook and the calling
- * application's event webhook all break at once, and none of them report the
- * failure anywhere a person looks. The path is dropped here rather than
- * concatenated, and `PUBLIC_BACKEND_URL_PATH_IGNORED` says so at boot.
- */
-const publicBackendUrl = (): { origin: string; discardedPath: string } => {
-  const raw = process.env.PUBLIC_BACKEND_URL?.trim() ?? "";
-  if (!raw) return { origin: "", discardedPath: "" };
-
-  let parsed: URL;
-  try {
-    parsed = new URL(raw);
-  } catch {
-    // Not a URL at all. Handed through untouched so the "is not a valid
-    // address" check below is what reports it, with the value the operator set.
-    return { origin: raw.replace(/\/+$/, ""), discardedPath: "" };
-  }
-
-  const path = `${parsed.pathname}${parsed.search}${parsed.hash}`.replace(
-    /^\/+$/,
-    "",
-  );
-  return { origin: parsed.origin, discardedPath: path };
-};
-
-const PUBLIC_BACKEND = publicBackendUrl();
-
 const apiConfiguration = {
   PORT: process.env.PORT || 3000,
   DATABASE_URL: process.env.DATABASE_URL!,
@@ -52,16 +18,7 @@ const apiConfiguration = {
   FRONTEND_URL: process.env.FRONTEND_URL!,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!,
-  /**
-   * Where the outside world reaches this backend. Normalized to a bare origin
-   * on the way in because it is concatenated into the webhook and tool URLs
-   * handed to providers: a stray space — or a path segment — yields a URL the
-   * provider calls and Ringee answers 404 to, and that failure surfaces far
-   * from its cause. See `publicBackendUrl`.
-   */
-  PUBLIC_BACKEND_URL: PUBLIC_BACKEND.origin,
-  /** The path `PUBLIC_BACKEND_URL` carried, if any. Reported at boot. */
-  PUBLIC_BACKEND_URL_PATH_IGNORED: PUBLIC_BACKEND.discardedPath,
+  PUBLIC_BACKEND_URL: process.env.PUBLIC_BACKEND_URL,
   REDIS_URL: process.env.REDIS_URL!,
   // ── Temporal (durable background jobs / orchestrator) ──
   // Plain gRPC address of the self-hosted Temporal frontend. For local dev,
@@ -409,14 +366,6 @@ if (!apiConfiguration.PUBLIC_BACKEND_URL) {
 } else if (!/^https?:\/\//.test(apiConfiguration.PUBLIC_BACKEND_URL)) {
   errors.push(
     `PUBLIC_BACKEND_URL is not a valid http(s) address: "${apiConfiguration.PUBLIC_BACKEND_URL}"`,
-  );
-} else if (apiConfiguration.PUBLIC_BACKEND_URL_PATH_IGNORED) {
-  // Loud, but not fatal. The value is recoverable — the origin is right and
-  // the path has already been dropped — and refusing to boot over it would
-  // turn a set of broken callback URLs into a backend that is not there at
-  // all. Every environment currently carrying a path is one this fixes.
-  console.warn(
-    `PUBLIC_BACKEND_URL must be an origin with no path — ignoring "${apiConfiguration.PUBLIC_BACKEND_URL_PATH_IGNORED}" and using ${apiConfiguration.PUBLIC_BACKEND_URL}`,
   );
 }
 

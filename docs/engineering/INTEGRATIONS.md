@@ -111,8 +111,8 @@ status callback, a calling application's event webhook — is built as
 and Ringee answers `404` to — every one of them, at once, reporting the failure
 nowhere a person looks. What it looks like from the outside is an agent that
 says it is having a technical problem and books nothing, a call with no summary
-and no outcome, and no error anywhere. `apiConfiguration` drops the path rather
-than concatenating it and warns at boot (`PUBLIC_BACKEND_URL_PATH_IGNORED`).
+and no outcome, and no error anywhere. Deployment configuration is responsible
+for supplying the bare origin; `apiConfiguration` uses the value unchanged.
 
 The URLs a provider **stores** — an assistant's tool webhooks, an insight
 group's callback — are written at save time and outlive the address they were

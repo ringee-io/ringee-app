@@ -362,7 +362,12 @@ export class VoiceAgentResultService {
       const binds = call && !call.callControlId;
       const learnsSession =
         call && !call.callSessionId && !!input.callSessionId;
-      const answers = call && connected && call.status !== CallStatus.answered;
+      const answers =
+        call &&
+        connected &&
+        call.status !== CallStatus.answered &&
+        call.status !== CallStatus.completed &&
+        call.status !== CallStatus.failed;
       if (call && (binds || learnsSession || answers)) {
         await this.callRepository.attachTelephony(call.id, {
           callControlId,
@@ -373,10 +378,10 @@ export class VoiceAgentResultService {
           // unset, the row looks like a call nobody picked up and `completeCall`
           // dispositions it as a no-answer — on a call that just held a full
           // conversation.
-          answeredAt: connected
+          answeredAt: answers
             ? (input.answeredAt ?? new Date())
             : input.answeredAt,
-          ...(connected ? { status: CallStatus.answered } : {}),
+          ...(answers ? { status: CallStatus.answered } : {}),
         });
       }
     }
@@ -489,16 +494,7 @@ export class VoiceAgentResultService {
     const bound = await this.agentCalls.findByConversationId(conversationId);
     if (bound) return bound;
 
-    const conversation = await this.provider
-      .fetchConversation(conversationId)
-      .catch((error: unknown) => {
-        this.logger.warn(
-          `Could not read conversation ${conversationId} from the provider: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-        return null;
-      });
+    const conversation = await this.provider.fetchConversation(conversationId);
     if (!conversation?.callControlId) return null;
 
     const agentCall = await this.agentCalls.findByCallControlId(

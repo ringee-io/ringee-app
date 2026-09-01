@@ -7,6 +7,7 @@ import "reflect-metadata";
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { CallStatus } from "@ringee/database";
 import { voiceAgentInsightsToken } from "@ringee/platform";
 import { VoiceAgentResultService } from "./voice-agent-result.service";
 
@@ -42,6 +43,7 @@ function build(
     byControlId?: Record<string, unknown> | null;
     /** What the provider knows about the conversation, when asked directly. */
     conversation?: Record<string, unknown> | null;
+    conversationError?: Error;
     call?: Record<string, unknown> | null;
     turns?: Array<{ role: string; text: string; at: Date | null }>;
     transcriptError?: Error;
@@ -93,7 +95,10 @@ function build(
               ],
             }
           : null,
-      fetchConversation: async () => over.conversation ?? null,
+      fetchConversation: async () => {
+        if (over.conversationError) throw over.conversationError;
+        return over.conversation ?? null;
+      },
       fetchTranscript: async () => {
         if (over.transcriptError) throw over.transcriptError;
         return (
@@ -178,6 +183,21 @@ describe("VoiceAgentResultService analysis callback", () => {
     assert.deepEqual(updates, []);
   });
 
+  it("propagates a transient conversation lookup failure for retry", async () => {
+    const { service, updates } = build({
+      agentCall: null,
+      conversationError: new Error("provider unavailable"),
+    });
+
+    await assert.rejects(
+      service.applyInsightCallback(AGENT_ID, TOKEN, {
+        conversation_id: "conv-1",
+      }),
+      /provider unavailable/,
+    );
+    assert.deepEqual(updates, []);
+  });
+
   it("finds the call when nothing ever bound the conversation to it", async () => {
     // `providerConversationId` is written by the conversation webhook — the
     // one delivery an agent call cannot count on. Dropping the analysis
@@ -218,6 +238,51 @@ describe("VoiceAgentResultService analysis callback", () => {
       summary: "Booked a demo.",
       outcome: "appointment_booked",
     });
+  });
+});
+
+describe("VoiceAgentResultService call status", () => {
+  it("answers a non-terminal call when the provider reports it connected", async () => {
+    const { service, attached } = build({
+      call: {
+        id: "telephony-1",
+        callControlId: "cc-1",
+        callSessionId: null,
+        status: CallStatus.ringing,
+      },
+    });
+
+    await service.applyStatus(AGENT_CALL as never, {
+      providerStatus: "in-progress",
+      callControlId: "cc-1",
+      callSessionId: "session-1",
+    });
+
+    assert.equal(attached[0]!.status, CallStatus.answered);
+    assert.ok(attached[0]!.answeredAt instanceof Date);
+  });
+
+  it("does not reopen terminal calls on a late connected callback", async () => {
+    for (const status of [CallStatus.completed, CallStatus.failed]) {
+      const { service, attached } = build({
+        call: {
+          id: "telephony-1",
+          callControlId: "cc-1",
+          callSessionId: null,
+          status,
+        },
+      });
+
+      await service.applyStatus(AGENT_CALL as never, {
+        providerStatus: "in-progress",
+        callControlId: "cc-1",
+        callSessionId: "session-late",
+      });
+
+      assert.equal(attached[0]!.callSessionId, "session-late");
+      assert.equal(attached[0]!.status, undefined);
+      assert.equal(attached[0]!.answeredAt, undefined);
+    }
   });
 });
 

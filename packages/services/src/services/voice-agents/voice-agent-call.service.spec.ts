@@ -56,7 +56,7 @@ function build(options: {
 
   const configured: string[] = [];
   const analysisEnsured: string[] = [];
-  const toolsEnsured: string[] = [];
+  const deliveryEvents: string[] = [];
   const service = new VoiceAgentCallService(
     {
       require: async () => agent,
@@ -69,7 +69,8 @@ function build(options: {
       },
       ensureToolEndpoints: async (_ctx: unknown, target: { id: string }) => {
         if (options.toolSyncError) throw options.toolSyncError;
-        toolsEnsured.push(target.id);
+        await Promise.resolve();
+        deliveryEvents.push(`tools:${target.id}`);
       },
     } as never,
     { require: () => ({ variables: options.variables ?? [] }) } as never,
@@ -87,6 +88,7 @@ function build(options: {
     } as never,
     {
       startCall: async (input: { from: string }) => {
+        deliveryEvents.push("call:placed");
         placed.push({ from: input.from });
         return { providerCallId: "prov-1", callControlId: "cc-1" };
       },
@@ -115,7 +117,7 @@ function build(options: {
     contacts,
     configured,
     analysisEnsured,
-    toolsEnsured,
+    deliveryEvents,
   };
 }
 
@@ -286,11 +288,11 @@ describe("VoiceAgentCallService calling application", () => {
     // they outlive the address they were built from. An agent still calling
     // the old one does not book the meeting — it tells the person it is
     // having a technical problem, on a call the workspace paid for.
-    const { service, toolsEnsured } = build({ usable: [NUMBERS.miami] });
+    const { service, deliveryEvents } = build({ usable: [NUMBERS.miami] });
 
     await service.startCall(CTX as never, "agent-1", { to: TO });
 
-    assert.deepEqual(toolsEnsured, ["agent-1"]);
+    assert.deepEqual(deliveryEvents, ["tools:agent-1", "call:placed"]);
   });
 
   it("places the call even when the tool check itself fails", async () => {
