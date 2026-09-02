@@ -3913,9 +3913,8 @@ model OfferEvent {
 
 // ── AI Voice Agents ──
 // Pre-built voice agents (appointment booking, reminders) that Ringee runs on
-// top of a provider assistant. The user configures name, model, voice,
-// knowledge and post-call extraction; Ringee owns the instructions, greeting,
-// tools and conversation rules per agent type.
+// top of a provider assistant. The blueprint supplies editable conversation
+// defaults and owns the tools, variable schema and non-overridable safeguards.
 //
 // Not to be confused with AiConversation/AiAgentType above, which belong to the
 // in-app chat agent.
@@ -4021,6 +4020,13 @@ model AiVoiceAgent {
   /// User-defined extraction fields, each mapped to a provider insight id.
   /// Shape: [{ key, label, type, description, insightId }]
   extractionFields Json?
+
+  /// User-editable conversation copy and greeting behaviour. Null means the
+  /// agent still follows the current blueprint defaults, which keeps existing
+  /// agents current until their owner deliberately customizes the new tab.
+  /// Shape: { greetingMode, greeting, instructions,
+  ///          postConversationEnabled, postConversationInstructions }
+  conversationSettings Json?
 
   /// The number this agent presents when it calls. Optional on purpose: an
   /// agent that runs from several numbers leaves it unset and the caller picks

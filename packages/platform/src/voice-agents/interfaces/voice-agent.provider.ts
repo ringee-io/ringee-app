@@ -18,6 +18,12 @@ export type VoiceAgentLlmProvider =
   | "anthropic"
   | "google";
 
+/** Who takes the first turn, in provider-independent product language. */
+export type VoiceAgentGreetingMode =
+  | "assistant_speaks_first"
+  | "assistant_generates_greeting"
+  | "assistant_waits_for_user";
+
 export interface VoiceAgentToolHeader {
   name: string;
   /**
@@ -67,7 +73,9 @@ export interface VoiceAgentConfig {
   /** The name the agent introduces itself with. */
   name: string;
   instructions: string;
+  /** Fixed greeting text. Ignored by modes that generate or wait. */
   greeting: string;
+  greetingMode?: VoiceAgentGreetingMode;
   /** Provider-side model id. Ringee picks it; the user picks a family. */
   modelId: string;
   /** Reference to a provider-held secret for a bring-your-own-key model. */
@@ -89,6 +97,8 @@ export interface VoiceAgentConfig {
   /** Hard cap on call length, so an unattended agent cannot run up spend. */
   maxCallSeconds?: number;
   recordCalls?: boolean;
+  /** Gives the assistant one extra model turn after the live call ends. */
+  postConversationEnabled?: boolean;
 }
 
 /** A provider assistant as Ringee cares about it. */

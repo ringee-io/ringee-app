@@ -189,7 +189,7 @@ export class AiVoiceAgentController {
     @CurrentUser() user: CurrentUserData,
     @Param("id", ParseUUIDPipe) id: string,
   ) {
-    return this.agents.require(createOwnershipContext(user), id);
+    return this.agents.detail(createOwnershipContext(user), id);
   }
 
   @Patch(":id")

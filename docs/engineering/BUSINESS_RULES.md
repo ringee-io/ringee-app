@@ -708,13 +708,19 @@ It pushes to the user's active devices. With no active device, nothing happens.
 
 ## AI voice agents (`AGENT`)
 
-### AGENT-001 — The user configures the agent, never the conversation
+### AGENT-001 — The blueprint owns defaults and enforcement; the user owns copy
 
-Instructions, greeting, tools, conversation rules, the dynamic-variable schema
-and the default analyses belong to the agent type's **blueprint**. A user picks
-a name, a model, a voice, knowledge and what to extract — nothing else. A
-feature that needs a new behaviour writes a blueprint; it does not expose the
-prompt.
+Instructions and greeting start from the agent type's **blueprint** and are
+editable from the agent's Conversation tab. Greeting mode and optional
+post-conversation instructions are also user configuration. Existing agents
+with no saved override continue to resolve the current blueprint values.
+
+Tools, non-overridable safety rules, the dynamic-variable schema and default
+analyses still belong to the blueprint. Custom instructions are never allowed
+to remove those enforcement rules: for example, an appointment agent must
+still look up availability and receive an explicit booking success before it
+claims a meeting exists. A feature that needs a new capability still writes a
+blueprint/tool; prompt text alone cannot grant it.
 
 "A model" is a _family_ — "Ringee AI", or a provider they already pay for.
 Which model id that maps to stays Ringee's decision, in `models.catalog.ts`. The

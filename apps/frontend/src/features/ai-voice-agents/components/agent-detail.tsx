@@ -12,6 +12,7 @@ import {
   Library,
   Loader2,
   Mic,
+  MessageSquareText,
   PhoneCall,
   RotateCw,
   Settings2,
@@ -52,6 +53,7 @@ import { AgentStatusBadge } from './agent-status-badge';
 import { CallsTable } from './calls-table';
 import { KnowledgePanel } from './knowledge-panel';
 import { CompanySection } from './sections/company-section';
+import { ConversationSection } from './sections/conversation-section';
 import { ResultsSection } from './sections/results-section';
 import { SetupSection } from './sections/setup-section';
 import { VoiceSection } from './sections/voice-section';
@@ -62,6 +64,7 @@ const TABS = [
   { value: 'setup', icon: Settings2 },
   { value: 'voice', icon: AudioLines },
   { value: 'company', icon: Building2 },
+  { value: 'conversation', icon: MessageSquareText },
   { value: 'results', icon: ClipboardList },
   { value: 'knowledge', icon: Library },
   { value: 'test', icon: Mic },
@@ -415,6 +418,13 @@ function AgentDetailView({
 
           <TabsContent value='company' className='pt-6'>
             <CompanySection draft={draft} agentId={agent.id} />
+          </TabsContent>
+
+          <TabsContent value='conversation' className='pt-6'>
+            <ConversationSection
+              draft={draft}
+              variables={typeInfo?.variables ?? []}
+            />
           </TabsContent>
 
           <TabsContent value='results' className='pt-6'>

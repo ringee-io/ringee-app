@@ -92,6 +92,20 @@ export interface VoiceAgentAnalysisSettings {
   sentiment: boolean;
 }
 
+export type VoiceAgentGreetingMode =
+  | 'assistant_speaks_first'
+  | 'assistant_generates_greeting'
+  | 'assistant_waits_for_user';
+
+export interface VoiceAgentConversationSettings {
+  greetingMode: VoiceAgentGreetingMode;
+  greeting: string;
+  /** Markdown source shown in both the visual and raw editor modes. */
+  instructions: string;
+  postConversationEnabled: boolean;
+  postConversationInstructions: string;
+}
+
 export interface VoiceAgentKnowledgeSource {
   id: string;
   kind: 'url' | 'pdf' | 'txt' | 'docx' | 'text';
@@ -134,6 +148,8 @@ export interface VoiceAgent {
   companyDescription: string | null;
   analysisSettings: VoiceAgentAnalysisSettings | null;
   extractionFields: VoiceAgentExtractionField[] | null;
+  /** Resolved blueprint defaults on the detail endpoint. */
+  conversationSettings?: VoiceAgentConversationSettings | null;
   /** The number the agent calls from; null means "choose it at trigger time". */
   callerNumberId: string | null;
   calendarIntegrationId: string | null;

@@ -81,7 +81,7 @@ export function AgentWizard({
     for (const path of Object.keys(draft.errors)) {
       if (path.startsWith('extractionFields')) flagged.add('results');
       const owner = FIELD_STEPS[path];
-      if (owner) flagged.add(owner);
+      if (owner && owner !== 'conversation') flagged.add(owner);
     }
     return flagged;
   }, [draft.errors]);
@@ -98,7 +98,7 @@ export function AgentWizard({
         : firstBad
           ? FIELD_STEPS[firstBad]
           : undefined;
-      if (owner) setStep(owner);
+      if (owner && owner !== 'conversation') setStep(owner);
       return;
     }
     router.push(`/dashboard/ai-voice-agents/${saved.id}?tab=test`);

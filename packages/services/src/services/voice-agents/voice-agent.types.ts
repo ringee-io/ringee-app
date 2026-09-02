@@ -1,5 +1,6 @@
 import { AiVoiceAgentOutcome, AiVoiceAgentType } from "@ringee/database";
 import type {
+  VoiceAgentGreetingMode,
   VoiceAgentInsightDefinition,
   VoiceAgentTool,
 } from "@ringee/platform";
@@ -7,10 +8,8 @@ import type {
 /**
  * The shapes a pre-built voice agent is made of.
  *
- * V1 ships two agent types, and a user configures neither the prompt nor the
- * tools. A blueprint is where that intelligence lives: given the workspace's
- * company context and the user's few choices, it produces the instructions,
- * the greeting, the tools and the post-call analysis for one agent type.
+ * A blueprint supplies the editable prompt and greeting defaults and owns the
+ * parts a user cannot weaken: tools, variable schemas and runtime safeguards.
  */
 
 /** A dynamic variable a caller may supply when starting a call. */
@@ -61,6 +60,16 @@ export const DEFAULT_ANALYSIS_SETTINGS: VoiceAgentAnalysisSettings = {
   sentiment: false,
   insightIds: {},
 };
+
+/** The editable values shown on an agent's Conversation tab. */
+export interface VoiceAgentConversationSettings {
+  greetingMode: VoiceAgentGreetingMode;
+  greeting: string;
+  /** Markdown source; Telnyx receives it verbatim as system instructions. */
+  instructions: string;
+  postConversationEnabled: boolean;
+  postConversationInstructions: string;
+}
 
 /** The company context every agent in a workspace shares (§6). */
 export interface VoiceAgentCompanyContext {
@@ -116,6 +125,8 @@ export interface VoiceAgentBlueprint {
 
   buildInstructions(ctx: VoiceAgentPromptContext): string;
   buildGreeting(ctx: VoiceAgentPromptContext): string;
+  /** Rules appended when a user replaces the default prompt. */
+  buildSafetyInstructions(ctx: VoiceAgentPromptContext): string;
   buildTools(ctx: VoiceAgentToolContext): VoiceAgentTool[];
   buildInsights(ctx: VoiceAgentInsightContext): VoiceAgentBlueprintInsights;
 }

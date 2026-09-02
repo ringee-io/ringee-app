@@ -32,11 +32,17 @@ import { NumberPurchasedService } from "../number.purchased.service";
 import { VoiceAgentBlueprintRegistry } from "./blueprints/voice-agent-blueprint.registry";
 import { CompanyProfileService } from "./company-profile.service";
 import {
+  composeVoiceAgentInstructions,
+  readVoiceAgentConversationSettings,
+} from "./voice-agent-conversation";
+import {
   DEFAULT_ANALYSIS_SETTINGS,
   voiceAgentKnowledgeStoreName,
   type VoiceAgentAnalysisSettings,
   type VoiceAgentBlueprintInsights,
+  type VoiceAgentConversationSettings,
   type VoiceAgentExtractionField,
+  type VoiceAgentPromptContext,
 } from "./voice-agent.types";
 
 /** How long the curated voice list is reused before refetching. */
@@ -78,6 +84,8 @@ export interface SaveVoiceAgentInput {
     Pick<VoiceAgentAnalysisSettings, "summary" | "outcome" | "sentiment">
   >;
   extractionFields?: VoiceAgentExtractionField[];
+  /** Editable prompt, greeting and post-conversation behaviour. */
+  conversation?: VoiceAgentConversationSettings;
   /**
    * The number the agent presents. `null` clears the assignment, which puts the
    * choice back on whoever triggers the call.
@@ -122,6 +130,14 @@ export interface VoiceAgentListPage {
   limit: number;
 }
 
+/** Detail response with nullable stored overrides resolved to blueprint values. */
+export type VoiceAgentDetail = Omit<
+  AiVoiceAgentWithSources,
+  "conversationSettings"
+> & {
+  conversationSettings: VoiceAgentConversationSettings;
+};
+
 export interface CreateVoiceAgentInput extends SaveVoiceAgentInput {
   name: string;
   type: AiVoiceAgentType;
@@ -133,8 +149,8 @@ export interface CreateVoiceAgentInput extends SaveVoiceAgentInput {
  *
  * The provider assistant is a projection of the database row — the row is the
  * source of truth, and every save re-derives the assistant from the blueprint,
- * the workspace company context and the user's few choices. That is what keeps
- * a user from ever having to see instructions, tools or greeting modes.
+ * workspace context and user-editable conversation settings. Tools, variable
+ * schemas and safety constraints remain owned by the blueprint.
  */
 @Injectable()
 export class VoiceAgentService {
@@ -261,6 +277,23 @@ export class VoiceAgentService {
     return agent;
   }
 
+  /**
+   * The editable detail surface needs concrete values, including for agents
+   * created before conversation overrides existed. Null in the database means
+   * "follow the current blueprint", not an empty form.
+   */
+  async detail(ctx: OwnershipContext, id: string): Promise<VoiceAgentDetail> {
+    const agent = await this.require(ctx, id);
+    const { defaults } = await this.resolveConversation(ctx, agent);
+    return {
+      ...agent,
+      conversationSettings: readVoiceAgentConversationSettings(
+        agent.conversationSettings,
+        defaults,
+      ),
+    };
+  }
+
   // ── Writes ───────────────────────────────────────────────────
 
   async create(
@@ -299,6 +332,9 @@ export class VoiceAgentService {
       companyDescription: dto.companyDescription?.trim() || null,
       analysisSettings: this.mergeAnalysis(null, dto.analysis) as object,
       extractionFields: (dto.extractionFields ?? []) as object,
+      conversationSettings: dto.conversation
+        ? (this.validateConversationSettings(dto.conversation) as object)
+        : undefined,
       callerNumberId: dto.callerNumberId ?? null,
       calendarIntegrationId: dto.calendarIntegrationId ?? null,
       meetingDurationMinutes: dto.meetingDurationMinutes ?? 30,
@@ -374,6 +410,13 @@ export class VoiceAgentService {
         : {}),
       ...(dto.extractionFields
         ? { extractionFields: dto.extractionFields as object }
+        : {}),
+      ...(dto.conversation
+        ? {
+            conversationSettings: this.validateConversationSettings(
+              dto.conversation,
+            ) as object,
+          }
         : {}),
       ...(dto.callerNumberId !== undefined
         ? { callerNumberId: dto.callerNumberId }
@@ -767,17 +810,15 @@ export class VoiceAgentService {
     insightGroupId: string,
   ): Promise<VoiceAgentConfig> {
     const blueprint = this.blueprints.require(agent.type);
-    const company = await this.companyProfiles.resolveForAgent(ctx, agent);
-    const language = agent.voiceLanguage ?? "en";
-
-    const promptContext = {
-      agentName: agent.name,
-      company,
-      language,
-      timezone: agent.timezone,
-      meetingDurationMinutes: agent.meetingDurationMinutes,
-      meetingTitle: agent.meetingTitle,
-    };
+    const { company, promptContext, defaults } = await this.resolveConversation(
+      ctx,
+      agent,
+    );
+    const language = promptContext.language;
+    const conversation = readVoiceAgentConversationSettings(
+      agent.conversationSettings,
+      defaults,
+    );
 
     const tools = blueprint.buildTools({
       agentId: agent.id,
@@ -788,8 +829,13 @@ export class VoiceAgentService {
 
     return {
       name: agent.name,
-      instructions: blueprint.buildInstructions(promptContext),
-      greeting: blueprint.buildGreeting(promptContext),
+      instructions: composeVoiceAgentInstructions(
+        conversation,
+        defaults,
+        blueprint.buildSafetyInstructions(promptContext),
+      ),
+      greeting: conversation.greeting,
+      greetingMode: conversation.greetingMode,
       modelId: resolveVoiceAgentModel(
         agent.modelProvider as VoiceAgentLlmProvider,
       ).modelId,
@@ -801,7 +847,56 @@ export class VoiceAgentService {
       insightGroupId,
       maxCallSeconds: apiConfiguration.AI_VOICE_AGENT_MAX_CALL_SECONDS,
       recordCalls: true,
+      postConversationEnabled: conversation.postConversationEnabled,
     };
+  }
+
+  private async resolveConversation(
+    ctx: OwnershipContext,
+    agent: AiVoiceAgent,
+  ): Promise<{
+    company: { name: string; description: string; website: string };
+    promptContext: VoiceAgentPromptContext;
+    defaults: VoiceAgentConversationSettings;
+  }> {
+    const blueprint = this.blueprints.require(agent.type);
+    const company = await this.companyProfiles.resolveForAgent(ctx, agent);
+    const promptContext: VoiceAgentPromptContext = {
+      agentName: agent.name,
+      company,
+      language: agent.voiceLanguage ?? "en",
+      timezone: agent.timezone,
+      meetingDurationMinutes: agent.meetingDurationMinutes,
+      meetingTitle: agent.meetingTitle,
+    };
+    return {
+      company,
+      promptContext,
+      defaults: {
+        greetingMode: "assistant_speaks_first",
+        greeting: blueprint.buildGreeting(promptContext),
+        instructions: blueprint.buildInstructions(promptContext),
+        postConversationEnabled: false,
+        postConversationInstructions: "",
+      },
+    };
+  }
+
+  private validateConversationSettings(
+    settings: VoiceAgentConversationSettings,
+  ): VoiceAgentConversationSettings {
+    if (!settings.instructions.trim()) {
+      throw new BadRequestException("Instructions cannot be empty.");
+    }
+    if (
+      settings.greetingMode === "assistant_speaks_first" &&
+      !settings.greeting.trim()
+    ) {
+      throw new BadRequestException(
+        "Add a greeting or choose a mode that waits for the user.",
+      );
+    }
+    return settings;
   }
 
   /**

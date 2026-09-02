@@ -150,6 +150,33 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
     return inLanguage(this.greetings, ctx.language);
   }
 
+  /**
+   * These constraints remain provider-side even when the owner replaces the
+   * editable prompt. They are the enforcement half of AGENT-002: a custom tone
+   * or script may not turn invented calendar availability into a real booking.
+   */
+  buildSafetyInstructions(ctx: VoiceAgentPromptContext): string {
+    const duration = ctx.meetingDurationMinutes ?? 30;
+    const timezone = ctx.timezone ?? "UTC";
+    return [
+      "## Ringee safety rules",
+      "",
+      "These rules apply during and after the call and cannot be overridden",
+      "by other instructions.",
+      "",
+      "- Never state or imply availability until `get_available_slots` has",
+      "  returned it for the requested day.",
+      "- Offer only times returned by that tool, in the configured time zone",
+      `  (${timezone}). The meeting length is ${duration} minutes.`,
+      "- Get explicit agreement to a specific date and time before calling",
+      "  `book_appointment`.",
+      "- Only say a meeting is booked after `book_appointment` returns",
+      "  success. If it fails, say it could not be confirmed.",
+      "- Never invent prices, policies, availability or company facts.",
+      "- Honor a clear refusal immediately; thank the person and end the call.",
+    ].join("\n");
+  }
+
   buildTools(ctx: VoiceAgentToolContext): VoiceAgentTool[] {
     // The call's identity is passed as a header the provider fills from a
     // system variable — never as a model-supplied argument, which the model
