@@ -18,13 +18,15 @@ interface RecordingPlayButtonProps {
   callFrom: string;
   callTo: string;
   asMenuItem?: boolean;
+  onPlay?: () => void;
 }
 
 export function RecordingPlayButton({
   recordingUrl,
   callFrom,
   callTo,
-  asMenuItem = false
+  asMenuItem = false,
+  onPlay
 }: RecordingPlayButtonProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { completeStep } = useOnboardingComplete();
@@ -32,7 +34,11 @@ export function RecordingPlayButton({
   const tPlayer = useTranslations('calls.recordings.player');
 
   const handlePlay = () => {
-    setIsModalOpen(true);
+    if (onPlay) {
+      onPlay();
+    } else {
+      setIsModalOpen(true);
+    }
     completeStep('recording');
   };
 
@@ -60,12 +66,14 @@ export function RecordingPlayButton({
         </Tooltip>
       )}
 
-      <AudioPlayerModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        audioUrl={recordingUrl}
-        title={tPlayer('callTitle', { from: callFrom, to: callTo })}
-      />
+      {!onPlay ? (
+        <AudioPlayerModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          audioUrl={recordingUrl}
+          title={tPlayer('callTitle', { from: callFrom, to: callTo })}
+        />
+      ) : null}
     </>
   );
 }

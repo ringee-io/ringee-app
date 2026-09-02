@@ -31,6 +31,8 @@ interface Props {
   size?: 'sm' | 'default';
   className?: string;
   asMenuItem?: boolean;
+  /** Keep a menu-mounted transcript dialog alive while it opens. */
+  keepMenuOpenOnView?: boolean;
 }
 
 export function TranscribeCallButton({
@@ -40,7 +42,8 @@ export function TranscribeCallButton({
   autoTranscribeEnabled = false,
   size = 'sm',
   className,
-  asMenuItem = false
+  asMenuItem = false,
+  keepMenuOpenOnView = false
 }: Props) {
   const t = useTranslations('transcription');
   const { data, actionPending, startRealtime, transcribeRecording, retry } =
@@ -83,7 +86,12 @@ export function TranscribeCallButton({
       <DropdownMenuItem
         className={className}
         disabled={state.disabled || actionPending}
-        onClick={state.onClick}
+        onSelect={(event) => {
+          if (keepMenuOpenOnView && onView && state.onClick === onView) {
+            event.preventDefault();
+          }
+          state.onClick?.();
+        }}
       >
         {content}
       </DropdownMenuItem>

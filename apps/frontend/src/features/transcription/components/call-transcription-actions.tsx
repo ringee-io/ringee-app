@@ -8,14 +8,17 @@ interface Props {
   callId: string | null | undefined;
   className?: string;
   asMenuItem?: boolean;
+  onView?: () => void;
 }
 
 export function CallTranscriptionActions({
   callId,
   className,
-  asMenuItem = false
+  asMenuItem = false,
+  onView
 }: Props) {
   const [open, setOpen] = useState(false);
+  const ownsDialog = !onView;
 
   if (!callId) return null;
 
@@ -26,9 +29,12 @@ export function CallTranscriptionActions({
         mode='history'
         className={className}
         asMenuItem={asMenuItem}
-        onView={() => setOpen(true)}
+        keepMenuOpenOnView={asMenuItem && ownsDialog}
+        onView={onView ?? (() => setOpen(true))}
       />
-      <TranscriptDialog open={open} onOpenChange={setOpen} callId={callId} />
+      {ownsDialog ? (
+        <TranscriptDialog open={open} onOpenChange={setOpen} callId={callId} />
+      ) : null}
     </>
   );
 }
