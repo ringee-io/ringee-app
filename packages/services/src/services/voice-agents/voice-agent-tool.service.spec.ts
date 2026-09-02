@@ -145,7 +145,7 @@ describe("VoiceAgentToolService availability", () => {
 
   it("reports a calendar failure instead of claiming the day is free", async () => {
     const { service } = build({
-      slotsError: new Error("No calendar connected"),
+      slotsError: new Error("Ringee calendar unavailable"),
     });
 
     const result = await service.getAvailableSlots("agent-1", SECRET, {
@@ -185,6 +185,7 @@ describe("VoiceAgentToolService booking", () => {
     assert.equal(created[0]?.contactId, "contact-1");
     assert.equal(created[0]?.title, "Product Demo");
     assert.equal(created[0]?.duration, 30);
+    assert.equal(created[0]?.calendarIntegrationId, "cal-1");
     // The tool knows a meeting exists; the later transcript analysis must not
     // be the thing that decides this.
     assert.deepEqual(updates, [

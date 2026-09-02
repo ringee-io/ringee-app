@@ -1,9 +1,4 @@
-import {
-  Injectable,
-  ForbiddenException,
-  NotFoundException,
-  BadRequestException,
-} from "@nestjs/common";
+import { Injectable, BadRequestException } from "@nestjs/common";
 import {
   CalendarIntegrationRepository,
   MeetingRepository,
@@ -345,11 +340,12 @@ export class CalendarService {
    * Real, bookable slots for one day, as absolute times.
    *
    * `getAvailability` above is the human picker: it works in server-local time
-   * and, when a calendar is missing or the provider errors, deliberately falls
-   * back to "everything is free" so the UI still renders something. Neither
-   * behaviour is safe for an AI agent, which offers these times out loud and
-   * then books one — a fabricated slot double-books a real meeting. So this
-   * variant works in an explicit time zone and **fails** rather than guessing.
+   * and deliberately falls back to "everything is free" so the UI still
+   * renders something. Neither behaviour is safe for an AI agent, which offers
+   * these times out loud and then books one. This variant therefore reads the
+   * Ringee meeting calendar directly and uses an explicit time zone. External
+   * calendars are an outbound sync target after Ringee owns the booking; they
+   * are not an availability dependency for the agent.
    */
   async getBookableSlots(
     ctx: OwnershipContext,
@@ -359,20 +355,11 @@ export class CalendarService {
       /** IANA zone the day and the returned times are expressed in. */
       timeZone: string;
       durationMinutes: number;
-      /** The specific connected calendar to read, when one was chosen. */
-      integrationId?: string | null;
-      provider?: CalendarProvider;
       /** Business hours in `timeZone`. Defaults to 09:00–18:00. */
       dayStartHour?: number;
       dayEndHour?: number;
     },
   ): Promise<BookableSlot[]> {
-    const integration = await this.requireIntegration(
-      ctx,
-      opts.provider,
-      opts.integrationId,
-    );
-
     const dayStart = zonedTimeToUtc(
       opts.date,
       opts.dayStartHour ?? 9,
@@ -398,9 +385,9 @@ export class CalendarService {
       );
     }
 
-    // No catch: an unreachable calendar means "unknown", and an agent must not
-    // turn unknown into "free".
-    const busy = await this.fetchFreeBusyWindow(integration, dayStart, dayEnd);
+    // No provider call belongs here. Ringee is the source of truth for agent
+    // bookings; Google/Microsoft receive the event only after it exists here.
+    const busy = await this.meetingRepo.findBusySlots(ctx, dayStart, dayEnd);
 
     const slots: BookableSlot[] = [];
     const now = Date.now();
@@ -461,19 +448,14 @@ export class CalendarService {
       duration: number;
       attendeeEmail?: string;
       provider?: CalendarProvider;
+      integrationId?: string | null;
     },
   ): Promise<{ externalEventId: string; meetLink?: string }> {
-    const integrations = await this.calendarRepo.findByUserOrOrg(
-      ctx.userId,
-      ctx.organizationId,
+    const integration = await this.requireIntegration(
+      ctx,
+      dto.provider,
+      dto.integrationId,
     );
-    const integration = dto.provider
-      ? integrations.find((i) => i.provider === dto.provider)
-      : integrations[0];
-
-    if (!integration) {
-      throw new BadRequestException("No calendar connected");
-    }
 
     const event = await this.createEvent(integration, {
       summary: dto.title || "Meeting via Ringee",

@@ -85,7 +85,6 @@ export class VoiceAgentToolService {
         date,
         timeZone: timezone,
         durationMinutes: agent.meetingDurationMinutes,
-        integrationId: agent.calendarIntegrationId,
       });
 
       return {
@@ -180,6 +179,7 @@ export class VoiceAgentToolService {
         duration: agent.meetingDurationMinutes,
         notes: input.notes,
         attendeeEmail: input.attendee_email,
+        calendarIntegrationId: agent.calendarIntegrationId,
       });
 
       const end = new Date(

@@ -106,6 +106,7 @@ export class MeetingService {
       notes?: string;
       attendeeEmail?: string;
       calendarProvider?: "google" | "microsoft";
+      calendarIntegrationId?: string | null;
     },
   ): Promise<Meeting> {
     const meeting = await this.meetingRepo.create(ctx, {
@@ -146,6 +147,7 @@ export class MeetingService {
         duration: dto.duration || 30,
         attendeeEmail: dto.attendeeEmail,
         provider: dto.calendarProvider as any,
+        integrationId: dto.calendarIntegrationId,
       });
       this.logger.log(
         `Synced meeting ${meeting.id} to external calendar: ${calendarResult.externalEventId}`,
@@ -195,7 +197,16 @@ export class MeetingService {
       );
     }
 
-    return meeting;
+    // `createCalendarEvent` persists these fields after Ringee creates the
+    // meeting. Reflect them in this response as well so tool callers receive
+    // the Meet/Teams link without needing a second read.
+    return calendarResult
+      ? {
+          ...meeting,
+          externalEventId: calendarResult.externalEventId,
+          location: calendarResult.meetLink ?? meeting.location,
+        }
+      : meeting;
   }
 
   async getMeetingById(ctx: OwnershipContext, id: string): Promise<Meeting> {

@@ -7,6 +7,44 @@ import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
 export class MeetingRepository {
   constructor(private readonly prisma: PrismaService) {}
 
+  /**
+   * Ringee meetings that occupy any part of the requested window.
+   *
+   * The end of a meeting is derived from its stored duration, so this uses a
+   * parameterized SQL query rather than approximating the overlap with only
+   * `scheduledAt`. The ownership predicate still comes from the canonical
+   * workspace filter: organization calendars see organization meetings, while
+   * personal calendars see only personal rows.
+   */
+  async findBusySlots(
+    ctx: OwnershipContext,
+    start: Date,
+    end: Date,
+  ): Promise<Array<{ start: Date; end: Date }>> {
+    const owner = buildOwnershipFilter(ctx);
+    const userFilter = owner.userId
+      ? Prisma.sql`AND "userId" = ${owner.userId}::uuid`
+      : Prisma.empty;
+    const organizationFilter =
+      owner.organizationId === null
+        ? Prisma.sql`AND "organizationId" IS NULL`
+        : owner.organizationId
+          ? Prisma.sql`AND "organizationId" = ${owner.organizationId}::uuid`
+          : Prisma.empty;
+
+    return this.prisma.$queryRaw<Array<{ start: Date; end: Date }>>`
+      SELECT
+        "scheduledAt" AS "start",
+        "scheduledAt" + ("duration" * INTERVAL '1 minute') AS "end"
+      FROM "Meeting"
+      WHERE "status" IN ('scheduled', 'rescheduled')
+        AND "scheduledAt" < ${end}
+        AND "scheduledAt" + ("duration" * INTERVAL '1 minute') > ${start}
+        ${userFilter}
+        ${organizationFilter}
+    `;
+  }
+
   async create(
     ctx: OwnershipContext,
     data: {
