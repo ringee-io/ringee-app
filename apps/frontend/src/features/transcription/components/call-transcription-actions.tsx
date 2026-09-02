@@ -7,10 +7,18 @@ import { TranscriptDialog } from './transcript-dialog';
 interface Props {
   callId: string | null | undefined;
   className?: string;
+  asMenuItem?: boolean;
+  onView?: () => void;
 }
 
-export function CallTranscriptionActions({ callId, className }: Props) {
+export function CallTranscriptionActions({
+  callId,
+  className,
+  asMenuItem = false,
+  onView
+}: Props) {
   const [open, setOpen] = useState(false);
+  const ownsDialog = !onView;
 
   if (!callId) return null;
 
@@ -20,9 +28,13 @@ export function CallTranscriptionActions({ callId, className }: Props) {
         callId={callId}
         mode='history'
         className={className}
-        onView={() => setOpen(true)}
+        asMenuItem={asMenuItem}
+        keepMenuOpenOnView={asMenuItem && ownsDialog}
+        onView={onView ?? (() => setOpen(true))}
       />
-      <TranscriptDialog open={open} onOpenChange={setOpen} callId={callId} />
+      {ownsDialog ? (
+        <TranscriptDialog open={open} onOpenChange={setOpen} callId={callId} />
+      ) : null}
     </>
   );
 }

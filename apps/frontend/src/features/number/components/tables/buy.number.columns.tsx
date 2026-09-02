@@ -322,9 +322,11 @@ export const columns: ColumnDef<AvailableNumber>[] = [
   },
   {
     id: 'actions',
+    size: 160,
+    minSize: 160,
     header: () => {
       const t = useTranslations('settings.numbers.buy.table');
-      return <>{t('actions')}</>;
+      return <span className='sr-only'>{t('actions')}</span>;
     },
     cell: ({ row }) => <CellActionBuy data={row.original} />
   }

@@ -1,7 +1,8 @@
 'use client';
 
-import { Button } from '@ringee/frontend-shared/components/ui/button';
-import { IconLoader2, IconShoppingCart } from '@tabler/icons-react';
+import { IconShoppingCart } from '@tabler/icons-react';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
 import { toast } from 'sonner';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useState } from 'react';
@@ -20,6 +21,7 @@ interface RequirementsResponse {
 
 export const CellActionBuy = ({ data }: { data: AvailableNumber }) => {
   const t = useTranslations('settings.numbers.buy');
+  const tCommon = useTranslations('common');
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
@@ -82,20 +84,16 @@ export const CellActionBuy = ({ data }: { data: AvailableNumber }) => {
 
   return (
     <>
-      <Button
-        size='sm'
-        onClick={handleBuy}
-        disabled={busy}
-        variant='default'
-        className='cursor-pointer'
+      <TableRowActions
+        label={tCommon('openActions')}
+        menuLabel={tCommon('actions')}
+        loading={busy}
       >
-        {busy ? (
-          <IconLoader2 className='mr-2 h-4 w-4 animate-spin' />
-        ) : (
-          <IconShoppingCart className='mr-2 h-4 w-4' />
-        )}
-        {t('table.buy')}
-      </Button>
+        <DropdownMenuItem disabled={busy} onClick={() => void handleBuy()}>
+          <IconShoppingCart className='h-4 w-4' />
+          {t('table.buy')}
+        </DropdownMenuItem>
+      </TableRowActions>
 
       <PurchaseConfirmModal
         open={modalOpen}

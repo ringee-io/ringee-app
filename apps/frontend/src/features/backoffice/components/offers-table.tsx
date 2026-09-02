@@ -18,6 +18,13 @@ import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { IconPlus } from '@tabler/icons-react';
+import { Eye } from 'lucide-react';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import {
+  TableActionCell,
+  TableActionHead
+} from '@ringee/frontend-shared/components/ui/table/table-action-column';
 import {
   Table,
   TableBody,
@@ -147,7 +154,9 @@ export function OffersTable() {
                   <TableHead className='text-right'>Completed</TableHead>
                   <TableHead className='text-right'>Rewards</TableHead>
                   <TableHead className='text-right'>Credits</TableHead>
-                  <TableHead />
+                  <TableActionHead>
+                    <span className='sr-only'>Actions</span>
+                  </TableActionHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -186,6 +195,14 @@ export function OffersTable() {
                     </TableCell>
                     <TableCell>
                       <OfferStatusBadge status={offer.status} />
+                      {offer.pendingApproval > 0 && (
+                        <Badge
+                          variant='outline'
+                          className='mt-1 block w-fit text-amber-600'
+                        >
+                          {offer.pendingApproval} pending
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className='text-xs'>{offer.placement}</TableCell>
                     <TableCell className='text-xs'>
@@ -209,13 +226,19 @@ export function OffersTable() {
                     <TableCell className='text-right'>
                       ${formatMoney(offer.creditsIssued)}
                     </TableCell>
-                    <TableCell className='text-right'>
-                      {offer.pendingApproval > 0 && (
-                        <Badge variant='outline' className='text-amber-600'>
-                          {offer.pendingApproval} pending
-                        </Badge>
-                      )}
-                    </TableCell>
+                    <TableActionCell>
+                      <TableRowActions
+                        label='Open actions menu'
+                        menuLabel='Actions'
+                      >
+                        <DropdownMenuItem asChild>
+                          <Link href={`/backoffice/offers/${offer.id}`}>
+                            <Eye className='size-4' />
+                            View
+                          </Link>
+                        </DropdownMenuItem>
+                      </TableRowActions>
+                    </TableActionCell>
                   </TableRow>
                 ))}
               </TableBody>

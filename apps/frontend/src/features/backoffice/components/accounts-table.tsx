@@ -18,6 +18,13 @@ import {
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
+import { Eye } from 'lucide-react';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import {
+  TableActionCell,
+  TableActionHead
+} from '@ringee/frontend-shared/components/ui/table/table-action-column';
 import {
   Table,
   TableBody,
@@ -155,13 +162,16 @@ export function AccountsTable() {
                   <TableHead className='text-right'>Calls</TableHead>
                   <TableHead>Recording</TableHead>
                   <TableHead>AI</TableHead>
+                  <TableActionHead>
+                    <span className='sr-only'>Actions</span>
+                  </TableActionHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {loading && items.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className='text-muted-foreground py-8 text-center'
                     >
                       Loading…
@@ -170,7 +180,7 @@ export function AccountsTable() {
                 ) : items.length === 0 ? (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className='text-muted-foreground py-8 text-center'
                     >
                       No accounts found.
@@ -213,6 +223,25 @@ export function AccountsTable() {
                           {item.aiPipelineEnabled ? 'On' : 'Off'}
                         </Badge>
                       </TableCell>
+                      <TableActionCell
+                        onClick={(event) => event.stopPropagation()}
+                      >
+                        <TableRowActions
+                          label='Open actions menu'
+                          menuLabel='Actions'
+                        >
+                          <DropdownMenuItem
+                            onClick={() =>
+                              router.push(
+                                `/backoffice/accounts/${item.type}/${item.id}`
+                              )
+                            }
+                          >
+                            <Eye className='size-4' />
+                            View
+                          </DropdownMenuItem>
+                        </TableRowActions>
+                      </TableActionCell>
                     </TableRow>
                   ))
                 )}

@@ -1,13 +1,10 @@
 'use client';
 import { AlertModal } from '@ringee/frontend-shared/components/modal/alert-modal';
-import { Button } from '@ringee/frontend-shared/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuTrigger
+  DropdownMenuSeparator
 } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
 import { CreateNoteModal } from '@/features/contact/components/create.note.modal';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import {
@@ -19,7 +16,6 @@ import {
 import { FinalTranscript } from '@/features/transcription';
 import {
   IconEdit,
-  IconDotsVertical,
   IconTrash,
   IconPhoneCall,
   IconPlus,
@@ -50,6 +46,7 @@ interface CellActionProps {
 
 export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const t = useTranslations('calls.history.rowActions');
+  const tCommon = useTranslations('common');
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const api = useApi();
@@ -102,41 +99,32 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           </div>
         </DialogContent>
       </Dialog>
-      <DropdownMenu modal={false}>
-        <DropdownMenuTrigger asChild>
-          <Button variant='ghost' className='h-8 w-8 p-0'>
-            <span className='sr-only'>{t('openMenu')}</span>
-            <IconDotsVertical className='h-4 w-4' />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align='end'>
-          <DropdownMenuLabel>{t('menu')}</DropdownMenuLabel>
+      <TableRowActions label={tCommon('openActions')} menuLabel={t('menu')}>
+        <DropdownMenuItem onClick={() => handleRecall(data.phoneNumber)}>
+          <IconPhoneCall className='mr-2 h-4 w-4' /> {t('call')}
+        </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={() => handleRecall(data.phoneNumber)}>
-            <IconPhoneCall className='mr-2 h-4 w-4' /> {t('call')}
+        <DropdownMenuItem onClick={() => setNoteModalOpen(true)}>
+          <IconPlus className='mr-2 h-4 w-4' /> {t('addNote')}
+        </DropdownMenuItem>
+
+        {latestCallId && (
+          <DropdownMenuItem onClick={() => setTranscriptOpen(true)}>
+            <IconFileText className='mr-2 h-4 w-4' /> {t('transcript')}
           </DropdownMenuItem>
+        )}
 
-          <DropdownMenuItem onClick={() => setNoteModalOpen(true)}>
-            <IconPlus className='mr-2 h-4 w-4' /> {t('addNote')}
-          </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() => router.push(`/dashboard/contact/${data.id}`)}
+        >
+          <IconEdit className='mr-2 h-4 w-4' /> {t('update')}
+        </DropdownMenuItem>
 
-          {latestCallId && (
-            <DropdownMenuItem onClick={() => setTranscriptOpen(true)}>
-              <IconFileText className='mr-2 h-4 w-4' /> {t('transcript')}
-            </DropdownMenuItem>
-          )}
-
-          <DropdownMenuItem
-            onClick={() => router.push(`/dashboard/contact/${data.id}`)}
-          >
-            <IconEdit className='mr-2 h-4 w-4' /> {t('update')}
-          </DropdownMenuItem>
-
-          <DropdownMenuItem onClick={() => setOpen(true)}>
-            <IconTrash className='mr-2 h-4 w-4' /> {t('delete')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem variant='destructive' onClick={() => setOpen(true)}>
+          <IconTrash className='mr-2 h-4 w-4' /> {t('delete')}
+        </DropdownMenuItem>
+      </TableRowActions>
     </>
   );
 };

@@ -3,7 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
-import { Button } from '@ringee/frontend-shared/components/ui/button';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import {
+  TableActionCell,
+  TableActionHead
+} from '@ringee/frontend-shared/components/ui/table/table-action-column';
 import {
   Card,
   CardContent,
@@ -59,6 +64,7 @@ const STATUS_COLORS: Record<string, string> = {
 export function CallbackList() {
   const api = useApi();
   const t = useTranslations('calls.callbacks.list');
+  const tCommon = useTranslations('common');
   const [callbacks, setCallbacks] = useState<CallbackEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -121,7 +127,9 @@ export function CallbackList() {
                 <TableHead className='hidden sm:table-cell'>
                   {t('columns.note')}
                 </TableHead>
-                <TableHead className='w-[60px]'></TableHead>
+                <TableActionHead>
+                  <span className='sr-only'>{tCommon('actions')}</span>
+                </TableActionHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -156,18 +164,19 @@ export function CallbackList() {
                       {cb.note || '—'}
                     </span>
                   </TableCell>
-                  <TableCell>
+                  <TableActionCell>
                     {(cb.status === 'scheduled' || cb.status === 'due') && (
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        onClick={() => handleCancel(cb.id)}
-                        title={t('cancel')}
+                      <TableRowActions
+                        label={tCommon('openActions')}
+                        menuLabel={tCommon('actions')}
                       >
-                        <X className='text-muted-foreground h-4 w-4' />
-                      </Button>
+                        <DropdownMenuItem onClick={() => handleCancel(cb.id)}>
+                          <X className='h-4 w-4' />
+                          {t('cancel')}
+                        </DropdownMenuItem>
+                      </TableRowActions>
                     )}
-                  </TableCell>
+                  </TableActionCell>
                 </TableRow>
               ))}
             </TableBody>

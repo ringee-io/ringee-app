@@ -5,8 +5,53 @@ import * as React from "react";
 import { cn } from "../../lib/utils";
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
+  const containerRef = React.useRef<HTMLDivElement>(null);
+
+  React.useLayoutEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const scrollAreaViewport = container.closest<HTMLElement>(
+      '[data-slot="scroll-area-viewport"]',
+    );
+    const scrollContainer = scrollAreaViewport ?? container;
+
+    let animationFrame = 0;
+    const updateActionPinOffset = () => {
+      cancelAnimationFrame(animationFrame);
+      animationFrame = requestAnimationFrame(() => {
+        const maxScrollLeft = Math.max(
+          scrollContainer.scrollWidth - scrollContainer.clientWidth,
+          0,
+        );
+        const offset =
+          Math.min(scrollContainer.scrollLeft, maxScrollLeft) - maxScrollLeft;
+
+        container.style.setProperty("--table-action-pin-offset", `${offset}px`);
+      });
+    };
+
+    updateActionPinOffset();
+    scrollContainer.addEventListener("scroll", updateActionPinOffset, {
+      passive: true,
+    });
+
+    const resizeObserver = new ResizeObserver(updateActionPinOffset);
+    resizeObserver.observe(container);
+    if (scrollContainer !== container) resizeObserver.observe(scrollContainer);
+    const table = container.querySelector("table");
+    if (table) resizeObserver.observe(table);
+
+    return () => {
+      cancelAnimationFrame(animationFrame);
+      scrollContainer.removeEventListener("scroll", updateActionPinOffset);
+      resizeObserver.disconnect();
+    };
+  }, []);
+
   return (
     <div
+      ref={containerRef}
       data-slot="table-container"
       className="relative w-full overflow-x-auto"
     >

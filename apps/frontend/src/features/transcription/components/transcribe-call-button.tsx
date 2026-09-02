@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@ringee/frontend-shared/components/ui/button';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
 import { FileText, Loader2, Mic } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
@@ -29,6 +30,9 @@ interface Props {
   autoTranscribeEnabled?: boolean;
   size?: 'sm' | 'default';
   className?: string;
+  asMenuItem?: boolean;
+  /** Keep a menu-mounted transcript dialog alive while it opens. */
+  keepMenuOpenOnView?: boolean;
 }
 
 export function TranscribeCallButton({
@@ -37,7 +41,9 @@ export function TranscribeCallButton({
   onView,
   autoTranscribeEnabled = false,
   size = 'sm',
-  className
+  className,
+  asMenuItem = false,
+  keepMenuOpenOnView = false
 }: Props) {
   const t = useTranslations('transcription');
   const { data, actionPending, startRealtime, transcribeRecording, retry } =
@@ -62,6 +68,36 @@ export function TranscribeCallButton({
 
   if (!callId) return null;
 
+  const content = (
+    <>
+      {state.busy || actionPending ? (
+        <Loader2 className='h-4 w-4 animate-spin' />
+      ) : state.icon === 'mic' ? (
+        <Mic className='h-4 w-4' />
+      ) : state.icon === 'file' ? (
+        <FileText className='h-4 w-4' />
+      ) : null}
+      {state.label}
+    </>
+  );
+
+  if (asMenuItem) {
+    return (
+      <DropdownMenuItem
+        className={className}
+        disabled={state.disabled || actionPending}
+        onSelect={(event) => {
+          if (keepMenuOpenOnView && onView && state.onClick === onView) {
+            event.preventDefault();
+          }
+          state.onClick?.();
+        }}
+      >
+        {content}
+      </DropdownMenuItem>
+    );
+  }
+
   return (
     <Button
       type='button'
@@ -71,14 +107,7 @@ export function TranscribeCallButton({
       disabled={state.disabled || actionPending}
       onClick={state.onClick}
     >
-      {state.busy || actionPending ? (
-        <Loader2 className='mr-2 h-4 w-4 animate-spin' />
-      ) : state.icon === 'mic' ? (
-        <Mic className='mr-2 h-4 w-4' />
-      ) : state.icon === 'file' ? (
-        <FileText className='mr-2 h-4 w-4' />
-      ) : null}
-      {state.label}
+      {content}
     </Button>
   );
 }

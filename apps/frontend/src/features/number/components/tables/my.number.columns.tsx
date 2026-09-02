@@ -174,10 +174,12 @@ export const columns: ColumnDef<NumberPurchased>[] = [
     }
   },
   {
-    id: 'verify',
+    id: 'actions',
+    size: 160,
+    minSize: 160,
     header: () => {
       const t = useTranslations('settings.numbers.my.table');
-      return <>{t('actions')}</>;
+      return <span className='sr-only'>{t('actions')}</span>;
     },
     cell: ({ row }) => <NumberActionsCell data={row.original} />
   }

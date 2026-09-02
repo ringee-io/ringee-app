@@ -3,12 +3,10 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
+  DropdownMenuSeparator
 } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,6 +42,14 @@ import type {
   SipDevice
 } from '../types';
 import { useTranslations } from 'next-intl';
+import {
+  KeyRound,
+  Phone,
+  Power,
+  PowerOff,
+  RefreshCw,
+  Trash2
+} from 'lucide-react';
 
 interface Props {
   device: SipDevice;
@@ -77,6 +83,7 @@ export function DeviceActions({
   onCredentials
 }: Props) {
   const t = useTranslations('calls.deskPhones.actions');
+  const tCommon = useTranslations('common');
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [regenOpen, setRegenOpen] = useState(false);
   const [changeOpen, setChangeOpen] = useState(false);
@@ -106,53 +113,55 @@ export function DeviceActions({
 
   return (
     <>
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant='ghost' size='sm'>
-            {t('menu')}
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align='end'>
-          <DropdownMenuItem
-            onClick={() =>
-              run(
-                () => onCheckRegistration(device.id),
-                t('toasts.registrationRefreshed'),
-                t('toasts.checkFailed')
-              )
-            }
-          >
-            {t('checkRegistration')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setChangeOpen(true)}>
-            {t('changeNumber')}
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => setRegenOpen(true)}>
-            {t('regeneratePassword')}
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() =>
-              run(
-                () => onSetEnabled(device.id, disabled),
-                disabled ? t('toasts.enabled') : t('toasts.disabled'),
-                t('toasts.updateFailed')
-              )
-            }
-          >
-            {disabled ? t('enable') : t('disable')}
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            className='text-destructive'
-            onClick={() => {
-              setReroute('ringee');
-              setDeleteOpen(true);
-            }}
-          >
-            {t('delete')}
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      <TableRowActions label={tCommon('openActions')} menuLabel={t('menu')}>
+        <DropdownMenuItem
+          onClick={() =>
+            run(
+              () => onCheckRegistration(device.id),
+              t('toasts.registrationRefreshed'),
+              t('toasts.checkFailed')
+            )
+          }
+        >
+          <RefreshCw className='h-4 w-4' />
+          {t('checkRegistration')}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setChangeOpen(true)}>
+          <Phone className='h-4 w-4' />
+          {t('changeNumber')}
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => setRegenOpen(true)}>
+          <KeyRound className='h-4 w-4' />
+          {t('regeneratePassword')}
+        </DropdownMenuItem>
+        <DropdownMenuItem
+          onClick={() =>
+            run(
+              () => onSetEnabled(device.id, disabled),
+              disabled ? t('toasts.enabled') : t('toasts.disabled'),
+              t('toasts.updateFailed')
+            )
+          }
+        >
+          {disabled ? (
+            <Power className='h-4 w-4' />
+          ) : (
+            <PowerOff className='h-4 w-4' />
+          )}
+          {disabled ? t('enable') : t('disable')}
+        </DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          variant='destructive'
+          onClick={() => {
+            setReroute('ringee');
+            setDeleteOpen(true);
+          }}
+        >
+          <Trash2 className='h-4 w-4' />
+          {t('delete')}
+        </DropdownMenuItem>
+      </TableRowActions>
 
       {/* Regenerate password */}
       <AlertDialog open={regenOpen} onOpenChange={setRegenOpen}>

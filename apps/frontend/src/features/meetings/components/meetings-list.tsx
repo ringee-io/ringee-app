@@ -22,6 +22,8 @@ import {
 import { DataTable } from '@ringee/frontend-shared/components/ui/table/data-table';
 import { DataTableSkeleton } from '@ringee/frontend-shared/components/ui/table/data-table-skeleton';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
 import {
   useReactTable,
   getCoreRowModel,
@@ -61,7 +63,8 @@ import {
   List,
   ChevronLeft,
   ChevronRight,
-  Link2
+  Link2,
+  Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CalendarIntegrations } from './calendar-integrations';
@@ -101,6 +104,7 @@ interface MeetingsResponse {
 
 export function MeetingsList() {
   const t = useTranslations('meetings');
+  const tCommon = useTranslations('common');
   const api = useApi();
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -223,6 +227,7 @@ export function MeetingsList() {
               meetings={upcoming}
               onSelect={setSelectedMeeting}
               t={t}
+              tCommon={tCommon}
             />
           )}
         </TabsContent>
@@ -248,6 +253,7 @@ export function MeetingsList() {
                     meetings={upcoming}
                     onSelect={setSelectedMeeting}
                     t={t}
+                    tCommon={tCommon}
                   />
                 </div>
               )}
@@ -260,6 +266,7 @@ export function MeetingsList() {
                     meetings={past}
                     onSelect={setSelectedMeeting}
                     t={t}
+                    tCommon={tCommon}
                   />
                 </div>
               )}
@@ -459,7 +466,8 @@ function MeetingDetail({
 
 function getColumns(
   onSelect: (m: Meeting) => void,
-  t: TFunc
+  t: TFunc,
+  tCommon: TFunc
 ): ColumnDef<Meeting>[] {
   return [
     {
@@ -546,18 +554,20 @@ function getColumns(
     },
     {
       id: 'actions',
+      size: 160,
+      minSize: 160,
+      header: () => <span className='sr-only'>{tCommon('actions')}</span>,
       cell: ({ row }) => (
-        <div className='flex justify-end'>
-          <Button
-            variant='ghost'
-            size='sm'
-            onClick={() => onSelect(row.original)}
-          >
+        <TableRowActions
+          label={tCommon('openActions')}
+          menuLabel={tCommon('actions')}
+        >
+          <DropdownMenuItem onClick={() => onSelect(row.original)}>
+            <Eye className='h-4 w-4' />
             {t('viewDetails')}
-          </Button>
-        </div>
-      ),
-      meta: { className: 'w-[100px]' }
+          </DropdownMenuItem>
+        </TableRowActions>
+      )
     }
   ];
 }
@@ -565,15 +575,18 @@ function getColumns(
 function MeetingRows({
   meetings,
   onSelect,
-  t
+  t,
+  tCommon
 }: {
   meetings: Meeting[];
   onSelect: (m: Meeting) => void;
   t: TFunc;
+  tCommon: TFunc;
 }) {
   const table = useReactTable({
     data: meetings,
-    columns: getColumns(onSelect, t),
+    columns: getColumns(onSelect, t, tCommon),
+    initialState: { columnPinning: { right: ['actions'] } },
     getCoreRowModel: getCoreRowModel()
   });
 

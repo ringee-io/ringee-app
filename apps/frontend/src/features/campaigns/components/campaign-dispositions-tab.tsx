@@ -37,6 +37,22 @@ import {
   DialogTrigger
 } from '@ringee/frontend-shared/components/ui/dialog';
 import { Checkbox } from '@ringee/frontend-shared/components/ui/checkbox';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import {
+  TableActionCell,
+  TableActionHead
+} from '@ringee/frontend-shared/components/ui/table/table-action-column';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@ringee/frontend-shared/components/ui/alert-dialog';
 import { Plus, Trash2, Loader2 } from 'lucide-react';
 import type { Disposition, DispositionCategory } from '../types/campaign.types';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
@@ -62,10 +78,12 @@ export function CampaignDispositionsTab({
 }: Props) {
   const api = useApi();
   const t = useTranslations('campaigns');
+  const tCommon = useTranslations('common');
   const [dispositions, setDispositions] = useState<Disposition[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Disposition | null>(null);
 
   const [newDispo, setNewDispo] = useState({
     code: '',
@@ -126,6 +144,7 @@ export function CampaignDispositionsTab({
   async function deleteDisposition(id: string) {
     try {
       await api.delete(`/campaigns/${campaignId}/dispositions/${id}`);
+      setDeleteTarget(null);
       await loadDispositions();
       toast.success(t('dispositions.toasts.removed'));
     } catch (err: any) {
@@ -236,7 +255,10 @@ export function CampaignDispositionsTab({
                       <Checkbox
                         checked={newDispo.triggersCompletion}
                         onCheckedChange={(v) =>
-                          setNewDispo({ ...newDispo, triggersCompletion: !!v })
+                          setNewDispo({
+                            ...newDispo,
+                            triggersCompletion: !!v
+                          })
                         }
                       />
                       {t('dispositions.triggers.completion')}
@@ -316,7 +338,9 @@ export function CampaignDispositionsTab({
                 <TableHead className='hidden md:table-cell'>
                   {t('dispositions.table.triggers')}
                 </TableHead>
-                <TableHead className='w-[60px]'></TableHead>
+                <TableActionHead>
+                  <span className='sr-only'>{tCommon('actions')}</span>
+                </TableActionHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -366,23 +390,54 @@ export function CampaignDispositionsTab({
                       )}
                     </div>
                   </TableCell>
-                  <TableCell>
+                  <TableActionCell>
                     {canManage && !d.isSystem && (
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        onClick={() => deleteDisposition(d.id)}
+                      <TableRowActions
+                        label={tCommon('openActions')}
+                        menuLabel={tCommon('actions')}
                       >
-                        <Trash2 className='text-muted-foreground h-4 w-4' />
-                      </Button>
+                        <DropdownMenuItem
+                          variant='destructive'
+                          onClick={() => setDeleteTarget(d)}
+                        >
+                          <Trash2 className='h-4 w-4' />
+                          {tCommon('delete')}
+                        </DropdownMenuItem>
+                      </TableRowActions>
                     )}
-                  </TableCell>
+                  </TableActionCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
         )}
       </CardContent>
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tCommon('areYouSure')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {tCommon('cannotBeUndone')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+              onClick={(event) => {
+                event.preventDefault();
+                if (deleteTarget) void deleteDisposition(deleteTarget.id);
+              }}
+            >
+              {tCommon('delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }

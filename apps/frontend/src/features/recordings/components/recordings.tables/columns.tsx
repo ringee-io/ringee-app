@@ -6,7 +6,6 @@ import {
   Clock,
   PhoneIncoming,
   PhoneOutgoing,
-  Download,
   Calendar,
   Loader2,
   AlertCircle,
@@ -14,16 +13,8 @@ import {
 } from 'lucide-react';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { cn } from '@ringee/frontend-shared/lib/utils';
-import { Button } from '@ringee/frontend-shared/components/ui/button';
-import Link from 'next/link';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger
-} from '@ringee/frontend-shared/components/ui/tooltip';
-import { RecordingPlayButton } from './recording-play-button';
 import { useTranslations } from 'next-intl';
-import { CallTranscriptionActions } from '@/features/transcription';
+import { CallListRowActions } from '@/features/calls/components/call-list-row-actions';
 
 type RecordingData = {
   id: string;
@@ -95,12 +86,7 @@ export const columns: ColumnDef<CallWithRecordings>[] = [
       const unknown = t('unknown');
       const name = row.original.contact?.name || unknown;
       return name !== unknown ? (
-        <Link
-          href={`/dashboard/call?tab=contact&name=${row.original.toNumber}`}
-          className='text-foreground font-medium'
-        >
-          {name}
-        </Link>
+        <span className='text-foreground font-medium'>{name}</span>
       ) : (
         <span className='text-muted-foreground font-medium'>{name}</span>
       );
@@ -208,60 +194,20 @@ export const columns: ColumnDef<CallWithRecordings>[] = [
     }
   },
   {
-    id: 'recording',
+    id: 'actions',
+    size: 160,
+    minSize: 160,
     header: () => {
-      const t = useTranslations('calls.recordings.table');
-      return <>{t('recording')}</>;
+      const t = useTranslations('tables.headers');
+      return <span className='sr-only'>{t('actions')}</span>;
     },
-    cell: ({ row }) => {
-      const t = useTranslations('calls.recordings.table');
-      const recordings = row.original.recordings || [];
-      if (recordings.length === 0) {
-        return <span className='text-muted-foreground text-xs'>—</span>;
-      }
-
-      const recording = recordings[0];
-      const recordingUrl = recording.url;
-      const status = recording.status || 'started';
-
-      if (status !== 'completed' || !recordingUrl) {
-        return (
-          <span className='text-muted-foreground text-xs'>
-            {status === 'started' || status === 'processing'
-              ? t('processingShort')
-              : t('unavailable')}
-          </span>
-        );
-      }
-
-      return (
-        <div className='flex items-center gap-2'>
-          <RecordingPlayButton
-            recordingUrl={recordingUrl}
-            callFrom={row.original.fromNumber}
-            callTo={row.original.toNumber}
-          />
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button size='sm' variant='ghost' asChild>
-                <a href={recordingUrl} download>
-                  <Download className='h-4 w-4' />
-                </a>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('downloadRecording')}</TooltipContent>
-          </Tooltip>
-        </div>
-      );
-    }
-  },
-  {
-    id: 'transcript',
-    header: () => {
-      const t = useTranslations('calls.recordings.table');
-      return <>{t('transcript')}</>;
-    },
-    cell: ({ row }) => <CallTranscriptionActions callId={row.original.id} />
+    cell: ({ row }) => (
+      <CallListRowActions
+        callId={row.original.id}
+        recordingUrl={row.original.recordings?.[0]?.url}
+        callFrom={row.original.fromNumber}
+        callTo={row.original.toNumber}
+      />
+    )
   }
 ];

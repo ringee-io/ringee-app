@@ -45,7 +45,10 @@ export function RecordingsTable<TData, TValue>({
     pageCount: pageCount,
     shallow: false,
     debounceMs: 500,
-    initialState: { columnVisibility: { memberId: false } }
+    initialState: {
+      columnVisibility: { memberId: false },
+      columnPinning: { right: ['actions'] }
+    }
   });
 
   const memberTableColumn = memberColumn

@@ -25,7 +25,8 @@ export function BuyNumberTable<TData, TValue>({
     columns,
     pageCount,
     shallow: false,
-    debounceMs: 500
+    debounceMs: 500,
+    initialState: { columnPinning: { right: ['actions'] } }
   });
 
   return (

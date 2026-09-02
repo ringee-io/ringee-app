@@ -12,6 +12,15 @@ import {
 } from '@tabler/icons-react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator
+} from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import {
+  TableActionCell,
+  TableActionHead
+} from '@ringee/frontend-shared/components/ui/table/table-action-column';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { Switch } from '@ringee/frontend-shared/components/ui/switch';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
@@ -53,6 +62,7 @@ const STATUS_CLASS: Record<CallerIdStatus, string> = {
 
 export function CallerIdListing() {
   const t = useTranslations('settings.numbers.callerIds');
+  const tCommon = useTranslations('common');
   const api = useApi();
 
   const [loading, setLoading] = useState(true);
@@ -174,9 +184,9 @@ export function CallerIdListing() {
                 <TableHead>{t('table.status')}</TableHead>
                 <TableHead>{t('table.active')}</TableHead>
                 <TableHead>{t('table.addedOn')}</TableHead>
-                <TableHead className='text-right'>
-                  {t('table.actions')}
-                </TableHead>
+                <TableActionHead>
+                  <span className='sr-only'>{t('table.actions')}</span>
+                </TableActionHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -216,31 +226,31 @@ export function CallerIdListing() {
                         ? format(new Date(callerId.createdAt), 'dd MMM yyyy')
                         : '—'}
                     </TableCell>
-                    <TableCell>
-                      <div className='flex items-center justify-end gap-2'>
+                    <TableActionCell>
+                      <TableRowActions
+                        label={tCommon('openActions')}
+                        menuLabel={t('table.actions')}
+                      >
                         {needsVerify && (
-                          <Button
-                            size='sm'
-                            variant='outline'
+                          <DropdownMenuItem
                             onClick={() => setVerifyTarget(callerId)}
                           >
-                            <IconShieldCheck className='mr-1.5 h-4 w-4' />
+                            <IconShieldCheck className='h-4 w-4' />
                             {status === 'failed'
                               ? t('actions.verify')
                               : t('actions.enterCode')}
-                          </Button>
+                          </DropdownMenuItem>
                         )}
-                        <Button
-                          size='icon'
-                          variant='ghost'
-                          className='text-muted-foreground hover:text-red-600'
+                        {needsVerify && <DropdownMenuSeparator />}
+                        <DropdownMenuItem
+                          variant='destructive'
                           onClick={() => setDeleteTarget(callerId)}
-                          aria-label={t('actions.delete')}
                         >
                           <IconTrash className='h-4 w-4' />
-                        </Button>
-                      </div>
-                    </TableCell>
+                          {t('actions.delete')}
+                        </DropdownMenuItem>
+                      </TableRowActions>
+                    </TableActionCell>
                   </TableRow>
                 );
               })}

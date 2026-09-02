@@ -28,7 +28,8 @@ export function ContactTable<TData, TValue>({
     columns,
     pageCount: pageCount,
     shallow: false,
-    debounceMs: 500
+    debounceMs: 500,
+    initialState: { columnPinning: { right: ['actions'] } }
   });
 
   return (

@@ -12,6 +12,12 @@ import {
   CardTitle
 } from '@ringee/frontend-shared/components/ui/card';
 import { Switch } from '@ringee/frontend-shared/components/ui/switch';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import {
+  TableActionCell,
+  TableActionHead
+} from '@ringee/frontend-shared/components/ui/table/table-action-column';
 import {
   Select,
   SelectContent,
@@ -74,6 +80,7 @@ const RESULT_FILTERS: {
 export function FollowUpRecommendations() {
   const api = useApi();
   const t = useTranslations('ai.followUp');
+  const tCommon = useTranslations('common');
   // `?mock=1` renders the demo dataset and keeps every mutation local.
   const searchParams = useSearchParams();
   const mock = isMockParam(searchParams.get('mock'));
@@ -348,9 +355,9 @@ export function FollowUpRecommendations() {
                 <TableHead className='hidden sm:table-cell'>
                   {t('activation.pending')}
                 </TableHead>
-                <TableHead className='text-right'>
-                  {t('activation.run')}
-                </TableHead>
+                <TableActionHead>
+                  <span className='sr-only'>{tCommon('actions')}</span>
+                </TableActionHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -381,19 +388,20 @@ export function FollowUpRecommendations() {
                   <TableCell className='hidden sm:table-cell'>
                     {r.pendingActionCount}
                   </TableCell>
-                  <TableCell
-                    className='text-right'
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <Button
-                      variant='outline'
-                      size='sm'
-                      disabled={!r.enabled}
-                      onClick={() => openRun(r)}
+                  <TableActionCell onClick={(e) => e.stopPropagation()}>
+                    <TableRowActions
+                      label={tCommon('openActions')}
+                      menuLabel={tCommon('actions')}
                     >
-                      <Play className='mr-1 h-3 w-3' /> {t('run.analysis')}
-                    </Button>
-                  </TableCell>
+                      <DropdownMenuItem
+                        disabled={!r.enabled}
+                        onClick={() => openRun(r)}
+                      >
+                        <Play className='h-4 w-4' />
+                        {t('run.analysis')}
+                      </DropdownMenuItem>
+                    </TableRowActions>
+                  </TableActionCell>
                 </TableRow>
               ))}
             </TableBody>

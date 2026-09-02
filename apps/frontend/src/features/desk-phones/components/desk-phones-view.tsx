@@ -13,6 +13,10 @@ import {
   TableHeader,
   TableRow
 } from '@ringee/frontend-shared/components/ui/table';
+import {
+  TableActionCell,
+  TableActionHead
+} from '@ringee/frontend-shared/components/ui/table/table-action-column';
 import { format } from 'date-fns';
 import { useDeskPhones } from '../hooks/use-desk-phones';
 import type { CreatedSipDevice, SipDevice, SipDeviceStatus } from '../types';
@@ -67,9 +71,9 @@ export function DeskPhonesView() {
                 <TableHead>{t('columns.outbound')}</TableHead>
                 <TableHead>{t('columns.status')}</TableHead>
                 <TableHead>{t('columns.lastSeen')}</TableHead>
-                <TableHead className='text-right'>
-                  {t('columns.actions')}
-                </TableHead>
+                <TableActionHead>
+                  <span className='sr-only'>{t('columns.actions')}</span>
+                </TableActionHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -130,7 +134,7 @@ export function DeskPhonesView() {
                         ? format(new Date(d.lastRegisteredAt), 'dd MMM, HH:mm')
                         : '—'}
                     </TableCell>
-                    <TableCell className='text-right'>
+                    <TableActionCell>
                       <DeviceActions
                         device={d}
                         otherDevices={dp.devices.filter((x) => x.id !== d.id)}
@@ -142,7 +146,7 @@ export function DeskPhonesView() {
                         onRemove={dp.remove}
                         onCredentials={showCredentials}
                       />
-                    </TableCell>
+                    </TableActionCell>
                   </TableRow>
                 ))
               )}
