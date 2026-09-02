@@ -18,6 +18,8 @@ import {
 import { useVoiceAgentApi } from '../api';
 import { describeApiError } from '../lib/api-error';
 import type { VoiceAgentCall } from '../types';
+import { CallDetailDialog } from '@/features/call-detail';
+import { CallListRowActions } from '@/features/calls/components/call-list-row-actions';
 
 /** Call history for one agent (§17). */
 export function CallsTable({
@@ -29,10 +31,12 @@ export function CallsTable({
 }) {
   const t = useTranslations('aiVoiceAgents.calls');
   const tCommon = useTranslations('aiVoiceAgents.common');
+  const tGlobal = useTranslations('common');
   const api = useVoiceAgentApi();
   const [calls, setCalls] = useState<VoiceAgentCall[]>([]);
   const [loading, setLoading] = useState(true);
   const [failure, setFailure] = useState<string | null>(null);
+  const [selectedCallId, setSelectedCallId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -80,53 +84,80 @@ export function CallsTable({
   }
 
   return (
-    <Card className='overflow-x-auto rounded-lg p-0'>
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t('phone')}</TableHead>
-            <TableHead>{t('started')}</TableHead>
-            <TableHead>{t('status')}</TableHead>
-            <TableHead>{t('outcome')}</TableHead>
-            <TableHead>{t('summary')}</TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {calls.map((call) => (
-            <TableRow key={call.id}>
-              <TableCell className='font-medium'>{call.toNumber}</TableCell>
-              <TableCell>{new Date(call.createdAt).toLocaleString()}</TableCell>
-              <TableCell>
-                <Badge variant='secondary' className='rounded-lg'>
-                  {call.status}
-                </Badge>
-              </TableCell>
-              <TableCell>
-                {call.outcome ? (
-                  <Badge
-                    className='rounded-lg'
-                    variant={
-                      call.outcome === 'appointment_booked' ||
-                      call.outcome === 'confirmed'
-                        ? 'default'
-                        : 'outline'
-                    }
-                  >
-                    {t.has(`outcomes.${call.outcome}`)
-                      ? t(`outcomes.${call.outcome}`)
-                      : call.outcome}
-                  </Badge>
-                ) : (
-                  <span className='text-muted-foreground'>—</span>
-                )}
-              </TableCell>
-              <TableCell className='text-muted-foreground max-w-md truncate text-sm'>
-                {call.summary ?? '—'}
-              </TableCell>
+    <>
+      <CallDetailDialog
+        callId={selectedCallId}
+        onClose={() => setSelectedCallId(null)}
+        closeLabel={tCommon('back')}
+        description={t('detailDescription')}
+      />
+
+      <Card className='overflow-x-auto rounded-lg p-0'>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>{t('phone')}</TableHead>
+              <TableHead>{t('started')}</TableHead>
+              <TableHead>{t('status')}</TableHead>
+              <TableHead>{t('outcome')}</TableHead>
+              <TableHead>{t('summary')}</TableHead>
+              <TableHead className='w-12'>
+                <span className='sr-only'>{tGlobal('actions')}</span>
+              </TableHead>
             </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </Card>
+          </TableHeader>
+          <TableBody>
+            {calls.map((call) => (
+              <TableRow key={call.id}>
+                <TableCell className='font-medium'>{call.toNumber}</TableCell>
+                <TableCell>
+                  {new Date(call.createdAt).toLocaleString()}
+                </TableCell>
+                <TableCell>
+                  <Badge variant='secondary' className='rounded-lg'>
+                    {call.status}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  {call.outcome ? (
+                    <Badge
+                      className='rounded-lg'
+                      variant={
+                        call.outcome === 'appointment_booked' ||
+                        call.outcome === 'confirmed'
+                          ? 'default'
+                          : 'outline'
+                      }
+                    >
+                      {t.has(`outcomes.${call.outcome}`)
+                        ? t(`outcomes.${call.outcome}`)
+                        : call.outcome}
+                    </Badge>
+                  ) : (
+                    <span className='text-muted-foreground'>—</span>
+                  )}
+                </TableCell>
+                <TableCell className='text-muted-foreground max-w-md truncate text-sm'>
+                  {call.summary ?? '—'}
+                </TableCell>
+                <TableCell className='text-right'>
+                  {call.callId ? (
+                    <CallListRowActions
+                      callId={call.callId}
+                      callFrom={call.fromNumber}
+                      callTo={call.toNumber}
+                      phoneNumber={call.toNumber}
+                      onView={() => setSelectedCallId(call.callId)}
+                    />
+                  ) : (
+                    <span className='text-muted-foreground'>—</span>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </Card>
+    </>
   );
 }

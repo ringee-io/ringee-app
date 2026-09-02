@@ -244,7 +244,8 @@ export const columns: ColumnDef<AvailableNumber>[] = [
       variant: 'select',
       options: [
         { label: 'Local', value: 'local' },
-        { label: 'Toll Free', value: 'toll_free' }
+        { label: 'Toll Free', value: 'toll_free' },
+        { label: 'Mobile', value: 'mobile' }
       ]
     },
     enableColumnFilter: true

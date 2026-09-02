@@ -262,6 +262,7 @@
   "calls": {
     "loadError": "No se pudieron cargar las llamadas de este agente.",
     "empty": "Este agente todavía no ha llamado a nadie.",
+    "detailDescription": "Revisa esta llamada sin salir del agente.",
     "phone": "Teléfono",
     "started": "Iniciada",
     "status": "Estado",

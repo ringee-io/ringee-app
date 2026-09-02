@@ -1,7 +1,6 @@
 import { searchParamsCache } from '@ringee/frontend-shared/lib/searchparams';
 import { ContactTableClient } from './contact-table-client';
 import { apiServer } from '@ringee/frontend-shared/lib/api.server';
-import { serialize } from '@ringee/frontend-shared/lib/searchparams';
 import { unstable_noStore as noStore } from 'next/cache';
 
 export default async function ContactListingPage() {
@@ -13,11 +12,6 @@ export default async function ContactListingPage() {
   const sort = searchParamsCache.get('sort');
   const tags = searchParamsCache.get('tags');
 
-  const filters = {
-    page,
-    limit: pageLimit,
-    ...(search && { search })
-  };
   const sorting = sort?.length
     ? sort.reduce(
         (acc, item) => ({
@@ -28,17 +22,19 @@ export default async function ContactListingPage() {
       )
     : undefined;
 
-  let apiUrl = `/contacts${serialize(filters)}`;
+  // The dashboard URL calls this value `perPage`, while the contacts API calls
+  // it `limit`. Passing `limit` through the shared dashboard serializer silently
+  // dropped it because that serializer only owns dashboard query keys, leaving
+  // the API on its default of 10 regardless of the selected page size.
+  const params = new URLSearchParams({
+    page: String(page),
+    limit: String(pageLimit)
+  });
+  if (search) params.set('search', search);
+  if (sorting) params.set('sort', JSON.stringify(sorting));
+  if (tags.length > 0) params.set('tags', tags.join(','));
 
-  if (sorting) {
-    apiUrl += `${apiUrl.includes('?') ? '&' : '?'}sort=${JSON.stringify(sorting)}`;
-  }
-
-  if (tags && tags.length > 0) {
-    apiUrl += `${apiUrl.includes('?') ? '&' : '?'}tags=${tags.join(',')}`;
-  }
-
-  const data = await apiServer.get(apiUrl);
+  const data = await apiServer.get(`/contacts?${params.toString()}`);
 
   const totalContacts = data.meta.total;
   const contacts = data.data;

@@ -322,6 +322,7 @@
   "calls": {
     "loadError": "Could not load this agent’s calls.",
     "empty": "This agent has not called anyone yet.",
+    "detailDescription": "Review this call without leaving the agent.",
     "phone": "Phone",
     "started": "Started",
     "status": "Status",

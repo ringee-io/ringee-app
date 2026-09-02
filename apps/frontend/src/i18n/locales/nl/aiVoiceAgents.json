@@ -262,6 +262,7 @@
   "calls": {
     "loadError": "Kon de gesprekken van deze agent niet laden.",
     "empty": "Deze agent heeft nog niemand gebeld.",
+    "detailDescription": "Bekijk dit gesprek zonder de agent te verlaten.",
     "phone": "Telefoon",
     "started": "Gestart",
     "status": "Status",
