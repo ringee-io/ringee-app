@@ -146,7 +146,7 @@ export function CallHistoryDetailDialog() {
     >
       <DialogContent
         showCloseButton={false}
-        className='top-0 left-0 flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 p-0 shadow-none data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100 sm:max-w-none'
+        className='data-[state=closed]:zoom-out-100 data-[state=open]:zoom-in-100 top-0 left-0 flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 p-0 shadow-none sm:max-w-none'
       >
         <DialogTitle className='sr-only'>{t('dialogTitle')}</DialogTitle>
         <DialogDescription className='sr-only'>
@@ -219,7 +219,9 @@ export function CallHistoryDetailDialog() {
 
         <main className='min-h-0 flex-1 overflow-y-auto'>
           <div className='mx-auto w-full max-w-7xl px-4 py-6 sm:px-6'>
-            {callId ? <CallDetail callId={callId} showBackLink={false} /> : null}
+            {callId ? (
+              <CallDetail callId={callId} showBackLink={false} />
+            ) : null}
           </div>
         </main>
       </DialogContent>

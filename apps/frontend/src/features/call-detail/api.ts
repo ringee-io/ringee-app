@@ -31,10 +31,7 @@ export function useCallDetailApi() {
     () => ({
       get: (callId: string) =>
         api.get<CallDetail>(`/telephony/calls/${encodeURIComponent(callId)}`),
-      getNavigation: (
-        callId: string,
-        filters: CallDetailNavigationFilters
-      ) => {
+      getNavigation: (callId: string, filters: CallDetailNavigationFilters) => {
         const params = new URLSearchParams();
         if (filters.dateFrom) params.set('dateFrom', filters.dateFrom);
         if (filters.dateTo) params.set('dateTo', filters.dateTo);

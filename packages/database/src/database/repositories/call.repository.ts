@@ -597,9 +597,7 @@ export class CallRepository {
       ...(options.dateFrom || options.dateTo
         ? {
             createdAt: {
-              ...(options.dateFrom
-                ? { gte: new Date(options.dateFrom) }
-                : {}),
+              ...(options.dateFrom ? { gte: new Date(options.dateFrom) } : {}),
               ...(options.dateTo ? { lte: new Date(options.dateTo) } : {}),
             },
           }
