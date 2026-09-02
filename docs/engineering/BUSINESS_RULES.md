@@ -736,9 +736,14 @@ able to set it.
 
 The booking agent may only offer a time returned by `get_available_slots`, and
 may only say a meeting is booked after `book_appointment` returns success. This
-is why the tool path uses `CalendarService.getBookableSlots` — which **fails**
-when the calendar is missing or unreachable — rather than `getAvailability`,
-which deliberately falls back to "everything is free" for the human picker.
+is why the tool path uses `CalendarService.getBookableSlots`, which reads active
+Ringee meetings directly, rather than `getAvailability`, which deliberately
+falls back to "everything is free" for the human picker. Ringee owns the booking
+first; Google or Microsoft is only a best-effort outbound sync target afterward,
+so an external availability failure cannot stop or fabricate a Ringee booking.
+`book_appointment` accepts only an exact slot returned by that same lookup and
+re-checks the overlap under a transaction-scoped workspace row lock before inserting,
+so two concurrent confirmations cannot both reserve the same Ringee time.
 
 - **Risk if violated:** the agent books over real meetings and tells the person
   a time that was never free

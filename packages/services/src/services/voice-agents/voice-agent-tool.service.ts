@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   Injectable,
   Logger,
   UnauthorizedException,
@@ -85,7 +86,6 @@ export class VoiceAgentToolService {
         date,
         timeZone: timezone,
         durationMinutes: agent.meetingDurationMinutes,
-        integrationId: agent.calendarIntegrationId,
       });
 
       return {
@@ -172,6 +172,24 @@ export class VoiceAgentToolService {
     }
 
     try {
+      const timezone = agent.timezone || "UTC";
+      const date = this.dateInTimeZone(start, timezone);
+      const slots = await this.calendars.getBookableSlots(ctx, {
+        date,
+        timeZone: timezone,
+        durationMinutes: agent.meetingDurationMinutes,
+      });
+      const exactSlot = slots.some(
+        (slot) => new Date(slot.start).getTime() === start.getTime(),
+      );
+      if (!exactSlot) {
+        return {
+          ok: false,
+          error:
+            "That time is no longer available. Offer another available time.",
+        };
+      }
+
       const meeting = await this.meetings.createMeeting(ctx, {
         contactId,
         callId: agentCall?.callId ?? undefined,
@@ -180,6 +198,8 @@ export class VoiceAgentToolService {
         duration: agent.meetingDurationMinutes,
         notes: input.notes,
         attendeeEmail: input.attendee_email,
+        calendarIntegrationId: agent.calendarIntegrationId,
+        requireAvailableSlot: true,
       });
 
       const end = new Date(
@@ -206,6 +226,13 @@ export class VoiceAgentToolService {
         },
       };
     } catch (error) {
+      if (error instanceof ConflictException) {
+        return {
+          ok: false,
+          error:
+            "That time is no longer available. Offer another available time.",
+        };
+      }
       const message = error instanceof Error ? error.message : String(error);
       this.logger.error(
         `Booking failed for agent ${agentId} at ${start.toISOString()}: ${message}`,
@@ -258,6 +285,19 @@ export class VoiceAgentToolService {
     if (!start?.trim()) return null;
     const parsed = new Date(start.trim());
     return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  /** The calendar date on which an instant falls in the agent's time zone. */
+  private dateInTimeZone(instant: Date, timeZone: string): string {
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(instant);
+    const part = (type: Intl.DateTimeFormatPartTypes) =>
+      parts.find((value) => value.type === type)?.value ?? "";
+    return `${part("year")}-${part("month")}-${part("day")}`;
   }
 
   /**

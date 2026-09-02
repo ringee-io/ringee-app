@@ -2,6 +2,7 @@ import {
   forwardRef,
   Inject,
   Injectable,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
   Logger,
@@ -106,9 +107,11 @@ export class MeetingService {
       notes?: string;
       attendeeEmail?: string;
       calendarProvider?: "google" | "microsoft";
+      calendarIntegrationId?: string | null;
+      requireAvailableSlot?: boolean;
     },
   ): Promise<Meeting> {
-    const meeting = await this.meetingRepo.create(ctx, {
+    const meetingData = {
       contactId: dto.contactId,
       callId: dto.callId,
       title: dto.title,
@@ -116,7 +119,13 @@ export class MeetingService {
       duration: dto.duration,
       location: dto.location,
       notes: dto.notes,
-    });
+    };
+    const meeting = dto.requireAvailableSlot
+      ? await this.meetingRepo.createIfAvailable(ctx, meetingData)
+      : await this.meetingRepo.create(ctx, meetingData);
+    if (!meeting) {
+      throw new ConflictException("That time is no longer available.");
+    }
 
     // Auto-set call outcome to meeting_booked if linked to a call. Fold the
     // fanout in below, AFTER the calendar event, so the Meet link makes it into
@@ -146,6 +155,7 @@ export class MeetingService {
         duration: dto.duration || 30,
         attendeeEmail: dto.attendeeEmail,
         provider: dto.calendarProvider as any,
+        integrationId: dto.calendarIntegrationId,
       });
       this.logger.log(
         `Synced meeting ${meeting.id} to external calendar: ${calendarResult.externalEventId}`,
@@ -195,7 +205,16 @@ export class MeetingService {
       );
     }
 
-    return meeting;
+    // `createCalendarEvent` persists these fields after Ringee creates the
+    // meeting. Reflect them in this response as well so tool callers receive
+    // the Meet/Teams link without needing a second read.
+    return calendarResult
+      ? {
+          ...meeting,
+          externalEventId: calendarResult.externalEventId,
+          location: calendarResult.meetLink ?? meeting.location,
+        }
+      : meeting;
   }
 
   async getMeetingById(ctx: OwnershipContext, id: string): Promise<Meeting> {
