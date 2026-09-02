@@ -385,11 +385,13 @@ export class TelephonyController {
   ) {
     const ctx = createOwnershipContext(user);
     const requestedUserId = query.userId === "me" ? ctx.userId : query.userId;
+    const dateFrom = parseDateBoundQuery(query.dateFrom, "dateFrom");
+    const dateTo = parseDateBoundQuery(query.dateTo, "dateTo");
 
     return this.callService.getNavigationForOwner(ctx, id, {
       filterUserId: resolveMemberFilter(user, requestedUserId),
-      dateFrom: query.dateFrom,
-      dateTo: query.dateTo,
+      dateFrom,
+      dateTo,
     });
   }
 
@@ -489,4 +491,18 @@ function parseFeatures(
     ALLOWED_FEATURES.has(part as NumberFeature),
   );
   return valid.length > 0 ? Array.from(new Set(valid)) : undefined;
+}
+
+function parseDateBoundQuery(
+  raw: string | undefined,
+  field: "dateFrom" | "dateTo",
+): string | undefined {
+  if (raw === undefined) return undefined;
+
+  const value = raw.trim();
+  if (!value || Number.isNaN(new Date(value).getTime())) {
+    throw new BadRequestException(`${field} must be a valid date`);
+  }
+
+  return value;
 }

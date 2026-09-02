@@ -1,6 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type SetStateAction
+} from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { useVoiceAgentApi, type SaveAgentBody } from '../api';
@@ -124,10 +131,27 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
 
   // Creation still follows the blueprint without sending an override. The
   // detail endpoint resolves that blueprint into concrete values for editing.
-  const [conversation, setConversation] =
+  const [conversation, setConversationState] =
     useState<VoiceAgentConversationSettings | null>(
       agent?.conversationSettings ?? null
     );
+  const conversationBaseline = useRef(
+    JSON.stringify(agent?.conversationSettings ?? null)
+  );
+  const [conversationChanged, setConversationChanged] = useState(false);
+
+  const setConversation = useCallback(
+    (value: SetStateAction<VoiceAgentConversationSettings | null>) => {
+      setConversationState((current) => {
+        const next = typeof value === 'function' ? value(current) : value;
+        setConversationChanged(
+          JSON.stringify(next) !== conversationBaseline.current
+        );
+        return next;
+      });
+    },
+    []
+  );
 
   const [calendarId, setCalendarId] = useState(
     agent?.calendarIntegrationId ?? ''
@@ -339,7 +363,7 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
       companyDescription: company.companyDescription?.trim() || null,
       analysis: { summary, sentiment },
       extractionFields: fields.filter((f) => f.key && f.label),
-      ...(conversation ? { conversation } : {}),
+      ...(conversationChanged && conversation ? { conversation } : {}),
       callerNumberId: callerNumberId || null,
       ...(type === 'appointment_booking'
         ? {
@@ -360,6 +384,7 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
       sentiment,
       fields,
       conversation,
+      conversationChanged,
       callerNumberId,
       type,
       calendarId,

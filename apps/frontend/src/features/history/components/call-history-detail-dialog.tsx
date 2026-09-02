@@ -71,25 +71,35 @@ export function CallHistoryDetailDialog() {
     [dateFrom, dateTo, memberId]
   );
 
-  const loadNavigation = useCallback(async () => {
+  useEffect(() => {
+    let cancelled = false;
+
     if (!callId) {
       setNavigation(undefined);
       setNavigationFailed(false);
-      return;
+      return () => {
+        cancelled = true;
+      };
     }
 
     setNavigation(undefined);
     setNavigationFailed(false);
-    try {
-      setNavigation(await api.getNavigation(callId, filters));
-    } catch {
-      setNavigationFailed(true);
-    }
-  }, [api, callId, filters]);
 
-  useEffect(() => {
-    void loadNavigation();
-  }, [loadNavigation]);
+    void api
+      .getNavigation(callId, filters)
+      .then((result) => {
+        if (cancelled) return;
+        setNavigation(result);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setNavigationFailed(true);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [api, callId, filters]);
 
   const close = useCallback(() => {
     void setCallId(null, { history: 'replace', shallow: true });

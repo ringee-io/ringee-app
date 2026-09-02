@@ -211,8 +211,8 @@ function ToolButton({
           aria-label={label}
           onMouseDown={(event) => {
             event.preventDefault();
-            onRun();
           }}
+          onClick={onRun}
         >
           {children}
         </Button>
