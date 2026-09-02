@@ -375,6 +375,24 @@ export class TelephonyController {
     return this.callService.findOneBySessionId(sessionId);
   }
 
+  /** Adjacent calls in the same filtered, member-scoped history result. */
+  @Get("calls/:id/navigation")
+  async getCallNavigation(
+    @CurrentUser() user: CurrentUserData,
+    @Param("id", ParseUUIDPipe) id: string,
+    @Query()
+    query: { dateFrom?: string; dateTo?: string; userId?: string } = {},
+  ) {
+    const ctx = createOwnershipContext(user);
+    const requestedUserId = query.userId === "me" ? ctx.userId : query.userId;
+
+    return this.callService.getNavigationForOwner(ctx, id, {
+      filterUserId: resolveMemberFilter(user, requestedUserId),
+      dateFrom: query.dateFrom,
+      dateTo: query.dateTo,
+    });
+  }
+
   /**
    * One call, with every relation the detail screen renders.
    *

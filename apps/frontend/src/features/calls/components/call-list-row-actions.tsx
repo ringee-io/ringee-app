@@ -23,6 +23,7 @@ interface CallListRowActionsProps {
   callFrom?: string;
   callTo?: string;
   phoneNumber?: string;
+  onView?: () => void;
 }
 
 export function CallListRowActions({
@@ -30,7 +31,8 @@ export function CallListRowActions({
   recordingUrl,
   callFrom,
   callTo,
-  phoneNumber
+  phoneNumber,
+  onView
 }: CallListRowActionsProps) {
   const t = useTranslations('common');
   const tHistory = useTranslations('calls.history.table');
@@ -43,12 +45,19 @@ export function CallListRowActions({
   return (
     <>
       <TableRowActions label={t('openActions')} menuLabel={t('actions')}>
-        <DropdownMenuItem asChild>
-          <Link href={`/dashboard/call/${callId}`}>
+        {onView ? (
+          <DropdownMenuItem onClick={onView}>
             <Eye className='h-4 w-4' />
             {t('view')}
-          </Link>
-        </DropdownMenuItem>
+          </DropdownMenuItem>
+        ) : (
+          <DropdownMenuItem asChild>
+            <Link href={`/dashboard/call/${callId}`}>
+              <Eye className='h-4 w-4' />
+              {t('view')}
+            </Link>
+          </DropdownMenuItem>
+        )}
 
         {phoneNumber ? (
           <DropdownMenuItem onClick={() => handleRecall(phoneNumber)}>

@@ -68,7 +68,13 @@ import { Stat, ToneBadge } from './primitives';
  * who dialed, and every fact that applies to both — cost, routing, recording —
  * stays in the same place either way.
  */
-export function CallDetail({ callId }: { callId: string }) {
+export function CallDetail({
+  callId,
+  showBackLink = true
+}: {
+  callId: string;
+  showBackLink?: boolean;
+}) {
   const t = useTranslations('calls.detail');
   const tStatus = useTranslations('calls.statusValues');
   const labels = useEnumLabels();
@@ -94,12 +100,12 @@ export function CallDetail({ callId }: { callId: string }) {
     void load();
   }, [load]);
 
-  if (loading) return <LoadingState />;
+  if (loading) return <LoadingState showBackLink={showBackLink} />;
 
   if (failure || !call) {
     return (
       <div className='w-full space-y-4'>
-        <BackLink />
+        {showBackLink ? <BackLink /> : null}
         <Alert variant='destructive' className='rounded-xl'>
           <AlertTriangle className='size-4' />
           <AlertTitle>{t('errorTitle')}</AlertTitle>
@@ -135,7 +141,7 @@ export function CallDetail({ callId }: { callId: string }) {
 
   return (
     <div className='w-full space-y-5'>
-      <BackLink />
+      {showBackLink ? <BackLink /> : null}
 
       <header className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
         <div className='min-w-0'>
@@ -245,10 +251,10 @@ function BackLink() {
   );
 }
 
-function LoadingState() {
+function LoadingState({ showBackLink }: { showBackLink: boolean }) {
   return (
     <div className='w-full space-y-5'>
-      <Skeleton className='h-8 w-32 rounded-lg' />
+      {showBackLink ? <Skeleton className='h-8 w-32 rounded-lg' /> : null}
       <Skeleton className='h-12 w-72 rounded-lg' />
       <div className='flex flex-col gap-3 sm:flex-row'>
         {[0, 1, 2, 3].map((i) => (

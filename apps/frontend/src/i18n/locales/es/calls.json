@@ -167,6 +167,13 @@
   },
   "detail": {
     "back": "Historial de llamadas",
+    "dialogTitle": "Detalle de llamada",
+    "dialogDescription": "Revisa una llamada sin salir del historial filtrado.",
+    "navigationLabel": "Navegación entre llamadas",
+    "previous": "Llamada anterior",
+    "next": "Llamada siguiente",
+    "position": "Llamada {position} de {total}",
+    "navigationUnavailable": "Navegación no disponible",
     "errorTitle": "Esta llamada no se pudo abrir",
     "errorFallback": "No se pudo abrir esta llamada.",
     "retry": "Reintentar",

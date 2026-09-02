@@ -434,6 +434,13 @@
   },
   "detail": {
     "back": "Call history",
+    "dialogTitle": "Call detail",
+    "dialogDescription": "Review a call without leaving the filtered call history.",
+    "navigationLabel": "Call navigation",
+    "previous": "Previous call",
+    "next": "Next call",
+    "position": "Call {position} of {total}",
+    "navigationUnavailable": "Navigation unavailable",
     "errorTitle": "This call did not open",
     "errorFallback": "Could not open this call.",
     "retry": "Try again",

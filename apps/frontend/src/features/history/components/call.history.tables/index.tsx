@@ -10,6 +10,7 @@ import { parseAsInteger, useQueryState } from 'nuqs';
 import { useTranslations } from 'next-intl';
 import { DateRangeFilter } from '@/components/date-range-filter';
 import { useMemberFilterColumn } from '@/components/use-member-filter-column';
+import { CallHistoryDetailDialog } from '../call-history-detail-dialog';
 
 interface CallTableParams<TData, TValue> {
   data: TData[];
@@ -55,22 +56,25 @@ export function CallTable<TData, TValue>({
     : undefined;
 
   return (
-    <DataTable table={table}>
-      <div className='flex w-full items-center justify-between gap-2 p-1'>
-        <div className='flex flex-1 flex-wrap items-center gap-2'>
-          <DateRangeFilter />
-          {memberTableColumn && (
-            <DataTableFacetedFilter
-              column={memberTableColumn}
-              title={t('member')}
-              options={memberOptions}
-            />
-          )}
+    <>
+      <CallHistoryDetailDialog />
+      <DataTable table={table}>
+        <div className='flex w-full items-center justify-between gap-2 p-1'>
+          <div className='flex flex-1 flex-wrap items-center gap-2'>
+            <DateRangeFilter />
+            {memberTableColumn && (
+              <DataTableFacetedFilter
+                column={memberTableColumn}
+                title={t('member')}
+                options={memberOptions}
+              />
+            )}
+          </div>
+          <div className='flex items-center gap-2'>
+            <DataTableViewOptions table={table} />
+          </div>
         </div>
-        <div className='flex items-center gap-2'>
-          <DataTableViewOptions table={table} />
-        </div>
-      </div>
-    </DataTable>
+      </DataTable>
+    </>
   );
 }

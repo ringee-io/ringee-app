@@ -167,6 +167,13 @@
   },
   "detail": {
     "back": "Historique des appels",
+    "dialogTitle": "Détail de l’appel",
+    "dialogDescription": "Consultez un appel sans quitter l’historique filtré.",
+    "navigationLabel": "Navigation entre les appels",
+    "previous": "Appel précédent",
+    "next": "Appel suivant",
+    "position": "Appel {position} sur {total}",
+    "navigationUnavailable": "Navigation indisponible",
     "errorTitle": "Cet appel n'a pas pu être ouvert",
     "errorFallback": "Impossible d'ouvrir cet appel.",
     "retry": "Réessayer",
