@@ -167,6 +167,13 @@
   },
   "detail": {
     "back": "Oproepgeschiedenis",
+    "dialogTitle": "Oproepdetails",
+    "dialogDescription": "Bekijk een oproep zonder de gefilterde geschiedenis te verlaten.",
+    "navigationLabel": "Oproepnavigatie",
+    "previous": "Vorige oproep",
+    "next": "Volgende oproep",
+    "position": "Oproep {position} van {total}",
+    "navigationUnavailable": "Navigatie niet beschikbaar",
     "errorTitle": "Dit gesprek kon niet worden geopend",
     "errorFallback": "Kon dit gesprek niet openen.",
     "retry": "Opnieuw proberen",

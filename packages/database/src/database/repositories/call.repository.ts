@@ -528,7 +528,9 @@ export class CallRepository {
         where,
         skip,
         take: +limit,
-        orderBy: { [orderBy]: sortDirection },
+        // UUID is the deterministic tie-breaker for calls created in the same
+        // instant. The history detail navigator uses this exact ordering.
+        orderBy: [{ [orderBy]: sortDirection }, { id: sortDirection }],
         include: {
           contact: includeMeetings
             ? {
@@ -564,6 +566,85 @@ export class CallRepository {
       total,
       page,
       totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /**
+   * The calls immediately around `id` in the filtered history order.
+   *
+   * History is newest-first, so `previousId` is the nearest newer call and
+   * `nextId` the nearest older one. The current call is loaded through the same
+   * ownership/member/date predicate first: an id outside that result set never
+   * becomes an anchor for probing another workspace's calls.
+   */
+  async findNavigationForOwner(
+    ctx: OwnershipContext,
+    id: string,
+    options: {
+      filterUserId?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    } = {},
+  ): Promise<{
+    previousId: string | null;
+    nextId: string | null;
+    position: number;
+    total: number;
+  } | null> {
+    const scopedWhere: Prisma.CallWhereInput = {
+      ...buildOwnershipFilter(ctx),
+      ...(options.filterUserId ? { userId: options.filterUserId } : {}),
+      ...(options.dateFrom || options.dateTo
+        ? {
+            createdAt: {
+              ...(options.dateFrom ? { gte: new Date(options.dateFrom) } : {}),
+              ...(options.dateTo ? { lte: new Date(options.dateTo) } : {}),
+            },
+          }
+        : {}),
+    };
+
+    const current = await this.prisma.call.findFirst({
+      where: { ...scopedWhere, id },
+      select: { id: true, createdAt: true },
+    });
+    if (!current) return null;
+
+    const newerWhere: Prisma.CallWhereInput = {
+      ...scopedWhere,
+      OR: [
+        { createdAt: { gt: current.createdAt } },
+        { createdAt: current.createdAt, id: { gt: current.id } },
+      ],
+    };
+    const olderWhere: Prisma.CallWhereInput = {
+      ...scopedWhere,
+      OR: [
+        { createdAt: { lt: current.createdAt } },
+        { createdAt: current.createdAt, id: { lt: current.id } },
+      ],
+    };
+
+    const [previous, next, total, newerCount] = await Promise.all([
+      this.prisma.call.findFirst({
+        where: newerWhere,
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        select: { id: true },
+      }),
+      this.prisma.call.findFirst({
+        where: olderWhere,
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        select: { id: true },
+      }),
+      this.prisma.call.count({ where: scopedWhere }),
+      this.prisma.call.count({ where: newerWhere }),
+    ]);
+
+    return {
+      previousId: previous?.id ?? null,
+      nextId: next?.id ?? null,
+      position: newerCount + 1,
+      total,
     };
   }
 

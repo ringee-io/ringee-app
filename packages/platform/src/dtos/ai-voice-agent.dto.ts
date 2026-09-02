@@ -23,6 +23,11 @@ import {
 const AGENT_TYPES = ["appointment_booking", "reminders_notifications"] as const;
 const MODEL_PROVIDERS = ["ringee", "openai", "anthropic", "google"] as const;
 const EXTRACTION_TYPES = ["text", "number", "boolean", "select"] as const;
+const GREETING_MODES = [
+  "assistant_speaks_first",
+  "assistant_generates_greeting",
+  "assistant_waits_for_user",
+] as const;
 
 /**
  * Validation here is the boundary that decides what a user sees when they get
@@ -121,6 +126,34 @@ export class VoiceAgentAnalysisDto {
   sentiment?: boolean;
 }
 
+export class VoiceAgentConversationSettingsDto {
+  @IsIn(GREETING_MODES, { message: "Choose when the assistant should speak." })
+  greetingMode!: (typeof GREETING_MODES)[number];
+
+  @IsString()
+  @MaxLength(3000, {
+    message: "The greeting has to be 3000 characters or fewer.",
+  })
+  greeting!: string;
+
+  @IsString()
+  @IsNotEmpty({ message: "Instructions cannot be empty." })
+  @MaxLength(100000, {
+    message: "Instructions have to be 100,000 characters or fewer.",
+  })
+  instructions!: string;
+
+  @IsBoolean()
+  postConversationEnabled!: boolean;
+
+  @IsString()
+  @MaxLength(20000, {
+    message:
+      "Post-conversation instructions have to be 20,000 characters or fewer.",
+  })
+  postConversationInstructions!: string;
+}
+
 export class SaveVoiceAgentDto {
   @IsOptional()
   @IsString()
@@ -178,6 +211,11 @@ export class SaveVoiceAgentDto {
   @ValidateNested({ each: true })
   @Type(() => VoiceAgentExtractionFieldDto)
   extractionFields?: VoiceAgentExtractionFieldDto[];
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => VoiceAgentConversationSettingsDto)
+  conversation?: VoiceAgentConversationSettingsDto;
 
   /**
    * The number this agent presents. Null clears the assignment and puts the

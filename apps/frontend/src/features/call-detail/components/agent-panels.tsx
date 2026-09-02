@@ -248,33 +248,19 @@ export function AgentMeetingPanel({
   );
 }
 
-/**
- * The AI half of the bill, kept separate from telephony.
- *
- * They are two different charges — the provider's model and speech cost, and
- * the minutes on the wire — and a workspace reconciling spend needs to see
- * which is which rather than one blended number.
- */
+/** The customer-facing AI charge; internal provider cost is never displayed. */
 export function AgentCostPanel({
   agentCall
 }: {
   agentCall: CallDetailAgentCall;
 }) {
   const t = useTranslations('calls.detail');
-  if (agentCall.aiCostUsd === null && agentCall.aiChargedCredits === null) {
-    return null;
-  }
+  if (agentCall.aiChargedCredits === null) return null;
+
   return (
     <div className='divide-y'>
-      <Fact label={t('ai.providerCost')}>
-        {formatMoney(agentCall.aiCostUsd)}
-      </Fact>
       <Fact label={t('ai.charged')}>
-        {agentCall.aiChargedCredits === null ? (
-          <Empty />
-        ) : (
-          t('credits', { value: agentCall.aiChargedCredits.toFixed(2) })
-        )}
+        {t('credits', { value: agentCall.aiChargedCredits.toFixed(2) })}
       </Fact>
     </div>
   );

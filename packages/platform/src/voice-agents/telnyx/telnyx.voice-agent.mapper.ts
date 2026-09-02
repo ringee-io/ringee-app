@@ -52,6 +52,7 @@ export interface TelnyxAssistantPayload {
   voice_settings?: { voice: string };
   transcription?: { model: string; language: string };
   insight_settings?: { insight_group_id: string };
+  post_conversation_settings?: { enabled: boolean };
   telephony_settings: {
     supports_unauthenticated_web_calls: boolean;
     time_limit_secs?: number;
@@ -74,6 +75,7 @@ export interface TelnyxAssistantPayload {
  * agent never receives a turn, and the call reads as an agent that cannot hear.
  */
 const TRANSCRIPTION_MODEL = "deepgram/flux";
+const BROAD_LANGUAGE_TRANSCRIPTION_MODEL = "deepgram/nova-3";
 
 /** The languages Deepgram Flux transcribes on Telnyx. */
 const TRANSCRIBED_LANGUAGES = new Set([
@@ -90,19 +92,35 @@ const TRANSCRIBED_LANGUAGES = new Set([
 ]);
 
 /**
- * A single language transcribes more accurately, and with lower latency, than
- * the multilingual mode — so `multi` is the fallback for a language the model
- * does not list (and for an agent with no voice chosen yet), never the default.
+ * Flux is preferred for its conversational turn-taking in its ten supported
+ * languages. A known language outside that set uses Telnyx's recommended
+ * multilingual model instead of pretending Flux can transcribe it.
  */
 function toTranscription(language: string | undefined): {
   model: string;
   language: string;
 } {
   const base = (language ?? "").split("-")[0]!.toLowerCase();
+  if (base && !TRANSCRIBED_LANGUAGES.has(base)) {
+    return { model: BROAD_LANGUAGE_TRANSCRIPTION_MODEL, language: base };
+  }
   return {
     model: TRANSCRIPTION_MODEL,
-    language: TRANSCRIBED_LANGUAGES.has(base) ? base : "multi",
+    language: base || "multi",
   };
+}
+
+/** Telnyx encodes the three greeting modes in one string field. */
+function toGreeting(config: VoiceAgentConfig): string {
+  switch (config.greetingMode) {
+    case "assistant_generates_greeting":
+      return "<assistant-speaks-first-with-model-generated-message>";
+    case "assistant_waits_for_user":
+      return "";
+    case "assistant_speaks_first":
+    case undefined:
+      return config.greeting;
+  }
 }
 
 /**
@@ -155,7 +173,7 @@ export function toAssistantPayload(
   return {
     name: config.name,
     instructions: config.instructions,
-    greeting: config.greeting,
+    greeting: toGreeting(config),
     model: config.modelId,
     ...(config.llmApiKeyRef ? { llm_api_key_ref: config.llmApiKeyRef } : {}),
     enabled_features: ["telephony"],
@@ -168,6 +186,13 @@ export function toAssistantPayload(
     ...(config.insightGroupId
       ? { insight_settings: { insight_group_id: config.insightGroupId } }
       : {}),
+    ...(config.postConversationEnabled === undefined
+      ? {}
+      : {
+          post_conversation_settings: {
+            enabled: config.postConversationEnabled,
+          },
+        }),
     telephony_settings: {
       supports_unauthenticated_web_calls: options.unauthenticatedWebCalls,
       ...(config.maxCallSeconds

@@ -122,13 +122,62 @@ describe("toAssistantPayload", () => {
     expect(payload.transcription?.language).toBe("pt");
   });
 
-  it("falls back to the multilingual mode rather than to English", () => {
-    for (const language of [undefined, "sv"]) {
-      const payload = toAssistantPayload(config({ language }), {
+  it("uses multilingual detection when the agent has no language yet", () => {
+    const payload = toAssistantPayload(config({ language: undefined }), {
+      unauthenticatedWebCalls: false,
+    });
+    expect(payload.transcription).toEqual({
+      model: "deepgram/flux",
+      language: "multi",
+    });
+  });
+
+  it("uses Telnyx's broader multilingual model outside Flux languages", () => {
+    const payload = toAssistantPayload(config({ language: "sv-SE" }), {
+      unauthenticatedWebCalls: false,
+    });
+    expect(payload.transcription).toEqual({
+      model: "deepgram/nova-3",
+      language: "sv",
+    });
+  });
+
+  it("maps each product greeting mode to Telnyx's string convention", () => {
+    expect(
+      toAssistantPayload(config({ greetingMode: "assistant_speaks_first" }), {
         unauthenticatedWebCalls: false,
-      });
-      expect(payload.transcription?.language).toBe("multi");
-    }
+      }).greeting,
+    ).toBe("Hi, this is Sofia.");
+    expect(
+      toAssistantPayload(
+        config({ greetingMode: "assistant_generates_greeting" }),
+        { unauthenticatedWebCalls: false },
+      ).greeting,
+    ).toBe("<assistant-speaks-first-with-model-generated-message>");
+    expect(
+      toAssistantPayload(config({ greetingMode: "assistant_waits_for_user" }), {
+        unauthenticatedWebCalls: false,
+      }).greeting,
+    ).toBe("");
+  });
+
+  it("enables Telnyx's post-conversation turn when requested", () => {
+    const enabled = toAssistantPayload(
+      config({ postConversationEnabled: true }),
+      { unauthenticatedWebCalls: false },
+    );
+    expect(enabled.post_conversation_settings).toEqual({ enabled: true });
+
+    const disabled = toAssistantPayload(
+      config({ postConversationEnabled: false }),
+      { unauthenticatedWebCalls: false },
+    );
+    expect(disabled.post_conversation_settings).toEqual({ enabled: false });
+
+    const omitted = toAssistantPayload(config(), {
+      unauthenticatedWebCalls: false,
+    });
+    expect(omitted.post_conversation_settings).toBeUndefined();
   });
 
   it("caps call length and enables recording when asked", () => {

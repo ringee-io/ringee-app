@@ -21,7 +21,7 @@ import type {
   CallListAgentRef,
   CallSource
 } from '@/features/call-detail/types';
-import { CallListRowActions } from '@/features/calls/components/call-list-row-actions';
+import { HistoryCallRowActions } from '../call-history-detail-dialog';
 
 type RecordingData = {
   id: string;
@@ -294,7 +294,7 @@ export const columns: ColumnDef<Call>[] = [
           ? row.original.fromNumber
           : row.original.toNumber;
       return (
-        <CallListRowActions
+        <HistoryCallRowActions
           callId={row.original.id}
           recordingUrl={recordingUrl}
           callFrom={row.original.fromNumber}

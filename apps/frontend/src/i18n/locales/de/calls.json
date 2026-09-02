@@ -167,6 +167,13 @@
   },
   "detail": {
     "back": "Anrufverlauf",
+    "dialogTitle": "Anrufdetails",
+    "dialogDescription": "Prüfen Sie einen Anruf, ohne den gefilterten Verlauf zu verlassen.",
+    "navigationLabel": "Anrufnavigation",
+    "previous": "Vorheriger Anruf",
+    "next": "Nächster Anruf",
+    "position": "Anruf {position} von {total}",
+    "navigationUnavailable": "Navigation nicht verfügbar",
     "errorTitle": "Dieser Anruf konnte nicht geöffnet werden",
     "errorFallback": "Dieser Anruf konnte nicht geöffnet werden.",
     "retry": "Erneut versuchen",

@@ -167,6 +167,13 @@
   },
   "detail": {
     "back": "Histórico de chamadas",
+    "dialogTitle": "Detalhe da chamada",
+    "dialogDescription": "Consulte uma chamada sem sair do histórico filtrado.",
+    "navigationLabel": "Navegação entre chamadas",
+    "previous": "Chamada anterior",
+    "next": "Chamada seguinte",
+    "position": "Chamada {position} de {total}",
+    "navigationUnavailable": "Navegação indisponível",
     "errorTitle": "Esta chamada não abriu",
     "errorFallback": "Não foi possível abrir esta chamada.",
     "retry": "Tentar novamente",

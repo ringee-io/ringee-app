@@ -1,7 +1,13 @@
 'use client';
 
 import type { ReactNode } from 'react';
+import { HelpCircle } from 'lucide-react';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger
+} from '@ringee/frontend-shared/components/ui/tooltip';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 
 /**
@@ -31,6 +37,7 @@ export function Field({
   label,
   htmlFor,
   hint,
+  tooltip,
   error,
   required,
   action,
@@ -40,6 +47,8 @@ export function Field({
   label: string;
   htmlFor?: string;
   hint?: string;
+  /** Short description revealed on hover, focus or tap. */
+  tooltip?: string;
   /** The server's or the form's reason this value is not acceptable. */
   error?: string;
   required?: boolean;
@@ -51,14 +60,32 @@ export function Field({
   return (
     <div className={cn('space-y-2', className)}>
       <div className='flex min-h-6 items-center justify-between gap-2'>
-        <Label htmlFor={htmlFor} className='text-sm font-medium'>
-          {label}
-          {required ? (
-            <span className='text-muted-foreground ml-0.5' aria-hidden>
-              *
-            </span>
+        <div className='flex items-center gap-1.5'>
+          <Label htmlFor={htmlFor} className='text-sm font-medium'>
+            {label}
+            {required ? (
+              <span className='text-muted-foreground ml-0.5' aria-hidden>
+                *
+              </span>
+            ) : null}
+          </Label>
+          {tooltip ? (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  type='button'
+                  className='text-muted-foreground hover:text-foreground focus-visible:ring-ring inline-flex size-7 cursor-help items-center justify-center rounded-md transition-colors focus-visible:ring-2 focus-visible:outline-none'
+                  aria-label={`${label}: ${tooltip}`}
+                >
+                  <HelpCircle className='size-3.5' />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side='top' className='max-w-72'>
+                {tooltip}
+              </TooltipContent>
+            </Tooltip>
           ) : null}
-        </Label>
+        </div>
         {action}
       </div>
 

@@ -656,6 +656,24 @@ export class CallService implements OnModuleDestroy {
     return call;
   }
 
+  async getNavigationForOwner(
+    ctx: OwnershipContext,
+    id: string,
+    options: {
+      filterUserId?: string;
+      dateFrom?: string;
+      dateTo?: string;
+    } = {},
+  ) {
+    const navigation = await this.callRepository.findNavigationForOwner(
+      ctx,
+      id,
+      options,
+    );
+    if (!navigation) throw new NotFoundException("Call not found");
+    return navigation;
+  }
+
   async listWithRecordings(params: {
     ctx: OwnershipContext;
     dateFrom?: Date;

@@ -11,6 +11,7 @@ import type {
   VoiceAgentCall,
   VoiceAgentCallerNumber,
   VoiceAgentCallResult,
+  VoiceAgentConversationSettings,
   VoiceAgentExtractionField,
   VoiceAgentKnowledgeLibraryEntry,
   VoiceAgentKnowledgeSource,
@@ -36,6 +37,7 @@ export interface SaveAgentBody {
   companyDescription?: string | null;
   analysis?: { summary?: boolean; sentiment?: boolean };
   extractionFields?: VoiceAgentExtractionField[];
+  conversation?: VoiceAgentConversationSettings;
   callerNumberId?: string | null;
   calendarIntegrationId?: string | null;
   meetingDurationMinutes?: number;

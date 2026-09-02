@@ -1,6 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type SetStateAction
+} from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import { useVoiceAgentApi, type SaveAgentBody } from '../api';
@@ -10,6 +17,7 @@ import type {
   CompanyProfile,
   VoiceAgent,
   VoiceAgentCallerNumber,
+  VoiceAgentConversationSettings,
   VoiceAgentExtractionField,
   VoiceAgentModelOption,
   VoiceAgentModelProvider,
@@ -32,7 +40,10 @@ import type {
  */
 
 /** Which step of the form a field belongs to, so a wizard can jump to it. */
-export const FIELD_STEPS: Record<string, 'setup' | 'voice' | 'company'> = {
+export const FIELD_STEPS: Record<
+  string,
+  'setup' | 'voice' | 'company' | 'conversation'
+> = {
   name: 'setup',
   modelProvider: 'setup',
   apiKey: 'setup',
@@ -44,7 +55,10 @@ export const FIELD_STEPS: Record<string, 'setup' | 'voice' | 'company'> = {
   voiceId: 'voice',
   companyName: 'company',
   companyWebsite: 'company',
-  companyDescription: 'company'
+  companyDescription: 'company',
+  'conversation.greeting': 'conversation',
+  'conversation.instructions': 'conversation',
+  'conversation.postConversationInstructions': 'conversation'
 };
 
 export type DraftErrors = Record<string, string>;
@@ -113,6 +127,30 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
   );
   const [fields, setFields] = useState<VoiceAgentExtractionField[]>(
     agent?.extractionFields ?? []
+  );
+
+  // Creation still follows the blueprint without sending an override. The
+  // detail endpoint resolves that blueprint into concrete values for editing.
+  const [conversation, setConversationState] =
+    useState<VoiceAgentConversationSettings | null>(
+      agent?.conversationSettings ?? null
+    );
+  const conversationBaseline = useRef(
+    JSON.stringify(agent?.conversationSettings ?? null)
+  );
+  const [conversationChanged, setConversationChanged] = useState(false);
+
+  const setConversation = useCallback(
+    (value: SetStateAction<VoiceAgentConversationSettings | null>) => {
+      setConversationState((current) => {
+        const next = typeof value === 'function' ? value(current) : value;
+        setConversationChanged(
+          JSON.stringify(next) !== conversationBaseline.current
+        );
+        return next;
+      });
+    },
+    []
   );
 
   const [calendarId, setCalendarId] = useState(
@@ -205,6 +243,27 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
       }
     });
 
+    if (conversation) {
+      if (!conversation.instructions.trim()) {
+        found['conversation.instructions'] = t('instructionsRequired');
+      } else if (conversation.instructions.length > 100000) {
+        found['conversation.instructions'] = t('instructionsTooLong');
+      }
+      if (
+        conversation.greetingMode === 'assistant_speaks_first' &&
+        !conversation.greeting.trim()
+      ) {
+        found['conversation.greeting'] = t('greetingRequired');
+      } else if (conversation.greeting.length > 3000) {
+        found['conversation.greeting'] = t('greetingTooLong');
+      }
+      if (conversation.postConversationInstructions.length > 20000) {
+        found['conversation.postConversationInstructions'] = t(
+          'postInstructionsTooLong'
+        );
+      }
+    }
+
     return found;
   }, [
     name,
@@ -217,6 +276,7 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
     duration,
     timezone,
     fields,
+    conversation,
     t
   ]);
 
@@ -303,6 +363,7 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
       companyDescription: company.companyDescription?.trim() || null,
       analysis: { summary, sentiment },
       extractionFields: fields.filter((f) => f.key && f.label),
+      ...(conversationChanged && conversation ? { conversation } : {}),
       callerNumberId: callerNumberId || null,
       ...(type === 'appointment_booking'
         ? {
@@ -322,6 +383,8 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
       summary,
       sentiment,
       fields,
+      conversation,
+      conversationChanged,
       callerNumberId,
       type,
       calendarId,
@@ -414,6 +477,8 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
     setSentiment,
     fields,
     setFields,
+    conversation,
+    setConversation,
     calendars,
     calendarId,
     setCalendarId,
