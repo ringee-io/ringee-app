@@ -26,7 +26,9 @@ export const searchParams = {
   country: parseAsString.withDefault("US"),
   areaCode: parseAsString,
   countryCode: parseAsString.withDefault("US"),
-  numberType: parseAsStringEnum(["local", "toll_free"]).withDefault("local"),
+  numberType: parseAsStringEnum(["local", "toll_free", "mobile"]).withDefault(
+    "local",
+  ),
   features: parseAsArrayOf(parseAsString).withDefault([]),
   // Date filters for recordings
   dateFrom: parseAsString,

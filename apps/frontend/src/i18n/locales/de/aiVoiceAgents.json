@@ -262,6 +262,7 @@
   "calls": {
     "loadError": "Die Anrufe dieses Agenten konnten nicht geladen werden.",
     "empty": "Dieser Agent hat noch niemanden angerufen.",
+    "detailDescription": "Prüfen Sie diesen Anruf, ohne den Agenten zu verlassen.",
     "phone": "Telefon",
     "started": "Gestartet",
     "status": "Status",

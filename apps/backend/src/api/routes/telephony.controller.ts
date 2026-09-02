@@ -92,7 +92,7 @@ export class TelephonyController {
   async getNumbersByCountry(
     @Param("country") country: string,
     @Query("areaCode") areaCode?: string,
-    @Query("numberType") numberType?: "local" | "toll_free",
+    @Query("numberType") numberType?: "local" | "toll_free" | "mobile",
     @Query("features") features?: string | string[],
     @Query("limit", ParseIntPipe) limit?: number,
   ): Promise<AvailableNumber[] | null> {

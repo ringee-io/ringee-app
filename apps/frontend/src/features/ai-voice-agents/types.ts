@@ -164,6 +164,8 @@ export interface VoiceAgent {
 
 export interface VoiceAgentCall {
   id: string;
+  /** Linked telephony call; null while the provider has not accepted the leg. */
+  callId: string | null;
   toNumber: string;
   fromNumber: string;
   status: string;

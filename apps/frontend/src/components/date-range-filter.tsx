@@ -8,9 +8,9 @@ import {
   PopoverTrigger
 } from '@ringee/frontend-shared/components/ui/popover';
 import { CalendarIcon, XCircle } from 'lucide-react';
-import { useQueryState, parseAsString } from 'nuqs';
+import { parseAsInteger, parseAsString, useQueryStates } from 'nuqs';
 import { DateRange } from 'react-day-picker';
-import { format } from 'date-fns';
+import { endOfDay, format, startOfDay } from 'date-fns';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { useTranslations } from 'next-intl';
 
@@ -21,13 +21,17 @@ import { useTranslations } from 'next-intl';
  */
 export function DateRangeFilter() {
   const t = useTranslations('common.dateFilter');
-  const [dateFrom, setDateFrom] = useQueryState(
-    'dateFrom',
-    parseAsString.withDefault('')
-  );
-  const [dateTo, setDateTo] = useQueryState(
-    'dateTo',
-    parseAsString.withDefault('')
+  const [{ dateFrom, dateTo }, setRange] = useQueryStates(
+    {
+      dateFrom: parseAsString.withDefault(''),
+      dateTo: parseAsString.withDefault(''),
+      page: parseAsInteger.withDefault(1)
+    },
+    {
+      // History and recordings are server-rendered listings. A shallow URL
+      // update changes the label but never asks those listings for new data.
+      shallow: false
+    }
   );
 
   const selectedRange: DateRange = {
@@ -36,22 +40,19 @@ export function DateRangeFilter() {
   };
 
   const handleSelect = (range: DateRange | undefined) => {
-    if (range?.from) {
-      setDateFrom(range.from.toISOString());
-    } else {
-      setDateFrom('');
-    }
-    if (range?.to) {
-      setDateTo(range.to.toISOString());
-    } else {
-      setDateTo('');
-    }
+    void setRange({
+      // Calendar selections are whole local days. Convert their inclusive
+      // boundaries to UTC only after applying local start/end-of-day, so the
+      // final day does not stop at 00:00 and lose the rest of its calls.
+      dateFrom: range?.from ? startOfDay(range.from).toISOString() : null,
+      dateTo: range?.to ? endOfDay(range.to).toISOString() : null,
+      page: 1
+    });
   };
 
   const handleClear = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setDateFrom('');
-    setDateTo('');
+    void setRange({ dateFrom: null, dateTo: null, page: 1 });
   };
 
   const hasValue = dateFrom || dateTo;

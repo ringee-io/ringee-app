@@ -1,72 +1,157 @@
 /// <reference types="node" />
 
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
+import { randomUUID } from "node:crypto";
+import { after, before, describe, it, type TestContext } from "node:test";
+import { PrismaClient } from "@prisma/client";
 import { MeetingRepository } from "./meeting.repository";
 
-const MEETING = {
-  id: "meeting-1",
-  scheduledAt: new Date("2099-01-05T15:00:00.000Z"),
+const prisma = new PrismaClient();
+const repository = new MeetingRepository(prisma as never);
+
+const fixture = {
+  userId: randomUUID(),
+  organizationId: randomUUID(),
+  organizationContactId: randomUUID(),
+  personalContactId: randomUUID(),
 };
 
-function build(conflict = false) {
-  const events: string[] = [];
-  const transaction = {
-    $queryRaw: async (strings: TemplateStringsArray) => {
-      const sql = strings.join("?");
-      if (sql.includes("FOR UPDATE")) {
-        events.push("lock");
-        return [];
-      }
-      events.push("check");
-      return conflict ? [{ id: "meeting-existing" }] : [];
-    },
-    meeting: {
-      create: async () => {
-        events.push("create");
-        return MEETING;
-      },
-    },
-  };
-  const repository = new MeetingRepository({
-    $transaction: async (
-      work: (client: typeof transaction) => Promise<unknown>,
-    ) => work(transaction),
-  } as never);
+let databaseConnected = false;
+let databaseReady = false;
 
-  return { repository, events };
+async function cleanupFixtures() {
+  await prisma.meeting.deleteMany({ where: { userId: fixture.userId } });
+  await prisma.contact.deleteMany({ where: { userId: fixture.userId } });
+  await prisma.organization.deleteMany({
+    where: { id: fixture.organizationId },
+  });
+  await prisma.user.deleteMany({ where: { id: fixture.userId } });
 }
 
-describe("MeetingRepository.createIfAvailable", () => {
-  it("locks, re-checks and creates in one transaction", async () => {
-    const { repository, events } = build();
+function requireDatabase(t: TestContext): boolean {
+  if (databaseReady) return true;
+  t.skip("PostgreSQL is unavailable or the test schema is not initialized");
+  return false;
+}
 
-    const meeting = await repository.createIfAvailable(
-      { userId: "user-1", organizationId: "org-1" },
+function assertExactlyOneBooking(
+  results: Awaited<ReturnType<MeetingRepository["createIfAvailable"]>>[],
+) {
+  assert.equal(
+    results.filter((meeting) => meeting !== null).length,
+    1,
+    "exactly one concurrent request should create a meeting",
+  );
+  assert.equal(
+    results.filter((meeting) => meeting === null).length,
+    1,
+    "the competing request should observe the booked slot",
+  );
+}
+
+before(async () => {
+  try {
+    await prisma.$connect();
+    await prisma.$queryRaw`SELECT 1`;
+    databaseConnected = true;
+  } catch {
+    await prisma.$disconnect().catch(() => undefined);
+    return;
+  }
+
+  await cleanupFixtures();
+  await prisma.user.create({ data: { id: fixture.userId } });
+  await prisma.organization.create({
+    data: {
+      id: fixture.organizationId,
+      clerkId: `meeting-test-${fixture.organizationId}`,
+      name: "Meeting concurrency test",
+    },
+  });
+  await prisma.contact.createMany({
+    data: [
       {
-        contactId: "contact-1",
-        scheduledAt: new Date("2099-01-05T15:00:00.000Z"),
-        duration: 30,
+        id: fixture.organizationContactId,
+        userId: fixture.userId,
+        organizationId: fixture.organizationId,
+        name: "Organization booking",
+        phoneNumber: "+12025550101",
       },
-    );
+      {
+        id: fixture.personalContactId,
+        userId: fixture.userId,
+        organizationId: null,
+        name: "Personal booking",
+        phoneNumber: "+12025550102",
+      },
+    ],
+  });
+  databaseReady = true;
+});
 
-    assert.equal(meeting?.id, "meeting-1");
-    assert.deepEqual(events, ["lock", "check", "create"]);
+after(async () => {
+  if (databaseConnected) {
+    await cleanupFixtures().catch(() => undefined);
+    await prisma.$disconnect();
+  }
+});
+
+describe("MeetingRepository.createIfAvailable", () => {
+  it("allows exactly one concurrent organization booking", async (t) => {
+    if (!requireDatabase(t)) return;
+
+    const ctx = {
+      userId: fixture.userId,
+      organizationId: fixture.organizationId,
+    };
+    const data = {
+      contactId: fixture.organizationContactId,
+      scheduledAt: new Date("2099-01-05T15:00:00.000Z"),
+      duration: 30,
+    };
+
+    const results = await Promise.all([
+      repository.createIfAvailable(ctx, data),
+      repository.createIfAvailable(ctx, data),
+    ]);
+
+    assertExactlyOneBooking(results);
+    assert.equal(
+      await prisma.meeting.count({
+        where: {
+          organizationId: fixture.organizationId,
+          scheduledAt: data.scheduledAt,
+        },
+      }),
+      1,
+    );
   });
 
-  it("does not insert when a meeting now overlaps the slot", async () => {
-    const { repository, events } = build(true);
+  it("allows exactly one concurrent personal booking", async (t) => {
+    if (!requireDatabase(t)) return;
 
-    const meeting = await repository.createIfAvailable(
-      { userId: "user-1" },
-      {
-        contactId: "contact-1",
-        scheduledAt: new Date("2099-01-05T15:00:00.000Z"),
-        duration: 30,
-      },
+    const ctx = { userId: fixture.userId };
+    const data = {
+      contactId: fixture.personalContactId,
+      scheduledAt: new Date("2099-01-06T15:00:00.000Z"),
+      duration: 30,
+    };
+
+    const results = await Promise.all([
+      repository.createIfAvailable(ctx, data),
+      repository.createIfAvailable(ctx, data),
+    ]);
+
+    assertExactlyOneBooking(results);
+    assert.equal(
+      await prisma.meeting.count({
+        where: {
+          userId: fixture.userId,
+          organizationId: null,
+          scheduledAt: data.scheduledAt,
+        },
+      }),
+      1,
     );
-
-    assert.equal(meeting, null);
-    assert.deepEqual(events, ["lock", "check"]);
   });
 });
