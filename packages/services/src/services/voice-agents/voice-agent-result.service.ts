@@ -103,9 +103,7 @@ export class VoiceAgentResultService {
     const delivery = this.provider.parseInsightWebhook(body);
     if (!delivery?.conversationId) return true;
 
-    const agentCall = await this.agentCalls.findByConversationId(
-      delivery.conversationId,
-    );
+    const agentCall = await this.locateByConversation(delivery.conversationId);
     // The token proves which agent asked for the analysis; the row has to
     // agree. A conversation belonging to another agent is not this agent's to
     // write to, however valid the token is.
@@ -231,12 +229,18 @@ export class VoiceAgentResultService {
         : {}),
     });
 
-    // Bind the telephony row too: this is the first event that names the leg.
+    // Bind the telephony row too. The control id is already on it — the dial
+    // path writes it down — but the session and leg handles are not, and this
+    // event is one of the few places they are ever reported. The recording of
+    // this call is filed under the session id, so a row that never learns it is
+    // a call whose audio nothing can find.
     if (agentCall.callId) {
       const call = await this.callRepository.findById(agentCall.callId);
-      if (call && !call.callControlId) {
+      const missingControlId = call && !call.callControlId;
+      const missingSession = call && !call.callSessionId && event.callSessionId;
+      if (call && (missingControlId || missingSession)) {
         await this.callRepository.attachTelephony(call.id, {
-          callControlId: event.callControlId,
+          callControlId: call.callControlId ?? event.callControlId,
           callSessionId: event.callSessionId,
           callLegId: event.callLegId,
         });
@@ -350,22 +354,34 @@ export class VoiceAgentResultService {
       // that never connects it is `busy` or `failed`. Calling any of those
       // "answered" both misreports the call and, if the terminal callback never
       // arrives, leaves it parked in a connected state it never reached.
-      // Leaving the status alone lets `completeCall` settle it, where an absent
-      // `answeredAt` is what auto-dispositions the call as no-answer.
       const connected = status === AiVoiceAgentCallStatus.in_progress;
-      // The identifiers are written when the row is still missing them, and the
-      // answer is recorded whenever the leg connects — two separate reasons to
-      // write, because the row is now bound when the call is placed and would
-      // otherwise never be marked answered at all.
+      // Three separate reasons to write, because the row is bound when the call
+      // is placed: the control id when it is still missing, the session and leg
+      // handles the moment a callback names them — the recording is filed under
+      // the session — and the answer whenever the leg connects.
       const binds = call && !call.callControlId;
-      const answers = call && connected && call.status !== CallStatus.answered;
-      if (call && (binds || answers)) {
+      const learnsSession =
+        call && !call.callSessionId && !!input.callSessionId;
+      const answers =
+        call &&
+        connected &&
+        call.status !== CallStatus.answered &&
+        call.status !== CallStatus.completed &&
+        call.status !== CallStatus.failed;
+      if (call && (binds || learnsSession || answers)) {
         await this.callRepository.attachTelephony(call.id, {
           callControlId,
           callSessionId: input.callSessionId,
           callLegId: input.callLegId,
-          answeredAt: input.answeredAt,
-          ...(connected ? { status: CallStatus.answered } : {}),
+          // The provider's telephony-markup callback carries a status and no
+          // timestamps at all, so a connected leg has to be dated here. Left
+          // unset, the row looks like a call nobody picked up and `completeCall`
+          // dispositions it as a no-answer — on a call that just held a full
+          // conversation.
+          answeredAt: answers
+            ? (input.answeredAt ?? new Date())
+            : input.answeredAt,
+          ...(answers ? { status: CallStatus.answered } : {}),
         });
       }
     }
@@ -375,7 +391,11 @@ export class VoiceAgentResultService {
       // hangup cause and auto-dispositions a call that never connected.
       await this.callRepository.completeCall(
         callControlId,
-        input.startedAt ?? new Date().toISOString(),
+        // Not "now". The row already knows when the call was placed, and
+        // substituting the moment this callback arrived — which is what the
+        // provider forces, since it sends no start time — made every agent call
+        // last zero seconds.
+        input.startedAt,
         input.endedAt ?? new Date().toISOString(),
         input.hangupCause ?? undefined,
       );
@@ -456,6 +476,84 @@ export class VoiceAgentResultService {
   }
 
   // ── Helpers ──────────────────────────────────────────────────
+
+  /**
+   * The call a conversation belongs to, for a delivery that names only the
+   * conversation.
+   *
+   * `providerConversationId` is written by the conversation webhook, and that
+   * webhook is exactly the delivery an agent call cannot count on — so on a
+   * miss the conversation is read from the provider, whose record of it carries
+   * the call it ran on. Without this second look an analysis that arrives
+   * before the sweep has bound the conversation is dropped, and post-call
+   * analysis is delivered once or it is lost (AGENT-009).
+   */
+  async locateByConversation(
+    conversationId: string,
+  ): Promise<AiVoiceAgentCall | null> {
+    const bound = await this.agentCalls.findByConversationId(conversationId);
+    if (bound) return bound;
+
+    const conversation = await this.provider.fetchConversation(conversationId);
+    if (!conversation?.callControlId) return null;
+
+    const agentCall = await this.agentCalls.findByCallControlId(
+      conversation.callControlId,
+    );
+    if (!agentCall) return null;
+
+    return this.bindConversation(agentCall, conversation);
+  }
+
+  /**
+   * Writes a conversation's handles onto the call it belongs to, and returns
+   * the row to keep working from.
+   *
+   * Two rows learn something here: the agent call gets the conversation id that
+   * every later analysis and transcript read is keyed on, and the telephony row
+   * gets the session and leg the provider files this call's recording under.
+   */
+  async bindConversation(
+    agentCall: AiVoiceAgentCall,
+    conversation: {
+      conversationId: string | null;
+      callSessionId?: string | null;
+      callLegId?: string | null;
+    },
+  ): Promise<AiVoiceAgentCall> {
+    let current = agentCall;
+    const conversationId = conversation.conversationId;
+
+    if (conversationId && !current.providerConversationId) {
+      current = await this.agentCalls
+        .update(current.id, {
+          providerConversationId: conversationId,
+        })
+        .catch((error: unknown) => {
+          // `providerConversationId` is unique: another row already holding it
+          // means this call is not the one that conversation belongs to.
+          this.logger.warn(
+            `Could not bind conversation ${conversationId} to agent call ${current.id}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+          return current;
+        });
+    }
+
+    if (current.callId && conversation.callSessionId) {
+      const call = await this.callRepository.findById(current.callId);
+      if (call?.callControlId && !call.callSessionId) {
+        await this.callRepository.attachTelephony(call.id, {
+          callControlId: call.callControlId,
+          callSessionId: conversation.callSessionId,
+          callLegId: conversation.callLegId,
+        });
+      }
+    }
+
+    return current;
+  }
 
   private async locate(
     callControlId: string,

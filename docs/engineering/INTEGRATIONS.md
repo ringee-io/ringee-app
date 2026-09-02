@@ -100,6 +100,26 @@ Clerk (auth, orgs, webhooks) · Stripe (payments) · Telnyx (voice, numbers,
 messaging, WebRTC) · Deepgram (transcription) · Resend (email) · Firebase (push)
 · S3/R2 (storage) · OpenAI / Anthropic (AI pipelines and agents).
 
+### The address providers call Ringee back on
+
+Every URL handed to a provider — an agent's tools, its analysis callback, a call
+status callback, a calling application's event webhook — is built as
+`${PUBLIC_BACKEND_URL}/api/...`, because `api` is the backend's global prefix.
+
+**`PUBLIC_BACKEND_URL` is an origin and nothing else.** A value carrying a path
+(`https://api.example.com/public`) produces URLs the provider dutifully calls
+and Ringee answers `404` to — every one of them, at once, reporting the failure
+nowhere a person looks. What it looks like from the outside is an agent that
+says it is having a technical problem and books nothing, a call with no summary
+and no outcome, and no error anywhere. Deployment configuration is responsible
+for supplying the bare origin; `apiConfiguration` uses the value unchanged.
+
+The URLs a provider **stores** — an assistant's tool webhooks, an insight
+group's callback — are written at save time and outlive the address they were
+built from. They are re-pointed before every dial (`ensureInsightGroup`,
+`ensureToolEndpoints`), which is the only thing that recovers an agent whose
+URLs predate the current address.
+
 ## Contract change checklist
 
 | Changing                    | Also check                                                  |

@@ -3,7 +3,9 @@ import { apiConfiguration } from "@ringee/configuration";
 import {
   AiVoiceAgentCall,
   AiVoiceAgentCallRepository,
+  AiVoiceAgentCallStatus,
   CallRepository,
+  CallStatus,
   RecordingRepository,
 } from "@ringee/database";
 import {
@@ -27,6 +29,16 @@ const USD_PRECISION = 1e6;
  */
 const ARTIFACT_RETRY_WINDOW_MS = 6 * 60 * 60 * 1000;
 const ARTIFACT_SETTLE_DELAY_MS = 2 * 60 * 1000;
+
+/**
+ * How far back the sweep goes for a call still sitting in a dialing state.
+ *
+ * Its money can be entirely settled while its status never moved — the status
+ * callback is the only thing that would have moved it — so it needs a reason
+ * to be revisited that is not "something is still owed". Bounded so a call the
+ * provider will never publish anything about stops being carried forever.
+ */
+const STALLED_CALL_WINDOW_MS = 24 * 60 * 60 * 1000;
 
 export interface VoiceAgentSettlement {
   settled: boolean;
@@ -118,7 +130,11 @@ export class VoiceAgentBillingService {
     // The engine records name the conversation even when no webhook ever did.
     // Writing it down is what lets the token records — which carry no other
     // handle — be found on the next sweep, and what binds insights to the call.
-    const current = await this.bindConversation(agentCall, records);
+    let current = await this.bindConversation(agentCall, records);
+    // The same records say when the call started, when it ended and whether it
+    // ever connected. Closing the row from them is what stops an agent call
+    // whose status callback never arrived from reading as "pending" forever.
+    current = await this.settleCallLifecycle(current, records);
 
     const ai = await this.settleAiUsage(current, records);
     const telephonyCostUsd = await this.settleTelephonyLeg(current, records);
@@ -214,8 +230,116 @@ export class VoiceAgentBillingService {
    * enough to guarantee they were there.
    */
   listPending(olderThanMinutes = 5, take = 50): Promise<AiVoiceAgentCall[]> {
-    const cutoff = new Date(Date.now() - olderThanMinutes * 60_000);
-    return this.agentCalls.listUnsettled(cutoff, take);
+    const now = Date.now();
+    return this.agentCalls.listUnsettled(
+      {
+        updatedBefore: new Date(now - olderThanMinutes * 60_000),
+        stalledAfter: new Date(now - STALLED_CALL_WINDOW_MS),
+      },
+      take,
+    );
+  }
+
+  // ── The call's own timeline ──────────────────────────────────
+
+  /**
+   * Closes the telephony row from the provider's own records.
+   *
+   * The call status callback is a delivery like any other, and an agent call
+   * that never gets one sits at `pending` for the rest of its life: nobody is
+   * on Ringee's end of the leg, so no other event writes `Call.status`, and the
+   * stale-call sweep only reaches calls that made it as far as `ringing`. The
+   * records that price the call also say when it started, when it ended and how
+   * long the two ends were connected — so the read that settles the money
+   * settles the timeline too, and neither one waits on a webhook.
+   *
+   * Idempotent: a row that already has its ending is left exactly as the
+   * callback wrote it, because the callback saw the leg and this only reads
+   * about it.
+   */
+  private async settleCallLifecycle(
+    agentCall: AiVoiceAgentCall,
+    records: VoiceAgentUsageRecord[],
+  ): Promise<AiVoiceAgentCall> {
+    if (!agentCall.callId) return agentCall;
+
+    // Only the voice leg has a timeline; the engine and token records are
+    // aggregates with no start or end of their own.
+    const legs = records.filter(
+      (record) => record.kind === "telephony" && record.endedAt,
+    );
+    if (legs.length === 0) return agentCall;
+
+    const call = await this.calls.findById(agentCall.callId);
+    if (!call?.callControlId) return agentCall;
+
+    // A call can produce several legs — an attempt the far end refused before
+    // the one that connected. `connectedSeconds` is what tells them apart: it
+    // is zero on a refusal, which still reports an end time and still bills.
+    const connectedSeconds = Math.max(
+      0,
+      ...legs.map((leg) => leg.connectedSeconds ?? 0),
+    );
+    const endedAt = this.latest(legs.map((leg) => leg.endedAt));
+    const startedAt = this.earliest(legs.map((leg) => leg.startedAt));
+
+    // The answer is dated before the call is closed, and it has to be: an
+    // absent `answeredAt` is exactly what `completeCall` reads to disposition a
+    // call as a no-answer, which is how conversations that plainly happened
+    // were being filed as calls nobody picked up.
+    if (connectedSeconds > 0 && !call.answeredAt && endedAt) {
+      await this.calls.attachTelephony(call.id, {
+        callControlId: call.callControlId,
+        answeredAt: new Date(endedAt.getTime() - connectedSeconds * 1000),
+        ...(call.status === CallStatus.pending ||
+        call.status === CallStatus.ringing
+          ? { status: CallStatus.answered }
+          : {}),
+      });
+    }
+
+    if (!call.endedAt) {
+      await this.calls.completeCall(call.callControlId, startedAt, endedAt);
+      this.logger.log(
+        `⏱️ Agent call ${agentCall.id} closed from provider records (${connectedSeconds}s connected)`,
+      );
+    }
+
+    return this.settleAgentCallStatus(agentCall, connectedSeconds > 0);
+  }
+
+  /**
+   * Moves the agent call itself out of its dialing state, for the same reason:
+   * the status callback is what normally does it, and the artifact sweep only
+   * looks at calls that reached `completed`. One left at `initiating` is a call
+   * whose recording nothing ever goes back for.
+   */
+  private async settleAgentCallStatus(
+    agentCall: AiVoiceAgentCall,
+    answered: boolean,
+  ): Promise<AiVoiceAgentCall> {
+    const inFlight =
+      agentCall.status === AiVoiceAgentCallStatus.created ||
+      agentCall.status === AiVoiceAgentCallStatus.initiating ||
+      agentCall.status === AiVoiceAgentCallStatus.ringing ||
+      agentCall.status === AiVoiceAgentCallStatus.in_progress;
+    if (!inFlight) return agentCall;
+
+    return this.agentCalls.update(agentCall.id, {
+      status: answered
+        ? AiVoiceAgentCallStatus.completed
+        : AiVoiceAgentCallStatus.no_answer,
+    });
+  }
+
+  private earliest(dates: Array<Date | null>): Date | null {
+    const times = dates.flatMap((date) => (date ? [date.getTime()] : []));
+    return times.length ? new Date(Math.min(...times)) : null;
+  }
+
+  private latest(dates: Array<Date | null>): Date | null {
+    const times = dates.flatMap((date) => (date ? [date.getTime()] : []));
+    return times.length ? new Date(Math.max(...times)) : null;
   }
 
   // ── The AI half ──────────────────────────────────────────────
@@ -412,12 +536,29 @@ export class VoiceAgentBillingService {
       }
 
       const call = await this.calls.findById(agentCall.callId);
-      if (!call?.callSessionId || !call.callControlId) return;
+      if (!call?.callControlId) return;
 
-      const available = await this.provider.fetchRecordings(call.callSessionId);
+      // By control id, not session id. A provider-placed agent leg reports its
+      // session only on an event Ringee may never receive, so a lookup keyed on
+      // the session answered "no recording" for every agent call ever made —
+      // while the audio sat on the provider, findable by the handle the dial
+      // path already wrote down.
+      const available = await this.provider.fetchRecordings({
+        callControlId: call.callControlId,
+        callSessionId: call.callSessionId,
+      });
       const recording = available.find((item) => item.downloadUrl);
       // Finalized after the call ends, so "none yet" is not "never recorded".
       if (!recording?.downloadUrl) return;
+
+      // The recording is the other place the session handle is reported. Worth
+      // writing down: it is how every session-keyed read of this call finds it.
+      if (!call.callSessionId && recording.callSessionId) {
+        await this.calls.attachTelephony(call.id, {
+          callControlId: call.callControlId,
+          callSessionId: recording.callSessionId,
+        });
+      }
 
       await this.recordingProcessing.processCallRecording({
         callControlId: call.callControlId,
@@ -442,35 +583,26 @@ export class VoiceAgentBillingService {
 
   /**
    * Writes down the conversation the provider's own records name, for a call
-   * whose conversation webhook never arrived. Returns the row to keep working
-   * from — the caller's copy is stale once this writes.
+   * whose conversation webhook never arrived, along with the session handle
+   * they carry. Returns the row to keep working from — the caller's copy is
+   * stale once this writes.
    */
   private async bindConversation(
     agentCall: AiVoiceAgentCall,
     records: VoiceAgentUsageRecord[],
   ): Promise<AiVoiceAgentCall> {
-    if (agentCall.providerConversationId) return agentCall;
+    const conversationId =
+      agentCall.providerConversationId ??
+      records.find((record) => record.conversationId)?.conversationId ??
+      null;
+    const callSessionId =
+      records.find((record) => record.callSessionId)?.callSessionId ?? null;
+    if (!conversationId && !callSessionId) return agentCall;
 
-    const conversationId = records.find(
-      (record) => record.conversationId,
-    )?.conversationId;
-    if (!conversationId) return agentCall;
-
-    try {
-      return await this.agentCalls.update(agentCall.id, {
-        providerConversationId: conversationId,
-      });
-    } catch (error) {
-      // `providerConversationId` is unique. Another row already claiming it
-      // means this call is not the one that conversation belongs to — worth
-      // knowing about, never worth failing the settlement over.
-      this.logger.warn(
-        `Could not bind conversation ${conversationId} to agent call ${agentCall.id}: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-      );
-      return agentCall;
-    }
+    return this.results.bindConversation(agentCall, {
+      conversationId,
+      callSessionId,
+    });
   }
 
   private sum(

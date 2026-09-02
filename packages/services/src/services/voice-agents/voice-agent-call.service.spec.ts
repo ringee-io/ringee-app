@@ -40,6 +40,8 @@ function build(options: {
   usable: Array<{ id: string; phoneNumber: string }>;
   /** The agent type's dynamic variables, when a test supplies any. */
   variables?: Array<{ key: string; required: boolean }>;
+  /** What the tool re-sync throws, for the test that it is best-effort. */
+  toolSyncError?: Error;
 }) {
   const placed: Array<{ from: string }> = [];
   const contacts: ResolvedContact[] = [];
@@ -54,6 +56,7 @@ function build(options: {
 
   const configured: string[] = [];
   const analysisEnsured: string[] = [];
+  const deliveryEvents: string[] = [];
   const service = new VoiceAgentCallService(
     {
       require: async () => agent,
@@ -63,6 +66,11 @@ function build(options: {
       },
       ensureInsightGroup: async (target: { id: string }) => {
         analysisEnsured.push(target.id);
+      },
+      ensureToolEndpoints: async (_ctx: unknown, target: { id: string }) => {
+        if (options.toolSyncError) throw options.toolSyncError;
+        await Promise.resolve();
+        deliveryEvents.push(`tools:${target.id}`);
       },
     } as never,
     { require: () => ({ variables: options.variables ?? [] }) } as never,
@@ -80,6 +88,7 @@ function build(options: {
     } as never,
     {
       startCall: async (input: { from: string }) => {
+        deliveryEvents.push("call:placed");
         placed.push({ from: input.from });
         return { providerCallId: "prov-1", callControlId: "cc-1" };
       },
@@ -102,7 +111,14 @@ function build(options: {
     } as never,
   );
 
-  return { service, placed, contacts, configured, analysisEnsured };
+  return {
+    service,
+    placed,
+    contacts,
+    configured,
+    analysisEnsured,
+    deliveryEvents,
+  };
 }
 
 const TO = "+13055559999";
@@ -265,5 +281,30 @@ describe("VoiceAgentCallService calling application", () => {
     await service.startCall(CTX as never, "agent-1", { to: TO });
 
     assert.deepEqual(analysisEnsured, ["agent-1"]);
+  });
+
+  it("points the agent's tools at Ringee before placing the call", async () => {
+    // Tool URLs are written when the agent is saved and never revisited, so
+    // they outlive the address they were built from. An agent still calling
+    // the old one does not book the meeting — it tells the person it is
+    // having a technical problem, on a call the workspace paid for.
+    const { service, deliveryEvents } = build({ usable: [NUMBERS.miami] });
+
+    await service.startCall(CTX as never, "agent-1", { to: TO });
+
+    assert.deepEqual(deliveryEvents, ["tools:agent-1", "call:placed"]);
+  });
+
+  it("places the call even when the tool check itself fails", async () => {
+    // Best-effort, like the two beside it: a re-sync Ringee could not run is
+    // worth a call with stale tools, never worth refusing the call.
+    const { service, placed } = build({
+      usable: [NUMBERS.miami],
+      toolSyncError: new Error("provider unavailable"),
+    });
+
+    await service.startCall(CTX as never, "agent-1", { to: TO });
+
+    assert.deepEqual(placed, [{ from: NUMBERS.miami.phoneNumber }]);
   });
 });

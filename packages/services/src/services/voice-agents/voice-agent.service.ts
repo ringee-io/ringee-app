@@ -687,6 +687,43 @@ export class VoiceAgentService {
   }
 
   /**
+   * Makes sure the agent's tools still call this backend, before it dials.
+   *
+   * Tool URLs are written onto the assistant when the agent is saved and never
+   * looked at again, so they outlive the address they were built from: change
+   * `PUBLIC_BACKEND_URL` and every agent in the workspace keeps pointing at the
+   * old one until somebody happens to open and re-save it. That is not a
+   * degraded agent — it is one that answers "I am having a technical problem
+   * with the calendar" and books nothing, on a call the workspace paid for.
+   *
+   * Best-effort, like `ensureCallingApp` and `ensureInsightGroup` beside it: a
+   * re-sync that fails is worth a call with stale tools, never worth refusing
+   * the call the user asked for.
+   */
+  async ensureToolEndpoints(
+    ctx: OwnershipContext,
+    agent: AiVoiceAgent,
+  ): Promise<void> {
+    if (!agent.providerAssistantId) return;
+
+    const assistant = await this.provider.getAssistant(
+      agent.providerAssistantId,
+    );
+    if (!assistant) return;
+
+    const base = this.toolBaseUrl();
+    const stale = assistant.toolWebhookUrls.filter(
+      (url) => !url.startsWith(base),
+    );
+    if (stale.length === 0) return;
+
+    this.logger.warn(
+      `Agent ${agent.id} has ${stale.length} tool(s) pointing somewhere else (${stale[0]}); re-syncing against ${base}`,
+    );
+    await this.syncToProvider(ctx, agent.id);
+  }
+
+  /**
    * Creates, updates or removes each analysis so the provider's insight group
    * matches the user's post-call configuration exactly — no orphans left
    * running and billing after a field is deleted.
@@ -969,6 +1006,6 @@ export class VoiceAgentService {
   }
 
   private publicBase(): string {
-    return apiConfiguration.PUBLIC_BACKEND_URL.replace(/\/+$/, "");
+    return apiConfiguration.PUBLIC_BACKEND_URL!.replace(/\/+$/, "");
   }
 }

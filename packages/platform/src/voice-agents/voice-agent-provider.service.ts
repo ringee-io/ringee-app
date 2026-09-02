@@ -5,12 +5,14 @@ import type {
   VoiceAgentCallingAppSettings,
   VoiceAgentCallRequest,
   VoiceAgentConfig,
+  VoiceAgentConversation,
   VoiceAgentEmbeddingStatus,
   VoiceAgentInsightDefinition,
   VoiceAgentInsightDelivery,
   VoiceAgentInsightGroupSettings,
   VoiceAgentProvider,
   VoiceAgentRecording,
+  VoiceAgentRecordingQuery,
   VoiceAgentTranscriptTurn,
   VoiceAgentUsageQuery,
   VoiceAgentUsageRecord,
@@ -143,8 +145,16 @@ export class VoiceAgentProviderService implements VoiceAgentProvider {
     return this.getServiceProvider().fetchUsageRecords(query);
   }
 
-  fetchRecordings(callSessionId: string): Promise<VoiceAgentRecording[]> {
-    return this.getServiceProvider().fetchRecordings(callSessionId);
+  fetchRecordings(
+    query: VoiceAgentRecordingQuery,
+  ): Promise<VoiceAgentRecording[]> {
+    return this.getServiceProvider().fetchRecordings(query);
+  }
+
+  fetchConversation(
+    conversationId: string,
+  ): Promise<VoiceAgentConversation | null> {
+    return this.getServiceProvider().fetchConversation(conversationId);
   }
 
   createKnowledgeStore(store: string): Promise<void> {

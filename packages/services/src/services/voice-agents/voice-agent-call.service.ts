@@ -152,6 +152,7 @@ export class VoiceAgentCallService {
     let legPlaced = false;
     try {
       await this.ensureInsightDelivery(agent);
+      await this.ensureToolDelivery(ctx, agent);
       const handle = await this.provider.startCall({
         assistantId: agent.providerAssistantId!,
         callingAppId: await this.requireCallingApp(agent),
@@ -393,6 +394,30 @@ export class VoiceAgentCallService {
     });
   }
 
+  /**
+   * Makes sure the tools this agent is about to use still reach Ringee.
+   *
+   * Same shape and same reasoning as the two beside it, and the same failure it
+   * exists to prevent: an assistant whose tool URLs were written against an
+   * address this backend no longer answers on holds the whole conversation and
+   * then tells the person it is having a technical problem — after the call was
+   * placed, dialed, answered and paid for.
+   */
+  private async ensureToolDelivery(
+    ctx: OwnershipContext,
+    agent: AiVoiceAgent,
+  ): Promise<void> {
+    await this.agents
+      .ensureToolEndpoints(ctx, agent)
+      .catch((error: unknown) => {
+        this.logger.warn(
+          `Could not verify the tool endpoints for agent ${agent.id}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
+  }
+
   private async requireCallingApp(agent: AiVoiceAgent): Promise<string> {
     const callingAppId =
       agent.providerTexmlAppId ?? (await this.discoverCallingApp(agent));
@@ -445,7 +470,7 @@ export class VoiceAgentCallService {
   }
 
   private publicBase(): string {
-    return apiConfiguration.PUBLIC_BACKEND_URL.replace(/\/+$/, "");
+    return apiConfiguration.PUBLIC_BACKEND_URL!.replace(/\/+$/, "");
   }
 
   // ── Reads ────────────────────────────────────────────────────

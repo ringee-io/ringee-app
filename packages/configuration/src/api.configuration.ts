@@ -18,13 +18,7 @@ const apiConfiguration = {
   FRONTEND_URL: process.env.FRONTEND_URL!,
   OPENAI_API_KEY: process.env.OPENAI_API_KEY!,
   ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY!,
-  /**
-   * Where the outside world reaches this backend. Trimmed on the way in
-   * because it is concatenated into the webhook and tool URLs handed to
-   * providers: a stray space in the env file yields a URL the provider
-   * rejects, and that failure surfaces far from its cause.
-   */
-  PUBLIC_BACKEND_URL: process.env.PUBLIC_BACKEND_URL?.trim() ?? "",
+  PUBLIC_BACKEND_URL: process.env.BACKEND_URL,
   REDIS_URL: process.env.REDIS_URL!,
   // ── Temporal (durable background jobs / orchestrator) ──
   // Plain gRPC address of the self-hosted Temporal frontend. For local dev,

@@ -7,12 +7,14 @@ import type {
   VoiceAgentCallingAppSettings,
   VoiceAgentCallRequest,
   VoiceAgentConfig,
+  VoiceAgentConversation,
   VoiceAgentEmbeddingStatus,
   VoiceAgentInsightDefinition,
   VoiceAgentInsightDelivery,
   VoiceAgentInsightGroupSettings,
   VoiceAgentProvider,
   VoiceAgentRecording,
+  VoiceAgentRecordingQuery,
   VoiceAgentTranscriptTurn,
   VoiceAgentUsageQuery,
   VoiceAgentUsageRecord,
@@ -54,6 +56,13 @@ const USAGE_PAGE_SIZE = 50;
 /** Transcript paging. The provider caps a page at 100 messages. */
 const TRANSCRIPT_PAGE_SIZE = 100;
 const TRANSCRIPT_MAX_PAGES = 20;
+
+/** A provider timestamp, or null when it is absent or unparseable. */
+function toDate(raw: unknown): Date | null {
+  if (typeof raw !== "string" || !raw) return null;
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
 
 interface UsageRecordType {
   recordType: string;
@@ -522,6 +531,43 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
     return turns;
   }
 
+  /**
+   * The handles Telnyx keeps on a conversation.
+   *
+   * Telnyx stores the call it belonged to under `metadata`, which is the only
+   * route back from a conversation id to a call — and a post-call analysis
+   * carries a conversation id and nothing else.
+   */
+  async fetchConversation(
+    conversationId: string,
+  ): Promise<VoiceAgentConversation | null> {
+    try {
+      const raw = await this.telnyxClient.get<{
+        data?: {
+          id?: string;
+          metadata?: Record<string, unknown> | null;
+        };
+      }>(`/ai/conversations/${conversationId}`);
+      const body = raw?.data;
+      if (!body?.id) return null;
+
+      const metadata = (body.metadata ?? {}) as Record<string, unknown>;
+      const text = (value: unknown): string | null =>
+        typeof value === "string" && value ? value : null;
+
+      return {
+        conversationId: body.id,
+        assistantId: text(metadata.assistant_id),
+        callControlId: text(metadata.call_control_id),
+        callSessionId: text(metadata.call_session_id),
+        callLegId: text(metadata.call_leg_id),
+      };
+    } catch (error) {
+      if (this.isNotFound(error)) return null;
+      throw error;
+    }
+  }
+
   // ── Usage ────────────────────────────────────────────────────
 
   /**
@@ -577,10 +623,21 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
         kind: type.kind,
         conversationId: row.conversation_id ?? null,
         callControlId: row.call_control_id ?? null,
+        // Telnyx names the call session `telnyx_session_id` on a detail record
+        // and nothing else on it names the session at all — which makes this
+        // the only place a provider-placed agent leg ever reports the handle
+        // its recording is filed under.
+        callSessionId: row.telnyx_session_id ?? row.call_session_id ?? null,
         costUsd: Number.parseFloat(row.cost ?? "0") || 0,
         billedSeconds:
           typeof row.billed_sec === "number" ? row.billed_sec : null,
-        occurredAt: row.created_at ? new Date(row.created_at) : null,
+        // `call_sec` is time on the call, not time billed: a leg that was
+        // refused reports zero here while still reporting a billed minute.
+        connectedSeconds:
+          typeof row.call_sec === "number" ? row.call_sec : null,
+        startedAt: toDate(row.started_at),
+        endedAt: toDate(row.finished_at),
+        occurredAt: toDate(row.created_at) ?? toDate(row.started_at),
       }));
     } catch (error) {
       // One record type being unavailable must not hide the others; the caller
@@ -602,9 +659,21 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
    * so an agent call whose recording never arrived is the normal case rather
    * than the exceptional one.
    */
-  async fetchRecordings(callSessionId: string): Promise<VoiceAgentRecording[]> {
+  async fetchRecordings(
+    query: VoiceAgentRecordingQuery,
+  ): Promise<VoiceAgentRecording[]> {
     const params = new URLSearchParams();
-    params.set("filter[call_session_id]", callSessionId);
+    // Control id first: it is the handle Ringee holds from the moment the leg
+    // is placed. The session id only ever arrives on an event, so filtering on
+    // it answers "no recordings" for calls that were recorded perfectly well —
+    // which is exactly how agent-call audio went missing.
+    if (query.callControlId) {
+      params.set("filter[call_control_id]", query.callControlId);
+    } else if (query.callSessionId) {
+      params.set("filter[call_session_id]", query.callSessionId);
+    } else {
+      return [];
+    }
 
     const raw = await this.telnyxClient.get<{ data?: Record<string, any>[] }>(
       `/recordings?${params.toString()}`,
