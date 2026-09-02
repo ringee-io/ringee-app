@@ -7,8 +7,10 @@ import { toast } from 'sonner';
 import {
   IconArrowLeft,
   IconExternalLink,
+  IconCheck,
   IconPencil,
-  IconTrash
+  IconTrash,
+  IconX
 } from '@tabler/icons-react';
 import {
   Card,
@@ -18,6 +20,15 @@ import {
   CardTitle
 } from '@ringee/frontend-shared/components/ui/card';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator
+} from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import {
+  TableActionCell,
+  TableActionHead
+} from '@ringee/frontend-shared/components/ui/table/table-action-column';
 import {
   Select,
   SelectContent,
@@ -413,7 +424,9 @@ export function OfferDetail({ offerId }: { offerId: string }) {
                   <TableHead>Submission</TableHead>
                   <TableHead className='text-right'>Reward</TableHead>
                   <TableHead>Submitted at</TableHead>
-                  <TableHead className='text-right'>Actions</TableHead>
+                  <TableActionHead>
+                    <span className='sr-only'>Actions</span>
+                  </TableActionHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -462,44 +475,55 @@ export function OfferDetail({ offerId }: { offerId: string }) {
                       <TableCell className='text-xs'>
                         {formatDateTime(row.submittedAt)}
                       </TableCell>
-                      <TableCell className='text-right'>
-                        <div className='flex justify-end gap-1'>
-                          {link && (
-                            <Button variant='outline' size='sm' asChild>
-                              <a
-                                href={link}
-                                target='_blank'
-                                rel='noopener noreferrer'
-                              >
-                                <IconExternalLink className='size-3.5' />
-                                Open
-                              </a>
-                            </Button>
-                          )}
-                          {actionable && (
-                            <>
-                              <Button
-                                size='sm'
-                                disabled={busyId === row.id}
-                                onClick={() => setApproving(row)}
-                              >
-                                Approve
-                              </Button>
-                              <Button
-                                size='sm'
-                                variant='outline'
-                                disabled={busyId === row.id}
-                                onClick={() => {
-                                  setRejectReason('');
-                                  setRejecting(row);
-                                }}
-                              >
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
+                      <TableActionCell>
+                        {link || actionable ? (
+                          <TableRowActions
+                            label='Open actions menu'
+                            menuLabel='Actions'
+                            loading={busyId === row.id}
+                          >
+                            {link && (
+                              <DropdownMenuItem asChild>
+                                <a
+                                  href={link}
+                                  target='_blank'
+                                  rel='noopener noreferrer'
+                                >
+                                  <IconExternalLink className='size-3.5' />
+                                  Open
+                                </a>
+                              </DropdownMenuItem>
+                            )}
+                            {link && actionable ? (
+                              <DropdownMenuSeparator />
+                            ) : null}
+                            {actionable && (
+                              <>
+                                <DropdownMenuItem
+                                  disabled={busyId === row.id}
+                                  onClick={() => setApproving(row)}
+                                >
+                                  <IconCheck className='size-3.5' />
+                                  Approve
+                                </DropdownMenuItem>
+                                <DropdownMenuItem
+                                  variant='destructive'
+                                  disabled={busyId === row.id}
+                                  onClick={() => {
+                                    setRejectReason('');
+                                    setRejecting(row);
+                                  }}
+                                >
+                                  <IconX className='size-3.5' />
+                                  Reject
+                                </DropdownMenuItem>
+                              </>
+                            )}
+                          </TableRowActions>
+                        ) : (
+                          <span className='text-muted-foreground'>—</span>
+                        )}
+                      </TableActionCell>
                     </TableRow>
                   );
                 })}

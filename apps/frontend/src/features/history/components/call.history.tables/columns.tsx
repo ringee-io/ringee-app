@@ -6,26 +6,13 @@ import {
   Clock,
   PhoneIncoming,
   PhoneOutgoing,
-  PlayCircle,
-  Phone,
-  Download,
   Loader2,
   AlertCircle,
-  CheckCircle2,
-  ChevronRight
+  CheckCircle2
 } from 'lucide-react';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { cn } from '@ringee/frontend-shared/lib/utils';
-import { Button } from '@ringee/frontend-shared/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger
-} from '@ringee/frontend-shared/components/ui/tooltip';
-import { useQuickDialerCall } from '@/features/calls/hooks/use.quick.dialer.call';
-import { RecordingPlayButton } from '@/features/recordings/components/recordings.tables/recording-play-button';
 import { useTranslations } from 'next-intl';
-import { CallTranscriptionActions } from '@/features/transcription';
 // Imported from the modules themselves, not the feature barrel: the barrel
 // re-exports the detail screen, and pulling that into the history bundle would
 // ship the whole page to a route that only renders a badge.
@@ -34,7 +21,7 @@ import type {
   CallListAgentRef,
   CallSource
 } from '@/features/call-detail/types';
-import Link from 'next/link';
+import { CallListRowActions } from '@/features/calls/components/call-list-row-actions';
 
 type RecordingData = {
   id: string;
@@ -97,44 +84,19 @@ export const columns: ColumnDef<Call>[] = [
       return <DataTableColumnHeader column={column} title={t('type')} />;
     },
     cell: ({ row }) => {
-      const t = useTranslations('calls.history.table');
       const direction = row.original.direction;
       const Icon = direction === 'inbound' ? PhoneIncoming : PhoneOutgoing;
-      const phoneNumber =
-        direction === 'inbound'
-          ? row.original.fromNumber
-          : row.original.toNumber;
-
-      const { isQuickDialerOpen, handleRecall } = useQuickDialerCall();
 
       return (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant='ghost'
-              className='border-b border-blue-500'
-              onClick={() => handleRecall(phoneNumber)}
-            >
-              <div className='flex w-full items-center gap-2 sm:w-[50%]'>
-                <Icon
-                  className={cn(
-                    'h-4 w-4',
-                    direction === 'inbound' ? 'text-green-500' : 'text-blue-500'
-                  )}
-                />
-                <span className='capitalize'>{direction}</span>
-              </div>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent
-            side='top'
-            align='center'
-            className='flex items-center gap-2'
-          >
-            <Phone className='h-4 w-4' />
-            <span>{t('callAgain')}</span>
-          </TooltipContent>
-        </Tooltip>
+        <div className='flex items-center gap-2'>
+          <Icon
+            className={cn(
+              'h-4 w-4',
+              direction === 'inbound' ? 'text-green-500' : 'text-blue-500'
+            )}
+          />
+          <span className='capitalize'>{direction}</span>
+        </div>
       );
     }
   },
@@ -147,20 +109,9 @@ export const columns: ColumnDef<Call>[] = [
     cell: ({ row }) => {
       const t = useTranslations('calls.history.table');
       const name = row.original.contact?.name || t('unknown');
-      const phoneNumber =
-        row.original.direction === 'inbound'
-          ? row.original.fromNumber
-          : row.original.toNumber;
-      const { handleRecall } = useQuickDialerCall();
 
       return name !== t('unknown') ? (
-        <Button
-          variant='link'
-          className='text-foreground p-0 font-medium'
-          onClick={() => handleRecall(phoneNumber)}
-        >
-          {name}
-        </Button>
+        <span className='text-foreground font-medium'>{name}</span>
       ) : (
         <span className='text-muted-foreground font-medium'>{name}</span>
       );
@@ -318,48 +269,38 @@ export const columns: ColumnDef<Call>[] = [
         );
       }
 
+      const config = statusConfig.completed;
+      const StatusIcon = config.icon;
       return (
-        <div className='flex items-center gap-2'>
-          <RecordingPlayButton
-            recordingUrl={recordingUrl}
-            callFrom={row.original.fromNumber}
-            callTo={row.original.toNumber}
-          />
-
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button size='sm' variant='ghost' asChild>
-                <a href={recordingUrl} download>
-                  <Download className='h-4 w-4' />
-                </a>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>{t('downloadRecording')}</TooltipContent>
-          </Tooltip>
-        </div>
+        <Badge variant={config.variant} className='gap-1'>
+          <StatusIcon className='h-3 w-3' />
+          {tStatus('completed' as any) || config.label}
+        </Badge>
       );
     }
   },
   {
-    id: 'transcript',
+    id: 'actions',
+    size: 160,
+    minSize: 160,
     header: () => {
-      const t = useTranslations('calls.history.table');
-      return <>{t('transcript')}</>;
+      const t = useTranslations('tables.headers');
+      return <span className='sr-only'>{t('actions')}</span>;
     },
-    cell: ({ row }) => <CallTranscriptionActions callId={row.original.id} />
-  },
-  {
-    id: 'details',
-    header: () => null,
     cell: ({ row }) => {
-      const t = useTranslations('calls.history.table');
+      const recordingUrl = row.original.recordings?.[0]?.url;
+      const phoneNumber =
+        row.original.direction === 'inbound'
+          ? row.original.fromNumber
+          : row.original.toNumber;
       return (
-        <Button asChild size='sm' variant='ghost' className='rounded-lg'>
-          <Link href={`/dashboard/call/${row.original.id}`}>
-            {t('details')}
-            <ChevronRight className='h-4 w-4' />
-          </Link>
-        </Button>
+        <CallListRowActions
+          callId={row.original.id}
+          recordingUrl={recordingUrl}
+          callFrom={row.original.fromNumber}
+          callTo={row.original.toNumber}
+          phoneNumber={phoneNumber}
+        />
       );
     }
   }

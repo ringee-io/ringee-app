@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
+import { Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Bar,
@@ -35,6 +36,12 @@ import {
   TableHeader,
   TableRow
 } from '@ringee/frontend-shared/components/ui/table';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import {
+  TableActionCell,
+  TableActionHead
+} from '@ringee/frontend-shared/components/ui/table/table-action-column';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
@@ -577,6 +584,9 @@ export function CampaignDetailAnalytics({ id }: { id: string }) {
                     <TableHead className='text-right'>Talk</TableHead>
                     <TableHead className='text-right'>AHT</TableHead>
                     <TableHead className='text-right'>Cost</TableHead>
+                    <TableActionHead>
+                      <span className='sr-only'>Actions</span>
+                    </TableActionHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -616,6 +626,21 @@ export function CampaignDetailAnalytics({ id }: { id: string }) {
                       <TableCell className='text-right'>
                         {formatMoney(a.cost)}
                       </TableCell>
+                      <TableActionCell>
+                        <TableRowActions
+                          label='Open actions menu'
+                          menuLabel='Actions'
+                        >
+                          <DropdownMenuItem asChild>
+                            <Link
+                              href={`/backoffice/accounts/user/${a.agentUserId}`}
+                            >
+                              <Eye className='size-4' />
+                              View
+                            </Link>
+                          </DropdownMenuItem>
+                        </TableRowActions>
+                      </TableActionCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -742,6 +767,9 @@ export function CampaignDetailAnalytics({ id }: { id: string }) {
                       <TableHead>Agent</TableHead>
                       <TableHead>Role</TableHead>
                       <TableHead className='text-right'>Since</TableHead>
+                      <TableActionHead>
+                        <span className='sr-only'>Actions</span>
+                      </TableActionHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -766,6 +794,21 @@ export function CampaignDetailAnalytics({ id }: { id: string }) {
                         <TableCell className='text-muted-foreground text-right text-xs'>
                           {formatDate(m.assignedAt)}
                         </TableCell>
+                        <TableActionCell>
+                          <TableRowActions
+                            label='Open actions menu'
+                            menuLabel='Actions'
+                          >
+                            <DropdownMenuItem asChild>
+                              <Link
+                                href={`/backoffice/accounts/user/${m.userId}`}
+                              >
+                                <Eye className='size-4' />
+                                View
+                              </Link>
+                            </DropdownMenuItem>
+                          </TableRowActions>
+                        </TableActionCell>
                       </TableRow>
                     ))}
                   </TableBody>

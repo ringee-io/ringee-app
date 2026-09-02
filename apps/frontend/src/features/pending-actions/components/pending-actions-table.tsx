@@ -2,7 +2,15 @@
 
 import Link from 'next/link';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
-import { Button } from '@ringee/frontend-shared/components/ui/button';
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator
+} from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import {
+  TableActionCell,
+  TableActionHead
+} from '@ringee/frontend-shared/components/ui/table/table-action-column';
 import {
   Table,
   TableBody,
@@ -36,6 +44,7 @@ export function PendingActionsTable({
   showContext = true
 }: Props) {
   const t = useTranslations('ai.pendingActions');
+  const tCommon = useTranslations('common');
   const copy = (text: string) => {
     navigator.clipboard?.writeText(text).catch(() => {});
   };
@@ -61,7 +70,9 @@ export function PendingActionsTable({
             {t('columns.source')}
           </TableHead>
           <TableHead>{t('columns.status')}</TableHead>
-          <TableHead className='text-right'>{t('columns.actions')}</TableHead>
+          <TableActionHead>
+            <span className='sr-only'>{t('columns.actions')}</span>
+          </TableActionHead>
         </TableRow>
       </TableHeader>
       <TableBody>
@@ -132,60 +143,46 @@ export function PendingActionsTable({
                 </Badge>
               </TableCell>
 
-              <TableCell>
-                <div className='flex items-center justify-end gap-1'>
+              <TableActionCell>
+                <TableRowActions
+                  label={tCommon('openActions')}
+                  menuLabel={t('columns.actions')}
+                >
                   {a.suggestedMessage && (
-                    <Button
-                      variant='ghost'
-                      size='icon'
-                      title={t('actions.copyMessage')}
-                      onClick={() => copy(a.suggestedMessage!)}
-                    >
+                    <DropdownMenuItem onClick={() => copy(a.suggestedMessage!)}>
                       <Copy className='h-4 w-4' />
-                    </Button>
+                      {t('actions.copyMessage')}
+                    </DropdownMenuItem>
                   )}
                   {a.contactId && (
-                    <Button
-                      asChild
-                      variant='ghost'
-                      size='icon'
-                      title={t('actions.openContact')}
-                    >
+                    <DropdownMenuItem asChild>
                       <Link href={`/dashboard/contact/${a.contactId}`}>
                         <ExternalLink className='h-4 w-4' />
+                        {t('actions.openContact')}
                       </Link>
-                    </Button>
+                    </DropdownMenuItem>
                   )}
                   {isOpen && (
                     <>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        title={t('actions.snooze')}
-                        onClick={() => onSnooze(a.id)}
-                      >
+                      {(a.suggestedMessage || a.contactId) && (
+                        <DropdownMenuSeparator />
+                      )}
+                      <DropdownMenuItem onClick={() => onSnooze(a.id)}>
                         <Clock className='h-4 w-4' />
-                      </Button>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        title={t('actions.dismiss')}
-                        onClick={() => onDismiss(a.id)}
-                      >
+                        {t('actions.snooze')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onDismiss(a.id)}>
                         <X className='h-4 w-4' />
-                      </Button>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        title={t('actions.complete')}
-                        onClick={() => onComplete(a.id)}
-                      >
+                        {t('actions.dismiss')}
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onClick={() => onComplete(a.id)}>
                         <Check className='h-4 w-4 text-emerald-600' />
-                      </Button>
+                        {t('actions.complete')}
+                      </DropdownMenuItem>
                     </>
                   )}
-                </div>
-              </TableCell>
+                </TableRowActions>
+              </TableActionCell>
             </TableRow>
           );
         })}

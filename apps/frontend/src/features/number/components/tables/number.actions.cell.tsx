@@ -2,12 +2,15 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowRightLeft, Loader2 } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRightLeft, Loader2, ShieldCheck } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
 import {
   Dialog,
   DialogContent,
@@ -23,7 +26,6 @@ import {
   SelectTrigger,
   SelectValue
 } from '@ringee/frontend-shared/components/ui/select';
-import { VerifyNumberCell } from './verify.number.cell';
 import type { NumberPurchased } from './my.number.columns';
 
 type TransferTarget = {
@@ -55,6 +57,8 @@ export function NumberActionsCell({ data }: { data: NumberPurchased }) {
   const api = useApi();
   const router = useRouter();
   const t = useTranslations('settings.numbers.my');
+  const tVerify = useTranslations('settings.numbers.verify');
+  const tCommon = useTranslations('common');
   const copy = t.has('transfer')
     ? ({ ...FALLBACK, ...(t.raw('transfer') as object) } as typeof FALLBACK)
     : FALLBACK;
@@ -115,19 +119,28 @@ export function NumberActionsCell({ data }: { data: NumberPurchased }) {
 
   return (
     <>
-      <div className='flex items-center gap-2'>
-        {canVerify && <VerifyNumberCell data={data} />}
-        {canMove && (
-          <Button
-            size='sm'
-            variant='outline'
-            onClick={() => void showTransfer()}
-          >
-            <ArrowRightLeft className='mr-1.5 size-3.5' />
+      <TableRowActions
+        label={tCommon('openActions')}
+        menuLabel={tCommon('actions')}
+        loading={moving}
+      >
+        {canVerify ? (
+          <DropdownMenuItem asChild>
+            <Link href={`/dashboard/buy-number/${data.id}/verification`}>
+              <ShieldCheck className='size-4' />
+              {status === 'rejected' || status === 'expired'
+                ? tVerify('ctaFix')
+                : tVerify('cta')}
+            </Link>
+          </DropdownMenuItem>
+        ) : null}
+        {canMove ? (
+          <DropdownMenuItem onClick={() => void showTransfer()}>
+            <ArrowRightLeft className='size-4' />
             {copy.action}
-          </Button>
-        )}
-      </div>
+          </DropdownMenuItem>
+        ) : null}
+      </TableRowActions>
 
       <Dialog
         open={open}

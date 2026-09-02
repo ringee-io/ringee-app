@@ -2,12 +2,9 @@
 
 import { DataTableColumnHeader } from '@ringee/frontend-shared/components/ui/table/data-table-column-header';
 import { Column, ColumnDef } from '@tanstack/react-table';
-import { PhoneCall, Text } from 'lucide-react';
+import { Text } from 'lucide-react';
 import { CellAction } from './cell-action';
-import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
-import { useRouter } from 'next/navigation';
-import { useDialerStore } from '@/features/calls/store/dialer.store';
 
 interface ContactTag {
   tag: {
@@ -37,7 +34,8 @@ export interface ContactRow {
 }
 
 export const getContactColumns = (
-  t: (key: string) => string
+  t: (key: string) => string,
+  actionsLabel: string
 ): ColumnDef<ContactRow>[] => [
   {
     id: 'name',
@@ -52,13 +50,9 @@ export const getContactColumns = (
         [contact.firstName, contact.lastName].filter(Boolean).join(' ') ||
         t('unknown');
       const initial = displayName.charAt(0)?.toUpperCase() || '?';
-      const router = useRouter();
 
       return (
-        <button
-          className='flex cursor-pointer items-center gap-2 text-left hover:underline'
-          onClick={() => router.push(`/dashboard/contact/${contact.id}`)}
-        >
+        <div className='flex items-center gap-2'>
           <div className='flex items-center justify-center'>
             <div className='bg-primary flex h-10 w-10 items-center justify-center rounded-full font-semibold text-white'>
               {initial}
@@ -72,7 +66,7 @@ export const getContactColumns = (
               </div>
             )}
           </div>
-        </button>
+        </div>
       );
     },
     meta: {
@@ -163,35 +157,18 @@ export const getContactColumns = (
   },
   {
     accessorKey: 'phoneNumber',
-    header: t('call'),
-    cell: ({ cell }) => {
-      const phoneNumber = cell.getValue<string>();
-      const router = useRouter();
-      const dialer = useDialerStore();
-
-      return (
-        <div>
-          <Button
-            variant='secondary'
-            size='sm'
-            className='cursor-pointer gap-1'
-            onClick={() =>
-              dialer.quickDialState === 'open'
-                ? dialer.setNumber(phoneNumber)
-                : router.push(`/dashboard/call?phoneNumber=${phoneNumber}`)
-            }
-          >
-            <PhoneCall className='h-4 w-4' />
-            <span className='hidden sm:inline'>{phoneNumber}</span>
-            <span className='sm:hidden'>{t('call')}</span>
-          </Button>
-        </div>
-      );
-    }
+    header: t('phone'),
+    cell: ({ cell }) => (
+      <span className='text-muted-foreground font-mono text-sm'>
+        {cell.getValue<string>()}
+      </span>
+    )
   },
   {
-    accessorKey: 'actions',
     id: 'actions',
+    size: 160,
+    minSize: 160,
+    header: () => <span className='sr-only'>{actionsLabel}</span>,
     cell: ({ row }) => <CellAction data={row.original as any} />
   }
 ];

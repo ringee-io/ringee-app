@@ -35,9 +35,14 @@ import {
   AlertDialogDescription,
   AlertDialogFooter,
   AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger
+  AlertDialogTitle
 } from '@ringee/frontend-shared/components/ui/alert-dialog';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import {
+  TableActionCell,
+  TableActionHead
+} from '@ringee/frontend-shared/components/ui/table/table-action-column';
 import { Upload, UserPlus, Plus, Trash2, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
@@ -104,6 +109,7 @@ export function CampaignLeadsTab({
 }: Props) {
   const api = useApi();
   const t = useTranslations('campaigns');
+  const tCommon = useTranslations('common');
   const [leads, setLeads] = useState<CampaignLead[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -112,6 +118,7 @@ export function CampaignLeadsTab({
   const [importOpen, setImportOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<CampaignLead | null>(null);
   const limit = 20;
 
   useEffect(() => {
@@ -160,6 +167,7 @@ export function CampaignLeadsTab({
         await loadLeads();
       }
       onLeadsChanged?.();
+      setDeleteTarget(null);
     } catch (err: any) {
       toast.error(err?.message || t('leads.toasts.removeError'));
     } finally {
@@ -278,11 +286,11 @@ export function CampaignLeadsTab({
                       {t('leads.table.lastCall')}
                     </TableHead>
                     {canManageLeads && (
-                      <TableHead className='w-[60px] text-right'>
+                      <TableActionHead>
                         <span className='sr-only'>
                           {t('leads.table.actions')}
                         </span>
-                      </TableHead>
+                      </TableActionHead>
                     )}
                   </TableRow>
                 </TableHeader>
@@ -327,65 +335,29 @@ export function CampaignLeadsTab({
                           : '—'}
                       </TableCell>
                       {canManageLeads && (
-                        <TableCell className='text-right'>
-                          {IN_FLIGHT_STATUSES.includes(lead.status) ? (
-                            <Button
-                              variant='ghost'
-                              size='icon'
-                              disabled
-                              title={t('leads.inFlightHint')}
+                        <TableActionCell>
+                          <TableRowActions
+                            label={tCommon('openActions')}
+                            menuLabel={t('leads.table.actions')}
+                            loading={deletingId === lead.id}
+                          >
+                            <DropdownMenuItem
+                              variant='destructive'
+                              disabled={IN_FLIGHT_STATUSES.includes(
+                                lead.status
+                              )}
+                              title={
+                                IN_FLIGHT_STATUSES.includes(lead.status)
+                                  ? t('leads.inFlightHint')
+                                  : undefined
+                              }
+                              onClick={() => setDeleteTarget(lead)}
                             >
-                              <Trash2 className='text-muted-foreground/40 h-4 w-4' />
-                            </Button>
-                          ) : (
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant='ghost'
-                                  size='icon'
-                                  disabled={deletingId === lead.id}
-                                  aria-label={t('leads.removeAria', {
-                                    name:
-                                      lead.contact.name ||
-                                      t('leads.fallbackName')
-                                  })}
-                                >
-                                  {deletingId === lead.id ? (
-                                    <Loader2 className='h-4 w-4 animate-spin' />
-                                  ) : (
-                                    <Trash2 className='text-muted-foreground hover:text-destructive h-4 w-4' />
-                                  )}
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>
-                                    {t('leads.removeDialog.title')}
-                                  </AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    {t('leads.removeDialog.description', {
-                                      name:
-                                        lead.contact.name ||
-                                        t('leads.fallbackName'),
-                                      phone: lead.contact.phoneNumber
-                                    })}
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>
-                                    {t('leads.removeDialog.cancel')}
-                                  </AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(lead)}
-                                    className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
-                                  >
-                                    {t('leads.removeDialog.confirm')}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          )}
-                        </TableCell>
+                              <Trash2 className='h-4 w-4' />
+                              {t('leads.removeDialog.confirm')}
+                            </DropdownMenuItem>
+                          </TableRowActions>
+                        </TableActionCell>
                       )}
                     </TableRow>
                   ))}
@@ -421,6 +393,41 @@ export function CampaignLeadsTab({
           )}
         </CardContent>
       </Card>
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t('leads.removeDialog.title')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {t('leads.removeDialog.description', {
+                name: deleteTarget?.contact.name || t('leads.fallbackName'),
+                phone: deleteTarget?.contact.phoneNumber || ''
+              })}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>
+              {t('leads.removeDialog.cancel')}
+            </AlertDialogCancel>
+            <AlertDialogAction
+              disabled={!deleteTarget || deletingId === deleteTarget?.id}
+              onClick={(event) => {
+                event.preventDefault();
+                if (deleteTarget) void handleDelete(deleteTarget);
+              }}
+              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+            >
+              {deletingId === deleteTarget?.id ? (
+                <Loader2 className='h-4 w-4 animate-spin' />
+              ) : null}
+              {t('leads.removeDialog.confirm')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <ImportLeadsModal
         campaignId={campaignId}

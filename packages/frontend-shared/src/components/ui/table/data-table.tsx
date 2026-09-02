@@ -9,7 +9,7 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from ".";
+} from "../table";
 import { getCommonPinningStyles } from "../../../lib/data-table";
 import { ScrollArea, ScrollBar } from "../scroll-area";
 
@@ -42,6 +42,8 @@ export function DataTable<TData>({
                         }
                         style={{
                           ...getCommonPinningStyles({ column: header.column }),
+                          minWidth:
+                            header.column.id === "actions" ? 160 : undefined,
                         }}
                       >
                         {header.isPlaceholder
@@ -70,6 +72,8 @@ export function DataTable<TData>({
                           }
                           style={{
                             ...getCommonPinningStyles({ column: cell.column }),
+                            minWidth:
+                              cell.column.id === "actions" ? 160 : undefined,
                           }}
                         >
                           {flexRender(

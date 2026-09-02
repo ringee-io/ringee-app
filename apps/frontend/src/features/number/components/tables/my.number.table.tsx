@@ -25,7 +25,8 @@ export function MyNumberTable<TData, TValue>({
     columns,
     pageCount,
     shallow: false,
-    debounceMs: 400
+    debounceMs: 400,
+    initialState: { columnPinning: { right: ['actions'] } }
   });
 
   return (

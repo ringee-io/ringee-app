@@ -15,7 +15,11 @@ export function ContactTableClient({
   totalItems
 }: ContactTableClientProps) {
   const t = useTranslations('contacts.table');
-  const columns = useMemo(() => getContactColumns(t), [t]);
+  const tHeaders = useTranslations('tables.headers');
+  const columns = useMemo(
+    () => getContactColumns(t, tHeaders('actions')),
+    [t, tHeaders]
+  );
 
   return <ContactTable data={data} totalItems={totalItems} columns={columns} />;
 }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Card,
@@ -18,6 +19,12 @@ import {
   TableHeader,
   TableRow
 } from '@ringee/frontend-shared/components/ui/table';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import {
+  TableActionCell,
+  TableActionHead
+} from '@ringee/frontend-shared/components/ui/table/table-action-column';
 import { DateRangeBar } from './date-range-bar';
 import {
   useBackofficeApi,
@@ -105,6 +112,9 @@ function ActivityTable({ rows }: { rows: CallerActivityRow[] }) {
               <TableHead className='text-right'>Duration</TableHead>
               <TableHead className='text-right'>Cost</TableHead>
               <TableHead className='text-right'>Last call</TableHead>
+              <TableActionHead>
+                <span className='sr-only'>Actions</span>
+              </TableActionHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -138,6 +148,19 @@ function ActivityTable({ rows }: { rows: CallerActivityRow[] }) {
                 <TableCell className='text-muted-foreground text-right text-xs'>
                   {formatDateTime(r.lastCallAt)}
                 </TableCell>
+                <TableActionCell>
+                  <TableRowActions
+                    label='Open actions menu'
+                    menuLabel='Actions'
+                  >
+                    <DropdownMenuItem asChild>
+                      <Link href={`/backoffice/accounts/${r.type}/${r.id}`}>
+                        <Eye className='size-4' />
+                        View
+                      </Link>
+                    </DropdownMenuItem>
+                  </TableRowActions>
+                </TableActionCell>
               </TableRow>
             ))}
           </TableBody>

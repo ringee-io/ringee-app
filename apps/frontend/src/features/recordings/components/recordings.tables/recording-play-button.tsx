@@ -1,6 +1,7 @@
 'use client';
 
 import { Button } from '@ringee/frontend-shared/components/ui/button';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
 import { PlayCircle } from 'lucide-react';
 import {
   Tooltip,
@@ -16,12 +17,14 @@ interface RecordingPlayButtonProps {
   recordingUrl: string;
   callFrom: string;
   callTo: string;
+  asMenuItem?: boolean;
 }
 
 export function RecordingPlayButton({
   recordingUrl,
   callFrom,
-  callTo
+  callTo,
+  asMenuItem = false
 }: RecordingPlayButtonProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const { completeStep } = useOnboardingComplete();
@@ -35,20 +38,27 @@ export function RecordingPlayButton({
 
   return (
     <>
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <Button
-            size='sm'
-            variant='ghost'
-            className='text-emerald-500 hover:text-emerald-400'
-            onClick={handlePlay}
-          >
-            <PlayCircle className='mr-1 h-4 w-4' />
-            {t('play')}
-          </Button>
-        </TooltipTrigger>
-        <TooltipContent>{t('playRecording')}</TooltipContent>
-      </Tooltip>
+      {asMenuItem ? (
+        <DropdownMenuItem onClick={handlePlay}>
+          <PlayCircle className='h-4 w-4' />
+          {t('playRecording')}
+        </DropdownMenuItem>
+      ) : (
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              size='sm'
+              variant='ghost'
+              className='text-emerald-500 hover:text-emerald-400'
+              onClick={handlePlay}
+            >
+              <PlayCircle className='mr-1 h-4 w-4' />
+              {t('play')}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>{t('playRecording')}</TooltipContent>
+        </Tooltip>
+      )}
 
       <AudioPlayerModal
         isOpen={isModalOpen}

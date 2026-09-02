@@ -29,6 +29,22 @@ import {
 } from '@ringee/frontend-shared/components/ui/dialog';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import {
+  TableActionCell,
+  TableActionHead
+} from '@ringee/frontend-shared/components/ui/table/table-action-column';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle
+} from '@ringee/frontend-shared/components/ui/alert-dialog';
 import { Plus, Trash2, Upload, Search, ShieldBan, Loader2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -53,6 +69,7 @@ interface DNCListResponse {
 export function DNCList() {
   const api = useApi();
   const t = useTranslations('calls.dnc.list');
+  const tCommon = useTranslations('common');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [entries, setEntries] = useState<DNCEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -64,6 +81,7 @@ export function DNCList() {
   const [newReason, setNewReason] = useState('');
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<DNCEntry | null>(null);
   const limit = 20;
 
   useEffect(() => {
@@ -111,9 +129,11 @@ export function DNCList() {
     }
   }
 
-  async function handleDelete(id: string) {
+  async function handleDelete() {
+    if (!deleteTarget) return;
     try {
-      await api.delete(`/dnc/${id}`);
+      await api.delete(`/dnc/${deleteTarget.id}`);
+      setDeleteTarget(null);
       await loadEntries();
     } catch {
       // handled
@@ -266,7 +286,9 @@ export function DNCList() {
                   <TableHead className='hidden sm:table-cell'>
                     {t('columns.added')}
                   </TableHead>
-                  <TableHead className='w-[60px]'></TableHead>
+                  <TableActionHead>
+                    <span className='sr-only'>{tCommon('actions')}</span>
+                  </TableActionHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -282,15 +304,20 @@ export function DNCList() {
                     <TableCell className='hidden sm:table-cell'>
                       {new Date(entry.createdAt).toLocaleDateString()}
                     </TableCell>
-                    <TableCell>
-                      <Button
-                        variant='ghost'
-                        size='icon'
-                        onClick={() => handleDelete(entry.id)}
+                    <TableActionCell>
+                      <TableRowActions
+                        label={tCommon('openActions')}
+                        menuLabel={tCommon('actions')}
                       >
-                        <Trash2 className='text-muted-foreground h-4 w-4' />
-                      </Button>
-                    </TableCell>
+                        <DropdownMenuItem
+                          variant='destructive'
+                          onClick={() => setDeleteTarget(entry)}
+                        >
+                          <Trash2 className='h-4 w-4' />
+                          {tCommon('delete')}
+                        </DropdownMenuItem>
+                      </TableRowActions>
+                    </TableActionCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -324,6 +351,29 @@ export function DNCList() {
           </>
         )}
       </CardContent>
+
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => !open && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{tCommon('areYouSure')}</AlertDialogTitle>
+            <AlertDialogDescription>
+              {tCommon('cannotBeUndone')}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{tCommon('cancel')}</AlertDialogCancel>
+            <AlertDialogAction
+              className='bg-destructive text-destructive-foreground hover:bg-destructive/90'
+              onClick={() => void handleDelete()}
+            >
+              {tCommon('delete')}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
