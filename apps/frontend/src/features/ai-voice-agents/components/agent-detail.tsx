@@ -48,7 +48,7 @@ import { FIELD_STEPS, useAgentDraft } from '../hooks/use-agent-draft';
 import { describeApiError } from '../lib/api-error';
 import { flagEmoji } from '../lib/voice-format';
 import type { VoiceAgent, VoiceAgentTypeInfo } from '../types';
-import { AgentScreen } from './agent-screen';
+import { AgentScreen, AgentScreenContent } from './agent-screen';
 import { AgentStatusBadge } from './agent-status-badge';
 import { CallsTable } from './calls-table';
 import { KnowledgePanel } from './knowledge-panel';
@@ -81,6 +81,7 @@ export function AgentDetail({ agentId }: { agentId: string }) {
   const [loadError, setLoadError] = useState<string | null>(null);
   const [typeInfo, setTypeInfo] = useState<VoiceAgentTypeInfo>();
   const [loading, setLoading] = useState(true);
+  const [dirty, setDirty] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -105,50 +106,46 @@ export function AgentDetail({ agentId }: { agentId: string }) {
 
   const leave = () => router.push('/dashboard/ai-voice-agents');
 
-  if (loading) {
-    return (
-      <AgentScreen title={t('loading')} onClose={leave}>
-        <div className='space-y-4'>
-          <Skeleton className='h-10 w-full rounded-lg' />
-          <Skeleton className='h-96 w-full rounded-lg' />
-        </div>
-      </AgentScreen>
-    );
-  }
-
-  if (loadError || !agent) {
-    return (
-      <AgentScreen title={t('agent')} onClose={leave}>
-        <Alert variant='destructive' className='rounded-lg'>
-          <AlertTriangle className='size-4' />
-          <AlertTitle>{t('openErrorTitle')}</AlertTitle>
-          <AlertDescription className='flex flex-wrap items-center gap-3'>
-            {loadError ?? t('openError')}
-            <Button
-              variant='outline'
-              size='sm'
-              className='rounded-lg'
-              onClick={() => void load()}
-            >
-              <RotateCw className='size-3.5' />
-              {tCommon('tryAgain')}
-            </Button>
-          </AlertDescription>
-        </Alert>
-      </AgentScreen>
-    );
-  }
-
   return (
-    <AgentDetailView
-      key={agent.id}
-      agent={agent}
-      typeInfo={typeInfo}
-      initialTab={searchParams.get('tab') ?? 'setup'}
-      onChanged={setAgent}
-      onClose={leave}
-      onDeleted={leave}
-    />
+    <AgentScreen onClose={leave} confirmClose={dirty}>
+      {loading ? (
+        <AgentScreenContent title={t('loading')}>
+          <div className='space-y-4'>
+            <Skeleton className='h-10 w-full rounded-lg' />
+            <Skeleton className='h-96 w-full rounded-lg' />
+          </div>
+        </AgentScreenContent>
+      ) : loadError || !agent ? (
+        <AgentScreenContent title={t('agent')}>
+          <Alert variant='destructive' className='rounded-lg'>
+            <AlertTriangle className='size-4' />
+            <AlertTitle>{t('openErrorTitle')}</AlertTitle>
+            <AlertDescription className='flex flex-wrap items-center gap-3'>
+              {loadError ?? t('openError')}
+              <Button
+                variant='outline'
+                size='sm'
+                className='rounded-lg'
+                onClick={() => void load()}
+              >
+                <RotateCw className='size-3.5' />
+                {tCommon('tryAgain')}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        </AgentScreenContent>
+      ) : (
+        <AgentDetailView
+          key={agent.id}
+          agent={agent}
+          typeInfo={typeInfo}
+          initialTab={searchParams.get('tab') ?? 'setup'}
+          onChanged={setAgent}
+          onDirtyChange={setDirty}
+          onDeleted={leave}
+        />
+      )}
+    </AgentScreen>
   );
 }
 
@@ -164,14 +161,14 @@ function AgentDetailView({
   typeInfo,
   initialTab,
   onChanged,
-  onClose,
+  onDirtyChange,
   onDeleted
 }: {
   agent: VoiceAgent;
   typeInfo?: VoiceAgentTypeInfo;
   initialTab: string;
   onChanged: (agent: VoiceAgent) => void;
-  onClose: () => void;
+  onDirtyChange: (dirty: boolean) => void;
   onDeleted: () => void;
 }) {
   const t = useTranslations('aiVoiceAgents.detail');
@@ -184,6 +181,17 @@ function AgentDetailView({
   const [statusError, setStatusError] = useState<string | null>(null);
 
   const active = agent.status === 'active';
+
+  useEffect(() => {
+    onDirtyChange(draft.dirty);
+  }, [draft.dirty, onDirtyChange]);
+
+  useEffect(
+    () => () => {
+      onDirtyChange(false);
+    },
+    [onDirtyChange]
+  );
 
   /**
    * Re-reads the agent without the skeleton. Used when knowledge finishes
@@ -250,7 +258,7 @@ function AgentDetailView({
   };
 
   return (
-    <AgentScreen
+    <AgentScreenContent
       title={agent.name}
       badge={<AgentStatusBadge status={agent.status} />}
       subtitle={
@@ -263,8 +271,6 @@ function AgentDetailView({
             : ''}
         </>
       }
-      onClose={onClose}
-      confirmClose={draft.dirty}
       actions={
         <>
           <label className='flex items-center gap-2 text-sm'>
@@ -450,6 +456,6 @@ function AgentDetailView({
           </TabsContent>
         </Tabs>
       </div>
-    </AgentScreen>
+    </AgentScreenContent>
   );
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 import {
@@ -22,7 +22,7 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { FIELD_STEPS, useAgentDraft } from '../hooks/use-agent-draft';
 import type { VoiceAgentType, VoiceAgentTypeInfo } from '../types';
-import { AgentScreen } from './agent-screen';
+import { AgentScreenContent } from './agent-screen';
 import { CompanySection } from './sections/company-section';
 import { ResultsSection } from './sections/results-section';
 import { SetupSection } from './sections/setup-section';
@@ -50,16 +50,29 @@ type StepId = (typeof STEPS)[number]['id'];
  */
 export function AgentWizard({
   type,
-  typeInfo
+  typeInfo,
+  onDirtyChange
 }: {
   type: VoiceAgentType;
   typeInfo?: VoiceAgentTypeInfo;
+  onDirtyChange: (dirty: boolean) => void;
 }) {
   const t = useTranslations('aiVoiceAgents.wizard');
   const tCommon = useTranslations('aiVoiceAgents.common');
   const router = useRouter();
   const draft = useAgentDraft(type);
   const [step, setStep] = useState<StepId>('setup');
+
+  useEffect(() => {
+    onDirtyChange(draft.dirty);
+  }, [draft.dirty, onDirtyChange]);
+
+  useEffect(
+    () => () => {
+      onDirtyChange(false);
+    },
+    [onDirtyChange]
+  );
 
   const index = STEPS.findIndex((s) => s.id === step);
   const isLast = index === STEPS.length - 1;
@@ -106,11 +119,9 @@ export function AgentWizard({
   };
 
   return (
-    <AgentScreen
+    <AgentScreenContent
       title={t('title')}
       subtitle={typeInfo?.title ?? t('defaultSubtitle')}
-      onClose={leave}
-      confirmClose={draft.dirty}
       footer={
         <>
           <div className='text-muted-foreground min-w-0 flex-1 text-sm'>
@@ -213,6 +224,6 @@ export function AgentWizard({
           <ResultsSection draft={draft} />
         )}
       </div>
-    </AgentScreen>
+    </AgentScreenContent>
   );
 }

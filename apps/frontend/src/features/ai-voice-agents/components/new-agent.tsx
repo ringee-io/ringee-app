@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { useVoiceAgentApi } from '../api';
 import type { VoiceAgentType, VoiceAgentTypeInfo } from '../types';
-import { AgentScreen } from './agent-screen';
+import { AgentScreen, AgentScreenContent } from './agent-screen';
 import { AgentWizard } from './agent-wizard';
 
 /** Loads the type's definition, then hands off to the create wizard. */
@@ -16,6 +16,7 @@ export function NewAgent({ type }: { type: VoiceAgentType }) {
   const router = useRouter();
   const [typeInfo, setTypeInfo] = useState<VoiceAgentTypeInfo>();
   const [loading, setLoading] = useState(true);
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
     void (async () => {
@@ -25,21 +26,22 @@ export function NewAgent({ type }: { type: VoiceAgentType }) {
     })();
   }, [api, type]);
 
-  // The panel is up from the first frame, so the screen does not shift once the
-  // type's copy arrives.
-  if (loading) {
-    return (
-      <AgentScreen
-        title={t('title')}
-        onClose={() => router.push('/dashboard/ai-voice-agents')}
-      >
-        <div className='space-y-4'>
-          <Skeleton className='h-9 w-64 rounded-lg' />
-          <Skeleton className='h-96 w-full rounded-lg' />
-        </div>
-      </AgentScreen>
-    );
-  }
+  const leave = () => router.push('/dashboard/ai-voice-agents');
 
-  return <AgentWizard type={type} typeInfo={typeInfo} />;
+  // Keep the same dialog mounted while its type definition loads. Swapping a
+  // loading AgentScreen for the wizard would replay the enter animation.
+  return (
+    <AgentScreen onClose={leave} confirmClose={dirty}>
+      {loading ? (
+        <AgentScreenContent title={t('title')}>
+          <div className='space-y-4'>
+            <Skeleton className='h-9 w-64 rounded-lg' />
+            <Skeleton className='h-96 w-full rounded-lg' />
+          </div>
+        </AgentScreenContent>
+      ) : (
+        <AgentWizard type={type} typeInfo={typeInfo} onDirtyChange={setDirty} />
+      )}
+    </AgentScreen>
+  );
 }
