@@ -2,6 +2,7 @@ import {
   forwardRef,
   Inject,
   Injectable,
+  ConflictException,
   ForbiddenException,
   NotFoundException,
   Logger,
@@ -107,9 +108,10 @@ export class MeetingService {
       attendeeEmail?: string;
       calendarProvider?: "google" | "microsoft";
       calendarIntegrationId?: string | null;
+      requireAvailableSlot?: boolean;
     },
   ): Promise<Meeting> {
-    const meeting = await this.meetingRepo.create(ctx, {
+    const meetingData = {
       contactId: dto.contactId,
       callId: dto.callId,
       title: dto.title,
@@ -117,7 +119,13 @@ export class MeetingService {
       duration: dto.duration,
       location: dto.location,
       notes: dto.notes,
-    });
+    };
+    const meeting = dto.requireAvailableSlot
+      ? await this.meetingRepo.createIfAvailable(ctx, meetingData)
+      : await this.meetingRepo.create(ctx, meetingData);
+    if (!meeting) {
+      throw new ConflictException("That time is no longer available.");
+    }
 
     // Auto-set call outcome to meeting_booked if linked to a call. Fold the
     // fanout in below, AFTER the calendar event, so the Meet link makes it into

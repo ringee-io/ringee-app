@@ -741,6 +741,9 @@ Ringee meetings directly, rather than `getAvailability`, which deliberately
 falls back to "everything is free" for the human picker. Ringee owns the booking
 first; Google or Microsoft is only a best-effort outbound sync target afterward,
 so an external availability failure cannot stop or fabricate a Ringee booking.
+`book_appointment` accepts only an exact slot returned by that same lookup and
+re-checks the overlap under a transaction-scoped workspace row lock before inserting,
+so two concurrent confirmations cannot both reserve the same Ringee time.
 
 - **Risk if violated:** the agent books over real meetings and tells the person
   a time that was never free

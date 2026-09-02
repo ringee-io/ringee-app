@@ -3,6 +3,34 @@ import { PrismaService } from "../prisma.service";
 import { Prisma, Meeting, MeetingStatus } from "@prisma/client";
 import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
 
+interface MeetingCreateData {
+  contactId: string;
+  callId?: string;
+  title?: string;
+  scheduledAt: Date;
+  duration?: number;
+  location?: string;
+  notes?: string;
+}
+
+function ownershipSql(ctx: OwnershipContext): {
+  userFilter: Prisma.Sql;
+  organizationFilter: Prisma.Sql;
+} {
+  const owner = buildOwnershipFilter(ctx);
+  return {
+    userFilter: owner.userId
+      ? Prisma.sql`AND "userId" = ${owner.userId}::uuid`
+      : Prisma.empty,
+    organizationFilter:
+      owner.organizationId === null
+        ? Prisma.sql`AND "organizationId" IS NULL`
+        : owner.organizationId
+          ? Prisma.sql`AND "organizationId" = ${owner.organizationId}::uuid`
+          : Prisma.empty,
+  };
+}
+
 @Injectable()
 export class MeetingRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -21,16 +49,7 @@ export class MeetingRepository {
     start: Date,
     end: Date,
   ): Promise<Array<{ start: Date; end: Date }>> {
-    const owner = buildOwnershipFilter(ctx);
-    const userFilter = owner.userId
-      ? Prisma.sql`AND "userId" = ${owner.userId}::uuid`
-      : Prisma.empty;
-    const organizationFilter =
-      owner.organizationId === null
-        ? Prisma.sql`AND "organizationId" IS NULL`
-        : owner.organizationId
-          ? Prisma.sql`AND "organizationId" = ${owner.organizationId}::uuid`
-          : Prisma.empty;
+    const { userFilter, organizationFilter } = ownershipSql(ctx);
 
     return this.prisma.$queryRaw<Array<{ start: Date; end: Date }>>`
       SELECT
@@ -47,34 +66,84 @@ export class MeetingRepository {
 
   async create(
     ctx: OwnershipContext,
-    data: {
-      contactId: string;
-      callId?: string;
-      title?: string;
-      scheduledAt: Date;
-      duration?: number;
-      location?: string;
-      notes?: string;
-    },
+    data: MeetingCreateData,
   ): Promise<Meeting> {
     return this.prisma.meeting.create({
-      data: {
-        scheduledAt: data.scheduledAt,
-        duration: data.duration ?? 30,
-        title: data.title,
-        location: data.location,
-        notes: data.notes,
-        user: { connect: { id: ctx.userId } },
-        organization: ctx.organizationId
-          ? { connect: { id: ctx.organizationId } }
-          : undefined,
-        contact: { connect: { id: data.contactId } },
-        call: data.callId ? { connect: { id: data.callId } } : undefined,
-      },
+      data: this.createData(ctx, data),
       include: {
         contact: true,
       },
     });
+  }
+
+  /**
+   * Re-checks the requested Ringee slot and creates the meeting as one guarded
+   * database operation. A transaction-scoped workspace row lock serializes agent
+   * bookings in the same workspace across API instances; the overlap query is
+   * deliberately repeated after taking it because the earlier tool lookup may
+   * already be stale by the time the caller confirms a time.
+   */
+  async createIfAvailable(
+    ctx: OwnershipContext,
+    data: MeetingCreateData,
+  ): Promise<Meeting | null> {
+    const duration = data.duration ?? 30;
+    const end = new Date(data.scheduledAt.getTime() + duration * 60_000);
+    const { userFilter, organizationFilter } = ownershipSql(ctx);
+
+    return this.prisma.$transaction(async (tx) => {
+      if (ctx.organizationId) {
+        await tx.$queryRaw`
+          SELECT "id"
+          FROM "Organization"
+          WHERE "id" = ${ctx.organizationId}::uuid
+          FOR UPDATE
+        `;
+      } else {
+        await tx.$queryRaw`
+          SELECT "id"
+          FROM "User"
+          WHERE "id" = ${ctx.userId}::uuid
+          FOR UPDATE
+        `;
+      }
+
+      const conflict = await tx.$queryRaw<Array<{ id: string }>>`
+        SELECT "id"
+        FROM "Meeting"
+        WHERE "status" IN ('scheduled', 'rescheduled')
+          AND "scheduledAt" < ${end}
+          AND "scheduledAt" + ("duration" * INTERVAL '1 minute') > ${data.scheduledAt}
+          ${userFilter}
+          ${organizationFilter}
+        LIMIT 1
+      `;
+      if (conflict.length > 0) return null;
+
+      return tx.meeting.create({
+        data: this.createData(ctx, { ...data, duration }),
+        include: { contact: true },
+      });
+    });
+  }
+
+  private createData(
+    ctx: OwnershipContext,
+    data: MeetingCreateData,
+  ): Prisma.MeetingCreateInput {
+    return {
+      scheduledAt: data.scheduledAt,
+      duration: data.duration ?? 30,
+      title: data.title,
+      location: data.location,
+      notes: data.notes,
+      user: { connect: { id: ctx.userId } },
+      organization: ctx.organizationId
+        ? { connect: { id: ctx.organizationId } }
+        : undefined,
+      contact: { connect: { id: data.contactId } },
+      call: data.callId ? { connect: { id: data.callId } } : undefined,
+    };
   }
 
   async findById(id: string): Promise<Meeting | null> {

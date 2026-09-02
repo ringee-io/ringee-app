@@ -7,6 +7,7 @@ import { VoiceAgentToolService } from "./voice-agent-tool.service";
 
 const SECRET = "rva_test_secret";
 const SECRET_HASH = createHash("sha256").update(SECRET).digest("hex");
+const FUTURE = "2099-01-05T15:00:00.000Z";
 
 const AGENT = {
   id: "agent-1",
@@ -34,6 +35,7 @@ function build(
   const updates: Array<Record<string, unknown>> = [];
   const created: Array<Record<string, unknown>> = [];
   const lookups: string[] = [];
+  const availabilityChecks: Array<Record<string, unknown>> = [];
 
   const service = new VoiceAgentToolService(
     {
@@ -57,9 +59,21 @@ function build(
       },
     } as never,
     {
-      getBookableSlots: async () => {
+      getBookableSlots: async (
+        _ctx: unknown,
+        opts: Record<string, unknown>,
+      ) => {
+        availabilityChecks.push(opts);
         if (over.slotsError) throw over.slotsError;
-        return over.slots ?? [];
+        return (
+          over.slots ?? [
+            {
+              start: FUTURE,
+              end: "2099-01-05T15:30:00.000Z",
+              label: "Monday, January 5, 10:00 AM",
+            },
+          ]
+        );
       },
     } as never,
     {
@@ -85,10 +99,8 @@ function build(
     { findOrCreateByPhone: async () => ({ id: "contact-2" }) } as never,
   );
 
-  return { service, updates, created, lookups };
+  return { service, updates, created, lookups, availabilityChecks };
 }
-
-const FUTURE = new Date(Date.now() + 3 * 24 * 3600_000).toISOString();
 
 describe("VoiceAgentToolService authorization", () => {
   it("refuses a tool call with the wrong secret", async () => {
@@ -169,7 +181,7 @@ describe("VoiceAgentToolService availability", () => {
 
 describe("VoiceAgentToolService booking", () => {
   it("books the meeting and records the outcome on the call", async () => {
-    const { service, updates, created } = build();
+    const { service, updates, created, availabilityChecks } = build();
 
     const result = await service.bookAppointment("agent-1", SECRET, "cc-1", {
       start: FUTURE,
@@ -186,6 +198,14 @@ describe("VoiceAgentToolService booking", () => {
     assert.equal(created[0]?.title, "Product Demo");
     assert.equal(created[0]?.duration, 30);
     assert.equal(created[0]?.calendarIntegrationId, "cal-1");
+    assert.equal(created[0]?.requireAvailableSlot, true);
+    assert.deepEqual(availabilityChecks, [
+      {
+        date: "2099-01-05",
+        timeZone: "America/New_York",
+        durationMinutes: 30,
+      },
+    ]);
     // The tool knows a meeting exists; the later transcript analysis must not
     // be the thing that decides this.
     assert.deepEqual(updates, [
@@ -239,6 +259,20 @@ describe("VoiceAgentToolService booking", () => {
       start: "tomorrow afternoon",
     });
     assert.equal(result.ok, false);
+  });
+
+  it("refuses a start that is not an exact Ringee bookable slot", async () => {
+    const { service, created, updates } = build({ slots: [] });
+
+    const result = await service.bookAppointment("agent-1", SECRET, "cc-1", {
+      start: FUTURE,
+    });
+
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.match(result.error, /no longer available/);
+    assert.deepEqual(created, []);
+    assert.deepEqual(updates, []);
   });
 
   it("tells the agent to offer another time when the booking fails", async () => {

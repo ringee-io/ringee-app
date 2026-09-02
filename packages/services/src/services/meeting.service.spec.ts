@@ -22,7 +22,7 @@ const STORED_MEETING = {
   updatedAt: new Date("2099-01-01T00:00:00.000Z"),
 };
 
-function build(options: { syncError?: Error } = {}) {
+function build(options: { syncError?: Error; slotAvailable?: boolean } = {}) {
   const events: string[] = [];
   const calendarRequests: Array<Record<string, unknown>> = [];
 
@@ -31,6 +31,10 @@ function build(options: { syncError?: Error } = {}) {
       create: async () => {
         events.push("ringee:create");
         return STORED_MEETING;
+      },
+      createIfAvailable: async () => {
+        events.push("ringee:create-protected");
+        return options.slotAvailable === false ? null : STORED_MEETING;
       },
     } as never,
     {} as never,
@@ -100,5 +104,24 @@ describe("MeetingService Ringee-first calendar sync", () => {
     assert.equal(meeting.id, "meeting-1");
     assert.equal(meeting.externalEventId, null);
     assert.equal(meeting.location, null);
+  });
+
+  it("does not sync externally when the protected Ringee slot was taken", async () => {
+    const { service, events } = build({ slotAvailable: false });
+
+    await assert.rejects(
+      () =>
+        service.createMeeting(
+          { userId: "user-1", organizationId: "org-1" },
+          {
+            contactId: "contact-1",
+            scheduledAt: "2099-01-05T15:00:00.000Z",
+            requireAvailableSlot: true,
+          },
+        ),
+      /no longer available/,
+    );
+
+    assert.deepEqual(events, ["ringee:create-protected"]);
   });
 });
