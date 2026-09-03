@@ -4,6 +4,7 @@ import {
   Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { randomUUID } from "crypto";
 import { apiConfiguration } from "@ringee/configuration";
 import {
   AiVoiceAgentKnowledgeKind,
@@ -21,7 +22,7 @@ import {
 } from "@ringee/platform";
 import { requirePublicUrl } from "./public-url";
 import { VoiceAgentService } from "./voice-agent.service";
-import { voiceAgentKnowledgeStoreName } from "./voice-agent.types";
+import { voiceAgentKnowledgeSourceStoreName } from "./voice-agent.types";
 
 /** Document types a user may add, and how they are stored. */
 const DOCUMENT_TYPES: Record<string, AiVoiceAgentKnowledgeKind> = {
@@ -66,11 +67,13 @@ export interface KnowledgeLibraryEntry {
 /**
  * Per-agent knowledge (§7).
  *
- * Each agent gets its own store at the provider, and the retrieval tool is
- * attached only once a source has finished indexing — an agent pointed at an
- * empty or half-built index answers worse than one with no knowledge at all.
- * Indexing is asynchronous, so a source is `pending` until the provider says
- * otherwise and the agent is re-synced when that changes.
+ * Each source gets its own store at the provider, and the retrieval tool is
+ * attached only once that source has finished indexing — an agent pointed at
+ * an empty or half-built index answers worse than one with no knowledge at all.
+ * Keeping stores separate also prevents two crawled sites from overwriting
+ * same-named objects in one bucket. Indexing is asynchronous, so a source is
+ * `pending` until the provider says otherwise and the agent is re-synced when
+ * that changes.
  */
 @Injectable()
 export class VoiceAgentKnowledgeService {
@@ -118,16 +121,20 @@ export class VoiceAgentKnowledgeService {
   ): Promise<AiVoiceAgentKnowledgeSource> {
     const agent = await this.agents.require(ctx, agentId);
     const url = requirePublicUrl(input.url);
-    const store = await this.ensureStore(agentId);
+    const sourceId = randomUUID();
+    const store = await this.ensureStore(sourceId);
 
-    const source = await this.repository.createKnowledgeSource({
-      agentId: agent.id,
-      kind: AiVoiceAgentKnowledgeKind.url,
-      label: input.label?.trim() || url.hostname + url.pathname,
-      sourceUrl: url.href,
-      providerBucket: store,
-      status: AiVoiceAgentKnowledgeStatus.processing,
-    });
+    const source = await this.withStoreCleanup(sourceId, store, () =>
+      this.repository.createKnowledgeSource({
+        id: sourceId,
+        agentId: agent.id,
+        kind: AiVoiceAgentKnowledgeKind.url,
+        label: input.label?.trim() || url.hostname + url.pathname,
+        sourceUrl: url.href,
+        providerBucket: store,
+        status: AiVoiceAgentKnowledgeStatus.processing,
+      }),
+    );
 
     return this.startIndexing(source, () =>
       this.provider.indexKnowledgeUrl(store, url.href),
@@ -143,23 +150,27 @@ export class VoiceAgentKnowledgeService {
     const content = input.content?.trim();
     if (!content) throw new BadRequestException("The text is empty.");
 
-    const store = await this.ensureStore(agentId);
+    const sourceId = randomUUID();
+    const store = await this.ensureStore(sourceId);
     const fileName = this.fileName(input.label, "txt");
-    await this.provider.putKnowledgeDocument(
-      store,
-      fileName,
-      Buffer.from(content, "utf-8"),
-      "text/plain",
-    );
+    const source = await this.withStoreCleanup(sourceId, store, async () => {
+      await this.provider.putKnowledgeDocument(
+        store,
+        fileName,
+        Buffer.from(content, "utf-8"),
+        "text/plain",
+      );
 
-    const source = await this.repository.createKnowledgeSource({
-      agentId: agent.id,
-      kind: AiVoiceAgentKnowledgeKind.text,
-      label: input.label.trim(),
-      content,
-      providerBucket: store,
-      providerFileName: fileName,
-      status: AiVoiceAgentKnowledgeStatus.processing,
+      return this.repository.createKnowledgeSource({
+        id: sourceId,
+        agentId: agent.id,
+        kind: AiVoiceAgentKnowledgeKind.text,
+        label: input.label.trim(),
+        content,
+        providerBucket: store,
+        providerFileName: fileName,
+        status: AiVoiceAgentKnowledgeStatus.processing,
+      });
     });
 
     return this.startIndexing(source, () =>
@@ -187,22 +198,26 @@ export class VoiceAgentKnowledgeService {
       );
     }
 
-    const store = await this.ensureStore(agentId);
+    const sourceId = randomUUID();
+    const store = await this.ensureStore(sourceId);
     const fileName = this.fileName(input.fileName, "bin");
-    await this.provider.putKnowledgeDocument(
-      store,
-      fileName,
-      input.buffer,
-      input.contentType,
-    );
+    const source = await this.withStoreCleanup(sourceId, store, async () => {
+      await this.provider.putKnowledgeDocument(
+        store,
+        fileName,
+        input.buffer,
+        input.contentType,
+      );
 
-    const source = await this.repository.createKnowledgeSource({
-      agentId: agent.id,
-      kind,
-      label: input.fileName,
-      providerBucket: store,
-      providerFileName: fileName,
-      status: AiVoiceAgentKnowledgeStatus.processing,
+      return this.repository.createKnowledgeSource({
+        id: sourceId,
+        agentId: agent.id,
+        kind,
+        label: input.fileName,
+        providerBucket: store,
+        providerFileName: fileName,
+        status: AiVoiceAgentKnowledgeStatus.processing,
+      });
     });
 
     return this.startIndexing(source, () =>
@@ -245,9 +260,9 @@ export class VoiceAgentKnowledgeService {
   /**
    * Puts an existing source on this agent as a copy of its own.
    *
-   * A copy, not a shared reference: every agent owns its store, and deleting
-   * the agent deletes the bucket — pointing two agents at one bucket would let
-   * one deletion silently empty the other agent's knowledge.
+   * A copy, not a shared reference: every source belongs to one agent and owns
+   * its store. Pointing two agents at one bucket would let one deletion silently
+   * empty the other agent's knowledge.
    */
   async reuse(
     ctx: OwnershipContext,
@@ -302,18 +317,27 @@ export class VoiceAgentKnowledgeService {
     const source = await this.repository.findKnowledgeSource(agentId, sourceId);
     if (!source) throw new NotFoundException("Knowledge source not found");
 
-    if (source.providerBucket && source.providerFileName) {
-      await this.provider
-        .deleteKnowledgeDocument(source.providerBucket, source.providerFileName)
-        .catch((error: unknown) => {
-          // The row is what the user sees; a stranded object is a cleanup
-          // problem, not a reason to refuse the removal they asked for.
-          this.logger.warn(
-            `Could not remove ${source.providerFileName} from ${source.providerBucket}: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-          );
-        });
+    if (source.providerBucket) {
+      const dedicatedStore =
+        source.providerBucket === voiceAgentKnowledgeSourceStoreName(source.id);
+      const cleanup = dedicatedStore
+        ? this.provider.deleteKnowledgeStore(source.providerBucket)
+        : source.providerFileName
+          ? this.provider.deleteKnowledgeDocument(
+              source.providerBucket,
+              source.providerFileName,
+            )
+          : Promise.resolve();
+
+      await cleanup.catch((error: unknown) => {
+        // The row is what the user sees; a stranded provider object is a
+        // cleanup problem, not a reason to refuse the removal they asked for.
+        this.logger.warn(
+          `Could not remove knowledge source ${source.id} from ${source.providerBucket}: ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+        );
+      });
     }
 
     await this.repository.deleteKnowledgeSource(source.id);
@@ -334,9 +358,9 @@ export class VoiceAgentKnowledgeService {
   }
 
   /**
-   * Copies an uploaded file into this agent's own store. The bytes only live at
-   * the provider, so they are read back out of the original bucket rather than
-   * asking the user for the file again.
+   * Copies an uploaded file into a new store owned by this agent's new source.
+   * The bytes only live at the provider, so they are read back out of the
+   * original bucket rather than asking the user for the file again.
    */
   private async copyDocument(
     ctx: OwnershipContext,
@@ -361,22 +385,26 @@ export class VoiceAgentKnowledgeService {
         );
       });
 
-    const store = await this.ensureStore(agentId);
+    const sourceId = randomUUID();
+    const store = await this.ensureStore(sourceId);
     const fileName = this.fileName(origin.label, "bin");
-    await this.provider.putKnowledgeDocument(
-      store,
-      fileName,
-      document.body,
-      document.contentType,
-    );
+    const source = await this.withStoreCleanup(sourceId, store, async () => {
+      await this.provider.putKnowledgeDocument(
+        store,
+        fileName,
+        document.body,
+        document.contentType,
+      );
 
-    const source = await this.repository.createKnowledgeSource({
-      agentId,
-      kind: origin.kind,
-      label: origin.label,
-      providerBucket: store,
-      providerFileName: fileName,
-      status: AiVoiceAgentKnowledgeStatus.processing,
+      return this.repository.createKnowledgeSource({
+        id: sourceId,
+        agentId,
+        kind: origin.kind,
+        label: origin.label,
+        providerBucket: store,
+        providerFileName: fileName,
+        status: AiVoiceAgentKnowledgeStatus.processing,
+      });
     });
 
     return this.startIndexing(source, () =>
@@ -384,14 +412,39 @@ export class VoiceAgentKnowledgeService {
     );
   }
 
-  private async ensureStore(agentId: string): Promise<string> {
-    const store = this.storeName(agentId);
+  private async ensureStore(sourceId: string): Promise<string> {
+    const store = this.storeName(sourceId);
     await this.provider.createKnowledgeStore(store);
     return store;
   }
 
-  private storeName(agentId: string): string {
-    return voiceAgentKnowledgeStoreName(agentId);
+  /**
+   * If setup fails after creating a new store, try to remove the orphan store
+   * but always rethrow the original setup error.
+   */
+  private async withStoreCleanup<T>(
+    sourceId: string,
+    store: string,
+    work: () => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await work();
+    } catch (error) {
+      await this.provider.deleteKnowledgeStore(store).catch((cleanupError) => {
+        this.logger.warn(
+          `Could not clean up knowledge store ${store} for source ${sourceId}: ${
+            cleanupError instanceof Error
+              ? cleanupError.message
+              : String(cleanupError)
+          }`,
+        );
+      });
+      throw error;
+    }
+  }
+
+  private storeName(sourceId: string): string {
+    return voiceAgentKnowledgeSourceStoreName(sourceId);
   }
 
   /**

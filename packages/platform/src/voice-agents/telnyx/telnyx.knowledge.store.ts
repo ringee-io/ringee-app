@@ -11,7 +11,7 @@ import {
 import { apiConfiguration } from "@ringee/configuration";
 
 /**
- * The object store behind an agent's knowledge base.
+ * The object store behind an agent knowledge source.
  *
  * Telnyx Cloud Storage is S3-compatible and authenticates with the same API
  * key used everywhere else, so this reuses the SDK the recording store already
@@ -64,8 +64,8 @@ export class TelnyxKnowledgeStore {
 
   /**
    * Reads an object back out. Reusing a document on a second agent means
-   * copying the bytes into that agent's own bucket — each agent owns its
-   * store, so deleting one agent must never empty another one's knowledge.
+   * copying the bytes into a new source-owned bucket, so deleting either agent
+   * can never empty the other's knowledge.
    */
   async getObject(
     bucket: string,

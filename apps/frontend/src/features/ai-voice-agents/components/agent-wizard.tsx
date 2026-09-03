@@ -22,6 +22,7 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { cn } from '@ringee/frontend-shared/lib/utils';
 import { FIELD_STEPS, useAgentDraft } from '../hooks/use-agent-draft';
 import type { VoiceAgentType, VoiceAgentTypeInfo } from '../types';
+import { AgentCostEstimate } from './agent-cost-estimate';
 import { AgentScreenContent } from './agent-screen';
 import { CompanySection } from './sections/company-section';
 import { ResultsSection } from './sections/results-section';
@@ -169,6 +170,10 @@ export function AgentWizard({
       }
     >
       <div className='space-y-6'>
+        <div className='flex justify-end'>
+          <AgentCostEstimate />
+        </div>
+
         <ol className='flex flex-wrap gap-2'>
           {STEPS.map((s, i) => {
             const active = s.id === step;

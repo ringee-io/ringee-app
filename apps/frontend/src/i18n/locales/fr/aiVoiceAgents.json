@@ -16,6 +16,11 @@
     "disabled": "Désactivé",
     "error": "Erreur"
   },
+  "pricing": {
+    "estimate": "Coût estimé : ~0,108 $ par minute + frais de téléphonie",
+    "configurationDisclaimer": "Coûts estimés par minute selon la configuration de cet assistant et les tarifs de votre compte. Il ne s’agit pas d’un tarif fixe par minute.",
+    "byokDisclaimer": "Les coûts des clés tierces fournies par vos soins (BYOK) ne sont pas inclus."
+  },
   "list": {
     "loadError": "Impossible de charger vos agents.",
     "emptyTitle": "Créez votre premier agent",

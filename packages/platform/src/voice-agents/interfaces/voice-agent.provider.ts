@@ -479,8 +479,9 @@ export interface VoiceAgentProvider {
   ): Promise<VoiceAgentConversation | null>;
 
   // ── Knowledge bases ──
-  // A store holds one agent's documents; indexing it is asynchronous, so every
-  // write returns a task the caller polls.
+  // A store holds one knowledge source; indexing it is asynchronous, so every
+  // write returns a task the caller polls. An assistant may receive several
+  // stores through its retrieval tool.
 
   createKnowledgeStore(store: string): Promise<void>;
   deleteKnowledgeStore(store: string): Promise<void>;

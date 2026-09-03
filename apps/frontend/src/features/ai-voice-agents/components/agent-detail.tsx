@@ -48,6 +48,7 @@ import { FIELD_STEPS, useAgentDraft } from '../hooks/use-agent-draft';
 import { describeApiError } from '../lib/api-error';
 import { flagEmoji } from '../lib/voice-format';
 import type { VoiceAgent, VoiceAgentTypeInfo } from '../types';
+import { AgentCostEstimate } from './agent-cost-estimate';
 import { AgentScreen, AgentScreenContent } from './agent-screen';
 import { AgentStatusBadge } from './agent-status-badge';
 import { CallsTable } from './calls-table';
@@ -350,6 +351,10 @@ function AgentDetailView({
       }
     >
       <div className='space-y-4'>
+        <div className='flex justify-end'>
+          <AgentCostEstimate />
+        </div>
+
         {/* The setup failure comes first: nothing else on this screen matters
             while the agent cannot be built provider-side. */}
         {agent.status === 'error' && agent.lastError ? (

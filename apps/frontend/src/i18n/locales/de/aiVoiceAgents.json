@@ -16,6 +16,11 @@
     "disabled": "Deaktiviert",
     "error": "Fehler"
   },
+  "pricing": {
+    "estimate": "Geschätzte Kosten: ~0,108 $ pro Minute + Telefoniegebühren",
+    "configurationDisclaimer": "Geschätzte Kosten pro Minute basierend auf der Konfiguration dieses Assistenten und deinen Kontotarifen. Dies ist kein fester Minutenpreis.",
+    "byokDisclaimer": "Kosten für eigene Schlüssel von Drittanbietern (BYOK) sind nicht enthalten."
+  },
   "list": {
     "loadError": "Deine Agenten konnten nicht geladen werden.",
     "emptyTitle": "Erstelle deinen ersten Agenten",
