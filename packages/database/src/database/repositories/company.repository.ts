@@ -1,7 +1,12 @@
 import { Injectable } from "@nestjs/common";
 import { Company, Prisma } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 import { PrismaService } from "../prisma.service";
 import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
+
+function normalizeCompanyName(name: string): string {
+  return name.trim().replace(/\s+/g, " ").toLowerCase();
+}
 
 @Injectable()
 export class CompanyRepository {
@@ -27,10 +32,78 @@ export class CompanyRepository {
     return this.prisma.company.findFirst({
       where: {
         ...buildOwnershipFilter(ctx),
-        name: { equals: name, mode: "insensitive" },
+        normalizedName: normalizeCompanyName(name),
         deletedAt: null,
       },
     });
+  }
+
+  /**
+   * Atomically resolve the active company for a normalized name and workspace.
+   * The matching partial unique indexes are defined by the database migration.
+   */
+  async upsertActiveByName(
+    ctx: OwnershipContext,
+    data: {
+      name: string;
+      website?: string | null;
+      linkedinUrl: string;
+      source?: string | null;
+    },
+  ): Promise<Company> {
+    const normalizedName = normalizeCompanyName(data.name);
+    const website = data.website?.trim() || null;
+    const conflictTarget = ctx.organizationId
+      ? Prisma.sql`("organizationId", "normalizedName")
+          WHERE "deletedAt" IS NULL AND "organizationId" IS NOT NULL`
+      : Prisma.sql`("userId", "normalizedName")
+          WHERE "deletedAt" IS NULL AND "organizationId" IS NULL`;
+
+    const companies = await this.prisma.$queryRaw<Company[]>(Prisma.sql`
+      INSERT INTO "Company" (
+        "id",
+        "name",
+        "normalizedName",
+        "secondaryDomains",
+        "technologies",
+        "keywords",
+        "tags",
+        "website",
+        "linkedinUrl",
+        "userId",
+        "organizationId",
+        "source",
+        "createdAt",
+        "updatedAt"
+      ) VALUES (
+        ${randomUUID()}::uuid,
+        ${data.name.trim()},
+        ${normalizedName},
+        ARRAY[]::TEXT[],
+        ARRAY[]::TEXT[],
+        ARRAY[]::TEXT[],
+        ARRAY[]::TEXT[],
+        ${website},
+        ${data.linkedinUrl},
+        ${ctx.userId}::uuid,
+        ${ctx.organizationId ?? null}::uuid,
+        ${data.source ?? null},
+        CURRENT_TIMESTAMP,
+        CURRENT_TIMESTAMP
+      )
+      ON CONFLICT ${conflictTarget}
+      DO UPDATE SET
+        "linkedinUrl" = EXCLUDED."linkedinUrl",
+        "website" = COALESCE(EXCLUDED."website", "Company"."website"),
+        "updatedAt" = CURRENT_TIMESTAMP
+      RETURNING *
+    `);
+
+    const company = companies[0];
+    if (!company) {
+      throw new Error("Company upsert did not return a row");
+    }
+    return company;
   }
 
   listByOwner(
@@ -74,6 +147,7 @@ export class CompanyRepository {
     return this.prisma.company.create({
       data: {
         name: data.name,
+        normalizedName: normalizeCompanyName(data.name),
         domain: data.domain ?? null,
         industry: data.industry ?? null,
         size: data.size ?? null,
@@ -94,7 +168,13 @@ export class CompanyRepository {
   }
 
   update(id: string, data: Prisma.CompanyUpdateInput): Promise<Company> {
-    return this.prisma.company.update({ where: { id }, data });
+    const name = typeof data.name === "string" ? data.name : undefined;
+    return this.prisma.company.update({
+      where: { id },
+      data: name
+        ? { ...data, normalizedName: normalizeCompanyName(name) }
+        : data,
+    });
   }
 
   softDelete(id: string): Promise<Company> {

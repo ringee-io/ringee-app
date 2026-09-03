@@ -539,25 +539,16 @@ export class ContactService {
 
     const companyByName = new Map<
       string,
-      Awaited<ReturnType<CompanyRepository["findByName"]>>
+      Awaited<ReturnType<CompanyRepository["upsertActiveByName"]>>
     >();
 
     for (const [normalizedName, input] of companyInputs) {
-      let company = await this.companyRepo.findByName(ctx, input.name);
-      if (!company) {
-        company = await this.companyRepo.create(ctx, {
-          name: input.name,
-          website: input.website ?? null,
-          linkedinUrl: input.linkedinUrl,
-          source: "csv_import",
-        });
-      } else {
-        const updates: { linkedinUrl: string; website?: string } = {
-          linkedinUrl: input.linkedinUrl,
-        };
-        if (!company.website && input.website) updates.website = input.website;
-        company = await this.companyRepo.update(company.id, updates);
-      }
+      const company = await this.companyRepo.upsertActiveByName(ctx, {
+        name: input.name,
+        website: input.website ?? null,
+        linkedinUrl: input.linkedinUrl,
+        source: "csv_import",
+      });
       companyByName.set(normalizedName, company);
     }
 
