@@ -177,6 +177,27 @@ export class CompanyRepository {
     });
   }
 
+  isActiveNameConflict(error: unknown): boolean {
+    if (
+      !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+      error.code !== "P2002"
+    ) {
+      return false;
+    }
+
+    const target = error.meta?.target;
+    const fields = Array.isArray(target)
+      ? target.map(String)
+      : [String(target ?? "")];
+
+    return (
+      fields.some((field) => field.includes("normalizedName")) &&
+      fields.some(
+        (field) => field.includes("userId") || field.includes("organizationId"),
+      )
+    );
+  }
+
   softDelete(id: string): Promise<Company> {
     return this.prisma.company.update({
       where: { id },
