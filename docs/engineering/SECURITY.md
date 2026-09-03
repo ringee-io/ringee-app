@@ -117,6 +117,20 @@ full register.
   revocable connector token is the upgrade path if MCP links are ever shared
   beyond one operator per workspace.
 
+## Automated security analysis
+
+`.github/workflows/codeql.yml` runs GitHub CodeQL against the repository's
+TypeScript/JavaScript and GitHub Actions workflows on pull requests to `main`,
+pushes to `main`, a weekly schedule and manual dispatch. It uses build mode
+`none`: the scan does not install dependencies, execute repository code or need
+provider credentials.
+
+CodeQL is deliberately separate from `.github/workflows/ci.yml`. The functional
+CI installs dependencies and runs repository-controlled commands with a
+read-only token; only the CodeQL job receives `security-events: write`, which it
+needs to publish findings to GitHub code scanning. Its other permissions are
+read-only.
+
 ## Checklist before merging anything security-adjacent
 
 - Does any new route need `@Public()`? What proves the caller?
