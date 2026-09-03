@@ -125,6 +125,35 @@ describe("CompanyRepository normalized names", () => {
       },
     ]);
   });
+
+  it("scopes active updates to the current personal workspace", async () => {
+    const writes: unknown[] = [];
+    const prisma = {
+      company: {
+        update: async (input: unknown) => {
+          writes.push(input);
+          return { id: "company-1" };
+        },
+      },
+    };
+    const repository = new CompanyRepository(prisma as never);
+
+    await repository.updateActive({ userId: "user-1" }, "company-1", {
+      name: "  ACME   Labs ",
+    });
+
+    assert.deepEqual(writes, [
+      {
+        where: {
+          id: "company-1",
+          userId: "user-1",
+          organizationId: null,
+          deletedAt: null,
+        },
+        data: { name: "  ACME   Labs ", normalizedName: "acme labs" },
+      },
+    ]);
+  });
 });
 
 describe("CompanyRepository.isActiveNameConflict", () => {

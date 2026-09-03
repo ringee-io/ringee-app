@@ -177,6 +177,24 @@ export class CompanyRepository {
     });
   }
 
+  updateActive(
+    ctx: OwnershipContext,
+    id: string,
+    data: Prisma.CompanyUpdateInput,
+  ): Promise<Company> {
+    const name = typeof data.name === "string" ? data.name : undefined;
+    return this.prisma.company.update({
+      where: {
+        id,
+        ...buildOwnershipFilter(ctx),
+        deletedAt: null,
+      },
+      data: name
+        ? { ...data, normalizedName: normalizeCompanyName(name) }
+        : data,
+    });
+  }
+
   isActiveNameConflict(error: unknown): boolean {
     if (
       !(error instanceof Prisma.PrismaClientKnownRequestError) ||

@@ -58,7 +58,7 @@ export class CrmCompanySyncService {
     );
 
     if (existingLink?.companyId) {
-      await this.updateExisting(existingLink.companyId, result);
+      await this.updateExisting(ctx, existingLink.companyId, result);
       await this.touchLink(connection, result, existingLink.companyId);
       return { companyId: existingLink.companyId, created: false };
     }
@@ -72,7 +72,7 @@ export class CrmCompanySyncService {
     }
 
     if (existing) {
-      await this.updateExisting(existing.id, result);
+      await this.updateExisting(ctx, existing.id, result);
       await this.touchLink(connection, result, existing.id);
       return { companyId: existing.id, created: false };
     }
@@ -109,6 +109,7 @@ export class CrmCompanySyncService {
   }
 
   private async updateExisting(
+    ctx: OwnershipContext,
     companyId: string,
     result: CrmCompanySyncResult,
   ): Promise<void> {
@@ -121,7 +122,7 @@ export class CrmCompanySyncService {
     };
 
     try {
-      await this.companyRepo.update(companyId, {
+      await this.companyRepo.updateActive(ctx, companyId, {
         name: result.name,
         ...syncedFields,
       });
@@ -135,7 +136,7 @@ export class CrmCompanySyncService {
         `CRM company ${result.company.externalId} matched company ${companyId}, ` +
           `but the name "${result.name}" is already in use; preserving the local name`,
       );
-      await this.companyRepo.update(companyId, syncedFields);
+      await this.companyRepo.updateActive(ctx, companyId, syncedFields);
     }
   }
 

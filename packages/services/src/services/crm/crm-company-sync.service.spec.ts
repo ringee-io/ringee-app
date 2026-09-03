@@ -25,17 +25,58 @@ const syncResult = {
   raw: null,
 } as never;
 
-function buildService(updateError: Error, isActiveNameConflict: boolean) {
-  const updates: AnyRecord[] = [];
+function buildService(forcedUpdateError?: Error) {
   const links: AnyRecord[] = [];
+  const nameConflict = new Error("duplicate name");
+  const company = {
+    id: "company-1",
+    userId: "user-1",
+    organizationId: "org-1",
+    deletedAt: null,
+    name: "Local Acme",
+    domain: "old.example",
+    industry: "Consulting",
+    size: "1-10",
+    phone: "+18005550999",
+    website: "https://old.example",
+  };
+  const normalizedNameOwners = new Map([
+    ["local acme", company.id],
+    ["acme", "company-2"],
+  ]);
 
   const companyRepo = {
-    update: async (id: string, data: AnyRecord) => {
-      updates.push({ id, data });
-      if (updates.length === 1) throw updateError;
-      return { id, ...data };
+    updateActive: async (
+      updateCtx: typeof ctx,
+      id: string,
+      data: AnyRecord,
+    ) => {
+      if (forcedUpdateError) throw forcedUpdateError;
+
+      const isOwned = updateCtx.organizationId
+        ? company.organizationId === updateCtx.organizationId
+        : company.userId === updateCtx.userId &&
+          company.organizationId === null;
+      if (company.id !== id || company.deletedAt !== null || !isOwned) {
+        throw new Error("company not found in workspace");
+      }
+
+      if (typeof data.name === "string") {
+        const normalizedName = data.name
+          .trim()
+          .replace(/\s+/g, " ")
+          .toLowerCase();
+        const owner = normalizedNameOwners.get(normalizedName);
+        if (owner && owner !== company.id) throw nameConflict;
+        normalizedNameOwners.set(normalizedName, company.id);
+      }
+
+      for (const [field, value] of Object.entries(data)) {
+        if (value !== undefined) Object.assign(company, { [field]: value });
+      }
+      return company;
     },
-    isActiveNameConflict: () => isActiveNameConflict,
+    isActiveNameConflict: (error: unknown) => error === nameConflict,
   };
   const linkRepo = {
     findByExternalId: async () => ({ companyId: "company-1" }),
@@ -53,12 +94,12 @@ function buildService(updateError: Error, isActiveNameConflict: boolean) {
     {} as never,
   );
 
-  return { service, updates, links };
+  return { service, company, links };
 }
 
 describe("CrmCompanySyncService.upsertCompany", () => {
   it("preserves the local name and syncs other fields on a name collision", async () => {
-    const harness = buildService(new Error("duplicate name"), true);
+    const harness = buildService();
 
     const result = await harness.service.upsertCompany(
       connection,
@@ -67,28 +108,31 @@ describe("CrmCompanySyncService.upsertCompany", () => {
     );
 
     assert.deepEqual(result, { companyId: "company-1", created: false });
-    assert.equal(harness.updates.length, 2);
-    assert.equal(
-      (harness.updates[0].data as AnyRecord).name,
-      "Acme",
-      "the first update should try to apply the CRM name",
-    );
-    assert.equal("name" in (harness.updates[1].data as AnyRecord), false);
-    assert.equal((harness.updates[1].data as AnyRecord).domain, "acme.example");
+    assert.deepEqual(harness.company, {
+      id: "company-1",
+      userId: "user-1",
+      organizationId: "org-1",
+      deletedAt: null,
+      name: "Local Acme",
+      domain: "acme.example",
+      industry: "Software",
+      size: "11-50",
+      phone: "+18005550100",
+      website: "https://acme.example",
+    });
     assert.equal(harness.links.length, 1);
     assert.equal(harness.links[0].companyId, "company-1");
   });
 
   it("rethrows unique violations that are not normalized-name conflicts", async () => {
     const error = new Error("unrelated unique violation");
-    const harness = buildService(error, false);
+    const harness = buildService(error);
 
     await assert.rejects(
       harness.service.upsertCompany(connection, syncResult, ctx),
       (caught) => caught === error,
     );
 
-    assert.equal(harness.updates.length, 1);
     assert.equal(harness.links.length, 0);
   });
 });
