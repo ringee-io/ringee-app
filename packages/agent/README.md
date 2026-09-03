@@ -53,6 +53,14 @@ const session = await ringee.createCallSession({
 });
 console.log(session.joinUrl); // share EXACTLY as returned
 
+// AI voice agents expose list + trigger, not creation or editing.
+const { agents } = await ringee.listAiVoiceAgents();
+const call = await ringee.startAiVoiceAgentCall({
+  agentId: agents[0]!.id,
+  to: "+14155552671",
+  variables: { first_name: "Jane" },
+}); // real, billed call — obtain human confirmation first
+
 await ringee.close();
 ```
 

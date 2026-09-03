@@ -10,6 +10,10 @@ import type {
   VoiceAgentVariableDefinition,
 } from "../voice-agent.types";
 import { buildSharedInsights } from "./insights";
+import {
+  buildHumanSupportTool,
+  voiceAgentWebhookHeaders,
+} from "./human-support.tool";
 import { inLanguage, languageRule, type LocalizedPhrase } from "./language";
 
 /**
@@ -107,7 +111,10 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "  is a good moment.",
       "- If they are busy, ask for a better time to call back and end politely.",
       "- Answer their questions honestly from what you know. If you do not know",
-      "  something, say so and offer to have someone follow up.",
+      "  something and they want an answer, say so and call",
+      "  `request_human_support` so a person can follow up.",
+      "- If they explicitly ask to speak with a person, call",
+      "  `request_human_support` with a short subject and useful message.",
       "- Do not argue and do not keep pushing after a clear no. Thank them and",
       "  end the call.",
       "",
@@ -130,8 +137,9 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "5. Before booking, repeat the date and time back and get an explicit yes.",
       `6. The meeting is ${duration} minutes long.`,
       "7. Only after `book_appointment` returns success may you say the meeting",
-      "   is booked. If it fails, say you could not confirm it and that someone",
-      "   will follow up — never claim a booking that did not happen.",
+      "   is booked. If it fails, call `request_human_support`; only after that",
+      "   succeeds may you say someone will follow up. Never claim a booking",
+      "   that did not happen.",
       "8. If `Email on file` is not empty, ask only whether that exact address",
       "   is correct. Do not ask the person to dictate or spell it. After they",
       "   confirm it, pass {{email}} to `book_appointment` exactly as written",
@@ -187,13 +195,17 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "- Get explicit agreement to a specific date and time before calling",
       "  `book_appointment`.",
       "- Only say a meeting is booked after `book_appointment` returns",
-      "  success. If it fails, say it could not be confirmed.",
+      "  success. If it fails, say it could not be confirmed and call",
+      "  `request_human_support`.",
       "- When {{email}} is not empty, ask only whether that exact email is",
       "  correct. Do not ask the person to dictate or spell it. Once confirmed,",
       "  pass {{email}} unchanged to `book_appointment`; do not reconstruct it",
       "  from the transcript. Ask for an address only if {{email}} is empty or",
       "  the person says it is wrong.",
       "- Never invent prices, policies, availability or company facts.",
+      "- If the person asks for a human, or any webhook tool fails and a person",
+      "  must finish the request, call `request_human_support`. Only promise a",
+      "  follow-up after that tool succeeds.",
       "- Honor a clear refusal immediately; thank the person and end the call.",
     ].join("\n");
   }
@@ -202,10 +214,7 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
     // The call's identity is passed as a header the provider fills from a
     // system variable — never as a model-supplied argument, which the model
     // could get wrong or a caller could forge.
-    const headers = [
-      { name: "X-Ringee-Tool-Secret", secretRef: ctx.toolSecretRef },
-      { name: "X-Ringee-Call-Control-Id", value: "{{call_control_id}}" },
-    ];
+    const headers = voiceAgentWebhookHeaders(ctx);
 
     const tools: VoiceAgentTool[] = [
       {
@@ -258,6 +267,7 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
           required: ["start"],
         },
       },
+      buildHumanSupportTool(ctx),
       {
         kind: "hangup",
         description:

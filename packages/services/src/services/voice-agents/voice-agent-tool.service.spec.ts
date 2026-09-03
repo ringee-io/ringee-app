@@ -11,6 +11,7 @@ const FUTURE = "2099-01-05T15:00:00.000Z";
 
 const AGENT = {
   id: "agent-1",
+  name: "Sofia",
   userId: "user-1",
   organizationId: "org-1",
   toolSecretHash: SECRET_HASH,
@@ -30,12 +31,19 @@ function build(
     meeting?: Record<string, unknown>;
     meetingError?: Error;
     bookedMeeting?: Record<string, unknown>;
+    contact?: Record<string, unknown> | null;
+    supportDelivery?: {
+      delivered: boolean;
+      duplicate: boolean;
+      recipientCount: number;
+    };
   } = {},
 ) {
   const updates: Array<Record<string, unknown>> = [];
   const created: Array<Record<string, unknown>> = [];
   const lookups: string[] = [];
   const availabilityChecks: Array<Record<string, unknown>> = [];
+  const supportRequests: Array<Record<string, unknown>> = [];
 
   const service = new VoiceAgentToolService(
     {
@@ -96,10 +104,41 @@ function build(
         );
       },
     } as never,
-    { findOrCreateByPhone: async () => ({ id: "contact-2" }) } as never,
+    {
+      findOrCreateByPhone: async () => ({ id: "contact-2" }),
+      findContactByIdForOwner: async () =>
+        over.contact === undefined
+          ? {
+              id: "contact-1",
+              name: "Carlos Rivera",
+              phoneNumber: "+13055550123",
+              email: "carlos@acme.test",
+              company: "Acme",
+            }
+          : over.contact,
+    } as never,
+    {
+      notify: async (request: Record<string, unknown>) => {
+        supportRequests.push(request);
+        return (
+          over.supportDelivery ?? {
+            delivered: true,
+            duplicate: false,
+            recipientCount: 2,
+          }
+        );
+      },
+    } as never,
   );
 
-  return { service, updates, created, lookups, availabilityChecks };
+  return {
+    service,
+    updates,
+    created,
+    lookups,
+    availabilityChecks,
+    supportRequests,
+  };
 }
 
 describe("VoiceAgentToolService authorization", () => {
@@ -312,5 +351,85 @@ describe("VoiceAgentToolService booking", () => {
     assert.equal(result.ok, true);
     assert.equal(created[0]?.contactId, "contact-2");
     assert.deepEqual(updates[0], { contactId: "contact-2" });
+  });
+});
+
+describe("VoiceAgentToolService human support", () => {
+  it("notifies the workspace with server-derived agent, call and contact", async () => {
+    const { service, supportRequests } = build();
+
+    const result = await service.requestHumanSupport(
+      "agent-1",
+      SECRET,
+      "cc-1",
+      {
+        subject: "  Calendar\nbooking failed  ",
+        message: "The customer asked for Tuesday, but booking was unavailable.",
+      },
+    );
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.request.subject, "Calendar booking failed");
+    assert.equal(result.request.notified_recipients, 2);
+    assert.equal(result.request.contact_attached, true);
+    assert.equal(result.request.already_requested, false);
+    assert.match(result.speech_instruction, /Do not promise a response time/);
+
+    assert.equal(supportRequests.length, 1);
+    const request = supportRequests[0] as {
+      agent: { id: string };
+      call: { id: string };
+      contact: { name: string; email: string };
+    };
+    assert.equal(request.agent.id, "agent-1");
+    assert.equal(request.call.id, "call-1");
+    assert.equal(request.contact.name, "Carlos Rivera");
+    assert.equal(request.contact.email, "carlos@acme.test");
+  });
+
+  it("requires the provider-filled call id instead of accepting one from the model", async () => {
+    const { service, supportRequests } = build();
+    const result = await service.requestHumanSupport("agent-1", SECRET, null, {
+      subject: "Needs help",
+      message: "Please call back.",
+    });
+
+    assert.equal(result.ok, false);
+    assert.deepEqual(supportRequests, []);
+  });
+
+  it("refuses to notify from another agent's call", async () => {
+    const { service } = build({
+      agentCall: { id: "call-9", agentId: "another-agent" },
+    });
+    await assert.rejects(
+      () =>
+        service.requestHumanSupport("agent-1", SECRET, "cc-1", {
+          subject: "Needs help",
+          message: "Please call back.",
+        }),
+      /does not belong to this agent/,
+    );
+  });
+
+  it("does not promise follow-up when no admin could be notified", async () => {
+    const { service } = build({
+      supportDelivery: {
+        delivered: false,
+        duplicate: false,
+        recipientCount: 0,
+      },
+    });
+    const result = await service.requestHumanSupport(
+      "agent-1",
+      SECRET,
+      "cc-1",
+      { subject: "Needs help", message: "Please call back." },
+    );
+
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.match(result.error, /Do not promise/);
   });
 });

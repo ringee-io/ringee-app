@@ -61,6 +61,7 @@ import {
   VoiceAgentBlueprintRegistry,
   VoiceAgentCallService,
   VoiceAgentKnowledgeService,
+  VoiceAgentHumanSupportService,
   VoiceAgentResultService,
   VoiceAgentService,
   VoiceAgentTestSessionService,
@@ -344,6 +345,7 @@ const servicesProviders = [
   VoiceAgentBillingService,
   VoiceAgentTestSessionService,
   VoiceAgentKnowledgeService,
+  VoiceAgentHumanSupportService,
   VoiceAgentToolService,
   CompanyProfileService,
 ];

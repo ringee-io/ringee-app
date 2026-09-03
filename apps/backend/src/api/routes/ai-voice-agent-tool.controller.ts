@@ -45,4 +45,20 @@ export class AiVoiceAgentToolController {
       body ?? {},
     );
   }
+
+  @Public()
+  @Post(":agentId/request-human-support")
+  requestHumanSupport(
+    @Param("agentId") agentId: string,
+    @Headers(VOICE_AGENT_TOOL_SECRET_HEADER) secret: string,
+    @Headers(VOICE_AGENT_CALL_ID_HEADER) callControlId: string,
+    @Body() body: { subject?: string; message?: string },
+  ) {
+    return this.tools.requestHumanSupport(
+      agentId,
+      secret,
+      callControlId ?? null,
+      body ?? {},
+    );
+  }
 }

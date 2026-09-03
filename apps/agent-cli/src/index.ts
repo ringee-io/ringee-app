@@ -30,6 +30,8 @@ program
       `  ${c.dim('ringee sessions create --contact <id> --title "Tue outbound" --yes')}\n` +
       `  ${c.dim("ringee campaigns list --status active")}\n` +
       `  ${c.dim("ringee campaigns analytics <campaignId>")}\n` +
+      `  ${c.dim("ringee voice-agents list")}\n` +
+      `  ${c.dim("ringee voice-agents call <agentId> --to +13055550123 --yes")}\n` +
       `  ${c.dim("ringee analytics calls --range 30d --campaign none")}\n` +
       `  ${c.dim("ringee analytics day 2026-06-02 --offset -04:00")}\n` +
       `  ${c.dim("ringee callbacks list --status scheduled")}\n` +

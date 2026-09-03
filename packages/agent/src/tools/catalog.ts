@@ -624,7 +624,7 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     sensitivity: "sensitive",
     consumesCredits: true,
     requiresConfirmation: true,
-    cli: "ringee voice-agents call <agentId> --to +13055550123 --var first_name=Carlos",
+    cli: "ringee voice-agents call <agentId> --to +13055550123 --var first_name=Carlos --yes",
     annotations: {
       readOnlyHint: false,
       destructiveHint: false,

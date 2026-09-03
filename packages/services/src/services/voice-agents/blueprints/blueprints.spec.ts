@@ -132,7 +132,7 @@ describe("AppointmentBookingBlueprint", () => {
   it("authenticates its tools by secret reference, never in plaintext", () => {
     const tools = blueprint.buildTools(toolContext);
     const webhooks = tools.filter((t) => t.kind === "webhook");
-    assert.equal(webhooks.length, 2);
+    assert.equal(webhooks.length, 3);
 
     for (const tool of webhooks) {
       assert.equal(tool.kind, "webhook");
@@ -143,6 +143,32 @@ describe("AppointmentBookingBlueprint", () => {
       assert.equal(secret?.secretRef, toolContext.toolSecretRef);
       assert.equal(secret?.value, undefined);
     }
+  });
+
+  it("can escalate a failed tool or explicit human-support request", () => {
+    const instructions = blueprint.buildInstructions(promptContext);
+    const safety = blueprint.buildSafetyInstructions(promptContext);
+    assert.match(instructions, /request_human_support/);
+    assert.match(safety, /request_human_support/);
+
+    const support = blueprint
+      .buildTools(toolContext)
+      .find(
+        (tool) =>
+          tool.kind === "webhook" && tool.name === "request_human_support",
+      );
+    assert.equal(support?.kind, "webhook");
+    if (support?.kind !== "webhook") return;
+    assert.deepEqual(support.parameters?.required, ["subject", "message"]);
+    assert.deepEqual(Object.keys(support.parameters?.properties ?? {}), [
+      "subject",
+      "message",
+    ]);
+    assert.equal(
+      support.headers?.find((h) => h.name === "X-Ringee-Call-Control-Id")
+        ?.value,
+      "{{call_control_id}}",
+    );
   });
 
   it("takes the call's identity from a system variable, not from the model", () => {
@@ -275,12 +301,16 @@ describe("AppointmentBookingBlueprint", () => {
 describe("RemindersNotificationsBlueprint", () => {
   const blueprint = new RemindersNotificationsBlueprint();
 
-  it("needs no calendar and no webhook tools", () => {
+  it("needs no calendar but can request human support", () => {
     assert.equal(blueprint.requiresCalendar, false);
     const tools = blueprint.buildTools(toolContext);
     assert.deepEqual(
       tools.map((t) => t.kind),
-      ["hangup"],
+      ["webhook", "hangup"],
+    );
+    assert.equal(
+      tools.find((tool) => tool.kind === "webhook")?.name,
+      "request_human_support",
     );
   });
 
@@ -295,6 +325,11 @@ describe("RemindersNotificationsBlueprint", () => {
     const instructions = blueprint.buildInstructions(promptContext);
     assert.match(instructions, /cannot reschedule on this/);
     assert.match(instructions, /Never invent a detail/);
+    assert.match(instructions, /request_human_support/);
+    assert.match(
+      blueprint.buildSafetyInstructions(promptContext),
+      /request_human_support/,
+    );
   });
 
   it("opens in the agent's language and names what the call is about", () => {

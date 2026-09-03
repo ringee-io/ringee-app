@@ -73,6 +73,7 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Conversation events → result          | `VoiceAgentResultService`                                                |
 | AI usage settlement                   | `VoiceAgentBillingService` (BILL-020)                                    |
 | Agent tool callbacks                  | `VoiceAgentToolService`                                                  |
+| Human-support notification delivery   | `VoiceAgentHumanSupportService`                                          |
 | Knowledge bases                       | `VoiceAgentKnowledgeService` + `TelnyxKnowledgeStore`                    |
 | Browser test sessions                 | `VoiceAgentTestSessionService` (AGENT-005)                               |
 | Agent company context (AGENT-007)     | `CompanyProfileService.resolveForAgent`                                  |
