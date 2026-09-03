@@ -260,6 +260,8 @@
         "jobTitle": "Cargo",
         "state": "Estado ou região",
         "website": "Site da empresa",
+        "linkedinUrl": "Perfil do LinkedIn do contacto",
+        "companyLinkedinUrl": "Perfil do LinkedIn da empresa",
         "revenue": "Faturação da empresa",
         "companySize": "Dimensão da empresa",
         "location": "Localização"

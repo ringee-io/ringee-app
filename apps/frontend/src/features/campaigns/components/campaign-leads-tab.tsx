@@ -37,7 +37,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle
 } from '@ringee/frontend-shared/components/ui/alert-dialog';
-import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator
+} from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import {
+  ExternalProfileMenuItems,
+  hasExternalProfileLinks,
+  type ExternalProfileLabels
+} from '@ringee/frontend-shared/components/external-profile-links';
 import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
 import {
   TableActionCell,
@@ -78,6 +86,14 @@ const LEAD_STATUS_COLORS: Record<string, string> = {
   dnc: 'bg-red-100 text-red-700'
 };
 
+function leadProfileUrls(lead: CampaignLead) {
+  return {
+    linkedinUrl: lead.contact.linkedinUrl,
+    companyLinkedinUrl: lead.contact.affiliations?.[0]?.company.linkedinUrl,
+    websiteUrl: lead.contact.websiteUrl
+  };
+}
+
 // Statuses worth surfacing as filters in the UI (terminal + common states).
 // Labels come from `campaigns.leadStatus.*`; `all` is the unfiltered option.
 const STATUS_FILTERS = [
@@ -109,6 +125,7 @@ export function CampaignLeadsTab({
 }: Props) {
   const api = useApi();
   const t = useTranslations('campaigns');
+  const tContactActions = useTranslations('contacts.rowActions');
   const tCommon = useTranslations('common');
   const [leads, setLeads] = useState<CampaignLead[]>([]);
   const [loading, setLoading] = useState(true);
@@ -183,6 +200,15 @@ export function CampaignLeadsTab({
       campaignStatus === 'paused');
   // Leads can be removed in any non-completed campaign — admins only.
   const canManageLeads = canManage && campaignStatus !== 'completed';
+  const externalLinkLabels: ExternalProfileLabels = {
+    group: tContactActions('linksGroup'),
+    linkedinProfile: tContactActions('linkedinProfile'),
+    linkedinCompany: tContactActions('linkedinCompany'),
+    website: tContactActions('website')
+  };
+  const hasLeadRowActions =
+    canManageLeads ||
+    leads.some((lead) => hasExternalProfileLinks(leadProfileUrls(lead)));
 
   return (
     <>
@@ -285,7 +311,7 @@ export function CampaignLeadsTab({
                     <TableHead className='hidden lg:table-cell'>
                       {t('leads.table.lastCall')}
                     </TableHead>
-                    {canManageLeads && (
+                    {hasLeadRowActions && (
                       <TableActionHead>
                         <span className='sr-only'>
                           {t('leads.table.actions')}
@@ -334,29 +360,46 @@ export function CampaignLeadsTab({
                           ? new Date(lead.lastCallAt).toLocaleString()
                           : '—'}
                       </TableCell>
-                      {canManageLeads && (
+                      {hasLeadRowActions && (
                         <TableActionCell>
-                          <TableRowActions
-                            label={tCommon('openActions')}
-                            menuLabel={t('leads.table.actions')}
-                            loading={deletingId === lead.id}
-                          >
-                            <DropdownMenuItem
-                              variant='destructive'
-                              disabled={IN_FLIGHT_STATUSES.includes(
-                                lead.status
-                              )}
-                              title={
-                                IN_FLIGHT_STATUSES.includes(lead.status)
-                                  ? t('leads.inFlightHint')
-                                  : undefined
-                              }
-                              onClick={() => setDeleteTarget(lead)}
+                          {canManageLeads ||
+                          hasExternalProfileLinks(leadProfileUrls(lead)) ? (
+                            <TableRowActions
+                              label={tCommon('openActions')}
+                              menuLabel={t('leads.table.actions')}
+                              loading={deletingId === lead.id}
                             >
-                              <Trash2 className='h-4 w-4' />
-                              {t('leads.removeDialog.confirm')}
-                            </DropdownMenuItem>
-                          </TableRowActions>
+                              <ExternalProfileMenuItems
+                                urls={leadProfileUrls(lead)}
+                                labels={externalLinkLabels}
+                                separator={false}
+                              />
+                              {canManageLeads ? (
+                                <>
+                                  {hasExternalProfileLinks(
+                                    leadProfileUrls(lead)
+                                  ) ? (
+                                    <DropdownMenuSeparator />
+                                  ) : null}
+                                  <DropdownMenuItem
+                                    variant='destructive'
+                                    disabled={IN_FLIGHT_STATUSES.includes(
+                                      lead.status
+                                    )}
+                                    title={
+                                      IN_FLIGHT_STATUSES.includes(lead.status)
+                                        ? t('leads.inFlightHint')
+                                        : undefined
+                                    }
+                                    onClick={() => setDeleteTarget(lead)}
+                                  >
+                                    <Trash2 className='h-4 w-4' />
+                                    {t('leads.removeDialog.confirm')}
+                                  </DropdownMenuItem>
+                                </>
+                              ) : null}
+                            </TableRowActions>
+                          ) : null}
                         </TableActionCell>
                       )}
                     </TableRow>

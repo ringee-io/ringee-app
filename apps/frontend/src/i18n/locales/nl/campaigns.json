@@ -260,6 +260,8 @@
         "jobTitle": "Functie",
         "state": "Provincie of regio",
         "website": "Bedrijfswebsite",
+        "linkedinUrl": "LinkedIn-profiel van contact",
+        "companyLinkedinUrl": "LinkedIn-profiel van bedrijf",
         "revenue": "Bedrijfsomzet",
         "companySize": "Bedrijfsgrootte",
         "location": "Locatie"

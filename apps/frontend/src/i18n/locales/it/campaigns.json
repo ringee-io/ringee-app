@@ -260,6 +260,8 @@
         "jobTitle": "Ruolo",
         "state": "Stato o regione",
         "website": "Sito web aziendale",
+        "linkedinUrl": "Profilo LinkedIn del contatto",
+        "companyLinkedinUrl": "Profilo LinkedIn dell’azienda",
         "revenue": "Fatturato aziendale",
         "companySize": "Dimensione azienda",
         "location": "Località"

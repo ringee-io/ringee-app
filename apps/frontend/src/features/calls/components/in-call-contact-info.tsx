@@ -11,6 +11,10 @@ import { ApiError } from '@ringee/frontend-shared/lib/api';
 import { toast } from 'sonner';
 import { Pencil, X, Check, UserCircle2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import {
+  ExternalProfileButtons,
+  type ExternalProfileLabels
+} from '@ringee/frontend-shared/components/external-profile-links';
 
 type ContactPayload = {
   id: string;
@@ -24,6 +28,11 @@ type ContactPayload = {
   jobTitle?: string | null;
   locationRegion?: string | null;
   websiteUrl?: string | null;
+  linkedinUrl?: string | null;
+  affiliations?: Array<{
+    isPrimary: boolean;
+    company: { linkedinUrl?: string | null };
+  }>;
   revenue?: string | null;
   companySize?: string | null;
 };
@@ -76,6 +85,7 @@ function toForm(c: ContactPayload | null): FormState {
 export function InCallContactInfo({ contactId }: { contactId: string }) {
   const api = useApi();
   const t = useTranslations('calls.inCallContact');
+  const tContactActions = useTranslations('contacts.rowActions');
   const [contact, setContact] = useState<ContactPayload | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [loading, setLoading] = useState(true);
@@ -124,7 +134,11 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
         `/contacts/${contactId}`,
         payload
       );
-      setContact(updated);
+      setContact((current) => ({
+        ...(current ?? {}),
+        ...updated,
+        affiliations: updated.affiliations ?? current?.affiliations
+      }));
       setForm(toForm(updated));
       setEditing(false);
       toast.success(t('updated'));
@@ -164,6 +178,12 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
     contact.name ||
     [contact.firstName, contact.lastName].filter(Boolean).join(' ') ||
     contact.phoneNumber;
+  const externalLinkLabels: ExternalProfileLabels = {
+    group: tContactActions('linksGroup'),
+    linkedinProfile: tContactActions('linkedinProfile'),
+    linkedinCompany: tContactActions('linkedinCompany'),
+    website: tContactActions('website')
+  };
 
   return (
     <ScrollArea className='h-full'>
@@ -202,6 +222,15 @@ export function InCallContactInfo({ contactId }: { contactId: string }) {
             </Button>
           )}
         </div>
+
+        <ExternalProfileButtons
+          urls={{
+            linkedinUrl: contact.linkedinUrl,
+            companyLinkedinUrl: contact.affiliations?.[0]?.company.linkedinUrl,
+            websiteUrl: contact.websiteUrl
+          }}
+          labels={externalLinkLabels}
+        />
 
         <div className='grid grid-cols-1 gap-3 sm:grid-cols-2'>
           <Field

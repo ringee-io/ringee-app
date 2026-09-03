@@ -260,6 +260,8 @@
         "jobTitle": "Position",
         "state": "Bundesland oder Region",
         "website": "Unternehmenswebsite",
+        "linkedinUrl": "LinkedIn-Profil des Kontakts",
+        "companyLinkedinUrl": "LinkedIn-Profil des Unternehmens",
         "revenue": "Unternehmensumsatz",
         "companySize": "Unternehmensgröße",
         "location": "Standort"

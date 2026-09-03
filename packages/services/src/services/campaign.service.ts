@@ -28,6 +28,7 @@ import {
   CsvRowError,
   isCampaignStatus,
 } from "@ringee/platform";
+import { ContactService } from "./contact.service";
 
 export interface CampaignLeadsImportResult {
   success: boolean;
@@ -51,6 +52,7 @@ export class CampaignService {
     private readonly campaignMemberRepo: CampaignMemberRepository,
     private readonly contactRepo: ContactRepository,
     private readonly tagRepo: TagRepository,
+    private readonly contactService: ContactService,
   ) {}
 
   private ensureOrganization(ctx: OwnershipContext): void {
@@ -494,6 +496,8 @@ export class CampaignService {
           ...newContacts.map((contact) => contact.phoneNumber),
         );
       }
+
+      await this.contactService.syncImportedCompanyLinkedinProfiles(ctx, batch);
 
       // Get all contact IDs for this batch
       const contactIds: string[] = [];

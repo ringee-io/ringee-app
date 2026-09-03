@@ -21,6 +21,8 @@ export const CSV_FIELDS = {
   location: { required: false, maxLength: undefined },
   state: { required: false, maxLength: 100 },
   website: { required: false, maxLength: 255 },
+  linkedinUrl: { required: false, maxLength: 255 },
+  companyLinkedinUrl: { required: false, maxLength: 255 },
   revenue: { required: false, maxLength: 100 },
   companySize: { required: false, maxLength: 100 },
 } as const;
@@ -49,6 +51,8 @@ export interface CsvContactRow {
   location?: string;
   state?: string;
   website?: string;
+  linkedinUrl?: string;
+  companyLinkedinUrl?: string;
   revenue?: string;
   companySize?: string;
 }
@@ -151,6 +155,8 @@ export function validateCsvRow(
       location: row.location?.trim() || undefined,
       state: row.state?.trim() || undefined,
       website: row.website?.trim() || undefined,
+      linkedinUrl: row.linkedinUrl?.trim() || undefined,
+      companyLinkedinUrl: row.companyLinkedinUrl?.trim() || undefined,
       revenue: row.revenue?.trim() || undefined,
       companySize: row.companySize?.trim() || undefined,
     },

@@ -260,6 +260,8 @@
         "jobTitle": "Job title",
         "state": "State or region",
         "website": "Company website",
+        "linkedinUrl": "Contact LinkedIn profile",
+        "companyLinkedinUrl": "Company LinkedIn profile",
         "revenue": "Company revenue",
         "companySize": "Company size",
         "location": "Location"

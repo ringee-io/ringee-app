@@ -169,6 +169,14 @@ export class ContactRepository {
             tag: true,
           },
         },
+        affiliations: {
+          select: {
+            isPrimary: true,
+            company: { select: { linkedinUrl: true } },
+          },
+          orderBy: [{ isPrimary: "desc" }, { createdAt: "desc" }],
+          take: 1,
+        },
       },
       skip: (page - 1) * limit,
       take: limit,
@@ -435,6 +443,8 @@ export class ContactRepository {
       location?: string;
       state?: string;
       website?: string;
+      linkedinUrl?: string;
+      companyLinkedinUrl?: string;
       revenue?: string;
       companySize?: string;
     }>,
@@ -449,6 +459,7 @@ export class ContactRepository {
         locationCity: contact.location,
         locationRegion: contact.state,
         websiteUrl: contact.website,
+        linkedinUrl: contact.linkedinUrl,
         revenue: contact.revenue,
         companySize: contact.companySize,
         userId: ctx.userId,
@@ -470,6 +481,8 @@ export class ContactRepository {
       jobTitle?: string;
       state?: string;
       website?: string;
+      linkedinUrl?: string;
+      companyLinkedinUrl?: string;
       revenue?: string;
       companySize?: string;
     }>,
@@ -481,6 +494,7 @@ export class ContactRepository {
       if (contact.jobTitle) data.jobTitle = contact.jobTitle;
       if (contact.state) data.locationRegion = contact.state;
       if (contact.website) data.websiteUrl = contact.website;
+      if (contact.linkedinUrl) data.linkedinUrl = contact.linkedinUrl;
       if (contact.revenue) data.revenue = contact.revenue;
       if (contact.companySize) data.companySize = contact.companySize;
       if (Object.keys(data).length === 0) continue;
@@ -499,6 +513,33 @@ export class ContactRepository {
     if (operations.length > 0) {
       await this.prisma.$transaction(operations);
     }
+  }
+
+  /** Minimal contact data needed to attach imported company profiles. */
+  async findImportTargetsByPhoneNumbers(
+    ctx: OwnershipContext,
+    phoneNumbers: string[],
+  ): Promise<
+    Array<{
+      id: string;
+      phoneNumber: string;
+      company: string | null;
+      jobTitle: string | null;
+    }>
+  > {
+    return this.prisma.contact.findMany({
+      where: {
+        ...buildOwnershipFilter(ctx),
+        phoneNumber: { in: phoneNumbers },
+        deletedAt: null,
+      },
+      select: {
+        id: true,
+        phoneNumber: true,
+        company: true,
+        jobTitle: true,
+      },
+    });
   }
 
   async deleteNote(noteId: string) {

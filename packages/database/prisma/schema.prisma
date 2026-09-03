@@ -1299,6 +1299,7 @@ model ContactEmail {
 model Company {
   id               String   @id @default(uuid()) @db.Uuid
   name             String
+  normalizedName   String?
   legalName        String?
   domain           String?
   secondaryDomains String[]

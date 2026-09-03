@@ -19,6 +19,12 @@ import {
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 import { useTranslations } from 'next-intl';
+import {
+  ExternalProfileMenuItems,
+  hasExternalProfileLinks,
+  type ExternalProfileLabels
+} from '@ringee/frontend-shared/components/external-profile-links';
+import { useQuickDialerCall } from '@/features/calls/hooks/use.quick.dialer.call';
 
 interface CellActionProps {
   data: {
@@ -27,6 +33,12 @@ interface CellActionProps {
     organization: string;
     email: string;
     phoneNumber: string;
+    linkedinUrl?: string | null;
+    websiteUrl?: string | null;
+    affiliations?: Array<{
+      isPrimary: boolean;
+      company: { linkedinUrl?: string | null };
+    }>;
     lastCallAt: string;
     calls: {
       id: string;
@@ -47,6 +59,20 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
   const api = useApi();
   const [noteModalOpen, setNoteModalOpen] = useState(false);
   const [tagsModalOpen, setTagsModalOpen] = useState(false);
+  const { handleRecall } = useQuickDialerCall();
+
+  const externalLinkLabels: ExternalProfileLabels = {
+    group: t('linksGroup'),
+    linkedinProfile: t('linkedinProfile'),
+    linkedinCompany: t('linkedinCompany'),
+    website: t('website')
+  };
+  const companyLinkedinUrl = data.affiliations?.[0]?.company.linkedinUrl;
+  const externalProfileUrls = {
+    linkedinUrl: data.linkedinUrl,
+    companyLinkedinUrl,
+    websiteUrl: data.websiteUrl
+  };
 
   const onConfirm = async () => {
     try {
@@ -93,13 +119,17 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
           <IconEye className='mr-2 h-4 w-4' /> {t('view')}
         </DropdownMenuItem>
 
-        <DropdownMenuItem
-          onClick={() =>
-            router.push(`/dashboard/call?phoneNumber=${data.phoneNumber}`)
-          }
-        >
+        <DropdownMenuItem onClick={() => handleRecall(data.phoneNumber)}>
           <IconPhoneCall className='mr-2 h-4 w-4' /> {t('call')}
         </DropdownMenuItem>
+
+        <ExternalProfileMenuItems
+          urls={externalProfileUrls}
+          labels={externalLinkLabels}
+        />
+        {hasExternalProfileLinks(externalProfileUrls) ? (
+          <DropdownMenuSeparator />
+        ) : null}
 
         <DropdownMenuItem onClick={() => setNoteModalOpen(true)}>
           <IconPlus className='mr-2 h-4 w-4' /> {t('addNote')}

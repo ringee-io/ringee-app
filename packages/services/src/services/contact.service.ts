@@ -5,7 +5,9 @@ import {
 } from "@nestjs/common";
 import {
   CallOutcome,
+  CompanyRepository,
   Contact,
+  ContactAffiliationRepository,
   ContactRepository,
   CrmConnection,
   Prisma,
@@ -67,6 +69,8 @@ export class ContactService {
   constructor(
     private readonly repo: ContactRepository,
     private readonly tagRepo: TagRepository,
+    private readonly companyRepo: CompanyRepository,
+    private readonly affiliationRepo: ContactAffiliationRepository,
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
     private readonly crmConnections: CrmConnectionService,
     private readonly crmMatching: CrmMatchingService,
@@ -466,6 +470,8 @@ export class ContactService {
         // Track inserted phone numbers for tag assignment
         insertedPhones.push(...newContacts.map((c) => c.phoneNumber));
       }
+
+      await this.syncImportedCompanyLinkedinProfiles(ctx, batch);
     }
 
     // Assign tags to imported contacts if tagIds provided
@@ -489,6 +495,80 @@ export class ContactService {
         errors: errors.slice(0, 50), // Limit errors returned
       },
     };
+  }
+
+  /**
+   * Persist the company LinkedIn column through Ringee's canonical Company +
+   * ContactAffiliation models. A missing value is ignored, and a CSV import
+   * never clears an existing company profile.
+   */
+  async syncImportedCompanyLinkedinProfiles(
+    ctx: OwnershipContext,
+    rows: CsvContactRow[],
+  ): Promise<void> {
+    const rowsWithCompanyLinkedin = rows.filter(
+      (row) => row.companyLinkedinUrl,
+    );
+    if (rowsWithCompanyLinkedin.length === 0) return;
+
+    const contacts = await this.repo.findImportTargetsByPhoneNumbers(
+      ctx,
+      rowsWithCompanyLinkedin.map((row) => row.phoneNumber),
+    );
+    const contactByPhone = new Map(
+      contacts.map((contact) => [contact.phoneNumber, contact]),
+    );
+
+    const companyInputs = new Map<
+      string,
+      { name: string; linkedinUrl: string; website?: string }
+    >();
+
+    for (const row of rowsWithCompanyLinkedin) {
+      const contact = contactByPhone.get(row.phoneNumber);
+      const companyName = row.company?.trim() || contact?.company?.trim();
+      const linkedinUrl = row.companyLinkedinUrl?.trim();
+      if (!contact || !companyName || !linkedinUrl) continue;
+
+      companyInputs.set(companyName.toLowerCase(), {
+        name: companyName,
+        linkedinUrl,
+        website: row.website,
+      });
+    }
+
+    const companyByName = new Map<
+      string,
+      Awaited<ReturnType<CompanyRepository["upsertActiveByName"]>>
+    >();
+
+    for (const [normalizedName, input] of companyInputs) {
+      const company = await this.companyRepo.upsertActiveByName(ctx, {
+        name: input.name,
+        website: input.website ?? null,
+        linkedinUrl: input.linkedinUrl,
+        source: "csv_import",
+      });
+      companyByName.set(normalizedName, company);
+    }
+
+    await Promise.all(
+      rowsWithCompanyLinkedin.map(async (row) => {
+        const contact = contactByPhone.get(row.phoneNumber);
+        const companyName = row.company?.trim() || contact?.company?.trim();
+        if (!contact || !companyName) return;
+
+        const company = companyByName.get(companyName.toLowerCase());
+        if (!company) return;
+
+        await this.affiliationRepo.upsert({
+          contactId: contact.id,
+          companyId: company.id,
+          role: row.jobTitle ?? contact.jobTitle,
+          isPrimary: true,
+        });
+      }),
+    );
   }
 
   /**

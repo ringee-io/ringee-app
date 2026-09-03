@@ -68,8 +68,13 @@ export interface CampaignLead {
     jobTitle: string | null;
     locationRegion: string | null;
     websiteUrl: string | null;
+    linkedinUrl: string | null;
     revenue: string | null;
     companySize: string | null;
+    affiliations: Array<{
+      isPrimary: boolean;
+      company: { linkedinUrl: string | null };
+    }>;
   };
 }
 
