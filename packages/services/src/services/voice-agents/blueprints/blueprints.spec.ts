@@ -77,6 +77,37 @@ describe("AppointmentBookingBlueprint", () => {
     assert.match(instructions, /Europe\/Madrid/);
   });
 
+  it("gives the known email to the agent and has it confirm without retranscribing", () => {
+    const instructions = blueprint.buildInstructions(promptContext);
+    assert.match(instructions, /Email on file: \{\{email\}\}/);
+    assert.match(instructions, /ask only whether that exact address/);
+    assert.match(instructions, /pass \{\{email\}\}[\s\S]*exactly as written/);
+    assert.match(
+      instructions,
+      /never reconstruct it from what the call transcript/,
+    );
+
+    const safety = blueprint.buildSafetyInstructions(promptContext);
+    assert.match(safety, /ask only whether that exact email/);
+    assert.match(safety, /pass \{\{email\}\} unchanged/);
+  });
+
+  it("tells the booking tool to copy a confirmed context email exactly", () => {
+    const booking = blueprint
+      .buildTools(toolContext)
+      .find(
+        (tool) => tool.kind === "webhook" && tool.name === "book_appointment",
+      );
+    assert.equal(booking?.kind, "webhook");
+    if (booking?.kind !== "webhook") return;
+
+    const email = booking.parameters?.properties.attendee_email as
+      | { description?: string }
+      | undefined;
+    assert.match(email?.description ?? "", /copy that value exactly/);
+    assert.match(email?.description ?? "", /never reconstruct it from speech/);
+  });
+
   it("authenticates its tools by secret reference, never in plaintext", () => {
     const tools = blueprint.buildTools(toolContext);
     const webhooks = tools.filter((t) => t.kind === "webhook");

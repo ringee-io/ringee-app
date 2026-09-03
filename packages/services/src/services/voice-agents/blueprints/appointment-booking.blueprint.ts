@@ -53,7 +53,8 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       key: "email",
       label: "Email",
       required: false,
-      description: "Where the calendar invitation should be sent.",
+      description:
+        "Where the calendar invitation should be sent. The agent will confirm it during the call.",
     },
     {
       key: "reason",
@@ -91,6 +92,7 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "## Who you are calling",
       "",
       "You are calling {{first_name}} {{last_name}}.",
+      "Email on file: {{email}}",
       "Reason for the call: {{reason}}",
       "Additional context: {{additional_context}}",
       "",
@@ -125,8 +127,13 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "7. Only after `book_appointment` returns success may you say the meeting",
       "   is booked. If it fails, say you could not confirm it and that someone",
       "   will follow up — never claim a booking that did not happen.",
-      "8. If you have no email address for them, ask for one before booking so",
-      "   the invitation can be sent.",
+      "8. If `Email on file` is not empty, ask only whether that exact address",
+      "   is correct. Do not ask the person to dictate or spell it. After they",
+      "   confirm it, pass {{email}} to `book_appointment` exactly as written",
+      "   in this context; never reconstruct it from what the call transcript",
+      "   says.",
+      "9. Ask for an email address only when `Email on file` is empty, or when",
+      "   the person says the address on file is wrong.",
       "",
       "## Ending the call",
       "",
@@ -172,6 +179,11 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "  `book_appointment`.",
       "- Only say a meeting is booked after `book_appointment` returns",
       "  success. If it fails, say it could not be confirmed.",
+      "- When {{email}} is not empty, ask only whether that exact email is",
+      "  correct. Do not ask the person to dictate or spell it. Once confirmed,",
+      "  pass {{email}} unchanged to `book_appointment`; do not reconstruct it",
+      "  from the transcript. Ask for an address only if {{email}} is empty or",
+      "  the person says it is wrong.",
       "- Never invent prices, policies, availability or company facts.",
       "- Honor a clear refusal immediately; thank the person and end the call.",
     ].join("\n");
@@ -226,7 +238,7 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
             attendee_email: {
               type: "string",
               description:
-                "Where to send the invitation. Use the address you were given or the one they just confirmed.",
+                "Where to send the invitation. When an email was supplied in the call context and confirmed, copy that value exactly; never reconstruct it from speech. Use a different address only if the person corrected it.",
             },
             notes: {
               type: "string",
