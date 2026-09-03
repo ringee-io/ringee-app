@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { Prisma } from "@prisma/client";
 import { CompanyRepository } from "./company.repository";
 
 interface CapturedQuery {
@@ -123,5 +124,77 @@ describe("CompanyRepository normalized names", () => {
         data: { name: "  ACME   Labs ", normalizedName: "acme labs" },
       },
     ]);
+  });
+
+  it("scopes active updates to the current personal workspace", async () => {
+    const writes: unknown[] = [];
+    const prisma = {
+      company: {
+        update: async (input: unknown) => {
+          writes.push(input);
+          return { id: "company-1" };
+        },
+      },
+    };
+    const repository = new CompanyRepository(prisma as never);
+
+    await repository.updateActive({ userId: "user-1" }, "company-1", {
+      name: "  ACME   Labs ",
+    });
+
+    assert.deepEqual(writes, [
+      {
+        where: {
+          id: "company-1",
+          userId: "user-1",
+          organizationId: null,
+          deletedAt: null,
+        },
+        data: { name: "  ACME   Labs ", normalizedName: "acme labs" },
+      },
+    ]);
+  });
+});
+
+describe("CompanyRepository.isActiveNameConflict", () => {
+  const repository = new CompanyRepository({} as never);
+
+  it("recognizes personal and organization normalized-name conflicts", () => {
+    const personalConflict = new Prisma.PrismaClientKnownRequestError(
+      "duplicate",
+      {
+        code: "P2002",
+        clientVersion: "test",
+        meta: { target: ["userId", "normalizedName"] },
+      },
+    );
+    const organizationConflict = new Prisma.PrismaClientKnownRequestError(
+      "duplicate",
+      {
+        code: "P2002",
+        clientVersion: "test",
+        meta: { target: ["organizationId", "normalizedName"] },
+      },
+    );
+
+    assert.equal(repository.isActiveNameConflict(personalConflict), true);
+    assert.equal(repository.isActiveNameConflict(organizationConflict), true);
+  });
+
+  it("does not hide unrelated unique violations", () => {
+    const unrelatedConflict = new Prisma.PrismaClientKnownRequestError(
+      "duplicate",
+      {
+        code: "P2002",
+        clientVersion: "test",
+        meta: { target: ["domain"] },
+      },
+    );
+
+    assert.equal(repository.isActiveNameConflict(unrelatedConflict), false);
+    assert.equal(
+      repository.isActiveNameConflict(new Error("duplicate")),
+      false,
+    );
   });
 });

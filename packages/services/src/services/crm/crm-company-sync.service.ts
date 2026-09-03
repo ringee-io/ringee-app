@@ -58,7 +58,7 @@ export class CrmCompanySyncService {
     );
 
     if (existingLink?.companyId) {
-      await this.updateExisting(existingLink.companyId, result);
+      await this.updateExisting(ctx, existingLink.companyId, result);
       await this.touchLink(connection, result, existingLink.companyId);
       return { companyId: existingLink.companyId, created: false };
     }
@@ -72,7 +72,7 @@ export class CrmCompanySyncService {
     }
 
     if (existing) {
-      await this.updateExisting(existing.id, result);
+      await this.updateExisting(ctx, existing.id, result);
       await this.touchLink(connection, result, existing.id);
       return { companyId: existing.id, created: false };
     }
@@ -109,17 +109,35 @@ export class CrmCompanySyncService {
   }
 
   private async updateExisting(
+    ctx: OwnershipContext,
     companyId: string,
     result: CrmCompanySyncResult,
   ): Promise<void> {
-    await this.companyRepo.update(companyId, {
-      name: result.name,
+    const syncedFields = {
       domain: result.domain ?? undefined,
       industry: result.industry ?? undefined,
       size: result.size ?? undefined,
       phone: result.phone ?? undefined,
       website: result.website ?? undefined,
-    });
+    };
+
+    try {
+      await this.companyRepo.updateActive(ctx, companyId, {
+        name: result.name,
+        ...syncedFields,
+      });
+    } catch (error) {
+      if (!this.companyRepo.isActiveNameConflict(error)) throw error;
+
+      // A CRM link or exact domain match is stronger identity evidence than a
+      // name shared by another active company. Preserve that identity and the
+      // existing local name while still applying the remaining CRM fields.
+      this.logger.warn(
+        `CRM company ${result.company.externalId} matched company ${companyId}, ` +
+          `but the name "${result.name}" is already in use; preserving the local name`,
+      );
+      await this.companyRepo.updateActive(ctx, companyId, syncedFields);
+    }
   }
 
   private async touchLink(

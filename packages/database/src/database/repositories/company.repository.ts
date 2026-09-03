@@ -177,6 +177,45 @@ export class CompanyRepository {
     });
   }
 
+  updateActive(
+    ctx: OwnershipContext,
+    id: string,
+    data: Prisma.CompanyUpdateInput,
+  ): Promise<Company> {
+    const name = typeof data.name === "string" ? data.name : undefined;
+    return this.prisma.company.update({
+      where: {
+        id,
+        ...buildOwnershipFilter(ctx),
+        deletedAt: null,
+      },
+      data: name
+        ? { ...data, normalizedName: normalizeCompanyName(name) }
+        : data,
+    });
+  }
+
+  isActiveNameConflict(error: unknown): boolean {
+    if (
+      !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+      error.code !== "P2002"
+    ) {
+      return false;
+    }
+
+    const target = error.meta?.target;
+    const fields = Array.isArray(target)
+      ? target.map(String)
+      : [String(target ?? "")];
+
+    return (
+      fields.some((field) => field.includes("normalizedName")) &&
+      fields.some(
+        (field) => field.includes("userId") || field.includes("organizationId"),
+      )
+    );
+  }
+
   softDelete(id: string): Promise<Company> {
     return this.prisma.company.update({
       where: { id },
