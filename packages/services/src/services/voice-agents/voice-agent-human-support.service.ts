@@ -92,10 +92,10 @@ export class VoiceAgentHumanSupportService {
       ]);
       const emailSent =
         emailResult.status === "fulfilled" && emailResult.value === true;
-      const pushesAttempted =
+      const pushesDelivered =
         pushResult.status === "fulfilled" ? pushResult.value : 0;
 
-      if (!emailSent && pushesAttempted === 0) {
+      if (!emailSent && pushesDelivered === 0) {
         // No recipient had a usable channel. Let a later provider retry make
         // another attempt instead of treating this request as delivered.
         await this.release(key);
@@ -219,14 +219,13 @@ export class VoiceAgentHumanSupportService {
   ): Promise<number> {
     const contact = params.contact.name || params.contact.phoneNumber;
     const body = `${contact}: ${params.message}`.slice(0, 180);
-    let attempted = 0;
+    let delivered = 0;
 
     for (const recipient of recipients) {
       const devices = await this.devices
         .findActiveByUser(recipient.userId)
         .catch(() => []);
-      attempted += devices.length;
-      await Promise.allSettled(
+      const results = await Promise.allSettled(
         devices.map((device) =>
           this.notifications.sendNotification(device.fcmToken, {
             title,
@@ -241,8 +240,11 @@ export class VoiceAgentHumanSupportService {
           }),
         ),
       );
+      delivered += results.filter(
+        (result) => result.status === "fulfilled",
+      ).length;
     }
-    return attempted;
+    return delivered;
   }
 
   private buildEmailHtml(params: {

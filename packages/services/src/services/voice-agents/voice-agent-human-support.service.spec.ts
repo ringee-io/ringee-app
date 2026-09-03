@@ -17,7 +17,14 @@ const CONTACT = {
   company: "Acme",
 };
 
-function build(over: { first?: boolean; emails?: boolean } = {}) {
+function build(
+  over: {
+    first?: boolean;
+    emails?: boolean;
+    emailDelivered?: boolean;
+    pushDelivered?: boolean;
+  } = {},
+) {
   const emails: Array<{
     to: string[];
     subject: string;
@@ -77,6 +84,9 @@ function build(over: { first?: boolean; emails?: boolean } = {}) {
         },
       ) => {
         pushes.push({ token, payload });
+        if (over.pushDelivered === false) {
+          throw new Error("Push delivery failed");
+        }
       },
     } as never,
     {
@@ -100,7 +110,9 @@ function build(over: { first?: boolean; emails?: boolean } = {}) {
   ).email = {
     sendEmail: async (to, subject, html) => {
       emails.push({ to, subject, html });
-      return { id: "email-1" };
+      return over.emailDelivered === false
+        ? { sent: false }
+        : { id: "email-1" };
     },
   };
 
@@ -194,6 +206,25 @@ describe("VoiceAgentHumanSupportService", () => {
       message: "Please follow up.",
     });
 
+    assert.equal(result.delivered, false);
+    assert.deepEqual(released, ["voice-agent:human-support:agent-call-1"]);
+  });
+
+  it("does not report delivery when every push and email send fails", async () => {
+    const { service, pushes, released } = build({
+      emailDelivered: false,
+      pushDelivered: false,
+    });
+    const result = await service.notify({
+      ctx: { userId: "member-1", organizationId: "org-1" },
+      agent: AGENT as never,
+      call: CALL as never,
+      contact: CONTACT,
+      subject: "Booking failed",
+      message: "Please follow up.",
+    });
+
+    assert.equal(pushes.length, 2);
     assert.equal(result.delivered, false);
     assert.deepEqual(released, ["voice-agent:human-support:agent-call-1"]);
   });

@@ -55,8 +55,19 @@ console.log(session.joinUrl); // share EXACTLY as returned
 
 // AI voice agents expose list + trigger, not creation or editing.
 const { agents } = await ringee.listAiVoiceAgents();
+if (agents.length === 0) {
+  throw new Error("No AI voice agents are available.");
+}
+
+// Present `agents` to the user and require an explicit selection.
+const selectedAgentId = "<agent-id-selected-by-user>";
+const selectedAgent = agents.find((agent) => agent.id === selectedAgentId);
+if (!selectedAgent) {
+  throw new Error("Select one of the available AI voice agents.");
+}
+
 const call = await ringee.startAiVoiceAgentCall({
-  agentId: agents[0]!.id,
+  agentId: selectedAgent.id,
   to: "+14155552671",
   variables: { first_name: "Jane" },
 }); // real, billed call — obtain human confirmation first

@@ -325,7 +325,10 @@ describe("RemindersNotificationsBlueprint", () => {
     const instructions = blueprint.buildInstructions(promptContext);
     assert.match(instructions, /cannot reschedule on this/);
     assert.match(instructions, /Never invent a detail/);
-    assert.match(instructions, /request_human_support/);
+    assert.match(
+      instructions,
+      /request_human_support`, and only if it succeeds tell them someone will\n {2}follow up/,
+    );
     assert.match(
       blueprint.buildSafetyInstructions(promptContext),
       /request_human_support/,
