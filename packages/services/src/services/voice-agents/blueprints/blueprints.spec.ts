@@ -77,6 +77,27 @@ describe("AppointmentBookingBlueprint", () => {
     assert.match(instructions, /Europe\/Madrid/);
   });
 
+  it("has the agent offer available times as natural speech", () => {
+    const instructions = blueprint.buildInstructions(promptContext);
+    assert.match(instructions, /one natural\s+spoken sentence/);
+    assert.match(instructions, /Tengo disponible la una y veinte/);
+    assert.match(instructions, /Never recite the raw slot list/);
+
+    const safety = blueprint.buildSafetyInstructions(promptContext);
+    assert.match(safety, /Say each clock time fully in words/);
+    assert.match(safety, /Never recite raw slot data/);
+
+    const slots = blueprint
+      .buildTools(toolContext)
+      .find(
+        (tool) =>
+          tool.kind === "webhook" && tool.name === "get_available_slots",
+      );
+    assert.equal(slots?.kind, "webhook");
+    if (slots?.kind !== "webhook") return;
+    assert.match(slots.description, /speech_instruction/);
+  });
+
   it("gives the known email to the agent and has it confirm without retranscribing", () => {
     const instructions = blueprint.buildInstructions(promptContext);
     assert.match(instructions, /Email on file: \{\{email\}\}/);

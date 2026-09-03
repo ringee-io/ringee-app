@@ -153,6 +153,9 @@ describe("VoiceAgentToolService availability", () => {
     assert.equal(result.slots.length, 3);
     assert.equal(result.timezone, "America/New_York");
     assert.equal(result.duration_minutes, 30);
+    assert.match(result.speech_instruction, /one natural sentence/);
+    assert.match(result.speech_instruction, /clock time fully in words/);
+    assert.match(result.speech_instruction, /Do not read the raw list/);
   });
 
   it("reports a calendar failure instead of claiming the day is free", async () => {

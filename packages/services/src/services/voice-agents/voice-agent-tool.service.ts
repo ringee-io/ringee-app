@@ -41,8 +41,13 @@ export type ToolResult<T> = ({ ok: true } & T) | { ok: false; error: string };
 export interface AvailableSlotsResult {
   timezone: string;
   duration_minutes: number;
+  /** Just-in-time guidance the model reads before it speaks the returned data. */
+  speech_instruction: string;
   slots: Array<{ start: string; label: string }>;
 }
+
+const NATURAL_SLOT_SPEECH_INSTRUCTION =
+  "Offer these times in one natural sentence in the conversation's language. Say each clock time fully in words and join alternatives with a spoken conjunction. Do not read the raw list, punctuation, labels, colons, numbered items, AM/PM abbreviations or ISO timestamps aloud.";
 
 export interface BookAppointmentResult {
   appointment: { id: string; start: string; end: string; link?: string };
@@ -92,6 +97,7 @@ export class VoiceAgentToolService {
         ok: true,
         timezone,
         duration_minutes: agent.meetingDurationMinutes,
+        speech_instruction: NATURAL_SLOT_SPEECH_INSTRUCTION,
         slots: slots
           .slice(0, MAX_OFFERED_SLOTS)
           .map(({ start, label }) => ({ start, label })),
