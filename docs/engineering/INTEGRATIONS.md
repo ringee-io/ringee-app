@@ -37,8 +37,8 @@ API changes must be additive.
 ### CLI (`apps/agent-cli`, published as `ringee`)
 
 Drives the MCP tool surface. Commands mirror the tool catalog: activity,
-analytics, campaigns, contacts, dnc, leads, pipelines, sessions. A renamed or
-retightened tool schema breaks installed CLIs.
+analytics, campaigns, contacts, dnc, leads, pipelines, sessions and AI voice
+agents. A renamed or retightened tool schema breaks installed CLIs.
 
 ### MCP server (`apps/backend/src/mcp` + `packages/agent`)
 
@@ -49,6 +49,59 @@ there (`pnpm agent:install-skills`, `pnpm agent:package-skills`).
 
 Authorization is the workspace UUID in the URL — see
 [SECURITY.md](SECURITY.md) and `DEBT-005`.
+
+### AI voice agents: list and trigger surfaces
+
+External agent surfaces deliberately expose execution, not configuration.
+Creation and editing stay in the authenticated dashboard; no MCP tool, typed
+agent-client method or CLI command creates, updates or deletes a voice agent.
+
+| Surface            | List                                       | Trigger                                                                                     |
+| ------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------- |
+| REST API           | `GET /api/ai-voice-agents?page=1&limit=20` | `POST /api/ai-voice-agents/:agentId/calls`                                                  |
+| MCP                | `list_ai_voice_agents`                     | `start_ai_voice_agent_call`                                                                 |
+| `@ringee-io/agent` | `listAiVoiceAgents({ limit })`             | `startAiVoiceAgentCall({ agentId, to, fromNumberId, variables, metadata })`                 |
+| CLI                | `ringee voice-agents list`                 | `ringee voice-agents call <agentId> --to +E164 [--from <numberId>] [--var key=value] --yes` |
+
+The REST trigger body uses the API's existing snake-case field for caller ID:
+
+```json
+{
+  "to": "+13055550123",
+  "from_number_id": "00000000-0000-4000-8000-000000000000",
+  "variables": { "first_name": "Carlos" },
+  "metadata": { "external_id": "crm-123" }
+}
+```
+
+All four trigger paths converge on `VoiceAgentCallService.startCall`; none may
+reimplement DNC, balance, caller-ID or variable validation. The MCP catalog marks
+the trigger as credit-consuming and confirmation-required, and the CLI enforces
+that contract with `--yes`. Results are read with
+`get_ai_voice_agent_call`, `getAiVoiceAgentCall` or
+`ringee voice-agents call-result <callId>`.
+
+### Human support from a live voice-agent call
+
+Every voice-agent blueprint includes `request_human_support`. It is a provider
+webhook tool, not an MCP tool: it is used by the speaking agent during a live
+conversation when the person explicitly requests a human or another tool fails
+and a person must finish the request.
+
+- Endpoint: `POST /api/ai-voice-agents/tools/:agentId/request-human-support`.
+- Model-supplied input: only `subject` and `message`.
+- Server-derived context: workspace, agent, current call and contact details.
+- Authorization: the per-agent secret plus the provider-filled call-control-id
+  header (AGENT-003).
+- Delivery: email plus push to every resolved organization admin; a personal
+  workspace notifies its owner.
+- Replay behavior: provider retries are collapsed to one request per call for
+  24 hours. If no recipient has a usable delivery channel, the marker is
+  released so a later retry can try again.
+
+The tool returns success only after at least one delivery channel is available.
+The speaking agent may promise follow-up only after that success, and never
+promises a response time.
 
 ### ChatGPT app (`apps/chatgpt-app`)
 

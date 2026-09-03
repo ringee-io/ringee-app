@@ -10,6 +10,10 @@ import type {
   VoiceAgentVariableDefinition,
 } from "../voice-agent.types";
 import { buildSharedInsights } from "./insights";
+import {
+  buildHumanSupportTool,
+  voiceAgentWebhookHeaders,
+} from "./human-support.tool";
 import { inLanguage, languageRule, type LocalizedPhrase } from "./language";
 
 /**
@@ -53,7 +57,8 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       key: "email",
       label: "Email",
       required: false,
-      description: "Where the calendar invitation should be sent.",
+      description:
+        "Where the calendar invitation should be sent. The agent will confirm it during the call.",
     },
     {
       key: "reason",
@@ -91,6 +96,7 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "## Who you are calling",
       "",
       "You are calling {{first_name}} {{last_name}}.",
+      "Email on file: {{email}}",
       "Reason for the call: {{reason}}",
       "Additional context: {{additional_context}}",
       "",
@@ -105,7 +111,10 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "  is a good moment.",
       "- If they are busy, ask for a better time to call back and end politely.",
       "- Answer their questions honestly from what you know. If you do not know",
-      "  something, say so and offer to have someone follow up.",
+      "  something and they want an answer, say so and call",
+      "  `request_human_support` so a person can follow up.",
+      "- If they explicitly ask to speak with a person, call",
+      "  `request_human_support` with a short subject and useful message.",
       "- Do not argue and do not keep pushing after a clear no. Thank them and",
       "  end the call.",
       "",
@@ -118,15 +127,26 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "2. Call `get_available_slots` before you offer any time.",
       "3. Offer at most two or three times at once. If none work, ask what day",
       "   suits them and look that day up.",
-      `4. All times are in ${timezone}. Say the day and the time out loud, in`,
-      "   words, and say the time zone at least once.",
+      `4. All times are in ${timezone}. Offer the available times in one natural`,
+      "   spoken sentence in the conversation's language. Say each clock time",
+      "   fully in words and connect the choices with the spoken equivalent of",
+      '   "or". For example, in Spanish: "Tengo disponible la una y veinte o',
+      '   las diez y media." Never recite the raw slot list, punctuation, colons,',
+      "   numbered items, AM/PM abbreviations or ISO timestamps. Say the day and",
+      "   time zone naturally at least once.",
       "5. Before booking, repeat the date and time back and get an explicit yes.",
       `6. The meeting is ${duration} minutes long.`,
       "7. Only after `book_appointment` returns success may you say the meeting",
-      "   is booked. If it fails, say you could not confirm it and that someone",
-      "   will follow up — never claim a booking that did not happen.",
-      "8. If you have no email address for them, ask for one before booking so",
-      "   the invitation can be sent.",
+      "   is booked. If it fails, call `request_human_support`; only after that",
+      "   succeeds may you say someone will follow up. Never claim a booking",
+      "   that did not happen.",
+      "8. If `Email on file` is not empty, ask only whether that exact address",
+      "   is correct. Do not ask the person to dictate or spell it. After they",
+      "   confirm it, pass {{email}} to `book_appointment` exactly as written",
+      "   in this context; never reconstruct it from what the call transcript",
+      "   says.",
+      "9. Ask for an email address only when `Email on file` is empty, or when",
+      "   the person says the address on file is wrong.",
       "",
       "## Ending the call",
       "",
@@ -168,11 +188,24 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "  returned it for the requested day.",
       "- Offer only times returned by that tool, in the configured time zone",
       `  (${timezone}). The meeting length is ${duration} minutes.`,
+      "- Offer available times in one natural spoken sentence in the",
+      "  conversation's language. Say each clock time fully in words and join",
+      "  choices with a spoken conjunction. Never recite raw slot data,",
+      "  punctuation, numbered items, AM/PM abbreviations or ISO timestamps.",
       "- Get explicit agreement to a specific date and time before calling",
       "  `book_appointment`.",
       "- Only say a meeting is booked after `book_appointment` returns",
-      "  success. If it fails, say it could not be confirmed.",
+      "  success. If it fails, say it could not be confirmed and call",
+      "  `request_human_support`.",
+      "- When {{email}} is not empty, ask only whether that exact email is",
+      "  correct. Do not ask the person to dictate or spell it. Once confirmed,",
+      "  pass {{email}} unchanged to `book_appointment`; do not reconstruct it",
+      "  from the transcript. Ask for an address only if {{email}} is empty or",
+      "  the person says it is wrong.",
       "- Never invent prices, policies, availability or company facts.",
+      "- If the person asks for a human, or any webhook tool fails and a person",
+      "  must finish the request, call `request_human_support`. Only promise a",
+      "  follow-up after that tool succeeds.",
       "- Honor a clear refusal immediately; thank the person and end the call.",
     ].join("\n");
   }
@@ -181,17 +214,14 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
     // The call's identity is passed as a header the provider fills from a
     // system variable — never as a model-supplied argument, which the model
     // could get wrong or a caller could forge.
-    const headers = [
-      { name: "X-Ringee-Tool-Secret", secretRef: ctx.toolSecretRef },
-      { name: "X-Ringee-Call-Control-Id", value: "{{call_control_id}}" },
-    ];
+    const headers = voiceAgentWebhookHeaders(ctx);
 
     const tools: VoiceAgentTool[] = [
       {
         kind: "webhook",
         name: "get_available_slots",
         description:
-          "Look up the real open times on the calendar for one day. Call this before offering any time to the person.",
+          "Look up the real open times on the calendar for one day. Call this before offering any time, then follow the result's speech_instruction instead of reading the raw slot data aloud.",
         url: `${ctx.toolBaseUrl}/${ctx.agentId}/available-slots`,
         method: "POST",
         headers,
@@ -226,7 +256,7 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
             attendee_email: {
               type: "string",
               description:
-                "Where to send the invitation. Use the address you were given or the one they just confirmed.",
+                "Where to send the invitation. When an email was supplied in the call context and confirmed, copy that value exactly; never reconstruct it from speech. Use a different address only if the person corrected it.",
             },
             notes: {
               type: "string",
@@ -237,6 +267,7 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
           required: ["start"],
         },
       },
+      buildHumanSupportTool(ctx),
       {
         kind: "hangup",
         description:

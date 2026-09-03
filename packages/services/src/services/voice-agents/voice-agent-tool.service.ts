@@ -24,6 +24,7 @@ import {
   AI_VOICE_AGENT_CONTACT_SOURCE,
   contactIdentityFromVariables,
 } from "./voice-agent.types";
+import { VoiceAgentHumanSupportService } from "./voice-agent-human-support.service";
 
 /**
  * Headers the provider sends: the shared secret it holds for this agent, and
@@ -34,6 +35,8 @@ export const VOICE_AGENT_CALL_ID_HEADER = "x-ringee-call-control-id";
 
 /** How many times to offer at once (§9: offer few slots at a time). */
 const MAX_OFFERED_SLOTS = 3;
+const SUPPORT_SUBJECT_MAX = 120;
+const SUPPORT_MESSAGE_MAX = 2000;
 
 /** Result shapes the model reads back. Failures are data, not exceptions. */
 export type ToolResult<T> = ({ ok: true } & T) | { ok: false; error: string };
@@ -41,11 +44,26 @@ export type ToolResult<T> = ({ ok: true } & T) | { ok: false; error: string };
 export interface AvailableSlotsResult {
   timezone: string;
   duration_minutes: number;
+  /** Just-in-time guidance the model reads before it speaks the returned data. */
+  speech_instruction: string;
   slots: Array<{ start: string; label: string }>;
 }
 
+const NATURAL_SLOT_SPEECH_INSTRUCTION =
+  "Offer these times in one natural sentence in the conversation's language. Say each clock time fully in words and join alternatives with a spoken conjunction. Do not read the raw list, punctuation, labels, colons, numbered items, AM/PM abbreviations or ISO timestamps aloud.";
+
 export interface BookAppointmentResult {
   appointment: { id: string; start: string; end: string; link?: string };
+}
+
+export interface HumanSupportResult {
+  request: {
+    subject: string;
+    notified_recipients: number;
+    contact_attached: boolean;
+    already_requested: boolean;
+  };
+  speech_instruction: string;
 }
 
 /**
@@ -70,6 +88,7 @@ export class VoiceAgentToolService {
     private readonly calendars: CalendarService,
     private readonly meetings: MeetingService,
     private readonly contacts: ContactService,
+    private readonly humanSupport: VoiceAgentHumanSupportService,
   ) {}
 
   async getAvailableSlots(
@@ -92,6 +111,7 @@ export class VoiceAgentToolService {
         ok: true,
         timezone,
         duration_minutes: agent.meetingDurationMinutes,
+        speech_instruction: NATURAL_SLOT_SPEECH_INSTRUCTION,
         slots: slots
           .slice(0, MAX_OFFERED_SLOTS)
           .map(({ start, label }) => ({ start, label })),
@@ -244,6 +264,92 @@ export class VoiceAgentToolService {
     }
   }
 
+  async requestHumanSupport(
+    agentId: string,
+    secret: string,
+    callControlId: string | null,
+    input: { subject?: string; message?: string },
+  ): Promise<ToolResult<HumanSupportResult>> {
+    const { agent, ctx } = await this.authorize(agentId, secret);
+    const subject = this.supportSubject(input.subject);
+    const message = this.supportText(input.message, SUPPORT_MESSAGE_MAX);
+    if (!subject || !message) {
+      return {
+        ok: false,
+        error:
+          "A short subject and a message explaining the requested follow-up are required.",
+      };
+    }
+    if (!callControlId) {
+      return {
+        ok: false,
+        error: "The current call could not be identified for human follow-up.",
+      };
+    }
+
+    const agentCall = await this.agentCalls.findByCallControlId(callControlId);
+    if (!agentCall) {
+      return {
+        ok: false,
+        error: "The current call could not be found for human follow-up.",
+      };
+    }
+    if (agentCall.agentId !== agent.id) {
+      throw new UnauthorizedException("Call does not belong to this agent");
+    }
+
+    const identity = contactIdentityFromVariables(agentCall.variables);
+    const storedContact = agentCall.contactId
+      ? await this.contacts
+          .findContactByIdForOwner(ctx, agentCall.contactId)
+          .catch(() => null)
+      : null;
+    const name =
+      storedContact?.name?.trim() ||
+      [identity.firstName, identity.lastName]
+        .filter(Boolean)
+        .join(" ")
+        .trim() ||
+      null;
+    const contact = {
+      id: storedContact?.id ?? agentCall.contactId ?? null,
+      name,
+      phoneNumber: storedContact?.phoneNumber ?? agentCall.toNumber,
+      email: storedContact?.email ?? identity.email ?? null,
+      company: storedContact?.company ?? null,
+    };
+
+    const delivery = await this.humanSupport.notify({
+      ctx,
+      agent,
+      call: agentCall,
+      contact,
+      subject,
+      message,
+    });
+    if (!delivery.delivered) {
+      return {
+        ok: false,
+        error:
+          "Human support could not be notified right now. Do not promise that someone will follow up.",
+      };
+    }
+
+    return {
+      ok: true,
+      request: {
+        subject,
+        notified_recipients: delivery.recipientCount,
+        contact_attached: Boolean(
+          contact.id || contact.name || contact.email || contact.phoneNumber,
+        ),
+        already_requested: delivery.duplicate,
+      },
+      speech_instruction:
+        "Tell the person that human follow-up has been requested. Do not promise a response time.",
+    };
+  }
+
   // ── Authorization ────────────────────────────────────────────
 
   /**
@@ -285,6 +391,14 @@ export class VoiceAgentToolService {
     if (!start?.trim()) return null;
     const parsed = new Date(start.trim());
     return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  private supportText(value: string | undefined, maxLength: number): string {
+    return typeof value === "string" ? value.trim().slice(0, maxLength) : "";
+  }
+
+  private supportSubject(value: string | undefined): string {
+    return this.supportText(value, SUPPORT_SUBJECT_MAX).replace(/\s+/g, " ");
   }
 
   /** The calendar date on which an instant falls in the agent's time zone. */

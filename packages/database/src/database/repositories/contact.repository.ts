@@ -50,6 +50,15 @@ export class ContactRepository {
     });
   }
 
+  async findByIdForOwner(
+    ctx: OwnershipContext,
+    id: string,
+  ): Promise<Contact | null> {
+    return this.prisma.contact.findFirst({
+      where: { id, deletedAt: null, ...buildOwnershipFilter(ctx) },
+    });
+  }
+
   /**
    * Minimal read of a contact — no relations. `findById` eager-loads calls,
    * notes, meetings and tags, which is far too heavy for the per-record work a

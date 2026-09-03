@@ -10,6 +10,7 @@ import type {
   VoiceAgentVariableDefinition,
 } from "../voice-agent.types";
 import { buildSharedInsights } from "./insights";
+import { buildHumanSupportTool } from "./human-support.tool";
 import { inLanguage, languageRule, type LocalizedPhrase } from "./language";
 
 /**
@@ -113,11 +114,14 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
       "  is one. Repeat them if the person sounds unsure.",
       "- Then ask directly whether that still works for them.",
       "- Answer questions from what you were given. If you do not know something,",
-      "  say so and offer to have someone follow up. Never invent a detail — no",
-      "  prices, no policies, no times that were not given to you.",
-      "- If they cannot make it, or want to move it, note what they said and tell",
-      "  them someone will follow up to arrange it. You cannot reschedule on this",
-      "  call.",
+      "  say so. If they want an answer, call `request_human_support`.",
+      "- Never invent a detail — no prices, no policies, no times that were not",
+      "  given to you.",
+      "- If they cannot make it, or want to move it, note what they said, call",
+      "  `request_human_support`, and only if it succeeds tell them someone will",
+      "  follow up. You cannot reschedule on this call.",
+      "- If they explicitly ask to speak with a person, call",
+      "  `request_human_support` with a short subject and useful message.",
       "- If they ask to be removed or say they are not interested, accept it",
       "  immediately, apologise for the interruption and end the call.",
       "",
@@ -153,6 +157,9 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
       "  supplied in the call variables or returned by an available tool.",
       "- Do not claim to reschedule or change an appointment; this agent has no",
       "  tool that can do that.",
+      "- If the person asks for a human, or another tool fails and a person must",
+      "  finish the request, call `request_human_support`. Only promise a",
+      "  follow-up after that tool succeeds.",
       "- Honor a request to stop or a clear refusal immediately, apologize for",
       "  the interruption and end the call.",
     ].join("\n");
@@ -160,6 +167,7 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
 
   buildTools(ctx: VoiceAgentToolContext): VoiceAgentTool[] {
     const tools: VoiceAgentTool[] = [
+      buildHumanSupportTool(ctx),
       {
         kind: "hangup",
         description:

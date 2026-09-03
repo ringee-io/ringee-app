@@ -1,6 +1,16 @@
 import { Command } from "commander";
 import { getClient, run } from "../client.js";
-import { c, fail, heading, json, kv, line, wantsJson, warn } from "../ui.js";
+import {
+  c,
+  fail,
+  heading,
+  json,
+  kv,
+  line,
+  sensitivityTag,
+  wantsJson,
+  warn,
+} from "../ui.js";
 
 /** `--var first_name=Carlos` may be repeated; values may contain "=". */
 function collectVariable(
@@ -67,7 +77,9 @@ export function registerVoiceAgents(program: Command): void {
 
   agents
     .command("call <agentId>")
-    .description("Have an agent call someone. This places a real, billed call.")
+    .description(
+      `${sensitivityTag("sensitive")} Have an agent call someone (real, billed call)`,
+    )
     .requiredOption("--to <phone>", "destination in E.164, e.g. +13055550123")
     .option("--from <numberId>", "id of the Ringee number to call from")
     .option(
@@ -77,8 +89,16 @@ export function registerVoiceAgents(program: Command): void {
       {} as Record<string, string>,
     )
     .option("--external-id <id>", "your own id, echoed back on the result")
+    .option("-y, --yes", "confirm placing the real, billed call")
     .action((agentId: string, opts) =>
       run(async () => {
+        if (!opts.yes) {
+          fail(
+            "This starts a real, billed phone call. Re-run with --yes to confirm.",
+          );
+          process.exitCode = 1;
+          return;
+        }
         const res = await getClient().startAiVoiceAgentCall({
           agentId,
           to: opts.to,

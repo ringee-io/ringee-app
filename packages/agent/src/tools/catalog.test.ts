@@ -124,3 +124,21 @@ test("delete_campaign_lead and remove_from_dnc are destructive", () => {
     assert.equal(TOOL_BY_NAME[tool]?.sensitivity, "destructive", tool);
   }
 });
+
+test("AI voice agents are exposed only for list, trigger and result reads", () => {
+  const tools = TOOL_CATALOG.filter((tool) =>
+    tool.action.startsWith("voiceAgents."),
+  );
+  assert.deepEqual(
+    tools.map((tool) => tool.tool),
+    [
+      "list_ai_voice_agents",
+      "start_ai_voice_agent_call",
+      "get_ai_voice_agent_call",
+    ],
+  );
+  const trigger = TOOL_BY_NAME["start_ai_voice_agent_call"];
+  assert.equal(trigger?.consumesCredits, true);
+  assert.equal(trigger?.requiresConfirmation, true);
+  assert.match(trigger?.cli ?? "", /--yes$/);
+});

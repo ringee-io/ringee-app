@@ -108,6 +108,11 @@ ringee dnc remove +E164 --yes                                     # destructive
 ringee pipelines list
 ringee pipelines results <pipeline> [--campaign <id> | --org | --personal] [--status pending]
 
+# AI voice agents (list + trigger; creation/editing stays in the dashboard)
+ringee voice-agents list
+ringee voice-agents call <agentId> --to +E164 [--from <numberId>] [--var name=value] --yes
+ringee voice-agents call-result <callId>
+
 ringee config show | check
 ringee tools | flow | prompt          # knowledge helpers (no connection)
 ```
@@ -129,3 +134,4 @@ spends credits, mints magic links, or deletes data by accident:
 - `campaigns delete-lead` needs `--yes` (the lead's call attempts and campaign
   callbacks go with it; the contact and its call history survive).
 - `dnc remove` needs `--yes` — it makes a suppressed number callable again.
+- `voice-agents call` needs `--yes` — it places a real, billed phone call.

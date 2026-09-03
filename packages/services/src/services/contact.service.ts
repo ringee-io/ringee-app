@@ -125,6 +125,13 @@ export class ContactService {
     return contact;
   }
 
+  async findContactByIdForOwner(
+    ctx: OwnershipContext,
+    id: string,
+  ): Promise<Contact | null> {
+    return this.repo.findByIdForOwner(ctx, id);
+  }
+
   async listContacts(
     ctx: OwnershipContext,
     search?: string,

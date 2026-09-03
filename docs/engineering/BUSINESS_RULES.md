@@ -839,6 +839,20 @@ the conversation it names must belong to a call of that same agent.
   `VoiceAgentResultService.applyInsightCallback` (+ spec),
   `AiVoiceAgentWebhookController.handleInsights`
 
+### AGENT-010 — Human escalation is call-bound and confirmed before it is promised
+
+Every voice-agent type carries `request_human_support`. The model supplies only
+a short subject and message; Ringee derives the workspace, agent, live call and
+contact from the authenticated tool callback. Organization calls notify resolved
+organization admins by email and push; personal calls notify their owner.
+
+The provider may replay a tool callback, so support delivery is deduplicated per
+agent call. The agent may tell the person that follow-up was requested only when
+the tool reports success, and may never invent a response time.
+
+- **Source of truth:** `VoiceAgentToolService.requestHumanSupport` and
+  `VoiceAgentHumanSupportService`
+
 ---
 
 ## Onboarding & lifecycle (`LIFE`)

@@ -120,8 +120,10 @@ Ringee backend / MCP  (apps/backend — source of truth)
 
 Capabilities mirror the MCP: search/get/create/update/delete contacts, log call
 outcomes, callbacks, meetings, create/update/get/revoke call sessions, and lead
-prospecting (search/reveal/import via Apollo/Prospeo). Sensitive actions (credits,
-magic links) and destructive ones (delete/revoke) require explicit confirmation.
+prospecting (search/reveal/import via Apollo/Prospeo). AI voice agents can be
+listed and triggered through MCP or the CLI; creation and editing remain in the
+dashboard. Sensitive actions (credits, billed calls, magic links) and destructive
+ones (delete/revoke) require explicit confirmation.
 
 ```bash
 # CLI (configure RINGEE_MCP_URL or RINGEE_BACKEND_URL + RINGEE_USER_ID)
