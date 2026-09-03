@@ -16,6 +16,11 @@
     "disabled": "Desactivado",
     "error": "Error"
   },
+  "pricing": {
+    "estimate": "Costo estimado: ~$0.108 por minuto + cargos de telefonía",
+    "configurationDisclaimer": "Costos estimados por minuto según la configuración de este asistente y las tarifas de tu cuenta. No es un cargo fijo por minuto.",
+    "byokDisclaimer": "No se incluyen los costos de claves propias (BYOK) de terceros."
+  },
   "list": {
     "loadError": "No se pudieron cargar tus agentes.",
     "emptyTitle": "Crea tu primer agente",

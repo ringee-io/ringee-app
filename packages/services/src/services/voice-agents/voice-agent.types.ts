@@ -192,11 +192,22 @@ export function contactIdentityFromVariables(variables: unknown): {
 }
 
 /**
- * Name of the provider-side store holding one agent's knowledge. Shared so the
- * knowledge service and the agent's own teardown agree on what to delete.
+ * Legacy name of the provider-side store that used to hold every source for an
+ * agent. Kept so teardown can still remove stores created before knowledge was
+ * split by source.
  */
 export function voiceAgentKnowledgeStoreName(agentId: string): string {
   return `ringee-agent-${agentId}`;
+}
+
+/**
+ * Name of the provider-side store holding one knowledge source.
+ *
+ * A source owns its store so two URL crawls cannot overwrite same-named pages,
+ * and the assistant can attach every ready source as a distinct knowledge base.
+ */
+export function voiceAgentKnowledgeSourceStoreName(sourceId: string): string {
+  return `ringee-kb-${sourceId}`;
 }
 
 /**

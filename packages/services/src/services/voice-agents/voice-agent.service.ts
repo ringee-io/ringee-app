@@ -464,17 +464,27 @@ export class VoiceAgentService {
       await this.provider.deleteSecret(agent.llmApiKeyRef);
     }
     await this.provider.deleteSecret(this.toolSecretIdentifier(agent.id));
-    await this.provider
-      .deleteKnowledgeStore(voiceAgentKnowledgeStoreName(agent.id))
-      .catch((error: unknown) => {
-        // A stranded store costs storage but must not block the deletion the
-        // user asked for.
-        this.logger.warn(
-          `Could not delete the knowledge store for agent ${agent.id}: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-        );
-      });
+    const knowledgeStores = new Set([
+      // The fallback removes the shared store used by agents created before
+      // every source received its own bucket.
+      voiceAgentKnowledgeStoreName(agent.id),
+      ...agent.knowledgeSources.flatMap((source) =>
+        source.providerBucket ? [source.providerBucket] : [],
+      ),
+    ]);
+    for (const store of knowledgeStores) {
+      await this.provider
+        .deleteKnowledgeStore(store)
+        .catch((error: unknown) => {
+          // A stranded store costs storage but must not block the deletion the
+          // user asked for.
+          this.logger.warn(
+            `Could not delete knowledge store ${store} for agent ${agent.id}: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        });
+    }
 
     await this.agents.softDelete(id);
   }

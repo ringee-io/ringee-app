@@ -16,6 +16,11 @@
     "disabled": "Uitgeschakeld",
     "error": "Fout"
   },
+  "pricing": {
+    "estimate": "Geschatte kosten: ~$0,108 per minuut + telefoniekosten",
+    "configurationDisclaimer": "Geschatte kosten per minuut op basis van de configuratie van deze assistent en de tarieven van je account. Dit is geen vast bedrag per minuut.",
+    "byokDisclaimer": "Kosten voor eigen sleutels van derden (BYOK) zijn niet inbegrepen."
+  },
   "list": {
     "loadError": "Je agents konden niet worden geladen.",
     "emptyTitle": "Maak je eerste agent",

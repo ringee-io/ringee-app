@@ -16,6 +16,11 @@
     "disabled": "Disabled",
     "error": "Error"
   },
+  "pricing": {
+    "estimate": "Estimated Cost: ~$0.108 per minute + telephony fees",
+    "configurationDisclaimer": "Estimated per-minute costs based on this assistant configuration and your account rates. This is not a fixed per-minute charge.",
+    "byokDisclaimer": "Third-party bring-your-own-key (BYOK) costs are not included."
+  },
   "list": {
     "loadError": "Could not load your agents.",
     "emptyTitle": "Create your first agent",
