@@ -124,15 +124,17 @@ export class VoiceAgentKnowledgeService {
     const sourceId = randomUUID();
     const store = await this.ensureStore(sourceId);
 
-    const source = await this.repository.createKnowledgeSource({
-      id: sourceId,
-      agentId: agent.id,
-      kind: AiVoiceAgentKnowledgeKind.url,
-      label: input.label?.trim() || url.hostname + url.pathname,
-      sourceUrl: url.href,
-      providerBucket: store,
-      status: AiVoiceAgentKnowledgeStatus.processing,
-    });
+    const source = await this.withStoreCleanup(sourceId, store, () =>
+      this.repository.createKnowledgeSource({
+        id: sourceId,
+        agentId: agent.id,
+        kind: AiVoiceAgentKnowledgeKind.url,
+        label: input.label?.trim() || url.hostname + url.pathname,
+        sourceUrl: url.href,
+        providerBucket: store,
+        status: AiVoiceAgentKnowledgeStatus.processing,
+      }),
+    );
 
     return this.startIndexing(source, () =>
       this.provider.indexKnowledgeUrl(store, url.href),
@@ -151,22 +153,24 @@ export class VoiceAgentKnowledgeService {
     const sourceId = randomUUID();
     const store = await this.ensureStore(sourceId);
     const fileName = this.fileName(input.label, "txt");
-    await this.provider.putKnowledgeDocument(
-      store,
-      fileName,
-      Buffer.from(content, "utf-8"),
-      "text/plain",
-    );
+    const source = await this.withStoreCleanup(sourceId, store, async () => {
+      await this.provider.putKnowledgeDocument(
+        store,
+        fileName,
+        Buffer.from(content, "utf-8"),
+        "text/plain",
+      );
 
-    const source = await this.repository.createKnowledgeSource({
-      id: sourceId,
-      agentId: agent.id,
-      kind: AiVoiceAgentKnowledgeKind.text,
-      label: input.label.trim(),
-      content,
-      providerBucket: store,
-      providerFileName: fileName,
-      status: AiVoiceAgentKnowledgeStatus.processing,
+      return this.repository.createKnowledgeSource({
+        id: sourceId,
+        agentId: agent.id,
+        kind: AiVoiceAgentKnowledgeKind.text,
+        label: input.label.trim(),
+        content,
+        providerBucket: store,
+        providerFileName: fileName,
+        status: AiVoiceAgentKnowledgeStatus.processing,
+      });
     });
 
     return this.startIndexing(source, () =>
@@ -197,21 +201,23 @@ export class VoiceAgentKnowledgeService {
     const sourceId = randomUUID();
     const store = await this.ensureStore(sourceId);
     const fileName = this.fileName(input.fileName, "bin");
-    await this.provider.putKnowledgeDocument(
-      store,
-      fileName,
-      input.buffer,
-      input.contentType,
-    );
+    const source = await this.withStoreCleanup(sourceId, store, async () => {
+      await this.provider.putKnowledgeDocument(
+        store,
+        fileName,
+        input.buffer,
+        input.contentType,
+      );
 
-    const source = await this.repository.createKnowledgeSource({
-      id: sourceId,
-      agentId: agent.id,
-      kind,
-      label: input.fileName,
-      providerBucket: store,
-      providerFileName: fileName,
-      status: AiVoiceAgentKnowledgeStatus.processing,
+      return this.repository.createKnowledgeSource({
+        id: sourceId,
+        agentId: agent.id,
+        kind,
+        label: input.fileName,
+        providerBucket: store,
+        providerFileName: fileName,
+        status: AiVoiceAgentKnowledgeStatus.processing,
+      });
     });
 
     return this.startIndexing(source, () =>
@@ -382,21 +388,23 @@ export class VoiceAgentKnowledgeService {
     const sourceId = randomUUID();
     const store = await this.ensureStore(sourceId);
     const fileName = this.fileName(origin.label, "bin");
-    await this.provider.putKnowledgeDocument(
-      store,
-      fileName,
-      document.body,
-      document.contentType,
-    );
+    const source = await this.withStoreCleanup(sourceId, store, async () => {
+      await this.provider.putKnowledgeDocument(
+        store,
+        fileName,
+        document.body,
+        document.contentType,
+      );
 
-    const source = await this.repository.createKnowledgeSource({
-      id: sourceId,
-      agentId,
-      kind: origin.kind,
-      label: origin.label,
-      providerBucket: store,
-      providerFileName: fileName,
-      status: AiVoiceAgentKnowledgeStatus.processing,
+      return this.repository.createKnowledgeSource({
+        id: sourceId,
+        agentId,
+        kind: origin.kind,
+        label: origin.label,
+        providerBucket: store,
+        providerFileName: fileName,
+        status: AiVoiceAgentKnowledgeStatus.processing,
+      });
     });
 
     return this.startIndexing(source, () =>
@@ -408,6 +416,31 @@ export class VoiceAgentKnowledgeService {
     const store = this.storeName(sourceId);
     await this.provider.createKnowledgeStore(store);
     return store;
+  }
+
+  /**
+   * If setup fails after creating a new store, try to remove the orphan store
+   * but always rethrow the original setup error.
+   */
+  private async withStoreCleanup<T>(
+    sourceId: string,
+    store: string,
+    work: () => Promise<T>,
+  ): Promise<T> {
+    try {
+      return await work();
+    } catch (error) {
+      await this.provider.deleteKnowledgeStore(store).catch((cleanupError) => {
+        this.logger.warn(
+          `Could not clean up knowledge store ${store} for source ${sourceId}: ${
+            cleanupError instanceof Error
+              ? cleanupError.message
+              : String(cleanupError)
+          }`,
+        );
+      });
+      throw error;
+    }
   }
 
   private storeName(sourceId: string): string {

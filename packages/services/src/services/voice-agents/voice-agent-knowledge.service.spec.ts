@@ -159,4 +159,120 @@ describe("VoiceAgentKnowledgeService", () => {
 
     assert.deepEqual(attached, [["bucket-one", "bucket-two"]]);
   });
+
+  it("cleans up a new store when URL source persistence fails", async () => {
+    const createdStores: string[] = [];
+    const deletedStores: string[] = [];
+    const original = new Error("persist failed");
+
+    const service = new VoiceAgentKnowledgeService(
+      { require: async () => ({ id: "agent-1" }) } as never,
+      {
+        createKnowledgeSource: async () => {
+          throw original;
+        },
+      } as never,
+      {
+        createKnowledgeStore: async (store: string) => {
+          createdStores.push(store);
+        },
+        deleteKnowledgeStore: async (store: string) => {
+          deletedStores.push(store);
+        },
+      } as never,
+    );
+
+    await assert.rejects(
+      () =>
+        service.addUrl(CTX as never, "agent-1", {
+          url: "https://example.com/help",
+        }),
+      (error: unknown) => error === original,
+    );
+
+    assert.equal(createdStores.length, 1);
+    assert.deepEqual(deletedStores, createdStores);
+  });
+
+  it("rethrows the original upload error when cleanup also fails", async () => {
+    const original = new Error("upload failed");
+    let createCalls = 0;
+
+    const service = new VoiceAgentKnowledgeService(
+      { require: async () => ({ id: "agent-1" }) } as never,
+      {
+        createKnowledgeSource: async () => {
+          createCalls += 1;
+          return {};
+        },
+      } as never,
+      {
+        createKnowledgeStore: async () => {},
+        putKnowledgeDocument: async () => {
+          throw original;
+        },
+        deleteKnowledgeStore: async () => {
+          throw new Error("cleanup failed");
+        },
+      } as never,
+    );
+
+    await assert.rejects(
+      () =>
+        service.addText(CTX as never, "agent-1", {
+          label: "FAQ",
+          content: "Hours are 9 to 5.",
+        }),
+      (error: unknown) => error === original,
+    );
+
+    assert.equal(createCalls, 0);
+  });
+
+  it("cleans up a copied document store when persisting the copy fails", async () => {
+    const createdStores: string[] = [];
+    const deletedStores: string[] = [];
+    const original = new Error("persist failed");
+
+    const service = new VoiceAgentKnowledgeService(
+      { require: async () => ({ id: "agent-2" }) } as never,
+      {
+        findKnowledgeSourceForOwner: async () => ({
+          id: "source-1",
+          agentId: "agent-1",
+          kind: "pdf",
+          label: "Pricing Guide",
+          sourceUrl: null,
+          content: null,
+          providerBucket: "origin-bucket",
+          providerFileName: "pricing.pdf",
+        }),
+        listKnowledgeSources: async () => [],
+        createKnowledgeSource: async () => {
+          throw original;
+        },
+      } as never,
+      {
+        readKnowledgeDocument: async () => ({
+          body: Buffer.from("pdf-data"),
+          contentType: "application/pdf",
+        }),
+        createKnowledgeStore: async (store: string) => {
+          createdStores.push(store);
+        },
+        putKnowledgeDocument: async () => {},
+        deleteKnowledgeStore: async (store: string) => {
+          deletedStores.push(store);
+        },
+      } as never,
+    );
+
+    await assert.rejects(
+      () => service.reuse(CTX as never, "agent-2", "source-1"),
+      (error: unknown) => error === original,
+    );
+
+    assert.equal(createdStores.length, 1);
+    assert.deepEqual(deletedStores, createdStores);
+  });
 });
