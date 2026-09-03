@@ -45,6 +45,14 @@ const OPTIONAL_FIELDS: { name: string; example: string }[] = [
   { name: 'jobTitle', example: 'Sales Manager' },
   { name: 'state', example: 'New York' },
   { name: 'website', example: 'https://acme.com' },
+  {
+    name: 'linkedinUrl',
+    example: 'https://linkedin.com/in/john-doe'
+  },
+  {
+    name: 'companyLinkedinUrl',
+    example: 'https://linkedin.com/company/acme'
+  },
   { name: 'revenue', example: '$10M-$50M' },
   { name: 'companySize', example: '51-200' },
   { name: 'location', example: 'New York' }

@@ -12,8 +12,13 @@ export interface CampaignLeadContactSummary {
   jobTitle: string | null;
   locationRegion: string | null;
   websiteUrl: string | null;
+  linkedinUrl: string | null;
   revenue: string | null;
   companySize: string | null;
+  affiliations: Array<{
+    isPrimary: boolean;
+    company: { linkedinUrl: string | null };
+  }>;
 }
 
 export interface CampaignLeadWithContact extends CampaignLead {
@@ -70,8 +75,17 @@ const LEAD_CONTACT_SUMMARY_SELECT = {
   jobTitle: true,
   locationRegion: true,
   websiteUrl: true,
+  linkedinUrl: true,
   revenue: true,
   companySize: true,
+  affiliations: {
+    orderBy: { isPrimary: "desc" },
+    take: 1,
+    select: {
+      isPrimary: true,
+      company: { select: { linkedinUrl: true } },
+    },
+  },
 } as const;
 
 /** One definition of {@link CampaignLeadContact}, both dialer queries. */
@@ -83,7 +97,6 @@ const LEAD_CONTACT_FULL_SELECT = {
   department: true,
   headline: true,
   summary: true,
-  linkedinUrl: true,
   locationCity: true,
   locationCountry: true,
   timezone: true,

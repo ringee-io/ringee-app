@@ -25,6 +25,11 @@ export interface ContactRow {
   jobTitle?: string | null;
   locationRegion?: string | null;
   websiteUrl?: string | null;
+  linkedinUrl?: string | null;
+  affiliations?: Array<{
+    isPrimary: boolean;
+    company: { linkedinUrl?: string | null };
+  }>;
   revenue?: string | null;
   companySize?: string | null;
   source?: string | null;

@@ -10,9 +10,7 @@ import {
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
-import { useDialerStore } from '../../store/dialer.store';
-import { useTelnyxStore } from '../../store/telnyx.store';
-import { useCall } from '../../hooks/use.call';
+import { useQuickDialerCall } from '../../hooks/use.quick.dialer.call';
 import { formatRelativeShort, getInitials, type RelativeT } from './shared';
 
 interface RecentCall {
@@ -31,19 +29,10 @@ export function RecentCallsTab() {
   const tRel = useTranslations('dialer.sidePanel.relative');
   const relativeT: RelativeT = (key, vars) => tRel(key, vars);
   const api = useApi();
-  const { setNumber } = useDialerStore();
-  const { activeCall } = useTelnyxStore();
-  const { handleCall } = useCall();
+  const { handleRecall } = useQuickDialerCall();
   const [calls, setCalls] = useState<RecentCall[]>([]);
   const [loading, setLoading] = useState(true);
-  const [busyNumber, setBusyNumber] = useState<string | null>(null);
   const mountedRef = useRef(true);
-
-  const isBusy =
-    !!activeCall &&
-    ['pending', 'ringing', 'answered', 'recording'].includes(
-      activeCall.state || ''
-    );
 
   useEffect(() => {
     mountedRef.current = true;
@@ -65,17 +54,6 @@ export function RecentCallsTab() {
       mountedRef.current = false;
     };
   }, [api]);
-
-  async function handleRedial(call: RecentCall) {
-    if (busyNumber || isBusy) return;
-    setBusyNumber(call.toNumber);
-    setNumber(call.toNumber);
-    try {
-      await handleCall(call.toNumber);
-    } finally {
-      setBusyNumber(null);
-    }
-  }
 
   if (loading) {
     return (
@@ -103,6 +81,8 @@ export function RecentCallsTab() {
     <ul className='divide-border divide-y'>
       {calls.map((call) => {
         const name = call.contact?.name || null;
+        const phoneNumber =
+          call.direction === 'inbound' ? call.fromNumber : call.toNumber;
         return (
           <li
             key={call.id}
@@ -110,18 +90,18 @@ export function RecentCallsTab() {
           >
             <Avatar className='size-8 shrink-0'>
               <AvatarFallback className='text-[10px] font-semibold'>
-                {getInitials(name, call.toNumber)}
+                {getInitials(name, phoneNumber)}
               </AvatarFallback>
             </Avatar>
             <div className='min-w-0 flex-1'>
               <div className='flex items-center gap-1.5'>
                 <PhoneOutgoing className='h-3 w-3 shrink-0 text-blue-500' />
                 <span className='truncate text-sm font-medium'>
-                  {name || call.toNumber}
+                  {name || phoneNumber}
                 </span>
               </div>
               <div className='text-muted-foreground flex items-center gap-2 text-xs'>
-                {name && <span className='font-mono'>{call.toNumber}</span>}
+                {name && <span className='font-mono'>{phoneNumber}</span>}
                 {call.startedAt && (
                   <>
                     {name && <span>·</span>}
@@ -135,8 +115,7 @@ export function RecentCallsTab() {
             <Button
               size='icon'
               variant='ghost'
-              disabled={busyNumber === call.toNumber || isBusy}
-              onClick={() => handleRedial(call)}
+              onClick={() => handleRecall(phoneNumber)}
               className='h-8 w-8 text-green-600 hover:bg-green-100 hover:text-green-700 dark:hover:bg-green-500/20'
               title={t('actions.redial')}
             >

@@ -65,6 +65,7 @@ export class CompanyRepository {
       size?: string | null;
       phone?: string | null;
       website?: string | null;
+      linkedinUrl?: string | null;
       source?: string | null;
       crmMetadata?: Record<string, unknown> | null;
       customFields?: Record<string, unknown> | null;
@@ -78,6 +79,7 @@ export class CompanyRepository {
         size: data.size ?? null,
         phone: data.phone ?? null,
         website: data.website ?? null,
+        linkedinUrl: data.linkedinUrl ?? null,
         source: data.source ?? null,
         crmMetadata: (data.crmMetadata ?? undefined) as
           | Prisma.InputJsonValue
