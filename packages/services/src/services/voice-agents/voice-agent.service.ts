@@ -745,14 +745,14 @@ export class VoiceAgentService {
   }
 
   /**
-   * Makes sure the agent's tools still call this backend, before it dials.
+   * Makes sure the agent has the current set of webhook tools and that all of
+   * them still call this backend, before it dials.
    *
-   * Tool URLs are written onto the assistant when the agent is saved and never
-   * looked at again, so they outlive the address they were built from: change
-   * `PUBLIC_BACKEND_URL` and every agent in the workspace keeps pointing at the
-   * old one until somebody happens to open and re-save it. That is not a
-   * degraded agent — it is one that answers "I am having a technical problem
-   * with the calendar" and books nothing, on a call the workspace paid for.
+   * Tool definitions are written when the agent is saved and otherwise outlive
+   * the code that created them. A new required tool (such as human support) is
+   * absent from every older assistant, while a changed `PUBLIC_BACKEND_URL`
+   * leaves all existing tools pointing at the old backend. In either case the
+   * assistant has to be re-derived from its blueprint before the paid call.
    *
    * Best-effort, like `ensureCallingApp` and `ensureInsightGroup` beside it: a
    * re-sync that fails is worth a call with stale tools, never worth refusing
@@ -770,13 +770,25 @@ export class VoiceAgentService {
     if (!assistant) return;
 
     const base = this.toolBaseUrl();
-    const stale = assistant.toolWebhookUrls.filter(
-      (url) => !url.startsWith(base),
-    );
-    if (stale.length === 0) return;
+    const expected = this.blueprints
+      .require(agent.type)
+      .buildTools({
+        agentId: agent.id,
+        toolBaseUrl: base,
+        toolSecretRef: this.toolSecretIdentifier(agent.id),
+        // Retrieval stores do not affect the webhook set compared here.
+        knowledgeBucketIds: [],
+      })
+      .flatMap((tool) => (tool.kind === "webhook" ? [tool.url] : []))
+      .sort();
+    const actual = [...assistant.toolWebhookUrls].sort();
+    const matches =
+      actual.length === expected.length &&
+      actual.every((url, index) => url === expected[index]);
+    if (matches) return;
 
     this.logger.warn(
-      `Agent ${agent.id} has ${stale.length} tool(s) pointing somewhere else (${stale[0]}); re-syncing against ${base}`,
+      `Agent ${agent.id} has stale or missing webhook tools; re-syncing against its current blueprint`,
     );
     await this.syncToProvider(ctx, agent.id);
   }
