@@ -12,6 +12,7 @@ import { cn } from "../lib/utils";
 import { Popover, PopoverContent, PopoverTrigger } from "./ui/popover";
 import { navItems } from "../constants/data";
 import { Icons } from "./icons";
+import { useOrgRole } from "../hooks/use-org-role";
 
 const ITEM_TITLE_KEYS: Record<string, string> = {
   Dashboard: "items.dashboard",
@@ -31,6 +32,7 @@ const ITEM_TITLE_KEYS: Record<string, string> = {
 export function BottomLiquidNav() {
   const pathname = usePathname();
   const tNav = useTranslations("navigation");
+  const { hasOrg } = useOrgRole();
   const localizeTitle = (title: string) => {
     const key = ITEM_TITLE_KEYS[title];
     return key ? tNav(key) : title;
@@ -49,7 +51,9 @@ export function BottomLiquidNav() {
           aria-label="Bottom navigation"
           className="flex items-center justify-center gap-5 px-2"
         >
-          {navItems.map(({ url, title, icon, items }) => {
+          {navItems.map(({ url, title, icon, items, organizationOnly }) => {
+            if (organizationOnly && !hasOrg) return null;
+
             // @ts-ignore
             const Icon = Icons[icon];
             const label = localizeTitle(title);

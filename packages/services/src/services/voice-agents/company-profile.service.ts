@@ -14,6 +14,7 @@ import {
 } from "@ringee/platform";
 import { CreditService, incurredCostDebitRef } from "../credit.service";
 import { fetchPublicPage, requirePublicUrl } from "./public-url";
+import { assertVoiceAgentAccess } from "./voice-agent-access";
 import type { VoiceAgentCompanyContext } from "./voice-agent.types";
 
 /** How much of a fetched page is worth sending to the model. */
@@ -54,6 +55,7 @@ export class CompanyProfileService {
   ) {}
 
   get(ctx: OwnershipContext): Promise<WorkspaceCompanyProfile | null> {
+    assertVoiceAgentAccess(ctx);
     return this.repository.find(ctx);
   }
 
@@ -65,6 +67,7 @@ export class CompanyProfileService {
       companyDescription?: string | null;
     },
   ): Promise<WorkspaceCompanyProfile> {
+    assertVoiceAgentAccess(ctx);
     return this.repository.upsert(ctx, {
       companyName: dto.companyName?.trim() || null,
       companyWebsite: dto.companyWebsite?.trim() || null,
@@ -78,6 +81,7 @@ export class CompanyProfileService {
    * filled the profile in still speaks a coherent sentence.
    */
   async resolveContext(ctx: OwnershipContext): Promise<ResolvedContext> {
+    assertVoiceAgentAccess(ctx);
     return this.toContext(await this.repository.find(ctx));
   }
 
@@ -93,6 +97,7 @@ export class CompanyProfileService {
       "companyName" | "companyWebsite" | "companyDescription"
     >,
   ): Promise<ResolvedContext> {
+    assertVoiceAgentAccess(ctx);
     const own = agent.companyName?.trim() || agent.companyDescription?.trim();
     return own ? this.toContext(agent) : this.resolveContext(ctx);
   }
@@ -103,6 +108,7 @@ export class CompanyProfileService {
    * it is what every agent without its own already speaks with.
    */
   async listReusable(ctx: OwnershipContext): Promise<ReusableCompanyContext[]> {
+    assertVoiceAgentAccess(ctx);
     const [workspace, agents] = await Promise.all([
       this.repository.find(ctx),
       this.agents.listCompanyContextsForOwner(ctx),
@@ -158,6 +164,7 @@ export class CompanyProfileService {
     ctx: OwnershipContext,
     website: string,
   ): Promise<{ description: string }> {
+    assertVoiceAgentAccess(ctx);
     const url = requirePublicUrl(website);
     const page = await this.fetchPageText(url);
     if (!page) {

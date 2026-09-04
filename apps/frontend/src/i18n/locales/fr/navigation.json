@@ -50,8 +50,8 @@
     "description": "Gérez tous vos messages entrants, appels manqués et messages vocaux dans une seule boîte unifiée."
   },
   "voiceAgentsTooltip": {
-    "title": "AI Voice Agents — bêta privée",
-    "description": "Le module est en cours de test en production. Demandez à l'équipe Ringee de vous ajouter à la bêta."
+    "title": "AI Voice Agents — organisations uniquement",
+    "description": "Sélectionnez ou créez un espace de travail d'organisation pour utiliser ce module."
   },
   "kbar": {
     "navigation": "Navigation",

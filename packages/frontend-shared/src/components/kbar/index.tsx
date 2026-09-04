@@ -40,25 +40,26 @@ const ITEM_TITLE_KEYS: Record<string, string> = {
 
 const KBarComponent = ({ children }: { children: React.ReactNode }) => {
   const router = useRouter();
-  const { canAccessAdminFeatures, hiddenForMember } = useOrgRole();
+  const { canAccessAdminFeatures, hasOrg, hiddenForMember } = useOrgRole();
   const t = useTranslations("navigation.kbar");
   const tNav = useTranslations("navigation");
-  const localizeTitle = (title: string) => {
-    const key = ITEM_TITLE_KEYS[title];
-    return key ? tNav(key) : title;
-  };
 
   useThemeSwitching();
 
   // Build and register navigation actions dynamically based on role
   const actions = useMemo(() => {
+    const localizeTitle = (title: string) => {
+      const key = ITEM_TITLE_KEYS[title];
+      return key ? tNav(key) : title;
+    };
     const navigateTo = (url: string) => {
       router.push(url);
     };
 
     return navItems.flatMap((navItem) => {
       const shouldShowBase =
-        canAccessAdminFeatures || !hiddenForMember.includes(navItem.title);
+        (hasOrg || !navItem.organizationOnly) &&
+        (canAccessAdminFeatures || !hiddenForMember.includes(navItem.title));
       const navLabel = localizeTitle(navItem.title);
 
       const baseAction =
@@ -78,8 +79,9 @@ const KBarComponent = ({ children }: { children: React.ReactNode }) => {
         navItem.items
           ?.filter(
             (childItem) =>
-              canAccessAdminFeatures ||
-              !hiddenForMember.includes(childItem.title),
+              (hasOrg || !childItem.organizationOnly) &&
+              (canAccessAdminFeatures ||
+                !hiddenForMember.includes(childItem.title)),
           )
           .map((childItem) => {
             const childLabel = localizeTitle(childItem.title);
@@ -96,7 +98,7 @@ const KBarComponent = ({ children }: { children: React.ReactNode }) => {
 
       return baseAction ? [baseAction, ...childActions] : childActions;
     });
-  }, [router, canAccessAdminFeatures, hiddenForMember, t, tNav]);
+  }, [router, canAccessAdminFeatures, hasOrg, hiddenForMember, t, tNav]);
 
   // Register actions dynamically - this updates when role changes
   useRegisterActions(actions, [actions]);

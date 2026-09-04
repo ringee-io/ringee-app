@@ -41,7 +41,7 @@ import {
   VoiceAgentTestSessionService,
 } from "@ringee/services";
 import { AiVoiceAgentType } from "@ringee/database";
-import { VoiceAgentBetaGuard } from "../guards/voice-agent-beta.guard";
+import { VoiceAgentOrganizationGuard } from "../guards/voice-agent-organization.guard";
 
 /**
  * AI Voice Agents.
@@ -50,11 +50,11 @@ import { VoiceAgentBetaGuard } from "../guards/voice-agent-beta.guard";
  * rule about what an agent is and when it may call lives in `@ringee/services`,
  * because the same rules have to hold for the API, the CLI and the MCP tools.
  *
- * The whole controller sits behind `VoiceAgentBetaGuard` while the module is in
- * a closed production beta. The provider-facing webhook and tool controllers
- * are separate and stay open, so a call already in flight is unaffected.
+ * The whole controller requires an active organization. The provider-facing
+ * webhook and tool controllers are separate and stay open, so a call already
+ * in flight is unaffected.
  */
-@UseGuards(VoiceAgentBetaGuard)
+@UseGuards(VoiceAgentOrganizationGuard)
 @Controller("ai-voice-agents")
 export class AiVoiceAgentController {
   constructor(

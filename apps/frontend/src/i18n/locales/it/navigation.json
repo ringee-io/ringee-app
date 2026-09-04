@@ -50,8 +50,8 @@
     "description": "Gestisci tutti i messaggi in arrivo, le chiamate perse e le segreterie in un'unica casella."
   },
   "voiceAgentsTooltip": {
-    "title": "AI Voice Agents — beta privata",
-    "description": "Il modulo è in fase di test in produzione. Chiedi al team Ringee di aggiungerti alla beta."
+    "title": "AI Voice Agents — solo organizzazioni",
+    "description": "Passa a uno spazio di lavoro di un'organizzazione o creane uno per usare questo modulo."
   },
   "kbar": {
     "navigation": "Navigazione",

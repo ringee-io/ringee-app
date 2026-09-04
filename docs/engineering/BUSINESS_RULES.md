@@ -853,6 +853,21 @@ the tool reports success, and may never invent a response time.
 - **Source of truth:** `VoiceAgentToolService.requestHumanSupport` and
   `VoiceAgentHumanSupportService`
 
+### AGENT-011 — AI voice agents require an active organization workspace
+
+The module is available to organization workspaces only. Dashboard routes,
+REST calls, CLI commands and MCP tools all fail closed when the active ownership
+context has no `organizationId`. The shared `assertVoiceAgentAccess` service
+rule is the source of truth; the API guard also covers catalogue and credential
+routes that do not otherwise need an ownership context.
+
+Provider-facing tool and webhook routes are not subject to the workspace-session
+gate. They carry their own authorization and must remain available so an
+already-started or legacy call can finish and settle safely.
+
+- **Source of truth:** `services/voice-agents/voice-agent-access.ts` +
+  `VoiceAgentOrganizationGuard`
+
 ---
 
 ## Onboarding & lifecycle (`LIFE`)

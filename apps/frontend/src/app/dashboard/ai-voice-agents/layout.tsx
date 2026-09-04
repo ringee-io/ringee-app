@@ -1,13 +1,13 @@
 import { redirect } from 'next/navigation';
-import { fetchHasVoiceAgentAccess } from '@/features/ai-voice-agents/lib/beta-access';
+import { fetchHasVoiceAgentAccess } from '@/features/ai-voice-agents/lib/access';
 
 /**
- * Closed beta gate for the whole `/dashboard/ai-voice-agents` subtree — the
+ * Organization gate for the whole `/dashboard/ai-voice-agents` subtree — the
  * list, the wizard and every agent detail page.
  *
- * The sidebar entry is already disabled for anyone outside the beta; this stops
- * the URL, the Cmd-K bar and a stale bookmark from getting in behind it. Real
- * enforcement is `VoiceAgentBetaGuard` on the API.
+ * The navigation entry is already disabled in a personal workspace; this stops
+ * a stale bookmark from getting in behind it. The API remains the security
+ * boundary.
  */
 export default async function AiVoiceAgentsLayout({
   children

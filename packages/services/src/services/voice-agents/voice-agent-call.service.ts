@@ -29,6 +29,7 @@ import { NumberPurchasedService } from "../number.purchased.service";
 import { ComplianceService } from "../outbound/compliance.service";
 import { UserService } from "../user.service";
 import { VoiceAgentBlueprintRegistry } from "./blueprints/voice-agent-blueprint.registry";
+import { assertVoiceAgentAccess } from "./voice-agent-access";
 import { VoiceAgentService } from "./voice-agent.service";
 import {
   AI_VOICE_AGENT_CALL_SOURCE,
@@ -88,6 +89,7 @@ export class VoiceAgentCallService {
     agentId: string,
     input: StartVoiceAgentCallInput,
   ): Promise<StartVoiceAgentCallResult> {
+    assertVoiceAgentAccess(ctx);
     const agent = await this.agents.require(ctx, agentId);
     this.agents.assertReadyForCalls(agent);
 
@@ -480,6 +482,7 @@ export class VoiceAgentCallService {
     agentId: string,
     options?: { page?: number; limit?: number },
   ) {
+    assertVoiceAgentAccess(ctx);
     return this.agentCalls.listForAgent(ctx, agentId, options);
   }
 
@@ -487,6 +490,7 @@ export class VoiceAgentCallService {
     ctx: OwnershipContext,
     id: string,
   ): Promise<AiVoiceAgentCall> {
+    assertVoiceAgentAccess(ctx);
     const call = await this.agentCalls.findByIdForOwner(ctx, id);
     if (!call) throw new NotFoundException("AI voice agent call not found");
     return call;
