@@ -24,6 +24,10 @@ export function generateCustomIntegrationApiKey(): GeneratedApiKey {
 }
 
 export function hashApiKey(plaintext: string): string {
+  // These values are generated opaque credentials with at least 192 bits of
+  // entropy, not user-chosen passwords. A deterministic digest is required for
+  // indexed lookup and preserves compatibility with already-issued keys.
+  // codeql[js/insufficient-password-hash]
   return createHash("sha256").update(plaintext).digest("hex");
 }
 

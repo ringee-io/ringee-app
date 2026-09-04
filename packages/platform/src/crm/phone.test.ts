@@ -34,8 +34,16 @@ describe("normalizePhoneE164", () => {
     // The lenient fallback used to fold the extension into the digits and
     // return "+555267122" — a number that is then dialled and stored.
     expect(normalizePhoneE164("555-2671 ext 22")).toBe("+5552671");
+    expect(normalizePhoneE164("555-2671 ext.22")).toBe("+5552671");
+    expect(normalizePhoneE164("555-2671 extension 22")).toBe("+5552671");
     expect(normalizePhoneE164("555-2671x22")).toBe("+5552671");
+    expect(normalizePhoneE164("555-2671#22")).toBe("+5552671");
     expect(normalizePhoneE164("555-2671;ext=22")).toBe("+5552671");
+  });
+
+  it("handles long untrusted input in linear time", () => {
+    const padding = " ".repeat(100_000);
+    expect(normalizePhoneE164(`555-2671${padding}ext 22`)).toBe("+5552671");
   });
 
   it("rejects empty and out-of-range input", () => {
