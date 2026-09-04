@@ -17,20 +17,23 @@ Rules: `AUTH-*`, `HOOK-*`, `WRK-*`, `SESS-*` in
 | Embedded SDK       | publishable key + `Origin` + OTP + live membership re-check |
 | Magic link         | hashed opaque token, uniform failures                       |
 | Custom Integration | hashed API key, constant-time compare                       |
+| Public API         | Custom Integration API key → stored ownership context       |
 | MCP connector      | the workspace UUID in the URL — a capability URL            |
 
 ## `@Public()` is the highest-risk decorator in the codebase
 
 It removes the only authentication on a route. Roughly 50 handlers use it, each
-legitimately, in five groups:
+legitimately, in six groups:
 
 1. **Provider webhooks** — Telnyx call/messaging/desk-phone, Stripe, Clerk,
    Custom Integration inbound. Authorization = signature.
 2. **SDK endpoints** (`/api/v1/sdk/*`) — authorization = `SdkSessionGuard` +
    origin, applied on top of `@Public()`.
-3. **Magic-link session endpoints** — authorization = hashed token.
-4. **MCP / ChatGPT app transports** — authorization = the URL itself.
-5. **Genuinely public reads** — rates, available numbers, country requirements,
+3. **Public API endpoints** (`/api/v1/ai-voice-agents/*`) — authorization =
+   `CustomIntegrationApiKeyGuard` over a hashed, active integration key.
+4. **Magic-link session endpoints** — authorization = hashed token.
+5. **MCP / ChatGPT app transports** — authorization = the URL itself.
+6. **Genuinely public reads** — rates, available numbers, country requirements,
    `.well-known` challenges, the demo-request form.
 
 Before adding `@Public()`, answer in one sentence what proves the caller is

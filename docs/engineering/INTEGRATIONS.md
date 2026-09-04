@@ -58,12 +58,25 @@ agent-client method or CLI command creates, updates or deletes a voice agent.
 Every surface requires an active organization workspace (AGENT-011); personal
 workspace requests are rejected before any provider command or billed call.
 
-| Surface            | List                                       | Trigger                                                                                     |
-| ------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------- |
-| REST API           | `GET /api/ai-voice-agents?page=1&limit=20` | `POST /api/ai-voice-agents/:agentId/calls`                                                  |
-| MCP                | `list_ai_voice_agents`                     | `start_ai_voice_agent_call`                                                                 |
-| `@ringee-io/agent` | `listAiVoiceAgents({ limit })`             | `startAiVoiceAgentCall({ agentId, to, fromNumberId, variables, metadata })`                 |
-| CLI                | `ringee voice-agents list`                 | `ringee voice-agents call <agentId> --to +E164 [--from <numberId>] [--var key=value] --yes` |
+| Surface            | List                                          | Trigger                                                                                     |
+| ------------------ | --------------------------------------------- | ------------------------------------------------------------------------------------------- |
+| Dashboard REST     | `GET /api/ai-voice-agents?page=1&limit=20`    | `POST /api/ai-voice-agents/:agentId/calls`                                                  |
+| Public REST        | `GET /api/v1/ai-voice-agents?page=1&limit=20` | `POST /api/v1/ai-voice-agents/:agentId/calls`                                               |
+| MCP                | `list_ai_voice_agents`                        | `start_ai_voice_agent_call`                                                                 |
+| `@ringee-io/agent` | `listAiVoiceAgents({ limit })`                | `startAiVoiceAgentCall({ agentId, to, fromNumberId, variables, metadata })`                 |
+| CLI                | `ringee voice-agents list`                    | `ringee voice-agents call <agentId> --to +E164 [--from <numberId>] [--var key=value] --yes` |
+
+The public REST routes use the API key issued for a Custom Integration. Send it
+as either `X-Ringee-Api-Key: cik_live_…` or
+`Authorization: Bearer cik_live_…`; never both. The key resolves the user and
+organization from the stored integration, so the request accepts no workspace
+identity from the client. Disabled integrations fail with `401`.
+
+Execution-only companion routes are:
+
+- `GET /api/v1/ai-voice-agents/phone-numbers`
+- `GET /api/v1/ai-voice-agents/:agentId/calls`
+- `GET /api/v1/ai-voice-agents/calls/:callId`
 
 The REST trigger body uses the API's existing snake-case field for caller ID:
 
@@ -76,7 +89,7 @@ The REST trigger body uses the API's existing snake-case field for caller ID:
 }
 ```
 
-All four trigger paths converge on `VoiceAgentCallService.startCall`; none may
+All trigger paths converge on `VoiceAgentCallService.startCall`; none may
 reimplement DNC, balance, caller-ID or variable validation. The MCP catalog marks
 the trigger as credit-consuming and confirmation-required, and the CLI enforces
 that contract with `--yes`. Results are read with

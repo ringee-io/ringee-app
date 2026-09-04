@@ -137,15 +137,16 @@ pick the one matching your runtime.
 
 ## Security primitives
 
-| Responsibility             | Owner                                                        |
-| -------------------------- | ------------------------------------------------------------ |
-| Integration API keys       | `platform/src/custom-integrations/api-key.util.ts`           |
-| Outbound webhook signing   | `platform/src/custom-integrations/webhook-signing.util.ts`   |
-| Event catalogue (in & out) | `platform/src/custom-integrations/event-spec.ts`             |
-| Publishable keys           | `platform/src/sdk/publishable-key.ts`                        |
-| SDK session / OTP / origin | `platform/src/sdk/*`, `services/sdk/*`                       |
-| Magic-link tokens          | `services/call-session/call-session-access-token.service.ts` |
-| Encryption at rest         | `CryptoService` — `platform/src/crypto/`                     |
+| Responsibility             | Owner                                                             |
+| -------------------------- | ----------------------------------------------------------------- |
+| Integration API keys       | `platform/src/custom-integrations/api-key.util.ts`                |
+| Public API key guard       | `apps/backend/src/api/guards/custom-integration-api-key.guard.ts` |
+| Outbound webhook signing   | `platform/src/custom-integrations/webhook-signing.util.ts`        |
+| Event catalogue (in & out) | `platform/src/custom-integrations/event-spec.ts`                  |
+| Publishable keys           | `platform/src/sdk/publishable-key.ts`                             |
+| SDK session / OTP / origin | `platform/src/sdk/*`, `services/sdk/*`                            |
+| Magic-link tokens          | `services/call-session/call-session-access-token.service.ts`      |
+| Encryption at rest         | `CryptoService` — `platform/src/crypto/`                          |
 
 ## Provider registries
 

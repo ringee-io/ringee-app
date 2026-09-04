@@ -77,6 +77,8 @@ import { DemoRequestController } from "./demo-request.controller";
 import { InfrastructureController } from "./infrastructure.controller";
 import { StripeAbuseProtectionService } from "./stripe-abuse-protection.service";
 import { UserAccessEnforcementService } from "./user-access-enforcement.service";
+import { PublicAiVoiceAgentController } from "./public-api.controller";
+import { CustomIntegrationApiKeyGuard } from "../guards/custom-integration-api-key.guard";
 
 @Module({
   controllers: [
@@ -145,6 +147,7 @@ import { UserAccessEnforcementService } from "./user-access-enforcement.service"
     InfrastructureController,
     FreeTrialController,
     DemoRequestController,
+    PublicAiVoiceAgentController,
   ],
   // TranscriptionMediaGateway lives here (not in the shared ServicesModule) so
   // the Telnyx media-stream WS server binds its port only in the API process.
@@ -153,6 +156,7 @@ import { UserAccessEnforcementService } from "./user-access-enforcement.service"
     TranscriptionMediaGateway,
     StripeAbuseProtectionService,
     UserAccessEnforcementService,
+    CustomIntegrationApiKeyGuard,
   ],
   imports: [
     McpModule,
