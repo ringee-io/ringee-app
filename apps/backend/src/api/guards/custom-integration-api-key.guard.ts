@@ -11,6 +11,7 @@ import {
 import type { Request } from "express";
 
 const API_KEY_HEADER = "x-ringee-api-key";
+const BEARER_PREFIX = "bearer ";
 
 export interface CustomIntegrationApiRequest extends Request {
   customIntegrationAuth: ResolvedApiKey;
@@ -47,8 +48,15 @@ export class CustomIntegrationApiKeyGuard implements CanActivate {
     if (customHeader) return customHeader;
     if (!authorization) return undefined;
 
-    const match = /^Bearer\s+(.+)$/i.exec(authorization.trim());
-    return match?.[1]?.trim();
+    const value = authorization.trim();
+    if (
+      value.length <= BEARER_PREFIX.length ||
+      value.slice(0, BEARER_PREFIX.length).toLowerCase() !== BEARER_PREFIX
+    ) {
+      return undefined;
+    }
+
+    return value.slice(BEARER_PREFIX.length).trim() || undefined;
   }
 
   private singleHeader(
