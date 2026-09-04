@@ -169,11 +169,12 @@ says it is having a technical problem and books nothing, a call with no summary
 and no outcome, and no error anywhere. Deployment configuration is responsible
 for supplying the bare origin; `apiConfiguration` uses the value unchanged.
 
-The URLs a provider **stores** — an assistant's tool webhooks, an insight
-group's callback — are written at save time and outlive the address they were
-built from. They are re-pointed before every dial (`ensureInsightGroup`,
-`ensureToolEndpoints`), which is the only thing that recovers an agent whose
-URLs predate the current address.
+The configuration a provider **stores** — an assistant's tool webhooks, an
+insight group's callback — is written at save time and outlives the code and
+address it was built from. Before every dial, `ensureToolEndpoints` restores
+missing tools and stale URLs while `ensureInsightGroup` re-points the callback.
+That is what recovers both an agent created before a new required tool existed
+and one whose URLs predate the current address.
 
 ## Contract change checklist
 
