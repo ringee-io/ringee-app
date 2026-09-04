@@ -25,7 +25,50 @@ const MIN_DIGITS = 6;
 const MAX_DIGITS = 15;
 
 /** `x22`, `ext 22`, `ext. 22`, `#22`, and the RFC 3966 `;ext=22`. */
-const EXTENSION_SUFFIX = /(?:\s*(?:ext\.?|extension|x|#)\s*|;ext=)\d+\s*$/i;
+const EXTENSION_MARKERS = [";ext=", "extension", "ext.", "ext", "x", "#"];
+
+function isAsciiDigit(charCode: number): boolean {
+  return charCode >= 48 && charCode <= 57;
+}
+
+function isWhitespace(character: string): boolean {
+  return character.trim() === "";
+}
+
+/**
+ * Strip a trailing extension in one pass. This intentionally avoids a regular
+ * expression: CRM phone values are untrusted and can be arbitrarily long.
+ */
+function stripExtensionSuffix(value: string): string {
+  let cursor = value.length;
+
+  while (cursor > 0 && isWhitespace(value[cursor - 1])) cursor -= 1;
+
+  const digitsEnd = cursor;
+  while (cursor > 0 && isAsciiDigit(value.charCodeAt(cursor - 1))) cursor -= 1;
+  if (cursor === digitsEnd) return value;
+
+  const digitsStart = cursor;
+  while (cursor > 0 && isWhitespace(value[cursor - 1])) cursor -= 1;
+
+  const markerEnd = cursor;
+  for (const marker of EXTENSION_MARKERS) {
+    // RFC 3966 does not allow whitespace between `;ext=` and its digits.
+    if (marker === ";ext=" && markerEnd !== digitsStart) continue;
+
+    const markerStart = markerEnd - marker.length;
+    if (markerStart < 0) continue;
+    if (value.slice(markerStart, markerEnd).toLowerCase() !== marker) continue;
+
+    let suffixStart = markerStart;
+    while (suffixStart > 0 && isWhitespace(value[suffixStart - 1])) {
+      suffixStart -= 1;
+    }
+    return value.slice(0, suffixStart);
+  }
+
+  return value;
+}
 
 function lenientE164(cleaned: string): string | null {
   if (cleaned.startsWith("+")) {
@@ -54,7 +97,7 @@ export function normalizePhoneE164(
   // itself when the number is valid, but the lenient fallback only strips
   // punctuation — so "555-2671 ext 22" used to come back as "+555267122", a
   // number that is then dialled and persisted as if it were real.
-  const phonePart = trimmed.replace(EXTENSION_SUFFIX, "");
+  const phonePart = stripExtensionSuffix(trimmed);
 
   const parsed = parsePhoneNumberFromString(
     phonePart,
