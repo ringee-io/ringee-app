@@ -5,6 +5,8 @@ export interface NavItem {
   url: string;
   /** Hidden from org members; visible to org admins and freelancers (no org). */
   adminOnly?: boolean;
+  /** Available only while an organization workspace is active. */
+  organizationOnly?: boolean;
   disabled?: boolean;
   external?: boolean;
   shortcut?: [string, string];

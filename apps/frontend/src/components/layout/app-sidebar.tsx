@@ -48,7 +48,6 @@ import {
   IconTopologyStar3
 } from '@tabler/icons-react';
 import { useIsSuperAdmin } from '@/features/backoffice/lib/use-is-super-admin';
-import { useHasVoiceAgentAccess } from '@/features/ai-voice-agents/lib/use-voice-agent-access';
 
 import { SignOutButton } from '@clerk/nextjs';
 import Link from 'next/link';
@@ -67,13 +66,6 @@ const ORG_ONLY_GROUPS = [''];
 
 /** Direct support contact shown at the bottom of the sidebar. */
 const SUPPORT_EMAIL = 'edison@getringee.com';
-
-/**
- * Entry withheld while AI Voice Agents runs as a closed production beta.
- * Outside the beta the item stays visible but disabled — the allowlist itself
- * lives on the API (`VoiceAgentBetaGuard`), never here.
- */
-const VOICE_AGENTS_URL = '/dashboard/ai-voice-agents';
 
 /** Maps the English labels in the shared `navGroups` constant to translation keys. */
 const GROUP_LABEL_KEYS: Record<string, string> = {
@@ -228,11 +220,6 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
   const resolvedSuperAdmin = useIsSuperAdmin(!useMock);
   const isSuperAdmin = useMock ? true : resolvedSuperAdmin;
 
-  // Same shape as the backoffice gate: the API owns the allowlist, and the
-  // marketing preview keeps rendering the entry as it always did.
-  const resolvedVoiceAgentAccess = useHasVoiceAgentAccess(!useMock);
-  const hasVoiceAgentAccess = useMock ? true : resolvedVoiceAgentAccess;
-
   const { canAccessAdminFeatures } = useMock
     ? { canAccessAdminFeatures: true }
     : useOrgRole();
@@ -313,10 +300,10 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                     const itemKey = ITEM_TITLE_KEYS[item.title];
                     const itemTitle = itemKey ? tNav(itemKey) : item.title;
 
-                    // Closed production beta: the entry stays visible so
-                    // the module is discoverable, but only the API's allowlist
-                    // can open it. The route gate blocks the URL as well.
-                    if (item.url === VOICE_AGENTS_URL && !hasVoiceAgentAccess) {
+                    // Organization-only modules stay discoverable from a
+                    // personal workspace, but cannot be opened from here. The
+                    // route layout and API enforce the same boundary.
+                    if (item.organizationOnly && !hasActiveOrg) {
                       return (
                         <SidebarMenuItem key={item.title}>
                           <Tooltip>

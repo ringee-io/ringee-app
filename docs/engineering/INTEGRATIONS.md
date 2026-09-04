@@ -55,6 +55,8 @@ Authorization is the workspace UUID in the URL — see
 External agent surfaces deliberately expose execution, not configuration.
 Creation and editing stay in the authenticated dashboard; no MCP tool, typed
 agent-client method or CLI command creates, updates or deletes a voice agent.
+Every surface requires an active organization workspace (AGENT-011); personal
+workspace requests are rejected before any provider command or billed call.
 
 | Surface            | List                                       | Trigger                                                                                     |
 | ------------------ | ------------------------------------------ | ------------------------------------------------------------------------------------------- |

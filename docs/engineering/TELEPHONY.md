@@ -168,7 +168,8 @@ inject `TelnyxService` directly.
 ## AI voice agent calls
 
 A different shape of call: the provider runs the conversation, and nobody is on
-Ringee's end of it.
+Ringee's end of it. Starting one requires an active organization workspace
+(AGENT-011), regardless of whether REST, the CLI or MCP triggered it.
 
 ```
 POST /api/ai-voice-agents/:id/calls   (or the API / CLI / MCP — one path)

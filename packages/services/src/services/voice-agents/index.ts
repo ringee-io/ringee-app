@@ -1,4 +1,5 @@
 export * from "./voice-agent.types";
+export * from "./voice-agent-access";
 export * from "./voice-agent.service";
 export * from "./voice-agent-call.service";
 export * from "./voice-agent-result.service";

@@ -55,8 +55,8 @@
     "description": "Gestiona todos tus mensajes entrantes, llamadas perdidas y mensajes de voz en una sola bandeja."
   },
   "voiceAgentsTooltip": {
-    "title": "AI Voice Agents — beta privada",
-    "description": "El módulo se está probando en producción. Pide al equipo de Ringee que te añada a la beta."
+    "title": "AI Voice Agents — solo organizaciones",
+    "description": "Cambia a un espacio de trabajo de una organización o crea uno para usar este módulo."
   },
   "kbar": {
     "navigation": "Navegación",

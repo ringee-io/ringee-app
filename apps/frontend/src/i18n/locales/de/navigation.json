@@ -50,8 +50,8 @@
     "description": "Verwalten Sie eingehende Nachrichten, verpasste Anrufe und Voicemails an einem Ort."
   },
   "voiceAgentsTooltip": {
-    "title": "AI Voice Agents — private Beta",
-    "description": "Das Modul wird in der Produktion getestet. Bitten Sie das Ringee-Team, Sie zur Beta hinzuzufügen."
+    "title": "AI Voice Agents — nur für Organisationen",
+    "description": "Wechseln Sie zu einem Organisationsbereich oder erstellen Sie einen, um dieses Modul zu verwenden."
   },
   "kbar": {
     "navigation": "Navigation",

@@ -66,6 +66,7 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Responsibility                        | Owner                                                                    |
 | ------------------------------------- | ------------------------------------------------------------------------ |
 | Any voice-agent provider command      | `VoiceAgentProviderService` — `platform/src/voice-agents/`               |
+| Organization-only module access       | `assertVoiceAgentAccess` — `services/voice-agents/voice-agent-access.ts` |
 | Provider assistant ⇄ Ringee config    | `telnyx.voice-agent.mapper.ts` (+ spec)                                  |
 | What an agent type _is_               | `services/voice-agents/blueprints/*` + `VoiceAgentBlueprintRegistry`     |
 | Agent CRUD + assistant sync           | `VoiceAgentService` — `services/voice-agents/voice-agent.service.ts`     |

@@ -30,6 +30,7 @@ import {
 } from "@ringee/platform";
 import { NumberPurchasedService } from "../number.purchased.service";
 import { VoiceAgentBlueprintRegistry } from "./blueprints/voice-agent-blueprint.registry";
+import { assertVoiceAgentAccess } from "./voice-agent-access";
 import { CompanyProfileService } from "./company-profile.service";
 import {
   composeVoiceAgentInstructions,
@@ -235,6 +236,7 @@ export class VoiceAgentService {
     ctx: OwnershipContext,
     options?: { page?: number; limit?: number; type?: AiVoiceAgentType },
   ): Promise<VoiceAgentListPage> {
+    assertVoiceAgentAccess(ctx);
     const page = await this.agents.listForOwner(ctx, options);
     const counts = await this.agents.countCallsByAgent(
       page.data.map((agent) => agent.id),
@@ -256,6 +258,7 @@ export class VoiceAgentService {
   async listCallerNumbers(
     ctx: OwnershipContext,
   ): Promise<VoiceAgentCallerNumber[]> {
+    assertVoiceAgentAccess(ctx);
     const numbers = await this.numbers.listOutboundCallerIds(ctx, {
       source: OutboundSource.ai_voice_agent,
       userId: ctx.userId,
@@ -272,6 +275,7 @@ export class VoiceAgentService {
     ctx: OwnershipContext,
     id: string,
   ): Promise<AiVoiceAgentWithSources> {
+    assertVoiceAgentAccess(ctx);
     const agent = await this.agents.findByIdForOwner(ctx, id);
     if (!agent) throw new NotFoundException("AI voice agent not found");
     return agent;
@@ -300,6 +304,7 @@ export class VoiceAgentService {
     ctx: OwnershipContext,
     dto: CreateVoiceAgentInput,
   ): Promise<AiVoiceAgent> {
+    assertVoiceAgentAccess(ctx);
     const blueprint = this.blueprints.require(dto.type);
     const name = this.requireName(dto.name);
     const modelProvider = dto.modelProvider ?? "ringee";
