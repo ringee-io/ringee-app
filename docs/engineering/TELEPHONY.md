@@ -273,6 +273,45 @@ Consequences worth keeping:
   they cannot ride `/api/call/webhook`, whose normalizer drops any event with no
   `call_control_id`.
 
+### Voice delivery and turn-taking
+
+`telnyx.voice-agent.mapper.ts` owns these provider settings for both assistant
+creation and updates. Ultra voices (`Telnyx.Ultra.*`) enable `expressive_mode`;
+other tiers and an unset voice keep their existing behavior. Telnyx documents
+Ultra's expressive delivery in its [voice assistant guide](https://developers.telnyx.com/docs/inference/ai-assistants/no-code-voice-assistant).
+
+Flux receives an explicit starting profile: `eager_eot_threshold: 0.3`,
+`eot_threshold: 0.7`, `eot_timeout_ms: 3000`. Eager processing prepares a reply
+before the final turn decision and can increase inference usage. The timeout
+limits silence when turn confidence is insufficient; it is not a mandatory
+three-second response delay. Language selection is preserved, and the Nova-3
+fallback receives none of Flux's turn-taking parameters.
+
+The [current transcription guide](https://developers.telnyx.com/docs/inference/ai-assistants/transcription-settings)
+lists Portal defaults of `0.4 / 0.8 / 5000`; Ringee's more responsive profile is
+a tuning choice, not a claim about provider defaults. That guide describes
+`smart_format` and `numerals` for non-Flux Deepgram models, while an older
+`/transcription-settings/index` page groups them with all Deepgram models.
+Ringee omits those formatting flags on Flux pending verified adapter support.
+According to the [interruption guide](https://developers.telnyx.com/docs/inference/ai-assistants/interruption-settings),
+interruptions are enabled by default and Flux owns turn detection; do not apply
+Nova-style speaking-plan thresholds to tune Flux.
+
+Deploying the mapper does not update stored provider assistants. Existing agents
+receive the profile on save or through `VoiceAgentService.resync`; starting a
+browser test alone only changes test access and variables. Reverting code also
+requires a resync: explicitly restore the prior `voice_settings` and
+`transcription.settings` values, since omitting an optional field on a provider
+update is not proof that it was reset.
+
+Before expanding a rollout, compare the same voice, model, prompt and test script
+on browser and telephone calls. Measure end-of-speech to first audible response
+(median and p95), unwanted cutoffs, interruption recovery, booking accuracy and
+inference cost per completed call. Include Spanish accents, pauses while
+dictating a new email or number, mid-sentence corrections, background noise and
+tool delays. Mapper tests verify the API contract; they do not establish voice
+quality or account-level support for eager processing.
+
 ## Recordings and transcription
 
 A finished recording is downloaded, stored as a public mp3 **and** an encrypted

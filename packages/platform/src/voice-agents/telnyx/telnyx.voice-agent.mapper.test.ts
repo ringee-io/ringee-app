@@ -48,6 +48,37 @@ describe("toAssistantPayload", () => {
     expect(payload.llm_api_key_ref).toBe("agent-7-key");
   });
 
+  it("enables expressive delivery for an Ultra voice", () => {
+    const payload = toAssistantPayload(
+      config({ voiceId: "Telnyx.Ultra.Clara" }),
+      { unauthenticatedWebCalls: false },
+    );
+    expect(payload.voice_settings).toEqual({
+      voice: "Telnyx.Ultra.Clara",
+      expressive_mode: true,
+    });
+  });
+
+  it.each(["Telnyx.NaturalHD.astra", "Azure.en-US-JennyNeural"])(
+    "preserves %s without sending Ultra-specific settings",
+    (voiceId) => {
+      const payload = toAssistantPayload(config({ voiceId }), {
+        unauthenticatedWebCalls: false,
+      });
+      expect(payload.voice_settings).toEqual({ voice: voiceId });
+    },
+  );
+
+  it.each([undefined, null, ""])(
+    "leaves the provider voice default intact for %s",
+    (voiceId) => {
+      const payload = toAssistantPayload(config({ voiceId }), {
+        unauthenticatedWebCalls: false,
+      });
+      expect(payload).not.toHaveProperty("voice_settings");
+    },
+  );
+
   it("passes a tool secret by reference so it is never sent in plaintext", () => {
     const payload = toAssistantPayload(
       config({
@@ -105,15 +136,23 @@ describe("toAssistantPayload", () => {
     ]);
   });
 
-  it("transcribes in the language the agent speaks, not the provider default", () => {
-    const payload = toAssistantPayload(config({ language: "es" }), {
-      unauthenticatedWebCalls: false,
-    });
-    expect(payload.transcription).toEqual({
-      model: "deepgram/flux",
-      language: "es",
-    });
-  });
+  it.each(["en", "es", "pt", "fr", "de", "it", "hi", "ru", "ja", "nl"])(
+    "tunes Flux turn-taking while transcribing the agent's language: %s",
+    (language) => {
+      const payload = toAssistantPayload(config({ language }), {
+        unauthenticatedWebCalls: false,
+      });
+      expect(payload.transcription).toEqual({
+        model: "deepgram/flux",
+        language,
+        settings: {
+          eager_eot_threshold: 0.3,
+          eot_threshold: 0.7,
+          eot_timeout_ms: 3000,
+        },
+      });
+    },
+  );
 
   it("reads a locale as its base language", () => {
     const payload = toAssistantPayload(config({ language: "pt-BR" }), {
@@ -129,6 +168,11 @@ describe("toAssistantPayload", () => {
     expect(payload.transcription).toEqual({
       model: "deepgram/flux",
       language: "multi",
+      settings: {
+        eager_eot_threshold: 0.3,
+        eot_threshold: 0.7,
+        eot_timeout_ms: 3000,
+      },
     });
   });
 
