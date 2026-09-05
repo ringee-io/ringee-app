@@ -49,8 +49,16 @@ export interface TelnyxAssistantPayload {
   enabled_features: string[];
   tools: Record<string, unknown>[];
   dynamic_variables?: Record<string, string>;
-  voice_settings?: { voice: string };
-  transcription?: { model: string; language: string };
+  voice_settings?: { voice: string; expressive_mode?: boolean };
+  transcription?: {
+    model: string;
+    language: string;
+    settings?: {
+      eager_eot_threshold: number;
+      eot_threshold: number;
+      eot_timeout_ms: number;
+    };
+  };
   insight_settings?: { insight_group_id: string };
   post_conversation_settings?: { enabled: boolean };
   telephony_settings: {
@@ -96,10 +104,9 @@ const TRANSCRIBED_LANGUAGES = new Set([
  * languages. A known language outside that set uses Telnyx's recommended
  * multilingual model instead of pretending Flux can transcribe it.
  */
-function toTranscription(language: string | undefined): {
-  model: string;
-  language: string;
-} {
+function toTranscription(
+  language: string | undefined,
+): NonNullable<TelnyxAssistantPayload["transcription"]> {
   const base = (language ?? "").split("-")[0]!.toLowerCase();
   if (base && !TRANSCRIBED_LANGUAGES.has(base)) {
     return { model: BROAD_LANGUAGE_TRANSCRIPTION_MODEL, language: base };
@@ -107,6 +114,16 @@ function toTranscription(language: string | undefined): {
   return {
     model: TRANSCRIPTION_MODEL,
     language: base || "multi",
+    // Flux can prepare a reply early without taking the caller's turn. Eager
+    // processing trades more speculative LLM work for lower perceived latency.
+    // The timeout caps uncertain silence; it is not a delay on every response.
+    // These turn-taking fields must not reach the Nova fallback above.
+    // https://developers.telnyx.com/docs/inference/ai-assistants/transcription-settings
+    settings: {
+      eager_eot_threshold: 0.3,
+      eot_threshold: 0.7,
+      eot_timeout_ms: 3000,
+    },
   };
 }
 
@@ -181,7 +198,18 @@ export function toAssistantPayload(
     ...(config.dynamicVariables
       ? { dynamic_variables: config.dynamicVariables }
       : {}),
-    ...(config.voiceId ? { voice_settings: { voice: config.voiceId } } : {}),
+    ...(config.voiceId
+      ? {
+          voice_settings: {
+            voice: config.voiceId,
+            // The curated catalogue uses Ultra. Keep older or other voice
+            // tiers valid without assuming they support expressive mode.
+            ...(config.voiceId.startsWith("Telnyx.Ultra.")
+              ? { expressive_mode: true }
+              : {}),
+          },
+        }
+      : {}),
     transcription: toTranscription(config.language),
     ...(config.insightGroupId
       ? { insight_settings: { insight_group_id: config.insightGroupId } }
