@@ -1,13 +1,16 @@
 import {
   BadRequestException,
+  ConflictException,
+  HttpException,
   Injectable,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
-import { randomBytes } from "crypto";
+import { createHash, randomBytes, randomUUID } from "crypto";
 import { apiConfiguration } from "@ringee/configuration";
 import {
   AiVoiceAgent,
+  AiVoiceAgentCustomVoice,
   AiVoiceAgentRepository,
   AiVoiceAgentStatus,
   AiVoiceAgentType,
@@ -18,6 +21,10 @@ import {
 } from "@ringee/database";
 import {
   describeTelnyxError,
+  CURATED_VOICE_LANGUAGES,
+  validateVoiceCloneSample,
+  type VoiceCloneInput,
+  type VoiceClone,
   hashApiKey,
   LlmCredentialVerifier,
   resolveVoiceAgentModel,
@@ -28,6 +35,8 @@ import {
   type VoiceAgentLlmProvider,
   type VoiceAgentVoice,
 } from "@ringee/platform";
+import { CreditService } from "../credit.service";
+import { calculateVoiceClonePrice } from "./voice-clone-pricing";
 import { NumberPurchasedService } from "../number.purchased.service";
 import { VoiceAgentBlueprintRegistry } from "./blueprints/voice-agent-blueprint.registry";
 import { assertVoiceAgentAccess } from "./voice-agent-access";
@@ -168,6 +177,7 @@ export class VoiceAgentService {
     private readonly credentials: LlmCredentialVerifier,
     private readonly calendars: CalendarIntegrationRepository,
     private readonly numbers: NumberPurchasedService,
+    private readonly credits: CreditService,
   ) {}
 
   // ── Catalogue ────────────────────────────────────────────────
@@ -184,7 +194,17 @@ export class VoiceAgentService {
     }));
   }
 
-  async listVoices(): Promise<VoiceAgentVoice[]> {
+  async listVoices(ctx?: OwnershipContext): Promise<VoiceAgentVoice[]> {
+    if (!ctx) return this.listPublicVoices();
+    assertVoiceAgentAccess(ctx);
+    const [publicVoices, customVoices] = await Promise.all([
+      this.listPublicVoices(),
+      this.listCustomVoices(ctx),
+    ]);
+    return [...publicVoices, ...customVoices];
+  }
+
+  private async listPublicVoices(): Promise<VoiceAgentVoice[]> {
     const now = Date.now();
     if (
       this.voiceCache &&
@@ -197,18 +217,16 @@ export class VoiceAgentService {
     return voices;
   }
 
-  /**
-   * A short sample of a voice, so the user hears it before choosing it rather
-   * than after the first real call. Only curated voices can be previewed — the
-   * id comes from the picker, and an id that is not in the catalogue is not a
-   * voice this workspace may ever select.
-   */
-  async previewVoice(voiceId: string): Promise<VoiceAgentVoicePreview> {
+  /** Check ownership before consulting the process-wide audio cache. */
+  async previewVoice(
+    ctx: OwnershipContext,
+    voiceId: string,
+  ): Promise<VoiceAgentVoicePreview> {
+    assertVoiceAgentAccess(ctx);
+    const voice = await this.resolveVoice(ctx, voiceId);
+    if (!voice) throw new BadRequestException("That voice is not available.");
     const cached = this.voicePreviews.get(voiceId);
     if (cached) return cached;
-
-    const voice = await this.resolveVoice(voiceId);
-    if (!voice) throw new BadRequestException("That voice is not available.");
 
     const text =
       VOICE_PREVIEW_SAMPLES[voice.language] ?? VOICE_PREVIEW_SAMPLES.en!;
@@ -228,6 +246,257 @@ export class VoiceAgentService {
     }
     this.voicePreviews.set(voiceId, preview);
     return preview;
+  }
+
+  private clonePrice() {
+    return calculateVoiceClonePrice(
+      apiConfiguration.AI_VOICE_AGENT_CLONE_BASE_COST_USD,
+      apiConfiguration.AI_VOICE_AGENT_CLONE_PROFIT_MARGIN,
+    );
+  }
+
+  async getCloneQuote(ctx: OwnershipContext) {
+    assertVoiceAgentAccess(ctx);
+    const { amountUsd, currency } = this.clonePrice();
+    const canAfford =
+      amountUsd === 0 || (await this.credits.getBalance(ctx)) >= amountUsd;
+    return { amountUsd, currency, canAfford };
+  }
+
+  async cloneVoice(
+    ctx: OwnershipContext,
+    input: Omit<VoiceCloneInput, "audio"> & {
+      requestId: string;
+      expectedPriceUsd: number;
+    },
+    audio: Buffer,
+  ): Promise<VoiceAgentVoice> {
+    assertVoiceAgentAccess(ctx);
+    const name = input.name.trim();
+    if (
+      !name ||
+      name.length > 120 ||
+      !CURATED_VOICE_LANGUAGES.some(
+        (language) => language === input.language,
+      ) ||
+      !["female", "male", "unspecified"].includes(input.gender) ||
+      !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        input.requestId,
+      )
+    ) {
+      throw new BadRequestException(
+        "Provide a voice name, supported language, gender and request ID.",
+      );
+    }
+    validateVoiceCloneSample(audio);
+    const requestHash = createHash("sha256")
+      .update(JSON.stringify([name, input.language, input.gender]))
+      .update(audio)
+      .digest("hex");
+    const requestKey = ctx.organizationId + ":" + input.requestId;
+    const existing = await this.agents.findCustomVoiceByRequestKey(
+      ctx,
+      requestKey,
+    );
+    if (existing) {
+      this.assertCloneRequest(existing, requestHash, input.expectedPriceUsd);
+      return this.toCustomVoice(existing);
+    }
+    const price = this.clonePrice();
+    if (input.expectedPriceUsd !== price.amountUsd) {
+      throw new ConflictException(
+        "The cloning price has changed. Refresh the price before continuing.",
+      );
+    }
+    if (
+      price.amountUsd > 0 &&
+      (await this.credits.getBalance(ctx)) < price.amountUsd
+    ) {
+      throw new HttpException(
+        "Insufficient workspace credit to clone this voice.",
+        402,
+      );
+    }
+    const id = randomUUID();
+    const { created, voice } = await this.agents.reserveCustomVoice(ctx, {
+      id,
+      requestKey,
+      requestHash,
+      name,
+      language: input.language,
+      gender: input.gender,
+      // A durable correlation key lets polling recover an accepted upload
+      // whose HTTP response was lost. The user-facing name is stored separately.
+      providerName: name + " [ringee:" + id + "]",
+      providerCostUsd: price.providerCostUsd,
+      profitMultiplier: price.profitMultiplier,
+      priceUsd: price.amountUsd,
+    });
+    this.assertCloneRequest(voice, requestHash, input.expectedPriceUsd);
+    if (!created) return this.toCustomVoice(voice);
+
+    let clone: VoiceClone;
+    try {
+      clone = await this.provider.cloneVoice({
+        name: voice.providerName,
+        language: voice.language,
+        gender: input.gender,
+        audio,
+      });
+    } catch (error) {
+      // Transport errors/5xx are ambiguous: do not upload again. Polling matches
+      // the stored correlation name to recover a clone that was accepted.
+      if (error instanceof HttpException && error.getStatus() < 500) {
+        const lastError = describeTelnyxError(
+          error,
+          "The voice provider rejected this sample.",
+        ).slice(0, 500);
+        return this.toCustomVoice(
+          await this.agents.updateCustomVoice(ctx, voice.id, {
+            status: "failed",
+            lastError,
+          }),
+        );
+      }
+      this.logger.warn(
+        "Voice clone submission awaiting reconciliation: " + voice.id,
+      );
+      return this.toCustomVoice(voice);
+    }
+    const saved = await this.agents.updateCustomVoice(ctx, voice.id, {
+      providerCloneId: clone.cloneId,
+      voiceId: clone.voiceId,
+      status: clone.status,
+      lastError: null,
+    });
+    return this.toCustomVoice(await this.settleCustomVoice(ctx, saved));
+  }
+
+  private assertCloneRequest(
+    row: AiVoiceAgentCustomVoice,
+    requestHash: string,
+    priceUsd: number,
+  ) {
+    if (row.requestHash !== requestHash || row.priceUsd !== priceUsd) {
+      throw new ConflictException(
+        "This request ID was already used for a different voice or price.",
+      );
+    }
+  }
+
+  async listCustomVoices(ctx: OwnershipContext): Promise<VoiceAgentVoice[]> {
+    assertVoiceAgentAccess(ctx);
+    const rows = await this.agents.listCustomVoicesForOwner(ctx);
+    if (!rows.length) return [];
+    const index = this.indexClones(await this.provider.listClonedVoices());
+    return Promise.all(
+      rows.map(async (row) =>
+        this.toCustomVoice(await this.reconcileCustomVoice(ctx, row, index)),
+      ),
+    );
+  }
+
+  /** The existing periodic agent sweep completes clones even after the browser closes. */
+  async sweepCustomVoices(): Promise<void> {
+    let rows = await this.agents.listUnsettledCustomVoices();
+    if (!rows.length) return;
+    const index = this.indexClones(await this.provider.listClonedVoices());
+    while (rows.length) {
+      for (const row of rows) {
+        const ctx: OwnershipContext = {
+          userId: row.userId,
+          organizationId: row.organizationId ?? undefined,
+        };
+        assertVoiceAgentAccess(ctx);
+        try {
+          await this.reconcileCustomVoice(ctx, row, index);
+        } catch {
+          // Do not log provider payloads or audio. A later sweep retries the same ledger key.
+          this.logger.warn("Voice clone reconciliation will retry: " + row.id);
+        }
+      }
+      rows = await this.agents.listUnsettledCustomVoices(
+        rows[rows.length - 1]!.id,
+      );
+    }
+  }
+
+  private indexClones(clones: VoiceClone[]) {
+    return {
+      byId: new Map(clones.map((clone) => [clone.cloneId, clone])),
+      byName: new Map(clones.map((clone) => [clone.name, clone])),
+    };
+  }
+
+  private async reconcileCustomVoice(
+    ctx: OwnershipContext,
+    row: AiVoiceAgentCustomVoice,
+    index: ReturnType<VoiceAgentService["indexClones"]>,
+  ): Promise<AiVoiceAgentCustomVoice> {
+    const clone = row.providerCloneId
+      ? index.byId.get(row.providerCloneId)
+      : index.byName.get(row.providerName);
+    // A pending upload can take time to appear in the provider list.
+    const status =
+      clone?.status ?? (row.status === "ready" ? "expired" : row.status);
+    if (
+      clone &&
+      (row.status !== status ||
+        row.voiceId !== clone.voiceId ||
+        !row.providerCloneId)
+    ) {
+      row = await this.agents.updateCustomVoice(ctx, row.id, {
+        providerCloneId: clone.cloneId,
+        voiceId: clone.voiceId,
+        status,
+        lastError: null,
+      });
+    } else if (row.status !== status) {
+      row = await this.agents.updateCustomVoice(ctx, row.id, { status });
+    }
+    return this.settleCustomVoice(ctx, row);
+  }
+
+  private async settleCustomVoice(
+    ctx: OwnershipContext,
+    row: AiVoiceAgentCustomVoice,
+  ) {
+    if (row.status !== "ready" || !row.voiceId || row.chargedAt) return row;
+    if (row.priceUsd > 0) {
+      await this.credits.consumeCredits(ctx, row.priceUsd, {
+        idempotencyKey: "voice-clone:" + row.id,
+        source: "ai-voice-agent.voice-clone",
+      });
+    }
+    return this.agents.updateCustomVoice(ctx, row.id, {
+      chargedAt: new Date(),
+    });
+  }
+
+  private toCustomVoice(row: AiVoiceAgentCustomVoice): VoiceAgentVoice {
+    const effectiveStatus =
+      row.status === "ready" && (!row.chargedAt || !row.voiceId)
+        ? "pending"
+        : row.status;
+    const status = ["pending", "ready", "failed", "expired"].includes(
+      effectiveStatus,
+    )
+      ? (effectiveStatus as NonNullable<VoiceAgentVoice["custom"]>["status"])
+      : "failed";
+    return {
+      id: row.voiceId ?? "custom:" + row.id,
+      displayName: row.name,
+      language: row.language,
+      description: null,
+      locale: null,
+      countryCode: null,
+      accent: null,
+      gender:
+        row.gender === "male" || row.gender === "female"
+          ? row.gender
+          : "unspecified",
+      custom: { id: row.id, status, lastError: row.lastError },
+    };
   }
 
   // ── Reads ────────────────────────────────────────────────────
@@ -320,7 +589,7 @@ export class VoiceAgentService {
       await this.assertCallerNumberUsable(ctx, dto.callerNumberId);
     }
 
-    const voice = await this.resolveVoice(dto.voiceId);
+    const voice = await this.resolveVoice(ctx, dto.voiceId);
 
     const toolSecret = this.generateToolSecret();
     const agent = await this.agents.create(ctx, {
@@ -383,7 +652,7 @@ export class VoiceAgentService {
     const voice =
       dto.voiceId === undefined
         ? undefined
-        : await this.resolveVoice(dto.voiceId);
+        : await this.resolveVoice(ctx, dto.voiceId);
 
     await this.agents.update(id, {
       ...(dto.name !== undefined ? { name: this.requireName(dto.name) } : {}),
@@ -1082,12 +1351,13 @@ export class VoiceAgentService {
    * than stored and discovered mid-call.
    */
   private async resolveVoice(
+    ctx: OwnershipContext,
     voiceId: string | null | undefined,
   ): Promise<VoiceAgentVoice | null> {
     if (!voiceId) return null;
-    const voices = await this.listVoices();
+    const voices = await this.listVoices(ctx);
     const voice = voices.find((v) => v.id === voiceId);
-    if (!voice) {
+    if (!voice || (voice.custom && voice.custom.status !== "ready")) {
       throw new BadRequestException("That voice is not available.");
     }
     return voice;

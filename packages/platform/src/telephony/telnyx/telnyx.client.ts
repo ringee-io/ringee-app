@@ -119,13 +119,14 @@ export class TelnyxClient {
     path: string,
     file: { buffer: Buffer; filename: string; contentType: string },
     fields: Record<string, string> = {},
+    options: { fieldName?: string; timeoutMs?: number } = {},
   ): Promise<T> {
     const form = new FormData();
     for (const [key, value] of Object.entries(fields)) {
       form.append(key, value);
     }
     form.append(
-      "file",
+      options.fieldName ?? "file",
       new Blob([new Uint8Array(file.buffer)], { type: file.contentType }),
       file.filename,
     );
@@ -136,6 +137,9 @@ export class TelnyxClient {
         Authorization: `Bearer ${apiConfiguration.TELNYX_API_KEY}`,
       },
       body: form,
+      ...(options.timeoutMs
+        ? { signal: AbortSignal.timeout(options.timeoutMs) }
+        : {}),
     });
 
     const text = await res.text();

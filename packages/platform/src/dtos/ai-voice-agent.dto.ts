@@ -1,3 +1,4 @@
+import { CURATED_VOICE_LANGUAGES } from "../voice-agents/voices.catalog";
 import { Type } from "class-transformer";
 import {
   ArrayMaxSize,
@@ -6,6 +7,7 @@ import {
   IsIn,
   IsInt,
   IsNotEmpty,
+  IsNumber,
   IsObject,
   IsOptional,
   IsString,
@@ -367,4 +369,32 @@ export class StartVoiceAgentTestSessionDto {
   @IsOptional()
   @IsObject()
   variables?: Record<string, string>;
+}
+
+export class CloneVoiceAgentVoiceDto {
+  @Type(() => Number)
+  @IsNumber()
+  @Min(0)
+  expectedPriceUsd!: number;
+
+  @IsUUID()
+  requestId!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(120)
+  name!: string;
+
+  @IsIn(CURATED_VOICE_LANGUAGES)
+  language!: string;
+
+  @IsIn(["male", "female", "unspecified"])
+  gender!: "male" | "female" | "unspecified";
+}
+
+export class VoiceCloneReadingSampleQueryDto {
+  @IsIn(CURATED_VOICE_LANGUAGES, {
+    message: "Choose a supported voice language.",
+  })
+  language!: string;
 }

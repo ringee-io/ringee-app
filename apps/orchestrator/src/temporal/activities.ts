@@ -14,6 +14,7 @@ import {
   RetryEngine,
   StaleCallSweeperService,
   VoiceAgentBillingService,
+  VoiceAgentService,
   VoiceAgentTestSessionService,
   TranscriptionService,
 } from "@ringee/services";
@@ -52,6 +53,7 @@ export function createActivities(app: INestApplicationContext) {
   const pipelineRunService = app.get(PipelineRunService);
   const callerIdRotationService = app.get(CallerIdRotationService);
   const staleCallSweeper = app.get(StaleCallSweeperService);
+  const voiceAgents = app.get(VoiceAgentService);
   const voiceAgentBilling = app.get(VoiceAgentBillingService);
   const voiceAgentTestSessions = app.get(VoiceAgentTestSessionService);
 
@@ -158,10 +160,10 @@ export function createActivities(app: INestApplicationContext) {
     },
 
     /**
-     * AI voice agent housekeeping. The halves are unrelated but share a
+     * AI voice agent housekeeping. These operations share a
      * cadence: settle the usage the provider publishes after a call ends,
      * fetch the recordings and transcripts it publishes alongside them, and
-     * close any test session that left an agent open to anonymous calls.
+     * close expired test sessions and settle completed human voice clones.
      */
     async sweepVoiceAgents() {
       const { settled, pending, recovered } = await voiceAgentBilling.sweep();
@@ -180,6 +182,8 @@ export function createActivities(app: INestApplicationContext) {
       if (closed > 0) {
         logger.log(`VoiceAgentSweep: closed ${closed} expired test sessions`);
       }
+
+      await voiceAgents.sweepCustomVoices();
     },
 
     async recomputeCallerIdHealth() {

@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import {
   AiVoiceAgent,
+  AiVoiceAgentCustomVoice,
   AiVoiceAgentKnowledgeSource,
   AiVoiceAgentKnowledgeStatus,
   AiVoiceAgentStatus,
@@ -171,6 +172,79 @@ export class AiVoiceAgentRepository {
     return this.prisma.aiVoiceAgent.update({
       where: { id },
       data: { deletedAt: new Date(), status: AiVoiceAgentStatus.disabled },
+    });
+  }
+
+  // ── Custom voices ────────────────────────────────────────────
+
+  listCustomVoicesForOwner(ctx: OwnershipContext) {
+    return this.prisma.aiVoiceAgentCustomVoice.findMany({
+      where: buildOwnershipFilter(ctx),
+      orderBy: { createdAt: "desc" },
+    });
+  }
+
+  findCustomVoiceByRequestKey(ctx: OwnershipContext, requestKey: string) {
+    return this.prisma.aiVoiceAgentCustomVoice.findFirst({
+      where: { requestKey, ...buildOwnershipFilter(ctx) },
+    });
+  }
+
+  /** Worker-only scan. Ownership is reconstructed per row before settlement. */
+  listUnsettledCustomVoices(afterId?: string) {
+    return this.prisma.aiVoiceAgentCustomVoice.findMany({
+      where: {
+        chargedAt: null,
+        status: { in: ["pending", "ready"] },
+        ...(afterId ? { id: { gt: afterId } } : {}),
+      },
+      orderBy: { id: "asc" },
+      take: 100,
+    });
+  }
+
+  /** Only the request that inserts the reservation may upload to the provider. */
+  async reserveCustomVoice(
+    ctx: OwnershipContext,
+    data: Omit<
+      Prisma.AiVoiceAgentCustomVoiceUncheckedCreateInput,
+      "userId" | "organizationId"
+    >,
+  ): Promise<{ created: boolean; voice: AiVoiceAgentCustomVoice }> {
+    try {
+      const voice = await this.prisma.aiVoiceAgentCustomVoice.create({
+        data: { ...data, ...buildOwnershipData(ctx) },
+      });
+      return { created: true, voice };
+    } catch (error) {
+      if (
+        !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+        error.code !== "P2002" ||
+        !Array.isArray(error.meta?.target) ||
+        !error.meta.target.includes("requestKey")
+      )
+        throw error;
+      const voice = await this.prisma.aiVoiceAgentCustomVoice.findFirstOrThrow({
+        where: { requestKey: data.requestKey, ...buildOwnershipFilter(ctx) },
+      });
+      return { created: false, voice };
+    }
+  }
+
+  async updateCustomVoice(
+    ctx: OwnershipContext,
+    id: string,
+    data: Pick<
+      Prisma.AiVoiceAgentCustomVoiceUpdateManyMutationInput,
+      "providerCloneId" | "voiceId" | "status" | "lastError" | "chargedAt"
+    >,
+  ) {
+    await this.prisma.aiVoiceAgentCustomVoice.updateMany({
+      where: { id, ...buildOwnershipFilter(ctx) },
+      data,
+    });
+    return this.prisma.aiVoiceAgentCustomVoice.findFirstOrThrow({
+      where: { id, ...buildOwnershipFilter(ctx) },
     });
   }
 

@@ -97,6 +97,7 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
   const [keyVerified, setKeyVerified] = useState(false);
   const [verifying, setVerifying] = useState(false);
 
+  const [voiceError, setVoiceError] = useState(false);
   const [voices, setVoices] = useState<VoiceAgentVoice[]>([]);
   const [models, setModels] = useState<VoiceAgentModelOption[]>([]);
   const [calendars, setCalendars] = useState<CalendarIntegrationOption[]>([]);
@@ -179,7 +180,10 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
     void (async () => {
       const [voiceList, modelList, calendarList, numberList] =
         await Promise.all([
-          api.listVoices().catch(() => []),
+          api.listVoices().catch(() => {
+            setVoiceError(true);
+            return [];
+          }),
           api.listModels().catch(() => []),
           api.listCalendars().catch(() => []),
           api.listCallerNumbers().catch(() => [])
@@ -190,6 +194,34 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
       setCallerNumbers(numberList);
       setCatalogueLoading(false);
     })();
+  }, [api]);
+
+  const refreshCustomVoices = useCallback(async () => {
+    const custom = await api.listCustomVoices();
+    setVoices((current) => [
+      ...current.filter((voice) => !voice.custom),
+      ...custom
+    ]);
+    return custom;
+  }, [api]);
+
+  const addCustomVoice = useCallback((voice: VoiceAgentVoice) => {
+    setVoices((current) => [
+      ...current.filter((item) => item.custom?.id !== voice.custom?.id),
+      voice
+    ]);
+  }, []);
+
+  const retryVoices = useCallback(async () => {
+    setVoiceError(false);
+    setCatalogueLoading(true);
+    try {
+      setVoices(await api.listVoices());
+    } catch {
+      setVoiceError(true);
+    } finally {
+      setCatalogueLoading(false);
+    }
   }, [api]);
 
   const selectedVoice = useMemo(
@@ -465,6 +497,10 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
     needsKey,
     keyAlreadySaved,
     voices,
+    voiceError,
+    refreshCustomVoices,
+    addCustomVoice,
+    retryVoices,
     catalogueLoading,
     voiceId,
     setVoiceId,
