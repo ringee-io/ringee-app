@@ -28,10 +28,11 @@ export function countryName(countryCode: string | null | undefined): string {
 }
 
 /** "es" → "Spanish", in the viewer's own language. */
-export function languageName(code: string): string {
+export function languageName(code: string, displayLocale?: string): string {
   try {
     return (
-      new Intl.DisplayNames(undefined, { type: 'language' }).of(code) ?? code
+      new Intl.DisplayNames(displayLocale, { type: 'language' }).of(code) ??
+      code
     );
   } catch {
     return code;

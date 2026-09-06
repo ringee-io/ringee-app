@@ -39,6 +39,11 @@ export interface VoiceAgentVoice {
   countryCode: string | null;
   accent: string | null;
   gender: 'female' | 'male' | 'unspecified';
+  custom?: {
+    id: string;
+    status: 'pending' | 'ready' | 'failed' | 'expired';
+    lastError: string | null;
+  };
 }
 
 /** A rendered sample of one voice, playable straight from the response. */
@@ -221,4 +226,16 @@ export interface TestSession {
   assistantId: string;
   expiresAt: string;
   variables: VoiceAgentVariable[];
+}
+
+/** Server-calculated price for one successfully created human voice clone. */
+export interface VoiceCloneQuote {
+  amountUsd: number;
+  currency: 'USD';
+  canAfford: boolean;
+}
+
+export interface VoiceCloneReadingSample {
+  language: string;
+  text: string;
 }

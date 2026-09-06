@@ -5,3 +5,5 @@ export * from "./voice-agent.module";
 export * from "./voices.catalog";
 export * from "./models.catalog";
 export * from "./llm-credential.verifier";
+
+export * from "./voice-clone-audio";

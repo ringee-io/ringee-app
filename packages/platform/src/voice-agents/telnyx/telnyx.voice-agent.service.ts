@@ -2,6 +2,8 @@ import { Injectable, Logger } from "@nestjs/common";
 import { TelnyxClient } from "../../telephony/telnyx/telnyx.client";
 import { TelnyxKnowledgeStore } from "./telnyx.knowledge.store";
 import type {
+  VoiceClone,
+  VoiceCloneInput,
   VoiceAgentAssistant,
   VoiceAgentCallHandle,
   VoiceAgentCallingAppSettings,
@@ -20,6 +22,7 @@ import type {
   VoiceAgentUsageRecord,
   VoiceAgentVoice,
 } from "../interfaces/voice-agent.provider";
+import { limitVoiceCloneSample } from "../voice-clone-audio";
 import { curateVoices, type RawProviderVoice } from "../voices.catalog";
 import {
   toAssistantPayload,
@@ -474,10 +477,62 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
   // ── Voices ───────────────────────────────────────────────────
 
   async listVoices(): Promise<VoiceAgentVoice[]> {
-    const raw = await this.telnyxClient.get<{ voices?: RawProviderVoice[] }>(
-      "/text-to-speech/voices",
+    const [raw, clones] = await Promise.all([
+      this.telnyxClient.get<{ voices?: RawProviderVoice[] }>(
+        "/text-to-speech/voices",
+      ),
+      this.listClonedVoices(),
+    ]);
+    // The provider account is shared across Ringee workspaces. Never let a
+    // private clone enter the globally cached public catalogue.
+    const privateIds = new Set(
+      clones.flatMap((clone) => (clone.voiceId ? [clone.voiceId] : [])),
     );
-    return curateVoices(raw?.voices ?? []);
+    return curateVoices(
+      (raw?.voices ?? []).filter(
+        (voice) =>
+          !privateIds.has(voice.id) &&
+          // Our durable correlation marker also excludes a newly accepted clone
+          // before it appears in the provider's eventually consistent clone list.
+          !/ \[ringee:[0-9a-f-]{36}\]$/i.test(voice.name ?? ""),
+      ),
+    );
+  }
+
+  async cloneVoice(input: VoiceCloneInput): Promise<VoiceClone> {
+    const response = await this.telnyxClient.uploadFile<{
+      data: TelnyxVoiceClone;
+    }>(
+      "/voice_clones/from_upload",
+      {
+        buffer: limitVoiceCloneSample(input.audio, 10),
+        filename: "reference.wav",
+        contentType: "audio/wav",
+      },
+      {
+        name: input.name,
+        language: input.language,
+        gender: input.gender === "unspecified" ? "neutral" : input.gender,
+        provider: "telnyx",
+        model_id: "Ultra",
+      },
+      { fieldName: "audio_file", timeoutMs: 30_000 },
+    );
+    return normalizeVoiceClone(response.data);
+  }
+
+  async listClonedVoices(): Promise<VoiceClone[]> {
+    const clones: VoiceClone[] = [];
+    for (let page = 1; page <= 100; page++) {
+      const response = await this.telnyxClient.get<{
+        data: TelnyxVoiceClone[];
+        meta?: { total_pages?: number };
+      }>("/voice_clones?page[size]=250&page[number]=" + page);
+      clones.push(...response.data.map(normalizeVoiceClone));
+      if (page >= (response.meta?.total_pages ?? 1)) return clones;
+    }
+    // Fail closed: a partial list cannot safely exclude every private voice.
+    throw new Error("Voice clone catalogue exceeded the pagination limit");
   }
 
   async renderVoicePreview(
@@ -823,4 +878,38 @@ export class TelnyxVoiceAgentService implements VoiceAgentProvider {
   private isNotFound(error: unknown): boolean {
     return this.statusOf(error) === 404;
   }
+}
+
+/** Raw fields stay inside the Telnyx adapter. Unknown states fail closed. */
+interface TelnyxVoiceClone {
+  id: string;
+  name: string;
+  provider: string;
+  provider_voice_id?: string | null;
+  model_id?: string | null;
+  provider_supported_models?: string[];
+  status?: string;
+}
+
+function normalizeVoiceClone(raw: TelnyxVoiceClone): VoiceClone {
+  const model = raw.model_id ?? raw.provider_supported_models?.[0];
+  const provider =
+    raw.provider?.toLowerCase() === "telnyx" ? "Telnyx" : raw.provider;
+  const voiceId =
+    raw.provider_voice_id && model
+      ? [provider, model, raw.provider_voice_id].join(".")
+      : null;
+  return {
+    cloneId: raw.id,
+    name: raw.name,
+    voiceId,
+    status:
+      raw.status === "active" && voiceId
+        ? "ready"
+        : raw.status === "pending"
+          ? "pending"
+          : raw.status === "expired"
+            ? "expired"
+            : "failed",
+  };
 }
