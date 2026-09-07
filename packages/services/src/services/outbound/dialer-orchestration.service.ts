@@ -457,39 +457,28 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     if (!session.currentLeadId) {
       throw new Error("No lead assigned to session");
     }
+    if (session.campaignId !== campaignId) {
+      throw new Error("Campaign does not match the agent session");
+    }
 
     const campaign = await this.campaignRepo.findById(campaignId);
     if (!campaign) throw new Error("Campaign not found");
 
     // Get the lead's phone number
     const lead = await this.leadQueueService.getLeadById(session.currentLeadId);
-
-    // Resolve caller ID (rotation-aware; falls back to the campaign's fixed
-    // caller ID / org purchased number when rotation is off).
-    const callerIdNumber = lead?.contact?.phoneNumber
-      ? await this.resolveDialCallerId(
-          campaign,
-          session.userId,
-          lead.contact.phoneNumber,
-        )
-      : await this.resolveCallerIdNumber(campaign);
+    if (!lead?.contact?.phoneNumber || lead.campaignId !== campaignId) {
+      throw new Error("No dialable lead in this campaign");
+    }
 
     // Find the current attempt for this lead
     const attempts = await this.callAttemptService.getAttemptHistory(
       session.currentLeadId,
     );
     const latestAttempt = attempts[0];
-
-    await this.agentSessionService.transitionTo(
-      sessionId,
-      AgentSessionStatus.dialing,
-    );
-
-    this.sseBridge.emit(`agent:${sessionId}`, "call.initiate", {
-      attemptId: latestAttempt?.id,
-      phoneNumber: lead?.contact?.phoneNumber,
-      callerIdNumber,
-    });
+    if (!latestAttempt) throw new Error("No call attempt for this lead");
+    // Preview and progressive modes share the same concurrency reservation,
+    // rotation refusal, and assignment cleanup before emitting a dial.
+    await this.initiateCall(campaign, session, lead, latestAttempt.id);
   }
 
   /**

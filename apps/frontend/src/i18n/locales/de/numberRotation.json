@@ -32,7 +32,7 @@
     "strategy": "Strategie",
     "strategyLocalPresence": "Lokale Präsenz",
     "strategyBalanced": "Ausgewogen",
-    "strategyLocalPresenceDesc": "Bevorzuge eine Nummer mit derselben Vorwahl wie das Ziel, dann jede Nummer aus demselben Land.",
+    "strategyLocalPresenceDesc": "Bevorzugt dieselbe Ortsvorwahl, dann denselben US-Bundesstaat, dann eine andere verfügbare Nummer im Zielland.",
     "strategyBalancedDesc": "Ignoriere die Vorwahl und verteile Anrufe einfach gleichmäßig über deine gesündesten Nummern im Zielland.",
     "defaultCap": "Standard-Tageslimit pro Nummer",
     "defaultCapDesc": "Maximale Anrufe, die eine Nummer pro Tag zeigt, bevor sie pausiert wird. Nummern können dies einzeln überschreiben."
@@ -65,6 +65,8 @@
     "score": "Gesundheit"
   },
   "errors": {
-    "saveFailed": "Speichern fehlgeschlagen. Nur Workspace-Admins können die Rotation ändern."
+    "saveFailed": "Speichern fehlgeschlagen. Nur Workspace-Admins können die Rotation ändern.",
+    "loadFailed": "Die Rufnummernrotation konnte nicht geladen werden. Bitte erneut versuchen.",
+    "retry": "Erneut versuchen"
   }
 }

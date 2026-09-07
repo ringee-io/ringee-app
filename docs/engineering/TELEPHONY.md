@@ -142,6 +142,28 @@ caps per number, health scores, and four states — `active`, `cooling`, `flagge
 (carrier spam mark, never auto-cleared), `disabled`. Every campaign dial flows
 through `resolveDialCallerId`, which is why caps hold campaign-wide.
 
+Preview and progressive campaigns both use `initiateCall`; emitting a preview
+dial directly bypasses the reservation and the rotation refusal. The web,
+extension, SDK, magic-link sessions and automatic voicemail drops also respect
+the selector's null result. Explicit number choices in the SDK/extension/drop
+flows retain their existing semantics.
+
+`destination-region.ts` resolves international calling codes and countries via
+libphonenumber. `us-area-codes.ts` adds a dated NANPA snapshot for all 50 states
+and DC, including overlays newer than the library metadata. Refresh that
+snapshot from [NANPA's NPA database](https://reports.nanpa.com/public/npa_report.csv)
+when new codes enter service; exclude territories from the US state map.
+Outside NANP the leading national digits are a coarse locality preference,
+not a guarantee of the recipient's city. A phone prefix describes its
+numbering plan, not the current physical location of a portable/mobile line.
+
+The rotation repository's SQL regression test can run against an isolated local
+PostgreSQL instance by setting `RINGEE_ROTATION_TEST_PG_SOCKET` to its `/tmp/`
+socket directory (port 55439, database `postgres`) when running database tests.
+It creates only temporary tables and checks the real Prisma query, ownership,
+duplicate delivery semantics and a call spanning UTC midnight. The normal
+test suite skips this integration case when the variable is absent.
+
 ## Campaigns
 
 `DialerOrchestrationService` polls every 500 ms **in the API process**

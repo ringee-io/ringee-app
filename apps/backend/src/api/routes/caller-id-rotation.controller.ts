@@ -12,6 +12,18 @@ import {
   Query,
 } from "@nestjs/common";
 import {
+  IsBoolean,
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  Min,
+  ValidateIf,
+} from "class-validator";
+import {
   CurrentUser,
   OrgAdminOnly,
   createOwnershipContext,
@@ -31,23 +43,47 @@ interface CurrentUserData {
   activeOrgRole?: string | null;
 }
 
-interface ResolveCallerIdDto {
-  destination: string;
+class ResolveCallerIdDto {
+  @IsString()
+  @IsNotEmpty()
+  destination!: string;
   /** The caller ID the client would otherwise use (rotation-off fallback). */
+  @IsOptional()
+  @IsString()
   fallbackPhoneNumber?: string | null;
+  @IsOptional()
+  @IsUUID()
   fallbackNumberId?: string | null;
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsBoolean()
   allowOverCap?: boolean;
 }
 
-interface UpdateSettingsDto {
+class UpdateSettingsDto {
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsBoolean()
   enabled?: boolean;
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsIn(["local_presence", "balanced"])
   strategy?: string;
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
   defaultDailyCap?: number;
 }
 
-interface UpdatePoolMemberDto {
+class UpdatePoolMemberDto {
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsBoolean()
   participating?: boolean;
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(2147483647)
   dailyCap?: number | null;
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsIn(["active", "disabled"])
   status?: "active" | "disabled";
 }
 

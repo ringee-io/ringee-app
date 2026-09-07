@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { useAuth } from '@clerk/nextjs';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import type {
   NumberReportRow,
@@ -8,6 +9,7 @@ import type {
   RotationSettings,
   UpdatePoolMemberPatch
 } from '../types';
+import { ROTATION_SETTINGS_CHANGED } from './use-rotation-enabled';
 
 const DEFAULT_SETTINGS: RotationSettings = {
   enabled: false,
@@ -15,67 +17,77 @@ const DEFAULT_SETTINGS: RotationSettings = {
   defaultDailyCap: 50
 };
 
-/**
- * Loads and mutates the caller-ID rotation config for the active workspace
- * (personal or organization — resolved server-side). Settings updates are
- * optimistic with rollback on failure; the pool/reporting are re-fetched after
- * member changes so derived fields (status, used-today) stay accurate.
- */
+/** Keeps settings, pool and reports together for the active workspace. */
 export function useNumberRotation() {
   const api = useApi();
-  const [settings, setSettings] = useState<RotationSettings>(DEFAULT_SETTINGS);
-  const [pool, setPool] = useState<PoolMember[]>([]);
-  const [reporting, setReporting] = useState<NumberReportRow[]>([]);
+  const { userId, orgId } = useAuth();
+  const workspaceKey = `${userId ?? ''}:${orgId ?? ''}`;
+  const [snapshot, setSnapshot] = useState<{
+    key: string;
+    settings: RotationSettings;
+    pool: PoolMember[];
+    reporting: NumberReportRow[];
+  } | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(false);
+  const request = useRef(0);
+  const activeWorkspace = useRef<string | null>(workspaceKey);
+  const cancelPending = useCallback(() => {
+    request.current++;
+    activeWorkspace.current = null;
+  }, []);
 
   const refresh = useCallback(async () => {
-    const [s, p, r] = await Promise.all([
-      api.get<RotationSettings>('/caller-id-rotation/settings'),
-      api.get<PoolMember[]>('/caller-id-rotation/pool').catch(() => []),
-      api
-        .get<NumberReportRow[]>('/caller-id-rotation/reporting')
-        .catch(() => [])
-    ]);
-    if (s) setSettings(s);
-    setPool(p ?? []);
-    setReporting(r ?? []);
-  }, [api]);
+    if (activeWorkspace.current !== workspaceKey) return;
+    const current = ++request.current;
+    setError(false);
+    try {
+      const [settings, pool, reporting] = await Promise.all([
+        api.get<RotationSettings>('/caller-id-rotation/settings'),
+        api.get<PoolMember[]>('/caller-id-rotation/pool'),
+        api.get<NumberReportRow[]>('/caller-id-rotation/reporting')
+      ]);
+      if (current === request.current)
+        setSnapshot({
+          key: workspaceKey,
+          settings: settings ?? DEFAULT_SETTINGS,
+          pool: pool ?? [],
+          reporting: reporting ?? []
+        });
+    } catch (err) {
+      if (current === request.current) setError(true);
+      throw err;
+    } finally {
+      if (current === request.current) setLoading(false);
+    }
+  }, [api, workspaceKey]);
 
   useEffect(() => {
-    let cancelled = false;
+    activeWorkspace.current = workspaceKey;
     setLoading(true);
-    refresh()
-      .catch(() => undefined)
-      .finally(() => !cancelled && setLoading(false));
-    return () => {
-      cancelled = true;
-    };
-  }, [refresh]);
+    void refresh().catch(() => undefined);
+    return cancelPending;
+  }, [refresh, cancelPending, workspaceKey]);
 
   const updateSettings = useCallback(
     async (patch: Partial<RotationSettings>) => {
-      const previous = settings;
-      const next = { ...settings, ...patch };
-      setSettings(next); // optimistic
       setSaving(true);
       try {
         const saved = await api.put<RotationSettings>(
           '/caller-id-rotation/settings',
           patch
         );
-        if (saved) setSettings(saved);
-        // Enabling rotation materializes the pool — pull it in.
-        if (patch.enabled) await refresh();
+        if (activeWorkspace.current !== workspaceKey) return saved;
+        window.dispatchEvent(new Event(ROTATION_SETTINGS_CHANGED));
+        // Default cap changes also alter every member inheriting that cap.
+        await refresh();
         return saved;
-      } catch (err) {
-        setSettings(previous); // rollback
-        throw err;
       } finally {
         setSaving(false);
       }
     },
-    [api, settings, refresh]
+    [api, refresh, workspaceKey]
   );
 
   const updateMember = useCallback(
@@ -94,12 +106,14 @@ export function useNumberRotation() {
     [api, refresh]
   );
 
+  const current = snapshot?.key === workspaceKey ? snapshot : null;
   return {
-    settings,
-    pool,
-    reporting,
-    loading,
+    settings: current?.settings ?? DEFAULT_SETTINGS,
+    pool: current?.pool ?? [],
+    reporting: current?.reporting ?? [],
+    loading: loading || (!current && !error),
     saving,
+    error,
     updateSettings,
     updateMember,
     refresh

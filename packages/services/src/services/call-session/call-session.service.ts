@@ -685,6 +685,29 @@ export class CallSessionService {
         throw new BadRequestException("Insufficient credits to start the call");
       }
 
+      // Per-call caller-ID selection using the session owner's pool. Rotation is
+      // keyed to the owner even though a magic-link guest may be the one dialing;
+      // when rotation is off this returns the owner's primary number unchanged.
+      const fixedCallerId = await this.resolvePrimaryCallerIdNumber(ctx);
+      const selection = await this.callerIdRotationService.selectForDial(
+        ctx,
+        item.phoneNumber,
+        { phoneNumber: fixedCallerId },
+      );
+      const callerIdNumber = selection.phoneNumber;
+      if (!callerIdNumber) {
+        throw new ConflictException({
+          code:
+            selection.reason === "all_over_cap"
+              ? "CALLER_ID_CAP_REACHED"
+              : "NO_CALLER_ID_FOR_COUNTRY",
+          message:
+            selection.reason === "all_over_cap"
+              ? "Every eligible caller ID reached today's cap."
+              : "No eligible caller ID is available for this destination.",
+        });
+      }
+
       await this.repo.updateItem(item.id, {
         status: CallSessionItemStatus.calling,
         startedAt: new Date(),
@@ -697,16 +720,6 @@ export class CallSessionService {
         });
       }
 
-      // Per-call caller-ID selection using the session owner's pool. Rotation is
-      // keyed to the owner even though a magic-link guest may be the one dialing;
-      // when rotation is off this returns the owner's primary number unchanged.
-      const fixedCallerId = await this.resolvePrimaryCallerIdNumber(ctx);
-      const selection = await this.callerIdRotationService.selectForDial(
-        ctx,
-        item.phoneNumber,
-        { phoneNumber: fixedCallerId },
-      );
-      const callerIdNumber = selection.phoneNumber;
       const customHeaders: Array<{ name: string; value: string }> = [
         { name: "X-Ringee-Call-Session-Id", value: sessionId },
         { name: "X-Ringee-Call-Session-Item-Id", value: item.id },

@@ -32,7 +32,7 @@
     "strategy": "Strategia",
     "strategyLocalPresence": "Presenza locale",
     "strategyBalanced": "Bilanciata",
-    "strategyLocalPresenceDesc": "Preferisci un numero con lo stesso prefisso della destinazione, poi qualsiasi numero dello stesso paese.",
+    "strategyLocalPresenceDesc": "Preferisce lo stesso prefisso locale, poi lo stesso stato degli USA, poi un altro numero disponibile nel paese di destinazione.",
     "strategyBalancedDesc": "Ignora il prefisso e distribuisci semplicemente le chiamate in modo uniforme tra i tuoi numeri più sani del paese di destinazione.",
     "defaultCap": "Limite giornaliero predefinito per numero",
     "defaultCapDesc": "Numero massimo di chiamate che un numero presenta al giorno prima di riposare. Ogni numero può avere il proprio limite."
@@ -65,6 +65,8 @@
     "score": "Salute"
   },
   "errors": {
-    "saveFailed": "Salvataggio non riuscito. Solo gli amministratori dell'area di lavoro possono modificare la rotazione."
+    "saveFailed": "Salvataggio non riuscito. Solo gli amministratori dell'area di lavoro possono modificare la rotazione.",
+    "loadFailed": "Impossibile caricare la rotazione dei numeri. Riprova.",
+    "retry": "Riprova"
   }
 }

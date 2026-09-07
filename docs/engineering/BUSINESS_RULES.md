@@ -456,6 +456,23 @@ health, re-enters after `coolingUntil`), `flagged` (carrier spam mark — never
 auto-cleared) or `disabled`. Every campaign dial flows through the selector, so
 caps hold campaign-wide.
 
+Selection applies the canonical outbound number allow-list (`NUM-003`), then
+the campaign subset, country and daily cap. Local presence prefers the same
+area code, then the same US state, then the same country. Countries sharing a
+calling code remain distinct (US, Canada, Dominican Republic, Puerto Rico,
+etc.); non-geographic destinations use their calling plan. An empty eligible
+pool is a refusal: no dial surface may replace it with a fixed caller ID or
+reuse an excluded, cooling, flagged or disabled number. Fixed selections when
+rotation is off still require workspace, member and surface authorization.
+
+Usage and reputation are derived from persisted outbound `Call` rows in the
+number's workspace, dated by call start in UTC. Webhook deliveries are not
+usage events. `CallerIdDailyUsage` is legacy data; incrementing it on repeated
+answers/hangups inflated caps and split calls across midnight. Short calls
+measure time from answer to end, excluding ringing. Expired cooling permits
+fresh observations; retain `coolingUntil` as the new health sample's lower
+bound so the old bad sample cannot immediately cool the number again.
+
 - **Source of truth:** `packages/services/src/services/caller-id-rotation/`
 
 ---

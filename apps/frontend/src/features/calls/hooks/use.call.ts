@@ -153,17 +153,22 @@ export function useCall(call?: Call | null) {
             ? selectedNumber.id
             : null
       });
-      if (res) callerId = res.phoneNumber;
+      callerId = res?.phoneNumber ?? null;
     } catch (err) {
       // A 409 is a deliberate refusal, not a hiccup: the user is already on a
       // call somewhere else. Dialing anyway would only get the leg torn down by
       // the server, so stop here and explain the rule (plus the way around it —
       // a seat per teammate) in a dialog rather than a toast that scrolls away.
-      if (err instanceof ApiError && err.status === 409) {
+      if (
+        err instanceof ApiError &&
+        err.status === 409 &&
+        err.data?.code === 'CONCURRENT_CALL'
+      ) {
         notifyConcurrentCall(err.data?.message ?? err.message);
         return;
       }
-      // Network/permission hiccup — fall back to the locally selected number.
+      toast.error(t('callerIdUnavailable'));
+      return;
     }
 
     // The pre-flight above already reserved this user's single call slot. From

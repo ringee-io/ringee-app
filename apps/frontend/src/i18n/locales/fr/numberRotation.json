@@ -32,7 +32,7 @@
     "strategy": "Stratégie",
     "strategyLocalPresence": "Présence locale",
     "strategyBalanced": "Équilibrée",
-    "strategyLocalPresenceDesc": "Privilégier un numéro avec le même indicatif régional que la destination, puis tout numéro du même pays.",
+    "strategyLocalPresenceDesc": "Préfère le même indicatif régional, puis le même État américain, puis un autre numéro disponible du pays de destination.",
     "strategyBalancedDesc": "Ignorer l'indicatif régional et répartir simplement les appels entre vos numéros les plus sains du pays de destination.",
     "defaultCap": "Limite quotidienne par défaut par numéro",
     "defaultCapDesc": "Nombre maximal d'appels qu'un numéro présente par jour avant d'être mis au repos. Chaque numéro peut avoir sa propre limite."
@@ -65,6 +65,8 @@
     "score": "Santé"
   },
   "errors": {
-    "saveFailed": "Échec de l'enregistrement. Seuls les administrateurs de l'espace de travail peuvent modifier la rotation."
+    "saveFailed": "Échec de l'enregistrement. Seuls les administrateurs de l'espace de travail peuvent modifier la rotation.",
+    "loadFailed": "Impossible de charger la rotation des numéros. Réessayez.",
+    "retry": "Réessayer"
   }
 }

@@ -32,7 +32,7 @@
     "strategy": "Strategie",
     "strategyLocalPresence": "Lokale aanwezigheid",
     "strategyBalanced": "Gebalanceerd",
-    "strategyLocalPresenceDesc": "Geef voorkeur aan een nummer met hetzelfde netnummer als de bestemming, dan elk nummer uit hetzelfde land.",
+    "strategyLocalPresenceDesc": "Geeft de voorkeur aan hetzelfde netnummer, daarna dezelfde Amerikaanse staat, daarna een ander beschikbaar nummer in het land van bestemming.",
     "strategyBalancedDesc": "Negeer het netnummer en verdeel oproepen gewoon gelijkmatig over je gezondste nummers in het land van bestemming.",
     "defaultCap": "Standaard daglimiet per nummer",
     "defaultCapDesc": "Maximaal aantal oproepen dat een nummer per dag toont voordat het wordt gerust. Nummers kunnen dit afzonderlijk overschrijven."
@@ -65,6 +65,8 @@
     "score": "Gezondheid"
   },
   "errors": {
-    "saveFailed": "Opslaan mislukt. Alleen werkruimtebeheerders kunnen de rotatie wijzigen."
+    "saveFailed": "Opslaan mislukt. Alleen werkruimtebeheerders kunnen de rotatie wijzigen.",
+    "loadFailed": "Nummerrotatie kon niet worden geladen. Probeer het opnieuw.",
+    "retry": "Opnieuw proberen"
   }
 }

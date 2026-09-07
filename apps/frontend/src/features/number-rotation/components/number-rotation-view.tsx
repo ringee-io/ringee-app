@@ -13,6 +13,7 @@ import { Switch } from '@ringee/frontend-shared/components/ui/switch';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { Input } from '@ringee/frontend-shared/components/ui/input';
+import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
 import {
   Select,
@@ -50,6 +51,8 @@ export function NumberRotationView() {
     reporting,
     loading,
     saving,
+    error,
+    refresh,
     updateSettings,
     updateMember
   } = useNumberRotation();
@@ -83,6 +86,21 @@ export function NumberRotationView() {
       toast.error(t('errors.saveFailed'));
     }
   };
+
+  if (error) {
+    return (
+      <div role='alert' className='space-y-3'>
+        <p>{t('errors.loadFailed')}</p>
+        <Button
+          onClick={() => {
+            void refresh().catch(() => undefined);
+          }}
+        >
+          {t('errors.retry')}
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <div className='space-y-6'>
@@ -163,6 +181,7 @@ export function NumberRotationView() {
                   <div className='space-y-2'>
                     <Label>{t('config.defaultCap')}</Label>
                     <Input
+                      key={settings.defaultDailyCap}
                       type='number'
                       min={0}
                       defaultValue={settings.defaultDailyCap}
@@ -308,7 +327,11 @@ function PoolTable({
                 <span className='text-muted-foreground'> · {m.areaCode}</span>
               ) : null}
             </TableCell>
-            <TableCell>{m.isoCountry}</TableCell>
+            <TableCell>
+              {m.isoCountry}
+              {m.callingCode ? ` (+${m.callingCode})` : ''}
+              {m.state ? ` · ${m.state}` : ''}
+            </TableCell>
             <TableCell>
               <Badge variant={STATUS_VARIANT[m.rotationStatus]}>
                 {t(`status.${m.rotationStatus}`)}
@@ -317,6 +340,7 @@ function PoolTable({
             <TableCell className='text-right'>{m.usedToday}</TableCell>
             <TableCell className='text-right'>
               <Input
+                key={m.dailyCap}
                 type='number'
                 min={0}
                 defaultValue={m.dailyCap}

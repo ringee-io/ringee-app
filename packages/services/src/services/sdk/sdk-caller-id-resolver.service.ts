@@ -109,7 +109,10 @@ export class SdkCallerIdResolver {
         "No caller ID is available for this workspace.",
       );
     }
-    return { phoneNumber: selection.phoneNumber, callerIdId: null };
+    return {
+      phoneNumber: selection.phoneNumber,
+      callerIdId: selection.numberId,
+    };
   }
 
   private async resolveFixedCallerId(

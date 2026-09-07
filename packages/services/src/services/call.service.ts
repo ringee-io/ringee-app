@@ -57,10 +57,6 @@ import { ConcurrentCallGuardService } from "./security";
 import { calculateCallCharge } from "./call-cost.util";
 import { LOW_BALANCE_MAX_CALL_SECONDS, LOW_BALANCE_USD } from "./credit-policy";
 
-/** Connected calls shorter than this (seconds) count as "very short" for
- * caller-ID reputation scoring (spec: <5s). */
-const SHORT_CALL_SECONDS = 5;
-
 /**
  * How long a lifecycle event that arrived before its `Call` row is kept so the
  * `call.initiated` handler can replay it. Generous: the only cost of an
@@ -431,7 +427,7 @@ export class CallService implements OnModuleDestroy {
       return true;
     }
 
-    // Audit which owned number presented as caller ID + count daily usage.
+    // Audit which owned number presented as caller ID.
     const presentedNumberId = await this.callerIdRotationService
       .registerOutboundCall(ctx, event.from ?? "")
       .catch(() => null);
@@ -1158,13 +1154,6 @@ export class CallService implements OnModuleDestroy {
         if (answeredCall) {
           await this.applyAnswerAutomation(answeredCall);
         }
-        // Caller-ID reputation: count this as an answered call for the presented
-        // number (drives health scoring). Best-effort.
-        if (answeredCall?.callerIdId) {
-          void this.callerIdRotationService.registerAnswered(
-            answeredCall.callerIdId,
-          );
-        }
         break;
       }
 
@@ -1197,18 +1186,6 @@ export class CallService implements OnModuleDestroy {
                 `Could not release the dial lease for call ${callControlId}: ${err.message}`,
               ),
             );
-        }
-        // Caller-ID reputation: a connected call that lasted < 5s is a strong
-        // "spam-like" signal for the presented number. Count it for health.
-        if (
-          hangupCall?.callerIdId &&
-          hangupCall.answeredAt &&
-          hangupCall.durationSeconds != null &&
-          hangupCall.durationSeconds < SHORT_CALL_SECONDS
-        ) {
-          void this.callerIdRotationService.registerShortCall(
-            hangupCall.callerIdId,
-          );
         }
         const hangupAttemptId = this.extractCallAttemptId(event.clientState);
         if (hangupAttemptId && hangupCall) {

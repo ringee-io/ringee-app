@@ -539,14 +539,16 @@ export class VoicemailDropService {
       deletedAt: null,
     });
 
-    const selected = await this.callerIdRotationService
-      .selectForDial(ctx, destination, {
+    const selected = await this.callerIdRotationService.selectForDial(
+      ctx,
+      destination,
+      {
         phoneNumber: fallback?.phoneNumber ?? null,
         numberId: fallback?.id ?? null,
-      })
-      .catch(() => null);
+      },
+    );
 
-    return selected?.phoneNumber ?? fallback?.phoneNumber ?? null;
+    return selected.phoneNumber;
   }
 
   /**

@@ -32,7 +32,7 @@
     "strategy": "Strategy",
     "strategyLocalPresence": "Local presence",
     "strategyBalanced": "Balanced",
-    "strategyLocalPresenceDesc": "Prefer a number with the same area code as the destination, then any number from the same country.",
+    "strategyLocalPresenceDesc": "Prefers the same area code, then the same US state, then another eligible number in the destination country.",
     "strategyBalancedDesc": "Ignore area code and simply spread calls evenly across your healthiest numbers in the destination's country.",
     "defaultCap": "Default daily cap per number",
     "defaultCapDesc": "Maximum calls a number presents per day before it's rested. Numbers can override this individually."
@@ -65,6 +65,8 @@
     "score": "Health"
   },
   "errors": {
-    "saveFailed": "Couldn't save. Only workspace admins can change rotation settings."
+    "saveFailed": "Couldn't save. Only workspace admins can change rotation settings.",
+    "loadFailed": "Could not load number rotation. Please try again.",
+    "retry": "Retry"
   }
 }

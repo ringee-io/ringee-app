@@ -132,7 +132,10 @@ export class NumberPurchasedRepository {
         ...ownershipFilter,
         deletedAt: null,
         OR: [
-          { kind: "purchased" },
+          {
+            kind: "purchased",
+            OR: [{ status: { in: ["active", "assigned"] } }, { status: null }],
+          },
           { kind: "verified_caller_id", verified: true, active: true },
         ],
       },
