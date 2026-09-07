@@ -256,10 +256,6 @@ export function CloneVoiceDialog({
           <DialogTitle>{t('title')}</DialogTitle>
           <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
-        <div className='flex gap-2'>
-          <Badge variant='secondary'>Telnyx</Badge>
-          <Badge variant='outline'>Ultra</Badge>
-        </div>
         <FormProvider {...form}>
           <form onSubmit={submit} className='space-y-5'>
             <FormInput
