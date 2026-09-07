@@ -18,6 +18,7 @@ import {
   type VoiceAgentInsightResult,
 } from "@ringee/platform";
 import { TranscriptionService } from "../transcription/transcription.service";
+import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
 import { VoiceAgentService } from "./voice-agent.service";
 import type { VoiceAgentAnalysisSettings } from "./voice-agent.types";
 
@@ -71,6 +72,7 @@ export class VoiceAgentResultService {
     private readonly callRepository: CallRepository,
     private readonly provider: VoiceAgentProviderService,
     private readonly transcriptions: TranscriptionService,
+    private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
   ) {}
 
   /**
@@ -389,7 +391,7 @@ export class VoiceAgentResultService {
     if (this.isTerminal(status) && callControlId) {
       // The shared settlement path: it computes the duration, records the
       // hangup cause and auto-dispositions a call that never connected.
-      await this.callRepository.completeCall(
+      const completedCall = await this.callRepository.completeCall(
         callControlId,
         // Not "now". The row already knows when the call was placed, and
         // substituting the moment this callback arrived — which is what the
@@ -399,6 +401,16 @@ export class VoiceAgentResultService {
         input.endedAt ?? new Date().toISOString(),
         input.hangupCause ?? undefined,
       );
+
+      // Voice-agent status callbacks do not traverse CallService's ordinary
+      // call.hangup branch. Publish from this terminal path too, otherwise a
+      // call started through the public API is completed in Ringee but never
+      // reaches any subscribed Custom Integration. A later signed hangup is
+      // harmless because outbound delivery is deduplicated per integration,
+      // event and call.
+      if (completedCall) {
+        await this.customIntegrationOutbound.enqueueCallTerminal(completedCall);
+      }
     }
 
     return updated;

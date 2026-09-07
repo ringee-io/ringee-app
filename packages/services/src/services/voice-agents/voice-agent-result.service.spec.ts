@@ -48,11 +48,13 @@ function build(
     turns?: Array<{ role: string; text: string; at: Date | null }>;
     transcriptError?: Error;
     alreadyTranscribed?: boolean;
+    completedCall?: Record<string, unknown> | null;
   } = {},
 ) {
   const updates: Array<Record<string, unknown>> = [];
   const transcripts: Array<Record<string, unknown>> = [];
   const attached: Array<Record<string, unknown>> = [];
+  const terminalEvents: Array<Record<string, unknown>> = [];
 
   const service = new VoiceAgentResultService(
     {
@@ -77,6 +79,16 @@ function build(
         attached.push({ id, ...data });
         return { id };
       },
+      completeCall: async () =>
+        over.completedCall === undefined
+          ? {
+              id: "telephony-1",
+              userId: "user-1",
+              organizationId: "org-1",
+              status: CallStatus.completed,
+              endedAt: new Date("2026-09-07T14:00:00.000Z"),
+            }
+          : over.completedCall,
     } as never,
     {
       // The real adapter's parser, in miniature: the domain never sees the
@@ -120,9 +132,14 @@ function build(
         return null;
       },
     } as never,
+    {
+      enqueueCallTerminal: async (call: Record<string, unknown>) => {
+        terminalEvents.push(call);
+      },
+    } as never,
   );
 
-  return { service, updates, transcripts, attached };
+  return { service, updates, transcripts, attached, terminalEvents };
 }
 
 describe("VoiceAgentResultService analysis callback", () => {
@@ -283,6 +300,30 @@ describe("VoiceAgentResultService call status", () => {
       assert.equal(attached[0]!.status, undefined);
       assert.equal(attached[0]!.answeredAt, undefined);
     }
+  });
+
+  it("publishes a terminal agent call to Custom Integrations", async () => {
+    const { service, terminalEvents } = build();
+
+    await service.applyStatus(AGENT_CALL as never, {
+      providerStatus: "completed",
+      callControlId: "cc-1",
+      endedAt: "2026-09-07T14:00:00.000Z",
+    });
+
+    assert.equal(terminalEvents.length, 1);
+    assert.equal(terminalEvents[0]!.id, "telephony-1");
+  });
+
+  it("does not publish when the terminal callback cannot resolve its Call row", async () => {
+    const { service, terminalEvents } = build({ completedCall: null });
+
+    await service.applyStatus(AGENT_CALL as never, {
+      providerStatus: "completed",
+      callControlId: "cc-missing",
+    });
+
+    assert.deepEqual(terminalEvents, []);
   });
 });
 

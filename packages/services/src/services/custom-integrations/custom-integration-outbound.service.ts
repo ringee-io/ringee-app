@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import {
+  Call,
   CustomIntegrationDeliveryRepository,
   CustomIntegrationEventType,
   CustomIntegrationRepository,
@@ -11,6 +12,11 @@ import {
   OutboundEventName,
   OwnershipContext,
 } from "@ringee/platform";
+import {
+  buildCallEventData,
+  callOwnershipFromCall,
+  pickCallTerminalEvent,
+} from "./custom-integration-event-builders";
 
 export interface OutboundEventEnvelope {
   event: OutboundEventName;
@@ -29,6 +35,24 @@ export class CustomIntegrationOutboundService {
     private readonly integrations: CustomIntegrationRepository,
     private readonly deliveries: CustomIntegrationDeliveryRepository,
   ) {}
+
+  /**
+   * Publish the terminal event for a persisted call through the canonical
+   * workspace fan-out. More than one provider callback may report the same
+   * ending; `enqueue`'s per-integration dedupe key makes those replays safe.
+   */
+  async enqueueCallTerminal(call: Call): Promise<void> {
+    const ctx = callOwnershipFromCall(call);
+    if (!ctx) return;
+
+    await this.enqueue({
+      ctx,
+      eventEnum: pickCallTerminalEvent(call),
+      subjectId: call.id,
+      data: buildCallEventData(call),
+      occurredAt: call.endedAt ?? undefined,
+    });
+  }
 
   /**
    * Fan out an event to every active custom integration in the workspace that

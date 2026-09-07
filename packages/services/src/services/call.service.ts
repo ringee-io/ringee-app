@@ -47,11 +47,6 @@ import { VoiceAgentResultService } from "./voice-agents/voice-agent-result.servi
 import { CrmCallLogService } from "./crm/crm-call-log.service";
 import { InboxTimelineService } from "./inbox/inbox.timeline.service";
 import { CustomIntegrationOutboundService } from "./custom-integrations/custom-integration-outbound.service";
-import {
-  buildCallEventData,
-  callOwnershipFromCall,
-  pickCallTerminalEvent,
-} from "./custom-integrations/custom-integration-event-builders";
 import { PipelineFanoutService } from "./ai-pipeline";
 import { ConcurrentCallGuardService } from "./security";
 import { calculateCallCharge } from "./call-cost.util";
@@ -1220,16 +1215,7 @@ export class CallService implements OnModuleDestroy {
               ),
             );
           // Custom Integrations outbound — choose the most specific event.
-          const ciCtx = callOwnershipFromCall(hangupCall);
-          if (ciCtx) {
-            const eventEnum = pickCallTerminalEvent(hangupCall);
-            void this.customIntegrationOutbound.enqueue({
-              ctx: ciCtx,
-              eventEnum,
-              subjectId: hangupCall.id,
-              data: buildCallEventData(hangupCall),
-            });
-          }
+          void this.customIntegrationOutbound.enqueueCallTerminal(hangupCall);
           // Inbox timeline hook (best-effort, never block hangup processing)
           const ctx = InboxTimelineService.buildOwnershipFromCall(hangupCall);
           if (ctx) {
