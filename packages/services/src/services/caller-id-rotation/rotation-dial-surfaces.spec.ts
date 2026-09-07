@@ -182,22 +182,45 @@ describe("rotation across dial surfaces", () => {
         },
       },
     );
-    await service.manualDial("session", "campaign");
+    await service.manualDial(ctx, "session", "campaign");
     assert.deepEqual(events, ["released", "call.blocked", "session.state"]);
     assert.deepEqual(states, ["ready"]);
     events.length = 0;
     states.length = 0;
     selection = selected;
-    await service.manualDial("session", "campaign");
+    await service.manualDial(ctx, "session", "campaign");
     assert.deepEqual(events, ["call.initiate"]);
     assert.deepEqual(states, ["dialing"]);
     events.length = 0;
+    states.length = 0;
     allow = false;
-    await service.manualDial("session", "campaign");
+    await service.manualDial(ctx, "session", "campaign");
     assert.ok(!events.includes("call.initiate"));
+    assert.deepEqual(events, ["call.blocked", "session.state"]);
+    assert.deepEqual(states, ["ready"]);
     await assert.rejects(
-      service.manualDial("session", "different-campaign"),
+      service.manualDial(ctx, "session", "different-campaign"),
       /does not match/,
     );
+    events.length = 0;
+    states.length = 0;
+    await assert.rejects(
+      service.manualDial(
+        { ...ctx, userId: "different-user" },
+        "session",
+        "campaign",
+      ),
+      /does not belong/,
+    );
+    await assert.rejects(
+      service.manualDial(
+        { ...ctx, organizationId: "different-org" },
+        "session",
+        "campaign",
+      ),
+      /does not belong/,
+    );
+    assert.deepEqual(events, []);
+    assert.deepEqual(states, []);
   });
 });

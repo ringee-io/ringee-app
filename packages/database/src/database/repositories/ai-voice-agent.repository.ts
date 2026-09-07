@@ -219,9 +219,19 @@ export class AiVoiceAgentRepository {
     } catch (error) {
       if (
         !(error instanceof Prisma.PrismaClientKnownRequestError) ||
-        error.code !== "P2002" ||
-        !Array.isArray(error.meta?.target) ||
-        !error.meta.target.includes("requestKey")
+        error.code !== "P2002"
+      )
+        throw error;
+      const targets = Array.isArray(error.meta?.target)
+        ? error.meta.target.map((target) =>
+            String(target).replace(/"/g, "").toLowerCase(),
+          )
+        : [];
+      if (
+        !targets.some(
+          (target) =>
+            target === "requestkey" || target.endsWith("_requestkey_key"),
+        )
       )
         throw error;
       const voice = await this.prisma.aiVoiceAgentCustomVoice.findFirstOrThrow({

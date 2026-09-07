@@ -36,10 +36,15 @@ describe("rotation persistence", () => {
     assert.equal(queries[1].where.rotationStatus, "active");
   });
   it("materializes missing members with an upsert so concurrent dialers cannot fail a unique key", async () => {
-    const queries: Array<{ where: unknown; update: unknown }> = [];
+    const queries: Array<{ where: unknown; update: unknown; create: unknown }> =
+      [];
     const repo = new CallerIdRotationRepository({
       callerIdPoolMember: {
-        upsert: async (query: { where: unknown; update: unknown }) => {
+        upsert: async (query: {
+          where: unknown;
+          update: unknown;
+          create: unknown;
+        }) => {
           queries.push(query);
           return {};
         },
@@ -48,6 +53,13 @@ describe("rotation persistence", () => {
     await repo.createPoolMember(ctx, "number-1");
     assert.deepEqual(queries[0].where, { numberId: "number-1" });
     assert.deepEqual(queries[0].update, { numberId: "number-1" });
+    assert.deepEqual(queries[0].create, {
+      numberId: "number-1",
+      userId: ctx.userId,
+      organizationId: ctx.organizationId,
+      areaCode: null,
+      dailyCap: null,
+    });
   });
   it("claims only the active participating row whose last-used timestamp was ranked", async () => {
     const previous = new Date();

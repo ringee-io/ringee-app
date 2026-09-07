@@ -19,6 +19,13 @@ export async function encodeBlobToWav(
   } = {},
 ): Promise<Blob> {
   const sampleRate = options.sampleRate ?? TARGET_SAMPLE_RATE;
+  const maxSeconds = options.maxSeconds ?? Infinity;
+  if (Number.isFinite(maxSeconds)) {
+    const metadataDuration = await readAudioMetadataDuration(blob);
+    if (metadataDuration !== null && metadataDuration > maxSeconds) {
+      throw new RangeError("Audio duration is outside the accepted range");
+    }
+  }
   const arrayBuffer = await blob.arrayBuffer();
 
   // A plain AudioContext decodes at the device's rate (usually 44.1/48 kHz);
@@ -38,7 +45,7 @@ export async function encodeBlobToWav(
 
   if (
     decoded.duration < (options.minSeconds ?? 0) ||
-    decoded.duration > (options.maxSeconds ?? Infinity)
+    decoded.duration > maxSeconds
   ) {
     throw new RangeError("Audio duration is outside the accepted range");
   }
@@ -51,6 +58,31 @@ export async function encodeBlobToWav(
 
   const rendered = await offline.startRendering();
   return encodePcmToWav(rendered.getChannelData(0), sampleRate);
+}
+
+/** Reads duration without decoding the entire upload; decoding remains fallback. */
+function readAudioMetadataDuration(blob: Blob): Promise<number | null> {
+  const audio = new Audio();
+  const objectUrl = URL.createObjectURL(blob);
+
+  return new Promise((resolve) => {
+    const onLoadedMetadata = () =>
+      finish(Number.isFinite(audio.duration) ? audio.duration : null);
+    const onError = () => finish(null);
+    const finish = (duration: number | null) => {
+      audio.removeEventListener("loadedmetadata", onLoadedMetadata);
+      audio.removeEventListener("error", onError);
+      audio.removeAttribute("src");
+      audio.load();
+      URL.revokeObjectURL(objectUrl);
+      resolve(duration);
+    };
+
+    audio.preload = "metadata";
+    audio.addEventListener("loadedmetadata", onLoadedMetadata, { once: true });
+    audio.addEventListener("error", onError, { once: true });
+    audio.src = objectUrl;
+  });
 }
 
 /** Wraps float PCM samples in a 16-bit mono WAV container. */

@@ -131,16 +131,21 @@ export class TelnyxClient {
       file.filename,
     );
 
-    const res = await fetch(`https://api.telnyx.com/v2${path}`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiConfiguration.TELNYX_API_KEY}`,
-      },
-      body: form,
-      ...(options.timeoutMs
-        ? { signal: AbortSignal.timeout(options.timeoutMs) }
-        : {}),
-    });
+    let res: Response;
+    try {
+      res = await fetch(`https://api.telnyx.com/v2${path}`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiConfiguration.TELNYX_API_KEY}`,
+        },
+        body: form,
+        ...(options.timeoutMs
+          ? { signal: AbortSignal.timeout(options.timeoutMs) }
+          : {}),
+      });
+    } catch (error) {
+      this.handleError(error, "POST", path);
+    }
 
     const text = await res.text();
     let json: any;

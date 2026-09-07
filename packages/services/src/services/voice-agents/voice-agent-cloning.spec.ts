@@ -259,6 +259,7 @@ describe("workspace voice cloning", () => {
       status: "ready",
       voiceId: "Telnyx.Ultra.custom",
     });
+    await h.service.listCustomVoices(CTX);
     await h.service.previewVoice(CTX, "Telnyx.Ultra.custom");
     await assert.rejects(
       h.service.previewVoice(OTHER, "Telnyx.Ultra.custom"),

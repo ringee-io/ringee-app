@@ -1355,8 +1355,12 @@ export class VoiceAgentService {
     voiceId: string | null | undefined,
   ): Promise<VoiceAgentVoice | null> {
     if (!voiceId) return null;
-    const voices = await this.listVoices(ctx);
-    const voice = voices.find((v) => v.id === voiceId);
+    const customVoice = (await this.agents.listCustomVoicesForOwner(ctx))
+      .map((row) => this.toCustomVoice(row))
+      .find((voice) => voice.id === voiceId);
+    const voice =
+      customVoice ??
+      (await this.listPublicVoices()).find((voice) => voice.id === voiceId);
     if (!voice || (voice.custom && voice.custom.status !== "ready")) {
       throw new BadRequestException("That voice is not available.");
     }

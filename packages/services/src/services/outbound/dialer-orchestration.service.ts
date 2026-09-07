@@ -1,10 +1,15 @@
-import { Injectable, Logger, OnModuleDestroy } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+} from "@nestjs/common";
 import {
   CampaignRepository,
   NumberPurchasedRepository,
   AgentSessionStatus,
 } from "@ringee/database";
-import { TelephonyService } from "@ringee/platform";
+import { TelephonyService, type OwnershipContext } from "@ringee/platform";
 import { LeadQueueService } from "./lead-queue.service";
 import { AgentSessionService } from "./agent-session.service";
 import { CallAttemptService } from "./call-attempt.service";
@@ -447,8 +452,21 @@ export class DialerOrchestrationService implements OnModuleDestroy {
   /**
    * Manual dial trigger for preview mode.
    */
-  async manualDial(sessionId: string, campaignId: string): Promise<void> {
+  async manualDial(
+    ctx: OwnershipContext,
+    sessionId: string,
+    campaignId: string,
+  ): Promise<void> {
     const session = await this.agentSessionService.getById(sessionId);
+
+    if (
+      session.userId !== ctx.userId ||
+      session.organizationId !== ctx.organizationId
+    ) {
+      throw new ForbiddenException(
+        "Agent session does not belong to this workspace",
+      );
+    }
 
     if (session.status !== AgentSessionStatus.reserved) {
       throw new Error("Agent is not in reserved state");

@@ -81,7 +81,7 @@ export function useNumberRotation() {
         if (activeWorkspace.current !== workspaceKey) return saved;
         window.dispatchEvent(new Event(ROTATION_SETTINGS_CHANGED));
         // Default cap changes also alter every member inheriting that cap.
-        await refresh();
+        await refresh().catch(() => undefined);
         return saved;
       } finally {
         setSaving(false);
@@ -98,7 +98,7 @@ export function useNumberRotation() {
           `/caller-id-rotation/pool/${numberId}`,
           patch
         );
-        await refresh();
+        await refresh().catch(() => undefined);
       } finally {
         setSaving(false);
       }
