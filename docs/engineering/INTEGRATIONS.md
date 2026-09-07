@@ -148,8 +148,8 @@ The generic, customer-facing integration surface.
 
 - **Inbound**: `contact.upserted`, `company.upserted`, `contact.deleted`,
   `company.deleted` — HMAC-verified, validated against the event spec.
-- **Outbound**: signed, queued and drained in batches of 25 with a 15s per-request
-  timeout, with a delivery log and a failure notifier.
+- **Outbound**: signed, queued and drained every 5s in batches of 100 with a 15s
+  per-request timeout, with a delivery log and a failure notifier.
 - **Single source of truth for both**:
   `packages/platform/src/custom-integrations/event-spec.ts`. It drives inbound
   validation, outbound payload shape **and** the customer-facing documentation

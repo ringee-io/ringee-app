@@ -21,13 +21,12 @@ interface ScheduleDef {
 }
 
 /**
- * Replaces the old worker's setInterval pollers. Cadence notes: the three
- * outbox drains ran every 5s as setIntervals; as Schedules they run every 60s
- * to keep workflow-history volume (and therefore Temporal/Postgres CPU on a
- * self-hosted cluster) low. They drain 25 items per tick, so worst-case added
- * latency is ~60s — acceptable for outbox-style background pushes. The
- * minute-granular schedulers (retry/callback/reminder) likewise run every 60s.
- * Tightening any of these back down directly raises self-hosted billing.
+ * Replaces the old worker's setInterval pollers. Cadence notes: CRM and
+ * enrichment drains run every 60s to keep workflow-history volume (and
+ * therefore Temporal/Postgres CPU on a self-hosted cluster) low. Custom
+ * Integrations is latency-sensitive and runs every 5s; its larger batches
+ * absorb bursts while the SKIP overlap policy prevents concurrent drains.
+ * Tightening a schedule directly raises self-hosted billing.
  */
 const SCHEDULES: ScheduleDef[] = [
   {
@@ -81,7 +80,7 @@ const SCHEDULES: ScheduleDef[] = [
   {
     id: "ringee.custom-integrations-drain",
     workflow: WORKFLOW_NAMES.customIntegrationsDrain,
-    every: "60s",
+    every: "5s",
     catchupWindow: "2m",
   },
   {

@@ -26,7 +26,7 @@ import type {
 
 const CRM_DRAIN_BATCH_SIZE = 25;
 const ENRICHMENT_DRAIN_BATCH_SIZE = 25;
-const CUSTOM_INTEGRATIONS_DRAIN_BATCH_SIZE = 25;
+const CUSTOM_INTEGRATIONS_DRAIN_BATCH_SIZE = 100;
 
 /**
  * Builds the Temporal activities object, closing over services resolved from
