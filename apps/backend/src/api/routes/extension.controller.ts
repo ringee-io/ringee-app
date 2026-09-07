@@ -379,7 +379,10 @@ export class ExtensionController {
           ctx,
           destination,
           { phoneNumber: fixedCallerId },
-          { allowOverCap: body.allowOverCap === true },
+          {
+            allowOverCap: body.allowOverCap === true,
+            source: "chrome_extension",
+          },
         );
         callerId = selection.phoneNumber;
         if (!callerId) {

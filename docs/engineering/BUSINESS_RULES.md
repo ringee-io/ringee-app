@@ -456,6 +456,23 @@ health, re-enters after `coolingUntil`), `flagged` (carrier spam mark — never
 auto-cleared) or `disabled`. Every campaign dial flows through the selector, so
 caps hold campaign-wide.
 
+Selection applies the canonical outbound number allow-list (`NUM-003`), then
+the campaign subset, country and daily cap. Local presence prefers the same
+area code, then the same US state, then the same country. Countries sharing a
+calling code remain distinct (US, Canada, Dominican Republic, Puerto Rico,
+etc.); non-geographic destinations use their calling plan. An empty eligible
+pool is a refusal: no dial surface may replace it with a fixed caller ID or
+reuse an excluded, cooling, flagged or disabled number. Fixed selections when
+rotation is off still require workspace, member and surface authorization.
+
+Usage and reputation are derived from persisted outbound `Call` rows in the
+number's workspace, dated by call start in UTC. Webhook deliveries are not
+usage events. `CallerIdDailyUsage` is legacy data; incrementing it on repeated
+answers/hangups inflated caps and split calls across midnight. Short calls
+measure time from answer to end, excluding ringing. Expired cooling permits
+fresh observations; retain `coolingUntil` as the new health sample's lower
+bound so the old bad sample cannot immediately cool the number again.
+
 - **Source of truth:** `packages/services/src/services/caller-id-rotation/`
 
 ---
@@ -867,6 +884,48 @@ already-started or legacy call can finish and settle safely.
 
 - **Source of truth:** `services/voice-agents/voice-agent-access.ts` +
   `VoiceAgentOrganizationGuard`
+
+### AGENT-012 — Human voice clones belong to their Ringee workspace
+
+The provider account may contain voices from many workspaces. Custom voices
+are exposed only through a locally stored ownership record; a provider voice ID
+is never proof of access. Exclude provider clones from the globally cached
+public catalogue. Check ownership and readiness before assignment or preview,
+including before returning cached audio.
+
+A clone upload is reserved once per workspace and request ID. A repeat with
+different audio or metadata is rejected. If the provider response is lost,
+reconcile using the persisted correlation name instead of uploading again.
+Reference recordings are processed in memory and sent directly to the provider;
+Ringee does not persist the reference audio.
+
+The backend quotes the USD creation price from
+`AI_VOICE_AGENT_CLONE_BASE_COST_USD × AI_VOICE_AGENT_CLONE_PROFIT_MARGIN`.
+Zero is the default: hide price text and do not write a credit debit. For a paid
+clone, verify the submitted quote and workspace balance before uploading; persist
+the accepted price and multiplier so later configuration changes cannot reprice it.
+Only a ready voice with a provider voice ID is charged. Settlement uses
+`CreditService.consumeCredits` with `voice-clone:<localCloneId>` and records
+`chargedAt`; an unpaid voice cannot be assigned or previewed. Failed clones are
+not charged. The existing periodic agent sweep reconciles and settles pending
+clones independently of browser polling, retrying the same debit after failures.
+
+- **Source of truth:** `VoiceAgentService.cloneVoice` / `listCustomVoices`,
+  `AiVoiceAgentRepository.reserveCustomVoice`, and
+  `TelnyxVoiceAgentService.listVoices`.
+- **Provider contract:** [Ultra cloning quickstart](https://developers.telnyx.com/docs/voice/voice-design-lab/clone-voice/quickstart)
+  and [audio parameters](https://developers.telnyx.com/docs/voice/voice-design-lab/clone-voice/parameters).
+  Ringee accepts 3–15 seconds; the Ultra adapter sends at most the first ten
+  seconds. Browser uploads and recordings are converted to mono 24 kHz PCM WAV;
+  the server verifies the WAV header and duration from the sample bytes.
+
+The recording script is generated through Ringee's configured AI provider and
+cached globally by supported language for 30 days. It contains no workspace
+data. An in-process cache coalesces concurrent misses; if Redis or generation is
+unavailable, a localized static script keeps the cloning flow usable without
+making repeated uncached AI calls.
+
+- **Source of truth:** `VoiceCloneReadingSampleService`
 
 ---
 

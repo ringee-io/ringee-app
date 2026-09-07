@@ -138,11 +138,11 @@ export class DialerController {
     @Body() body: { sessionId: string; campaignId: string },
     @CurrentUser() user: CurrentUserData,
   ) {
-    await this.agentSessionService.getByIdForOrg(
+    return this.dialerOrchestration.manualDial(
+      createOwnershipContext(user),
       body.sessionId,
-      this.requireOrg(user),
+      body.campaignId,
     );
-    return this.dialerOrchestration.manualDial(body.sessionId, body.campaignId);
   }
 
   @Post("skip")

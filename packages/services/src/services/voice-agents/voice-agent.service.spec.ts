@@ -57,6 +57,7 @@ function build(currentWebhookUrls: string[]) {
     {} as never,
     {} as never,
     {} as never,
+    {} as never,
   );
 
   (

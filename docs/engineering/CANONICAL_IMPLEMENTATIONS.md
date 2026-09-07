@@ -79,6 +79,10 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Browser test sessions                 | `VoiceAgentTestSessionService` (AGENT-005)                               |
 | Agent company context (AGENT-007)     | `CompanyProfileService.resolveForAgent`                                  |
 | Voice sample playback                 | `VoiceAgentService.previewVoice` → `renderVoicePreview`                  |
+| Workspace voice cloning               | VoiceAgentService.cloneVoice / listCustomVoices + AiVoiceAgentRepository |
+| Voice-clone reading samples           | `VoiceCloneReadingSampleService`                                         |
+| Browser microphone lifecycle          | useAudioRecorder — frontend-shared/src/hooks/use-audio-recorder.ts       |
+| Browser WAV encoding                  | encodeBlobToWav — frontend-shared/src/lib/audio-wav.ts                   |
 | Curated voice list                    | `curateVoices` — `platform/src/voice-agents/voices.catalog.ts`           |
 | Model behind each user choice         | `resolveVoiceAgentModel` — `platform/src/voice-agents/models.catalog.ts` |
 | BYO LLM key verification              | `LlmCredentialVerifier`                                                  |

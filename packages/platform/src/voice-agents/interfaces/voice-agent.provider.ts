@@ -359,6 +359,24 @@ export interface VoiceAgentVoice {
   countryCode: string | null;
   accent: string | null;
   gender: "female" | "male" | "unspecified";
+  custom?: { id: string; status: VoiceCloneStatus; lastError: string | null };
+}
+
+export type VoiceCloneStatus = "pending" | "ready" | "failed" | "expired";
+
+export interface VoiceCloneInput {
+  name: string;
+  language: string;
+  gender: VoiceAgentVoice["gender"];
+  audio: Buffer;
+}
+
+/** Provider resources; the domain filters them by stored ownership. */
+export interface VoiceClone {
+  cloneId: string;
+  name: string;
+  voiceId: string | null;
+  status: VoiceCloneStatus;
 }
 
 /**
@@ -436,6 +454,8 @@ export interface VoiceAgentProvider {
   deleteSecret(identifier: string): Promise<void>;
 
   listVoices(): Promise<VoiceAgentVoice[]>;
+  cloneVoice(input: VoiceCloneInput): Promise<VoiceClone>;
+  listClonedVoices(): Promise<VoiceClone[]>;
   /** Renders a short sample so the user can hear a voice before choosing it. */
   renderVoicePreview(
     voiceId: string,

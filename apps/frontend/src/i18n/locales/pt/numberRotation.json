@@ -32,7 +32,7 @@
     "strategy": "Estratégia",
     "strategyLocalPresence": "Presença local",
     "strategyBalanced": "Equilibrada",
-    "strategyLocalPresenceDesc": "Prefira um número com o mesmo código de área do destino e, depois, qualquer número do mesmo país.",
+    "strategyLocalPresenceDesc": "Prefere o mesmo código de área, depois o mesmo estado dos EUA e depois outro número disponível no país de destino.",
     "strategyBalancedDesc": "Ignore o código de área e simplesmente distribua as chamadas de forma uniforme entre seus números mais saudáveis no país de destino.",
     "defaultCap": "Limite diário padrão por número",
     "defaultCapDesc": "Número máximo de chamadas que um número apresenta por dia antes de descansar. Cada número pode ter seu próprio limite."
@@ -65,6 +65,8 @@
     "score": "Saúde"
   },
   "errors": {
-    "saveFailed": "Não foi possível salvar. Apenas administradores do espaço de trabalho podem alterar a rotação."
+    "saveFailed": "Não foi possível salvar. Apenas administradores do espaço de trabalho podem alterar a rotação.",
+    "loadFailed": "Não foi possível carregar a rotação de números. Tente novamente.",
+    "retry": "Tentar novamente"
   }
 }

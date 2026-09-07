@@ -136,6 +136,11 @@ export function useCall(call?: Call | null) {
   const handleCall = async (number: string) => {
     if (!client) return console.warn('⚠️ Telnyx client not ready');
 
+    const abandonDial = () =>
+      api.post('/caller-id-rotation/abandon', {}).catch(() => {
+        // Best effort: the reservation expires on its own either way.
+      });
+
     // This request is the dial pre-flight: it resolves the caller ID AND
     // enforces the one-call-at-a-time rule. The user's selected number is sent
     // as the fallback so behavior is unchanged when number rotation is off;
@@ -153,28 +158,29 @@ export function useCall(call?: Call | null) {
             ? selectedNumber.id
             : null
       });
-      if (res) callerId = res.phoneNumber;
+      callerId = res?.phoneNumber ?? null;
     } catch (err) {
       // A 409 is a deliberate refusal, not a hiccup: the user is already on a
       // call somewhere else. Dialing anyway would only get the leg torn down by
       // the server, so stop here and explain the rule (plus the way around it —
       // a seat per teammate) in a dialog rather than a toast that scrolls away.
-      if (err instanceof ApiError && err.status === 409) {
+      if (
+        err instanceof ApiError &&
+        err.status === 409 &&
+        err.data?.code === 'CONCURRENT_CALL'
+      ) {
         notifyConcurrentCall(err.data?.message ?? err.message);
         return;
       }
-      // Network/permission hiccup — fall back to the locally selected number.
+      void abandonDial();
+      toast.error(t('callerIdUnavailable'));
+      return;
     }
 
     // The pre-flight above already reserved this user's single call slot. From
     // here on, any exit that does not place a leg has to hand it back — a
     // reservation nobody is using is what makes the next dial (from the
     // extension, a desk phone, or after a reload) refuse for no reason.
-    const abandonDial = () =>
-      api.post('/caller-id-rotation/abandon', {}).catch(() => {
-        // Best effort: the reservation expires on its own either way.
-      });
-
     if (!callerId) {
       console.warn(
         '⚠️ No caller ID available for this destination — add a number for its country.'

@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type {
+  VoiceClone,
+  VoiceCloneInput,
   VoiceAgentAssistant,
   VoiceAgentCallHandle,
   VoiceAgentCallingAppSettings,
@@ -118,6 +120,14 @@ export class VoiceAgentProviderService implements VoiceAgentProvider {
 
   deleteSecret(identifier: string): Promise<void> {
     return this.getServiceProvider().deleteSecret(identifier);
+  }
+
+  cloneVoice(input: VoiceCloneInput): Promise<VoiceClone> {
+    return this.getServiceProvider().cloneVoice(input);
+  }
+
+  listClonedVoices(): Promise<VoiceClone[]> {
+    return this.getServiceProvider().listClonedVoices();
   }
 
   listVoices(): Promise<VoiceAgentVoice[]> {

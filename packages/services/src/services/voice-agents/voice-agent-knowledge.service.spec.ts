@@ -153,6 +153,7 @@ describe("VoiceAgentKnowledgeService", () => {
       {} as never,
       {} as never,
       {} as never,
+      {} as never,
     );
 
     await service.resync(CTX as never, agent.id);

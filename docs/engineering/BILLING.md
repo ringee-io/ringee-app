@@ -50,17 +50,18 @@ a failure. Side effects are gated on the returned boolean (`BILL-004`).
 
 ### Idempotency key conventions
 
-| Source                       | Key                                                         |
-| ---------------------------- | ----------------------------------------------------------- |
-| Call settlement              | `call-cost:<callId>` (source `telnyx.call.cost`)            |
-| Desk-phone call              | `call-cost:<callId>` (source `telnyx.desk-phone.call.cost`) |
-| Message                      | `message-cost:<messageId>`                                  |
-| Live transcription           | `transcription-realtime:<headerId>`                         |
-| Recording transcription      | `transcription-recording:<headerId>`                        |
-| Offer reward                 | `OfferRewardService.idempotencyKey(participationId)`        |
-| Caller-ID verification       | `caller-id-verification:<numberId>:<requestedAt>`           |
-| Auto-reload (Stripe side)    | `autoreload:<settingsId>:<minute>`                          |
-| AI chat / summary / pipeline | `incurredCostDebitRef(...)` — unique per invocation         |
+| Source                       | Key                                                                |
+| ---------------------------- | ------------------------------------------------------------------ |
+| Call settlement              | `call-cost:<callId>` (source `telnyx.call.cost`)                   |
+| Desk-phone call              | `call-cost:<callId>` (source `telnyx.desk-phone.call.cost`)        |
+| Message                      | `message-cost:<messageId>`                                         |
+| Live transcription           | `transcription-realtime:<headerId>`                                |
+| Recording transcription      | `transcription-recording:<headerId>`                               |
+| Human voice clone            | `voice-clone:<localCloneId>` (source `ai-voice-agent.voice-clone`) |
+| Offer reward                 | `OfferRewardService.idempotencyKey(participationId)`               |
+| Caller-ID verification       | `caller-id-verification:<numberId>:<requestedAt>`                  |
+| Auto-reload (Stripe side)    | `autoreload:<settingsId>:<minute>`                                 |
+| AI chat / summary / pipeline | `incurredCostDebitRef(...)` — unique per invocation                |
 
 `ref` is **required**. Two shapes, and picking the wrong one is a real bug:
 

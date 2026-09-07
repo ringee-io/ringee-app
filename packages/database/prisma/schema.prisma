@@ -439,6 +439,7 @@ model User {
   regulatoryDocuments     RegulatoryDocument[]
   callerIdRotation        CallerIdRotationSettings?
   callerIdPoolMembers     CallerIdPoolMember[]
+  customAgentVoices       AiVoiceAgentCustomVoice[]
   aiVoiceAgents           AiVoiceAgent[]
   aiVoiceAgentCalls       AiVoiceAgentCall[]
   companyProfile          WorkspaceCompanyProfile?
@@ -530,6 +531,7 @@ model Organization {
   regulatoryDocuments    RegulatoryDocument[]
   callerIdRotation       CallerIdRotationSettings?
   callerIdPoolMembers    CallerIdPoolMember[]
+  customAgentVoices      AiVoiceAgentCustomVoice[]
   aiVoiceAgents          AiVoiceAgent[]
   aiVoiceAgentCalls      AiVoiceAgentCall[]
   companyProfile         WorkspaceCompanyProfile?
@@ -3981,6 +3983,36 @@ enum AiVoiceAgentKnowledgeStatus {
   processing
   ready
   failed
+}
+
+/// Workspace-owned human voice clones. Reference audio is never stored here.
+model AiVoiceAgentCustomVoice {
+  id               String    @id @default(uuid()) @db.Uuid
+  userId           String    @db.Uuid
+  organizationId   String?   @db.Uuid
+  requestKey       String    @unique
+  requestHash      String
+  name             String
+  language         String
+  gender           String
+  providerName     String    @unique
+  providerCloneId  String?   @unique
+  voiceId          String?   @unique
+  status           String    @default("pending")
+  providerCostUsd  Float
+  profitMultiplier Float
+  priceUsd         Float
+  chargedAt        DateTime?
+  lastError        String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, createdAt])
+  @@index([userId, organizationId])
+  @@index([chargedAt, status, id])
 }
 
 model AiVoiceAgent {

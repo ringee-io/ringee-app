@@ -215,6 +215,14 @@ const apiConfiguration = {
   AI_VOICE_AGENT_PROFIT_MARGIN: Number(
     process.env.AI_VOICE_AGENT_PROFIT_MARGIN ?? 1,
   ),
+  // Configurable per-clone base price. Zero keeps cloning free and hides its price.
+  AI_VOICE_AGENT_CLONE_BASE_COST_USD:
+    process.env.AI_VOICE_AGENT_CLONE_BASE_COST_USD?.trim()
+      ? Number(process.env.AI_VOICE_AGENT_CLONE_BASE_COST_USD)
+      : 0,
+  AI_VOICE_AGENT_CLONE_PROFIT_MARGIN: Number(
+    process.env.AI_VOICE_AGENT_CLONE_PROFIT_MARGIN ?? 1,
+  ),
   // The model behind each user-facing choice. "Ringee AI" runs on a model the
   // provider hosts itself, so it needs no customer credential; the others are
   // third-party models the customer brings a key for.
@@ -308,6 +316,17 @@ if (!isFiniteAtLeast(apiConfiguration.AI_TOKEN_MARGIN, 1)) {
 
 if (!isFiniteAtLeast(apiConfiguration.AI_VOICE_AGENT_PROFIT_MARGIN, 1)) {
   errors.push("AI_VOICE_AGENT_PROFIT_MARGIN must be a finite number >= 1");
+}
+
+if (!isFiniteAtLeast(apiConfiguration.AI_VOICE_AGENT_CLONE_BASE_COST_USD, 0)) {
+  errors.push(
+    "AI_VOICE_AGENT_CLONE_BASE_COST_USD must be a finite number >= 0",
+  );
+}
+if (!isFiniteAtLeast(apiConfiguration.AI_VOICE_AGENT_CLONE_PROFIT_MARGIN, 1)) {
+  errors.push(
+    "AI_VOICE_AGENT_CLONE_PROFIT_MARGIN must be a finite number >= 1",
+  );
 }
 
 if (!isFiniteAtLeast(apiConfiguration.AI_VOICE_AGENT_MAX_CALL_SECONDS, 30)) {

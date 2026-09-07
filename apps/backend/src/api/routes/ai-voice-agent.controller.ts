@@ -19,6 +19,8 @@ import {
   AddKnowledgeTextDto,
   AddKnowledgeUrlDto,
   CreateVoiceAgentDto,
+  CloneVoiceAgentVoiceDto,
+  VOICE_CLONE_MAX_BYTES,
   CurrentUser,
   CurrentUserData,
   GenerateCompanyProfileDto,
@@ -29,6 +31,7 @@ import {
   StartVoiceAgentCallDto,
   StartVoiceAgentTestSessionDto,
   VerifyVoiceAgentCredentialDto,
+  VoiceCloneReadingSampleQueryDto,
   createOwnershipContext,
   listVoiceAgentModels,
 } from "@ringee/platform";
@@ -39,6 +42,7 @@ import {
   VoiceAgentResultService,
   VoiceAgentService,
   VoiceAgentTestSessionService,
+  VoiceCloneReadingSampleService,
 } from "@ringee/services";
 import { AiVoiceAgentType } from "@ringee/database";
 import { VoiceAgentOrganizationGuard } from "../guards/voice-agent-organization.guard";
@@ -64,6 +68,7 @@ export class AiVoiceAgentController {
     private readonly testSessions: VoiceAgentTestSessionService,
     private readonly knowledge: VoiceAgentKnowledgeService,
     private readonly companyProfiles: CompanyProfileService,
+    private readonly cloneReadingSamples: VoiceCloneReadingSampleService,
   ) {}
 
   // ── Catalogue ────────────────────────────────────────────────
@@ -75,8 +80,49 @@ export class AiVoiceAgentController {
   }
 
   @Get("voices")
-  listVoices() {
-    return this.agents.listVoices();
+  listVoices(@CurrentUser() user: CurrentUserData) {
+    return this.agents.listVoices(createOwnershipContext(user));
+  }
+
+  @Get("voices/custom")
+  listCustomVoices(@CurrentUser() user: CurrentUserData) {
+    return this.agents.listCustomVoices(createOwnershipContext(user));
+  }
+
+  @Get("voices/custom/quote")
+  getCloneQuote(@CurrentUser() user: CurrentUserData) {
+    return this.agents.getCloneQuote(createOwnershipContext(user));
+  }
+
+  @Get("voices/custom/reading-sample")
+  getCloneReadingSample(
+    @CurrentUser() user: CurrentUserData,
+    @Query() query: VoiceCloneReadingSampleQueryDto,
+  ) {
+    return this.cloneReadingSamples.get(
+      createOwnershipContext(user),
+      query.language,
+    );
+  }
+
+  @Post("voices/custom")
+  @UseInterceptors(
+    FileInterceptor("file", {
+      limits: { fileSize: VOICE_CLONE_MAX_BYTES, files: 1, fields: 5 },
+    }),
+  )
+  cloneVoice(
+    @CurrentUser() user: CurrentUserData,
+    @Body() dto: CloneVoiceAgentVoiceDto,
+    @UploadedFile() file?: { buffer: Buffer },
+  ) {
+    if (!file)
+      throw new BadRequestException("A reference audio sample is required.");
+    return this.agents.cloneVoice(
+      createOwnershipContext(user),
+      dto,
+      file.buffer,
+    );
   }
 
   /**
@@ -84,8 +130,11 @@ export class AiVoiceAgentController {
    * with the same authenticated client it lists voices with.
    */
   @Get("voices/:voiceId/preview")
-  previewVoice(@Param("voiceId") voiceId: string) {
-    return this.agents.previewVoice(voiceId);
+  previewVoice(
+    @CurrentUser() user: CurrentUserData,
+    @Param("voiceId") voiceId: string,
+  ) {
+    return this.agents.previewVoice(createOwnershipContext(user), voiceId);
   }
 
   /**

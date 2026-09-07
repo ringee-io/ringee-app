@@ -20,7 +20,9 @@ import type {
   VoiceAgentType,
   VoiceAgentTypeInfo,
   VoiceAgentVoice,
-  VoiceAgentVoicePreview
+  VoiceAgentVoicePreview,
+  VoiceCloneReadingSample,
+  VoiceCloneQuote
 } from './types';
 import type { CalendarIntegrationOption } from './types';
 
@@ -57,6 +59,30 @@ export function useVoiceAgentApi() {
     () => ({
       listTypes: () => api.get<VoiceAgentTypeInfo[]>(`${BASE}/types`),
       listVoices: () => api.get<VoiceAgentVoice[]>(`${BASE}/voices`),
+      listCustomVoices: () =>
+        api.get<VoiceAgentVoice[]>(`${BASE}/voices/custom`),
+      getCloneQuote: () =>
+        api.get<VoiceCloneQuote>(`${BASE}/voices/custom/quote`),
+      getCloneReadingSample: (language: string) =>
+        api.get<VoiceCloneReadingSample>(
+          `${BASE}/voices/custom/reading-sample?language=${encodeURIComponent(language)}`
+        ),
+      cloneVoice: (
+        file: Blob,
+        details: {
+          requestId: string;
+          expectedPriceUsd: number;
+          name: string;
+          language: string;
+          gender: VoiceAgentVoice['gender'];
+        }
+      ) => {
+        const form = new FormData();
+        form.append('file', file, 'reference.wav');
+        for (const [key, value] of Object.entries(details))
+          form.append(key, String(value));
+        return api.upload<VoiceAgentVoice>(`${BASE}/voices/custom`, form);
+      },
       previewVoice: (voiceId: string) =>
         api.get<VoiceAgentVoicePreview>(
           `${BASE}/voices/${encodeURIComponent(voiceId)}/preview`

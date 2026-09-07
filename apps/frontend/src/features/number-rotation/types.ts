@@ -14,6 +14,8 @@ export interface PoolMember {
   isoCountry: string;
   kind: string;
   areaCode: string | null;
+  callingCode?: string | null;
+  state?: string | null;
   rotationStatus: RotationStatus;
   participating: boolean;
   dailyCap: number;

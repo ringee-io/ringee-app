@@ -8,6 +8,7 @@ export * from "./voice-agent-test-session.service";
 export * from "./voice-agent-knowledge.service";
 export * from "./voice-agent-tool.service";
 export * from "./voice-agent-human-support.service";
+export * from "./voice-clone-reading-sample.service";
 export * from "./company-profile.service";
 export * from "./blueprints/voice-agent-blueprint.registry";
 export * from "./blueprints/appointment-booking.blueprint";
