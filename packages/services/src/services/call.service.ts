@@ -836,6 +836,11 @@ export class CallService implements OnModuleDestroy {
       `📨 Telephony event received: ${eventType} (${event.provider}:${event.providerEventType})`,
     );
 
+    if (eventType === "call.status") {
+      await this.handleVoiceAgentCallStatus(event);
+      return;
+    }
+
     // Voicemail drops are the one outbound leg we originate server-side: the
     // Call row already exists and answering-machine detection — not a human
     // agent — drives the leg. Everything up to hangup is handled here so the
@@ -1436,6 +1441,71 @@ export class CallService implements OnModuleDestroy {
           payload,
         );
         break;
+    }
+  }
+
+  /**
+   * Applies an authenticated voice-agent status to the shared Call row.
+   * Provider parsing and token verification happen in VoiceAgentResultService;
+   * lifecycle transitions happen here, beside every other call transition.
+   */
+  private async handleVoiceAgentCallStatus(
+    event: TelephonyEvent,
+  ): Promise<void> {
+    const status = event.callStatus;
+    if (!status) return;
+
+    const call = await this.callRepository.findById(status.callId);
+    if (!call) return;
+
+    // A status callback can be the first delivery that names the session and
+    // leg. Only a connected status answers the call; initiated, ringing and
+    // failed legs must not be reported as conversations that connected.
+    const connected = status.status === "in_progress";
+    const binds = !call.callControlId;
+    const learnsSession = !call.callSessionId && !!event.callSessionId;
+    const answers =
+      connected &&
+      call.status !== CallStatus.answered &&
+      call.status !== CallStatus.completed &&
+      call.status !== CallStatus.failed;
+
+    if (binds || learnsSession || answers) {
+      await this.callRepository.attachTelephony(call.id, {
+        callControlId: event.callControlId,
+        callSessionId: event.callSessionId,
+        callLegId: event.callLegId,
+        // Telephony-markup status callbacks often omit timestamps. Dating the
+        // connection here prevents completeCall from classifying a real
+        // conversation as no-answer.
+        answeredAt: answers
+          ? (status.answeredAt ?? new Date())
+          : status.answeredAt,
+        ...(answers ? { status: CallStatus.answered } : {}),
+      });
+    }
+
+    const terminal =
+      status.status === "completed" ||
+      status.status === "no_answer" ||
+      status.status === "busy" ||
+      status.status === "failed";
+    if (!terminal) return;
+
+    const terminalStatus =
+      status.status === "failed" ? CallStatus.failed : CallStatus.completed;
+    const terminalCall = await this.callRepository.completeCall(
+      event.callControlId,
+      // Keep the row's original start when the provider omits it; using the
+      // callback time here would turn every such call into a zero-second call.
+      event.startedAt,
+      status.endedAt ?? new Date(),
+      status.hangupCause ?? undefined,
+      terminalStatus,
+    );
+
+    if (terminalCall) {
+      await this.customIntegrationOutbound.enqueueCallTerminal(terminalCall);
     }
   }
 }

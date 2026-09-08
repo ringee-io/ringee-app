@@ -34,6 +34,7 @@ export type TelephonyEventType =
   | "call.initiated"
   | "call.answered"
   | "call.hangup"
+  | "call.status"
   | "call.cost"
   | "call.recording.saved"
   | "call.recording.error"
@@ -76,6 +77,29 @@ export interface TelephonyConversationDetails {
   insights: TelephonyConversationInsight[];
 }
 
+/** Provider-neutral call states delivered by status-only callbacks. */
+export type TelephonyCallStatus =
+  | "initiating"
+  | "ringing"
+  | "in_progress"
+  | "completed"
+  | "busy"
+  | "no_answer"
+  | "failed";
+
+/**
+ * State carried by a `call.status` event after its public callback has been
+ * authenticated. `callId` is resolved from Ringee's stored correlation, never
+ * accepted from the provider body.
+ */
+export interface TelephonyCallStatusDetails {
+  callId: string;
+  status: TelephonyCallStatus | null;
+  answeredAt: Date | null;
+  endedAt: Date | null;
+  hangupCause: string | null;
+}
+
 /**
  * A provider event, normalized.
  *
@@ -113,6 +137,8 @@ export interface TelephonyEvent<TPayload = unknown> {
   customHeaders: TelephonyCustomHeader[];
   /** Set on `call.conversation.*` events, null on every other event. */
   conversation: TelephonyConversationDetails | null;
+  /** Set on authenticated `call.status` events, null everywhere else. */
+  callStatus?: TelephonyCallStatusDetails | null;
   /** Untouched provider body. */
   payload: TPayload;
 }

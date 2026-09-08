@@ -6,19 +6,18 @@ import {
   AiVoiceAgentOutcome,
   AiVoiceAgentRepository,
   CallRepository,
-  CallStatus,
 } from "@ringee/database";
 import {
   hashApiKey,
   safeHashEqual,
   voiceAgentInsightsTokenMatches,
   VoiceAgentProviderService,
+  type TelephonyCallStatus,
   type TelephonyConversationDetails,
   type TelephonyEvent,
   type VoiceAgentInsightResult,
 } from "@ringee/platform";
 import { TranscriptionService } from "../transcription/transcription.service";
-import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
 import { VoiceAgentService } from "./voice-agent.service";
 import type { VoiceAgentAnalysisSettings } from "./voice-agent.types";
 
@@ -54,6 +53,11 @@ export interface VoiceAgentCallResult {
   };
 }
 
+export interface VoiceAgentStatusCallbackResult {
+  accepted: boolean;
+  event: TelephonyEvent | null;
+}
+
 /**
  * Turns provider conversation events into Ringee's normalized result.
  *
@@ -72,7 +76,6 @@ export class VoiceAgentResultService {
     private readonly callRepository: CallRepository,
     private readonly provider: VoiceAgentProviderService,
     private readonly transcriptions: TranscriptionService,
-    private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
   ) {}
 
   /**
@@ -321,9 +324,8 @@ export class VoiceAgentResultService {
    * Applies a provider call-status callback. This is what moves an agent call
    * through ringing → in progress → completed.
    *
-   * The telephony row is bound as soon as a callback names the leg and closed
-   * on the terminal one, both through the same repository methods every other
-   * call surface uses.
+   * The agent-specific row is updated here. The shared Call lifecycle is
+   * returned as a normalized event so CallService remains its single writer.
    */
   async applyStatus(
     agentCall: AiVoiceAgentCall,
@@ -336,8 +338,12 @@ export class VoiceAgentResultService {
       answeredAt?: string | null;
       endedAt?: string | null;
       hangupCause?: string | null;
+      payload?: Record<string, unknown>;
     },
-  ): Promise<AiVoiceAgentCall> {
+  ): Promise<{
+    agentCall: AiVoiceAgentCall;
+    event: TelephonyEvent | null;
+  }> {
     const status =
       PROVIDER_STATUS_MAP[input.providerStatus.toLowerCase()] ?? null;
     const callControlId = input.callControlId ?? null;
@@ -347,85 +353,65 @@ export class VoiceAgentResultService {
       ...(callControlId ? { providerCallControlId: callControlId } : {}),
     });
 
-    if (!agentCall.callId) return updated;
-
-    if (callControlId) {
-      const call = await this.callRepository.findById(agentCall.callId);
-      // Only move `Call.status` when the leg actually connected. A callback
-      // carrying a control id is often `initiated` or `ringing` — and for a leg
-      // that never connects it is `busy` or `failed`. Calling any of those
-      // "answered" both misreports the call and, if the terminal callback never
-      // arrives, leaves it parked in a connected state it never reached.
-      const connected = status === AiVoiceAgentCallStatus.in_progress;
-      // Three separate reasons to write, because the row is bound when the call
-      // is placed: the control id when it is still missing, the session and leg
-      // handles the moment a callback names them — the recording is filed under
-      // the session — and the answer whenever the leg connects.
-      const binds = call && !call.callControlId;
-      const learnsSession =
-        call && !call.callSessionId && !!input.callSessionId;
-      const answers =
-        call &&
-        connected &&
-        call.status !== CallStatus.answered &&
-        call.status !== CallStatus.completed &&
-        call.status !== CallStatus.failed;
-      if (call && (binds || learnsSession || answers)) {
-        await this.callRepository.attachTelephony(call.id, {
-          callControlId,
-          callSessionId: input.callSessionId,
-          callLegId: input.callLegId,
-          // The provider's telephony-markup callback carries a status and no
-          // timestamps at all, so a connected leg has to be dated here. Left
-          // unset, the row looks like a call nobody picked up and `completeCall`
-          // dispositions it as a no-answer — on a call that just held a full
-          // conversation.
-          answeredAt: answers
-            ? (input.answeredAt ?? new Date())
-            : input.answeredAt,
-          ...(answers ? { status: CallStatus.answered } : {}),
-        });
-      }
-    }
-
-    if (this.isTerminal(status) && callControlId) {
-      // The shared settlement path: it computes the duration, records the
-      // hangup cause and auto-dispositions a call that never connected.
-      const completedCall = await this.callRepository.completeCall(
-        callControlId,
-        // Not "now". The row already knows when the call was placed, and
-        // substituting the moment this callback arrived — which is what the
-        // provider forces, since it sends no start time — made every agent call
-        // last zero seconds.
-        input.startedAt,
-        input.endedAt ?? new Date().toISOString(),
-        input.hangupCause ?? undefined,
-        status === AiVoiceAgentCallStatus.failed
-          ? CallStatus.failed
-          : CallStatus.completed,
-      );
-
-      // Voice-agent status callbacks do not traverse CallService's ordinary
-      // call.hangup branch. Publish from this terminal path too, otherwise a
-      // call started through the public API is completed in Ringee but never
-      // reaches any subscribed Custom Integration. A later signed hangup is
-      // harmless because outbound delivery is deduplicated per integration,
-      // event and call.
-      if (completedCall) {
-        await this.customIntegrationOutbound.enqueueCallTerminal(completedCall);
-      }
-    }
-
-    return updated;
+    return {
+      agentCall: updated,
+      event:
+        agentCall.callId && callControlId
+          ? {
+              type: "call.status",
+              provider: VOICE_AGENT_TRANSCRIPT_PROVIDER,
+              providerEventType: input.providerStatus,
+              callControlId,
+              callSessionId: input.callSessionId ?? null,
+              callLegId: input.callLegId ?? null,
+              clientState: null,
+              direction: null,
+              from: null,
+              to: null,
+              occurredAt: new Date(),
+              startedAt: this.date(input.startedAt),
+              customHeaders: [],
+              conversation: null,
+              callStatus: {
+                callId: agentCall.callId,
+                status: this.toTelephonyCallStatus(status),
+                answeredAt: this.date(input.answeredAt),
+                endedAt: this.date(input.endedAt),
+                hangupCause: input.hangupCause ?? null,
+              },
+              payload: input.payload ?? {},
+            }
+          : null,
+    };
   }
 
-  private isTerminal(status: AiVoiceAgentCallStatus | null): boolean {
-    return (
-      status === AiVoiceAgentCallStatus.completed ||
-      status === AiVoiceAgentCallStatus.no_answer ||
-      status === AiVoiceAgentCallStatus.busy ||
-      status === AiVoiceAgentCallStatus.failed
-    );
+  private toTelephonyCallStatus(
+    status: AiVoiceAgentCallStatus | null,
+  ): TelephonyCallStatus | null {
+    switch (status) {
+      case AiVoiceAgentCallStatus.initiating:
+        return "initiating";
+      case AiVoiceAgentCallStatus.ringing:
+        return "ringing";
+      case AiVoiceAgentCallStatus.in_progress:
+        return "in_progress";
+      case AiVoiceAgentCallStatus.completed:
+        return "completed";
+      case AiVoiceAgentCallStatus.busy:
+        return "busy";
+      case AiVoiceAgentCallStatus.no_answer:
+        return "no_answer";
+      case AiVoiceAgentCallStatus.failed:
+        return "failed";
+      default:
+        return null;
+    }
+  }
+
+  private date(value: string | null | undefined): Date | null {
+    if (!value) return null;
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
   }
 
   /**
@@ -441,20 +427,22 @@ export class VoiceAgentResultService {
     agentCallId: string,
     token: string,
     payload: Record<string, unknown>,
-  ): Promise<boolean> {
+  ): Promise<VoiceAgentStatusCallbackResult> {
     const agentCall = await this.agentCalls.findById(agentCallId);
-    if (!agentCall?.callbackTokenHash) return false;
+    if (!agentCall?.callbackTokenHash) {
+      return { accepted: false, event: null };
+    }
     if (!safeHashEqual(agentCall.callbackTokenHash, hashApiKey(token))) {
       this.logger.warn(
         `Rejected a status callback for agent call ${agentCallId} (bad token)`,
       );
-      return false;
+      return { accepted: false, event: null };
     }
 
     const status = this.text(payload.CallStatus);
-    if (!status) return true;
+    if (!status) return { accepted: true, event: null };
 
-    await this.applyStatus(agentCall, {
+    const applied = await this.applyStatus(agentCall, {
       providerStatus: status,
       // The provider only names `CallControlId` on the terminal callback, but
       // every one of them carries `CallSid` — which in its telephony markup is
@@ -468,8 +456,9 @@ export class VoiceAgentResultService {
       answeredAt: this.text(payload.AnsweredTime),
       endedAt: this.text(payload.EndTime),
       hangupCause: this.text(payload.HangupCause),
+      payload,
     });
-    return true;
+    return { accepted: true, event: applied.event };
   }
 
   private text(value: unknown): string | null {

@@ -7,7 +7,6 @@ import "reflect-metadata";
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { CallStatus } from "@ringee/database";
 import { voiceAgentInsightsToken } from "@ringee/platform";
 import { VoiceAgentResultService } from "./voice-agent-result.service";
 
@@ -48,14 +47,11 @@ function build(
     turns?: Array<{ role: string; text: string; at: Date | null }>;
     transcriptError?: Error;
     alreadyTranscribed?: boolean;
-    completedCall?: Record<string, unknown> | null;
   } = {},
 ) {
   const updates: Array<Record<string, unknown>> = [];
   const transcripts: Array<Record<string, unknown>> = [];
   const attached: Array<Record<string, unknown>> = [];
-  const terminalEvents: Array<Record<string, unknown>> = [];
-  const completions: Array<Record<string, unknown>> = [];
 
   const service = new VoiceAgentResultService(
     {
@@ -79,30 +75,6 @@ function build(
       attachTelephony: async (id: string, data: Record<string, unknown>) => {
         attached.push({ id, ...data });
         return { id };
-      },
-      completeCall: async (
-        callControlId: string,
-        startedAt: string | undefined,
-        endedAt: string,
-        hangupCause: string | undefined,
-        terminalStatus: CallStatus,
-      ) => {
-        completions.push({
-          callControlId,
-          startedAt,
-          endedAt,
-          hangupCause,
-          terminalStatus,
-        });
-        return over.completedCall === undefined
-          ? {
-              id: "telephony-1",
-              userId: "user-1",
-              organizationId: "org-1",
-              status: terminalStatus,
-              endedAt: new Date("2026-09-07T14:00:00.000Z"),
-            }
-          : over.completedCall;
       },
     } as never,
     {
@@ -147,11 +119,6 @@ function build(
         return null;
       },
     } as never,
-    {
-      enqueueCallTerminal: async (call: Record<string, unknown>) => {
-        terminalEvents.push(call);
-      },
-    } as never,
   );
 
   return {
@@ -159,8 +126,6 @@ function build(
     updates,
     transcripts,
     attached,
-    terminalEvents,
-    completions,
   };
 }
 
@@ -281,87 +246,66 @@ describe("VoiceAgentResultService analysis callback", () => {
 });
 
 describe("VoiceAgentResultService call status", () => {
-  it("answers a non-terminal call when the provider reports it connected", async () => {
-    const { service, attached } = build({
-      call: {
-        id: "telephony-1",
-        callControlId: "cc-1",
-        callSessionId: null,
-        status: CallStatus.ringing,
-      },
-    });
+  it("normalizes a connected callback without writing the shared Call row", async () => {
+    const { service, attached } = build();
 
-    await service.applyStatus(AGENT_CALL as never, {
+    const applied = await service.applyStatus(AGENT_CALL as never, {
       providerStatus: "in-progress",
       callControlId: "cc-1",
       callSessionId: "session-1",
     });
 
-    assert.equal(attached[0]!.status, CallStatus.answered);
-    assert.ok(attached[0]!.answeredAt instanceof Date);
+    assert.deepEqual(attached, []);
+    assert.equal(applied.event?.type, "call.status");
+    assert.equal(applied.event?.callStatus?.callId, "telephony-1");
+    assert.equal(applied.event?.callStatus?.status, "in_progress");
+    assert.equal(applied.event?.callSessionId, "session-1");
   });
 
-  it("does not reopen terminal calls on a late connected callback", async () => {
-    for (const status of [CallStatus.completed, CallStatus.failed]) {
-      const { service, attached } = build({
-        call: {
-          id: "telephony-1",
-          callControlId: "cc-1",
-          callSessionId: null,
-          status,
-        },
-      });
+  it("normalizes a successful terminal for CallService", async () => {
+    const { service } = build();
 
-      await service.applyStatus(AGENT_CALL as never, {
-        providerStatus: "in-progress",
-        callControlId: "cc-1",
-        callSessionId: "session-late",
-      });
-
-      assert.equal(attached[0]!.callSessionId, "session-late");
-      assert.equal(attached[0]!.status, undefined);
-      assert.equal(attached[0]!.answeredAt, undefined);
-    }
-  });
-
-  it("publishes a terminal agent call to Custom Integrations", async () => {
-    const { service, terminalEvents, completions } = build();
-
-    await service.applyStatus(AGENT_CALL as never, {
+    const applied = await service.applyStatus(AGENT_CALL as never, {
       providerStatus: "completed",
       callControlId: "cc-1",
       endedAt: "2026-09-07T14:00:00.000Z",
     });
 
-    assert.equal(terminalEvents.length, 1);
-    assert.equal(terminalEvents[0]!.id, "telephony-1");
-    assert.equal(terminalEvents[0]!.status, CallStatus.completed);
-    assert.equal(completions[0]!.terminalStatus, CallStatus.completed);
+    assert.equal(applied.event?.callStatus?.status, "completed");
+    assert.equal(
+      applied.event?.callStatus?.endedAt?.toISOString(),
+      "2026-09-07T14:00:00.000Z",
+    );
   });
 
-  it("retains a provider failure before publishing to Custom Integrations", async () => {
-    const { service, terminalEvents, completions } = build();
+  it("preserves a provider failure for CallService", async () => {
+    const { service } = build();
 
-    await service.applyStatus(AGENT_CALL as never, {
+    const applied = await service.applyStatus(AGENT_CALL as never, {
       providerStatus: "failed",
       callControlId: "cc-1",
       hangupCause: "normal_temporary_failure",
     });
 
-    assert.equal(completions[0]!.terminalStatus, CallStatus.failed);
-    assert.equal(terminalEvents.length, 1);
-    assert.equal(terminalEvents[0]!.status, CallStatus.failed);
+    assert.equal(applied.event?.callStatus?.status, "failed");
+    assert.equal(
+      applied.event?.callStatus?.hangupCause,
+      "normal_temporary_failure",
+    );
   });
 
-  it("does not publish when the terminal callback cannot resolve its Call row", async () => {
-    const { service, terminalEvents } = build({ completedCall: null });
+  it("does not emit a shared lifecycle event without a stored Call id", async () => {
+    const { service } = build();
 
-    await service.applyStatus(AGENT_CALL as never, {
-      providerStatus: "completed",
-      callControlId: "cc-missing",
-    });
+    const applied = await service.applyStatus(
+      { ...AGENT_CALL, callId: null } as never,
+      {
+        providerStatus: "completed",
+        callControlId: "cc-1",
+      },
+    );
 
-    assert.deepEqual(terminalEvents, []);
+    assert.equal(applied.event, null);
   });
 });
 

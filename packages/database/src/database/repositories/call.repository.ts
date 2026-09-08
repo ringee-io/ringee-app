@@ -380,22 +380,40 @@ export class CallRepository {
       !call.outcome &&
       call.direction !== "inbound" &&
       call.direction !== "incoming";
-    // A later duplicate hangup must not turn an already persisted provider
-    // failure back into a successful completion.
-    const persistedTerminalStatus =
-      call.status === CallStatus.failed ? CallStatus.failed : terminalStatus;
+    const completionData = {
+      endedAt: endedAtDate,
+      startedAt: startedAtDate,
+      durationSeconds,
+      ...(hangupCause ? { hangupCause } : {}),
+      ...(neverConnected ? { outcome: CallOutcome.no_answer } : {}),
+    } satisfies Prisma.CallUpdateManyMutationInput;
 
-    return this.prisma.call.update({
-      where: { callControlId },
-      data: {
-        status: persistedTerminalStatus,
-        endedAt: endedAtDate,
-        startedAt: startedAtDate,
-        durationSeconds,
-        ...(hangupCause ? { hangupCause } : {}),
-        ...(neverConnected ? { outcome: CallOutcome.no_answer } : {}),
+    if (terminalStatus === CallStatus.failed) {
+      return this.prisma.call.update({
+        where: { callControlId },
+        data: { ...completionData, status: CallStatus.failed },
+      });
+    }
+
+    // Do not decide this from the row read above: a failed callback may commit
+    // between that read and this write. The status predicate is evaluated by
+    // the database while updating, so completed can never overwrite a failure
+    // that already won the race.
+    const completed = await this.prisma.call.updateMany({
+      where: {
+        callControlId,
+        status: { not: CallStatus.failed },
       },
+      data: { ...completionData, status: CallStatus.completed },
     });
+
+    if (completed.count > 0) {
+      return this.findByControlId(callControlId);
+    }
+
+    // The row is already failed. Return the winning state without letting a
+    // duplicate completion overwrite any of its terminal data.
+    return this.findByControlId(callControlId);
   }
 
   /** `null` for a missing/unparseable provider timestamp. */

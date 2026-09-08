@@ -8,7 +8,7 @@ import {
   Post,
 } from "@nestjs/common";
 import { Public } from "@ringee/platform";
-import { VoiceAgentResultService } from "@ringee/services";
+import { CallService, VoiceAgentResultService } from "@ringee/services";
 
 /**
  * Provider callbacks for AI voice agent calls.
@@ -27,7 +27,10 @@ import { VoiceAgentResultService } from "@ringee/services";
 export class AiVoiceAgentWebhookController {
   private readonly logger = new Logger(AiVoiceAgentWebhookController.name);
 
-  constructor(private readonly results: VoiceAgentResultService) {}
+  constructor(
+    private readonly results: VoiceAgentResultService,
+    private readonly calls: CallService,
+  ) {}
 
   @Public()
   @Post("status/:agentCallId/:token")
@@ -37,15 +40,18 @@ export class AiVoiceAgentWebhookController {
     @Param("token") token: string,
     @Body() body: Record<string, unknown>,
   ) {
-    const accepted = await this.results.applyStatusCallback(
+    const result = await this.results.applyStatusCallback(
       agentCallId,
       token,
       body ?? {},
     );
-    if (!accepted) {
+    if (!result.accepted) {
       this.logger.warn(
         `Discarded a status callback for agent call ${agentCallId}`,
       );
+    }
+    if (result.event) {
+      await this.calls.handleTelephonyEvent(result.event);
     }
     return { received: true };
   }

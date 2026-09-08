@@ -158,6 +158,7 @@ export class TelnyxEventNormalizer {
       startedAt: normalizeDate(payload.start_time),
       customHeaders: normalizeCustomHeaders(payload.custom_headers),
       conversation: normalizeConversation(type, payload),
+      callStatus: null,
       payload,
     };
   }
