@@ -48,11 +48,14 @@ function build(
     turns?: Array<{ role: string; text: string; at: Date | null }>;
     transcriptError?: Error;
     alreadyTranscribed?: boolean;
+    completedCall?: Record<string, unknown> | null;
   } = {},
 ) {
   const updates: Array<Record<string, unknown>> = [];
   const transcripts: Array<Record<string, unknown>> = [];
   const attached: Array<Record<string, unknown>> = [];
+  const terminalEvents: Array<Record<string, unknown>> = [];
+  const completions: Array<Record<string, unknown>> = [];
 
   const service = new VoiceAgentResultService(
     {
@@ -76,6 +79,30 @@ function build(
       attachTelephony: async (id: string, data: Record<string, unknown>) => {
         attached.push({ id, ...data });
         return { id };
+      },
+      completeCall: async (
+        callControlId: string,
+        startedAt: string | undefined,
+        endedAt: string,
+        hangupCause: string | undefined,
+        terminalStatus: CallStatus,
+      ) => {
+        completions.push({
+          callControlId,
+          startedAt,
+          endedAt,
+          hangupCause,
+          terminalStatus,
+        });
+        return over.completedCall === undefined
+          ? {
+              id: "telephony-1",
+              userId: "user-1",
+              organizationId: "org-1",
+              status: terminalStatus,
+              endedAt: new Date("2026-09-07T14:00:00.000Z"),
+            }
+          : over.completedCall;
       },
     } as never,
     {
@@ -120,9 +147,21 @@ function build(
         return null;
       },
     } as never,
+    {
+      enqueueCallTerminal: async (call: Record<string, unknown>) => {
+        terminalEvents.push(call);
+      },
+    } as never,
   );
 
-  return { service, updates, transcripts, attached };
+  return {
+    service,
+    updates,
+    transcripts,
+    attached,
+    terminalEvents,
+    completions,
+  };
 }
 
 describe("VoiceAgentResultService analysis callback", () => {
@@ -283,6 +322,46 @@ describe("VoiceAgentResultService call status", () => {
       assert.equal(attached[0]!.status, undefined);
       assert.equal(attached[0]!.answeredAt, undefined);
     }
+  });
+
+  it("publishes a terminal agent call to Custom Integrations", async () => {
+    const { service, terminalEvents, completions } = build();
+
+    await service.applyStatus(AGENT_CALL as never, {
+      providerStatus: "completed",
+      callControlId: "cc-1",
+      endedAt: "2026-09-07T14:00:00.000Z",
+    });
+
+    assert.equal(terminalEvents.length, 1);
+    assert.equal(terminalEvents[0]!.id, "telephony-1");
+    assert.equal(terminalEvents[0]!.status, CallStatus.completed);
+    assert.equal(completions[0]!.terminalStatus, CallStatus.completed);
+  });
+
+  it("retains a provider failure before publishing to Custom Integrations", async () => {
+    const { service, terminalEvents, completions } = build();
+
+    await service.applyStatus(AGENT_CALL as never, {
+      providerStatus: "failed",
+      callControlId: "cc-1",
+      hangupCause: "normal_temporary_failure",
+    });
+
+    assert.equal(completions[0]!.terminalStatus, CallStatus.failed);
+    assert.equal(terminalEvents.length, 1);
+    assert.equal(terminalEvents[0]!.status, CallStatus.failed);
+  });
+
+  it("does not publish when the terminal callback cannot resolve its Call row", async () => {
+    const { service, terminalEvents } = build({ completedCall: null });
+
+    await service.applyStatus(AGENT_CALL as never, {
+      providerStatus: "completed",
+      callControlId: "cc-missing",
+    });
+
+    assert.deepEqual(terminalEvents, []);
   });
 });
 

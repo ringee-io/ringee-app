@@ -13,8 +13,8 @@ const BASE_BACKOFF_MS = 2_000;
 const MAX_BACKOFF_MS = 5 * 60 * 1000;
 const REQUEST_TIMEOUT_MS = 15_000;
 // Deliveries are independent rows, so send them in small parallel waves: a
-// batch of 25 against dead endpoints (15s timeout each) drops from ~6min
-// sequential to ~1.5min, keeping the drain well inside its activity timeout.
+// batch of 100 against dead endpoints (15s timeout each) takes at most ~5min
+// in parallel waves, keeping the drain inside its activity timeout.
 const DRAIN_CONCURRENCY = 5;
 
 export interface DeliveryAttemptResult {

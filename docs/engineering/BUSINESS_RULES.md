@@ -614,7 +614,7 @@ Re-serializing the parsed body changes the bytes and breaks verification.
 ### HOOK-003 — Outbound events are signed and delivered through an outbox
 
 `Ringee-Signature: t=<unixSec>,v1=<hex>` over `<timestamp>.<body>`, drained by a
-Temporal schedule in batches of 25. Every event shares the envelope
+Temporal schedule every 5s in batches of 100. Every event shares the envelope
 `{ event, eventId, occurredAt, data }`, plus `workspaceId` and `integrationId`
 outbound.
 

@@ -342,6 +342,13 @@ export class CallRepository {
     startedAt: string | Date | null | undefined,
     endedAt: string | Date | null | undefined,
     hangupCause?: string,
+    /**
+     * The terminal state already decided by the lifecycle owner. Ordinary
+     * hangups complete; an explicit provider failure remains failed.
+     */
+    terminalStatus:
+      | typeof CallStatus.completed
+      | typeof CallStatus.failed = CallStatus.completed,
   ): Promise<Call | null> {
     const call = await this.findByControlId(callControlId);
 
@@ -373,11 +380,15 @@ export class CallRepository {
       !call.outcome &&
       call.direction !== "inbound" &&
       call.direction !== "incoming";
+    // A later duplicate hangup must not turn an already persisted provider
+    // failure back into a successful completion.
+    const persistedTerminalStatus =
+      call.status === CallStatus.failed ? CallStatus.failed : terminalStatus;
 
     return this.prisma.call.update({
       where: { callControlId },
       data: {
-        status: CallStatus.completed,
+        status: persistedTerminalStatus,
         endedAt: endedAtDate,
         startedAt: startedAtDate,
         durationSeconds,
