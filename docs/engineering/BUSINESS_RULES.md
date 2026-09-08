@@ -931,6 +931,19 @@ making repeated uncached AI calls.
 
 - **Source of truth:** `VoiceCloneReadingSampleService`
 
+### AGENT-013 — The agent's clock is refreshed in its selected time zone
+
+An assistant is long-lived, so a date or time embedded when it is saved becomes
+wrong. Every conversation prompt references Ringee-owned runtime variables for
+the call-start date/time and IANA time zone. Phone calls override those values
+on every dial; browser test sessions refresh them when the session opens. A
+missing time zone is explicitly UTC, and an invalid legacy value falls back to
+UTC rather than preventing the call.
+
+- **Source of truth:** `voiceAgentRuntimeVariables`,
+  `VoiceAgentCallService.startCall`, and
+  `VoiceAgentTestSessionService.start`
+
 ---
 
 ## Onboarding & lifecycle (`LIFE`)

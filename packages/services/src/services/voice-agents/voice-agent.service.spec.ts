@@ -17,7 +17,7 @@ function supportToolUrl(): string {
   return `${base}/api/ai-voice-agents/tools/agent-1/request-human-support`;
 }
 
-function build(currentWebhookUrls: string[]) {
+function build(currentWebhookUrls: string[], runtimeContextConfigured = true) {
   const syncs: string[] = [];
   const service = new VoiceAgentService(
     {} as never,
@@ -51,6 +51,7 @@ function build(currentWebhookUrls: string[]) {
         assistantId: "assistant-1",
         callingAppId: "calling-app-1",
         unauthenticatedWebCallsEnabled: false,
+        runtimeContextConfigured,
         toolWebhookUrls: currentWebhookUrls,
       }),
     } as never,
@@ -90,6 +91,14 @@ describe("VoiceAgentService tool delivery", () => {
     await service.ensureToolEndpoints(CTX, AGENT as never);
 
     assert.deepEqual(syncs, []);
+  });
+
+  it("re-syncs an older assistant whose prompt has no call-time clock", async () => {
+    const { service, syncs } = build([supportToolUrl()], false);
+
+    await service.ensureToolEndpoints(CTX, AGENT as never);
+
+    assert.deepEqual(syncs, ["agent-1"]);
   });
 
   it("re-syncs webhook tools that still point to an old backend", async () => {

@@ -223,4 +223,6 @@ export const RINGEE_DYNAMIC_VARIABLES = [
   "company_name",
   "company_description",
   "company_website",
+  "agent_timezone",
+  "current_datetime",
 ] as const;

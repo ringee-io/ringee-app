@@ -294,6 +294,15 @@ Consequences worth keeping:
   results name the conversation and nothing else: no call handle, which is why
   they cannot ride `/api/call/webhook`, whose normalizer drops any event with no
   `call_control_id`.
+- **The agent's clock is call-time context, not saved configuration**
+  (AGENT-013). Its prompt references `current_datetime` and `agent_timezone`;
+  every dial refreshes both from the agent's selected IANA time zone, so public
+  API and dashboard calls interpret “today” and “tomorrow” identically.
+- Agent calls publish the same applicable Custom Integration events as other
+  calls. The status callback emits the terminal event, post-call analysis emits
+  `call.outcome.updated`, a successful booking emits `meeting.created`, and the
+  artifact sweep emits `recording.ready` after the recovered recording is
+  durably stored. Each path uses the outbound outbox's replay-safe dedupe key.
 
 ### Voice delivery and turn-taking
 

@@ -42,8 +42,11 @@ function build(options: {
   variables?: Array<{ key: string; required: boolean }>;
   /** What the tool re-sync throws, for the test that it is best-effort. */
   toolSyncError?: Error;
+  /** Agent-local clock used for runtime context. */
+  timezone?: string | null;
 }) {
   const placed: Array<{ from: string }> = [];
+  const providerVariables: Array<Record<string, string>> = [];
   const contacts: ResolvedContact[] = [];
   const agent = {
     id: "agent-1",
@@ -52,6 +55,7 @@ function build(options: {
     providerAssistantId: "assistant-1",
     providerTexmlAppId: "app-1",
     callerNumberId: options.callerNumberId ?? null,
+    timezone: options.timezone ?? null,
   };
 
   const configured: string[] = [];
@@ -87,9 +91,13 @@ function build(options: {
       markForciblyEnded: async () => ({ id: "call-1" }),
     } as never,
     {
-      startCall: async (input: { from: string }) => {
+      startCall: async (input: {
+        from: string;
+        variables: Record<string, string>;
+      }) => {
         deliveryEvents.push("call:placed");
         placed.push({ from: input.from });
+        providerVariables.push(input.variables);
         return { providerCallId: "prov-1", callControlId: "cc-1" };
       },
     } as never,
@@ -118,6 +126,7 @@ function build(options: {
     configured,
     analysisEnsured,
     deliveryEvents,
+    providerVariables,
   };
 }
 
@@ -264,6 +273,18 @@ describe("VoiceAgentCallService contacts", () => {
  * created before Ringee configured these at all would otherwise never get one.
  */
 describe("VoiceAgentCallService calling application", () => {
+  it("supplies the agent-local date and time on every dial", async () => {
+    const { service, providerVariables } = build({
+      usable: [NUMBERS.miami],
+      timezone: "America/Santo_Domingo",
+    });
+
+    await service.startCall(CTX as never, "agent-1", { to: TO });
+
+    assert.equal(providerVariables[0]!.agent_timezone, "America/Santo_Domingo");
+    assert.match(providerVariables[0]!.current_datetime, /GMT-04:00$/);
+  });
+
   it("configures the calling application before placing the call", async () => {
     const { service, configured } = build({ usable: [NUMBERS.miami] });
 

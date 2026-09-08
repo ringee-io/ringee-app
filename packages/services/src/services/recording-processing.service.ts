@@ -164,27 +164,24 @@ export class RecordingProcessingService {
         (recording) => recording.status !== "completed",
       );
 
-      if (processingRecording) {
-        await this.recordingService.updateRecording(processingRecording.id, {
-          url: newUrl,
-          format: "mp3",
-          status: "completed",
-        });
-      } else {
-        await this.recordingService.createRecording({
-          callId: call.id,
-          url: newUrl,
-          format: "mp3",
-          status: "completed",
-        });
-      }
+      const completedRecording = processingRecording
+        ? await this.recordingService.updateRecording(processingRecording.id, {
+            url: newUrl,
+            format: "mp3",
+            status: "completed",
+          })
+        : await this.recordingService.createRecording({
+            callId: call.id,
+            url: newUrl,
+            format: "mp3",
+            status: "completed",
+          });
 
       // Best-effort: upload recording file to CRM
       try {
-        const recId = processingRecording?.id ?? recordings[0]?.id ?? call.id;
         await this.crmRecordingUpload.enqueueRecordingUpload(
           call.id,
-          recId,
+          completedRecording.id,
           publicUrl,
         );
       } catch (uploadErr) {

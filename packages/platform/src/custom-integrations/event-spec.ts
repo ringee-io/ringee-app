@@ -387,15 +387,17 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
   {
     name: "call.outcome.updated",
     direction: "outbound",
-    description: "The user recorded or changed the outcome of a call.",
+    description:
+      "A user recorded an outcome, or an AI voice agent produced its post-call outcome.",
     whenItFires:
-      "Fired whenever a Ringee user sets or changes a call outcome — may happen well after call.completed.",
+      "Fired when Ringee records or changes a call outcome — including an AI voice agent's post-call analysis — and may happen well after call.completed.",
     requiredFields: [
       { name: "data.callId", type: "string", description: "Ringee call UUID." },
       {
         name: "data.outcome",
         type: "string",
-        description: "CallOutcome value.",
+        description:
+          "CallOutcome value, or the AI voice agent's normalized outcome for an agent call.",
       },
       {
         name: "data.updatedAt",
@@ -412,6 +414,22 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       ENTITY_CONTACT,
       ENTITY_COMPANY,
       ENTITY_USER,
+      {
+        name: "data.agentCallId",
+        type: "string",
+        description: "AI voice-agent call UUID, when an agent placed the call.",
+      },
+      {
+        name: "data.agentId",
+        type: "string",
+        description: "AI voice-agent UUID, when an agent placed the call.",
+      },
+      {
+        name: "data.metadata",
+        type: "object",
+        description:
+          "Caller-supplied AI voice-agent metadata, when present on the call.",
+      },
     ],
     examplePayload: {
       event: "call.outcome.updated",
@@ -427,7 +445,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
     },
     notes: [
-      "If the user never records an outcome, this event is not sent.",
+      "If neither a user nor an AI voice agent records an outcome, this event is not sent.",
       "When the outcome is meeting_booked, a separate meeting.created event is also fired.",
     ],
   },

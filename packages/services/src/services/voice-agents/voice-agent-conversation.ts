@@ -1,5 +1,56 @@
 import type { VoiceAgentConversationSettings } from "./voice-agent.types";
 
+/**
+ * Runtime values Ringee owns and refreshes when a conversation starts.
+ *
+ * Provider assistants are long-lived, so putting a literal timestamp in their
+ * stored instructions would make it stale. The instructions reference these
+ * dynamic variables instead; phone calls override them per dial and browser
+ * test sessions refresh them when the session opens.
+ */
+export function voiceAgentRuntimeVariables(
+  timezone: string | null | undefined,
+  now = new Date(),
+): Record<string, string> {
+  const selectedTimezone = timezone?.trim() || "UTC";
+  const format = (timeZone: string) =>
+    new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      weekday: "long",
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hourCycle: "h23",
+      timeZoneName: "longOffset",
+    }).format(now);
+
+  try {
+    return {
+      agent_timezone: selectedTimezone,
+      current_datetime: format(selectedTimezone),
+    };
+  } catch {
+    // Older rows could predate IANA validation. A bad legacy value must not
+    // prevent a call; UTC is explicit and deterministic rather than guessed.
+    return {
+      agent_timezone: "UTC",
+      current_datetime: format("UTC"),
+    };
+  }
+}
+
+const RUNTIME_CONTEXT_INSTRUCTIONS = [
+  "## Ringee runtime context",
+  "",
+  "At the start of this conversation, the local date and time is",
+  "{{current_datetime}} in {{agent_timezone}}. Treat this value and time zone",
+  "as authoritative when interpreting relative dates such as today, tomorrow",
+  "or next week.",
+].join("\n");
+
 const GREETING_MODES = new Set<VoiceAgentConversationSettings["greetingMode"]>([
   "assistant_speaks_first",
   "assistant_generates_greeting",
@@ -69,6 +120,7 @@ export function composeVoiceAgentInstructions(
       ].join("\n"),
     );
   }
+  sections.push(RUNTIME_CONTEXT_INSTRUCTIONS);
   if (hasCustomInstructions || hasPostInstructions) {
     sections.push(safetyInstructions.trim());
   }
