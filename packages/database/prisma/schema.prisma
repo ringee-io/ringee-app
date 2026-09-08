@@ -30,6 +30,7 @@ enum CallOutcome {
   callback_scheduled
   not_interested
   no_answer
+  no_conversation
   voicemail
   wrong_number
   gatekeeper
@@ -3984,12 +3985,18 @@ enum AiVoiceAgentCallStatus {
 
 /// What the conversation achieved. A closed set — new members are additive.
 enum AiVoiceAgentOutcome {
+  // Legacy values remain readable for historical rows. New calls use the
+  // CallOutcome-aligned meeting_booked and callback_scheduled values below.
   appointment_booked
+  meeting_booked
   confirmed
   cannot_attend
   callback_requested
+  callback_scheduled
   not_interested
+  no_answer
   no_conversation
+  wrong_number
   unknown
 }
 

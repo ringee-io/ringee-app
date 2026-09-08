@@ -109,6 +109,7 @@
         "callback_scheduled": "Rückruf geplant",
         "not_interested": "Nicht interessiert",
         "no_answer": "Keine Antwort",
+        "no_conversation": "Kein Gespräch",
         "voicemail": "Voicemail",
         "wrong_number": "Falsche Nummer",
         "gatekeeper": "Vorzimmer"

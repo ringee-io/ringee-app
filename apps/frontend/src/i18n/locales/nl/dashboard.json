@@ -69,6 +69,7 @@
     "callback_scheduled": "Terugbelafspraak",
     "not_interested": "Niet geïnteresseerd",
     "no_answer": "Geen antwoord",
+    "no_conversation": "Geen gesprek",
     "voicemail": "Voicemail",
     "wrong_number": "Verkeerd nummer",
     "gatekeeper": "Gatekeeper"

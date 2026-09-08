@@ -69,6 +69,7 @@
     "callback_scheduled": "Devolución de llamada",
     "not_interested": "No interesado",
     "no_answer": "Sin respuesta",
+    "no_conversation": "Sin conversación",
     "voicemail": "Buzón de voz",
     "wrong_number": "Número equivocado",
     "gatekeeper": "Filtro"

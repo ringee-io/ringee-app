@@ -386,11 +386,15 @@
     "summary": "Riassunto",
     "outcomes": {
       "appointment_booked": "Appuntamento fissato",
+      "meeting_booked": "Riunione fissata",
       "confirmed": "Confermato",
       "cannot_attend": "Non può partecipare",
       "callback_requested": "Richiamata richiesta",
+      "callback_scheduled": "Richiamata programmata",
       "not_interested": "Non interessato",
+      "no_answer": "Nessuna risposta",
       "no_conversation": "Nessuna conversazione",
+      "wrong_number": "Numero errato",
       "unknown": "Sconosciuto"
     }
   },

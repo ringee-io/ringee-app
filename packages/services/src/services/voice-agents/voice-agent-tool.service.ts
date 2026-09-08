@@ -20,11 +20,13 @@ import {
 import { CalendarService } from "../calendar.service";
 import { ContactService } from "../contact.service";
 import { MeetingService } from "../meeting.service";
+import { CallbackService } from "../outbound/callback.service";
 import {
   AI_VOICE_AGENT_CONTACT_SOURCE,
   contactIdentityFromVariables,
 } from "./voice-agent.types";
 import { VoiceAgentHumanSupportService } from "./voice-agent-human-support.service";
+import { VoiceAgentResultService } from "./voice-agent-result.service";
 
 /**
  * Headers the provider sends: the shared secret it holds for this agent, and
@@ -37,6 +39,7 @@ export const VOICE_AGENT_CALL_ID_HEADER = "x-ringee-call-control-id";
 const MAX_OFFERED_SLOTS = 3;
 const SUPPORT_SUBJECT_MAX = 120;
 const SUPPORT_MESSAGE_MAX = 2000;
+const CALLBACK_NOTE_MAX = 2000;
 
 /** Result shapes the model reads back. Failures are data, not exceptions. */
 export type ToolResult<T> = ({ ok: true } & T) | { ok: false; error: string };
@@ -54,6 +57,11 @@ const NATURAL_SLOT_SPEECH_INSTRUCTION =
 
 export interface BookAppointmentResult {
   appointment: { id: string; start: string; end: string; link?: string };
+}
+
+export interface ScheduleCallbackResult {
+  callback: { id: string; scheduled_at: string; status: string };
+  speech_instruction: string;
 }
 
 export interface HumanSupportResult {
@@ -89,6 +97,8 @@ export class VoiceAgentToolService {
     private readonly meetings: MeetingService,
     private readonly contacts: ContactService,
     private readonly humanSupport: VoiceAgentHumanSupportService,
+    private readonly callbacks: CallbackService,
+    private readonly results: VoiceAgentResultService,
   ) {}
 
   async getAvailableSlots(
@@ -169,7 +179,10 @@ export class VoiceAgentToolService {
         ctx,
         agentCall.meetingId,
       );
-      if (agentCall.outcome !== AiVoiceAgentOutcome.appointment_booked) {
+      if (
+        agentCall.outcome !== AiVoiceAgentOutcome.meeting_booked &&
+        agentCall.outcome !== AiVoiceAgentOutcome.appointment_booked
+      ) {
         await this.repairAppointmentOutcome(agentCall.id);
       }
       const bookedStart = new Date(booked.scheduledAt);
@@ -237,7 +250,7 @@ export class VoiceAgentToolService {
         // It is also what the duplicate guard above reads on a retry.
         await this.agentCalls.update(agentCall.id, {
           meetingId: meeting.id,
-          outcome: AiVoiceAgentOutcome.appointment_booked,
+          outcome: AiVoiceAgentOutcome.meeting_booked,
         });
       }
 
@@ -272,7 +285,7 @@ export class VoiceAgentToolService {
   private async repairAppointmentOutcome(agentCallId: string): Promise<void> {
     const repair = () =>
       this.agentCalls.update(agentCallId, {
-        outcome: AiVoiceAgentOutcome.appointment_booked,
+        outcome: AiVoiceAgentOutcome.meeting_booked,
       });
 
     try {
@@ -291,6 +304,108 @@ export class VoiceAgentToolService {
       const message = error instanceof Error ? error.message : String(error);
       this.logger.warn(
         `Booked outcome repair retry failed for agent call ${agentCallId}: ${message}`,
+      );
+    }
+  }
+
+  async scheduleCallback(
+    agentId: string,
+    secret: string,
+    callControlId: string | null,
+    input: { scheduled_at?: string; note?: string },
+  ): Promise<ToolResult<ScheduleCallbackResult>> {
+    const { agent, ctx } = await this.authorize(agentId, secret);
+    if (!callControlId) {
+      return {
+        ok: false,
+        error: "The current call could not be identified for a callback.",
+      };
+    }
+
+    const scheduledAt = this.parseOffsetDate(input.scheduled_at);
+    if (!scheduledAt) {
+      return {
+        ok: false,
+        error:
+          "The callback time must be a valid ISO 8601 date and time with a timezone offset.",
+      };
+    }
+    if (scheduledAt.getTime() <= Date.now()) {
+      return { ok: false, error: "The callback time is already in the past." };
+    }
+
+    const agentCall = await this.agentCalls.findByCallControlId(callControlId);
+    if (!agentCall?.callId) {
+      return {
+        ok: false,
+        error: "The current call could not be found for a callback.",
+      };
+    }
+    if (agentCall.agentId !== agent.id) {
+      throw new UnauthorizedException("Call does not belong to this agent");
+    }
+
+    const contactId = await this.resolveContactId(ctx, agentCall);
+    if (!contactId) {
+      return {
+        ok: false,
+        error: "There is no contact to schedule this callback for.",
+      };
+    }
+
+    try {
+      const callback = await this.callbacks.scheduleFromVoiceAgent({
+        agentCallId: agentCall.id,
+        userId: agentCall.userId,
+        organizationId: agentCall.organizationId,
+        contactId,
+        callId: agentCall.callId,
+        scheduledAt,
+        note: this.supportText(input.note, CALLBACK_NOTE_MAX) || undefined,
+      });
+
+      await this.recordCallbackOutcome(agentCall);
+
+      return {
+        ok: true,
+        callback: {
+          id: callback.id,
+          scheduled_at: callback.scheduledAt.toISOString(),
+          status: callback.status,
+        },
+        speech_instruction:
+          "Confirm the callback date and time naturally, thank the person, and end the call.",
+      };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Callback scheduling failed for agent ${agentId}: ${message}`,
+      );
+      return {
+        ok: false,
+        error:
+          "The callback could not be scheduled. Do not promise that the call will happen.",
+      };
+    }
+  }
+
+  private async recordCallbackOutcome(
+    agentCall: AiVoiceAgentCall,
+  ): Promise<void> {
+    try {
+      await this.results.applyKnownOutcome(
+        agentCall,
+        AiVoiceAgentOutcome.callback_scheduled,
+      );
+    } catch (error) {
+      this.logger.warn(
+        `Failed to record callback outcome for agent call ${agentCall.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      await this.results.applyKnownOutcome(
+        agentCall,
+        AiVoiceAgentOutcome.callback_scheduled,
       );
     }
   }
@@ -422,6 +537,14 @@ export class VoiceAgentToolService {
     if (!start?.trim()) return null;
     const parsed = new Date(start.trim());
     return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  private parseOffsetDate(value: string | undefined): Date | null {
+    const trimmed = value?.trim() ?? "";
+    if (!/^\d{4}-\d{2}-\d{2}T.+(?:Z|[+-]\d{2}:\d{2})$/i.test(trimmed)) {
+      return null;
+    }
+    return this.parseStart(trimmed);
   }
 
   private supportText(value: string | undefined, maxLength: number): string {

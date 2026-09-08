@@ -1,5 +1,6 @@
 import {
   forwardRef,
+  ConflictException,
   Inject,
   Injectable,
   Logger,
@@ -7,6 +8,7 @@ import {
 } from "@nestjs/common";
 import {
   CallbackTaskRepository,
+  AiVoiceAgentCallRepository,
   CampaignLeadRepository,
   CampaignRepository,
   CallbackStatus,
@@ -17,6 +19,7 @@ import { ReminderService } from "../reminders/reminder.service";
 import { ContactRepository } from "@ringee/database";
 import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
 import { buildCallbackEventData } from "../custom-integrations/custom-integration-event-builders";
+import { VoiceAgentCallService } from "../voice-agents/voice-agent-call.service";
 
 @Injectable()
 export class CallbackService {
@@ -30,6 +33,8 @@ export class CallbackService {
     private readonly reminderService: ReminderService,
     private readonly contactRepo: ContactRepository,
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
+    private readonly agentCalls: AiVoiceAgentCallRepository,
+    private readonly voiceAgentCalls: VoiceAgentCallService,
   ) {}
 
   private async enqueueCallbackCreated(callback: {
@@ -165,6 +170,59 @@ export class CallbackService {
     return callback;
   }
 
+  /**
+   * Schedule one replay-safe callback from a live AI voice-agent conversation.
+   *
+   * The source agent-call UUID is also the callback UUID. They live in separate
+   * tables, and the deterministic key gives provider retries a database-backed
+   * idempotency marker without adding another public identifier or schema field.
+   */
+  async scheduleFromVoiceAgent(data: {
+    agentCallId: string;
+    userId: string;
+    organizationId: string | null;
+    contactId: string;
+    callId: string;
+    scheduledAt: Date;
+    note?: string;
+  }) {
+    const { callback, created } = await this.callbackRepo.createOnce({
+      id: data.agentCallId,
+      userId: data.userId,
+      organizationId: data.organizationId,
+      contactId: data.contactId,
+      callId: data.callId,
+      scheduledAt: data.scheduledAt,
+      note: data.note,
+    });
+
+    // A same-id row can only be accepted as this tool's prior write. This also
+    // fails closed if seeded/test data ever reuses an id across the two tables.
+    if (
+      callback.userId !== data.userId ||
+      callback.organizationId !== data.organizationId ||
+      callback.contactId !== data.contactId ||
+      callback.callId !== data.callId
+    ) {
+      throw new ConflictException("Callback id is already in use");
+    }
+
+    if (created) {
+      await this.scheduleReminders(
+        data.userId,
+        data.organizationId,
+        callback.id,
+        data.scheduledAt,
+      );
+      await this.enqueueCallbackCreated(callback);
+      this.logger.debug(
+        `AI voice-agent callback ${callback.id} scheduled at ${data.scheduledAt.toISOString()}`,
+      );
+    }
+
+    return callback;
+  }
+
   async listForOwner(
     owner: { userId: string; organizationId?: string | null },
     options?: {
@@ -256,7 +314,8 @@ export class CallbackService {
   /**
    * Process callbacks that are due. Called by the CallbackScheduler worker.
    * For campaign-bound callbacks, transitions the lead back to queued with
-   * high priority so the dialer picks it up. Standalone callbacks just flip
+   * high priority so the dialer picks it up. Voice-agent callbacks place the
+   * follow-up call after an atomic claim; other standalone callbacks just flip
    * to `due` — the user is notified via reminder.
    */
   async processDueCallbacks(): Promise<number> {
@@ -264,7 +323,64 @@ export class CallbackService {
     let count = 0;
 
     for (const callback of dueCallbacks) {
-      await this.callbackRepo.updateStatus(callback.id, CallbackStatus.due);
+      const sourceAgentCall = callback.callId
+        ? await this.agentCalls.findByCallId(callback.callId)
+        : null;
+
+      // Only callbacks created by the live-agent tool reuse the source call's
+      // UUID. A human may also schedule a reminder from an AI call; that remains
+      // a human callback and must not unexpectedly place an automated call.
+      if (
+        sourceAgentCall &&
+        callback.id === sourceAgentCall.id &&
+        callback.userId === sourceAgentCall.userId &&
+        callback.organizationId === sourceAgentCall.organizationId
+      ) {
+        const claimed = await this.callbackRepo.claimScheduled(callback.id);
+        if (!claimed) continue;
+
+        try {
+          await this.voiceAgentCalls.startCall(
+            {
+              userId: sourceAgentCall.userId,
+              organizationId: sourceAgentCall.organizationId,
+            },
+            sourceAgentCall.agentId,
+            {
+              to: sourceAgentCall.toNumber,
+              variables: this.stringRecord(sourceAgentCall.variables),
+              metadata: this.objectRecord(sourceAgentCall.metadata),
+            },
+          );
+          await this.callbackRepo.updateStatus(
+            callback.id,
+            CallbackStatus.completed,
+            new Date(),
+          );
+          count++;
+          this.logger.debug(
+            `AI voice-agent callback ${callback.id} placed successfully`,
+          );
+        } catch (error) {
+          // The CAS above guarantees at-most-once dialing. A policy failure
+          // (DNC, no balance, disabled agent) is terminal for this scheduled
+          // callback and must not become a call every minute forever.
+          await this.callbackRepo.updateStatus(
+            callback.id,
+            CallbackStatus.missed,
+          );
+          count++;
+          this.logger.warn(
+            `AI voice-agent callback ${callback.id} could not be placed: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+          );
+        }
+        continue;
+      }
+
+      const due = await this.callbackRepo.markDueIfScheduled(callback.id);
+      if (!due) continue;
 
       if (callback.campaignLeadId) {
         await this.campaignLeadRepo.updateStatus(
@@ -279,6 +395,21 @@ export class CallbackService {
     }
 
     return count;
+  }
+
+  private stringRecord(value: unknown): Record<string, string> {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+    return Object.fromEntries(
+      Object.entries(value).filter(
+        (entry): entry is [string, string] => typeof entry[1] === "string",
+      ),
+    );
+  }
+
+  private objectRecord(value: unknown): Record<string, unknown> {
+    return value && typeof value === "object" && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
   }
 
   async markCompleted(id: string) {

@@ -386,11 +386,15 @@
     "summary": "Résumé",
     "outcomes": {
       "appointment_booked": "Rendez-vous pris",
+      "meeting_booked": "Rendez-vous pris",
       "confirmed": "Confirmé",
       "cannot_attend": "Ne peut pas venir",
       "callback_requested": "Rappel demandé",
+      "callback_scheduled": "Rappel programmé",
       "not_interested": "Pas intéressé",
+      "no_answer": "Sans réponse",
       "no_conversation": "Pas de conversation",
+      "wrong_number": "Mauvais numéro",
       "unknown": "Inconnu"
     }
   },

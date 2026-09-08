@@ -28,6 +28,7 @@ const OUTCOMES: Record<CallOutcome, OutcomeConfig> = {
   callback_scheduled: { icon: Clock4, color: "var(--info)" },
   not_interested: { icon: ThumbsDown, color: "var(--muted-foreground)" },
   no_answer: { icon: PhoneMissed, color: "var(--warning)" },
+  no_conversation: { icon: PhoneMissed, color: "var(--warning)" },
   voicemail: { icon: Voicemail, color: "var(--warning)" },
   wrong_number: { icon: PhoneOff, color: "var(--destructive)" },
   gatekeeper: { icon: PhoneOff, color: "var(--warning)" },

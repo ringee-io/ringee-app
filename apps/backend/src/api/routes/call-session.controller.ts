@@ -37,6 +37,7 @@ const VALID_OUTCOMES = new Set<string>([
   CallOutcome.callback_scheduled,
   CallOutcome.not_interested,
   CallOutcome.no_answer,
+  CallOutcome.no_conversation,
   CallOutcome.voicemail,
   CallOutcome.wrong_number,
   CallOutcome.gatekeeper,

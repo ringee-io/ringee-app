@@ -556,17 +556,22 @@
       "callback_scheduled": "Callback scheduled",
       "not_interested": "Not interested",
       "no_answer": "No answer",
+      "no_conversation": "No conversation",
       "voicemail": "Voicemail",
       "wrong_number": "Wrong number",
       "gatekeeper": "Gatekeeper"
     },
     "agentOutcomes": {
       "appointment_booked": "Appointment booked",
+      "meeting_booked": "Meeting booked",
       "confirmed": "Confirmed",
       "cannot_attend": "Cannot attend",
       "callback_requested": "Callback requested",
+      "callback_scheduled": "Callback scheduled",
       "not_interested": "Not interested",
+      "no_answer": "No answer",
       "no_conversation": "No conversation",
+      "wrong_number": "Wrong number",
       "unknown": "Unknown"
     },
     "sentiments": {

@@ -289,17 +289,22 @@
       "callback_scheduled": "Retorno agendado",
       "not_interested": "Sem interesse",
       "no_answer": "Sem resposta",
+      "no_conversation": "Sem conversa",
       "voicemail": "Correio de voz",
       "wrong_number": "Número errado",
       "gatekeeper": "Filtro"
     },
     "agentOutcomes": {
       "appointment_booked": "Marcação feita",
+      "meeting_booked": "Reunião marcada",
       "confirmed": "Confirmado",
       "cannot_attend": "Não pode comparecer",
       "callback_requested": "Pediu retorno",
+      "callback_scheduled": "Retorno agendado",
       "not_interested": "Sem interesse",
+      "no_answer": "Sem resposta",
       "no_conversation": "Sem conversa",
+      "wrong_number": "Número errado",
       "unknown": "Desconhecido"
     },
     "sentiments": {

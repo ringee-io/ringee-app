@@ -10,6 +10,7 @@ import type {
   VoiceAgentVariableDefinition,
 } from "../voice-agent.types";
 import { buildSharedInsights } from "./insights";
+import { buildScheduleCallbackTool } from "./callback.tool";
 import {
   buildHumanSupportTool,
   voiceAgentWebhookHeaders,
@@ -35,10 +36,12 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
   readonly requiresCalendar = false;
 
   readonly outcomes: AiVoiceAgentOutcome[] = [
-    AiVoiceAgentOutcome.appointment_booked,
-    AiVoiceAgentOutcome.callback_requested,
+    AiVoiceAgentOutcome.meeting_booked,
+    AiVoiceAgentOutcome.callback_scheduled,
     AiVoiceAgentOutcome.not_interested,
+    AiVoiceAgentOutcome.no_answer,
     AiVoiceAgentOutcome.no_conversation,
+    AiVoiceAgentOutcome.wrong_number,
     AiVoiceAgentOutcome.unknown,
   ];
 
@@ -111,7 +114,8 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "",
       "- Open by saying who you are and why you are calling, then ask whether now",
       "  is a good moment.",
-      "- If they are busy, ask for a better time to call back and end politely.",
+      "- If they are busy, agree on a specific future date and time, call",
+      "  `schedule_callback`, and end politely only after it succeeds.",
       "- Answer their questions honestly from what you know. If you do not know",
       "  something and they want an answer, say so and call",
       "  `request_human_support` so a person can follow up.",
@@ -149,6 +153,9 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "   says.",
       "9. Ask for an email address only when `Email on file` is empty, or when",
       "   the person says the address on file is wrong.",
+      "10. If a callback is requested, confirm one exact future date and time and",
+      "   call `schedule_callback`. Only say it is scheduled after the tool",
+      "   returns success. If it fails, do not promise the callback.",
       "",
       "## Ending the call",
       "",
@@ -204,6 +211,8 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       "  pass {{email}} unchanged to `book_appointment`; do not reconstruct it",
       "  from the transcript. Ask for an address only if {{email}} is empty or",
       "  the person says it is wrong.",
+      "- Only promise a callback after agreeing on an exact future date and time",
+      "  and `schedule_callback` returns success.",
       "- Never invent prices, policies, availability or company facts.",
       "- If the person asks for a human, or any webhook tool fails and a person",
       "  must finish the request, call `request_human_support`. Only promise a",
@@ -269,6 +278,7 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
           required: ["start"],
         },
       },
+      buildScheduleCallbackTool(ctx),
       buildHumanSupportTool(ctx),
       {
         kind: "hangup",
@@ -288,9 +298,9 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
       ctx,
       this.outcomes,
       [
-        `Use "${AiVoiceAgentOutcome.appointment_booked}" only when the booking tool`,
-        `actually confirmed a meeting. Use "${AiVoiceAgentOutcome.callback_requested}"`,
-        "when they asked to be contacted again at another time, and",
+        `Use "${AiVoiceAgentOutcome.meeting_booked}" only when the booking tool`,
+        `actually confirmed a meeting. Use "${AiVoiceAgentOutcome.callback_scheduled}" only`,
+        "when the callback tool actually scheduled another call, and",
         `"${AiVoiceAgentOutcome.not_interested}" when they declined.`,
       ].join(" "),
     );

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import {
+  AiVoiceAgentCallRepository,
   Call,
   CustomIntegrationDeliveryRepository,
   CustomIntegrationEventType,
@@ -16,6 +17,7 @@ import {
   buildCallEventData,
   callOwnershipFromCall,
   pickCallTerminalEvent,
+  voiceAgentExternalId,
 } from "./custom-integration-event-builders";
 
 export interface OutboundEventEnvelope {
@@ -34,6 +36,7 @@ export class CustomIntegrationOutboundService {
   constructor(
     private readonly integrations: CustomIntegrationRepository,
     private readonly deliveries: CustomIntegrationDeliveryRepository,
+    private readonly agentCalls: AiVoiceAgentCallRepository,
   ) {}
 
   /**
@@ -78,6 +81,7 @@ export class CustomIntegrationOutboundService {
       const eventName =
         OUTBOUND_EVENT_ENUM_TO_NAME[input.eventEnum as OutboundEventEnum];
       const occurredAt = (input.occurredAt ?? new Date()).toISOString();
+      const data = await this.withVoiceAgentExternalId(input.ctx, input.data);
 
       for (const integration of integrations) {
         if (!integration.outboundUrl) continue;
@@ -88,7 +92,7 @@ export class CustomIntegrationOutboundService {
           occurredAt,
           workspaceId: integration.organizationId ?? integration.userId,
           integrationId: integration.id,
-          data: input.data,
+          data,
         };
         await this.deliveries.enqueue({
           integrationId: integration.id,
@@ -106,5 +110,31 @@ export class CustomIntegrationOutboundService {
         }`,
       );
     }
+  }
+
+  /**
+   * Every event tied to an AI voice-agent call carries the caller's external
+   * correlation id at `data.externalId`. Meeting, callback and recording events
+   * all expose their source `callId`, so one central lookup covers the entire
+   * fan-out instead of relying on each producer to remember the metadata.
+   */
+  private async withVoiceAgentExternalId(
+    ctx: OwnershipContext,
+    data: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    if (typeof data.externalId === "string" && data.externalId.trim()) {
+      return data;
+    }
+    const callId = typeof data.callId === "string" ? data.callId : null;
+    if (!callId) return data;
+
+    const agentCall = await this.agentCalls.findByCallId(callId);
+    const owned = ctx.organizationId
+      ? agentCall?.organizationId === ctx.organizationId
+      : agentCall?.organizationId === null && agentCall.userId === ctx.userId;
+    if (!owned) return data;
+
+    const externalId = voiceAgentExternalId(agentCall?.metadata);
+    return externalId ? { ...data, externalId } : data;
   }
 }

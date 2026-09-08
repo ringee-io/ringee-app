@@ -296,6 +296,12 @@ const ENTITY_USER = {
   type: "object",
   description: "Ringee user reference: { id, email?, fullName? }",
 };
+const VOICE_AGENT_EXTERNAL_ID = {
+  name: "data.externalId",
+  type: "string",
+  description:
+    "Caller-supplied external_id from the originating AI voice-agent call. Present on every event produced by that call when supplied.",
+};
 
 export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
   {
@@ -333,6 +339,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
     ],
     optionalFields: [
+      VOICE_AGENT_EXTERNAL_ID,
       ENTITY_CONTACT,
       ENTITY_COMPANY,
       ENTITY_USER,
@@ -365,6 +372,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       integrationId: "ci_…",
       data: {
         callId: "f3b1…",
+        externalId: "crm-123",
         fromNumber: "+14155550100",
         toNumber: "+14155550123",
         status: "completed",
@@ -397,7 +405,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
         name: "data.outcome",
         type: "string",
         description:
-          "CallOutcome value, or the AI voice agent's normalized outcome for an agent call.",
+          "CallOutcome value. AI voice agents use the same canonical names, including meeting_booked and callback_scheduled.",
       },
       {
         name: "data.updatedAt",
@@ -406,6 +414,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
     ],
     optionalFields: [
+      VOICE_AGENT_EXTERNAL_ID,
       {
         name: "data.outcomeNote",
         type: "string",
@@ -439,6 +448,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       integrationId: "ci_…",
       data: {
         callId: "f3b1…",
+        externalId: "crm-123",
         outcome: "meeting_booked",
         outcomeNote: "Demo scheduled for next Tuesday",
         updatedAt: "2026-05-23T14:50:00.000Z",
@@ -447,6 +457,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     notes: [
       "If neither a user nor an AI voice agent records an outcome, this event is not sent.",
       "When the outcome is meeting_booked, a separate meeting.created event is also fired.",
+      "AI voice-agent calls report no pickup, busy and voicemail as no_answer; no_conversation means the call was answered without a meaningful exchange.",
     ],
   },
   {
@@ -517,10 +528,11 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     ],
     optionalFields: [
       {
-        name: "data.call",
-        type: "object",
-        description: "Originating call reference.",
+        name: "data.callId",
+        type: "string",
+        description: "Originating Ringee call UUID.",
       },
+      VOICE_AGENT_EXTERNAL_ID,
       { name: "data.note", type: "string", description: "Free-text note." },
       ENTITY_USER,
     ],
@@ -532,13 +544,15 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       integrationId: "ci_…",
       data: {
         callbackId: "cb_…",
+        callId: "f3b1…",
+        externalId: "crm-123",
         contact: {
           id: "…",
           externalId: "ext_contact_42",
           phoneNumber: "+14155550123",
         },
         scheduledAt: "2026-05-24T10:00:00.000Z",
-        status: "pending",
+        status: "scheduled",
         createdAt: "2026-05-23T15:05:00.000Z",
       },
     },
@@ -571,10 +585,11 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     ],
     optionalFields: [
       {
-        name: "data.call",
-        type: "object",
-        description: "Originating call reference.",
+        name: "data.callId",
+        type: "string",
+        description: "Originating Ringee call UUID.",
       },
+      VOICE_AGENT_EXTERNAL_ID,
       { name: "data.title", type: "string", description: "Meeting title." },
       {
         name: "data.duration",
@@ -602,6 +617,8 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       integrationId: "ci_…",
       data: {
         meetingId: "m_…",
+        callId: "f3b1…",
+        externalId: "crm-123",
         contact: {
           id: "…",
           externalId: "ext_contact_42",
@@ -641,6 +658,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
     ],
     optionalFields: [
+      VOICE_AGENT_EXTERNAL_ID,
       {
         name: "data.format",
         type: "string",
@@ -666,6 +684,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       data: {
         recordingId: "r_…",
         callId: "f3b1…",
+        externalId: "crm-123",
         url: "https://recordings.ringee.app/...",
         format: "mp3",
         durationSec: 142,
@@ -700,6 +719,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
     ],
     optionalFields: [
+      VOICE_AGENT_EXTERNAL_ID,
       ENTITY_CONTACT,
       ENTITY_COMPANY,
       ENTITY_USER,
@@ -749,6 +769,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
     ],
     optionalFields: [
+      VOICE_AGENT_EXTERNAL_ID,
       ENTITY_CONTACT,
       ENTITY_COMPANY,
       ENTITY_USER,
@@ -771,6 +792,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       integrationId: "ci_…",
       data: {
         callId: "c_…",
+        externalId: "crm-123",
         fromNumber: "+14155550100",
         toNumber: "+14155550123",
         occurredAt: "2026-05-23T15:25:00.000Z",

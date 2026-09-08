@@ -69,6 +69,7 @@
     "callback_scheduled": "Callback Scheduled",
     "not_interested": "Not Interested",
     "no_answer": "No Answer",
+    "no_conversation": "No Conversation",
     "voicemail": "Voicemail",
     "wrong_number": "Wrong Number",
     "gatekeeper": "Gatekeeper"

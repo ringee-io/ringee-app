@@ -61,4 +61,20 @@ export class AiVoiceAgentToolController {
       body ?? {},
     );
   }
+
+  @Public()
+  @Post(":agentId/schedule-callback")
+  scheduleCallback(
+    @Param("agentId") agentId: string,
+    @Headers(VOICE_AGENT_TOOL_SECRET_HEADER) secret: string,
+    @Headers(VOICE_AGENT_CALL_ID_HEADER) callControlId: string,
+    @Body() body: { scheduled_at?: string; note?: string },
+  ) {
+    return this.tools.scheduleCallback(
+      agentId,
+      secret,
+      callControlId ?? null,
+      body ?? {},
+    );
+  }
 }

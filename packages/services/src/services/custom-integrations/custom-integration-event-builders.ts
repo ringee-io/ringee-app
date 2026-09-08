@@ -5,6 +5,7 @@
 
 import {
   AiVoiceAgentCall,
+  AiVoiceAgentOutcome,
   Call,
   CallbackTask,
   CallStatus,
@@ -98,10 +99,43 @@ export function buildCallOutcomeData(call: Call): Record<string, unknown> {
 }
 
 /**
- * AI voice-agent analyses own a wider outcome vocabulary than `CallOutcome`.
- * Keep the public event on the same call-oriented envelope while preserving
- * the agent's actual conclusion instead of coercing it into an unrelated
- * human-dialer disposition.
+ * Caller-owned correlation id carried by an AI voice-agent call.
+ *
+ * The public trigger has historically accepted snake_case metadata, while the
+ * webhook contract is camelCase. Read both so every event produced by the call
+ * can expose one stable `data.externalId` without making consumers inspect an
+ * arbitrary metadata object.
+ */
+export function voiceAgentExternalId(metadata: unknown): string | undefined {
+  if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) {
+    return undefined;
+  }
+  const record = metadata as Record<string, unknown>;
+  for (const value of [record.external_id, record.externalId]) {
+    if (typeof value === "string" && value.trim()) return value.trim();
+  }
+  return undefined;
+}
+
+/** Public call-outcome vocabulary used by Custom Integration consumers. */
+export function normalizeVoiceAgentOutcome(
+  outcome: AiVoiceAgentOutcome | null,
+): AiVoiceAgentOutcome | null {
+  switch (outcome) {
+    case AiVoiceAgentOutcome.appointment_booked:
+      return AiVoiceAgentOutcome.meeting_booked;
+    case AiVoiceAgentOutcome.callback_requested:
+      return AiVoiceAgentOutcome.callback_scheduled;
+    default:
+      return outcome;
+  }
+}
+
+/**
+ * AI voice-agent analyses own a wider internal vocabulary than `CallOutcome`.
+ * Tool-backed results are translated to the stable public call dispositions:
+ * an actual booking is `meeting_booked`, and an actual scheduled callback is
+ * `callback_scheduled`.
  */
 export function buildVoiceAgentCallOutcomeData(
   agentCall: Pick<
@@ -109,11 +143,13 @@ export function buildVoiceAgentCallOutcomeData(
     "id" | "agentId" | "callId" | "outcome" | "metadata" | "updatedAt"
   >,
 ): Record<string, unknown> {
+  const externalId = voiceAgentExternalId(agentCall.metadata);
   return {
     callId: agentCall.callId,
     agentCallId: agentCall.id,
     agentId: agentCall.agentId,
-    outcome: agentCall.outcome,
+    outcome: normalizeVoiceAgentOutcome(agentCall.outcome),
+    externalId,
     metadata: agentCall.metadata ?? undefined,
     updatedAt: agentCall.updatedAt.toISOString(),
   };
@@ -138,6 +174,7 @@ export function buildCallbackEventData(
 ): Record<string, unknown> {
   return {
     callbackId: callback.id,
+    callId: callback.callId ?? undefined,
     contact: contactRef(contact),
     scheduledAt: callback.scheduledAt.toISOString(),
     status: callback.status,
@@ -152,6 +189,7 @@ export function buildMeetingEventData(
 ): Record<string, unknown> {
   return {
     meetingId: meeting.id,
+    callId: meeting.callId ?? undefined,
     contact: contactRef(contact),
     scheduledAt: meeting.scheduledAt?.toISOString(),
     status: meeting.status,

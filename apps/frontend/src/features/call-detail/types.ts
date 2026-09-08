@@ -24,6 +24,7 @@ export type CallOutcome =
   | 'callback_scheduled'
   | 'not_interested'
   | 'no_answer'
+  | 'no_conversation'
   | 'voicemail'
   | 'wrong_number'
   | 'gatekeeper';
@@ -41,11 +42,15 @@ export type AiVoiceAgentCallStatus =
 
 export type AiVoiceAgentOutcome =
   | 'appointment_booked'
+  | 'meeting_booked'
   | 'confirmed'
   | 'cannot_attend'
   | 'callback_requested'
+  | 'callback_scheduled'
   | 'not_interested'
+  | 'no_answer'
   | 'no_conversation'
+  | 'wrong_number'
   | 'unknown';
 
 export type AiVoiceAgentType =

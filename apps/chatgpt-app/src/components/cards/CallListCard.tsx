@@ -48,6 +48,7 @@ function outcomeVariant(
       return "destructive";
     case "gatekeeper":
     case "no_answer":
+    case "no_conversation":
     case "voicemail":
       return "warning";
     default:

@@ -27,21 +27,25 @@ export interface CallbackOwnerFilter {
   organizationId?: string | null;
 }
 
+export interface CreateCallbackTaskInput {
+  id?: string;
+  userId: string;
+  organizationId?: string | null;
+  contactId: string;
+  callId?: string | null;
+  campaignLeadId?: string | null;
+  scheduledAt: Date;
+  note?: string;
+}
+
 @Injectable()
 export class CallbackTaskRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(data: {
-    userId: string;
-    organizationId?: string | null;
-    contactId: string;
-    callId?: string | null;
-    campaignLeadId?: string | null;
-    scheduledAt: Date;
-    note?: string;
-  }): Promise<CallbackTask> {
+  async create(data: CreateCallbackTaskInput): Promise<CallbackTask> {
     return this.prisma.callbackTask.create({
       data: {
+        id: data.id,
         userId: data.userId,
         organizationId: data.organizationId ?? null,
         contactId: data.contactId,
@@ -51,6 +55,33 @@ export class CallbackTaskRepository {
         note: data.note,
       },
     });
+  }
+
+  /**
+   * Creates a callback under a deterministic id and recovers the existing row
+   * when the provider replays the same tool call concurrently.
+   */
+  async createOnce(
+    data: CreateCallbackTaskInput & { id: string },
+  ): Promise<{ callback: CallbackTask; created: boolean }> {
+    try {
+      return { callback: await this.create(data), created: true };
+    } catch (error) {
+      const target =
+        error instanceof Prisma.PrismaClientKnownRequestError
+          ? error.meta?.target
+          : null;
+      const duplicateId =
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === "P2002" &&
+        Array.isArray(target) &&
+        target.includes("id");
+      if (!duplicateId) throw error;
+
+      const existing = await this.findById(data.id);
+      if (!existing) throw error;
+      return { callback: existing, created: false };
+    }
   }
 
   async findById(id: string): Promise<CallbackTask | null> {
@@ -151,6 +182,35 @@ export class CallbackTaskRepository {
       },
       orderBy: { scheduledAt: "asc" },
     });
+  }
+
+  /**
+   * Atomically claims an automated callback before it starts a billable call.
+   * A retried scheduler tick therefore cannot place the same callback twice.
+   */
+  async claimScheduled(id: string): Promise<CallbackTask | null> {
+    const [claimed] = await this.prisma.callbackTask.updateManyAndReturn({
+      where: {
+        id,
+        status: CallbackStatus.scheduled,
+        scheduledAt: { lte: new Date() },
+      },
+      data: { status: CallbackStatus.in_progress },
+    });
+    return claimed ?? null;
+  }
+
+  /** The equivalent CAS for callbacks that only become due for a human. */
+  async markDueIfScheduled(id: string): Promise<CallbackTask | null> {
+    const [updated] = await this.prisma.callbackTask.updateManyAndReturn({
+      where: {
+        id,
+        status: CallbackStatus.scheduled,
+        scheduledAt: { lte: new Date() },
+      },
+      data: { status: CallbackStatus.due },
+    });
+    return updated ?? null;
   }
 
   async updateStatus(

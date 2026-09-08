@@ -31,6 +31,7 @@ export function outcomeLabel(
     callback_scheduled: "Callback",
     not_interested: "Not interested",
     no_answer: "No answer",
+    no_conversation: "No conversation",
     voicemail: "Voicemail",
     wrong_number: "Wrong number",
     gatekeeper: "Gatekeeper",

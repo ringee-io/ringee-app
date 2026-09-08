@@ -289,17 +289,22 @@
       "callback_scheduled": "Devolución agendada",
       "not_interested": "No interesado",
       "no_answer": "Sin respuesta",
+      "no_conversation": "Sin conversación",
       "voicemail": "Buzón de voz",
       "wrong_number": "Número equivocado",
       "gatekeeper": "Filtro"
     },
     "agentOutcomes": {
       "appointment_booked": "Cita agendada",
+      "meeting_booked": "Reunión agendada",
       "confirmed": "Confirmado",
       "cannot_attend": "No puede asistir",
       "callback_requested": "Pidió que le llamen",
+      "callback_scheduled": "Devolución agendada",
       "not_interested": "No interesado",
+      "no_answer": "Sin respuesta",
       "no_conversation": "Sin conversación",
+      "wrong_number": "Número equivocado",
       "unknown": "Desconocido"
     },
     "sentiments": {

@@ -289,17 +289,22 @@
       "callback_scheduled": "Terugbellen gepland",
       "not_interested": "Niet geïnteresseerd",
       "no_answer": "Geen gehoor",
+      "no_conversation": "Geen gesprek",
       "voicemail": "Voicemail",
       "wrong_number": "Verkeerd nummer",
       "gatekeeper": "Poortwachter"
     },
     "agentOutcomes": {
       "appointment_booked": "Afspraak geboekt",
+      "meeting_booked": "Afspraak geboekt",
       "confirmed": "Bevestigd",
       "cannot_attend": "Kan niet aanwezig zijn",
       "callback_requested": "Terugbellen gevraagd",
+      "callback_scheduled": "Terugbellen gepland",
       "not_interested": "Niet geïnteresseerd",
+      "no_answer": "Geen gehoor",
       "no_conversation": "Geen gesprek",
+      "wrong_number": "Verkeerd nummer",
       "unknown": "Onbekend"
     },
     "sentiments": {

@@ -43,6 +43,8 @@ function build(
       duplicate: boolean;
       recipientCount: number;
     };
+    callbackError?: Error;
+    callbackOutcomeError?: Error;
   } = {},
 ) {
   const updates: Array<Record<string, unknown>> = [];
@@ -50,6 +52,8 @@ function build(
   const lookups: string[] = [];
   const availabilityChecks: Array<Record<string, unknown>> = [];
   const supportRequests: Array<Record<string, unknown>> = [];
+  const callbacks: Array<Record<string, unknown>> = [];
+  const callbackOutcomes: Array<Record<string, unknown>> = [];
   let updateAttempt = 0;
 
   const service = new VoiceAgentToolService(
@@ -63,6 +67,8 @@ function build(
           ? {
               id: "call-1",
               agentId: "agent-1",
+              userId: "user-1",
+              organizationId: "org-1",
               contactId: "contact-1",
               callId: "c-1",
               toNumber: "+13055550123",
@@ -140,6 +146,27 @@ function build(
         );
       },
     } as never,
+    {
+      scheduleFromVoiceAgent: async (input: Record<string, unknown>) => {
+        if (over.callbackError) throw over.callbackError;
+        callbacks.push(input);
+        return {
+          id: "callback-1",
+          scheduledAt: input.scheduledAt,
+          status: "scheduled",
+        };
+      },
+    } as never,
+    {
+      applyKnownOutcome: async (
+        call: Record<string, unknown>,
+        outcome: string,
+      ) => {
+        if (over.callbackOutcomeError) throw over.callbackOutcomeError;
+        callbackOutcomes.push({ call, outcome });
+        return call;
+      },
+    } as never,
   );
 
   return {
@@ -149,6 +176,8 @@ function build(
     lookups,
     availabilityChecks,
     supportRequests,
+    callbacks,
+    callbackOutcomes,
   };
 }
 
@@ -265,7 +294,7 @@ describe("VoiceAgentToolService booking", () => {
     // The tool knows a meeting exists; the later transcript analysis must not
     // be the thing that decides this.
     assert.deepEqual(updates, [
-      { meetingId: "meeting-1", outcome: "appointment_booked" },
+      { meetingId: "meeting-1", outcome: "meeting_booked" },
     ]);
   });
 
@@ -296,7 +325,7 @@ describe("VoiceAgentToolService booking", () => {
     // Nothing new was created. The known booking is also used to repair a
     // missing outcome if a previous request committed and stopped mid-flight.
     assert.deepEqual(created, []);
-    assert.deepEqual(updates, [{ outcome: "appointment_booked" }]);
+    assert.deepEqual(updates, [{ outcome: "meeting_booked" }]);
     assert.deepEqual(lookups, ["meeting-1"]);
   });
 
@@ -325,8 +354,8 @@ describe("VoiceAgentToolService booking", () => {
     assert.equal(result.appointment.id, "meeting-1");
     assert.deepEqual(created, []);
     assert.deepEqual(updates, [
-      { outcome: "appointment_booked" },
-      { outcome: "appointment_booked" },
+      { outcome: "meeting_booked" },
+      { outcome: "meeting_booked" },
     ]);
   });
 
@@ -396,6 +425,74 @@ describe("VoiceAgentToolService booking", () => {
     assert.equal(result.ok, true);
     assert.equal(created[0]?.contactId, "contact-2");
     assert.deepEqual(updates[0], { contactId: "contact-2" });
+  });
+});
+
+describe("VoiceAgentToolService callbacks", () => {
+  it("schedules a future callback and records the tool-backed outcome", async () => {
+    const scheduledAt = "2099-01-06T10:30:00-04:00";
+    const { service, callbacks, callbackOutcomes } = build();
+
+    const result = await service.scheduleCallback("agent-1", SECRET, "cc-1", {
+      scheduled_at: scheduledAt,
+      note: "Call after the staff meeting",
+    });
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.callback.id, "callback-1");
+    assert.equal(
+      result.callback.scheduled_at,
+      new Date(scheduledAt).toISOString(),
+    );
+    assert.deepEqual(callbacks, [
+      {
+        agentCallId: "call-1",
+        userId: "user-1",
+        organizationId: "org-1",
+        contactId: "contact-1",
+        callId: "c-1",
+        scheduledAt: new Date(scheduledAt),
+        note: "Call after the staff meeting",
+      },
+    ]);
+    assert.equal(callbackOutcomes.length, 1);
+    assert.equal(callbackOutcomes[0]?.outcome, "callback_scheduled");
+  });
+
+  it("requires an absolute future time with a timezone", async () => {
+    const { service, callbacks } = build();
+
+    for (const scheduled_at of [
+      "tomorrow afternoon",
+      "2099-01-06T10:30:00",
+      "2020-01-06T10:30:00-04:00",
+    ]) {
+      const result = await service.scheduleCallback("agent-1", SECRET, "cc-1", {
+        scheduled_at,
+      });
+      assert.equal(result.ok, false);
+    }
+
+    assert.deepEqual(callbacks, []);
+  });
+
+  it("never schedules against another agent's call", async () => {
+    const { service } = build({
+      agentCall: {
+        id: "call-9",
+        agentId: "another-agent",
+        callId: "c-9",
+      },
+    });
+
+    await assert.rejects(
+      () =>
+        service.scheduleCallback("agent-1", SECRET, "cc-1", {
+          scheduled_at: "2099-01-06T10:30:00-04:00",
+        }),
+      /does not belong to this agent/,
+    );
   });
 });
 
