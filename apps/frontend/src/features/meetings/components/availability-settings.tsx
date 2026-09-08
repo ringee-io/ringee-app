@@ -90,30 +90,36 @@ export function AvailabilitySettings() {
   const api = useApi();
   const t = useTranslations('meetings.availability');
   const [isLoading, setIsLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const form = useForm<AvailabilityForm>({
     resolver: zodResolver(availabilityFormSchema),
-    defaultValues: { windows: [DEFAULT_WINDOW] }
+    defaultValues: { windows: [] }
   });
   const { fields, append, remove } = useFieldArray({
     control: form.control,
     name: 'windows'
   });
   const windows = useWatch({ control: form.control, name: 'windows' });
+  const isSubmitting = form.formState.isSubmitting;
 
   const load = useCallback(async () => {
     setIsLoading(true);
+    setLoadFailed(false);
     form.clearErrors('root');
     try {
       const settings = await api.get<AvailabilitySettingsResponse>(
         '/calendar/availability-settings'
       );
+      if (settings.configured && settings.windows.length === 0) {
+        throw new Error('Configured availability returned no windows');
+      }
       form.reset({
-        windows:
-          settings.configured && settings.windows.length > 0
-            ? settings.windows.map(({ id: _id, ...window }) => window)
-            : [DEFAULT_WINDOW]
+        windows: settings.configured
+          ? settings.windows.map(({ id: _id, ...window }) => window)
+          : [DEFAULT_WINDOW]
       });
     } catch {
+      setLoadFailed(true);
       form.setError('root', { message: t('loadFailed') });
     } finally {
       setIsLoading(false);
@@ -143,8 +149,22 @@ export function AvailabilitySettings() {
 
   if (isLoading) return <AvailabilitySettingsSkeleton />;
 
+  if (loadFailed) {
+    return (
+      <Alert variant='destructive' className='rounded-xl'>
+        <AlertDescription className='flex flex-wrap items-center justify-between gap-2'>
+          <span>{form.formState.errors.root?.message ?? t('loadFailed')}</span>
+          <Button type='button' variant='outline' size='sm' onClick={load}>
+            <RotateCcw className='size-4' />
+            {t('retry')}
+          </Button>
+        </AlertDescription>
+      </Alert>
+    );
+  }
+
   return (
-    <form onSubmit={save} className='space-y-6'>
+    <form onSubmit={save} aria-busy={isSubmitting} className='space-y-6'>
       <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
         <div>
           <div className='flex flex-wrap items-center gap-2'>
@@ -157,12 +177,10 @@ export function AvailabilitySettings() {
         </div>
         <Button
           type='submit'
-          disabled={form.formState.isSubmitting || !form.formState.isDirty}
+          disabled={isSubmitting || !form.formState.isDirty}
           className='min-h-11 shrink-0 sm:min-h-9'
         >
-          {form.formState.isSubmitting ? (
-            <Loader2 className='size-4 animate-spin' />
-          ) : null}
+          {isSubmitting ? <Loader2 className='size-4 animate-spin' /> : null}
           {t('save')}
         </Button>
       </div>
@@ -176,7 +194,13 @@ export function AvailabilitySettings() {
         <Alert variant='destructive' className='rounded-xl'>
           <AlertDescription className='flex flex-wrap items-center justify-between gap-2'>
             <span>{form.formState.errors.root.message}</span>
-            <Button type='button' variant='outline' size='sm' onClick={load}>
+            <Button
+              type='button'
+              variant='outline'
+              size='sm'
+              onClick={load}
+              disabled={isSubmitting}
+            >
               <RotateCcw className='size-4' />
               {t('retry')}
             </Button>
@@ -209,7 +233,7 @@ export function AvailabilitySettings() {
                   variant='ghost'
                   size='icon'
                   onClick={() => remove(index)}
-                  disabled={fields.length === 1}
+                  disabled={isSubmitting || fields.length === 1}
                   aria-label={t('removeWindow', { number: index + 1 })}
                   className='text-muted-foreground hover:text-destructive min-h-11 min-w-11 sm:min-h-9 sm:min-w-9'
                 >
@@ -231,6 +255,7 @@ export function AvailabilitySettings() {
                             <button
                               key={day}
                               type='button'
+                              disabled={isSubmitting}
                               aria-pressed={active}
                               onClick={() =>
                                 daysField.onChange(
@@ -273,6 +298,7 @@ export function AvailabilitySettings() {
                       id={`availability-start-${index}`}
                       type='time'
                       step={60}
+                      disabled={isSubmitting}
                       className='mt-2 min-h-11 sm:min-h-9'
                       aria-invalid={Boolean(errors?.startTime)}
                       {...form.register(`windows.${index}.startTime`)}
@@ -297,6 +323,7 @@ export function AvailabilitySettings() {
                       id={`availability-end-${index}`}
                       type='time'
                       step={60}
+                      disabled={isSubmitting}
                       className='mt-2 min-h-11 sm:min-h-9'
                       aria-invalid={Boolean(errors?.endTime)}
                       {...form.register(`windows.${index}.endTime`)}
@@ -330,6 +357,7 @@ export function AvailabilitySettings() {
                           <Switch
                             id={`availability-unlimited-${index}`}
                             checked={capacityField.value === null}
+                            disabled={isSubmitting}
                             onCheckedChange={(checked) =>
                               capacityField.onChange(checked ? null : 1)
                             }
@@ -355,6 +383,7 @@ export function AvailabilitySettings() {
                               type='number'
                               min={1}
                               max={10_000}
+                              disabled={isSubmitting}
                               value={capacityField.value ?? 1}
                               onChange={(event) =>
                                 capacityField.onChange(
@@ -402,7 +431,7 @@ export function AvailabilitySettings() {
             capacity: 1
           })
         }
-        disabled={fields.length >= 50}
+        disabled={isSubmitting || fields.length >= 50}
         className='min-h-11 w-full border-dashed sm:w-auto'
       >
         <Plus className='size-4' />

@@ -2,6 +2,7 @@ import {
   forwardRef,
   Inject,
   Injectable,
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   NotFoundException,
@@ -17,7 +18,10 @@ import {
   ReminderSubjectType,
 } from "@ringee/database";
 import { OwnershipContext } from "@ringee/platform";
-import { CalendarService } from "./calendar.service";
+import {
+  CalendarService,
+  validateMeetingDurationMinutes,
+} from "./calendar.service";
 import { CrmCallLogService } from "./crm/crm-call-log.service";
 import { CrmMeetingSyncService } from "./crm/crm-meeting-sync.service";
 import { ReminderService } from "./reminders/reminder.service";
@@ -109,56 +113,91 @@ export class MeetingService {
       calendarProvider?: "google" | "microsoft";
       calendarIntegrationId?: string | null;
       requireAvailableSlot?: boolean;
-      /** Capacity returned by the Ringee availability lookup; null is unlimited. */
-      slotCapacity?: number | null;
       /** IANA zone used to validate a human-picked Ringee availability slot. */
       bookingTimeZone?: string;
       /** Voice-agent call claimed atomically with this protected booking. */
       agentCallId?: string;
     },
   ): Promise<Meeting> {
+    if (typeof dto.scheduledAt !== "string" || !dto.scheduledAt.trim()) {
+      throw new BadRequestException(
+        "scheduledAt must be a valid date and time.",
+      );
+    }
+    let scheduledAt: Date;
+    try {
+      scheduledAt = new Date(dto.scheduledAt);
+    } catch {
+      throw new BadRequestException(
+        "scheduledAt must be a valid date and time.",
+      );
+    }
+    if (Number.isNaN(scheduledAt.getTime())) {
+      throw new BadRequestException(
+        "scheduledAt must be a valid date and time.",
+      );
+    }
+    const duration = validateMeetingDurationMinutes(dto.duration ?? 30);
+
+    if (dto.bookingTimeZone !== undefined) {
+      try {
+        new Intl.DateTimeFormat("en-US", {
+          timeZone: dto.bookingTimeZone,
+        }).format(scheduledAt);
+      } catch {
+        throw new BadRequestException(
+          `"${dto.bookingTimeZone}" is not a valid time zone.`,
+        );
+      }
+    }
+    if (dto.requireAvailableSlot && !dto.bookingTimeZone) {
+      throw new BadRequestException(
+        "bookingTimeZone is required when availability validation is requested.",
+      );
+    }
+
     const meetingData = {
       contactId: dto.contactId,
       callId: dto.callId,
       title: dto.title,
-      scheduledAt: new Date(dto.scheduledAt),
-      duration: dto.duration,
+      scheduledAt,
+      duration,
       location: dto.location,
       notes: dto.notes,
       agentCallId: dto.agentCallId,
     };
-    let slotCapacity = dto.slotCapacity;
-    if (
-      dto.requireAvailableSlot &&
-      slotCapacity === undefined &&
-      dto.bookingTimeZone
-    ) {
-      const scheduledAt = meetingData.scheduledAt;
+    let availabilityRuleId: string | null = null;
+    if (dto.requireAvailableSlot) {
       const dateParts = new Intl.DateTimeFormat("en-CA", {
-        timeZone: dto.bookingTimeZone,
+        timeZone: dto.bookingTimeZone!,
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
-      }).formatToParts(scheduledAt);
+      }).formatToParts(meetingData.scheduledAt);
       const read = (type: string) =>
         dateParts.find((part) => part.type === type)?.value ?? "";
       const date = `${read("year")}-${read("month")}-${read("day")}`;
       const slots = await this.calendarService.getBookableSlots(ctx, {
         date,
-        timeZone: dto.bookingTimeZone,
-        durationMinutes: meetingData.duration ?? 30,
+        timeZone: dto.bookingTimeZone!,
+        durationMinutes: meetingData.duration,
       });
       const exactSlot = slots.find(
-        (slot) => new Date(slot.start).getTime() === scheduledAt.getTime(),
+        (slot) =>
+          new Date(slot.start).getTime() === meetingData.scheduledAt.getTime(),
       );
       if (!exactSlot) {
         throw new ConflictException("That time is no longer available.");
       }
-      slotCapacity = exactSlot.capacity;
+      availabilityRuleId = exactSlot.availabilityRuleId;
     }
 
     const meeting = dto.requireAvailableSlot
-      ? await this.meetingRepo.createIfAvailable(ctx, meetingData, slotCapacity)
+      ? await this.meetingRepo.createIfAvailable(
+          ctx,
+          meetingData,
+          availabilityRuleId,
+        )
       : await this.meetingRepo.create(ctx, meetingData);
     if (!meeting) {
       throw new ConflictException("That time is no longer available.");
@@ -189,7 +228,7 @@ export class MeetingService {
         meetingId: meeting.id,
         title: dto.title || "Meeting via Ringee",
         scheduledAt: dto.scheduledAt,
-        duration: dto.duration || 30,
+        duration,
         attendeeEmail: dto.attendeeEmail,
         provider: dto.calendarProvider as any,
         integrationId: dto.calendarIntegrationId,

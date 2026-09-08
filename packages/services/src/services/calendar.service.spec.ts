@@ -2,7 +2,10 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { CalendarService } from "./calendar.service";
+import {
+  CalendarService,
+  MAX_MEETING_DURATION_MINUTES,
+} from "./calendar.service";
 
 function build(
   busy: Array<{ start: Date; end: Date }> = [],
@@ -231,6 +234,58 @@ describe("CalendarService Ringee availability", () => {
     assert.equal(slot?.start, "2099-01-05T14:20:00.000Z");
     assert.equal(slot?.capacity, null);
     assert.equal(slot?.remainingCapacity, null);
+  });
+
+  it("rejects invalid or excessive slot durations before generating slots", async () => {
+    const { service, windows } = build();
+    const ctx = { userId: "user-1", organizationId: "org-1" };
+
+    for (const durationMinutes of [
+      0,
+      -1,
+      0.5,
+      Number.NaN,
+      Number.POSITIVE_INFINITY,
+      MAX_MEETING_DURATION_MINUTES + 1,
+    ]) {
+      await assert.rejects(
+        () =>
+          service.getBookableSlots(ctx, {
+            date: "2099-01-05",
+            timeZone: "UTC",
+            durationMinutes,
+          }),
+        /Meeting length must be a whole number/,
+      );
+    }
+
+    assert.deepEqual(windows, []);
+  });
+
+  it("skips a rule with a nonexistent DST-forward boundary", async () => {
+    const { service, windows } = build(
+      [],
+      [
+        {
+          daysOfWeek: [0],
+          startMinute: 2 * 60,
+          endMinute: 3 * 60,
+          capacity: 1,
+        },
+      ],
+    );
+
+    const slots = await service.getBookableSlots(
+      { userId: "user-1", organizationId: "org-1" },
+      {
+        date: "2027-03-14",
+        timeZone: "America/New_York",
+        durationMinutes: 30,
+      },
+    );
+
+    assert.deepEqual(slots, []);
+    assert.deepEqual(windows, []);
   });
 
   it("normalizes and saves minute-precise availability windows", async () => {

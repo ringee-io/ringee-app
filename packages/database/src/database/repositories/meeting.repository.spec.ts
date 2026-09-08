@@ -24,6 +24,9 @@ let databaseReady = false;
 
 async function cleanupFixtures() {
   await prisma.meeting.deleteMany({ where: { userId: fixture.userId } });
+  await prisma.calendarAvailabilityRule.deleteMany({
+    where: { userId: fixture.userId },
+  });
   await prisma.aiVoiceAgentCall.deleteMany({
     where: { userId: fixture.userId },
   });
@@ -149,8 +152,8 @@ describe("MeetingRepository.createIfAvailable", () => {
     };
 
     const results = await Promise.all([
-      repository.createIfAvailable(ctx, data),
-      repository.createIfAvailable(ctx, data),
+      repository.createIfAvailable(ctx, data, null),
+      repository.createIfAvailable(ctx, data, null),
     ]);
 
     assertExactlyOneBooking(results);
@@ -176,8 +179,8 @@ describe("MeetingRepository.createIfAvailable", () => {
     };
 
     const results = await Promise.all([
-      repository.createIfAvailable(ctx, data),
-      repository.createIfAvailable(ctx, data),
+      repository.createIfAvailable(ctx, data, null),
+      repository.createIfAvailable(ctx, data, null),
     ]);
 
     assertExactlyOneBooking(results);
@@ -205,11 +208,24 @@ describe("MeetingRepository.createIfAvailable", () => {
       scheduledAt: new Date("2099-01-07T15:00:00.000Z"),
       duration: 30,
     };
+    await prisma.calendarAvailabilityRule.deleteMany({
+      where: { userId: fixture.userId },
+    });
+    const rule = await prisma.calendarAvailabilityRule.create({
+      data: {
+        userId: fixture.userId,
+        organizationId: fixture.organizationId,
+        daysOfWeek: [3],
+        startMinute: 15 * 60,
+        endMinute: 16 * 60,
+        capacity: 2,
+      },
+    });
 
     const results = await Promise.all([
-      repository.createIfAvailable(ctx, data, 2),
-      repository.createIfAvailable(ctx, data, 2),
-      repository.createIfAvailable(ctx, data, 2),
+      repository.createIfAvailable(ctx, data, rule.id),
+      repository.createIfAvailable(ctx, data, rule.id),
+      repository.createIfAvailable(ctx, data, rule.id),
     ]);
 
     assert.equal(results.filter(Boolean).length, 2);
@@ -228,11 +244,24 @@ describe("MeetingRepository.createIfAvailable", () => {
       scheduledAt: new Date("2099-01-08T15:00:00.000Z"),
       duration: 30,
     };
+    await prisma.calendarAvailabilityRule.deleteMany({
+      where: { userId: fixture.userId },
+    });
+    const rule = await prisma.calendarAvailabilityRule.create({
+      data: {
+        userId: fixture.userId,
+        organizationId: fixture.organizationId,
+        daysOfWeek: [4],
+        startMinute: 15 * 60,
+        endMinute: 16 * 60,
+        capacity: null,
+      },
+    });
 
     const results = await Promise.all([
-      repository.createIfAvailable(ctx, data, null),
-      repository.createIfAvailable(ctx, data, null),
-      repository.createIfAvailable(ctx, data, null),
+      repository.createIfAvailable(ctx, data, rule.id),
+      repository.createIfAvailable(ctx, data, rule.id),
+      repository.createIfAvailable(ctx, data, rule.id),
     ]);
 
     assert.equal(results.filter(Boolean).length, 3);
@@ -252,10 +281,23 @@ describe("MeetingRepository.createIfAvailable", () => {
       scheduledAt: new Date("2099-01-09T15:00:00.000Z"),
       duration: 30,
     };
+    await prisma.calendarAvailabilityRule.deleteMany({
+      where: { userId: fixture.userId },
+    });
+    const rule = await prisma.calendarAvailabilityRule.create({
+      data: {
+        userId: fixture.userId,
+        organizationId: fixture.organizationId,
+        daysOfWeek: [5],
+        startMinute: 15 * 60,
+        endMinute: 16 * 60,
+        capacity: null,
+      },
+    });
 
     const results = await Promise.all([
-      repository.createIfAvailable(ctx, data, null),
-      repository.createIfAvailable(ctx, data, null),
+      repository.createIfAvailable(ctx, data, rule.id),
+      repository.createIfAvailable(ctx, data, rule.id),
     ]);
 
     assertExactlyOneBooking(results);
@@ -263,5 +305,43 @@ describe("MeetingRepository.createIfAvailable", () => {
       where: { id: fixture.agentCallId },
     });
     assert.equal(claimed?.meetingId, results.find(Boolean)?.id);
+  });
+
+  it("revalidates the current rule capacity under the booking lock", async (t) => {
+    if (!requireDatabase(t)) return;
+
+    const ctx = {
+      userId: fixture.userId,
+      organizationId: fixture.organizationId,
+    };
+    const data = {
+      contactId: fixture.organizationContactId,
+      scheduledAt: new Date("2099-01-10T15:00:00.000Z"),
+      duration: 30,
+    };
+    await prisma.calendarAvailabilityRule.deleteMany({
+      where: { userId: fixture.userId },
+    });
+    const rule = await prisma.calendarAvailabilityRule.create({
+      data: {
+        userId: fixture.userId,
+        organizationId: fixture.organizationId,
+        daysOfWeek: [6],
+        startMinute: 15 * 60,
+        endMinute: 16 * 60,
+        capacity: 3,
+      },
+    });
+    await prisma.calendarAvailabilityRule.update({
+      where: { id: rule.id },
+      data: { capacity: 1 },
+    });
+
+    const results = await Promise.all([
+      repository.createIfAvailable(ctx, data, rule.id),
+      repository.createIfAvailable(ctx, data, rule.id),
+    ]);
+
+    assertExactlyOneBooking(results);
   });
 });

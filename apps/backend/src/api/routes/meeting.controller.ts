@@ -7,13 +7,85 @@ import {
   Param,
   Query,
   BadRequestException,
+  UsePipes,
+  ValidationPipe,
 } from "@nestjs/common";
+import {
+  IsBoolean,
+  IsEmail,
+  IsISO8601,
+  IsIn,
+  IsInt,
+  IsOptional,
+  IsString,
+  IsUUID,
+  Max,
+  MaxLength,
+  Min,
+} from "class-validator";
 import {
   CurrentUser,
   CurrentUserData,
   createOwnershipContext,
 } from "@ringee/platform";
-import { MeetingService, OrganizationService } from "@ringee/services";
+import {
+  MAX_MEETING_DURATION_MINUTES,
+  MIN_MEETING_DURATION_MINUTES,
+  MeetingService,
+  OrganizationService,
+} from "@ringee/services";
+import { validationExceptionFactory } from "../validation-error";
+
+class CreateMeetingDto {
+  @IsUUID()
+  contactId!: string;
+
+  @IsOptional()
+  @IsUUID()
+  callId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  title?: string;
+
+  @IsISO8601({ strict: true })
+  scheduledAt!: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(MIN_MEETING_DURATION_MINUTES)
+  @Max(MAX_MEETING_DURATION_MINUTES)
+  duration?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  location?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  notes?: string;
+
+  @IsOptional()
+  @IsEmail()
+  @MaxLength(320)
+  attendeeEmail?: string;
+
+  @IsOptional()
+  @IsIn(["google", "microsoft"])
+  provider?: "google" | "microsoft";
+
+  @IsOptional()
+  @IsBoolean()
+  requireAvailableSlot?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  bookingTimeZone?: string;
+}
 
 @Controller("meetings")
 export class MeetingController {
@@ -23,40 +95,45 @@ export class MeetingController {
   ) {}
 
   @Post()
+  @UsePipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      exceptionFactory: validationExceptionFactory,
+    }),
+  )
   async createMeeting(
-    @Body()
-    dto: {
-      contactId: string;
-      callId?: string;
-      title?: string;
-      scheduledAt: string;
-      duration?: number;
-      location?: string;
-      notes?: string;
-      attendeeEmail?: string;
-      provider?: string;
-      requireAvailableSlot?: boolean;
-      bookingTimeZone?: string;
-    },
+    @Body() dto: CreateMeetingDto,
     @CurrentUser() user: CurrentUserData,
   ) {
     const ctx = createOwnershipContext(user);
+    let title = dto.title;
 
-    if (!dto.title) {
+    if (!title) {
       const org =
         ctx.organizationId &&
         (await this.orgService.getOrganizationById(ctx.organizationId!));
 
       if (org) {
-        dto.title = `Meeting with ${org.name}`;
+        title = `Meeting with ${org.name}`;
       } else {
-        dto.title = `Meeting with ${user.firstName} ${user.lastName}`;
+        title = `Meeting with ${user.firstName} ${user.lastName}`;
       }
     }
 
     return this.meetingService.createMeeting(ctx, {
-      ...dto,
-      calendarProvider: dto.provider as any,
+      contactId: dto.contactId,
+      callId: dto.callId,
+      title,
+      scheduledAt: dto.scheduledAt,
+      duration: dto.duration,
+      location: dto.location,
+      notes: dto.notes,
+      attendeeEmail: dto.attendeeEmail,
+      calendarProvider: dto.provider,
+      requireAvailableSlot: dto.requireAvailableSlot,
+      bookingTimeZone: dto.bookingTimeZone,
     });
   }
 

@@ -89,11 +89,12 @@ export class MeetingRepository {
   async createIfAvailable(
     ctx: OwnershipContext,
     data: MeetingCreateData,
-    capacity: number | null = 1,
+    availabilityRuleId: string | null,
   ): Promise<Meeting | null> {
     const duration = data.duration ?? 30;
     const end = new Date(data.scheduledAt.getTime() + duration * 60_000);
     const { userFilter, organizationFilter } = ownershipSql(ctx);
+    const ownershipFilter = buildOwnershipFilter(ctx);
 
     return this.prisma.$transaction(async (tx) => {
       if (ctx.organizationId) {
@@ -127,6 +128,26 @@ export class MeetingRepository {
         // marker. Missing means this booking cannot safely be attributed;
         // populated means another retry already won.
         if (agentCalls.length !== 1 || agentCalls[0]!.meetingId) return null;
+      }
+
+      let capacity: number | null;
+      if (availabilityRuleId) {
+        const currentRule = await tx.calendarAvailabilityRule.findFirst({
+          where: { id: availabilityRuleId, ...ownershipFilter },
+          select: { capacity: true },
+        });
+        // Availability settings are replaced, not mutated. A missing id means
+        // the slot snapshot was based on a schedule version that is now stale.
+        if (!currentRule) return null;
+        capacity = currentRule.capacity;
+      } else {
+        // A null marker means getBookableSlots used the default capacity-one
+        // schedule. It stays valid only while no configured rules exist.
+        const configuredRuleCount = await tx.calendarAvailabilityRule.count({
+          where: ownershipFilter,
+        });
+        if (configuredRuleCount !== 0) return null;
+        capacity = 1;
       }
 
       const [{ count = 0 } = {}] = await tx.$queryRaw<Array<{ count: number }>>`

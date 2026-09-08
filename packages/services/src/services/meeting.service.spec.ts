@@ -22,9 +22,19 @@ const STORED_MEETING = {
   updatedAt: new Date("2099-01-01T00:00:00.000Z"),
 };
 
-function build(options: { syncError?: Error; slotAvailable?: boolean } = {}) {
+function build(
+  options: {
+    syncError?: Error;
+    slotAvailable?: boolean;
+    bookableSlots?: Array<{
+      start: string;
+      availabilityRuleId: string | null;
+    }>;
+  } = {},
+) {
   const events: string[] = [];
   const calendarRequests: Array<Record<string, unknown>> = [];
+  const bookingRuleIds: Array<string | null> = [];
 
   const service = new MeetingService(
     {
@@ -32,8 +42,13 @@ function build(options: { syncError?: Error; slotAvailable?: boolean } = {}) {
         events.push("ringee:create");
         return STORED_MEETING;
       },
-      createIfAvailable: async () => {
+      createIfAvailable: async (
+        _ctx: unknown,
+        _data: unknown,
+        availabilityRuleId: string | null,
+      ) => {
         events.push("ringee:create-protected");
+        bookingRuleIds.push(availabilityRuleId);
         return options.slotAvailable === false ? null : STORED_MEETING;
       },
     } as never,
@@ -51,6 +66,13 @@ function build(options: { syncError?: Error; slotAvailable?: boolean } = {}) {
           meetLink: "https://meet.google.com/abc-defg-hij",
         };
       },
+      getBookableSlots: async () =>
+        options.bookableSlots ?? [
+          {
+            start: STORED_MEETING.scheduledAt.toISOString(),
+            availabilityRuleId: "rule-1",
+          },
+        ],
     } as never,
     { enqueueMeetingSync: async () => undefined } as never,
     { scheduleForSubject: async () => undefined } as never,
@@ -60,7 +82,7 @@ function build(options: { syncError?: Error; slotAvailable?: boolean } = {}) {
     {} as never,
   );
 
-  return { service, events, calendarRequests };
+  return { service, events, calendarRequests, bookingRuleIds };
 }
 
 describe("MeetingService Ringee-first calendar sync", () => {
@@ -107,7 +129,30 @@ describe("MeetingService Ringee-first calendar sync", () => {
   });
 
   it("does not sync externally when the protected Ringee slot was taken", async () => {
-    const { service, events } = build({ slotAvailable: false });
+    const { service, events, bookingRuleIds } = build({
+      slotAvailable: false,
+    });
+
+    await assert.rejects(
+      () =>
+        service.createMeeting(
+          { userId: "user-1", organizationId: "org-1" },
+          {
+            contactId: "contact-1",
+            scheduledAt: "2099-01-05T15:00:00.000Z",
+            requireAvailableSlot: true,
+            bookingTimeZone: "UTC",
+          },
+        ),
+      /no longer available/,
+    );
+
+    assert.deepEqual(events, ["ringee:create-protected"]);
+    assert.deepEqual(bookingRuleIds, ["rule-1"]);
+  });
+
+  it("requires a booking time zone for protected creation", async () => {
+    const { service, events } = build();
 
     await assert.rejects(
       () =>
@@ -119,9 +164,64 @@ describe("MeetingService Ringee-first calendar sync", () => {
             requireAvailableSlot: true,
           },
         ),
-      /no longer available/,
+      /bookingTimeZone is required/,
     );
+    assert.deepEqual(events, []);
+  });
 
-    assert.deepEqual(events, ["ringee:create-protected"]);
+  it("maps invalid dates and time zones to bad requests", async () => {
+    const { service, events } = build();
+    const ctx = { userId: "user-1", organizationId: "org-1" };
+
+    await assert.rejects(
+      () =>
+        service.createMeeting(ctx, {
+          contactId: "contact-1",
+          scheduledAt: "not-a-date",
+        }),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.name === "BadRequestException" &&
+        /scheduledAt/.test(error.message),
+    );
+    await assert.rejects(
+      () =>
+        service.createMeeting(ctx, {
+          contactId: "contact-1",
+          scheduledAt: null,
+        } as never),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.name === "BadRequestException" &&
+        /scheduledAt/.test(error.message),
+    );
+    await assert.rejects(
+      () =>
+        service.createMeeting(ctx, {
+          contactId: "contact-1",
+          scheduledAt: "2099-01-05T15:00:00.000Z",
+          requireAvailableSlot: true,
+          bookingTimeZone: "Not/A_Real_Zone",
+        }),
+      (error: unknown) =>
+        error instanceof Error &&
+        error.name === "BadRequestException" &&
+        /time zone/.test(error.message),
+    );
+    assert.deepEqual(events, []);
+  });
+
+  it("uses only the rule marker returned by CalendarService", async () => {
+    const { service, bookingRuleIds } = build();
+
+    await service.createMeeting({ userId: "user-1", organizationId: "org-1" }, {
+      contactId: "contact-1",
+      scheduledAt: "2099-01-05T15:00:00.000Z",
+      requireAvailableSlot: true,
+      bookingTimeZone: "UTC",
+      slotCapacity: null,
+    } as never);
+
+    assert.deepEqual(bookingRuleIds, ["rule-1"]);
   });
 });

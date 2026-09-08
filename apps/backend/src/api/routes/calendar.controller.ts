@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
@@ -16,7 +17,13 @@ import {
   Public,
   createOwnershipContext,
 } from "@ringee/platform";
-import { CalendarService, CalendarAvailabilityWindow } from "@ringee/services";
+import {
+  CalendarService,
+  CalendarAvailabilityWindow,
+  MAX_MEETING_DURATION_MINUTES,
+  MIN_MEETING_DURATION_MINUTES,
+  validateMeetingDurationMinutes,
+} from "@ringee/services";
 import { CalendarProvider } from "@ringee/database";
 import { Response, Request } from "express";
 
@@ -191,15 +198,27 @@ export class CalendarController {
   async getAvailability(
     @Query("date") date: string,
     @Query("timeZone") timeZone = "UTC",
-    @Query("duration") duration = "30",
+    @Query("duration") duration: unknown = "30",
     @CurrentUser() user: CurrentUserData,
   ) {
+    if (typeof duration !== "string") {
+      throw new BadRequestException("duration must be a single number.");
+    }
+    const parsedDuration = Number(duration);
+    let durationMinutes: number;
+    try {
+      durationMinutes = validateMeetingDurationMinutes(parsedDuration);
+    } catch {
+      throw new BadRequestException(
+        `duration must be a whole number between ${MIN_MEETING_DURATION_MINUTES} and ${MAX_MEETING_DURATION_MINUTES}.`,
+      );
+    }
     const slots = await this.calendarService.getBookableSlots(
       createOwnershipContext(user),
       {
         date,
         timeZone,
-        durationMinutes: Number(duration),
+        durationMinutes,
       },
     );
     const formatter = new Intl.DateTimeFormat("en-US", {

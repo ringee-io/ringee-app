@@ -170,9 +170,7 @@ export class VoiceAgentToolService {
         agentCall.meetingId,
       );
       if (agentCall.outcome !== AiVoiceAgentOutcome.appointment_booked) {
-        await this.agentCalls.update(agentCall.id, {
-          outcome: AiVoiceAgentOutcome.appointment_booked,
-        });
+        await this.repairAppointmentOutcome(agentCall.id);
       }
       const bookedStart = new Date(booked.scheduledAt);
       return {
@@ -225,7 +223,7 @@ export class VoiceAgentToolService {
         attendeeEmail: input.attendee_email,
         calendarIntegrationId: agent.calendarIntegrationId,
         requireAvailableSlot: true,
-        slotCapacity: exactSlot.capacity,
+        bookingTimeZone: timezone,
         agentCallId: agentCall?.id,
       });
 
@@ -268,6 +266,32 @@ export class VoiceAgentToolService {
         ok: false,
         error: "The meeting could not be created. Offer another time.",
       };
+    }
+  }
+
+  private async repairAppointmentOutcome(agentCallId: string): Promise<void> {
+    const repair = () =>
+      this.agentCalls.update(agentCallId, {
+        outcome: AiVoiceAgentOutcome.appointment_booked,
+      });
+
+    try {
+      await repair();
+      return;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Failed to repair booked outcome for agent call ${agentCallId}: ${message}`,
+      );
+    }
+
+    try {
+      await repair();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.warn(
+        `Booked outcome repair retry failed for agent call ${agentCallId}: ${message}`,
+      );
     }
   }
 

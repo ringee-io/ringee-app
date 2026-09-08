@@ -40,6 +40,8 @@ export interface BookableSlot {
   capacity: number | null;
   /** Places still available at lookup time; null means unlimited. */
   remainingCapacity: number | null;
+  /** Internal version marker revalidated by the booking transaction. */
+  availabilityRuleId: string | null;
 }
 
 export interface CalendarAvailabilityWindow {
@@ -64,6 +66,22 @@ const DEFAULT_END_MINUTE = 18 * 60;
 const DEFAULT_CAPACITY = 1;
 const MAX_AVAILABILITY_WINDOWS = 50;
 const MAX_SLOT_CAPACITY = 10_000;
+export const MIN_MEETING_DURATION_MINUTES = 1;
+export const MAX_MEETING_DURATION_MINUTES = 480;
+
+export function validateMeetingDurationMinutes(value: number): number {
+  if (
+    !Number.isFinite(value) ||
+    !Number.isInteger(value) ||
+    value < MIN_MEETING_DURATION_MINUTES ||
+    value > MAX_MEETING_DURATION_MINUTES
+  ) {
+    throw new BadRequestException(
+      `Meeting length must be a whole number between ${MIN_MEETING_DURATION_MINUTES} and ${MAX_MEETING_DURATION_MINUTES} minutes.`,
+    );
+  }
+  return value;
+}
 
 function parseTime(value: unknown, field: string): number {
   const match =
@@ -146,6 +164,30 @@ function zonedTimeToUtc(
   }
   const firstPass = new Date(naive.getTime() - zoneOffsetMs(naive, timeZone));
   return new Date(naive.getTime() - zoneOffsetMs(firstPass, timeZone));
+}
+
+function matchesZonedBoundary(
+  instant: Date,
+  date: string,
+  minuteOfDay: number,
+  timeZone: string,
+): boolean {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).formatToParts(instant);
+  const read = (type: string) =>
+    parts.find((part) => part.type === type)?.value ?? "";
+
+  return (
+    `${read("year")}-${read("month")}-${read("day")}` === date &&
+    Number(read("hour")) * 60 + Number(read("minute")) === minuteOfDay
+  );
 }
 
 /** "Friday, 2:30 PM" — how the agent says a slot out loud. */
@@ -516,12 +558,17 @@ export class CalendarService {
         `"${opts.timeZone}" is not a valid time zone.`,
       );
     }
+    const durationMinutes = validateMeetingDurationMinutes(
+      opts.durationMinutes,
+    );
+    const stepMs = durationMinutes * 60_000;
     const configuredRules = await this.availabilityRepo.list(ctx);
     const requestedDay = dayOfWeek(opts.date);
     const rules = configuredRules.length
       ? configuredRules.filter((rule) => rule.daysOfWeek.includes(requestedDay))
       : [
           {
+            id: null,
             startMinute:
               opts.dayStartHour === undefined
                 ? DEFAULT_START_MINUTE
@@ -535,41 +582,7 @@ export class CalendarService {
         ];
     if (rules.length === 0) return [];
 
-    const dayStartMinute = Math.min(...rules.map((rule) => rule.startMinute));
-    const dayEndMinute = Math.max(...rules.map((rule) => rule.endMinute));
-    const dayStart = zonedTimeToUtc(
-      opts.date,
-      Math.floor(dayStartMinute / 60),
-      dayStartMinute % 60,
-      opts.timeZone,
-    );
-    const dayEnd = zonedTimeToUtc(
-      opts.date,
-      Math.floor(dayEndMinute / 60),
-      dayEndMinute % 60,
-      opts.timeZone,
-    );
-    if (!(dayStart.getTime() < dayEnd.getTime())) {
-      throw new BadRequestException(`"${opts.date}" is not a valid date.`);
-    }
-
-    // A step that is not a positive number never advances the loop below, so
-    // an invalid duration is a hang rather than a wrong answer.
-    const stepMs = opts.durationMinutes * 60_000;
-    if (!Number.isFinite(stepMs) || stepMs <= 0) {
-      throw new BadRequestException(
-        `"${opts.durationMinutes}" is not a valid meeting length.`,
-      );
-    }
-
-    // No provider call belongs here. Ringee is the source of truth for agent
-    // bookings; Google/Microsoft receive the event only after it exists here.
-    const busy = await this.meetingRepo.findBusySlots(ctx, dayStart, dayEnd);
-
-    const slots: BookableSlot[] = [];
-    const now = Date.now();
-
-    for (const rule of rules) {
+    const resolvedRules = rules.flatMap((rule) => {
       const windowStart = zonedTimeToUtc(
         opts.date,
         Math.floor(rule.startMinute / 60),
@@ -583,6 +596,49 @@ export class CalendarService {
         opts.timeZone,
       );
 
+      // A DST-forward gap can normalize a nonexistent local boundary to a
+      // different wall-clock time. Such a rule has no window on this date.
+      if (
+        !matchesZonedBoundary(
+          windowStart,
+          opts.date,
+          rule.startMinute,
+          opts.timeZone,
+        ) ||
+        !matchesZonedBoundary(
+          windowEnd,
+          opts.date,
+          rule.endMinute,
+          opts.timeZone,
+        )
+      ) {
+        return [];
+      }
+
+      return [{ rule, windowStart, windowEnd }];
+    });
+    if (resolvedRules.length === 0) return [];
+
+    const dayStart = new Date(
+      Math.min(
+        ...resolvedRules.map(({ windowStart }) => windowStart.getTime()),
+      ),
+    );
+    const dayEnd = new Date(
+      Math.max(...resolvedRules.map(({ windowEnd }) => windowEnd.getTime())),
+    );
+    if (!(dayStart.getTime() < dayEnd.getTime())) {
+      throw new BadRequestException(`"${opts.date}" is not a valid date.`);
+    }
+
+    // No provider call belongs here. Ringee is the source of truth for agent
+    // bookings; Google/Microsoft receive the event only after it exists here.
+    const busy = await this.meetingRepo.findBusySlots(ctx, dayStart, dayEnd);
+
+    const slots: BookableSlot[] = [];
+    const now = Date.now();
+
+    for (const { rule, windowStart, windowEnd } of resolvedRules) {
       for (
         let startMs = windowStart.getTime();
         startMs + stepMs <= windowEnd.getTime();
@@ -604,6 +660,7 @@ export class CalendarService {
           capacity: rule.capacity,
           remainingCapacity:
             rule.capacity === null ? null : rule.capacity - occupied,
+          availabilityRuleId: rule.id,
         });
       }
     }
