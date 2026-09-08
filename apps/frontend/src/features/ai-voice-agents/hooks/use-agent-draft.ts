@@ -361,8 +361,9 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
 
   /**
    * What still stands between this draft and an agent that can take calls.
-   * A blocker is not an error: a draft may be saved without a calendar, it
-   * just cannot be activated. `errors` is what stops a save.
+   * A blocker is not an error: it is what stops activation, while `errors`
+   * stops a save. External calendars are optional for booking agents because
+   * Ringee owns their availability and meetings.
    */
   const blockers = useMemo(() => {
     const list: string[] = [];
@@ -370,19 +371,8 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
     if (!voiceId) list.push(tBlockers('voice'));
     if (needsKey && !keyAlreadySaved && !keyVerified)
       list.push(tBlockers('apiKey'));
-    if (type === 'appointment_booking' && !calendarId)
-      list.push(tBlockers('calendar'));
     return list;
-  }, [
-    name,
-    voiceId,
-    needsKey,
-    keyAlreadySaved,
-    keyVerified,
-    type,
-    calendarId,
-    tBlockers
-  ]);
+  }, [name, voiceId, needsKey, keyAlreadySaved, keyVerified, tBlockers]);
 
   const body = useMemo<SaveAgentBody>(
     () => ({

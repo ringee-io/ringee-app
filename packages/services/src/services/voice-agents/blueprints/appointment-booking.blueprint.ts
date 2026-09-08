@@ -30,7 +30,9 @@ export class AppointmentBookingBlueprint implements VoiceAgentBlueprint {
   readonly type = AiVoiceAgentType.appointment_booking;
   readonly title = "Appointment Booking";
   readonly summary = "Automatically book meetings during calls.";
-  readonly requiresCalendar = true;
+  // Ringee owns availability and the meeting row. Google/Microsoft are optional
+  // outbound sync targets, so their absence must not block this agent.
+  readonly requiresCalendar = false;
 
   readonly outcomes: AiVoiceAgentOutcome[] = [
     AiVoiceAgentOutcome.appointment_booked,

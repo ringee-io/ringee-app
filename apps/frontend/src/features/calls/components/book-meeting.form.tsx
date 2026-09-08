@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { ScrollArea } from '@ringee/frontend-shared/components/ui/scroll-area';
 import { cn } from '@ringee/frontend-shared/lib/utils';
-import { addDays, format, isSameDay, isToday, startOfToday } from 'date-fns';
+import { addDays, format, isSameDay, startOfToday } from 'date-fns';
 import { ChevronLeft, ChevronRight, Loader2, CalendarPlus } from 'lucide-react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { toast } from 'sonner';
@@ -15,6 +15,8 @@ interface AvailabilitySlot {
   time: string;
   available: boolean;
   eventName?: string;
+  capacity?: number | null;
+  remainingCapacity?: number | null;
 }
 
 const DURATIONS = [
@@ -91,44 +93,34 @@ export function BookMeetingForm({
   }, [contactId, api]);
 
   const fetchAvailability = useCallback(
-    async (date: Date, providerStr?: string) => {
+    async (date: Date) => {
       setIsLoadingSlots(true);
       try {
         const dateStr = format(date, 'yyyy-MM-dd');
-        const url = providerStr
-          ? `/calendar/availability?date=${dateStr}&provider=${providerStr}`
-          : `/calendar/availability?date=${dateStr}`;
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+        const params = new URLSearchParams({
+          date: dateStr,
+          timeZone,
+          duration: String(duration)
+        });
+        const url = `/calendar/availability?${params.toString()}`;
         const data = await api.get<AvailabilitySlot[]>(url);
         setSlots(data);
       } catch {
-        // No calendar connected - generate all available slots client-side
-        const now = new Date();
-        const isDateToday = isSameDay(date, now);
-        const generated: AvailabilitySlot[] = [];
-        for (let h = 8; h < 20; h++) {
-          for (const m of [0, 30]) {
-            if (isDateToday) {
-              const slotTime = new Date(date);
-              slotTime.setHours(h, m, 0, 0);
-              if (slotTime <= now) continue;
-            }
-            generated.push({
-              time: `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`,
-              available: true
-            });
-          }
-        }
-        setSlots(generated);
+        // Do not fabricate availability when the Ringee calendar cannot be
+        // checked; the same strict rule protects voice-agent bookings.
+        setSlots([]);
+        toast.error(t('availabilityFailed'));
       } finally {
         setIsLoadingSlots(false);
       }
     },
-    [api]
+    [api, duration, t]
   );
 
   useEffect(() => {
     if (!isInitializing) {
-      fetchAvailability(selectedDate, selectedProvider);
+      fetchAvailability(selectedDate);
       setSelectedTime(null);
     }
   }, [selectedDate, selectedProvider, isInitializing, fetchAvailability]);
@@ -136,7 +128,7 @@ export function BookMeetingForm({
   const handleSubmit = async () => {
     if (!selectedTime) return;
 
-    if (isEmailMissing && !contactEmail) {
+    if (selectedProvider && isEmailMissing && !contactEmail) {
       toast.error(t('emailRequired'));
       return;
     }
@@ -154,7 +146,9 @@ export function BookMeetingForm({
         scheduledAt: scheduledAt.toISOString(),
         duration,
         attendeeEmail: contactEmail || undefined,
-        provider: selectedProvider || undefined
+        provider: selectedProvider || undefined,
+        requireAvailableSlot: true,
+        bookingTimeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
       });
 
       toast.success(
@@ -180,9 +174,6 @@ export function BookMeetingForm({
 
   const prevWeek = () => setWeekStart((d) => addDays(d, -7));
   const nextWeek = () => setWeekStart((d) => addDays(d, 7));
-
-  const availableSlots = slots.filter((s) => s.available);
-  const firstAvailableTime = availableSlots[0]?.time;
 
   return (
     <div className='flex flex-col gap-3'>
@@ -297,7 +288,7 @@ export function BookMeetingForm({
       {/* Dynamic Inputs */}
       {!isInitializing && (
         <div className='flex flex-col gap-3'>
-          {isEmailMissing && (
+          {selectedProvider && isEmailMissing && (
             <div className='space-y-1.5'>
               <label className='text-muted-foreground block text-[10px] font-medium tracking-wider uppercase'>
                 {t('contactEmail')}

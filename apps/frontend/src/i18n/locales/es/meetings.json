@@ -9,6 +9,7 @@
     "upcoming": "Próximas",
     "all": "Todas",
     "calendar": "Calendario",
+    "availability": "Disponibilidad",
     "integrations": "Integraciones"
   },
   "sections": {
@@ -45,6 +46,44 @@
     "week": "semana",
     "day": "día"
   },
+  "availability": {
+    "title": "Disponibilidad para reservas",
+    "ringeeBadge": "Calendario de Ringee",
+    "description": "Elige las horas recurrentes en las que Ringee puede agendar reuniones y cuántas personas pueden compartir cada horario.",
+    "agentHint": "Los agentes de voz con IA usan directamente estos horarios de Ringee. Google Calendar es opcional y solo sincroniza una copia de la reserva cuando está conectado.",
+    "save": "Guardar disponibilidad",
+    "saved": "Disponibilidad guardada",
+    "loadFailed": "No se pudo cargar la disponibilidad.",
+    "saveFailed": "No se pudo guardar la disponibilidad.",
+    "retry": "Reintentar",
+    "window": "Franja disponible {number}",
+    "removeWindow": "Eliminar franja disponible {number}",
+    "days": "Días",
+    "start": "Desde",
+    "end": "Hasta",
+    "capacity": "Personas a la misma hora",
+    "capacityHint": "El horario sigue disponible hasta alcanzar esta cantidad de reuniones activas simultáneas.",
+    "unlimited": "Sin límite",
+    "unlimitedAria": "Permitir reservas sin límite en la franja {number}",
+    "unlimitedHint": "Ringee puede agendar cualquier cantidad de personas a la misma hora en esta franja.",
+    "addWindow": "Agregar otra franja",
+    "daysOfWeek": {
+      "0": "Dom",
+      "1": "Lun",
+      "2": "Mar",
+      "3": "Mié",
+      "4": "Jue",
+      "5": "Vie",
+      "6": "Sáb"
+    },
+    "validation": {
+      "days": "Elige al menos un día.",
+      "time": "Elige una hora válida.",
+      "endAfterStart": "La hora final debe ser posterior a la inicial.",
+      "overlap": "Esta franja se superpone con otra del mismo día.",
+      "capacity": "Escribe un valor entre 1 y 10.000, o elige sin límite."
+    }
+  },
   "empty": {
     "title": "Sin reuniones programadas",
     "description": "Cuando agendes una reunión aparecerá aquí.",
@@ -55,5 +94,8 @@
     "failedToLoad": "Error al cargar las reuniones",
     "cancelled": "Reunión cancelada",
     "failedToCancel": "Error al cancelar la reunión"
+  },
+  "booking": {
+    "availabilityFailed": "No se pudo consultar la disponibilidad de Ringee. Inténtalo de nuevo."
   }
 }

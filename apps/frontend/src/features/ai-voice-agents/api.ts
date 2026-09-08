@@ -90,9 +90,8 @@ export function useVoiceAgentApi() {
       listModels: () => api.get<VoiceAgentModelOption[]>(`${BASE}/models`),
 
       /**
-       * The workspace's connected calendars. An appointment-booking agent
-       * cannot go active without one, so the form has to offer the choice
-       * rather than send the user off to find it.
+       * Optional outbound calendar sync targets. Ringee remains the source of
+       * truth for availability and bookings when none is connected.
        */
       listCalendars: () =>
         api.get<CalendarIntegrationOption[]>('/calendar/integrations'),

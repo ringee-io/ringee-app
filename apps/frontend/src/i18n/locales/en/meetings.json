@@ -9,6 +9,7 @@
     "upcoming": "Upcoming",
     "all": "All",
     "calendar": "Calendar",
+    "availability": "Availability",
     "integrations": "Integrations"
   },
   "sections": {
@@ -55,6 +56,44 @@
     "week": "week",
     "day": "day"
   },
+  "availability": {
+    "title": "Booking availability",
+    "ringeeBadge": "Ringee calendar",
+    "description": "Choose the recurring hours when Ringee may book meetings and how many people may share each time.",
+    "agentHint": "AI voice agents use these Ringee hours directly. Google Calendar is optional and only syncs a copy of a booking when connected.",
+    "save": "Save availability",
+    "saved": "Availability saved",
+    "loadFailed": "Could not load booking availability.",
+    "saveFailed": "Could not save booking availability.",
+    "retry": "Try again",
+    "window": "Available window {number}",
+    "removeWindow": "Remove available window {number}",
+    "days": "Days",
+    "start": "From",
+    "end": "To",
+    "capacity": "People at the same time",
+    "capacityHint": "The time stays available until this many active meetings overlap it.",
+    "unlimited": "Unlimited",
+    "unlimitedAria": "Allow unlimited bookings in window {number}",
+    "unlimitedHint": "Ringee may book any number of people at the same time in this window.",
+    "addWindow": "Add another window",
+    "daysOfWeek": {
+      "0": "Sun",
+      "1": "Mon",
+      "2": "Tue",
+      "3": "Wed",
+      "4": "Thu",
+      "5": "Fri",
+      "6": "Sat"
+    },
+    "validation": {
+      "days": "Choose at least one day.",
+      "time": "Choose a valid time.",
+      "endAfterStart": "The end time must be after the start time.",
+      "overlap": "This window overlaps another window on the same day.",
+      "capacity": "Enter between 1 and 10,000, or choose unlimited."
+    }
+  },
   "empty": {
     "title": "No meetings scheduled",
     "description": "Once you book a meeting it will show up here.",
@@ -63,7 +102,7 @@
   },
   "integrations": {
     "title": "Calendar Integrations",
-    "description": "Connect your calendar to auto-sync meetings booked during cold calls and check availability in real-time.",
+    "description": "Optionally connect an external calendar to sync meetings booked in Ringee and create video links.",
     "comingSoon": "Coming Soon",
     "connected": "Connected",
     "connect": "Connect {provider}",
@@ -73,9 +112,9 @@
     "disconnected": "Calendar disconnected",
     "disconnectFailed": "Failed to disconnect calendar",
     "howItWorks": "How it works",
-    "howItWorksPrefix": "When you book a meeting during a cold call, Ringee automatically creates a calendar event with a",
+    "howItWorksPrefix": "When connected, Ringee creates an external calendar event with a",
     "or": "or",
-    "howItWorksSuffix": "link. Your availability is also checked in real-time when scheduling.",
+    "howItWorksSuffix": "link. Without an integration, meetings and availability continue to work in Ringee.",
     "providers": {
       "google": {
         "name": "Google Calendar",
@@ -96,6 +135,7 @@
     "emailRequired": "Please provide an email for the contact",
     "success": "Meeting booked — {date} at {time}",
     "failed": "Failed to book meeting",
+    "availabilityFailed": "Could not check Ringee availability. Try again.",
     "noSlots": "No available slots",
     "duration": "Duration",
     "contactEmail": "Contact Email",

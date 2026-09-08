@@ -1,7 +1,9 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
+  Put,
   Delete,
   Body,
   Param,
@@ -15,7 +17,13 @@ import {
   Public,
   createOwnershipContext,
 } from "@ringee/platform";
-import { CalendarService } from "@ringee/services";
+import {
+  CalendarService,
+  CalendarAvailabilityWindow,
+  MAX_MEETING_DURATION_MINUTES,
+  MIN_MEETING_DURATION_MINUTES,
+  validateMeetingDurationMinutes,
+} from "@ringee/services";
 import { CalendarProvider } from "@ringee/database";
 import { Response, Request } from "express";
 
@@ -166,17 +174,70 @@ export class CalendarController {
     return this.calendarService.disconnectCalendar(ctx, id);
   }
 
-  // TEMPORAL: por ahora siempre devolvemos todos los slots como disponibles,
-  // ignorando la disponibilidad real del calendario conectado. Lo dejamos así
-  // de momento; revertir a calendarService.getAvailability cuando se quiera
-  // volver a consultar el free/busy real del proveedor.
+  @Get("availability-settings")
+  async getAvailabilitySettings(@CurrentUser() user: CurrentUserData) {
+    return this.calendarService.getAvailabilitySettings(
+      createOwnershipContext(user),
+    );
+  }
+
+  @Put("availability-settings")
+  async updateAvailabilitySettings(
+    @Body() dto: { windows: CalendarAvailabilityWindow[] },
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.calendarService.updateAvailabilitySettings(
+      createOwnershipContext(user),
+      dto.windows,
+    );
+  }
+
+  // Ringee availability is authoritative. External providers are optional
+  // outbound sync targets and never decide which times this picker may offer.
   @Get("availability")
   async getAvailability(
     @Query("date") date: string,
-    @Query("provider") provider?: CalendarProvider,
-    @CurrentUser() user?: CurrentUserData,
+    @Query("timeZone") timeZone = "UTC",
+    @Query("duration") duration: unknown = "30",
+    @CurrentUser() user: CurrentUserData,
   ) {
-    return this.calendarService.generateAllAvailableSlots(date);
+    if (typeof duration !== "string") {
+      throw new BadRequestException("duration must be a single number.");
+    }
+    const parsedDuration = Number(duration);
+    let durationMinutes: number;
+    try {
+      durationMinutes = validateMeetingDurationMinutes(parsedDuration);
+    } catch {
+      throw new BadRequestException(
+        `duration must be a whole number between ${MIN_MEETING_DURATION_MINUTES} and ${MAX_MEETING_DURATION_MINUTES}.`,
+      );
+    }
+    const slots = await this.calendarService.getBookableSlots(
+      createOwnershipContext(user),
+      {
+        date,
+        timeZone,
+        durationMinutes,
+      },
+    );
+    const formatter = new Intl.DateTimeFormat("en-US", {
+      timeZone,
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+    });
+    return slots.map((slot) => {
+      const parts = formatter.formatToParts(new Date(slot.start));
+      const read = (type: string) =>
+        parts.find((part) => part.type === type)?.value ?? "00";
+      return {
+        time: `${read("hour")}:${read("minute")}`,
+        available: true,
+        capacity: slot.capacity,
+        remainingCapacity: slot.remainingCapacity,
+      };
+    });
   }
 
   @Post("event")

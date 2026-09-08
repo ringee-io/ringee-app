@@ -25,8 +25,14 @@ const AGENT = {
 function build(
   over: {
     agent?: Record<string, unknown> | null;
-    slots?: Array<{ start: string; end: string; label: string }>;
+    slots?: Array<{
+      start: string;
+      end: string;
+      label: string;
+      capacity?: number | null;
+    }>;
     slotsError?: Error;
+    updateErrors?: Error[];
     agentCall?: Record<string, unknown> | null;
     meeting?: Record<string, unknown>;
     meetingError?: Error;
@@ -44,6 +50,7 @@ function build(
   const lookups: string[] = [];
   const availabilityChecks: Array<Record<string, unknown>> = [];
   const supportRequests: Array<Record<string, unknown>> = [];
+  let updateAttempt = 0;
 
   const service = new VoiceAgentToolService(
     {
@@ -63,6 +70,9 @@ function build(
           : over.agentCall,
       update: async (_id: string, data: Record<string, unknown>) => {
         updates.push(data);
+        const error = over.updateErrors?.[updateAttempt];
+        updateAttempt += 1;
+        if (error) throw error;
         return {};
       },
     } as never,
@@ -79,6 +89,7 @@ function build(
               start: FUTURE,
               end: "2099-01-05T15:30:00.000Z",
               label: "Monday, January 5, 10:00 AM",
+              capacity: 3,
             },
           ]
         );
@@ -241,6 +252,9 @@ describe("VoiceAgentToolService booking", () => {
     assert.equal(created[0]?.duration, 30);
     assert.equal(created[0]?.calendarIntegrationId, "cal-1");
     assert.equal(created[0]?.requireAvailableSlot, true);
+    assert.equal(created[0]?.bookingTimeZone, "America/New_York");
+    assert.equal("slotCapacity" in (created[0] ?? {}), false);
+    assert.equal(created[0]?.agentCallId, "call-1");
     assert.deepEqual(availabilityChecks, [
       {
         date: "2099-01-05",
@@ -279,10 +293,41 @@ describe("VoiceAgentToolService booking", () => {
     assert.equal(result.appointment.id, "meeting-1");
     assert.equal(result.appointment.start, FUTURE);
     assert.equal(result.appointment.link, "https://meet.test/x");
-    // Nothing new was created, and nothing was re-recorded on the call.
+    // Nothing new was created. The known booking is also used to repair a
+    // missing outcome if a previous request committed and stopped mid-flight.
     assert.deepEqual(created, []);
-    assert.deepEqual(updates, []);
+    assert.deepEqual(updates, [{ outcome: "appointment_booked" }]);
     assert.deepEqual(lookups, ["meeting-1"]);
+  });
+
+  it("returns the recovered appointment when both outcome repairs fail", async () => {
+    const { service, updates, created } = build({
+      agentCall: {
+        id: "call-1",
+        agentId: "agent-1",
+        contactId: "contact-1",
+        callId: "c-1",
+        toNumber: "+13055550123",
+        meetingId: "meeting-1",
+      },
+      updateErrors: [
+        new Error("first write failed"),
+        new Error("retry failed"),
+      ],
+    });
+
+    const result = await service.bookAppointment("agent-1", SECRET, "cc-1", {
+      start: FUTURE,
+    });
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.appointment.id, "meeting-1");
+    assert.deepEqual(created, []);
+    assert.deepEqual(updates, [
+      { outcome: "appointment_booked" },
+      { outcome: "appointment_booked" },
+    ]);
   });
 
   it("refuses a time in the past", async () => {

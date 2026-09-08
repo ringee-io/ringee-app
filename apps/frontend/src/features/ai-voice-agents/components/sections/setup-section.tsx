@@ -2,7 +2,14 @@
 
 import Link from 'next/link';
 import { useTranslations } from 'next-intl';
-import { AlertTriangle, Check, Loader2, Server, Sparkles } from 'lucide-react';
+import {
+  AlertTriangle,
+  CalendarDays,
+  Check,
+  Loader2,
+  Server,
+  Sparkles
+} from 'lucide-react';
 import {
   Alert,
   AlertDescription
@@ -23,6 +30,8 @@ import type { VoiceAgentType } from '../../types';
 import { CallerNumberSelect } from '../caller-number-select';
 import { Field, controlClass, selectTriggerClass } from '../fields/field';
 import { Section } from './section';
+
+const RINGEE_CALENDAR_VALUE = 'ringee';
 
 /** Who the agent is, which model runs it, and — for booking — where it books. */
 export function SetupSection({
@@ -189,7 +198,7 @@ export function SetupSection({
         <Section title={t('meetings')} hint={t('meetingsHint')}>
           {draft.calendars.length === 0 ? (
             <Alert className='rounded-lg'>
-              <AlertTriangle className='size-4' />
+              <CalendarDays className='size-4' />
               <AlertDescription className='flex flex-wrap items-center gap-2'>
                 {t('noCalendar')}
                 <Button
@@ -205,14 +214,17 @@ export function SetupSection({
           ) : (
             <Field
               label={t('calendar')}
-              required
               error={draft.errors.calendarIntegrationId}
               hint={t('calendarHint')}
               className='max-w-md'
             >
               <Select
-                value={draft.calendarId}
-                onValueChange={draft.setCalendarId}
+                value={draft.calendarId || RINGEE_CALENDAR_VALUE}
+                onValueChange={(value) =>
+                  draft.setCalendarId(
+                    value === RINGEE_CALENDAR_VALUE ? '' : value
+                  )
+                }
               >
                 <SelectTrigger
                   className={selectTriggerClass}
@@ -221,6 +233,9 @@ export function SetupSection({
                   <SelectValue placeholder={t('chooseCalendar')} />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={RINGEE_CALENDAR_VALUE}>
+                    {t('ringeeCalendar')}
+                  </SelectItem>
                   {draft.calendars.map((calendar) => (
                     <SelectItem key={calendar.id} value={calendar.id}>
                       {t.has(`calendars.${calendar.provider}`)
