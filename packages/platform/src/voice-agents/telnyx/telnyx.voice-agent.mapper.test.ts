@@ -255,6 +255,7 @@ describe("toVoiceAgentAssistant", () => {
       assistantId: "assistant-1",
       callingAppId: "3035069911979263363",
       unauthenticatedWebCallsEnabled: true,
+      runtimeContextConfigured: false,
       toolWebhookUrls: [],
     });
   });
@@ -263,6 +264,7 @@ describe("toVoiceAgentAssistant", () => {
     const assistant = toVoiceAgentAssistant({ id: "assistant-2" });
     expect(assistant.callingAppId).toBeNull();
     expect(assistant.unauthenticatedWebCallsEnabled).toBe(false);
+    expect(assistant.runtimeContextConfigured).toBe(false);
   });
 
   // Where the assistant currently calls Ringee back. The dial path compares
@@ -285,6 +287,16 @@ describe("toVoiceAgentAssistant", () => {
     expect(assistant.toolWebhookUrls).toEqual([
       "https://api.ringee.io/api/x/available-slots",
     ]);
+  });
+
+  it("recognizes prompts that consume Ringee's call-time clock", () => {
+    const assistant = toVoiceAgentAssistant({
+      id: "assistant-4",
+      instructions:
+        "It is {{current_datetime}} in {{agent_timezone}} at call start.",
+    });
+
+    expect(assistant.runtimeContextConfigured).toBe(true);
   });
 });
 

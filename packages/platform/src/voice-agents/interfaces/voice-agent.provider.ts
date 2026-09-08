@@ -111,6 +111,8 @@ export interface VoiceAgentAssistant {
   callingAppId: string | null;
   /** Whether an unauthenticated browser may currently talk to this agent. */
   unauthenticatedWebCallsEnabled: boolean;
+  /** Whether the stored prompt consumes Ringee's call-time clock variables. */
+  runtimeContextConfigured: boolean;
   /**
    * Where the assistant currently calls Ringee back for its tools.
    *

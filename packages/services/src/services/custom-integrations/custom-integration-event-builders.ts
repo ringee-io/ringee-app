@@ -4,6 +4,7 @@
  */
 
 import {
+  AiVoiceAgentCall,
   Call,
   CallbackTask,
   CallStatus,
@@ -93,6 +94,28 @@ export function buildCallOutcomeData(call: Call): Record<string, unknown> {
     outcome: call.outcome,
     outcomeNote: call.outcomeNote ?? undefined,
     updatedAt: (call.updatedAt ?? new Date()).toISOString(),
+  };
+}
+
+/**
+ * AI voice-agent analyses own a wider outcome vocabulary than `CallOutcome`.
+ * Keep the public event on the same call-oriented envelope while preserving
+ * the agent's actual conclusion instead of coercing it into an unrelated
+ * human-dialer disposition.
+ */
+export function buildVoiceAgentCallOutcomeData(
+  agentCall: Pick<
+    AiVoiceAgentCall,
+    "id" | "agentId" | "callId" | "outcome" | "metadata" | "updatedAt"
+  >,
+): Record<string, unknown> {
+  return {
+    callId: agentCall.callId,
+    agentCallId: agentCall.id,
+    agentId: agentCall.agentId,
+    outcome: agentCall.outcome,
+    metadata: agentCall.metadata ?? undefined,
+    updatedAt: agentCall.updatedAt.toISOString(),
   };
 }
 

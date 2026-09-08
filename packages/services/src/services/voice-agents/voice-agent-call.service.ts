@@ -31,6 +31,7 @@ import { UserService } from "../user.service";
 import { VoiceAgentBlueprintRegistry } from "./blueprints/voice-agent-blueprint.registry";
 import { assertVoiceAgentAccess } from "./voice-agent-access";
 import { VoiceAgentService } from "./voice-agent.service";
+import { voiceAgentRuntimeVariables } from "./voice-agent-conversation";
 import {
   AI_VOICE_AGENT_CALL_SOURCE,
   AI_VOICE_AGENT_CONTACT_SOURCE,
@@ -160,7 +161,13 @@ export class VoiceAgentCallService {
         callingAppId: await this.requireCallingApp(agent),
         from,
         to,
-        variables,
+        // The assistant is long-lived, but the clock is not. Override the
+        // Ringee-owned runtime values on every dial so web, public API, CLI and
+        // MCP calls all interpret dates in the agent's selected time zone.
+        variables: {
+          ...variables,
+          ...voiceAgentRuntimeVariables(agent.timezone),
+        },
         conversationCallbackUrl: this.conversationCallbackUrl(),
         statusCallbackUrl: this.statusCallbackUrl(agentCall.id, callbackToken),
         ringTimeoutSeconds: RING_TIMEOUT_SECONDS,

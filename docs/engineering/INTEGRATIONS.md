@@ -156,6 +156,12 @@ The generic, customer-facing integration surface.
   tab in the dashboard. Changing it changes public docs and live contracts.
 - Envelope: `{ event, eventId, occurredAt, data }`, plus `workspaceId` and
   `integrationId` on outbound.
+- AI voice-agent calls use the same fan-out: terminal status publishes
+  `call.completed`/`call.failed`, post-call analysis publishes
+  `call.outcome.updated`, confirmed bookings publish `meeting.created`, and the
+  recovered recording publishes `recording.ready`. Only events actually
+  produced by the call are sent, and each is filtered by the integration's
+  configured subscriptions.
 
 ### Enrichment (`packages/platform/src/enrichment`)
 

@@ -19,6 +19,7 @@ import {
 } from "@ringee/platform";
 import { TranscriptionService } from "../transcription/transcription.service";
 import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
+import { buildVoiceAgentCallOutcomeData } from "../custom-integrations/custom-integration-event-builders";
 import { VoiceAgentService } from "./voice-agent.service";
 import type { VoiceAgentAnalysisSettings } from "./voice-agent.types";
 
@@ -314,7 +315,40 @@ export class VoiceAgentResultService {
     }
 
     if (Object.keys(update).length === 0) return;
-    await this.agentCalls.update(agentCall.id, update);
+
+    // The non-outcome fields may legitimately be refreshed by a replay. The
+    // outcome itself is a transition: claim it atomically so concurrent copies
+    // of the same provider callback cannot publish it twice.
+    const { outcome, ...otherUpdates } = update;
+    if (Object.keys(otherUpdates).length > 0) {
+      await this.agentCalls.update(agentCall.id, otherUpdates);
+    }
+    if (!outcome) return;
+
+    const updated = await this.agentCalls.updateOutcomeIfChanged(
+      agentCall.id,
+      outcome,
+    );
+    if (!updated) return;
+
+    // Agent analyses do not pass through CallService.setOutcome: their outcome
+    // vocabulary is deliberately wider than the human dialer's CallOutcome.
+    // Publish the normalized call event here, after the analysis is durable.
+    // `updatedAt` is this persisted transition's revision. It keeps an outbox
+    // replay idempotent without collapsing a later, genuine outcome change.
+    if (updated.callId && updated.outcome) {
+      await this.customIntegrationOutbound.enqueue({
+        ctx: {
+          userId: updated.userId,
+          organizationId: updated.organizationId,
+        },
+        eventEnum: "call_outcome_updated",
+        subjectId: updated.callId,
+        dedupeKey: `${updated.callId}:outcome:${updated.outcome}:${updated.updatedAt.toISOString()}`,
+        data: buildVoiceAgentCallOutcomeData(updated),
+        occurredAt: updated.updatedAt,
+      });
+    }
   }
 
   /**

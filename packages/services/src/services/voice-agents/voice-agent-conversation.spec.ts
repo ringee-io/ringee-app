@@ -4,6 +4,7 @@ import type { VoiceAgentConversationSettings } from "./voice-agent.types";
 import {
   composeVoiceAgentInstructions,
   readVoiceAgentConversationSettings,
+  voiceAgentRuntimeVariables,
 } from "./voice-agent-conversation";
 
 const defaults: VoiceAgentConversationSettings = {
@@ -33,9 +34,40 @@ describe("voice agent conversation settings", () => {
   });
 
   it("does not duplicate safety rules on the unchanged default prompt", () => {
-    assert.equal(
-      composeVoiceAgentInstructions(defaults, defaults, "NEVER INVENT"),
-      defaults.instructions,
+    const instructions = composeVoiceAgentInstructions(
+      defaults,
+      defaults,
+      "NEVER INVENT",
+    );
+    assert.match(instructions, /^## Role\n\nBook a meeting\./);
+    assert.doesNotMatch(instructions, /NEVER INVENT/);
+    assert.match(instructions, /\{\{current_datetime\}\}/);
+    assert.match(instructions, /\{\{agent_timezone\}\}/);
+  });
+
+  it("formats the call-start clock in the agent's selected timezone", () => {
+    assert.deepEqual(
+      voiceAgentRuntimeVariables(
+        "America/Santo_Domingo",
+        new Date("2026-09-08T05:30:45.000Z"),
+      ),
+      {
+        agent_timezone: "America/Santo_Domingo",
+        current_datetime: "Tuesday, September 8, 2026 at 01:30:45 GMT-04:00",
+      },
+    );
+  });
+
+  it("falls back to an explicit UTC clock for an invalid legacy timezone", () => {
+    assert.deepEqual(
+      voiceAgentRuntimeVariables(
+        "Legacy/Invalid",
+        new Date("2026-09-08T05:30:45.000Z"),
+      ),
+      {
+        agent_timezone: "UTC",
+        current_datetime: "Tuesday, September 8, 2026 at 05:30:45 GMT+00:00",
+      },
     );
   });
 

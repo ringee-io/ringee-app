@@ -44,6 +44,7 @@ import { CompanyProfileService } from "./company-profile.service";
 import {
   composeVoiceAgentInstructions,
   readVoiceAgentConversationSettings,
+  voiceAgentRuntimeVariables,
 } from "./voice-agent-conversation";
 import {
   DEFAULT_ANALYSIS_SETTINGS,
@@ -1014,8 +1015,9 @@ export class VoiceAgentService {
   }
 
   /**
-   * Makes sure the agent has the current set of webhook tools and that all of
-   * them still call this backend, before it dials.
+   * Makes sure the agent has the current set of webhook tools, that all of them
+   * still call this backend, and that its prompt consumes Ringee's call-time
+   * clock before it dials.
    *
    * Tool definitions are written when the agent is saved and otherwise outlive
    * the code that created them. A new required tool (such as human support) is
@@ -1052,12 +1054,13 @@ export class VoiceAgentService {
       .sort();
     const actual = [...assistant.toolWebhookUrls].sort();
     const matches =
+      assistant.runtimeContextConfigured &&
       actual.length === expected.length &&
       actual.every((url, index) => url === expected[index]);
     if (matches) return;
 
     this.logger.warn(
-      `Agent ${agent.id} has stale or missing webhook tools; re-syncing against its current blueprint`,
+      `Agent ${agent.id} has stale tools or runtime context; re-syncing against its current blueprint`,
     );
     await this.syncToProvider(ctx, agent.id);
   }
@@ -1222,6 +1225,7 @@ export class VoiceAgentService {
       company_name: company.name,
       company_description: company.description,
       company_website: company.website,
+      ...voiceAgentRuntimeVariables(agent.timezone),
     };
     for (const variable of blueprint.variables) {
       variables[variable.key] = "";

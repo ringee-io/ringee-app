@@ -49,13 +49,20 @@ function build(
     transcriptError?: Error;
     alreadyTranscribed?: boolean;
     completedCall?: Record<string, unknown> | null;
+    insightOutcome?: string;
   } = {},
 ) {
   const updates: Array<Record<string, unknown>> = [];
   const transcripts: Array<Record<string, unknown>> = [];
   const attached: Array<Record<string, unknown>> = [];
   const terminalEvents: Array<Record<string, unknown>> = [];
+  const outcomeEvents: Array<Record<string, unknown>> = [];
   const completions: Array<Record<string, unknown>> = [];
+  let currentOutcome =
+    over.agentCall && "outcome" in over.agentCall
+      ? over.agentCall.outcome
+      : AGENT_CALL.outcome;
+  let outcomeRevision = 0;
 
   const service = new VoiceAgentResultService(
     {
@@ -64,7 +71,28 @@ function build(
       findByCallControlId: async () => over.byControlId ?? null,
       update: async (_id: string, data: Record<string, unknown>) => {
         updates.push(data);
-        return AGENT_CALL;
+        return {
+          ...AGENT_CALL,
+          ...data,
+          metadata: { external_id: "customer-42" },
+          updatedAt: new Date("2026-09-07T14:05:00.000Z"),
+        };
+      },
+      updateOutcomeIfChanged: async (_id: string, outcome: string) => {
+        if (currentOutcome === outcome) return null;
+        currentOutcome = outcome;
+        updates.push({ outcome });
+        const updatedAt = new Date(
+          new Date("2026-09-07T14:05:00.000Z").getTime() +
+            outcomeRevision * 1_000,
+        );
+        outcomeRevision += 1;
+        return {
+          ...AGENT_CALL,
+          outcome,
+          metadata: { external_id: "customer-42" },
+          updatedAt,
+        };
       },
     } as never,
     {
@@ -117,7 +145,9 @@ function build(
                 { insightId: "insight-summary", result: "Booked a demo." },
                 {
                   insightId: "insight-outcome",
-                  result: '{"outcome":"appointment_booked"}',
+                  result: JSON.stringify({
+                    outcome: over.insightOutcome ?? "appointment_booked",
+                  }),
                 },
               ],
             }
@@ -151,6 +181,9 @@ function build(
       enqueueCallTerminal: async (call: Record<string, unknown>) => {
         terminalEvents.push(call);
       },
+      enqueue: async (event: Record<string, unknown>) => {
+        outcomeEvents.push(event);
+      },
     } as never,
   );
 
@@ -160,13 +193,14 @@ function build(
     transcripts,
     attached,
     terminalEvents,
+    outcomeEvents,
     completions,
   };
 }
 
 describe("VoiceAgentResultService analysis callback", () => {
   it("writes the analysis onto the call it belongs to", async () => {
-    const { service, updates } = build();
+    const { service, updates, outcomeEvents } = build();
 
     const accepted = await service.applyInsightCallback(AGENT_ID, TOKEN, {
       conversation_id: "conv-1",
@@ -174,8 +208,96 @@ describe("VoiceAgentResultService analysis callback", () => {
 
     assert.equal(accepted, true);
     assert.deepEqual(updates, [
-      { summary: "Booked a demo.", outcome: "appointment_booked" },
+      { summary: "Booked a demo." },
+      { outcome: "appointment_booked" },
     ]);
+    assert.deepEqual(outcomeEvents, [
+      {
+        ctx: { userId: "user-1", organizationId: "org-1" },
+        eventEnum: "call_outcome_updated",
+        subjectId: "telephony-1",
+        dedupeKey:
+          "telephony-1:outcome:appointment_booked:2026-09-07T14:05:00.000Z",
+        data: {
+          callId: "telephony-1",
+          agentCallId: "call-1",
+          agentId: "agent-1",
+          outcome: "appointment_booked",
+          metadata: { external_id: "customer-42" },
+          updatedAt: "2026-09-07T14:05:00.000Z",
+        },
+        occurredAt: new Date("2026-09-07T14:05:00.000Z"),
+      },
+    ]);
+  });
+
+  it("does not publish an unchanged outcome when the callback is replayed", async () => {
+    const { service, updates, outcomeEvents } = build({
+      insightOutcome: "callback_requested",
+    });
+
+    await service.applyInsightCallback(AGENT_ID, TOKEN, {
+      conversation_id: "conv-1",
+    });
+    await service.applyInsightCallback(AGENT_ID, TOKEN, {
+      conversation_id: "conv-1",
+    });
+
+    assert.deepEqual(updates, [
+      { summary: "Booked a demo." },
+      { outcome: "callback_requested" },
+      { summary: "Booked a demo." },
+    ]);
+    assert.equal(outcomeEvents.length, 1);
+  });
+
+  it("publishes each genuine outcome transition with a distinct revision key", async () => {
+    const state = { insightOutcome: "callback_requested" };
+    const { service, outcomeEvents } = build(state);
+
+    await service.applyInsightCallback(AGENT_ID, TOKEN, {
+      conversation_id: "conv-1",
+    });
+    state.insightOutcome = "not_interested";
+    await service.applyInsightCallback(AGENT_ID, TOKEN, {
+      conversation_id: "conv-1",
+    });
+
+    assert.deepEqual(
+      outcomeEvents.map((event) => ({
+        outcome: (event.data as Record<string, unknown>).outcome,
+        dedupeKey: event.dedupeKey,
+      })),
+      [
+        {
+          outcome: "callback_requested",
+          dedupeKey:
+            "telephony-1:outcome:callback_requested:2026-09-07T14:05:00.000Z",
+        },
+        {
+          outcome: "not_interested",
+          dedupeKey:
+            "telephony-1:outcome:not_interested:2026-09-07T14:05:01.000Z",
+        },
+      ],
+    );
+  });
+
+  it("still refreshes other analysis fields when the outcome is unchanged", async () => {
+    const { service, updates, outcomeEvents } = build({
+      agentCall: {
+        ...AGENT_CALL,
+        outcome: "callback_requested",
+      },
+      insightOutcome: "callback_requested",
+    });
+
+    await service.applyInsightCallback(AGENT_ID, TOKEN, {
+      conversation_id: "conv-1",
+    });
+
+    assert.deepEqual(updates, [{ summary: "Booked a demo." }]);
+    assert.deepEqual(outcomeEvents, []);
   });
 
   it("writes nothing when the token does not verify", async () => {
@@ -273,10 +395,8 @@ describe("VoiceAgentResultService analysis callback", () => {
     assert.equal(attached.length, 1);
     assert.equal(attached[0]!.callSessionId, "cs-1");
     // And the analysis lands on the call, which is the point of all of it.
-    assert.deepEqual(updates[1], {
-      summary: "Booked a demo.",
-      outcome: "appointment_booked",
-    });
+    assert.deepEqual(updates[1], { summary: "Booked a demo." });
+    assert.deepEqual(updates[2], { outcome: "appointment_booked" });
   });
 });
 

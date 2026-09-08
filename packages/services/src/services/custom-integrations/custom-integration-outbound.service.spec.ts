@@ -135,4 +135,40 @@ describe("CustomIntegrationOutboundService call fan-out", () => {
     assert.equal(deliveries[0]!.payload.event, "call.failed");
     assert.equal(deliveries[0]!.payload.data.status, CallStatus.failed);
   });
+
+  it("keeps the subject id while deduplicating a specific event transition", async () => {
+    const deliveries: Array<Record<string, any>> = [];
+    const service = new CustomIntegrationOutboundService(
+      {
+        findActiveSubscribed: async () => [
+          {
+            id: "integration-1",
+            userId: "user-1",
+            organizationId: "org-1",
+            outboundUrl: "https://one.example/webhooks",
+          },
+        ],
+      } as never,
+      {
+        enqueue: async (delivery: Record<string, unknown>) => {
+          deliveries.push(delivery);
+          return delivery;
+        },
+      } as never,
+    );
+
+    await service.enqueue({
+      ctx: { userId: "user-1", organizationId: "org-1" },
+      eventEnum: "call_outcome_updated",
+      subjectId: "call-1",
+      dedupeKey: "call-1:outcome:not_interested:revision-2",
+      data: { callId: "call-1", outcome: "not_interested" },
+    });
+
+    assert.equal(deliveries[0]!.subjectId, "call-1");
+    assert.equal(
+      deliveries[0]!.dedupeKey,
+      "integration-1:call_outcome_updated:call-1:outcome:not_interested:revision-2:v1",
+    );
+  });
 });

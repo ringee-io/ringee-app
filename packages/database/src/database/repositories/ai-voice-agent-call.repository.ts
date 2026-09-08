@@ -101,6 +101,25 @@ export class AiVoiceAgentCallRepository {
   }
 
   /**
+   * Atomically changes the outcome only when it is a real transition.
+   * Concurrent replays of the same analysis therefore have a single winner,
+   * whose persisted `updatedAt` is the revision for downstream idempotency.
+   */
+  async updateOutcomeIfChanged(
+    id: string,
+    outcome: AiVoiceAgentOutcome,
+  ): Promise<AiVoiceAgentCall | null> {
+    const [updated] = await this.prisma.aiVoiceAgentCall.updateManyAndReturn({
+      where: {
+        id,
+        OR: [{ outcome: null }, { outcome: { not: outcome } }],
+      },
+      data: { outcome },
+    });
+    return updated ?? null;
+  }
+
+  /**
    * Settle the AI-usage charge exactly once. `costSettledAt` is the idempotency
    * guard (BILL-003/BILL-004): a replay updates zero rows and returns false.
    */

@@ -22,6 +22,7 @@ import type {
 export interface TelnyxAssistantResponse {
   id: string;
   name?: string;
+  instructions?: string | null;
   tools?: Array<{
     type?: string | null;
     webhook?: { url?: string | null } | null;
@@ -249,6 +250,9 @@ export function toVoiceAgentAssistant(
     callingAppId: raw.telephony_settings?.default_texml_app_id ?? null,
     unauthenticatedWebCallsEnabled:
       raw.telephony_settings?.supports_unauthenticated_web_calls ?? false,
+    runtimeContextConfigured:
+      raw.instructions?.includes("{{current_datetime}}") === true &&
+      raw.instructions?.includes("{{agent_timezone}}") === true,
     toolWebhookUrls: (raw.tools ?? []).flatMap((tool) => {
       const url = str(tool?.webhook?.url);
       return tool?.type === "webhook" && url ? [url] : [];
