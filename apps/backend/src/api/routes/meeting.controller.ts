@@ -35,6 +35,8 @@ export class MeetingController {
       notes?: string;
       attendeeEmail?: string;
       provider?: string;
+      requireAvailableSlot?: boolean;
+      bookingTimeZone?: string;
     },
     @CurrentUser() user: CurrentUserData,
   ) {

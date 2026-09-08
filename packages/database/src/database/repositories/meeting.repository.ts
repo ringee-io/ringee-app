@@ -11,6 +11,8 @@ interface MeetingCreateData {
   duration?: number;
   location?: string;
   notes?: string;
+  /** Voice-agent call to claim atomically with a protected booking. */
+  agentCallId?: string;
 }
 
 function ownershipSql(ctx: OwnershipContext): {
@@ -79,13 +81,15 @@ export class MeetingRepository {
   /**
    * Re-checks the requested Ringee slot and creates the meeting as one guarded
    * database operation. A transaction-scoped workspace row lock serializes agent
-   * bookings in the same workspace across API instances; the overlap query is
-   * deliberately repeated after taking it because the earlier tool lookup may
-   * already be stale by the time the caller confirms a time.
+   * bookings in the same workspace across API instances. Capacity and the
+   * voice-agent call marker are both checked while that lock is held, because
+   * the earlier tool lookup may already be stale or concurrently retried by
+   * the time the caller confirms a time.
    */
   async createIfAvailable(
     ctx: OwnershipContext,
     data: MeetingCreateData,
+    capacity: number | null = 1,
   ): Promise<Meeting | null> {
     const duration = data.duration ?? 30;
     const end = new Date(data.scheduledAt.getTime() + duration * 60_000);
@@ -108,22 +112,45 @@ export class MeetingRepository {
         `;
       }
 
-      const conflict = await tx.$queryRaw<Array<{ id: string }>>`
-        SELECT "id"
+      if (data.agentCallId) {
+        const agentCalls = await tx.$queryRaw<
+          Array<{ meetingId: string | null }>
+        >`
+          SELECT "meetingId"
+          FROM "AiVoiceAgentCall"
+          WHERE "id" = ${data.agentCallId}::uuid
+            ${userFilter}
+            ${organizationFilter}
+          FOR UPDATE
+        `;
+        // The row is both the authorization boundary and the idempotency
+        // marker. Missing means this booking cannot safely be attributed;
+        // populated means another retry already won.
+        if (agentCalls.length !== 1 || agentCalls[0]!.meetingId) return null;
+      }
+
+      const [{ count = 0 } = {}] = await tx.$queryRaw<Array<{ count: number }>>`
+        SELECT COUNT(*)::int AS "count"
         FROM "Meeting"
         WHERE "status" IN ('scheduled', 'rescheduled')
           AND "scheduledAt" < ${end}
           AND "scheduledAt" + ("duration" * INTERVAL '1 minute') > ${data.scheduledAt}
           ${userFilter}
           ${organizationFilter}
-        LIMIT 1
       `;
-      if (conflict.length > 0) return null;
+      if (capacity !== null && count >= capacity) return null;
 
-      return tx.meeting.create({
+      const meeting = await tx.meeting.create({
         data: this.createData(ctx, { ...data, duration }),
         include: { contact: true },
       });
+      if (data.agentCallId) {
+        await tx.aiVoiceAgentCall.update({
+          where: { id: data.agentCallId },
+          data: { meetingId: meeting.id },
+        });
+      }
+      return meeting;
     });
   }
 

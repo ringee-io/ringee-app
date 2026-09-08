@@ -109,6 +109,12 @@ export class MeetingService {
       calendarProvider?: "google" | "microsoft";
       calendarIntegrationId?: string | null;
       requireAvailableSlot?: boolean;
+      /** Capacity returned by the Ringee availability lookup; null is unlimited. */
+      slotCapacity?: number | null;
+      /** IANA zone used to validate a human-picked Ringee availability slot. */
+      bookingTimeZone?: string;
+      /** Voice-agent call claimed atomically with this protected booking. */
+      agentCallId?: string;
     },
   ): Promise<Meeting> {
     const meetingData = {
@@ -119,9 +125,40 @@ export class MeetingService {
       duration: dto.duration,
       location: dto.location,
       notes: dto.notes,
+      agentCallId: dto.agentCallId,
     };
+    let slotCapacity = dto.slotCapacity;
+    if (
+      dto.requireAvailableSlot &&
+      slotCapacity === undefined &&
+      dto.bookingTimeZone
+    ) {
+      const scheduledAt = meetingData.scheduledAt;
+      const dateParts = new Intl.DateTimeFormat("en-CA", {
+        timeZone: dto.bookingTimeZone,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }).formatToParts(scheduledAt);
+      const read = (type: string) =>
+        dateParts.find((part) => part.type === type)?.value ?? "";
+      const date = `${read("year")}-${read("month")}-${read("day")}`;
+      const slots = await this.calendarService.getBookableSlots(ctx, {
+        date,
+        timeZone: dto.bookingTimeZone,
+        durationMinutes: meetingData.duration ?? 30,
+      });
+      const exactSlot = slots.find(
+        (slot) => new Date(slot.start).getTime() === scheduledAt.getTime(),
+      );
+      if (!exactSlot) {
+        throw new ConflictException("That time is no longer available.");
+      }
+      slotCapacity = exactSlot.capacity;
+    }
+
     const meeting = dto.requireAvailableSlot
-      ? await this.meetingRepo.createIfAvailable(ctx, meetingData)
+      ? await this.meetingRepo.createIfAvailable(ctx, meetingData, slotCapacity)
       : await this.meetingRepo.create(ctx, meetingData);
     if (!meeting) {
       throw new ConflictException("That time is no longer available.");

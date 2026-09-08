@@ -25,7 +25,12 @@ const AGENT = {
 function build(
   over: {
     agent?: Record<string, unknown> | null;
-    slots?: Array<{ start: string; end: string; label: string }>;
+    slots?: Array<{
+      start: string;
+      end: string;
+      label: string;
+      capacity?: number | null;
+    }>;
     slotsError?: Error;
     agentCall?: Record<string, unknown> | null;
     meeting?: Record<string, unknown>;
@@ -79,6 +84,7 @@ function build(
               start: FUTURE,
               end: "2099-01-05T15:30:00.000Z",
               label: "Monday, January 5, 10:00 AM",
+              capacity: 3,
             },
           ]
         );
@@ -241,6 +247,8 @@ describe("VoiceAgentToolService booking", () => {
     assert.equal(created[0]?.duration, 30);
     assert.equal(created[0]?.calendarIntegrationId, "cal-1");
     assert.equal(created[0]?.requireAvailableSlot, true);
+    assert.equal(created[0]?.slotCapacity, 3);
+    assert.equal(created[0]?.agentCallId, "call-1");
     assert.deepEqual(availabilityChecks, [
       {
         date: "2099-01-05",
@@ -279,9 +287,10 @@ describe("VoiceAgentToolService booking", () => {
     assert.equal(result.appointment.id, "meeting-1");
     assert.equal(result.appointment.start, FUTURE);
     assert.equal(result.appointment.link, "https://meet.test/x");
-    // Nothing new was created, and nothing was re-recorded on the call.
+    // Nothing new was created. The known booking is also used to repair a
+    // missing outcome if a previous request committed and stopped mid-flight.
     assert.deepEqual(created, []);
-    assert.deepEqual(updates, []);
+    assert.deepEqual(updates, [{ outcome: "appointment_booked" }]);
     assert.deepEqual(lookups, ["meeting-1"]);
   });
 

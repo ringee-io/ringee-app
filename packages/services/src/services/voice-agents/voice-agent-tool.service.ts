@@ -169,6 +169,11 @@ export class VoiceAgentToolService {
         ctx,
         agentCall.meetingId,
       );
+      if (agentCall.outcome !== AiVoiceAgentOutcome.appointment_booked) {
+        await this.agentCalls.update(agentCall.id, {
+          outcome: AiVoiceAgentOutcome.appointment_booked,
+        });
+      }
       const bookedStart = new Date(booked.scheduledAt);
       return {
         ok: true,
@@ -199,7 +204,7 @@ export class VoiceAgentToolService {
         timeZone: timezone,
         durationMinutes: agent.meetingDurationMinutes,
       });
-      const exactSlot = slots.some(
+      const exactSlot = slots.find(
         (slot) => new Date(slot.start).getTime() === start.getTime(),
       );
       if (!exactSlot) {
@@ -220,6 +225,8 @@ export class VoiceAgentToolService {
         attendeeEmail: input.attendee_email,
         calendarIntegrationId: agent.calendarIntegrationId,
         requireAvailableSlot: true,
+        slotCapacity: exactSlot.capacity,
+        agentCallId: agentCall?.id,
       });
 
       const end = new Date(

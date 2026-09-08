@@ -30,6 +30,10 @@ const toolContext = {
 describe("AppointmentBookingBlueprint", () => {
   const blueprint = new AppointmentBookingBlueprint();
 
+  it("uses Ringee bookings without requiring an external calendar", () => {
+    assert.equal(blueprint.requiresCalendar, false);
+  });
+
   it("states the no-invented-availability rule the product depends on", () => {
     const instructions = blueprint.buildInstructions(promptContext);
     assert.match(instructions, /Never state or imply availability/);

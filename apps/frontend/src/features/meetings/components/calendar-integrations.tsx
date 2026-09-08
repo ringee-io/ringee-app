@@ -11,7 +11,8 @@ import {
   ExternalLink,
   Check,
   Unplug,
-  CalendarDays
+  CalendarDays,
+  Clock3
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
@@ -118,7 +119,7 @@ export function CalendarIntegrations() {
       url.searchParams.delete('provider');
       window.history.replaceState({}, '', url.toString());
     }
-  }, [fetchIntegrations]);
+  }, [fetchIntegrations, t]);
 
   const handleConnect = (provider: 'google' | 'microsoft') => {
     // Redirect to the backend OAuth route — auth token is sent via cookie
@@ -198,8 +199,9 @@ export function CalendarIntegrations() {
                 {isComingSoon && (
                   <div className='bg-background/50 absolute inset-0 z-20 flex flex-col items-center justify-center backdrop-blur-[1.5px]'>
                     <div className='border-primary/20 bg-card/95 rounded-full border px-3 py-1 shadow-sm'>
-                      <span className='text-primary text-[10px] font-bold tracking-widest uppercase'>
-                        ✨ {t('comingSoon')}
+                      <span className='text-primary flex items-center gap-1.5 text-[10px] font-bold tracking-widest uppercase'>
+                        <Clock3 className='size-3' />
+                        {t('comingSoon')}
                       </span>
                     </div>
                   </div>

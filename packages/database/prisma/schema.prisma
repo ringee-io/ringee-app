@@ -419,6 +419,7 @@ model User {
   tags                    Tag[]
   meetings                Meeting[]
   calendarIntegrations    CalendarIntegration[]
+  calendarAvailability    CalendarAvailabilityRule[]
   activitySnapshot        UserActivitySnapshot?
   crmConnections          CrmConnection[]
   companies               Company[]
@@ -513,6 +514,7 @@ model Organization {
   tags                   Tag[]
   meetings               Meeting[]
   calendarIntegrations   CalendarIntegration[]
+  calendarAvailability   CalendarAvailabilityRule[]
   crmConnections         CrmConnection[]
   companies              Company[]
   enrichmentConnections  EnrichmentConnection[]
@@ -1814,6 +1816,27 @@ model CalendarIntegration {
   @@unique([userId, provider])
   @@index([organizationId])
   @@index([userId])
+}
+
+/// A recurring Ringee booking window. External calendars are optional sync
+/// targets; these rows are the availability source of truth for voice agents.
+/// `capacity = null` means the window accepts unlimited simultaneous meetings.
+model CalendarAvailabilityRule {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @db.Uuid
+  organizationId String?  @db.Uuid
+  daysOfWeek     Int[]
+  startMinute    Int
+  endMinute      Int
+  capacity       Int?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([organizationId])
 }
 
 // ── Outbound System Models ──

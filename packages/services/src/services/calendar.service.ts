@@ -1,5 +1,7 @@
 import { Injectable, BadRequestException } from "@nestjs/common";
 import {
+  CalendarAvailabilityRepository,
+  CalendarAvailabilityRule,
   CalendarIntegrationRepository,
   MeetingRepository,
   CalendarIntegration,
@@ -34,6 +36,64 @@ export interface BookableSlot {
   end: string;
   /** How the slot reads in its own time zone, e.g. "Friday, 2:30 PM". */
   label: string;
+  /** Maximum simultaneous bookings for this time; null means unlimited. */
+  capacity: number | null;
+  /** Places still available at lookup time; null means unlimited. */
+  remainingCapacity: number | null;
+}
+
+export interface CalendarAvailabilityWindow {
+  id?: string;
+  /** Sunday = 0 through Saturday = 6. */
+  daysOfWeek: number[];
+  /** Local wall-clock time in HH:mm form. */
+  startTime: string;
+  endTime: string;
+  /** Maximum simultaneous bookings; null means unlimited. */
+  capacity: number | null;
+}
+
+export interface CalendarAvailabilitySettings {
+  /** False means Ringee's backwards-compatible 09:00–18:00 schedule applies. */
+  configured: boolean;
+  windows: CalendarAvailabilityWindow[];
+}
+
+const DEFAULT_START_MINUTE = 9 * 60;
+const DEFAULT_END_MINUTE = 18 * 60;
+const DEFAULT_CAPACITY = 1;
+const MAX_AVAILABILITY_WINDOWS = 50;
+const MAX_SLOT_CAPACITY = 10_000;
+
+function parseTime(value: unknown, field: string): number {
+  const match =
+    typeof value === "string" ? /^(\d{2}):(\d{2})$/.exec(value) : null;
+  const hour = Number(match?.[1]);
+  const minute = Number(match?.[2]);
+  if (!match || hour > 23 || minute > 59) {
+    throw new BadRequestException(`${field} must use HH:mm time.`);
+  }
+  return hour * 60 + minute;
+}
+
+function formatTime(minuteOfDay: number): string {
+  const hour = Math.floor(minuteOfDay / 60);
+  const minute = minuteOfDay % 60;
+  return `${hour.toString().padStart(2, "0")}:${minute
+    .toString()
+    .padStart(2, "0")}`;
+}
+
+function dayOfWeek(date: string): number {
+  const parsed = new Date(`${date}T12:00:00.000Z`);
+  if (
+    !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+    Number.isNaN(parsed.getTime()) ||
+    parsed.toISOString().slice(0, 10) !== date
+  ) {
+    throw new BadRequestException(`"${date}" is not a valid date.`);
+  }
+  return parsed.getUTCDay();
 }
 
 /**
@@ -105,6 +165,7 @@ export class CalendarService {
   constructor(
     private readonly calendarRepo: CalendarIntegrationRepository,
     private readonly meetingRepo: MeetingRepository,
+    private readonly availabilityRepo: CalendarAvailabilityRepository,
   ) {}
 
   // --- OAuth Flow Methods ---
@@ -302,6 +363,94 @@ export class CalendarService {
     await this.calendarRepo.deactivate(integrationId);
   }
 
+  async getAvailabilitySettings(
+    ctx: OwnershipContext,
+  ): Promise<CalendarAvailabilitySettings> {
+    const rules = await this.availabilityRepo.list(ctx);
+    return {
+      configured: rules.length > 0,
+      windows: rules.map((rule) => this.toAvailabilityWindow(rule)),
+    };
+  }
+
+  async updateAvailabilitySettings(
+    ctx: OwnershipContext,
+    windows: CalendarAvailabilityWindow[],
+  ): Promise<CalendarAvailabilitySettings> {
+    if (!Array.isArray(windows) || windows.length === 0) {
+      throw new BadRequestException("Add at least one availability window.");
+    }
+    if (windows.length > MAX_AVAILABILITY_WINDOWS) {
+      throw new BadRequestException(
+        `Use no more than ${MAX_AVAILABILITY_WINDOWS} availability windows.`,
+      );
+    }
+
+    const normalized = windows.map((window, index) => {
+      if (!window || typeof window !== "object") {
+        throw new BadRequestException(`windows.${index} is not valid.`);
+      }
+      const startMinute = parseTime(
+        window.startTime,
+        `windows.${index}.startTime`,
+      );
+      const endMinute = parseTime(window.endTime, `windows.${index}.endTime`);
+      if (endMinute <= startMinute) {
+        throw new BadRequestException(
+          `windows.${index}.endTime must be after its start time.`,
+        );
+      }
+
+      if (!Array.isArray(window.daysOfWeek)) {
+        throw new BadRequestException(
+          `windows.${index}.daysOfWeek must contain days from 0 to 6.`,
+        );
+      }
+      const daysOfWeek = [...new Set(window.daysOfWeek)].sort((a, b) => a - b);
+      if (
+        daysOfWeek.length === 0 ||
+        daysOfWeek.some((day) => !Number.isInteger(day) || day < 0 || day > 6)
+      ) {
+        throw new BadRequestException(
+          `windows.${index}.daysOfWeek must contain days from 0 to 6.`,
+        );
+      }
+
+      const capacity = window.capacity;
+      if (
+        capacity !== null &&
+        (!Number.isInteger(capacity) ||
+          capacity < 1 ||
+          capacity > MAX_SLOT_CAPACITY)
+      ) {
+        throw new BadRequestException(
+          `windows.${index}.capacity must be between 1 and ${MAX_SLOT_CAPACITY}, or null for unlimited.`,
+        );
+      }
+
+      return { daysOfWeek, startMinute, endMinute, capacity };
+    });
+
+    for (let day = 0; day <= 6; day += 1) {
+      const onDay = normalized
+        .filter((window) => window.daysOfWeek.includes(day))
+        .sort((a, b) => a.startMinute - b.startMinute);
+      for (let index = 1; index < onDay.length; index += 1) {
+        if (onDay[index]!.startMinute < onDay[index - 1]!.endMinute) {
+          throw new BadRequestException(
+            "Availability windows on the same day cannot overlap.",
+          );
+        }
+      }
+    }
+
+    const saved = await this.availabilityRepo.replace(ctx, normalized);
+    return {
+      configured: true,
+      windows: saved.map((rule) => this.toAvailabilityWindow(rule)),
+    };
+  }
+
   /**
    * Get free/busy information for a given date range.
    * Calls the provider API (Google or Microsoft) to fetch busy slots,
@@ -360,16 +509,44 @@ export class CalendarService {
       dayEndHour?: number;
     },
   ): Promise<BookableSlot[]> {
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: opts.timeZone }).format();
+    } catch {
+      throw new BadRequestException(
+        `"${opts.timeZone}" is not a valid time zone.`,
+      );
+    }
+    const configuredRules = await this.availabilityRepo.list(ctx);
+    const requestedDay = dayOfWeek(opts.date);
+    const rules = configuredRules.length
+      ? configuredRules.filter((rule) => rule.daysOfWeek.includes(requestedDay))
+      : [
+          {
+            startMinute:
+              opts.dayStartHour === undefined
+                ? DEFAULT_START_MINUTE
+                : opts.dayStartHour * 60,
+            endMinute:
+              opts.dayEndHour === undefined
+                ? DEFAULT_END_MINUTE
+                : opts.dayEndHour * 60,
+            capacity: DEFAULT_CAPACITY,
+          },
+        ];
+    if (rules.length === 0) return [];
+
+    const dayStartMinute = Math.min(...rules.map((rule) => rule.startMinute));
+    const dayEndMinute = Math.max(...rules.map((rule) => rule.endMinute));
     const dayStart = zonedTimeToUtc(
       opts.date,
-      opts.dayStartHour ?? 9,
-      0,
+      Math.floor(dayStartMinute / 60),
+      dayStartMinute % 60,
       opts.timeZone,
     );
     const dayEnd = zonedTimeToUtc(
       opts.date,
-      opts.dayEndHour ?? 18,
-      0,
+      Math.floor(dayEndMinute / 60),
+      dayEndMinute % 60,
       opts.timeZone,
     );
     if (!(dayStart.getTime() < dayEnd.getTime())) {
@@ -392,23 +569,57 @@ export class CalendarService {
     const slots: BookableSlot[] = [];
     const now = Date.now();
 
-    for (
-      let startMs = dayStart.getTime();
-      startMs + stepMs <= dayEnd.getTime();
-      startMs += stepMs
-    ) {
-      const start = new Date(startMs);
-      const end = new Date(startMs + stepMs);
-      if (startMs <= now) continue;
-      if (busy.some((b) => b.start < end && b.end > start)) continue;
+    for (const rule of rules) {
+      const windowStart = zonedTimeToUtc(
+        opts.date,
+        Math.floor(rule.startMinute / 60),
+        rule.startMinute % 60,
+        opts.timeZone,
+      );
+      const windowEnd = zonedTimeToUtc(
+        opts.date,
+        Math.floor(rule.endMinute / 60),
+        rule.endMinute % 60,
+        opts.timeZone,
+      );
 
-      slots.push({
-        start: start.toISOString(),
-        end: end.toISOString(),
-        label: formatInZone(start, opts.timeZone),
-      });
+      for (
+        let startMs = windowStart.getTime();
+        startMs + stepMs <= windowEnd.getTime();
+        startMs += stepMs
+      ) {
+        const start = new Date(startMs);
+        const end = new Date(startMs + stepMs);
+        if (startMs <= now) continue;
+
+        const occupied = busy.filter(
+          (meeting) => meeting.start < end && meeting.end > start,
+        ).length;
+        if (rule.capacity !== null && occupied >= rule.capacity) continue;
+
+        slots.push({
+          start: start.toISOString(),
+          end: end.toISOString(),
+          label: formatInZone(start, opts.timeZone),
+          capacity: rule.capacity,
+          remainingCapacity:
+            rule.capacity === null ? null : rule.capacity - occupied,
+        });
+      }
     }
-    return slots;
+    return slots.sort((left, right) => left.start.localeCompare(right.start));
+  }
+
+  private toAvailabilityWindow(
+    rule: CalendarAvailabilityRule,
+  ): CalendarAvailabilityWindow {
+    return {
+      id: rule.id,
+      daysOfWeek: rule.daysOfWeek,
+      startTime: formatTime(rule.startMinute),
+      endTime: formatTime(rule.endMinute),
+      capacity: rule.capacity,
+    };
   }
 
   /**

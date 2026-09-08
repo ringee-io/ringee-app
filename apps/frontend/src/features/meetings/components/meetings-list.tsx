@@ -5,7 +5,6 @@ import { useTranslations } from 'next-intl';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
-import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import {
   Sheet,
   SheetContent,
@@ -46,8 +45,7 @@ import {
   addWeeks,
   subWeeks,
   addDays,
-  subDays,
-  parseISO
+  subDays
 } from 'date-fns';
 import {
   CalendarCheck,
@@ -60,6 +58,7 @@ import {
   MapPin,
   FileText,
   CalendarDays,
+  CalendarClock,
   List,
   ChevronLeft,
   ChevronRight,
@@ -68,6 +67,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { CalendarIntegrations } from './calendar-integrations';
+import { AvailabilitySettings } from './availability-settings';
 
 interface Meeting {
   id: string;
@@ -114,9 +114,6 @@ export function MeetingsList() {
   const [tab, setTab] = useState('upcoming');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
-  const [calendarSelectedDay, setCalendarSelectedDay] = useState<
-    Date | undefined
-  >(undefined);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -193,7 +190,7 @@ export function MeetingsList() {
       </div>
 
       <Tabs value={tab} onValueChange={setTab}>
-        <TabsList>
+        <TabsList className='h-auto w-full flex-wrap justify-start'>
           <TabsTrigger value='upcoming' className='gap-1.5'>
             <List className='h-3.5 w-3.5' />
             {t('tabs.upcoming')}
@@ -205,6 +202,10 @@ export function MeetingsList() {
           <TabsTrigger value='calendar' className='gap-1.5'>
             <CalendarDays className='h-3.5 w-3.5' />
             {t('tabs.calendar')}
+          </TabsTrigger>
+          <TabsTrigger value='availability' className='gap-1.5'>
+            <CalendarClock className='h-3.5 w-3.5' />
+            {t('tabs.availability')}
           </TabsTrigger>
           <TabsTrigger value='integrations' className='gap-1.5'>
             <Link2 className='h-3.5 w-3.5' />
@@ -283,6 +284,11 @@ export function MeetingsList() {
             onSelectMeeting={setSelectedMeeting}
             t={t}
           />
+        </TabsContent>
+
+        {/* Ringee booking availability tab */}
+        <TabsContent value='availability' className='mt-4'>
+          <AvailabilitySettings />
         </TabsContent>
 
         {/* Integrations tab */}

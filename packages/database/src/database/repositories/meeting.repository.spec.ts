@@ -14,6 +14,9 @@ const fixture = {
   organizationId: randomUUID(),
   organizationContactId: randomUUID(),
   personalContactId: randomUUID(),
+  agentId: randomUUID(),
+  callId: randomUUID(),
+  agentCallId: randomUUID(),
 };
 
 let databaseConnected = false;
@@ -21,6 +24,11 @@ let databaseReady = false;
 
 async function cleanupFixtures() {
   await prisma.meeting.deleteMany({ where: { userId: fixture.userId } });
+  await prisma.aiVoiceAgentCall.deleteMany({
+    where: { userId: fixture.userId },
+  });
+  await prisma.call.deleteMany({ where: { userId: fixture.userId } });
+  await prisma.aiVoiceAgent.deleteMany({ where: { userId: fixture.userId } });
   await prisma.contact.deleteMany({ where: { userId: fixture.userId } });
   await prisma.organization.deleteMany({
     where: { id: fixture.organizationId },
@@ -85,6 +93,36 @@ before(async () => {
         phoneNumber: "+12025550102",
       },
     ],
+  });
+  await prisma.aiVoiceAgent.create({
+    data: {
+      id: fixture.agentId,
+      userId: fixture.userId,
+      organizationId: fixture.organizationId,
+      name: "Meeting test agent",
+      type: "appointment_booking",
+    },
+  });
+  await prisma.call.create({
+    data: {
+      id: fixture.callId,
+      userId: fixture.userId,
+      organizationId: fixture.organizationId,
+      fromNumber: "+12025550100",
+      toNumber: "+12025550101",
+      source: "ai_voice_agent",
+    },
+  });
+  await prisma.aiVoiceAgentCall.create({
+    data: {
+      id: fixture.agentCallId,
+      agentId: fixture.agentId,
+      userId: fixture.userId,
+      organizationId: fixture.organizationId,
+      callId: fixture.callId,
+      fromNumber: "+12025550100",
+      toNumber: "+12025550101",
+    },
   });
   databaseReady = true;
 });
@@ -153,5 +191,77 @@ describe("MeetingRepository.createIfAvailable", () => {
       }),
       1,
     );
+  });
+
+  it("allows concurrent bookings up to the configured capacity", async (t) => {
+    if (!requireDatabase(t)) return;
+
+    const ctx = {
+      userId: fixture.userId,
+      organizationId: fixture.organizationId,
+    };
+    const data = {
+      contactId: fixture.organizationContactId,
+      scheduledAt: new Date("2099-01-07T15:00:00.000Z"),
+      duration: 30,
+    };
+
+    const results = await Promise.all([
+      repository.createIfAvailable(ctx, data, 2),
+      repository.createIfAvailable(ctx, data, 2),
+      repository.createIfAvailable(ctx, data, 2),
+    ]);
+
+    assert.equal(results.filter(Boolean).length, 2);
+    assert.equal(results.filter((meeting) => meeting === null).length, 1);
+  });
+
+  it("accepts simultaneous bookings when capacity is unlimited", async (t) => {
+    if (!requireDatabase(t)) return;
+
+    const ctx = {
+      userId: fixture.userId,
+      organizationId: fixture.organizationId,
+    };
+    const data = {
+      contactId: fixture.organizationContactId,
+      scheduledAt: new Date("2099-01-08T15:00:00.000Z"),
+      duration: 30,
+    };
+
+    const results = await Promise.all([
+      repository.createIfAvailable(ctx, data, null),
+      repository.createIfAvailable(ctx, data, null),
+      repository.createIfAvailable(ctx, data, null),
+    ]);
+
+    assert.equal(results.filter(Boolean).length, 3);
+  });
+
+  it("claims one voice-agent call atomically even with unlimited capacity", async (t) => {
+    if (!requireDatabase(t)) return;
+
+    const ctx = {
+      userId: fixture.userId,
+      organizationId: fixture.organizationId,
+    };
+    const data = {
+      contactId: fixture.organizationContactId,
+      callId: fixture.callId,
+      agentCallId: fixture.agentCallId,
+      scheduledAt: new Date("2099-01-09T15:00:00.000Z"),
+      duration: 30,
+    };
+
+    const results = await Promise.all([
+      repository.createIfAvailable(ctx, data, null),
+      repository.createIfAvailable(ctx, data, null),
+    ]);
+
+    assertExactlyOneBooking(results);
+    const claimed = await prisma.aiVoiceAgentCall.findUnique({
+      where: { id: fixture.agentCallId },
+    });
+    assert.equal(claimed?.meetingId, results.find(Boolean)?.id);
   });
 });
