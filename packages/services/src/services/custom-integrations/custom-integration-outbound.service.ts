@@ -63,6 +63,8 @@ export class CustomIntegrationOutboundService {
     ctx: OwnershipContext;
     eventEnum: CustomIntegrationEventType;
     subjectId: string;
+    /** Stable identity for one event transition; defaults to the subject. */
+    dedupeKey?: string;
     data: Record<string, unknown>;
     occurredAt?: Date;
   }): Promise<void> {
@@ -94,7 +96,7 @@ export class CustomIntegrationOutboundService {
           subjectId: input.subjectId,
           destinationUrl: integration.outboundUrl,
           payload: envelope as unknown as Record<string, unknown>,
-          dedupeKey: `${integration.id}:${input.eventEnum}:${input.subjectId}:v1`,
+          dedupeKey: `${integration.id}:${input.eventEnum}:${input.dedupeKey ?? input.subjectId}:v1`,
         });
       }
     } catch (err) {

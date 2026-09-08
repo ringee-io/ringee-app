@@ -315,13 +315,27 @@ export class VoiceAgentResultService {
     }
 
     if (Object.keys(update).length === 0) return;
-    const updated = await this.agentCalls.update(agentCall.id, update);
+
+    // The non-outcome fields may legitimately be refreshed by a replay. The
+    // outcome itself is a transition: claim it atomically so concurrent copies
+    // of the same provider callback cannot publish it twice.
+    const { outcome, ...otherUpdates } = update;
+    if (Object.keys(otherUpdates).length > 0) {
+      await this.agentCalls.update(agentCall.id, otherUpdates);
+    }
+    if (!outcome) return;
+
+    const updated = await this.agentCalls.updateOutcomeIfChanged(
+      agentCall.id,
+      outcome,
+    );
+    if (!updated) return;
 
     // Agent analyses do not pass through CallService.setOutcome: their outcome
     // vocabulary is deliberately wider than the human dialer's CallOutcome.
     // Publish the normalized call event here, after the analysis is durable.
-    // Replayed insight callbacks are harmless because the outbound outbox
-    // deduplicates per integration, event and underlying Call.
+    // `updatedAt` is this persisted transition's revision. It keeps an outbox
+    // replay idempotent without collapsing a later, genuine outcome change.
     if (updated.callId && updated.outcome) {
       await this.customIntegrationOutbound.enqueue({
         ctx: {
@@ -330,6 +344,7 @@ export class VoiceAgentResultService {
         },
         eventEnum: "call_outcome_updated",
         subjectId: updated.callId,
+        dedupeKey: `${updated.callId}:outcome:${updated.outcome}:${updated.updatedAt.toISOString()}`,
         data: buildVoiceAgentCallOutcomeData(updated),
         occurredAt: updated.updatedAt,
       });
