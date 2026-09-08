@@ -400,6 +400,9 @@ export class VoiceAgentResultService {
         input.startedAt,
         input.endedAt ?? new Date().toISOString(),
         input.hangupCause ?? undefined,
+        status === AiVoiceAgentCallStatus.failed
+          ? CallStatus.failed
+          : CallStatus.completed,
       );
 
       // Voice-agent status callbacks do not traverse CallService's ordinary

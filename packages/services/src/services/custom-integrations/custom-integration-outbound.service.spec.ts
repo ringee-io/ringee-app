@@ -97,4 +97,42 @@ describe("CustomIntegrationOutboundService call fan-out", () => {
       ],
     );
   });
+
+  it("classifies a persisted provider failure as call.failed", async () => {
+    const deliveries: Array<Record<string, any>> = [];
+    const service = new CustomIntegrationOutboundService(
+      {
+        findActiveSubscribed: async () => [
+          {
+            id: "integration-1",
+            userId: "user-1",
+            organizationId: "org-1",
+            outboundUrl: "https://one.example/webhooks",
+          },
+        ],
+      } as never,
+      {
+        enqueue: async (delivery: Record<string, unknown>) => {
+          deliveries.push(delivery);
+          return delivery;
+        },
+      } as never,
+    );
+
+    await service.enqueueCallTerminal({
+      id: "call-failed",
+      userId: "user-1",
+      organizationId: "org-1",
+      fromNumber: "+13055550100",
+      toNumber: "+13055550123",
+      direction: "outbound",
+      status: CallStatus.failed,
+      endedAt: new Date("2026-09-07T14:00:00.000Z"),
+    } as never);
+
+    assert.equal(deliveries.length, 1);
+    assert.equal(deliveries[0]!.eventType, "call_failed");
+    assert.equal(deliveries[0]!.payload.event, "call.failed");
+    assert.equal(deliveries[0]!.payload.data.status, CallStatus.failed);
+  });
 });
