@@ -1,11 +1,16 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import {
+  AiVoiceAgentCall,
   AiVoiceAgentCallRepository,
+  AiVoiceAgentRepository,
   Call,
   CustomIntegrationDeliveryRepository,
   CustomIntegrationEventType,
   CustomIntegrationRepository,
+  User,
+  UserEmail,
+  UserRepository,
 } from "@ringee/database";
 import {
   OUTBOUND_EVENT_ENUM_TO_NAME,
@@ -17,8 +22,14 @@ import {
   buildCallEventData,
   callOwnershipFromCall,
   pickCallTerminalEvent,
+  primaryEmailOf,
+  userRef,
   voiceAgentExternalId,
+  voiceAgentRef,
 } from "./custom-integration-event-builders";
+
+/** `UserRepository.findById` loads the addresses; the model type omits them. */
+type UserWithEmails = User & { emails?: UserEmail[] };
 
 export interface OutboundEventEnvelope {
   event: OutboundEventName;
@@ -37,6 +48,8 @@ export class CustomIntegrationOutboundService {
     private readonly integrations: CustomIntegrationRepository,
     private readonly deliveries: CustomIntegrationDeliveryRepository,
     private readonly agentCalls: AiVoiceAgentCallRepository,
+    private readonly users: UserRepository,
+    private readonly voiceAgents: AiVoiceAgentRepository,
   ) {}
 
   /**
@@ -81,7 +94,7 @@ export class CustomIntegrationOutboundService {
       const eventName =
         OUTBOUND_EVENT_ENUM_TO_NAME[input.eventEnum as OutboundEventEnum];
       const occurredAt = (input.occurredAt ?? new Date()).toISOString();
-      const data = await this.withVoiceAgentExternalId(input.ctx, input.data);
+      const data = await this.withActors(input.ctx, input.data);
 
       for (const integration of integrations) {
         if (!integration.outboundUrl) continue;
@@ -113,28 +126,89 @@ export class CustomIntegrationOutboundService {
   }
 
   /**
-   * Every event tied to an AI voice-agent call carries the caller's external
-   * correlation id at `data.externalId`. Meeting, callback and recording events
-   * all expose their source `callId`, so one central lookup covers the entire
-   * fan-out instead of relying on each producer to remember the metadata.
+   * Every outbound event names who is behind it: `data.user` is the workspace
+   * member the event belongs to, and `data.agent` is the AI voice agent when
+   * one placed the call. Events tied to an agent call also carry the caller's
+   * own correlation id at `data.externalId`.
+   *
+   * Meeting, callback and recording events all expose their source `callId`, so
+   * one central lookup covers the entire fan-out instead of relying on each
+   * producer to remember the agent and the metadata. A producer that already
+   * resolved any of these keeps its own, richer value.
    */
-  private async withVoiceAgentExternalId(
+  private async withActors(
     ctx: OwnershipContext,
     data: Record<string, unknown>,
   ): Promise<Record<string, unknown>> {
-    if (typeof data.externalId === "string" && data.externalId.trim()) {
-      return data;
+    const [user, agentCall] = await Promise.all([
+      this.resolveUser(ctx, data),
+      this.resolveAgentCall(ctx, data),
+    ]);
+
+    const enriched = { ...data };
+    if (user) enriched.user = user;
+
+    if (agentCall) {
+      if (
+        typeof enriched.externalId !== "string" ||
+        !enriched.externalId.trim()
+      ) {
+        const externalId = voiceAgentExternalId(agentCall.metadata);
+        if (externalId) enriched.externalId = externalId;
+      }
+      if (!enriched.agent && agentCall.agentId) {
+        const agent = await this.voiceAgents.findRefForOwner(
+          ctx,
+          agentCall.agentId,
+        );
+        const ref = voiceAgentRef(agent);
+        if (ref) enriched.agent = ref;
+      }
     }
+
+    return enriched;
+  }
+
+  /** The workspace member the event belongs to, with their primary email. */
+  private async resolveUser(
+    ctx: OwnershipContext,
+    data: Record<string, unknown>,
+  ): Promise<Record<string, unknown> | undefined> {
+    if (data.user) return undefined;
+    try {
+      const user = (await this.users.findById(
+        ctx.userId,
+      )) as UserWithEmails | null;
+      return userRef(user, primaryEmailOf(user));
+    } catch (err) {
+      // An event with no actor is still worth delivering.
+      this.logger.warn(
+        `Could not resolve event actor ${ctx.userId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return undefined;
+    }
+  }
+
+  /**
+   * The agent call behind this event, when the event names a call AND that call
+   * belongs to the caller's workspace. The ownership check is what keeps one
+   * workspace's correlation ids and agent names out of another's webhooks.
+   */
+  private async resolveAgentCall(
+    ctx: OwnershipContext,
+    data: Record<string, unknown>,
+  ): Promise<AiVoiceAgentCall | null> {
     const callId = typeof data.callId === "string" ? data.callId : null;
-    if (!callId) return data;
+    if (!callId) return null;
 
     const agentCall = await this.agentCalls.findByCallId(callId);
-    const owned = ctx.organizationId
-      ? agentCall?.organizationId === ctx.organizationId
-      : agentCall?.organizationId === null && agentCall.userId === ctx.userId;
-    if (!owned) return data;
+    if (!agentCall) return null;
 
-    const externalId = voiceAgentExternalId(agentCall?.metadata);
-    return externalId ? { ...data, externalId } : data;
+    const owned = ctx.organizationId
+      ? agentCall.organizationId === ctx.organizationId
+      : agentCall.organizationId === null && agentCall.userId === ctx.userId;
+    return owned ? agentCall : null;
   }
 }

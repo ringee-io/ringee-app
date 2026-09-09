@@ -32,6 +32,10 @@ const ENVELOPE_NOTE =
   "All events share an envelope: { event, eventId, occurredAt, data }. " +
   "Outbound events also include workspaceId and integrationId.";
 
+const ACTOR_NOTE =
+  "Every outbound event carries data.user — the Ringee user it belongs to, with their primary email — " +
+  "and data.agent { id, name } when an AI voice agent produced it.";
+
 // ─── Inbound events ────────────────────────────────────────────────────────
 
 export const INBOUND_EVENT_NAMES = [
@@ -294,7 +298,14 @@ const ENTITY_COMPANY = {
 const ENTITY_USER = {
   name: "data.user",
   type: "object",
-  description: "Ringee user reference: { id, email?, fullName? }",
+  description:
+    "The Ringee user responsible for the event: { id, email (primary), fullName }. Present on every outbound event.",
+};
+const ENTITY_VOICE_AGENT = {
+  name: "data.agent",
+  type: "object",
+  description:
+    "The AI voice agent behind the event: { id, name }. Present on every event produced by an AI voice-agent call, and absent when a human placed it.",
 };
 const VOICE_AGENT_EXTERNAL_ID = {
   name: "data.externalId",
@@ -339,10 +350,11 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
     ],
     optionalFields: [
+      ENTITY_USER,
+      ENTITY_VOICE_AGENT,
       VOICE_AGENT_EXTERNAL_ID,
       ENTITY_CONTACT,
       ENTITY_COMPANY,
-      ENTITY_USER,
       {
         name: "data.durationSeconds",
         type: "number",
@@ -373,6 +385,11 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       data: {
         callId: "f3b1…",
         externalId: "crm-123",
+        user: {
+          id: "usr_…",
+          email: "ada@babbage.example.com",
+          fullName: "Ada Lovelace",
+        },
         fromNumber: "+14155550100",
         toNumber: "+14155550123",
         status: "completed",
@@ -388,6 +405,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
     },
     notes: [
+      ACTOR_NOTE,
       ENVELOPE_NOTE,
       "This event does NOT include the outcome. Outcomes are sent separately via call.outcome.updated.",
     ],
@@ -414,6 +432,8 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
     ],
     optionalFields: [
+      ENTITY_USER,
+      ENTITY_VOICE_AGENT,
       VOICE_AGENT_EXTERNAL_ID,
       {
         name: "data.call",
@@ -428,7 +448,6 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
       ENTITY_CONTACT,
       ENTITY_COMPANY,
-      ENTITY_USER,
       {
         name: "data.agentCallId",
         type: "string",
@@ -466,12 +485,19 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
           durationSeconds: 142,
         },
         externalId: "crm-123",
+        user: {
+          id: "usr_…",
+          email: "ada@babbage.example.com",
+          fullName: "Ada Lovelace",
+        },
+        agent: { id: "va_…", name: "Sofia" },
         outcome: "meeting_booked",
         outcomeNote: "Demo scheduled for next Tuesday",
         updatedAt: "2026-05-23T14:50:00.000Z",
       },
     },
     notes: [
+      ACTOR_NOTE,
       "If neither a user nor an AI voice agent records an outcome, this event is not sent.",
       "`data.call` carries the telephony detail so consumers do not have to correlate with call.completed; it is omitted only when the call row can no longer be resolved.",
       "When the outcome is meeting_booked, a separate meeting.created event is also fired.",
@@ -494,6 +520,8 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
     ],
     optionalFields: [
+      ENTITY_USER,
+      ENTITY_VOICE_AGENT,
       {
         name: "data.createdBy",
         type: "object",
@@ -513,11 +541,16 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
           externalId: "ext_contact_42",
           phoneNumber: "+14155550123",
         },
+        user: {
+          id: "usr_…",
+          email: "ada@babbage.example.com",
+          fullName: "Ada Lovelace",
+        },
         content: "Prefers email follow-up.",
         createdAt: "2026-05-23T15:00:00.000Z",
       },
     },
-    notes: [ENVELOPE_NOTE],
+    notes: [ACTOR_NOTE, ENVELOPE_NOTE],
   },
   {
     name: "callback.created",
@@ -545,6 +578,8 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
     ],
     optionalFields: [
+      ENTITY_USER,
+      ENTITY_VOICE_AGENT,
       {
         name: "data.callId",
         type: "string",
@@ -552,7 +587,6 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
       VOICE_AGENT_EXTERNAL_ID,
       { name: "data.note", type: "string", description: "Free-text note." },
-      ENTITY_USER,
     ],
     examplePayload: {
       event: "callback.created",
@@ -569,12 +603,18 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
           externalId: "ext_contact_42",
           phoneNumber: "+14155550123",
         },
+        user: {
+          id: "usr_…",
+          email: "ada@babbage.example.com",
+          fullName: "Ada Lovelace",
+        },
+        agent: { id: "va_…", name: "Sofia" },
         scheduledAt: "2026-05-24T10:00:00.000Z",
         status: "scheduled",
         createdAt: "2026-05-23T15:05:00.000Z",
       },
     },
-    notes: [ENVELOPE_NOTE],
+    notes: [ACTOR_NOTE, ENVELOPE_NOTE],
   },
   {
     name: "meeting.created",
@@ -602,6 +642,8 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
     ],
     optionalFields: [
+      ENTITY_USER,
+      ENTITY_VOICE_AGENT,
       {
         name: "data.callId",
         type: "string",
@@ -625,7 +667,6 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
         type: "string",
         description: "Calendar provider event id, when synced.",
       },
-      ENTITY_USER,
     ],
     examplePayload: {
       event: "meeting.created",
@@ -642,6 +683,12 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
           externalId: "ext_contact_42",
           phoneNumber: "+14155550123",
         },
+        user: {
+          id: "usr_…",
+          email: "ada@babbage.example.com",
+          fullName: "Ada Lovelace",
+        },
+        agent: { id: "va_…", name: "Sofia" },
         scheduledAt: "2026-05-30T16:00:00.000Z",
         status: "scheduled",
         title: "Demo with Babbage Engines",
@@ -649,7 +696,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
         createdAt: "2026-05-23T15:10:00.000Z",
       },
     },
-    notes: [ENVELOPE_NOTE],
+    notes: [ACTOR_NOTE, ENVELOPE_NOTE],
   },
   {
     name: "recording.ready",
@@ -676,6 +723,8 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
     ],
     optionalFields: [
+      ENTITY_USER,
+      ENTITY_VOICE_AGENT,
       VOICE_AGENT_EXTERNAL_ID,
       {
         name: "data.format",
@@ -703,6 +752,11 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
         recordingId: "r_…",
         callId: "f3b1…",
         externalId: "crm-123",
+        user: {
+          id: "usr_…",
+          email: "ada@babbage.example.com",
+          fullName: "Ada Lovelace",
+        },
         url: "https://recordings.ringee.app/...",
         format: "mp3",
         durationSec: 142,
@@ -710,6 +764,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
     },
     notes: [
+      ACTOR_NOTE,
       "Do not assume recording.ready arrives immediately after call.completed.",
     ],
   },
@@ -737,10 +792,11 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
     ],
     optionalFields: [
+      ENTITY_USER,
+      ENTITY_VOICE_AGENT,
       VOICE_AGENT_EXTERNAL_ID,
       ENTITY_CONTACT,
       ENTITY_COMPANY,
-      ENTITY_USER,
       {
         name: "data.reason",
         type: "string",
@@ -755,12 +811,20 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       integrationId: "ci_…",
       data: {
         callId: "c_…",
+        user: {
+          id: "usr_…",
+          email: "ada@babbage.example.com",
+          fullName: "Ada Lovelace",
+        },
         fromNumber: "+14155550123",
         toNumber: "+14155550100",
         occurredAt: "2026-05-23T15:20:00.000Z",
       },
     },
-    notes: ["Optional event — opt in via the outbound event selector."],
+    notes: [
+      ACTOR_NOTE,
+      "Optional event — opt in via the outbound event selector.",
+    ],
   },
   {
     name: "call.failed",
@@ -787,10 +851,11 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
     ],
     optionalFields: [
+      ENTITY_USER,
+      ENTITY_VOICE_AGENT,
       VOICE_AGENT_EXTERNAL_ID,
       ENTITY_CONTACT,
       ENTITY_COMPANY,
-      ENTITY_USER,
       {
         name: "data.errorCode",
         type: "string",
@@ -811,13 +876,21 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       data: {
         callId: "c_…",
         externalId: "crm-123",
+        user: {
+          id: "usr_…",
+          email: "ada@babbage.example.com",
+          fullName: "Ada Lovelace",
+        },
         fromNumber: "+14155550100",
         toNumber: "+14155550123",
         occurredAt: "2026-05-23T15:25:00.000Z",
         errorCode: "USER_BUSY",
       },
     },
-    notes: ["Optional event — opt in via the outbound event selector."],
+    notes: [
+      ACTOR_NOTE,
+      "Optional event — opt in via the outbound event selector.",
+    ],
   },
   {
     name: "dnc.created",
@@ -837,6 +910,8 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       },
     ],
     optionalFields: [
+      ENTITY_USER,
+      ENTITY_VOICE_AGENT,
       ENTITY_CONTACT,
       { name: "data.reason", type: "string", description: "Free-text reason." },
       {
@@ -844,7 +919,6 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
         type: "string",
         description: "Channel that triggered the addition.",
       },
-      ENTITY_USER,
     ],
     examplePayload: {
       event: "dnc.created",
@@ -854,10 +928,18 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       integrationId: "ci_…",
       data: {
         phoneNumber: "+14155550123",
+        user: {
+          id: "usr_…",
+          email: "ada@babbage.example.com",
+          fullName: "Ada Lovelace",
+        },
         createdAt: "2026-05-23T15:30:00.000Z",
       },
     },
-    notes: ["Optional event — opt in via the outbound event selector."],
+    notes: [
+      ACTOR_NOTE,
+      "Optional event — opt in via the outbound event selector.",
+    ],
   },
 ];
 

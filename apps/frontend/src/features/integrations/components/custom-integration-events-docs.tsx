@@ -9,6 +9,8 @@ import {
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { useTranslations } from 'next-intl';
+import type { ReactNode } from 'react';
 import { useCustomIntegrationEventSpecs } from '../hooks/use-custom-integrations';
 import type { CustomIntegrationEventSpec } from '../types/custom-integrations';
 
@@ -39,6 +41,7 @@ export function CustomIntegrationEventsDocs() {
         title='Outbound events'
         subtitle='Ringee sends these to your outbound webhook URL when you subscribe to them.'
         items={outbound}
+        intro={<SharedOutboundFields />}
       />
     </div>
   );
@@ -47,11 +50,14 @@ export function CustomIntegrationEventsDocs() {
 function Section({
   title,
   subtitle,
-  items
+  items,
+  intro
 }: {
   title: string;
   subtitle: string;
   items: CustomIntegrationEventSpec[];
+  /** Rendered above the event list, for what every event in it shares. */
+  intro?: ReactNode;
 }) {
   return (
     <section className='space-y-3'>
@@ -61,6 +67,7 @@ function Section({
         </h3>
         <p className='text-muted-foreground mt-1 text-xs'>{subtitle}</p>
       </div>
+      {intro}
       <Accordion type='multiple' className='space-y-2'>
         {items.map((spec) => (
           <AccordionItem
@@ -84,6 +91,39 @@ function Section({
         ))}
       </Accordion>
     </section>
+  );
+}
+
+/**
+ * `data.user`, `data.agent` and `data.externalId` are resolved centrally for
+ * every outbound event, so they are documented once above the list rather than
+ * repeated inside each one.
+ */
+function SharedOutboundFields() {
+  const t = useTranslations('integrations.custom.detail.docs');
+  return (
+    <div className='text-xs'>
+      <FieldTable
+        title={t('sharedFields.title')}
+        rows={[
+          {
+            name: 'data.user',
+            type: 'object',
+            description: t('sharedFields.user')
+          },
+          {
+            name: 'data.agent',
+            type: 'object',
+            description: t('sharedFields.agent')
+          },
+          {
+            name: 'data.externalId',
+            type: 'string',
+            description: t('sharedFields.externalId')
+          }
+        ]}
+      />
+    </div>
   );
 }
 
