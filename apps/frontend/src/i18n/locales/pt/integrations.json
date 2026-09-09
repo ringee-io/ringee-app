@@ -113,8 +113,8 @@
       },
       "docs": {
         "sharedFields": {
-          "title": "Incluído em todos os eventos de saída",
-          "user": "O utilizador Ringee a quem o evento pertence: id, email principal e nome completo.",
+          "title": "Comum a todos os eventos de saída",
+          "user": "O utilizador Ringee a quem o evento pertence: id, email principal e nome completo. Só é omitido quando esse utilizador já não pode ser resolvido.",
           "agent": "O agente de voz com IA que produziu o evento: id e nome. Ausente quando a chamada foi feita por uma pessoa.",
           "externalId": "O seu próprio id de correlação, quando a chamada do agente de voz com IA o trazia nos seus metadados."
         }

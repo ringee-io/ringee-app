@@ -113,8 +113,8 @@
       },
       "docs": {
         "sharedFields": {
-          "title": "In jedem ausgehenden Event enthalten",
-          "user": "Der Ringee-Benutzer, zu dem das Event gehört: ID, primäre E-Mail-Adresse und vollständiger Name.",
+          "title": "Für jedes ausgehende Event",
+          "user": "Der Ringee-Benutzer, zu dem das Event gehört: ID, primäre E-Mail-Adresse und vollständiger Name. Entfällt nur, wenn dieser Benutzer nicht mehr aufgelöst werden kann.",
           "agent": "Der KI-Sprachagent, der das Event ausgelöst hat: ID und Name. Fehlt, wenn eine Person den Anruf getätigt hat.",
           "externalId": "Ihre eigene Korrelations-ID, sofern der zugrunde liegende KI-Sprachagenten-Anruf sie in seinen Metadaten mitführte."
         }

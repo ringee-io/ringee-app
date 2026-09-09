@@ -614,4 +614,94 @@ describe("CustomIntegrationOutboundService call fan-out", () => {
     assert.equal(deliveries.length, 1);
     assert.equal("user" in deliveries[0]!.payload.data, false);
   });
+  it("still delivers when the agent-call lookup fails", async () => {
+    const deliveries: Array<Record<string, any>> = [];
+    const service = new CustomIntegrationOutboundService(
+      {
+        findActiveSubscribed: async () => [
+          {
+            id: "integration-1",
+            userId: "user-1",
+            organizationId: "org-1",
+            outboundUrl: "https://one.example/webhooks",
+          },
+        ],
+      } as never,
+      {
+        enqueue: async (delivery: Record<string, unknown>) => {
+          deliveries.push(delivery);
+          return delivery;
+        },
+      } as never,
+      {
+        findByCallId: async () => {
+          throw new Error("database is down");
+        },
+      } as never,
+      USERS_STUB,
+      NO_AGENTS_STUB,
+    );
+
+    await service.enqueue({
+      ctx: { userId: "user-1", organizationId: "org-1" },
+      eventEnum: "recording_ready",
+      subjectId: "recording-1",
+      data: { callId: "call-1", recordingId: "recording-1" },
+    });
+
+    // The annotation is lost; the delivery — and its retries — are not.
+    assert.equal(deliveries.length, 1);
+    assert.equal("agent" in deliveries[0]!.payload.data, false);
+    assert.equal("externalId" in deliveries[0]!.payload.data, false);
+    assert.equal(deliveries[0]!.payload.data.user.id, "user-1");
+  });
+
+  it("still delivers when the agent name cannot be read", async () => {
+    const deliveries: Array<Record<string, any>> = [];
+    const service = new CustomIntegrationOutboundService(
+      {
+        findActiveSubscribed: async () => [
+          {
+            id: "integration-1",
+            userId: "user-1",
+            organizationId: "org-1",
+            outboundUrl: "https://one.example/webhooks",
+          },
+        ],
+      } as never,
+      {
+        enqueue: async (delivery: Record<string, unknown>) => {
+          deliveries.push(delivery);
+          return delivery;
+        },
+      } as never,
+      {
+        findByCallId: async () => ({
+          userId: "user-1",
+          organizationId: "org-1",
+          agentId: "agent-1",
+          metadata: { external_id: "crm-contact-42" },
+        }),
+      } as never,
+      USERS_STUB,
+      {
+        findRefForOwner: async () => {
+          throw new Error("database is down");
+        },
+      } as never,
+    );
+
+    await service.enqueue({
+      ctx: { userId: "user-1", organizationId: "org-1" },
+      eventEnum: "recording_ready",
+      subjectId: "recording-1",
+      data: { callId: "call-1", recordingId: "recording-1" },
+    });
+
+    assert.equal(deliveries.length, 1);
+    assert.equal("agent" in deliveries[0]!.payload.data, false);
+    // Everything the failing lookup did not own still made it through.
+    assert.equal(deliveries[0]!.payload.data.externalId, "crm-contact-42");
+    assert.equal(deliveries[0]!.payload.data.user.id, "user-1");
+  });
 });

@@ -113,8 +113,8 @@
       },
       "docs": {
         "sharedFields": {
-          "title": "Incluso in ogni evento in uscita",
-          "user": "L'utente Ringee a cui appartiene l'evento: id, email principale e nome completo.",
+          "title": "Comune a tutti gli eventi in uscita",
+          "user": "L'utente Ringee a cui appartiene l'evento: id, email principale e nome completo. Omesso solo quando quell'utente non è più risolvibile.",
           "agent": "L'agente vocale IA che ha prodotto l'evento: id e nome. Assente quando la chiamata è stata fatta da una persona.",
           "externalId": "Il tuo id di correlazione, quando la chiamata dell'agente vocale IA lo portava nei suoi metadati."
         }

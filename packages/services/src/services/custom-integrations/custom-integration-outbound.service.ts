@@ -126,15 +126,19 @@ export class CustomIntegrationOutboundService {
   }
 
   /**
-   * Every outbound event names who is behind it: `data.user` is the workspace
-   * member the event belongs to, and `data.agent` is the AI voice agent when
-   * one placed the call. Events tied to an agent call also carry the caller's
-   * own correlation id at `data.externalId`.
+   * Names who is behind an outbound event: `data.user` is the workspace member
+   * the event belongs to, and `data.agent` is the AI voice agent when one
+   * placed the call. Events tied to an agent call also carry the caller's own
+   * correlation id at `data.externalId`.
    *
    * Meeting, callback and recording events all expose their source `callId`, so
    * one central lookup covers the entire fan-out instead of relying on each
    * producer to remember the agent and the metadata. A producer that already
    * resolved any of these keeps its own, richer value.
+   *
+   * Every lookup here is best-effort and isolated: one that fails leaves its
+   * field off the payload rather than dropping the event, because the delivery
+   * rows — and the retries behind them — matter more than the annotation.
    */
   private async withActors(
     ctx: OwnershipContext,
@@ -157,12 +161,8 @@ export class CustomIntegrationOutboundService {
         if (externalId) enriched.externalId = externalId;
       }
       if (!enriched.agent && agentCall.agentId) {
-        const agent = await this.voiceAgents.findRefForOwner(
-          ctx,
-          agentCall.agentId,
-        );
-        const ref = voiceAgentRef(agent);
-        if (ref) enriched.agent = ref;
+        const agent = await this.resolveAgentRef(ctx, agentCall.agentId);
+        if (agent) enriched.agent = agent;
       }
     }
 
@@ -203,12 +203,40 @@ export class CustomIntegrationOutboundService {
     const callId = typeof data.callId === "string" ? data.callId : null;
     if (!callId) return null;
 
-    const agentCall = await this.agentCalls.findByCallId(callId);
-    if (!agentCall) return null;
+    try {
+      const agentCall = await this.agentCalls.findByCallId(callId);
+      if (!agentCall) return null;
 
-    const owned = ctx.organizationId
-      ? agentCall.organizationId === ctx.organizationId
-      : agentCall.organizationId === null && agentCall.userId === ctx.userId;
-    return owned ? agentCall : null;
+      const owned = ctx.organizationId
+        ? agentCall.organizationId === ctx.organizationId
+        : agentCall.organizationId === null && agentCall.userId === ctx.userId;
+      return owned ? agentCall : null;
+    } catch (err) {
+      this.logger.warn(
+        `Could not resolve the agent call behind call ${callId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return null;
+    }
+  }
+
+  /** The agent's public reference, read through the workspace-checked lookup. */
+  private async resolveAgentRef(
+    ctx: OwnershipContext,
+    agentId: string,
+  ): Promise<Record<string, unknown> | undefined> {
+    try {
+      return voiceAgentRef(
+        await this.voiceAgents.findRefForOwner(ctx, agentId),
+      );
+    } catch (err) {
+      this.logger.warn(
+        `Could not resolve voice agent ${agentId}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+      return undefined;
+    }
   }
 }

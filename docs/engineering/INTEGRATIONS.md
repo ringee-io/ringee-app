@@ -177,12 +177,14 @@ The generic, customer-facing integration surface.
   tab in the dashboard. Changing it changes public docs and live contracts.
 - Envelope: `{ event, eventId, occurredAt, data }`, plus `workspaceId` and
   `integrationId` on outbound.
-- Every outbound event names its actors, resolved centrally in
+- Outbound events name their actors, resolved centrally in
   `CustomIntegrationOutboundService` rather than by each producer: `data.user`
   (`{ id, email, fullName }`, the primary email) is the workspace user the event
   belongs to, and `data.agent` (`{ id, name }`) is the AI voice agent when one
   produced it. Both are ownership-checked, and a producer that already set
-  either keeps its own value.
+  either keeps its own value. Each lookup is best-effort and isolated: one that
+  fails leaves its field off the payload rather than dropping the event, so
+  `data.user` is absent when that user can no longer be resolved.
 - AI voice-agent calls use the same fan-out: terminal status publishes
   `call.completed`/`call.failed`, post-call analysis publishes
   `call.outcome.updated`, confirmed callbacks and bookings publish

@@ -33,8 +33,8 @@ const ENVELOPE_NOTE =
   "Outbound events also include workspaceId and integrationId.";
 
 const ACTOR_NOTE =
-  "Every outbound event carries data.user — the Ringee user it belongs to, with their primary email — " +
-  "and data.agent { id, name } when an AI voice agent produced it.";
+  "Outbound events carry data.user — the Ringee user the event belongs to, with their primary email, " +
+  "omitted only when that user can no longer be resolved — and data.agent { id, name } when an AI voice agent produced it.";
 
 // ─── Inbound events ────────────────────────────────────────────────────────
 
@@ -299,7 +299,7 @@ const ENTITY_USER = {
   name: "data.user",
   type: "object",
   description:
-    "The Ringee user responsible for the event: { id, email (primary), fullName }. Present on every outbound event.",
+    "The Ringee user responsible for the event: { id, email (primary), fullName }. Sent on every outbound event whose user can still be resolved.",
 };
 const ENTITY_VOICE_AGENT = {
   name: "data.agent",
