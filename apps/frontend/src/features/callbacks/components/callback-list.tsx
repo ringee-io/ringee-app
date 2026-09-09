@@ -3,8 +3,12 @@
 import { useEffect, useState } from 'react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
-import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator
+} from '@ringee/frontend-shared/components/ui/dropdown-menu';
 import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import { CopyIdMenuItem } from '@ringee/frontend-shared/components/ui/copy-id-menu-item';
 import {
   TableActionCell,
   TableActionHead
@@ -165,17 +169,21 @@ export function CallbackList() {
                     </span>
                   </TableCell>
                   <TableActionCell>
-                    {(cb.status === 'scheduled' || cb.status === 'due') && (
-                      <TableRowActions
-                        label={tCommon('openActions')}
-                        menuLabel={tCommon('actions')}
-                      >
-                        <DropdownMenuItem onClick={() => handleCancel(cb.id)}>
-                          <X className='h-4 w-4' />
-                          {t('cancel')}
-                        </DropdownMenuItem>
-                      </TableRowActions>
-                    )}
+                    <TableRowActions
+                      label={tCommon('openActions')}
+                      menuLabel={tCommon('actions')}
+                    >
+                      {cb.status === 'scheduled' || cb.status === 'due' ? (
+                        <>
+                          <DropdownMenuItem onClick={() => handleCancel(cb.id)}>
+                            <X className='h-4 w-4' />
+                            {t('cancel')}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                        </>
+                      ) : null}
+                      <CopyIdMenuItem id={cb.id} />
+                    </TableRowActions>
                   </TableActionCell>
                 </TableRow>
               ))}

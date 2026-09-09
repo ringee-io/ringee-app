@@ -63,7 +63,8 @@
       "noRecording": "Keine Aufzeichnung",
       "downloadRecording": "Aufzeichnung herunterladen",
       "source": "Quelle",
-      "details": "Details"
+      "details": "Details",
+      "copyCallId": "Anruf-ID kopieren"
     },
     "rowActions": {
       "menu": "Aktionen",
@@ -96,7 +97,8 @@
       "unavailable": "Nicht verfügbar",
       "play": "Abspielen",
       "playRecording": "Aufzeichnung abspielen",
-      "downloadRecording": "Aufzeichnung herunterladen"
+      "downloadRecording": "Aufzeichnung herunterladen",
+      "copyRecordingId": "Aufzeichnungs-ID kopieren"
     },
     "statusBadge": {
       "started": "Wird verarbeitet",

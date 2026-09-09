@@ -29,8 +29,12 @@ import {
 } from '@ringee/frontend-shared/components/ui/dialog';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
-import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator
+} from '@ringee/frontend-shared/components/ui/dropdown-menu';
 import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import { CopyIdMenuItem } from '@ringee/frontend-shared/components/ui/copy-id-menu-item';
 import {
   TableActionCell,
   TableActionHead
@@ -309,6 +313,8 @@ export function DNCList() {
                         label={tCommon('openActions')}
                         menuLabel={tCommon('actions')}
                       >
+                        <CopyIdMenuItem id={entry.id} />
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                           variant='destructive'
                           onClick={() => setDeleteTarget(entry)}

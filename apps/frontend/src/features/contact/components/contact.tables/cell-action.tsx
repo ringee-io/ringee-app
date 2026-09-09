@@ -5,6 +5,7 @@ import {
   DropdownMenuSeparator
 } from '@ringee/frontend-shared/components/ui/dropdown-menu';
 import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import { CopyIdMenuItem } from '@ringee/frontend-shared/components/ui/copy-id-menu-item';
 import { CreateNoteModal } from '@/features/contact/components/create.note.modal';
 import { ManageContactTagsModal } from '@/features/contact/components/manage-contact-tags-popover';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
@@ -144,6 +145,8 @@ export const CellAction: React.FC<CellActionProps> = ({ data }) => {
         >
           <IconEdit className='mr-2 h-4 w-4' /> {t('edit')}
         </DropdownMenuItem>
+
+        <CopyIdMenuItem id={data.id} />
 
         <DropdownMenuSeparator />
         <DropdownMenuItem variant='destructive' onClick={() => setOpen(true)}>

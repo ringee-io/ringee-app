@@ -9,6 +9,7 @@ import {
   DropdownMenuSeparator
 } from '@ringee/frontend-shared/components/ui/dropdown-menu';
 import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import { CopyIdMenuItem } from '@ringee/frontend-shared/components/ui/copy-id-menu-item';
 import {
   CallTranscriptionActions,
   TranscriptDialog
@@ -19,6 +20,8 @@ import { useQuickDialerCall } from '@/features/calls/hooks/use.quick.dialer.call
 
 interface CallListRowActionsProps {
   callId: string;
+  /** Recording attached to the row. Set it where the row *is* a recording. */
+  recordingId?: string | null;
   recordingUrl?: string | null;
   callFrom?: string;
   callTo?: string;
@@ -28,6 +31,7 @@ interface CallListRowActionsProps {
 
 export function CallListRowActions({
   callId,
+  recordingId,
   recordingUrl,
   callFrom,
   callTo,
@@ -89,6 +93,15 @@ export function CallListRowActions({
               </a>
             </DropdownMenuItem>
           </>
+        ) : null}
+
+        <DropdownMenuSeparator />
+        <CopyIdMenuItem id={callId} label={tHistory('copyCallId')} />
+        {recordingId ? (
+          <CopyIdMenuItem
+            id={recordingId}
+            label={tRecordings('copyRecordingId')}
+          />
         ) : null}
       </TableRowActions>
 

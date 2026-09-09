@@ -17,6 +17,7 @@ import {
   DropdownMenuSeparator
 } from '@ringee/frontend-shared/components/ui/dropdown-menu';
 import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import { CopyIdMenuItem } from '@ringee/frontend-shared/components/ui/copy-id-menu-item';
 import {
   TableActionCell,
   TableActionHead
@@ -242,6 +243,8 @@ export function CallerIdListing() {
                           </DropdownMenuItem>
                         )}
                         {needsVerify && <DropdownMenuSeparator />}
+                        <CopyIdMenuItem id={callerId.id} />
+                        <DropdownMenuSeparator />
                         <DropdownMenuItem
                           variant='destructive'
                           onClick={() => setDeleteTarget(callerId)}

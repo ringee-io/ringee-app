@@ -63,7 +63,8 @@
       "noRecording": "No recording",
       "downloadRecording": "Download recording",
       "source": "Source",
-      "details": "Details"
+      "details": "Details",
+      "copyCallId": "Copy call ID"
     },
     "rowActions": {
       "menu": "Actions",
@@ -96,7 +97,8 @@
       "unavailable": "Unavailable",
       "play": "Play",
       "playRecording": "Play recording",
-      "downloadRecording": "Download recording"
+      "downloadRecording": "Download recording",
+      "copyRecordingId": "Copy recording ID"
     },
     "statusBadge": {
       "started": "Processing",

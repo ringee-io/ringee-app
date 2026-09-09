@@ -23,6 +23,7 @@ import { DataTableSkeleton } from '@ringee/frontend-shared/components/ui/table/d
 import { Input } from '@ringee/frontend-shared/components/ui/input';
 import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
 import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import { CopyIdMenuItem } from '@ringee/frontend-shared/components/ui/copy-id-menu-item';
 import {
   useReactTable,
   getCoreRowModel,
@@ -572,6 +573,7 @@ function getColumns(
             <Eye className='h-4 w-4' />
             {t('viewDetails')}
           </DropdownMenuItem>
+          <CopyIdMenuItem id={row.original.id} />
         </TableRowActions>
       )
     }

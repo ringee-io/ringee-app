@@ -204,6 +204,7 @@ export const columns: ColumnDef<CallWithRecordings>[] = [
     cell: ({ row }) => (
       <CallListRowActions
         callId={row.original.id}
+        recordingId={row.original.recordings?.[0]?.id}
         recordingUrl={row.original.recordings?.[0]?.url}
         callFrom={row.original.fromNumber}
         callTo={row.original.toNumber}
