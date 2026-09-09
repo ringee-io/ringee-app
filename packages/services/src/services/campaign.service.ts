@@ -195,7 +195,15 @@ export class CampaignService {
   async getLeads(
     ctx: OwnershipContext,
     campaignId: string,
-    options?: { page?: number; limit?: number; status?: string },
+    options?: {
+      page?: number;
+      limit?: number;
+      status?: string;
+      /** Free-text match against the contact's name or e-mail. */
+      search?: string;
+      /** Campaign-scoped `Disposition.code` recorded on one of the attempts. */
+      dispositionCode?: string;
+    },
   ) {
     this.ensureOrganization(ctx);
 

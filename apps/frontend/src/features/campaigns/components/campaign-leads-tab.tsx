@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { useDebounce } from '@ringee/frontend-shared/hooks/use-debounce';
 import { Badge } from '@ringee/frontend-shared/components/ui/badge';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import {
@@ -11,6 +12,7 @@ import {
   CardHeader,
   CardTitle
 } from '@ringee/frontend-shared/components/ui/card';
+import { Input } from '@ringee/frontend-shared/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -51,14 +53,15 @@ import {
   TableActionCell,
   TableActionHead
 } from '@ringee/frontend-shared/components/ui/table/table-action-column';
-import { Upload, UserPlus, Plus, Trash2, Loader2 } from 'lucide-react';
+import { Upload, UserPlus, Plus, Trash2, Loader2, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
 import type {
   CampaignLead,
   CampaignLeadListResponse,
   CampaignLeadStatus,
-  CampaignStatus
+  CampaignStatus,
+  Disposition
 } from '../types/campaign.types';
 import { ImportLeadsModal } from './import-leads-modal';
 import { AddLeadModal } from './add-lead-modal';
@@ -132,32 +135,66 @@ export function CampaignLeadsTab({
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [dispositionFilter, setDispositionFilter] = useState<string>('all');
+  const [dispositions, setDispositions] = useState<Disposition[]>([]);
+  const [search, setSearch] = useState('');
   const [importOpen, setImportOpen] = useState(false);
   const [addOpen, setAddOpen] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<CampaignLead | null>(null);
   const limit = 20;
+  const debouncedSearch = useDebounce(search, 300);
+  // Typing keeps requests in flight; only the newest one may write to state.
+  const requestSeq = useRef(0);
+
+  const hasFilters =
+    statusFilter !== 'all' ||
+    dispositionFilter !== 'all' ||
+    debouncedSearch.trim() !== '';
 
   useEffect(() => {
     loadLeads();
-  }, [campaignId, page, statusFilter]);
+  }, [campaignId, page, statusFilter, dispositionFilter, debouncedSearch]);
+
+  // The disposition options are the campaign's own active dispositions.
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .get<Disposition[]>(`/campaigns/${campaignId}/dispositions`)
+      .then((data) => {
+        if (!cancelled) setDispositions(data);
+      })
+      .catch(() => {
+        // A missing disposition list just hides the filter.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api, campaignId]);
 
   async function loadLeads() {
+    const seq = ++requestSeq.current;
     setLoading(true);
     try {
       const params: Record<string, string | number> = { page, limit };
       if (statusFilter !== 'all') params.status = statusFilter;
+      if (dispositionFilter !== 'all') {
+        params.dispositionCode = dispositionFilter;
+      }
+      const term = debouncedSearch.trim();
+      if (term) params.search = term;
 
       const res = await api.get<CampaignLeadListResponse>(
         `/campaigns/${campaignId}/leads`,
         params
       );
+      if (seq !== requestSeq.current) return;
       setLeads(res.data);
       setTotal(res.meta.total);
     } catch {
       // surfaced by api client / toast at call sites
     } finally {
-      setLoading(false);
+      if (seq === requestSeq.current) setLoading(false);
     }
   }
 
@@ -221,44 +258,86 @@ export function CampaignLeadsTab({
                 {t('leads.total', { count: total })}
               </CardDescription>
             </div>
-            <div className='flex items-center gap-2'>
+            {canImport && (
+              <div className='flex items-center gap-2'>
+                <Button
+                  variant='outline'
+                  size='sm'
+                  onClick={() => setImportOpen(true)}
+                >
+                  <Upload className='mr-2 h-4 w-4' />
+                  {t('leads.importCsv')}
+                </Button>
+                <Button size='sm' onClick={() => setAddOpen(true)}>
+                  <Plus className='mr-2 h-4 w-4' />
+                  {t('leads.addLead')}
+                </Button>
+              </div>
+            )}
+          </div>
+          <div className='mt-4 flex flex-col gap-2 sm:flex-row'>
+            <div className='relative flex-1'>
+              <Search className='text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2' />
+              <Input
+                value={search}
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  setPage(1);
+                }}
+                placeholder={t('leads.filters.searchPlaceholder')}
+                aria-label={t('leads.filters.searchPlaceholder')}
+                className='pl-9'
+              />
+            </div>
+            <Select
+              value={statusFilter}
+              onValueChange={(v) => {
+                setStatusFilter(v);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger
+                className='w-full sm:w-[160px]'
+                aria-label={t('list.allStatuses')}
+              >
+                <SelectValue placeholder={t('list.allStatuses')} />
+              </SelectTrigger>
+              <SelectContent>
+                {STATUS_FILTERS.map((s) => (
+                  <SelectItem key={s} value={s}>
+                    {s === 'all' ? t('list.allStatuses') : t(`leadStatus.${s}`)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {dispositions.length > 0 && (
               <Select
-                value={statusFilter}
+                value={dispositionFilter}
                 onValueChange={(v) => {
-                  setStatusFilter(v);
+                  setDispositionFilter(v);
                   setPage(1);
                 }}
               >
-                <SelectTrigger className='w-[160px]'>
-                  <SelectValue placeholder={t('list.allStatuses')} />
+                <SelectTrigger
+                  className='w-full sm:w-[180px]'
+                  aria-label={t('leads.filters.allDispositions')}
+                >
+                  <SelectValue
+                    placeholder={t('leads.filters.allDispositions')}
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {STATUS_FILTERS.map((s) => (
-                    <SelectItem key={s} value={s}>
-                      {s === 'all'
-                        ? t('list.allStatuses')
-                        : t(`leadStatus.${s}`)}
+                  <SelectItem value='all'>
+                    {t('leads.filters.allDispositions')}
+                  </SelectItem>
+                  {dispositions.map((d) => (
+                    <SelectItem key={d.id} value={d.code}>
+                      {d.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {canImport && (
-                <>
-                  <Button
-                    variant='outline'
-                    size='sm'
-                    onClick={() => setImportOpen(true)}
-                  >
-                    <Upload className='mr-2 h-4 w-4' />
-                    {t('leads.importCsv')}
-                  </Button>
-                  <Button size='sm' onClick={() => setAddOpen(true)}>
-                    <Plus className='mr-2 h-4 w-4' />
-                    {t('leads.addLead')}
-                  </Button>
-                </>
-              )}
-            </div>
+            )}
           </div>
         </CardHeader>
         <CardContent>
@@ -272,16 +351,16 @@ export function CampaignLeadsTab({
             <div className='flex flex-col items-center py-12 text-center'>
               <UserPlus className='text-muted-foreground mb-4 h-12 w-12' />
               <h3 className='text-lg font-semibold'>
-                {statusFilter === 'all'
-                  ? t('leads.empty.title')
-                  : t('leads.empty.filteredTitle')}
+                {hasFilters
+                  ? t('leads.empty.filteredTitle')
+                  : t('leads.empty.title')}
               </h3>
               <p className='text-muted-foreground mt-1 text-sm'>
-                {statusFilter === 'all'
-                  ? t('leads.empty.description')
-                  : t('leads.empty.filteredDescription')}
+                {hasFilters
+                  ? t('leads.empty.filteredDescription')
+                  : t('leads.empty.description')}
               </p>
-              {canImport && statusFilter === 'all' && (
+              {canImport && !hasFilters && (
                 <div className='mt-4 flex gap-2'>
                   <Button variant='outline' onClick={() => setImportOpen(true)}>
                     <Upload className='mr-2 h-4 w-4' />
@@ -301,6 +380,9 @@ export function CampaignLeadsTab({
                   <TableRow>
                     <TableHead>{t('leads.table.name')}</TableHead>
                     <TableHead>{t('leads.table.phone')}</TableHead>
+                    <TableHead className='hidden md:table-cell'>
+                      {t('leads.table.email')}
+                    </TableHead>
                     <TableHead className='hidden md:table-cell'>
                       {t('leads.table.company')}
                     </TableHead>
@@ -332,6 +414,9 @@ export function CampaignLeadsTab({
                         </div>
                       </TableCell>
                       <TableCell>{lead.contact.phoneNumber}</TableCell>
+                      <TableCell className='hidden md:table-cell'>
+                        {lead.contact.email || '—'}
+                      </TableCell>
                       <TableCell className='hidden md:table-cell'>
                         <div>{lead.contact.company || '—'}</div>
                         <div className='text-muted-foreground text-xs'>

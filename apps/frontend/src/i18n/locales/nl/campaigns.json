@@ -165,15 +165,20 @@
     "fallbackName": "Deze lead",
     "inFlightHint": "Deze lead wordt op dit moment gebeld en kan niet worden verwijderd.",
     "removeAria": "{name} verwijderen",
+    "filters": {
+      "searchPlaceholder": "Zoeken op naam of e-mail…",
+      "allDispositions": "Alle classificaties"
+    },
     "empty": {
       "title": "Nog geen leads",
       "description": "Importeer een CSV-bestand of voeg handmatig een lead toe om te beginnen.",
-      "filteredTitle": "Geen leads met deze status",
-      "filteredDescription": "Probeer een ander statusfilter."
+      "filteredTitle": "Geen leads voldoen aan deze filters",
+      "filteredDescription": "Probeer een andere zoekopdracht, status of classificatie."
     },
     "table": {
       "name": "Naam",
       "phone": "Telefoon",
+      "email": "E-mail",
       "company": "Bedrijf",
       "status": "Status",
       "attempts": "Pogingen",
