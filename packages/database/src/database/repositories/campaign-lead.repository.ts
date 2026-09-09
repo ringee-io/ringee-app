@@ -161,12 +161,22 @@ export class CampaignLeadRepository {
       page?: number;
       limit?: number;
       status?: string;
+      /** Free-text match against the contact's name or e-mail. */
+      search?: string;
+      /** Campaign-scoped `Disposition.code` recorded on one of the attempts. */
+      dispositionCode?: string;
     },
   ): Promise<{
     data: CampaignLeadWithContact[];
     meta: { total: number; page: number; limit: number; totalPages: number };
   }> {
-    const { page = 1, limit = 20, status } = options || {};
+    const {
+      page = 1,
+      limit = 20,
+      status,
+      search,
+      dispositionCode,
+    } = options || {};
 
     // Filter by the real CampaignLeadStatus enum column so it matches the
     // status badges shown in the UI. Legacy aggregate aliases ("called" /
@@ -186,6 +196,22 @@ export class CampaignLeadRepository {
     const where: Prisma.CampaignLeadWhereInput = {
       campaignId,
       ...statusFilter,
+      ...(search
+        ? {
+            contact: {
+              OR: [
+                { name: { contains: search, mode: "insensitive" } },
+                { email: { contains: search, mode: "insensitive" } },
+              ],
+            },
+          }
+        : {}),
+      // A disposition is recorded on the attempt, not on the lead, so this
+      // matches every lead dispositioned this way at least once — a lead
+      // retried into a different outcome still answers its earlier code.
+      ...(dispositionCode
+        ? { callAttempts: { some: { dispositionCode } } }
+        : {}),
     };
 
     const total = await this.prisma.campaignLead.count({ where });

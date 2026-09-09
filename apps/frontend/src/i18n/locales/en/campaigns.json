@@ -165,15 +165,20 @@
     "fallbackName": "This lead",
     "inFlightHint": "This lead is currently being dialed and cannot be removed.",
     "removeAria": "Remove {name}",
+    "filters": {
+      "searchPlaceholder": "Search by name or email…",
+      "allDispositions": "All dispositions"
+    },
     "empty": {
       "title": "No leads yet",
       "description": "Import a CSV file or add a lead manually to get started.",
-      "filteredTitle": "No leads with this status",
-      "filteredDescription": "Try a different status filter."
+      "filteredTitle": "No leads match these filters",
+      "filteredDescription": "Try a different search, status or disposition."
     },
     "table": {
       "name": "Name",
       "phone": "Phone",
+      "email": "Email",
       "company": "Company",
       "status": "Status",
       "attempts": "Attempts",

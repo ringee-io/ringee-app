@@ -165,15 +165,20 @@
     "fallbackName": "Ce lead",
     "inFlightHint": "Ce lead est en cours de composition et ne peut pas être supprimé.",
     "removeAria": "Supprimer {name}",
+    "filters": {
+      "searchPlaceholder": "Rechercher par nom ou e-mail…",
+      "allDispositions": "Toutes les qualifications"
+    },
     "empty": {
       "title": "Aucun lead pour le moment",
       "description": "Importez un fichier CSV ou ajoutez un lead manuellement pour commencer.",
-      "filteredTitle": "Aucun lead avec ce statut",
-      "filteredDescription": "Essayez un autre filtre de statut."
+      "filteredTitle": "Aucun lead ne correspond à ces filtres",
+      "filteredDescription": "Essayez une autre recherche, un autre statut ou une autre qualification."
     },
     "table": {
       "name": "Nom",
       "phone": "Téléphone",
+      "email": "E-mail",
       "company": "Entreprise",
       "status": "Statut",
       "attempts": "Tentatives",

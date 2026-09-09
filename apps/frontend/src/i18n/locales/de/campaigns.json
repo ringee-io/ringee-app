@@ -165,15 +165,20 @@
     "fallbackName": "Dieser Lead",
     "inFlightHint": "Dieser Lead wird gerade angerufen und kann nicht entfernt werden.",
     "removeAria": "{name} entfernen",
+    "filters": {
+      "searchPlaceholder": "Nach Name oder E-Mail suchen…",
+      "allDispositions": "Alle Klassifizierungen"
+    },
     "empty": {
       "title": "Noch keine Leads",
       "description": "Importieren Sie eine CSV-Datei oder fügen Sie einen Lead manuell hinzu, um zu starten.",
-      "filteredTitle": "Keine Leads mit diesem Status",
-      "filteredDescription": "Versuchen Sie einen anderen Statusfilter."
+      "filteredTitle": "Keine Leads entsprechen diesen Filtern",
+      "filteredDescription": "Versuchen Sie eine andere Suche, einen anderen Status oder eine andere Klassifizierung."
     },
     "table": {
       "name": "Name",
       "phone": "Telefon",
+      "email": "E-Mail",
       "company": "Unternehmen",
       "status": "Status",
       "attempts": "Versuche",

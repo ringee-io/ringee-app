@@ -410,6 +410,8 @@ export class CampaignController {
     @Query("page") page = "1",
     @Query("limit") limit = "20",
     @Query("status") status?: string,
+    @Query("search") search?: string,
+    @Query("dispositionCode") dispositionCode?: string,
   ) {
     if (!user.activeOrgId) {
       throw new ForbiddenException("Campaigns require an organization");
@@ -419,6 +421,8 @@ export class CampaignController {
       page: Number(page),
       limit: Number(limit),
       status,
+      search: search?.trim() || undefined,
+      dispositionCode: dispositionCode?.trim() || undefined,
     });
   }
 

@@ -165,15 +165,20 @@
     "fallbackName": "Questo lead",
     "inFlightHint": "Questo lead è in composizione in questo momento e non può essere rimosso.",
     "removeAria": "Rimuovi {name}",
+    "filters": {
+      "searchPlaceholder": "Cerca per nome o email…",
+      "allDispositions": "Tutte le classificazioni"
+    },
     "empty": {
       "title": "Ancora nessun lead",
       "description": "Importa un file CSV o aggiungi un lead manualmente per iniziare.",
-      "filteredTitle": "Nessun lead con questo stato",
-      "filteredDescription": "Prova un altro filtro di stato."
+      "filteredTitle": "Nessun lead corrisponde a questi filtri",
+      "filteredDescription": "Prova un’altra ricerca, un altro stato o un’altra classificazione."
     },
     "table": {
       "name": "Nome",
       "phone": "Telefono",
+      "email": "Email",
       "company": "Azienda",
       "status": "Stato",
       "attempts": "Tentativi",

@@ -165,15 +165,20 @@
     "fallbackName": "Este lead",
     "inFlightHint": "Este lead está a ser marcado neste momento e não pode ser removido.",
     "removeAria": "Remover {name}",
+    "filters": {
+      "searchPlaceholder": "Pesquisar por nome ou e-mail…",
+      "allDispositions": "Todas as classificações"
+    },
     "empty": {
       "title": "Ainda não há leads",
       "description": "Importe um ficheiro CSV ou adicione um lead manualmente para começar.",
-      "filteredTitle": "Não há leads com este estado",
-      "filteredDescription": "Experimente outro filtro de estado."
+      "filteredTitle": "Nenhum lead corresponde a estes filtros",
+      "filteredDescription": "Experimente outra pesquisa, estado ou classificação."
     },
     "table": {
       "name": "Nome",
       "phone": "Telefone",
+      "email": "E-mail",
       "company": "Empresa",
       "status": "Estado",
       "attempts": "Tentativas",
