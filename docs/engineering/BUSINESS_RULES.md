@@ -413,7 +413,7 @@ exists, so a call never stays `ringing` forever.
 ### CALL-011 — Call outcomes are a closed set
 
 `CallOutcome`: `meeting_booked`, `sale`, `interested`, `follow_up`,
-`callback_scheduled`, `not_interested`, `no_answer`, `voicemail`,
+`callback_scheduled`, `not_interested`, `no_answer`, `no_conversation`, `voicemail`,
 `wrong_number`, `gatekeeper`. `hangupCause` distinguishes a real no-pickup from a
 carrier rejection, since neither sets `answeredAt`.
 
@@ -795,9 +795,12 @@ id. The window is opened on start and closed on stop, on unmount, and by the
 
 ### AGENT-006 — The tool's result outranks the transcript analysis
 
-When `book_appointment` created a meeting, the outcome is
-`appointment_booked` and the post-call analysis may not overwrite it. The tool
-knows a row exists; the analysis is only reading what was said.
+When `book_appointment` created a meeting, the outcome is `meeting_booked`.
+When `schedule_callback` created a callback, the outcome is
+`callback_scheduled`. Post-call analysis may neither manufacture nor overwrite
+either result: the tool knows a row exists; the analysis is only reading what
+was said. Historical `appointment_booked` and `callback_requested` rows remain
+readable but are normalized at every public boundary.
 
 ### AGENT-007 — Company context belongs to the agent, and falls back to the workspace
 
@@ -943,6 +946,36 @@ UTC rather than preventing the call.
 - **Source of truth:** `voiceAgentRuntimeVariables`,
   `VoiceAgentCallService.startCall`, and
   `VoiceAgentTestSessionService.start`
+
+### AGENT-014 — A scheduled agent callback is durable, replay-safe and dials later
+
+Every live voice-agent blueprint carries `schedule_callback`. The model supplies
+only an absolute future ISO-8601 instant with a time-zone offset and an optional
+note; Ringee derives the agent, workspace, source call and contact from the
+authenticated provider callback. A provider retry returns the same callback
+instead of creating another one. When it becomes due, the callback scheduler
+atomically claims it before calling the same agent through
+`VoiceAgentCallService.startCall`, preserving the original variables, metadata
+and calling gates. Terminal policy refusals become missed; only failures before
+the provider places a leg receive a bounded retry. Once a leg exists, the claim
+is completed and later callbacks reconcile its rows instead of dialing again.
+A human callback merely becomes due and is never converted into an automated
+call.
+
+- **Source of truth:** `VoiceAgentToolService.scheduleCallback`,
+  `CallbackService.scheduleFromVoiceAgent` / `processDueCallbacks`
+
+### AGENT-015 — The caller's external id follows every event from an agent call
+
+When AI voice-agent call metadata contains `external_id` (or the compatible
+`externalId` spelling), every Custom Integration event tied to that call carries
+the value at `data.externalId`. This includes terminal, outcome, callback,
+meeting and recording events. Producers expose the Ringee `callId`; the outbound
+fan-out performs the correlation centrally so a new call-derived event cannot
+silently omit the external id.
+
+- **Source of truth:** `CustomIntegrationOutboundService.enqueue` and
+  `voiceAgentExternalId`
 
 ---
 

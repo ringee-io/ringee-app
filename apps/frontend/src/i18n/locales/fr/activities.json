@@ -19,6 +19,7 @@
     "callbackScheduled": "Rappel planifié",
     "notInterested": "Pas intéressé",
     "noAnswer": "Pas de réponse",
+    "noConversation": "Pas de conversation",
     "voicemail": "Messagerie vocale",
     "wrongNumber": "Mauvais numéro",
     "gatekeeper": "Standardiste"

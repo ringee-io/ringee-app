@@ -5,6 +5,7 @@ import {
   AiVoiceAgentCallStatus,
   AiVoiceAgentOutcome,
   AiVoiceAgentRepository,
+  CallOutcome,
   CallRepository,
   CallStatus,
 } from "@ringee/database";
@@ -19,7 +20,10 @@ import {
 } from "@ringee/platform";
 import { TranscriptionService } from "../transcription/transcription.service";
 import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
-import { buildVoiceAgentCallOutcomeData } from "../custom-integrations/custom-integration-event-builders";
+import {
+  buildVoiceAgentCallOutcomeData,
+  normalizeVoiceAgentOutcome,
+} from "../custom-integrations/custom-integration-event-builders";
 import { VoiceAgentService } from "./voice-agent.service";
 import type { VoiceAgentAnalysisSettings } from "./voice-agent.types";
 
@@ -35,6 +39,7 @@ const PROVIDER_STATUS_MAP: Record<string, AiVoiceAgentCallStatus> = {
   completed: AiVoiceAgentCallStatus.completed,
   busy: AiVoiceAgentCallStatus.busy,
   "no-answer": AiVoiceAgentCallStatus.no_answer,
+  voicemail: AiVoiceAgentCallStatus.voicemail,
   failed: AiVoiceAgentCallStatus.failed,
   canceled: AiVoiceAgentCallStatus.failed,
 };
@@ -294,14 +299,24 @@ export class VoiceAgentResultService {
           );
           break;
         case "outcome": {
-          // The booking tool's own result is ground truth: it knows a meeting
-          // was created. A later analysis may fill an empty outcome in, never
-          // overwrite that one.
-          if (agentCall.outcome === AiVoiceAgentOutcome.appointment_booked) {
+          // Tool-backed results are ground truth: only those tools know that a
+          // meeting/callback row actually exists. Analysis may never overwrite
+          // one or manufacture one from conversational intent alone.
+          if (
+            this.isToolBackedOutcome(agentCall.outcome) ||
+            agentCall.outcome === AiVoiceAgentOutcome.no_answer
+          ) {
             break;
           }
           const value = this.readField<string>(insight.result, "outcome");
-          update.outcome = this.toOutcome(value);
+          const analyzedOutcome = this.toOutcome(value);
+          if (this.isToolBackedOutcome(analyzedOutcome)) {
+            this.logger.warn(
+              `Ignoring unconfirmed tool-backed outcome "${analyzedOutcome}" for agent call ${agentCall.id}`,
+            );
+            break;
+          }
+          update.outcome = analyzedOutcome;
           break;
         }
         case "extraction": {
@@ -319,24 +334,51 @@ export class VoiceAgentResultService {
     // The non-outcome fields may legitimately be refreshed by a replay. The
     // outcome itself is a transition: claim it atomically so concurrent copies
     // of the same provider callback cannot publish it twice.
-    const { outcome, ...otherUpdates } = update;
+    const { outcome: proposedOutcome, ...otherUpdates } = update;
     if (Object.keys(otherUpdates).length > 0) {
       await this.agentCalls.update(agentCall.id, otherUpdates);
     }
-    if (!outcome) return;
+    if (!proposedOutcome) return;
+
+    let outcome = proposedOutcome;
+    if (outcome === AiVoiceAgentOutcome.no_conversation && agentCall.callId) {
+      const call = await this.callRepository.findById(agentCall.callId);
+      if (call && !call.answeredAt) {
+        outcome = AiVoiceAgentOutcome.no_answer;
+      }
+    }
+
+    await this.applyKnownOutcome(agentCall, outcome);
+  }
+
+  /**
+   * Persists and publishes an outcome established by either analysis or a live
+   * tool. The atomic transition keeps provider retries from emitting twice.
+   */
+  async applyKnownOutcome(
+    agentCall: AiVoiceAgentCall,
+    outcome: AiVoiceAgentOutcome,
+  ): Promise<AiVoiceAgentCall | null> {
+    const callOutcome = this.toCallOutcome(outcome);
+    if (agentCall.callId && callOutcome) {
+      // The base Call row owns the public disposition used everywhere outside
+      // the voice-agent detail. Write it first so a retry can repair the agent
+      // row and event if the second write ever fails.
+      await this.callRepository.updateOutcome(agentCall.callId, callOutcome);
+    }
 
     const updated = await this.agentCalls.updateOutcomeIfChanged(
       agentCall.id,
       outcome,
     );
-    if (!updated) return;
+    if (!updated) return null;
 
-    // Agent analyses do not pass through CallService.setOutcome: their outcome
-    // vocabulary is deliberately wider than the human dialer's CallOutcome.
-    // Publish the normalized call event here, after the analysis is durable.
+    // Agent analyses do not pass through CallService.setOutcome. Publish only
+    // outcomes represented by CallOutcome; agent-specific reminder states stay
+    // on AiVoiceAgentCall and cannot leak into the public call event contract.
     // `updatedAt` is this persisted transition's revision. It keeps an outbox
     // replay idempotent without collapsing a later, genuine outcome change.
-    if (updated.callId && updated.outcome) {
+    if (updated.callId && updated.outcome && callOutcome) {
       await this.customIntegrationOutbound.enqueue({
         ctx: {
           userId: updated.userId,
@@ -344,11 +386,12 @@ export class VoiceAgentResultService {
         },
         eventEnum: "call_outcome_updated",
         subjectId: updated.callId,
-        dedupeKey: `${updated.callId}:outcome:${updated.outcome}:${updated.updatedAt.toISOString()}`,
+        dedupeKey: `${updated.callId}:outcome:${callOutcome}:${updated.updatedAt.toISOString()}`,
         data: buildVoiceAgentCallOutcomeData(updated),
         occurredAt: updated.updatedAt,
       });
     }
+    return updated;
   }
 
   /**
@@ -374,7 +417,8 @@ export class VoiceAgentResultService {
   ): Promise<AiVoiceAgentCall> {
     const status =
       PROVIDER_STATUS_MAP[input.providerStatus.toLowerCase()] ?? null;
-    const callControlId = input.callControlId ?? null;
+    const callControlId =
+      input.callControlId ?? agentCall.providerCallControlId ?? null;
 
     const updated = await this.agentCalls.update(agentCall.id, {
       ...(status ? { status } : {}),
@@ -448,6 +492,16 @@ export class VoiceAgentResultService {
       if (completedCall) {
         await this.customIntegrationOutbound.enqueueCallTerminal(completedCall);
       }
+
+      if (
+        status === AiVoiceAgentCallStatus.no_answer ||
+        status === AiVoiceAgentCallStatus.busy ||
+        status === AiVoiceAgentCallStatus.voicemail
+      ) {
+        if (!this.isToolBackedOutcome(updated.outcome)) {
+          await this.applyKnownOutcome(updated, AiVoiceAgentOutcome.no_answer);
+        }
+      }
     }
 
     return updated;
@@ -458,6 +512,7 @@ export class VoiceAgentResultService {
       status === AiVoiceAgentCallStatus.completed ||
       status === AiVoiceAgentCallStatus.no_answer ||
       status === AiVoiceAgentCallStatus.busy ||
+      status === AiVoiceAgentCallStatus.voicemail ||
       status === AiVoiceAgentCallStatus.failed
     );
   }
@@ -515,7 +570,7 @@ export class VoiceAgentResultService {
     return {
       call_id: agentCall.id,
       status: agentCall.status,
-      outcome: agentCall.outcome,
+      outcome: normalizeVoiceAgentOutcome(agentCall.outcome),
       summary: agentCall.summary,
       sentiment: agentCall.sentiment,
       extracted_data:
@@ -525,6 +580,34 @@ export class VoiceAgentResultService {
   }
 
   // ── Helpers ──────────────────────────────────────────────────
+
+  private isToolBackedOutcome(outcome: AiVoiceAgentOutcome | null): boolean {
+    return (
+      outcome === AiVoiceAgentOutcome.meeting_booked ||
+      outcome === AiVoiceAgentOutcome.callback_scheduled ||
+      outcome === AiVoiceAgentOutcome.appointment_booked ||
+      outcome === AiVoiceAgentOutcome.callback_requested
+    );
+  }
+
+  private toCallOutcome(outcome: AiVoiceAgentOutcome): CallOutcome | null {
+    switch (normalizeVoiceAgentOutcome(outcome)) {
+      case AiVoiceAgentOutcome.meeting_booked:
+        return CallOutcome.meeting_booked;
+      case AiVoiceAgentOutcome.callback_scheduled:
+        return CallOutcome.callback_scheduled;
+      case AiVoiceAgentOutcome.not_interested:
+        return CallOutcome.not_interested;
+      case AiVoiceAgentOutcome.no_answer:
+        return CallOutcome.no_answer;
+      case AiVoiceAgentOutcome.no_conversation:
+        return CallOutcome.no_conversation;
+      case AiVoiceAgentOutcome.wrong_number:
+        return CallOutcome.wrong_number;
+      default:
+        return null;
+    }
+  }
 
   /**
    * The call a conversation belongs to, for a delivery that names only the

@@ -96,6 +96,27 @@ that contract with `--yes`. Results are read with
 `get_ai_voice_agent_call`, `getAiVoiceAgentCall` or
 `ringee voice-agents call-result <callId>`.
 
+The canonical AI call outcomes emitted to consumers use the same spellings as
+`CallOutcome`: `meeting_booked`, `callback_scheduled`, `no_answer`,
+`no_conversation`, `not_interested` and `wrong_number`. A meeting or callback
+outcome is accepted only after its live tool succeeds. A carrier no-answer,
+busy result or voicemail is reported as `no_answer`; `no_conversation` is
+reserved for a call that was answered but contained no meaningful exchange.
+
+### Callbacks from a live voice-agent call
+
+Every voice-agent blueprint includes `schedule_callback`, a provider webhook
+tool at `POST /api/ai-voice-agents/tools/:agentId/schedule-callback`. It accepts
+an absolute future `scheduled_at` with an explicit time-zone offset and an
+optional note. Agent, workspace, source call and contact are server-derived.
+Provider retries return the callback already created for that conversation.
+
+The existing callback scheduler claims due agent callbacks atomically and calls
+the same person with the same agent through `VoiceAgentCallService.startCall`.
+The new call retains the original variables and metadata, including
+`external_id`. Callbacks created by a human keep their existing behavior and are
+never dialed automatically.
+
 ### Human support from a live voice-agent call
 
 Every voice-agent blueprint includes `request_human_support`. It is a provider
@@ -158,10 +179,12 @@ The generic, customer-facing integration surface.
   `integrationId` on outbound.
 - AI voice-agent calls use the same fan-out: terminal status publishes
   `call.completed`/`call.failed`, post-call analysis publishes
-  `call.outcome.updated`, confirmed bookings publish `meeting.created`, and the
-  recovered recording publishes `recording.ready`. Only events actually
-  produced by the call are sent, and each is filtered by the integration's
-  configured subscriptions.
+  `call.outcome.updated`, confirmed callbacks and bookings publish
+  `callback.created` and `meeting.created`, and the recovered recording publishes
+  `recording.ready`. When the trigger metadata contains `external_id`, every
+  event produced by that call exposes it as `data.externalId`. Only events
+  actually produced by the call are sent, and each is filtered by the
+  integration's configured subscriptions.
 
 ### Enrichment (`packages/platform/src/enrichment`)
 

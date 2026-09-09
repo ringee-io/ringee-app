@@ -9,7 +9,8 @@ Record results and schedule the next touch through the connected Ringee MCP.
 
 - **Log outcome**: `log_call_outcome` needs a real `callId`. Outcomes:
   meeting_booked, sale, interested, follow_up, callback_scheduled, not_interested,
-  no_answer, voicemail, wrong_number, gatekeeper. Add an `outcomeNote` if useful.
+  no_answer, no_conversation, voicemail, wrong_number, gatekeeper. Add an
+  `outcomeNote` if useful.
 - **Callback**: resolve the contact first, then `create_callback` with `contactId`
   and a future ISO-8601 datetime with offset (e.g. 2026-06-02T15:00:00-04:00).
 - **Meeting**: `schedule_meeting` with `contactId` + datetime; optional `title`,

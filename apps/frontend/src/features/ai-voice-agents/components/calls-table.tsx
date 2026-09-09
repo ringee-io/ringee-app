@@ -123,6 +123,7 @@ export function CallsTable({
                     <Badge
                       className='rounded-lg'
                       variant={
+                        call.outcome === 'meeting_booked' ||
                         call.outcome === 'appointment_booked' ||
                         call.outcome === 'confirmed'
                           ? 'default'

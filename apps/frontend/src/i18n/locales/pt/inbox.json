@@ -109,6 +109,7 @@
         "callback_scheduled": "Retorno agendado",
         "not_interested": "Não interessado",
         "no_answer": "Sem resposta",
+        "no_conversation": "Sem conversa",
         "voicemail": "Correio de voz",
         "wrong_number": "Número errado",
         "gatekeeper": "Filtro / receção"

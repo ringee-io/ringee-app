@@ -46,6 +46,7 @@ type CallOutcome =
   | 'callback_scheduled'
   | 'not_interested'
   | 'no_answer'
+  | 'no_conversation'
   | 'voicemail'
   | 'wrong_number'
   | 'gatekeeper';
@@ -98,6 +99,7 @@ const OUTCOME_ICONS: Record<CallOutcome, React.ElementType> = {
   callback_scheduled: PhoneCall,
   not_interested: ThumbsDown,
   no_answer: PhoneMissed,
+  no_conversation: PhoneMissed,
   voicemail: Voicemail,
   wrong_number: PhoneOff,
   gatekeeper: ShieldAlert
@@ -111,6 +113,7 @@ const OUTCOME_COLORS: Record<CallOutcome, string> = {
   callback_scheduled: 'text-amber-500',
   not_interested: 'text-slate-400',
   no_answer: 'text-gray-400',
+  no_conversation: 'text-gray-400',
   voicemail: 'text-purple-400',
   wrong_number: 'text-red-400',
   gatekeeper: 'text-orange-400'
@@ -124,6 +127,7 @@ const OUTCOME_BADGE_CLASSES: Record<CallOutcome, string> = {
   callback_scheduled: 'bg-amber-500/10 text-amber-600 border-amber-500/20',
   not_interested: 'bg-slate-500/10 text-slate-500 border-slate-400/20',
   no_answer: 'bg-gray-500/10 text-gray-500 border-gray-400/20',
+  no_conversation: 'bg-gray-500/10 text-gray-500 border-gray-400/20',
   voicemail: 'bg-purple-500/10 text-purple-500 border-purple-400/20',
   wrong_number: 'bg-red-500/10 text-red-500 border-red-400/20',
   gatekeeper: 'bg-orange-500/10 text-orange-500 border-orange-400/20'
@@ -137,6 +141,7 @@ const ALL_OUTCOMES: CallOutcome[] = [
   'callback_scheduled',
   'not_interested',
   'no_answer',
+  'no_conversation',
   'voicemail',
   'wrong_number',
   'gatekeeper'
@@ -245,7 +250,7 @@ export function ActivitiesList() {
 
   const outcomeLabel = (id: CallOutcome) =>
     t(
-      `outcomes.${id === 'meeting_booked' ? 'meetingBooked' : id === 'follow_up' ? 'followUp' : id === 'callback_scheduled' ? 'callbackScheduled' : id === 'not_interested' ? 'notInterested' : id === 'no_answer' ? 'noAnswer' : id === 'wrong_number' ? 'wrongNumber' : id}`
+      `outcomes.${id === 'meeting_booked' ? 'meetingBooked' : id === 'follow_up' ? 'followUp' : id === 'callback_scheduled' ? 'callbackScheduled' : id === 'not_interested' ? 'notInterested' : id === 'no_answer' ? 'noAnswer' : id === 'no_conversation' ? 'noConversation' : id === 'wrong_number' ? 'wrongNumber' : id}`
     );
 
   return (

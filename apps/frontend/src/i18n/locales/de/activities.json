@@ -19,6 +19,7 @@
     "callbackScheduled": "Rückruf geplant",
     "notInterested": "Kein Interesse",
     "noAnswer": "Keine Antwort",
+    "noConversation": "Kein Gespräch",
     "voicemail": "Voicemail",
     "wrongNumber": "Falsche Nummer",
     "gatekeeper": "Gatekeeper"

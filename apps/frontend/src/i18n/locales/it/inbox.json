@@ -109,6 +109,7 @@
         "callback_scheduled": "Richiamata pianificata",
         "not_interested": "Non interessato",
         "no_answer": "Nessuna risposta",
+        "no_conversation": "Nessuna conversazione",
         "voicemail": "Segreteria",
         "wrong_number": "Numero errato",
         "gatekeeper": "Filtro / reception"

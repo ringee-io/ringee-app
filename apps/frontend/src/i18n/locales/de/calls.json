@@ -289,17 +289,22 @@
       "callback_scheduled": "Rückruf geplant",
       "not_interested": "Kein Interesse",
       "no_answer": "Keine Antwort",
+      "no_conversation": "Kein Gespräch",
       "voicemail": "Mailbox",
       "wrong_number": "Falsche Nummer",
       "gatekeeper": "Vorzimmer"
     },
     "agentOutcomes": {
       "appointment_booked": "Termin gebucht",
+      "meeting_booked": "Termin gebucht",
       "confirmed": "Bestätigt",
       "cannot_attend": "Kann nicht teilnehmen",
       "callback_requested": "Rückruf erbeten",
+      "callback_scheduled": "Rückruf geplant",
       "not_interested": "Kein Interesse",
+      "no_answer": "Keine Antwort",
       "no_conversation": "Kein Gespräch",
+      "wrong_number": "Falsche Nummer",
       "unknown": "Unbekannt"
     },
     "sentiments": {

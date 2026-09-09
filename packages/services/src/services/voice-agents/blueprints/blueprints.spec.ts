@@ -136,7 +136,7 @@ describe("AppointmentBookingBlueprint", () => {
   it("authenticates its tools by secret reference, never in plaintext", () => {
     const tools = blueprint.buildTools(toolContext);
     const webhooks = tools.filter((t) => t.kind === "webhook");
-    assert.equal(webhooks.length, 3);
+    assert.equal(webhooks.length, 4);
 
     for (const tool of webhooks) {
       assert.equal(tool.kind, "webhook");
@@ -214,7 +214,7 @@ describe("AppointmentBookingBlueprint", () => {
     assert.deepEqual(schema.properties.outcome.enum, blueprint.outcomes);
     assert.ok(
       schema.properties.outcome.enum.includes(
-        AiVoiceAgentOutcome.appointment_booked,
+        AiVoiceAgentOutcome.meeting_booked,
       ),
     );
     // An appointment agent cannot conclude a reminder's outcome.
@@ -305,16 +305,18 @@ describe("AppointmentBookingBlueprint", () => {
 describe("RemindersNotificationsBlueprint", () => {
   const blueprint = new RemindersNotificationsBlueprint();
 
-  it("needs no calendar but can request human support", () => {
+  it("needs no calendar and can schedule callbacks or request support", () => {
     assert.equal(blueprint.requiresCalendar, false);
     const tools = blueprint.buildTools(toolContext);
     assert.deepEqual(
       tools.map((t) => t.kind),
-      ["webhook", "hangup"],
+      ["webhook", "webhook", "hangup"],
     );
-    assert.equal(
-      tools.find((tool) => tool.kind === "webhook")?.name,
-      "request_human_support",
+    assert.deepEqual(
+      tools
+        .filter((tool) => tool.kind === "webhook")
+        .map((tool) => tool.kind === "webhook" && tool.name),
+      ["schedule_callback", "request_human_support"],
     );
   });
 
@@ -327,11 +329,11 @@ describe("RemindersNotificationsBlueprint", () => {
 
   it("tells the agent it cannot reschedule on the call", () => {
     const instructions = blueprint.buildInstructions(promptContext);
-    assert.match(instructions, /cannot reschedule on this/);
+    assert.match(instructions, /cannot reschedule an appointment/);
     assert.match(instructions, /Never invent a detail/);
     assert.match(
       instructions,
-      /request_human_support`, and only if it succeeds tell them someone will\n {2}follow up/,
+      /request_human_support`, and only if it succeeds tell them\n {2}someone will follow up/,
     );
     assert.match(
       blueprint.buildSafetyInstructions(promptContext),
@@ -367,7 +369,7 @@ describe("RemindersNotificationsBlueprint", () => {
     );
     assert.equal(
       schema.properties.outcome.enum.includes(
-        AiVoiceAgentOutcome.appointment_booked,
+        AiVoiceAgentOutcome.meeting_booked,
       ),
       false,
     );

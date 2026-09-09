@@ -1,6 +1,7 @@
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
   Injectable,
   Logger,
   NotFoundException,
@@ -60,6 +61,35 @@ export interface StartVoiceAgentCallResult {
   status: AiVoiceAgentCallStatus;
 }
 
+export enum VoiceAgentCallStartOutcome {
+  terminal_rejection = "terminal_rejection",
+  retryable_before_placement = "retryable_before_placement",
+  placed_pending_reconciliation = "placed_pending_reconciliation",
+}
+
+/**
+ * Carries the one fact a durable caller needs after `startCall` rejects:
+ * whether another dial is safe. The original HTTP response and status are
+ * retained for REST/MCP callers.
+ */
+export class VoiceAgentCallStartError extends HttpException {
+  constructor(
+    readonly outcome: VoiceAgentCallStartOutcome,
+    error: unknown,
+    readonly agentCallId: string | null = null,
+  ) {
+    const message = error instanceof Error ? error.message : String(error);
+    super(
+      error instanceof HttpException
+        ? error.getResponse()
+        : `Could not start the call: ${message}`,
+      error instanceof HttpException ? error.getStatus() : 400,
+      { cause: error instanceof Error ? error : undefined },
+    );
+    this.name = VoiceAgentCallStartError.name;
+  }
+}
+
 /**
  * The one execution path.
  *
@@ -86,6 +116,24 @@ export class VoiceAgentCallService {
   ) {}
 
   async startCall(
+    ctx: OwnershipContext,
+    agentId: string,
+    input: StartVoiceAgentCallInput,
+  ): Promise<StartVoiceAgentCallResult> {
+    try {
+      return await this.startCallInternal(ctx, agentId, input);
+    } catch (error) {
+      if (error instanceof VoiceAgentCallStartError) throw error;
+      throw new VoiceAgentCallStartError(
+        this.isTerminalPolicyRejection(error)
+          ? VoiceAgentCallStartOutcome.terminal_rejection
+          : VoiceAgentCallStartOutcome.retryable_before_placement,
+        error,
+      );
+    }
+  }
+
+  private async startCallInternal(
     ctx: OwnershipContext,
     agentId: string,
     input: StartVoiceAgentCallInput,
@@ -122,37 +170,48 @@ export class VoiceAgentCallService {
       });
 
     const callbackToken = `rvc_${randomBytes(24).toString("hex")}`;
-    const agentCall = await this.agentCalls.create({
-      agentId: agent.id,
-      userId: ctx.userId,
-      organizationId: ctx.organizationId ?? null,
-      toNumber: to,
-      fromNumber: from,
-      contactId: contact?.id ?? null,
-      status: AiVoiceAgentCallStatus.created,
-      variables: variables as object,
-      metadata: (input.metadata ?? {}) as object,
-      callbackTokenHash: hashApiKey(callbackToken),
-    });
+    let agentCall: AiVoiceAgentCall | null = null;
+    let callId: string | null = null;
+    try {
+      agentCall = await this.agentCalls.create({
+        agentId: agent.id,
+        userId: ctx.userId,
+        organizationId: ctx.organizationId ?? null,
+        toNumber: to,
+        fromNumber: from,
+        contactId: contact?.id ?? null,
+        status: AiVoiceAgentCallStatus.created,
+        variables: variables as object,
+        metadata: (input.metadata ?? {}) as object,
+        callbackTokenHash: hashApiKey(callbackToken),
+      });
 
-    // The telephony row is created here, not on a webhook: a provider-placed
-    // leg carries none of the headers the browser path uses to attribute a
-    // call, so nothing downstream could build it. It is written *before* the
-    // leg is placed, because a row created afterwards is one failed write away
-    // from leaving a live, billable call with no history and nothing for its
-    // callbacks to land on.
-    const call = await this.callRepository.createCall(ctx, {
-      contact: contact ? { connect: { id: contact.id } } : undefined,
-      fromNumber: from,
-      toNumber: to,
-      direction: "outbound",
-      status: CallStatus.pending,
-      startedAt: new Date(),
-      source: AI_VOICE_AGENT_CALL_SOURCE,
-    });
-    await this.agentCalls.update(agentCall.id, { callId: call.id });
+      // The telephony row is created here, not on a webhook: a provider-placed
+      // leg carries none of the headers the browser path uses to attribute a
+      // call, so nothing downstream could build it. It is written *before* the
+      // leg is placed, because a row created afterwards is one failed write away
+      // from leaving a live, billable call with no history and nothing for its
+      // callbacks to land on.
+      const call = await this.callRepository.createCall(ctx, {
+        contact: contact ? { connect: { id: contact.id } } : undefined,
+        fromNumber: from,
+        toNumber: to,
+        direction: "outbound",
+        status: CallStatus.pending,
+        startedAt: new Date(),
+        source: AI_VOICE_AGENT_CALL_SOURCE,
+      });
+      callId = call.id;
+      await this.agentCalls.update(agentCall.id, { callId: call.id });
+    } catch (error) {
+      await this.closeUnplacedCall(callId, agentCall?.id ?? null, error);
+      throw new VoiceAgentCallStartError(
+        VoiceAgentCallStartOutcome.retryable_before_placement,
+        error,
+        agentCall?.id ?? null,
+      );
+    }
 
-    let legPlaced = false;
     try {
       await this.ensureInsightDelivery(agent);
       await this.ensureToolDelivery(ctx, agent);
@@ -175,24 +234,46 @@ export class VoiceAgentCallService {
         record: true,
       });
 
-      legPlaced = true;
-
       // Whatever handles the provider gives back are written the moment they
       // exist — an event that arrives before the first status callback (the
       // cost record, a saved recording) is looked up by control id and has
       // nothing to land on until they are.
+      let persistenceError: unknown = null;
       if (handle.callControlId) {
-        await this.callRepository.attachTelephony(call.id, {
-          callControlId: handle.callControlId,
-          providerCallId: handle.providerCallId,
-          callSessionId: handle.callSessionId,
-        });
+        try {
+          await this.callRepository.attachTelephony(callId, {
+            callControlId: handle.callControlId,
+            providerCallId: handle.providerCallId,
+            callSessionId: handle.callSessionId,
+          });
+        } catch (error) {
+          persistenceError = error;
+        }
       }
 
-      const updated = await this.agentCalls.update(agentCall.id, {
-        providerCallControlId: handle.callControlId,
-        status: AiVoiceAgentCallStatus.initiating,
-      });
+      let updated: AiVoiceAgentCall | null = null;
+      try {
+        updated = await this.agentCalls.update(agentCall.id, {
+          providerCallControlId: handle.callControlId,
+          status: AiVoiceAgentCallStatus.initiating,
+        });
+      } catch (error) {
+        persistenceError ??= error;
+      }
+      if (persistenceError) {
+        throw new VoiceAgentCallStartError(
+          VoiceAgentCallStartOutcome.placed_pending_reconciliation,
+          persistenceError,
+          agentCall.id,
+        );
+      }
+      if (!updated) {
+        throw new VoiceAgentCallStartError(
+          VoiceAgentCallStartOutcome.placed_pending_reconciliation,
+          new Error("The placed call could not be updated"),
+          agentCall.id,
+        );
+      }
 
       this.logger.log(
         `🤖 Agent ${agent.name} (${agent.id}) dialing ${to} (call ${agentCall.id})`,
@@ -201,39 +282,78 @@ export class VoiceAgentCallService {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
 
-      if (legPlaced) {
-        // The leg is live and the row is already bound to it, so the provider's
-        // callbacks still carry this call to completion and its cost still
-        // settles. Only the linking half failed, and marking either row failed
-        // here would contradict the call the workspace is actually paying for.
+      if (
+        error instanceof VoiceAgentCallStartError &&
+        error.outcome ===
+          VoiceAgentCallStartOutcome.placed_pending_reconciliation
+      ) {
+        // The leg is live. Provider callbacks and the billing sweep can repair
+        // whichever local write failed, so neither row is marked failed and a
+        // durable caller must not initiate a second leg.
         this.logger.error(
           `Agent call ${agentCall.id} was placed but could not be linked: ${message}`,
         );
-        throw new BadRequestException(`Could not start the call: ${message}`);
+        throw error;
       }
 
-      // Nothing was dialed, so the row reserved for the leg is closed here: the
-      // stale-call sweep only reaches calls that made it to `ringing`.
+      await this.closeUnplacedCall(callId, agentCall.id, error);
+      this.logger.error(
+        `Agent call ${agentCall.id} failed to start: ${message}`,
+      );
+      throw new VoiceAgentCallStartError(
+        VoiceAgentCallStartOutcome.retryable_before_placement,
+        error,
+        agentCall.id,
+      );
+    }
+  }
+
+  private async closeUnplacedCall(
+    callId: string | null,
+    agentCallId: string | null,
+    error: unknown,
+  ): Promise<void> {
+    const message = error instanceof Error ? error.message : String(error);
+
+    // Nothing was dialed, so the row reserved for the leg is closed here: the
+    // stale-call sweep only reaches calls that made it to `ringing`.
+    if (callId) {
       await this.callRepository
-        .markForciblyEnded(call.id, message)
+        .markForciblyEnded(callId, message)
         .catch((closeError: unknown) => {
           this.logger.error(
-            `Could not close call ${call.id} for agent call ${agentCall.id}: ${
+            `Could not close call ${callId} for agent call ${agentCallId ?? "unknown"}: ${
               closeError instanceof Error
                 ? closeError.message
                 : String(closeError)
             }`,
           );
         });
-      await this.agentCalls.update(agentCall.id, {
-        status: AiVoiceAgentCallStatus.failed,
-        lastError: message,
-      });
-      this.logger.error(
-        `Agent call ${agentCall.id} failed to start: ${message}`,
-      );
-      throw new BadRequestException(`Could not start the call: ${message}`);
     }
+    if (agentCallId) {
+      await this.agentCalls
+        .update(agentCallId, {
+          status: AiVoiceAgentCallStatus.failed,
+          lastError: message,
+        })
+        .catch((updateError: unknown) => {
+          this.logger.error(
+            `Could not mark agent call ${agentCallId} failed: ${
+              updateError instanceof Error
+                ? updateError.message
+                : String(updateError)
+            }`,
+          );
+        });
+    }
+  }
+
+  private isTerminalPolicyRejection(error: unknown): boolean {
+    return (
+      error instanceof BadRequestException ||
+      error instanceof ForbiddenException ||
+      error instanceof NotFoundException
+    );
   }
 
   // ── Gates ────────────────────────────────────────────────────

@@ -2,7 +2,11 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { VoiceAgentCallService } from "./voice-agent-call.service";
+import {
+  VoiceAgentCallService,
+  VoiceAgentCallStartError,
+  VoiceAgentCallStartOutcome,
+} from "./voice-agent-call.service";
 
 /**
  * Which number an agent call goes out from.
@@ -42,6 +46,10 @@ function build(options: {
   variables?: Array<{ key: string; required: boolean }>;
   /** What the tool re-sync throws, for the test that it is best-effort. */
   toolSyncError?: Error;
+  /** What the provider dial throws before accepting a leg. */
+  providerError?: Error;
+  /** What persisting the provider handle throws after a leg exists. */
+  attachError?: Error;
   /** Agent-local clock used for runtime context. */
   timezone?: string | null;
 }) {
@@ -61,6 +69,8 @@ function build(options: {
   const configured: string[] = [];
   const analysisEnsured: string[] = [];
   const deliveryEvents: string[] = [];
+  const agentCallUpdates: Array<Record<string, unknown>> = [];
+  const forciblyEnded: string[] = [];
   const service = new VoiceAgentCallService(
     {
       require: async () => agent,
@@ -80,15 +90,21 @@ function build(options: {
     { require: () => ({ variables: options.variables ?? [] }) } as never,
     {
       create: async () => ({ id: "agent-call-1" }),
-      update: async (id: string, data: Record<string, unknown>) => ({
-        id,
-        status: data.status,
-      }),
+      update: async (id: string, data: Record<string, unknown>) => {
+        agentCallUpdates.push(data);
+        return { id, status: data.status };
+      },
     } as never,
     {
       createCall: async () => ({ id: "call-1" }),
-      attachTelephony: async () => ({ id: "call-1" }),
-      markForciblyEnded: async () => ({ id: "call-1" }),
+      attachTelephony: async () => {
+        if (options.attachError) throw options.attachError;
+        return { id: "call-1" };
+      },
+      markForciblyEnded: async (id: string) => {
+        forciblyEnded.push(id);
+        return { id };
+      },
     } as never,
     {
       startCall: async (input: {
@@ -96,6 +112,7 @@ function build(options: {
         variables: Record<string, string>;
       }) => {
         deliveryEvents.push("call:placed");
+        if (options.providerError) throw options.providerError;
         placed.push({ from: input.from });
         providerVariables.push(input.variables);
         return { providerCallId: "prov-1", callControlId: "cc-1" };
@@ -127,6 +144,8 @@ function build(options: {
     analysisEnsured,
     deliveryEvents,
     providerVariables,
+    agentCallUpdates,
+    forciblyEnded,
   };
 }
 
@@ -327,5 +346,70 @@ describe("VoiceAgentCallService calling application", () => {
     await service.startCall(CTX as never, "agent-1", { to: TO });
 
     assert.deepEqual(placed, [{ from: NUMBERS.miami.phoneNumber }]);
+  });
+});
+
+describe("VoiceAgentCallService start outcomes", () => {
+  it("exposes a terminal policy rejection", async () => {
+    const { service, placed } = build({ usable: [] });
+
+    await assert.rejects(
+      service.startCall(CTX as never, "agent-1", { to: TO }),
+      (error: unknown) => {
+        assert.ok(error instanceof VoiceAgentCallStartError);
+        assert.equal(
+          error.outcome,
+          VoiceAgentCallStartOutcome.terminal_rejection,
+        );
+        return true;
+      },
+    );
+    assert.deepEqual(placed, []);
+  });
+
+  it("exposes a retryable failure before a leg is placed", async () => {
+    const { service, placed, forciblyEnded } = build({
+      usable: [NUMBERS.miami],
+      providerError: new Error("provider unavailable"),
+    });
+
+    await assert.rejects(
+      service.startCall(CTX as never, "agent-1", { to: TO }),
+      (error: unknown) => {
+        assert.ok(error instanceof VoiceAgentCallStartError);
+        assert.equal(
+          error.outcome,
+          VoiceAgentCallStartOutcome.retryable_before_placement,
+        );
+        return true;
+      },
+    );
+    assert.deepEqual(placed, []);
+    assert.deepEqual(forciblyEnded, ["call-1"]);
+  });
+
+  it("exposes a placed leg when later persistence needs reconciliation", async () => {
+    const { service, placed, agentCallUpdates, forciblyEnded } = build({
+      usable: [NUMBERS.miami],
+      attachError: new Error("database unavailable"),
+    });
+
+    await assert.rejects(
+      service.startCall(CTX as never, "agent-1", { to: TO }),
+      (error: unknown) => {
+        assert.ok(error instanceof VoiceAgentCallStartError);
+        assert.equal(
+          error.outcome,
+          VoiceAgentCallStartOutcome.placed_pending_reconciliation,
+        );
+        return true;
+      },
+    );
+    assert.equal(placed.length, 1);
+    assert.equal(
+      agentCallUpdates.some((update) => update.status === "initiating"),
+      true,
+    );
+    assert.deepEqual(forciblyEnded, []);
   });
 });

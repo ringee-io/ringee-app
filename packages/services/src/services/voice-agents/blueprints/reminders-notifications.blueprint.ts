@@ -10,6 +10,7 @@ import type {
   VoiceAgentVariableDefinition,
 } from "../voice-agent.types";
 import { buildSharedInsights } from "./insights";
+import { buildScheduleCallbackTool } from "./callback.tool";
 import { buildHumanSupportTool } from "./human-support.tool";
 import { inLanguage, languageRule, type LocalizedPhrase } from "./language";
 
@@ -32,9 +33,11 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
   readonly outcomes: AiVoiceAgentOutcome[] = [
     AiVoiceAgentOutcome.confirmed,
     AiVoiceAgentOutcome.cannot_attend,
-    AiVoiceAgentOutcome.callback_requested,
+    AiVoiceAgentOutcome.callback_scheduled,
     AiVoiceAgentOutcome.not_interested,
+    AiVoiceAgentOutcome.no_answer,
     AiVoiceAgentOutcome.no_conversation,
+    AiVoiceAgentOutcome.wrong_number,
     AiVoiceAgentOutcome.unknown,
   ];
 
@@ -117,9 +120,12 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
       "  say so. If they want an answer, call `request_human_support`.",
       "- Never invent a detail — no prices, no policies, no times that were not",
       "  given to you.",
-      "- If they cannot make it, or want to move it, note what they said, call",
-      "  `request_human_support`, and only if it succeeds tell them someone will",
-      "  follow up. You cannot reschedule on this call.",
+      "- If they ask to be called again, agree on a specific future date and time",
+      "  and call `schedule_callback`. Only say it is scheduled after the tool",
+      "  succeeds. This schedules a new call; it does not move an appointment.",
+      "- If they cannot make an appointment and need it moved, note what they",
+      "  said, call `request_human_support`, and only if it succeeds tell them",
+      "  someone will follow up. You cannot reschedule an appointment.",
       "- If they explicitly ask to speak with a person, call",
       "  `request_human_support` with a short subject and useful message.",
       "- If they ask to be removed or say they are not interested, accept it",
@@ -157,6 +163,8 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
       "  supplied in the call variables or returned by an available tool.",
       "- Do not claim to reschedule or change an appointment; this agent has no",
       "  tool that can do that.",
+      "- Only promise a callback after agreeing on an exact future date and time",
+      "  and `schedule_callback` returns success.",
       "- If the person asks for a human, or another tool fails and a person must",
       "  finish the request, call `request_human_support`. Only promise a",
       "  follow-up after that tool succeeds.",
@@ -167,6 +175,7 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
 
   buildTools(ctx: VoiceAgentToolContext): VoiceAgentTool[] {
     const tools: VoiceAgentTool[] = [
+      buildScheduleCallbackTool(ctx),
       buildHumanSupportTool(ctx),
       {
         kind: "hangup",
@@ -188,8 +197,9 @@ export class RemindersNotificationsBlueprint implements VoiceAgentBlueprint {
         `Use "${AiVoiceAgentOutcome.confirmed}" when they confirmed the`,
         `appointment or acknowledged the update. Use "${AiVoiceAgentOutcome.cannot_attend}"`,
         "when they said they cannot make it, and",
-        `"${AiVoiceAgentOutcome.callback_requested}" when they asked to be called`,
-        "back or to rearrange it.",
+        `"${AiVoiceAgentOutcome.callback_scheduled}" only when the callback tool`,
+        "actually scheduled another call. A request to rearrange an appointment",
+        "without a scheduled callback is not a callback outcome.",
       ].join(" "),
     );
   }
