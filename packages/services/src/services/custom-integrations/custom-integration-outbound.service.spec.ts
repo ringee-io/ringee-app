@@ -86,6 +86,22 @@ describe("call outcome event data", () => {
   });
 });
 
+/** The responsible user, with a non-primary address ahead of the primary. */
+const USERS_STUB = {
+  findById: async (id: string) => ({
+    id,
+    firstName: "Ada",
+    lastName: "Lovelace",
+    emails: [
+      { email: "ada+old@example.com", isPrimary: false },
+      { email: "ada@example.com", isPrimary: true },
+    ],
+  }),
+} as never;
+
+/** No AI voice agent behind the event. */
+const NO_AGENTS_STUB = { findRefForOwner: async () => null } as never;
+
 describe("CustomIntegrationOutboundService call fan-out", () => {
   it("queues a terminal call for every active subscribed integration", async () => {
     const lookups: Array<Record<string, unknown>> = [];
@@ -122,6 +138,8 @@ describe("CustomIntegrationOutboundService call fan-out", () => {
         },
       } as never,
       { findByCallId: async () => null } as never,
+      USERS_STUB,
+      NO_AGENTS_STUB,
     );
 
     await service.enqueueCallTerminal({
@@ -198,6 +216,8 @@ describe("CustomIntegrationOutboundService call fan-out", () => {
         },
       } as never,
       { findByCallId: async () => null } as never,
+      USERS_STUB,
+      NO_AGENTS_STUB,
     );
 
     await service.enqueueCallTerminal({
@@ -237,6 +257,8 @@ describe("CustomIntegrationOutboundService call fan-out", () => {
         },
       } as never,
       { findByCallId: async () => null } as never,
+      USERS_STUB,
+      NO_AGENTS_STUB,
     );
 
     await service.enqueue({
@@ -280,6 +302,8 @@ describe("CustomIntegrationOutboundService call fan-out", () => {
           metadata: { external_id: "crm-contact-42" },
         }),
       } as never,
+      USERS_STUB,
+      NO_AGENTS_STUB,
     );
 
     await service.enqueue({
@@ -318,6 +342,8 @@ describe("CustomIntegrationOutboundService call fan-out", () => {
           metadata: { external_id: "crm-contact-42" },
         }),
       } as never,
+      USERS_STUB,
+      NO_AGENTS_STUB,
     );
 
     await service.enqueue({
@@ -357,6 +383,8 @@ describe("CustomIntegrationOutboundService call fan-out", () => {
           metadata: { external_id: "crm-contact-42" },
         }),
       } as never,
+      USERS_STUB,
+      NO_AGENTS_STUB,
     );
 
     await service.enqueue({
@@ -368,5 +396,312 @@ describe("CustomIntegrationOutboundService call fan-out", () => {
 
     assert.equal(deliveries.length, 1);
     assert.equal("externalId" in deliveries[0]!.payload.data, false);
+  });
+  it("names the responsible user, with their primary email, on every event", async () => {
+    const deliveries: Array<Record<string, any>> = [];
+    const service = new CustomIntegrationOutboundService(
+      {
+        findActiveSubscribed: async () => [
+          {
+            id: "integration-1",
+            userId: "user-1",
+            organizationId: "org-1",
+            outboundUrl: "https://one.example/webhooks",
+          },
+        ],
+      } as never,
+      {
+        enqueue: async (delivery: Record<string, unknown>) => {
+          deliveries.push(delivery);
+          return delivery;
+        },
+      } as never,
+      { findByCallId: async () => null } as never,
+      USERS_STUB,
+      NO_AGENTS_STUB,
+    );
+
+    // An event with no call at all still names who is behind it.
+    await service.enqueue({
+      ctx: { userId: "user-1", organizationId: "org-1" },
+      eventEnum: "dnc_created",
+      subjectId: "+14155550123",
+      data: { phoneNumber: "+14155550123" },
+    });
+
+    assert.deepEqual(deliveries[0]!.payload.data.user, {
+      id: "user-1",
+      email: "ada@example.com",
+      fullName: "Ada Lovelace",
+    });
+    assert.equal("agent" in deliveries[0]!.payload.data, false);
+  });
+
+  it("names the AI voice agent behind a call-linked event", async () => {
+    const deliveries: Array<Record<string, any>> = [];
+    const lookups: Array<Record<string, unknown>> = [];
+    const service = new CustomIntegrationOutboundService(
+      {
+        findActiveSubscribed: async () => [
+          {
+            id: "integration-1",
+            userId: "user-1",
+            organizationId: "org-1",
+            outboundUrl: "https://one.example/webhooks",
+          },
+        ],
+      } as never,
+      {
+        enqueue: async (delivery: Record<string, unknown>) => {
+          deliveries.push(delivery);
+          return delivery;
+        },
+      } as never,
+      {
+        findByCallId: async () => ({
+          userId: "user-1",
+          organizationId: "org-1",
+          agentId: "agent-1",
+          metadata: null,
+        }),
+      } as never,
+      USERS_STUB,
+      {
+        findRefForOwner: async (ctx: Record<string, unknown>, id: string) => {
+          lookups.push({ ctx, id });
+          return { id, name: "Sofia" };
+        },
+      } as never,
+    );
+
+    await service.enqueue({
+      ctx: { userId: "user-1", organizationId: "org-1" },
+      eventEnum: "meeting_created",
+      subjectId: "meeting-1",
+      data: { meetingId: "meeting-1", callId: "call-1" },
+    });
+
+    assert.deepEqual(deliveries[0]!.payload.data.agent, {
+      id: "agent-1",
+      name: "Sofia",
+    });
+    // The agent is read through the workspace-checked lookup, never by id alone.
+    assert.deepEqual(lookups, [
+      { ctx: { userId: "user-1", organizationId: "org-1" }, id: "agent-1" },
+    ]);
+  });
+
+  it("never names an agent behind another workspace's call", async () => {
+    const deliveries: Array<Record<string, any>> = [];
+    let agentLookups = 0;
+    const service = new CustomIntegrationOutboundService(
+      {
+        findActiveSubscribed: async () => [
+          {
+            id: "integration-1",
+            userId: "user-1",
+            organizationId: "org-1",
+            outboundUrl: "https://one.example/webhooks",
+          },
+        ],
+      } as never,
+      {
+        enqueue: async (delivery: Record<string, unknown>) => {
+          deliveries.push(delivery);
+          return delivery;
+        },
+      } as never,
+      {
+        findByCallId: async () => ({
+          userId: "user-9",
+          organizationId: "org-2",
+          agentId: "agent-9",
+          metadata: null,
+        }),
+      } as never,
+      USERS_STUB,
+      {
+        findRefForOwner: async () => {
+          agentLookups += 1;
+          return { id: "agent-9", name: "Someone else's agent" };
+        },
+      } as never,
+    );
+
+    await service.enqueue({
+      ctx: { userId: "user-1", organizationId: "org-1" },
+      eventEnum: "recording_ready",
+      subjectId: "recording-1",
+      data: { callId: "call-1", recordingId: "recording-1" },
+    });
+
+    assert.equal("agent" in deliveries[0]!.payload.data, false);
+    assert.equal(agentLookups, 0);
+  });
+
+  it("keeps the actor a producer already resolved", async () => {
+    const deliveries: Array<Record<string, any>> = [];
+    const service = new CustomIntegrationOutboundService(
+      {
+        findActiveSubscribed: async () => [
+          {
+            id: "integration-1",
+            userId: "user-1",
+            organizationId: "org-1",
+            outboundUrl: "https://one.example/webhooks",
+          },
+        ],
+      } as never,
+      {
+        enqueue: async (delivery: Record<string, unknown>) => {
+          deliveries.push(delivery);
+          return delivery;
+        },
+      } as never,
+      { findByCallId: async () => null } as never,
+      USERS_STUB,
+      NO_AGENTS_STUB,
+    );
+
+    await service.enqueue({
+      ctx: { userId: "user-1", organizationId: "org-1" },
+      eventEnum: "note_created",
+      subjectId: "note-1",
+      data: { noteId: "note-1", user: { id: "user-7", fullName: "Grace" } },
+    });
+
+    assert.deepEqual(deliveries[0]!.payload.data.user, {
+      id: "user-7",
+      fullName: "Grace",
+    });
+  });
+
+  it("still delivers when the responsible user cannot be read", async () => {
+    const deliveries: Array<Record<string, any>> = [];
+    const service = new CustomIntegrationOutboundService(
+      {
+        findActiveSubscribed: async () => [
+          {
+            id: "integration-1",
+            userId: "user-1",
+            organizationId: "org-1",
+            outboundUrl: "https://one.example/webhooks",
+          },
+        ],
+      } as never,
+      {
+        enqueue: async (delivery: Record<string, unknown>) => {
+          deliveries.push(delivery);
+          return delivery;
+        },
+      } as never,
+      { findByCallId: async () => null } as never,
+      {
+        findById: async () => {
+          throw new Error("database is down");
+        },
+      } as never,
+      NO_AGENTS_STUB,
+    );
+
+    await service.enqueue({
+      ctx: { userId: "user-1", organizationId: "org-1" },
+      eventEnum: "dnc_created",
+      subjectId: "+14155550123",
+      data: { phoneNumber: "+14155550123" },
+    });
+
+    assert.equal(deliveries.length, 1);
+    assert.equal("user" in deliveries[0]!.payload.data, false);
+  });
+  it("still delivers when the agent-call lookup fails", async () => {
+    const deliveries: Array<Record<string, any>> = [];
+    const service = new CustomIntegrationOutboundService(
+      {
+        findActiveSubscribed: async () => [
+          {
+            id: "integration-1",
+            userId: "user-1",
+            organizationId: "org-1",
+            outboundUrl: "https://one.example/webhooks",
+          },
+        ],
+      } as never,
+      {
+        enqueue: async (delivery: Record<string, unknown>) => {
+          deliveries.push(delivery);
+          return delivery;
+        },
+      } as never,
+      {
+        findByCallId: async () => {
+          throw new Error("database is down");
+        },
+      } as never,
+      USERS_STUB,
+      NO_AGENTS_STUB,
+    );
+
+    await service.enqueue({
+      ctx: { userId: "user-1", organizationId: "org-1" },
+      eventEnum: "recording_ready",
+      subjectId: "recording-1",
+      data: { callId: "call-1", recordingId: "recording-1" },
+    });
+
+    // The annotation is lost; the delivery — and its retries — are not.
+    assert.equal(deliveries.length, 1);
+    assert.equal("agent" in deliveries[0]!.payload.data, false);
+    assert.equal("externalId" in deliveries[0]!.payload.data, false);
+    assert.equal(deliveries[0]!.payload.data.user.id, "user-1");
+  });
+
+  it("still delivers when the agent name cannot be read", async () => {
+    const deliveries: Array<Record<string, any>> = [];
+    const service = new CustomIntegrationOutboundService(
+      {
+        findActiveSubscribed: async () => [
+          {
+            id: "integration-1",
+            userId: "user-1",
+            organizationId: "org-1",
+            outboundUrl: "https://one.example/webhooks",
+          },
+        ],
+      } as never,
+      {
+        enqueue: async (delivery: Record<string, unknown>) => {
+          deliveries.push(delivery);
+          return delivery;
+        },
+      } as never,
+      {
+        findByCallId: async () => ({
+          userId: "user-1",
+          organizationId: "org-1",
+          agentId: "agent-1",
+          metadata: { external_id: "crm-contact-42" },
+        }),
+      } as never,
+      USERS_STUB,
+      {
+        findRefForOwner: async () => {
+          throw new Error("database is down");
+        },
+      } as never,
+    );
+
+    await service.enqueue({
+      ctx: { userId: "user-1", organizationId: "org-1" },
+      eventEnum: "recording_ready",
+      subjectId: "recording-1",
+      data: { callId: "call-1", recordingId: "recording-1" },
+    });
+
+    assert.equal(deliveries.length, 1);
+    assert.equal("agent" in deliveries[0]!.payload.data, false);
+    // Everything the failing lookup did not own still made it through.
+    assert.equal(deliveries[0]!.payload.data.externalId, "crm-contact-42");
+    assert.equal(deliveries[0]!.payload.data.user.id, "user-1");
   });
 });

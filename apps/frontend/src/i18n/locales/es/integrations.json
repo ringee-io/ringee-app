@@ -110,6 +110,14 @@
         "attempts": "intentos={count}",
         "refresh": "Actualizar",
         "empty": "Aún no hay eventos."
+      },
+      "docs": {
+        "sharedFields": {
+          "title": "Común a todos los eventos salientes",
+          "user": "El usuario de Ringee al que pertenece el evento: id, email principal y nombre completo. Solo se omite si ese usuario ya no se puede resolver.",
+          "agent": "El agente de voz con IA que generó el evento: id y nombre. No aparece cuando la llamada la hizo una persona.",
+          "externalId": "Tu propio id de correlación, cuando la llamada del agente de voz con IA lo traía en sus metadatos."
+        }
       }
     },
     "card": {

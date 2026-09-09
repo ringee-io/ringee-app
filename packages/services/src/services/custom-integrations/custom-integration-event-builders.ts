@@ -17,6 +17,7 @@ import {
   Meeting,
   Recording,
   User,
+  UserEmail,
 } from "@ringee/database";
 import { OwnershipContext } from "@ringee/platform";
 
@@ -73,6 +74,29 @@ export function userRef(
     email: email ?? undefined,
     fullName: fullName || undefined,
   };
+}
+
+/**
+ * A user's addressable email: the primary one, falling back to the first on
+ * file for rows synced before a primary was flagged.
+ */
+export function primaryEmailOf(
+  user:
+    | { emails?: Pick<UserEmail, "email" | "isPrimary">[] }
+    | null
+    | undefined,
+): string | undefined {
+  const emails = user?.emails;
+  if (!emails?.length) return undefined;
+  return emails.find((e) => e.isPrimary)?.email ?? emails[0]?.email;
+}
+
+/** AI voice-agent reference carried by every event the agent's call produces. */
+export function voiceAgentRef(
+  agent: { id: string; name: string } | null | undefined,
+) {
+  if (!agent) return undefined;
+  return { id: agent.id, name: agent.name };
 }
 
 export function buildCallEventData(call: Call): Record<string, unknown> {

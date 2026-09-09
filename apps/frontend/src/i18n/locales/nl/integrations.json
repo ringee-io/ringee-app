@@ -110,6 +110,14 @@
         "attempts": "pogingen={count}",
         "refresh": "Vernieuwen",
         "empty": "Nog geen events."
+      },
+      "docs": {
+        "sharedFields": {
+          "title": "Geldt voor elk uitgaand event",
+          "user": "De Ringee-gebruiker bij wie het event hoort: id, primair e-mailadres en volledige naam. Ontbreekt alleen wanneer die gebruiker niet meer kan worden opgezocht.",
+          "agent": "De AI-spraakagent die het event heeft veroorzaakt: id en naam. Ontbreekt wanneer een persoon het gesprek voerde.",
+          "externalId": "Je eigen correlatie-id, wanneer het AI-spraakagentgesprek achter het event die in de metadata meedroeg."
+        }
       }
     },
     "card": {

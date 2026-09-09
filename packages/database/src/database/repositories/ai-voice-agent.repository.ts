@@ -60,6 +60,22 @@ export class AiVoiceAgentRepository {
   }
 
   /**
+   * Workspace-checked name lookup for event payloads and other read-only
+   * references. Same ownership rule as `findByIdForOwner`, without loading the
+   * knowledge sources a reference never needs. A soft-deleted agent still
+   * resolves: an event about a past call must name the agent that placed it.
+   */
+  findRefForOwner(
+    ctx: OwnershipContext,
+    id: string,
+  ): Promise<{ id: string; name: string } | null> {
+    return this.prisma.aiVoiceAgent.findFirst({
+      where: { id, ...buildOwnershipFilter(ctx) },
+      select: { id: true, name: true },
+    });
+  }
+
+  /**
    * Lookup by the provider's assistant id, used when a provider callback names
    * an assistant. The caller still has to prove the workspace matches.
    */
