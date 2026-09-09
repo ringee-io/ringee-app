@@ -118,6 +118,12 @@ export const INBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
         type: "object",
         description: "Provider-specific metadata stored on the Contact.",
       },
+      {
+        name: "data.campaignId",
+        type: "string (UUID)",
+        description:
+          "Ringee campaign id — the contact is added to that campaign as a lead.",
+      },
     ],
     examplePayload: {
       event: "contact.upserted",
@@ -139,6 +145,14 @@ export const INBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       "phoneNumber is required because Ringee needs to be able to dial the contact.",
       "Sending null / undefined / empty strings will NOT overwrite existing values.",
       "Dedup order: externalId first, then phoneNumber within the same workspace.",
+      "campaignId adds the contact to that campaign as a pending lead, and queues it " +
+        "immediately if the campaign is already running. A contact that is already a " +
+        "lead of the campaign is left untouched, so its attempts and dispositions " +
+        "survive every re-sync.",
+      "campaignId must belong to the same workspace as the integration, and campaigns " +
+        "only exist in organization workspaces. An id that does not resolve fails the " +
+        "event — the contact itself is still synced, so a corrected re-send only needs " +
+        "a fresh eventId.",
     ],
   },
   {

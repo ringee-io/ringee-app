@@ -73,6 +73,19 @@ hard-coded secret was removed. Do not reintroduce one without configuration.
 - Compare secrets with `timingSafeEqual`. Store hashes, never plaintext tokens.
 - Fail closed when a key is missing or a signature does not verify.
 
+## Custom Integrations
+
+`custom-integrations/event-spec.ts` is the contract _and_ the validator. Inbound
+payloads are checked against it by `inbound-payload.ts`, and the frontend's
+Documentation tab renders the same array — so a field only exists once it is in
+the spec, and one that is missing from it comes back to the sender as an ignored
+field. Add the field there first, then read it in the service.
+
+A documented `type` drives the check: `"object"` and `"number"` are enforced as
+such, anything containing `uuid` is validated as one **and is fatal when
+malformed** (an id changes what an event does, so it is never dropped quietly),
+and everything else is a string.
+
 ## Temporal
 
 `temporal/contracts.ts` must stay **import-free** — it is pulled into the
