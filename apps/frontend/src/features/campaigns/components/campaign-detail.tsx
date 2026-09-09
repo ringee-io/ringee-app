@@ -192,7 +192,7 @@ export function CampaignDetail({ campaignId }: Props) {
           </div>
         </div>
 
-        <div className='flex items-center gap-2'>
+        <div className='flex flex-wrap items-center gap-2'>
           {isOrgAdmin && campaign.status === 'draft' && (
             <Button
               onClick={() => transitionStatus('active')}
@@ -375,30 +375,37 @@ export function CampaignDetail({ campaignId }: Props) {
 
       {/* Tabs */}
       <Tabs defaultValue='leads'>
-        <TabsList>
-          <TabsTrigger value='leads'>
-            <Users className='mr-2 h-4 w-4' />
-            {t('detail.tabs.leads')}
-          </TabsTrigger>
-          <TabsTrigger value='members'>
-            <UserPlus className='mr-2 h-4 w-4' />
-            {t('detail.tabs.members')}
-          </TabsTrigger>
-          <TabsTrigger value='dispositions'>
-            <ListChecks className='mr-2 h-4 w-4' />
-            {t('detail.tabs.dispositions')}
-          </TabsTrigger>
-          <TabsTrigger value='analytics'>
-            <BarChart3 className='mr-2 h-4 w-4' />
-            {t('detail.tabs.analytics')}
-          </TabsTrigger>
-          {isOrgAdmin && (
-            <TabsTrigger value='settings'>
-              <Settings className='mr-2 h-4 w-4' />
-              {t('detail.tabs.settings')}
-            </TabsTrigger>
-          )}
-        </TabsList>
+        {/* The tab strip is wider than a phone. The grid wrapper gives the
+            scroller an automatic minimum size of 0 so it scrolls on its own
+            instead of stretching the page. */}
+        <div className='grid'>
+          <div className='overflow-x-auto'>
+            <TabsList>
+              <TabsTrigger value='leads'>
+                <Users className='mr-2 h-4 w-4' />
+                {t('detail.tabs.leads')}
+              </TabsTrigger>
+              <TabsTrigger value='members'>
+                <UserPlus className='mr-2 h-4 w-4' />
+                {t('detail.tabs.members')}
+              </TabsTrigger>
+              <TabsTrigger value='dispositions'>
+                <ListChecks className='mr-2 h-4 w-4' />
+                {t('detail.tabs.dispositions')}
+              </TabsTrigger>
+              <TabsTrigger value='analytics'>
+                <BarChart3 className='mr-2 h-4 w-4' />
+                {t('detail.tabs.analytics')}
+              </TabsTrigger>
+              {isOrgAdmin && (
+                <TabsTrigger value='settings'>
+                  <Settings className='mr-2 h-4 w-4' />
+                  {t('detail.tabs.settings')}
+                </TabsTrigger>
+              )}
+            </TabsList>
+          </div>
+        </div>
 
         <TabsContent value='leads' className='mt-4'>
           <CampaignLeadsTab

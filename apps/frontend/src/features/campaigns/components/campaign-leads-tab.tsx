@@ -275,8 +275,8 @@ export function CampaignLeadsTab({
               </div>
             )}
           </div>
-          <div className='mt-4 flex flex-col gap-2 sm:flex-row'>
-            <div className='relative flex-1'>
+          <div className='mt-4 flex flex-col gap-2 sm:flex-row sm:flex-wrap'>
+            <div className='relative min-w-[200px] flex-1'>
               <Search className='text-muted-foreground absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2' />
               <Input
                 value={search}
@@ -375,122 +375,132 @@ export function CampaignLeadsTab({
             </div>
           ) : (
             <>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>{t('leads.table.name')}</TableHead>
-                    <TableHead>{t('leads.table.phone')}</TableHead>
-                    <TableHead className='hidden md:table-cell'>
-                      {t('leads.table.email')}
-                    </TableHead>
-                    <TableHead className='hidden md:table-cell'>
-                      {t('leads.table.company')}
-                    </TableHead>
-                    <TableHead>{t('leads.table.status')}</TableHead>
-                    <TableHead className='hidden sm:table-cell'>
-                      {t('leads.table.attempts')}
-                    </TableHead>
-                    <TableHead className='hidden lg:table-cell'>
-                      {t('leads.table.lastCall')}
-                    </TableHead>
-                    {hasLeadRowActions && (
-                      <TableActionHead>
-                        <span className='sr-only'>
-                          {t('leads.table.actions')}
-                        </span>
-                      </TableActionHead>
-                    )}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {leads.map((lead) => (
-                    <TableRow key={lead.id}>
-                      <TableCell className='font-medium'>
-                        <div>{lead.contact.name || '—'}</div>
-                        <div className='text-muted-foreground text-xs'>
-                          {[lead.contact.jobTitle, lead.contact.locationRegion]
-                            .filter(Boolean)
-                            .join(' · ') || '—'}
-                        </div>
-                      </TableCell>
-                      <TableCell>{lead.contact.phoneNumber}</TableCell>
-                      <TableCell className='hidden md:table-cell'>
-                        {lead.contact.email || '—'}
-                      </TableCell>
-                      <TableCell className='hidden md:table-cell'>
-                        <div>{lead.contact.company || '—'}</div>
-                        <div className='text-muted-foreground text-xs'>
-                          {[
-                            lead.contact.companySize,
-                            lead.contact.revenue,
-                            lead.contact.websiteUrl
-                          ]
-                            .filter(Boolean)
-                            .join(' · ') || '—'}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant='secondary'
-                          className={LEAD_STATUS_COLORS[lead.status] || ''}
-                        >
-                          {t(`leadStatus.${lead.status}`)}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className='hidden sm:table-cell'>
-                        {lead.attempts}
-                      </TableCell>
-                      <TableCell className='hidden lg:table-cell'>
-                        {lead.lastCallAt
-                          ? new Date(lead.lastCallAt).toLocaleString()
-                          : '—'}
-                      </TableCell>
+              {/* The dashboard scrolls inside a ScrollArea whose content box is
+                  shrink-to-fit, so the table's own `overflow-x-auto` is not
+                  enough: a wide table stretches the whole page instead of
+                  scrolling. As a grid item the table gets an automatic minimum
+                  size of 0, which keeps the overflow inside the table. */}
+              <div className='grid'>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t('leads.table.name')}</TableHead>
+                      <TableHead>{t('leads.table.phone')}</TableHead>
+                      <TableHead className='hidden md:table-cell'>
+                        {t('leads.table.email')}
+                      </TableHead>
+                      <TableHead className='hidden md:table-cell'>
+                        {t('leads.table.company')}
+                      </TableHead>
+                      <TableHead>{t('leads.table.status')}</TableHead>
+                      <TableHead className='hidden sm:table-cell'>
+                        {t('leads.table.attempts')}
+                      </TableHead>
+                      <TableHead className='hidden lg:table-cell'>
+                        {t('leads.table.lastCall')}
+                      </TableHead>
                       {hasLeadRowActions && (
-                        <TableActionCell>
-                          {canManageLeads ||
-                          hasExternalProfileLinks(leadProfileUrls(lead)) ? (
-                            <TableRowActions
-                              label={tCommon('openActions')}
-                              menuLabel={t('leads.table.actions')}
-                              loading={deletingId === lead.id}
-                            >
-                              <ExternalProfileMenuItems
-                                urls={leadProfileUrls(lead)}
-                                labels={externalLinkLabels}
-                                separator={false}
-                              />
-                              {canManageLeads ? (
-                                <>
-                                  {hasExternalProfileLinks(
-                                    leadProfileUrls(lead)
-                                  ) ? (
-                                    <DropdownMenuSeparator />
-                                  ) : null}
-                                  <DropdownMenuItem
-                                    variant='destructive'
-                                    disabled={IN_FLIGHT_STATUSES.includes(
-                                      lead.status
-                                    )}
-                                    title={
-                                      IN_FLIGHT_STATUSES.includes(lead.status)
-                                        ? t('leads.inFlightHint')
-                                        : undefined
-                                    }
-                                    onClick={() => setDeleteTarget(lead)}
-                                  >
-                                    <Trash2 className='h-4 w-4' />
-                                    {t('leads.removeDialog.confirm')}
-                                  </DropdownMenuItem>
-                                </>
-                              ) : null}
-                            </TableRowActions>
-                          ) : null}
-                        </TableActionCell>
+                        <TableActionHead>
+                          <span className='sr-only'>
+                            {t('leads.table.actions')}
+                          </span>
+                        </TableActionHead>
                       )}
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+                  </TableHeader>
+                  <TableBody>
+                    {leads.map((lead) => (
+                      <TableRow key={lead.id}>
+                        <TableCell className='font-medium'>
+                          <div>{lead.contact.name || '—'}</div>
+                          <div className='text-muted-foreground text-xs'>
+                            {[
+                              lead.contact.jobTitle,
+                              lead.contact.locationRegion
+                            ]
+                              .filter(Boolean)
+                              .join(' · ') || '—'}
+                          </div>
+                        </TableCell>
+                        <TableCell>{lead.contact.phoneNumber}</TableCell>
+                        <TableCell className='hidden md:table-cell'>
+                          {lead.contact.email || '—'}
+                        </TableCell>
+                        <TableCell className='hidden md:table-cell'>
+                          <div>{lead.contact.company || '—'}</div>
+                          <div className='text-muted-foreground text-xs'>
+                            {[
+                              lead.contact.companySize,
+                              lead.contact.revenue,
+                              lead.contact.websiteUrl
+                            ]
+                              .filter(Boolean)
+                              .join(' · ') || '—'}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge
+                            variant='secondary'
+                            className={LEAD_STATUS_COLORS[lead.status] || ''}
+                          >
+                            {t(`leadStatus.${lead.status}`)}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className='hidden sm:table-cell'>
+                          {lead.attempts}
+                        </TableCell>
+                        <TableCell className='hidden lg:table-cell'>
+                          {lead.lastCallAt
+                            ? new Date(lead.lastCallAt).toLocaleString()
+                            : '—'}
+                        </TableCell>
+                        {hasLeadRowActions && (
+                          <TableActionCell>
+                            {canManageLeads ||
+                            hasExternalProfileLinks(leadProfileUrls(lead)) ? (
+                              <TableRowActions
+                                label={tCommon('openActions')}
+                                menuLabel={t('leads.table.actions')}
+                                loading={deletingId === lead.id}
+                              >
+                                <ExternalProfileMenuItems
+                                  urls={leadProfileUrls(lead)}
+                                  labels={externalLinkLabels}
+                                  separator={false}
+                                />
+                                {canManageLeads ? (
+                                  <>
+                                    {hasExternalProfileLinks(
+                                      leadProfileUrls(lead)
+                                    ) ? (
+                                      <DropdownMenuSeparator />
+                                    ) : null}
+                                    <DropdownMenuItem
+                                      variant='destructive'
+                                      disabled={IN_FLIGHT_STATUSES.includes(
+                                        lead.status
+                                      )}
+                                      title={
+                                        IN_FLIGHT_STATUSES.includes(lead.status)
+                                          ? t('leads.inFlightHint')
+                                          : undefined
+                                      }
+                                      onClick={() => setDeleteTarget(lead)}
+                                    >
+                                      <Trash2 className='h-4 w-4' />
+                                      {t('leads.removeDialog.confirm')}
+                                    </DropdownMenuItem>
+                                  </>
+                                ) : null}
+                              </TableRowActions>
+                            ) : null}
+                          </TableActionCell>
+                        )}
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
 
               {totalPages > 1 && (
                 <div className='mt-4 flex items-center justify-between'>
