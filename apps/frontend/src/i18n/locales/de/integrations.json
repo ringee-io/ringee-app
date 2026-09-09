@@ -110,6 +110,14 @@
         "attempts": "Versuche={count}",
         "refresh": "Aktualisieren",
         "empty": "Noch keine Events."
+      },
+      "docs": {
+        "sharedFields": {
+          "title": "In jedem ausgehenden Event enthalten",
+          "user": "Der Ringee-Benutzer, zu dem das Event gehört: ID, primäre E-Mail-Adresse und vollständiger Name.",
+          "agent": "Der KI-Sprachagent, der das Event ausgelöst hat: ID und Name. Fehlt, wenn eine Person den Anruf getätigt hat.",
+          "externalId": "Ihre eigene Korrelations-ID, sofern der zugrunde liegende KI-Sprachagenten-Anruf sie in seinen Metadaten mitführte."
+        }
       }
     },
     "card": {

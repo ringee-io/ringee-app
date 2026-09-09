@@ -110,6 +110,14 @@
         "attempts": "attempts={count}",
         "refresh": "Refresh",
         "empty": "No events yet."
+      },
+      "docs": {
+        "sharedFields": {
+          "title": "Included in every outbound event",
+          "user": "The Ringee user the event belongs to: id, primary email and full name.",
+          "agent": "The AI voice agent that produced the event: id and name. Absent when a person placed the call.",
+          "externalId": "Your own correlation id, when the AI voice-agent call behind the event carried one in its metadata."
+        }
       }
     },
     "card": {
