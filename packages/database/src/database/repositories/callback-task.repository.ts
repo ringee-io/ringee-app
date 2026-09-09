@@ -195,9 +195,27 @@ export class CallbackTaskRepository {
         status: CallbackStatus.scheduled,
         scheduledAt: { lte: new Date() },
       },
-      data: { status: CallbackStatus.in_progress },
+      data: {
+        status: CallbackStatus.in_progress,
+        attemptCount: { increment: 1 },
+      },
     });
     return claimed ?? null;
+  }
+
+  /** Resolve an automated callback claim without touching an unclaimed row. */
+  async updateClaimed(
+    id: string,
+    data: {
+      status: CallbackStatus;
+      completedAt?: Date;
+    },
+  ): Promise<CallbackTask | null> {
+    const [updated] = await this.prisma.callbackTask.updateManyAndReturn({
+      where: { id, status: CallbackStatus.in_progress },
+      data,
+    });
+    return updated ?? null;
   }
 
   /** The equivalent CAS for callbacks that only become due for a human. */
@@ -226,7 +244,12 @@ export class CallbackTaskRepository {
 
   async update(
     id: string,
-    data: Partial<Pick<CallbackTask, "scheduledAt" | "note" | "status">>,
+    data: Partial<
+      Pick<
+        CallbackTask,
+        "scheduledAt" | "note" | "status" | "completedAt" | "attemptCount"
+      >
+    >,
   ): Promise<CallbackTask> {
     return this.prisma.callbackTask.update({ where: { id }, data });
   }

@@ -498,7 +498,9 @@ export class VoiceAgentResultService {
         status === AiVoiceAgentCallStatus.busy ||
         status === AiVoiceAgentCallStatus.voicemail
       ) {
-        await this.applyKnownOutcome(updated, AiVoiceAgentOutcome.no_answer);
+        if (!this.isToolBackedOutcome(updated.outcome)) {
+          await this.applyKnownOutcome(updated, AiVoiceAgentOutcome.no_answer);
+        }
       }
     }
 

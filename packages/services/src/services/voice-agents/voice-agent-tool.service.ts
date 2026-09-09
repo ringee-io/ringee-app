@@ -403,10 +403,20 @@ export class VoiceAgentToolService {
           error instanceof Error ? error.message : String(error)
         }`,
       );
-      await this.results.applyKnownOutcome(
-        agentCall,
-        AiVoiceAgentOutcome.callback_scheduled,
-      );
+      try {
+        await this.results.applyKnownOutcome(
+          agentCall,
+          AiVoiceAgentOutcome.callback_scheduled,
+        );
+      } catch (retryError) {
+        this.logger.warn(
+          `Callback outcome retry failed for agent call ${agentCall.id}: ${
+            retryError instanceof Error
+              ? retryError.message
+              : String(retryError)
+          }`,
+        );
+      }
     }
   }
 

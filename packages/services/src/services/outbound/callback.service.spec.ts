@@ -6,6 +6,10 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CallbackStatus } from "@ringee/database";
 import { CallbackService } from "./callback.service";
+import {
+  VoiceAgentCallStartError,
+  VoiceAgentCallStartOutcome,
+} from "../voice-agents/voice-agent-call.service";
 
 const DUE_CALLBACK = {
   id: "agent-call-1",
@@ -16,13 +20,20 @@ const DUE_CALLBACK = {
   campaignLeadId: null,
   scheduledAt: new Date("2026-09-08T12:00:00.000Z"),
   completedAt: null,
+  attemptCount: 0,
   status: CallbackStatus.scheduled,
   note: "After lunch",
   createdAt: new Date("2026-09-08T10:00:00.000Z"),
   updatedAt: new Date("2026-09-08T10:00:00.000Z"),
 };
 
-function build(options: { claim?: boolean; startError?: Error } = {}) {
+function build(
+  options: {
+    claim?: boolean;
+    claimedAttemptCount?: number;
+    startError?: Error;
+  } = {},
+) {
   const dials: Array<Record<string, unknown>> = [];
   const statuses: Array<Record<string, unknown>> = [];
   const dueTransitions: string[] = [];
@@ -33,18 +44,18 @@ function build(options: { claim?: boolean; startError?: Error } = {}) {
       claimScheduled: async () =>
         options.claim === false
           ? null
-          : { ...DUE_CALLBACK, status: CallbackStatus.in_progress },
+          : {
+              ...DUE_CALLBACK,
+              status: CallbackStatus.in_progress,
+              attemptCount: options.claimedAttemptCount ?? 1,
+            },
       markDueIfScheduled: async (id: string) => {
         dueTransitions.push(id);
         return { ...DUE_CALLBACK, status: CallbackStatus.due };
       },
-      updateStatus: async (
-        id: string,
-        status: CallbackStatus,
-        completedAt?: Date,
-      ) => {
-        statuses.push({ id, status, completedAt });
-        return { ...DUE_CALLBACK, status, completedAt: completedAt ?? null };
+      updateClaimed: async (id: string, data: Record<string, unknown>) => {
+        statuses.push({ id, ...data });
+        return { ...DUE_CALLBACK, ...data };
       },
     } as never,
     { updateStatus: async () => null } as never,
@@ -109,11 +120,43 @@ describe("CallbackService AI voice-agent callbacks", () => {
 
   it("marks a claimed callback missed when the guarded call cannot start", async () => {
     const { service, dials, statuses } = build({
-      startError: new Error("DNC blocked"),
+      startError: new VoiceAgentCallStartError(
+        VoiceAgentCallStartOutcome.terminal_rejection,
+        new Error("DNC blocked"),
+      ),
     });
 
     assert.equal(await service.processDueCallbacks(), 1);
     assert.equal(dials.length, 1);
     assert.equal(statuses[0]?.status, CallbackStatus.missed);
+  });
+
+  it("requeues only a bounded pre-placement failure", async () => {
+    const retryable = new VoiceAgentCallStartError(
+      VoiceAgentCallStartOutcome.retryable_before_placement,
+      new Error("provider unavailable"),
+    );
+
+    const first = build({ startError: retryable, claimedAttemptCount: 1 });
+    assert.equal(await first.service.processDueCallbacks(), 1);
+    assert.equal(first.statuses[0]?.status, CallbackStatus.scheduled);
+
+    const exhausted = build({ startError: retryable, claimedAttemptCount: 3 });
+    assert.equal(await exhausted.service.processDueCallbacks(), 1);
+    assert.equal(exhausted.statuses[0]?.status, CallbackStatus.missed);
+  });
+
+  it("completes a callback whose leg was placed before persistence failed", async () => {
+    const { service, statuses } = build({
+      startError: new VoiceAgentCallStartError(
+        VoiceAgentCallStartOutcome.placed_pending_reconciliation,
+        new Error("database unavailable"),
+        "next-agent-call",
+      ),
+    });
+
+    assert.equal(await service.processDueCallbacks(), 1);
+    assert.equal(statuses[0]?.status, CallbackStatus.completed);
+    assert.ok(statuses[0]?.completedAt instanceof Date);
   });
 });

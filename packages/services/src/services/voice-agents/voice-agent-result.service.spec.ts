@@ -59,10 +59,12 @@ function build(
   const outcomeEvents: Array<Record<string, unknown>> = [];
   const callOutcomes: Array<Record<string, unknown>> = [];
   const completions: Array<Record<string, unknown>> = [];
-  let currentOutcome =
-    over.agentCall && "outcome" in over.agentCall
-      ? over.agentCall.outcome
-      : AGENT_CALL.outcome;
+  const seededAgentCall = {
+    ...AGENT_CALL,
+    ...(over.byControlId ?? {}),
+    ...(over.agentCall ?? {}),
+  };
+  let currentOutcome: unknown = seededAgentCall.outcome;
   let outcomeRevision = 0;
 
   const service = new VoiceAgentResultService(
@@ -73,7 +75,7 @@ function build(
       update: async (_id: string, data: Record<string, unknown>) => {
         updates.push(data);
         return {
-          ...AGENT_CALL,
+          ...seededAgentCall,
           ...data,
           metadata: { external_id: "customer-42" },
           updatedAt: new Date("2026-09-07T14:05:00.000Z"),
@@ -89,7 +91,7 @@ function build(
         );
         outcomeRevision += 1;
         return {
-          ...AGENT_CALL,
+          ...seededAgentCall,
           outcome,
           metadata: { external_id: "customer-42" },
           updatedAt,
@@ -631,6 +633,30 @@ describe("VoiceAgentResultService call status", () => {
       assert.deepEqual(callOutcomes, [
         { id: "telephony-1", outcome: "no_answer" },
       ]);
+    }
+  });
+
+  it("preserves tool-backed outcomes from later no-answer statuses", async () => {
+    for (const outcome of ["meeting_booked", "callback_scheduled"]) {
+      for (const providerStatus of ["no-answer", "busy", "voicemail"]) {
+        const { service, updates, outcomeEvents, callOutcomes } = build({
+          agentCall: { ...AGENT_CALL, outcome },
+        });
+
+        await service.applyStatus({ ...AGENT_CALL, outcome } as never, {
+          providerStatus,
+          callControlId: "cc-1",
+        });
+
+        assert.deepEqual(updates, [
+          {
+            status: providerStatus.replace("-", "_"),
+            providerCallControlId: "cc-1",
+          },
+        ]);
+        assert.deepEqual(outcomeEvents, []);
+        assert.deepEqual(callOutcomes, []);
+      }
     }
   });
 

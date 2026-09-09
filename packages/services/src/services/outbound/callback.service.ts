@@ -19,7 +19,13 @@ import { ReminderService } from "../reminders/reminder.service";
 import { ContactRepository } from "@ringee/database";
 import { CustomIntegrationOutboundService } from "../custom-integrations/custom-integration-outbound.service";
 import { buildCallbackEventData } from "../custom-integrations/custom-integration-event-builders";
-import { VoiceAgentCallService } from "../voice-agents/voice-agent-call.service";
+import {
+  VoiceAgentCallService,
+  VoiceAgentCallStartError,
+  VoiceAgentCallStartOutcome,
+} from "../voice-agents/voice-agent-call.service";
+
+const MAX_AUTOMATED_CALLBACK_ATTEMPTS = 3;
 
 @Injectable()
 export class CallbackService {
@@ -275,6 +281,8 @@ export class CallbackService {
     const updated = await this.callbackRepo.update(id, {
       scheduledAt,
       status: CallbackStatus.scheduled,
+      completedAt: null,
+      attemptCount: 0,
     });
 
     try {
@@ -352,28 +360,48 @@ export class CallbackService {
               metadata: this.objectRecord(sourceAgentCall.metadata),
             },
           );
-          await this.callbackRepo.updateStatus(
-            callback.id,
-            CallbackStatus.completed,
-            new Date(),
-          );
+          await this.callbackRepo.updateClaimed(callback.id, {
+            status: CallbackStatus.completed,
+            completedAt: new Date(),
+          });
           count++;
           this.logger.debug(
             `AI voice-agent callback ${callback.id} placed successfully`,
           );
         } catch (error) {
-          // The CAS above guarantees at-most-once dialing. A policy failure
-          // (DNC, no balance, disabled agent) is terminal for this scheduled
-          // callback and must not become a call every minute forever.
-          await this.callbackRepo.updateStatus(
-            callback.id,
-            CallbackStatus.missed,
-          );
+          const startOutcome =
+            error instanceof VoiceAgentCallStartError
+              ? error.outcome
+              : VoiceAgentCallStartOutcome.terminal_rejection;
+          const message =
+            error instanceof Error ? error.message : String(error);
+
+          let status: CallbackStatus = CallbackStatus.missed;
+          let completedAt: Date | undefined;
+          if (
+            startOutcome ===
+            VoiceAgentCallStartOutcome.placed_pending_reconciliation
+          ) {
+            // A provider leg exists. Completing the claim is the safe
+            // reconciliation: status callbacks can repair the call rows, and
+            // this callback must never place a second billable leg.
+            status = CallbackStatus.completed;
+            completedAt = new Date();
+          } else if (
+            startOutcome ===
+              VoiceAgentCallStartOutcome.retryable_before_placement &&
+            claimed.attemptCount < MAX_AUTOMATED_CALLBACK_ATTEMPTS
+          ) {
+            status = CallbackStatus.scheduled;
+          }
+
+          await this.callbackRepo.updateClaimed(callback.id, {
+            status,
+            ...(completedAt ? { completedAt } : {}),
+          });
           count++;
           this.logger.warn(
-            `AI voice-agent callback ${callback.id} could not be placed: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
+            `AI voice-agent callback ${callback.id} finished with ${startOutcome} (attempt ${claimed.attemptCount}/${MAX_AUTOMATED_CALLBACK_ATTEMPTS}): ${message}`,
           );
         }
         continue;

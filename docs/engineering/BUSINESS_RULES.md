@@ -956,8 +956,11 @@ authenticated provider callback. A provider retry returns the same callback
 instead of creating another one. When it becomes due, the callback scheduler
 atomically claims it before calling the same agent through
 `VoiceAgentCallService.startCall`, preserving the original variables, metadata
-and calling gates. A human callback merely becomes due and is never converted
-into an automated call.
+and calling gates. Terminal policy refusals become missed; only failures before
+the provider places a leg receive a bounded retry. Once a leg exists, the claim
+is completed and later callbacks reconcile its rows instead of dialing again.
+A human callback merely becomes due and is never converted into an automated
+call.
 
 - **Source of truth:** `VoiceAgentToolService.scheduleCallback`,
   `CallbackService.scheduleFromVoiceAgent` / `processDueCallbacks`

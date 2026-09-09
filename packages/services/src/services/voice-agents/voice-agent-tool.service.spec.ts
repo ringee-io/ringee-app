@@ -45,6 +45,7 @@ function build(
     };
     callbackError?: Error;
     callbackOutcomeError?: Error;
+    callbackOutcomeErrors?: Error[];
   } = {},
 ) {
   const updates: Array<Record<string, unknown>> = [];
@@ -55,6 +56,7 @@ function build(
   const callbacks: Array<Record<string, unknown>> = [];
   const callbackOutcomes: Array<Record<string, unknown>> = [];
   let updateAttempt = 0;
+  let callbackOutcomeAttempt = 0;
 
   const service = new VoiceAgentToolService(
     {
@@ -162,7 +164,11 @@ function build(
         call: Record<string, unknown>,
         outcome: string,
       ) => {
-        if (over.callbackOutcomeError) throw over.callbackOutcomeError;
+        const error =
+          over.callbackOutcomeErrors?.[callbackOutcomeAttempt] ??
+          over.callbackOutcomeError;
+        callbackOutcomeAttempt += 1;
+        if (error) throw error;
         callbackOutcomes.push({ call, outcome });
         return call;
       },
@@ -475,6 +481,23 @@ describe("VoiceAgentToolService callbacks", () => {
     }
 
     assert.deepEqual(callbacks, []);
+  });
+
+  it("keeps the created callback successful when both outcome writes fail", async () => {
+    const { service, callbacks, callbackOutcomes } = build({
+      callbackOutcomeErrors: [
+        new Error("outcome write failed"),
+        new Error("outcome retry failed"),
+      ],
+    });
+
+    const result = await service.scheduleCallback("agent-1", SECRET, "cc-1", {
+      scheduled_at: "2099-01-06T10:30:00-04:00",
+    });
+
+    assert.equal(result.ok, true);
+    assert.equal(callbacks.length, 1);
+    assert.deepEqual(callbackOutcomes, []);
   });
 
   it("never schedules against another agent's call", async () => {
