@@ -212,4 +212,82 @@ describe("CustomIntegrationOutboundService call fan-out", () => {
 
     assert.equal(deliveries[0]!.payload.data.externalId, "crm-contact-42");
   });
+
+  it("never leaks the external id of another organization's call", async () => {
+    const deliveries: Array<Record<string, any>> = [];
+    const service = new CustomIntegrationOutboundService(
+      {
+        findActiveSubscribed: async () => [
+          {
+            id: "integration-1",
+            userId: "user-1",
+            organizationId: "org-1",
+            outboundUrl: "https://one.example/webhooks",
+          },
+        ],
+      } as never,
+      {
+        enqueue: async (delivery: Record<string, unknown>) => {
+          deliveries.push(delivery);
+          return delivery;
+        },
+      } as never,
+      {
+        findByCallId: async () => ({
+          userId: "user-9",
+          organizationId: "org-2",
+          metadata: { external_id: "crm-contact-42" },
+        }),
+      } as never,
+    );
+
+    await service.enqueue({
+      ctx: { userId: "user-1", organizationId: "org-1" },
+      eventEnum: "recording_ready",
+      subjectId: "recording-1",
+      data: { callId: "call-1", recordingId: "recording-1" },
+    });
+
+    assert.equal(deliveries.length, 1);
+    assert.equal("externalId" in deliveries[0]!.payload.data, false);
+  });
+
+  it("never leaks the external id of another user's personal call", async () => {
+    const deliveries: Array<Record<string, any>> = [];
+    const service = new CustomIntegrationOutboundService(
+      {
+        findActiveSubscribed: async () => [
+          {
+            id: "integration-1",
+            userId: "user-1",
+            organizationId: null,
+            outboundUrl: "https://one.example/webhooks",
+          },
+        ],
+      } as never,
+      {
+        enqueue: async (delivery: Record<string, unknown>) => {
+          deliveries.push(delivery);
+          return delivery;
+        },
+      } as never,
+      {
+        findByCallId: async () => ({
+          userId: "user-9",
+          organizationId: null,
+          metadata: { external_id: "crm-contact-42" },
+        }),
+      } as never,
+    );
+
+    await service.enqueue({
+      ctx: { userId: "user-1", organizationId: null },
+      eventEnum: "recording_ready",
+      subjectId: "recording-1",
+      data: { callId: "call-1", recordingId: "recording-1" },
+    });
+
+    assert.equal(deliveries.length, 1);
+    assert.equal("externalId" in deliveries[0]!.payload.data, false);
+  });
 });
