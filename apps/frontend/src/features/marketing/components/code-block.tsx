@@ -12,7 +12,8 @@ export function CodeBlock({
   code,
   label,
   language,
-  className
+  className,
+  bodyClassName
 }: {
   code: string;
   /** Filename or short caption shown in the header bar. */
@@ -20,6 +21,8 @@ export function CodeBlock({
   /** Language tag shown on the right of the header bar. */
   language?: string;
   className?: string;
+  /** Extra classes on the `<pre>` — a long document caps and scrolls here. */
+  bodyClassName?: string;
 }) {
   return (
     <div
@@ -40,7 +43,12 @@ export function CodeBlock({
           ) : null}
         </div>
       ) : null}
-      <pre className='overflow-x-auto px-4 py-4 text-[13px] leading-relaxed text-slate-100'>
+      <pre
+        className={cn(
+          'overflow-x-auto px-4 py-4 text-[13px] leading-relaxed text-slate-100',
+          bodyClassName
+        )}
+      >
         <code className='font-mono'>{code}</code>
       </pre>
     </div>

@@ -16,6 +16,7 @@ import {
   SectionHeading
 } from '@/features/marketing/components/primitives';
 import { CtaSection } from '@/features/marketing/components/cta-section';
+import { RenderingSwitch } from '@/features/marketing/components/rendering-switch';
 import { RunsFrom } from '@/features/marketing/components/agent-marks';
 import { AgenticMode } from '@/features/marketing/components/agentic-mode';
 import { EverywhereMode } from '@/features/marketing/components/everywhere-mode';
@@ -63,6 +64,9 @@ export default async function HomePage() {
         <Container className='grid items-center gap-12 lg:grid-cols-2 lg:gap-16'>
           {/* Copy */}
           <div className='flex flex-col items-center text-center lg:items-start lg:text-left'>
+            {/* Which rendering you are reading. The other one is /machine. */}
+            <RenderingSwitch active='human' className='mb-10' />
+
             <Link
               href='/open-source'
               className='border-border/70 bg-background/60 text-muted-foreground hover:text-foreground mb-7 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium backdrop-blur-sm'
