@@ -386,6 +386,70 @@ export class CampaignService {
     };
   }
 
+  /**
+   * Add a contact that already exists in the workspace to a campaign.
+   *
+   * The counterpart to {@link addLeadsManually} for callers that already own
+   * the Contact row — a CRM sync, not a CSV upload — so nothing here touches
+   * contact fields.
+   *
+   * Idempotent by design: a contact that is already a lead of the campaign is
+   * left exactly as it is, keeping its attempts, status and disposition
+   * history across every re-sync of the same contact.
+   */
+  async addContactToCampaign(
+    ctx: OwnershipContext,
+    campaignId: string,
+    contactId: string,
+  ): Promise<{ added: boolean }> {
+    await this.assertCampaignForLeadWrite(ctx, campaignId);
+
+    // The campaign belongs to the caller; the contact still has to. Without
+    // this check a foreign contact id would surface its name, phone and e-mail
+    // in this campaign's lead table.
+    const contact = await this.contactRepo.findByIdForOwner(ctx, contactId);
+    if (!contact) {
+      throw new NotFoundException("Contact not found");
+    }
+
+    // `@@unique([campaignId, contactId])` + skipDuplicates is what makes the
+    // re-add a no-op instead of a reset of the existing lead.
+    const added = await this.campaignLeadRepo.createMany(campaignId, [
+      { contactId },
+    ]);
+
+    // Same reasoning as in `addLeadsManually`: released unconditionally, so a
+    // lead left `pending` by an earlier interrupted write still reaches the
+    // live queue.
+    await this.releaseLeadsIfRunning(campaignId);
+
+    return { added: added > 0 };
+  }
+
+  /**
+   * Ownership gate for writing leads into a campaign: it has to exist and it
+   * has to be in the caller's organization.
+   *
+   * Public because a caller that writes other rows in the same request needs to
+   * know the campaign resolves *before* it starts writing — a CRM sync should
+   * not leave a contact behind because the campaign it named was a typo.
+   */
+  async assertCampaignForLeadWrite(
+    ctx: OwnershipContext,
+    campaignId: string,
+  ): Promise<Campaign> {
+    this.ensureOrganization(ctx);
+
+    const campaign = await this.campaignRepo.findById(campaignId);
+    if (!campaign) {
+      throw new NotFoundException("Campaign not found");
+    }
+    if (campaign.organizationId !== ctx.organizationId) {
+      throw new ForbiddenException("Access denied");
+    }
+    return campaign;
+  }
+
   async importLeadsFromCsv(
     ctx: OwnershipContext,
     campaignId: string,

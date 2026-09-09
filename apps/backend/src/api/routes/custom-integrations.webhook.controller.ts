@@ -15,13 +15,6 @@ import {
 
 const API_KEY_HEADER = "x-ringee-api-key";
 
-interface InboundBody {
-  event?: string;
-  eventId?: string;
-  occurredAt?: string;
-  data?: Record<string, unknown>;
-}
-
 interface ClickToCallBody {
   contactExternalId?: string;
   phoneNumber?: string;
@@ -39,16 +32,17 @@ export class CustomIntegrationsWebhookController {
     private readonly clickToCall: CustomIntegrationClickToCallService,
   ) {}
 
+  /**
+   * The envelope is validated by the service, which reports every problem in
+   * one response instead of one per round trip.
+   */
   @Public()
   @Post("webhook")
   @HttpCode(202)
   async receive(
     @Headers(API_KEY_HEADER) apiKey: string | undefined,
-    @Body() body: InboundBody,
+    @Body() body: unknown,
   ) {
-    if (!body || typeof body !== "object") {
-      throw new BadRequestException("body must be a JSON object");
-    }
     const { integration } = await this.auth.resolveApiKey(apiKey);
     return this.inbound.handle(integration, body);
   }

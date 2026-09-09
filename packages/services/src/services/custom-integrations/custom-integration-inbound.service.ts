@@ -11,26 +11,40 @@ import {
   Prisma,
 } from "@ringee/database";
 import {
-  INBOUND_EVENT_NAMES,
   InboundEventName,
   OwnershipContext,
-  buildOwnershipFilter,
+  normalizePhoneE164,
+  validateInboundEnvelope,
+  validateInboundEventData,
 } from "@ringee/platform";
 import { PrismaService } from "@ringee/database";
-
-interface InboundEnvelope {
-  event?: string;
-  eventId?: string;
-  occurredAt?: string;
-  data?: Record<string, unknown>;
-}
+import { CampaignService } from "../campaign.service";
 
 export interface InboundResult {
   status: "processed" | "skipped" | "failed";
   eventId: string;
   message?: string;
+  /**
+   * Non-fatal remarks about the payload — a field that was ignored, a phone
+   * number read with an assumed country. The event still applied.
+   */
+  warnings?: string[];
 }
 
+/**
+ * The inbound half of the Public API: a CRM's view of a contact or company,
+ * turned into Ringee records.
+ *
+ * Two properties every handler below is built around:
+ *
+ *  - **Validate, resolve, then write.** Everything that can reject the event —
+ *    payload shape, phone normalization, the campaign it names — is settled
+ *    before the first row is written, so a rejected event never leaves a
+ *    half-synced contact behind.
+ *  - **Say what was ignored.** A field Ringee silently drops is the most
+ *    expensive kind of integration bug, so anything skipped comes back as a
+ *    warning on the response.
+ */
 @Injectable()
 export class CustomIntegrationInboundService {
   private readonly logger = new Logger(CustomIntegrationInboundService.name);
@@ -41,39 +55,36 @@ export class CustomIntegrationInboundService {
     private readonly companyLinkRepo: CustomIntegrationCompanyLinkRepository,
     private readonly contactRepo: ContactRepository,
     private readonly companyRepo: CompanyRepository,
+    private readonly campaignService: CampaignService,
     private readonly prisma: PrismaService,
   ) {}
 
   async handle(
     integration: CustomIntegration,
-    envelope: InboundEnvelope,
+    body: unknown,
   ): Promise<InboundResult> {
-    const event = envelope.event;
-    const eventId = envelope.eventId;
-    const data = envelope.data;
-
-    if (!event) throw new BadRequestException("event is required");
-    if (!eventId) throw new BadRequestException("eventId is required");
-    if (!envelope.occurredAt)
-      throw new BadRequestException("occurredAt is required");
-    if (!data || typeof data !== "object") {
-      throw new BadRequestException("data must be an object");
+    // The envelope is checked before anything is recorded: without an eventId
+    // there is nothing to deduplicate against, and without an event name there
+    // is nothing to log the request as.
+    const parsed = validateInboundEnvelope(body);
+    if (!parsed.ok) {
+      throw new BadRequestException(parsed.errors.join("; "));
     }
-    if (!(INBOUND_EVENT_NAMES as readonly string[]).includes(event)) {
-      throw new BadRequestException(`Unsupported event: ${event}`);
-    }
+    const { event, eventId, data } = parsed.envelope;
 
     const inserted = await this.inboundRepo.insertReceived({
       integrationId: integration.id,
       eventType: event,
       externalEventId: eventId,
-      rawPayload: envelope as unknown as Record<string, unknown>,
+      rawPayload: parsed.envelope as unknown as Record<string, unknown>,
     });
 
     if (!inserted) {
       return { status: "skipped", eventId, message: "duplicate eventId" };
     }
 
+    // Recorded first, validated second: a malformed payload is exactly what an
+    // integrator needs to find in the event log afterwards.
     await this.inboundRepo.markStatus(inserted.id, "processing");
 
     const ctx: OwnershipContext = {
@@ -82,22 +93,9 @@ export class CustomIntegrationInboundService {
     };
 
     try {
-      switch (event as InboundEventName) {
-        case "contact.upserted":
-          await this.handleContactUpserted(integration, ctx, data);
-          break;
-        case "company.upserted":
-          await this.handleCompanyUpserted(integration, ctx, data);
-          break;
-        case "contact.deleted":
-          await this.handleContactDeleted(integration, data);
-          break;
-        case "company.deleted":
-          await this.handleCompanyDeleted(integration, data);
-          break;
-      }
+      const warnings = await this.apply(integration, ctx, event, data);
       await this.inboundRepo.markStatus(inserted.id, "processed");
-      return { status: "processed", eventId };
+      return withWarnings({ status: "processed", eventId }, warnings);
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(
@@ -108,43 +106,63 @@ export class CustomIntegrationInboundService {
     }
   }
 
+  /** Validate the event's `data`, then apply it. Returns its warnings. */
+  private async apply(
+    integration: CustomIntegration,
+    ctx: OwnershipContext,
+    event: InboundEventName,
+    data: Record<string, unknown>,
+  ): Promise<string[]> {
+    const issues = validateInboundEventData(event, data);
+    if (issues.errors.length > 0) {
+      throw new BadRequestException(issues.errors.join("; "));
+    }
+
+    switch (event) {
+      case "contact.upserted":
+        return [
+          ...issues.warnings,
+          ...(await this.handleContactUpserted(integration, ctx, data)),
+        ];
+      case "company.upserted":
+        await this.handleCompanyUpserted(integration, ctx, data);
+        return issues.warnings;
+      case "contact.deleted":
+        await this.handleContactDeleted(integration, data);
+        return issues.warnings;
+      case "company.deleted":
+        await this.handleCompanyDeleted(integration, data);
+        return issues.warnings;
+    }
+  }
+
   // ── contact.upserted ─────────────────────────────────────────────
 
   private async handleContactUpserted(
     integration: CustomIntegration,
     ctx: OwnershipContext,
     data: Record<string, unknown>,
-  ): Promise<void> {
+  ): Promise<string[]> {
+    const warnings: string[] = [];
     const externalId = requireString(data, "externalId");
-    const phoneNumber = normalizePhone(requireString(data, "phoneNumber"));
+    const phoneNumber = this.resolvePhoneNumber(data, warnings);
+
+    // Resolved, not written, before anything else: an unknown campaign is a
+    // payload mistake, and the sender should get it back with their contact
+    // untouched rather than half-synced. `addContactToCampaign` re-checks it —
+    // it is a public service method and cannot take our word for it.
+    const campaignId = pickString(data, "campaignId");
+    if (campaignId) {
+      await this.campaignService.assertCampaignForLeadWrite(ctx, campaignId);
+    }
+
+    const ownerId = await this.resolveOwnerId(ctx, data, warnings);
 
     // Resolve / create company association first, so the contact's `company`
-    // text field and crmMetadata can reference it.
-    let companyName: string | null = pickString(data, "companyName");
-    let resolvedCompanyId: string | null = null;
-    const companyExternalId = pickString(data, "companyExternalId");
-    if (companyExternalId) {
-      const companyLink = await this.companyLinkRepo.findByExternalId(
-        integration.id,
-        companyExternalId,
-      );
-      if (companyLink?.companyId) {
-        resolvedCompanyId = companyLink.companyId;
-        const co = await this.companyRepo.findById(companyLink.companyId);
-        if (co && !companyName) companyName = co.name;
-      } else if (companyName) {
-        const created = await this.companyRepo.create(ctx, {
-          name: companyName,
-        });
-        await this.companyLinkRepo.upsert({
-          integrationId: integration.id,
-          externalId: companyExternalId,
-          companyId: created.id,
-          clearArchived: true,
-        });
-        resolvedCompanyId = created.id;
-      }
-    }
+    // text field and crmMetadata can reference it. The proper Ringee model is
+    // ContactAffiliation, but for MVP this mirrors the other integrations and
+    // only sets the Contact's `company` text field.
+    const companyName = await this.resolveCompanyName(integration, ctx, data);
 
     // Resolve existing contact: link → externalId, fallback → phone within workspace.
     const link = await this.contactLinkRepo.findByExternalId(
@@ -161,7 +179,7 @@ export class CustomIntegrationInboundService {
     const fields = this.buildContactWriteFields(data, {
       phoneNumber,
       companyName,
-      ownerId: await this.resolveOwnerId(ctx, data),
+      ownerId,
     });
     const writeFields = stripEmpty(fields);
 
@@ -186,11 +204,76 @@ export class CustomIntegrationInboundService {
       clearArchived: true,
     });
 
-    if (resolvedCompanyId) {
-      // ContactAffiliation link is the proper Ringee model, but for MVP we
-      // mirror what other integrations do: set the `company` text field on
-      // the Contact (already handled by buildContactWriteFields above).
+    // Campaign membership is the external system's call, not ours: it names a
+    // campaign, we put the contact in it. Adding an existing lead again is a
+    // no-op, so a CRM that replays `contact.upserted` on every edit never
+    // resets the attempts or dispositions the lead has already accumulated.
+    if (campaignId) {
+      await this.campaignService.addContactToCampaign(
+        ctx,
+        campaignId,
+        contact.id,
+      );
     }
+
+    return warnings;
+  }
+
+  /**
+   * E.164 through the canonical normalizer, which knows real numbering plans.
+   * A number Ringee cannot turn into something dialable fails the event: the
+   * whole point of a synced contact is that someone can call it.
+   */
+  private resolvePhoneNumber(
+    data: Record<string, unknown>,
+    warnings: string[],
+  ): string {
+    const raw = requireString(data, "phoneNumber");
+    const normalized = normalizePhoneE164(raw);
+    if (!normalized) {
+      throw new BadRequestException(
+        `data.phoneNumber is not a dialable number: ${raw}`,
+      );
+    }
+    if (!raw.startsWith("+")) {
+      warnings.push(
+        `data.phoneNumber "${raw}" has no country code and was read as ${normalized}. Send E.164 to be sure.`,
+      );
+    }
+    return normalized;
+  }
+
+  /** The company text this contact should carry, creating the link if needed. */
+  private async resolveCompanyName(
+    integration: CustomIntegration,
+    ctx: OwnershipContext,
+    data: Record<string, unknown>,
+  ): Promise<string | null> {
+    const companyName = pickString(data, "companyName");
+    const companyExternalId = pickString(data, "companyExternalId");
+    if (!companyExternalId) return companyName;
+
+    const companyLink = await this.companyLinkRepo.findByExternalId(
+      integration.id,
+      companyExternalId,
+    );
+
+    if (companyLink?.companyId) {
+      if (companyName) return companyName;
+      const company = await this.companyRepo.findById(companyLink.companyId);
+      return company?.name ?? null;
+    }
+
+    if (!companyName) return null;
+
+    const created = await this.companyRepo.create(ctx, { name: companyName });
+    await this.companyLinkRepo.upsert({
+      integrationId: integration.id,
+      externalId: companyExternalId,
+      companyId: created.id,
+      clearArchived: true,
+    });
+    return companyName;
   }
 
   private buildContactWriteFields(
@@ -224,6 +307,7 @@ export class CustomIntegrationInboundService {
   private async resolveOwnerId(
     ctx: OwnershipContext,
     data: Record<string, unknown>,
+    warnings: string[],
   ): Promise<string | null> {
     // Freelancer workspace: owner is always the workspace user.
     if (!ctx.organizationId) return ctx.userId;
@@ -238,7 +322,17 @@ export class CustomIntegrationInboundService {
       },
       include: { user: true },
     });
-    return member?.userId ?? null;
+
+    if (!member) {
+      // Not fatal — an unassigned contact is still callable — but it is the
+      // one thing an integrator cannot see from the outside.
+      warnings.push(
+        `data.ownerEmail "${ownerEmail}" does not match a member of this workspace; the contact was left unassigned.`,
+      );
+      return null;
+    }
+
+    return member.userId;
   }
 
   // ── company.upserted ─────────────────────────────────────────────
@@ -340,6 +434,18 @@ export class CustomIntegrationInboundService {
 
 // ── helpers ────────────────────────────────────────────────────────
 
+function withWarnings(
+  result: InboundResult,
+  warnings: string[],
+): InboundResult {
+  return warnings.length > 0 ? { ...result, warnings } : result;
+}
+
+/**
+ * Required fields are already guaranteed by `validateInboundEventData`; this
+ * narrows the type for the handlers and stays as the last line of defence for
+ * a field the spec has not caught up with.
+ */
 function requireString(data: Record<string, unknown>, key: string): string {
   const v = data[key];
   if (typeof v !== "string" || v.trim() === "") {
@@ -372,12 +478,4 @@ function stripEmpty<T extends Record<string, unknown>>(obj: T): Partial<T> {
     out[k] = v;
   }
   return out as Partial<T>;
-}
-
-function normalizePhone(input: string): string {
-  // Minimal best-effort: keep leading +, strip spaces/dashes/parens.
-  const cleaned = input.replace(/[\s\-().]/g, "");
-  if (cleaned.startsWith("+")) return cleaned;
-  if (/^\d+$/.test(cleaned)) return `+${cleaned}`;
-  return cleaned;
 }
