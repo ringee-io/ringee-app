@@ -264,6 +264,62 @@
     "script": "Script",
     "recording": "Gravação"
   },
+  "dialog": {
+    "title": "Definições",
+    "description": "Gere as tuas preferências e as ferramentas ligadas ao Ringee.",
+    "searchPlaceholder": "Pesquisar",
+    "noResults": "Sem resultados para «{query}».",
+    "close": "Fechar definições",
+    "openNav": "Mostrar secções",
+    "closeNav": "Ocultar secções",
+    "sections": {
+      "settings": "Definições",
+      "integrations": "Integrações"
+    },
+    "items": {
+      "general": {
+        "label": "Geral",
+        "description": "Aparência e idioma da tua conta."
+      },
+      "script": {
+        "label": "Script de chamada",
+        "description": "O script que o teu marcador mostra durante as chamadas."
+      },
+      "recording": {
+        "label": "Gravações e transcrições",
+        "description": "Escolhe que chamadas são gravadas e transcritas."
+      },
+      "desk-phones": {
+        "label": "Telefones de secretária",
+        "description": "Regista um Yealink, Grandstream, Cisco ou qualquer telefone SIP no teu número."
+      },
+      "crm": {
+        "label": "CRM",
+        "description": "Envia chamadas, resultados e notas para o teu CRM."
+      },
+      "enrichment": {
+        "label": "Enriquecimento de dados",
+        "description": "Liga o Apollo ou o Prospeo para revelar os dados dos leads."
+      },
+      "leads": {
+        "label": "Encontrar leads",
+        "description": "Procura prospetos e importa-os como contactos."
+      },
+      "custom": {
+        "label": "Integrações personalizadas",
+        "description": "Envia os eventos do Ringee para os teus endpoints."
+      },
+      "connectors": {
+        "label": "Conectores",
+        "description": "Liga o Ringee a assistentes de IA e ferramentas de agentes."
+      }
+    },
+    "general": {
+      "preferences": "Preferências",
+      "colorTheme": "Tema de cor",
+      "colorThemeDescription": "O conjunto de cores e tipografia usado no Ringee."
+    }
+  },
   "overview": {
     "title": "Resumo",
     "description": "Personaliza a tua conta e o teu script de chamada."

@@ -264,6 +264,62 @@
     "script": "Script",
     "recording": "Enregistrement"
   },
+  "dialog": {
+    "title": "Paramètres",
+    "description": "Gérez vos préférences et les outils connectés à Ringee.",
+    "searchPlaceholder": "Rechercher",
+    "noResults": "Aucun résultat pour « {query} ».",
+    "close": "Fermer les paramètres",
+    "openNav": "Afficher les sections",
+    "closeNav": "Masquer les sections",
+    "sections": {
+      "settings": "Paramètres",
+      "integrations": "Intégrations"
+    },
+    "items": {
+      "general": {
+        "label": "Général",
+        "description": "Apparence et langue de votre compte."
+      },
+      "script": {
+        "label": "Script d'appel",
+        "description": "Le script que votre composeur affiche pendant les appels."
+      },
+      "recording": {
+        "label": "Enregistrements et transcriptions",
+        "description": "Choisissez quels appels sont enregistrés et transcrits."
+      },
+      "desk-phones": {
+        "label": "Téléphones de bureau",
+        "description": "Enregistrez un Yealink, Grandstream, Cisco ou tout téléphone SIP sur votre numéro."
+      },
+      "crm": {
+        "label": "CRM",
+        "description": "Envoyez appels, résultats et notes vers votre CRM."
+      },
+      "enrichment": {
+        "label": "Enrichissement des données",
+        "description": "Connectez Apollo ou Prospeo pour révéler les coordonnées des prospects."
+      },
+      "leads": {
+        "label": "Trouver des prospects",
+        "description": "Recherchez des prospects et importez-les comme contacts."
+      },
+      "custom": {
+        "label": "Intégrations personnalisées",
+        "description": "Envoyez les événements Ringee vers vos propres endpoints."
+      },
+      "connectors": {
+        "label": "Connecteurs",
+        "description": "Connectez Ringee aux assistants IA et aux outils d'agents."
+      }
+    },
+    "general": {
+      "preferences": "Préférences",
+      "colorTheme": "Thème de couleur",
+      "colorThemeDescription": "La palette et la typographie utilisées dans Ringee."
+    }
+  },
   "overview": {
     "title": "Aperçu",
     "description": "Personnalisez votre compte et votre script d'appel."

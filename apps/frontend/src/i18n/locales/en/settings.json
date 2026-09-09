@@ -264,6 +264,62 @@
     "script": "Script",
     "recording": "Recording"
   },
+  "dialog": {
+    "title": "Settings",
+    "description": "Manage your preferences and the tools connected to Ringee.",
+    "searchPlaceholder": "Search",
+    "noResults": "Nothing matches “{query}”.",
+    "close": "Close settings",
+    "openNav": "Show sections",
+    "closeNav": "Hide sections",
+    "sections": {
+      "settings": "Settings",
+      "integrations": "Integrations"
+    },
+    "items": {
+      "general": {
+        "label": "General",
+        "description": "Appearance and language for your account."
+      },
+      "script": {
+        "label": "Call script",
+        "description": "The script your dialer reads on calls."
+      },
+      "recording": {
+        "label": "Recordings and transcriptions",
+        "description": "Choose which calls are recorded and transcribed."
+      },
+      "desk-phones": {
+        "label": "Desk phones",
+        "description": "Register a Yealink, Grandstream, Cisco or any SIP phone to your number."
+      },
+      "crm": {
+        "label": "CRM",
+        "description": "Push calls, outcomes and notes to your CRM."
+      },
+      "enrichment": {
+        "label": "Data enrichment",
+        "description": "Connect Apollo or Prospeo to reveal lead details."
+      },
+      "leads": {
+        "label": "Find leads",
+        "description": "Search prospects and import them as contacts."
+      },
+      "custom": {
+        "label": "Custom integrations",
+        "description": "Send Ringee events to your own endpoints."
+      },
+      "connectors": {
+        "label": "Connectors",
+        "description": "Connect Ringee to AI assistants and agent tools."
+      }
+    },
+    "general": {
+      "preferences": "Preferences",
+      "colorTheme": "Color theme",
+      "colorThemeDescription": "The accent and typography set used across Ringee."
+    }
+  },
   "overview": {
     "title": "Overview",
     "description": "Personalize your account and your call script."

@@ -264,6 +264,62 @@
     "script": "Guion",
     "recording": "Grabación"
   },
+  "dialog": {
+    "title": "Ajustes",
+    "description": "Gestiona tus preferencias y las herramientas conectadas a Ringee.",
+    "searchPlaceholder": "Buscar",
+    "noResults": "No hay resultados para «{query}».",
+    "close": "Cerrar ajustes",
+    "openNav": "Mostrar secciones",
+    "closeNav": "Ocultar secciones",
+    "sections": {
+      "settings": "Ajustes",
+      "integrations": "Integraciones"
+    },
+    "items": {
+      "general": {
+        "label": "General",
+        "description": "Apariencia e idioma de tu cuenta."
+      },
+      "script": {
+        "label": "Guion de llamada",
+        "description": "El guion que tu marcador muestra durante las llamadas."
+      },
+      "recording": {
+        "label": "Grabaciones y transcripciones",
+        "description": "Elige qué llamadas se graban y se transcriben."
+      },
+      "desk-phones": {
+        "label": "Teléfonos de escritorio",
+        "description": "Registra un Yealink, Grandstream, Cisco o cualquier teléfono SIP a tu número."
+      },
+      "crm": {
+        "label": "CRM",
+        "description": "Envía llamadas, resultados y notas a tu CRM."
+      },
+      "enrichment": {
+        "label": "Enriquecimiento de datos",
+        "description": "Conecta Apollo o Prospeo para revelar los datos de los leads."
+      },
+      "leads": {
+        "label": "Buscar leads",
+        "description": "Busca prospectos e impórtalos como contactos."
+      },
+      "custom": {
+        "label": "Integraciones personalizadas",
+        "description": "Envía los eventos de Ringee a tus propios endpoints."
+      },
+      "connectors": {
+        "label": "Conectores",
+        "description": "Conecta Ringee con asistentes de IA y herramientas de agentes."
+      }
+    },
+    "general": {
+      "preferences": "Preferencias",
+      "colorTheme": "Tema de color",
+      "colorThemeDescription": "El conjunto de color y tipografía que usa Ringee."
+    }
+  },
   "overview": {
     "title": "Resumen",
     "description": "Personaliza tu cuenta y tu guion de llamadas."

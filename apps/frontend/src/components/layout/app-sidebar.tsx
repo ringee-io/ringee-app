@@ -8,6 +8,7 @@ import {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger
 } from '@ringee/frontend-shared/components/ui/dropdown-menu';
 import {
@@ -48,6 +49,7 @@ import {
   IconTopologyStar3
 } from '@tabler/icons-react';
 import { useIsSuperAdmin } from '@/features/backoffice/lib/use-is-super-admin';
+import { useSettingsDialogStore } from '@/features/settings/store/settings-dialog.store';
 
 import { SignOutButton } from '@clerk/nextjs';
 import Link from 'next/link';
@@ -214,6 +216,11 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
     : useUser();
 
   const router = useRouter();
+
+  // Settings opens the dialog instead of navigating — Integrations, Recordings
+  // & transcriptions and Desk phones are panes inside it now. The standalone
+  // pages stay reachable for deep links and the command bar.
+  const openSettings = useSettingsDialogStore((s) => s.openSettings);
 
   // Resolved by the API (single allowlist) rather than a copy of the list here.
   // The mock preview keeps showing the backoffice entry as it always did.
@@ -494,20 +501,16 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                     {tNav('userMenu.recordings')}
                   </DropdownMenuItem>
                   <DropdownMenuItem
-                    onClick={() => router.push('/dashboard/settings/overview')}
+                    onClick={() =>
+                      useMock
+                        ? router.push('/dashboard/settings/overview')
+                        : openSettings('general')
+                    }
                   >
                     {/* @ts-ignore */}
                     <Icons.settings className='mr-2 h-4 w-4' />
                     {tNav('groups.settings')}
-                  </DropdownMenuItem>
-                  <DropdownMenuItem
-                    onClick={() =>
-                      router.push('/dashboard/settings/integrations')
-                    }
-                  >
-                    {/* @ts-ignore */}
-                    <Icons.plug className='mr-2 h-4 w-4' />
-                    {tNav('items.integrations')}
+                    <DropdownMenuShortcut>⇧⌘,</DropdownMenuShortcut>
                   </DropdownMenuItem>
                 </DropdownMenuGroup>
 
@@ -535,13 +538,6 @@ export default function AppSidebar({ useMock }: { useMock?: boolean }) {
                       >
                         <Icons.billing className='mr-2 h-4 w-4' />
                         {tNav('userMenu.billing')}
-                      </DropdownMenuItem>
-                      <DropdownMenuItem
-                        onClick={() => router.push('/dashboard/desk-phones')}
-                      >
-                        {/* @ts-ignore */}
-                        <Icons.plug className='mr-2 h-4 w-4' />
-                        Desk Phones
                       </DropdownMenuItem>
                       <DropdownMenuItem onClick={() => router.push('/infra')}>
                         <IconTopologyStar3 className='mr-2 h-4 w-4' />

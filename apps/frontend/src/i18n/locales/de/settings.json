@@ -264,6 +264,62 @@
     "script": "Gesprächsleitfaden",
     "recording": "Aufzeichnung"
   },
+  "dialog": {
+    "title": "Einstellungen",
+    "description": "Verwalten Sie Ihre Präferenzen und die mit Ringee verbundenen Tools.",
+    "searchPlaceholder": "Suchen",
+    "noResults": "Keine Treffer für „{query}“.",
+    "close": "Einstellungen schließen",
+    "openNav": "Bereiche anzeigen",
+    "closeNav": "Bereiche ausblenden",
+    "sections": {
+      "settings": "Einstellungen",
+      "integrations": "Integrationen"
+    },
+    "items": {
+      "general": {
+        "label": "Allgemein",
+        "description": "Darstellung und Sprache Ihres Kontos."
+      },
+      "script": {
+        "label": "Gesprächsleitfaden",
+        "description": "Der Leitfaden, den Ihr Dialer während Anrufen anzeigt."
+      },
+      "recording": {
+        "label": "Aufzeichnungen und Transkripte",
+        "description": "Wählen Sie, welche Anrufe aufgezeichnet und transkribiert werden."
+      },
+      "desk-phones": {
+        "label": "Tischtelefone",
+        "description": "Registrieren Sie ein Yealink, Grandstream, Cisco oder ein beliebiges SIP-Telefon für Ihre Nummer."
+      },
+      "crm": {
+        "label": "CRM",
+        "description": "Anrufe, Ergebnisse und Notizen an Ihr CRM übertragen."
+      },
+      "enrichment": {
+        "label": "Datenanreicherung",
+        "description": "Apollo oder Prospeo verbinden, um Lead-Daten aufzudecken."
+      },
+      "leads": {
+        "label": "Leads finden",
+        "description": "Prospects suchen und als Kontakte importieren."
+      },
+      "custom": {
+        "label": "Benutzerdefinierte Integrationen",
+        "description": "Ringee-Events an Ihre eigenen Endpunkte senden."
+      },
+      "connectors": {
+        "label": "Connectors",
+        "description": "Ringee mit KI-Assistenten und Agent-Tools verbinden."
+      }
+    },
+    "general": {
+      "preferences": "Präferenzen",
+      "colorTheme": "Farbthema",
+      "colorThemeDescription": "Farb- und Schriftsatz, den Ringee überall verwendet."
+    }
+  },
   "overview": {
     "title": "Übersicht",
     "description": "Personalisieren Sie Ihr Konto und Ihren Gesprächsleitfaden."
