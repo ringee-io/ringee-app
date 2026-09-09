@@ -264,6 +264,62 @@
     "script": "Script",
     "recording": "Registrazione"
   },
+  "dialog": {
+    "title": "Impostazioni",
+    "description": "Gestisci le tue preferenze e gli strumenti collegati a Ringee.",
+    "searchPlaceholder": "Cerca",
+    "noResults": "Nessun risultato per «{query}».",
+    "close": "Chiudi impostazioni",
+    "openNav": "Mostra sezioni",
+    "closeNav": "Nascondi sezioni",
+    "sections": {
+      "settings": "Impostazioni",
+      "integrations": "Integrazioni"
+    },
+    "items": {
+      "general": {
+        "label": "Generale",
+        "description": "Aspetto e lingua del tuo account."
+      },
+      "script": {
+        "label": "Script di chiamata",
+        "description": "Lo script che il dialer mostra durante le chiamate."
+      },
+      "recording": {
+        "label": "Registrazioni e trascrizioni",
+        "description": "Scegli quali chiamate vengono registrate e trascritte."
+      },
+      "desk-phones": {
+        "label": "Telefoni da scrivania",
+        "description": "Registra un Yealink, Grandstream, Cisco o qualsiasi telefono SIP sul tuo numero."
+      },
+      "crm": {
+        "label": "CRM",
+        "description": "Invia chiamate, esiti e note al tuo CRM."
+      },
+      "enrichment": {
+        "label": "Arricchimento dati",
+        "description": "Collega Apollo o Prospeo per rivelare i dati dei lead."
+      },
+      "leads": {
+        "label": "Trova prospect",
+        "description": "Cerca prospect e importali come contatti."
+      },
+      "custom": {
+        "label": "Integrazioni personalizzate",
+        "description": "Invia gli eventi Ringee ai tuoi endpoint."
+      },
+      "connectors": {
+        "label": "Connettori",
+        "description": "Collega Ringee ad assistenti IA e strumenti per agenti."
+      }
+    },
+    "general": {
+      "preferences": "Preferenze",
+      "colorTheme": "Tema colore",
+      "colorThemeDescription": "Il set di colori e caratteri usato in Ringee."
+    }
+  },
   "overview": {
     "title": "Panoramica",
     "description": "Personalizza il tuo account e il tuo script di chiamata."

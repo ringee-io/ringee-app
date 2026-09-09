@@ -264,6 +264,62 @@
     "script": "Belscript",
     "recording": "Opname"
   },
+  "dialog": {
+    "title": "Instellingen",
+    "description": "Beheer je voorkeuren en de tools die met Ringee zijn verbonden.",
+    "searchPlaceholder": "Zoeken",
+    "noResults": "Geen resultaten voor ‘{query}’.",
+    "close": "Instellingen sluiten",
+    "openNav": "Secties tonen",
+    "closeNav": "Secties verbergen",
+    "sections": {
+      "settings": "Instellingen",
+      "integrations": "Integraties"
+    },
+    "items": {
+      "general": {
+        "label": "Algemeen",
+        "description": "Weergave en taal van je account."
+      },
+      "script": {
+        "label": "Belscript",
+        "description": "Het script dat je dialer tijdens gesprekken toont."
+      },
+      "recording": {
+        "label": "Opnames en transcripties",
+        "description": "Kies welke gesprekken worden opgenomen en getranscribeerd."
+      },
+      "desk-phones": {
+        "label": "Bureautelefoons",
+        "description": "Registreer een Yealink, Grandstream, Cisco of elke SIP-telefoon op je nummer."
+      },
+      "crm": {
+        "label": "CRM",
+        "description": "Stuur gesprekken, resultaten en notities naar je CRM."
+      },
+      "enrichment": {
+        "label": "Gegevensverrijking",
+        "description": "Koppel Apollo of Prospeo om leadgegevens te onthullen."
+      },
+      "leads": {
+        "label": "Leads zoeken",
+        "description": "Zoek prospects en importeer ze als contacten."
+      },
+      "custom": {
+        "label": "Aangepaste integraties",
+        "description": "Stuur Ringee-events naar je eigen endpoints."
+      },
+      "connectors": {
+        "label": "Connectors",
+        "description": "Koppel Ringee aan AI-assistenten en agent-tools."
+      }
+    },
+    "general": {
+      "preferences": "Voorkeuren",
+      "colorTheme": "Kleurthema",
+      "colorThemeDescription": "De kleuren- en typografieset die Ringee gebruikt."
+    }
+  },
   "overview": {
     "title": "Overzicht",
     "description": "Personaliseer je account en je belscript."

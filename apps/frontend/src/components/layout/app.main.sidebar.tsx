@@ -11,6 +11,7 @@ import { useIncomingCallToasts } from '@/features/calls/hooks/use.incoming.calls
 import { ShowActiveCall } from '@/features/calls/components/show.active.call';
 import { useNotifications } from '@/features/calls/hooks/use.notifications';
 import { useListeners } from '@/features/calls/hooks/use.listeners';
+import { SettingsDialog } from '@/features/settings';
 
 export default function AppMainSidebar({ useMock }: any) {
   useAnalytics({
@@ -37,6 +38,9 @@ export default function AppMainSidebar({ useMock }: any) {
     <>
       {!useMock ? <CallQueuePanel /> : null}
       {!useMock ? <ShowActiveCall /> : null}
+      {/* One instance for the whole dashboard — the sidebar user menu and the
+          ⇧⌘, shortcut both drive it through the settings dialog store. */}
+      {!useMock ? <SettingsDialog /> : null}
 
       <AppSidebar useMock={useMock} />
     </>
