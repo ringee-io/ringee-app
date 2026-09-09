@@ -24,6 +24,35 @@ const AGENT_CALL = {
   outcome: null,
 };
 
+/** The telephony row behind the agent call, as the repository returns it. */
+const TELEPHONY_CALL = {
+  id: "telephony-1",
+  userId: "user-1",
+  organizationId: "org-1",
+  callControlId: "cc-1",
+  fromNumber: "+14155550100",
+  toNumber: "+14155550123",
+  status: CallStatus.completed,
+  direction: "outbound",
+  startedAt: new Date("2026-09-07T14:00:00.000Z"),
+  answeredAt: new Date("2026-09-07T14:01:00.000Z"),
+  endedAt: new Date("2026-09-07T14:04:00.000Z"),
+  durationSeconds: 240,
+};
+
+/** `data.call` as the outcome event carries it for TELEPHONY_CALL. */
+const TELEPHONY_CALL_EVENT_DATA = {
+  callId: "telephony-1",
+  fromNumber: "+14155550100",
+  toNumber: "+14155550123",
+  status: CallStatus.completed,
+  direction: "outbound",
+  startedAt: "2026-09-07T14:00:00.000Z",
+  answeredAt: "2026-09-07T14:01:00.000Z",
+  endedAt: "2026-09-07T14:04:00.000Z",
+  durationSeconds: 240,
+};
+
 /** The analysis the agent was configured with, mapped to provider ids. */
 const ANALYSIS = {
   summary: true,
@@ -118,7 +147,7 @@ function build(
       },
       updateOutcome: async (id: string, outcome: string) => {
         callOutcomes.push({ id, outcome });
-        return { id, outcome };
+        return { ...TELEPHONY_CALL, outcome };
       },
       completeCall: async (
         callControlId: string,
@@ -236,6 +265,7 @@ describe("VoiceAgentResultService analysis callback", () => {
           "telephony-1:outcome:not_interested:2026-09-07T14:05:00.000Z",
         data: {
           callId: "telephony-1",
+          call: TELEPHONY_CALL_EVENT_DATA,
           agentCallId: "call-1",
           agentId: "agent-1",
           outcome: "not_interested",

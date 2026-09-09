@@ -6,6 +6,85 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CallStatus } from "@ringee/database";
 import { CustomIntegrationOutboundService } from "./custom-integration-outbound.service";
+import {
+  buildCallOutcomeData,
+  buildVoiceAgentCallOutcomeData,
+} from "./custom-integration-event-builders";
+
+describe("call outcome event data", () => {
+  const call = {
+    id: "call-1",
+    userId: "user-1",
+    organizationId: "org-1",
+    fromNumber: "+14155550100",
+    toNumber: "+14155550123",
+    status: CallStatus.completed,
+    direction: "outbound",
+    startedAt: new Date("2026-05-23T14:39:56.000Z"),
+    answeredAt: new Date("2026-05-23T14:40:02.000Z"),
+    endedAt: new Date("2026-05-23T14:42:18.000Z"),
+    durationSeconds: 142,
+    outcome: "meeting_booked",
+    outcomeNote: "Demo scheduled",
+    updatedAt: new Date("2026-05-23T14:50:00.000Z"),
+  } as never;
+
+  const callDetail = {
+    callId: "call-1",
+    fromNumber: "+14155550100",
+    toNumber: "+14155550123",
+    status: CallStatus.completed,
+    direction: "outbound",
+    startedAt: "2026-05-23T14:39:56.000Z",
+    answeredAt: "2026-05-23T14:40:02.000Z",
+    endedAt: "2026-05-23T14:42:18.000Z",
+    durationSeconds: 142,
+  };
+
+  it("carries the call detail beside the call id", () => {
+    assert.deepEqual(buildCallOutcomeData(call), {
+      callId: "call-1",
+      call: callDetail,
+      outcome: "meeting_booked",
+      outcomeNote: "Demo scheduled",
+      updatedAt: "2026-05-23T14:50:00.000Z",
+    });
+  });
+
+  it("carries the same call detail for an AI voice-agent outcome", () => {
+    const data = buildVoiceAgentCallOutcomeData(
+      {
+        id: "agent-call-1",
+        agentId: "agent-1",
+        callId: "call-1",
+        outcome: "appointment_booked",
+        metadata: { external_id: "crm-123" },
+        updatedAt: new Date("2026-05-23T14:50:00.000Z"),
+      } as never,
+      call,
+    );
+
+    assert.deepEqual(data.call, callDetail);
+    assert.equal(data.callId, "call-1");
+    assert.equal(data.outcome, "meeting_booked");
+  });
+
+  it("omits the call detail when the telephony row cannot be resolved", () => {
+    const data = buildVoiceAgentCallOutcomeData(
+      {
+        id: "agent-call-1",
+        agentId: "agent-1",
+        callId: "call-1",
+        outcome: "not_interested",
+        metadata: null,
+        updatedAt: new Date("2026-05-23T14:50:00.000Z"),
+      } as never,
+      null,
+    );
+
+    assert.equal(data.call, undefined);
+  });
+});
 
 describe("CustomIntegrationOutboundService call fan-out", () => {
   it("queues a terminal call for every active subscribed integration", async () => {

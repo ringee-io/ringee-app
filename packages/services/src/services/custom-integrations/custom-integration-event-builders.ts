@@ -92,6 +92,7 @@ export function buildCallEventData(call: Call): Record<string, unknown> {
 export function buildCallOutcomeData(call: Call): Record<string, unknown> {
   return {
     callId: call.id,
+    call: buildCallEventData(call),
     outcome: call.outcome,
     outcomeNote: call.outcomeNote ?? undefined,
     updatedAt: (call.updatedAt ?? new Date()).toISOString(),
@@ -142,10 +143,13 @@ export function buildVoiceAgentCallOutcomeData(
     AiVoiceAgentCall,
     "id" | "agentId" | "callId" | "outcome" | "metadata" | "updatedAt"
   >,
+  /** Telephony row behind the agent call, when it is still resolvable. */
+  call?: Call | null,
 ): Record<string, unknown> {
   const externalId = voiceAgentExternalId(agentCall.metadata);
   return {
     callId: agentCall.callId,
+    call: call ? buildCallEventData(call) : undefined,
     agentCallId: agentCall.id,
     agentId: agentCall.agentId,
     outcome: normalizeVoiceAgentOutcome(agentCall.outcome),

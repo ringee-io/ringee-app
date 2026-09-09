@@ -5,6 +5,7 @@ import {
   AiVoiceAgentCallStatus,
   AiVoiceAgentOutcome,
   AiVoiceAgentRepository,
+  Call,
   CallOutcome,
   CallRepository,
   CallStatus,
@@ -360,11 +361,15 @@ export class VoiceAgentResultService {
     outcome: AiVoiceAgentOutcome,
   ): Promise<AiVoiceAgentCall | null> {
     const callOutcome = this.toCallOutcome(outcome);
+    let call: Call | null = null;
     if (agentCall.callId && callOutcome) {
       // The base Call row owns the public disposition used everywhere outside
       // the voice-agent detail. Write it first so a retry can repair the agent
       // row and event if the second write ever fails.
-      await this.callRepository.updateOutcome(agentCall.callId, callOutcome);
+      call = await this.callRepository.updateOutcome(
+        agentCall.callId,
+        callOutcome,
+      );
     }
 
     const updated = await this.agentCalls.updateOutcomeIfChanged(
@@ -379,6 +384,12 @@ export class VoiceAgentResultService {
     // `updatedAt` is this persisted transition's revision. It keeps an outbox
     // replay idempotent without collapsing a later, genuine outcome change.
     if (updated.callId && updated.outcome && callOutcome) {
+      // Consumers get the telephony detail inline instead of calling back for
+      // it; the write above already returned the row in the common path.
+      const callRow =
+        call?.id === updated.callId
+          ? call
+          : await this.callRepository.findById(updated.callId);
       await this.customIntegrationOutbound.enqueue({
         ctx: {
           userId: updated.userId,
@@ -387,7 +398,7 @@ export class VoiceAgentResultService {
         eventEnum: "call_outcome_updated",
         subjectId: updated.callId,
         dedupeKey: `${updated.callId}:outcome:${callOutcome}:${updated.updatedAt.toISOString()}`,
-        data: buildVoiceAgentCallOutcomeData(updated),
+        data: buildVoiceAgentCallOutcomeData(updated, callRow),
         occurredAt: updated.updatedAt,
       });
     }
