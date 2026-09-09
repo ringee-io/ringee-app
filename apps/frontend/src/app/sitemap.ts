@@ -28,6 +28,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/open-source', priority: 0.7 },
     { path: '/self-hosted', priority: 0.7 },
     { path: '/about', priority: 0.6 },
+    // The machine rendering of the home page — indexable, and the entry point
+    // an AI crawler is most likely to quote from.
+    { path: '/machine', priority: 0.6 },
     { path: '/privacy', priority: 0.3 },
     { path: '/terms', priority: 0.3 },
     { path: '/support', priority: 0.4 }
