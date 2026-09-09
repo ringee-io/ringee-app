@@ -121,7 +121,10 @@ describe("contact.upserted campaign membership", () => {
     assert.equal(inboundStatuses.at(-1)?.status, "processed");
   });
 
-  it("re-syncing a contact that is already a lead changes nothing", async () => {
+  // Whether a duplicate lead is a no-op is CampaignService's guarantee, tested
+  // in campaign.service.spec.ts. What belongs here is that a re-sync still goes
+  // through it rather than writing leads on its own.
+  it("routes a re-synced contact through the same campaign call", async () => {
     const { service, campaignCalls } = build({
       existingContact: true,
       leadAdded: false,

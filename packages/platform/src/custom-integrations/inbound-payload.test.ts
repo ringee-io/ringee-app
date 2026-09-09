@@ -170,6 +170,14 @@ describe("validateInboundEventData", () => {
     ]);
   });
 
+  it("fails closed for an event name that has no spec", () => {
+    // Only reachable by adding a name to INBOUND_EVENT_NAMES without the
+    // matching spec entry. Validating nothing would be the worse answer.
+    const issues = validateInboundEventData("contact.merged" as never, {});
+
+    expect(issues.errors).toEqual(["Unsupported event: contact.merged"]);
+  });
+
   it("requires a company name on company.upserted", () => {
     expect(
       validateInboundEventData("company.upserted", { externalId: "ext_1" })

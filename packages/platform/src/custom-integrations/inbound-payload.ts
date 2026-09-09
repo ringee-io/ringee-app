@@ -202,7 +202,10 @@ export function validateInboundEventData(
   const errors: string[] = [];
   const warnings: string[] = [];
 
-  if (!index) return { errors, warnings };
+  // Unreachable while every name in INBOUND_EVENT_NAMES has a spec beside it,
+  // which is the point: an event added to the list without one would otherwise
+  // be applied with no field validation at all. Fail closed instead.
+  if (!index) return { errors: [`Unsupported event: ${event}`], warnings };
 
   for (const { key, kind } of index.required) {
     const value = data[key];
