@@ -9,8 +9,12 @@ import { toast } from 'sonner';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
-import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import {
+  DropdownMenuItem,
+  DropdownMenuSeparator
+} from '@ringee/frontend-shared/components/ui/dropdown-menu';
 import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import { CopyIdMenuItem } from '@ringee/frontend-shared/components/ui/copy-id-menu-item';
 import {
   Dialog,
   DialogContent,
@@ -113,10 +117,6 @@ export function NumberActionsCell({ data }: { data: NumberPurchased }) {
     }
   };
 
-  if (!canVerify && !canMove) {
-    return <span className='text-muted-foreground'>-</span>;
-  }
-
   return (
     <>
       <TableRowActions
@@ -140,6 +140,8 @@ export function NumberActionsCell({ data }: { data: NumberPurchased }) {
             {copy.action}
           </DropdownMenuItem>
         ) : null}
+        {canVerify || canMove ? <DropdownMenuSeparator /> : null}
+        <CopyIdMenuItem id={data.id} />
       </TableRowActions>
 
       <Dialog

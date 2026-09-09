@@ -20,6 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { CopyIdMenuItem } from '@ringee/frontend-shared/components/ui/copy-id-menu-item';
 import {
   CheckCircle2,
   MoreVertical,
@@ -79,6 +80,7 @@ export function CustomIntegrationCard({ item, onConfigure, onDelete }: Props) {
               <DropdownMenuItem onClick={() => onConfigure(item.id)}>
                 {t('configure')}
               </DropdownMenuItem>
+              <CopyIdMenuItem id={item.id} />
               <DropdownMenuSeparator />
               <AlertDialog>
                 <AlertDialogTrigger asChild>

@@ -63,7 +63,8 @@
       "noRecording": "Geen opname",
       "downloadRecording": "Opname downloaden",
       "source": "Bron",
-      "details": "Details"
+      "details": "Details",
+      "copyCallId": "Gespreks-ID kopiëren"
     },
     "rowActions": {
       "menu": "Acties",
@@ -96,7 +97,8 @@
       "unavailable": "Niet beschikbaar",
       "play": "Afspelen",
       "playRecording": "Opname afspelen",
-      "downloadRecording": "Opname downloaden"
+      "downloadRecording": "Opname downloaden",
+      "copyRecordingId": "Opname-ID kopiëren"
     },
     "statusBadge": {
       "started": "Bezig",

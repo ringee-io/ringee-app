@@ -63,7 +63,8 @@
       "noRecording": "Nessuna registrazione",
       "downloadRecording": "Scarica registrazione",
       "source": "Origine",
-      "details": "Dettagli"
+      "details": "Dettagli",
+      "copyCallId": "Copia ID chiamata"
     },
     "rowActions": {
       "menu": "Azioni",
@@ -96,7 +97,8 @@
       "unavailable": "Non disponibile",
       "play": "Riproduci",
       "playRecording": "Riproduci registrazione",
-      "downloadRecording": "Scarica registrazione"
+      "downloadRecording": "Scarica registrazione",
+      "copyRecordingId": "Copia ID registrazione"
     },
     "statusBadge": {
       "started": "In elaborazione",

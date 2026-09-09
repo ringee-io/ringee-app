@@ -21,7 +21,10 @@ import {
   SelectValue
 } from '@ringee/frontend-shared/components/ui/select';
 import { Skeleton } from '@ringee/frontend-shared/components/ui/skeleton';
-import { Plus, Search, Target, Users, Phone, Clock } from 'lucide-react';
+import { DropdownMenuItem } from '@ringee/frontend-shared/components/ui/dropdown-menu';
+import { TableRowActions } from '@ringee/frontend-shared/components/ui/table/table-row-actions';
+import { CopyIdMenuItem } from '@ringee/frontend-shared/components/ui/copy-id-menu-item';
+import { Eye, Plus, Search, Target, Users, Phone, Clock } from 'lucide-react';
 import { useOrgRole } from '@ringee/frontend-shared/hooks/use-org-role';
 import { useTranslations } from 'next-intl';
 import type {
@@ -45,6 +48,7 @@ function CampaignCard({
   onClick: () => void;
 }) {
   const t = useTranslations('campaigns');
+  const tCommon = useTranslations('common');
   const leadCount = campaign._count?.leads ?? 0;
 
   return (
@@ -62,9 +66,25 @@ function CampaignCard({
               </CardDescription>
             )}
           </div>
-          <Badge variant='outline' className={STATUS_COLORS[campaign.status]}>
-            {t(`status.${campaign.status}`)}
-          </Badge>
+          {/* The whole card navigates, so the actions menu swallows its click. */}
+          <div
+            className='flex items-center gap-1'
+            onClick={(event) => event.stopPropagation()}
+          >
+            <Badge variant='outline' className={STATUS_COLORS[campaign.status]}>
+              {t(`status.${campaign.status}`)}
+            </Badge>
+            <TableRowActions
+              label={tCommon('openActions')}
+              menuLabel={tCommon('actions')}
+            >
+              <DropdownMenuItem onClick={onClick}>
+                <Eye className='h-4 w-4' />
+                {tCommon('view')}
+              </DropdownMenuItem>
+              <CopyIdMenuItem id={campaign.id} />
+            </TableRowActions>
+          </div>
         </div>
       </CardHeader>
       <CardContent>
