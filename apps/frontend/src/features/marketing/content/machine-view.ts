@@ -120,7 +120,7 @@ export const AGENT_SESSION: readonly SessionLine[] = [
     kind: 'note',
     text: '// spends provider credits — the skill stops and asks a person before this one'
   },
-  { kind: 'out', text: '{"email":"…","phoneNumber":"+34 6·· ··· ···"}' },
+  { kind: 'out', text: '{"email":"…","phoneNumber":"+346········"}' },
   {
     kind: 'tool',
     text: 'import_leads_as_contacts {"jobId":"…","externalIds":["…"]}'
