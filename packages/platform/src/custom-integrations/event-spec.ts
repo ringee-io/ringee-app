@@ -416,6 +416,12 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     optionalFields: [
       VOICE_AGENT_EXTERNAL_ID,
       {
+        name: "data.call",
+        type: "object",
+        description:
+          "The call itself, in the same shape as call.completed's data: callId, fromNumber, toNumber, status, direction, startedAt, answeredAt, endedAt, durationSeconds.",
+      },
+      {
         name: "data.outcomeNote",
         type: "string",
         description: "Free-text note attached to the outcome.",
@@ -448,6 +454,17 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
       integrationId: "ci_…",
       data: {
         callId: "f3b1…",
+        call: {
+          callId: "f3b1…",
+          fromNumber: "+14155550100",
+          toNumber: "+14155550123",
+          status: "completed",
+          direction: "outbound",
+          startedAt: "2026-05-23T14:39:56.000Z",
+          answeredAt: "2026-05-23T14:40:02.000Z",
+          endedAt: "2026-05-23T14:42:18.000Z",
+          durationSeconds: 142,
+        },
         externalId: "crm-123",
         outcome: "meeting_booked",
         outcomeNote: "Demo scheduled for next Tuesday",
@@ -456,6 +473,7 @@ export const OUTBOUND_EVENT_SPECS: CustomIntegrationEventSpec[] = [
     },
     notes: [
       "If neither a user nor an AI voice agent records an outcome, this event is not sent.",
+      "`data.call` carries the telephony detail so consumers do not have to correlate with call.completed; it is omitted only when the call row can no longer be resolved.",
       "When the outcome is meeting_booked, a separate meeting.created event is also fired.",
       "AI voice-agent calls report no pickup, busy and voicemail as no_answer; no_conversation means the call was answered without a meaningful exchange.",
     ],
