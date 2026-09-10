@@ -1,6 +1,7 @@
 import { HttpException } from "@nestjs/common";
 import { describe, expect, it, vi } from "vitest";
 import type { TelnyxClient } from "./telnyx.client";
+import { TelnyxService } from "./telnyx.service";
 
 /**
  * `@ringee/configuration` validates the whole app environment on import and
@@ -11,8 +12,6 @@ vi.mock("@ringee/configuration", () => ({ apiConfiguration: {} }));
 
 /** The module builds a real SDK client at import time; it is never called. */
 vi.mock("telnyx", () => ({ default: class {} }));
-
-const { TelnyxService } = await import("./telnyx.service");
 
 /** What Telnyx answers a teardown command with once the leg is gone. */
 const CALL_ENDED = {
