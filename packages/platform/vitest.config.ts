@@ -1,4 +1,4 @@
-import { fileURLToPath } from "node:url";
+import { resolve } from "node:path";
 import { defineConfig } from "vitest/config";
 
 /**
@@ -22,8 +22,9 @@ export default defineConfig({
        * variable is missing, so a test that pulls one in still has to stub it
        * (see `telnyx.service.test.ts`).
        */
-      "@ringee/configuration": fileURLToPath(
-        new URL("../configuration/src/index.ts", import.meta.url),
+      "@ringee/configuration": resolve(
+        __dirname,
+        "../configuration/src/index.ts",
       ),
     },
   },
