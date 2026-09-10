@@ -1,6 +1,7 @@
 import { HttpException, Injectable, Logger } from "@nestjs/common";
 import { TelephonyCountryRate } from "../interfaces/telephony.rate";
 import { TelnyxClient } from "./telnyx.client";
+import { isTelnyxCallEndedError } from "./telnyx.error";
 import {
   AddressValidationInput,
   AddressValidationResult,
@@ -957,11 +958,25 @@ export class TelnyxService implements TelephonyService {
     }
   }
 
+  /**
+   * Stop the media stream on a leg.
+   *
+   * Telnyx ends the stream with the call, so a `streaming_stop` that races a
+   * hangup comes back as 422 / `90018`. Every caller is winding transcription
+   * down, so a leg that is already gone is the outcome they asked for.
+   */
   async stopStreaming(callControlId: string): Promise<void> {
-    await this.telnyxClient.post(
-      `/calls/${callControlId}/actions/streaming_stop`,
-      { command_id: crypto.randomUUID() },
-    );
+    try {
+      await this.telnyxClient.post(
+        `/calls/${callControlId}/actions/streaming_stop`,
+        { command_id: crypto.randomUUID() },
+      );
+    } catch (error) {
+      if (!isTelnyxCallEndedError(error)) throw error;
+      this.logger.debug(
+        `streaming_stop for ${callControlId}: the call had already ended`,
+      );
+    }
   }
 
   async playbackStart(

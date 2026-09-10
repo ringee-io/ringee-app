@@ -80,3 +80,38 @@ function nonGenericMessage(message: string | undefined): string | null {
   if (normalized.startsWith("request failed with status code")) return null;
   return message;
 }
+
+/** Telnyx's code for "this command reached a leg that is no longer active". */
+const CALL_ALREADY_ENDED = "90018";
+
+/**
+ * True when Telnyx rejected a call command because the leg is already down.
+ *
+ * Telnyx tears a call's resources down with the call itself, so a teardown
+ * command that arrives after the hangup is answered with 422 / `90018`. For a
+ * caller that is winding something down, that is the state it asked for — not
+ * a failure.
+ */
+export function isTelnyxCallEndedError(error: unknown): boolean {
+  return telnyxErrorCodes(error).includes(CALL_ALREADY_ENDED);
+}
+
+/** Reads `{ errors: [{ code }] }` out of whatever wrapper carries the body. */
+function telnyxErrorCodes(error: unknown): string[] {
+  const body =
+    error instanceof HttpException
+      ? error.getResponse()
+      : ((error as { response?: { data?: unknown } })?.response?.data ?? error);
+  if (!body || typeof body !== "object") return [];
+
+  const errors = (body as Record<string, unknown>).errors;
+  if (!Array.isArray(errors)) return [];
+
+  return errors
+    .map((entry) => (entry as Record<string, unknown> | null)?.code)
+    .filter(
+      (code): code is string | number =>
+        typeof code === "string" || typeof code === "number",
+    )
+    .map(String);
+}
