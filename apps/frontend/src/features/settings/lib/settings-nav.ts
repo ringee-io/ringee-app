@@ -124,7 +124,15 @@ export function settingsItemFromHash(hash: string): SettingsItemId | null {
 export function settingsTargetFromHash(hash: string): string | null {
   if (!isSettingsHash(hash)) return null;
   const target = stripHash(hash).split('/')[2];
-  return target ? decodeURIComponent(target) : null;
+  if (!target) return null;
+  try {
+    return decodeURIComponent(target);
+  } catch {
+    // A hand-edited fragment can carry a broken percent escape. It names no
+    // row anyone could open, and this runs inside the `hashchange` handler —
+    // throwing here would leave the dialog unable to follow the URL at all.
+    return null;
+  }
 }
 
 function stripHash(hash: string): string {

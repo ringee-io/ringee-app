@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslations } from 'next-intl';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import {
@@ -120,6 +120,29 @@ export function CalendarsManager({
   useEffect(() => {
     void load();
   }, [load]);
+
+  // The fragment can name a different calendar while this pane stays mounted —
+  // Back and Forward walk between two of them. Only an actual change is
+  // followed, so a pane whose caller does not track the selection is not
+  // dragged back to where it opened on every render.
+  const appliedTargetRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!initialCalendarId || calendars.length === 0) return;
+    if (appliedTargetRef.current === initialCalendarId) return;
+    appliedTargetRef.current = initialCalendarId;
+
+    if (calendars.some((calendar) => calendar.id === initialCalendarId)) {
+      setSelectedId(initialCalendarId);
+      return;
+    }
+    // A link to a calendar this workspace does not have: show the global one
+    // and say so, or the URL keeps addressing a calendar nobody can open.
+    const fallback = calendars.find((calendar) => calendar.isDefault)?.id;
+    if (fallback) {
+      setSelectedId(fallback);
+      onCalendarChange?.(fallback);
+    }
+  }, [initialCalendarId, calendars, onCalendarChange]);
 
   // Connecting a Google account leaves and comes back here, so the result of
   // that round-trip is announced by this pane.

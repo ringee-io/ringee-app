@@ -287,7 +287,7 @@
       },
       "calendars": {
         "label": "Calendários",
-        "description": "Horários de agendamento, fusos horários e os calendários onde os seus agentes agendam."
+        "description": "Horários de agendamento, fusos horários e os calendários onde os teus agentes agendam."
       },
       "recording": {
         "label": "Gravações e transcrições",
@@ -319,7 +319,7 @@
       },
       "calendar-providers": {
         "label": "Fornecedores de calendário",
-        "description": "Ligue o Google Calendar para copiar os agendamentos para lá."
+        "description": "Liga o Google Calendar para copiar os agendamentos para lá."
       }
     },
     "general": {
