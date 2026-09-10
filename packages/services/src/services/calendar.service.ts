@@ -256,6 +256,24 @@ function formatInZone(instant: Date, timeZone: string): string {
 const DEFAULT_CALENDAR_NAME = "Global calendar";
 const MAX_CALENDAR_NAME_LENGTH = 80;
 
+/**
+ * What Ringee asks Google for, and why each scope is there.
+ *
+ * `calendar.events` covers writing the booked event, but it does **not**
+ * authorize `calendarList.list` — reading which calendars an account owns needs
+ * a calendarlist scope of its own, and without it the destination picker gets
+ * 403 `ACCESS_TOKEN_SCOPE_INSUFFICIENT` from Google. Keep both.
+ *
+ * A token already issued keeps the grant it was minted with, so widening this
+ * list only reaches an existing connection when the user reconnects it.
+ */
+const GOOGLE_CALENDAR_SCOPES = [
+  "https://www.googleapis.com/auth/calendar.events",
+  "https://www.googleapis.com/auth/calendar.calendarlist.readonly",
+  "email",
+  "profile",
+].join(" ");
+
 function assertTimeZone(timeZone: string): string {
   const value = typeof timeZone === "string" ? timeZone.trim() : "";
   try {
@@ -569,7 +587,7 @@ export class CalendarService {
       client_id: clientId,
       redirect_uri: redirectUri,
       response_type: "code",
-      scope: "https://www.googleapis.com/auth/calendar.events email profile",
+      scope: GOOGLE_CALENDAR_SCOPES,
       access_type: "offline",
       prompt: "consent",
       state,
@@ -1402,6 +1420,12 @@ export class CalendarService {
       { headers: { Authorization: `Bearer ${accessToken}` } },
     );
     if (!res.ok) {
+      // Google's body names the real cause — a grant predating
+      // GOOGLE_CALENDAR_SCOPES reads as ACCESS_TOKEN_SCOPE_INSUFFICIENT — and
+      // it carries no token of its own, so it is safe to log.
+      this.logger.warn(
+        `Google calendarList.list failed: ${res.status} ${await res.text()}`,
+      );
       throw new BadRequestException(
         "The connected Google account could not be read. Reconnect it and try again.",
       );
