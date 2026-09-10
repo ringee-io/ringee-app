@@ -35,6 +35,7 @@ import {
   type VoiceAgentLlmProvider,
   type VoiceAgentVoice,
 } from "@ringee/platform";
+import { CalendarService } from "../calendar.service";
 import { CreditService } from "../credit.service";
 import { calculateVoiceClonePrice } from "./voice-clone-pricing";
 import { NumberPurchasedService } from "../number.purchased.service";
@@ -102,6 +103,16 @@ export interface SaveVoiceAgentInput {
    * choice back on whoever triggers the call.
    */
   callerNumberId?: string | null;
+  /**
+   * The Ringee calendar this agent books against. `null` means the workspace's
+   * global calendar, which is what an agent with no selection has always used.
+   */
+  calendarId?: string | null;
+  /**
+   * Legacy external destination: the Google/Microsoft account this agent's
+   * events are pushed to. Preserved for agents configured before Ringee
+   * calendars existed; it does not decide which calendar is booked.
+   */
   calendarIntegrationId?: string | null;
   meetingDurationMinutes?: number;
   timezone?: string | null;
@@ -177,6 +188,7 @@ export class VoiceAgentService {
     private readonly provider: VoiceAgentProviderService,
     private readonly credentials: LlmCredentialVerifier,
     private readonly calendars: CalendarIntegrationRepository,
+    private readonly calendarService: CalendarService,
     private readonly numbers: NumberPurchasedService,
     private readonly credits: CreditService,
   ) {}
@@ -586,6 +598,9 @@ export class VoiceAgentService {
     if (dto.calendarIntegrationId) {
       await this.assertCalendarInWorkspace(ctx, dto.calendarIntegrationId);
     }
+    if (dto.calendarId) {
+      await this.assertRingeeCalendarUsable(ctx, dto.calendarId);
+    }
     if (dto.callerNumberId) {
       await this.assertCallerNumberUsable(ctx, dto.callerNumberId);
     }
@@ -611,6 +626,7 @@ export class VoiceAgentService {
         ? (this.validateConversationSettings(dto.conversation) as object)
         : undefined,
       callerNumberId: dto.callerNumberId ?? null,
+      calendarId: dto.calendarId ?? null,
       calendarIntegrationId: dto.calendarIntegrationId ?? null,
       meetingDurationMinutes: dto.meetingDurationMinutes ?? 30,
       timezone: dto.timezone ?? null,
@@ -642,6 +658,12 @@ export class VoiceAgentService {
 
     if (dto.calendarIntegrationId) {
       await this.assertCalendarInWorkspace(ctx, dto.calendarIntegrationId);
+    }
+    // Re-validated on every save, unlike the caller number below: a calendar
+    // that has since been archived would otherwise keep an agent pointed at a
+    // calendar it can no longer book on, and the tool would fail mid-call.
+    if (dto.calendarId) {
+      await this.assertRingeeCalendarUsable(ctx, dto.calendarId);
     }
     // Only a *changed* assignment is validated. Re-saving an agent whose number
     // has since been released would otherwise fail on a field the user did not
@@ -699,6 +721,9 @@ export class VoiceAgentService {
       ...(dto.calendarIntegrationId !== undefined
         ? { calendarIntegrationId: dto.calendarIntegrationId }
         : {}),
+      // Changing this affects new calls only. Meetings already booked keep the
+      // calendar they were booked on, and a call in flight keeps its pin.
+      ...(dto.calendarId !== undefined ? { calendarId: dto.calendarId } : {}),
       ...(dto.meetingDurationMinutes !== undefined
         ? { meetingDurationMinutes: dto.meetingDurationMinutes }
         : {}),
@@ -1141,7 +1166,11 @@ export class VoiceAgentService {
       llmApiKeyRef: agent.llmApiKeyRef,
       voiceId: agent.voiceId,
       language,
-      dynamicVariables: this.defaultDynamicVariables(agent, company),
+      dynamicVariables: this.defaultDynamicVariables(
+        agent,
+        company,
+        promptContext.timezone,
+      ),
       tools,
       insightGroupId,
       maxCallSeconds: apiConfiguration.AI_VOICE_AGENT_MAX_CALL_SECONDS,
@@ -1164,7 +1193,10 @@ export class VoiceAgentService {
       agentName: agent.name,
       company,
       language: agent.voiceLanguage ?? "en",
-      timezone: agent.timezone,
+      // The calendar's zone, not the agent's field: the availability tool reads
+      // the calendar's windows in the calendar's zone, and the prompt must name
+      // the same one or the agent will say times it was never offered.
+      timezone: await this.effectiveTimezone(ctx, agent),
       meetingDurationMinutes: agent.meetingDurationMinutes,
       meetingTitle: agent.meetingTitle,
     };
@@ -1211,13 +1243,44 @@ export class VoiceAgentService {
     ctx: OwnershipContext,
     agent: AiVoiceAgent,
   ): Promise<Record<string, string>> {
-    const company = await this.companyProfiles.resolveForAgent(ctx, agent);
-    return this.defaultDynamicVariables(agent, company);
+    const [company, timezone] = await Promise.all([
+      this.companyProfiles.resolveForAgent(ctx, agent),
+      this.effectiveTimezone(ctx, agent),
+    ]);
+    return this.defaultDynamicVariables(agent, company, timezone);
+  }
+
+  /**
+   * The time zone this agent actually works in.
+   *
+   * The calendar it books against owns its windows, so its zone wins over the
+   * agent's own `timezone` field. That field stays as the fallback for an agent
+   * whose calendar cannot be read, and for agent types that never book.
+   */
+  private async effectiveTimezone(
+    ctx: OwnershipContext,
+    agent: AiVoiceAgent,
+  ): Promise<string | null> {
+    try {
+      const resolved = await this.calendarService.resolveCalendar(ctx, {
+        calendarId: agent.calendarId,
+        allowArchived: true,
+      });
+      return resolved.timezone;
+    } catch (error) {
+      this.logger.warn(
+        `Falling back to the agent's own time zone for ${agent.id}: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+      return agent.timezone;
+    }
   }
 
   private defaultDynamicVariables(
     agent: AiVoiceAgent,
     company: { name: string; description: string; website: string },
+    timezone: string | null | undefined,
   ): Record<string, string> {
     const blueprint = this.blueprints.require(agent.type);
     const variables: Record<string, string> = {
@@ -1225,7 +1288,7 @@ export class VoiceAgentService {
       company_name: company.name,
       company_description: company.description,
       company_website: company.website,
-      ...voiceAgentRuntimeVariables(agent.timezone),
+      ...voiceAgentRuntimeVariables(timezone ?? agent.timezone),
     };
     for (const variable of blueprint.variables) {
       variables[variable.key] = "";
@@ -1346,6 +1409,22 @@ export class VoiceAgentService {
     );
     if (!integrations.some((i) => i.id === calendarIntegrationId)) {
       throw new NotFoundException("Calendar integration not found");
+    }
+  }
+
+  /**
+   * A Ringee calendar may only be assigned if this workspace owns it and it is
+   * still active — the client sends an id, never the right to book on it.
+   */
+  private async assertRingeeCalendarUsable(
+    ctx: OwnershipContext,
+    calendarId: string,
+  ): Promise<void> {
+    const calendar = await this.calendarService.getCalendar(ctx, calendarId);
+    if (calendar.archivedAt) {
+      throw new BadRequestException(
+        `The calendar "${calendar.name}" is archived and cannot be assigned to an agent.`,
+      );
     }
   }
 

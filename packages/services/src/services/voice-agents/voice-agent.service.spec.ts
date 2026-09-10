@@ -57,6 +57,14 @@ function build(currentWebhookUrls: string[], runtimeContextConfigured = true) {
     } as never,
     {} as never,
     {} as never,
+    {
+      resolveCalendar: async () => ({
+        calendar: { id: "cal-global", timezone: "UTC", isDefault: true },
+        scope: { calendarId: "cal-global", isDefault: true },
+        timezone: "UTC",
+        destination: null,
+      }),
+    } as never,
     {} as never,
     {} as never,
   );

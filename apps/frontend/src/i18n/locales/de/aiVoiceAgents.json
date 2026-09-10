@@ -111,21 +111,18 @@
     "keySaved": "Gespeichert — gib einen neuen Schlüssel ein, um ihn zu ersetzen",
     "meetings": "Termine",
     "meetingsHint": "Wo und wie der Agent bucht.",
-    "noCalendar": "Kein Kalender verbunden — der Agent kann gespeichert, aber erst mit Kalender aktiviert werden.",
-    "connectCalendar": "Kalender verbinden",
     "calendar": "Kalender",
-    "calendarHint": "Von hier liest der Agent freie Zeiten und bucht hinein.",
+    "calendarHint": "In welchem Ringee-Kalender dieser Agent bucht. Zeitfenster, Zeitzone und Kapazität teilen sich alle Agenten, die ihn nutzen.",
     "chooseCalendar": "Kalender wählen",
     "duration": "Dauer",
     "durationHint": "In Minuten.",
     "timezone": "Zeitzone",
-    "timezoneHint": "Die Zeiten, die der Agent anbietet.",
+    "timezoneHint": "Nur als Rückfallwert — die Zeitzone des Kalenders bestimmt die angebotenen Zeiten.",
     "meetingTitle": "Termintitel",
     "meetingTitleHint": "Was im Kalender landet.",
-    "calendars": {
-      "google": "Google Calendar",
-      "microsoft": "Outlook Calendar"
-    }
+    "globalCalendar": "Globalen Kalender verwenden",
+    "effectiveCalendar": "Dieser Agent bucht in {name} ({timezone}).",
+    "manageAvailability": "Verfügbarkeit verwalten"
   },
   "voice": {
     "title": "Stimme",

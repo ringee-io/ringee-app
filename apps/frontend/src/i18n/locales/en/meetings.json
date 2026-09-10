@@ -9,7 +9,7 @@
     "upcoming": "Upcoming",
     "all": "All",
     "calendar": "Calendar",
-    "availability": "Availability",
+    "calendars": "Calendars",
     "integrations": "Integrations"
   },
   "sections": {
@@ -148,5 +148,54 @@
     "failedToLoad": "Failed to load meetings",
     "cancelled": "Meeting cancelled",
     "failedToCancel": "Failed to cancel meeting"
+  },
+  "calendars": {
+    "title": "Calendars",
+    "description": "Every workspace has one global calendar. Add more when different agents need their own hours, time zone or capacity.",
+    "agentHint": "Ringee is the only source of availability. Google is optional and only receives a copy of a booking that already exists here.",
+    "add": "Add calendar",
+    "newName": "New calendar",
+    "created": "Calendar created",
+    "createFailed": "Could not create the calendar.",
+    "loadFailed": "Could not load calendars.",
+    "retry": "Try again",
+    "globalBadge": "Global",
+    "archivedBadge": "Archived",
+    "agentsUsing": "{count, plural, =0 {No agents} one {# agent} other {# agents}}",
+    "details": "Calendar",
+    "name": "Name",
+    "timezone": "Time zone",
+    "timezoneHint": "The zone the hours below are in. It wins over an agent's own time zone.",
+    "save": "Save calendar",
+    "saved": "Calendar saved",
+    "saveFailed": "Could not save the calendar.",
+    "archive": "Archive",
+    "restore": "Restore",
+    "archiveFailed": "Could not archive the calendar.",
+    "archivedHint": "Archived. Its meetings and history are kept, but it takes no new bookings and is not offered to agents.",
+    "connection": "Google Calendar (optional)",
+    "connectionHint": "Where bookings made here are copied. It never decides which times Ringee offers, and a calendar with no connection books normally.",
+    "connectGoogle": "Connect Google Calendar",
+    "disconnect": "Disconnect",
+    "disconnectFailed": "Could not disconnect the account.",
+    "externalCalendar": "Create events in",
+    "externalPrimary": "Primary calendar",
+    "externalLoadFailed": "Could not read the connected account's calendars. Reconnect it and try again.",
+    "agents": "Agents using this calendar",
+    "agentsEmpty": "No agent books on this calendar yet.",
+    "agentsGlobalEmpty": "Every agent with no calendar of its own books here, along with the dialer and campaigns.",
+    "availability": "Booking availability",
+    "providers": {
+      "google": "Google Calendar",
+      "microsoft": "Outlook Calendar"
+    }
+  },
+  "externalSync": {
+    "pending": "External calendar event pending",
+    "failed": "External calendar event failed",
+    "bookingSafe": "The meeting is confirmed in Ringee. Only the copy on the connected calendar is affected.",
+    "retry": "Retry external event",
+    "retrySucceeded": "External event created.",
+    "retryFailed": "The external event could not be created."
   }
 }

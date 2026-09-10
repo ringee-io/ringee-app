@@ -157,6 +157,9 @@ export interface VoiceAgent {
   conversationSettings?: VoiceAgentConversationSettings | null;
   /** The number the agent calls from; null means "choose it at trigger time". */
   callerNumberId: string | null;
+  /** The Ringee calendar it books on; null means the workspace's global one. */
+  calendarId: string | null;
+  /** Legacy external destination for its events. Not a Ringee calendar. */
   calendarIntegrationId: string | null;
   meetingDurationMinutes: number;
   timezone: string | null;
@@ -220,6 +223,18 @@ export interface CalendarIntegrationOption {
   provider: string;
   email: string | null;
   isActive: boolean;
+}
+
+/** A Ringee calendar an agent can be pointed at. */
+export interface RingeeCalendarOption {
+  id: string;
+  name: string;
+  timezone: string;
+  isDefault: boolean;
+  archivedAt: string | null;
+  integration: { id: string; provider: string; email: string | null } | null;
+  externalCalendarId: string | null;
+  agentCount: number;
 }
 
 export interface TestSession {

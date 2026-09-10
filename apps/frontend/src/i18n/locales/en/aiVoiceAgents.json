@@ -111,22 +111,18 @@
     "keySaved": "Saved — enter a new key to replace it",
     "meetings": "Meetings",
     "meetingsHint": "Where and how the agent books.",
-    "noCalendar": "No external calendar connected. This is optional: the agent still books with Ringee availability.",
-    "connectCalendar": "Connect an optional calendar",
-    "calendar": "External calendar (optional)",
-    "calendarHint": "Ringee owns availability and bookings. Choose an integration only to sync events and video links.",
+    "calendar": "Calendar",
+    "calendarHint": "Which Ringee calendar this agent books on. Its hours, time zone and capacity are shared with every agent that uses it.",
     "chooseCalendar": "Choose a calendar",
-    "ringeeCalendar": "Ringee only · no external sync",
     "duration": "Duration",
     "durationHint": "In minutes.",
     "timezone": "Time zone",
-    "timezoneHint": "The times the agent offers.",
+    "timezoneHint": "Fallback only — the calendar's time zone decides the times the agent offers.",
     "meetingTitle": "Meeting title",
     "meetingTitleHint": "What lands in the calendar.",
-    "calendars": {
-      "google": "Google Calendar",
-      "microsoft": "Outlook Calendar"
-    }
+    "globalCalendar": "Use global calendar",
+    "effectiveCalendar": "This agent books on {name} ({timezone}).",
+    "manageAvailability": "Manage availability"
   },
   "voice": {
     "title": "Voice",

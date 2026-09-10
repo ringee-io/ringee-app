@@ -9,6 +9,7 @@
     "upcoming": "In arrivo",
     "all": "Tutte",
     "calendar": "Calendario",
+    "calendars": "Calendari",
     "integrations": "Integrazioni"
   },
   "sections": {
@@ -55,5 +56,54 @@
     "failedToLoad": "Impossibile caricare le riunioni",
     "cancelled": "Riunione annullata",
     "failedToCancel": "Impossibile annullare la riunione"
+  },
+  "calendars": {
+    "title": "Calendari",
+    "description": "Ogni spazio di lavoro ha un calendario globale. Aggiungine altri quando agenti diversi hanno bisogno di fasce, fuso orario o capacità propri.",
+    "agentHint": "Ringee è l'unica fonte di disponibilità. Google è facoltativo e riceve solo una copia di una prenotazione che esiste già qui.",
+    "add": "Aggiungi calendario",
+    "newName": "Nuovo calendario",
+    "created": "Calendario creato",
+    "createFailed": "Impossibile creare il calendario.",
+    "loadFailed": "Impossibile caricare i calendari.",
+    "retry": "Riprova",
+    "globalBadge": "Globale",
+    "archivedBadge": "Archiviato",
+    "agentsUsing": "{count, plural, =0 {Nessun agente} one {# agente} other {# agenti}}",
+    "details": "Calendario",
+    "name": "Nome",
+    "timezone": "Fuso orario",
+    "timezoneHint": "Il fuso delle fasce qui sotto. Prevale sul fuso orario dell'agente.",
+    "save": "Salva calendario",
+    "saved": "Calendario salvato",
+    "saveFailed": "Impossibile salvare il calendario.",
+    "archive": "Archivia",
+    "restore": "Ripristina",
+    "archiveFailed": "Impossibile archiviare il calendario.",
+    "archivedHint": "Archiviato. Riunioni e cronologia restano, ma non accetta nuove prenotazioni e non viene proposto agli agenti.",
+    "connection": "Google Calendar (facoltativo)",
+    "connectionHint": "Dove vengono copiate le prenotazioni fatte qui. Non decide mai quali orari offre Ringee, e un calendario senza connessione prenota normalmente.",
+    "connectGoogle": "Collega Google Calendar",
+    "disconnect": "Scollega",
+    "disconnectFailed": "Impossibile scollegare l'account.",
+    "externalCalendar": "Crea eventi in",
+    "externalPrimary": "Calendario principale",
+    "externalLoadFailed": "Impossibile leggere i calendari dell'account collegato. Ricollegalo e riprova.",
+    "agents": "Agenti che usano questo calendario",
+    "agentsEmpty": "Nessun agente prenota ancora su questo calendario.",
+    "agentsGlobalEmpty": "Qui prenotano tutti gli agenti senza calendario proprio, oltre al dialer e alle campagne.",
+    "availability": "Disponibilità per le prenotazioni",
+    "providers": {
+      "google": "Google Calendar",
+      "microsoft": "Outlook Calendar"
+    }
+  },
+  "externalSync": {
+    "pending": "Evento del calendario esterno in sospeso",
+    "failed": "Evento del calendario esterno non riuscito",
+    "bookingSafe": "La riunione è confermata in Ringee. È interessata solo la copia sul calendario collegato.",
+    "retry": "Riprova l'evento esterno",
+    "retrySucceeded": "Evento esterno creato.",
+    "retryFailed": "Impossibile creare l'evento esterno."
   }
 }

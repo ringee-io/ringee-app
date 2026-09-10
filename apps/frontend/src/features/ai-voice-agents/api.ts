@@ -24,7 +24,7 @@ import type {
   VoiceCloneReadingSample,
   VoiceCloneQuote
 } from './types';
-import type { CalendarIntegrationOption } from './types';
+import type { CalendarIntegrationOption, RingeeCalendarOption } from './types';
 
 const BASE = '/ai-voice-agents';
 
@@ -41,6 +41,7 @@ export interface SaveAgentBody {
   extractionFields?: VoiceAgentExtractionField[];
   conversation?: VoiceAgentConversationSettings;
   callerNumberId?: string | null;
+  calendarId?: string | null;
   calendarIntegrationId?: string | null;
   meetingDurationMinutes?: number;
   timezone?: string | null;
@@ -95,6 +96,13 @@ export function useVoiceAgentApi() {
        */
       listCalendars: () =>
         api.get<CalendarIntegrationOption[]>('/calendar/integrations'),
+
+      /**
+       * The Ringee calendars an agent may be pointed at. The global calendar is
+       * always first; archived ones are not offered.
+       */
+      listRingeeCalendars: () =>
+        api.get<RingeeCalendarOption[]>('/calendar/calendars'),
 
       /**
        * The numbers this workspace may call from. Eligibility is the server's

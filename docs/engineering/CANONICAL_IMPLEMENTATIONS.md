@@ -87,7 +87,11 @@ Adding a second implementation of one of these is a defect, not a refactor.
 | Model behind each user choice         | `resolveVoiceAgentModel` — `platform/src/voice-agents/models.catalog.ts`        |
 | BYO LLM key verification              | `LlmCredentialVerifier`                                                         |
 | Bookable slots for an agent           | `CalendarService.getBookableSlots` (strict; AGENT-002)                          |
+| Which calendar a booking uses         | `CalendarService.resolveCalendar` — never a model-supplied id                   |
+| Ringee calendars (CRUD, archive)      | `CalendarService` + `CalendarRepository`                                        |
+| The workspace's global calendar       | `CalendarService.ensureGlobalCalendar`                                          |
 | Recurring booking hours and capacity  | `CalendarService.updateAvailabilitySettings` + `CalendarAvailabilityRepository` |
+| Pushing a booking to Google/Microsoft | `CalendarService.syncMeetingToExternalCalendar` (idempotent; CAL-002)           |
 | Fetching a user-supplied web page     | `requirePublicUrl` — `services/voice-agents/public-url.ts`                      |
 | Create / edit surface (full screen)   | `AgentScreen` + `useAgentDraft` — `features/ai-voice-agents/`                   |
 

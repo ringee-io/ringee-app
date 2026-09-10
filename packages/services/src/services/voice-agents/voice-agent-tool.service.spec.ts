@@ -19,7 +19,24 @@ const AGENT = {
   timezone: "America/New_York",
   meetingDurationMinutes: 30,
   meetingTitle: "Product Demo",
+  // No Ringee calendar selected: this agent resolves to the global one, and
+  // keeps pushing its events to the Google account it was pointed at.
+  calendarId: null,
   calendarIntegrationId: "cal-1",
+};
+
+/** The calendar the agent resolves to, as `CalendarService` hands it back. */
+const RESOLVED_CALENDAR = {
+  calendar: {
+    id: "cal-global",
+    name: "Global calendar",
+    timezone: "America/New_York",
+    isDefault: true,
+    archivedAt: null,
+  },
+  scope: { calendarId: "cal-global", isDefault: true },
+  timezone: "America/New_York",
+  destination: { integrationId: "cal-1", externalCalendarId: null },
 };
 
 function build(
@@ -32,6 +49,10 @@ function build(
       capacity?: number | null;
     }>;
     slotsError?: Error;
+    resolveError?: Error;
+    resolvedCalendar?: Record<string, unknown>;
+    /** A calendar already pinned to the call by an earlier tool call. */
+    pinnedCalendarId?: string | null;
     updateErrors?: Error[];
     agentCall?: Record<string, unknown> | null;
     meeting?: Record<string, unknown>;
@@ -52,6 +73,8 @@ function build(
   const created: Array<Record<string, unknown>> = [];
   const lookups: string[] = [];
   const availabilityChecks: Array<Record<string, unknown>> = [];
+  const resolveCalls: Array<Record<string, unknown>> = [];
+  const pinnedCalendars: Array<{ id: string; calendarId: string }> = [];
   const supportRequests: Array<Record<string, unknown>> = [];
   const callbacks: Array<Record<string, unknown>> = [];
   const callbackOutcomes: Array<Record<string, unknown>> = [];
@@ -83,10 +106,29 @@ function build(
         if (error) throw error;
         return {};
       },
+      findById: async (id: string) => ({
+        id,
+        calendarId: over.pinnedCalendarId ?? null,
+      }),
+      pinCalendarIfUnset: async (id: string, calendarId: string) => {
+        // Mirrors the conditional write: null means someone else pinned first.
+        if (over.pinnedCalendarId) return null;
+        pinnedCalendars.push({ id, calendarId });
+        return { id, calendarId };
+      },
     } as never,
     {
-      getBookableSlots: async (
+      resolveCalendar: async (
         _ctx: unknown,
+        opts: Record<string, unknown> = {},
+      ) => {
+        resolveCalls.push(opts);
+        if (over.resolveError) throw over.resolveError;
+        return over.resolvedCalendar ?? RESOLVED_CALENDAR;
+      },
+      getBookableSlotsForCalendar: async (
+        _ctx: unknown,
+        _calendar: unknown,
         opts: Record<string, unknown>,
       ) => {
         availabilityChecks.push(opts);
@@ -181,6 +223,8 @@ function build(
     created,
     lookups,
     availabilityChecks,
+    resolveCalls,
+    pinnedCalendars,
     supportRequests,
     callbacks,
     callbackOutcomes,
@@ -192,7 +236,7 @@ describe("VoiceAgentToolService authorization", () => {
     const { service } = build();
     await assert.rejects(
       () =>
-        service.getAvailableSlots("agent-1", "not-the-secret", {
+        service.getAvailableSlots("agent-1", "not-the-secret", "cc-1", {
           date: "2026-09-04",
         }),
       /Invalid tool credentials/,
@@ -203,7 +247,9 @@ describe("VoiceAgentToolService authorization", () => {
     const { service } = build({ agent: null });
     await assert.rejects(
       () =>
-        service.getAvailableSlots("agent-1", SECRET, { date: "2026-09-04" }),
+        service.getAvailableSlots("agent-1", SECRET, "cc-1", {
+          date: "2026-09-04",
+        }),
       /Unknown agent/,
     );
   });
@@ -229,7 +275,7 @@ describe("VoiceAgentToolService availability", () => {
     }));
     const { service } = build({ slots });
 
-    const result = await service.getAvailableSlots("agent-1", SECRET, {
+    const result = await service.getAvailableSlots("agent-1", SECRET, "cc-1", {
       date: "2026-09-04",
     });
 
@@ -248,7 +294,7 @@ describe("VoiceAgentToolService availability", () => {
       slotsError: new Error("Ringee calendar unavailable"),
     });
 
-    const result = await service.getAvailableSlots("agent-1", SECRET, {
+    const result = await service.getAvailableSlots("agent-1", SECRET, "cc-1", {
       date: "2026-09-04",
     });
 
@@ -261,7 +307,9 @@ describe("VoiceAgentToolService availability", () => {
     const { service } = build();
     await assert.rejects(
       () =>
-        service.getAvailableSlots("agent-1", SECRET, { date: "next tuesday" }),
+        service.getAvailableSlots("agent-1", SECRET, "cc-1", {
+          date: "next tuesday",
+        }),
       /YYYY-MM-DD/,
     );
   });
@@ -291,12 +339,10 @@ describe("VoiceAgentToolService booking", () => {
     assert.equal("slotCapacity" in (created[0] ?? {}), false);
     assert.equal(created[0]?.agentCallId, "call-1");
     assert.deepEqual(availabilityChecks, [
-      {
-        date: "2099-01-05",
-        timeZone: "America/New_York",
-        durationMinutes: 30,
-      },
+      { date: "2099-01-05", durationMinutes: 30 },
     ]);
+    // The calendar is resolved from the stored agent, never from the model.
+    assert.equal(created[0]?.resolvedCalendar, RESOLVED_CALENDAR);
     // The tool knows a meeting exists; the later transcript analysis must not
     // be the thing that decides this.
     assert.deepEqual(updates, [
@@ -596,5 +642,123 @@ describe("VoiceAgentToolService human support", () => {
     assert.equal(result.ok, false);
     if (result.ok) return;
     assert.match(result.error, /Do not promise/);
+  });
+});
+
+describe("VoiceAgentToolService calendar resolution", () => {
+  const SALES_CALENDAR = {
+    calendar: {
+      id: "cal-sales",
+      name: "Sales",
+      timezone: "Europe/Madrid",
+      isDefault: false,
+      archivedAt: null,
+    },
+    scope: { calendarId: "cal-sales", isDefault: false },
+    timezone: "Europe/Madrid",
+    destination: null,
+  };
+
+  it("resolves the agent's calendar from the stored row, not the request", async () => {
+    const { service, resolveCalls } = build({
+      agent: { ...AGENT, calendarId: "cal-sales" },
+      resolvedCalendar: SALES_CALENDAR,
+    });
+
+    await service.getAvailableSlots("agent-1", SECRET, "cc-1", {
+      date: "2026-09-04",
+    });
+
+    assert.equal(resolveCalls[0]?.calendarId, "cal-sales");
+    assert.equal(resolveCalls[0]?.fallbackIntegrationId, "cal-1");
+  });
+
+  it("answers in the calendar's time zone, not the agent's own field", async () => {
+    const { service } = build({
+      // The agent still says America/New_York; the calendar says Europe/Madrid.
+      agent: { ...AGENT, calendarId: "cal-sales" },
+      resolvedCalendar: SALES_CALENDAR,
+    });
+
+    const result = await service.getAvailableSlots("agent-1", SECRET, "cc-1", {
+      date: "2026-09-04",
+    });
+
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.timezone, "Europe/Madrid");
+  });
+
+  it("pins the resolved calendar to the call on first use", async () => {
+    const { service, pinnedCalendars } = build();
+
+    await service.getAvailableSlots("agent-1", SECRET, "cc-1", {
+      date: "2026-09-04",
+    });
+
+    assert.deepEqual(pinnedCalendars, [
+      { id: "call-1", calendarId: "cal-global" },
+    ]);
+  });
+
+  it("keeps a call on the calendar it was pinned to when the agent is edited", async () => {
+    // The agent now points at cal-sales, but this conversation already offered
+    // times from the calendar pinned when it started.
+    const { service, resolveCalls } = build({
+      agent: { ...AGENT, calendarId: "cal-sales" },
+      agentCall: {
+        id: "call-1",
+        agentId: "agent-1",
+        userId: "user-1",
+        organizationId: "org-1",
+        contactId: "contact-1",
+        callId: "c-1",
+        toNumber: "+13055550123",
+        calendarId: "cal-global",
+      },
+    });
+
+    await service.bookAppointment("agent-1", SECRET, "cc-1", {
+      start: FUTURE,
+    });
+
+    assert.equal(resolveCalls[0]?.calendarId, "cal-global");
+    assert.equal(resolveCalls[0]?.allowArchived, true);
+  });
+
+  it("reports an archived calendar rather than silently using the global one", async () => {
+    const { service } = build({
+      agent: { ...AGENT, calendarId: "cal-sales" },
+      resolveError: new Error(
+        'The calendar "Sales" is archived and cannot take new bookings.',
+      ),
+    });
+
+    const slots = await service.getAvailableSlots("agent-1", SECRET, "cc-1", {
+      date: "2026-09-04",
+    });
+    const booking = await service.bookAppointment("agent-1", SECRET, "cc-1", {
+      start: FUTURE,
+    });
+
+    assert.equal(slots.ok, false);
+    assert.equal(booking.ok, false);
+    if (slots.ok || booking.ok) return;
+    assert.match(slots.error, /calendar is not available/);
+    assert.match(booking.error, /calendar is not available/);
+  });
+
+  it("refuses an availability lookup on another agent's call", async () => {
+    const { service } = build({
+      agentCall: { id: "call-9", agentId: "another-agent" },
+    });
+
+    await assert.rejects(
+      () =>
+        service.getAvailableSlots("agent-1", SECRET, "cc-1", {
+          date: "2026-09-04",
+        }),
+      /does not belong to this agent/,
+    );
   });
 });

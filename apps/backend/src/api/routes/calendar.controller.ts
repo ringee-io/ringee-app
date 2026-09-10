@@ -2,6 +2,7 @@ import {
   BadRequestException,
   Controller,
   Get,
+  Patch,
   Post,
   Put,
   Delete,
@@ -27,6 +28,29 @@ import {
 import { CalendarProvider } from "@ringee/database";
 import { Response, Request } from "express";
 
+/**
+ * The OAuth `state` Ringee round-trips through the provider.
+ *
+ * `calendarId` is which Ringee calendar the user pressed "connect" on, so the
+ * account lands attached to it. It is only ever a hint: the callback still
+ * verifies the calendar belongs to the workspace in the state before linking.
+ */
+interface CalendarOAuthState {
+  userId: string;
+  orgId: string | null;
+  calendarId: string | null;
+}
+
+function encodeOAuthState(state: CalendarOAuthState): string {
+  return Buffer.from(JSON.stringify(state)).toString("base64url");
+}
+
+function decodeOAuthState(state: string): CalendarOAuthState {
+  return JSON.parse(
+    Buffer.from(state, "base64url").toString(),
+  ) as CalendarOAuthState;
+}
+
 @Controller("calendar")
 export class CalendarController {
   constructor(private readonly calendarService: CalendarService) {}
@@ -37,11 +61,14 @@ export class CalendarController {
   async googleOAuthRedirect(
     @CurrentUser() user: CurrentUserData,
     @Res() res: Response,
+    @Query("calendarId") calendarId?: string,
   ) {
     const redirectUri = `${process.env.BACKEND_URL}/api/calendar/oauth/google/callback`;
-    const state = Buffer.from(
-      JSON.stringify({ userId: user.id, orgId: user.activeOrgId }),
-    ).toString("base64");
+    const state = encodeOAuthState({
+      userId: user.id,
+      orgId: user.activeOrgId ?? null,
+      calendarId: calendarId ?? null,
+    });
     const url = this.calendarService.getGoogleOAuthUrl(redirectUri, state);
     res.redirect(url);
   }
@@ -56,7 +83,7 @@ export class CalendarController {
     try {
       const redirectUri = `${process.env.BACKEND_URL}/api/calendar/oauth/google/callback`;
 
-      const stateData = JSON.parse(Buffer.from(state, "base64").toString());
+      const stateData = decodeOAuthState(state);
       const ctx = { userId: stateData.userId, organizationId: stateData.orgId };
 
       const tokens = await this.calendarService.exchangeGoogleCode(
@@ -70,6 +97,7 @@ export class CalendarController {
         refreshToken: tokens.refreshToken,
         expiresAt: tokens.expiresAt?.toISOString(),
         email: tokens.email,
+        linkCalendarId: stateData.calendarId,
       });
 
       // Redirect to frontend meetings page with success param
@@ -91,11 +119,14 @@ export class CalendarController {
   async microsoftOAuthRedirect(
     @CurrentUser() user: CurrentUserData,
     @Res() res: Response,
+    @Query("calendarId") calendarId?: string,
   ) {
     const redirectUri = `${process.env.BACKEND_URL}/api/calendar/oauth/microsoft/callback`;
-    const state = Buffer.from(
-      JSON.stringify({ userId: user.id, orgId: user.activeOrgId }),
-    ).toString("base64");
+    const state = encodeOAuthState({
+      userId: user.id,
+      orgId: user.activeOrgId ?? null,
+      calendarId: calendarId ?? null,
+    });
     const url = this.calendarService.getMicrosoftOAuthUrl(redirectUri, state);
     res.redirect(url);
   }
@@ -112,7 +143,7 @@ export class CalendarController {
       const host = req.headers["x-forwarded-host"] || req.get("host");
       const redirectUri = `${protocol}://${host}/api/calendar/oauth/microsoft/callback`;
 
-      const stateData = JSON.parse(Buffer.from(state, "base64").toString());
+      const stateData = decodeOAuthState(state);
       const ctx = { userId: stateData.userId, organizationId: stateData.orgId };
 
       const tokens = await this.calendarService.exchangeMicrosoftCode(
@@ -126,6 +157,7 @@ export class CalendarController {
         refreshToken: tokens.refreshToken,
         expiresAt: tokens.expiresAt?.toISOString(),
         email: tokens.email,
+        linkCalendarId: stateData.calendarId,
       });
 
       const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
@@ -174,6 +206,136 @@ export class CalendarController {
     return this.calendarService.disconnectCalendar(ctx, id);
   }
 
+  @Get("integrations/:id/external-calendars")
+  async listExternalCalendars(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.calendarService.listExternalCalendars(
+      createOwnershipContext(user),
+      id,
+    );
+  }
+
+  // --- Ringee calendars ---
+
+  @Get("calendars")
+  async listCalendars(
+    @CurrentUser() user: CurrentUserData,
+    @Query("includeArchived") includeArchived?: string,
+  ) {
+    return this.calendarService.listCalendars(createOwnershipContext(user), {
+      includeArchived: includeArchived === "true",
+    });
+  }
+
+  @Post("calendars")
+  async createCalendar(
+    @Body() dto: { name: string; timezone: string },
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.calendarService.createCalendar(
+      createOwnershipContext(user),
+      dto,
+    );
+  }
+
+  @Get("calendars/:id")
+  async getCalendar(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.calendarService.getCalendar(createOwnershipContext(user), id);
+  }
+
+  @Patch("calendars/:id")
+  async updateCalendar(
+    @Param("id") id: string,
+    @Body() dto: { name?: string; timezone?: string },
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.calendarService.updateCalendar(
+      createOwnershipContext(user),
+      id,
+      dto,
+    );
+  }
+
+  @Post("calendars/:id/archive")
+  async archiveCalendar(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.calendarService.setCalendarArchived(
+      createOwnershipContext(user),
+      id,
+      true,
+    );
+  }
+
+  @Post("calendars/:id/restore")
+  async restoreCalendar(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.calendarService.setCalendarArchived(
+      createOwnershipContext(user),
+      id,
+      false,
+    );
+  }
+
+  @Put("calendars/:id/connection")
+  async setCalendarConnection(
+    @Param("id") id: string,
+    @Body()
+    dto: { integrationId: string | null; externalCalendarId?: string | null },
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.calendarService.setCalendarConnection(
+      createOwnershipContext(user),
+      id,
+      dto,
+    );
+  }
+
+  @Get("calendars/:id/agents")
+  async listCalendarAgents(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.calendarService.listAgentsUsingCalendar(
+      createOwnershipContext(user),
+      id,
+    );
+  }
+
+  @Get("calendars/:id/availability-settings")
+  async getCalendarAvailabilitySettings(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.calendarService.getAvailabilitySettings(
+      createOwnershipContext(user),
+      id,
+    );
+  }
+
+  @Put("calendars/:id/availability-settings")
+  async updateCalendarAvailabilitySettings(
+    @Param("id") id: string,
+    @Body() dto: { windows: CalendarAvailabilityWindow[] },
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    return this.calendarService.updateAvailabilitySettings(
+      createOwnershipContext(user),
+      dto.windows,
+      id,
+    );
+  }
+
+  // The workspace's global calendar, unchanged for the consumers that were
+  // reading and writing it before additional calendars existed.
   @Get("availability-settings")
   async getAvailabilitySettings(@CurrentUser() user: CurrentUserData) {
     return this.calendarService.getAvailabilitySettings(
@@ -200,6 +362,7 @@ export class CalendarController {
     @Query("timeZone") timeZone = "UTC",
     @Query("duration") duration: unknown = "30",
     @CurrentUser() user: CurrentUserData,
+    @Query("calendarId") calendarId?: string,
   ) {
     if (typeof duration !== "string") {
       throw new BadRequestException("duration must be a single number.");
@@ -219,6 +382,7 @@ export class CalendarController {
         date,
         timeZone,
         durationMinutes,
+        calendarId,
       },
     );
     const formatter = new Intl.DateTimeFormat("en-US", {

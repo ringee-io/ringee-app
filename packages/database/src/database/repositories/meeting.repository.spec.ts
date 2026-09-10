@@ -17,7 +17,17 @@ const fixture = {
   agentId: randomUUID(),
   callId: randomUUID(),
   agentCallId: randomUUID(),
+  calendarId: randomUUID(),
+  personalCalendarId: randomUUID(),
+  secondCalendarId: randomUUID(),
 };
+
+const GLOBAL_SCOPE = { calendarId: fixture.calendarId, isDefault: true };
+const PERSONAL_SCOPE = {
+  calendarId: fixture.personalCalendarId,
+  isDefault: true,
+};
+const SECOND_SCOPE = { calendarId: fixture.secondCalendarId, isDefault: false };
 
 let databaseConnected = false;
 let databaseReady = false;
@@ -32,6 +42,7 @@ async function cleanupFixtures() {
   });
   await prisma.call.deleteMany({ where: { userId: fixture.userId } });
   await prisma.aiVoiceAgent.deleteMany({ where: { userId: fixture.userId } });
+  await prisma.calendar.deleteMany({ where: { userId: fixture.userId } });
   await prisma.contact.deleteMany({ where: { userId: fixture.userId } });
   await prisma.organization.deleteMany({
     where: { id: fixture.organizationId },
@@ -97,6 +108,31 @@ before(async () => {
       },
     ],
   });
+  await prisma.calendar.createMany({
+    data: [
+      {
+        id: fixture.calendarId,
+        userId: fixture.userId,
+        organizationId: fixture.organizationId,
+        name: "Global calendar",
+        isDefault: true,
+      },
+      {
+        id: fixture.personalCalendarId,
+        userId: fixture.userId,
+        organizationId: null,
+        name: "Global calendar",
+        isDefault: true,
+      },
+      {
+        id: fixture.secondCalendarId,
+        userId: fixture.userId,
+        organizationId: fixture.organizationId,
+        name: "Second calendar",
+        isDefault: false,
+      },
+    ],
+  });
   await prisma.aiVoiceAgent.create({
     data: {
       id: fixture.agentId,
@@ -149,11 +185,13 @@ describe("MeetingRepository.createIfAvailable", () => {
       contactId: fixture.organizationContactId,
       scheduledAt: new Date("2099-01-05T15:00:00.000Z"),
       duration: 30,
+      calendarId: fixture.calendarId,
     };
+    const scope = GLOBAL_SCOPE;
 
     const results = await Promise.all([
-      repository.createIfAvailable(ctx, data, null),
-      repository.createIfAvailable(ctx, data, null),
+      repository.createIfAvailable(ctx, data, scope, null),
+      repository.createIfAvailable(ctx, data, scope, null),
     ]);
 
     assertExactlyOneBooking(results);
@@ -176,11 +214,13 @@ describe("MeetingRepository.createIfAvailable", () => {
       contactId: fixture.personalContactId,
       scheduledAt: new Date("2099-01-06T15:00:00.000Z"),
       duration: 30,
+      calendarId: fixture.personalCalendarId,
     };
+    const scope = PERSONAL_SCOPE;
 
     const results = await Promise.all([
-      repository.createIfAvailable(ctx, data, null),
-      repository.createIfAvailable(ctx, data, null),
+      repository.createIfAvailable(ctx, data, scope, null),
+      repository.createIfAvailable(ctx, data, scope, null),
     ]);
 
     assertExactlyOneBooking(results);
@@ -207,6 +247,7 @@ describe("MeetingRepository.createIfAvailable", () => {
       contactId: fixture.organizationContactId,
       scheduledAt: new Date("2099-01-07T15:00:00.000Z"),
       duration: 30,
+      calendarId: fixture.calendarId,
     };
     await prisma.calendarAvailabilityRule.deleteMany({
       where: { userId: fixture.userId },
@@ -215,6 +256,7 @@ describe("MeetingRepository.createIfAvailable", () => {
       data: {
         userId: fixture.userId,
         organizationId: fixture.organizationId,
+        calendarId: fixture.calendarId,
         daysOfWeek: [3],
         startMinute: 15 * 60,
         endMinute: 16 * 60,
@@ -223,9 +265,9 @@ describe("MeetingRepository.createIfAvailable", () => {
     });
 
     const results = await Promise.all([
-      repository.createIfAvailable(ctx, data, rule.id),
-      repository.createIfAvailable(ctx, data, rule.id),
-      repository.createIfAvailable(ctx, data, rule.id),
+      repository.createIfAvailable(ctx, data, GLOBAL_SCOPE, rule.id),
+      repository.createIfAvailable(ctx, data, GLOBAL_SCOPE, rule.id),
+      repository.createIfAvailable(ctx, data, GLOBAL_SCOPE, rule.id),
     ]);
 
     assert.equal(results.filter(Boolean).length, 2);
@@ -243,6 +285,7 @@ describe("MeetingRepository.createIfAvailable", () => {
       contactId: fixture.organizationContactId,
       scheduledAt: new Date("2099-01-08T15:00:00.000Z"),
       duration: 30,
+      calendarId: fixture.calendarId,
     };
     await prisma.calendarAvailabilityRule.deleteMany({
       where: { userId: fixture.userId },
@@ -251,6 +294,7 @@ describe("MeetingRepository.createIfAvailable", () => {
       data: {
         userId: fixture.userId,
         organizationId: fixture.organizationId,
+        calendarId: fixture.calendarId,
         daysOfWeek: [4],
         startMinute: 15 * 60,
         endMinute: 16 * 60,
@@ -259,9 +303,9 @@ describe("MeetingRepository.createIfAvailable", () => {
     });
 
     const results = await Promise.all([
-      repository.createIfAvailable(ctx, data, rule.id),
-      repository.createIfAvailable(ctx, data, rule.id),
-      repository.createIfAvailable(ctx, data, rule.id),
+      repository.createIfAvailable(ctx, data, GLOBAL_SCOPE, rule.id),
+      repository.createIfAvailable(ctx, data, GLOBAL_SCOPE, rule.id),
+      repository.createIfAvailable(ctx, data, GLOBAL_SCOPE, rule.id),
     ]);
 
     assert.equal(results.filter(Boolean).length, 3);
@@ -280,6 +324,7 @@ describe("MeetingRepository.createIfAvailable", () => {
       agentCallId: fixture.agentCallId,
       scheduledAt: new Date("2099-01-09T15:00:00.000Z"),
       duration: 30,
+      calendarId: fixture.calendarId,
     };
     await prisma.calendarAvailabilityRule.deleteMany({
       where: { userId: fixture.userId },
@@ -288,6 +333,7 @@ describe("MeetingRepository.createIfAvailable", () => {
       data: {
         userId: fixture.userId,
         organizationId: fixture.organizationId,
+        calendarId: fixture.calendarId,
         daysOfWeek: [5],
         startMinute: 15 * 60,
         endMinute: 16 * 60,
@@ -296,8 +342,8 @@ describe("MeetingRepository.createIfAvailable", () => {
     });
 
     const results = await Promise.all([
-      repository.createIfAvailable(ctx, data, rule.id),
-      repository.createIfAvailable(ctx, data, rule.id),
+      repository.createIfAvailable(ctx, data, GLOBAL_SCOPE, rule.id),
+      repository.createIfAvailable(ctx, data, GLOBAL_SCOPE, rule.id),
     ]);
 
     assertExactlyOneBooking(results);
@@ -318,6 +364,7 @@ describe("MeetingRepository.createIfAvailable", () => {
       contactId: fixture.organizationContactId,
       scheduledAt: new Date("2099-01-10T15:00:00.000Z"),
       duration: 30,
+      calendarId: fixture.calendarId,
     };
     await prisma.calendarAvailabilityRule.deleteMany({
       where: { userId: fixture.userId },
@@ -326,6 +373,7 @@ describe("MeetingRepository.createIfAvailable", () => {
       data: {
         userId: fixture.userId,
         organizationId: fixture.organizationId,
+        calendarId: fixture.calendarId,
         daysOfWeek: [6],
         startMinute: 15 * 60,
         endMinute: 16 * 60,
@@ -338,10 +386,124 @@ describe("MeetingRepository.createIfAvailable", () => {
     });
 
     const results = await Promise.all([
-      repository.createIfAvailable(ctx, data, rule.id),
-      repository.createIfAvailable(ctx, data, rule.id),
+      repository.createIfAvailable(ctx, data, GLOBAL_SCOPE, rule.id),
+      repository.createIfAvailable(ctx, data, GLOBAL_SCOPE, rule.id),
     ]);
 
     assertExactlyOneBooking(results);
+  });
+
+  it("keeps capacity independent between two calendars", async (t) => {
+    if (!requireDatabase(t)) return;
+
+    const ctx = {
+      userId: fixture.userId,
+      organizationId: fixture.organizationId,
+    };
+    const scheduledAt = new Date("2099-01-11T15:00:00.000Z");
+    await prisma.calendarAvailabilityRule.deleteMany({
+      where: { userId: fixture.userId },
+    });
+    const [globalRule, secondRule] = await Promise.all([
+      prisma.calendarAvailabilityRule.create({
+        data: {
+          userId: fixture.userId,
+          organizationId: fixture.organizationId,
+          calendarId: fixture.calendarId,
+          daysOfWeek: [0],
+          startMinute: 15 * 60,
+          endMinute: 16 * 60,
+          capacity: 1,
+        },
+      }),
+      prisma.calendarAvailabilityRule.create({
+        data: {
+          userId: fixture.userId,
+          organizationId: fixture.organizationId,
+          calendarId: fixture.secondCalendarId,
+          daysOfWeek: [0],
+          startMinute: 15 * 60,
+          endMinute: 16 * 60,
+          capacity: 1,
+        },
+      }),
+    ]);
+
+    // Both calendars allow one booking at this time. Filling one must leave the
+    // other's slot open — a booking never consumes another calendar's capacity.
+    const first = await repository.createIfAvailable(
+      ctx,
+      {
+        contactId: fixture.organizationContactId,
+        scheduledAt,
+        duration: 30,
+        calendarId: fixture.calendarId,
+      },
+      GLOBAL_SCOPE,
+      globalRule.id,
+    );
+    const other = await repository.createIfAvailable(
+      ctx,
+      {
+        contactId: fixture.organizationContactId,
+        scheduledAt,
+        duration: 30,
+        calendarId: fixture.secondCalendarId,
+      },
+      SECOND_SCOPE,
+      secondRule.id,
+    );
+    const overflow = await repository.createIfAvailable(
+      ctx,
+      {
+        contactId: fixture.organizationContactId,
+        scheduledAt,
+        duration: 30,
+        calendarId: fixture.calendarId,
+      },
+      GLOBAL_SCOPE,
+      globalRule.id,
+    );
+
+    assert.ok(first);
+    assert.ok(other);
+    assert.equal(overflow, null);
+  });
+
+  it("does not see another calendar's meetings as busy", async (t) => {
+    if (!requireDatabase(t)) return;
+
+    const ctx = {
+      userId: fixture.userId,
+      organizationId: fixture.organizationId,
+    };
+    const start = new Date("2099-01-12T15:00:00.000Z");
+    const end = new Date("2099-01-12T16:00:00.000Z");
+    await prisma.meeting.create({
+      data: {
+        userId: fixture.userId,
+        organizationId: fixture.organizationId,
+        contactId: fixture.organizationContactId,
+        calendarId: fixture.secondCalendarId,
+        scheduledAt: start,
+        duration: 30,
+      },
+    });
+
+    const onSecond = await repository.findBusySlots(
+      ctx,
+      SECOND_SCOPE,
+      start,
+      end,
+    );
+    const onGlobal = await repository.findBusySlots(
+      ctx,
+      GLOBAL_SCOPE,
+      start,
+      end,
+    );
+
+    assert.equal(onSecond.length, 1);
+    assert.equal(onGlobal.length, 0);
   });
 });

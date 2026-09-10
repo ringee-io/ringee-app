@@ -723,6 +723,61 @@ It pushes to the user's active devices. With no active device, nothing happens.
 
 ---
 
+## Calendars & meetings (`CAL`)
+
+### CAL-001 — A booking belongs to exactly one Ringee calendar
+
+A workspace has one **global** calendar (`Calendar.isDefault`) plus any number of
+additional ones. The global calendar is what every consumer that names none
+resolves to: the manual dialer, campaigns, `POST /meetings`, `schedule_meeting`
+without a `calendarId`, and any AI voice agent with no `calendarId`. It cannot be
+archived, because those consumers have nowhere else to land.
+
+Availability windows, the time zone, capacity and meetings all belong to one
+calendar. A booking consumes only that calendar's capacity, so two calendars stay
+independent while two agents that share one share its capacity. Meeting rows that
+predate calendars carry no `calendarId` and count against the global calendar
+only — see `MeetingRepository.calendarSql`.
+
+Which calendar a request uses is decided by `CalendarService.resolveCalendar`,
+on the server, from stored configuration and the caller's workspace. A voice
+agent's tools cannot name a calendar: the id comes from the agent row and is
+pinned to `AiVoiceAgentCall.calendarId` on first use, so editing the agent
+mid-call cannot move the booking away from the calendar whose times were already
+offered out loud. A calendar that is explicitly assigned but archived or invalid
+is an error, never a silent fall back to the global one. The calendar's time zone
+outranks `AiVoiceAgent.timezone` — the windows are wall-clock times on that
+calendar.
+
+- **Source of truth:** `CalendarService.resolveCalendar`,
+  `MeetingRepository.createIfAvailable`
+- **Risk if violated:** an agent books on a calendar nobody is watching, or one
+  calendar's bookings eat another's capacity
+
+### CAL-002 — The external calendar event is a copy, and never duplicated
+
+A Ringee booking is confirmed the moment `MeetingRepository` writes it. Pushing
+it to the calendar's optional Google/Microsoft destination happens afterwards and
+is recorded on the meeting: `externalSyncStatus` (`not_required` when the
+calendar has no connection, then `pending`/`synced`/`failed`), the account and
+external calendar it was sent to, and the error when it failed. A failure never
+removes the Ringee booking, and the UI says so explicitly.
+
+Retrying is safe. The Google event id is derived from the meeting
+(`ringee<uuid-hex>`), so an attempt that reached Google before failing is
+answered with `409` on the retry and read back rather than duplicated; a meeting
+that already carries an `externalEventId` short-circuits before any request.
+
+The destination is stored **on the meeting**, not read back from the calendar, so
+re-pointing a calendar at a different Google account never rewrites where an
+event that already exists lives. Disconnecting an account leaves each calendar's
+pointer in place, so reconnecting restores every calendar that used it at once.
+
+- **Source of truth:** `CalendarService.syncMeetingToExternalCalendar`,
+  `MeetingRepository.recordExternalSync`
+- **Risk if violated:** duplicate events on a customer's real calendar, or a
+  booking silently lost because an external API was down
+
 ## AI voice agents (`AGENT`)
 
 ### AGENT-001 — The blueprint owns defaults and enforcement; the user owns copy
@@ -752,12 +807,13 @@ able to set it.
 ### AGENT-002 — An agent never states availability it has not just looked up
 
 The booking agent may only offer a time returned by `get_available_slots`, and
-may only say a meeting is booked after `book_appointment` returns success. This
-is why the tool path uses `CalendarService.getBookableSlots`, which reads active
-Ringee meetings directly, rather than `getAvailability`, which deliberately
-falls back to "everything is free" for the human picker. Ringee owns the booking
-first; Google or Microsoft is only a best-effort outbound sync target afterward,
-so an external availability failure cannot stop or fabricate a Ringee booking.
+may only say a meeting is booked after `book_appointment` returns success. The
+tool path uses `CalendarService.getBookableSlots`, which reads the selected
+Ringee calendar's windows, capacity and active meetings — and nothing else.
+Google free/busy is never consulted, so an external outage can neither hide a
+real slot nor invent one. Ringee owns the booking first; Google or Microsoft is
+only a best-effort outbound sync target afterward.
+
 `book_appointment` accepts only an exact slot returned by that same lookup and
 re-checks the overlap under a transaction-scoped workspace row lock before
 inserting. A recurring Ringee availability window may allow one, N, or unlimited

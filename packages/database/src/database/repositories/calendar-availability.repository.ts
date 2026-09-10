@@ -6,6 +6,7 @@ import {
   buildOwnershipFilter,
 } from "@ringee/platform";
 import { PrismaService } from "../prisma.service";
+import { lockWorkspace } from "./calendar.repository";
 
 export interface CalendarAvailabilityRuleData {
   daysOfWeek: number[];
@@ -15,53 +16,45 @@ export interface CalendarAvailabilityRuleData {
   capacity: number | null;
 }
 
+const ORDER = [{ startMinute: "asc" as const }, { createdAt: "asc" as const }];
+
 @Injectable()
 export class CalendarAvailabilityRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  list(ctx: OwnershipContext): Promise<CalendarAvailabilityRule[]> {
+  /** One calendar's windows. Windows never span calendars. */
+  list(
+    ctx: OwnershipContext,
+    calendarId: string,
+  ): Promise<CalendarAvailabilityRule[]> {
     return this.prisma.calendarAvailabilityRule.findMany({
-      where: buildOwnershipFilter(ctx),
-      orderBy: [{ startMinute: "asc" }, { createdAt: "asc" }],
+      where: { ...buildOwnershipFilter(ctx), calendarId },
+      orderBy: ORDER,
     });
   }
 
-  /** Replaces one workspace's recurring schedule as a single transaction. */
+  /** Replaces one calendar's recurring schedule as a single transaction. */
   replace(
     ctx: OwnershipContext,
+    calendarId: string,
     rules: CalendarAvailabilityRuleData[],
   ): Promise<CalendarAvailabilityRule[]> {
     const owner = buildOwnershipData(ctx);
+    const scope = { ...buildOwnershipFilter(ctx), calendarId };
 
     return this.prisma.$transaction(async (tx) => {
       // Two admins saving at once must produce one complete schedule, not the
       // union of both replace operations.
-      if (ctx.organizationId) {
-        await tx.$queryRaw`
-          SELECT "id"
-          FROM "Organization"
-          WHERE "id" = ${ctx.organizationId}::uuid
-          FOR UPDATE
-        `;
-      } else {
-        await tx.$queryRaw`
-          SELECT "id"
-          FROM "User"
-          WHERE "id" = ${ctx.userId}::uuid
-          FOR UPDATE
-        `;
-      }
-      await tx.calendarAvailabilityRule.deleteMany({
-        where: buildOwnershipFilter(ctx),
-      });
+      await lockWorkspace(tx, ctx);
+      await tx.calendarAvailabilityRule.deleteMany({ where: scope });
       if (rules.length > 0) {
         await tx.calendarAvailabilityRule.createMany({
-          data: rules.map((rule) => ({ ...owner, ...rule })),
+          data: rules.map((rule) => ({ ...owner, calendarId, ...rule })),
         });
       }
       return tx.calendarAvailabilityRule.findMany({
-        where: buildOwnershipFilter(ctx),
-        orderBy: [{ startMinute: "asc" }, { createdAt: "asc" }],
+        where: scope,
+        orderBy: ORDER,
       });
     });
   }

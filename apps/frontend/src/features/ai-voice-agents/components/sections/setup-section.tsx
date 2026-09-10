@@ -31,7 +31,8 @@ import { CallerNumberSelect } from '../caller-number-select';
 import { Field, controlClass, selectTriggerClass } from '../fields/field';
 import { Section } from './section';
 
-const RINGEE_CALENDAR_VALUE = 'ringee';
+/** Sentinel for "use the workspace's global calendar" — an empty selection. */
+const GLOBAL_CALENDAR_VALUE = 'global';
 
 /** Who the agent is, which model runs it, and — for booking — where it books. */
 export function SetupSection({
@@ -196,58 +197,71 @@ export function SetupSection({
 
       {booking ? (
         <Section title={t('meetings')} hint={t('meetingsHint')}>
-          {draft.calendars.length === 0 ? (
+          <Field
+            label={t('calendar')}
+            error={draft.errors.calendarId}
+            hint={t('calendarHint')}
+            className='max-w-md'
+          >
+            <Select
+              value={draft.calendarId || GLOBAL_CALENDAR_VALUE}
+              onValueChange={(value) =>
+                draft.setCalendarId(
+                  value === GLOBAL_CALENDAR_VALUE ? '' : value
+                )
+              }
+            >
+              <SelectTrigger
+                className={selectTriggerClass}
+                aria-invalid={Boolean(draft.errors.calendarId)}
+              >
+                <SelectValue placeholder={t('chooseCalendar')} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={GLOBAL_CALENDAR_VALUE}>
+                  {t('globalCalendar')}
+                </SelectItem>
+                {draft.calendars
+                  .filter((calendar) => !calendar.isDefault)
+                  .map((calendar) => (
+                    <SelectItem key={calendar.id} value={calendar.id}>
+                      {calendar.name}
+                    </SelectItem>
+                  ))}
+              </SelectContent>
+            </Select>
+          </Field>
+
+          {/*
+            The calendar the agent will actually use. Its windows and time zone
+            are managed on the calendar itself and shared with every other agent
+            pointed at it — which is why they are not editable here.
+          */}
+          {draft.effectiveCalendar ? (
             <Alert className='rounded-lg'>
               <CalendarDays className='size-4' />
-              <AlertDescription className='flex flex-wrap items-center gap-2'>
-                {t('noCalendar')}
+              <AlertDescription className='flex flex-wrap items-center gap-x-2 gap-y-1'>
+                <span>
+                  {t('effectiveCalendar', {
+                    name: draft.effectiveCalendar.name,
+                    timezone: draft.effectiveCalendar.timezone
+                  })}
+                </span>
                 <Button
                   asChild
                   variant='outline'
                   size='sm'
                   className='rounded-lg'
                 >
-                  <Link href='/dashboard/meetings'>{t('connectCalendar')}</Link>
+                  <Link
+                    href={`/dashboard/meetings?calendar=${draft.effectiveCalendar.id}`}
+                  >
+                    {t('manageAvailability')}
+                  </Link>
                 </Button>
               </AlertDescription>
             </Alert>
-          ) : (
-            <Field
-              label={t('calendar')}
-              error={draft.errors.calendarIntegrationId}
-              hint={t('calendarHint')}
-              className='max-w-md'
-            >
-              <Select
-                value={draft.calendarId || RINGEE_CALENDAR_VALUE}
-                onValueChange={(value) =>
-                  draft.setCalendarId(
-                    value === RINGEE_CALENDAR_VALUE ? '' : value
-                  )
-                }
-              >
-                <SelectTrigger
-                  className={selectTriggerClass}
-                  aria-invalid={Boolean(draft.errors.calendarIntegrationId)}
-                >
-                  <SelectValue placeholder={t('chooseCalendar')} />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={RINGEE_CALENDAR_VALUE}>
-                    {t('ringeeCalendar')}
-                  </SelectItem>
-                  {draft.calendars.map((calendar) => (
-                    <SelectItem key={calendar.id} value={calendar.id}>
-                      {t.has(`calendars.${calendar.provider}`)
-                        ? t(`calendars.${calendar.provider}`)
-                        : calendar.provider}
-                      {calendar.email ? ` · ${calendar.email}` : ''}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
-          )}
+          ) : null}
 
           <div className='grid gap-4 sm:grid-cols-3'>
             <Field

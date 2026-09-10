@@ -111,21 +111,18 @@
     "keySaved": "Salvata — inseriscine una nuova per sostituirla",
     "meetings": "Riunioni",
     "meetingsHint": "Dove e come prenota l'agente.",
-    "noCalendar": "Nessun calendario collegato — l'agente si può salvare, ma non attivare finché non ne ha uno.",
-    "connectCalendar": "Collega un calendario",
     "calendar": "Calendario",
-    "calendarHint": "L'agente legge da qui gli spazi liberi e ci prenota.",
+    "calendarHint": "Su quale calendario Ringee prenota questo agente. Fasce, fuso orario e capacità sono condivisi con tutti gli agenti che lo usano.",
     "chooseCalendar": "Scegli un calendario",
     "duration": "Durata",
     "durationHint": "In minuti.",
     "timezone": "Fuso orario",
-    "timezoneHint": "Gli orari che offre l'agente.",
+    "timezoneHint": "Solo come ripiego: il fuso orario del calendario decide gli orari offerti dall'agente.",
     "meetingTitle": "Titolo della riunione",
     "meetingTitleHint": "Ciò che finisce nel calendario.",
-    "calendars": {
-      "google": "Google Calendar",
-      "microsoft": "Outlook Calendar"
-    }
+    "globalCalendar": "Usa il calendario globale",
+    "effectiveCalendar": "Questo agente prenota su {name} ({timezone}).",
+    "manageAvailability": "Gestisci disponibilità"
   },
   "voice": {
     "title": "Voce",

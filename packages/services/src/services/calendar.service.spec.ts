@@ -7,60 +7,110 @@ import {
   MAX_MEETING_DURATION_MINUTES,
 } from "./calendar.service";
 
+interface StubRule {
+  daysOfWeek: number[];
+  startMinute: number;
+  endMinute: number;
+  capacity: number | null;
+}
+
+interface StubCalendar {
+  id: string;
+  name: string;
+  timezone: string;
+  isDefault: boolean;
+  archivedAt: Date | null;
+  calendarIntegrationId: string | null;
+  externalCalendarId: string | null;
+}
+
+const GLOBAL_CALENDAR: StubCalendar = {
+  id: "cal-global",
+  name: "Global calendar",
+  timezone: "UTC",
+  isDefault: true,
+  archivedAt: null,
+  calendarIntegrationId: null,
+  externalCalendarId: null,
+};
+
 function build(
   busy: Array<{ start: Date; end: Date }> = [],
-  rules: Array<{
-    daysOfWeek: number[];
-    startMinute: number;
-    endMinute: number;
-    capacity: number | null;
-  }> = [],
+  rules: StubRule[] = [],
+  options: {
+    calendars?: StubCalendar[];
+    /** Windows keyed by calendar id; falls back to `rules` for any other. */
+    rulesByCalendar?: Record<string, StubRule[]>;
+    /** Busy meetings keyed by calendar id; falls back to `busy`. */
+    busyByCalendar?: Record<string, Array<{ start: Date; end: Date }>>;
+  } = {},
 ): {
   service: CalendarService;
   windows: Array<{ start: Date; end: Date }>;
-  savedRules: Array<{
-    daysOfWeek: number[];
-    startMinute: number;
-    endMinute: number;
-    capacity: number | null;
-  }>;
+  scopes: Array<{ calendarId: string; isDefault: boolean }>;
+  savedRules: StubRule[];
+  savedCalendarIds: string[];
 } {
   const windows: Array<{ start: Date; end: Date }> = [];
-  const savedRules: Array<{
-    daysOfWeek: number[];
-    startMinute: number;
-    endMinute: number;
-    capacity: number | null;
-  }> = [];
+  const scopes: Array<{ calendarId: string; isDefault: boolean }> = [];
+  const savedRules: StubRule[] = [];
+  const savedCalendarIds: string[] = [];
+  const calendars = options.calendars ?? [GLOBAL_CALENDAR];
+
   const service = new CalendarService(
     {
-      findByUserOrOrg: async () => {
-        throw new Error("External calendars must not be read for availability");
-      },
+      findByUserOrOrg: async () => [],
+      findByIdForOwner: async () => null,
     } as never,
     {
-      findBusySlots: async (_ctx: unknown, start: Date, end: Date) => {
+      findBusySlots: async (
+        _ctx: unknown,
+        scope: { calendarId: string; isDefault: boolean },
+        start: Date,
+        end: Date,
+      ) => {
         windows.push({ start, end });
-        return busy;
+        scopes.push(scope);
+        return options.busyByCalendar?.[scope.calendarId] ?? busy;
       },
     } as never,
     {
-      list: async () => rules,
-      replace: async (_ctx: unknown, nextRules: typeof savedRules) => {
+      list: async (_ctx: unknown, calendarId: string) =>
+        options.rulesByCalendar?.[calendarId] ?? rules,
+      replace: async (
+        _ctx: unknown,
+        calendarId: string,
+        nextRules: StubRule[],
+      ) => {
+        savedCalendarIds.push(calendarId);
         savedRules.push(...nextRules);
         return nextRules.map((rule, index) => ({
           ...rule,
           id: `rule-${index + 1}`,
           userId: "user-1",
           organizationId: "org-1",
+          calendarId,
           createdAt: new Date(),
           updatedAt: new Date(),
         }));
       },
     } as never,
+    {
+      ensureDefault: async () =>
+        calendars.find((calendar) => calendar.isDefault) ?? GLOBAL_CALENDAR,
+      findDefault: async () =>
+        calendars.find((calendar) => calendar.isDefault) ?? GLOBAL_CALENDAR,
+      findByIdForOwner: async (_ctx: unknown, id: string) =>
+        calendars.find((calendar) => calendar.id === id) ?? null,
+      list: async () => calendars,
+      create: async () => calendars[0],
+      update: async () => calendars[0],
+      countAgentsByCalendar: async () => new Map<string, number>(),
+      listAgentsUsingCalendar: async () => [],
+    } as never,
   );
 
-  return { service, windows, savedRules };
+  return { service, windows, scopes, savedRules, savedCalendarIds };
 }
 
 describe("CalendarService Ringee availability", () => {
@@ -345,5 +395,174 @@ describe("CalendarService Ringee availability", () => {
       /cannot overlap/,
     );
     assert.deepEqual(savedRules, []);
+  });
+});
+
+describe("CalendarService multiple calendars", () => {
+  const ctx = { userId: "user-1", organizationId: "org-1" };
+  const salesCalendar: StubCalendar = {
+    id: "cal-sales",
+    name: "Sales",
+    timezone: "America/New_York",
+    isDefault: false,
+    archivedAt: null,
+    calendarIntegrationId: null,
+    externalCalendarId: null,
+  };
+
+  it("reads the global calendar when no calendar is named", async () => {
+    const { service, scopes } = build();
+
+    await service.getBookableSlots(ctx, {
+      date: "2099-01-05",
+      timeZone: "UTC",
+      durationMinutes: 30,
+    });
+
+    assert.deepEqual(scopes, [{ calendarId: "cal-global", isDefault: true }]);
+  });
+
+  it("scopes availability to the named calendar", async () => {
+    const { service, scopes } = build([], [], {
+      calendars: [GLOBAL_CALENDAR, salesCalendar],
+    });
+
+    await service.getBookableSlots(ctx, {
+      date: "2099-01-05",
+      timeZone: "UTC",
+      durationMinutes: 30,
+      calendarId: "cal-sales",
+    });
+
+    assert.deepEqual(scopes, [{ calendarId: "cal-sales", isDefault: false }]);
+  });
+
+  it("keeps two calendars' availability independent", async () => {
+    const date = "2099-01-05";
+    const weekday = new Date(`${date}T12:00:00.000Z`).getUTCDay();
+    const window = {
+      daysOfWeek: [weekday],
+      startMinute: 14 * 60,
+      endMinute: 14 * 60 + 30,
+      capacity: 1,
+    };
+    const { service } = build([], [], {
+      calendars: [GLOBAL_CALENDAR, salesCalendar],
+      rulesByCalendar: { "cal-global": [window], "cal-sales": [window] },
+      // The global calendar's only slot is taken; the other calendar's is not.
+      busyByCalendar: {
+        "cal-global": [
+          {
+            start: new Date("2099-01-05T14:00:00.000Z"),
+            end: new Date("2099-01-05T14:30:00.000Z"),
+          },
+        ],
+        "cal-sales": [],
+      },
+    });
+
+    const globalSlots = await service.getBookableSlots(ctx, {
+      date,
+      timeZone: "UTC",
+      durationMinutes: 30,
+    });
+    const salesSlots = await service.getBookableSlots(ctx, {
+      date,
+      timeZone: "UTC",
+      durationMinutes: 30,
+      calendarId: "cal-sales",
+    });
+
+    assert.deepEqual(globalSlots, []);
+    assert.equal(salesSlots[0]?.start, "2099-01-05T14:00:00.000Z");
+  });
+
+  it("reads a calendar's own time zone when the caller names none", async () => {
+    const date = "2099-01-05";
+    const weekday = new Date(`${date}T12:00:00.000Z`).getUTCDay();
+    const { service } = build([], [], {
+      calendars: [GLOBAL_CALENDAR, salesCalendar],
+      rulesByCalendar: {
+        "cal-sales": [
+          {
+            daysOfWeek: [weekday],
+            startMinute: 9 * 60,
+            endMinute: 9 * 60 + 30,
+            capacity: 1,
+          },
+        ],
+      },
+    });
+
+    const [slot] = await service.getBookableSlots(ctx, {
+      date,
+      durationMinutes: 30,
+      calendarId: "cal-sales",
+    });
+
+    // 09:00 in America/New_York on that date is 14:00 UTC.
+    assert.equal(slot?.start, "2099-01-05T14:00:00.000Z");
+  });
+
+  it("refuses to book against an archived calendar instead of falling back", async () => {
+    const { service } = build([], [], {
+      calendars: [
+        GLOBAL_CALENDAR,
+        { ...salesCalendar, archivedAt: new Date("2099-01-01T00:00:00.000Z") },
+      ],
+    });
+
+    await assert.rejects(
+      () => service.resolveCalendar(ctx, { calendarId: "cal-sales" }),
+      /archived/,
+    );
+  });
+
+  it("rejects a calendar id from another workspace", async () => {
+    const { service } = build();
+
+    await assert.rejects(
+      () => service.resolveCalendar(ctx, { calendarId: "cal-someone-else" }),
+      /Calendar not found/,
+    );
+  });
+
+  it("refuses to archive the global calendar", async () => {
+    const { service } = build();
+
+    await assert.rejects(
+      () => service.setCalendarArchived(ctx, "cal-global", true),
+      /global calendar cannot be archived/,
+    );
+  });
+
+  it("writes availability windows to the calendar they belong to", async () => {
+    const { service, savedCalendarIds } = build([], [], {
+      calendars: [GLOBAL_CALENDAR, salesCalendar],
+    });
+
+    await service.updateAvailabilitySettings(
+      ctx,
+      [
+        {
+          daysOfWeek: [1],
+          startTime: "08:00",
+          endTime: "09:00",
+          capacity: 1,
+        },
+      ],
+      "cal-sales",
+    );
+
+    assert.deepEqual(savedCalendarIds, ["cal-sales"]);
+  });
+
+  it("has no external destination when the calendar has no connection", async () => {
+    const { service } = build();
+
+    const resolved = await service.resolveCalendar(ctx);
+
+    assert.equal(resolved.destination, null);
+    assert.equal(resolved.timezone, "UTC");
   });
 });

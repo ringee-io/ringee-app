@@ -9,6 +9,7 @@
     "upcoming": "À venir",
     "all": "Toutes",
     "calendar": "Calendrier",
+    "calendars": "Agendas",
     "integrations": "Intégrations"
   },
   "sections": {
@@ -55,5 +56,54 @@
     "failedToLoad": "Impossible de charger les réunions",
     "cancelled": "Réunion annulée",
     "failedToCancel": "Impossible d'annuler la réunion"
+  },
+  "calendars": {
+    "title": "Agendas",
+    "description": "Chaque espace de travail a un agenda global. Ajoutez-en d'autres quand des agents ont besoin de leurs propres plages, fuseau horaire ou capacité.",
+    "agentHint": "Ringee est la seule source de disponibilité. Google est facultatif et ne reçoit qu'une copie d'une réservation qui existe déjà ici.",
+    "add": "Ajouter un agenda",
+    "newName": "Nouvel agenda",
+    "created": "Agenda créé",
+    "createFailed": "Impossible de créer l'agenda.",
+    "loadFailed": "Impossible de charger les agendas.",
+    "retry": "Réessayer",
+    "globalBadge": "Global",
+    "archivedBadge": "Archivé",
+    "agentsUsing": "{count, plural, =0 {Aucun agent} one {# agent} other {# agents}}",
+    "details": "Agenda",
+    "name": "Nom",
+    "timezone": "Fuseau horaire",
+    "timezoneHint": "Le fuseau des plages ci-dessous. Il l'emporte sur le fuseau horaire de l'agent.",
+    "save": "Enregistrer l'agenda",
+    "saved": "Agenda enregistré",
+    "saveFailed": "Impossible d'enregistrer l'agenda.",
+    "archive": "Archiver",
+    "restore": "Restaurer",
+    "archiveFailed": "Impossible d'archiver l'agenda.",
+    "archivedHint": "Archivé. Ses réunions et son historique sont conservés, mais il n'accepte plus de réservation et n'est pas proposé aux agents.",
+    "connection": "Google Agenda (facultatif)",
+    "connectionHint": "Où les réservations faites ici sont copiées. Cela ne détermine jamais les créneaux proposés par Ringee, et un agenda sans connexion réserve normalement.",
+    "connectGoogle": "Connecter Google Agenda",
+    "disconnect": "Déconnecter",
+    "disconnectFailed": "Impossible de déconnecter le compte.",
+    "externalCalendar": "Créer les événements dans",
+    "externalPrimary": "Agenda principal",
+    "externalLoadFailed": "Impossible de lire les agendas du compte connecté. Reconnectez-le et réessayez.",
+    "agents": "Agents utilisant cet agenda",
+    "agentsEmpty": "Aucun agent ne réserve encore sur cet agenda.",
+    "agentsGlobalEmpty": "Tous les agents sans agenda propre réservent ici, ainsi que le composeur et les campagnes.",
+    "availability": "Disponibilité de réservation",
+    "providers": {
+      "google": "Google Agenda",
+      "microsoft": "Outlook Calendar"
+    }
+  },
+  "externalSync": {
+    "pending": "Événement d'agenda externe en attente",
+    "failed": "Échec de l'événement d'agenda externe",
+    "bookingSafe": "La réunion est confirmée dans Ringee. Seule la copie sur l'agenda connecté est concernée.",
+    "retry": "Réessayer l'événement externe",
+    "retrySucceeded": "Événement externe créé.",
+    "retryFailed": "L'événement externe n'a pas pu être créé."
   }
 }

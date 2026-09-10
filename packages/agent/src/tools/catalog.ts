@@ -227,7 +227,8 @@ export const TOOL_CATALOG: ToolDescriptor[] = [
     action: "meetings.schedule",
     tool: "schedule_meeting",
     title: "Schedule meeting",
-    summary: "Book a meeting; syncs to a connected calendar when available.",
+    summary:
+      "Book a meeting on a Ringee calendar; syncs to that calendar's connected account when it has one.",
     sensitivity: "write",
     cli: 'ringee meetings schedule <contactId> 2026-06-03T10:00:00-04:00 --title "Intro"',
     component: "MeetingCard",

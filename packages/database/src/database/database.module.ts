@@ -36,6 +36,7 @@ import { OutboundAnalyticsRepository } from "./repositories/outbound-analytics.r
 import { TagRepository } from "./repositories/tag.repository";
 import { CallScriptRepository } from "./repositories/call-script.repository";
 import { MeetingRepository } from "./repositories/meeting.repository";
+import { CalendarRepository } from "./repositories/calendar.repository";
 import { CalendarIntegrationRepository } from "./repositories/calendar-integration.repository";
 import { CalendarAvailabilityRepository } from "./repositories/calendar-availability.repository";
 import { TriggerLoopActionExecutionRepository } from "./repositories/triggerloop-action-execution.repository";
@@ -132,6 +133,7 @@ const databaseProviders = [
   OutboundAnalyticsRepository,
   TagRepository,
   MeetingRepository,
+  CalendarRepository,
   CalendarIntegrationRepository,
   CalendarAvailabilityRepository,
   TriggerLoopActionExecutionRepository,

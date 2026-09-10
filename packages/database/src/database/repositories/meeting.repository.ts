@@ -1,7 +1,13 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../prisma.service";
-import { Prisma, Meeting, MeetingStatus } from "@prisma/client";
+import {
+  Prisma,
+  Meeting,
+  MeetingExternalSyncStatus,
+  MeetingStatus,
+} from "@prisma/client";
 import { OwnershipContext, buildOwnershipFilter } from "@ringee/platform";
+import { lockWorkspace } from "./calendar.repository";
 
 interface MeetingCreateData {
   contactId: string;
@@ -11,8 +17,32 @@ interface MeetingCreateData {
   duration?: number;
   location?: string;
   notes?: string;
+  /** The Ringee calendar this booking belongs to. */
+  calendarId: string;
   /** Voice-agent call to claim atomically with a protected booking. */
   agentCallId?: string;
+}
+
+/**
+ * Which meetings occupy a calendar.
+ *
+ * A booking only ever consumes the capacity of the calendar it was made on, so
+ * every availability query is scoped to one calendar. Rows written before
+ * calendars existed carry no `calendarId`; they were the workspace's single
+ * calendar, so they still count against the global one — and against nothing
+ * else.
+ */
+function calendarSql(calendarId: string, isDefault: boolean): Prisma.Sql {
+  return isDefault
+    ? Prisma.sql`AND ("calendarId" = ${calendarId}::uuid OR "calendarId" IS NULL)`
+    : Prisma.sql`AND "calendarId" = ${calendarId}::uuid`;
+}
+
+/** The calendar a capacity check applies to. */
+export interface MeetingCalendarScope {
+  calendarId: string;
+  /** The workspace's global calendar also owns pre-calendar meeting rows. */
+  isDefault: boolean;
 }
 
 function ownershipSql(ctx: OwnershipContext): {
@@ -48,10 +78,12 @@ export class MeetingRepository {
    */
   async findBusySlots(
     ctx: OwnershipContext,
+    scope: MeetingCalendarScope,
     start: Date,
     end: Date,
   ): Promise<Array<{ start: Date; end: Date }>> {
     const { userFilter, organizationFilter } = ownershipSql(ctx);
+    const calendarFilter = calendarSql(scope.calendarId, scope.isDefault);
 
     return this.prisma.$queryRaw<Array<{ start: Date; end: Date }>>`
       SELECT
@@ -63,6 +95,7 @@ export class MeetingRepository {
         AND "scheduledAt" + ("duration" * INTERVAL '1 minute') > ${start}
         ${userFilter}
         ${organizationFilter}
+        ${calendarFilter}
     `;
   }
 
@@ -89,29 +122,17 @@ export class MeetingRepository {
   async createIfAvailable(
     ctx: OwnershipContext,
     data: MeetingCreateData,
+    scope: MeetingCalendarScope,
     availabilityRuleId: string | null,
   ): Promise<Meeting | null> {
     const duration = data.duration ?? 30;
     const end = new Date(data.scheduledAt.getTime() + duration * 60_000);
     const { userFilter, organizationFilter } = ownershipSql(ctx);
     const ownershipFilter = buildOwnershipFilter(ctx);
+    const calendarFilter = calendarSql(scope.calendarId, scope.isDefault);
 
     return this.prisma.$transaction(async (tx) => {
-      if (ctx.organizationId) {
-        await tx.$queryRaw`
-          SELECT "id"
-          FROM "Organization"
-          WHERE "id" = ${ctx.organizationId}::uuid
-          FOR UPDATE
-        `;
-      } else {
-        await tx.$queryRaw`
-          SELECT "id"
-          FROM "User"
-          WHERE "id" = ${ctx.userId}::uuid
-          FOR UPDATE
-        `;
-      }
+      await lockWorkspace(tx, ctx);
 
       if (data.agentCallId) {
         const agentCalls = await tx.$queryRaw<
@@ -133,23 +154,31 @@ export class MeetingRepository {
       let capacity: number | null;
       if (availabilityRuleId) {
         const currentRule = await tx.calendarAvailabilityRule.findFirst({
-          where: { id: availabilityRuleId, ...ownershipFilter },
+          where: {
+            id: availabilityRuleId,
+            calendarId: scope.calendarId,
+            ...ownershipFilter,
+          },
           select: { capacity: true },
         });
         // Availability settings are replaced, not mutated. A missing id means
-        // the slot snapshot was based on a schedule version that is now stale.
+        // the slot snapshot was based on a schedule version that is now stale —
+        // or belonged to a different calendar than the one being booked.
         if (!currentRule) return null;
         capacity = currentRule.capacity;
       } else {
         // A null marker means getBookableSlots used the default capacity-one
-        // schedule. It stays valid only while no configured rules exist.
+        // schedule. It stays valid only while this calendar has no configured
+        // rules.
         const configuredRuleCount = await tx.calendarAvailabilityRule.count({
-          where: ownershipFilter,
+          where: { calendarId: scope.calendarId, ...ownershipFilter },
         });
         if (configuredRuleCount !== 0) return null;
         capacity = 1;
       }
 
+      // Only this calendar's bookings consume this calendar's capacity, so two
+      // calendars stay independent and two agents that share one do not.
       const [{ count = 0 } = {}] = await tx.$queryRaw<Array<{ count: number }>>`
         SELECT COUNT(*)::int AS "count"
         FROM "Meeting"
@@ -158,6 +187,7 @@ export class MeetingRepository {
           AND "scheduledAt" + ("duration" * INTERVAL '1 minute') > ${data.scheduledAt}
           ${userFilter}
           ${organizationFilter}
+          ${calendarFilter}
       `;
       if (capacity !== null && count >= capacity) return null;
 
@@ -191,7 +221,65 @@ export class MeetingRepository {
         : undefined,
       contact: { connect: { id: data.contactId } },
       call: data.callId ? { connect: { id: data.callId } } : undefined,
+      calendar: { connect: { id: data.calendarId } },
     };
+  }
+
+  /**
+   * Records the outcome of pushing a meeting to its calendar's external
+   * destination.
+   *
+   * The destination is written with the result rather than read back from the
+   * calendar later, so re-pointing a calendar at another Google account never
+   * rewrites where an event that already exists lives.
+   */
+  async recordExternalSync(
+    id: string,
+    result:
+      | {
+          status: "synced";
+          externalEventId: string;
+          integrationId: string;
+          targetCalendarId: string;
+          location?: string;
+        }
+      | {
+          status: "failed";
+          integrationId: string | null;
+          targetCalendarId: string | null;
+          error: string;
+        },
+  ): Promise<Meeting> {
+    return this.prisma.meeting.update({
+      where: { id },
+      data:
+        result.status === "synced"
+          ? {
+              externalEventId: result.externalEventId,
+              externalCalendarIntegrationId: result.integrationId,
+              externalCalendarTargetId: result.targetCalendarId,
+              externalSyncStatus: MeetingExternalSyncStatus.synced,
+              externalSyncError: null,
+              externalSyncedAt: new Date(),
+              ...(result.location ? { location: result.location } : {}),
+              externalSyncAttempts: { increment: 1 },
+            }
+          : {
+              externalCalendarIntegrationId: result.integrationId,
+              externalCalendarTargetId: result.targetCalendarId,
+              externalSyncStatus: MeetingExternalSyncStatus.failed,
+              externalSyncError: result.error.slice(0, 2000),
+              externalSyncAttempts: { increment: 1 },
+            },
+    });
+  }
+
+  /** Marks a booking as waiting for its external event, before the attempt. */
+  markExternalSyncPending(id: string): Promise<Meeting> {
+    return this.prisma.meeting.update({
+      where: { id },
+      data: { externalSyncStatus: MeetingExternalSyncStatus.pending },
+    });
   }
 
   async findById(id: string): Promise<Meeting | null> {
@@ -200,6 +288,7 @@ export class MeetingRepository {
       include: {
         contact: true,
         call: { include: { recordings: true } },
+        calendar: { select: { id: true, name: true, isDefault: true } },
       },
     });
   }
@@ -218,6 +307,8 @@ export class MeetingRepository {
       scheduledFrom?: Date;
       /** Only meetings scheduled at or before this instant. */
       scheduledTo?: Date;
+      /** Only meetings booked on one calendar. */
+      calendarId?: string;
     },
   ): Promise<{
     data: Meeting[];
@@ -232,12 +323,14 @@ export class MeetingRepository {
       userId,
       scheduledFrom,
       scheduledTo,
+      calendarId,
     } = options || {};
 
     const ownershipFilter = buildOwnershipFilter(ctx);
     const where: Prisma.MeetingWhereInput = {
       ...ownershipFilter,
       ...(userId ? { userId } : {}),
+      ...(calendarId ? { calendarId } : {}),
       ...(status ? { status } : {}),
       ...(upcoming
         ? { scheduledAt: { gte: new Date() }, status: MeetingStatus.scheduled }
@@ -275,6 +368,7 @@ export class MeetingRepository {
         include: {
           contact: true,
           call: true,
+          calendar: { select: { id: true, name: true, isDefault: true } },
         },
         orderBy: { scheduledAt: upcoming ? "asc" : "desc" },
         skip: (page - 1) * limit,

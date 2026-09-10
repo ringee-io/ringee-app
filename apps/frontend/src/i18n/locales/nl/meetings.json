@@ -9,6 +9,7 @@
     "upcoming": "Aankomend",
     "all": "Alle",
     "calendar": "Kalender",
+    "calendars": "Agenda's",
     "integrations": "Integraties"
   },
   "sections": {
@@ -55,5 +56,54 @@
     "failedToLoad": "Vergaderingen laden mislukt",
     "cancelled": "Vergadering geannuleerd",
     "failedToCancel": "Vergadering annuleren mislukt"
+  },
+  "calendars": {
+    "title": "Agenda's",
+    "description": "Elke werkruimte heeft één globale agenda. Voeg er meer toe wanneer verschillende agents eigen tijdvakken, tijdzone of capaciteit nodig hebben.",
+    "agentHint": "Ringee is de enige bron van beschikbaarheid. Google is optioneel en krijgt alleen een kopie van een boeking die hier al bestaat.",
+    "add": "Agenda toevoegen",
+    "newName": "Nieuwe agenda",
+    "created": "Agenda aangemaakt",
+    "createFailed": "Kon de agenda niet aanmaken.",
+    "loadFailed": "Kon de agenda's niet laden.",
+    "retry": "Opnieuw proberen",
+    "globalBadge": "Globaal",
+    "archivedBadge": "Gearchiveerd",
+    "agentsUsing": "{count, plural, =0 {Geen agents} one {# agent} other {# agents}}",
+    "details": "Agenda",
+    "name": "Naam",
+    "timezone": "Tijdzone",
+    "timezoneHint": "De tijdzone van de tijdvakken hieronder. Deze gaat vóór de tijdzone van de agent.",
+    "save": "Agenda opslaan",
+    "saved": "Agenda opgeslagen",
+    "saveFailed": "Kon de agenda niet opslaan.",
+    "archive": "Archiveren",
+    "restore": "Herstellen",
+    "archiveFailed": "Kon de agenda niet archiveren.",
+    "archivedHint": "Gearchiveerd. Afspraken en geschiedenis blijven bewaard, maar er komen geen nieuwe boekingen bij en agents krijgen hem niet aangeboden.",
+    "connection": "Google Agenda (optioneel)",
+    "connectionHint": "Waar boekingen die hier worden gemaakt naartoe gekopieerd worden. Het bepaalt nooit welke tijden Ringee aanbiedt, en een agenda zonder koppeling boekt gewoon.",
+    "connectGoogle": "Google Agenda koppelen",
+    "disconnect": "Ontkoppelen",
+    "disconnectFailed": "Kon het account niet ontkoppelen.",
+    "externalCalendar": "Afspraken aanmaken in",
+    "externalPrimary": "Hoofdagenda",
+    "externalLoadFailed": "Kon de agenda's van het gekoppelde account niet lezen. Koppel het opnieuw en probeer het nog eens.",
+    "agents": "Agents die deze agenda gebruiken",
+    "agentsEmpty": "Nog geen agent boekt in deze agenda.",
+    "agentsGlobalEmpty": "Hier boeken alle agents zonder eigen agenda, plus de dialer en campagnes.",
+    "availability": "Beschikbaarheid voor boekingen",
+    "providers": {
+      "google": "Google Agenda",
+      "microsoft": "Outlook Agenda"
+    }
+  },
+  "externalSync": {
+    "pending": "Externe agenda-afspraak in behandeling",
+    "failed": "Externe agenda-afspraak mislukt",
+    "bookingSafe": "De afspraak is bevestigd in Ringee. Alleen de kopie in de gekoppelde agenda is geraakt.",
+    "retry": "Externe afspraak opnieuw proberen",
+    "retrySucceeded": "Externe afspraak aangemaakt.",
+    "retryFailed": "De externe afspraak kon niet worden aangemaakt."
   }
 }

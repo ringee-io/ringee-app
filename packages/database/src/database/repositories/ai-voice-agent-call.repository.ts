@@ -101,6 +101,25 @@ export class AiVoiceAgentCallRepository {
   }
 
   /**
+   * Pins the calendar this call books against, the first time the agent's tools
+   * need one.
+   *
+   * A conditional write, so the pin is set once: editing the agent mid-call
+   * must not move the booking to a different calendar than the one whose times
+   * the person was already offered.
+   */
+  async pinCalendarIfUnset(
+    id: string,
+    calendarId: string,
+  ): Promise<AiVoiceAgentCall | null> {
+    const [updated] = await this.prisma.aiVoiceAgentCall.updateManyAndReturn({
+      where: { id, calendarId: null },
+      data: { calendarId },
+    });
+    return updated ?? null;
+  }
+
+  /**
    * Atomically changes the outcome only when it is a real transition.
    * Concurrent replays of the same analysis therefore have a single winner,
    * whose persisted `updatedAt` is the revision for downstream idempotency.

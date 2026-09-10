@@ -229,6 +229,19 @@ export class SaveVoiceAgentDto {
   })
   callerNumberId?: string | null;
 
+  /**
+   * The Ringee calendar this agent books against. Null means the workspace's
+   * global calendar — what an agent with no selection has always used.
+   */
+  @IsOptional()
+  @IsUUID(undefined, { message: "Choose one of this workspace's calendars." })
+  calendarId?: string | null;
+
+  /**
+   * Legacy: the connected Google/Microsoft account this agent's events are
+   * pushed to. Kept so agents configured before Ringee calendars existed keep
+   * their external destination; it does not choose which calendar is booked.
+   */
   @IsOptional()
   @IsUUID(undefined, { message: "Choose one of your connected calendars." })
   calendarIntegrationId?: string | null;

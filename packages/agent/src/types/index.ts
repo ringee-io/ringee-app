@@ -187,6 +187,13 @@ export interface ScheduleMeetingResult {
   scheduledAt?: string;
   duration?: number;
   status?: string;
+  /** The Ringee calendar the meeting was booked on. */
+  calendarId?: string | null;
+  /**
+   * Whether the external calendar event exists yet. `not_required` means the
+   * calendar has no connected account — the booking is still confirmed.
+   */
+  externalSyncStatus?: "not_required" | "pending" | "synced" | "failed";
   error?: string;
 }
 

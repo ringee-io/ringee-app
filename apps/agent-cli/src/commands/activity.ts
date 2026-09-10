@@ -212,6 +212,10 @@ export function registerActivity(program: Command): void {
       "--call <callId>",
       "source call id (sets outcome to meeting_booked)",
     )
+    .option(
+      "--calendar <calendarId>",
+      "Ringee calendar to book on (default: the workspace's global calendar)",
+    )
     .option("--notes <notes>")
     .action((contactId: string, scheduledAt: string, opts) =>
       run(async () => {
@@ -223,6 +227,7 @@ export function registerActivity(program: Command): void {
           location: opts.location,
           attendeeEmail: opts.email,
           callId: opts.call,
+          calendarId: opts.calendar,
           notes: opts.notes,
         });
         if (wantsJson()) return json(res);
@@ -231,6 +236,11 @@ export function registerActivity(program: Command): void {
         kv("at", res.scheduledAt);
         kv("duration", res.duration);
         kv("status", res.status);
+        if (res.calendarId) kv("calendar", res.calendarId);
+        // A failed external event never means the booking failed.
+        if (res.externalSyncStatus === "failed") {
+          kv("external event", "failed — retry from the meeting");
+        }
       }),
     );
 }

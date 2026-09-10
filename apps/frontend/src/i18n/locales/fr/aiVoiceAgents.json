@@ -111,21 +111,18 @@
     "keySaved": "Enregistrée — saisissez-en une nouvelle pour la remplacer",
     "meetings": "Rendez-vous",
     "meetingsHint": "Où et comment l'agent réserve.",
-    "noCalendar": "Aucun calendrier connecté — l'agent peut être enregistré, mais pas activé tant qu'il n'en a pas un.",
-    "connectCalendar": "Connecter un calendrier",
-    "calendar": "Calendrier",
-    "calendarHint": "L'agent y lit les créneaux libres et y réserve.",
-    "chooseCalendar": "Choisir un calendrier",
+    "calendar": "Agenda",
+    "calendarHint": "L'agenda Ringee sur lequel cet agent réserve. Ses plages, son fuseau horaire et sa capacité sont partagés avec tous les agents qui l'utilisent.",
+    "chooseCalendar": "Choisir un agenda",
     "duration": "Durée",
     "durationHint": "En minutes.",
     "timezone": "Fuseau horaire",
-    "timezoneHint": "Les horaires proposés par l'agent.",
+    "timezoneHint": "Valeur de repli uniquement — le fuseau horaire de l'agenda détermine les créneaux proposés.",
     "meetingTitle": "Titre du rendez-vous",
     "meetingTitleHint": "Ce qui apparaît dans le calendrier.",
-    "calendars": {
-      "google": "Google Calendar",
-      "microsoft": "Outlook Calendar"
-    }
+    "globalCalendar": "Utiliser l'agenda global",
+    "effectiveCalendar": "Cet agent réserve sur {name} ({timezone}).",
+    "manageAvailability": "Gérer les disponibilités"
   },
   "voice": {
     "title": "Voix",

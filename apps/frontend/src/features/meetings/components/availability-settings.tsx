@@ -84,11 +84,29 @@ type AvailabilityForm = z.infer<typeof availabilityFormSchema>;
 interface AvailabilitySettingsResponse {
   configured: boolean;
   windows: Array<AvailabilityWindow & { id?: string }>;
+  calendarId: string;
+  timezone: string;
 }
 
-export function AvailabilitySettings() {
+interface AvailabilitySettingsProps {
+  /**
+   * Which calendar's windows to edit. Omitted targets the workspace's global
+   * calendar, which is what this screen edited before there were several.
+   */
+  calendarId?: string;
+  /** Rendered above the editor; the calendars screen puts its own header up. */
+  showHeader?: boolean;
+}
+
+export function AvailabilitySettings({
+  calendarId,
+  showHeader = true
+}: AvailabilitySettingsProps = {}) {
   const api = useApi();
   const t = useTranslations('meetings.availability');
+  const endpoint = calendarId
+    ? `/calendar/calendars/${calendarId}/availability-settings`
+    : '/calendar/availability-settings';
   const [isLoading, setIsLoading] = useState(true);
   const [loadFailed, setLoadFailed] = useState(false);
   const form = useForm<AvailabilityForm>({
@@ -107,9 +125,7 @@ export function AvailabilitySettings() {
     setLoadFailed(false);
     form.clearErrors('root');
     try {
-      const settings = await api.get<AvailabilitySettingsResponse>(
-        '/calendar/availability-settings'
-      );
+      const settings = await api.get<AvailabilitySettingsResponse>(endpoint);
       if (settings.configured && settings.windows.length === 0) {
         throw new Error('Configured availability returned no windows');
       }
@@ -124,7 +140,7 @@ export function AvailabilitySettings() {
     } finally {
       setIsLoading(false);
     }
-  }, [api, form, t]);
+  }, [api, endpoint, form, t]);
 
   useEffect(() => {
     void load();
@@ -134,7 +150,7 @@ export function AvailabilitySettings() {
     form.clearErrors('root');
     try {
       const saved = await api.put<AvailabilitySettingsResponse>(
-        '/calendar/availability-settings',
+        endpoint,
         values
       );
       form.reset({
@@ -166,15 +182,19 @@ export function AvailabilitySettings() {
   return (
     <form onSubmit={save} aria-busy={isSubmitting} className='space-y-6'>
       <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
-        <div>
-          <div className='flex flex-wrap items-center gap-2'>
-            <h3 className='text-base font-semibold'>{t('title')}</h3>
-            <Badge variant='secondary'>{t('ringeeBadge')}</Badge>
+        {showHeader ? (
+          <div>
+            <div className='flex flex-wrap items-center gap-2'>
+              <h3 className='text-base font-semibold'>{t('title')}</h3>
+              <Badge variant='secondary'>{t('ringeeBadge')}</Badge>
+            </div>
+            <p className='text-muted-foreground mt-1 max-w-2xl text-sm leading-relaxed'>
+              {t('description')}
+            </p>
           </div>
-          <p className='text-muted-foreground mt-1 max-w-2xl text-sm leading-relaxed'>
-            {t('description')}
-          </p>
-        </div>
+        ) : (
+          <span />
+        )}
         <Button
           type='submit'
           disabled={isSubmitting || !form.formState.isDirty}
@@ -185,10 +205,12 @@ export function AvailabilitySettings() {
         </Button>
       </div>
 
-      <Alert className='border-primary/20 bg-primary/5 rounded-xl'>
-        <Bot className='size-4' />
-        <AlertDescription>{t('agentHint')}</AlertDescription>
-      </Alert>
+      {showHeader ? (
+        <Alert className='border-primary/20 bg-primary/5 rounded-xl'>
+          <Bot className='size-4' />
+          <AlertDescription>{t('agentHint')}</AlertDescription>
+        </Alert>
+      ) : null}
 
       {form.formState.errors.root?.message ? (
         <Alert variant='destructive' className='rounded-xl'>

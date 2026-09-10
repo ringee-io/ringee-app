@@ -111,21 +111,18 @@
     "keySaved": "Guardada — introduz uma nova para a substituir",
     "meetings": "Reuniões",
     "meetingsHint": "Onde e como o agente marca.",
-    "noCalendar": "Nenhum calendário ligado — o agente pode ser guardado, mas só pode ser ativado quando tiver um.",
-    "connectCalendar": "Ligar um calendário",
     "calendar": "Calendário",
-    "calendarHint": "O agente lê daqui os horários livres e marca nele.",
-    "chooseCalendar": "Escolhe um calendário",
+    "calendarHint": "Em qual calendário do Ringee este agente agenda. As faixas, o fuso horário e a capacidade são compartilhados com os demais agentes que o usam.",
+    "chooseCalendar": "Escolha um calendário",
     "duration": "Duração",
     "durationHint": "Em minutos.",
     "timezone": "Fuso horário",
-    "timezoneHint": "Os horários que o agente oferece.",
+    "timezoneHint": "Apenas alternativa — o fuso horário do calendário decide os horários que o agente oferece.",
     "meetingTitle": "Título da reunião",
     "meetingTitleHint": "O que fica no calendário.",
-    "calendars": {
-      "google": "Google Calendar",
-      "microsoft": "Outlook Calendar"
-    }
+    "globalCalendar": "Usar calendário global",
+    "effectiveCalendar": "Este agente agenda em {name} ({timezone}).",
+    "manageAvailability": "Gerenciar disponibilidade"
   },
   "voice": {
     "title": "Voz",

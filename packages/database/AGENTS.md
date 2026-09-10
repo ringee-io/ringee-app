@@ -28,6 +28,11 @@ else imports models, enums and `Prisma` types from `@ringee/database`.
 
 - IDs are UUIDs. Tenant-owned models carry `userId` **and** nullable
   `organizationId`; personal rows have `organizationId: null`.
+- Writes that must produce exactly one row per workspace take the workspace row
+  lock: `lockWorkspace(tx, ctx)` in `calendar.repository.ts`. It is shared by the
+  global-calendar creation, the availability replace, the protected booking and
+  the calendar-account connect, so those cannot interleave. Do not hand-roll a
+  second `SELECT … FOR UPDATE` on `User`/`Organization`.
 - Soft deletes use `deletedAt` (contacts, tags, caller IDs, call sessions).
   Respect it in queries.
 - Enums are public contracts — the frontend, MCP tools, the SDK and Custom

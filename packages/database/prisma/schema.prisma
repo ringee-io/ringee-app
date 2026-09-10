@@ -48,6 +48,16 @@ enum MeetingStatus {
   rescheduled
 }
 
+/// How far a Ringee meeting has got in reaching its calendar's external
+/// destination. `not_required` means the calendar has no Google connection, so
+/// there is nothing to sync — it is not a failure state.
+enum MeetingExternalSyncStatus {
+  not_required
+  pending
+  synced
+  failed
+}
+
 enum ReminderSubjectType {
   callback
   meeting
@@ -419,6 +429,7 @@ model User {
   campaignLeads           CampaignLead[]
   tags                    Tag[]
   meetings                Meeting[]
+  calendars               Calendar[]
   calendarIntegrations    CalendarIntegration[]
   calendarAvailability    CalendarAvailabilityRule[]
   activitySnapshot        UserActivitySnapshot?
@@ -514,6 +525,7 @@ model Organization {
   campaigns              Campaign[]
   tags                   Tag[]
   meetings               Meeting[]
+  calendars              Calendar[]
   calendarIntegrations   CalendarIntegration[]
   calendarAvailability   CalendarAvailabilityRule[]
   crmConnections         CrmConnection[]
@@ -1765,37 +1777,111 @@ model ContactTag {
 }
 
 model Meeting {
-  id              String        @id @default(uuid()) @db.Uuid
-  userId          String        @db.Uuid
-  organizationId  String?       @db.Uuid
-  contactId       String        @db.Uuid
-  callId          String?       @db.Uuid
-  title           String?
-  scheduledAt     DateTime
-  duration        Int           @default(30)
-  location        String?
-  notes           String?       @db.Text
-  status          MeetingStatus @default(scheduled)
-  externalEventId String?
-  cancelledAt     DateTime?
-  createdAt       DateTime      @default(now())
-  updatedAt       DateTime      @updatedAt
+  id             String        @id @default(uuid()) @db.Uuid
+  userId         String        @db.Uuid
+  organizationId String?       @db.Uuid
+  contactId      String        @db.Uuid
+  callId         String?       @db.Uuid
+  title          String?
+  scheduledAt    DateTime
+  duration       Int           @default(30)
+  location       String?
+  notes          String?       @db.Text
+  status         MeetingStatus @default(scheduled)
 
-  user              User               @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization      Organization?      @relation(fields: [organizationId], references: [id], onDelete: SetNull)
-  contact           Contact            @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  call              Call?              @relation(fields: [callId], references: [id], onDelete: SetNull)
-  inboxEvents       InboxEvent[]
-  aiVoiceAgentCalls AiVoiceAgentCall[]
+  /// Which Ringee calendar this meeting was booked on, and therefore whose
+  /// availability windows and capacity it consumes. Nullable only so rows that
+  /// predate multiple calendars remain readable; every new booking sets it.
+  calendarId String? @db.Uuid
+
+  /// The external event this meeting produced, and where it was created.
+  /// The destination is recorded per meeting, not read back from the calendar,
+  /// so re-pointing a calendar at another Google account never rewrites where
+  /// an event that already exists lives.
+  externalEventId               String?
+  externalCalendarIntegrationId String?                   @db.Uuid
+  externalCalendarTargetId      String?
+  externalSyncStatus            MeetingExternalSyncStatus @default(not_required)
+  externalSyncError             String?                   @db.Text
+  externalSyncAttempts          Int                       @default(0)
+  externalSyncedAt              DateTime?
+
+  cancelledAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization        Organization?        @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+  contact             Contact              @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  call                Call?                @relation(fields: [callId], references: [id], onDelete: SetNull)
+  calendar            Calendar?            @relation(fields: [calendarId], references: [id], onDelete: SetNull)
+  externalIntegration CalendarIntegration? @relation("meetingExternalIntegration", fields: [externalCalendarIntegrationId], references: [id], onDelete: SetNull)
+  inboxEvents         InboxEvent[]
+  aiVoiceAgentCalls   AiVoiceAgentCall[]
 
   @@index([userId])
   @@index([organizationId])
   @@index([contactId])
   @@index([callId])
+  @@index([calendarId])
   @@index([scheduledAt])
   @@index([status])
+  @@index([externalSyncStatus])
 }
 
+/// A Ringee calendar: the thing that owns availability windows, a time zone and
+/// the meetings booked against it. Every workspace has exactly one `isDefault`
+/// calendar — the global calendar the manual dialer, campaigns and any agent
+/// without an explicit selection use — plus any number of additional ones.
+///
+/// This is NOT a Google account and NOT an external calendar. The optional
+/// external destination hangs off `integration` + `externalCalendarId`; a
+/// calendar with neither is fully usable for availability and booking.
+model Calendar {
+  id             String  @id @default(uuid()) @db.Uuid
+  userId         String  @db.Uuid
+  organizationId String? @db.Uuid
+
+  name     String
+  /// IANA zone. Authoritative for this calendar's windows, and for any agent
+  /// that books against it.
+  timezone String @default("UTC")
+
+  /// The workspace's global calendar. Exactly one per workspace; it cannot be
+  /// archived, because existing consumers resolve to it when they name none.
+  isDefault  Boolean   @default(false)
+  /// Archived calendars keep their meetings and history but accept no new
+  /// bookings and are not offered to agents.
+  archivedAt DateTime?
+
+  /// Optional Google/Microsoft account events booked here are pushed to, and
+  /// the external calendar inside that account. Availability never reads them.
+  calendarIntegrationId String? @db.Uuid
+  externalCalendarId    String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user              User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization      Organization?              @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  integration       CalendarIntegration?       @relation(fields: [calendarIntegrationId], references: [id], onDelete: SetNull)
+  availabilityRules CalendarAvailabilityRule[]
+  meetings          Meeting[]
+  aiVoiceAgents     AiVoiceAgent[]
+  aiVoiceAgentCalls AiVoiceAgentCall[]
+
+  @@index([userId])
+  @@index([organizationId])
+  @@index([calendarIntegrationId])
+  @@index([userId, organizationId, isDefault])
+}
+
+/// One connected external calendar **account**. A workspace may connect several
+/// (different Google accounts for different Ringee calendars), and one account
+/// may be the destination of several Ringee calendars without being duplicated.
+/// Reconnecting the same account replaces its tokens instead of adding a row —
+/// see `CalendarIntegrationRepository.connectAccount`, which serializes that
+/// find-or-create under the workspace lock.
 model CalendarIntegration {
   id             String           @id @default(uuid()) @db.Uuid
   userId         String           @db.Uuid
@@ -1804,28 +1890,37 @@ model CalendarIntegration {
   accessToken    String           @db.Text
   refreshToken   String?          @db.Text
   expiresAt      DateTime?
+  /// Legacy account-level external calendar selection. The per-Ringee-calendar
+  /// choice lives on `Calendar.externalCalendarId`; this stays as the fallback
+  /// for connections made before calendars existed.
   calendarId     String?
   email          String?
   isActive       Boolean          @default(true)
   createdAt      DateTime         @default(now())
   updatedAt      DateTime         @updatedAt
 
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  organization  Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  aiVoiceAgents AiVoiceAgent[]
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization?  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  aiVoiceAgents  AiVoiceAgent[]
+  calendars      Calendar[]
+  syncedMeetings Meeting[]      @relation("meetingExternalIntegration")
 
-  @@unique([userId, provider])
   @@index([organizationId])
   @@index([userId])
+  @@index([userId, provider])
 }
 
-/// A recurring Ringee booking window. External calendars are optional sync
-/// targets; these rows are the availability source of truth for voice agents.
-/// `capacity = null` means the window accepts unlimited simultaneous meetings.
+/// A recurring Ringee booking window on one calendar. External calendars are
+/// optional sync targets; these rows are the availability source of truth for
+/// voice agents. `capacity = null` means the window accepts unlimited
+/// simultaneous meetings.
 model CalendarAvailabilityRule {
   id             String   @id @default(uuid()) @db.Uuid
   userId         String   @db.Uuid
   organizationId String?  @db.Uuid
+  /// The calendar this window belongs to. Windows are per calendar, so two
+  /// calendars in one workspace keep independent hours and capacity.
+  calendarId     String   @db.Uuid
   daysOfWeek     Int[]
   startMinute    Int
   endMinute      Int
@@ -1835,9 +1930,11 @@ model CalendarAvailabilityRule {
 
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  calendar     Calendar      @relation(fields: [calendarId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([organizationId])
+  @@index([calendarId])
 }
 
 // ── Outbound System Models ──
@@ -4099,8 +4196,19 @@ model AiVoiceAgent {
   callerNumberId String? @db.Uuid
 
   /// Appointment booking only.
+  ///
+  /// `calendarId` is the Ringee calendar this agent books against. Null means
+  /// "use the workspace's global calendar", which is what every agent created
+  /// before multiple calendars existed keeps doing.
+  ///
+  /// `calendarIntegrationId` is the older, external-only setting: the Google
+  /// account an agent's events were pushed to. It is preserved so those agents
+  /// keep their destination, and it is used only when `calendarId` is null.
+  calendarId             String? @db.Uuid
   calendarIntegrationId  String? @db.Uuid
   meetingDurationMinutes Int     @default(30)
+  /// Display time zone. The effective zone for availability is the resolved
+  /// calendar's — see `CalendarService.resolveCalendar`.
   timezone               String?
   meetingTitle           String?
 
@@ -4116,6 +4224,7 @@ model AiVoiceAgent {
 
   user                User                          @relation(fields: [userId], references: [id], onDelete: Cascade)
   organization        Organization?                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  calendar            Calendar?                     @relation(fields: [calendarId], references: [id], onDelete: SetNull)
   calendarIntegration CalendarIntegration?          @relation(fields: [calendarIntegrationId], references: [id], onDelete: SetNull)
   callerNumber        NumberPurchased?              @relation("aiVoiceAgentCallerNumber", fields: [callerNumberId], references: [id], onDelete: SetNull)
   knowledgeSources    AiVoiceAgentKnowledgeSource[]
@@ -4125,6 +4234,7 @@ model AiVoiceAgent {
   @@index([organizationId])
   @@index([userId, type])
   @@index([callerNumberId])
+  @@index([calendarId])
   @@index([deletedAt])
 }
 
@@ -4198,6 +4308,11 @@ model AiVoiceAgentCall {
   /// Set by the booking tool when the agent really created the appointment.
   meetingId     String? @db.Uuid
 
+  /// The calendar resolved for this call, pinned on first use. Editing the
+  /// agent mid-call must not move the booking to a different calendar than the
+  /// one whose times were offered.
+  calendarId String? @db.Uuid
+
   /// Provider-reported AI cost in USD, and what Ringee charged for it.
   aiCostUsd        Float?
   aiChargedCredits Float?
@@ -4221,6 +4336,7 @@ model AiVoiceAgentCall {
   call         Call?         @relation(fields: [callId], references: [id], onDelete: SetNull)
   contact      Contact?      @relation(fields: [contactId], references: [id], onDelete: SetNull)
   meeting      Meeting?      @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  calendar     Calendar?     @relation(fields: [calendarId], references: [id], onDelete: SetNull)
 
   @@index([agentId])
   @@index([userId])

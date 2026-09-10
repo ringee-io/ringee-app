@@ -17,7 +17,7 @@ import {
   safeHashEqual,
   type OwnershipContext,
 } from "@ringee/platform";
-import { CalendarService } from "../calendar.service";
+import { CalendarService, ResolvedCalendar } from "../calendar.service";
 import { ContactService } from "../contact.service";
 import { MeetingService } from "../meeting.service";
 import { CallbackService } from "../outbound/callback.service";
@@ -104,18 +104,40 @@ export class VoiceAgentToolService {
   async getAvailableSlots(
     agentId: string,
     secret: string,
+    callControlId: string | null,
     input: { date?: string },
   ): Promise<ToolResult<AvailableSlotsResult>> {
     const { agent, ctx } = await this.authorize(agentId, secret);
     const date = this.requireDate(input.date);
-    const timezone = agent.timezone || "UTC";
+
+    const agentCall = callControlId
+      ? await this.agentCalls.findByCallControlId(callControlId)
+      : null;
+    if (agentCall && agentCall.agentId !== agent.id) {
+      throw new UnauthorizedException("Call does not belong to this agent");
+    }
+
+    let resolved: ResolvedCalendar;
+    try {
+      resolved = await this.resolveCalendarForCall(ctx, agent, agentCall);
+    } catch (error) {
+      return { ok: false, error: this.calendarErrorMessage(agentId, error) };
+    }
+
+    // The calendar's zone wins over the agent's own `timezone` field: the
+    // windows are wall-clock times on that calendar, so reading them in another
+    // zone would offer times the calendar never opened.
+    const timezone = resolved.timezone;
 
     try {
-      const slots = await this.calendars.getBookableSlots(ctx, {
-        date,
-        timeZone: timezone,
-        durationMinutes: agent.meetingDurationMinutes,
-      });
+      const slots = await this.calendars.getBookableSlotsForCalendar(
+        ctx,
+        resolved,
+        {
+          date,
+          durationMinutes: agent.meetingDurationMinutes,
+        },
+      );
 
       return {
         ok: true,
@@ -139,6 +161,71 @@ export class VoiceAgentToolService {
           "The calendar could not be reached, so no times can be offered right now.",
       };
     }
+  }
+
+  /**
+   * Which calendar this call reads and books against.
+   *
+   * Resolved from the stored agent and its workspace, never from a tool
+   * argument — the model cannot reach another calendar by naming one. The
+   * result is pinned to the call the first time it is needed, so editing the
+   * agent while the conversation is running cannot move the booking to a
+   * different calendar than the one whose times were already offered.
+   */
+  private async resolveCalendarForCall(
+    ctx: OwnershipContext,
+    agent: AiVoiceAgent,
+    agentCall: AiVoiceAgentCall | null,
+  ): Promise<ResolvedCalendar> {
+    if (agentCall?.calendarId) {
+      return this.calendars.resolveCalendar(ctx, {
+        calendarId: agentCall.calendarId,
+        fallbackIntegrationId: agent.calendarIntegrationId,
+        // A calendar archived mid-call still finishes the conversation it was
+        // already offering times from.
+        allowArchived: true,
+      });
+    }
+
+    const resolved = await this.calendars.resolveCalendar(ctx, {
+      calendarId: agent.calendarId,
+      fallbackIntegrationId: agent.calendarIntegrationId,
+    });
+    if (agentCall) {
+      const pinned = await this.agentCalls.pinCalendarIfUnset(
+        agentCall.id,
+        resolved.calendar.id,
+      );
+      if (!pinned) {
+        // Another tool call on this conversation pinned first. Follow that one,
+        // not this lookup, so both tools agree for the rest of the call.
+        const current = await this.agentCalls.findById(agentCall.id);
+        if (
+          current?.calendarId &&
+          current.calendarId !== resolved.calendar.id
+        ) {
+          return this.calendars.resolveCalendar(ctx, {
+            calendarId: current.calendarId,
+            fallbackIntegrationId: agent.calendarIntegrationId,
+            allowArchived: true,
+          });
+        }
+      }
+    }
+    return resolved;
+  }
+
+  /**
+   * A calendar that is archived or gone is reported as such rather than
+   * silently swapped for the global one — an agent pointed at a specific
+   * calendar must never book somewhere else.
+   */
+  private calendarErrorMessage(agentId: string, error: unknown): string {
+    const message = error instanceof Error ? error.message : String(error);
+    this.logger.error(
+      `Calendar resolution failed for agent ${agentId}: ${message}`,
+    );
+    return "This agent's calendar is not available, so no times can be offered or booked.";
   }
 
   async bookAppointment(
@@ -207,14 +294,26 @@ export class VoiceAgentToolService {
       };
     }
 
+    let resolved: ResolvedCalendar;
     try {
-      const timezone = agent.timezone || "UTC";
+      // The same calendar the times were offered from — resolved on the server
+      // from the stored agent, and pinned to this call.
+      resolved = await this.resolveCalendarForCall(ctx, agent, agentCall);
+    } catch (error) {
+      return { ok: false, error: this.calendarErrorMessage(agentId, error) };
+    }
+
+    try {
+      const timezone = resolved.timezone;
       const date = this.dateInTimeZone(start, timezone);
-      const slots = await this.calendars.getBookableSlots(ctx, {
-        date,
-        timeZone: timezone,
-        durationMinutes: agent.meetingDurationMinutes,
-      });
+      const slots = await this.calendars.getBookableSlotsForCalendar(
+        ctx,
+        resolved,
+        {
+          date,
+          durationMinutes: agent.meetingDurationMinutes,
+        },
+      );
       const exactSlot = slots.find(
         (slot) => new Date(slot.start).getTime() === start.getTime(),
       );
@@ -235,6 +334,7 @@ export class VoiceAgentToolService {
         notes: input.notes,
         attendeeEmail: input.attendee_email,
         calendarIntegrationId: agent.calendarIntegrationId,
+        resolvedCalendar: resolved,
         requireAvailableSlot: true,
         bookingTimeZone: timezone,
         agentCallId: agentCall?.id,
