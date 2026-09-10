@@ -361,10 +361,11 @@ export class MeetingService {
   /**
    * Retries the external calendar event for a booking whose sync failed.
    *
-   * The Ringee booking is untouched either way. Retrying is safe because the
-   * external event id is derived from the meeting, so an attempt that actually
-   * reached the provider before failing converges on the same event instead of
-   * creating a second one.
+   * The Ringee booking is untouched either way. Retrying converges on the event
+   * a failed attempt may already have created rather than adding a second one —
+   * but only when the retry addresses the same destination, so the one recorded
+   * on the meeting wins over re-reading the calendar's current connection. See
+   * `CAL-002` for what each provider actually guarantees.
    */
   async retryExternalSync(
     ctx: OwnershipContext,
@@ -373,13 +374,25 @@ export class MeetingService {
     const meeting = await this.getMeetingById(ctx, meetingId);
     if (meeting.externalEventId) return meeting;
 
-    const resolved = await this.calendarService.resolveCalendar(ctx, {
-      calendarId: meeting.calendarId,
-      // The booking already exists; an archived calendar still owns its history.
-      allowArchived: true,
-    });
+    // A failed attempt records where it was sent. Re-pointing the calendar at
+    // another account since then must not move this retry: `syncMeeting...`
+    // still checks the integration belongs to the workspace.
+    const destination = meeting.externalCalendarIntegrationId
+      ? {
+          integrationId: meeting.externalCalendarIntegrationId,
+          externalCalendarId: meeting.externalCalendarTargetId,
+        }
+      : (
+          await this.calendarService.resolveCalendar(ctx, {
+            calendarId: meeting.calendarId,
+            // The booking already exists; an archived calendar still owns its
+            // history.
+            allowArchived: true,
+          })
+        ).destination;
+
     await this.calendarService.syncMeetingToExternalCalendar(ctx, meeting, {
-      destination: resolved.destination,
+      destination,
       title: meeting.title ?? undefined,
     });
     return this.getMeetingById(ctx, meetingId);

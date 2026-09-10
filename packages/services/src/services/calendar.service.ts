@@ -1137,7 +1137,9 @@ export class CalendarService {
    * event pending" from "confirmed everywhere". Retrying is safe — Google is
    * given an event id derived from the meeting, so a second attempt after a
    * failure that actually succeeded is rejected as a duplicate rather than
-   * creating a second event.
+   * creating a second event. Microsoft has no client-supplied event id: the
+   * same value goes out as Graph's `transactionId`, which de-duplicates for a
+   * bounded window only. See `CAL-002` in `docs/engineering/BUSINESS_RULES.md`.
    */
   async syncMeetingToExternalCalendar(
     ctx: OwnershipContext,
@@ -1175,7 +1177,19 @@ export class CalendarService {
       return { status: MeetingExternalSyncStatus.not_required };
     }
 
-    await this.meetingRepo.markExternalSyncPending(meeting.id);
+    const claimed = await this.meetingRepo.markExternalSyncPending(meeting.id);
+    if (!claimed) {
+      // Another attempt synced this booking between the read above and here.
+      // Follow the event it recorded instead of creating a second one.
+      const current = await this.meetingRepo.findById(meeting.id);
+      if (current?.externalEventId) {
+        return {
+          status: MeetingExternalSyncStatus.synced,
+          externalEventId: current.externalEventId,
+          meetLink: current.location ?? undefined,
+        };
+      }
+    }
     const targetCalendarId =
       options.destination.externalCalendarId ??
       integration.calendarId ??
@@ -1279,15 +1293,16 @@ export class CalendarService {
     const accessToken = await this.ensureValidToken(integration);
     const end = new Date(dto.start.getTime() + dto.durationMinutes * 60 * 1000);
 
+    const targetCalendarId =
+      dto.targetCalendarId || integration.calendarId || "primary";
     if (integration.provider === "google") {
-      return this.googleCreateEvent(
+      return this.googleCreateEvent(accessToken, targetCalendarId, dto, end);
+    } else {
+      return this.microsoftCreateEvent(
         accessToken,
-        dto.targetCalendarId || integration.calendarId || "primary",
-        dto,
+        { ...dto, targetCalendarId },
         end,
       );
-    } else {
-      return this.microsoftCreateEvent(accessToken, dto, end);
     }
   }
 
@@ -1424,7 +1439,13 @@ export class CalendarService {
 
   private async microsoftCreateEvent(
     accessToken: string,
-    dto: { summary: string; start: Date; attendeeEmail?: string },
+    dto: {
+      summary: string;
+      start: Date;
+      attendeeEmail?: string;
+      targetCalendarId?: string;
+      idempotencyId?: string;
+    },
     end: Date,
   ): Promise<CalendarEvent> {
     const body: Record<string, unknown> = {
@@ -1435,6 +1456,12 @@ export class CalendarService {
       onlineMeetingProvider: "teamsForBusiness",
     };
 
+    // Graph drops a repeat of the same `transactionId`, which is what keeps a
+    // retry of an attempt Ringee never saw the answer to from creating a second
+    // event. Unlike Google's event id it is not a durable key — the window is
+    // bounded, so a much later retry can still duplicate (CAL-002).
+    if (dto.idempotencyId) body.transactionId = dto.idempotencyId;
+
     if (dto.attendeeEmail) {
       body.attendees = [
         {
@@ -1444,7 +1471,16 @@ export class CalendarService {
       ];
     }
 
-    const res = await fetch("https://graph.microsoft.com/v1.0/me/events", {
+    // "primary" is the Google spelling of "the account's own calendar", which
+    // for Graph is `/me/events`. Anything else is a real calendar in the
+    // account, and is the calendar recorded on the meeting.
+    const url =
+      dto.targetCalendarId && dto.targetCalendarId !== "primary"
+        ? `https://graph.microsoft.com/v1.0/me/calendars/${encodeURIComponent(
+            dto.targetCalendarId,
+          )}/events`
+        : "https://graph.microsoft.com/v1.0/me/events";
+    const res = await fetch(url, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,

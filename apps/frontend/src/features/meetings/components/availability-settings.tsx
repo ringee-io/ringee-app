@@ -25,7 +25,8 @@ import {
   Plus,
   RotateCcw,
   Trash2,
-  Users
+  Users,
+  Wand2
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -40,6 +41,14 @@ const DEFAULT_WINDOW: AvailabilityWindow = {
   endTime: '18:00',
   capacity: 1
 };
+
+/**
+ * The one-press working week: Monday to Friday, eight hours a day. It is the
+ * shape most workspaces want and the slowest to build by hand — five day
+ * toggles and two time fields before the first meeting can be booked.
+ */
+const WORKING_HOURS_START = '09:00';
+const WORKING_HOURS_END = '17:00';
 
 const availabilityWindowSchema = z
   .object({
@@ -164,7 +173,7 @@ export function AvailabilitySettings({
     resolver: zodResolver(availabilityFormSchema),
     defaultValues: { windows: [] }
   });
-  const { fields, append, remove } = useFieldArray({
+  const { fields, append, remove, replace } = useFieldArray({
     control: form.control,
     name: 'windows'
   });
@@ -229,6 +238,42 @@ export function AvailabilitySettings({
     }));
   }, [windows]);
 
+  // Disabled rather than hidden once it matches: the row is also how someone
+  // reads what "working hours" means here, and a press that changes nothing
+  // would leave the form dirty for no reason.
+  const isWorkingWeek = useMemo(() => {
+    const current = (windows ?? []) as AvailabilityWindow[];
+    const [only] = current;
+    return Boolean(
+      current.length === 1 &&
+        only &&
+        sameDays(only.daysOfWeek ?? [], WEEKDAYS) &&
+        only.startTime === WORKING_HOURS_START &&
+        only.endTime === WORKING_HOURS_END
+    );
+  }, [windows]);
+
+  const applyWorkingHours = useCallback(() => {
+    const previous = form.getValues('windows');
+    const [first] = previous;
+    replace([
+      {
+        daysOfWeek: [...WEEKDAYS],
+        startTime: WORKING_HOURS_START,
+        endTime: WORKING_HOURS_END,
+        // Hours are what this fills in. How many people may share a time is a
+        // separate decision, so an existing choice survives the autofill.
+        capacity: first ? first.capacity : 1
+      }
+    ]);
+    toast.success(t('workingHours.applied'), {
+      action: {
+        label: t('workingHours.undo'),
+        onClick: () => replace(previous)
+      }
+    });
+  }, [form, replace, t]);
+
   if (isLoading) return <AvailabilitySettingsSkeleton />;
 
   if (loadFailed) {
@@ -285,6 +330,42 @@ export function AvailabilitySettings({
         ) : null}
 
         <WeekOverview week={week} timezone={timezone} t={t} />
+
+        {/*
+          The usual week in one press. It replaces the windows below rather than
+          adding to them — a second Mon–Fri window would overlap and fail
+          validation — so the toast carries the way back, and nothing reaches
+          the calendar until Save.
+        */}
+        <div className='border-border/40 bg-card flex flex-wrap items-center justify-between gap-3 rounded-xl border px-4 py-3'>
+          <div className='flex min-w-0 items-center gap-2.5'>
+            <span className='bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-lg'>
+              <Wand2 className='size-4' />
+            </span>
+            <div className='min-w-0'>
+              <p className='text-sm font-medium'>{t('workingHours.title')}</p>
+              <p
+                id='availability-working-hours-hint'
+                className='text-muted-foreground text-xs'
+              >
+                {isWorkingWeek
+                  ? t('workingHours.active')
+                  : t('workingHours.hint')}
+              </p>
+            </div>
+          </div>
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            onClick={applyWorkingHours}
+            disabled={isSubmitting || isWorkingWeek}
+            aria-describedby='availability-working-hours-hint'
+            className='min-h-11 sm:min-h-9'
+          >
+            {t('workingHours.action')}
+          </Button>
+        </div>
 
         <div className='space-y-3'>
           {fields.map((field, index) => {

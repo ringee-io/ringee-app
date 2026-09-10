@@ -274,12 +274,23 @@ export class MeetingRepository {
     });
   }
 
-  /** Marks a booking as waiting for its external event, before the attempt. */
-  markExternalSyncPending(id: string): Promise<Meeting> {
-    return this.prisma.meeting.update({
-      where: { id },
+  /**
+   * Marks a booking as waiting for its external event, before the attempt.
+   *
+   * Conditional on the booking not already being `synced`: two attempts can
+   * overlap, and an unconditional write would walk a row another attempt just
+   * synced back to `pending` — then record `failed` over an event that exists.
+   * Returns whether this caller claimed the attempt.
+   */
+  async markExternalSyncPending(id: string): Promise<boolean> {
+    const { count } = await this.prisma.meeting.updateMany({
+      where: {
+        id,
+        externalSyncStatus: { not: MeetingExternalSyncStatus.synced },
+      },
       data: { externalSyncStatus: MeetingExternalSyncStatus.pending },
     });
+    return count > 0;
   }
 
   async findById(id: string): Promise<Meeting | null> {

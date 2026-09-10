@@ -75,6 +75,14 @@
     "unlimitedAria": "Allow unlimited bookings in window {number}",
     "unlimitedHint": "Ringee may book any number of people at the same time in this window.",
     "addWindow": "Add another window",
+    "workingHours": {
+      "title": "Standard working hours",
+      "hint": "Mon–Fri, 09:00–17:00. Replaces the windows below.",
+      "active": "Already set to Mon–Fri, 09:00–17:00.",
+      "action": "Autofill",
+      "applied": "Working hours filled in. Save to apply them.",
+      "undo": "Undo"
+    },
     "daysOfWeek": {
       "0": "Sun",
       "1": "Mon",

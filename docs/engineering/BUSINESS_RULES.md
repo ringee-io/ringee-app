@@ -763,10 +763,19 @@ calendar has no connection, then `pending`/`synced`/`failed`), the account and
 external calendar it was sent to, and the error when it failed. A failure never
 removes the Ringee booking, and the UI says so explicitly.
 
-Retrying is safe. The Google event id is derived from the meeting
-(`ringee<uuid-hex>`), so an attempt that reached Google before failing is
-answered with `409` on the retry and read back rather than duplicated; a meeting
-that already carries an `externalEventId` short-circuits before any request.
+Retrying is safe, with the strength of the guarantee differing per provider. A
+meeting that already carries an `externalEventId` short-circuits before any
+request, and a retry is sent to the destination recorded on the meeting, so
+de-duplication is always asked of the calendar that received the first attempt.
+
+- **Google — durable.** The event id is derived from the meeting
+  (`ringee<uuid-hex>`), so an attempt that reached Google before failing is
+  answered with `409` on the retry and read back rather than duplicated,
+  whenever that retry happens.
+- **Microsoft — bounded.** Graph accepts no client-supplied event id. The same
+  derived value is sent as `transactionId`, which Graph de-duplicates for a
+  limited window only and does not read back. A `retryExternalSync` long after
+  the failed attempt can therefore still create a second event.
 
 The destination is stored **on the meeting**, not read back from the calendar, so
 re-pointing a calendar at a different Google account never rewrites where an

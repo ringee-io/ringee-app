@@ -661,9 +661,14 @@ export class VoiceAgentService {
     }
     // Re-validated on every save, unlike the caller number below: a calendar
     // that has since been archived would otherwise keep an agent pointed at a
-    // calendar it can no longer book on, and the tool would fail mid-call.
-    if (dto.calendarId) {
-      await this.assertRingeeCalendarUsable(ctx, dto.calendarId);
+    // calendar it can no longer book on, and the tool would fail mid-call. A
+    // partial save that omits the field is still a save of the assignment the
+    // agent already has, so it is the effective calendar that is checked;
+    // an explicit `null` clears it and has nothing to check.
+    const effectiveCalendarId =
+      dto.calendarId === undefined ? agent.calendarId : dto.calendarId;
+    if (effectiveCalendarId) {
+      await this.assertRingeeCalendarUsable(ctx, effectiveCalendarId);
     }
     // Only a *changed* assignment is validated. Re-saving an agent whose number
     // has since been released would otherwise fail on a field the user did not

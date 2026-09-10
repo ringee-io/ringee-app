@@ -44,6 +44,7 @@ function build(
       availabilityRuleId: string | null;
     }>;
     resolvedCalendar?: Record<string, unknown>;
+    storedMeeting?: Record<string, unknown>;
   } = {},
 ) {
   const events: string[] = [];
@@ -73,6 +74,7 @@ function build(
         bookingRuleIds.push(availabilityRuleId);
         return options.slotAvailable === false ? null : STORED_MEETING;
       },
+      findById: async () => options.storedMeeting ?? STORED_MEETING,
     } as never,
     {} as never,
     {
@@ -355,6 +357,58 @@ describe("MeetingService Ringee-first calendar sync", () => {
 
     assert.equal(meeting.id, "meeting-1");
     assert.equal(meeting.externalSyncStatus, "failed");
+  });
+
+  it("retries against the destination the failed attempt recorded", async () => {
+    const { service, calendarRequests, resolveCalls } = build({
+      storedMeeting: {
+        ...STORED_MEETING,
+        calendarId: "cal-global",
+        externalEventId: null,
+        externalSyncStatus: "failed",
+        externalCalendarIntegrationId: "calendar-old",
+        externalCalendarTargetId: "team@group.calendar.google.com",
+      },
+    });
+
+    await service.retryExternalSync(
+      { userId: "user-1", organizationId: "org-1" },
+      "meeting-1",
+    );
+
+    // Re-resolving could name the account the calendar points at *now*; the
+    // retry only converges on a duplicate-free event at the calendar the first
+    // attempt reached.
+    assert.deepEqual(resolveCalls, []);
+    assert.deepEqual(calendarRequests[0]?.destination, {
+      integrationId: "calendar-old",
+      externalCalendarId: "team@group.calendar.google.com",
+    });
+  });
+
+  it("resolves the calendar to retry a booking that never recorded a destination", async () => {
+    const { service, calendarRequests, resolveCalls } = build({
+      storedMeeting: {
+        ...STORED_MEETING,
+        calendarId: "cal-global",
+        externalEventId: null,
+        externalSyncStatus: "failed",
+        externalCalendarIntegrationId: null,
+        externalCalendarTargetId: null,
+      },
+    });
+
+    await service.retryExternalSync(
+      { userId: "user-1", organizationId: "org-1" },
+      "meeting-1",
+    );
+
+    assert.equal(resolveCalls[0]?.calendarId, "cal-global");
+    assert.equal(resolveCalls[0]?.allowArchived, true);
+    assert.deepEqual(
+      calendarRequests[0]?.destination,
+      RESOLVED_CALENDAR.destination,
+    );
   });
 
   it("uses a calendar the booking path already resolved, without resolving again", async () => {

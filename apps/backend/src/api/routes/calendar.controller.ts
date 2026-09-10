@@ -11,7 +11,10 @@ import {
   Query,
   Res,
   Req,
+  UsePipes,
+  ValidationPipe,
 } from "@nestjs/common";
+import { IsOptional, IsString, IsUUID, MaxLength } from "class-validator";
 import {
   CurrentUser,
   CurrentUserData,
@@ -27,6 +30,25 @@ import {
 } from "@ringee/services";
 import { CalendarProvider } from "@ringee/database";
 import { Response, Request } from "express";
+import { validationExceptionFactory } from "../validation-error";
+
+/**
+ * The external destination of one Ringee calendar.
+ *
+ * Both fields are optional rather than required-and-nullable: `null` is the
+ * deliberate "disconnect" value and must survive validation, and an omitted
+ * `externalCalendarId` means "keep the account's own default calendar".
+ */
+class SetCalendarConnectionDto {
+  @IsOptional()
+  @IsUUID()
+  integrationId?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  externalCalendarId?: string | null;
+}
 
 /**
  * The OAuth `state` Ringee round-trips through the provider.
@@ -299,16 +321,26 @@ export class CalendarController {
   }
 
   @Put("calendars/:id/connection")
+  @UsePipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      exceptionFactory: validationExceptionFactory,
+    }),
+  )
   async setCalendarConnection(
     @Param("id") id: string,
-    @Body()
-    dto: { integrationId: string | null; externalCalendarId?: string | null },
+    @Body() dto: SetCalendarConnectionDto,
     @CurrentUser() user: CurrentUserData,
   ) {
     return this.calendarService.setCalendarConnection(
       createOwnershipContext(user),
       id,
-      dto,
+      {
+        integrationId: dto.integrationId ?? null,
+        externalCalendarId: dto.externalCalendarId,
+      },
     );
   }
 
@@ -372,7 +404,7 @@ export class CalendarController {
   @Get("availability")
   async getAvailability(
     @Query("date") date: string,
-    @Query("timeZone") timeZone = "UTC",
+    @Query("timeZone") timeZone: string | undefined,
     @Query("duration") duration: unknown = "30",
     @CurrentUser() user: CurrentUserData,
     @Query("calendarId") calendarId?: string,
@@ -389,17 +421,25 @@ export class CalendarController {
         `duration must be a whole number between ${MIN_MEETING_DURATION_MINUTES} and ${MAX_MEETING_DURATION_MINUTES}.`,
       );
     }
-    const slots = await this.calendarService.getBookableSlots(
-      createOwnershipContext(user),
+    // A caller that names no zone gets the calendar's own, which is
+    // authoritative for its windows — defaulting to UTC here would read a
+    // 09:00-17:00 New York calendar as 09:00-17:00 UTC and answer in UTC too.
+    const ctx = createOwnershipContext(user);
+    const resolved = await this.calendarService.resolveCalendar(ctx, {
+      calendarId,
+    });
+    const effectiveTimeZone = timeZone ?? resolved.timezone;
+    const slots = await this.calendarService.getBookableSlotsForCalendar(
+      ctx,
+      resolved,
       {
         date,
-        timeZone,
+        timeZone: effectiveTimeZone,
         durationMinutes,
-        calendarId,
       },
     );
     const formatter = new Intl.DateTimeFormat("en-US", {
-      timeZone,
+      timeZone: effectiveTimeZone,
       hour: "2-digit",
       minute: "2-digit",
       hourCycle: "h23",

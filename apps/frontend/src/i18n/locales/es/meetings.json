@@ -65,6 +65,14 @@
     "unlimitedAria": "Permitir reservas sin límite en la franja {number}",
     "unlimitedHint": "Ringee puede agendar cualquier cantidad de personas a la misma hora en esta franja.",
     "addWindow": "Agregar otra franja",
+    "workingHours": {
+      "title": "Horario laboral estándar",
+      "hint": "Lun–Vie, 09:00–17:00. Sustituye los tramos de abajo.",
+      "active": "Ya está en Lun–Vie, 09:00–17:00.",
+      "action": "Autocompletar",
+      "applied": "Horario laboral autocompletado. Guarda para aplicarlo.",
+      "undo": "Deshacer"
+    },
     "daysOfWeek": {
       "0": "Dom",
       "1": "Lun",
