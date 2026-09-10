@@ -8,6 +8,7 @@ import {
 import {
   Call,
   CallRepository,
+  CallStatus,
   CallTranscription,
   CallTranscriptionRepository,
   CallTranscriptionWithSegments,
@@ -270,11 +271,33 @@ export class TranscriptionService {
 
   /**
    * Stop realtime transcription. The media bridge finalizes the header status
-   * when Telnyx closes the socket; here we just stop the Telnyx stream and, as
-   * a safety net, demote a never-started header to `stopped`.
+   * when Telnyx closes the socket; here we only stop the provider's stream and
+   * drop the live partial.
+   *
+   * The carrier is only asked to stop a stream that can still be running. This
+   * runs on every hangup, whether or not the call was ever transcribed, and a
+   * `streaming_stop` sent to a leg Telnyx has already torn down comes back as
+   * 422 `90018` — a failure logged for every completed call, for a stream that
+   * either never existed or was already closed by the hangup itself.
    */
   async stopRealtimeForCall(call: Call): Promise<void> {
-    if (call.callControlId) {
+    const inFlight: TranscriptionStatus[] = [
+      TranscriptionStatus.starting,
+      TranscriptionStatus.transcribing,
+    ];
+    const header = await this.transcriptionRepo.findHeaderByCallAndSource(
+      call.id,
+      TranscriptionSource.realtime,
+    );
+    const isLive =
+      call.status !== CallStatus.completed && call.status !== CallStatus.failed;
+
+    if (
+      call.callControlId &&
+      isLive &&
+      header &&
+      inFlight.includes(header.status)
+    ) {
       await this.telephonyService
         .stopStreaming(call.callControlId)
         .catch((err) =>

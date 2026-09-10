@@ -1,6 +1,6 @@
 import { HttpException } from "@nestjs/common";
 import { describe, expect, it } from "vitest";
-import { describeTelnyxError } from "./telnyx.error";
+import { describeTelnyxError, isTelnyxCallEndedError } from "./telnyx.error";
 
 const FALLBACK = "The voice provider rejected this configuration.";
 
@@ -90,5 +90,43 @@ describe("describeTelnyxError", () => {
   it("falls back for anything unrecognisable", () => {
     expect(describeTelnyxError(undefined, FALLBACK)).toBe(FALLBACK);
     expect(describeTelnyxError({}, FALLBACK)).toBe(FALLBACK);
+  });
+});
+
+describe("isTelnyxCallEndedError", () => {
+  /** What a `streaming_stop` racing a hangup actually comes back as. */
+  const callEnded = new HttpException(
+    {
+      errors: [
+        {
+          code: "90018",
+          title: "Call has already ended",
+          detail: "This call is no longer active and can't receive commands.",
+        },
+      ],
+    },
+    422,
+  );
+
+  it("recognises the provider's 'call has already ended' rejection", () => {
+    expect(isTelnyxCallEndedError(callEnded)).toBe(true);
+  });
+
+  it("recognises it before TelnyxClient wraps the axios error", () => {
+    expect(
+      isTelnyxCallEndedError({
+        response: { status: 422, data: { errors: [{ code: 90018 }] } },
+      }),
+    ).toBe(true);
+  });
+
+  it("does not swallow any other provider failure", () => {
+    expect(
+      isTelnyxCallEndedError(
+        new HttpException({ errors: [{ code: "10015" }] }, 422),
+      ),
+    ).toBe(false);
+    expect(isTelnyxCallEndedError(new Error("socket hang up"))).toBe(false);
+    expect(isTelnyxCallEndedError(undefined)).toBe(false);
   });
 });
