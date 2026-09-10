@@ -25,6 +25,7 @@ import {
   SelectValue
 } from '@ringee/frontend-shared/components/ui/select';
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import { useSettingsDialogStore } from '@/features/settings/store/settings-dialog.store';
 import type { AgentDraft } from '../../hooks/use-agent-draft';
 import type { VoiceAgentType } from '../../types';
 import { CallerNumberSelect } from '../caller-number-select';
@@ -44,6 +45,7 @@ export function SetupSection({
 }) {
   const t = useTranslations('aiVoiceAgents.setup');
   const tCommon = useTranslations('aiVoiceAgents.common');
+  const openSettings = useSettingsDialogStore((state) => state.openSettings);
   const booking = type === 'appointment_booking';
 
   return (
@@ -247,17 +249,21 @@ export function SetupSection({
                     timezone: draft.effectiveCalendar.timezone
                   })}
                 </span>
+                {/*
+                  The hours live on the calendar, which is a settings pane now —
+                  opened here on that exact calendar so the agent's draft is not
+                  lost to a navigation.
+                */}
                 <Button
-                  asChild
+                  type='button'
                   variant='outline'
                   size='sm'
                   className='rounded-lg'
+                  onClick={() =>
+                    openSettings('calendars', draft.effectiveCalendar!.id)
+                  }
                 >
-                  <Link
-                    href={`/dashboard/meetings?calendar=${draft.effectiveCalendar.id}`}
-                  >
-                    {t('manageAvailability')}
-                  </Link>
+                  {t('manageAvailability')}
                 </Button>
               </AlertDescription>
             </Alert>

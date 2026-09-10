@@ -51,6 +51,26 @@ function decodeOAuthState(state: string): CalendarOAuthState {
   ) as CalendarOAuthState;
 }
 
+/**
+ * Where a calendar OAuth round-trip sends the browser back.
+ *
+ * Calendars are a pane of the settings dialog, and that dialog addresses itself
+ * with a URL fragment — so the fragment is what reopens it on the calendar the
+ * flow started from. Without a calendar in the state the account was connected
+ * for the workspace at large, which is the providers pane.
+ */
+function calendarOAuthReturnUrl(
+  status: "connected" | "error",
+  provider: string,
+  calendarId: string | null,
+): string {
+  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+  const pane = calendarId
+    ? `calendars/${encodeURIComponent(calendarId)}`
+    : "calendar-providers";
+  return `${frontendUrl}/dashboard/meetings?calendar=${status}&provider=${provider}#settings/${pane}`;
+}
+
 @Controller("calendar")
 export class CalendarController {
   constructor(private readonly calendarService: CalendarService) {}
@@ -80,10 +100,12 @@ export class CalendarController {
     @Query("state") state: string,
     @Res() res: Response,
   ) {
+    let calendarId: string | null = null;
     try {
       const redirectUri = `${process.env.BACKEND_URL}/api/calendar/oauth/google/callback`;
 
       const stateData = decodeOAuthState(state);
+      calendarId = stateData.calendarId;
       const ctx = { userId: stateData.userId, organizationId: stateData.orgId };
 
       const tokens = await this.calendarService.exchangeGoogleCode(
@@ -100,17 +122,10 @@ export class CalendarController {
         linkCalendarId: stateData.calendarId,
       });
 
-      // Redirect to frontend meetings page with success param
-      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-      res.redirect(
-        `${frontendUrl}/dashboard/meetings?calendar=connected&provider=google`,
-      );
+      res.redirect(calendarOAuthReturnUrl("connected", "google", calendarId));
     } catch (err) {
       console.log(JSON.stringify(err));
-      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-      res.redirect(
-        `${frontendUrl}/dashboard/meetings?calendar=error&provider=google`,
-      );
+      res.redirect(calendarOAuthReturnUrl("error", "google", calendarId));
     }
   }
 
@@ -138,12 +153,14 @@ export class CalendarController {
     @Req() req: Request,
     @Res() res: Response,
   ) {
+    let calendarId: string | null = null;
     try {
       const protocol = req.headers["x-forwarded-proto"] || req.protocol;
       const host = req.headers["x-forwarded-host"] || req.get("host");
       const redirectUri = `${protocol}://${host}/api/calendar/oauth/microsoft/callback`;
 
       const stateData = decodeOAuthState(state);
+      calendarId = stateData.calendarId;
       const ctx = { userId: stateData.userId, organizationId: stateData.orgId };
 
       const tokens = await this.calendarService.exchangeMicrosoftCode(
@@ -160,15 +177,11 @@ export class CalendarController {
         linkCalendarId: stateData.calendarId,
       });
 
-      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
       res.redirect(
-        `${frontendUrl}/dashboard/meetings?calendar=connected&provider=microsoft`,
+        calendarOAuthReturnUrl("connected", "microsoft", calendarId),
       );
     } catch (err) {
-      const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-      res.redirect(
-        `${frontendUrl}/dashboard/meetings?calendar=error&provider=microsoft`,
-      );
+      res.redirect(calendarOAuthReturnUrl("error", "microsoft", calendarId));
     }
   }
 

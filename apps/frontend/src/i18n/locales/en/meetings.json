@@ -8,9 +8,7 @@
   "tabs": {
     "upcoming": "Upcoming",
     "all": "All",
-    "calendar": "Calendar",
-    "calendars": "Calendars",
-    "integrations": "Integrations"
+    "calendar": "Calendar"
   },
   "sections": {
     "upcoming": "Upcoming",
@@ -92,6 +90,23 @@
       "endAfterStart": "The end time must be after the start time.",
       "overlap": "This window overlaps another window on the same day.",
       "capacity": "Enter between 1 and 10,000, or choose unlimited."
+    },
+    "overview": "Week at a glance",
+    "timesIn": "Times in {timezone}",
+    "closed": "No hours",
+    "unsaved": "Unsaved changes",
+    "upToDate": "All changes saved",
+    "discard": "Discard",
+    "presets": {
+      "weekdays": "Mon–Fri",
+      "weekend": "Weekend",
+      "everyDay": "Every day"
+    },
+    "summary": {
+      "everyDay": "Every day",
+      "weekdays": "Mon to Fri",
+      "weekend": "Weekends",
+      "none": "No days selected"
     }
   },
   "empty": {
@@ -124,7 +139,8 @@
         "name": "Microsoft Outlook",
         "description": "Sync meetings with Outlook Calendar and auto-create Teams links."
       }
-    }
+    },
+    "providerFallback": "Your calendar"
   },
   "thisWeek": {
     "title": "Meetings This Week",
@@ -188,7 +204,8 @@
     "providers": {
       "google": "Google Calendar",
       "microsoft": "Outlook Calendar"
-    }
+    },
+    "pickerLabel": "Calendars"
   },
   "externalSync": {
     "pending": "External calendar event pending",

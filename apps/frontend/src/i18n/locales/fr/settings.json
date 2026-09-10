@@ -285,6 +285,10 @@
         "label": "Script d'appel",
         "description": "Le script que votre composeur affiche pendant les appels."
       },
+      "calendars": {
+        "label": "Calendriers",
+        "description": "Plages de réservation, fuseaux horaires et calendriers utilisés par vos agents."
+      },
       "recording": {
         "label": "Enregistrements et transcriptions",
         "description": "Choisissez quels appels sont enregistrés et transcrits."
@@ -312,6 +316,10 @@
       "connectors": {
         "label": "Connecteurs",
         "description": "Connectez Ringee aux assistants IA et aux outils d'agents."
+      },
+      "calendar-providers": {
+        "label": "Fournisseurs de calendrier",
+        "description": "Connectez Google Agenda pour y copier les réservations."
       }
     },
     "general": {

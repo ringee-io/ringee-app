@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
+import { useCalendarConnectionResult } from '../hooks/use-calendar-connection-result';
 
 interface CalendarIntegration {
   id: string;
@@ -96,30 +97,9 @@ export function CalendarIntegrations() {
     fetchIntegrations();
   }, [fetchIntegrations]);
 
-  // Check URL params for OAuth callback status
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const calendarStatus = params.get('calendar');
-    const provider = params.get('provider');
-
-    if (calendarStatus === 'connected' && provider) {
-      toast.success(
-        t('connectedSuccess', { provider: t(`providers.${provider}.name`) })
-      );
-      fetchIntegrations();
-      // Clean up URL
-      const url = new URL(window.location.href);
-      url.searchParams.delete('calendar');
-      url.searchParams.delete('provider');
-      window.history.replaceState({}, '', url.toString());
-    } else if (calendarStatus === 'error') {
-      toast.error(t('connectFailed'));
-      const url = new URL(window.location.href);
-      url.searchParams.delete('calendar');
-      url.searchParams.delete('provider');
-      window.history.replaceState({}, '', url.toString());
-    }
-  }, [fetchIntegrations, t]);
+  // The OAuth round-trip lands back on whichever calendar pane mounts next;
+  // this one announces the result when it is the one showing.
+  useCalendarConnectionResult(fetchIntegrations);
 
   const handleConnect = (provider: 'google' | 'microsoft') => {
     // Redirect to the backend OAuth route — auth token is sent via cookie
@@ -143,7 +123,7 @@ export function CalendarIntegrations() {
 
   if (isLoading) {
     return (
-      <div className='grid gap-4 md:grid-cols-2'>
+      <div className='@container grid gap-4 @2xl:grid-cols-2'>
         {[0, 1].map((i) => (
           <div
             key={i}
@@ -165,17 +145,9 @@ export function CalendarIntegrations() {
 
   return (
     <div className='relative'>
-      <div className='space-y-6'>
-        {/* Header */}
-        <div>
-          <h3 className='text-base font-semibold'>{t('title')}</h3>
-          <p className='text-muted-foreground mt-1 text-sm'>
-            {t('description')}
-          </p>
-        </div>
-
+      <div className='@container space-y-6'>
         {/* Provider cards */}
-        <div className='grid gap-4 md:grid-cols-2'>
+        <div className='grid gap-4 @2xl:grid-cols-2'>
           {PROVIDERS.map((provider) => {
             const connected = integrations.find(
               (i) => i.provider === provider.id && i.isActive

@@ -19,11 +19,13 @@ import {
   SelectTrigger,
   SelectValue
 } from '@ringee/frontend-shared/components/ui/select';
+import { cn } from '@ringee/frontend-shared/lib/utils';
 import {
   Archive,
   ArchiveRestore,
   Bot,
   CalendarDays,
+  Clock3,
   ExternalLink,
   Loader2,
   Plus,
@@ -31,6 +33,7 @@ import {
   Unplug
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { useCalendarConnectionResult } from '../hooks/use-calendar-connection-result';
 import { AvailabilitySettings } from './availability-settings';
 
 /** A Ringee calendar, as `GET /calendar/calendars` returns it. */
@@ -72,10 +75,16 @@ function browserTimeZone(): string {
 }
 
 export function CalendarsManager({
-  initialCalendarId
+  initialCalendarId,
+  onCalendarChange
 }: {
   /** Opens straight onto one calendar, e.g. from an agent's setup screen. */
   initialCalendarId?: string;
+  /**
+   * Reports the calendar now on screen. The settings dialog uses it to keep the
+   * URL fragment on that calendar, so reopening lands where you left off.
+   */
+  onCalendarChange?: (calendarId: string) => void;
 } = {}) {
   const api = useApi();
   const t = useTranslations('meetings.calendars');
@@ -112,10 +121,19 @@ export function CalendarsManager({
     void load();
   }, [load]);
 
+  // Connecting a Google account leaves and comes back here, so the result of
+  // that round-trip is announced by this pane.
+  useCalendarConnectionResult(load);
+
   const selected = useMemo(
     () => calendars.find((calendar) => calendar.id === selectedId) ?? null,
     [calendars, selectedId]
   );
+
+  const selectCalendar = (calendarId: string) => {
+    setSelectedId(calendarId);
+    onCalendarChange?.(calendarId);
+  };
 
   const createCalendar = async () => {
     setCreating(true);
@@ -125,7 +143,7 @@ export function CalendarsManager({
         timezone: browserTimeZone()
       });
       await load();
-      setSelectedId(created.id);
+      selectCalendar(created.id);
       toast.success(t('created'));
     } catch {
       toast.error(t('createFailed'));
@@ -151,84 +169,85 @@ export function CalendarsManager({
   }
 
   return (
-    <div className='space-y-6'>
-      <div className='flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between'>
-        <div>
-          <h3 className='text-base font-semibold'>{t('title')}</h3>
-          <p className='text-muted-foreground mt-1 max-w-2xl text-sm leading-relaxed'>
-            {t('description')}
-          </p>
-        </div>
-        <Button
-          type='button'
-          variant='outline'
-          onClick={createCalendar}
-          disabled={creating}
-          className='min-h-11 shrink-0 sm:min-h-9'
-        >
-          {creating ? (
-            <Loader2 className='size-4 animate-spin' />
-          ) : (
-            <Plus className='size-4' />
-          )}
-          {t('add')}
-        </Button>
-      </div>
-
+    <div className='@container space-y-5'>
       <Alert className='border-primary/20 bg-primary/5 rounded-xl'>
         <Bot className='size-4' />
         <AlertDescription>{t('agentHint')}</AlertDescription>
       </Alert>
 
-      <div className='grid gap-6 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)]'>
-        <nav aria-label={t('title')} className='space-y-2'>
+      {/*
+        A row of calendars rather than a side rail: this pane is narrow, and a
+        workspace has a handful of calendars, not a directory of them.
+      */}
+      <div className='space-y-2'>
+        <div className='flex flex-wrap items-center justify-between gap-2'>
+          <Label className='text-muted-foreground text-xs tracking-wide uppercase'>
+            {t('pickerLabel')}
+          </Label>
+          <Button
+            type='button'
+            variant='outline'
+            size='sm'
+            onClick={createCalendar}
+            disabled={creating}
+          >
+            {creating ? (
+              <Loader2 className='size-4 animate-spin' />
+            ) : (
+              <Plus className='size-4' />
+            )}
+            {t('add')}
+          </Button>
+        </div>
+
+        <nav aria-label={t('pickerLabel')} className='flex flex-wrap gap-2'>
           {calendars.map((calendar) => {
             const active = calendar.id === selectedId;
             return (
               <button
                 key={calendar.id}
                 type='button'
-                onClick={() => setSelectedId(calendar.id)}
+                onClick={() => selectCalendar(calendar.id)}
                 aria-current={active ? 'true' : undefined}
-                className={`focus-visible:ring-ring w-full cursor-pointer rounded-xl border p-3 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none ${
+                className={cn(
+                  'focus-visible:ring-ring flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-left transition-colors focus-visible:ring-2 focus-visible:outline-none',
                   active
                     ? 'border-primary bg-primary/5'
-                    : 'border-border/40 bg-card hover:border-primary/40'
-                }`}
+                    : 'border-border/40 bg-card hover:border-primary/40',
+                  calendar.archivedAt && !active && 'opacity-60'
+                )}
               >
-                <div className='flex items-start justify-between gap-2'>
-                  <span className='truncate text-sm font-medium'>
-                    {calendar.name}
-                  </span>
-                  {calendar.isDefault ? (
-                    <Badge variant='secondary' className='shrink-0 text-[10px]'>
-                      {t('globalBadge')}
-                    </Badge>
-                  ) : calendar.archivedAt ? (
-                    <Badge variant='outline' className='shrink-0 text-[10px]'>
-                      {t('archivedBadge')}
-                    </Badge>
-                  ) : null}
-                </div>
-                <p className='text-muted-foreground mt-1 truncate text-xs'>
-                  {calendar.timezone}
-                </p>
-                <p className='text-muted-foreground mt-0.5 text-xs'>
-                  {t('agentsUsing', { count: calendar.agentCount })}
-                </p>
+                <CalendarDays
+                  className={cn(
+                    'size-4 shrink-0',
+                    active ? 'text-primary' : 'text-muted-foreground'
+                  )}
+                />
+                <span className='max-w-[14rem] truncate text-sm font-medium'>
+                  {calendar.name}
+                </span>
+                {calendar.isDefault ? (
+                  <Badge variant='secondary' className='text-[10px]'>
+                    {t('globalBadge')}
+                  </Badge>
+                ) : calendar.archivedAt ? (
+                  <Badge variant='outline' className='text-[10px]'>
+                    {t('archivedBadge')}
+                  </Badge>
+                ) : null}
               </button>
             );
           })}
         </nav>
-
-        {selected ? (
-          <CalendarDetail
-            key={selected.id}
-            calendar={selected}
-            onChanged={load}
-          />
-        ) : null}
       </div>
+
+      {selected ? (
+        <CalendarDetail
+          key={selected.id}
+          calendar={selected}
+          onChanged={load}
+        />
+      ) : null}
     </div>
   );
 }
@@ -329,12 +348,22 @@ function CalendarDetail({
   };
 
   return (
-    <div className='space-y-6'>
-      <section className='border-border/40 bg-card space-y-5 rounded-xl border p-4 sm:p-5'>
-        <div className='flex items-center justify-between gap-3'>
-          <div className='flex items-center gap-2'>
-            <CalendarDays className='text-primary size-4' />
-            <h4 className='text-sm font-semibold'>{t('details')}</h4>
+    <div className='space-y-4'>
+      <section className='border-border/40 bg-card rounded-xl border'>
+        <header className='flex flex-wrap items-start justify-between gap-3 border-b px-4 py-3'>
+          <div className='flex min-w-0 items-center gap-2.5'>
+            <span className='bg-primary/10 text-primary flex size-8 shrink-0 items-center justify-center rounded-lg'>
+              <CalendarDays className='size-4' />
+            </span>
+            <div className='min-w-0'>
+              <h4 className='truncate text-sm font-semibold'>
+                {calendar.name}
+              </h4>
+              <p className='text-muted-foreground mt-0.5 truncate text-xs'>
+                {calendar.timezone} ·{' '}
+                {t('agentsUsing', { count: calendar.agentCount })}
+              </p>
+            </div>
           </div>
           {!calendar.isDefault ? (
             <Button
@@ -363,55 +392,74 @@ function CalendarDetail({
               {calendar.archivedAt ? t('restore') : t('archive')}
             </Button>
           ) : null}
-        </div>
+        </header>
 
-        {calendar.archivedAt ? (
-          <Alert className='rounded-lg'>
-            <Archive className='size-4' />
-            <AlertDescription>{t('archivedHint')}</AlertDescription>
-          </Alert>
-        ) : null}
+        <div className='space-y-4 p-4'>
+          {calendar.archivedAt ? (
+            <Alert className='rounded-lg'>
+              <Archive className='size-4' />
+              <AlertDescription>{t('archivedHint')}</AlertDescription>
+            </Alert>
+          ) : null}
 
-        <div className='grid gap-4 sm:grid-cols-2'>
-          <div>
-            <Label htmlFor={`calendar-name-${calendar.id}`}>{t('name')}</Label>
-            <Input
-              id={`calendar-name-${calendar.id}`}
-              value={name}
-              maxLength={80}
-              onChange={(event) => setName(event.target.value)}
-              className='mt-2 min-h-11 sm:min-h-9'
-            />
+          <div className='grid gap-4 @lg:grid-cols-2'>
+            <div>
+              <Label htmlFor={`calendar-name-${calendar.id}`}>
+                {t('name')}
+              </Label>
+              <Input
+                id={`calendar-name-${calendar.id}`}
+                value={name}
+                maxLength={80}
+                onChange={(event) => setName(event.target.value)}
+                className='mt-2 min-h-11 sm:min-h-9'
+              />
+            </div>
+            <div>
+              <Label htmlFor={`calendar-tz-${calendar.id}`}>
+                {t('timezone')}
+              </Label>
+              <Input
+                id={`calendar-tz-${calendar.id}`}
+                value={timezone}
+                placeholder='America/New_York'
+                onChange={(event) => setTimezone(event.target.value)}
+                className='mt-2 min-h-11 sm:min-h-9'
+              />
+              <p className='text-muted-foreground mt-1.5 text-xs'>
+                {t('timezoneHint')}
+              </p>
+            </div>
           </div>
-          <div>
-            <Label htmlFor={`calendar-tz-${calendar.id}`}>
-              {t('timezone')}
-            </Label>
-            <Input
-              id={`calendar-tz-${calendar.id}`}
-              value={timezone}
-              placeholder='America/New_York'
-              onChange={(event) => setTimezone(event.target.value)}
-              className='mt-2 min-h-11 sm:min-h-9'
-            />
-            <p className='text-muted-foreground mt-1.5 text-xs'>
-              {t('timezoneHint')}
-            </p>
-          </div>
-        </div>
 
-        <Button
-          type='button'
-          onClick={saveDetails}
-          disabled={savingDetails || !detailsDirty || !name.trim()}
-          className='min-h-11 sm:min-h-9'
-        >
-          {savingDetails ? <Loader2 className='size-4 animate-spin' /> : null}
-          {t('save')}
-        </Button>
+          <div className='flex flex-wrap items-center gap-x-2 gap-y-1.5 border-t pt-4'>
+            <span className='text-muted-foreground text-xs'>{t('agents')}</span>
+            {agents.length === 0 ? (
+              <span className='text-muted-foreground text-xs'>
+                {calendar.isDefault ? t('agentsGlobalEmpty') : t('agentsEmpty')}
+              </span>
+            ) : (
+              agents.map((agent) => (
+                <Badge key={agent.id} variant='secondary'>
+                  {agent.name}
+                </Badge>
+              ))
+            )}
+          </div>
+
+          <Button
+            type='button'
+            onClick={saveDetails}
+            disabled={savingDetails || !detailsDirty || !name.trim()}
+            className='min-h-11 sm:min-h-9'
+          >
+            {savingDetails ? <Loader2 className='size-4 animate-spin' /> : null}
+            {t('save')}
+          </Button>
+        </div>
       </section>
 
-      <section className='border-border/40 bg-card space-y-4 rounded-xl border p-4 sm:p-5'>
+      <section className='border-border/40 bg-card space-y-4 rounded-xl border p-4'>
         <div>
           <h4 className='text-sm font-semibold'>{t('connection')}</h4>
           <p className='text-muted-foreground mt-1 text-sm leading-relaxed'>
@@ -506,25 +554,15 @@ function CalendarDetail({
         )}
       </section>
 
-      <section className='border-border/40 bg-card rounded-xl border p-4 sm:p-5'>
-        <h4 className='text-sm font-semibold'>{t('agents')}</h4>
-        {agents.length === 0 ? (
-          <p className='text-muted-foreground mt-1 text-sm'>
-            {calendar.isDefault ? t('agentsGlobalEmpty') : t('agentsEmpty')}
-          </p>
-        ) : (
-          <ul className='mt-3 flex flex-wrap gap-2'>
-            {agents.map((agent) => (
-              <li key={agent.id}>
-                <Badge variant='secondary'>{agent.name}</Badge>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      <section className='border-border/40 bg-card rounded-xl border p-4 sm:p-5'>
-        <h4 className='mb-4 text-sm font-semibold'>{t('availability')}</h4>
+      {/*
+        Left uncarded on purpose: the editor draws its own cards, and a third
+        level of border inside the dialog reads as clutter rather than structure.
+      */}
+      <section className='space-y-3'>
+        <div className='flex items-center gap-2'>
+          <Clock3 className='text-primary size-4' />
+          <h4 className='text-sm font-semibold'>{t('availability')}</h4>
+        </div>
         <AvailabilitySettings calendarId={calendar.id} showHeader={false} />
       </section>
     </div>
@@ -533,21 +571,14 @@ function CalendarDetail({
 
 export function CalendarsManagerSkeleton() {
   return (
-    <div className='space-y-6'>
-      <div className='space-y-2'>
-        <Skeleton className='h-5 w-44' />
-        <Skeleton className='h-4 w-full max-w-xl' />
+    <div className='space-y-5'>
+      <Skeleton className='h-14 w-full rounded-xl' />
+      <div className='flex gap-2'>
+        <Skeleton className='h-10 w-40 rounded-lg' />
+        <Skeleton className='h-10 w-40 rounded-lg' />
       </div>
-      <div className='grid gap-6 lg:grid-cols-[minmax(220px,280px)_minmax(0,1fr)]'>
-        <div className='space-y-2'>
-          <Skeleton className='h-20 w-full rounded-xl' />
-          <Skeleton className='h-20 w-full rounded-xl' />
-        </div>
-        <div className='space-y-4'>
-          <Skeleton className='h-48 w-full rounded-xl' />
-          <Skeleton className='h-64 w-full rounded-xl' />
-        </div>
-      </div>
+      <Skeleton className='h-56 w-full rounded-xl' />
+      <Skeleton className='h-40 w-full rounded-xl' />
     </div>
   );
 }

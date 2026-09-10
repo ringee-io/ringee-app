@@ -59,16 +59,13 @@ import {
   MapPin,
   FileText,
   CalendarDays,
-  CalendarClock,
   List,
   ChevronLeft,
   ChevronRight,
-  Link2,
   Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { CalendarIntegrations } from './calendar-integrations';
-import { CalendarsManager } from './calendars-manager';
+import { useSettingsDialogStore } from '@/features/settings/store/settings-dialog.store';
 
 interface Meeting {
   id: string;
@@ -114,33 +111,32 @@ export function MeetingsList() {
   const t = useTranslations('meetings');
   const tCommon = useTranslations('common');
   const api = useApi();
+  const openSettings = useSettingsDialogStore((s) => s.openSettings);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedMeeting, setSelectedMeeting] = useState<Meeting | null>(null);
   const [tab, setTab] = useState('upcoming');
-  /**
-   * `?calendar=<id>` opens straight onto one calendar — the link an agent's
-   * setup screen uses to send someone to the hours it books against.
-   */
-  const [initialCalendarId, setInitialCalendarId] = useState<
-    string | undefined
-  >();
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
 
+  // Calendars moved into the settings dialog. Links minted before that — an
+  // agent's "manage availability", a bookmark — still arrive here as
+  // `?calendar=<id>`, so they are forwarded to the pane that owns them now.
   useEffect(() => {
-    const requested = new URLSearchParams(window.location.search).get(
-      'calendar'
-    );
+    const params = new URLSearchParams(window.location.search);
+    const requested = params.get('calendar');
     // The OAuth callback uses the same parameter for its status; only a real id
-    // selects a calendar.
-    if (requested && requested !== 'connected' && requested !== 'error') {
-      setInitialCalendarId(requested);
-      setTab('calendars');
-    }
-  }, []);
+    // names a calendar.
+    if (!requested || requested === 'connected' || requested === 'error')
+      return;
+
+    openSettings('calendars', requested);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('calendar');
+    window.history.replaceState({}, '', url.toString());
+  }, [openSettings]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -230,14 +226,6 @@ export function MeetingsList() {
             <CalendarDays className='h-3.5 w-3.5' />
             {t('tabs.calendar')}
           </TabsTrigger>
-          <TabsTrigger value='calendars' className='gap-1.5'>
-            <CalendarClock className='h-3.5 w-3.5' />
-            {t('tabs.calendars')}
-          </TabsTrigger>
-          <TabsTrigger value='integrations' className='gap-1.5'>
-            <Link2 className='h-3.5 w-3.5' />
-            {t('tabs.integrations')}
-          </TabsTrigger>
         </TabsList>
 
         {/* Upcoming tab */}
@@ -311,19 +299,6 @@ export function MeetingsList() {
             onSelectMeeting={setSelectedMeeting}
             t={t}
           />
-        </TabsContent>
-
-        {/*
-          Ringee calendars: the global one plus any additional calendars, each
-          with its own hours, time zone and optional external destination.
-        */}
-        <TabsContent value='calendars' className='mt-4'>
-          <CalendarsManager initialCalendarId={initialCalendarId} />
-        </TabsContent>
-
-        {/* Integrations tab */}
-        <TabsContent value='integrations' className='mt-4'>
-          <CalendarIntegrations />
         </TabsContent>
       </Tabs>
 

@@ -8,9 +8,7 @@
   "tabs": {
     "upcoming": "Aankomend",
     "all": "Alle",
-    "calendar": "Kalender",
-    "calendars": "Agenda's",
-    "integrations": "Integraties"
+    "calendar": "Kalender"
   },
   "sections": {
     "upcoming": "Aankomend",
@@ -96,7 +94,8 @@
     "providers": {
       "google": "Google Agenda",
       "microsoft": "Outlook Agenda"
-    }
+    },
+    "pickerLabel": "Agenda's"
   },
   "externalSync": {
     "pending": "Externe agenda-afspraak in behandeling",

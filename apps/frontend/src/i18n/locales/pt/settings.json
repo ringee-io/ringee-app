@@ -285,6 +285,10 @@
         "label": "Script de chamada",
         "description": "O script que o teu marcador mostra durante as chamadas."
       },
+      "calendars": {
+        "label": "Calendários",
+        "description": "Horários de agendamento, fusos horários e os calendários onde os seus agentes agendam."
+      },
       "recording": {
         "label": "Gravações e transcrições",
         "description": "Escolhe que chamadas são gravadas e transcritas."
@@ -312,6 +316,10 @@
       "connectors": {
         "label": "Conectores",
         "description": "Liga o Ringee a assistentes de IA e ferramentas de agentes."
+      },
+      "calendar-providers": {
+        "label": "Fornecedores de calendário",
+        "description": "Ligue o Google Calendar para copiar os agendamentos para lá."
       }
     },
     "general": {

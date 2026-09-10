@@ -285,6 +285,10 @@
         "label": "Script di chiamata",
         "description": "Lo script che il dialer mostra durante le chiamate."
       },
+      "calendars": {
+        "label": "Calendari",
+        "description": "Fasce di prenotazione, fusi orari e i calendari su cui prenotano i tuoi agenti."
+      },
       "recording": {
         "label": "Registrazioni e trascrizioni",
         "description": "Scegli quali chiamate vengono registrate e trascritte."
@@ -312,6 +316,10 @@
       "connectors": {
         "label": "Connettori",
         "description": "Collega Ringee ad assistenti IA e strumenti per agenti."
+      },
+      "calendar-providers": {
+        "label": "Provider di calendario",
+        "description": "Collega Google Calendar per copiarvi le prenotazioni."
       }
     },
     "general": {

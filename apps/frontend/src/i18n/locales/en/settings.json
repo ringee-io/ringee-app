@@ -285,6 +285,10 @@
         "label": "Call script",
         "description": "The script your dialer reads on calls."
       },
+      "calendars": {
+        "label": "Calendars",
+        "description": "Booking hours, time zones and the calendars your agents book on."
+      },
       "recording": {
         "label": "Recordings and transcriptions",
         "description": "Choose which calls are recorded and transcribed."
@@ -312,6 +316,10 @@
       "connectors": {
         "label": "Connectors",
         "description": "Connect Ringee to AI assistants and agent tools."
+      },
+      "calendar-providers": {
+        "label": "Calendar providers",
+        "description": "Connect Google Calendar so bookings are copied to it."
       }
     },
     "general": {

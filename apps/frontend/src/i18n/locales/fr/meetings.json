@@ -8,9 +8,7 @@
   "tabs": {
     "upcoming": "À venir",
     "all": "Toutes",
-    "calendar": "Calendrier",
-    "calendars": "Agendas",
-    "integrations": "Intégrations"
+    "calendar": "Calendrier"
   },
   "sections": {
     "upcoming": "À venir",
@@ -96,7 +94,8 @@
     "providers": {
       "google": "Google Agenda",
       "microsoft": "Outlook Calendar"
-    }
+    },
+    "pickerLabel": "Calendriers"
   },
   "externalSync": {
     "pending": "Événement d'agenda externe en attente",

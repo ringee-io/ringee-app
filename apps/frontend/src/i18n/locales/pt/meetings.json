@@ -8,9 +8,7 @@
   "tabs": {
     "upcoming": "Próximas",
     "all": "Todas",
-    "calendar": "Calendário",
-    "calendars": "Calendários",
-    "integrations": "Integrações"
+    "calendar": "Calendário"
   },
   "sections": {
     "upcoming": "Próximas",
@@ -96,7 +94,8 @@
     "providers": {
       "google": "Google Calendar",
       "microsoft": "Outlook Calendar"
-    }
+    },
+    "pickerLabel": "Calendários"
   },
   "externalSync": {
     "pending": "Evento do calendário externo pendente",
