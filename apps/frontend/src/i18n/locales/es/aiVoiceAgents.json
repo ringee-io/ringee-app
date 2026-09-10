@@ -111,22 +111,18 @@
     "keySaved": "Guardada — introduce una nueva para reemplazarla",
     "meetings": "Reuniones",
     "meetingsHint": "Dónde y cómo agenda el agente.",
-    "noCalendar": "No hay un calendario externo conectado. Es opcional: el agente puede agendar usando la disponibilidad de Ringee.",
-    "connectCalendar": "Conectar un calendario opcional",
-    "calendar": "Calendario externo (opcional)",
-    "calendarHint": "Ringee controla la disponibilidad y las reservas. Elige una integración solo para sincronizar eventos y enlaces de video.",
+    "calendar": "Calendario",
+    "calendarHint": "En qué calendario de Ringee agenda este agente. Sus franjas, zona horaria y capacidad se comparten con los demás agentes que lo usan.",
     "chooseCalendar": "Elige un calendario",
-    "ringeeCalendar": "Solo Ringee · sin sincronización externa",
     "duration": "Duración",
     "durationHint": "En minutos.",
     "timezone": "Zona horaria",
-    "timezoneHint": "Las horas que ofrece el agente.",
+    "timezoneHint": "Solo como respaldo: la zona horaria del calendario decide los horarios que ofrece el agente.",
     "meetingTitle": "Título de la reunión",
     "meetingTitleHint": "Lo que aparece en el calendario.",
-    "calendars": {
-      "google": "Google Calendar",
-      "microsoft": "Outlook Calendar"
-    }
+    "globalCalendar": "Usar calendario global",
+    "effectiveCalendar": "Este agente agenda en {name} ({timezone}).",
+    "manageAvailability": "Gestionar disponibilidad"
   },
   "voice": {
     "title": "Voz",

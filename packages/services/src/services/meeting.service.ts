@@ -12,6 +12,7 @@ import {
   MeetingRepository,
   CallRepository,
   Meeting,
+  MeetingExternalSyncStatus,
   MeetingStatus,
   CallOutcome,
   Call,
@@ -20,6 +21,7 @@ import {
 import { OwnershipContext } from "@ringee/platform";
 import {
   CalendarService,
+  ResolvedCalendar,
   validateMeetingDurationMinutes,
 } from "./calendar.service";
 import { CrmCallLogService } from "./crm/crm-call-log.service";
@@ -111,9 +113,28 @@ export class MeetingService {
       notes?: string;
       attendeeEmail?: string;
       calendarProvider?: "google" | "microsoft";
+      /**
+       * Legacy external destination override, kept so an AI agent configured
+       * before Ringee calendars existed keeps pushing events to the Google
+       * account it was pointed at. It never selects which calendar is booked.
+       */
       calendarIntegrationId?: string | null;
+      /**
+       * Which Ringee calendar to book on. Omitted means the workspace's global
+       * calendar, which is what every existing consumer gets.
+       */
+      calendarId?: string | null;
+      /**
+       * A calendar the caller already resolved. Booking paths that offered
+       * times from a calendar pass the same resolution back here, so the times
+       * offered and the row written can never come from two different ones.
+       */
+      resolvedCalendar?: ResolvedCalendar;
       requireAvailableSlot?: boolean;
-      /** IANA zone used to validate a human-picked Ringee availability slot. */
+      /**
+       * IANA zone used to validate a human-picked Ringee availability slot.
+       * Defaults to the resolved calendar's own zone.
+       */
       bookingTimeZone?: string;
       /** Voice-agent call claimed atomically with this protected booking. */
       agentCallId?: string;
@@ -139,20 +160,25 @@ export class MeetingService {
     }
     const duration = validateMeetingDurationMinutes(dto.duration ?? 30);
 
-    if (dto.bookingTimeZone !== undefined) {
-      try {
-        new Intl.DateTimeFormat("en-US", {
-          timeZone: dto.bookingTimeZone,
-        }).format(scheduledAt);
-      } catch {
-        throw new BadRequestException(
-          `"${dto.bookingTimeZone}" is not a valid time zone.`,
-        );
-      }
-    }
-    if (dto.requireAvailableSlot && !dto.bookingTimeZone) {
+    // Which calendar this booking belongs to is decided here, on the server,
+    // from the caller's workspace — so every consumer that names none keeps
+    // landing on the global calendar, and a named one is verified before it can
+    // be booked against.
+    const resolvedCalendar =
+      dto.resolvedCalendar ??
+      (await this.calendarService.resolveCalendar(ctx, {
+        calendarId: dto.calendarId,
+        fallbackIntegrationId: dto.calendarIntegrationId,
+      }));
+    const bookingTimeZone = dto.bookingTimeZone ?? resolvedCalendar.timezone;
+
+    try {
+      new Intl.DateTimeFormat("en-US", {
+        timeZone: bookingTimeZone,
+      }).format(scheduledAt);
+    } catch {
       throw new BadRequestException(
-        "bookingTimeZone is required when availability validation is requested.",
+        `"${bookingTimeZone}" is not a valid time zone.`,
       );
     }
 
@@ -164,12 +190,13 @@ export class MeetingService {
       duration,
       location: dto.location,
       notes: dto.notes,
+      calendarId: resolvedCalendar.calendar.id,
       agentCallId: dto.agentCallId,
     };
     let availabilityRuleId: string | null = null;
     if (dto.requireAvailableSlot) {
       const dateParts = new Intl.DateTimeFormat("en-CA", {
-        timeZone: dto.bookingTimeZone!,
+        timeZone: bookingTimeZone,
         year: "numeric",
         month: "2-digit",
         day: "2-digit",
@@ -177,11 +204,15 @@ export class MeetingService {
       const read = (type: string) =>
         dateParts.find((part) => part.type === type)?.value ?? "";
       const date = `${read("year")}-${read("month")}-${read("day")}`;
-      const slots = await this.calendarService.getBookableSlots(ctx, {
-        date,
-        timeZone: dto.bookingTimeZone!,
-        durationMinutes: meetingData.duration,
-      });
+      const slots = await this.calendarService.getBookableSlotsForCalendar(
+        ctx,
+        resolvedCalendar,
+        {
+          date,
+          timeZone: bookingTimeZone,
+          durationMinutes: meetingData.duration,
+        },
+      );
       const exactSlot = slots.find(
         (slot) =>
           new Date(slot.start).getTime() === meetingData.scheduledAt.getTime(),
@@ -196,6 +227,7 @@ export class MeetingService {
       ? await this.meetingRepo.createIfAvailable(
           ctx,
           meetingData,
+          resolvedCalendar.scope,
           availabilityRuleId,
         )
       : await this.meetingRepo.create(ctx, meetingData);
@@ -220,26 +252,27 @@ export class MeetingService {
     // Custom Integrations: meeting.created (independent of outcome)
     await this.enqueueMeetingCreated(meeting);
 
-    // Best-effort: push to external calendar (Google/Microsoft)
-    let calendarResult: { externalEventId: string; meetLink?: string } | null =
-      null;
-    try {
-      calendarResult = await this.calendarService.createCalendarEvent(ctx, {
-        meetingId: meeting.id,
+    // Best-effort: push to this calendar's external destination. The booking
+    // above is already confirmed in Ringee and stays confirmed whatever happens
+    // here; the outcome is recorded on the meeting so the UI can tell a pending
+    // or failed external event from a synced one, and a retry can pick it up.
+    const sync = await this.calendarService.syncMeetingToExternalCalendar(
+      ctx,
+      meeting,
+      {
+        destination: resolvedCalendar.destination,
         title: dto.title || "Meeting via Ringee",
-        scheduledAt: dto.scheduledAt,
-        duration,
         attendeeEmail: dto.attendeeEmail,
-        provider: dto.calendarProvider as any,
-        integrationId: dto.calendarIntegrationId,
-      });
+        provider: dto.calendarProvider,
+      },
+    );
+    const calendarResult =
+      sync.status === MeetingExternalSyncStatus.synced && sync.externalEventId
+        ? { externalEventId: sync.externalEventId, meetLink: sync.meetLink }
+        : null;
+    if (calendarResult) {
       this.logger.log(
         `Synced meeting ${meeting.id} to external calendar: ${calendarResult.externalEventId}`,
-      );
-    } catch (err) {
-      // No calendar connected or API error — don't block meeting creation
-      this.logger.debug(
-        `Skipped calendar sync for meeting ${meeting.id}: ${(err as Error).message}`,
       );
     }
 
@@ -288,9 +321,10 @@ export class MeetingService {
       ? {
           ...meeting,
           externalEventId: calendarResult.externalEventId,
+          externalSyncStatus: MeetingExternalSyncStatus.synced,
           location: calendarResult.meetLink ?? meeting.location,
         }
-      : meeting;
+      : { ...meeting, externalSyncStatus: sync.status };
   }
 
   async getMeetingById(ctx: OwnershipContext, id: string): Promise<Meeting> {
@@ -318,9 +352,50 @@ export class MeetingService {
       userId?: string;
       scheduledFrom?: Date;
       scheduledTo?: Date;
+      calendarId?: string;
     },
   ) {
     return this.meetingRepo.listByOwner(ctx, options);
+  }
+
+  /**
+   * Retries the external calendar event for a booking whose sync failed.
+   *
+   * The Ringee booking is untouched either way. Retrying converges on the event
+   * a failed attempt may already have created rather than adding a second one —
+   * but only when the retry addresses the same destination, so the one recorded
+   * on the meeting wins over re-reading the calendar's current connection. See
+   * `CAL-002` for what each provider actually guarantees.
+   */
+  async retryExternalSync(
+    ctx: OwnershipContext,
+    meetingId: string,
+  ): Promise<Meeting> {
+    const meeting = await this.getMeetingById(ctx, meetingId);
+    if (meeting.externalEventId) return meeting;
+
+    // A failed attempt records where it was sent. Re-pointing the calendar at
+    // another account since then must not move this retry: `syncMeeting...`
+    // still checks the integration belongs to the workspace.
+    const destination = meeting.externalCalendarIntegrationId
+      ? {
+          integrationId: meeting.externalCalendarIntegrationId,
+          externalCalendarId: meeting.externalCalendarTargetId,
+        }
+      : (
+          await this.calendarService.resolveCalendar(ctx, {
+            calendarId: meeting.calendarId,
+            // The booking already exists; an archived calendar still owns its
+            // history.
+            allowArchived: true,
+          })
+        ).destination;
+
+    await this.calendarService.syncMeetingToExternalCalendar(ctx, meeting, {
+      destination,
+      title: meeting.title ?? undefined,
+    });
+    return this.getMeetingById(ctx, meetingId);
   }
 
   async upcomingThisWeek(ctx: OwnershipContext) {

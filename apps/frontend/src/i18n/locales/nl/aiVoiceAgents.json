@@ -111,21 +111,18 @@
     "keySaved": "Opgeslagen — voer een nieuwe sleutel in om hem te vervangen",
     "meetings": "Afspraken",
     "meetingsHint": "Waar en hoe de agent boekt.",
-    "noCalendar": "Geen agenda gekoppeld — de agent kan worden opgeslagen, maar pas geactiveerd als hij er een heeft.",
-    "connectCalendar": "Een agenda koppelen",
     "calendar": "Agenda",
-    "calendarHint": "Hier leest de agent vrije tijd en boekt hij in.",
+    "calendarHint": "In welke Ringee-agenda deze agent boekt. De tijdvakken, tijdzone en capaciteit worden gedeeld met elke agent die hem gebruikt.",
     "chooseCalendar": "Kies een agenda",
     "duration": "Duur",
     "durationHint": "In minuten.",
     "timezone": "Tijdzone",
-    "timezoneHint": "De tijden die de agent aanbiedt.",
+    "timezoneHint": "Alleen als terugval — de tijdzone van de agenda bepaalt de aangeboden tijden.",
     "meetingTitle": "Titel van de afspraak",
     "meetingTitleHint": "Wat in de agenda komt.",
-    "calendars": {
-      "google": "Google Calendar",
-      "microsoft": "Outlook Calendar"
-    }
+    "globalCalendar": "Globale agenda gebruiken",
+    "effectiveCalendar": "Deze agent boekt in {name} ({timezone}).",
+    "manageAvailability": "Beschikbaarheid beheren"
   },
   "voice": {
     "title": "Stem",

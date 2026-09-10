@@ -8,8 +8,7 @@
   "tabs": {
     "upcoming": "Bevorstehend",
     "all": "Alle",
-    "calendar": "Kalender",
-    "integrations": "Integrationen"
+    "calendar": "Kalender"
   },
   "sections": {
     "upcoming": "Bevorstehend",
@@ -55,5 +54,55 @@
     "failedToLoad": "Meetings konnten nicht geladen werden",
     "cancelled": "Meeting abgesagt",
     "failedToCancel": "Meeting konnte nicht abgesagt werden"
+  },
+  "calendars": {
+    "title": "Kalender",
+    "description": "Jeder Workspace hat einen globalen Kalender. Weitere hinzufügen, wenn Agenten eigene Zeitfenster, Zeitzone oder Kapazität brauchen.",
+    "agentHint": "Ringee ist die einzige Quelle für Verfügbarkeit. Google ist optional und erhält nur eine Kopie einer Buchung, die hier bereits existiert.",
+    "add": "Kalender hinzufügen",
+    "newName": "Neuer Kalender",
+    "created": "Kalender erstellt",
+    "createFailed": "Kalender konnte nicht erstellt werden.",
+    "loadFailed": "Kalender konnten nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "globalBadge": "Global",
+    "archivedBadge": "Archiviert",
+    "agentsUsing": "{count, plural, =0 {Keine Agenten} one {# Agent} other {# Agenten}}",
+    "details": "Kalender",
+    "name": "Name",
+    "timezone": "Zeitzone",
+    "timezoneHint": "Die Zeitzone der Zeitfenster unten. Sie hat Vorrang vor der Zeitzone des Agenten.",
+    "save": "Kalender speichern",
+    "saved": "Kalender gespeichert",
+    "saveFailed": "Kalender konnte nicht gespeichert werden.",
+    "archive": "Archivieren",
+    "restore": "Wiederherstellen",
+    "archiveFailed": "Kalender konnte nicht archiviert werden.",
+    "archivedHint": "Archiviert. Termine und Verlauf bleiben erhalten, aber es werden keine neuen Buchungen angenommen und Agenten wird er nicht angeboten.",
+    "connection": "Google Kalender (optional)",
+    "connectionHint": "Wohin hier gemachte Buchungen kopiert werden. Es entscheidet nie, welche Zeiten Ringee anbietet, und ein Kalender ohne Verbindung bucht normal.",
+    "connectGoogle": "Google Kalender verbinden",
+    "disconnect": "Trennen",
+    "disconnectFailed": "Konto konnte nicht getrennt werden.",
+    "externalCalendar": "Termine anlegen in",
+    "externalPrimary": "Hauptkalender",
+    "externalLoadFailed": "Die Kalender des verbundenen Kontos konnten nicht gelesen werden. Bitte neu verbinden und erneut versuchen.",
+    "agents": "Agenten, die diesen Kalender nutzen",
+    "agentsEmpty": "Noch bucht kein Agent in diesem Kalender.",
+    "agentsGlobalEmpty": "Hier buchen alle Agenten ohne eigenen Kalender, dazu der Dialer und Kampagnen.",
+    "availability": "Buchbare Zeiten",
+    "providers": {
+      "google": "Google Kalender",
+      "microsoft": "Outlook Kalender"
+    },
+    "pickerLabel": "Kalender"
+  },
+  "externalSync": {
+    "pending": "Externer Kalendereintrag ausstehend",
+    "failed": "Externer Kalendereintrag fehlgeschlagen",
+    "bookingSafe": "Der Termin ist in Ringee bestätigt. Betroffen ist nur die Kopie im verbundenen Kalender.",
+    "retry": "Externen Eintrag erneut versuchen",
+    "retrySucceeded": "Externer Eintrag erstellt.",
+    "retryFailed": "Der externe Eintrag konnte nicht erstellt werden."
   }
 }

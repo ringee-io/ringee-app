@@ -150,6 +150,16 @@ function build(
     provider as never,
     {} as never,
     {} as never,
+    {
+      // Calendars: this agent books nowhere, so the global calendar's zone is
+      // what the prompt context resolves to.
+      resolveCalendar: async () => ({
+        calendar: { id: "cal-global", timezone: "UTC", isDefault: true },
+        scope: { calendarId: "cal-global", isDefault: true },
+        timezone: "UTC",
+        destination: null,
+      }),
+    } as never,
     {} as never,
     {
       getBalance: async () => balance,

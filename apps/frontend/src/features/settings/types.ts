@@ -11,13 +11,15 @@ export type SettingsSectionId = 'settings' | 'integrations';
 export type SettingsItemId =
   | 'general'
   | 'script'
+  | 'calendars'
   | 'recording'
   | 'desk-phones'
   | 'crm'
   | 'enrichment'
   | 'leads'
   | 'custom'
-  | 'connectors';
+  | 'connectors'
+  | 'calendar-providers';
 
 export interface SettingsNavItem {
   id: SettingsItemId;

@@ -13,7 +13,7 @@ import { useTranslations } from 'next-intl';
 import { useVoiceAgentApi, type SaveAgentBody } from '../api';
 import { describeApiError, fieldErrorsFrom } from '../lib/api-error';
 import type {
-  CalendarIntegrationOption,
+  RingeeCalendarOption,
   CompanyProfile,
   VoiceAgent,
   VoiceAgentCallerNumber,
@@ -48,7 +48,7 @@ export const FIELD_STEPS: Record<
   modelProvider: 'setup',
   apiKey: 'setup',
   callerNumberId: 'setup',
-  calendarIntegrationId: 'setup',
+  calendarId: 'setup',
   meetingDurationMinutes: 'setup',
   timezone: 'setup',
   meetingTitle: 'setup',
@@ -100,7 +100,7 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
   const [voiceError, setVoiceError] = useState(false);
   const [voices, setVoices] = useState<VoiceAgentVoice[]>([]);
   const [models, setModels] = useState<VoiceAgentModelOption[]>([]);
-  const [calendars, setCalendars] = useState<CalendarIntegrationOption[]>([]);
+  const [calendars, setCalendars] = useState<RingeeCalendarOption[]>([]);
   const [callerNumbers, setCallerNumbers] = useState<VoiceAgentCallerNumber[]>(
     []
   );
@@ -154,9 +154,15 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
     []
   );
 
-  const [calendarId, setCalendarId] = useState(
-    agent?.calendarIntegrationId ?? ''
-  );
+  /**
+   * The Ringee calendar this agent books against. Empty means "use the global
+   * calendar", which is what an agent with no selection has always done.
+   *
+   * This is deliberately NOT the agent's legacy `calendarIntegrationId`: that
+   * names a connected Google account, is configured on the calendar now, and is
+   * never sent from this form — so an agent that already had one keeps it.
+   */
+  const [calendarId, setCalendarId] = useState(agent?.calendarId ?? '');
   const [duration, setDuration] = useState(agent?.meetingDurationMinutes ?? 30);
   const [timezone, setTimezone] = useState(
     agent?.timezone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
@@ -185,12 +191,14 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
             return [];
           }),
           api.listModels().catch(() => []),
-          api.listCalendars().catch(() => []),
+          api.listRingeeCalendars().catch(() => []),
           api.listCallerNumbers().catch(() => [])
         ]);
       setVoices(voiceList);
       setModels(modelList);
-      setCalendars(calendarList.filter((c) => c.isActive));
+      // Archived calendars are not offered: assigning one would only fail when
+      // the agent tried to book.
+      setCalendars(calendarList.filter((c) => !c.archivedAt));
       setCallerNumbers(numberList);
       setCatalogueLoading(false);
     })();
@@ -374,6 +382,18 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
     return list;
   }, [name, voiceId, needsKey, keyAlreadySaved, keyVerified, tBlockers]);
 
+  /**
+   * The calendar this agent will actually use, which is what the form shows:
+   * the one it selected, or the workspace's global calendar when it has not.
+   */
+  const effectiveCalendar = useMemo(
+    () =>
+      calendars.find((calendar) =>
+        calendarId ? calendar.id === calendarId : calendar.isDefault
+      ) ?? null,
+    [calendars, calendarId]
+  );
+
   const body = useMemo<SaveAgentBody>(
     () => ({
       name: name.trim(),
@@ -389,7 +409,10 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
       callerNumberId: callerNumberId || null,
       ...(type === 'appointment_booking'
         ? {
-            calendarIntegrationId: calendarId || null,
+            calendarId: calendarId || null,
+            // `calendarIntegrationId` is deliberately absent: the external
+            // destination belongs to the calendar now, and omitting the field
+            // leaves an older agent's account exactly as it was.
             meetingDurationMinutes: duration,
             timezone,
             meetingTitle
@@ -508,6 +531,7 @@ export function useAgentDraft(type: VoiceAgentType, agent?: VoiceAgent) {
     calendars,
     calendarId,
     setCalendarId,
+    effectiveCalendar,
     callerNumbers,
     callerNumberId,
     setCallerNumberId,

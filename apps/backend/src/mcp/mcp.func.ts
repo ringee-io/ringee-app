@@ -869,8 +869,9 @@ export class McpFunc {
   @McpTool({
     toolName: "schedule_meeting",
     description:
-      "Book a meeting with a contact. When the user has a Google/Microsoft calendar connected, " +
-      "the event is synced and a Meet/Teams link is generated. " +
+      "Book a meeting with a contact on a Ringee calendar. Omit calendarId to use " +
+      "the workspace's global calendar. When that calendar has a Google/Microsoft " +
+      "account connected, the event is synced and a Meet/Teams link is generated. " +
       "Provide attendeeEmail to send a calendar invite.",
     zod: ScheduleMeetingSchema,
     annotations: {
@@ -893,6 +894,9 @@ export class McpFunc {
       notes: input.notes,
       attendeeEmail: input.attendeeEmail,
       calendarProvider: input.calendarProvider,
+      // Verified against the caller's workspace by CalendarService; an id from
+      // another tenant is not found rather than booked.
+      calendarId: input.calendarId,
     });
 
     return text({
@@ -901,6 +905,10 @@ export class McpFunc {
       scheduledAt: meeting.scheduledAt,
       duration: meeting.duration,
       status: meeting.status,
+      calendarId: meeting.calendarId,
+      // "synced" once the external event exists; "not_required" when the
+      // calendar has no external destination; "failed" when it can be retried.
+      externalSyncStatus: meeting.externalSyncStatus,
     });
   }
 

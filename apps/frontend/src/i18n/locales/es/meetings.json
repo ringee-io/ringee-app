@@ -8,9 +8,7 @@
   "tabs": {
     "upcoming": "Próximas",
     "all": "Todas",
-    "calendar": "Calendario",
-    "availability": "Disponibilidad",
-    "integrations": "Integraciones"
+    "calendar": "Calendario"
   },
   "sections": {
     "upcoming": "Próximas",
@@ -67,6 +65,14 @@
     "unlimitedAria": "Permitir reservas sin límite en la franja {number}",
     "unlimitedHint": "Ringee puede agendar cualquier cantidad de personas a la misma hora en esta franja.",
     "addWindow": "Agregar otra franja",
+    "workingHours": {
+      "title": "Horario laboral estándar",
+      "hint": "Lun–Vie, 09:00–17:00. Sustituye los tramos de abajo.",
+      "active": "Ya está en Lun–Vie, 09:00–17:00.",
+      "action": "Autocompletar",
+      "applied": "Horario laboral autocompletado. Guarda para aplicarlo.",
+      "undo": "Deshacer"
+    },
     "daysOfWeek": {
       "0": "Dom",
       "1": "Lun",
@@ -82,6 +88,23 @@
       "endAfterStart": "La hora final debe ser posterior a la inicial.",
       "overlap": "Esta franja se superpone con otra del mismo día.",
       "capacity": "Escribe un valor entre 1 y 10.000, o elige sin límite."
+    },
+    "overview": "Resumen de la semana",
+    "timesIn": "Horas en {timezone}",
+    "closed": "Sin horario",
+    "unsaved": "Cambios sin guardar",
+    "upToDate": "Todo guardado",
+    "discard": "Descartar",
+    "presets": {
+      "weekdays": "Lun–Vie",
+      "weekend": "Fin de semana",
+      "everyDay": "Todos los días"
+    },
+    "summary": {
+      "everyDay": "Todos los días",
+      "weekdays": "De lunes a viernes",
+      "weekend": "Fines de semana",
+      "none": "Sin días seleccionados"
     }
   },
   "empty": {
@@ -97,5 +120,80 @@
   },
   "booking": {
     "availabilityFailed": "No se pudo consultar la disponibilidad de Ringee. Inténtalo de nuevo."
+  },
+  "calendars": {
+    "title": "Calendarios",
+    "description": "Cada espacio de trabajo tiene un calendario global. Añade más cuando distintos agentes necesiten sus propias franjas, zona horaria o capacidad.",
+    "agentHint": "Ringee es la única fuente de disponibilidad. Google es opcional y solo recibe una copia de una reserva que ya existe aquí.",
+    "add": "Añadir calendario",
+    "newName": "Calendario nuevo",
+    "created": "Calendario creado",
+    "createFailed": "No se pudo crear el calendario.",
+    "loadFailed": "No se pudieron cargar los calendarios.",
+    "retry": "Reintentar",
+    "globalBadge": "Global",
+    "archivedBadge": "Archivado",
+    "agentsUsing": "{count, plural, =0 {Sin agentes} one {# agente} other {# agentes}}",
+    "details": "Calendario",
+    "name": "Nombre",
+    "timezone": "Zona horaria",
+    "timezoneHint": "La zona de las franjas de abajo. Manda sobre la zona horaria del agente.",
+    "save": "Guardar calendario",
+    "saved": "Calendario guardado",
+    "saveFailed": "No se pudo guardar el calendario.",
+    "archive": "Archivar",
+    "restore": "Restaurar",
+    "archiveFailed": "No se pudo archivar el calendario.",
+    "archivedHint": "Archivado. Conserva sus reuniones e historial, pero no acepta reservas nuevas ni se ofrece a los agentes.",
+    "connection": "Google Calendar (opcional)",
+    "connectionHint": "A dónde se copian las reservas hechas aquí. Nunca decide qué horarios ofrece Ringee, y un calendario sin conexión reserva con normalidad.",
+    "connectGoogle": "Conectar Google Calendar",
+    "disconnect": "Desconectar",
+    "disconnectFailed": "No se pudo desconectar la cuenta.",
+    "externalCalendar": "Crear eventos en",
+    "externalPrimary": "Calendario principal",
+    "externalLoadFailed": "No se pudieron leer los calendarios de la cuenta conectada. Vuelve a conectarla e inténtalo de nuevo.",
+    "agents": "Agentes que usan este calendario",
+    "agentsEmpty": "Todavía ningún agente reserva en este calendario.",
+    "agentsGlobalEmpty": "Aquí reservan todos los agentes sin calendario propio, además del dialer y las campañas.",
+    "availability": "Disponibilidad para reservas",
+    "providers": {
+      "google": "Google Calendar",
+      "microsoft": "Outlook Calendar"
+    },
+    "pickerLabel": "Calendarios"
+  },
+  "externalSync": {
+    "pending": "Evento del calendario externo pendiente",
+    "failed": "Falló el evento del calendario externo",
+    "bookingSafe": "La reunión está confirmada en Ringee. Solo se ve afectada la copia en el calendario conectado.",
+    "retry": "Reintentar evento externo",
+    "retrySucceeded": "Evento externo creado.",
+    "retryFailed": "No se pudo crear el evento externo."
+  },
+  "integrations": {
+    "comingSoon": "Próximamente",
+    "connected": "Conectado",
+    "connect": "Conectar {provider}",
+    "disconnect": "Desconectar",
+    "connectedSuccess": "¡{provider} se conectó correctamente!",
+    "connectFailed": "No se pudo conectar el calendario. Inténtalo de nuevo.",
+    "disconnected": "Calendario desconectado",
+    "disconnectFailed": "No se pudo desconectar el calendario",
+    "providerFallback": "Tu calendario",
+    "howItWorks": "Cómo funciona",
+    "howItWorksPrefix": "Cuando está conectado, Ringee crea un evento en el calendario externo con un enlace de",
+    "or": "o",
+    "howItWorksSuffix": ". Sin integración, las reuniones y la disponibilidad siguen funcionando en Ringee.",
+    "providers": {
+      "google": {
+        "name": "Google Calendar",
+        "description": "Sincroniza las reuniones con Google Calendar y crea enlaces de Google Meet automáticamente."
+      },
+      "microsoft": {
+        "name": "Microsoft Outlook",
+        "description": "Sincroniza las reuniones con Outlook Calendar y crea enlaces de Teams automáticamente."
+      }
+    }
   }
 }

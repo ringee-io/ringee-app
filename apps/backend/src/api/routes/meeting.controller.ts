@@ -85,6 +85,14 @@ class CreateMeetingDto {
   @IsString()
   @MaxLength(255)
   bookingTimeZone?: string;
+
+  /**
+   * Which Ringee calendar to book on. Omitted keeps the previous behaviour:
+   * the workspace's global calendar.
+   */
+  @IsOptional()
+  @IsUUID()
+  calendarId?: string;
 }
 
 @Controller("meetings")
@@ -132,6 +140,7 @@ export class MeetingController {
       notes: dto.notes,
       attendeeEmail: dto.attendeeEmail,
       calendarProvider: dto.provider,
+      calendarId: dto.calendarId,
       requireAvailableSlot: dto.requireAvailableSlot,
       bookingTimeZone: dto.bookingTimeZone,
     });
@@ -145,6 +154,7 @@ export class MeetingController {
     @Query("search") search?: string,
     @Query("page") page = "1",
     @Query("limit") limit = "20",
+    @Query("calendarId") calendarId?: string,
   ) {
     const ctx = createOwnershipContext(user);
     return this.meetingService.listMeetings(ctx, {
@@ -153,6 +163,7 @@ export class MeetingController {
       search,
       page: Number(page),
       limit: Number(limit),
+      calendarId,
     });
   }
 
@@ -186,6 +197,20 @@ export class MeetingController {
   ) {
     const ctx = createOwnershipContext(user);
     return this.meetingService.updateMeeting(ctx, id, dto);
+  }
+
+  /**
+   * Retries the external calendar event for a booking whose sync failed.
+   * The Ringee booking is already confirmed and is not touched; the retry
+   * cannot duplicate the external event.
+   */
+  @Post(":id/calendar-sync/retry")
+  async retryCalendarSync(
+    @Param("id") id: string,
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    const ctx = createOwnershipContext(user);
+    return this.meetingService.retryExternalSync(ctx, id);
   }
 
   @Patch(":id/cancel")

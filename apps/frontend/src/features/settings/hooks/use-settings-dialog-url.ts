@@ -4,7 +4,8 @@ import * as React from 'react';
 import {
   isSettingsHash,
   settingsHash,
-  settingsItemFromHash
+  settingsItemFromHash,
+  settingsTargetFromHash
 } from '../lib/settings-nav';
 import { useSettingsDialogStore } from '../store/settings-dialog.store';
 import type { SettingsItemId } from '../types';
@@ -30,6 +31,7 @@ export function useSettingsDialogUrl(activeId: SettingsItemId | null) {
   const open = useSettingsDialogStore((s) => s.open);
   const openSettings = useSettingsDialogStore((s) => s.openSettings);
   const close = useSettingsDialogStore((s) => s.close);
+  const target = useSettingsDialogStore((s) => s.requestedTarget);
 
   // Whether the entry currently in history is one we pushed. A fragment the
   // user arrived with (a shared link, a reload) has nothing behind it, so
@@ -41,7 +43,11 @@ export function useSettingsDialogUrl(activeId: SettingsItemId | null) {
   React.useEffect(() => {
     const sync = () => {
       if (isSettingsHash(window.location.hash)) {
-        openSettings(settingsItemFromHash(window.location.hash) ?? undefined);
+        const item = settingsItemFromHash(window.location.hash);
+        openSettings(
+          item ?? undefined,
+          item ? settingsTargetFromHash(window.location.hash) : undefined
+        );
       } else {
         close();
       }
@@ -59,7 +65,7 @@ export function useSettingsDialogUrl(activeId: SettingsItemId | null) {
 
     if (open) {
       if (!activeId) return;
-      const next = settingsHash(activeId);
+      const next = settingsHash(activeId, target);
       if (window.location.hash === next) return;
 
       if (isSettingsHash(window.location.hash)) {
@@ -90,5 +96,5 @@ export function useSettingsDialogUrl(activeId: SettingsItemId | null) {
         window.location.pathname + window.location.search
       );
     }
-  }, [open, activeId]);
+  }, [open, activeId, target]);
 }

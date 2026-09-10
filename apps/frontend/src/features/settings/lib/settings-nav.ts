@@ -1,5 +1,7 @@
 import {
   Bot,
+  CalendarClock,
+  CalendarDays,
   FileText,
   Mic,
   Phone,
@@ -28,6 +30,7 @@ export const SETTINGS_SECTIONS: SettingsSectionId[] = [
 export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { id: 'general', section: 'settings', icon: SlidersHorizontal },
   { id: 'script', section: 'settings', icon: FileText },
+  { id: 'calendars', section: 'settings', icon: CalendarClock },
   { id: 'recording', section: 'settings', icon: Mic, adminOnly: true },
   { id: 'desk-phones', section: 'settings', icon: Phone, adminOnly: true },
   { id: 'crm', section: 'integrations', icon: Plug, adminOnly: true },
@@ -39,7 +42,8 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   },
   { id: 'leads', section: 'integrations', icon: Users },
   { id: 'custom', section: 'integrations', icon: PlugZap, adminOnly: true },
-  { id: 'connectors', section: 'integrations', icon: Bot }
+  { id: 'connectors', section: 'integrations', icon: Bot },
+  { id: 'calendar-providers', section: 'integrations', icon: CalendarDays }
 ];
 
 /** The items a given role may open. */
@@ -83,15 +87,23 @@ export const SETTINGS_HASH_PREFIX = 'settings';
 
 const KNOWN_ITEM_IDS = new Set<string>(SETTINGS_NAV_ITEMS.map((i) => i.id));
 
-/** The fragment that addresses a pane, ready for `history.pushState`. */
-export function settingsHash(id: SettingsItemId): string {
-  return `#${SETTINGS_HASH_PREFIX}/${id}`;
+/**
+ * The fragment that addresses a pane, ready for `history.pushState`. A pane
+ * that holds several rows — the calendars pane, one fragment per calendar —
+ * takes an optional target so the link reopens on the same row.
+ */
+export function settingsHash(
+  id: SettingsItemId,
+  target?: string | null
+): string {
+  const base = `#${SETTINGS_HASH_PREFIX}/${id}`;
+  return target ? `${base}/${encodeURIComponent(target)}` : base;
 }
 
 /** Whether a fragment belongs to the settings dialog at all. */
 export function isSettingsHash(hash: string): boolean {
   const [prefix, , ...rest] = stripHash(hash).split('/');
-  return prefix === SETTINGS_HASH_PREFIX && rest.length === 0;
+  return prefix === SETTINGS_HASH_PREFIX && rest.length <= 1;
 }
 
 /**
@@ -103,6 +115,24 @@ export function settingsItemFromHash(hash: string): SettingsItemId | null {
   if (!isSettingsHash(hash)) return null;
   const item = stripHash(hash).split('/')[1];
   return item && KNOWN_ITEM_IDS.has(item) ? (item as SettingsItemId) : null;
+}
+
+/**
+ * The row a fragment names inside its pane, e.g. the calendar in
+ * `#settings/calendars/<id>`. `null` when the fragment names only a pane.
+ */
+export function settingsTargetFromHash(hash: string): string | null {
+  if (!isSettingsHash(hash)) return null;
+  const target = stripHash(hash).split('/')[2];
+  if (!target) return null;
+  try {
+    return decodeURIComponent(target);
+  } catch {
+    // A hand-edited fragment can carry a broken percent escape. It names no
+    // row anyone could open, and this runs inside the `hashchange` handler —
+    // throwing here would leave the dialog unable to follow the URL at all.
+    return null;
+  }
 }
 
 function stripHash(hash: string): string {

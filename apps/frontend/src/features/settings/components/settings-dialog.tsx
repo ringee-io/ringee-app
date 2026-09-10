@@ -99,6 +99,20 @@ const ConnectorsTab = dynamic(
     ),
   { loading }
 );
+const CalendarsManager = dynamic(
+  () =>
+    import('@/features/meetings/components/calendars-manager').then(
+      (m) => m.CalendarsManager
+    ),
+  { loading }
+);
+const CalendarIntegrations = dynamic(
+  () =>
+    import('@/features/meetings/components/calendar-integrations').then(
+      (m) => m.CalendarIntegrations
+    ),
+  { loading }
+);
 
 /**
  * Ringee's settings surface: one modal, sections in a rail on the left, the
@@ -113,7 +127,9 @@ export function SettingsDialog() {
   const setOpen = useSettingsDialogStore((s) => s.setOpen);
   const openSettings = useSettingsDialogStore((s) => s.openSettings);
   const requestedItem = useSettingsDialogStore((s) => s.requestedItem);
+  const requestedTarget = useSettingsDialogStore((s) => s.requestedTarget);
   const setItem = useSettingsDialogStore((s) => s.setItem);
+  const setTarget = useSettingsDialogStore((s) => s.setTarget);
 
   const t = useTranslations('settings.dialog');
   const { canAccessAdminFeatures } = useOrgRole();
@@ -310,7 +326,13 @@ export function SettingsDialog() {
               ref={paneRef}
               className='min-h-0 flex-1 overflow-y-auto px-4 py-5 sm:px-6'
             >
-              {activeId && <SettingsPanel id={activeId} />}
+              {activeId && (
+                <SettingsPanel
+                  id={activeId}
+                  target={requestedTarget}
+                  onTargetChange={setTarget}
+                />
+              )}
             </div>
           </section>
         </div>
@@ -323,7 +345,17 @@ export function SettingsDialog() {
  * Only the selected pane mounts, so opening the dialog does not fan out into
  * every settings and integrations request at once.
  */
-function SettingsPanel({ id }: { id: SettingsItemId }) {
+function SettingsPanel({
+  id,
+  target,
+  onTargetChange
+}: {
+  id: SettingsItemId;
+  /** The row the caller deep-linked to, for the panes that have rows. */
+  target: string | null;
+  /** Keeps the fragment on the row the pane is actually showing. */
+  onTargetChange: (target: string | null) => void;
+}) {
   switch (id) {
     case 'general':
       return <GeneralPanel />;
@@ -343,5 +375,14 @@ function SettingsPanel({ id }: { id: SettingsItemId }) {
       return <CustomIntegrationsTab />;
     case 'connectors':
       return <ConnectorsTab />;
+    case 'calendars':
+      return (
+        <CalendarsManager
+          initialCalendarId={target ?? undefined}
+          onCalendarChange={onTargetChange}
+        />
+      );
+    case 'calendar-providers':
+      return <CalendarIntegrations />;
   }
 }

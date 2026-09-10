@@ -530,6 +530,14 @@ export const ScheduleMeetingSchema = {
     .describe(
       "Force a specific calendar integration. Defaults to whichever is connected.",
     ),
+  calendarId: z
+    .string()
+    .uuid()
+    .optional()
+    .describe(
+      "UUID of the Ringee calendar to book on. Omit to use the workspace's global calendar. " +
+        "The calendar decides the available hours, time zone and capacity.",
+    ),
   callId: z
     .string()
     .uuid()

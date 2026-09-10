@@ -59,16 +59,13 @@ import {
   MapPin,
   FileText,
   CalendarDays,
-  CalendarClock,
   List,
   ChevronLeft,
   ChevronRight,
-  Link2,
   Eye
 } from 'lucide-react';
 import { toast } from 'sonner';
-import { CalendarIntegrations } from './calendar-integrations';
-import { AvailabilitySettings } from './availability-settings';
+import { useSettingsDialogStore } from '@/features/settings/store/settings-dialog.store';
 
 interface Meeting {
   id: string;
@@ -90,6 +87,13 @@ interface Meeting {
     createdAt: string;
     recordings?: { id: string; url?: string }[];
   };
+  /** The Ringee calendar this meeting was booked on. */
+  calendar?: { id: string; name: string; isDefault: boolean } | null;
+  /**
+   * Whether the external calendar event exists. The booking above is confirmed
+   * in Ringee regardless — `pending` and `failed` describe only the copy.
+   */
+  externalSyncStatus?: 'not_required' | 'pending' | 'synced' | 'failed';
   createdAt: string;
 }
 
@@ -107,6 +111,7 @@ export function MeetingsList() {
   const t = useTranslations('meetings');
   const tCommon = useTranslations('common');
   const api = useApi();
+  const openSettings = useSettingsDialogStore((s) => s.openSettings);
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -115,6 +120,23 @@ export function MeetingsList() {
   const [tab, setTab] = useState('upcoming');
   const [cancellingId, setCancellingId] = useState<string | null>(null);
   const [calendarDate, setCalendarDate] = useState<Date>(new Date());
+
+  // Calendars moved into the settings dialog. Links minted before that — an
+  // agent's "manage availability", a bookmark — still arrive here as
+  // `?calendar=<id>`, so they are forwarded to the pane that owns them now.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const requested = params.get('calendar');
+    // The OAuth callback uses the same parameter for its status; only a real id
+    // names a calendar.
+    if (!requested || requested === 'connected' || requested === 'error')
+      return;
+
+    openSettings('calendars', requested);
+    const url = new URL(window.location.href);
+    url.searchParams.delete('calendar');
+    window.history.replaceState({}, '', url.toString());
+  }, [openSettings]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -204,14 +226,6 @@ export function MeetingsList() {
             <CalendarDays className='h-3.5 w-3.5' />
             {t('tabs.calendar')}
           </TabsTrigger>
-          <TabsTrigger value='availability' className='gap-1.5'>
-            <CalendarClock className='h-3.5 w-3.5' />
-            {t('tabs.availability')}
-          </TabsTrigger>
-          <TabsTrigger value='integrations' className='gap-1.5'>
-            <Link2 className='h-3.5 w-3.5' />
-            {t('tabs.integrations')}
-          </TabsTrigger>
         </TabsList>
 
         {/* Upcoming tab */}
@@ -286,16 +300,6 @@ export function MeetingsList() {
             t={t}
           />
         </TabsContent>
-
-        {/* Ringee booking availability tab */}
-        <TabsContent value='availability' className='mt-4'>
-          <AvailabilitySettings />
-        </TabsContent>
-
-        {/* Integrations tab */}
-        <TabsContent value='integrations' className='mt-4'>
-          <CalendarIntegrations />
-        </TabsContent>
       </Tabs>
 
       {/* Meeting detail sheet */}
@@ -334,15 +338,86 @@ function MeetingDetail({
   cancellingId: string | null;
   t: TFunc;
 }) {
+  const api = useApi();
+  const [sync, setSync] = useState(meeting.externalSyncStatus);
+  const [retrying, setRetrying] = useState(false);
+
+  useEffect(() => setSync(meeting.externalSyncStatus), [meeting]);
+
+  // The booking is confirmed in Ringee either way; this only retries the copy
+  // on the calendar's external destination, and cannot duplicate it.
+  const retrySync = async () => {
+    setRetrying(true);
+    try {
+      const updated = await api.post<Meeting>(
+        `/meetings/${meeting.id}/calendar-sync/retry`,
+        {}
+      );
+      setSync(updated.externalSyncStatus);
+      if (updated.externalSyncStatus === 'synced') {
+        toast.success(t('externalSync.retrySucceeded'));
+      } else {
+        toast.error(t('externalSync.retryFailed'));
+      }
+    } catch {
+      toast.error(t('externalSync.retryFailed'));
+    } finally {
+      setRetrying(false);
+    }
+  };
+
   return (
     <>
       <SheetHeader>
         <SheetTitle className='text-base'>
           {meeting.title || t('defaultTitle')}
         </SheetTitle>
-        <StatusBadge status={meeting.status} t={t} />
+        <div className='flex flex-wrap items-center gap-2'>
+          <StatusBadge status={meeting.status} t={t} />
+          {meeting.calendar ? (
+            <Badge variant='outline' className='text-[10px]'>
+              {meeting.calendar.name}
+            </Badge>
+          ) : null}
+        </div>
       </SheetHeader>
       <div className='mt-6 space-y-5'>
+        {/*
+          A confirmed Ringee booking whose external event is still pending or
+          failed. Said explicitly so nobody reads a failed copy as a lost
+          meeting.
+        */}
+        {sync === 'failed' || sync === 'pending' ? (
+          <div
+            className={cn(
+              'rounded-lg border p-3 text-xs',
+              sync === 'failed'
+                ? 'border-amber-500/30 bg-amber-500/5'
+                : 'border-border/40 bg-muted/20'
+            )}
+          >
+            <p className='font-medium'>{t(`externalSync.${sync}`)}</p>
+            <p className='text-muted-foreground mt-1 leading-relaxed'>
+              {t('externalSync.bookingSafe')}
+            </p>
+            {sync === 'failed' ? (
+              <Button
+                type='button'
+                variant='outline'
+                size='sm'
+                className='mt-3'
+                onClick={retrySync}
+                disabled={retrying}
+              >
+                {retrying ? (
+                  <Loader2 className='h-3.5 w-3.5 animate-spin' />
+                ) : null}
+                {t('externalSync.retry')}
+              </Button>
+            ) : null}
+          </div>
+        ) : null}
+
         {/* Date & time */}
         <div className='flex items-start gap-3'>
           <div className='flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10'>

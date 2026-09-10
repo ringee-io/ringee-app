@@ -285,6 +285,10 @@
         "label": "Gesprächsleitfaden",
         "description": "Der Leitfaden, den Ihr Dialer während Anrufen anzeigt."
       },
+      "calendars": {
+        "label": "Kalender",
+        "description": "Buchungszeiten, Zeitzonen und die Kalender, in denen Ihre Agenten buchen."
+      },
       "recording": {
         "label": "Aufzeichnungen und Transkripte",
         "description": "Wählen Sie, welche Anrufe aufgezeichnet und transkribiert werden."
@@ -312,6 +316,10 @@
       "connectors": {
         "label": "Connectors",
         "description": "Ringee mit KI-Assistenten und Agent-Tools verbinden."
+      },
+      "calendar-providers": {
+        "label": "Kalenderanbieter",
+        "description": "Verbinden Sie Google Kalender, damit Buchungen dorthin kopiert werden."
       }
     },
     "general": {

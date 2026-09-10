@@ -285,6 +285,10 @@
         "label": "Guion de llamada",
         "description": "El guion que tu marcador muestra durante las llamadas."
       },
+      "calendars": {
+        "label": "Calendarios",
+        "description": "Franjas de reserva, zonas horarias y los calendarios donde agendan tus agentes."
+      },
       "recording": {
         "label": "Grabaciones y transcripciones",
         "description": "Elige qué llamadas se graban y se transcriben."
@@ -312,6 +316,10 @@
       "connectors": {
         "label": "Conectores",
         "description": "Conecta Ringee con asistentes de IA y herramientas de agentes."
+      },
+      "calendar-providers": {
+        "label": "Proveedores de calendario",
+        "description": "Conecta Google Calendar para copiar allí las reservas."
       }
     },
     "general": {

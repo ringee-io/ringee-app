@@ -80,6 +80,11 @@ export const ScheduleMeetingSchema = z.object({
   notes: z.string().max(2000).optional(),
   attendeeEmail: z.string().email().optional(),
   calendarProvider: calendarProviderEnum.optional(),
+  calendarId: uuid
+    .optional()
+    .describe(
+      "Ringee calendar to book on. Omit for the workspace's global calendar.",
+    ),
   callId: uuid
     .optional()
     .describe("Source call — sets that call's outcome to meeting_booked."),

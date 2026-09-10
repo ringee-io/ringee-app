@@ -220,7 +220,9 @@ Consequences worth keeping:
   routes that carry the agent's shared secret and take the call's identity from
   a provider-filled header, never from the model (AGENT-003).
 - The booking tool uses `CalendarService.getBookableSlots`, which fails rather
-  than inventing availability (AGENT-002).
+  than inventing availability (AGENT-002). Which calendar it reads is resolved
+  server-side from the agent row and pinned to the call, so the model cannot
+  name one and editing the agent mid-call cannot move the booking (CAL-001).
 - **An agent call is never priced by a webhook.** `call.cost` and
   `call.recording.saved` are events of the _calling application_ an agent's
   calls go out through, not callbacks of the call, so the per-call

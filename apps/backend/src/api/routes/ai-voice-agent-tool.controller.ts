@@ -24,9 +24,15 @@ export class AiVoiceAgentToolController {
   getAvailableSlots(
     @Param("agentId") agentId: string,
     @Headers(VOICE_AGENT_TOOL_SECRET_HEADER) secret: string,
+    @Headers(VOICE_AGENT_CALL_ID_HEADER) callControlId: string,
     @Body() body: { date?: string },
   ) {
-    return this.tools.getAvailableSlots(agentId, secret, body ?? {});
+    return this.tools.getAvailableSlots(
+      agentId,
+      secret,
+      callControlId ?? null,
+      body ?? {},
+    );
   }
 
   @Public()

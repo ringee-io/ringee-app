@@ -285,6 +285,10 @@
         "label": "Belscript",
         "description": "Het script dat je dialer tijdens gesprekken toont."
       },
+      "calendars": {
+        "label": "Agenda's",
+        "description": "Boekingsuren, tijdzones en de agenda's waarin je agents afspraken inplannen."
+      },
       "recording": {
         "label": "Opnames en transcripties",
         "description": "Kies welke gesprekken worden opgenomen en getranscribeerd."
@@ -312,6 +316,10 @@
       "connectors": {
         "label": "Connectors",
         "description": "Koppel Ringee aan AI-assistenten en agent-tools."
+      },
+      "calendar-providers": {
+        "label": "Agenda-providers",
+        "description": "Koppel Google Agenda zodat boekingen daarheen worden gekopieerd."
       }
     },
     "general": {

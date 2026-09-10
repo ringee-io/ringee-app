@@ -8,9 +8,7 @@
   "tabs": {
     "upcoming": "Upcoming",
     "all": "All",
-    "calendar": "Calendar",
-    "availability": "Availability",
-    "integrations": "Integrations"
+    "calendar": "Calendar"
   },
   "sections": {
     "upcoming": "Upcoming",
@@ -77,6 +75,14 @@
     "unlimitedAria": "Allow unlimited bookings in window {number}",
     "unlimitedHint": "Ringee may book any number of people at the same time in this window.",
     "addWindow": "Add another window",
+    "workingHours": {
+      "title": "Standard working hours",
+      "hint": "Mon–Fri, 09:00–17:00. Replaces the windows below.",
+      "active": "Already set to Mon–Fri, 09:00–17:00.",
+      "action": "Autofill",
+      "applied": "Working hours filled in. Save to apply them.",
+      "undo": "Undo"
+    },
     "daysOfWeek": {
       "0": "Sun",
       "1": "Mon",
@@ -92,6 +98,23 @@
       "endAfterStart": "The end time must be after the start time.",
       "overlap": "This window overlaps another window on the same day.",
       "capacity": "Enter between 1 and 10,000, or choose unlimited."
+    },
+    "overview": "Week at a glance",
+    "timesIn": "Times in {timezone}",
+    "closed": "No hours",
+    "unsaved": "Unsaved changes",
+    "upToDate": "All changes saved",
+    "discard": "Discard",
+    "presets": {
+      "weekdays": "Mon–Fri",
+      "weekend": "Weekend",
+      "everyDay": "Every day"
+    },
+    "summary": {
+      "everyDay": "Every day",
+      "weekdays": "Mon to Fri",
+      "weekend": "Weekends",
+      "none": "No days selected"
     }
   },
   "empty": {
@@ -124,7 +147,8 @@
         "name": "Microsoft Outlook",
         "description": "Sync meetings with Outlook Calendar and auto-create Teams links."
       }
-    }
+    },
+    "providerFallback": "Your calendar"
   },
   "thisWeek": {
     "title": "Meetings This Week",
@@ -148,5 +172,55 @@
     "failedToLoad": "Failed to load meetings",
     "cancelled": "Meeting cancelled",
     "failedToCancel": "Failed to cancel meeting"
+  },
+  "calendars": {
+    "title": "Calendars",
+    "description": "Every workspace has one global calendar. Add more when different agents need their own hours, time zone or capacity.",
+    "agentHint": "Ringee is the only source of availability. Google is optional and only receives a copy of a booking that already exists here.",
+    "add": "Add calendar",
+    "newName": "New calendar",
+    "created": "Calendar created",
+    "createFailed": "Could not create the calendar.",
+    "loadFailed": "Could not load calendars.",
+    "retry": "Try again",
+    "globalBadge": "Global",
+    "archivedBadge": "Archived",
+    "agentsUsing": "{count, plural, =0 {No agents} one {# agent} other {# agents}}",
+    "details": "Calendar",
+    "name": "Name",
+    "timezone": "Time zone",
+    "timezoneHint": "The zone the hours below are in. It wins over an agent's own time zone.",
+    "save": "Save calendar",
+    "saved": "Calendar saved",
+    "saveFailed": "Could not save the calendar.",
+    "archive": "Archive",
+    "restore": "Restore",
+    "archiveFailed": "Could not archive the calendar.",
+    "archivedHint": "Archived. Its meetings and history are kept, but it takes no new bookings and is not offered to agents.",
+    "connection": "Google Calendar (optional)",
+    "connectionHint": "Where bookings made here are copied. It never decides which times Ringee offers, and a calendar with no connection books normally.",
+    "connectGoogle": "Connect Google Calendar",
+    "disconnect": "Disconnect",
+    "disconnectFailed": "Could not disconnect the account.",
+    "externalCalendar": "Create events in",
+    "externalPrimary": "Primary calendar",
+    "externalLoadFailed": "Could not read the connected account's calendars. Reconnect it and try again.",
+    "agents": "Agents using this calendar",
+    "agentsEmpty": "No agent books on this calendar yet.",
+    "agentsGlobalEmpty": "Every agent with no calendar of its own books here, along with the dialer and campaigns.",
+    "availability": "Booking availability",
+    "providers": {
+      "google": "Google Calendar",
+      "microsoft": "Outlook Calendar"
+    },
+    "pickerLabel": "Calendars"
+  },
+  "externalSync": {
+    "pending": "External calendar event pending",
+    "failed": "External calendar event failed",
+    "bookingSafe": "The meeting is confirmed in Ringee. Only the copy on the connected calendar is affected.",
+    "retry": "Retry external event",
+    "retrySucceeded": "External event created.",
+    "retryFailed": "The external event could not be created."
   }
 }
