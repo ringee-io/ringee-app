@@ -1,5 +1,24 @@
 import { describe, it, expect } from "vitest";
-import { buildAttioPersonName } from "./attio.mapper";
+import {
+  buildAttioPersonName,
+  mapAttioCompanyToSyncResult,
+  mapAttioPersonToMatch,
+  mapAttioPersonToSyncResult,
+} from "./attio.mapper";
+import type { AttioCompanyRecord, AttioPersonRecord } from "./attio.types";
+
+function personWithPhone(
+  phone: NonNullable<AttioPersonRecord["values"]["phone_numbers"]>[number],
+): AttioPersonRecord {
+  return {
+    id: {
+      workspace_id: "workspace-1",
+      object_id: "people",
+      record_id: "person-1",
+    },
+    values: { phone_numbers: [phone] },
+  };
+}
 
 describe("buildAttioPersonName", () => {
   // Attio's object syntax requires first_name, last_name AND full_name to all
@@ -68,5 +87,60 @@ describe("buildAttioPersonName", () => {
     expect(
       buildAttioPersonName({ displayName: "  ", firstName: " ", lastName: "" }),
     ).toBeNull();
+  });
+});
+
+describe("Attio phone mapping", () => {
+  it("uses Attio's normalized_phone_number for a locally formatted person number", () => {
+    const record = personWithPhone({
+      original_phone_number: "(415) 555-2671",
+      normalized_phone_number: "+14155552671",
+      country_code: "US",
+    });
+
+    expect(mapAttioPersonToSyncResult(record).phones).toEqual(["+14155552671"]);
+    expect(mapAttioPersonToMatch(record, "+14155552671").phoneNumbers).toEqual([
+      "+14155552671",
+    ]);
+  });
+
+  it("uses country_code when an older payload omits the normalized value", () => {
+    const record = personWithPhone({
+      original_phone_number: "020 7946 0958",
+      country_code: "GB",
+    });
+
+    expect(mapAttioPersonToSyncResult(record).phones).toEqual([
+      "+442079460958",
+    ]);
+  });
+
+  it("keeps supporting legacy phone_number payloads", () => {
+    const record = personWithPhone({ phone_number: "+33142345678" });
+
+    expect(mapAttioPersonToSyncResult(record).phones).toEqual(["+33142345678"]);
+  });
+
+  it("uses the normalized value for company phone numbers too", () => {
+    const record: AttioCompanyRecord = {
+      id: {
+        workspace_id: "workspace-1",
+        object_id: "companies",
+        record_id: "company-1",
+      },
+      values: {
+        name: [{ value: "Acme" }],
+        domains: [],
+        phone_numbers: [
+          {
+            original_phone_number: "809-555-1234",
+            normalized_phone_number: "+18095551234",
+            country_code: "DO",
+          },
+        ],
+      },
+    };
+
+    expect(mapAttioCompanyToSyncResult(record).phone).toBe("+18095551234");
   });
 });
