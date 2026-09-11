@@ -11,8 +11,35 @@ import { normalizePhoneE164, phoneMatchesSuffix } from "../../phone";
 import type {
   AttioCompanyRecord,
   AttioPersonRecord,
+  AttioPhoneNumberValue,
   AttioWorkspaceMember,
 } from "./attio.types";
+
+/**
+ * Read Attio phone values using the provider's current response contract.
+ *
+ * Attio returns both the user's original input and an E.164
+ * `normalized_phone_number`. Prefer the normalized value: the original may be
+ * a country-local number (for example, `(415) 555-2671`) that Ringee cannot
+ * interpret correctly without the record's country. Older payloads used by
+ * existing integrations may still carry `phone_number`, so it remains a
+ * compatibility fallback before considering the original input.
+ */
+function mapAttioPhoneNumbers(values: AttioPhoneNumberValue[] = []): string[] {
+  return values
+    .map((phone) => {
+      const normalized =
+        normalizePhoneE164(phone.normalized_phone_number) ??
+        normalizePhoneE164(phone.phone_number);
+      if (normalized) return normalized;
+
+      return normalizePhoneE164(
+        phone.original_phone_number,
+        phone.country_code ?? undefined,
+      );
+    })
+    .filter((phone): phone is string => Boolean(phone));
+}
 
 export function mapAttioPersonToMatch(
   record: AttioPersonRecord,
@@ -26,13 +53,7 @@ export function mapAttioPersonToMatch(
   const displayName =
     nameVal?.full_name ?? nameVal?.value ?? (assembledName || "Unnamed person");
 
-  const rawPhones =
-    record.values.phone_numbers?.map(
-      (p) => p.original_phone_number ?? p.phone_number ?? "",
-    ) ?? [];
-  const normalizedPhones = rawPhones
-    .map((p) => normalizePhoneE164(p))
-    .filter((p): p is string => Boolean(p));
+  const normalizedPhones = mapAttioPhoneNumbers(record.values.phone_numbers);
 
   const exact = normalizedPhones.includes(targetPhoneE164);
   const matchedOn: "phone_exact" | "phone_suffix" = exact
@@ -195,13 +216,7 @@ export function mapAttioPersonToSyncResult(
   const displayName =
     nameVal?.full_name ?? nameVal?.value ?? (assembledName || null);
 
-  const rawPhones =
-    record.values.phone_numbers?.map(
-      (p) => p.original_phone_number ?? p.phone_number ?? "",
-    ) ?? [];
-  const phones = rawPhones
-    .map((p) => normalizePhoneE164(p))
-    .filter((p): p is string => Boolean(p));
+  const phones = mapAttioPhoneNumbers(record.values.phone_numbers);
 
   const emails =
     record.values.email_addresses?.map((e) => e.email_address) ?? [];
@@ -253,12 +268,12 @@ export function mapAttioCompanyToSyncResult(
   const domains = record.values.domains
     ?.map((d) => d.domain)
     .filter(Boolean) as string[];
-  const rawPhones =
-    record.values.phone_numbers?.map(
-      (p) => p.original_phone_number ?? p.phone_number ?? "",
-    ) ?? [];
-  const phone = rawPhones[0]
-    ? (normalizePhoneE164(rawPhones[0]) ?? rawPhones[0])
+  const firstPhone = record.values.phone_numbers?.[0];
+  const phone = firstPhone
+    ? (mapAttioPhoneNumbers([firstPhone])[0] ??
+      firstPhone.original_phone_number ??
+      firstPhone.phone_number ??
+      null)
     : null;
 
   return {

@@ -28,9 +28,22 @@ export type AttioWorkspaceResponse = {
 export type AttioAttributeValue =
   | { value: string | number | boolean | null }
   | { email_address: string }
-  | { original_phone_number: string; country_code?: string | null }
+  | {
+      original_phone_number: string;
+      normalized_phone_number?: string;
+      country_code?: string | null;
+    }
   | { full_name?: string; first_name?: string; last_name?: string }
   | { target_object: "people" | "companies"; target_record_id: string };
+
+export type AttioPhoneNumberValue = {
+  /** Current Attio API field: an E.164 number including its country code. */
+  normalized_phone_number?: string;
+  original_phone_number?: string;
+  country_code?: string | null;
+  /** Kept for compatibility with older payloads and fixtures. */
+  phone_number?: string;
+};
 
 export type AttioPersonRecord = {
   id: { workspace_id: string; object_id: string; record_id: string };
@@ -42,10 +55,7 @@ export type AttioPersonRecord = {
       last_name?: string;
     }>;
     email_addresses?: Array<{ email_address: string }>;
-    phone_numbers?: Array<{
-      phone_number?: string;
-      original_phone_number?: string;
-    }>;
+    phone_numbers?: AttioPhoneNumberValue[];
     primary_location?: Array<{ locality?: string }>;
   };
 };
@@ -104,10 +114,7 @@ export type AttioCompanyRecord = {
     domains?: Array<{ domain?: string }>;
     description?: Array<{ value?: string }>;
     primary_location?: Array<{ locality?: string }>;
-    phone_numbers?: Array<{
-      phone_number?: string;
-      original_phone_number?: string;
-    }>;
+    phone_numbers?: AttioPhoneNumberValue[];
     categories?: Array<{
       option?: {
         id: {
