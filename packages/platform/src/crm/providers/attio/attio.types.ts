@@ -37,6 +37,7 @@ export type AttioAttributeValue =
   | { target_object: "people" | "companies"; target_record_id: string };
 
 export type AttioPhoneNumberValue = {
+  attribute_type?: "phone-number";
   /** Current Attio API field: an E.164 number including its country code. */
   normalized_phone_number?: string;
   original_phone_number?: string;
@@ -47,7 +48,7 @@ export type AttioPhoneNumberValue = {
 
 export type AttioPersonRecord = {
   id: { workspace_id: string; object_id: string; record_id: string };
-  values: {
+  values: Record<string, unknown> & {
     name?: Array<{
       value?: string;
       full_name?: string;
@@ -109,7 +110,7 @@ export type AttioTaskResponse = {
 
 export type AttioCompanyRecord = {
   id: { workspace_id: string; object_id: string; record_id: string };
-  values: {
+  values: Record<string, unknown> & {
     name?: Array<{ value?: string }>;
     domains?: Array<{ domain?: string }>;
     description?: Array<{ value?: string }>;
@@ -135,12 +136,23 @@ export type AttioListEntry = {
   id: { list_id: string };
   api_slug: string;
   name: string;
-  parent_object: string[];
+  parent_object: string | string[];
   workspace_access: string;
 };
 
 export type AttioListResponse = {
   data: AttioListEntry[];
+};
+
+export type AttioListRecordEntry = {
+  id: { workspace_id: string; list_id: string; entry_id: string };
+  parent_record_id: string;
+  parent_object: string;
+  entry_values: Record<string, unknown>;
+};
+
+export type AttioListEntriesResponse = {
+  data: AttioListRecordEntry[];
 };
 
 export type AttioWorkspaceMember = {

@@ -115,6 +115,37 @@ describe("Attio phone mapping", () => {
     ]);
   });
 
+  it("discovers workspace-defined phone and email attribute slugs", () => {
+    const record: AttioPersonRecord = {
+      id: {
+        workspace_id: "workspace-1",
+        object_id: "people",
+        record_id: "person-1",
+      },
+      values: {
+        mobile: [
+          {
+            attribute_type: "phone-number",
+            original_phone_number: "809-555-1234",
+            normalized_phone_number: "+18095551234",
+            country_code: "DO",
+          },
+        ],
+        work_email: [
+          {
+            attribute_type: "email-address",
+            email_address: "person@example.com",
+          },
+        ],
+      },
+    };
+
+    const result = mapAttioPersonToSyncResult(record);
+
+    expect(result.phones).toEqual(["+18095551234"]);
+    expect(result.emails).toEqual(["person@example.com"]);
+  });
+
   it("keeps supporting legacy phone_number payloads", () => {
     const record = personWithPhone({ phone_number: "+33142345678" });
 

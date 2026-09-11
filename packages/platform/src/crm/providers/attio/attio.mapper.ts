@@ -41,6 +41,70 @@ function mapAttioPhoneNumbers(values: AttioPhoneNumberValue[] = []): string[] {
     .filter((phone): phone is string => Boolean(phone));
 }
 
+/**
+ * Attio allows phone attributes to use workspace-defined slugs. Inspect the
+ * value type instead of assuming every workspace stores numbers exclusively in
+ * the standard `phone_numbers` attribute.
+ */
+function findAttioPhoneValues(
+  values: Record<string, unknown>,
+): AttioPhoneNumberValue[] {
+  const phoneValues: AttioPhoneNumberValue[] = [];
+
+  for (const attributeValues of Object.values(values)) {
+    if (!Array.isArray(attributeValues)) continue;
+
+    for (const value of attributeValues) {
+      if (!value || typeof value !== "object") continue;
+      const candidate = value as Record<string, unknown>;
+      if (
+        candidate.attribute_type !== "phone-number" &&
+        typeof candidate.normalized_phone_number !== "string" &&
+        typeof candidate.original_phone_number !== "string" &&
+        typeof candidate.phone_number !== "string"
+      ) {
+        continue;
+      }
+      phoneValues.push(value as AttioPhoneNumberValue);
+    }
+  }
+
+  return phoneValues;
+}
+
+/** Same slug-independent extraction for custom Attio email attributes. */
+function findAttioEmails(values: Record<string, unknown>): string[] {
+  const emails: string[] = [];
+  const seen = new Set<string>();
+
+  for (const attributeValues of Object.values(values)) {
+    if (!Array.isArray(attributeValues)) continue;
+
+    for (const value of attributeValues) {
+      if (!value || typeof value !== "object") continue;
+      const candidate = value as Record<string, unknown>;
+      if (typeof candidate.email_address !== "string") continue;
+      const email = candidate.email_address.trim();
+      const key = email.toLowerCase();
+      if (!email || seen.has(key)) continue;
+      seen.add(key);
+      emails.push(email);
+    }
+  }
+
+  return emails;
+}
+
+export function mapAttioContactValues(values: Record<string, unknown>): {
+  phones: string[];
+  emails: string[];
+} {
+  return {
+    phones: mapAttioPhoneNumbers(findAttioPhoneValues(values)),
+    emails: findAttioEmails(values),
+  };
+}
+
 export function mapAttioPersonToMatch(
   record: AttioPersonRecord,
   targetPhoneE164: string,
@@ -53,7 +117,9 @@ export function mapAttioPersonToMatch(
   const displayName =
     nameVal?.full_name ?? nameVal?.value ?? (assembledName || "Unnamed person");
 
-  const normalizedPhones = mapAttioPhoneNumbers(record.values.phone_numbers);
+  const { phones: normalizedPhones, emails } = mapAttioContactValues(
+    record.values,
+  );
 
   const exact = normalizedPhones.includes(targetPhoneE164);
   const matchedOn: "phone_exact" | "phone_suffix" = exact
@@ -67,7 +133,7 @@ export function mapAttioPersonToMatch(
     externalType: "person",
     displayName,
     phoneNumbers: normalizedPhones,
-    emails: record.values.email_addresses?.map((e) => e.email_address) ?? [],
+    emails,
     matchedOn,
     raw: record,
   };
@@ -216,10 +282,7 @@ export function mapAttioPersonToSyncResult(
   const displayName =
     nameVal?.full_name ?? nameVal?.value ?? (assembledName || null);
 
-  const phones = mapAttioPhoneNumbers(record.values.phone_numbers);
-
-  const emails =
-    record.values.email_addresses?.map((e) => e.email_address) ?? [];
+  const { phones, emails } = mapAttioContactValues(record.values);
 
   return {
     contact: { externalId: record.id.record_id, externalType: "person" },
@@ -268,7 +331,7 @@ export function mapAttioCompanyToSyncResult(
   const domains = record.values.domains
     ?.map((d) => d.domain)
     .filter(Boolean) as string[];
-  const firstPhone = record.values.phone_numbers?.[0];
+  const firstPhone = findAttioPhoneValues(record.values)[0];
   const phone = firstPhone
     ? (mapAttioPhoneNumbers([firstPhone])[0] ??
       firstPhone.original_phone_number ??
