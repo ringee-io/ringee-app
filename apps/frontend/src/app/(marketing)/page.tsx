@@ -1,9 +1,8 @@
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import type { Metadata } from 'next';
-import { ArrowRight, Check, Github } from 'lucide-react';
+import { BellRing, Bot, CalendarCheck, Check, Github } from 'lucide-react';
 
 import { buildMetadata } from '@/features/marketing/seo';
 import {
@@ -16,6 +15,7 @@ import {
   SectionHeading
 } from '@/features/marketing/components/primitives';
 import { CtaSection } from '@/features/marketing/components/cta-section';
+import { HumanAiCallingVisual } from '@/features/marketing/components/human-ai-calling';
 import { RenderingSwitch } from '@/features/marketing/components/rendering-switch';
 import { RunsFrom } from '@/features/marketing/components/agent-marks';
 import { AgenticMode } from '@/features/marketing/components/agentic-mode';
@@ -27,31 +27,20 @@ import {
   JsonLd,
   softwareAppJsonLd
 } from '@/features/marketing/components/json-ld';
-import { DOCS_URL, SITE_URL } from '@/features/marketing/site';
-import { FEATURES } from '@/features/marketing/content/features';
-import {
-  INTEGRATIONS,
-  integrationsByCategory
-} from '@/features/marketing/content/integrations';
-import { USE_CASES } from '@/features/marketing/content/use-cases';
+import { SITE_URL } from '@/features/marketing/site';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Ringee — Affordable Outbound Calling Software',
+  title: 'Ringee — Calling Infrastructure for Humans & AI Agents',
   description:
-    'Open-source, pay-as-you-go outbound calling software. Call leads worldwide, record and transcribe calls, and drive it from Claude, ChatGPT and the CLI.',
+    'Open calling infrastructure where human teams and AI voice agents place real calls from the same stack. Open source, self-hostable, and pay as you go.',
   path: '/'
 });
 
 const PROOF_POINTS = [
-  'Free for freelancers, $20/mo for teams',
-  'Pay-as-you-go from $0.012/min',
-  'Recording, transcripts & outcomes'
+  'Human and autonomous AI calls',
+  'Open source & self-hostable',
+  'One shared call history'
 ];
-
-const AI_TOOLS = integrationsByCategory('AI tools');
-
-const chip =
-  'border-border/70 bg-card hover:border-foreground/30 inline-flex items-center rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors';
 
 export default async function HomePage() {
   const { userId } = await auth();
@@ -59,9 +48,19 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* Minimal, premium hero */}
-      <Section className='pt-20 pb-16 sm:pt-28'>
-        <Container className='grid items-center gap-12 lg:grid-cols-2 lg:gap-16'>
+      {/* Minimal, premium hero. The visual is an ink panel, so the section
+          carries a little ambient light of its own — otherwise the render sits
+          on the page like a screenshot pasted onto paper. */}
+      <Section className='relative overflow-hidden pt-20 pb-16 sm:pt-28'>
+        <div
+          aria-hidden
+          className='pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(55%_45%_at_78%_38%,rgba(16,185,129,0.1),transparent_70%)]'
+        />
+        <div
+          aria-hidden
+          className='pointer-events-none absolute inset-0 -z-10 bg-[radial-gradient(circle_at_1px_1px,rgba(0,0,0,0.055)_1px,transparent_0)] [mask-image:radial-gradient(65%_55%_at_50%_35%,black,transparent)] [background-size:24px_24px] dark:bg-[radial-gradient(circle_at_1px_1px,rgba(255,255,255,0.05)_1px,transparent_0)]'
+        />
+        <Container className='grid items-center gap-12 lg:grid-cols-[1fr_1.06fr] lg:gap-14'>
           {/* Copy */}
           <div className='flex flex-col items-center text-center lg:items-start lg:text-left'>
             {/* Which rendering you are reading. The other one is /machine. */}
@@ -72,20 +71,20 @@ export default async function HomePage() {
               className='border-border/70 bg-background/60 text-muted-foreground hover:text-foreground mb-7 inline-flex items-center gap-2 rounded-full border px-3 py-1 text-xs font-medium backdrop-blur-sm'
             >
               <Github className='h-3.5 w-3.5' />
-              Open source &amp; self-hostable
+              Open source calling infrastructure
             </Link>
 
-            <h1 className='text-4xl font-bold tracking-tight text-balance sm:text-5xl md:text-6xl'>
-              {/* A modern low-cost outbound dialer built for modern sales teams */}
-              {/* Low-cost outbound dialing for freelancers and teams */}
-              Modern, low-cost outbound calling software
-              {/* The outbound dialer built for the AI era */}
+            <h1 className='text-[2.05rem] leading-[1.06] font-bold tracking-[-0.03em] text-balance sm:text-[2.9rem] md:text-[3.5rem] lg:text-[3.4rem] lg:leading-[1.03] xl:text-[4rem]'>
+              One calling stack.{' '}
+              <span className='text-emerald-700 dark:text-emerald-400'>
+                Humans and AI agents.
+              </span>
             </h1>
 
-            <p className='text-muted-foreground mt-6 max-w-xl text-lg text-pretty'>
-              Open source and pay-as-you-go from $0.012/min — no per-seat tax.
-              Built for freelancers and teams, and driven by the AI you already
-              have open.
+            <p className='text-muted-foreground mt-6 max-w-lg text-lg text-pretty sm:text-xl'>
+              Ringee is open calling infrastructure where your team and AI voice
+              agents place real calls, share the same system of record, and work
+              without a per-seat tax.
             </p>
 
             {/* The agents themselves, so the copy above doesn't have to list
@@ -94,7 +93,7 @@ export default async function HomePage() {
 
             <CtaButtons className='mt-8 items-center justify-center lg:justify-start' />
 
-            <ul className='text-muted-foreground mt-8 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-sm lg:justify-start'>
+            <ul className='text-muted-foreground mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm lg:justify-start'>
               {PROOF_POINTS.map((point) => (
                 <li key={point} className='inline-flex items-center gap-1.5'>
                   <Check className='h-4 w-4 text-emerald-600 dark:text-emerald-400' />
@@ -104,35 +103,81 @@ export default async function HomePage() {
             </ul>
           </div>
 
-          {/* Product screenshot */}
-          <div className='border-border/70 bg-card relative overflow-hidden rounded-2xl border shadow-2xl ring-1 shadow-black/5 ring-black/5 dark:shadow-black/40 dark:ring-white/5'>
-            <Image
-              src='/hero/white.png'
-              alt='Ringee dialer and call workspace'
-              width={3024}
-              height={1964}
-              priority
-              // The hero column is half of the max-w-6xl (1152px) container, so
-              // it never exceeds ~560px on desktop. Cap `sizes` there instead of
-              // 50vw so wide monitors don't fetch a needlessly large image.
-              sizes='(min-width: 1024px) 560px, 100vw'
-              className='block h-auto w-full dark:hidden'
-            />
-            <Image
-              src='/hero/dark.png'
-              alt='Ringee dialer and call workspace'
-              width={3024}
-              height={1964}
-              priority
-              sizes='(min-width: 1024px) 560px, 100vw'
-              className='hidden h-auto w-full dark:block'
-            />
-          </div>
+          <HumanAiCallingVisual className='lg:-mr-2 xl:-mr-6' />
         </Container>
       </Section>
 
       {/* Social proof — companies running outbound on Ringee */}
       <TrustedBy />
+
+      <Section id='ai-voice-agents' className='py-16 sm:py-20'>
+        <Container className='grid items-center gap-12 lg:grid-cols-[0.9fr_1.1fr]'>
+          <div>
+            <Eyebrow>AI Voice Agents</Eyebrow>
+            <h2 className='mt-4 text-3xl font-bold tracking-tight text-balance sm:text-4xl'>
+              When AI should take the call, it can.
+            </h2>
+            <p className='text-muted-foreground mt-5 text-lg text-pretty'>
+              Build an agent with its own voice, instructions, company context,
+              and knowledge. It places the outbound call, holds the live
+              conversation, uses tools, and returns the recording, transcript,
+              summary, outcome, and structured data to Ringee.
+            </p>
+            <div className='mt-8 flex flex-col gap-3 sm:flex-row'>
+              <ButtonLink href='/ai-voice-agents' withArrow>
+                Explore AI Voice Agents
+              </ButtonLink>
+              <ButtonLink
+                href='/features/ai-call-automation'
+                variant='secondary'
+                withArrow
+              >
+                See AI automation
+              </ButtonLink>
+            </div>
+          </div>
+
+          <div className='grid gap-4 sm:grid-cols-2'>
+            <Card className='h-full'>
+              <span className='inline-flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/10 text-violet-700 dark:text-violet-300'>
+                <CalendarCheck className='h-5 w-5' aria-hidden />
+              </span>
+              <h3 className='mt-4 text-lg font-semibold'>Book appointments</h3>
+              <p className='text-muted-foreground mt-2 text-sm text-pretty'>
+                Check real calendar availability during the conversation and
+                book only a time the person confirms.
+              </p>
+            </Card>
+            <Card className='h-full'>
+              <span className='inline-flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-300'>
+                <BellRing className='h-5 w-5' aria-hidden />
+              </span>
+              <h3 className='mt-4 text-lg font-semibold'>Confirm and remind</h3>
+              <p className='text-muted-foreground mt-2 text-sm text-pretty'>
+                Deliver reminders or updates, hear the response, schedule a
+                callback, and bring a human in for follow-up when needed.
+              </p>
+            </Card>
+            <Card className='sm:col-span-2'>
+              <div className='flex items-start gap-4'>
+                <span className='inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'>
+                  <Bot className='h-5 w-5' aria-hidden />
+                </span>
+                <div>
+                  <h3 className='text-lg font-semibold'>
+                    Not a separate stack
+                  </h3>
+                  <p className='text-muted-foreground mt-2 text-sm text-pretty'>
+                    Human and AI calls use Ringee numbers, credits, call
+                    history, recordings, transcripts, outcomes, and integration
+                    events. Choose the right operator for each conversation.
+                  </p>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </Container>
+      </Section>
 
       {/* Ringee everywhere — the same day on web, mobile and the extension */}
       <EverywhereMode />
@@ -190,8 +235,8 @@ export default async function HomePage() {
               Ringee ships a Model Context Protocol (MCP) server, so Claude,
               ChatGPT, any MCP-compatible agent, or the command line can
               prospect leads, build call lists, log outcomes, and book
-              follow-ups for you. Agents handle the busywork; a human always
-              takes the call.
+              follow-ups for you. Use a human calling session, or trigger a
+              Ringee AI voice agent that places and holds the call.
             </p>
             <div className='mt-8 flex flex-wrap gap-3'>
               <ButtonLink href='/features/ai-call-automation' withArrow>
@@ -289,7 +334,7 @@ export default async function HomePage() {
         data={softwareAppJsonLd({
           name: 'Ringee',
           description:
-            'Low-cost, pay-as-you-go outbound calling software for freelancers, SDR teams, recruiters, agencies, and startups. Call leads worldwide, run campaigns, record and transcribe calls in real time, book meetings to Google Calendar, sync your CRM, and automate outbound with Claude, ChatGPT, MCP agents, and the CLI. Open source and self-hostable.',
+            'Open calling infrastructure where human teams and AI voice agents place outbound calls from the same stack. Run human dialers and autonomous AI conversations with shared numbers, history, recordings, transcripts, outcomes, and integrations. Open source, self-hostable, and pay as you go.',
           url: SITE_URL
         })}
       />

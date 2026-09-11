@@ -85,14 +85,14 @@ export const PRICING = {
     price: 0,
     period: 'month',
     blurb:
-      'Every Ringee feature for one person — automation, integrations, and AI included. No team, no campaigns.'
+      'Human calling, automation, and integrations for one person. No team, campaigns, or AI voice agents.'
   },
   organization: {
     name: 'Organization',
     price: 20,
     period: 'month',
     blurb:
-      'Everything in Freelancer plus a team: unlimited members and calling campaigns, one flat price.'
+      'Everything in Freelancer plus unlimited members, calling campaigns, and AI voice agents, one flat subscription price.'
   }
 } as const;
 
@@ -174,12 +174,17 @@ export const PRODUCT_MENU: ProductMenuGroup[] = [
   },
   {
     title: 'Automate',
-    blurb: 'Drive outbound from ChatGPT, Claude, MCP agents, and the CLI.',
+    blurb: 'Orchestrate outbound and run AI-led phone conversations.',
     links: [
+      {
+        label: 'AI Voice Agents',
+        href: '/ai-voice-agents',
+        description: 'Agents that place calls and hold conversations'
+      },
       {
         label: 'AI call automation',
         href: '/features/ai-call-automation',
-        description: 'Let agents drive your outbound'
+        description: 'Automate human-led and AI-led workflows'
       },
       {
         label: 'ChatGPT workflows',
@@ -274,10 +279,10 @@ export const PRODUCT_MENU: ProductMenuGroup[] = [
 
 /** Top-level navigation, in order. "Product" renders the mega-menu above. */
 export const MAIN_NAV: NavLink[] = [
+  { label: 'AI Voice Agents', href: '/ai-voice-agents' },
   { label: 'Pricing', href: '/pricing' },
   { label: 'Use Cases', href: '/use-cases' },
   { label: 'Integrations', href: '/integrations' },
-  { label: 'Apps', href: '/apps' },
   { label: 'Security', href: '/security' },
   { label: 'Open Source', href: '/open-source' }
 ];
@@ -288,6 +293,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
   {
     title: 'Product',
     links: [
+      { label: 'AI Voice Agents', href: '/ai-voice-agents' },
       { label: 'Outbound calling', href: '/features/outbound-calling' },
       { label: 'Campaigns', href: '/features/campaigns' },
       { label: 'Call recording', href: '/features/call-recording' },

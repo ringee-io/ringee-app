@@ -83,6 +83,15 @@ export default async function FeatureDetailPage({ params }: Params) {
       tagline: item.tagline
     }));
 
+  if (feature.slug === 'ai-call-automation') {
+    related.unshift({
+      name: 'AI Voice Agents',
+      href: '/ai-voice-agents',
+      tagline:
+        'Agents that place outbound calls, hold conversations, use tools, and return structured results.'
+    });
+  }
+
   const path = `/features/${feature.slug}`;
   const demo = FEATURE_DEMOS[feature.slug];
   const isRotation = feature.slug === 'caller-id-rotation';

@@ -98,7 +98,7 @@ const PLATFORMS: Platform[] = [
     name: 'ChatGPT',
     icon: Sparkles,
     tagline:
-      'Run prep and follow-up from inside ChatGPT. It does the busywork; a human still takes the call.',
+      'Run prep, human calling sessions, and AI voice agent calls from inside ChatGPT.',
     href: '/integrations/chatgpt',
     cta: 'See ChatGPT integration',
     external: false
@@ -140,7 +140,7 @@ const APPS_FAQS = [
   {
     question: 'Can I use Ringee from Claude or ChatGPT?',
     answer:
-      'Yes. Ringee ships a Model Context Protocol (MCP) server, so Claude, ChatGPT, and other MCP-compatible agents can prospect leads, start calls, and log outcomes for you. A person always takes the conversation.'
+      'Yes. Ringee ships an MCP server, so Claude, ChatGPT, and other compatible agents can prospect leads, create human calling sessions, trigger configured AI voice agents that place and hold calls, read their results, and log outcomes.'
   },
   {
     question: 'Do my contacts and call history sync across apps?',
@@ -303,7 +303,7 @@ export default function AppsPage() {
           <SectionHeading
             eyebrow='AI tools'
             title='And drive Ringee from Claude and ChatGPT'
-            description='Ringee ships an MCP server, so your AI can prospect leads, build a call list, start a call, and log the outcome. Agents handle the busywork; a human always takes the call.'
+            description='Ringee ships an MCP server, so your AI can prospect, build a list, ring a teammate for a human-led call, or trigger a configured AI voice agent that places the call and holds the conversation.'
             align='left'
           />
           <div className='mt-10 grid items-center gap-10 lg:grid-cols-2'>

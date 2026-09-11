@@ -14,7 +14,7 @@ import { TrustedBy } from '@/features/marketing/components/trusted-by';
 export const metadata: Metadata = buildMetadata({
   title: 'Request a Demo — Get Your Ringee Account | Ringee',
   description:
-    'Request access to Ringee. We review every profile and set up your account directly — no meeting required. Browser-based international calling, campaigns, recording and AI automation.',
+    'Request access to Ringee calling infrastructure for human teams and AI voice agents. See browser calling, campaigns, recordings, automation, and AI-led conversations.',
   path: '/request-demo'
 });
 

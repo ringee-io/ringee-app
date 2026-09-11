@@ -23,6 +23,11 @@ export const OPERATING_RULES: OperatingRule[] = [
     appliesTo: ["sensitive", "write"],
   },
   {
+    id: "voice-agent-call-confirm",
+    rule: "Before start_ai_voice_agent_call, resolve the configured agent with list_ai_voice_agents, explain that it places a real billed call, and get explicit confirmation. Never invent an agentId, caller number or required variable. AI voice agents require an active organization workspace.",
+    appliesTo: ["sensitive"],
+  },
+  {
     id: "delete-contact-double-confirm",
     rule: "Never delete a contact without strict double confirmation: read the contact's stored phone number back to the user, get an explicit 'yes, delete', then pass confirm=true AND confirmPhoneNumber matching that number. Never auto-confirm.",
     appliesTo: ["destructive"],

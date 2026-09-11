@@ -50,7 +50,7 @@ function baseRows(
     },
     {
       label: 'Free plan for individuals',
-      ringee: 'Yes — free Freelancer plan with every feature',
+      ringee: 'Yes — free Freelancer plan for human calling and automation',
       competitor: overrides.free ?? 'No free-forever plan (trial available)'
     },
     {
@@ -64,9 +64,9 @@ function baseRows(
       competitor: 'No (SaaS only)'
     },
     {
-      label: 'Native AI agent control (MCP)',
+      label: 'Human + AI agent calling',
       ringee:
-        'Yes — MCP server drives Claude, ChatGPT, MCP agents, and the CLI',
+        'Yes — human dialers and AI voice agents on one stack, with MCP control',
       competitor: overrides.mcp ?? 'No native MCP / agent control'
     },
     {
@@ -91,7 +91,7 @@ function baseRows(
 const COMMON_WHY = [
   'Flat pricing with unlimited users — adding people never raises your subscription.',
   'Open source and self-hostable, so you can audit the code and own your data.',
-  'Agentic by design: drive outbound from Claude, ChatGPT, MCP agents, and the CLI.',
+  'Human and AI calling on one stack: reps dial directly, while voice agents place calls and hold conversations.',
   'Pay-as-you-go calling from $0.012/min — you only pay for the minutes you use.'
 ];
 
@@ -197,7 +197,7 @@ export const COMPARISONS: ComparisonContent[] = [
       {
         question: 'Does Ringee support AI and automation like Kixie?',
         answer:
-          'Ringee is agentic by design: it ships an MCP server so Claude, ChatGPT, any MCP-compatible agent, or the CLI can prospect, build call lists, log outcomes, and book follow-ups. A human still takes the call.'
+          'Yes. Ringee ships an MCP server so Claude, ChatGPT, compatible agents, and the CLI can orchestrate outbound. Ringee AI voice agents can also place real calls, hold conversations, use tools, and return structured results.'
       }
     ]
   },
@@ -212,7 +212,7 @@ export const COMPARISONS: ComparisonContent[] = [
     h1: 'Ringee vs Orum',
     intro: [
       'Orum is a parallel dialer: it dials several numbers simultaneously and routes reps to live answers to maximize conversations per hour. It is sold per seat and is typically positioned at the premium end of the market.',
-      'Ringee is a human-led, AI-assisted outbound platform rather than a parallel dialer. It pairs a fast dialer, campaigns, recording, real-time transcription, and CRM sync with flat pricing, open source, self-hosting, and agentic control from Claude, ChatGPT, MCP agents, and the CLI.'
+      'Ringee is a human-and-AI calling platform rather than a parallel dialer. It pairs human dialers and campaigns with AI voice agents that place and hold calls, plus shared recording, transcription, outcomes, CRM events, flat pricing, open source, and self-hosting.'
     ],
     rows: baseRows({
       mcp: 'AI features focused on parallel dialing; no native MCP/agent control',
@@ -221,7 +221,7 @@ export const COMPARISONS: ComparisonContent[] = [
     whyRingee: [
       'Flat pricing with unlimited users instead of premium per-seat plans.',
       'Open source and self-hostable, so you can audit the code and own your data.',
-      'Agentic by design: drive outbound from Claude, ChatGPT, MCP agents, and the CLI.',
+      'Human and AI calling on one stack, with AI voice agents that place calls and hold conversations.',
       'Pay-as-you-go calling from $0.012/min — you only pay for the minutes you use.'
     ],
     whenCompetitor: [
@@ -233,7 +233,7 @@ export const COMPARISONS: ComparisonContent[] = [
       {
         question: 'Is Ringee a parallel dialer like Orum?',
         answer:
-          'No. Ringee is a human-led, AI-assisted outbound platform. AI agents prepare the work — prospecting, list building, logging, and follow-ups — while a person takes each call. Orum focuses on parallel dialing many numbers at once.'
+          'No. Ringee does not parallel-dial many numbers to connect only answered calls to a rep. It provides human dialers and AI voice agents on the same stack; a voice agent can place one outbound call and hold that conversation itself.'
       },
       {
         question: 'Why choose Ringee over Orum?',

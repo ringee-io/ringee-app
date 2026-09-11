@@ -68,7 +68,7 @@ export const FEATURE_CATEGORIES: CategoryMeta[] = [
   {
     name: 'Automate',
     blurb:
-      'Use ChatGPT, Claude, MCP-compatible agents, and CLI workflows to automate outbound.',
+      'Orchestrate human calls or let AI voice agents take the conversation.',
     icon: Bot
   },
   {
@@ -736,14 +736,14 @@ export const FEATURES: FeatureContent[] = [
     category: 'Automate',
     icon: Bot,
     tagline:
-      'Drive outbound from ChatGPT, Claude, MCP-compatible agents, and the CLI.',
-    metaTitle: 'AI Call Automation with ChatGPT, Claude & MCP | Ringee',
+      'Orchestrate human calls or trigger AI voice agents from ChatGPT, Claude, MCP, and the CLI.',
+    metaTitle: 'AI Call Automation for Human & AI Calling | Ringee',
     metaDescription:
-      'Automate outbound workflows with Ringee. Use ChatGPT, Claude, MCP-compatible agents, and CLI workflows to prospect, call, log outcomes, and schedule follow-ups.',
-    h1: 'Automate outbound calling with AI agents',
+      'Automate outbound with Ringee. Use ChatGPT, Claude, MCP-compatible agents, and the CLI to prepare human calls or trigger AI voice agents that hold the conversation.',
+    h1: 'Automate human and AI calling from one workflow',
     intro: [
-      'Ringee exposes its outbound workflow through an MCP server, so AI assistants and agents can do the busywork: search and import leads, create contacts, start calls, log outcomes, and schedule callbacks and meetings.',
-      'That means you can run outbound from the tools you already use — ChatGPT, Claude, any MCP-compatible agent, or the command line — instead of clicking through screens. The AI prepares the work; you make the human calls.'
+      'Ringee exposes its outbound workflow through an MCP server, so AI assistants can search and import leads, create contacts, start calls, log outcomes, and schedule callbacks and meetings.',
+      'Choose the operator for the conversation. An agent can create a calling session or ring a teammate for a human-led call, or trigger a configured Ringee AI voice agent that places the call, speaks with the person, uses tools, and returns the result.'
     ],
     whoFor: [
       'Operators who live in ChatGPT or Claude',
@@ -763,9 +763,14 @@ export const FEATURES: FeatureContent[] = [
           'Ask the agent to prospect, build a list, or queue a calling session, and it uses Ringee’s tools to do it.'
       },
       {
-        title: 'Keep humans on the calls',
+        title: 'Choose who speaks',
         description:
-          'The agent handles prep and follow-up; calls are sent to your devices for a person to take.'
+          'Send the call to a teammate for a human conversation, or start an AI voice agent call that runs asynchronously.'
+      },
+      {
+        title: 'Use the result',
+        description:
+          'Log the human outcome or read the voice agent’s transcript, summary, outcome, and extracted data after its call ends.'
       }
     ],
     benefits: [
@@ -779,12 +784,18 @@ export const FEATURES: FeatureContent[] = [
       {
         question: 'Does AI place the calls for me?',
         answer:
-          'No. Ringee’s automation prepares the work and sends a call to your active device — a person still takes the conversation. This keeps your outbound human.'
+          'Yes. A configured Ringee AI voice agent can place a real outbound call and hold the conversation itself. Ringee also supports human-led calls where AI prepares the workflow and rings a teammate, so you can choose the right mode for each job.'
       },
       {
         question: 'What can agents actually do?',
         answer:
-          'Through the MCP server, agents can search and import leads, create and update contacts, start calls, log outcomes, and schedule callbacks and meetings, with guardrails on sensitive actions.'
+          'Through the MCP server, agents can search and import leads, create and update contacts, build human calling sessions, list configured AI voice agents, start a voice agent call, read its result, log outcomes, and schedule callbacks and meetings, with guardrails on sensitive actions.'
+      },
+      {
+        question:
+          'What is the difference between automation and a voice agent?',
+        answer:
+          'Automation is the orchestration layer: ChatGPT, Claude, MCP agents, and the CLI decide which Ringee tools to use. A voice agent is a calling operator: it originates the phone call and speaks with the person. Automation can trigger either a human-led workflow or an AI voice agent.'
       },
       {
         question: 'Which tools are supported?',

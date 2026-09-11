@@ -14,9 +14,9 @@ import {
 import { DOCS_URL, GITHUB_ORG_URL, SITE_URL } from '@/features/marketing/site';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'About Ringee — Open-Source Outbound Calling',
+  title: 'About Ringee — Calling Infrastructure for Humans & AI',
   description:
-    'Ringee is open-source, affordable outbound calling software built for the AI era. Learn what Ringee is, who it is for, and the principles behind how it is built.',
+    'Ringee is open-source calling infrastructure where humans and AI voice agents work from the same stack. Learn what Ringee is and how it is built.',
   path: '/about'
 });
 
@@ -27,7 +27,7 @@ const PRINCIPLES = [
   },
   {
     title: 'Agentic by design',
-    body: 'Ringee ships a Model Context Protocol (MCP) server, so Claude, ChatGPT, any MCP-compatible agent, or the CLI can prospect leads, build call lists, log outcomes, and book follow-ups. Agents handle the busywork; a human always takes the call.'
+    body: 'Ringee supports AI around the call and on the call. Claude, ChatGPT, MCP agents, and the CLI can orchestrate the workflow, while configured AI voice agents can place outbound calls and hold the live conversation themselves.'
   },
   {
     title: 'Open and self-hostable',
@@ -43,7 +43,7 @@ const ABOUT_FAQS = [
   {
     question: 'What is Ringee?',
     answer:
-      'Ringee is open-source, pay-as-you-go outbound calling software. It lets freelancers and teams call leads worldwide from the browser or iOS, run campaigns, record and transcribe calls in real time, book meetings to Google Calendar, sync CRMs, and automate outbound from Claude, ChatGPT, MCP agents, and the CLI — without per-seat pricing.'
+      'Ringee is open-source, pay-as-you-go calling infrastructure for human teams and AI voice agents. People call from its browser, mobile apps, extension, and SDK; configured voice agents place calls and hold conversations on the same stack.'
   },
   {
     question: 'Who is Ringee for?',
@@ -78,18 +78,18 @@ export default function AboutPage() {
           </h1>
           <div className='text-muted-foreground mt-6 flex flex-col gap-4 text-lg text-pretty'>
             <p>
-              Ringee is open-source, pay-as-you-go outbound calling software
-              built for the AI era. It gives freelancers, SDR teams, recruiters,
-              agencies, and startups one place to call leads worldwide, follow
-              up faster, record and transcribe conversations, and automate the
-              busywork with AI — without expensive per-seat pricing.
+              Ringee is open-source, pay-as-you-go calling infrastructure where
+              human teams and AI voice agents work from the same stack. People
+              call from the browser, mobile apps, extension, or SDK; voice
+              agents place calls and hold live conversations with the same
+              history, recordings, outcomes, and integrations.
             </p>
             <p>
               The project started from a simple frustration: outbound calling
               tools charge per seat, lock your data in, and were built before AI
-              agents could do real work. Ringee takes the opposite stance — flat
-              pricing, open source, self-hostable, and driven by the AI tools
-              teams already use.
+              agents could take part in the operation. Ringee takes the opposite
+              stance — open infrastructure, flat pricing, self-hosting, and a
+              first-class place for both human and AI operators.
             </p>
           </div>
         </Container>
@@ -150,7 +150,7 @@ export default function AboutPage() {
           name: 'About Ringee',
           url: `${SITE_URL}/about`,
           description:
-            'Ringee is open-source, affordable outbound calling software built for the AI era.',
+            'Ringee is open-source calling infrastructure where human teams and AI voice agents work from the same stack.',
           mainEntity: { '@id': `${SITE_URL}/#organization` }
         }}
       />

@@ -22,7 +22,7 @@ import { PRICING, REQUEST_DEMO_URL, SITE_URL } from '@/features/marketing/site';
 export const metadata: Metadata = buildMetadata({
   title: 'Pricing — Free Freelancer, $20/mo Organization | Ringee',
   description:
-    'Ringee pricing: Freelancer is $0/month with every feature; Organization is $20/month with unlimited users. Pay-as-you-go calling, no per-seat fees.',
+    'Ringee pricing: Freelancer is $0/month for human calling; Organization is $20/month with unlimited users, campaigns, and AI voice agents. Usage is pay as you go.',
   path: '/pricing'
 });
 
@@ -34,7 +34,7 @@ const PLANS = [
     description: PRICING.freelancer.blurb,
     cta: 'Request Demo',
     highlighted: false,
-    tagline: 'For one person — every feature, just no team.',
+    tagline: 'Human calling and automation for one person.',
     features: [
       'Single user — your own solo workspace',
       'Manual dialer — call from your browser and iOS',
@@ -43,7 +43,7 @@ const PLANS = [
       'Call recording and real-time transcription',
       'Lead prospecting with Apollo and Prospeo',
       'CRM sync with Attio and Odoo',
-      'Full AI automation — ChatGPT, Claude, MCP, CLI, and webhooks',
+      'AI orchestration — ChatGPT, Claude, MCP, CLI, and webhooks',
       'Pay only for the calling credits you use'
     ]
   },
@@ -59,7 +59,8 @@ const PLANS = [
       'Everything in Freelancer, plus:',
       'Create an organization for your team',
       'Unlimited team members — invite and call together',
-      'Calling campaigns'
+      'Calling campaigns',
+      'AI voice agents that place and hold outbound calls'
       // 'Shared contacts and call activity',
       // 'Team-wide recording and transcription settings'
     ]
@@ -85,7 +86,12 @@ const PRICING_FAQS = [
   {
     question: 'What is the difference between Freelancer and Organization?',
     answer:
-      'Freelancer gives one person every Ringee feature — manual dialer, recording and real-time transcription, meetings with Google Calendar, lead prospecting, CRM sync, and full AI automation via ChatGPT, Claude, MCP, and the CLI — for free. The Organization plan adds only what a team needs: an organization, unlimited members you can invite, and calling campaigns, all for a flat $20/month.'
+      'Freelancer gives one person Ringee’s human dialer, recording and real-time transcription, meetings, prospecting, CRM sync, and AI orchestration for free. The Organization plan adds unlimited members, calling campaigns, and AI voice agents for a flat $20/month subscription.'
+  },
+  {
+    question: 'How are AI voice agent calls billed?',
+    answer:
+      'AI voice agents require an active Organization workspace. Each real call uses workspace credit for telephony plus voice and model usage, so its final cost depends on the destination and agent configuration. Browser test conversations do not place a phone call.'
   },
   {
     question: 'Can I start for free?',
@@ -115,10 +121,10 @@ export default function PricingPage() {
             Affordable pricing, no per-seat fees
           </h1>
           <p className='text-muted-foreground mt-6 text-lg text-pretty'>
-            Start free as a freelancer with every feature, or run your whole
-            team on a flat $20 per month per organization with unlimited users.
-            Calling is pay-as-you-go — credits are billed separately, so you
-            only pay for the minutes you use.
+            Start human calling free as a freelancer, or run your whole team and
+            AI voice agents on a flat $20 per month Organization plan with
+            unlimited users. Calling and AI voice/model usage are billed
+            separately from the subscription.
           </p>
         </Container>
       </Section>
@@ -183,9 +189,9 @@ export default function PricingPage() {
             ))}
           </div>
           <p className='text-muted-foreground mx-auto mt-6 max-w-2xl text-center text-sm'>
-            Both plans are pay-as-you-go — calling credits are billed
-            separately, so you only pay for the minutes you use. There is no
-            expensive per-seat pricing; add as many users as you need on the
+            Calling credits are billed separately, so you pay for the usage you
+            create. AI voice-agent calls also include voice and model usage.
+            There is no per-seat price; add as many users as you need on the
             Organization plan.
           </p>
         </Container>
@@ -210,7 +216,7 @@ export default function PricingPage() {
         data={softwareAppJsonLd({
           name: 'Ringee',
           description:
-            'Affordable outbound calling software with flat, per-organization pricing and no per-seat fees. Freelancer is free with every feature; Organization is $20/month for unlimited users.',
+            'Open calling infrastructure with flat, per-organization pricing and no per-seat fees. Freelancer is free for human calling; Organization is $20/month for unlimited users, campaigns, and AI voice agents.',
           url: SITE_URL
         })}
       />

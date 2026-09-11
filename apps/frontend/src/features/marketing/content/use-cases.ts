@@ -242,13 +242,13 @@ export const USE_CASES: UseCaseContent[] = [
     icon: User,
     tagline:
       'Start calling for free, keep your follow-ups tight, and only pay for minutes.',
-    metaTitle: 'Ringee for Freelancers | Free, Full-Featured Outbound Calling',
+    metaTitle: 'Ringee for Freelancers | Free Human Outbound Calling',
     metaDescription:
-      'Freelancers get every Ringee feature for free — manual dialer, recording, real-time transcription, meetings, prospecting, CRM sync, and AI automation. Pay only for the minutes you use.',
-    h1: 'Free, full-featured outbound calling for freelancers',
+      'Freelancers get Ringee human calling for free — manual dialer, recording, real-time transcription, meetings, prospecting, CRM sync, and AI orchestration.',
+    h1: 'Free human outbound calling for freelancers',
     intro: [
-      'When you are a team of one, you need a calling tool that is cheap, complete, and reliable. Ringee’s Freelancer plan is free to start and unlocks every feature — manual dialer, recording, real-time transcription, meetings, lead prospecting, CRM sync, and full AI automation — with nothing held back for a team tier.',
-      'You only pay for the calling minutes you use, so your costs scale with your work, not with a subscription. The only things reserved for the Organization plan are the things that actually need a team: an organization, invited members, and campaigns.'
+      'When you are a team of one, you need a calling tool that is affordable, complete, and reliable. Ringee’s Freelancer plan includes the manual dialer, recording, real-time transcription, meetings, lead prospecting, CRM sync, and AI orchestration with no monthly subscription.',
+      'You only pay for the calling minutes you use, so your costs scale with your work. The Organization plan adds unlimited members, campaigns, and AI voice agents that place and hold calls.'
     ],
     painPoints: [
       'Monthly seat fees are hard to justify solo',
@@ -263,9 +263,9 @@ export const USE_CASES: UseCaseContent[] = [
           'The Freelancer plan costs $0/month — you only pay, pay-as-you-go, for calling credits.'
       },
       {
-        title: 'Every feature, solo',
+        title: 'A complete human dialer',
         description:
-          'Recording, real-time transcription, meetings, prospecting, CRM sync, and AI automation — nothing is locked behind a team plan.'
+          'Recording, real-time transcription, meetings, prospecting, CRM sync, and AI orchestration are available in your solo workspace.'
       },
       {
         title: 'Tight follow-ups',
@@ -302,7 +302,7 @@ export const USE_CASES: UseCaseContent[] = [
       {
         question: 'Do freelancers get fewer features?',
         answer:
-          'No. The Freelancer plan includes every Ringee feature for one person — recording, real-time transcription, meetings, lead prospecting, CRM sync, and full AI automation. The Organization plan only adds team features: an organization, invited members, and campaigns.'
+          'Freelancer includes Ringee’s human calling, recording, real-time transcription, meetings, lead prospecting, CRM sync, and AI orchestration for one person. AI voice agents, calling campaigns, and unlimited members require an Organization workspace.'
       },
       {
         question: 'Can I upgrade later?',

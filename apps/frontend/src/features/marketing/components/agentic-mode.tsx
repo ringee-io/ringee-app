@@ -10,7 +10,6 @@ import { AGENT_MARKS, RunsFrom } from './agent-marks';
 import type { Mark } from './agent-marks';
 import { COMPANY_LOGOS as LOGOS } from './company-logos';
 import {
-  BrowserChrome,
   CardRows,
   ConnectorCard,
   Divider,
@@ -35,16 +34,15 @@ import { REQUEST_DEMO_URL } from '../site';
  * It reads in two movements. First **connect**: a lead source, a CRM, a
  * calendar, an agent — four cards across the full width, each naming the steps
  * it feeds. Then **the loop**, grouped into three phases so the shape is
- * legible before any of the detail is: everything *before* the call is the
- * agent's, *the call* is a person's, everything *after* is the agent's again.
- * That grouping is the argument, so it is what the rail and the dividers show.
+ * legible before any of the detail is: the agent orchestrates the work before
+ * and after the call, while the call step explicitly branches between a human
+ * teammate and a configured AI voice agent. That grouping is the argument, so
+ * it is what the rail and the dividers show.
  *
  * Each step is drawn in the surface it actually runs in. A prompt in ChatGPT or
  * Claude gets a chat window; `claude` and `codex` get a real terminal — dark in
- * both themes, zsh prompt, output as plain aligned monospace; the call itself
- * gets a browser frame around the session link, because that is literally what
- * the rep opens. You should be able to tell where a step happens without
- * reading a word of it.
+ * both themes, zsh prompt, output as plain aligned monospace. You should be able
+ * to tell where a step happens without reading a word of it.
  *
  * Every panel is split: what was said and what came back on the left, where it
  * landed — with the partner marks — on the right. That split is what earns the
@@ -95,14 +93,13 @@ const CONNECTORS: Connector[] = [
 /** Where a step runs. Each one gets its own chrome. */
 type Surface =
   | { kind: 'chat'; app: string; mark?: Mark }
-  | { kind: 'cli'; app: string; cwd: string }
-  | { kind: 'browser'; url: string };
+  | { kind: 'cli'; app: string; cwd: string };
 
 type Step = {
   /** Rail label and panel heading — the tool step, named plainly. */
   name: string;
   /** Who does it. The whole positioning of the product is in this field. */
-  who: 'agent' | 'rep';
+  who: 'agent' | 'rep' | 'choice';
   /** One line. If the panel already shows it, it does not belong here. */
   line: string;
   surface: Surface;
@@ -187,7 +184,7 @@ const PHASES: Phase[] = [
   },
   {
     label: 'The call',
-    note: 'A person picks up the phone',
+    note: 'Choose a human or AI operator',
     steps: [
       {
         name: 'Create call session',
@@ -207,24 +204,24 @@ const PHASES: Phase[] = [
         }
       },
       {
-        name: 'Call',
-        who: 'rep',
-        line: 'A person dials. Ringee never places the call for you.',
-        surface: { kind: 'browser', url: 'app.ringee.io/s/q7fk2m' },
-        prompt: 'Your rep opens the link and works the queue.',
-        tool: 'ringee · recording + live transcript',
+        name: 'Human or AI call',
+        who: 'choice',
+        line: 'Ring a teammate, or let a voice agent take the conversation.',
+        surface: { kind: 'chat', app: 'Your agent', mark: undefined },
+        prompt: 'Have Sofia call this lead and book the meeting.',
+        tool: 'ringee · create_call_session / start_ai_voice_agent_call',
         rows: [
           {
-            label: 'Browser · 180+ countries',
-            value: '$0.012/min',
+            label: 'Human mode',
+            value: 'teammate speaks',
             accent: true
           },
-          { label: 'Recording · transcript', value: 'on' },
-          { label: 'Local caller ID', value: 'matched' }
+          { label: 'AI mode', value: 'voice agent speaks', accent: true },
+          { label: 'Call record', value: 'shared history' }
         ],
         sync: {
-          label: 'Human in the loop',
-          note: 'The one step no agent takes. Everything around it is automated.'
+          label: 'Human + AI calling',
+          note: 'Different operator, same numbers, records and outcomes.'
         }
       }
     ]
@@ -283,12 +280,13 @@ const PHASES: Phase[] = [
 
 /** Who is holding this step. Two values, and the difference is the pitch. */
 function WhoBadge({ who }: { who: Step['who'] }) {
-  return (
-    <TagBadge
-      label={who === 'rep' ? 'Your rep' : 'Your agent'}
-      accent={who === 'rep'}
-    />
-  );
+  const label =
+    who === 'rep'
+      ? 'Your rep'
+      : who === 'choice'
+        ? 'Human or AI'
+        : 'Your agent';
+  return <TagBadge label={label} accent={who !== 'agent'} />;
 }
 
 /** The same rows as terminal output: no boxes, just aligned monospace. */
@@ -390,19 +388,6 @@ function ChatSurface({ step }: { step: Step }) {
   );
 }
 
-/** The session link, in the thing the rep actually opens. */
-function BrowserSurface({ step }: { step: Step }) {
-  const surface = step.surface as Extract<Surface, { kind: 'browser' }>;
-
-  return (
-    <Panel sync={step.sync} chrome={<BrowserChrome url={surface.url} />}>
-      <p className='text-foreground text-sm leading-relaxed'>{step.prompt}</p>
-      <ToolLine tool={step.tool} />
-      <CardRows rows={step.rows} />
-    </Panel>
-  );
-}
-
 function StepCard({ step, index }: { step: Step; index: number }) {
   return (
     <div>
@@ -430,8 +415,6 @@ function StepCard({ step, index }: { step: Step; index: number }) {
 
       {step.surface.kind === 'cli' ? (
         <TerminalSurface step={step} />
-      ) : step.surface.kind === 'browser' ? (
-        <BrowserSurface step={step} />
       ) : (
         <ChatSurface step={step} />
       )}
@@ -459,7 +442,7 @@ function LoopNote({ className }: { className?: string }) {
           Every step is one MCP tool call.
         </span>{' '}
         Same seven from ChatGPT, from Claude Code or Codex, or from a cron job
-        on your own box.
+        on your own box — with a human or AI voice agent on the call.
       </p>
       <Link
         href={REQUEST_DEMO_URL}
@@ -497,9 +480,9 @@ export function AgenticMode() {
             Connect it once. Your agent runs the loop.
           </h2>
           <p className='text-muted-foreground mt-5 text-lg leading-relaxed text-pretty'>
-            Four connections, then seven steps. Your agent takes every one of
-            them except the call itself — over MCP from ChatGPT or Claude, or
-            from your terminal.
+            Four connections, then seven steps. Your agent orchestrates the
+            whole loop over MCP from ChatGPT, Claude, or your terminal — then
+            routes the conversation to a teammate or a Ringee AI voice agent.
           </p>
         </div>
 

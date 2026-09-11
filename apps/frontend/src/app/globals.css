@@ -411,3 +411,135 @@
     transition-delay: 0ms !important;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Human × AI operators (marketing hero visual)                       */
+/*                                                                    */
+/* The hero visual is a real 3D render — a teammate on a headset and   */
+/* an AI voice agent, lit and shot as one scene, exported from a       */
+/* three.js build (see docs/engineering/MARKETING_VISUALS.md). What    */
+/* lives here is only the stage the render sits in: the studio glow    */
+/* behind it, the live-call HUD over it, and the parallax that lifts   */
+/* the whole frame under the pointer.                                 */
+/*                                                                    */
+/* All CSS, so the hero stays a server component and ships no          */
+/* JavaScript. Everything stops under `prefers-reduced-motion`.        */
+/* ------------------------------------------------------------------ */
+.ringee-stage {
+  --ringee-lift: 0px;
+  --ringee-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  perspective: 1400px;
+}
+
+.ringee-stage__frame {
+  transform: translateZ(var(--ringee-lift));
+  transition:
+    transform 800ms var(--ringee-ease),
+    box-shadow 800ms var(--ringee-ease);
+}
+
+/* The render breathes very slightly, which is what keeps a still image
+   from reading as a screenshot pasted into a card. */
+@keyframes ringee-stage-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -7px, 0);
+  }
+}
+
+.ringee-stage__render {
+  animation: ringee-stage-float 9s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* Key light behind the two figures, breathing in the opposite phase. */
+@keyframes ringee-stage-glow {
+  0%,
+  100% {
+    opacity: 0.75;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+.ringee-stage__glow {
+  animation: ringee-stage-glow 9s ease-in-out infinite;
+}
+
+/* Live audio under each operator. Per-bar delay and duration are set
+   inline, which is what stops the row reading as a metronome. */
+@keyframes ringee-stage-wave {
+  0%,
+  100% {
+    transform: scaleY(0.28);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+
+.ringee-stage__bar {
+  transform-origin: 50% 50%;
+  animation: ringee-stage-wave 1s ease-in-out infinite;
+}
+
+/* A packet of light travelling from an operator down into the stack. */
+@keyframes ringee-stage-packet {
+  0% {
+    transform: translateY(-120%);
+    opacity: 0;
+  }
+  25%,
+  75% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(120%);
+    opacity: 0;
+  }
+}
+
+.ringee-stage__packet {
+  animation: ringee-stage-packet 3s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+/* Specular pass across the stack slab. */
+@keyframes ringee-stage-sweep {
+  0% {
+    transform: translateX(-140%);
+  }
+  55%,
+  100% {
+    transform: translateX(140%);
+  }
+}
+
+.ringee-stage__sweep {
+  animation: ringee-stage-sweep 7.5s ease-in-out infinite;
+}
+
+@media (hover: hover) and (min-width: 640px) {
+  .ringee-stage:hover {
+    --ringee-lift: 26px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ringee-stage__frame {
+    transition: none;
+  }
+
+  .ringee-stage__bar,
+  .ringee-stage__glow,
+  .ringee-stage__packet,
+  .ringee-stage__render,
+  .ringee-stage__sweep {
+    animation: none;
+  }
+}

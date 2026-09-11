@@ -16,6 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
 
   const staticPaths: { path: string; priority: number }[] = [
     { path: '/', priority: 1 },
+    { path: '/ai-voice-agents', priority: 0.9 },
     { path: '/pricing', priority: 0.9 },
     { path: '/request-demo', priority: 0.9 },
     { path: '/features', priority: 0.8 },

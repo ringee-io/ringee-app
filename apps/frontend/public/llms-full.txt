@@ -1,6 +1,6 @@
 # Ringee — Full content for LLMs
 
-> Ringee is low-cost, pay-as-you-go outbound calling software built for the AI era. It helps freelancers, SDR teams, recruiters, agencies, startups, and outbound operators call leads worldwide, follow up faster, track outcomes, record and transcribe conversations in real time, book meetings to Google Calendar, sync activity with CRMs, and automate outbound from Claude, ChatGPT, MCP-compatible agents, and the CLI — without expensive per-seat pricing.
+> Ringee is open calling infrastructure where human teams and AI voice agents place real outbound calls from the same stack. Humans call from the browser, mobile apps, Chrome extension, or Dialer SDK; AI voice agents place calls, hold live conversations, use tools, and return structured results. Both share Ringee numbers, workspace credit, call history, recordings, transcripts, outcomes, and integrations. Ringee is open source, self-hostable, pay-as-you-go, and has no per-seat pricing.
 
 This file concatenates the long-form content of the main Ringee marketing pages for AI ingestion. Canonical site: https://www.ringee.io
 
@@ -8,13 +8,14 @@ This file concatenates the long-form content of the main Ringee marketing pages 
 
 ## Overview
 
-Ringee turns any browser into an outbound calling station. Open the dialer, work through your list, and place clear calls to leads in over 180 countries — no desk phone, SIP handset, or extra hardware required. Calls are connected through Telnyx, authentication is handled by Clerk, and payments by Stripe. Ringee is open source under the MIT license and can be self-hosted.
+Ringee is one calling infrastructure for two kinds of operators. Human teams can call from the browser, mobile apps, Chrome extension, or an embedded Dialer SDK. Configured AI voice agents can originate outbound calls, hold the live conversation, use tools, and return structured results. Calls are connected through Telnyx, authentication is handled by Clerk, and payments by Stripe. Ringee is open source under the MIT license and can be self-hosted.
 
 What makes Ringee different:
 
 - Flat, no-per-seat pricing. Freelancer is free; a whole team is one flat $20/month.
 - Pay-as-you-go calling. Calling credits are billed separately, from $0.012/min — you only pay for the minutes you use.
-- Agentic by design. Ringee ships a Model Context Protocol (MCP) server so Claude, ChatGPT, any MCP-compatible agent, or the CLI can prepare the work. Humans take the calls.
+- Human + AI calling. Teammates and AI voice agents place calls on the same stack and write to the same call history.
+- Agentic by design. Ringee ships a Model Context Protocol (MCP) server so Claude, ChatGPT, compatible agents, or the CLI can prepare human calling sessions or trigger a configured voice agent that places and holds the call.
 - Open source and self-hostable. Audit the code, run it on your own infrastructure, and keep full control of your data.
 - Honest trust posture. Ringee has not completed SOC 2 or ISO 27001 certification and does not claim to have.
 
@@ -24,8 +25,8 @@ What makes Ringee different:
 
 Ringee has two plans plus pay-as-you-go calling credits.
 
-- Freelancer — $0/month. Every Ringee feature for one person: manual dialer (browser and iOS), contacts, notes and call outcomes, callbacks and meeting scheduling (Google Calendar), call recording and real-time transcription, lead prospecting with Apollo and Prospeo, CRM sync with Attio and Odoo, and full AI automation via ChatGPT, Claude, MCP, CLI, and webhooks. No team, no campaigns. Pay only for the calling credits you use.
-- Organization — $20/month per organization. Everything in Freelancer plus a team: create an organization, invite unlimited team members, and run calling campaigns — all for one flat price, with no per-seat fees.
+- Freelancer — $0/month. Human calling and automation for one person: manual dialer (browser and iOS), contacts, notes and call outcomes, callbacks and meeting scheduling (Google Calendar), call recording and real-time transcription, lead prospecting with Apollo and Prospeo, CRM sync with Attio and Odoo, and AI orchestration via ChatGPT, Claude, MCP, CLI, and webhooks. No team, campaigns, or AI voice agents. Pay only for the calling credits you use.
+- Organization — $20/month per organization. Everything in Freelancer plus unlimited team members, calling campaigns, and AI voice agents — all for one flat subscription price, with no per-seat fees. Real calls and AI voice/model usage are billed separately from the plan.
 - Calling credits — pay-as-you-go, from $0.012/min. Billed separately from your subscription; per-minute rates depend on the destination you call.
 
 Cost example: a 12-person team pays $20/month flat instead of roughly $360/month on a typical ~$30/seat tool — about $4,080 saved per year.
@@ -35,7 +36,7 @@ Cost example: a 12-person team pays $20/month flat instead of roughly $360/month
 - How much does Ringee cost? The Freelancer plan is $0/month. The Organization plan is $20/month per organization and includes unlimited users. Calling credits are billed separately based on the minutes you use.
 - Do you charge per user? No. The Organization plan is a flat $20/month for the whole organization, with unlimited users. There is no per-seat pricing.
 - How are calling credits billed? Calling is pay-as-you-go. Minutes are paid separately from your subscription as credits, and per-minute rates depend on the destination. You only pay for the calls you place.
-- What is the difference between Freelancer and Organization? Freelancer gives one person every Ringee feature for free. The Organization plan adds an organization, unlimited members you can invite, and calling campaigns, for a flat $20/month.
+- What is the difference between Freelancer and Organization? Freelancer gives one person Ringee's human calling, integrations, and automation tools for free. The Organization plan adds unlimited members, calling campaigns, and AI voice agents for a flat $20/month subscription; usage is billed separately.
 - Can I start for free? Yes. Create a Freelancer account at no cost and place your first call after adding calling credits. No credit card required to start.
 - Can I self-host instead? Yes. Ringee is open source, so you can self-host it and run it on your own infrastructure.
 
@@ -85,7 +86,24 @@ Outbound only works when your records stay current. Ringee connects to CRMs such
 
 ### AI call automation
 
-Ringee exposes its outbound workflow through an MCP server, so AI assistants and agents can do the busywork: search and import leads, create contacts, start calls, log outcomes, and schedule callbacks and meetings. You can run outbound from the tools you already use — ChatGPT, Claude, any MCP-compatible agent, or the command line — instead of clicking through screens. The AI prepares the work; you make the human calls. Ringee does not place calls autonomously: automation prepares the work and sends a call to your active device, where a person takes the conversation. Safety rules guard sensitive and destructive actions.
+Ringee exposes its outbound workflow through an MCP server, so AI assistants can search and import leads, create contacts, build human calling sessions, list configured AI voice agents, start a voice agent call, read its result, log outcomes, and schedule callbacks and meetings. You choose the operator for the conversation: Ringee can ring a teammate for a human-led call, or a configured AI voice agent can originate the call, speak with the person, use tools, and return the result. Real billed calls and other sensitive actions carry confirmation guards.
+
+### AI Voice Agents
+
+Page: https://www.ringee.io/ai-voice-agents
+
+Ringee AI voice agents place real outbound phone calls and hold the live conversation. They are not limited to preparing a list or ringing a human user's device. Each agent has a name, selected voice, model, company context, editable greeting and instructions, per-call variables, knowledge sources, tools, and structured post-call analysis.
+
+Current production blueprints:
+
+- Appointment Booking — calls a person, handles the conversation, looks up real Ringee calendar availability, offers only returned slots, confirms the chosen time, books the meeting, or schedules a callback.
+- Reminders & Notifications — delivers a reminder, confirmation, or update, learns where the person stands, schedules a callback when requested, and asks for human follow-up when needed.
+
+Voice agents can retrieve indexed web pages, PDF/TXT/DOCX documents, and saved text during the conversation. They can request human follow-up, but Ringee does not claim live transfer: the request notifies workspace administrators with the contact, call, agent, and message.
+
+After an AI voice agent call, Ringee stores the call in the shared history and recovers its recording and transcript. The result can include a canonical outcome, summary, optional sentiment, and configured extraction fields. The same result is readable from the dashboard, API, MCP, and CLI. Agent calls also publish applicable Custom Integration events.
+
+AI voice agents require an active Organization workspace. A real agent call uses workspace credit and combines telephony with voice and model usage; final cost varies with destination and agent configuration. Browser test conversations do not place a phone call.
 
 ---
 
@@ -112,7 +130,7 @@ This release does not include a public Ringee URL that can be dropped into an `<
 - Lead sources: Apollo (pull and enrich leads), Prospeo (enrich contacts).
 - CRMs: Attio (two-way sync), Odoo.
 - Calendar: Google Calendar (book and sync meetings).
-- AI tools: ChatGPT, Claude, MCP-compatible agents, and the `ringee` CLI.
+- AI tools: ChatGPT, Claude, MCP-compatible agents, and the `ringee` CLI can orchestrate human calling or trigger configured AI voice agents.
 
 ---
 
@@ -121,7 +139,7 @@ This release does not include a public Ringee URL that can be dropped into an `<
 - SDR teams: keep reps dialing, dispositioning, and following up without per-seat costs. Unlimited users on a single $20/month organization plan means adding SDRs never raises your subscription.
 - Recruiters: work candidate and client lists, log outcomes, and schedule callbacks and interviews.
 - Agencies: run outbound for multiple clients with shared campaigns and clear activity reporting.
-- Freelancers: every Ringee feature, free, for one person — pay only for the minutes you call.
+- Freelancers: human calling and automation for one person with no subscription — pay only for the minutes you call.
 - Startups: affordable outbound that scales with the team instead of punishing you per seat.
 - Outbound sales: run the full outbound motion — call, record, transcribe, disposition, follow up, sync — in one tool.
 
@@ -129,7 +147,7 @@ This release does not include a public Ringee URL that can be dropped into an `<
 
 ## Security and trust
 
-Ringee gives you controls over recording and data, supports self-hosting so you can keep data on your own infrastructure, and connects calls through Telnyx with authentication by Clerk and payments by Stripe. Ringee is intentionally honest about certification status: it has not completed SOC 2 or ISO 27001 certification and does not claim to have. Recording behavior is configurable at the organization or user level.
+Ringee gives you controls over recording and data, supports self-hosting so you can keep data on your own infrastructure, and connects calls through Telnyx with authentication by Clerk and payments by Stripe. Ringee supports human-led calls and AI voice agent calls. Voice agent calls remain subject to organization workspace access, credit, DNC, caller-ID, and call-variable validation. Ringee is intentionally honest about certification status: it has not completed SOC 2 or ISO 27001 certification and does not claim to have.
 
 ---
 
@@ -141,7 +159,7 @@ The entire Ringee stack is open source under the MIT license and lives on GitHub
 
 ## Comparisons
 
-Ringee competes with per-seat outbound calling tools. Its core differentiators are flat team pricing (no per-seat fees), pay-as-you-go calling, an open-source/self-hostable codebase, and native agentic control via an MCP server.
+Ringee competes with per-seat outbound calling tools, but its scope is open calling infrastructure for both humans and AI operators. Its core differentiators are human and AI voice-agent calling on one stack, flat team pricing (no per-seat fees), pay-as-you-go calling, an open-source/self-hostable codebase, and native agentic control via an MCP server.
 
 - Ringee vs Aircall: https://www.ringee.io/compare/aircall
 - Ringee vs JustCall: https://www.ringee.io/compare/justcall
@@ -162,7 +180,7 @@ Ringee runs wherever you work, all signed in to the same account so contacts, ca
 - Android app: the full Ringee dialer on Android. Google Play: https://play.google.com/store/apps/details?id=io.ringee.twa
 - Web app: no install required — open Ringee in any modern browser at https://www.ringee.io and start calling.
 - Your own app: embed the Ringee dialer in a CRM, back office, or internal tool with the `@ringee/dialer-sdk` browser package — floating, inline, or headless. Details: https://www.ringee.io/dialer-sdk
-- AI tools: drive outbound from Claude and ChatGPT through Ringee's MCP server. Agents prospect leads, build call lists, start calls, and log outcomes; a human always takes the call. Demo (Ringee inside Claude): https://www.youtube.com/watch?v=5yjDOIjfBPM
+- AI tools: drive outbound from Claude and ChatGPT through Ringee's MCP server. Agents can prospect leads, build human calling sessions, trigger configured AI voice agents, read their call results, and log outcomes. Demo (Ringee inside Claude): https://www.youtube.com/watch?v=5yjDOIjfBPM
 
 The apps and the extension are free to install; you only pay for your Ringee plan and pay-as-you-go calling credits.
 
@@ -171,6 +189,7 @@ The apps and the extension are free to install; you only pay for your Ringee pla
 ## Resources
 
 - Home: https://www.ringee.io/
+- AI Voice Agents: https://www.ringee.io/ai-voice-agents
 - Pricing: https://www.ringee.io/pricing
 - Features: https://www.ringee.io/features
 - Integrations: https://www.ringee.io/integrations

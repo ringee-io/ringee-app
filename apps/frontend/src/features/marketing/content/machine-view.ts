@@ -37,9 +37,8 @@ export const MACHINE_MD_PATH = '/machine.md';
 /* ------------------------------------------------------------------ */
 
 /**
- * How a transcript line is coloured. `human` is the one line in the replay
- * that is not a call — Ringee's whole position is that the conversation stays
- * a person's, so it gets its own mark.
+ * How a transcript line is coloured. Human-led and AI-led conversations get
+ * separate marks because both are first-class operators on the same stack.
  */
 export type SessionLineKind =
   | 'cmd'
@@ -48,6 +47,7 @@ export type SessionLineKind =
   | 'tool'
   | 'note'
   | 'human'
+  | 'ai'
   | 'done';
 
 export type SessionLine = { kind: SessionLineKind; text: string };
@@ -79,7 +79,7 @@ export const AGENT_SESSION: readonly SessionLine[] = [
   { kind: 'out', text: '# Ringee' },
   {
     kind: 'out',
-    text: '> Ringee is low-cost, pay-as-you-go outbound calling software built for the AI era.'
+    text: '> Ringee is open calling infrastructure for human teams and AI voice agents.'
   },
   { kind: 'out', text: '## Key facts' },
   { kind: 'cmd', text: `$ npx skills add ${SITE_URL}` },
@@ -127,6 +127,10 @@ export const AGENT_SESSION: readonly SessionLine[] = [
   },
   { kind: 'out', text: '{"imported":1,"skippedDuplicatePhone":0}' },
   {
+    kind: 'note',
+    text: '// choose the operator: a teammate or a configured AI voice agent'
+  },
+  {
     kind: 'tool',
     text: 'create_call_session {"title":"Tuesday outbound","contacts":[{"contactId":"…"}]}'
   },
@@ -140,23 +144,48 @@ export const AGENT_SESSION: readonly SessionLine[] = [
   },
   {
     kind: 'human',
-    text: '▸ a person opens the link and has the conversation. this step has no endpoint.'
+    text: '▸ human mode: a teammate opens the link and holds the conversation.'
   },
   {
     kind: 'tool',
     text: 'log_call_outcome {"callId":"…","outcome":"meeting_booked","outcomeNote":"Demo Friday"}'
   },
   {
+    kind: 'note',
+    text: '// or let a Ringee AI voice agent take the conversation'
+  },
+  {
     kind: 'tool',
-    text: 'schedule_meeting {"contactId":"…","scheduledAt":"2026-09-16T10:00:00+02:00","callId":"…"}'
+    text: 'list_ai_voice_agents {}'
   },
   {
     kind: 'out',
-    text: '{"meetingId":"…","calendarProvider":"google","status":"scheduled"}'
+    text: '{"agents":[{"id":"…","name":"Sofia","type":"appointment_booking","status":"active"}]}'
+  },
+  {
+    kind: 'tool',
+    text: 'start_ai_voice_agent_call {"agentId":"…","to":"+346········","variables":{"first_name":"…"}}'
+  },
+  {
+    kind: 'note',
+    text: '// real billed call — the agent asks a person for confirmation first'
+  },
+  { kind: 'out', text: '{"callId":"…","status":"pending"}' },
+  {
+    kind: 'ai',
+    text: '▸ AI mode: the voice agent places the call, speaks, uses tools and hangs up.'
+  },
+  {
+    kind: 'tool',
+    text: 'get_ai_voice_agent_call {"callId":"…"}'
+  },
+  {
+    kind: 'out',
+    text: '{"status":"completed","outcome":"meeting_booked","summary":"…","transcript":"…"}'
   },
   {
     kind: 'done',
-    text: '# 6 tools · 1 vendor · humans involved: 1 — the one on the call. that is the product.'
+    text: '# one calling stack · human and AI operators · shared results'
   }
 ];
 
@@ -229,15 +258,18 @@ export const MACHINE_SURFACES: readonly MachineSurface[] = [
  * an agent evaluating Ringee should be able to rule it out from this document.
  */
 const CLAIMS: string[] = [
-  'category: open-source, pay-as-you-go outbound calling software',
+  'category: open-source calling infrastructure for human teams and AI voice agents',
   `pricing: ${PRICING.freelancer.name} $${PRICING.freelancer.price}/${PRICING.freelancer.period} · ${PRICING.organization.name} $${PRICING.organization.price}/${PRICING.organization.period} per organization, unlimited members`,
   'calling: pay-as-you-go credits from $0.012/min, billed separately from the plan',
   'seats: none. team price is flat, not per user',
   'surfaces: web app, Chrome extension, iOS and Android apps, CLI, Dialer SDK, MCP',
+  'operators: people place calls from Ringee dialers; AI voice agents place calls and hold live conversations',
+  'voice-agent jobs: appointment booking and reminders/notifications, with editable instructions and knowledge',
+  'voice-agent results: call status, recording, transcript, outcome, summary, optional sentiment and extracted data',
+  'shared stack: numbers, workspace credit, call history, recordings, transcripts, outcomes and integration events',
   'transcription: real time, works with or without recording',
   'licence: MIT, self-hostable',
-  'certifications: none claimed. Ringee has not completed SOC 2 or ISO',
-  'humans: agents prepare the work; a person takes the call'
+  'certifications: none claimed. Ringee has not completed SOC 2 or ISO'
 ];
 
 /**
@@ -268,7 +300,7 @@ export function buildClaimsDocument(): string {
     [
       '# Ringee',
       '',
-      '> Low-cost, pay-as-you-go outbound calling software. Agents prospect, queue and follow up; a person makes the call.',
+      '> Open calling infrastructure where human teams and AI voice agents place real calls from the same stack.',
       '',
       `source: ${SITE_URL}${MACHINE_MD_PATH}`,
       `human rendering: ${SITE_URL}/`,

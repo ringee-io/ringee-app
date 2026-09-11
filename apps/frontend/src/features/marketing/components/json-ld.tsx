@@ -36,7 +36,7 @@ export function organizationJsonLd() {
       height: 512
     },
     description:
-      'Open-source, self-hostable outbound calling software for SDR teams, recruiters, agencies, startups, and freelancers — calls, campaigns, recording and transcription, CRM sync, and AI automation, without per-seat pricing.',
+      'Open-source, self-hostable calling infrastructure where human teams and AI voice agents place outbound calls from the same stack, with shared history, recordings, transcripts, outcomes, and integrations.',
     sameAs: SAME_AS,
     contactPoint: {
       '@type': 'ContactPoint',

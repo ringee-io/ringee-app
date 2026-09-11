@@ -86,8 +86,8 @@ const SECTIONS: SecuritySection[] = [
     icon: Bot,
     title: 'Responsible AI usage',
     body: [
-      'Ringee’s AI automation prepares work and sends calls to your devices — it does not place calls on its own. A person always takes the conversation.',
-      'Sensitive actions, such as spending credits or revoking dialer links, require confirmation, and destructive actions like deleting a contact are double-guarded. You decide what agents are allowed to do in your workspace.'
+      'Ringee supports two explicit modes: AI can prepare work and ring a teammate for a human-led call, or a configured AI voice agent can place the outbound call and hold the conversation itself.',
+      'Real AI voice agent calls require confirmation when triggered through agent tools and remain subject to workspace access, calling credit, DNC, caller-ID, and variable validation. Sensitive and destructive automation actions keep their own confirmation guards.'
     ]
   }
 ];

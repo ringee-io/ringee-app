@@ -1,6 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
-import { ArrowRight } from 'lucide-react';
+import { ArrowRight, Bot } from 'lucide-react';
 
 import { buildMetadata } from '@/features/marketing/seo';
 import {
@@ -18,9 +18,9 @@ import {
 } from '@/features/marketing/content/features';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Features — Calling, Recording & AI Automation | Ringee',
+  title: 'Features — Human Calling, AI Voice Agents & Automation | Ringee',
   description:
-    'Explore Ringee features for outbound teams: calling, campaigns, call outcomes, callbacks, recording, transcription, CRM sync, and AI call automation — without per-seat pricing.',
+    'Explore Ringee features for human and AI calling: voice agents, dialers, campaigns, recording, transcription, outcomes, CRM sync, and automation — without per-seat pricing.',
   path: '/features'
 });
 
@@ -38,7 +38,7 @@ const FEATURES_FAQS = [
   {
     question: 'Can I automate Ringee with AI?',
     answer:
-      'Yes. Ringee ships a Model Context Protocol (MCP) server, so Claude, ChatGPT, any MCP-compatible agent, or the CLI can prospect leads, build call lists, log outcomes, and book follow-ups. Agents prepare the work; a human always takes the call.'
+      'Yes. Claude, ChatGPT, any MCP-compatible agent, or the CLI can prospect, build human calling sessions, trigger configured AI voice agents that place and hold calls, read their results, log outcomes, and book follow-ups.'
   },
   {
     question: 'Which tools does Ringee integrate with?',
@@ -64,12 +64,12 @@ export default function FeaturesPage() {
       <Section className='pt-8 pb-4'>
         <Container className='max-w-3xl'>
           <h1 className='text-4xl font-bold tracking-tight text-balance sm:text-5xl'>
-            Everything you need to run outbound
+            Everything you need for human and AI calling
           </h1>
           <p className='text-muted-foreground mt-6 text-lg text-pretty'>
             Ringee groups its capabilities into five categories: communicate
-            with leads, learn from every call, automate the busywork, sync your
-            data, and stay in control. Browse the full catalog below.
+            with leads, learn from every call, let AI orchestrate or hold the
+            conversation, sync your data, and stay in control.
           </p>
         </Container>
       </Section>
@@ -86,6 +86,23 @@ export default function FeaturesPage() {
               </div>
               <p className='text-muted-foreground mt-2'>{category.blurb}</p>
               <div className='mt-8 grid gap-5 sm:grid-cols-2 lg:grid-cols-3'>
+                {category.name === 'Automate' ? (
+                  <Link href='/ai-voice-agents'>
+                    <Card className='flex h-full flex-col border-violet-500/25 bg-violet-500/5 transition-colors hover:border-violet-500/50'>
+                      <div className='flex items-center justify-between gap-2'>
+                        <Bot className='h-6 w-6 text-violet-700 dark:text-violet-300' />
+                        <ArrowRight className='text-muted-foreground h-4 w-4' />
+                      </div>
+                      <h3 className='mt-4 text-lg font-semibold'>
+                        AI Voice Agents
+                      </h3>
+                      <p className='text-muted-foreground mt-2 text-sm'>
+                        Build agents that place outbound calls, hold live
+                        conversations, use tools, and return structured results.
+                      </p>
+                    </Card>
+                  </Link>
+                ) : null}
                 {items.map((feature) => (
                   <Link key={feature.slug} href={`/features/${feature.slug}`}>
                     <Card className='hover:border-foreground/30 flex h-full flex-col transition-colors'>
