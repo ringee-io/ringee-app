@@ -145,7 +145,7 @@ export class CrmContactSyncService {
     // gains a phone number the next sync pass creates it for real.
     if (!primaryPhone) {
       this.logger.debug(
-        `skipping ${connection.provider} person ${result.contact.externalId}: no dialable phone number`,
+        `skipping ${connection.provider} person ${result.contact.externalId} on connection ${connection.id}: no dialable phone number`,
       );
       return { contactId: null, created: false, skipped: "no_phone" };
     }

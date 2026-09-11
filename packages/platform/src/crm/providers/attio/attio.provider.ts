@@ -36,12 +36,15 @@ import {
   buildMeetingNote,
   mapAttioCompanyToMatch,
   mapAttioCompanyToSyncResult,
+  mapAttioContactValues,
   mapAttioMemberToOwnerRef,
   mapAttioPersonToMatch,
   mapAttioPersonToSyncResult,
 } from "./attio.mapper";
 import type {
   AttioCompanyRecord,
+  AttioListEntriesResponse,
+  AttioListEntry,
   AttioListResponse,
   AttioNoteRequest,
   AttioNoteResponse,
@@ -773,7 +776,9 @@ export class AttioProvider extends AbstractCrmProvider {
       body,
     });
 
-    const data = (res.data ?? []).map(mapAttioPersonToSyncResult);
+    const records = res.data ?? [];
+    const data = records.map(mapAttioPersonToSyncResult);
+    await this.enrichPersonsFromListEntries(creds, data);
     const offset = pageToken ? Number(pageToken) : 0;
     const nextOffset = offset + data.length;
     const hasMore = data.length >= limit;
@@ -782,6 +787,142 @@ export class AttioProvider extends AbstractCrmProvider {
       data,
       nextPageToken: hasMore ? String(nextOffset) : null,
     };
+  }
+
+  /**
+   * Some Attio workspaces keep phone/email columns on a list instead of on the
+   * People object. Those values are returned as `entry_values`, never in the
+   * record query above. Enrich only people that still lack a phone and filter
+   * each list query to the current page's record IDs, avoiding per-contact
+   * requests and unbounded list scans.
+   */
+  private async enrichPersonsFromListEntries(
+    creds: CrmCredentials,
+    persons: CrmContactSyncResult[],
+  ): Promise<void> {
+    const missingPhoneIds = persons
+      .filter((person) => person.phones.length === 0)
+      .map((person) => person.contact.externalId);
+    if (missingPhoneIds.length === 0) return;
+
+    let peopleLists: AttioListEntry[];
+    try {
+      const lists = await this.request<AttioListResponse>({
+        method: "GET",
+        url: `${this.config.apiBaseUrl}/v2/lists`,
+        headers: this.authHeaders(creds.accessToken),
+      });
+      peopleLists = (lists.data ?? []).filter((list) =>
+        Array.isArray(list.parent_object)
+          ? list.parent_object.includes("people")
+          : list.parent_object === "people",
+      );
+    } catch (err) {
+      if (err instanceof CrmError && err.code === "AUTH_EXPIRED") throw err;
+      this.logger.warn(
+        `Attio list contact enrichment unavailable for connection ${creds.connectionId}: ${this.describeListEnrichmentError(err)}`,
+      );
+      return;
+    }
+
+    if (peopleLists.length === 0) return;
+
+    const personById = new Map(
+      persons.map((person) => [person.contact.externalId, person]),
+    );
+    let enriched = 0;
+
+    for (const list of peopleLists) {
+      try {
+        const entries = await this.listEntriesForPeople(
+          creds,
+          list,
+          missingPhoneIds,
+        );
+        for (const entry of entries) {
+          if (entry.parent_object !== "people") continue;
+          const person = personById.get(entry.parent_record_id);
+          if (!person) continue;
+
+          const contactValues = mapAttioContactValues(entry.entry_values);
+          person.emails = this.mergeUnique(
+            person.emails,
+            contactValues.emails,
+            (email) => email.toLowerCase(),
+          );
+          if (contactValues.phones.length === 0) continue;
+
+          const hadPhone = person.phones.length > 0;
+          person.phones = this.mergeUnique(person.phones, contactValues.phones);
+          if (!hadPhone && person.phones.length > 0) enriched++;
+        }
+      } catch (err) {
+        if (err instanceof CrmError && err.code === "AUTH_EXPIRED") throw err;
+        this.logger.warn(
+          `Attio list ${list.id.list_id} contact enrichment failed for connection ${creds.connectionId}: ${this.describeListEnrichmentError(err)}`,
+        );
+      }
+    }
+
+    if (enriched > 0) {
+      this.logger.debug(
+        `Attio list contact enrichment recovered phones for ${enriched} person(s) on connection ${creds.connectionId}`,
+      );
+    }
+  }
+
+  private async listEntriesForPeople(
+    creds: CrmCredentials,
+    list: AttioListEntry,
+    recordIds: string[],
+  ): Promise<AttioListEntriesResponse["data"]> {
+    const filters = recordIds.map((recordId) => ({
+      path: [
+        [list.api_slug, "parent_record"],
+        ["people", "record_id"],
+      ],
+      constraints: { value: recordId },
+    }));
+    const filter = filters.length === 1 ? filters[0] : { $or: filters };
+    const data: AttioListEntriesResponse["data"] = [];
+    const limit = 500;
+    let offset = 0;
+
+    for (;;) {
+      const page = await this.request<AttioListEntriesResponse>({
+        method: "POST",
+        url: `${this.config.apiBaseUrl}/v2/lists/${list.id.list_id}/entries/query`,
+        headers: this.authHeaders(creds.accessToken),
+        body: { filter, limit, offset },
+      });
+      const entries = page.data ?? [];
+      data.push(...entries);
+      if (entries.length < limit) break;
+      offset += entries.length;
+    }
+
+    return data;
+  }
+
+  private mergeUnique(
+    current: string[],
+    additional: string[],
+    key: (value: string) => string = (value) => value,
+  ): string[] {
+    const seen = new Set(current.map(key));
+    return [
+      ...current,
+      ...additional.filter((value) => {
+        const normalized = key(value);
+        if (seen.has(normalized)) return false;
+        seen.add(normalized);
+        return true;
+      }),
+    ];
+  }
+
+  private describeListEnrichmentError(err: unknown): string {
+    return err instanceof CrmError ? err.code : "unexpected error";
   }
 
   async listCompanies(
