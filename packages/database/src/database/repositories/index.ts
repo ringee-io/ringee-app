@@ -77,7 +77,6 @@ export * from "./objection-insight.repository";
 export * from "./objection-call-analysis.repository";
 export * from "./backoffice.repository";
 export * from "./backoffice-campaign.repository";
-export * from "./backoffice-activity.repository";
 export * from "./sip-device.repository";
 export * from "./blocked-call-log.repository";
 export * from "./infrastructure.repository";

@@ -15,17 +15,6 @@ import { PrismaService } from "../prisma.service";
 
 export type AccountType = "user" | "org";
 
-/**
- * The client / organization narrowing every backoffice analytics view accepts.
- * `organizationId` is an organization id or "none" for personal (no
- * organization) activity; absent means no narrowing. Ids are validated as
- * UUIDs at the controller.
- */
-export interface BackofficeAccountFilter {
-  userId?: string;
-  organizationId?: string;
-}
-
 export interface CallerActivityRow {
   id: string;
   type: AccountType;
@@ -127,40 +116,28 @@ export class BackofficeRepository {
 
   // ── Dashboard ──────────────────────────────────────────────
 
-  async getDashboard(
-    start: Date,
-    end: Date,
-    filter: BackofficeAccountFilter = {},
-  ): Promise<BackofficeDashboard> {
+  async getDashboard(start: Date, end: Date): Promise<BackofficeDashboard> {
     const where: Prisma.CallWhereInput = {
       createdAt: { gte: start, lte: end },
-      ...(filter.userId ? { userId: filter.userId } : {}),
-      ...(filter.organizationId === "none"
-        ? { organizationId: null }
-        : filter.organizationId
-          ? { organizationId: filter.organizationId }
-          : {}),
     };
 
     const [userAll, userAnswered, orgAll, orgAnswered, totalAgg] =
       await Promise.all([
         this.prisma.call.groupBy({
           by: ["userId"],
-          where: { AND: [where, { userId: { not: null } }] },
+          where: { ...where, userId: { not: null } },
           _count: { _all: true },
           _sum: { totalCost: true, durationSeconds: true },
           _max: { createdAt: true },
         }),
         this.prisma.call.groupBy({
           by: ["userId"],
-          where: {
-            AND: [where, { userId: { not: null }, answeredAt: { not: null } }],
-          },
+          where: { ...where, userId: { not: null }, answeredAt: { not: null } },
           _count: { _all: true },
         }),
         this.prisma.call.groupBy({
           by: ["organizationId"],
-          where: { AND: [where, { organizationId: { not: null } }] },
+          where: { ...where, organizationId: { not: null } },
           _count: { _all: true },
           _sum: { totalCost: true, durationSeconds: true },
           _max: { createdAt: true },
@@ -168,10 +145,9 @@ export class BackofficeRepository {
         this.prisma.call.groupBy({
           by: ["organizationId"],
           where: {
-            AND: [
-              where,
-              { organizationId: { not: null }, answeredAt: { not: null } },
-            ],
+            ...where,
+            organizationId: { not: null },
+            answeredAt: { not: null },
           },
           _count: { _all: true },
         }),

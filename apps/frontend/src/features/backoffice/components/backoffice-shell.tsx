@@ -21,7 +21,6 @@ import {
 import { ScrollArea } from '@ringee/frontend-shared/components/ui/scroll-area';
 import {
   IconArrowLeft,
-  IconCalendarStats,
   IconGift,
   IconLayoutDashboard,
   IconShieldLock,
@@ -40,11 +39,6 @@ const NAV = [
     href: '/backoffice/campaigns',
     label: 'Campaigns',
     icon: IconSpeakerphone
-  },
-  {
-    href: '/backoffice/activity',
-    label: 'Meetings & AI agents',
-    icon: IconCalendarStats
   },
   { href: '/backoffice/offers', label: 'Offers', icon: IconGift }
 ];

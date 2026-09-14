@@ -23,7 +23,6 @@ export interface ListCampaignsInput {
   end: Date;
   search?: string;
   status?: string;
-  userId?: string;
   organizationId?: string;
   ownerScope?: CampaignOwnerScope;
   onlyNew?: boolean;
@@ -64,7 +63,6 @@ export class BackofficeCampaignService {
       end: input.end,
       search: input.search,
       status: input.status,
-      userId: input.userId,
       organizationId: input.organizationId,
       ownerScope: input.ownerScope,
       onlyNew: input.onlyNew,

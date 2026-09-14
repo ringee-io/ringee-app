@@ -42,21 +42,16 @@ import {
   TableRow
 } from '@ringee/frontend-shared/components/ui/table';
 import { DateRangeBar } from './date-range-bar';
-import { AccountFilterBar } from './account-filter-bar';
 import { CampaignStatusBadge } from './campaign-bits';
 import {
   useBackofficeApi,
   type CampaignListItem,
   type CampaignListResult,
+  type CampaignOrganizationOption,
   type CampaignSortKey,
   type CampaignStatusFilter
 } from '../api';
 import { rangeForPreset, type DateRange } from '../lib/date-presets';
-import {
-  NO_ACCOUNT_FILTER,
-  accountFilterParams,
-  type AccountFilter
-} from '../lib/account-filter';
 import {
   errorMessage,
   formatDateTime,
@@ -86,6 +81,10 @@ const SORTS: { value: CampaignSortKey; label: string }[] = [
   { value: 'created', label: 'Newest' },
   { value: 'name', label: 'Name (A-Z)' }
 ];
+
+/** "none" is the sentinel the API uses for campaigns with no organization. */
+const ORG_ALL = 'all';
+const ORG_NONE = 'none';
 
 function StatCard({
   label,
@@ -126,8 +125,7 @@ export function CampaignsTable() {
 
   const [range, setRange] = useState<DateRange>(() => rangeForPreset('today'));
   const [status, setStatus] = useState<CampaignStatusFilter>('all');
-  const [accountFilter, setAccountFilter] =
-    useState<AccountFilter>(NO_ACCOUNT_FILTER);
+  const [organizationId, setOrganizationId] = useState<string>(ORG_ALL);
   const [sort, setSort] = useState<CampaignSortKey>('attempts');
   const [onlyNew, setOnlyNew] = useState(false);
   const [searchInput, setSearchInput] = useState('');
@@ -135,6 +133,7 @@ export function CampaignsTable() {
   const [page, setPage] = useState(1);
 
   const [data, setData] = useState<CampaignListResult | null>(null);
+  const [orgs, setOrgs] = useState<CampaignOrganizationOption[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Debounce the search box.
@@ -146,7 +145,20 @@ export function CampaignsTable() {
     return () => clearTimeout(t);
   }, [searchInput]);
 
-  const { userId, organizationId } = accountFilterParams(accountFilter);
+  useEffect(() => {
+    let cancelled = false;
+    api
+      .listCampaignOrganizations()
+      .then((res) => {
+        if (!cancelled) setOrgs(res);
+      })
+      .catch(() => {
+        /* the filter just stays on "All" — not worth a toast */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [api]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -156,7 +168,6 @@ export function CampaignsTable() {
         end: range.end,
         search: search || undefined,
         status,
-        userId,
         organizationId,
         onlyNew: onlyNew || undefined,
         sort,
@@ -169,7 +180,7 @@ export function CampaignsTable() {
     } finally {
       setLoading(false);
     }
-  }, [api, range, search, status, userId, organizationId, onlyNew, sort, page]);
+  }, [api, range, search, status, organizationId, onlyNew, sort, page]);
 
   useEffect(() => {
     load();
@@ -196,13 +207,6 @@ export function CampaignsTable() {
         value={range}
         onChange={(r) => {
           setRange(r);
-          resetPage();
-        }}
-      />
-      <AccountFilterBar
-        value={accountFilter}
-        onChange={(f) => {
-          setAccountFilter(f);
           resetPage();
         }}
       />
@@ -276,12 +280,31 @@ export function CampaignsTable() {
             </Tabs>
           </div>
 
-          <div className='grid gap-2 sm:grid-cols-3'>
+          <div className='grid gap-2 sm:grid-cols-2 lg:grid-cols-4'>
             <Input
               placeholder='Search campaign, org or owner…'
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
             />
+            <Select
+              value={organizationId}
+              onValueChange={(v) => {
+                setOrganizationId(v);
+                resetPage();
+              }}
+            >
+              <SelectTrigger className='w-full'>
+                <SelectValue placeholder='Organization' />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ORG_ALL}>All organizations</SelectItem>
+                {orgs.map((o) => (
+                  <SelectItem key={o.id ?? ORG_NONE} value={o.id ?? ORG_NONE}>
+                    {o.name} ({formatNumber(o.campaigns)})
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select
               value={sort}
               onValueChange={(v) => {

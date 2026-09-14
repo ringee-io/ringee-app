@@ -22,8 +22,6 @@ export interface BackofficeCampaignFilters {
   end: Date;
   search?: string;
   status?: string;
-  /** Campaign owner. */
-  userId?: string;
   /** "all" | "none" (personal, no org) | an organization id */
   organizationId?: string;
   ownerScope?: CampaignOwnerScope;
@@ -473,11 +471,6 @@ export class BackofficeCampaignRepository {
     if (filters.status && filters.status !== "all") {
       params.push(filters.status);
       clauses.push(`c.status = $${params.length}`);
-    }
-
-    if (filters.userId) {
-      params.push(filters.userId);
-      clauses.push(`c."userId" = $${params.length}::uuid`);
     }
 
     const org = filters.organizationId;

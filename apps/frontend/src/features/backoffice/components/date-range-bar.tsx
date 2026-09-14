@@ -49,13 +49,12 @@ export function DateRangeBar({
             type='date'
             value={toDateInputValue(value.start)}
             max={toDateInputValue(value.end)}
-            onChange={(e) => {
-              if (!e.target.value) return;
+            onChange={(e) =>
               onChange({
                 ...value,
                 start: fromDateInputValue(e.target.value)
-              });
-            }}
+              })
+            }
             aria-label='Start date'
             className='w-full min-w-0 sm:w-auto'
           />
@@ -64,13 +63,12 @@ export function DateRangeBar({
             type='date'
             value={toDateInputValue(value.end)}
             min={toDateInputValue(value.start)}
-            onChange={(e) => {
-              if (!e.target.value) return;
+            onChange={(e) =>
               onChange({
                 ...value,
                 end: fromDateInputValue(e.target.value, true)
-              });
-            }}
+              })
+            }
             aria-label='End date'
             className='w-full min-w-0 sm:w-auto'
           />

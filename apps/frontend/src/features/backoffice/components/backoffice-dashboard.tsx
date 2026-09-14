@@ -26,18 +26,12 @@ import {
   TableActionHead
 } from '@ringee/frontend-shared/components/ui/table/table-action-column';
 import { DateRangeBar } from './date-range-bar';
-import { AccountFilterBar } from './account-filter-bar';
 import {
   useBackofficeApi,
   type BackofficeDashboard as DashboardData,
   type CallerActivityRow
 } from '../api';
 import { rangeForPreset, type DateRange } from '../lib/date-presets';
-import {
-  NO_ACCOUNT_FILTER,
-  accountFilterParams,
-  type AccountFilter
-} from '../lib/account-filter';
 import {
   errorMessage,
   formatDateTime,
@@ -179,20 +173,14 @@ function ActivityTable({ rows }: { rows: CallerActivityRow[] }) {
 export function BackofficeDashboard() {
   const api = useBackofficeApi();
   const [range, setRange] = useState<DateRange>(() => rangeForPreset('today'));
-  const [accountFilter, setAccountFilter] =
-    useState<AccountFilter>(NO_ACCOUNT_FILTER);
   const [data, setData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(true);
-  const { userId, organizationId } = accountFilterParams(accountFilter);
 
   const load = useCallback(
     async (r: DateRange) => {
       setLoading(true);
       try {
-        const res = await api.getDashboard(r.start, r.end, {
-          userId,
-          organizationId
-        });
+        const res = await api.getDashboard(r.start, r.end);
         setData(res);
       } catch (err) {
         toast.error(errorMessage(err, 'Failed to load dashboard'));
@@ -200,7 +188,7 @@ export function BackofficeDashboard() {
         setLoading(false);
       }
     },
-    [api, userId, organizationId]
+    [api]
   );
 
   useEffect(() => {
@@ -217,7 +205,6 @@ export function BackofficeDashboard() {
       </div>
 
       <DateRangeBar value={range} onChange={setRange} />
-      <AccountFilterBar value={accountFilter} onChange={setAccountFilter} />
 
       <div className='grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4'>
         <StatCard
