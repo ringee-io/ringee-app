@@ -333,6 +333,7 @@ export class ExtensionController {
       deviceId: device.deviceId,
       deviceLabel: device.deviceLabel,
       source: "chrome_extension",
+      organizationId: ctx.organizationId,
     });
     if (!decision.allowed) {
       this.fail("CONCURRENT_CALL", decision.message, HttpStatus.CONFLICT);

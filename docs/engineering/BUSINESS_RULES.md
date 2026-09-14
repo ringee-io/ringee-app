@@ -337,26 +337,34 @@ records themselves.
 
 ## Telephony — calls (`CALL`)
 
-### CALL-001 — One call at a time per user, across every device
+### CALL-001 — One call at a time per user in the personal workspace, across every device
 
 Enforced by `ConcurrentCallGuardService` with three stores: a Redis `SET NX`
 lease (atomicity), Postgres `Call` rows (truth), and the provider (referee).
 
+Only the **personal workspace** is limited. A dial inside an organization the
+user belongs to is always allowed, takes no lease, and an organization call never
+occupies the personal slot (`appliesTo`, `occupiesTheUser`). Membership is
+verified because the `call.initiated` backstop reads the organization from a
+browser-set header.
+
 - **Source of truth:** `packages/services/src/services/security/concurrent-call-guard.service.ts`
-- **Why:** stops one account being shared by several people
+- **Why:** stops a freelancer sharing one personal account between several people
+  instead of buying the Organization plan and inviting them; an organization has
+  already paid for that, so it is not limited
 - **Risk if violated:** account sharing, or — inverted — a user locked out of
   calling by a ghost call
 
 ### CALL-002 — The rule is per user id and never crosses users
 
-An organization may have as many simultaneous calls as it has members. A dial is
-never refused because of a teammate's call.
+A dial is never refused because of another person's call.
 
-### CALL-003 — Inbound ringing does not occupy the user; org inbound never does
+### CALL-003 — Inbound ringing does not occupy the user; org calls never do
 
-A ringing inbound leg has not been picked up. Inside an organization an inbound
-row is attributed to the number's _owner_, not the member who answers, so it must
-never mark anyone busy. Server-originated voicemail drops likewise occupy nobody,
+A ringing inbound leg has not been picked up. No organization call occupies the
+personal slot (CALL-001) — which also covers organization inbound rows, attributed
+to the number's _owner_ rather than the member who answers. Server-originated
+voicemail drops likewise occupy nobody,
 and so do AI voice agent calls: the agent is the one talking, and counting its
 call would lock the owner out of their own dialer for its whole duration.
 

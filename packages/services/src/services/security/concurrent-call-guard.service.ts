@@ -1,5 +1,10 @@
 import { Injectable, Logger } from "@nestjs/common";
-import { Call, CallRepository, CallStatus } from "@ringee/database";
+import {
+  Call,
+  CallRepository,
+  CallStatus,
+  OrganizationRepository,
+} from "@ringee/database";
 import { RedisService, TelephonyService } from "@ringee/platform";
 import { AI_VOICE_AGENT_CALL_SOURCE } from "../voice-agents/voice-agent.types";
 
@@ -157,10 +162,24 @@ export interface DialRequest {
   deviceId: string;
   deviceLabel?: string | null;
   source: string;
+  /**
+   * Workspace the dial is placed in, taken from the caller's ownership context
+   * — never from a client-supplied value. An organization dial is never
+   * limited (CALL-001); `null` is the personal workspace. Required on purpose:
+   * every surface has to say which workspace it dials from.
+   */
+  organizationId: string | null | undefined;
 }
 
 /**
- * Enforces "one call at a time per user, across every device".
+ * Enforces "one call at a time per user, across every device" — in the
+ * PERSONAL workspace only.
+ *
+ * The rule exists to stop a solo account being shared by several people
+ * instead of buying the Organization plan and inviting them. Inside an
+ * organization that incentive is already met, so organization dials are never
+ * limited, never take a lease and organization calls never occupy the personal
+ * slot (see {@link ConcurrentCallGuardService.appliesTo}).
  *
  * Two stores, each doing what it is good at:
  *
@@ -184,13 +203,10 @@ export interface DialRequest {
  * An inbound call that is merely ringing does NOT occupy the user — nobody has
  * picked it up, and it must not stop them from dialing out.
  *
- * Everything here is keyed on ONE user id and nothing else. The rule exists to
- * stop a single account being shared across people, so it must never be able to
- * refuse one teammate because of another teammate's call: an organization has
- * as many simultaneous calls as it has members. Whenever a dial is refused, the
- * owner of the lease and the owner of the live call are by construction the
- * same `userId` that asked — see {@link occupiesTheUser} for the one place
- * where a `Call` row can name someone other than the person on the call.
+ * Everything here is keyed on ONE user id and nothing else, so it can never
+ * refuse one person because of another person's call. Whenever a dial is
+ * refused, the owner of the lease and the owner of the live call are by
+ * construction the same `userId` that asked, in their personal workspace.
  */
 @Injectable()
 export class ConcurrentCallGuardService {
@@ -200,18 +216,54 @@ export class ConcurrentCallGuardService {
     private readonly redis: RedisService,
     private readonly callRepository: CallRepository,
     private readonly telephonyService: TelephonyService,
+    private readonly organizationRepository: OrganizationRepository,
   ) {}
+
+  /**
+   * Does the one-call rule bind a call placed in this workspace?
+   *
+   * Only the personal workspace is limited. An organization id is honoured
+   * only when the user really belongs to that organization: the `call.initiated`
+   * backstop reads it from a header the browser sets, and a forged one must not
+   * be a way to lift the rule off a personal account. So the exemption needs a
+   * membership that was actually confirmed: a failed lookup keeps the call on
+   * the guarded path. That path stays available on its own (organization calls
+   * never occupy the slot and a stale lease is taken over), so failing closed
+   * here costs an organization user at most the brief dial race window.
+   */
+  async appliesTo(
+    userId: string,
+    organizationId: string | null | undefined,
+  ): Promise<boolean> {
+    if (!organizationId) return true;
+    const member = await this.organizationRepository
+      .isMember(userId, organizationId)
+      .catch((error) => {
+        this.logger.error(
+          `Could not verify membership of user ${userId} in organization ${organizationId}, keeping the one-call rule: ${this.message(error)}`,
+        );
+        return false;
+      });
+    return !member;
+  }
 
   /**
    * Reserve the user's single call slot.
    *
    * Returns a rejection instead of throwing so each surface can map it to its
    * own error shape (HTTP 409, an SDK error code, a `BlockedCallLog` row).
+   *
+   * An organization dial is allowed outright and takes no lease, so it can
+   * never refuse — or be refused by — anything.
    */
   async requestDial(
     userId: string,
     request: DialRequest,
   ): Promise<DialDecision> {
+    if (!(await this.appliesTo(userId, request.organizationId))) {
+      return { allowed: true };
+    }
+
     const lease: DialLease = {
       deviceId: request.deviceId,
       deviceLabel: request.deviceLabel ?? null,
@@ -294,7 +346,10 @@ export class ConcurrentCallGuardService {
 
   /**
    * Promote the pending lease to the real call and extend it for the call's
-   * lifetime. Called from the `call.initiated` webhook.
+   * lifetime. Called from the `call.initiated` webhook, and only for a call the
+   * rule {@link appliesTo} — binding an organization leg would overwrite the
+   * personal lease, and that leg's hangup would then free a personal call's
+   * slot.
    */
   async bindToCall(userId: string, callControlId: string): Promise<void> {
     const holder = await this.readLease(userId);
@@ -515,7 +570,7 @@ export class ConcurrentCallGuardService {
   /** Copy for a rejection that has no lease behind it (webhook backstop). */
   describeBusyCall(call: Call): string {
     const surface = this.describeSource(call.source);
-    return `You already have a call in progress${surface ? ` on ${surface}` : ""} to ${call.toNumber}. Ringee allows one call at a time per user — end that call before starting another.`;
+    return `You already have a call in progress${surface ? ` on ${surface}` : ""} to ${call.toNumber}. A personal account allows one call at a time — end that call before starting another.`;
   }
 
   /**
@@ -524,23 +579,18 @@ export class ConcurrentCallGuardService {
    * been picked up, and refusing to let someone dial out because a stranger is
    * calling them would be wrong.
    *
-   * An inbound leg inside an ORGANIZATION never occupies anyone. Its row is
-   * attributed to the number's owner (`NumberPurchased.userId` — whoever bought
-   * it) and not to whichever teammate actually picked up, because at
-   * `call.initiated` nobody has answered yet. In a personal workspace those are
-   * the same person; in a team they are not, and counting it would mark the
-   * admin who bought the numbers busy for every call the rest of the team
-   * takes — one member's activity refusing another member's dial, which is
-   * exactly the cross-user block this rule must never produce.
+   * A call in an ORGANIZATION never occupies anyone: the rule only limits the
+   * personal workspace (CALL-001). That also covers organization inbound rows,
+   * which are attributed to the number's owner (`NumberPurchased.userId`) and
+   * not to whichever teammate actually picked up.
    */
   private occupiesTheUser(call: Call): boolean {
+    if (call.organizationId) return false;
     if (isServerOriginatedDrop(call)) return false;
     if (isVoiceAgentCall(call)) return false;
 
     const direction = (call.direction ?? "outbound").toLowerCase();
     const inbound = ["inbound", "incoming"].includes(direction);
-
-    if (inbound && call.organizationId) return false;
 
     if (
       call.status === CallStatus.answered ||
@@ -578,7 +628,7 @@ export class ConcurrentCallGuardService {
         allowed: false,
         holder,
         message:
-          "You already have a call in progress. Ringee allows one call at a time — end it before starting another.",
+          "You already have a call in progress. A personal account allows one call at a time — end it before starting another.",
       };
     }
 
@@ -589,7 +639,7 @@ export class ConcurrentCallGuardService {
     return {
       allowed: false,
       holder,
-      message: `You already have a call in progress on ${device}. Ringee allows one call at a time per user — end that call before starting another.`,
+      message: `You already have a call in progress on ${device}. A personal account allows one call at a time — end that call before starting another.`,
     };
   }
 

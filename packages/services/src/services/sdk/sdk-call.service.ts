@@ -88,6 +88,7 @@ export class SdkCallService {
       deviceId: `sdk:${agent.claims.integrationId}:${agent.claims.origin}`,
       deviceLabel: agent.integration.name,
       source: "sdk",
+      organizationId: ctx.organizationId,
     });
     if (!decision.allowed) {
       throw new SdkError("CALL_ALREADY_ACTIVE", decision.message);

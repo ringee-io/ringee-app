@@ -98,6 +98,12 @@ surface: `web`, `chrome_extension`, `mobile`, `campaign`, `session`, `sip_device
 
 ## One call at a time (`CALL-001`..`CALL-006`)
 
+The rule binds the **personal workspace only**: it exists to stop a solo account
+being shared instead of buying the Organization plan. An organization dial is
+allowed outright (after `appliesTo` verifies membership, since the
+`call.initiated` backstop reads the organization from a browser header), takes no
+lease, and an organization call never occupies the personal slot.
+
 The single most subtle piece of the system. `ConcurrentCallGuardService` uses
 three stores because no one of them is sufficient:
 
@@ -123,8 +129,10 @@ Consequences to preserve:
 - `StaleCallSweeperService` runs the same confirmation periodically so a user who
   never retries is unblocked without touching the product.
 
-Any new dial surface must call `requestDial`, and release with `releasePending`
-when an approved dial does not become a call.
+Any new dial surface must call `requestDial` — passing the `organizationId` of
+its ownership context — and release with `releasePending` when an approved dial
+does not become a call. Only bind a leg with `bindToCall` when the guard
+`appliesTo` its workspace.
 
 ## Numbers and caller IDs
 
