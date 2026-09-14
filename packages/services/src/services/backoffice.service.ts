@@ -3,6 +3,7 @@ import {
   AccountDetail,
   AccountListResult,
   AccountType,
+  BackofficeAccountFilter,
   BackofficeDashboard,
   BackofficeRepository,
   CreditRepository,
@@ -83,8 +84,12 @@ export class BackofficeService {
 
   // ── Dashboard & listing ────────────────────────────────────
 
-  getDashboard(start: Date, end: Date): Promise<BackofficeDashboard> {
-    return this.repo.getDashboard(start, end);
+  getDashboard(
+    start: Date,
+    end: Date,
+    filter: BackofficeAccountFilter = {},
+  ): Promise<BackofficeDashboard> {
+    return this.repo.getDashboard(start, end, filter);
   }
 
   listAccounts(params: {

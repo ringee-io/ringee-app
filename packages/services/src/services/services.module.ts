@@ -167,6 +167,7 @@ import {
 } from "./ai-pipeline";
 import { BackofficeService } from "./backoffice.service";
 import { BackofficeCampaignService } from "./backoffice-campaign.service";
+import { BackofficeActivityService } from "./backoffice-activity.service";
 import { SipDeviceService, DeskPhoneCallService } from "./sip-device";
 import { InfrastructureService } from "./infrastructure";
 import {
@@ -319,6 +320,7 @@ const servicesProviders = [
   // Backoffice (super admin)
   BackofficeService,
   BackofficeCampaignService,
+  BackofficeActivityService,
   // Desk Phones (SIP Devices)
   SipDeviceService,
   DeskPhoneCallService,

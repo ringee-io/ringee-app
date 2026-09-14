@@ -8,6 +8,7 @@ import {
 import { BackofficeCampaignService } from "@ringee/services";
 import type { CampaignOwnerScope, CampaignSortKey } from "@ringee/database";
 import { SuperAdminOnly } from "../guards/super-admin.guard";
+import { parseAccountFilter, parseRange } from "./backoffice-filters";
 
 const SORT_KEYS: CampaignSortKey[] = [
   "attempts",
@@ -21,25 +22,6 @@ const SORT_KEYS: CampaignSortKey[] = [
 ];
 
 const STATUSES = ["draft", "active", "paused", "completed"];
-
-function startOfDay(d: Date): Date {
-  const x = new Date(d);
-  x.setHours(0, 0, 0, 0);
-  return x;
-}
-
-/** Default window when no range is supplied: today so far (mirrors the dashboard). */
-function parseRange(q: { start?: string; end?: string }): {
-  start: Date;
-  end: Date;
-} {
-  const end = q.end ? new Date(q.end) : new Date();
-  const start = q.start ? new Date(q.start) : startOfDay(end);
-  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
-    throw new BadRequestException("Invalid start/end date");
-  }
-  return { start, end };
-}
 
 function parseSort(value?: string): CampaignSortKey | undefined {
   return SORT_KEYS.includes(value as CampaignSortKey)
@@ -81,6 +63,7 @@ export class BackofficeCampaignsController {
       end?: string;
       search?: string;
       status?: string;
+      userId?: string;
       organizationId?: string;
       ownerScope?: string;
       onlyNew?: string;
@@ -95,7 +78,7 @@ export class BackofficeCampaignsController {
       end,
       search: q.search,
       status: parseStatus(q.status),
-      organizationId: q.organizationId,
+      ...parseAccountFilter(q),
       ownerScope: parseOwnerScope(q.ownerScope),
       onlyNew: q.onlyNew === "true",
       sort: parseSort(q.sort),

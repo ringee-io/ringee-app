@@ -194,12 +194,6 @@ export interface CampaignListResult {
   };
 }
 
-export interface CampaignOrganizationOption {
-  id: string | null;
-  name: string;
-  campaigns: number;
-}
-
 export interface CampaignConfig {
   id: string;
   name: string;
@@ -328,6 +322,88 @@ export interface CampaignAttemptsResult {
   total: number;
 }
 
+// ── Meetings, callbacks & AI voice agents ────────────────────
+
+export type VoiceAgentTypeFilter =
+  | 'all'
+  | 'appointment_booking'
+  | 'reminders_notifications';
+
+/** One (user, organization) pair — the same person can appear once per org. */
+export interface ActivityAccountRow {
+  userId: string;
+  userName: string;
+  userEmail: string | null;
+  organizationId: string | null;
+  organizationName: string | null;
+  organizationSlug: string | null;
+  meetings: number;
+  meetingsByAgents: number;
+  meetingsCancelled: number;
+  callbacks: number;
+  callbacksByAgents: number;
+  agentCalls: number;
+  agentCallsConnected: number;
+  bookingCalls: number;
+  reminderCalls: number;
+  agentMeetingsBooked: number;
+  agentCallbacksScheduled: number;
+  remindersConfirmed: number;
+  agentDurationSec: number;
+  agentVoiceCost: number;
+  agentAiCost: number;
+  agentTotalCost: number;
+  agentAiProviderCostUsd: number;
+  agentCostPending: number;
+  lastActivityAt: string | null;
+}
+
+export type ActivityTotals = Omit<
+  ActivityAccountRow,
+  | 'userId'
+  | 'userName'
+  | 'userEmail'
+  | 'organizationId'
+  | 'organizationName'
+  | 'organizationSlug'
+  | 'lastActivityAt'
+> & { users: number; organizations: number };
+
+export interface BackofficeActivity {
+  range: { start: string; end: string };
+  totals: ActivityTotals;
+  accounts: ActivityAccountRow[];
+}
+
+export interface VoiceAgentCallRow {
+  id: string;
+  createdAt: string;
+  agentId: string;
+  agentName: string;
+  agentType: string;
+  status: string;
+  outcome: string | null;
+  toNumber: string;
+  durationSec: number | null;
+  meetingId: string | null;
+  meetingScheduledAt: string | null;
+  userId: string;
+  userName: string;
+  userEmail: string | null;
+  organizationId: string | null;
+  organizationName: string | null;
+  voiceCost: number | null;
+  aiCost: number | null;
+  totalCost: number;
+  aiProviderCostUsd: number | null;
+  costPending: boolean;
+}
+
+export interface VoiceAgentCallsResult {
+  items: VoiceAgentCallRow[];
+  total: number;
+}
+
 // ── Offers ───────────────────────────────────────────────────
 
 export type OfferStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'ENDED' | 'ARCHIVED';
@@ -435,13 +511,17 @@ export interface OfferWriteBody {
 
 const BASE = '/backoffice';
 
+/** `organizationId: 'none'` narrows to personal (no organization) activity. */
+type AccountFilterParams = { userId?: string; organizationId?: string };
+
 export function useBackofficeApi() {
   const api = useApi();
 
   return useMemo(
     () => ({
-      getDashboard: (start: Date, end: Date) =>
+      getDashboard: (start: Date, end: Date, filter?: AccountFilterParams) =>
         api.get<BackofficeDashboard>(`${BASE}/dashboard`, {
+          ...filter,
           start: start.toISOString(),
           end: end.toISOString()
         }),
@@ -545,6 +625,7 @@ export function useBackofficeApi() {
         end: Date;
         search?: string;
         status?: CampaignStatusFilter;
+        userId?: string;
         organizationId?: string;
         onlyNew?: boolean;
         sort?: CampaignSortKey;
@@ -557,11 +638,6 @@ export function useBackofficeApi() {
           end: params.end.toISOString()
         }),
 
-      listCampaignOrganizations: () =>
-        api.get<CampaignOrganizationOption[]>(
-          `${BASE}/campaigns/organizations`
-        ),
-
       getCampaign: (id: string, start: Date, end: Date) =>
         api.get<CampaignDetail>(`${BASE}/campaigns/${id}`, {
           start: start.toISOString(),
@@ -573,6 +649,29 @@ export function useBackofficeApi() {
         params: { start: Date; end: Date; page?: number; pageSize?: number }
       ) =>
         api.get<CampaignAttemptsResult>(`${BASE}/campaigns/${id}/attempts`, {
+          ...params,
+          start: params.start.toISOString(),
+          end: params.end.toISOString()
+        }),
+
+      getActivity: (start: Date, end: Date, filter?: AccountFilterParams) =>
+        api.get<BackofficeActivity>(`${BASE}/activity`, {
+          ...filter,
+          start: start.toISOString(),
+          end: end.toISOString()
+        }),
+
+      /** `organizationId: 'none'` narrows to personal (no organization) calls. */
+      listVoiceAgentCalls: (params: {
+        start: Date;
+        end: Date;
+        type?: VoiceAgentTypeFilter;
+        userId?: string;
+        organizationId?: string;
+        page?: number;
+        pageSize?: number;
+      }) =>
+        api.get<VoiceAgentCallsResult>(`${BASE}/activity/voice-agent-calls`, {
           ...params,
           start: params.start.toISOString(),
           end: params.end.toISOString()
