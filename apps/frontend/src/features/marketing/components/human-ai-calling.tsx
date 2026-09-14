@@ -29,7 +29,7 @@ import { cn } from '@ringee/frontend-shared/lib/utils';
  *    from where, into what — is markup over the render, not baked into the
  *    image, so it stays legible, translatable and indexable.
  *
- * Used by the home hero and the AI voice-agent page hero.
+ * Used by the AI voice-agent page hero. The homepage uses CallingHero.
  */
 
 /**

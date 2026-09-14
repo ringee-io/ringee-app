@@ -711,5 +711,29 @@
         "description": "Your callbacks, meetings and history travel with you — never miss a follow-up."
       }
     }
+  },
+  "callingHero": {
+    "eyebrow": "Open source calling infrastructure",
+    "headline": "One calling stack.",
+    "headlineHighlight": "Humans and AI agents.",
+    "description": "Ringee is open calling infrastructure where your team and AI voice agents place real calls, share the same system of record, and work without a per-seat tax.",
+    "requestDemo": "Request Demo",
+    "viewPricing": "View pricing",
+    "proof": {
+      "humanAndAi": "Human and autonomous AI calls",
+      "openSource": "Open source & self-hostable",
+      "sharedHistory": "One shared call history"
+    },
+    "humanLabel": "Human teams",
+    "aiLabel": "AI voice agents",
+    "stackTitle": "One calling stack",
+    "stackModules": "Carrier routing · Caller-ID rotation · Recording + transcripts",
+    "recordTitle": "Shared system of record",
+    "records": {
+      "phoneNumbers": "Phone numbers",
+      "callHistory": "Call history",
+      "recordings": "Recordings",
+      "outcomes": "Outcomes"
+    }
   }
 }

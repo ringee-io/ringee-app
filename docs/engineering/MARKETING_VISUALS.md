@@ -1,12 +1,24 @@
 # Marketing visuals
 
-How the marketing site's non-screenshot imagery is produced. Right now that is
-one asset — the 3D hero render — but the rules below apply to any future one.
+How the marketing site's non-screenshot imagery is produced and displayed.
+
+## Homepage portraits
+
+The homepage uses `CallingHero` with the supplied transparent portraits in
+`apps/frontend/public/hero/`: `human-white.png` and `robot-white.png` in light
+mode, and `human-dark.png` and `robot-dark.png` in dark mode. The human stays
+on the left and the AI agent on the right, connected to one shared calling
+stack below. On smaller screens the copy sits above the pair.
+
+The composition and light connections live in `calling-hero.module.css`.
+Theme selection uses CSS and `next/image` with native lazy loading so the
+hidden variant does not download on first paint. Labels and capabilities stay
+in markup, with copy in the `marketing.callingHero` translation namespace.
 
 ## The hero render
 
 `apps/frontend/public/hero/human-ai-operators.webp` is the image at the centre
-of the home hero and the AI voice-agent hero: a Ringee teammate on a headset
+of the AI voice-agent hero: a Ringee teammate on a headset
 standing next to a Ringee AI voice agent, both lit as a single scene.
 
 It is not stock art and not a screenshot. The scene is built in three.js from
