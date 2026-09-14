@@ -663,6 +663,7 @@ export class CallSessionService {
         deviceId: `session:${sessionId}`,
         deviceLabel: "a dialing session link",
         source: "session",
+        organizationId: ctx.organizationId,
       },
     );
     if (!decision.allowed) {

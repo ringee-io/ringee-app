@@ -261,6 +261,7 @@ export class DeskPhoneCallService {
       deviceId: `sip:${device.id}`,
       deviceLabel: device.label ?? "a desk phone",
       source: "sip_device",
+      organizationId: ctx.organizationId,
     });
     if (!decision.allowed) {
       return block("CONCURRENT_CALL", decision.message);
@@ -353,7 +354,12 @@ export class DeskPhoneCallService {
     // other surface — never sees them. Unbound, the reservation would expire
     // mid-call after PENDING_LEASE_TTL_SECONDS (letting a second device in on a
     // long call) and the hangup below could not identify which leg it frees.
-    await this.concurrentCallGuard.bindToCall(device.userId, callControlId);
+    // An organization desk phone holds no reservation (CALL-001).
+    if (
+      await this.concurrentCallGuard.appliesTo(ctx.userId, ctx.organizationId)
+    ) {
+      await this.concurrentCallGuard.bindToCall(device.userId, callControlId);
+    }
   }
 
   /**

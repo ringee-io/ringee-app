@@ -37,9 +37,11 @@ Never assume the caller already checked.
 - `CallService.handleTelephonyEvent` owns the call lifecycle and is the single
   writer of `Call.status`. It takes a normalized `TelephonyEvent`, never a raw
   carrier payload — do not reintroduce provider types here.
-- One call at a time per user is `ConcurrentCallGuardService`. Every dial surface
-  reserves through `requestDial`, binds on `call.initiated`, and releases on
-  hangup. A new surface that skips it is a bug, not a shortcut.
+- One call at a time per user is `ConcurrentCallGuardService`, and it limits the
+  personal workspace only (CALL-001). Every dial surface reserves through
+  `requestDial` with its context's `organizationId`, binds on `call.initiated`
+  only when the guard `appliesTo` the workspace, and releases on hangup. A new
+  surface that skips it is a bug, not a shortcut.
 - `isCallAlive()` returning `null` means "could not tell" — it must never be read
   as "the call ended".
 

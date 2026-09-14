@@ -161,8 +161,9 @@ export class DialerOrchestrationService implements OnModuleDestroy {
     // already on a call elsewhere cannot take a lead, and burning an attempt +
     // a lead lock on every poll tick while they talk would poison campaign
     // analytics. The authoritative (lease-acquiring) check still happens in
-    // initiateCall.
-    if (campaign.dialerMode === "progressive") {
+    // initiateCall. Only a personal workspace is limited to one call at a time
+    // (CALL-001), so an organization campaign skips it.
+    if (campaign.dialerMode === "progressive" && !campaign.organizationId) {
       const busy = await this.concurrentCallGuard
         .findOccupyingCall(agent.userId)
         .catch(() => null);
@@ -352,6 +353,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       deviceId: `campaign-agent:${agent.id}`,
       deviceLabel: "a campaign session",
       source: "campaign",
+      organizationId: campaign.organizationId,
     });
     if (!decision.allowed) {
       this.logger.warn(
