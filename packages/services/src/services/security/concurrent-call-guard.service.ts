@@ -225,9 +225,11 @@ export class ConcurrentCallGuardService {
    * Only the personal workspace is limited. An organization id is honoured
    * only when the user really belongs to that organization: the `call.initiated`
    * backstop reads it from a header the browser sets, and a forged one must not
-   * be a way to lift the rule off a personal account. A failed lookup is read
-   * as "member" — the same fail-open stance the lease takes on a Redis outage,
-   * because a false refusal is a user who simply cannot call.
+   * be a way to lift the rule off a personal account. So the exemption needs a
+   * membership that was actually confirmed: a failed lookup keeps the call on
+   * the guarded path. That path stays available on its own (organization calls
+   * never occupy the slot and a stale lease is taken over), so failing closed
+   * here costs an organization user at most the brief dial race window.
    */
   async appliesTo(
     userId: string,
@@ -238,9 +240,9 @@ export class ConcurrentCallGuardService {
       .isMember(userId, organizationId)
       .catch((error) => {
         this.logger.error(
-          `Could not verify membership of user ${userId} in organization ${organizationId}, not limiting the call: ${this.message(error)}`,
+          `Could not verify membership of user ${userId} in organization ${organizationId}, keeping the one-call rule: ${this.message(error)}`,
         );
-        return true;
+        return false;
       });
     return !member;
   }

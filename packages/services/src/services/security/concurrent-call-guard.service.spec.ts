@@ -41,6 +41,7 @@ function harness(options: {
   lease?: Record<string, unknown> | null;
   /** `userId/organizationId` pairs the user really belongs to. */
   memberships?: string[];
+  membershipLookupFails?: boolean;
 }) {
   const store = new Map<string, string>();
   if (options.lease) {
@@ -97,6 +98,7 @@ function harness(options: {
 
   const organizationRepository = {
     async isMember(userId: string, organizationId: string) {
+      if (options.membershipLookupFails) throw new Error("database down");
       return (options.memberships ?? []).includes(
         `${userId}/${organizationId}`,
       );
@@ -548,6 +550,15 @@ describe("ConcurrentCallGuardService.appliesTo", () => {
 
   it("limits an organization the user does not belong to", async () => {
     const h = harness({ memberships: [`${USER}/org-2`] });
+    assert.equal(await h.guard.appliesTo(USER, "org-1"), true);
+  });
+
+  it("keeps the rule when membership cannot be verified", async () => {
+    // An unconfirmed organization id must not skip the guarded path.
+    const h = harness({
+      memberships: [`${USER}/org-1`],
+      membershipLookupFails: true,
+    });
     assert.equal(await h.guard.appliesTo(USER, "org-1"), true);
   });
 });
