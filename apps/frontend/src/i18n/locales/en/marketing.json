@@ -348,10 +348,10 @@
   },
   "comparison": {
     "title": "Compare Ringee.io",
-    "subtitle": "How Ringee compares to Adversus and Genesys if you want flexible, browser-based outbound calling without expensive per-seat contracts.",
+    "subtitle": "How Ringee compares to Adversus and Genesys if you want flexible, browser-based outbound calling without expensive per-user contracts.",
     "table": {
       "featuresHeader": "Features",
-      "footerNote": "* Adversus and Genesys typically charge per seat with higher fixed monthly commitments, while Ringee keeps a flat $20/month per organization with unlimited members."
+      "footerNote": "* Adversus and Genesys typically charge per user with higher fixed monthly commitments, while Ringee keeps a flat $20/month per organization with unlimited members."
     },
     "rows": {
       "browserBased": {
@@ -367,12 +367,12 @@
       "pricingModel": {
         "feature": "Pricing model",
         "ringee": "Pay-as-you-go for minutes & numbers + optional $20/month business plan per organization (unlimited members).",
-        "adversus": "Per-seat subscription with monthly/annual billing and a minimum number of agent users.",
-        "genesys": "Enterprise per-seat / contract pricing, usually tied to larger deployments."
+        "adversus": "Per-user subscription with monthly/annual billing and a minimum number of agent users.",
+        "genesys": "Enterprise per-user / contract pricing, usually tied to larger deployments."
       },
       "perSeat": {
-        "feature": "Per-seat subscription",
-        "ringee": "NO PER-SEAT PRICING — flat $20/month per organization with unlimited team members."
+        "feature": "Per-user subscription",
+        "ringee": "NO PER-USER PRICING — flat $20/month per organization with unlimited team members."
       },
       "monthlyMin": {
         "feature": "Typical monthly minimum",
@@ -391,7 +391,7 @@
       },
       "smallTeams": {
         "feature": "Ideal for small teams & startups",
-        "ringee": "Designed so solo founders and small teams can start small, then scale usage and members without extra seat fees.",
+        "ringee": "Designed so solo founders and small teams can start small, then scale usage and members without extra user fees.",
         "adversus": "Better fit once you already have a dedicated outbound team and steady call volume."
       },
       "setupTime": {
@@ -638,11 +638,11 @@
     "benefits": {
       "title": "Agentic — at a low cost",
       "subtitle": "Bring the AI plan you already pay for. Ringee is the tools layer; you pay for calls, not AI middlemen.",
-      "pill": "No per-seat AI upsell",
+      "pill": "No per-user AI upsell",
       "items": {
         "lowCost": {
           "title": "Bring your own AI",
-          "description": "Use your existing Claude or ChatGPT plan — no extra per-seat AI fees from us."
+          "description": "Use your existing Claude or ChatGPT plan — no extra per-user AI fees from us."
         },
         "ownData": {
           "title": "Your data, your tenant",
@@ -715,14 +715,12 @@
   "callingHero": {
     "eyebrow": "Open source calling infrastructure",
     "headline": "One calling stack.",
-    "headlineHighlight": "Humans and AI agents.",
-    "description": "Ringee is open calling infrastructure where your team and AI voice agents place real calls, share the same system of record, and work without a per-seat tax.",
-    "requestDemo": "Request Demo",
-    "viewPricing": "View pricing",
+    "headlineHighlight": "Humans and AI voice agents.",
+    "description": "Ringee is open calling infrastructure where your team and AI voice agents place real calls, share the same system of record, and work without per-user fees.",
     "proof": {
-      "humanAndAi": "Human and autonomous AI calls",
+      "pricing": "Pay-as-you-go calling",
       "openSource": "Open source & self-hostable",
-      "sharedHistory": "One shared call history"
+      "unlimitedUsers": "No per-user fees"
     },
     "humanLabel": "Human teams",
     "aiLabel": "AI voice agents",
@@ -735,5 +733,41 @@
       "recordings": "Recordings",
       "outcomes": "Outcomes"
     }
+  },
+  "conversion": {
+    "teamPlan": "Unlimited users. One ${price}/month team plan.",
+    "usage": "Free individual account. Calling usage billed separately.",
+    "aiUsage": "AI voice agents require the team plan. Calling, voice, and model usage billed separately.",
+    "description": "Start with a free individual account, or bring your whole team to Ringee. Open source, pay-as-you-go calling, and no per-user fees."
+  },
+  "aiVoiceLanding": {
+    "eyebrow": "AI Voice Agents",
+    "headline": "AI voice agents that",
+    "highlight": "make the call.",
+    "description": "Give your agent a voice, your knowledge, and a job to do. It places real calls, books meetings, and returns every recording, transcript, and outcome to Ringee.",
+    "proof": "Open source. Pay as you go. No per-user fees.",
+    "sharedTitle": "Human teams. AI agents. One calling stack.",
+    "sharedDescription": "The same phone numbers, call history, recordings, and outcomes — whoever takes the call.",
+    "ctaTitle": "Put your next repeatable call on autopilot",
+    "ctaDescription": "Create your account, then add the team plan to build voice agents that work with your numbers, knowledge, and calendar.",
+    "sections": {
+      "capabilities": "What your voice agent can do",
+      "blueprints": "Start with a proven conversation",
+      "setup": "From setup to your first call",
+      "sharedStack": "One record for human and AI calls",
+      "controls": "You set the boundaries",
+      "modes": "Choose who takes the call"
+    }
+  },
+  "growth": {
+    "description": "Unlimited users. One ${price}/month team plan. Add people without increasing your subscription. Calling usage is billed separately."
+  },
+  "everywherePricing": {
+    "headline": "Every screen is a dialer. Every user is included.",
+    "description": "Web, phone, and the tab you are already in — one account, with pay-as-you-go calling from $0.012/min.",
+    "teamPlan": "Unlimited users. One ${price}/month team plan.",
+    "noteTitle": "Grow your team, not your bill.",
+    "noteDescription": "Unlimited users for ${price}/month, plus calling usage. Free for individuals. Open source and ready to self-host.",
+    "surfacesNote": "Three surfaces, no extra user fees"
   }
 }

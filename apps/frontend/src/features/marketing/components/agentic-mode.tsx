@@ -200,7 +200,7 @@ const PHASES: Phase[] = [
         ],
         sync: {
           label: 'Handed to',
-          note: 'No install, no seat, no CRM tab. The link is the dialer.'
+          note: 'No install, no per-user fee, no CRM tab. The link is the dialer.'
         }
       },
       {

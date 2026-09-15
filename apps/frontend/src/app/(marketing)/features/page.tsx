@@ -20,7 +20,7 @@ import {
 export const metadata: Metadata = buildMetadata({
   title: 'Features — Human Calling, AI Voice Agents & Automation | Ringee',
   description:
-    'Explore Ringee features for human and AI calling: voice agents, dialers, campaigns, recording, transcription, outcomes, CRM sync, and automation — without per-seat pricing.',
+    'Explore Ringee features for human and AI calling: voice agents, dialers, campaigns, recording, transcription, outcomes, CRM sync, and automation — without per-user pricing.',
   path: '/features'
 });
 

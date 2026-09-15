@@ -43,7 +43,7 @@ export function buildMetadata({
           url: `${SITE_URL}/og-image.png`,
           width: 1200,
           height: 630,
-          alt: `${SITE_NAME} — calling infrastructure for humans and AI agents`
+          alt: `${SITE_NAME} — calling infrastructure for humans and AI voice agents`
         }
       ]
     },

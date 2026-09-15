@@ -34,17 +34,17 @@ export const USE_CASES: UseCaseContent[] = [
     name: 'SDR teams',
     icon: Users,
     tagline:
-      'Keep reps dialing, dispositioning, and following up without per-seat costs.',
+      'Keep reps dialing, dispositioning, and following up without per-user costs.',
     metaTitle: 'Ringee for SDR Teams | Outbound Calling Software',
     metaDescription:
       'Ringee helps SDR teams call more leads, log outcomes, and schedule callbacks — with unlimited users on a flat $20/month organization plan.',
     h1: 'Outbound calling software for SDR teams',
     intro: [
       'SDR teams live and die by activity. Ringee gives every rep a fast browser dialer, queued campaigns, and one-tap dispositioning so they spend their day talking to prospects instead of fighting tools.',
-      'And because the Organization plan is a flat $20 per month with unlimited users, you can add the whole team without watching your bill climb per seat.'
+      'And because the Organization plan is a flat $20 per month with unlimited users, you can add the whole team without watching your bill climb per user.'
     ],
     painPoints: [
-      'Per-seat pricing punishes you for growing the team',
+      'Per-user pricing punishes you for growing the team',
       'Reps waste time hunting for the next number',
       'Inconsistent call logging breaks reporting',
       'Follow-ups slip through the cracks'
@@ -116,7 +116,7 @@ export const USE_CASES: UseCaseContent[] = [
       'Candidate timing is constantly shifting',
       'Context gets lost between conversations',
       'Manual logging eats into calling time',
-      'Per-seat tools are overkill for a small desk'
+      'Per-user tools are overkill for a small desk'
     ],
     solutions: [
       {
@@ -179,10 +179,10 @@ export const USE_CASES: UseCaseContent[] = [
     h1: 'Outbound calling for agencies',
     intro: [
       'Agencies run calling on behalf of clients, which means juggling lists, recordings, and reporting across several accounts. Ringee keeps each effort organized with campaigns, recorded calls, and clean activity data you can show clients.',
-      'With unlimited users on a flat organization plan, you can staff campaigns without per-seat costs eating your margin.'
+      'With unlimited users on a flat organization plan, you can staff campaigns without per-user costs eating your margin.'
     ],
     painPoints: [
-      'Per-seat pricing erodes agency margins',
+      'Per-user pricing erodes agency margins',
       'Client reporting needs reliable activity data',
       'Proof of work matters for retention',
       'Switching between client efforts is messy'
@@ -218,7 +218,7 @@ export const USE_CASES: UseCaseContent[] = [
     ],
     workflow: [
       'Set up a campaign for each client effort.',
-      'Staff reps onto campaigns at no extra seat cost.',
+      'Staff reps onto campaigns at no extra user cost.',
       'Record and transcribe calls for quality and proof.',
       'Log outcomes for clean, client-ready reporting.',
       'Sync activity to the client’s CRM where needed.'
@@ -251,7 +251,7 @@ export const USE_CASES: UseCaseContent[] = [
       'You only pay for the calling minutes you use, so your costs scale with your work. The Organization plan adds unlimited members, campaigns, and AI voice agents that place and hold calls.'
     ],
     painPoints: [
-      'Monthly seat fees are hard to justify solo',
+      'Monthly user fees are hard to justify solo',
       'Tools lock the good features behind a team plan',
       'Follow-ups slip when you wear every hat',
       'Doing all the prep yourself eats calling time'
@@ -329,7 +329,7 @@ export const USE_CASES: UseCaseContent[] = [
       'Limited budget for sales tooling',
       'Small team wearing many hats',
       'Need to validate outbound quickly',
-      'Per-seat costs scale the wrong way'
+      'Per-user costs scale the wrong way'
     ],
     solutions: [
       {
@@ -396,7 +396,7 @@ export const USE_CASES: UseCaseContent[] = [
     ],
     painPoints: [
       'Outbound spread across too many tools',
-      'Expensive per-seat platforms',
+      'Expensive per-user platforms',
       'Messy data between calling and CRM',
       'Repetitive prep slows reps down'
     ],
@@ -409,7 +409,7 @@ export const USE_CASES: UseCaseContent[] = [
       {
         title: 'Affordable at any size',
         description:
-          'Flat organization pricing with unlimited users replaces per-seat fees.'
+          'Flat organization pricing with unlimited users replaces per-user fees.'
       },
       {
         title: 'Clean, synced data',

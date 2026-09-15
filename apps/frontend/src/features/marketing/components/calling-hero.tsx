@@ -1,4 +1,3 @@
-import Image from 'next/image';
 import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 import { AudioLines, Check, History, ListChecks, Phone } from 'lucide-react';
@@ -7,49 +6,17 @@ import { cn } from '@ringee/frontend-shared/lib/utils';
 import { Container, CtaButtons, Section } from './primitives';
 import { RenderingSwitch } from './rendering-switch';
 import { RunsFrom } from './agent-marks';
+import { OperatorPortrait } from './operator-portrait';
+import { TeamPlanNote } from './team-plan-note';
 import styles from './calling-hero.module.css';
 
-const PROOF_POINTS = ['humanAndAi', 'openSource', 'sharedHistory'] as const;
+const PROOF_POINTS = ['pricing', 'openSource', 'unlimitedUsers'] as const;
 const SHARED_CAPABILITIES = [
   { key: 'phoneNumbers', icon: Phone },
   { key: 'callHistory', icon: History },
   { key: 'recordings', icon: AudioLines },
   { key: 'outcomes', icon: ListChecks }
 ] as const;
-
-/** Both theme variants use native lazy loading so only the visible one loads. */
-function OperatorPortrait({
-  operator,
-  label
-}: {
-  operator: 'human' | 'robot';
-  label: string;
-}) {
-  return (
-    <figure className={cn(styles.operator, styles[operator])}>
-      <div className={styles.portrait}>
-        <Image
-          src={`/hero/${operator}-white.png`}
-          alt=''
-          fill
-          sizes='(min-width: 1440px) 360px, (min-width: 1024px) 26vw, (min-width: 640px) 300px, 46vw'
-          className='object-contain object-bottom dark:hidden'
-        />
-        <Image
-          src={`/hero/${operator}-dark.png`}
-          alt=''
-          fill
-          sizes='(min-width: 1440px) 360px, (min-width: 1024px) 26vw, (min-width: 640px) 300px, 46vw'
-          className='hidden object-contain object-bottom dark:block'
-        />
-      </div>
-      <figcaption className={styles.operatorLabel}>
-        <span aria-hidden className={styles.operatorDot} />
-        {label}
-      </figcaption>
-    </figure>
-  );
-}
 
 export async function CallingHero() {
   const t = await getTranslations('marketing.callingHero');
@@ -87,13 +54,11 @@ export async function CallingHero() {
 
             <RunsFrom className='mt-6 justify-center gap-x-3' />
 
-            <CtaButtons
-              primaryLabel={t('requestDemo')}
-              secondaryLabel={t('viewPricing')}
-              className='mt-7 w-full flex-row justify-center sm:w-auto [&>a]:flex-1 [&>a]:px-4 sm:[&>a]:flex-none sm:[&>a]:px-6'
-            />
+            <CtaButtons className='mt-7 w-full justify-center sm:w-auto' />
 
-            <ul className='text-muted-foreground mt-6 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs leading-relaxed'>
+            <TeamPlanNote className='mt-4' />
+
+            <ul className='text-muted-foreground mt-5 flex flex-wrap justify-center gap-x-4 gap-y-2 text-xs leading-relaxed'>
               {PROOF_POINTS.map((point) => (
                 <li key={point} className='inline-flex items-center gap-1.5'>
                   <Check

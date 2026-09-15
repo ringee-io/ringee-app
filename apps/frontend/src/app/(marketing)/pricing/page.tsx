@@ -76,7 +76,7 @@ const PRICING_FAQS = [
   {
     question: 'Do you charge per user?',
     answer:
-      'No. The Organization plan is a flat $20/month for the whole organization, with unlimited users. There is no per-seat pricing.'
+      'No. The Organization plan is a flat $20/month for the whole organization, with unlimited users. There is no per-user pricing.'
   },
   {
     question: 'How are calling credits billed?',
@@ -118,7 +118,7 @@ export default function PricingPage() {
       <Section className='pt-8 pb-4'>
         <Container className='max-w-3xl text-center'>
           <h1 className='text-4xl font-bold tracking-tight text-balance sm:text-5xl'>
-            Affordable pricing, no per-seat fees
+            Affordable pricing, no per-user fees
           </h1>
           <p className='text-muted-foreground mt-6 text-lg text-pretty'>
             Start human calling free as a freelancer, or run your whole team and
@@ -191,7 +191,7 @@ export default function PricingPage() {
           <p className='text-muted-foreground mx-auto mt-6 max-w-2xl text-center text-sm'>
             Calling credits are billed separately, so you pay for the usage you
             create. AI voice-agent calls also include voice and model usage.
-            There is no per-seat price; add as many users as you need on the
+            There is no per-user price; add as many users as you need on the
             Organization plan.
           </p>
         </Container>
@@ -201,8 +201,8 @@ export default function PricingPage() {
         <Container>
           <SectionHeading
             eyebrow='Cost comparison'
-            title='See what you save versus per-seat pricing'
-            description='Per-seat tools get expensive fast as you add users. Ringee stays flat.'
+            title='See what you save versus per-user pricing'
+            description='Per-user tools get expensive fast as you add users. Ringee stays flat.'
           />
           <div className='mt-10'>
             <ScalabilityCalculator />
@@ -216,7 +216,7 @@ export default function PricingPage() {
         data={softwareAppJsonLd({
           name: 'Ringee',
           description:
-            'Open calling infrastructure with flat, per-organization pricing and no per-seat fees. Freelancer is free for human calling; Organization is $20/month for unlimited users, campaigns, and AI voice agents.',
+            'Open calling infrastructure with flat, per-organization pricing and no per-user fees. Freelancer is free for human calling; Organization is $20/month for unlimited users, campaigns, and AI voice agents.',
           url: SITE_URL
         })}
       />

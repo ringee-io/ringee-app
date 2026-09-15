@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 import { ArrowRight, ArrowUpRight, Check } from 'lucide-react';
 
 import { cn } from '@ringee/frontend-shared/lib/utils';
+import { CTA } from '../site';
 
 /** Centered max-width wrapper used by every section. */
 export function Container({
@@ -182,10 +183,10 @@ export function ButtonLink({
 
 /** The primary + secondary CTA pair used in heroes and CTA bands. */
 export function CtaButtons({
-  primaryHref = '/request-demo',
-  primaryLabel = 'Request Demo',
-  secondaryHref = '/pricing',
-  secondaryLabel = 'View pricing',
+  primaryHref = CTA.primary.href,
+  primaryLabel = CTA.primary.label,
+  secondaryHref = CTA.secondary.href,
+  secondaryLabel = CTA.secondary.label,
   className
 }: {
   primaryHref?: string;

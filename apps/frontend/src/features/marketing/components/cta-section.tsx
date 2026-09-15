@@ -1,13 +1,17 @@
+import { useTranslations } from 'next-intl';
+import { CTA } from '../site';
+import { TeamPlanNote } from './team-plan-note';
 import { Container, CtaButtons, Section } from './primitives';
 
 /** Conversion band used at the bottom of most pages. */
 export function CtaSection({
   title = 'Start calling more leads today',
-  description = 'Book a personalized demo and see how Ringee fits your outbound workflow — pricing, setup, and your questions answered.',
-  primaryHref = '/request-demo',
-  primaryLabel = 'Request Demo',
-  secondaryHref = '/pricing',
-  secondaryLabel = 'View pricing'
+  description,
+  primaryHref = CTA.primary.href,
+  primaryLabel = CTA.primary.label,
+  secondaryHref = CTA.secondary.href,
+  secondaryLabel = CTA.secondary.label,
+  ai = false
 }: {
   title?: string;
   description?: string;
@@ -15,7 +19,10 @@ export function CtaSection({
   primaryLabel?: string;
   secondaryHref?: string;
   secondaryLabel?: string;
+  ai?: boolean;
 }) {
+  const t = useTranslations('marketing.conversion');
+
   return (
     <Section>
       <Container>
@@ -27,7 +34,7 @@ export function CtaSection({
             {title}
           </h2>
           <p className='text-muted-foreground mx-auto mt-4 max-w-xl text-lg text-pretty'>
-            {description}
+            {description ?? t('description')}
           </p>
           <CtaButtons
             className='mt-8 items-center justify-center'
@@ -36,6 +43,7 @@ export function CtaSection({
             secondaryHref={secondaryHref}
             secondaryLabel={secondaryLabel}
           />
+          <TeamPlanNote ai={ai} className='mt-5' />
         </div>
       </Container>
     </Section>

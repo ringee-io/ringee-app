@@ -284,7 +284,7 @@ function MobileMenu() {
   }, [open]);
 
   return (
-    <div className='md:hidden'>
+    <div className='xl:hidden'>
       <button
         type='button'
         aria-label='Open menu'
@@ -391,7 +391,7 @@ export function MarketingNavbar() {
           <Link href='/' aria-label='Ringee home' className='shrink-0'>
             <Logo priority />
           </Link>
-          <div className='ml-2 hidden items-center gap-0.5 md:flex'>
+          <div className='ml-2 hidden items-center gap-0.5 xl:flex'>
             <ProductMenu />
             {MAIN_NAV.map((link) => {
               const active =

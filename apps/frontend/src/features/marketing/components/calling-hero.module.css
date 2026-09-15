@@ -9,13 +9,13 @@
   position: absolute;
   z-index: -1;
   inset: 0;
-  /* background:
-    radial-gradient(
-      ellipse at 50% 100%,
-      rgb(16 185 129 / 0.08),
-      transparent 55%
-    ),
-    radial-gradient(ellipse at 50% 0%, rgb(16 185 129 / 0.04), transparent 55%); */
+  background-image: radial-gradient(
+    circle at 1px 1px,
+    color-mix(in oklab, var(--foreground) 9%, transparent) 1px,
+    transparent 0
+  );
+  background-size: 24px 24px;
+  mask-image: radial-gradient(ellipse at 50% 45%, #000 30%, transparent 80%);
   content: '';
   pointer-events: none;
 }
@@ -73,10 +73,6 @@
     linear-gradient(#000 72%, transparent 100%),
     linear-gradient(90deg, transparent, #000 8%, #000 92%, transparent);
   mask-composite: intersect;
-}
-
-.human .portrait img {
-  object-fit: cover;
 }
 
 .operatorLabel {

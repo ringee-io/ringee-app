@@ -19,10 +19,10 @@ const format = (value: number) =>
 
 /**
  * Scalability cost comparison for the homepage. As the team grows toward 20
- * members a per-seat tool's bill climbs linearly, while Ringee stays flat: a
+ * members a per-user tool's bill climbs linearly, while Ringee stays flat: a
  * solo user pays no subscription (Freelancer), and a whole team is a flat
  * Organization price no matter how many you add — you only pay for the minutes
- * you use. The per-seat assumption is adjustable, like the
+ * you use. The per-user assumption is adjustable, like the
  * pricing-page calculator. This is plain arithmetic — it names no competitor and
  * excludes calling credits, which are billed separately on Ringee.
  */
@@ -34,7 +34,7 @@ export function ScalabilityCalculator() {
   const safePerSeat = Math.max(0, perSeat);
 
   // Solo (one seat) is the Freelancer plan — no subscription, pay only for
-  // minutes; a team is the flat Organization price for unlimited members.
+  // minutes; a team is the flat Organization price for unlimited users.
   const isSolo = safeSeats <= 1;
   const ringeePlan = isSolo
     ? PRICING.freelancer.name
@@ -45,8 +45,8 @@ export function ScalabilityCalculator() {
   const monthlySavings = Math.max(0, perSeatMonthly - ringeeMonthly);
   const annualSavings = monthlySavings * 12;
 
-  // Bars scale against the per-seat bill at full capacity so Ringee reads as a
-  // flat sliver next to the climbing per-seat bar. Floor keeps both visible.
+  // Bars scale against the per-user bill at full capacity so Ringee reads as a
+  // flat sliver next to the climbing per-user bar. Floor keeps both visible.
   const denominator = Math.max(MAX_SEATS * safePerSeat, ringeeMonthly, 1);
   const barWidth = (value: number) =>
     `${Math.min(100, Math.max(value > 0 ? 4 : 0, (value / denominator) * 100))}%`;
@@ -59,10 +59,10 @@ export function ScalabilityCalculator() {
             The most economical way to scale
           </h3>
           <p className='text-muted-foreground mt-1 text-sm'>
-            Per-seat tools bill you for every new hire. On Ringee a solo user
+            Per-user tools bill you for every new hire. On Ringee a solo user
             pays no subscription, and a whole team is a flat{' '}
-            {format(RINGEE_ORG_PRICE)}/month for unlimited members — you only
-            pay for the minutes you use.
+            {format(RINGEE_ORG_PRICE)}/month for unlimited users — you only pay
+            for the minutes you use.
           </p>
         </div>
         <div className='text-right'>
@@ -77,7 +77,7 @@ export function ScalabilityCalculator() {
         <label className='flex flex-col gap-2'>
           <span className='text-sm font-medium'>
             Team size: <span className='font-bold tabular-nums'>{seats}</span>{' '}
-            {seats === 1 ? 'member' : 'members'}
+            {seats === 1 ? 'user' : 'users'}
           </span>
           <input
             type='range'
@@ -86,13 +86,13 @@ export function ScalabilityCalculator() {
             value={seats}
             onChange={(event) => setSeats(Number(event.target.value))}
             className='accent-emerald-600'
-            aria-label='Team size in members'
+            aria-label='Team size in users'
           />
         </label>
 
         <label className='flex flex-col gap-2'>
           <span className='text-sm font-medium'>
-            Their price per seat (/month)
+            Their price per user (/month)
           </span>
           <div className='border-border/70 flex items-center rounded-md border px-3'>
             <span className='text-muted-foreground'>$</span>
@@ -102,7 +102,7 @@ export function ScalabilityCalculator() {
               value={perSeat}
               onChange={(event) => setPerSeat(Number(event.target.value))}
               className='w-full bg-transparent px-2 py-2 outline-none'
-              aria-label='Assumed price per seat per month'
+              aria-label='Assumed price per user per month'
             />
           </div>
         </label>
@@ -111,7 +111,7 @@ export function ScalabilityCalculator() {
       <div className='mt-8 flex flex-col gap-5'>
         <div>
           <div className='flex items-baseline justify-between text-sm'>
-            <span className='text-muted-foreground'>Per-seat tool</span>
+            <span className='text-muted-foreground'>Per-user tool</span>
             <span className='font-semibold tabular-nums'>
               {format(perSeatMonthly)}
               <span className='text-muted-foreground font-normal'>/mo</span>
@@ -145,15 +145,15 @@ export function ScalabilityCalculator() {
           <p className='text-muted-foreground mt-1 text-xs'>
             {isSolo
               ? 'No subscription · pay only for minutes'
-              : 'Flat price · unlimited members'}
+              : 'Flat price · unlimited users'}
           </p>
         </div>
       </div>
 
       <p className='text-muted-foreground mt-6 text-xs'>
         About <span className='font-semibold'>{format(annualSavings)}</span> a
-        year at {seats} {seats === 1 ? 'member' : 'members'}. Subscription cost
-        only — calling minutes are billed separately as credits on Ringee.
+        year at {seats} {seats === 1 ? 'user' : 'users'}. Subscription cost only
+        — calling minutes are billed separately as credits on Ringee.
       </p>
     </Card>
   );

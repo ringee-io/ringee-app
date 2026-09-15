@@ -1,6 +1,7 @@
 import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import { BellRing, Bot, CalendarCheck } from 'lucide-react';
 
 import { buildMetadata } from '@/features/marketing/seo';
@@ -23,7 +24,7 @@ import {
   JsonLd,
   softwareAppJsonLd
 } from '@/features/marketing/components/json-ld';
-import { SITE_URL } from '@/features/marketing/site';
+import { PRICING, SITE_URL } from '@/features/marketing/site';
 
 export const metadata: Metadata = buildMetadata({
   title: 'Ringee — Calling Infrastructure for Humans & AI Agents',
@@ -35,6 +36,7 @@ export const metadata: Metadata = buildMetadata({
 export default async function HomePage() {
   const { userId } = await auth();
   if (userId) redirect('/dashboard/overview');
+  const t = await getTranslations('marketing.growth');
 
   return (
     <>
@@ -72,7 +74,7 @@ export default async function HomePage() {
 
           <div className='grid gap-4 sm:grid-cols-2'>
             <Card className='h-full'>
-              <span className='inline-flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/10 text-violet-700 dark:text-violet-300'>
+              <span className='inline-flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'>
                 <CalendarCheck className='h-5 w-5' aria-hidden />
               </span>
               <h3 className='mt-4 text-lg font-semibold'>Book appointments</h3>
@@ -82,7 +84,7 @@ export default async function HomePage() {
               </p>
             </Card>
             <Card className='h-full'>
-              <span className='inline-flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/10 text-amber-700 dark:text-amber-300'>
+              <span className='inline-flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'>
                 <BellRing className='h-5 w-5' aria-hidden />
               </span>
               <h3 className='mt-4 text-lg font-semibold'>Confirm and remind</h3>
@@ -207,7 +209,9 @@ export default async function HomePage() {
           <SectionHeading
             eyebrow='Cost efficiency'
             title='Grow your team, not your bill'
-            description='Per-seat tools punish you for hiring. On Ringee a solo user pays no subscription, and a whole team is one flat $20/month — you only pay for the minutes you use. A 12-person team pays $20/month flat instead of roughly $360/month on a typical ~$30/seat tool: about $4,080 saved per year.'
+            description={t('description', {
+              price: PRICING.organization.price
+            })}
           />
           <div className='mt-10'>
             <ScalabilityCalculator />

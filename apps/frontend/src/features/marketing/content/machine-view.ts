@@ -261,7 +261,7 @@ const CLAIMS: string[] = [
   'category: open-source calling infrastructure for human teams and AI voice agents',
   `pricing: ${PRICING.freelancer.name} $${PRICING.freelancer.price}/${PRICING.freelancer.period} · ${PRICING.organization.name} $${PRICING.organization.price}/${PRICING.organization.period} per organization, unlimited members`,
   'calling: pay-as-you-go credits from $0.012/min, billed separately from the plan',
-  'seats: none. team price is flat, not per user',
+  'users: unlimited on the $20/month team plan. no per-user fees',
   'surfaces: web app, Chrome extension, iOS and Android apps, CLI, Dialer SDK, MCP',
   'operators: people place calls from Ringee dialers; AI voice agents place calls and hold live conversations',
   'voice-agent jobs: appointment booking and reminders/notifications, with editable instructions and knowledge',

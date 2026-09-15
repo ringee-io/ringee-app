@@ -2,7 +2,7 @@
 
 How the marketing site's non-screenshot imagery is produced and displayed.
 
-## Homepage portraits
+## Marketing portraits
 
 The homepage uses `CallingHero` with the supplied transparent portraits in
 `apps/frontend/public/hero/`: `human-white.png` and `robot-white.png` in light
@@ -10,16 +10,20 @@ mode, and `human-dark.png` and `robot-dark.png` in dark mode. The human stays
 on the left and the AI agent on the right, connected to one shared calling
 stack below. On smaller screens the copy sits above the pair.
 
+The AI Voice Agents page reuses the robot through `OperatorPortrait`, in the
+standard `DetailLayout` with its left-hand page navigation.
+
 The composition and light connections live in `calling-hero.module.css`.
 Theme selection uses CSS and `next/image` with native lazy loading so the
 hidden variant does not download on first paint. Labels and capabilities stay
 in markup, with copy in the `marketing.callingHero` translation namespace.
 
-## The hero render
+## Legacy 3D render
 
-`apps/frontend/public/hero/human-ai-operators.webp` is the image at the centre
-of the AI voice-agent hero: a Ringee teammate on a headset
-standing next to a Ringee AI voice agent, both lit as a single scene.
+`apps/frontend/public/hero/human-ai-operators.webp` is an earlier experiment,
+retained with its scene source and rendering recipe. The current marketing
+heroes use the portraits above. The legacy image shows a teammate on a headset
+standing next to a voice agent, both lit as a single scene.
 
 It is not stock art and not a screenshot. The scene is built in three.js from
 primitives and checked in at `apps/frontend/scripts/hero-3d/scene.js`, so the

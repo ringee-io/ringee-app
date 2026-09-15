@@ -23,8 +23,8 @@ export const metadata: Metadata = buildMetadata({
 
 const DIFFERENTIATORS = [
   {
-    title: 'Flat pricing, no per-seat tax',
-    body: 'Free for one person, then a flat $20/month per organization with unlimited users. A 12-person team pays $20/month flat instead of roughly $360/month on a typical ~$30/seat tool.'
+    title: 'Flat pricing, no per-user tax',
+    body: 'Free for one person, then a flat $20/month per organization with unlimited users. A 12-person team pays $20/month flat instead of roughly $360/month on a typical ~$30/user tool.'
   },
   {
     title: 'Open source & self-hostable',
@@ -42,9 +42,9 @@ const DIFFERENTIATORS = [
 
 const ALTERNATIVES_FAQS = [
   {
-    question: 'What is the best alternative to per-seat calling software?',
+    question: 'What is the best alternative to per-user calling software?',
     answer:
-      'If you want to avoid per-seat pricing, Ringee offers a free plan for individuals and a flat $20/month organization plan with unlimited users, plus pay-as-you-go calling. It is also open source and self-hostable, unlike Aircall, JustCall, Kixie, and Orum.'
+      'If you want to avoid per-user pricing, Ringee offers a free plan for individuals and a flat $20/month organization plan with unlimited users, plus pay-as-you-go calling. It is also open source and self-hostable, unlike Aircall, JustCall, Kixie, and Orum.'
   },
   {
     question: 'How does Ringee compare to Aircall, JustCall, Kixie, and Orum?',
@@ -73,7 +73,7 @@ export default function AlternativesPage() {
             Ringee alternatives and comparisons
           </h1>
           <p className='text-muted-foreground mt-6 text-lg text-pretty'>
-            Most outbound calling tools charge per seat, keep your data locked
+            Most outbound calling tools charge per user, keep your data locked
             in, and were built before AI agents could do real work. Ringee is
             the flat-priced, open-source infrastructure where human teams and AI
             voice agents call from the same stack. Here is how it compares to

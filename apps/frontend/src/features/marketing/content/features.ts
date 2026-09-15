@@ -94,11 +94,11 @@ export const FEATURES: FeatureContent[] = [
       'Call leads worldwide straight from your browser or the iOS app — no hardware, no desk phone.',
     metaTitle: 'Outbound Calling Software | Ringee',
     metaDescription:
-      'Make outbound calls to leads worldwide from your browser or iOS app. Ringee gives outbound teams a fast dialer, call notes, and outcomes without per-seat pricing.',
+      'Make outbound calls to leads worldwide from your browser or iOS app. Ringee gives outbound teams a fast dialer, call notes, and outcomes without per-user pricing.',
     h1: 'Outbound calling software built for volume',
     intro: [
       'Ringee turns any browser into an outbound calling station. Open the dialer, work through your list, and place clear calls to leads in over 180 countries — no desk phone, SIP handset, or extra hardware required.',
-      'Every call is connected through Telnyx, so audio quality stays high and you only pay for the minutes you use. Calling credits are billed separately from your subscription, which keeps your seat cost flat as your team grows.'
+      'Every call is connected through Telnyx, so audio quality stays high and you only pay for the minutes you use. Calling credits are billed separately from your subscription, which keeps your team subscription flat as your team grows.'
     ],
     whoFor: [
       'SDR and BDR teams running daily outbound dials',

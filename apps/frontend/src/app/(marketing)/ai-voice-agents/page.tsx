@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import type { Metadata } from 'next';
+import { getTranslations } from 'next-intl/server';
 import {
   AudioLines,
   BellRing,
@@ -21,12 +22,13 @@ import { buildMetadata } from '@/features/marketing/seo';
 import { CtaSection } from '@/features/marketing/components/cta-section';
 import { DetailLayout } from '@/features/marketing/components/detail-layout';
 import { FaqSection, type Faq } from '@/features/marketing/components/faq';
-import { HumanAiCallingVisual } from '@/features/marketing/components/human-ai-calling';
+import { OperatorPortrait } from '@/features/marketing/components/operator-portrait';
+import { TeamPlanNote } from '@/features/marketing/components/team-plan-note';
 import { JsonLd } from '@/features/marketing/components/json-ld';
 import {
-  ButtonLink,
   Card,
   Container,
+  CtaButtons,
   Section,
   SectionHeading
 } from '@/features/marketing/components/primitives';
@@ -178,67 +180,61 @@ function CheckItem({ children }: { children: string }) {
   );
 }
 
-export default function AiVoiceAgentsPage() {
+export default async function AiVoiceAgentsPage() {
+  const t = await getTranslations('marketing.aiVoiceLanding');
   return (
     <DetailLayout
-      showToc={false}
       items={[
         { name: 'Home', href: '/' },
         { name: 'AI Voice Agents', href: '/ai-voice-agents' }
       ]}
       cta={
         <CtaSection
-          title='Give your next repeatable call to an AI voice agent'
-          description='See how an agent would work with your calling number, knowledge, calendar, and desired outcomes.'
-          secondaryHref='/features/ai-call-automation'
-          secondaryLabel='Explore AI automation'
+          title={t('ctaTitle')}
+          description={t('ctaDescription')}
+          ai
         />
       }
     >
-      <Section className='pt-10 pb-16 sm:pt-16 sm:pb-24'>
-        <Container className='grid items-center gap-12 lg:grid-cols-[1.04fr_0.96fr] lg:gap-16'>
-          <div>
-            <div className='inline-flex items-center gap-2 rounded-full border border-violet-500/20 bg-violet-500/8 px-3 py-1 text-xs font-semibold text-violet-700 dark:text-violet-300'>
-              <Bot className='h-3.5 w-3.5' aria-hidden />
-              AI Voice Agents
+      <Section className='pt-8 pb-12 sm:pt-10 sm:pb-16'>
+        <Container>
+          <div className='grid items-center gap-8 md:grid-cols-[minmax(0,1fr)_minmax(160px,0.6fr)]'>
+            <div>
+              <div className='inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/8 px-3 py-1 text-xs font-semibold text-emerald-700 dark:text-emerald-400'>
+                <Bot className='h-3.5 w-3.5' aria-hidden />
+                {t('eyebrow')}
+              </div>
+              <h1 className='mt-5 text-4xl leading-[1.08] font-semibold tracking-[-0.045em] text-balance xl:text-5xl'>
+                {t('headline')}{' '}
+                <span className='text-emerald-700 dark:text-emerald-400'>
+                  {t('highlight')}
+                </span>
+              </h1>
+              <p className='text-muted-foreground mt-5 text-base leading-relaxed text-pretty sm:text-lg'>
+                {t('description')}
+              </p>
             </div>
-            <h1 className='mt-6 text-4xl font-bold tracking-tight text-balance sm:text-5xl lg:text-6xl'>
-              AI voice agents that{' '}
-              <span className='text-violet-700 dark:text-violet-400'>
-                make the call.
-              </span>
-            </h1>
-            <p className='text-foreground mt-6 max-w-2xl text-xl font-medium text-pretty'>
-              The agent does not stop at preparing a list or ringing your
-              device. It places the outbound call, speaks with the person, uses
-              tools, and finishes the job.
-            </p>
-            <p className='text-muted-foreground mt-4 max-w-2xl text-lg text-pretty'>
-              Run AI-led conversations and human-led dialing on the same open
-              Ringee infrastructure, with one set of numbers, call records,
-              recordings, outcomes, and integrations.
-            </p>
-            <div className='mt-8 flex flex-col gap-3 sm:flex-row'>
-              <ButtonLink href='/request-demo'>Request a demo</ButtonLink>
-              <ButtonLink
-                href='/features/ai-call-automation'
-                variant='secondary'
-                withArrow
-              >
-                See automation options
-              </ButtonLink>
+            <div className='mx-auto w-full max-w-[250px] md:max-w-none'>
+              <OperatorPortrait operator='robot' label={t('eyebrow')} />
             </div>
           </div>
-          <HumanAiCallingVisual />
+          <div className='mt-8 flex flex-col items-start'>
+            <p className='text-sm font-medium text-emerald-700 dark:text-emerald-400'>
+              {t('proof')}
+            </p>
+            <CtaButtons className='mt-5 w-full sm:w-auto' />
+            <TeamPlanNote ai className='mt-4 text-left' />
+          </div>
         </Container>
       </Section>
 
-      <Section className='border-y border-emerald-500/15 bg-emerald-500/5 py-10 sm:py-12'>
+      <Section className='border-y border-emerald-500/15 bg-emerald-500/5 py-8 sm:py-10'>
         <Container>
-          <p className='mx-auto max-w-4xl text-center text-2xl font-semibold tracking-tight text-balance sm:text-3xl'>
-            Ringee is not only a cheaper seat in a dialer. It is open calling
-            infrastructure where human teams and AI operators work from the same
-            stack.
+          <p className='text-xl font-semibold tracking-tight text-balance sm:text-2xl'>
+            {t('sharedTitle')}
+          </p>
+          <p className='text-muted-foreground mt-3 text-sm leading-relaxed'>
+            {t('sharedDescription')}
           </p>
         </Container>
       </Section>
@@ -247,13 +243,13 @@ export default function AiVoiceAgentsPage() {
         <Container>
           <SectionHeading
             eyebrow='From dial to result'
-            title='A voice agent with a real job to do'
+            title={t('sections.capabilities')}
             description='Configure the conversation once. Ringee gives the agent the calling, knowledge, tools, and result pipeline it needs to complete repeatable phone work.'
           />
-          <div className='mt-12 grid gap-5 sm:grid-cols-2 lg:grid-cols-3'>
+          <div className='mt-12 grid gap-5 sm:grid-cols-2'>
             {CAPABILITIES.map((capability) => (
               <Card key={capability.title} className='h-full'>
-                <span className='inline-flex h-11 w-11 items-center justify-center rounded-xl bg-violet-500/10 text-violet-700 dark:text-violet-300'>
+                <span className='inline-flex h-11 w-11 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-700 dark:text-emerald-300'>
                   <capability.icon className='h-5 w-5' aria-hidden />
                 </span>
                 <h3 className='mt-4 text-lg font-semibold'>
@@ -272,7 +268,7 @@ export default function AiVoiceAgentsPage() {
         <Container>
           <SectionHeading
             eyebrow='Production blueprints'
-            title='Start with a conversation pattern that already knows its tools'
+            title={t('sections.blueprints')}
             description='Each blueprint includes editable language and immutable safeguards around the actions that must stay correct.'
             align='left'
           />
@@ -280,9 +276,9 @@ export default function AiVoiceAgentsPage() {
             <Card className='relative h-full overflow-hidden p-7'>
               <div
                 aria-hidden
-                className='absolute -top-16 -right-16 h-40 w-40 rounded-full bg-violet-500/10 blur-3xl'
+                className='absolute -top-16 -right-16 h-40 w-40 rounded-full bg-emerald-500/10 blur-3xl'
               />
-              <CalendarCheck className='h-8 w-8 text-violet-700 dark:text-violet-300' />
+              <CalendarCheck className='h-8 w-8 text-emerald-700 dark:text-emerald-300' />
               <p className='text-muted-foreground mt-6 text-xs font-semibold tracking-wide uppercase'>
                 Appointment booking
               </p>
@@ -298,9 +294,9 @@ export default function AiVoiceAgentsPage() {
             <Card className='relative h-full overflow-hidden p-7'>
               <div
                 aria-hidden
-                className='absolute -top-16 -right-16 h-40 w-40 rounded-full bg-amber-500/10 blur-3xl'
+                className='absolute -top-16 -right-16 h-40 w-40 rounded-full bg-emerald-500/10 blur-3xl'
               />
-              <BellRing className='h-8 w-8 text-amber-700 dark:text-amber-300' />
+              <BellRing className='h-8 w-8 text-emerald-700 dark:text-emerald-300' />
               <p className='text-muted-foreground mt-6 text-xs font-semibold tracking-wide uppercase'>
                 Reminders &amp; notifications
               </p>
@@ -321,13 +317,13 @@ export default function AiVoiceAgentsPage() {
         <Container>
           <SectionHeading
             eyebrow='Setup to live call'
-            title='Go from a tested conversation to a real phone call'
+            title={t('sections.setup')}
           />
-          <ol className='mt-12 grid gap-5 md:grid-cols-2 lg:grid-cols-4'>
+          <ol className='mt-12 grid gap-5 sm:grid-cols-2'>
             {SETUP_STEPS.map((step, index) => (
               <li key={step.title}>
                 <Card className='h-full'>
-                  <span className='inline-flex h-8 w-8 items-center justify-center rounded-full bg-violet-700 text-sm font-bold text-white dark:bg-violet-500'>
+                  <span className='inline-flex h-8 w-8 items-center justify-center rounded-full bg-emerald-700 text-sm font-bold text-white dark:bg-emerald-500'>
                     {index + 1}
                   </span>
                   <h3 className='mt-4 text-lg font-semibold'>{step.title}</h3>
@@ -348,13 +344,13 @@ export default function AiVoiceAgentsPage() {
               aria-hidden
               className='pointer-events-none absolute inset-0 bg-[radial-gradient(60%_90%_at_100%_0%,rgba(16,185,129,0.28),transparent_70%)]'
             />
-            <div className='relative grid gap-10 lg:grid-cols-[1fr_0.85fr] lg:items-center'>
+            <div className='relative grid gap-10 xl:items-center'>
               <div>
                 <p className='text-sm font-semibold tracking-wide text-emerald-300 uppercase'>
                   One infrastructure
                 </p>
                 <h2 className='mt-4 text-3xl font-bold tracking-tight text-balance sm:text-4xl'>
-                  The operator changes. The calling system does not.
+                  {t('sections.sharedStack')}
                 </h2>
                 <p className='mt-5 max-w-2xl text-lg text-pretty text-zinc-300'>
                   Your reps and voice agents use the same Ringee foundation, so
@@ -386,7 +382,7 @@ export default function AiVoiceAgentsPage() {
         <Container>
           <SectionHeading
             eyebrow='Production controls'
-            title='Autonomous conversation does not mean unbounded action'
+            title={t('sections.controls')}
             description='Ringee keeps the operational rules in the platform while you control the agent’s role, context, voice, and desired result.'
             align='left'
           />
@@ -414,12 +410,12 @@ export default function AiVoiceAgentsPage() {
         <Container>
           <SectionHeading
             eyebrow='Human + AI calling'
-            title='Choose who should take each conversation'
+            title={t('sections.modes')}
             description='Ringee supports AI around the call and AI on the call. They are different tools on the same infrastructure.'
           />
           <div className='mt-10 grid gap-5 lg:grid-cols-2'>
             <Card className='h-full p-7'>
-              <Workflow className='h-7 w-7 text-sky-700 dark:text-sky-300' />
+              <Workflow className='h-7 w-7 text-emerald-700 dark:text-emerald-300' />
               <p className='text-muted-foreground mt-5 text-xs font-semibold tracking-wide uppercase'>
                 AI orchestration
               </p>
@@ -432,14 +428,14 @@ export default function AiVoiceAgentsPage() {
               </p>
               <Link
                 href='/features/ai-call-automation'
-                className='mt-6 inline-flex font-semibold text-sky-700 hover:underline dark:text-sky-300'
+                className='mt-6 inline-flex font-semibold text-emerald-700 hover:underline dark:text-emerald-300'
               >
                 Explore AI call automation →
               </Link>
             </Card>
-            <Card className='h-full border-violet-500/25 bg-violet-500/5 p-7'>
-              <BrainCircuit className='h-7 w-7 text-violet-700 dark:text-violet-300' />
-              <p className='mt-5 text-xs font-semibold tracking-wide text-violet-700 uppercase dark:text-violet-300'>
+            <Card className='h-full border-emerald-500/25 bg-emerald-500/5 p-7'>
+              <BrainCircuit className='h-7 w-7 text-emerald-700 dark:text-emerald-300' />
+              <p className='mt-5 text-xs font-semibold tracking-wide text-emerald-700 uppercase dark:text-emerald-300'>
                 AI voice agent
               </p>
               <h3 className='mt-2 text-xl font-semibold'>
@@ -449,7 +445,7 @@ export default function AiVoiceAgentsPage() {
                 A configured Ringee agent originates the call, runs the
                 conversation, uses its tools, and returns a reviewable result.
               </p>
-              <p className='mt-6 inline-flex font-semibold text-violet-700 dark:text-violet-300'>
+              <p className='mt-6 inline-flex font-semibold text-emerald-700 dark:text-emerald-300'>
                 You are on this page
               </p>
             </Card>

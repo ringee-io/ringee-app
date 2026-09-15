@@ -23,7 +23,7 @@ export const metadata: Metadata = buildMetadata({
 const PRINCIPLES = [
   {
     title: 'Affordable by default',
-    body: 'Per-seat pricing punishes teams for growing. Ringee keeps a free Freelancer plan and a single flat $20/month Organization plan with unlimited users, plus pay-as-you-go calling from $0.012/min — so cost scales with usage, not headcount.'
+    body: 'Per-user pricing punishes teams for growing. Ringee keeps a free Freelancer plan and a single flat $20/month Organization plan with unlimited users, plus pay-as-you-go calling from $0.012/min — so cost scales with usage, not headcount.'
   },
   {
     title: 'Agentic by design',
@@ -86,7 +86,7 @@ export default function AboutPage() {
             </p>
             <p>
               The project started from a simple frustration: outbound calling
-              tools charge per seat, lock your data in, and were built before AI
+              tools charge per user, lock your data in, and were built before AI
               agents could take part in the operation. Ringee takes the opposite
               stance — open infrastructure, flat pricing, self-hosting, and a
               first-class place for both human and AI operators.
