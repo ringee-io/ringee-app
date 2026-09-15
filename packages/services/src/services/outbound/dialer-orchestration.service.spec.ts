@@ -655,6 +655,30 @@ describe("DialerOrchestrationService", () => {
       assert.equal(blocked[0].data.reason, "NO_CREDIT");
     });
 
+    it("hands the lead back and retries after the cooldown when the balance cannot be read", async () => {
+      const world = createWorld();
+      world.credit.getBalance = async () => {
+        throw new Error("database unavailable");
+      };
+
+      await world.runTick();
+
+      // A failed lookup is not an empty balance: nothing is paused or blocked.
+      assert.equal(world.of("call.initiate").length, 0);
+      assert.equal(world.of("call.blocked").length, 0);
+      assert.equal(world.attempts.size, 0);
+      assert.equal(world.session().status, "ready");
+      assert.equal(world.session().currentLeadId, null);
+      assert.equal(world.lead("lead-1").status, "queued");
+
+      world.credit.getBalance = async () => world.credit.balance;
+      await world.runTick();
+      assert.equal(world.of("call.initiate").length, 0);
+      world.endCooldowns();
+      await world.runTick();
+      assert.equal(world.of("call.initiate").length, 1);
+    });
+
     it("returns the agent to ready after a concurrent-call refusal, then leaves them alone for the cooldown", async () => {
       const world = createWorld();
       world.guard.allow = false;

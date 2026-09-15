@@ -570,12 +570,12 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       });
     }
     if (!user?.freeCallTrial) {
-      const balance = await this.creditService
-        .getBalance({
-          userId: agent.userId,
-          organizationId: campaign.organizationId,
-        })
-        .catch(() => 0);
+      // Let a failed lookup throw: read as a zero balance, a transient error
+      // paused the session as out of credit.
+      const balance = await this.creditService.getBalance({
+        userId: agent.userId,
+        organizationId: campaign.organizationId,
+      });
       if (balance <= 0) {
         return refuse({
           reason: "NO_CREDIT",
