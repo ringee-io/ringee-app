@@ -6,7 +6,9 @@ import {
   ForbiddenException,
 } from "@nestjs/common";
 import {
+  AgentSession,
   AgentSessionRepository,
+  CallAttemptRepository,
   CampaignLeadRepository,
   AgentSessionStatus,
 } from "@ringee/database";
@@ -23,6 +25,7 @@ export class AgentSessionService {
     private readonly campaignLeadRepo: CampaignLeadRepository,
     private readonly userService: UserService,
     private readonly sseBridge: SSEBridgeService,
+    private readonly attemptRepo: CallAttemptRepository,
   ) {}
 
   async startSession(data: {
@@ -31,6 +34,20 @@ export class AgentSessionService {
     organizationId: string;
   }) {
     await this.assertDialerEnabled(data.userId);
+
+    // An agent has one session row per campaign, so opening the dialer again —
+    // a second tab, another computer, a reload — lands on the same row. The
+    // incarnation it replaces has to let go first: otherwise every tab still
+    // attached to it receives the same `call.initiate`, and each one places the
+    // call.
+    const existing = await this.sessionRepo.findByCampaignAndUser(
+      data.campaignId,
+      data.userId,
+    );
+    if (existing && existing.status !== AgentSessionStatus.offline) {
+      await this.retire(existing);
+    }
+
     const session = await this.sessionRepo.upsert(data);
 
     this.logger.log(
@@ -42,10 +59,7 @@ export class AgentSessionService {
   async endSession(sessionId: string) {
     const session = await this.getSession(sessionId);
 
-    // Release any locked lead
-    if (session.currentLeadId) {
-      await this.campaignLeadRepo.releaseLock(session.currentLeadId);
-    }
+    await this.releaseCurrentLead(session);
 
     return this.sessionRepo.markOffline(sessionId);
   }
@@ -98,6 +112,33 @@ export class AgentSessionService {
     return this.sessionRepo.updateStatus(sessionId, status, extra);
   }
 
+  /**
+   * Compare-and-set transition (see `AgentSessionRepository.transitionIf`).
+   * Anything that races the dialer poll loop moves a session through here.
+   */
+  async transitionIf(
+    sessionId: string,
+    expected: { from: AgentSessionStatus[]; currentLeadId?: string | null },
+    status: AgentSessionStatus,
+    extra?: Partial<Pick<AgentSession, "currentLeadId" | "endedAt">>,
+  ): Promise<boolean> {
+    return this.sessionRepo.transitionIf(sessionId, expected, status, extra);
+  }
+
+  /**
+   * Claim a `ready` agent for one lead. Atomic: of every writer racing for the
+   * same agent — overlapping poll ticks, a second API instance — exactly one
+   * gets them, and each loser must hand its lead back.
+   */
+  async claimForLead(sessionId: string, leadId: string): Promise<boolean> {
+    return this.sessionRepo.transitionIf(
+      sessionId,
+      { from: [AgentSessionStatus.ready] },
+      AgentSessionStatus.reserved,
+      { currentLeadId: leadId },
+    );
+  }
+
   async incrementStats(
     sessionId: string,
     stats: {
@@ -117,6 +158,11 @@ export class AgentSessionService {
     return this.sessionRepo.findActiveByCampaign(campaignId);
   }
 
+  /** Every session the dialer has told a browser to place a call for. */
+  async findDialing() {
+    return this.sessionRepo.findByStatus(AgentSessionStatus.dialing);
+  }
+
   /**
    * Immediately removes a user from every campaign dialer. Lead locks are
    * released best-effort, while marking the session offline is authoritative.
@@ -124,15 +170,11 @@ export class AgentSessionService {
   async disableForUser(userId: string): Promise<number> {
     const sessions = await this.sessionRepo.findActiveByUser(userId);
     for (const session of sessions) {
-      if (session.currentLeadId) {
-        await this.campaignLeadRepo
-          .releaseLock(session.currentLeadId)
-          .catch((error) =>
-            this.logger.warn(
-              `Could not release lead ${session.currentLeadId} while disabling agent ${userId}: ${error instanceof Error ? error.message : String(error)}`,
-            ),
-          );
-      }
+      await this.releaseCurrentLead(session).catch((error) =>
+        this.logger.warn(
+          `Could not release lead ${session.currentLeadId} while disabling agent ${userId}: ${error instanceof Error ? error.message : String(error)}`,
+        ),
+      );
       await this.sessionRepo.markOffline(session.id);
       this.sseBridge.emit(`agent:${session.id}`, "session.state", {
         status: "offline",
@@ -172,13 +214,10 @@ export class AgentSessionService {
     let count = 0;
 
     for (const session of staleSessions) {
-      // Release any locked lead
-      if (session.currentLeadId) {
-        try {
-          await this.campaignLeadRepo.releaseLock(session.currentLeadId);
-        } catch {
-          // Lead may already be unlocked
-        }
+      try {
+        await this.releaseCurrentLead(session);
+      } catch {
+        // Lead may already be unlocked
       }
 
       await this.sessionRepo.markOffline(session.id);
@@ -189,6 +228,57 @@ export class AgentSessionService {
     }
 
     return count;
+  }
+
+  /**
+   * Let go of a session that is being started again somewhere else.
+   *
+   * Refused while it is on a call and its browser is still heartbeating:
+   * resetting it then would strand that call without a hang-up button and put
+   * its lead back in the queue while someone is still talking to them. Any
+   * other state is handed over — its lead goes back to the queue, and every tab
+   * still attached to the row is told it no longer owns it.
+   */
+  private async retire(existing: AgentSession): Promise<void> {
+    const onCall =
+      existing.status === AgentSessionStatus.dialing ||
+      existing.status === AgentSessionStatus.in_call;
+    const heartbeating =
+      Date.now() - new Date(existing.lastHeartbeat).getTime() <
+      HEARTBEAT_STALE_MS;
+    if (onCall && heartbeating) {
+      throw new ConflictException(
+        "This campaign's dialer is on a call in another tab or device. End that call before starting the dialer here.",
+      );
+    }
+
+    await this.releaseCurrentLead(existing);
+    this.sseBridge.emit(`agent:${existing.id}`, "session.state", {
+      status: AgentSessionStatus.offline,
+      reason: "taken_over",
+    });
+    this.logger.log(
+      `Session ${existing.id} (${existing.status}) was started again elsewhere — previous incarnation released`,
+    );
+  }
+
+  /**
+   * Hand a session's current lead back to the queue, together with the attempt
+   * it was holding for it when that attempt never dialed. Only a lead this
+   * session still holds is released.
+   */
+  private async releaseCurrentLead(session: AgentSession): Promise<void> {
+    if (!session.currentLeadId) return;
+    const undialed = await this.attemptRepo.findUndialedForSession(
+      session.id,
+      session.currentLeadId,
+    );
+    if (undialed) {
+      await this.attemptRepo.deleteUndialed(undialed.id);
+    }
+    await this.campaignLeadRepo.releaseLock(session.currentLeadId, {
+      lockedBy: session.id,
+    });
   }
 
   private async getSession(sessionId: string) {

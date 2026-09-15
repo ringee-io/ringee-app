@@ -44,10 +44,14 @@ export class LeadQueueService {
   }
 
   /**
-   * Release a locked lead back to the queue.
+   * Release a locked lead back to the queue (see
+   * `CampaignLeadRepository.releaseLock` for the options).
    */
-  async releaseLead(leadId: string): Promise<void> {
-    await this.campaignLeadRepo.releaseLock(leadId);
+  async releaseLead(
+    leadId: string,
+    options: { lockedBy?: string; nextCallAt?: Date } = {},
+  ): Promise<void> {
+    await this.campaignLeadRepo.releaseLock(leadId, options);
     this.logger.debug(`Released lead ${leadId} back to queue`);
   }
 

@@ -192,6 +192,14 @@ export class CampaignRepository {
   }
 
   /**
+   * Active campaigns as the dialer poll loop reads them — twice a second, so
+   * without the per-campaign lead count {@link findAllActive} pays for.
+   */
+  async findActiveForDialer(): Promise<Campaign[]> {
+    return this.prisma.campaign.findMany({ where: { status: "active" } });
+  }
+
+  /**
    * `Campaign.status` is a String column, not a Prisma enum, so the type here
    * is the only thing preventing an arbitrary value from being persisted.
    * Keep it narrowed to CampaignStatus.

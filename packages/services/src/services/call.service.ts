@@ -589,6 +589,26 @@ export class CallService implements OnModuleDestroy {
   }
 
   /**
+   * A backstop just hung up a leg. When the leg was a campaign dial, hand its
+   * assignment back so the agent is not left `dialing` a call that no longer
+   * exists. Best-effort: the leg is already down either way.
+   */
+  private async releaseRefusedCampaignLeg(
+    callAttemptId: string | null,
+    userId: string,
+    blocked: { reason: string; message: string },
+  ): Promise<void> {
+    if (!callAttemptId) return;
+    await this.callAttemptService
+      .handleDialRefused(callAttemptId, userId, blocked)
+      .catch((err: Error) =>
+        this.logger.warn(
+          `Could not release refused campaign attempt ${callAttemptId}: ${err.message}`,
+        ),
+      );
+  }
+
+  /**
    * Extract callAttemptId from the leg's client state if present.
    * Returns null if the call is not a campaign call.
    */
@@ -1044,14 +1064,58 @@ export class CallService implements OnModuleDestroy {
           };
         }
 
+        // A campaign leg names its CallAttempt in `client_state`. When that
+        // attempt really was handed to this user, the call is the campaign's:
+        // its credit gate and its bill belong to the campaign's organization,
+        // not to whichever organization the agent's browser has active. Read
+        // from the header, a switch of organization in another tab made this
+        // backstop hang up every leg the dialer placed.
+        const initiatedAttemptId = this.extractCallAttemptId(event.clientState);
+        if (initiatedAttemptId && !ringeeSessionId) {
+          const campaignLeg = await this.callAttemptService
+            .resolveCampaignLeg(initiatedAttemptId, outboundCtx.userId)
+            .catch(() => null);
+          if (
+            campaignLeg &&
+            campaignLeg.organizationId !== outboundCtx.organizationId
+          ) {
+            this.logger.warn(
+              `Campaign leg ${callControlId} attributed to the campaign's organization ${campaignLeg.organizationId} ` +
+                `(browser sent ${outboundCtx.organizationId ?? "none"})`,
+            );
+            outboundCtx = {
+              ...outboundCtx,
+              organizationId: campaignLeg.organizationId,
+            };
+          }
+        }
+
         // Credit-only gate: callers need credit > 0 to place calls.
         if (!(await this.ensureCallAffordable(outboundCtx, callControlId))) {
+          await this.releaseRefusedCampaignLeg(
+            initiatedAttemptId,
+            outboundCtx.userId,
+            {
+              reason: "CALL_REFUSED",
+              message:
+                "The call was stopped: there is no credit left, or calling is disabled for you. Dialing is paused.",
+            },
+          );
           return;
         }
 
         // One call at a time per user, across every device. Enforced here too
         // because the browser places the WebRTC leg and can bypass pre-flight.
         if (!(await this.ensureNoConcurrentCall(outboundCtx, callControlId))) {
+          await this.releaseRefusedCampaignLeg(
+            initiatedAttemptId,
+            outboundCtx.userId,
+            {
+              reason: "CONCURRENT_CALL",
+              message:
+                "The call was stopped because you are already on another call. Dialing is paused — resume when you're free.",
+            },
+          );
           return;
         }
 
@@ -1098,12 +1162,11 @@ export class CallService implements OnModuleDestroy {
         }
 
         // Link to campaign call attempt if present
-        const initiatedAttemptId = this.extractCallAttemptId(event.clientState);
         if (initiatedAttemptId && outboundCall) {
           await this.callAttemptService.handleWebhookEvent(
             initiatedAttemptId,
             eventType,
-            outboundCall.id,
+            outboundCall,
           );
         }
 
@@ -1146,7 +1209,7 @@ export class CallService implements OnModuleDestroy {
           await this.callAttemptService.handleWebhookEvent(
             answeredAttemptId,
             eventType,
-            answeredCall.id,
+            answeredCall,
           );
         }
 
@@ -1200,7 +1263,7 @@ export class CallService implements OnModuleDestroy {
           await this.callAttemptService.handleWebhookEvent(
             hangupAttemptId,
             eventType,
-            hangupCall.id,
+            hangupCall,
           );
         }
         if (hangupCall) {

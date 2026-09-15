@@ -119,12 +119,15 @@ describe("rotation across dial surfaces", () => {
   it("preview campaigns use the same rotation, caps and reservation gates as progressive campaigns", async () => {
     const events: string[] = [];
     const states: string[] = [];
+    const releases: Array<{ to: string; reason?: string; deferred: boolean }> =
+      [];
     let allow = true;
     let selection: typeof selected | typeof refusal = refusal;
     const service: DialerOrchestrationService = Object.assign(
       Object.create(DialerOrchestrationService.prototype),
       {
-        logger: { warn() {}, log() {} },
+        logger: { warn() {}, log() {}, error() {} },
+        cooldownUntil: new Map(),
         agentSessionService: {
           getById: async () => ({
             id: "session",
@@ -133,8 +136,17 @@ describe("rotation across dial surfaces", () => {
             campaignId: "campaign",
             ...ctx,
           }),
-          transitionTo: async (_id: string, state: string) => {
+          transitionIf: async (
+            _id: string,
+            expected: { from: string[]; currentLeadId?: string },
+            state: string,
+          ) => {
+            assert.deepEqual(expected, {
+              from: ["reserved"],
+              currentLeadId: "lead",
+            });
             states.push(state);
+            return true;
           },
         },
         campaignRepo: {
@@ -151,12 +163,29 @@ describe("rotation across dial surfaces", () => {
           getLeadById: async () => ({
             id: "lead",
             campaignId: "campaign",
+            lockedBy: "session",
             contact: { phoneNumber: "+12125550123" },
           }),
-          releaseLead: async () => {},
         },
+        userService: { getCachedUserById: async () => ({ canCall: true }) },
+        creditService: { getBalance: async () => 100 },
         callAttemptService: {
-          getAttemptHistory: async () => [{ id: "attempt" }],
+          findUndialedForSession: async () => ({ id: "attempt" }),
+          markDialing: async () => true,
+          releaseUndialed: async (input: {
+            attemptId: string | null;
+            to: string;
+            deferLeadUntil?: Date;
+            blocked?: { reason: string };
+          }) => {
+            assert.equal(input.attemptId, "attempt");
+            releases.push({
+              to: input.to,
+              reason: input.blocked?.reason,
+              deferred: !!input.deferLeadUntil,
+            });
+            return true;
+          },
         },
         callerIdRotationService: {
           selectForDial: async (
@@ -182,28 +211,38 @@ describe("rotation across dial surfaces", () => {
         },
       },
     );
+    // Refused by the caller-ID selector: the lease goes back, the lead is
+    // pushed back in the queue, the agent returns to ready. No dial.
     await service.manualDial(ctx, "session", "campaign");
-    assert.deepEqual(events, ["released", "call.blocked", "session.state"]);
-    assert.deepEqual(states, ["ready"]);
+    assert.deepEqual(events, ["released"]);
+    assert.deepEqual(states, []);
+    assert.deepEqual(releases, [
+      { to: "ready", reason: "NO_CALLER_ID", deferred: true },
+    ]);
     events.length = 0;
-    states.length = 0;
+    releases.length = 0;
     selection = selected;
     await service.manualDial(ctx, "session", "campaign");
-    assert.deepEqual(events, ["call.initiate"]);
+    assert.deepEqual(events, ["session.state", "call.initiate"]);
     assert.deepEqual(states, ["dialing"]);
+    assert.deepEqual(releases, []);
     events.length = 0;
     states.length = 0;
     allow = false;
     await service.manualDial(ctx, "session", "campaign");
     assert.ok(!events.includes("call.initiate"));
-    assert.deepEqual(events, ["call.blocked", "session.state"]);
-    assert.deepEqual(states, ["ready"]);
+    assert.deepEqual(events, []);
+    assert.deepEqual(states, []);
+    assert.deepEqual(releases, [
+      { to: "ready", reason: "CONCURRENT_CALL", deferred: false },
+    ]);
     await assert.rejects(
       service.manualDial(ctx, "session", "different-campaign"),
       /does not match/,
     );
     events.length = 0;
     states.length = 0;
+    releases.length = 0;
     await assert.rejects(
       service.manualDial(
         { ...ctx, userId: "different-user" },
@@ -222,5 +261,6 @@ describe("rotation across dial surfaces", () => {
     );
     assert.deepEqual(events, []);
     assert.deepEqual(states, []);
+    assert.deepEqual(releases, []);
   });
 });

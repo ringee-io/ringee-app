@@ -372,8 +372,16 @@ export class CampaignLeadRepository {
    * would let it be dialed again, which is a compliance violation.
    *
    * Returns the number of leads actually released (0 if it was already terminal).
+   *
+   * `lockedBy` releases only a lead that session still holds: a lock the stale
+   * sweep already recovered may have been claimed by another agent since, and
+   * releasing it would put a lead that agent is calling back in the queue.
+   * `nextCallAt` keeps a released lead from being handed straight back out.
    */
-  async releaseLock(id: string): Promise<number> {
+  async releaseLock(
+    id: string,
+    options: { lockedBy?: string; nextCallAt?: Date } = {},
+  ): Promise<number> {
     const result = await this.prisma.campaignLead.updateMany({
       where: {
         id,
@@ -385,14 +393,42 @@ export class CampaignLeadRepository {
             CampaignLeadStatus.wrap_up,
           ],
         },
+        ...(options.lockedBy ? { lockedBy: options.lockedBy } : {}),
       },
       data: {
         status: CampaignLeadStatus.queued,
         lockedBy: null,
         lockedAt: null,
+        ...(options.nextCallAt ? { nextCallAt: options.nextCallAt } : {}),
       },
     });
     return result.count;
+  }
+
+  /**
+   * Move a lead the session still holds forward in its call — `in_call` on
+   * answer, `wrap_up` on hangup — without regressing it. A lead that was
+   * already dispositioned, re-queued or claimed by someone else is left alone.
+   */
+  async advanceIfHeldBy(
+    id: string,
+    lockedBy: string,
+    status:
+      | typeof CampaignLeadStatus.in_call
+      | typeof CampaignLeadStatus.wrap_up,
+  ): Promise<boolean> {
+    const from: CampaignLeadStatus[] = [
+      CampaignLeadStatus.locked,
+      CampaignLeadStatus.dialing,
+    ];
+    if (status === CampaignLeadStatus.wrap_up) {
+      from.push(CampaignLeadStatus.in_call);
+    }
+    const result = await this.prisma.campaignLead.updateMany({
+      where: { id, lockedBy, status: { in: from } },
+      data: { status },
+    });
+    return result.count === 1;
   }
 
   /**

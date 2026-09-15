@@ -5,6 +5,10 @@ import {
   useDialerSessionStore,
   type AgentSessionStatus
 } from '../store/dialer-session.store';
+import {
+  isLiveCallState,
+  useDialerCallStore
+} from '../store/dialer-call.store';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { Checkbox } from '@ringee/frontend-shared/components/ui/checkbox';
 import { Label } from '@ringee/frontend-shared/components/ui/label';
@@ -51,6 +55,11 @@ export function DialerStatusBar({
   const dialerMode = useDialerSessionStore((s) => s.dialerMode);
   const closeAfterLead = useDialerSessionStore((s) => s.closeAfterLead);
   const setCloseAfterLead = useDialerSessionStore((s) => s.setCloseAfterLead);
+  // The leg itself, not only the session status: ending or pausing the
+  // session under a call that is still up strands it without a hang-up button
+  // and hands its lead to the queue while someone is on the line.
+  const callLive = useDialerCallStore((s) => isLiveCallState(s.state));
+  const onCall = callLive || status === 'in_call' || status === 'dialing';
   const contactRate =
     stats.callsAttempted > 0
       ? Math.round((stats.callsConnected / stats.callsAttempted) * 100)
@@ -62,6 +71,7 @@ export function DialerStatusBar({
         <Button
           variant='ghost'
           size='icon'
+          disabled={callLive}
           onClick={() => router.push(`/dashboard/campaigns/${campaignId}`)}
         >
           <ArrowLeft className='h-4 w-4' />
@@ -104,13 +114,17 @@ export function DialerStatusBar({
         )}
 
         {status === 'paused' ? (
-          <Button variant='outline' size='sm' onClick={onResume}>
+          <Button
+            variant='outline'
+            size='sm'
+            onClick={onResume}
+            disabled={callLive}
+          >
             <Play className='mr-1 h-3.5 w-3.5' />
             {t('resume')}
           </Button>
         ) : (
-          status !== 'in_call' &&
-          status !== 'dialing' && (
+          !onCall && (
             <Button variant='outline' size='sm' onClick={onPause}>
               <Pause className='mr-1 h-3.5 w-3.5' />
               {t('pause')}
@@ -121,7 +135,7 @@ export function DialerStatusBar({
           variant='destructive'
           size='sm'
           onClick={onEnd}
-          disabled={status === 'in_call' || status === 'dialing'}
+          disabled={onCall}
         >
           <Square className='mr-1 h-3.5 w-3.5' />
           {t('endSession')}

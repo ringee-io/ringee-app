@@ -525,7 +525,10 @@ Default 3, enforced inside `lockNextLead`. Exhausted leads move to `exhausted`.
 ### CMP-007 — Progressive mode refuses to assign a lead to a busy agent
 
 A cheap pre-check runs before any lock or attempt row is created, so an agent on
-a call does not burn attempts. The lease-acquiring check still happens at dial.
+a call does not burn attempts. The lease-acquiring check still happens at dial,
+together with the rest of the dial gates (enablement, credit, caller ID) — and in
+progressive mode all of them run **before** the `CallAttempt` exists, so a
+refused dial leaves no attempt behind.
 
 - **Why:** burning attempts while an agent talks poisons campaign analytics
 
@@ -567,6 +570,97 @@ ends the session — in the same request that wrote the disposition.
   handed the next lead and dialed it
 - **Do not** re-implement "stop after this lead" as a client-side end-session
   call, a pause, or a flag the poller reads later — all three race the tick.
+- The resulting `session.state` is emitted by the service the moment the session
+  moves, before anything else is awaited. Emitted later (it used to come from the
+  controller, after the request finished) it could reach the browser behind the
+  next lead's `lead.assigned` and wipe that lead off the screen mid-dial.
+
+### CMP-012 — An agent is dialed for exactly one lead at a time
+
+The poll never runs two ticks at once in a process, and every writer claims an
+agent with a compare-and-set (`AgentSessionService.claimForLead`: `ready →
+reserved`). The move to `dialing` is compare-and-set on the same lead, and only
+it emits `call.initiate`. A tick that loses the claim hands its lead straight
+back.
+
+- **Source of truth:** `DialerOrchestrationService.runTick` / `assignLeadToAgent` / `startDial`
+- **Why:** a tick outlasts the 500ms interval routinely (a provider liveness
+  check alone can), and two ticks that both read one agent as `ready` each
+  locked a lead and told the browser to dial it. The one-call-at-a-time backstop
+  then hung up one leg as it rang — seen by agents and prospects as the dialer
+  "dialing and hanging up over and over".
+- **Risk if violated:** double dials, prospects rung and dropped, attempts burned
+
+### CMP-013 — A dial that never becomes a call leaves nothing behind, and does not repeat itself
+
+Every path that undoes an assignment goes through
+`CallAttemptService.releaseUndialed`: compare-and-set on the session holding the
+lead, then — only for the writer that won — discard the attempt that never had a
+leg, release the lead (only while this session still holds it) and, when the
+dial had been approved, the one-call-at-a-time lease. Where the agent goes
+depends on why:
+
+| Why the dial did not happen                                        | Agent goes to                     | Lead                      |
+| ------------------------------------------------------------------ | --------------------------------- | ------------------------- |
+| Already on a call (lease refused), caller-ID selector error        | `ready`, poller skips them for 5s | back as it was            |
+| No caller ID for the destination (country, daily cap, unparseable) | `ready`, 5s cooldown              | deferred 15 min           |
+| Rotation off and the agent may not present the campaign number     | `paused`                          | back as it was            |
+| No credit                                                          | `paused`                          | back as it was            |
+| Calling disabled for the user                                      | `offline`                         | back as it was            |
+| The `call.initiated` backstop hung the leg up                      | `paused`                          | back, attempt not counted |
+| The browser could not place it (`POST /dialer/abandon`)            | `paused`                          | back as it was            |
+| No provider leg 90s after `call.initiate` (stalled-dial sweep)     | `paused`                          | back as it was            |
+
+A preview Skip sends the lead behind the untried ones (`nextCallAt = now`), and a
+preview Dial is refused when the lead is no longer locked to the session.
+
+- **Source of truth:** `packages/services/src/services/outbound/dialer-orchestration.service.ts`
+- **Why:** every refusal used to put the agent back to `ready` with the same lead
+  at the head of the queue, so the next tick — 500ms later — refused again:
+  an attempt row and an alert every half second. A leg killed by the backstop,
+  or a dial the browser silently failed, left the agent `dialing` until they
+  recorded an outcome for a call that never happened.
+- **Do not** return the agent to `ready` after a leg was actually placed and
+  torn down: the next tick would repeat exactly that.
+
+### CMP-014 — Attempt, lead and session lifecycle writes are compare-and-set
+
+The hangup webhook and the agent's disposition both end attempts and routinely
+arrive together; Telnyx also redelivers and reorders. `markEndedIf` lets exactly
+one of them end the attempt, and only that writer counts it against the lead
+(`attempts`) and the session (`callsAttempted`). Lead moves are guarded on the
+lead's current status and `lockedBy`, session moves on the session still holding
+that lead. A disposition for an attempt whose lead has been dialed again since is
+refused.
+
+- **Source of truth:** `CallAttemptService.handleWebhookEvent` / `submitDisposition`
+- **Risk if violated:** a lead counted twice and exhausted early, a lead dragged
+  back to `wrap_up` after it was completed (the campaign never auto-completes),
+  an agent parked in `wrap_up` with nothing left to disposition
+
+### CMP-015 — A campaign leg belongs to the agent it was assigned to, in the campaign's organization
+
+The `callAttemptId` in a leg's `client_state` is written by the browser, so it is
+a claim: webhook events drive an attempt only when the leg's user is the
+attempt's `agentUserId`. When it is, `call.initiated` attributes the call — its
+credit gate and its bill — to the campaign's organization rather than to the
+organization the browser has active.
+
+- **Source of truth:** `CallService.handleTelephonyEvent` (`call.initiated`), `CallAttemptService.resolveCampaignLeg`
+- **Risk if violated:** one member's leg ending another member's attempt; a
+  campaign billed to the wrong workspace, and every leg hung up by the credit
+  backstop after a switch of organization in another tab
+
+### CMP-016 — Starting a campaign session again takes over the previous one
+
+An agent has one `AgentSession` row per campaign, so a second tab, another
+computer or a reload lands on the same id — and every tab attached to it would
+receive, and dial, the same `call.initiate`. `startSession` releases the previous
+incarnation's lead and tells its tabs `session.state offline` (`taken_over`); the
+browser also compares `startedAt` on each heartbeat. It is refused while that
+session is `dialing` or `in_call` with a live heartbeat.
+
+- **Source of truth:** `AgentSessionService.startSession`
 
 ---
 

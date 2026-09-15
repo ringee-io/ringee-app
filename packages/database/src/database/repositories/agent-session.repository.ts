@@ -20,6 +20,7 @@ export class AgentSessionRepository {
       },
       update: {
         status: AgentSessionStatus.ready,
+        currentLeadId: null,
         lastHeartbeat: new Date(),
         startedAt: new Date(),
         endedAt: null,
@@ -67,6 +68,10 @@ export class AgentSessionRepository {
     });
   }
 
+  async findByStatus(status: AgentSessionStatus): Promise<AgentSession[]> {
+    return this.prisma.agentSession.findMany({ where: { status } });
+  }
+
   async findActiveByUser(userId: string): Promise<AgentSession[]> {
     return this.prisma.agentSession.findMany({
       where: {
@@ -85,6 +90,36 @@ export class AgentSessionRepository {
       where: { id },
       data: { status, ...extra },
     });
+  }
+
+  /**
+   * Compare-and-set: move the session to `status` only while it is still in
+   * one of `expected.from` — and, when `expected.currentLeadId` is given, still
+   * holding exactly that lead. Returns whether this call made the move.
+   *
+   * The dialer's writers race each other: the poll tick, the provider's call
+   * webhooks and the agent's own requests. With a plain update whoever lands
+   * last wins, which let two ticks reserve one agent (two calls placed at once)
+   * and let a late hangup webhook drag an agent back into wrap-up after their
+   * disposition had already sent them on.
+   */
+  async transitionIf(
+    id: string,
+    expected: { from: AgentSessionStatus[]; currentLeadId?: string | null },
+    status: AgentSessionStatus,
+    extra?: Partial<Pick<AgentSession, "currentLeadId" | "endedAt">>,
+  ): Promise<boolean> {
+    const result = await this.prisma.agentSession.updateMany({
+      where: {
+        id,
+        status: { in: expected.from },
+        ...(expected.currentLeadId !== undefined
+          ? { currentLeadId: expected.currentLeadId }
+          : {}),
+      },
+      data: { status, ...extra },
+    });
+    return result.count === 1;
   }
 
   async heartbeat(id: string): Promise<AgentSession> {

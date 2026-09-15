@@ -6,6 +6,7 @@ import { useDialerSessionStore } from '../store/dialer-session.store';
 import { useDialerLeadStore } from '../store/dialer-lead.store';
 import { useDialerAttemptStore } from '../store/dialer-attempt.store';
 import { useDialerCall } from '../hooks/use-dialer-call';
+import { useTelnyxStore } from '@/features/calls/store/telnyx.store';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { DtmfKeypad } from '@ringee/dialer-ui';
 import {
@@ -55,6 +56,7 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
 
   const {
     activeCall,
+    callState,
     isMuted,
     isOnHold,
     isRecording,
@@ -65,6 +67,8 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
     sendDTMF,
     hangup
   } = useDialerCall();
+  const lineReady = useTelnyxStore((s) => s.status === 'registered');
+  const [dialRequested, setDialRequested] = useState(false);
 
   const [showDTMF, setShowDTMF] = useState(false);
   const [showSubtitles, setShowSubtitles] = useState(true);
@@ -75,9 +79,9 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
   const [localTimer, setLocalTimer] = useState(0);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Local call timer — start when Telnyx call becomes active
-  const callState = (activeCall as any)?.state;
-  const isConnected = callState === 'active';
+  // Local call timer — start when Telnyx call becomes active. A call on hold is
+  // still connected; counting it as not would reset the timer to zero.
+  const isConnected = callState === 'active' || callState === 'held';
   const isDialingWebRTC =
     callState === 'new' ||
     callState === 'trying' ||
@@ -141,19 +145,29 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
     }
   }, [activeCall, callState]);
 
+  // One Dial / Skip request at a time: a double click used to race two dials
+  // for the same lead.
   async function handleDial() {
+    if (dialRequested) return;
+    setDialRequested(true);
     try {
       await api.post('/dialer/dial', { sessionId, campaignId });
     } catch (err: any) {
       toast.error(err?.message || t('dialFailed'));
+    } finally {
+      setDialRequested(false);
     }
   }
 
   async function handleSkip() {
+    if (dialRequested) return;
+    setDialRequested(true);
     try {
       await api.post('/dialer/skip', { sessionId, campaignId });
     } catch (err: any) {
       toast.error(err?.message || t('skipFailed'));
+    } finally {
+      setDialRequested(false);
     }
   }
 
@@ -191,11 +205,20 @@ export function SoftphonePanel({ campaignId, sessionId }: Props) {
           </p>
         </div>
         <div className='flex gap-3'>
-          <Button size='lg' onClick={handleDial}>
+          <Button
+            size='lg'
+            onClick={handleDial}
+            disabled={dialRequested || !lineReady}
+          >
             <Phone className='mr-2 h-5 w-5' />
             {t('dial')}
           </Button>
-          <Button variant='outline' size='lg' onClick={handleSkip}>
+          <Button
+            variant='outline'
+            size='lg'
+            onClick={handleSkip}
+            disabled={dialRequested}
+          >
             <SkipForward className='mr-2 h-5 w-5' />
             {t('skip')}
           </Button>

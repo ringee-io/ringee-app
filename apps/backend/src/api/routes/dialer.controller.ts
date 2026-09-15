@@ -145,6 +145,28 @@ export class DialerController {
     );
   }
 
+  /**
+   * The browser could not place the call it was told to (no phone line, no
+   * microphone, the leg failed before the provider acknowledged it). Hands the
+   * assignment back and pauses the session.
+   */
+  @Post("abandon")
+  async abandonDial(
+    @Body() body: { sessionId: string; attemptId: string; reason?: string },
+    @CurrentUser() user: CurrentUserData,
+  ) {
+    this.requireOrg(user);
+    if (!body?.sessionId || !body?.attemptId) {
+      throw new BadRequestException("sessionId and attemptId are required");
+    }
+    return this.dialerOrchestration.abandonDial(
+      createOwnershipContext(user),
+      body.sessionId,
+      body.attemptId,
+      typeof body.reason === "string" ? body.reason : undefined,
+    );
+  }
+
   @Post("skip")
   async skipLead(
     @Body() body: { sessionId: string },
@@ -221,18 +243,11 @@ export class DialerController {
       closeSession: body.closeSession === true,
     });
 
-    // Tell the workspace where the session went: on to the next lead, or
-    // offline because the agent asked to stop after this one.
-    if (attempt.agentSessionId) {
-      this.sseBridge.emit(
-        `agent:${attempt.agentSessionId}`,
-        "session.state",
-        result.sessionClosed
-          ? { status: "offline", reason: "closed_after_lead" }
-          : { status: "ready" },
-      );
-    }
-
+    // Where the session went — on to the next lead, or offline because the
+    // agent asked to stop after this one — is pushed over SSE by the service,
+    // the moment it moves. Emitted from here, after the rest of the request,
+    // it could land behind the next lead the poller had already assigned and
+    // wipe that lead off the agent's screen mid-dial.
     return result;
   }
 

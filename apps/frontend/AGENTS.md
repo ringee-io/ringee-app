@@ -64,3 +64,11 @@ during the call so the agent can choose while they talk; the choice is saved
 when the call ends, and saving it is what advances the session to the next lead.
 An outcome that still needs input (a callback without its date) leaves the
 session waiting for the agent, which is deliberate.
+
+The campaign workspace places and follows its leg in exactly one place,
+`useDialerCallEngine` (mounted by `AgentWorkspace`), tracked by the leg's own
+call id in `dialer-call.store`. Do not add a second listener that maps "any
+outbound call" onto the attempt — a second leg's hangup used to clear the live
+call. A leg that ends before the provider acknowledged it (`trying`) never
+reached the server: report it through `POST /dialer/abandon`, or the agent is
+left `dialing` (`CMP-013`).

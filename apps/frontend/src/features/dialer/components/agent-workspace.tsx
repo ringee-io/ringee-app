@@ -3,7 +3,8 @@
 import { useCallback, useState } from 'react';
 import { useDialerSession } from '../hooks/use-dialer-session';
 import { useDialerEvents } from '../hooks/use-dialer-events';
-import { useDialerCall } from '../hooks/use-dialer-call';
+import { useDialerCallEngine } from '../hooks/use-dialer-call';
+import { useTelnyxStore } from '@/features/calls/store/telnyx.store';
 import { DialerStatusBar } from './dialer-status-bar';
 import { LeadPanel } from './lead-panel';
 import { SoftphonePanel } from './softphone-panel';
@@ -22,6 +23,7 @@ interface Props {
 export function AgentWorkspace({ campaignId }: Props) {
   const router = useRouter();
   const t = useTranslations('dialer.workspace');
+  const tCallStatus = useTranslations('calls.activeCallStatus');
   const {
     sessionId,
     status,
@@ -31,7 +33,11 @@ export function AgentWorkspace({ campaignId }: Props) {
     resumeSession
   } = useDialerSession(campaignId);
 
-  const { dial } = useDialerCall();
+  // The one place the campaign call is placed and followed.
+  const { dial } = useDialerCallEngine();
+  // A session started before the phone line registers would be handed a lead
+  // it cannot dial, and pause on the spot.
+  const lineReady = useTelnyxStore((s) => s.status === 'registered');
   const [starting, setStarting] = useState(false);
   const [startError, setStartError] = useState<string | null>(null);
 
@@ -99,10 +105,14 @@ export function AgentWorkspace({ campaignId }: Props) {
                 className='mt-6'
                 size='lg'
                 onClick={handleStart}
-                disabled={starting}
+                disabled={starting || !lineReady}
               >
                 <Play className='mr-2 h-5 w-5' />
-                {starting ? t('starting') : t('start')}
+                {starting
+                  ? t('starting')
+                  : lineReady
+                    ? t('start')
+                    : tCallStatus('connecting')}
               </Button>
             </CardContent>
           </Card>
