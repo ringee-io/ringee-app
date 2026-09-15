@@ -167,15 +167,29 @@ test suite skips this integration case when the variable is absent.
 ## Campaigns
 
 `DialerOrchestrationService` polls every 500 ms **in the API process**
-(`CMP-010`). Per tick, per active campaign:
+(`CMP-010`), one tick at a time (`CMP-012`). Per tick, per active campaign:
 
 1. Calling-window check (`CMP-004`) — outside it, nothing is dialed.
-2. Find `ready` agent sessions.
+2. Find `ready` agent sessions, skipping any still cooling down after a refused
+   dial (`CMP-013`).
 3. Progressive mode: skip agents already on a call (`CMP-007`).
 4. `SELECT FOR UPDATE SKIP LOCKED` the next eligible lead (`CMP-003`), respecting
    `maxAttempts` (`CMP-006`).
-5. Reserve the agent, create the `CallAttempt`, push `lead.assigned` over SSE.
-6. Progressive: dial immediately. Preview: wait for the agent to press Dial.
+5. Claim the agent, compare-and-set `ready → reserved` (`CMP-012`); a lost claim
+   hands the lead back.
+6. Preview: create the `CallAttempt`, push `lead.assigned`, wait for Dial.
+   Progressive: run the dial gates — enablement, credit, the one-call lease,
+   caller ID — then create the attempt, push `lead.assigned`, move the agent
+   from `reserved` to `dialing` and push `call.initiate`.
+
+A refused dial follows `CMP-013`. The same tick runs the stalled-dial sweep every
+10 s: a session `dialing` an attempt with no provider leg for 90 s is paused.
+
+The browser owns the leg once `call.initiate` arrives. The workspace tracks it by
+its own Telnyx call id (chosen before `newCall`, which reports the first state
+before it returns) and reads every `telnyx.notification` straight from the
+client. A leg that ends before the provider acknowledged it (`trying`) never
+reached the server, so the browser reports it with `POST /dialer/abandon`.
 
 Retries, callbacks and reminders are Temporal Schedules, not campaign-loop work.
 

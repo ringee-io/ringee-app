@@ -20,6 +20,12 @@ interface SessionStats {
 
 interface DialerSessionState {
   sessionId: string | null;
+  /**
+   * When the server (re)started this session. An agent has one session row per
+   * campaign, so a dialer opened again in another tab reuses the same id — this
+   * is what tells this tab's session apart from that one.
+   */
+  startedAt: string | null;
   campaignId: string | null;
   /** How the campaign dials — the backend returns it when the session starts. */
   dialerMode: DialerMode | null;
@@ -35,7 +41,8 @@ interface DialerSessionState {
   setSession: (
     sessionId: string,
     campaignId: string,
-    dialerMode: DialerMode | null
+    dialerMode: DialerMode | null,
+    startedAt: string | null
   ) => void;
   setStatus: (status: AgentSessionStatus) => void;
   setStats: (stats: SessionStats) => void;
@@ -45,6 +52,7 @@ interface DialerSessionState {
 
 const initialState = {
   sessionId: null as string | null,
+  startedAt: null as string | null,
   campaignId: null as string | null,
   dialerMode: null as DialerMode | null,
   status: 'offline' as AgentSessionStatus,
@@ -55,8 +63,8 @@ const initialState = {
 export const useDialerSessionStore = create<DialerSessionState>((set) => ({
   ...initialState,
 
-  setSession: (sessionId, campaignId, dialerMode) =>
-    set({ sessionId, campaignId, dialerMode, status: 'ready' }),
+  setSession: (sessionId, campaignId, dialerMode, startedAt) =>
+    set({ sessionId, campaignId, dialerMode, startedAt, status: 'ready' }),
 
   setStatus: (status) => set({ status }),
 
