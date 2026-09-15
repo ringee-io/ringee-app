@@ -30,7 +30,7 @@ export const PRIMARY_FLOW: Flow = {
   id: "outbound",
   title: "Outbound sales flow",
   description:
-    "Prospect → Reveal/Import Lead → Create/Update Contact → Create Call Session → Call → Outcome → Callback/Meeting → CRM Sync (future).",
+    "Prospect → Reveal/Import Lead → Create/Update Contact → Choose a human or AI operator → Call → Result → Callback/Meeting → CRM Sync (future).",
   steps: [
     {
       id: "prospect",
@@ -58,28 +58,26 @@ export const PRIMARY_FLOW: Flow = {
       produces: ["contactId"],
     },
     {
-      id: "session",
-      title: "Create call session",
-      action: "sessions.create",
+      id: "operator",
+      title: "Choose a human or AI operator",
       description:
-        "Queue the contact(s) into a magic-link dialing session. Sensitive: it mints shareable access — confirm first and share the joinUrl exactly.",
+        "Use the mode the user requests. For a human call, create a magic-link session and let the teammate dial. For an AI call, resolve a configured voice agent and its required variables first.",
       requires: ["contactId"],
-      produces: ["callSessionId", "joinUrl", "callId (after dialing)"],
+      produces: ["callingMode", "agentId (AI only)"],
     },
     {
       id: "call",
-      title: "Call",
+      title: "Place the human or AI call",
       description:
-        "The user (or a collaborator) dials through the session in the Ringee dialer. The agent does not place calls server-side.",
-      requires: ["callSessionId"],
+        "Human path: create_call_session, share the joinUrl exactly, and the user or collaborator dials. AI path: explain that this is a real billed call, get explicit confirmation, then start_ai_voice_agent_call; the configured voice agent places the call and holds the conversation.",
+      requires: ["contactId", "callingMode"],
       produces: ["callId"],
     },
     {
-      id: "outcome",
-      title: "Log outcome",
-      action: "outcomes.log",
+      id: "result",
+      title: "Capture the result",
       description:
-        "Record how the call went (meeting_booked, interested, voicemail, …) against the callId.",
+        "For a human call, log the outcome against the callId. For an AI voice-agent call, read its status, outcome, summary and extracted data with get_ai_voice_agent_call.",
       requires: ["callId"],
     },
     {

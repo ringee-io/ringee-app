@@ -17,22 +17,22 @@ import { COMPARISONS } from '@/features/marketing/content/comparisons';
 export const metadata: Metadata = buildMetadata({
   title: 'Ringee Alternatives — Aircall, JustCall, Kixie & Orum',
   description:
-    'Compare Ringee to per-seat outbound calling tools like Aircall, JustCall, Kixie, and Orum. Flat team pricing, pay-as-you-go calling, open source, self-hostable, and agentic by design.',
+    'Compare Ringee’s human and AI calling infrastructure to Aircall, JustCall, Kixie, and Orum. Flat pricing, pay-as-you-go usage, open source, and self-hostable.',
   path: '/alternatives'
 });
 
 const DIFFERENTIATORS = [
   {
-    title: 'Flat pricing, no per-seat tax',
-    body: 'Free for one person, then a flat $20/month per organization with unlimited users. A 12-person team pays $20/month flat instead of roughly $360/month on a typical ~$30/seat tool.'
+    title: 'Flat pricing, no per-user tax',
+    body: 'Free for one person, then a flat $20/month per organization with unlimited users. A 12-person team pays $20/month flat instead of roughly $360/month on a typical ~$30/user tool.'
   },
   {
     title: 'Open source & self-hostable',
     body: 'The whole stack is MIT-licensed and on GitHub. Audit the code or run Ringee on your own infrastructure — something the proprietary alternatives do not offer.'
   },
   {
-    title: 'Agentic by design',
-    body: 'Ringee ships an MCP server, so Claude, ChatGPT, MCP agents, and the CLI can prospect, build lists, log outcomes, and book follow-ups. A human always takes the call.'
+    title: 'Human + AI calling',
+    body: 'Ringee is one calling stack for both operators: teammates can dial from its apps and SDK, while configured AI voice agents place outbound calls and hold conversations. MCP connects the whole workflow.'
   },
   {
     title: 'Pay-as-you-go calling',
@@ -42,9 +42,9 @@ const DIFFERENTIATORS = [
 
 const ALTERNATIVES_FAQS = [
   {
-    question: 'What is the best alternative to per-seat calling software?',
+    question: 'What is the best alternative to per-user calling software?',
     answer:
-      'If you want to avoid per-seat pricing, Ringee offers a free plan for individuals and a flat $20/month organization plan with unlimited users, plus pay-as-you-go calling. It is also open source and self-hostable, unlike Aircall, JustCall, Kixie, and Orum.'
+      'If you want to avoid per-user pricing, Ringee offers a free plan for individuals and a flat $20/month organization plan with unlimited users, plus pay-as-you-go calling. It is also open source and self-hostable, unlike Aircall, JustCall, Kixie, and Orum.'
   },
   {
     question: 'How does Ringee compare to Aircall, JustCall, Kixie, and Orum?',
@@ -54,7 +54,7 @@ const ALTERNATIVES_FAQS = [
   {
     question: 'Is there a free Ringee plan?',
     answer:
-      'Yes. The Freelancer plan is $0/month and includes every feature for one person. You only pay for the calling credits you use.'
+      'Yes. The Freelancer plan is $0/month for one person and includes human calling, recording, transcription, meetings, integrations, and AI orchestration. AI voice agents and campaigns require an Organization workspace.'
   }
 ];
 
@@ -73,10 +73,11 @@ export default function AlternativesPage() {
             Ringee alternatives and comparisons
           </h1>
           <p className='text-muted-foreground mt-6 text-lg text-pretty'>
-            Most outbound calling tools charge per seat, keep your data locked
+            Most outbound calling tools charge per user, keep your data locked
             in, and were built before AI agents could do real work. Ringee is
-            the flat-priced, open-source, agentic alternative. Here is how it
-            compares to the tools teams evaluate most.
+            the flat-priced, open-source infrastructure where human teams and AI
+            voice agents call from the same stack. Here is how it compares to
+            the tools teams evaluate most.
           </p>
         </Container>
       </Section>

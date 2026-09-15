@@ -31,6 +31,7 @@ import {
 import { Label } from '@ringee/frontend-shared/components/ui/label';
 import { isValidCrispWebsiteId } from '@ringee/frontend-shared/components/crisp-chat';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { openIntercomChat } from '@/components/layout/intercom-chat';
 import AuthPageShell from './auth-page-shell';
 import type { PhoneAccessRequirements } from '../lib/phone-verification';
 
@@ -229,6 +230,9 @@ export default function VerifyPhoneView() {
     const email = user?.primaryEmailAddress?.emailAddress;
     const name = user?.fullName;
     const crispWebsiteId = process.env.NEXT_PUBLIC_CRISP_WEBSITE_ID;
+
+    // The auth layout already identified the user to Intercom.
+    if (openIntercomChat()) return;
 
     if (isValidCrispWebsiteId(crispWebsiteId) && window.$crisp) {
       if (email) window.$crisp.push(['set', 'user:email', [email]]);

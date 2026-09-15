@@ -1,6 +1,7 @@
 'use client';
 
 import Image from 'next/image';
+import { useTranslations } from 'next-intl';
 import Link from 'next/link';
 import { ArrowRight, Chrome, Globe, Smartphone } from 'lucide-react';
 
@@ -21,13 +22,13 @@ import {
   useFlowScroll
 } from './flow-primitives';
 import type { Connector, Sync } from './flow-primitives';
-import { SIGN_UP_URL } from '../site';
+import { PRICING, REQUEST_DEMO_URL } from '../site';
 
 /**
  * "The new era of dialing" — the full-bleed section before Agentic mode, and
  * the commercial argument the loop below assumes.
  *
- * The old dialer charged per seat, lived on one desktop, and made the rep type
+ * The old dialer charged per user, lived on one desktop, and made the rep type
  * up their own day. Ringee inverts all three: every screen a rep owns is a full
  * dialer, you pay $0.012 a minute instead of $30 a head, and the call writes
  * itself into the pipeline. That is the whole pitch, and the section is built
@@ -87,7 +88,7 @@ const HEADLINE_STATS = [
   { value: '$0.012', unit: '/min', label: 'Pay-as-you-go, 180+ countries' },
   { value: '$20', unit: '/month', label: 'Flat. Whole team. Unlimited users.' },
   { value: '3', unit: 'surfaces', label: 'Web, phone, Chrome — one account' },
-  { value: '$0', unit: 'per seat', label: 'Hiring never raises the bill' }
+  { value: '$0', unit: 'per added user', label: 'On the $20/month team plan' }
 ];
 
 const SURFACES: Connector[] = [
@@ -96,7 +97,7 @@ const SURFACES: Connector[] = [
     line: 'The whole workspace. Campaigns, history, recordings, transcripts.',
     feeds: 'Covers 01 → 04',
     marks: [WEB],
-    note: 'No install. No seat.'
+    note: 'No install. No per-user fee.'
   },
   {
     label: 'iPhone & Android',
@@ -577,7 +578,7 @@ function WorksOn({ className }: { className?: string }) {
         ))}
       </div>
       <span className='text-muted-foreground text-xs'>
-        + one account, no per-seat tax
+        + one account, no per-user tax
       </span>
     </div>
   );
@@ -589,6 +590,7 @@ function WorksOn({ className }: { className?: string }) {
  * section header and the run would be asking for the sale before the argument.
  */
 function EverywhereNote({ className }: { className?: string }) {
+  const t = useTranslations('marketing.everywherePricing');
   return (
     <div
       className={cn(
@@ -599,17 +601,14 @@ function EverywhereNote({ className }: { className?: string }) {
       <WorksOn />
 
       <p className='text-muted-foreground text-sm leading-relaxed text-pretty'>
-        <span className='text-foreground font-semibold'>
-          Old dialers charge per seat.
-        </span>{' '}
-        Ringee charges per minute — and runs on every screen your reps already
-        own.
+        <span className='text-foreground font-semibold'>{t('noteTitle')}</span>{' '}
+        {t('noteDescription', { price: PRICING.organization.price })}
       </p>
       <Link
-        href={SIGN_UP_URL}
+        href={REQUEST_DEMO_URL}
         className='focus-visible:ring-offset-background inline-flex shrink-0 items-center justify-center gap-2 rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white shadow-lg shadow-emerald-700/20 transition-all hover:bg-emerald-700/90 focus-visible:ring-2 focus-visible:ring-emerald-500 focus-visible:ring-offset-2 focus-visible:outline-none active:scale-[0.98]'
       >
-        Start calling free
+        Request demo
         <ArrowRight className='h-4 w-4' aria-hidden />
       </Link>
     </div>
@@ -621,6 +620,7 @@ function EverywhereNote({ className }: { className?: string }) {
 /* ------------------------------------------------------------------ */
 
 export function EverywhereMode() {
+  const t = useTranslations('marketing.everywherePricing');
   const { stepRefs, active, revealed, jumpTo } = useFlowScroll();
 
   // Running count across phases, so a step's number is its place in the run.
@@ -638,11 +638,13 @@ export function EverywhereMode() {
             The new era of dialing
           </p>
           <h2 className='text-foreground mt-4 text-3xl font-bold tracking-tight text-balance sm:text-4xl lg:text-5xl'>
-            Every screen is a dialer. Every seat is free.
+            {t('headline')}
           </h2>
           <p className='text-muted-foreground mt-5 text-lg leading-relaxed text-pretty'>
-            Web, phone, and the tab you are already in — all dialing the same
-            account, all for $0.012 a minute.
+            {t('description')}
+          </p>
+          <p className='text-foreground mt-3 text-lg font-semibold'>
+            {t('teamPlan', { price: PRICING.organization.price })}
           </p>
         </div>
 
@@ -651,10 +653,7 @@ export function EverywhereMode() {
 
         {/* Movement one: the surfaces. */}
         <div className='mt-12 sm:mt-14'>
-          <Divider
-            label='Open it anywhere'
-            note='Three surfaces, zero extra seats'
-          />
+          <Divider label='Open it anywhere' note={t('surfacesNote')} />
           <div className='mt-5 grid gap-4 md:grid-cols-3'>
             {SURFACES.map((surface, index) => (
               <ConnectorCard

@@ -332,32 +332,33 @@ export const INTEGRATIONS: IntegrationContent[] = [
     name: 'ChatGPT',
     category: 'AI tools',
     icon: Sparkles,
-    tagline: 'Run outbound prep and follow-up from inside ChatGPT.',
+    tagline:
+      'Orchestrate human calls or trigger an AI voice agent from ChatGPT.',
     metaTitle: 'ChatGPT Integration | Ringee',
     metaDescription:
       'Use ChatGPT to drive Ringee outbound workflows — prospect, import leads, start calls, log outcomes, and schedule follow-ups through Ringee’s MCP tools.',
     h1: 'ChatGPT + Ringee: outbound from a conversation',
     intro: [
-      'Ringee exposes its outbound workflow through an MCP server, which means ChatGPT can use Ringee’s tools directly. Ask it to find leads, build a list, start a call, or schedule a follow-up — it does the prep so you can focus on the conversation.',
-      'Calls are sent to your active device for a human to take, and sensitive actions are guarded, so AI speeds up the busywork without taking over the relationship.'
+      'Ringee exposes its outbound workflow through an MCP server, which means ChatGPT can use Ringee’s tools directly. Ask it to find leads, build a list, start a human calling session, trigger a configured AI voice agent, or schedule a follow-up.',
+      'You choose who takes the conversation. ChatGPT can ring your active device for a human-led call, or start a Ringee voice agent that places the call, speaks with the person, and returns a structured result.'
     ],
     enables: [
       'Prospect and import leads from a chat',
       'Create and update contacts by asking',
-      'Start calls that ring your device',
-      'Log outcomes and book callbacks and meetings'
+      'Start human-led calls or AI voice agent calls',
+      'Read results, log outcomes, and book follow-ups'
     ],
     workflow: [
       'Ask ChatGPT to find leads that match your target.',
       'Have it import the best fits as Ringee contacts.',
-      'Tell it to start a call — Ringee rings your device.',
-      'Take the conversation yourself.',
-      'Ask ChatGPT to log the outcome and schedule a callback.'
+      'Choose a human calling session or one of your configured AI voice agents.',
+      'Start the real call after confirming the credit spend.',
+      'Review the outcome and schedule the right follow-up.'
     ],
     benefits: [
       'Less clicking through screens',
       'Outbound prep happens in your chat',
-      'Humans stay on every call',
+      'Human-led and AI-led calling from one workflow',
       'Guardrails on credit-spend and destructive actions'
     ],
     related: ['claude', 'mcp', 'apollo'],
@@ -370,7 +371,7 @@ export const INTEGRATIONS: IntegrationContent[] = [
       {
         question: 'Does ChatGPT make calls on its own?',
         answer:
-          'No. It prepares the work and starts a call that rings your active device. A person always takes the conversation.'
+          'ChatGPT can use Ringee to trigger a configured AI voice agent that places the outbound call and holds the conversation. It can also start a human-led call that rings your active device. Ringee asks for confirmation before a real billed voice-agent call.'
       },
       {
         question: 'How is this connected?',
@@ -387,30 +388,30 @@ export const INTEGRATIONS: IntegrationContent[] = [
     tagline: 'Use Claude to prospect, call, and follow up through Ringee.',
     metaTitle: 'Claude Integration | Ringee',
     metaDescription:
-      'Connect Claude to Ringee through MCP. Prospect leads, manage contacts, start calls, log outcomes, and schedule follow-ups from a Claude conversation.',
-    h1: 'Claude + Ringee: an AI co-pilot for outbound',
+      'Connect Claude to Ringee through MCP. Prospect leads, manage contacts, start human calls or AI voice agent calls, and handle results from a Claude conversation.',
+    h1: 'Claude + Ringee: orchestrate human and AI calling',
     intro: [
-      'Claude can drive Ringee through the same MCP server, with safety rules for sensitive operations. Ask Claude to research and import leads, queue a calling session, or handle the follow-up, and it uses Ringee’s tools to get it done.',
-      'The calls still come to you. Claude handles the repetitive prep and the after-call admin so your team spends more time talking to people.'
+      'Claude can drive Ringee through the same MCP server, with safety rules for sensitive operations. Ask Claude to research and import leads, queue a human calling session, trigger a configured AI voice agent, or handle the follow-up.',
+      'For human-led work, Ringee rings your device. For AI-led work, the Ringee voice agent places the call and holds the conversation asynchronously, then Claude can read the outcome and structured result.'
     ],
     enables: [
       'Search and import leads into Ringee',
       'Create call sessions and shareable dialer links',
-      'Start calls that ring your device',
-      'Log outcomes and schedule callbacks and meetings'
+      'Start calls for a human or an AI voice agent',
+      'Read results and schedule callbacks and meetings'
     ],
     workflow: [
       'Give Claude your outbound goal for the day.',
       'It builds a contact list from your lead source.',
-      'It queues a calling session for you to work.',
-      'You make the calls; Claude logs each outcome.',
+      'It selects a human queue or a configured AI voice agent.',
+      'Ringee runs the chosen calling mode and captures the result.',
       'It schedules the right follow-up for every lead.'
     ],
     benefits: [
       'Hands-off prospecting and admin',
       'Safety rules on destructive and sensitive actions',
       'Works alongside your existing workflow',
-      'Keeps the human on every conversation'
+      'Human-led and AI-led calls from the same stack'
     ],
     related: ['chatgpt', 'mcp', 'cli'],
     docs: {
@@ -439,24 +440,24 @@ export const INTEGRATIONS: IntegrationContent[] = [
     tagline: 'Connect any MCP-compatible agent to Ringee’s outbound toolset.',
     metaTitle: 'MCP Integration for AI Agents | Ringee',
     metaDescription:
-      'Ringee ships an MCP server so any MCP-compatible agent can prospect, manage contacts, start calls, and schedule follow-ups with built-in safety guardrails.',
+      'Ringee ships an MCP server so any compatible agent can prospect, manage contacts, start human calls or AI voice agent calls, and schedule follow-ups with safety guardrails.',
     h1: 'MCP: connect any agent to Ringee',
     intro: [
       'The Model Context Protocol (MCP) is an open standard for giving AI agents tools. Ringee provides an MCP server, so any MCP-compatible agent — not just ChatGPT or Claude — can read and act on your Ringee data.',
-      'Agents can search and import leads, manage contacts, create call sessions, start calls, log outcomes, and schedule callbacks and meetings, all within Ringee’s safety rules for sensitive and destructive actions.'
+      'Agents can search and import leads, manage contacts, create human calling sessions, list and trigger configured AI voice agents, read their call results, log outcomes, and schedule callbacks and meetings, all within Ringee’s safety rules for sensitive and destructive actions.'
     ],
     enables: [
       'Standard tool access for any MCP agent',
       'Lead prospecting, reveal, and import',
-      'Contact, call session, and callback management',
-      'Outcome logging and meeting scheduling'
+      'Human call sessions and AI voice agent calls',
+      'Call results, outcomes, callbacks, and meetings'
     ],
     workflow: [
       'Point your MCP-compatible agent at Ringee’s MCP server.',
       'The agent discovers Ringee’s outbound tools.',
-      'It runs your workflow — prospect, queue, call, log.',
+      'It runs your workflow — prospect, choose an operator, call, and log.',
       'Ringee enforces confirmation on sensitive steps.',
-      'Your team takes the calls and reviews results.'
+      'Your team reviews the human or AI call results in one history.'
     ],
     benefits: [
       'No vendor lock-in — use any MCP agent',
@@ -468,7 +469,7 @@ export const INTEGRATIONS: IntegrationContent[] = [
     docs: {
       href: DOCS_MCP_URL,
       description:
-        'Connect a client, browse all 19 tools with their trust levels, and read the workspace and safety rules.'
+        'Connect a client, browse Ringee’s tools and trust levels, and read the workspace and safety rules.'
     },
     faqs: [
       {
@@ -489,26 +490,26 @@ export const INTEGRATIONS: IntegrationContent[] = [
     category: 'AI tools',
     icon: Terminal,
     tagline:
-      'Script outbound workflows from your terminal and developer tooling.',
+      'Script human calling and AI voice agent workflows from your terminal.',
     metaTitle: 'CLI Workflows | Ringee',
     metaDescription:
-      'Drive Ringee outbound workflows from the command line. Script prospecting, contact management, and follow-ups for repeatable, developer-friendly automation.',
+      'Drive Ringee from the command line. Script prospecting, human call sessions, AI voice agent calls, results, and follow-ups for repeatable automation.',
     h1: 'CLI workflows for developer-driven outbound',
     intro: [
       'Ringee is built to be automated, not just clicked. Its MCP-based tooling lets you drive outbound workflows from the command line, your own scripts, and AI automation frameworks — ideal for developers and technical operators who want repeatable, version-controlled automation.',
-      'Wire Ringee into the agents and tools you already run so prospecting, contact management, meeting scheduling, and follow-up become part of your normal developer workflow.'
+      'Wire Ringee into the agents and tools you already run so prospecting, human calling sessions, AI voice agent calls, meeting scheduling, results, and follow-up become part of your normal developer workflow.'
     ],
     enables: [
       'Run outbound tasks from the terminal',
       'Script repeatable prospecting and follow-up',
-      'Automate contact and call session management',
+      'Start human sessions or AI voice agent calls',
       'Build Ringee into your own tooling'
     ],
     workflow: [
       'Connect your CLI workflow to Ringee’s tools.',
       'Script the prospecting and list-building steps.',
-      'Queue calling sessions programmatically.',
-      'Your team works the queue and logs outcomes.',
+      'Queue a human calling session or select a configured AI voice agent.',
+      'Start the call and read its result when the conversation ends.',
       'Automate the follow-up and reporting steps.'
     ],
     benefits: [
@@ -532,7 +533,7 @@ export const INTEGRATIONS: IntegrationContent[] = [
       {
         question: 'What can I automate from the CLI?',
         answer:
-          'The same outbound toolset available over MCP — prospecting, contacts, call sessions, outcomes, and follow-ups.'
+          'The outbound toolset available over MCP — prospecting, contacts, human call sessions, AI voice agent listing and calls, call results, outcomes, and follow-ups.'
       }
     ]
   }

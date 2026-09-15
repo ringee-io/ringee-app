@@ -23,8 +23,7 @@ export function MarketingFooter() {
               Ringee
             </Link>
             <p className='text-muted-foreground mt-3 max-w-xs text-sm text-pretty'>
-              Affordable outbound calling software for SDR teams, recruiters,
-              agencies, freelancers, and outbound operators.
+              Open calling infrastructure for human teams and AI voice agents.
             </p>
           </div>
 
@@ -57,8 +56,7 @@ export function MarketingFooter() {
 
         <div className='border-border/40 mt-12 flex flex-col-reverse items-center justify-between gap-5 border-t pt-8 sm:flex-row'>
           <p className='text-muted-foreground text-sm'>
-            &copy; {year} {SITE_NAME}. Affordable outbound calling for modern
-            teams.
+            &copy; {year} {SITE_NAME}. One calling stack for humans and AI.
           </p>
           <div className='text-muted-foreground flex items-center gap-5'>
             <Link

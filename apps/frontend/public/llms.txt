@@ -1,17 +1,19 @@
 # Ringee
 
-> Ringee is low-cost, pay-as-you-go outbound calling software built for the AI era. It helps freelancers, SDR teams, recruiters, agencies, startups, and outbound operators call leads worldwide, follow up faster, track outcomes, record and transcribe conversations in real time, book meetings to Google Calendar, sync activity with CRMs, and automate outbound from Claude, ChatGPT, MCP-compatible agents, and the CLI — without expensive per-seat pricing.
+> Ringee is open calling infrastructure where human teams and AI voice agents place real outbound calls from the same stack. Humans call from the browser, mobile apps, Chrome extension, or Dialer SDK; AI voice agents place calls, hold live conversations, use tools, and return structured results. Both share Ringee numbers, workspace credit, call history, recordings, transcripts, outcomes, and integrations. Ringee is open source, self-hostable, pay-as-you-go, and has no per-seat pricing.
 
 ## Key facts
 
 - Call leads worldwide from the browser, the Ringee Chrome extension, or the Ringee iOS and Android apps — no special hardware.
+- AI voice agents place real outbound phone calls and hold the live conversation. Current production blueprints book appointments and deliver reminders or notifications.
+- AI voice agent calls return a recording, transcript, outcome, summary, optional sentiment, and configured extraction fields to the same Ringee call history.
 - The Chrome extension lets you call with one click without leaving the page you are on: it detects phone numbers on any site and dials them from your browser using the same dialer, contacts, and call history as the web app.
 - Low-cost and pay-as-you-go: calling credits are billed separately, from $0.012/min, so you only pay for the minutes you use.
 - Pricing: Freelancer plan is $0/month; Organization plan is $20/month per organization.
-- The Freelancer plan includes every feature for one person; the Organization plan adds an organization, unlimited invited members, and calling campaigns.
+- The Freelancer plan covers human calling and automation for one person; an active Organization workspace adds unlimited invited members, calling campaigns, and AI voice agents.
 - The Organization plan includes unlimited users (no per-seat pricing).
 - Cost example: a 12-person team pays $20/month flat instead of roughly $360/month on a typical ~$30/seat tool — about $4,080 saved per year.
-- Agentic by design: drive Ringee from ChatGPT, Claude, any MCP-compatible agent, the CLI, or your own AI automation framework. Agents prepare the work; humans take the calls.
+- Agentic by design: ChatGPT, Claude, any MCP-compatible agent, the CLI, or your own automation can prepare human calling sessions or trigger configured AI voice agents that place and hold the calls.
 - Real-time call transcription works with or without recording — you can transcribe a call even when you do not store the audio.
 - Meetings: connect Google Calendar to schedule meetings from a call and keep them in sync automatically.
 - Calls are connected through Telnyx. Authentication is handled by Clerk; payments by Stripe.
@@ -29,7 +31,8 @@
 - [Call recording](https://www.ringee.io/features/call-recording): Capture every conversation.
 - [Real-time call transcription](https://www.ringee.io/features/call-transcription): Accurate, searchable transcripts, with or without recording.
 - [CRM sync](https://www.ringee.io/features/crm-sync): Keep your CRM in step with your calling.
-- [AI call automation](https://www.ringee.io/features/ai-call-automation): Let agents prospect, build lists, log outcomes, and book follow-ups.
+- [AI Voice Agents](https://www.ringee.io/ai-voice-agents): Build agents that place outbound calls, hold conversations, book meetings, deliver reminders, and return structured results.
+- [AI call automation](https://www.ringee.io/features/ai-call-automation): Orchestrate human calling sessions or trigger AI voice agents from ChatGPT, Claude, MCP-compatible agents, and the CLI.
 - [Dialer SDK](https://www.ringee.io/dialer-sdk): Embed the Ringee dialer in your own CRM or web app with the `@ringee/dialer-sdk` browser package.
 
 ## Integrations
@@ -49,7 +52,7 @@
 - [SDR teams](https://www.ringee.io/use-cases/sdr-teams): Keep reps dialing and dispositioning without per-seat costs.
 - [Recruiters](https://www.ringee.io/use-cases/recruiters): Call candidates and track outcomes.
 - [Agencies](https://www.ringee.io/use-cases/agencies): Run outbound for multiple clients.
-- [Freelancers](https://www.ringee.io/use-cases/freelancers): Every feature, free, for one person.
+- [Freelancers](https://www.ringee.io/use-cases/freelancers): Human calling and automation for one person with no monthly subscription.
 - [Startups](https://www.ringee.io/use-cases/startups): Affordable outbound that scales with the team.
 - [Outbound sales](https://www.ringee.io/use-cases/outbound-sales): Run the full outbound motion in one tool.
 
@@ -59,18 +62,19 @@
 - [Ringee vs Aircall](https://www.ringee.io/compare/aircall): Flat team pricing and open source vs per-seat.
 - [Ringee vs JustCall](https://www.ringee.io/compare/justcall): Pay-as-you-go calling vs per-seat plans.
 - [Ringee vs Kixie](https://www.ringee.io/compare/kixie): Open-source, agentic outbound vs per-seat.
-- [Ringee vs Orum](https://www.ringee.io/compare/orum): Human-led, AI-assisted dialing vs parallel dialer.
+- [Ringee vs Orum](https://www.ringee.io/compare/orum): Human and AI voice-agent calling vs parallel dialing.
 
 ## Pricing summary
 
-- Freelancer: $0/month — every feature for one person (manual dialer, recording, real-time transcription, meetings, prospecting, CRM sync, and AI automation). Pay only for calling credits.
-- Organization: $20/month per organization — adds an organization, unlimited invited members, and calling campaigns. Calling credits billed separately.
+- Freelancer: $0/month — human calling for one person, including the manual dialer, recording, real-time transcription, meetings, prospecting, CRM sync, and AI orchestration. Pay only for calling credits.
+- Organization: $20/month per organization — adds unlimited invited members, calling campaigns, and AI voice agents. Calling credits and AI voice/model usage are billed separately.
 - Calling is pay-as-you-go, from $0.012/min. No per-seat pricing on any plan.
 - [Pricing details](https://www.ringee.io/pricing)
 
 ## Main pages
 
 - [Home](https://www.ringee.io/): Product overview and cost calculator.
+- [AI Voice Agents](https://www.ringee.io/ai-voice-agents): Agents that place outbound calls and hold live conversations.
 - [Pricing](https://www.ringee.io/pricing): Plans, flat team pricing, and pay-as-you-go calling.
 - [Features](https://www.ringee.io/features): Full feature catalog.
 - [Integrations](https://www.ringee.io/integrations): Lead sources, CRMs, calendar, and AI tools.

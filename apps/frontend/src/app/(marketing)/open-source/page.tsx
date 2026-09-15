@@ -24,9 +24,9 @@ import { FaqSection } from '@/features/marketing/components/faq';
 import { CLI_NPM_URL, DOCS_URL, GITHUB_URL } from '@/features/marketing/site';
 
 export const metadata: Metadata = buildMetadata({
-  title: 'Open Source Outbound Calling | Ringee',
+  title: 'Open Source Calling Infrastructure for Humans & AI | Ringee',
   description:
-    'Ringee is open source and developer-friendly. Automate outbound with MCP-compatible agents and CLI workflows, inspect the code, and self-host. View the project on GitHub.',
+    'Ringee is open-source calling infrastructure for human teams and AI voice agents. Automate through MCP and CLI, inspect the code, and self-host.',
   path: '/open-source'
 });
 
@@ -34,7 +34,7 @@ const PILLARS = [
   {
     icon: Workflow,
     title: 'MCP-compatible agents',
-    body: 'Ringee ships an MCP server so any MCP-compatible agent — including ChatGPT and Claude — can drive outbound: prospecting, contacts, calls, outcomes, and follow-ups.'
+    body: 'Ringee ships an MCP server so any compatible agent — including ChatGPT and Claude — can drive prospecting, human calling sessions, AI voice agent calls, results, and follow-ups.'
   },
   {
     icon: Terminal,
@@ -91,7 +91,7 @@ export default function OpenSourcePage() {
             <Github className='h-3.5 w-3.5' /> Open source
           </div>
           <h1 className='text-4xl font-bold tracking-tight text-balance sm:text-5xl'>
-            Open source, developer-friendly outbound calling
+            Open calling infrastructure for human and AI operators
           </h1>
           <p className='text-muted-foreground mt-6 text-lg text-pretty'>
             Ringee is open source and built to be automated. Inspect the code,

@@ -20,11 +20,7 @@ import {
   TOOL_SURFACE,
   buildClaimsDocument
 } from '@/features/marketing/content/machine-view';
-import {
-  DOCS_MCP_CONNECT_URL,
-  DOCS_URL,
-  SITE_URL
-} from '@/features/marketing/site';
+import { DOCS_MCP_CONNECT_URL, SITE_URL } from '@/features/marketing/site';
 
 export const metadata: Metadata = buildMetadata({
   title: 'Machine view — what an AI agent sees on Ringee',
@@ -67,8 +63,8 @@ export default function MachineViewPage() {
               the surfaces Ringee actually serves.
             </p>
             <p className='text-muted-foreground/70 font-mono text-sm italic'>
-              what an agent sees · {TOOL_SURFACE.total} tools · one step that is
-              still a person&rsquo;s
+              what an agent sees · {TOOL_SURFACE.total} tools · human and AI
+              calling modes
             </p>
           </div>
         </div>
@@ -126,18 +122,24 @@ export default function MachineViewPage() {
 
         <div className='border-border/70 flex flex-col gap-6 border-t pt-12'>
           <h2 className='max-w-2xl text-2xl font-bold tracking-tight text-balance sm:text-3xl'>
-            Connect an agent, then let a person take the call
+            Connect an agent, then choose who takes the call
           </h2>
           <p className='text-muted-foreground max-w-2xl text-pretty'>
             Install the skills from this domain, point your MCP client at your
-            workspace URL, and the loop above runs on your own contacts.
+            workspace URL, and run a human calling session or trigger a
+            configured AI voice agent on your own contacts.
           </p>
           <div className='flex flex-col gap-3 sm:flex-row sm:gap-4'>
-            <ButtonLink href={DOCS_MCP_CONNECT_URL} external withArrow>
-              Connect the MCP server
+            <ButtonLink href='/ai-voice-agents' withArrow>
+              Explore AI Voice Agents
             </ButtonLink>
-            <ButtonLink href={DOCS_URL} variant='secondary' external withArrow>
-              Developer docs
+            <ButtonLink
+              href={DOCS_MCP_CONNECT_URL}
+              variant='secondary'
+              external
+              withArrow
+            >
+              Connect the MCP server
             </ButtonLink>
           </div>
         </div>

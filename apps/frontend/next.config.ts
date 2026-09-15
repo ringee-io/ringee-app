@@ -8,7 +8,7 @@ const withNextIntl = createNextIntlPlugin('./src/i18n/request.ts');
 // Security response headers applied to every route. HSTS, nosniff, framing,
 // referrer, and permissions are safe defaults. A full Content-Security-Policy
 // is intentionally NOT set here: the app loads Clerk, Stripe, Telnyx, GA,
-// Ahrefs, Crisp, Firebase and Sentry, so a CSP needs a carefully tested
+// Ahrefs, Crisp, Intercom, Firebase and Sentry, so a CSP needs a carefully tested
 // allowlist and should be added/validated against production separately.
 const securityHeaders = [
   {

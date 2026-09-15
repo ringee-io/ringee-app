@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 
-import { CrispChat } from '@ringee/frontend-shared/components/crisp-chat';
+import { SupportChat } from '@/components/layout/support-chat';
 import { AskAi } from '@/features/marketing/components/ask-ai';
 import { MarketingTopBanner } from '@/features/marketing/components/banner-top';
 import { MarketingFooter } from '@/features/marketing/components/footer';
@@ -52,7 +52,7 @@ export default function MarketingLayout({ children }: { children: ReactNode }) {
           page. Product/Software schema is declared on the homepage only. */}
       <JsonLd data={organizationJsonLd()} />
       <JsonLd data={webSiteJsonLd()} />
-      <CrispChat />
+      <SupportChat />
     </>
   );
 }

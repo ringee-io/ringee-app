@@ -21,7 +21,7 @@ import type { SessionLine, SessionLineKind } from '../content/machine-view';
  * around it does.
  */
 
-/** One colour per kind of line. The one human step is deliberately not green. */
+/** One colour per kind of line, including distinct human and AI call steps. */
 const LINE_STYLES: Record<SessionLineKind, string> = {
   cmd: 'text-emerald-300',
   out: 'text-zinc-400',
@@ -29,6 +29,7 @@ const LINE_STYLES: Record<SessionLineKind, string> = {
   tool: 'text-orange-200',
   note: 'text-zinc-500 italic',
   human: 'text-sky-300',
+  ai: 'text-violet-300',
   done: 'text-zinc-400'
 };
 
