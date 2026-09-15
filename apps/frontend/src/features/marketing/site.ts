@@ -73,8 +73,8 @@ export const SAME_AS = [
 
 /** Short, repeated calls to action. */
 export const CTA = {
-  primary: { label: 'Start calling free', href: SIGN_UP_URL },
-  secondary: { label: 'Request demo', href: REQUEST_DEMO_URL },
+  primary: { label: 'Request demo', href: REQUEST_DEMO_URL },
+  secondary: { label: 'View pricing', href: '/pricing' },
   login: { label: 'Log in', href: SIGN_IN_URL }
 } as const;
 
