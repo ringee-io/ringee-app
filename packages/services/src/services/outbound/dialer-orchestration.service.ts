@@ -593,6 +593,7 @@ export class DialerOrchestrationService implements OnModuleDestroy {
       deviceId: campaignDialDeviceId(agent.id),
       deviceLabel: "a campaign session",
       source: "campaign",
+      organizationId: campaign.organizationId,
     });
     if (!decision.allowed) {
       return refuse({

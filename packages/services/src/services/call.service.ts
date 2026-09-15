@@ -298,12 +298,25 @@ export class CallService implements OnModuleDestroy {
    * outbound leg and hangs up the newcomer when the user is already on a call,
    * so the rule holds no matter how the call was started.
    *
+   * Only a personal-workspace call is limited (CALL-001). An organization leg is
+   * let through without binding the lease, which would otherwise overwrite the
+   * reservation of a personal call running at the same time.
+   *
    * Returns false when the event must stop being processed.
    */
   private async ensureNoConcurrentCall(
     ctx: OwnershipContext,
     callControlId: string,
   ): Promise<boolean> {
+    if (
+      !(await this.concurrentCallGuard.appliesTo(
+        ctx.userId,
+        ctx.organizationId,
+      ))
+    ) {
+      return true;
+    }
+
     const busy = await this.concurrentCallGuard.findOccupyingCall(
       ctx.userId,
       callControlId,

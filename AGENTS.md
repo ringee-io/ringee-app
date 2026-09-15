@@ -91,8 +91,9 @@ Retries must never produce a duplicate call, charge, balance mutation, or event.
   and the balance move in one transaction.
 - Webhook handlers must be safe to replay; guard on a stored marker (a ledger
   key, a settled `totalCost`, a status transition) before causing a side effect.
-- One call at a time per user is enforced by `ConcurrentCallGuardService`. Any
-  new dial surface must go through it.
+- One call at a time per user in the personal workspace is enforced by
+  `ConcurrentCallGuardService` (organizations are not limited). Any new dial
+  surface must go through it.
 
 ## Security
 

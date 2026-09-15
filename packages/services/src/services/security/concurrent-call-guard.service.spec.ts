@@ -3,7 +3,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { CallStatus } from "@ringee/database";
-import type { Call, CallRepository } from "@ringee/database";
+import type {
+  Call,
+  CallRepository,
+  OrganizationRepository,
+} from "@ringee/database";
 import type { RedisService, TelephonyService } from "@ringee/platform";
 import { ConcurrentCallGuardService } from "./concurrent-call-guard.service";
 
@@ -35,6 +39,9 @@ function harness(options: {
   calls?: Call[];
   alive?: boolean | null;
   lease?: Record<string, unknown> | null;
+  /** `userId/organizationId` pairs the user really belongs to. */
+  memberships?: string[];
+  membershipLookupFails?: boolean;
 }) {
   const store = new Map<string, string>();
   if (options.lease) {
@@ -89,11 +96,21 @@ function harness(options: {
     },
   } as unknown as TelephonyService;
 
+  const organizationRepository = {
+    async isMember(userId: string, organizationId: string) {
+      if (options.membershipLookupFails) throw new Error("database down");
+      return (options.memberships ?? []).includes(
+        `${userId}/${organizationId}`,
+      );
+    },
+  } as unknown as OrganizationRepository;
+
   return {
     guard: new ConcurrentCallGuardService(
       redis,
       callRepository,
       telephonyService,
+      organizationRepository,
     ),
     closed,
     store,
@@ -188,6 +205,25 @@ describe("ConcurrentCallGuardService.findOccupyingCall", () => {
     assert.equal(await h.guard.findOccupyingCall(USER), null);
   });
 
+  it("never counts an organization call against the personal slot", async () => {
+    // The rule only limits the personal workspace (CALL-001).
+    const started = new Date(Date.now() - 5 * 60_000);
+    const h = harness({
+      calls: [
+        buildCall({
+          status: CallStatus.answered,
+          organizationId: "org-1",
+          startedAt: started,
+          answeredAt: started,
+        }),
+      ],
+      alive: true,
+    });
+
+    assert.equal(await h.guard.findOccupyingCall(USER), null);
+    assert.equal(h.aliveChecks(), 0);
+  });
+
   it("never counts an organization's inbound call against the number's owner", async () => {
     // An inbound row names whoever BOUGHT the number, not whoever picked up —
     // at `call.initiated` nobody has. Counting it would refuse the admin's
@@ -218,7 +254,7 @@ describe("ConcurrentCallGuardService.findOccupyingCall", () => {
     const h = harness({
       calls: [
         buildCall({
-          organizationId: "org-1",
+          organizationId: null,
           startedAt: started,
           createdAt: started,
           clientState: Buffer.from(
@@ -246,7 +282,7 @@ describe("ConcurrentCallGuardService.findOccupyingCall", () => {
       calls: [
         buildCall({
           source: "ai_voice_agent",
-          organizationId: "org-1",
+          organizationId: null,
           startedAt: started,
           createdAt: started,
           answeredAt: started,
@@ -272,7 +308,7 @@ describe("ConcurrentCallGuardService.findOccupyingCall", () => {
       calls: [
         buildCall({
           source: "voicemail_drop",
-          organizationId: "org-1",
+          organizationId: null,
           startedAt: started,
           createdAt: started,
         }),
@@ -315,6 +351,7 @@ describe("ConcurrentCallGuardService.requestDial", () => {
     const decision = await h.guard.requestDial(USER, {
       deviceId: "device-a",
       source: "web",
+      organizationId: null,
     });
 
     assert.equal(decision.allowed, true);
@@ -338,6 +375,7 @@ describe("ConcurrentCallGuardService.requestDial", () => {
     const decision = await h.guard.requestDial(USER, {
       deviceId: "device-b",
       source: "web",
+      organizationId: null,
     });
 
     assert.equal(decision.allowed, false);
@@ -353,6 +391,7 @@ describe("ConcurrentCallGuardService.requestDial", () => {
     const decision = await h.guard.requestDial(USER, {
       deviceId: "device-b",
       source: "web",
+      organizationId: null,
     });
 
     assert.equal(decision.allowed, true);
@@ -375,6 +414,7 @@ describe("ConcurrentCallGuardService.requestDial", () => {
     const decision = await h.guard.requestDial(USER, {
       deviceId: "device-b",
       source: "web",
+      organizationId: null,
     });
 
     assert.equal(decision.allowed, false);
@@ -396,6 +436,7 @@ describe("ConcurrentCallGuardService.requestDial", () => {
     const decision = await h.guard.requestDial(USER, {
       deviceId: "device-b",
       source: "chrome_extension",
+      organizationId: null,
     });
 
     assert.equal(decision.allowed, true);
@@ -419,10 +460,106 @@ describe("ConcurrentCallGuardService.requestDial", () => {
     const decision = await h.guard.requestDial(USER, {
       deviceId: "device-b",
       source: "web",
+      organizationId: null,
     });
 
     assert.equal(decision.allowed, true);
     assert.deepEqual(h.closed, ["call-1"]);
+  });
+
+  it("never limits a dial inside an organization the user belongs to", async () => {
+    // A personal call is live on another device and holds the lease. An
+    // organization dial neither waits for it nor touches its reservation.
+    const started = new Date(Date.now() - 20 * 60_000);
+    const h = harness({
+      calls: [
+        buildCall({
+          status: CallStatus.answered,
+          startedAt: started,
+          answeredAt: started,
+        }),
+      ],
+      alive: true,
+      lease: { deviceId: "device-a", callControlId: "leg-1" },
+      memberships: [`${USER}/org-1`],
+    });
+    const leaseBefore = h.store.get(LEASE_KEY);
+
+    const decision = await h.guard.requestDial(USER, {
+      deviceId: "device-b",
+      source: "campaign",
+      organizationId: "org-1",
+    });
+
+    assert.equal(decision.allowed, true);
+    assert.equal(h.store.get(LEASE_KEY), leaseBefore);
+    assert.equal(h.aliveChecks(), 0);
+  });
+
+  it("lets two organization dials run at once without taking a lease", async () => {
+    const h = harness({ calls: [], memberships: [`${USER}/org-1`] });
+
+    const first = await h.guard.requestDial(USER, {
+      deviceId: "device-a",
+      source: "web",
+      organizationId: "org-1",
+    });
+    const second = await h.guard.requestDial(USER, {
+      deviceId: "device-b",
+      source: "web",
+      organizationId: "org-1",
+    });
+
+    assert.equal(first.allowed, true);
+    assert.equal(second.allowed, true);
+    assert.equal(h.store.has(LEASE_KEY), false);
+  });
+
+  it("still limits a dial naming an organization the user does not belong to", async () => {
+    // The `call.initiated` backstop reads the organization from a header the
+    // browser sets; a forged one must not lift the rule off a personal account.
+    const h = harness({
+      calls: [],
+      lease: {
+        deviceId: "device-a",
+        callControlId: null,
+        at: new Date().toISOString(),
+      },
+    });
+
+    const decision = await h.guard.requestDial(USER, {
+      deviceId: "device-b",
+      source: "web",
+      organizationId: "org-1",
+    });
+
+    assert.equal(decision.allowed, false);
+  });
+});
+
+describe("ConcurrentCallGuardService.appliesTo", () => {
+  it("limits the personal workspace", async () => {
+    const h = harness({});
+    assert.equal(await h.guard.appliesTo(USER, null), true);
+  });
+
+  it("does not limit an organization the user belongs to", async () => {
+    const h = harness({ memberships: [`${USER}/org-1`] });
+    assert.equal(await h.guard.appliesTo(USER, "org-1"), false);
+  });
+
+  it("limits an organization the user does not belong to", async () => {
+    const h = harness({ memberships: [`${USER}/org-2`] });
+    assert.equal(await h.guard.appliesTo(USER, "org-1"), true);
+  });
+
+  it("keeps the rule when membership cannot be verified", async () => {
+    // An unconfirmed organization id must not skip the guarded path.
+    const h = harness({
+      memberships: [`${USER}/org-1`],
+      membershipLookupFails: true,
+    });
+    assert.equal(await h.guard.appliesTo(USER, "org-1"), true);
   });
 });
 

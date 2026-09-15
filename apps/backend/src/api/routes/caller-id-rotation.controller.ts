@@ -122,6 +122,7 @@ export class CallerIdRotationController {
       deviceId: device.deviceId,
       deviceLabel: device.deviceLabel,
       source: "web",
+      organizationId: ctx.organizationId,
     });
     if (!decision.allowed) {
       throw new ConflictException({
