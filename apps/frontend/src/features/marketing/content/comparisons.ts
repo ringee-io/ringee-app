@@ -46,7 +46,7 @@ function baseRows(
       label: 'Pricing model',
       ringee:
         'Flat $20/month per organization with unlimited users, plus pay-as-you-go calling',
-      competitor: overrides.pricing ?? 'Per-user (per-user) monthly plans'
+      competitor: overrides.pricing ?? 'Per-user monthly plans'
     },
     {
       label: 'Free plan for individuals',

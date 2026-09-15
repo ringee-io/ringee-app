@@ -163,12 +163,12 @@ export const AGENT_SESSION: readonly SessionLine[] = [
     text: '{"agents":[{"id":"…","name":"Sofia","type":"appointment_booking","status":"active"}]}'
   },
   {
-    kind: 'tool',
-    text: 'start_ai_voice_agent_call {"agentId":"…","to":"+346········","variables":{"first_name":"…"}}'
-  },
-  {
     kind: 'note',
     text: '// real billed call — the agent asks a person for confirmation first'
+  },
+  {
+    kind: 'tool',
+    text: 'start_ai_voice_agent_call {"agentId":"…","to":"+346········","variables":{"first_name":"…"}}'
   },
   { kind: 'out', text: '{"callId":"…","status":"pending"}' },
   {

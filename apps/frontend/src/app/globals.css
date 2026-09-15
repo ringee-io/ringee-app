@@ -531,6 +531,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .ringee-stage:hover {
+    --ringee-lift: 0px;
+  }
+
   .ringee-stage__frame {
     transition: none;
   }
@@ -542,4 +546,25 @@
   .ringee-stage__sweep {
     animation: none;
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Intercom launcher size                                             */
+/*                                                                    */
+/* Intercom has no setting for the launcher size (48px). Its stylesheet */
+/* is injected after ours, hence `!important`. The extended launcher  */
+/* (with text) keeps Intercom's own sizing.                           */
+/* ------------------------------------------------------------------ */
+.intercom-lightweight-app-launcher:not(.intercom-launcher-extended),
+.intercom-lightweight-app-launcher:not(.intercom-launcher-extended)
+  .intercom-lightweight-app-launcher-icon {
+  width: 60px !important;
+  max-width: 60px !important;
+  height: 60px !important;
+  max-height: 60px !important;
+}
+
+.intercom-lightweight-app-launcher-icon-open svg {
+  width: 30px !important;
+  height: 30px !important;
 }
