@@ -13,7 +13,7 @@ FROM node:20-slim AS build
 RUN corepack enable
 WORKDIR /repo
 COPY . .
-RUN pnpm install --frozen-lockfile=false
+RUN pnpm install --no-frozen-lockfile
 RUN pnpm --filter @ringee-io/chatgpt-app build:widgets
 
 FROM node:20-slim AS run

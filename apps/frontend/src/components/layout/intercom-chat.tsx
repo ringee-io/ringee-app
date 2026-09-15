@@ -79,7 +79,15 @@ export function IntercomChat({ user }: { user?: IntercomUser | null }) {
 
 /** Opens the messenger. Returns false when Intercom is not available. */
 export function openIntercomChat(): boolean {
-  if (!getIntercomAppId() || bootedUserId === undefined) return false;
+  const appId = getIntercomAppId();
+  if (!appId) return false;
+
+  // Opened before <IntercomChat> booted the widget: boot it anonymously now,
+  // and the component identifies the user when its effect runs.
+  if (bootedUserId === undefined) {
+    Intercom({ app_id: appId });
+    bootedUserId = null;
+  }
   show();
   return true;
 }

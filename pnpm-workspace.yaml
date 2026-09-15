@@ -56,7 +56,7 @@ allowBuilds:
   bufferutil: true
   core-js: true
   esbuild: true
-  keytar: true
+  keytar: false
   prisma: true
   protobufjs: true
   sharp: true

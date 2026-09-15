@@ -16,23 +16,25 @@ export function SupportChat() {
 
 /**
  * Same as {@link SupportChat}, but identifies the signed-in Clerk user to
- * Intercom. Must be rendered inside a `ClerkProvider`.
+ * Intercom. Must be rendered inside a `ClerkProvider`. Boots anonymously while
+ * Clerk loads, then identifies the user once it is available.
  */
 export function ClerkSupportChat() {
   const { user, isLoaded } = useUser();
 
   if (!getIntercomAppId()) return <CrispChat />;
-  if (!isLoaded) return null;
 
   return (
     <IntercomChat
       user={
-        user && {
-          id: user.id,
-          name: user.fullName,
-          email: user.primaryEmailAddress?.emailAddress,
-          createdAt: user.createdAt
-        }
+        isLoaded && user
+          ? {
+              id: user.id,
+              name: user.fullName,
+              email: user.primaryEmailAddress?.emailAddress,
+              createdAt: user.createdAt
+            }
+          : null
       }
     />
   );

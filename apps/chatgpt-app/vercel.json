@@ -2,5 +2,5 @@
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "nextjs",
   "buildCommand": "cd ../.. && pnpm --filter @ringee-io/chatgpt-app build",
-  "installCommand": "cd ../.. && pnpm install --frozen-lockfile=false"
+  "installCommand": "cd ../.. && pnpm install --no-frozen-lockfile"
 }
