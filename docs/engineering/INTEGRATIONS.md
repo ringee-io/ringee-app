@@ -163,6 +163,23 @@ recording uploads through an outbox drained by a Temporal schedule.
 Matching uses `normalizePhoneE164` and `phoneMatchesSuffix` from
 `packages/platform/src/crm/phone.ts` — the server-side phone helpers.
 
+**Campaign membership from the CRM.** A synced person joins an outbound campaign
+by carrying its Ringee campaign id in a field the CRM admin named `Campaign`
+(also `campaign`, `Campaign ID`, `Ringee Campaign` — matched case- and
+separator-insensitively by `readCrmCampaignField`). The value is read from the
+adapter's normalized `customFields`, never from the raw provider payload: Attio
+flattens its scalar attributes in `mapAttioCustomFields`, and Odoo exposes
+`x_campaign` / `x_studio_campaign` under the plain `campaign` key.
+
+`CrmContactSyncService` then validates the campaign against the connection's
+workspace and calls `CampaignService.addContactToCampaign` — the same idempotent
+door the Custom Integrations `contact.upserted` event uses, so re-syncing a
+person never resets the attempts or dispositions of an existing lead. Anything
+that does not resolve (a campaign name instead of an id, a campaign from another
+workspace, a personal-workspace connection) is reported on the sync result and
+counted in the bulk-sync log; it never fails the contact, because the contact is
+what the sync exists to bring in.
+
 ### Custom Integrations (webhooks)
 
 The generic, customer-facing integration surface.

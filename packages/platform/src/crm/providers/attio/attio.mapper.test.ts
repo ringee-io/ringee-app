@@ -146,6 +146,34 @@ describe("Attio phone mapping", () => {
     expect(result.emails).toEqual(["person@example.com"]);
   });
 
+  it("lifts scalar attributes into customFields, leaving the rest in raw", () => {
+    const record: AttioPersonRecord = {
+      id: {
+        workspace_id: "workspace-1",
+        object_id: "people",
+        record_id: "person-1",
+      },
+      values: {
+        name: [{ full_name: "Ada Lovelace" }],
+        phone_numbers: [{ normalized_phone_number: "+14155552671" }],
+        // A workspace-defined text attribute: the campaign a person belongs to.
+        campaign: [{ value: "3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d" }],
+        seniority: [{ option: { title: "Director" } }],
+        do_not_call: [{ value: false }],
+        // Record references have no scalar form — they stay in `raw`.
+        strongest_connection: [
+          { target_object: "people", target_record_id: "person-2" },
+        ],
+      },
+    };
+
+    expect(mapAttioPersonToSyncResult(record).customFields).toEqual({
+      campaign: "3f1b2c4d-5e6f-4a7b-8c9d-0e1f2a3b4c5d",
+      seniority: "Director",
+      do_not_call: false,
+    });
+  });
+
   it("keeps supporting legacy phone_number payloads", () => {
     const record = personWithPhone({ phone_number: "+33142345678" });
 

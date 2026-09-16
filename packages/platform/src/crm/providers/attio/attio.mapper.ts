@@ -95,6 +95,53 @@ function findAttioEmails(values: Record<string, unknown>): string[] {
   return emails;
 }
 
+/**
+ * Flatten Attio's attribute values into a plain `slug -> scalar` map.
+ *
+ * Attio returns every attribute — standard and workspace-defined alike — as an
+ * array of value objects whose shape depends on the attribute type. Phones,
+ * e-mails and names have dedicated mapping above; what is left over is only
+ * usable as a custom field once it is a scalar, so text, number, checkbox,
+ * select and status values are lifted out and everything else stays in `raw`.
+ */
+export function mapAttioCustomFields(
+  values: Record<string, unknown>,
+): Record<string, unknown> {
+  const customFields: Record<string, unknown> = {};
+
+  for (const [slug, attributeValues] of Object.entries(values)) {
+    if (!Array.isArray(attributeValues) || attributeValues.length === 0)
+      continue;
+    const scalar = attioScalarValue(attributeValues[0]);
+    if (scalar === null) continue;
+    customFields[slug] = scalar;
+  }
+
+  return customFields;
+}
+
+function attioScalarValue(value: unknown): string | number | boolean | null {
+  if (!value || typeof value !== "object") return null;
+  const candidate = value as Record<string, unknown>;
+
+  // Select and status attributes carry their label one level down.
+  const choice = candidate.option ?? candidate.status;
+  if (choice && typeof choice === "object") {
+    const title = (choice as Record<string, unknown>).title;
+    return typeof title === "string" ? title : null;
+  }
+
+  const raw = candidate.value;
+  if (
+    typeof raw === "string" ||
+    typeof raw === "number" ||
+    typeof raw === "boolean"
+  ) {
+    return raw;
+  }
+  return null;
+}
+
 export function mapAttioContactValues(values: Record<string, unknown>): {
   phones: string[];
   emails: string[];
@@ -294,7 +341,7 @@ export function mapAttioPersonToSyncResult(
     jobTitle: null,
     owner: null,
     company: null,
-    customFields: {},
+    customFields: mapAttioCustomFields(record.values),
     raw: record,
   };
 }

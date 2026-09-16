@@ -85,9 +85,23 @@ export function mapOdooPartnerToSyncResult(
     jobTitle: normalizeOdooString(record.function),
     owner,
     company: companyRef,
-    customFields: {},
+    customFields: mapOdooPartnerCustomFields(record),
     raw: record,
   };
+}
+
+/**
+ * The custom partner columns Ringee reads by name. Only the campaign column is
+ * normalized today; it is exposed under the plain `campaign` key so the domain
+ * never has to know about Odoo's `x_`/`x_studio_` prefixes.
+ */
+function mapOdooPartnerCustomFields(
+  record: OdooPartnerRecord,
+): Record<string, unknown> {
+  const campaign =
+    normalizeOdooString(record.x_campaign) ??
+    normalizeOdooString(record.x_studio_campaign);
+  return campaign ? { campaign } : {};
 }
 
 export function mapOdooCompanyToMatch(
