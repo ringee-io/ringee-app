@@ -2,7 +2,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it, beforeEach } from "node:test";
-import { NotFoundException } from "@nestjs/common";
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { CrmContactSyncService } from "./crm-contact-sync.service";
 
 type AnyRecord = Record<string, unknown>;
@@ -243,6 +243,27 @@ describe("CrmContactSyncService campaign field", () => {
 
     assert.equal(result.contactId, "contact-1");
     assert.equal(result.campaign?.status, "not_found");
+    assert.equal(harness.campaignLeads.length, 0);
+  });
+
+  // The workspace gate rejects a campaign that exists but belongs to someone
+  // else with a Forbidden, not a NotFound; both are data, not sync failures.
+  it("still syncs the contact when the campaign belongs to another workspace", async () => {
+    const harness = buildService({
+      assert: () => {
+        throw new ForbiddenException("Access denied");
+      },
+    });
+
+    const result = await harness.service.upsertContact(
+      connection,
+      personInCampaign(CAMPAIGN_ID),
+      ctx,
+    );
+
+    assert.equal(result.contactId, "contact-1");
+    assert.equal(result.campaign?.status, "not_found");
+    assert.equal(result.campaign?.campaignId, CAMPAIGN_ID);
     assert.equal(harness.campaignLeads.length, 0);
   });
 
