@@ -13,6 +13,8 @@ export * from "./credit-policy";
 export * from "./credit-balance-alert.service";
 export * from "./encryption-key.service";
 export * from "./telephony-rate.service";
+export * from "./country-rate.util";
+export * from "./number-pricing-catalog.service";
 export * from "./mobile";
 export * from "./dashboard.service";
 export * from "./dashboard-layout.service";

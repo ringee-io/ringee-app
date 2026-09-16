@@ -26,6 +26,26 @@ export interface AvailableNumber {
   costInformation: CostInformation;
 }
 
+/**
+ * The provider's **published list price** for one country + number type, with
+ * Ringee's number margin applied, exactly as a searched number carries it.
+ *
+ * This is not stock: it is what the type costs when the provider sources it to
+ * order (an advance order) instead of serving it from searchable inventory. The
+ * list price and the inventory price agree in most countries but not in all, so
+ * a caller that publishes it must first establish that it does for that country
+ * — a list price is a price, not proof that this is what the carrier charges.
+ */
+export interface NumberListPrice {
+  countryCode: string;
+  /** Normalized from the provider's own label: "Toll Free" -> "toll_free". */
+  numberType: "local" | "toll_free" | "mobile";
+  currency: string;
+  monthlyCost: number;
+  /** Null when the provider publishes no one-time cost for the type. */
+  upfrontCost: number | null;
+}
+
 export interface AssignedNumber {
   id: string;
   status: string;
@@ -256,4 +276,17 @@ export interface SearchAvailableParams {
   numberType?: "local" | "toll_free" | "mobile";
   features?: NumberFeature[];
   limit?: number;
+}
+
+/**
+ * A country the provider can issue numbers in, and the number types it lists
+ * there. Coverage is not stock: a listed type can still have nothing available
+ * to order right now, which only a number search answers.
+ */
+export interface NumberCoverageCountry {
+  countryCode: string; // ISO (eg. "GB")
+  countryName: string;
+  /** Provider's commercial region, e.g. "AMER", "EMEA", "APAC" — or null. */
+  region: string | null;
+  numberTypes: string[];
 }

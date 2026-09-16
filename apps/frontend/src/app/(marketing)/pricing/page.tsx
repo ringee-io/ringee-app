@@ -194,6 +194,15 @@ export default function PricingPage() {
             There is no per-user price; add as many users as you need on the
             Organization plan.
           </p>
+          <p className='mt-4 text-center text-sm'>
+            <Link
+              href='/phone-numbers'
+              className='text-primary font-semibold hover:underline'
+            >
+              See phone number prices, call rates and AI voice agent cost for
+              every country →
+            </Link>
+          </p>
         </Container>
       </Section>
 

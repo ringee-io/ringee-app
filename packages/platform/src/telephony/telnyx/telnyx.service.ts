@@ -8,6 +8,8 @@ import {
   AssignedNumber,
   AvailableNumber,
   CostInformation,
+  NumberCoverageCountry,
+  NumberListPrice,
   NumberOrderRequirementItem,
   NumberOrderRequirements,
   PurchaseNumbers,
@@ -42,6 +44,51 @@ function sanitizeE164(raw?: string): string | undefined {
   if (!raw) return undefined;
   const cleaned = raw.replace(/[^\d+]/g, "");
   return /^\+[1-9]\d{6,14}$/.test(cleaned) ? cleaned : undefined;
+}
+
+/** Telnyx's own labels in the price list, mapped to the types Ringee sells. */
+const LIST_PRICE_NUMBER_TYPES: Record<string, NumberListPrice["numberType"]> = {
+  local: "local",
+  mobile: "mobile",
+  "toll free": "toll_free",
+};
+
+/**
+ * Splits one CSV row, honouring the quotes Telnyx wraps a country name in when
+ * the name itself contains a comma ("Bolivia, Plurinational State of").
+ */
+function parseCsvRow(line: string): string[] {
+  const cells: string[] = [];
+  let cell = "";
+  let quoted = false;
+
+  for (let index = 0; index < line.length; index++) {
+    const character = line[index];
+
+    if (character === '"') {
+      // A doubled quote inside a quoted cell is an escaped quote.
+      if (quoted && line[index + 1] === '"') {
+        cell += '"';
+        index++;
+      } else {
+        quoted = !quoted;
+      }
+    } else if (character === "," && !quoted) {
+      cells.push(cell);
+      cell = "";
+    } else {
+      cell += character;
+    }
+  }
+
+  cells.push(cell);
+  return cells;
+}
+
+/** A price the provider left blank, zeroed or unparseable is not a price. */
+function parseListPrice(raw?: string): number | null {
+  const value = Number.parseFloat((raw ?? "").trim());
+  return Number.isFinite(value) && value > 0 ? value : null;
 }
 
 @Injectable()
@@ -171,6 +218,97 @@ export class TelnyxService implements TelephonyService {
       );
       throw error;
     }
+  }
+
+  async getNumberCoverage(): Promise<NumberCoverageCountry[]> {
+    const { data } = await this.telnyxClient.get<{
+      data?: Record<
+        string,
+        {
+          code?: string;
+          numbers?: boolean;
+          phone_number_type?: string[];
+          region?: string | null;
+        }
+      >;
+    }>("/country_coverage");
+
+    return Object.entries(data ?? {})
+      .filter(([, country]) => country?.numbers && country.code)
+      .map(([countryName, country]) => ({
+        countryCode: country.code as string,
+        countryName,
+        region: country.region ?? null,
+        // Telnyx repeats a type once per number block ("local" three times).
+        numberTypes: [...new Set(country.phone_number_type ?? [])],
+      }));
+  }
+
+  /**
+   * Telnyx publishes its number price list as CSV at `/pricing` — one row per
+   * country and number type — and ignores every filter you pass it, so the
+   * whole list is fetched and narrowed here. It is priced with the same margin
+   * as a searched number, because it is the same product bought a different
+   * way: an advance order, for a type Telnyx does not hold in stock.
+   */
+  async getNumberListPrices(): Promise<NumberListPrice[]> {
+    const [header, ...rows] = (await this.telnyxClient.getText("/pricing"))
+      .split(/\r?\n/)
+      .filter((line) => line.trim().length > 0);
+
+    if (!header) return [];
+
+    const columns = parseCsvRow(header).map((column) => column.trim());
+    const isoAt = columns.indexOf("ISO");
+    const typeAt = columns.indexOf("Phone Number Type");
+    const monthlyAt = columns.indexOf("Phone Number Price / month");
+    const upfrontAt = columns.indexOf("Phone Number One-Time-Cost");
+    const currencyAt = columns.indexOf("Currency");
+
+    if (isoAt < 0 || typeAt < 0 || monthlyAt < 0) {
+      // The columns are Telnyx's, not ours: if they are renamed, say so rather
+      // than publish prices read out of the wrong column.
+      this.logger.warn(
+        `Telnyx price list has unexpected columns: ${columns.join(", ")}`,
+      );
+      return [];
+    }
+
+    const prices: NumberListPrice[] = [];
+
+    for (const row of rows) {
+      const cells = parseCsvRow(row);
+      const countryCode = (cells[isoAt] ?? "").trim().toUpperCase();
+      const numberType =
+        LIST_PRICE_NUMBER_TYPES[(cells[typeAt] ?? "").trim().toLowerCase()];
+      const monthlyCost = parseListPrice(cells[monthlyAt]);
+
+      // A type Ringee does not resell ("National", "Shared Cost") and a row the
+      // provider left unpriced are both skipped — never quoted as free.
+      if (
+        !numberType ||
+        !/^[A-Z]{2}$/.test(countryCode) ||
+        monthlyCost === null
+      )
+        continue;
+
+      const upfrontCost =
+        upfrontAt < 0 ? null : parseListPrice(cells[upfrontAt]);
+
+      prices.push({
+        countryCode,
+        numberType,
+        currency:
+          (currencyAt < 0 ? "" : (cells[currencyAt] ?? "").trim()) || "USD",
+        monthlyCost: this.applyNumberProfitMargin(monthlyCost),
+        upfrontCost:
+          upfrontCost === null
+            ? null
+            : this.applyNumberProfitMargin(upfrontCost),
+      });
+    }
+
+    return prices;
   }
 
   async searchAvailableNumbers(

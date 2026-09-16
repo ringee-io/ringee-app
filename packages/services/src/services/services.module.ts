@@ -26,6 +26,7 @@ import { CreditService } from "./credit.service";
 import { CreditBalanceAlertService } from "./credit-balance-alert.service";
 import { EncryptionKeyService } from "./encryption-key.service";
 import { TelephonyRateService } from "./telephony-rate.service";
+import { NumberPricingCatalogService } from "./number-pricing-catalog.service";
 import { MobileReadService } from "./mobile";
 import { DashboardService } from "./dashboard.service";
 import { DashboardLayoutService } from "./dashboard-layout.service";
@@ -198,6 +199,7 @@ const servicesProviders = [
   CreditBalanceAlertService,
   EncryptionKeyService,
   TelephonyRateService,
+  NumberPricingCatalogService,
   MobileReadService,
   DashboardService,
   DashboardLayoutService,

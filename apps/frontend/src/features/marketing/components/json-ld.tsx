@@ -100,6 +100,84 @@ export function faqJsonLd(faqs: { question: string; answer: string }[]) {
   };
 }
 
+/**
+ * Product entity for something with a real, published price — a phone number
+ * in one country. `offers` carry the monthly price the pricing snapshot was
+ * generated with, so regenerating the snapshot regenerates the markup.
+ */
+export function productJsonLd({
+  name,
+  description,
+  url,
+  offers
+}: {
+  name: string;
+  description: string;
+  url: string;
+  offers: {
+    name: string;
+    price: number;
+    priceCurrency?: string;
+    /** Schema wants a URL; the number type's own page is the right one. */
+    url?: string;
+    /**
+     * `BackOrder` for a number type the carrier sources to order rather than
+     * holding in stock. Claiming `InStock` for one would be a false claim in
+     * the markup even where the page itself says "on request".
+     */
+    availability?: 'InStock' | 'BackOrder';
+  }[];
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    '@id': `${url}#product`,
+    name,
+    description,
+    url,
+    brand: { '@id': ORG_ID },
+    offers: offers.map((offer) => ({
+      '@type': 'Offer',
+      name: offer.name,
+      price: offer.price.toFixed(2),
+      priceCurrency: offer.priceCurrency ?? 'USD',
+      availability: `https://schema.org/${offer.availability ?? 'InStock'}`,
+      ...(offer.url ? { url: offer.url } : {}),
+      priceSpecification: {
+        '@type': 'UnitPriceSpecification',
+        price: offer.price.toFixed(2),
+        priceCurrency: offer.priceCurrency ?? 'USD',
+        billingDuration: 1,
+        billingIncrement: 1,
+        unitCode: 'MON'
+      }
+    })),
+    publisher: { '@id': ORG_ID }
+  };
+}
+
+/** ItemList for an index page, so the set of countries is readable as a list. */
+export function itemListJsonLd({
+  name,
+  items
+}: {
+  name: string;
+  items: { name: string; href: string }[];
+}) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    name,
+    numberOfItems: items.length,
+    itemListElement: items.map((item, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      name: item.name,
+      url: `${SITE_URL}${item.href}`
+    }))
+  };
+}
+
 /** Two standard offers (Freelancer free, Organization $20/mo), both in stock. */
 function planOffers() {
   return [

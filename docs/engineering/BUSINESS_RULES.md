@@ -333,6 +333,38 @@ records themselves.
 - **Source of truth:** `services/voice-agents/voice-agent-billing.service.ts`
   (+ spec); swept by the `ringee.voice-agent-sweep` Temporal Schedule
 
+### BILL-021 — A published price is produced by the code that charges for it
+
+Every price on the public country pages comes from the same server code that
+bills the real thing, through `NumberPricingCatalogService`: number prices from
+`TelephonyService` (carrier cost × the number margin), per-minute prices from
+`TelephonyRateService` (deck cost × `CALL_PROFIT_MARGIN`, BILL-013), and the
+agent minute from the provider's published list price ×
+`AI_VOICE_AGENT_PROFIT_MARGIN` (BILL-020). The result is written to a committed
+snapshot by `pnpm --filter backend run generate:number-pricing`, which also
+records the margins it ran with.
+
+- A price is quoted only where it is real. A destination the rate deck does not
+  price is published as unknown, never filled in with a placeholder.
+- A number type the carrier covers but holds no inventory of is still sold — by
+  advance order — so it is published at the carrier's own list price, marked
+  `advance_order`, and flagged on the page as ordered on request rather than
+  bought in the dashboard. The list price may only be published where it is
+  proven to describe that country: it must equal, to the cent, the price of
+  every type the same country _could_ be sampled in. Where it does not (the
+  NANPA countries, whose $1 numbers are listed at international rates) or where
+  nothing could be sampled to check it against, the type stays unavailable.
+- A single empty inventory answer is not proof of an empty range: the carrier
+  answers empty for ranges it serves numbers from minutes later, and an empty
+  answer decides whether a whole country is published, so it is confirmed once
+  before it is believed.
+- Never re-type a price into marketing copy or compute one in the frontend.
+  Regenerate the snapshot instead — a hand-written figure is a figure that
+  drifts from the invoice.
+- **Source of truth:** `packages/services/src/services/number-pricing-catalog.service.ts`
+  and `country-rate.util.ts` (+ specs)
+- **Risk if violated:** a published price the product does not honour
+
 ---
 
 ## Telephony — calls (`CALL`)

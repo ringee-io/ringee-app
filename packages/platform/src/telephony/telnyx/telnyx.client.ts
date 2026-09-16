@@ -59,6 +59,24 @@ export class TelnyxClient {
     }
   }
 
+  /**
+   * GETs and returns the body verbatim. The shared instance asks for JSON, but
+   * Telnyx answers `/pricing` with CSV whatever the `Accept` header says — so
+   * the caller, not axios, decides how to read it.
+   */
+  async getText(path: string): Promise<string> {
+    try {
+      const { data } = await this.client.get<string>(path, {
+        responseType: "text",
+        transformResponse: [(body: unknown) => body],
+        headers: { Accept: "text/csv, text/plain, */*" },
+      });
+      return data;
+    } catch (error) {
+      this.handleError(error, "GET", path);
+    }
+  }
+
   async put<T = any>(path: string, body?: any): Promise<T> {
     try {
       const { data } = await this.client.put<T>(path, body);
