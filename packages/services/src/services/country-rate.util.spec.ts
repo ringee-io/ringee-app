@@ -158,6 +158,42 @@ describe("summarizeCountryRates", () => {
     assert.equal(rates[0].mobileMaxRatePerMinute, 0.14);
   });
 
+  it("does not count an unpriced route as a priced one", () => {
+    const [rate] = summarizeCountryRates(
+      [
+        route("PT", "Portugal", "Portugal - Mobile", 0),
+        route("PT", "Portugal", "Portugal - Fixed", 0.008),
+      ],
+      2.5,
+    );
+
+    // A zero cell is the deck declining to price the route. Counting it would
+    // publish the placeholder as if a real rate stood behind it — and the
+    // landline rate, not that placeholder, is what the mobile side falls to.
+    assert.equal(rate.mobileRouteCount, 0);
+    assert.equal(rate.landlineRouteCount, 1);
+    assert.equal(rate.landlineMinRatePerMinute, 0.02);
+  });
+
+  it("drops a country the deck priced at zero everywhere", () => {
+    const rates = summarizeCountryRates(
+      [route("PT", "Portugal", "Portugal - Mobile", 0)],
+      2.5,
+    );
+
+    assert.deepEqual(rates, []);
+  });
+
+  it("keeps digits that are not a trailing range", () => {
+    // Only a 3-4 digit suffix is an area code; "48" is part of the name.
+    const [rate] = summarizeCountryRates(
+      [route("US", "United States 48", "United States 48 - Fixed", 0.005)],
+      1,
+    );
+
+    assert.equal(rate.countryName, "United States 48");
+  });
+
   it("lists the United States first, then countries alphabetically", () => {
     const rates = summarizeCountryRates(
       [

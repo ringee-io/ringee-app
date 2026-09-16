@@ -49,9 +49,9 @@ const MOBILE_KEYWORDS = ["mobile", "cellular"];
 const LANDLINE_KEYWORDS = ["fixed", "landline", "local", "fijo"];
 
 /**
- * Used when a country's deck prices a destination we could not classify. It is
- * the same placeholder the rate table has always fallen back to; the route
- * counts on the result say whether a figure is real or this.
+ * Used only when a country's deck priced nothing we could quote. It is the same
+ * placeholder the rate table has always fallen back to; a route count of zero
+ * is what says a figure is this rather than a real rate.
  */
 const FALLBACK_RATE_PER_MINUTE = 0.012;
 
@@ -92,13 +92,19 @@ const isLandline = (description: string): boolean =>
  * "Dominican Republic 1809"), which would otherwise list one country four
  * times. The country is the same; only the range differs.
  */
-const displayName = (name: string): string =>
-  name.replace(/\s+\d{3,4}$/, "").trim();
+const displayName = (name: string): string => {
+  const trimmed = name.trim();
+  // The suffix is located first and the whitespace before it removed second:
+  // one pattern for both (`\s+\d{3,4}$`) backtracks quadratically on a name
+  // padded with spaces, which is a deck field, not our input.
+  const suffix = /\d{3,4}$/.exec(trimmed);
+  if (!suffix) return trimmed;
 
-const priceOf = (rate: number, multiplier: number): number => {
-  if (!Number.isFinite(rate) || rate <= 0) return FALLBACK_RATE_PER_MINUTE;
-  return rate * multiplier;
+  const head = trimmed.slice(0, suffix.index);
+  return /\s$/.test(head) ? head.trimEnd() : trimmed;
 };
+
+const priceOf = (rate: number, multiplier: number): number => rate * multiplier;
 
 const round = (value: number): number => parseFloat(value.toFixed(4));
 
@@ -137,7 +143,11 @@ function classify(routes: CountryRateRoute[]): Map<string, Classified> {
     const description = normalize(route.description);
 
     if (!iso || EXCLUDED_ISO.has(iso)) continue;
-    if (!route.country || !Number.isFinite(route.rate)) continue;
+    // A zero or negative cell is the deck declining to price the route, not a
+    // free call. Counting it would make `routes` say a placeholder figure came
+    // from a real rate, which is the one thing that count is there to rule out.
+    if (!route.country || !Number.isFinite(route.rate) || route.rate <= 0)
+      continue;
     if (isExcluded(description)) continue;
 
     // Grouped by ISO, not by deck name: one country, one rate entry.

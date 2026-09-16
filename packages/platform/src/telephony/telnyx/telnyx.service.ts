@@ -265,7 +265,7 @@ export class TelnyxService implements TelephonyService {
     const upfrontAt = columns.indexOf("Phone Number One-Time-Cost");
     const currencyAt = columns.indexOf("Currency");
 
-    if (isoAt < 0 || typeAt < 0 || monthlyAt < 0) {
+    if (isoAt < 0 || typeAt < 0 || monthlyAt < 0 || currencyAt < 0) {
       // The columns are Telnyx's, not ours: if they are renamed, say so rather
       // than publish prices read out of the wrong column.
       this.logger.warn(
@@ -292,14 +292,19 @@ export class TelnyxService implements TelephonyService {
       )
         continue;
 
+      // The currency decides whether a consumer may publish the row at all, so
+      // a blank cell is unknown, not USD: defaulting it would smuggle a foreign
+      // price past a caller that filters on "USD".
+      const currency = (cells[currencyAt] ?? "").trim().toUpperCase();
+      if (!currency) continue;
+
       const upfrontCost =
         upfrontAt < 0 ? null : parseListPrice(cells[upfrontAt]);
 
       prices.push({
         countryCode,
         numberType,
-        currency:
-          (currencyAt < 0 ? "" : (cells[currencyAt] ?? "").trim()) || "USD",
+        currency,
         monthlyCost: this.applyNumberProfitMargin(monthlyCost),
         upfrontCost:
           upfrontCost === null

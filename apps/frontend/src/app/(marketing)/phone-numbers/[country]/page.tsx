@@ -29,6 +29,7 @@ import {
   formatPerMinute,
   getPhoneNumberCountry,
   isAdvanceOrder,
+  requirementsState,
   NUMBER_TYPE_META,
   numberTypeSlug,
   PHONE_NUMBER_COUNTRIES,
@@ -154,7 +155,9 @@ export default async function CountryPhoneNumbersPage({ params }: Params) {
             .join(
               ', and '
             )}. Typically that means identifying the end user, proving a local address, and supplying an ID or company registration document. The number is reserved while the documents are reviewed and activates once the regulator accepts them.`
-        : `Nothing beyond your Ringee account. ${country.countryName} numbers have no regulatory document requirements, so the number activates as soon as the subscription is confirmed.`
+        : country.offers.some((offer) => requirementsState(offer) === 'unknown')
+          ? `It depends on the number type. The regulator's requirements for ${country.countryName} could not be read from the carrier for every type, so Ringee confirms what this country asks for when you order the number in the dashboard.`
+          : `Nothing beyond your Ringee account. ${country.countryName} numbers have no regulatory document requirements, so the number activates as soon as the subscription is confirmed.`
     },
     ...(callFrom
       ? [
@@ -171,7 +174,7 @@ export default async function CountryPhoneNumbersPage({ params }: Params) {
                     country.callRate.mobileFromUsd
                   )}/min`
                 : ''
-            }. Minutes are pay as you go from your workspace credit, so you only pay for the calls you place. Rates differ by the network you reach: ordinary ranges sit at the low end, while surcharged, premium and satellite ranges sit at the top of each range.`
+            }. Minutes are pay as you go from your workspace credit, so you only pay for the calls you place. Rates differ by the network you reach, and each range covers the ordinary fixed and mobile networks only — premium, satellite, high-cost and service numbers are priced separately.`
           }
         ]
       : []),
@@ -309,11 +312,11 @@ export default async function CountryPhoneNumbersPage({ params }: Params) {
               <CallRateTable country={country} />
             </div>
             <p className='text-muted-foreground mt-4 text-sm'>
-              Each range spans the destination networks inside{' '}
-              {country.countryName}: ordinary fixed and mobile ranges sit at the
-              low end, and surcharged, premium or satellite ranges at the top.
-              Calls are charged per minute from your workspace credit, on top of
-              your plan.
+              Each range spans the ordinary fixed and mobile networks inside{' '}
+              {country.countryName}, from the cheapest to the dearest. Premium,
+              satellite, high-cost and service numbers are not included and are
+              priced separately. Calls are charged per minute from your
+              workspace credit, on top of your plan.
             </p>
           </Container>
         </Section>

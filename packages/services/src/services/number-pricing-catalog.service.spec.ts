@@ -253,7 +253,7 @@ describe("NumberPricingCatalogService", () => {
     );
   });
 
-  it("keeps a country whose requirements cannot be read, with none claimed", async () => {
+  it("keeps a country whose requirements cannot be read, without claiming none", async () => {
     const { service } = build({
       inventory: { "GB:local": [{ monthly: 3 }] },
       requirementsThrow: true,
@@ -263,5 +263,44 @@ describe("NumberPricingCatalogService", () => {
 
     assert.equal(country.offers.length, 1);
     assert.deepEqual(country.offers[0].requirements, []);
+    // The empty list is the failure, not an answer: a page that read it as
+    // "no documents required" would promise the regulator's paperwork away.
+    assert.equal(country.offers[0].requirementsKnown, false);
+  });
+
+  it("marks requirements known when the carrier answered them", async () => {
+    const { service } = build({ inventory: { "GB:local": [{ monthly: 3 }] } });
+
+    const [country] = (await service.buildCatalog()).countries;
+
+    assert.equal(country.offers[0].requirementsKnown, true);
+  });
+
+  it("prices from the records that carry a cost, never quoting $0", async () => {
+    const { service } = build({
+      inventory: { "GB:local": [{ monthly: 0 }, { monthly: 3 }] },
+    });
+
+    const [country] = (await service.buildCatalog()).countries;
+    const [local] = country.offers;
+
+    // A record the carrier returned without a usable cost reaches the adapter
+    // as 0. Publishing it would advertise a free number.
+    assert.equal(local.monthlyFromUsd, 3);
+    assert.equal(local.monthlyToUsd, 3);
+  });
+
+  it("drops a type whose whole sample came back unpriced", async () => {
+    const { service } = build({
+      inventory: { "GB:local": [{ monthly: 0 }] },
+    });
+
+    const [country] = (await service.buildCatalog()).countries;
+
+    assert.equal(
+      country.offers.some((offer) => offer.numberType === "local"),
+      false,
+    );
+    assert.ok(country.unavailableTypes.includes("local"));
   });
 });

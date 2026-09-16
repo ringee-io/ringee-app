@@ -69,7 +69,7 @@
 - Freelancer: $0/month — human calling for one person, including the manual dialer, recording, real-time transcription, meetings, prospecting, CRM sync, and AI orchestration. Pay only for calling credits.
 - Organization: $20/month per organization — adds unlimited invited members, calling campaigns, and AI voice agents. Calling credits and AI voice/model usage are billed separately.
 - Calling is pay-as-you-go, from $0.0075/min. No per-seat pricing on any plan.
-- Phone numbers: local, toll-free and mobile numbers in 79 countries from $1/month, billed monthly with no setup fee. Regulatory requirements vary by country and are listed per country and number type.
+- Phone numbers: local, toll-free and mobile numbers in 79 countries from $1/month, billed monthly. Numbers bought from stock have no setup fee; a type the carrier sources on request can carry a one-time carrier setup fee, listed on its country page. Regulatory requirements vary by country and are listed per country and number type.
 - AI voice agents: $0.1080/min for the conversation (speech-to-text, text-to-speech, orchestration, knowledge and the Ringee AI model), plus the per-minute price of the call it places.
 - [Pricing details](https://www.ringee.io/pricing)
 - [Phone number pricing by country](https://www.ringee.io/phone-numbers)

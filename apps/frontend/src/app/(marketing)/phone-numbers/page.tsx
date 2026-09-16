@@ -45,7 +45,7 @@ const PRICING_PILLARS = [
   {
     icon: Wallet,
     title: 'The number, per month',
-    body: `A phone number is a monthly subscription with no setup fee, from ${FROM_MONTHLY}/month. You can cancel it whenever you want, and the price you see is the price you pay.`
+    body: `A phone number is a monthly subscription from ${FROM_MONTHLY}/month, with no setup fee on the numbers you can buy from stock. You can cancel it whenever you want, and the price you see is the price you pay.`
   },
   {
     icon: PhoneCall,
@@ -62,7 +62,7 @@ const PRICING_PILLARS = [
 const FAQS = [
   {
     question: 'How much does a phone number cost?',
-    answer: `Phone numbers start at ${FROM_MONTHLY} per month and are billed as a monthly subscription with no setup fee. The exact price depends on the country and the number type: local numbers are usually the cheapest, mobile and toll-free numbers cost more in most countries. Every country's price is listed on its own page.`
+    answer: `Phone numbers start at ${FROM_MONTHLY} per month and are billed as a monthly subscription. Numbers bought from stock carry no setup fee; a type the carrier has to source on request can carry a one-time carrier setup fee, which is shown on that country's page before you order. The exact price depends on the country and the number type: local numbers are usually the cheapest, mobile and toll-free numbers cost more in most countries. Every country's price is listed on its own page.`
   },
   {
     question: 'Which countries can I get a phone number in?',
@@ -146,8 +146,9 @@ export default function PhoneNumbersIndexPage() {
             charges — the same figures the app bills you with.
           </p>
           <p className='text-muted-foreground mt-4 text-sm'>
-            Prices verified {generatedAt}. Numbers are billed monthly with no
-            setup fee; minutes are pay as you go.
+            Prices verified {generatedAt}. Numbers are billed monthly — no setup
+            fee in stock, a one-time carrier fee on the types sourced on
+            request; minutes are pay as you go.
           </p>
         </Container>
       </Section>

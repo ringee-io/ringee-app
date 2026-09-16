@@ -33,6 +33,7 @@ import {
   getNumberOffer,
   getPhoneNumberCountry,
   isAdvanceOrder,
+  requirementsState,
   listCountryTypePairs,
   NUMBER_TYPE_META,
   numberTypeSlug,
@@ -95,6 +96,7 @@ export default async function NumberTypePage({ params }: Params) {
   const path = `/phone-numbers/${country.slug}/${type}`;
   const price = formatMonthly(offer.monthlyFromUsd);
   const onRequest = isAdvanceOrder(offer);
+  const requirements = requirementsState(offer);
   const setup = offer.setupUsd ? formatMonthly(offer.setupUsd) : null;
   const otherTypes = country.offers.filter(
     (other) => numberTypeSlug(other.numberType) !== type
@@ -141,7 +143,13 @@ export default async function NumberTypePage({ params }: Params) {
             .join(
               '; '
             )}. Ringee collects them in the dashboard, submits them to the carrier, and tracks the regulator's review until the number activates.`
-        : `None. ${country.countryName} ${meta.label.toLowerCase()} numbers carry no regulatory document requirements, so the number is yours as soon as the subscription is confirmed.`
+        : requirements === 'unknown'
+          ? `The regulator's requirements for this type could not be read from the carrier, so nothing is claimed here. Ringee shows what ${country.countryName} asks for when you order the number in the dashboard.`
+          : `None. ${country.countryName} ${meta.label.toLowerCase()} numbers carry no regulatory document requirements, so the number is ${
+              onRequest
+                ? 'ordered from the carrier without any paperwork of your own'
+                : 'yours as soon as the subscription is confirmed'
+            }.`
     },
     {
       question: `What can a ${country.countryName} ${meta.label.toLowerCase()} number do?`,
@@ -338,7 +346,9 @@ export default async function NumberTypePage({ params }: Params) {
             description={
               offer.requirements.length
                 ? 'These are the regulator’s own requirements, as the carrier publishes them. Ringee collects each one in the dashboard and tracks the review.'
-                : 'Nothing to prepare for this destination.'
+                : requirements === 'unknown'
+                  ? 'The carrier did not answer with this destination’s requirements — the dashboard shows them when you order.'
+                  : 'Nothing to prepare for this destination.'
             }
             align='left'
             as='h2'
@@ -361,9 +371,10 @@ export default async function NumberTypePage({ params }: Params) {
               <CallRateTable country={country} />
             </div>
             <p className='text-muted-foreground mt-4 text-sm'>
-              The range spans the destination networks: ordinary ranges at the
-              low end, surcharged, premium or satellite ranges at the top.
-              Minutes are charged from your workspace credit.
+              The range spans the ordinary destination networks, from the
+              cheapest to the dearest. Premium, satellite, high-cost and service
+              numbers are not included and are priced separately. Minutes are
+              charged from your workspace credit.
             </p>
           </Container>
         </Section>
@@ -483,7 +494,9 @@ export default async function NumberTypePage({ params }: Params) {
           description: `${meta.tagline} ${price} per month in ${country.countryName}, with ${
             offer.requirements.length
               ? `${offer.requirements.length} regulatory requirement(s)`
-              : 'no regulatory requirements'
+              : requirements === 'unknown'
+                ? 'regulatory requirements confirmed at order time'
+                : 'no regulatory requirements'
           }.`,
           url: `${SITE_URL}${path}`,
           offers: [

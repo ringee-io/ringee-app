@@ -106,6 +106,22 @@ describe("TelnyxService.getNumberListPrices", () => {
     ]);
   });
 
+  it("skips a row whose currency the provider left blank", async () => {
+    const { service } = buildWithPriceList(
+      [
+        "ISO,Country,Country Code,Phone Number Type,Phone Number One-Time-Cost,Phone Number Price / month,Currency",
+        "MX,Mexico,484,Local,5,5,",
+        "GB,United Kingdom,826,Local,1,1,USD",
+      ].join("\n"),
+    );
+
+    // A price with no currency is not a USD price: a consumer that publishes
+    // only USD would otherwise quote it as one.
+    const prices = await service.getNumberListPrices();
+
+    expect(prices.map((price) => price.countryCode)).toEqual(["GB"]);
+  });
+
   it("returns nothing when the provider renames its columns", async () => {
     const { service } = buildWithPriceList(
       ["Country,Type,Price", "MX,Local,5"].join("\n"),

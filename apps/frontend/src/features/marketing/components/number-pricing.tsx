@@ -16,6 +16,7 @@ import {
   isAdvanceOrder,
   NUMBER_TYPE_META,
   numberTypeSlug,
+  requirementsState,
   type NumberOffer,
   type PhoneNumberCountry
 } from '../content/phone-numbers';
@@ -134,7 +135,11 @@ export function NumberTypeCard({
               ? `${offer.requirements.length} regulatory requirement${
                   offer.requirements.length === 1 ? '' : 's'
                 } to activate`
-              : 'No documents required — activate right away'}
+              : requirementsState(offer) === 'unknown'
+                ? 'Regulatory requirements confirmed in the dashboard'
+                : onRequest
+                  ? 'No documents required — the carrier sources the number'
+                  : 'No documents required — activate right away'}
           </span>
         </p>
       </div>
@@ -296,15 +301,24 @@ export function AgentCostBreakdown({
 /** The regulatory checklist for one number type. */
 export function RequirementsList({ offer }: { offer: NumberOffer }) {
   if (!offer.requirements.length) {
+    const state = requirementsState(offer);
+
     return (
       <Card className='flex items-start gap-3'>
-        <Check
-          className='mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400'
-          aria-hidden
-        />
+        {state === 'unknown' ? (
+          <FileText className='mt-0.5 h-5 w-5 shrink-0' aria-hidden />
+        ) : (
+          <Check
+            className='mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400'
+            aria-hidden
+          />
+        )}
         <p className='text-muted-foreground text-sm'>
-          No regulatory documents are required for this number type. The number
-          activates as soon as the subscription is confirmed.
+          {state === 'unknown'
+            ? `The regulator's requirements for this number type could not be read from the carrier. Ringee shows what this country asks for when you order the number in the dashboard.`
+            : isAdvanceOrder(offer)
+              ? 'No regulatory documents are required for this number type. The carrier sources the number to order and confirms it before it activates.'
+              : 'No regulatory documents are required for this number type. The number activates as soon as the subscription is confirmed.'}
         </p>
       </Card>
     );

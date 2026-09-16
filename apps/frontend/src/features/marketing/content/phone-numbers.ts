@@ -53,6 +53,12 @@ export type NumberOffer = {
   capabilities: string[];
   localities: string[];
   requirements: NumberRequirement[];
+  /**
+   * False when the carrier could not be asked for the regulator's requirements.
+   * Absent in snapshots generated before the flag existed, which were built
+   * only from answers that succeeded.
+   */
+  requirementsKnown?: boolean;
 };
 
 export type CallRate = {
@@ -197,6 +203,22 @@ export function numberTypeSlug(numberType: string): PhoneNumberTypeSlug {
 /** A type the carrier sources to order instead of holding it in stock. */
 export function isAdvanceOrder(offer: NumberOffer): boolean {
   return offer.availability === 'advance_order';
+}
+
+/**
+ * What the pages may say about a type's paperwork.
+ *
+ * `unknown` is the case an empty list must not be read as: the carrier did not
+ * answer, so "no documents required" would be a promise nobody checked. Only
+ * `none` states it, and only an in-stock type can add that the number activates
+ * right away — an advance order is sourced by the carrier first, documents or
+ * not.
+ */
+export type RequirementsState = 'documents' | 'none' | 'unknown';
+
+export function requirementsState(offer: NumberOffer): RequirementsState {
+  if (offer.requirements.length) return 'documents';
+  return offer.requirementsKnown === false ? 'unknown' : 'none';
 }
 
 /**

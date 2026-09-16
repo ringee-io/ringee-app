@@ -59,6 +59,12 @@ export interface PublicNumberOffer {
   /** A few real cities/regions the numbers are in, for the page to show. */
   localities: string[];
   requirements: PublicNumberRequirement[];
+  /**
+   * False when the regulator's requirements could not be read for this type.
+   * An empty `requirements` then means "not known", not "none required" — the
+   * page must not promise activation without documents on that basis.
+   */
+  requirementsKnown: boolean;
 }
 
 export interface PublicCallRate {
@@ -236,9 +242,15 @@ export class NumberPricingCatalogService {
 
     if (!numbers.length) return null;
 
-    const monthly = numbers.map(
-      (number) => number.costInformation.monthlyCost ?? 0,
-    );
+    // A number the carrier returned without a usable monthly cost is not a $0
+    // number: the adapter coerces a missing cost to zero, and one such record
+    // would publish "from $0/month" for the whole type. Price from the records
+    // that carry a real cost, and treat a type with none as unpriced.
+    const monthly = numbers
+      .map((number) => number.costInformation.monthlyCost)
+      .filter((cost): cost is number => Number.isFinite(cost) && cost > 0);
+
+    if (!monthly.length) return null;
 
     const capabilities = new Set<NumberCapability>();
     const localities = new Set<string>();
@@ -261,7 +273,7 @@ export class NumberPricingCatalogService {
       sampled: numbers.length,
       capabilities: [...capabilities].sort(),
       localities: [...localities].slice(0, 12),
-      requirements: await this.buildRequirements(countryCode, numberType),
+      ...(await this.buildRequirements(countryCode, numberType)),
     };
   }
 
@@ -327,7 +339,7 @@ export class NumberPricingCatalogService {
       // confirm per range, and is not claimed here.
       capabilities: ["voice"],
       localities: [],
-      requirements: await this.buildRequirements(countryCode, numberType),
+      ...(await this.buildRequirements(countryCode, numberType)),
     };
   }
 
@@ -360,14 +372,21 @@ export class NumberPricingCatalogService {
     return comparable.every(
       ({ offer, listPrice }) =>
         // Both sides are already rounded to the cent by the adapter's margin.
-        Math.abs(listPrice.monthlyCost - offer.monthlyFromUsd) < 0.005,
+        // The list price has to reproduce the whole sampled range, not just its
+        // floor: a country whose inventory spans several prices while the list
+        // quotes one of them has not shown the list is what the carrier charges.
+        Math.abs(listPrice.monthlyCost - offer.monthlyFromUsd) < 0.005 &&
+        Math.abs(listPrice.monthlyCost - offer.monthlyToUsd) < 0.005,
     );
   }
 
   private async buildRequirements(
     countryCode: string,
     numberType: PublicNumberType,
-  ): Promise<PublicNumberRequirement[]> {
+  ): Promise<{
+    requirements: PublicNumberRequirement[];
+    requirementsKnown: boolean;
+  }> {
     try {
       const result = await this.telephonyService.getRegulatoryRequirements({
         countryCode,
@@ -375,25 +394,31 @@ export class NumberPricingCatalogService {
         action: "ordering",
       });
 
-      return result.requirements.map((requirement: RegulatoryRequirement) => ({
-        id: requirement.id,
-        name: requirement.name,
-        ...(requirement.description
-          ? { description: requirement.description }
-          : {}),
-        fieldType: requirement.fieldType,
-        ...(requirement.example ? { example: requirement.example } : {}),
-      }));
+      return {
+        requirements: result.requirements.map(
+          (requirement: RegulatoryRequirement) => ({
+            id: requirement.id,
+            name: requirement.name,
+            ...(requirement.description
+              ? { description: requirement.description }
+              : {}),
+            fieldType: requirement.fieldType,
+            ...(requirement.example ? { example: requirement.example } : {}),
+          }),
+        ),
+        requirementsKnown: true,
+      };
     } catch (error) {
-      // A country whose requirements cannot be read is still worth listing;
-      // the page says "check in the dashboard" rather than "none required",
-      // which would be the dangerous claim.
+      // A country whose requirements cannot be read is still worth listing, but
+      // the failure travels with the offer: an empty list published as fact
+      // would tell the visitor no documents are required, which is the
+      // dangerous claim. The page says "check in the dashboard" instead.
       this.logger.warn(
         `Could not read ${countryCode}/${numberType} requirements: ${
           error instanceof Error ? error.message : String(error)
         }`,
       );
-      return [];
+      return { requirements: [], requirementsKnown: false };
     }
   }
 

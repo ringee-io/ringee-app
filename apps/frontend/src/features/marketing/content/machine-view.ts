@@ -269,7 +269,7 @@ const CLAIMS: string[] = [
   'category: open-source calling infrastructure for human teams and AI voice agents',
   `pricing: ${PRICING.freelancer.name} $${PRICING.freelancer.price}/${PRICING.freelancer.period} · ${PRICING.organization.name} $${PRICING.organization.price}/${PRICING.organization.period} per organization, unlimited members`,
   `calling: pay-as-you-go credits from ${formatPerMinute(CHEAPEST_PER_MINUTE_USD)}/min, billed separately from the plan`,
-  `numbers: local, toll-free and mobile numbers in ${PHONE_NUMBER_COUNTRIES.length} countries from ${formatMonthly(CHEAPEST_MONTHLY_USD)}/month, no setup fee`,
+  `numbers: local, toll-free and mobile numbers in ${PHONE_NUMBER_COUNTRIES.length} countries from ${formatMonthly(CHEAPEST_MONTHLY_USD)}/month, no setup fee in stock (types sourced on request can carry a one-time carrier fee)`,
   `voice-agent price: ${formatPerMinute(AI_VOICE_AGENT_PRICING.perMinuteUsd)}/min for the conversation, plus the per-minute price of the call it places`,
   'users: unlimited on the $20/month team plan. no per-user fees',
   'surfaces: web app, Chrome extension, iOS and Android apps, CLI, Dialer SDK, MCP',
