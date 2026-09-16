@@ -1,83 +1,51 @@
 'use client';
 
 import { useState } from 'react';
+import { useFormatter, useTranslations } from 'next-intl';
+import { ArrowDownRight } from 'lucide-react';
 
 import { Card } from './primitives';
 import { PRICING } from '../site';
 
-const RINGEE_ORG_PRICE = PRICING.organization.price; // 20
 const MAX_SEATS = 20;
 const DEFAULT_SEATS = 12;
 const DEFAULT_PER_SEAT = 30;
 
-const format = (value: number) =>
-  value.toLocaleString('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    maximumFractionDigits: 0
-  });
-
-/**
- * Scalability cost comparison for the homepage. As the team grows toward 20
- * members a per-user tool's bill climbs linearly, while Ringee stays flat: a
- * solo user pays no subscription (Freelancer), and a whole team is a flat
- * Organization price no matter how many you add — you only pay for the minutes
- * you use. The per-user assumption is adjustable, like the
- * pricing-page calculator. This is plain arithmetic — it names no competitor and
- * excludes calling credits, which are billed separately on Ringee.
- */
+/** Illustrative subscription comparison; usage is explicitly excluded. */
 export function ScalabilityCalculator() {
+  const t = useTranslations('marketing.calculator');
+  const formatter = useFormatter();
   const [seats, setSeats] = useState(DEFAULT_SEATS);
   const [perSeat, setPerSeat] = useState(DEFAULT_PER_SEAT);
+  const format = (value: number) =>
+    formatter.number(value, {
+      style: 'currency',
+      currency: 'USD',
+      maximumFractionDigits: 0
+    });
 
-  const safeSeats = Math.max(0, seats);
-  const safePerSeat = Math.max(0, perSeat);
-
-  // Solo (one seat) is the Freelancer plan — no subscription, pay only for
-  // minutes; a team is the flat Organization price for unlimited users.
-  const isSolo = safeSeats <= 1;
-  const ringeePlan = isSolo
-    ? PRICING.freelancer.name
-    : PRICING.organization.name;
-  const ringeeMonthly = isSolo ? PRICING.freelancer.price : RINGEE_ORG_PRICE;
-
-  const perSeatMonthly = safeSeats * safePerSeat;
+  const isSolo = seats === 1;
+  const ringeeMonthly = isSolo
+    ? PRICING.freelancer.price
+    : PRICING.organization.price;
+  const perSeatMonthly = seats * perSeat;
   const monthlySavings = Math.max(0, perSeatMonthly - ringeeMonthly);
-  const annualSavings = monthlySavings * 12;
-
-  // Bars scale against the per-user bill at full capacity so Ringee reads as a
-  // flat sliver next to the climbing per-user bar. Floor keeps both visible.
-  const denominator = Math.max(MAX_SEATS * safePerSeat, ringeeMonthly, 1);
-  const barWidth = (value: number) =>
-    `${Math.min(100, Math.max(value > 0 ? 4 : 0, (value / denominator) * 100))}%`;
+  const denominator = Math.max(perSeatMonthly, ringeeMonthly, 1);
+  const barScale = (value: number) => value / denominator;
 
   return (
-    <Card className='mx-auto max-w-3xl'>
-      <div className='flex flex-wrap items-end justify-between gap-4'>
-        <div>
-          <h3 className='text-xl font-semibold'>
-            The most economical way to scale
-          </h3>
-          <p className='text-muted-foreground mt-1 text-sm'>
-            Per-user tools bill you for every new hire. On Ringee a solo user
-            pays no subscription, and a whole team is a flat{' '}
-            {format(RINGEE_ORG_PRICE)}/month for unlimited users — you only pay
-            for the minutes you use.
-          </p>
-        </div>
-        <div className='text-right'>
-          <p className='text-3xl font-bold tabular-nums'>
-            {format(monthlySavings)}
-          </p>
-          <p className='text-muted-foreground text-xs'>saved per month</p>
-        </div>
-      </div>
-
-      <div className='mt-6 grid gap-6 sm:grid-cols-2'>
+    <Card className='mx-auto h-full w-full max-w-3xl p-6 shadow-none sm:p-8'>
+      <h3 className='text-xl font-semibold tracking-tight'>{t('title')}</h3>
+      <p className='text-muted-foreground mt-2 text-base leading-relaxed'>
+        {t('description')}
+      </p>
+      <div className='mt-7 grid gap-5 sm:grid-cols-2'>
         <label className='flex flex-col gap-2'>
-          <span className='text-sm font-medium'>
-            Team size: <span className='font-bold tabular-nums'>{seats}</span>{' '}
-            {seats === 1 ? 'user' : 'users'}
+          <span className='flex items-baseline justify-between gap-3 text-sm font-medium'>
+            {t('seats')}
+            <span className='text-emerald-700 tabular-nums dark:text-emerald-400'>
+              {t('users', { count: seats })}
+            </span>
           </span>
           <input
             type='range'
@@ -85,75 +53,110 @@ export function ScalabilityCalculator() {
             max={MAX_SEATS}
             value={seats}
             onChange={(event) => setSeats(Number(event.target.value))}
-            className='accent-emerald-600'
-            aria-label='Team size in users'
+            className='h-11 w-full cursor-pointer rounded-sm accent-emerald-700 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-emerald-500'
+            aria-label={t('seats')}
+            aria-valuetext={t('users', { count: seats })}
           />
         </label>
-
         <label className='flex flex-col gap-2'>
-          <span className='text-sm font-medium'>
-            Their price per user (/month)
-          </span>
-          <div className='border-border/70 flex items-center rounded-md border px-3'>
-            <span className='text-muted-foreground'>$</span>
+          <span className='text-sm font-medium'>{t('perSeat')}</span>
+          <div className='border-border/80 flex min-h-11 items-center rounded-lg border px-3 focus-within:ring-2 focus-within:ring-emerald-500'>
+            <span className='text-muted-foreground' aria-hidden>
+              $
+            </span>
             <input
               type='number'
               min={0}
+              max={10000}
+              step={1}
               value={perSeat}
-              onChange={(event) => setPerSeat(Number(event.target.value))}
-              className='w-full bg-transparent px-2 py-2 outline-none'
-              aria-label='Assumed price per user per month'
+              onChange={(event) => {
+                const value = Number(event.target.value);
+                setPerSeat(
+                  Number.isFinite(value)
+                    ? Math.min(10000, Math.max(0, value))
+                    : 0
+                );
+              }}
+              className='w-full min-w-0 bg-transparent px-2 py-2 text-base outline-none'
+              aria-label={t('perSeat')}
             />
           </div>
         </label>
       </div>
 
-      <div className='mt-8 flex flex-col gap-5'>
+      <div className='mt-7 space-y-6'>
         <div>
-          <div className='flex items-baseline justify-between text-sm'>
-            <span className='text-muted-foreground'>Per-user tool</span>
+          <div className='flex items-baseline justify-between gap-3 text-sm'>
+            <span className='text-muted-foreground'>{t('other')}</span>
             <span className='font-semibold tabular-nums'>
               {format(perSeatMonthly)}
-              <span className='text-muted-foreground font-normal'>/mo</span>
+              <span className='text-muted-foreground font-normal'>
+                {t('monthly')}
+              </span>
             </span>
           </div>
-          <div className='bg-muted/60 mt-2 h-3 overflow-hidden rounded-full'>
+          <div
+            className='bg-muted mt-3 h-2 overflow-hidden rounded-full'
+            aria-hidden
+          >
             <div
-              className='bg-muted-foreground/40 h-full rounded-full transition-all duration-300'
-              style={{ width: barWidth(perSeatMonthly) }}
+              className='bg-muted-foreground/50 h-full origin-left rounded-full transition-transform duration-200 motion-reduce:transition-none'
+              style={{ transform: `scaleX(${barScale(perSeatMonthly)})` }}
             />
           </div>
-          <p className='text-muted-foreground mt-1 text-xs tabular-nums'>
-            {safeSeats} × {format(safePerSeat)}
+          <p className='text-muted-foreground mt-2 text-xs tabular-nums'>
+            {t('users', { count: seats })} × {format(perSeat)}
           </p>
         </div>
-
         <div>
-          <div className='flex items-baseline justify-between text-sm'>
-            <span className='font-medium'>Ringee {ringeePlan}</span>
+          <div className='flex items-baseline justify-between gap-3 text-sm'>
+            <span className='font-medium'>{t('ringee')}</span>
             <span className='font-semibold tabular-nums'>
               {format(ringeeMonthly)}
-              <span className='text-muted-foreground font-normal'>/mo</span>
+              <span className='text-muted-foreground font-normal'>
+                {t('monthly')}
+              </span>
             </span>
           </div>
-          <div className='bg-muted/60 mt-2 h-3 overflow-hidden rounded-full'>
+          <div
+            className='bg-muted mt-3 h-2 overflow-hidden rounded-full'
+            aria-hidden
+          >
             <div
-              className='h-full rounded-full bg-emerald-600 transition-all duration-300'
-              style={{ width: barWidth(ringeeMonthly) }}
+              className='h-full origin-left rounded-full bg-emerald-600 transition-transform duration-200 motion-reduce:transition-none'
+              style={{ transform: `scaleX(${barScale(ringeeMonthly)})` }}
             />
           </div>
-          <p className='text-muted-foreground mt-1 text-xs'>
-            {isSolo
-              ? 'No subscription · pay only for minutes'
-              : 'Flat price · unlimited users'}
+          <p className='text-muted-foreground mt-2 text-xs'>
+            {t(isSolo ? 'solo' : 'team')}
           </p>
         </div>
       </div>
 
-      <p className='text-muted-foreground mt-6 text-xs'>
-        About <span className='font-semibold'>{format(annualSavings)}</span> a
-        year at {seats} {seats === 1 ? 'user' : 'users'}. Subscription cost only
-        — calling minutes are billed separately as credits on Ringee.
+      <div
+        className='mt-7 rounded-xl bg-emerald-50 p-5 text-emerald-950 dark:bg-emerald-950/50 dark:text-emerald-100'
+        role='status'
+        aria-live='polite'
+        aria-atomic='true'
+      >
+        <p className='flex items-center gap-2 text-sm font-medium'>
+          <ArrowDownRight className='h-4 w-4' aria-hidden />
+          {t('savings')}
+        </p>
+        <div className='mt-2 flex flex-wrap items-baseline gap-x-4 gap-y-2'>
+          <p className='text-4xl font-semibold tracking-tight tabular-nums'>
+            {format(monthlySavings)}
+          </p>
+          <p className='text-sm'>
+            {monthlySavings > 0
+              ? t('annual', { amount: format(monthlySavings * 12) })
+              : t('noSavings')}
+          </p>
+        </div>
+      </div>
+      <p className='text-muted-foreground mt-4 text-xs leading-relaxed'>
+        {t('note')}
       </p>
     </Card>
   );

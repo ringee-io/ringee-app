@@ -2,7 +2,7 @@ import { auth } from '@clerk/nextjs/server';
 import { redirect } from 'next/navigation';
 import type { Metadata } from 'next';
 import { getTranslations } from 'next-intl/server';
-import { BellRing, Bot, CalendarCheck } from 'lucide-react';
+import { BellRing, Bot, CalendarCheck, Check } from 'lucide-react';
 
 import { buildMetadata } from '@/features/marketing/seo';
 import {
@@ -24,7 +24,7 @@ import {
   JsonLd,
   softwareAppJsonLd
 } from '@/features/marketing/components/json-ld';
-import { PRICING, SITE_URL } from '@/features/marketing/site';
+import { PRICING, REQUEST_DEMO_URL, SITE_URL } from '@/features/marketing/site';
 
 export const metadata: Metadata = buildMetadata({
   title: 'Ringee — Calling Infrastructure for Humans & AI Agents',
@@ -36,7 +36,8 @@ export const metadata: Metadata = buildMetadata({
 export default async function HomePage() {
   const { userId } = await auth();
   if (userId) redirect('/dashboard/overview');
-  const t = await getTranslations('marketing.growth');
+  const t = await getTranslations('marketing.home');
+  const price = PRICING.organization.price;
 
   return (
     <>
@@ -203,17 +204,68 @@ export default async function HomePage() {
         </Container>
       </Section> */}
 
-      {/* Scalability cost calculator */}
-      <Section className='py-16 sm:py-20'>
+      {/* Simple team pricing — flat team plan next to the cost calculator */}
+      <Section
+        id='team-pricing'
+        className='border-border/50 bg-muted/25 border-y py-20 sm:py-24'
+      >
         <Container>
           <SectionHeading
-            eyebrow='Cost efficiency'
-            title='Grow your team, not your bill'
-            description={t('description', {
-              price: PRICING.organization.price
-            })}
+            eyebrow={t('pricing.eyebrow')}
+            title={t('pricing.title')}
+            description={t('pricing.description')}
           />
-          <div className='mt-10'>
+          <div className='mt-10 grid items-stretch gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:gap-10'>
+            <div className='flex flex-col py-2'>
+              <h3 className='text-lg font-semibold'>
+                {t('pricing.teamTitle')}
+              </h3>
+              <p className='mt-4 flex items-baseline gap-3'>
+                <span className='text-6xl font-semibold tracking-tight'>
+                  ${price}
+                </span>
+                <span className='text-muted-foreground text-base'>
+                  {t('pricing.perMonth')}
+                </span>
+              </p>
+              <p className='mt-3 text-lg font-medium'>
+                {t('pricing.teamDescription')}
+              </p>
+              <ul className='mt-7 space-y-3'>
+                {['users', 'campaigns', 'agents'].map((key) => (
+                  <li key={key} className='flex items-center gap-3 text-base'>
+                    <Check
+                      className='h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-400'
+                      aria-hidden
+                    />
+                    {t(`pricing.benefits.${key}`)}
+                  </li>
+                ))}
+              </ul>
+              <p className='text-muted-foreground mt-6 text-sm leading-relaxed'>
+                {t('pricing.usage')}
+              </p>
+              <ButtonLink
+                href='/pricing'
+                withArrow
+                className='mt-6 w-full sm:w-fit'
+              >
+                {t('pricing.cta')}
+              </ButtonLink>
+              <div className='border-border/70 mt-8 border-t pt-6'>
+                <h3 className='font-semibold'>{t('pricing.soloTitle')}</h3>
+                <p className='text-muted-foreground mt-2 text-sm leading-relaxed'>
+                  {t('pricing.soloDescription')}
+                </p>
+                <ButtonLink
+                  href={REQUEST_DEMO_URL}
+                  variant='secondary'
+                  className='mt-4 w-full sm:w-auto'
+                >
+                  {t('pricing.soloCta')}
+                </ButtonLink>
+              </div>
+            </div>
             <ScalabilityCalculator />
           </div>
         </Container>
