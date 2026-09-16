@@ -87,7 +87,7 @@ function buildService(
     findByEmail: async () => [],
   };
 
-  const campaignService = {
+  const leadWrites = {
     assertCampaignForLeadWrite: async (_ctx: unknown, campaignId: string) => {
       campaignStubs.assert?.(campaignId);
       return { id: campaignId };
@@ -109,7 +109,7 @@ function buildService(
     contactRepo as never,
     phoneRepo as never,
     emailRepo as never,
-    campaignService as never,
+    leadWrites as never,
   );
 
   return { service, created, updated, links, phones, campaignLeads };

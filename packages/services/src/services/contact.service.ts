@@ -1,9 +1,7 @@
 import {
   BadRequestException,
-  Inject,
   Injectable,
   NotFoundException,
-  forwardRef,
 } from "@nestjs/common";
 import {
   CallOutcome,
@@ -76,10 +74,6 @@ export class ContactService {
     private readonly customIntegrationOutbound: CustomIntegrationOutboundService,
     private readonly crmConnections: CrmConnectionService,
     private readonly crmMatching: CrmMatchingService,
-    // The other side of the CRM-sync ↔ campaign cycle deferred in
-    // CrmContactSyncService: whichever of the three modules loads first, the
-    // edge that sees a half-initialized module is behind a forwardRef.
-    @Inject(forwardRef(() => CrmContactSyncService))
     private readonly crmContactSync: CrmContactSyncService,
   ) {}
 

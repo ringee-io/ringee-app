@@ -2,6 +2,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
+import { CampaignLeadWriteService } from "./campaign-lead-write.service";
 import { CampaignService } from "./campaign.service";
 
 const ORG_CTX = { userId: "user-1", organizationId: "org-1" };
@@ -26,38 +27,53 @@ function build(options: BuildOptions = {}) {
   const calls: string[] = [];
   const createManyPayloads: Array<Array<{ contactId: string }>> = [];
 
+  const campaignRepo = {
+    findById: async (id: string) => {
+      calls.push(`campaign.findById:${id}`);
+      return campaign;
+    },
+  } as never;
+
+  const campaignLeadRepo = {
+    createMany: async (
+      campaignId: string,
+      leads: Array<{ contactId: string }>,
+    ) => {
+      calls.push(`lead.createMany:${campaignId}`);
+      createManyPayloads.push(leads);
+      return options.inserted ?? 1;
+    },
+    queueAllPending: async (campaignId: string) => {
+      calls.push(`lead.queueAllPending:${campaignId}`);
+      return 1;
+    },
+  } as never;
+
+  const contactRepo = {
+    findByIdForOwner: async (_ctx: unknown, id: string) => {
+      calls.push(`contact.findByIdForOwner:${id}`);
+      return options.contactInWorkspace === false
+        ? null
+        : { id, phoneNumber: "+14155550123" };
+    },
+  } as never;
+
+  // The real boundary, injected as it is in production: these tests go through
+  // CampaignService, so they cover the delegation as well as the rules.
+  const leadWrites = new CampaignLeadWriteService(
+    campaignRepo,
+    campaignLeadRepo,
+    contactRepo,
+  );
+
   const service = new CampaignService(
-    {
-      findById: async (id: string) => {
-        calls.push(`campaign.findById:${id}`);
-        return campaign;
-      },
-    } as never,
-    {
-      createMany: async (
-        campaignId: string,
-        leads: Array<{ contactId: string }>,
-      ) => {
-        calls.push(`lead.createMany:${campaignId}`);
-        createManyPayloads.push(leads);
-        return options.inserted ?? 1;
-      },
-      queueAllPending: async (campaignId: string) => {
-        calls.push(`lead.queueAllPending:${campaignId}`);
-        return 1;
-      },
-    } as never,
+    campaignRepo,
+    campaignLeadRepo,
     {} as never,
-    {
-      findByIdForOwner: async (_ctx: unknown, id: string) => {
-        calls.push(`contact.findByIdForOwner:${id}`);
-        return options.contactInWorkspace === false
-          ? null
-          : { id, phoneNumber: "+14155550123" };
-      },
-    } as never,
+    contactRepo,
     {} as never,
     {} as never,
+    leadWrites,
   );
 
   return { service, calls, createManyPayloads };

@@ -1,10 +1,8 @@
 import {
   ForbiddenException,
-  Inject,
   Injectable,
   Logger,
   NotFoundException,
-  forwardRef,
 } from "@nestjs/common";
 import {
   CrmConnection,
@@ -21,7 +19,7 @@ import {
   OwnershipContext,
   readCrmCampaignField,
 } from "@ringee/platform";
-import { CampaignService } from "../campaign.service";
+import { CampaignLeadWriteService } from "../campaign-lead-write.service";
 import { CrmConnectionService } from "./crm-connection.service";
 
 /** A provider phone number that normalized cleanly, with its original form. */
@@ -78,11 +76,10 @@ export class CrmContactSyncService {
     private readonly contactRepo: ContactRepository,
     private readonly phoneRepo: ContactPhoneRepository,
     private readonly emailRepo: ContactEmailRepository,
-    // Cyclic by nature: CampaignService reaches ContactService, which reaches
-    // this service for its CRM lookups. Deferred the same way MeetingService
-    // takes ReminderService.
-    @Inject(forwardRef(() => CampaignService))
-    private readonly campaigns: CampaignService,
+    // The campaign lead-write boundary, not CampaignService: that one reaches
+    // ContactService, which reaches this service for its CRM lookups, and the
+    // cycle only ever held together behind a forwardRef.
+    private readonly campaigns: CampaignLeadWriteService,
   ) {}
 
   async syncFromCrm(

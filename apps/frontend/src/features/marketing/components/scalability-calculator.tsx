@@ -72,9 +72,12 @@ export function ScalabilityCalculator() {
               value={perSeat}
               onChange={(event) => {
                 const value = Number(event.target.value);
+                // Rounded before it is stored: the figures render with
+                // `maximumFractionDigits: 0`, so a typed "30.75" would show as
+                // "$31" next to a total computed from 30.75.
                 setPerSeat(
                   Number.isFinite(value)
-                    ? Math.min(10000, Math.max(0, value))
+                    ? Math.min(10000, Math.max(0, Math.round(value)))
                     : 0
                 );
               }}
