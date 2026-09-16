@@ -49,6 +49,10 @@ export class CrmBulkSyncService {
       created: number;
       errors: number;
       skippedNoPhone: number;
+      /** Contacts this pass put into the campaign their CRM record named. */
+      campaignLeadsAdded: number;
+      /** Records naming a campaign that does not resolve — see the warnings. */
+      campaignUnresolved: number;
     };
     companies: { synced: number; created: number; errors: number };
   }> {
@@ -85,7 +89,14 @@ export class CrmBulkSyncService {
     };
 
     const result = {
-      contacts: { synced: 0, created: 0, errors: 0, skippedNoPhone: 0 },
+      contacts: {
+        synced: 0,
+        created: 0,
+        errors: 0,
+        skippedNoPhone: 0,
+        campaignLeadsAdded: 0,
+        campaignUnresolved: 0,
+      },
       companies: { synced: 0, created: 0, errors: 0 },
     };
 
@@ -152,6 +163,11 @@ export class CrmBulkSyncService {
               }
               result.contacts.synced++;
               if (r.created) result.contacts.created++;
+              if (r.campaign?.status === "added") {
+                result.contacts.campaignLeadsAdded++;
+              } else if (r.campaign && r.campaign.status !== "already_member") {
+                result.contacts.campaignUnresolved++;
+              }
             } catch (err) {
               result.contacts.errors++;
               this.logger.warn(
@@ -173,7 +189,9 @@ export class CrmBulkSyncService {
     this.logger.log(
       `BulkSync completed for ${connection.id}: ` +
         `contacts(synced=${result.contacts.synced},created=${result.contacts.created},` +
-        `errors=${result.contacts.errors},skippedNoPhone=${result.contacts.skippedNoPhone}) ` +
+        `errors=${result.contacts.errors},skippedNoPhone=${result.contacts.skippedNoPhone},` +
+        `campaignLeadsAdded=${result.contacts.campaignLeadsAdded},` +
+        `campaignUnresolved=${result.contacts.campaignUnresolved}) ` +
         `companies(synced=${result.companies.synced},created=${result.companies.created},errors=${result.companies.errors})`,
     );
 

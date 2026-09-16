@@ -1,6 +1,7 @@
 export * from "./types";
 export * from "./errors";
 export * from "./phone";
+export * from "./campaign-field";
 export * from "./provider";
 export * from "./abstract-provider";
 export * from "./registry";

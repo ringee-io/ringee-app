@@ -43,6 +43,14 @@ export type OdooPartnerRecord = {
   user_id?: [number, string] | false | null;
   website?: string | false | null;
   industry_id?: [number, string] | false | null;
+  /**
+   * Odoo custom fields are always `x_`-prefixed (`x_studio_` when Studio
+   * created them), so a column an admin labelled "Campaign" arrives under one
+   * of these two names. Both are optional: `resolvePartnerFields` drops the
+   * ones a given database does not have.
+   */
+  x_campaign?: string | false | null;
+  x_studio_campaign?: string | false | null;
 };
 
 export type OdooUserRecord = {

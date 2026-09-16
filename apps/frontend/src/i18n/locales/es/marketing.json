@@ -711,5 +711,41 @@
         "description": "Tus devoluciones de llamada, reuniones e historial te acompañan — nunca pierdas un seguimiento."
       }
     }
+  },
+  "home": {
+    "pricing": {
+      "eyebrow": "05 / Precios simples para equipos",
+      "title": "Suma personas. Mantén una sola suscripción.",
+      "description": "Solo o con un equipo en crecimiento: elige el espacio que necesitas y paga por las llamadas que uses.",
+      "soloTitle": "¿Llamas por tu cuenta?",
+      "soloDescription": "Empieza con una cuenta individual gratuita. Añade créditos cuando estés listo para llamar.",
+      "soloCta": "Solicitar cuenta",
+      "teamTitle": "Todo tu equipo",
+      "perMonth": "/ mes",
+      "teamDescription": "Una organización. Usuarios ilimitados.",
+      "benefits": {
+        "users": "Sin suscripciones por usuario",
+        "campaigns": "Campañas de llamadas compartidas",
+        "agents": "Agentes de voz con IA"
+      },
+      "usage": "Las llamadas y los números se cobran por separado. Las llamadas con IA también incluyen uso de voz y modelo.",
+      "cta": "Ver precios y tarifas completos"
+    }
+  },
+  "calculator": {
+    "title": "¿Cuánto podría ahorrar tu equipo?",
+    "description": "Compara suscripciones usando tu propio precio por usuario.",
+    "seats": "Tamaño del equipo",
+    "users": "{count, plural, one {# usuario} other {# usuarios}}",
+    "perSeat": "Precio a comparar por usuario / mes",
+    "other": "Suscripción por usuario",
+    "ringee": "Suscripción de Ringee",
+    "monthly": "/mes",
+    "solo": "Cuenta individual · sin suscripción",
+    "team": "Usuarios ilimitados · un precio fijo",
+    "savings": "Ahorro mensual estimado",
+    "annual": "{amount} en un año",
+    "note": "Comparación ilustrativa de suscripciones, no una cotización. No incluye llamadas, números ni uso de IA.",
+    "noSavings": "Sin ahorro de suscripción con este precio."
   }
 }

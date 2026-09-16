@@ -270,6 +270,14 @@ export class ContactService {
     const fromCrm = await this.findOrCreateFromCrm(ctx, phoneNumber);
     if (fromCrm) return this.fillBlanks(fromCrm, identity);
 
+    // The CRM path writes the contact row before it resolves the campaign the
+    // record named, so it can return null here with the row already persisted
+    // — a campaign write that failed, or a sync that ran past the timeout and
+    // landed afterwards. Creating blind would leave the workspace two contacts
+    // for one number, and the dialer keys on that number.
+    const persisted = await this.repo.findByPhone(ctx, phoneNumber);
+    if (persisted) return this.fillBlanks(persisted, identity);
+
     return this.repo.create(ctx, {
       name: identity.name,
       firstName: identity.firstName,

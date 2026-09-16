@@ -1,4 +1,9 @@
-import { Injectable, Logger } from "@nestjs/common";
+import {
+  ForbiddenException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from "@nestjs/common";
 import {
   CrmConnection,
   CrmContactLinkRepository,
@@ -12,11 +17,39 @@ import {
   CrmContactSyncResult,
   normalizePhoneE164,
   OwnershipContext,
+  readCrmCampaignField,
 } from "@ringee/platform";
+import { CampaignLeadWriteService } from "../campaign-lead-write.service";
 import { CrmConnectionService } from "./crm-connection.service";
 
 /** A provider phone number that normalized cleanly, with its original form. */
 type DialablePhone = { raw: string; e164: string };
+
+/**
+ * What the sync did with the campaign a CRM record named on its person.
+ *
+ * Every outcome is reported rather than thrown: the contact is the point of the
+ * sync, and a campaign field an admin mistyped must not cost the workspace the
+ * person it was written on.
+ */
+export type CrmCampaignAssignment = {
+  /** The CRM field the value came from, e.g. `campaign`. */
+  field: string;
+  /** The value the CRM held. */
+  value: string;
+  status:
+    | "added"
+    /** Already a lead of that campaign — its attempts are left untouched. */
+    | "already_member"
+    /** The value is not a Ringee campaign id (a name, a UTM tag, a typo). */
+    | "not_an_id"
+    /** A well-formed id, but no such campaign in this workspace. */
+    | "not_found"
+    /** Campaigns are organization-only; this connection is a personal one. */
+    | "personal_workspace";
+  /** Set once the value parsed as an id, whether or not it resolved. */
+  campaignId?: string;
+};
 
 /**
  * Result of pulling one CRM person into Ringee. `contactId` is null when the
@@ -28,6 +61,8 @@ export type CrmContactUpsertResult = {
   created: boolean;
   /** Set when no contact row was written, with the reason. */
   skipped?: "no_phone";
+  /** Set only when the CRM record named a campaign. */
+  campaign?: CrmCampaignAssignment;
 };
 
 @Injectable()
@@ -41,6 +76,10 @@ export class CrmContactSyncService {
     private readonly contactRepo: ContactRepository,
     private readonly phoneRepo: ContactPhoneRepository,
     private readonly emailRepo: ContactEmailRepository,
+    // The campaign lead-write boundary, not CampaignService: that one reaches
+    // ContactService, which reaches this service for its CRM lookups, and the
+    // cycle only ever held together behind a forwardRef.
+    private readonly campaigns: CampaignLeadWriteService,
   ) {}
 
   async syncFromCrm(
@@ -101,7 +140,13 @@ export class CrmContactSyncService {
         matchConfidence: "crm_sync",
         rawSnapshot: (result.raw ?? null) as Record<string, unknown> | null,
       });
-      return { contactId: existingLink.contactId, created: false };
+      return this.finish(
+        connection,
+        result,
+        ctx,
+        existingLink.contactId,
+        false,
+      );
     }
 
     const existingByPhone = primaryPhone
@@ -135,7 +180,7 @@ export class CrmContactSyncService {
         matchConfidence: primaryPhone ? "phone_exact" : "email_exact",
         rawSnapshot: (result.raw ?? null) as Record<string, unknown> | null,
       });
-      return { contactId: existingContactId, created: false };
+      return this.finish(connection, result, ctx, existingContactId, false);
     }
 
     // No dialable number and nothing already in the directory to enrich: do
@@ -191,7 +236,99 @@ export class CrmContactSyncService {
       rawSnapshot: (result.raw ?? null) as Record<string, unknown> | null,
     });
 
-    return { contactId: contact.id, created: true };
+    return this.finish(connection, result, ctx, contact.id, true);
+  }
+
+  /**
+   * Shared tail of every path that ended with a contact row: the CRM record is
+   * synced, so now honour the campaign it named (if any).
+   */
+  private async finish(
+    connection: CrmConnection,
+    result: CrmContactSyncResult,
+    ctx: OwnershipContext,
+    contactId: string,
+    created: boolean,
+  ): Promise<CrmContactUpsertResult> {
+    const campaign = await this.assignCampaign(
+      connection,
+      result,
+      ctx,
+      contactId,
+    );
+    return campaign ? { contactId, created, campaign } : { contactId, created };
+  }
+
+  /**
+   * Put the contact in the campaign its CRM record points at.
+   *
+   * Campaign membership is the CRM's call, not ours: the record names a
+   * campaign by its Ringee id, we look it up in the caller's workspace and add
+   * the contact to it. Re-adding an existing lead is a no-op, so a CRM that
+   * re-syncs the same person on every edit never resets the attempts and
+   * dispositions that lead has accumulated.
+   *
+   * Nothing here can fail the sync. The value is workspace-authored data in a
+   * free-text field, and the alternative — dropping a contact because someone
+   * pasted a campaign name instead of its id — loses the record the sync exists
+   * to bring in. Unresolved values are logged and returned instead.
+   */
+  private async assignCampaign(
+    connection: CrmConnection,
+    result: CrmContactSyncResult,
+    ctx: OwnershipContext,
+    contactId: string,
+  ): Promise<CrmCampaignAssignment | undefined> {
+    const field = readCrmCampaignField(result.customFields);
+    if (!field) return undefined;
+
+    const found = { field: field.field, value: field.raw };
+    const describe = `${connection.provider} person ${result.contact.externalId} on connection ${connection.id}`;
+
+    // Campaigns are organization-only (CMP-001). A personal connection naming
+    // one is a configuration mistake, not something to raise on every contact.
+    if (!ctx.organizationId) {
+      this.logger.warn(
+        `${describe}: "${field.field}" names a campaign, but campaigns require an organization workspace`,
+      );
+      return { ...found, status: "personal_workspace" };
+    }
+
+    if (!field.campaignId) {
+      this.logger.warn(
+        `${describe}: "${field.field}" = "${field.raw}" is not a Ringee campaign id`,
+      );
+      return { ...found, status: "not_an_id" };
+    }
+
+    try {
+      await this.campaigns.assertCampaignForLeadWrite(ctx, field.campaignId);
+    } catch (err) {
+      // Only "no such campaign here" is data; anything else (a database
+      // failure) belongs to the caller's error handling.
+      if (
+        !(err instanceof NotFoundException) &&
+        !(err instanceof ForbiddenException)
+      ) {
+        throw err;
+      }
+      this.logger.warn(
+        `${describe}: campaign ${field.campaignId} is not in this workspace`,
+      );
+      return { ...found, status: "not_found", campaignId: field.campaignId };
+    }
+
+    const { added } = await this.campaigns.addContactToCampaign(
+      ctx,
+      field.campaignId,
+      contactId,
+    );
+
+    return {
+      ...found,
+      status: added ? "added" : "already_member",
+      campaignId: field.campaignId,
+    };
   }
 
   private async updateExistingContact(

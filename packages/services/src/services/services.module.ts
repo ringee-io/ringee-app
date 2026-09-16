@@ -37,6 +37,7 @@ import { OrganizationService } from "./organization.service";
 import { SubscriptionService } from "./subscription.service";
 import { BillingNotificationService } from "./billing-notification.service";
 import { CampaignService } from "./campaign.service";
+import { CampaignLeadWriteService } from "./campaign-lead-write.service";
 import { TagService } from "./tag.service";
 import { CallScriptService } from "./call-script.service";
 import { OnboardingService } from "./onboarding.service";
@@ -209,6 +210,7 @@ const servicesProviders = [
   SubscriptionService,
   BillingNotificationService,
   CampaignService,
+  CampaignLeadWriteService,
   TagService,
   CallScriptService,
   OnboardingService,

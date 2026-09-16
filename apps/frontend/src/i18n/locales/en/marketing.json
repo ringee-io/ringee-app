@@ -769,5 +769,41 @@
     "noteTitle": "Grow your team, not your bill.",
     "noteDescription": "Unlimited users for ${price}/month, plus calling usage. Free for individuals. Open source and ready to self-host.",
     "surfacesNote": "Three surfaces, no extra user fees"
+  },
+  "home": {
+    "pricing": {
+      "eyebrow": "05 / Simple team pricing",
+      "title": "Add teammates. Keep one subscription.",
+      "description": "One person or a growing team: choose the workspace you need, then pay for the calling you use.",
+      "soloTitle": "Calling on your own?",
+      "soloDescription": "Start with a free individual account. Add calling credits when you are ready to dial.",
+      "soloCta": "Request account",
+      "teamTitle": "Your whole team",
+      "perMonth": "/ month",
+      "teamDescription": "One organization. Unlimited users.",
+      "benefits": {
+        "users": "No per-user subscription fees",
+        "campaigns": "Shared calling campaigns",
+        "agents": "AI voice agents"
+      },
+      "usage": "Calling and number costs are separate. AI calls also include voice and model usage.",
+      "cta": "See full pricing and rates"
+    }
+  },
+  "calculator": {
+    "title": "What could your team save?",
+    "description": "Compare subscription costs using your own per-user price.",
+    "seats": "Team size",
+    "users": "{count, plural, one {# user} other {# users}}",
+    "perSeat": "Your comparison price per user / month",
+    "other": "Per-user subscription",
+    "ringee": "Ringee subscription",
+    "monthly": "/mo",
+    "solo": "Individual account · no subscription",
+    "team": "Unlimited users · one flat price",
+    "savings": "Estimated monthly savings",
+    "annual": "{amount} over a year",
+    "note": "Illustrative subscription comparison, not a quote. Calling, numbers, and AI usage are excluded.",
+    "noSavings": "No subscription savings at this price."
   }
 }

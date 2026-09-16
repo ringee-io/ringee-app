@@ -71,6 +71,10 @@ export abstract class OdooBaseProvider extends AbstractCrmProvider {
     "user_id",
     "website",
     "industry_id",
+    // Custom columns a workspace uses to name the Ringee campaign a partner
+    // belongs to. Filtered out below on databases that do not define them.
+    "x_campaign",
+    "x_studio_campaign",
   ];
 
   /**
