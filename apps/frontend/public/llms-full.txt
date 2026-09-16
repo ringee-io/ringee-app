@@ -13,7 +13,7 @@ Ringee is one calling infrastructure for two kinds of operators. Human teams can
 What makes Ringee different:
 
 - Flat, no-per-seat pricing. Freelancer is free; a whole team is one flat $20/month.
-- Pay-as-you-go calling. Calling credits are billed separately, from $0.012/min — you only pay for the minutes you use.
+- Pay-as-you-go calling. Calling credits are billed separately, from $0.0075/min — you only pay for the minutes you use.
 - Human + AI calling. Teammates and AI voice agents place calls on the same stack and write to the same call history.
 - Agentic by design. Ringee ships a Model Context Protocol (MCP) server so Claude, ChatGPT, compatible agents, or the CLI can prepare human calling sessions or trigger a configured voice agent that places and holds the call.
 - Open source and self-hostable. Audit the code, run it on your own infrastructure, and keep full control of your data.
@@ -27,7 +27,9 @@ Ringee has two plans plus pay-as-you-go calling credits.
 
 - Freelancer — $0/month. Human calling and automation for one person: manual dialer (browser and iOS), contacts, notes and call outcomes, callbacks and meeting scheduling (Google Calendar), call recording and real-time transcription, lead prospecting with Apollo and Prospeo, CRM sync with Attio and Odoo, and AI orchestration via ChatGPT, Claude, MCP, CLI, and webhooks. No team, campaigns, or AI voice agents. Pay only for the calling credits you use.
 - Organization — $20/month per organization. Everything in Freelancer plus unlimited team members, calling campaigns, and AI voice agents — all for one flat subscription price, with no per-seat fees. Real calls and AI voice/model usage are billed separately from the plan.
-- Calling credits — pay-as-you-go, from $0.012/min. Billed separately from your subscription; per-minute rates depend on the destination you call.
+- Calling credits — pay-as-you-go, from $0.0075/min. Billed separately from your subscription; per-minute rates depend on the destination you call.
+- Phone numbers — local, toll-free and mobile numbers in 79 countries from $1/month, billed monthly, with no setup fee on numbers bought from stock (a type the carrier sources on request can carry a one-time carrier setup fee, listed on its country page). Each country page at https://www.ringee.io/phone-numbers lists its price, the regulatory documents the country requires, and the per-minute rate for calling it.
+- AI voice agents — $0.1080/min for the conversation, plus the per-minute price of the call placed. Agents require an Organization workspace.
 
 Cost example: a 12-person team pays $20/month flat instead of roughly $360/month on a typical ~$30/seat tool — about $4,080 saved per year.
 
@@ -119,7 +121,7 @@ The SDK encapsulates WebRTC and Telnyx entirely: the host application never hand
 
 Security: a `pk_live_...` publishable key is designed to be visible in the browser. It is signed and scoped to an exact list of allowed origins (no wildcards, paths, or implicit subdomains), and it does not authenticate an agent on its own — agents are verified with a one-time code sent to their email, and Ringee validates workspace membership, permissions, caller ID, credit, and DNC on the server before a call connects. The private `cik_live_...` Custom Integrations API key and webhook signing secret are different credentials and must never be shipped to a browser. Publishable keys are generated inside a Custom Integration in the Ringee dashboard (Integrations → Custom Integrations → Dialer SDK · Publishable keys).
 
-Calls placed through the SDK are normal Ringee calls: they appear in call history, use the same pay-as-you-go calling credits (from $0.012/min, with no separate SDK fee), follow the workspace's recording and transcription settings, respect caller ID rotation, and trigger the same Custom Integration webhooks. Passing `externalContactId` lets Ringee resolve a CRM id to the right contact. A self-hosted Ringee deployment is supported by passing the API base origin as the `apiUrl` option. Requirements: a modern browser with WebRTC and `navigator.mediaDevices`, a secure context (HTTPS in production or localhost in development), and E.164 destination numbers.
+Calls placed through the SDK are normal Ringee calls: they appear in call history, use the same pay-as-you-go calling credits (from $0.0075/min, with no separate SDK fee), follow the workspace's recording and transcription settings, respect caller ID rotation, and trigger the same Custom Integration webhooks. Passing `externalContactId` lets Ringee resolve a CRM id to the right contact. A self-hosted Ringee deployment is supported by passing the API base origin as the `apiUrl` option. Requirements: a modern browser with WebRTC and `navigator.mediaDevices`, a secure context (HTTPS in production or localhost in development), and E.164 destination numbers.
 
 This release does not include a public Ringee URL that can be dropped into an `<iframe src>`, an automatic `data-ringee-key` loader, or a separate React wrapper package.
 

@@ -6,6 +6,8 @@ import {
   AddressValidationInput,
   AddressValidationResult,
   CostInformation,
+  NumberCoverageCountry,
+  NumberListPrice,
   SearchAvailableParams,
   PurchaseNumbers,
   AssignedNumber,
@@ -69,10 +71,18 @@ export class TelephonyService implements TelephonyServiceInterface {
     }
   }
 
+  getNumberCoverage(): Promise<NumberCoverageCountry[]> {
+    return this.getServiceProvider().getNumberCoverage();
+  }
+
   searchAvailableNumbers(
     params: SearchAvailableParams,
   ): Promise<AvailableNumber[]> {
     return this.getServiceProvider().searchAvailableNumbers(params);
+  }
+
+  getNumberListPrices(): Promise<NumberListPrice[]> {
+    return this.getServiceProvider().getNumberListPrices();
   }
 
   getAvailableNumberCost(phoneNumber: string): Promise<CostInformation> {

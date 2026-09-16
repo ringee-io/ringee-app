@@ -23,6 +23,9 @@ apps/frontend/public/sw.js
 apps/frontend/public/workbox-*.js
 # Generated from packages/agent/skills by scripts/generate-skills.mjs.
 apps/frontend/src/features/marketing/content/skills.generated.ts
+# Generated from the carrier catalog by
+# apps/backend/scripts/generate-number-pricing.ts.
+apps/frontend/src/features/marketing/content/number-pricing.generated.json
 # esbuild output and the vendored SDK bundle in the playgrounds.
 apps/sdk-playground/**/vendor/**
 apps/sdk-playground/ui-gallery/gallery.js

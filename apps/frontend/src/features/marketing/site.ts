@@ -125,6 +125,11 @@ export const PRODUCT_MENU: ProductMenuGroup[] = [
         description: 'Run shared team calling campaigns'
       },
       {
+        label: 'Phone numbers',
+        href: '/phone-numbers',
+        description: 'Local, toll-free and mobile numbers by country'
+      },
+      {
         label: 'Caller ID rotation',
         href: '/features/caller-id-rotation',
         description: 'Local-presence dialing for higher pickup'
@@ -294,6 +299,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
     title: 'Product',
     links: [
       { label: 'AI Voice Agents', href: '/ai-voice-agents' },
+      { label: 'Phone numbers by country', href: '/phone-numbers' },
       { label: 'Outbound calling', href: '/features/outbound-calling' },
       { label: 'Campaigns', href: '/features/campaigns' },
       { label: 'Call recording', href: '/features/call-recording' },

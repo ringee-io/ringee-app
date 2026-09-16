@@ -165,6 +165,24 @@ Outside NANP the leading national digits are a coarse locality preference,
 not a guarantee of the recipient's city. A phone prefix describes its
 numbering plan, not the current physical location of a portable/mobile line.
 
+### What the carrier can tell you about a number's price
+
+Three endpoints answer three different questions, and they disagree on purpose:
+
+- `/country_coverage` — the countries and types Telnyx issues numbers in. It is
+  coverage, not stock.
+- `/available_phone_numbers` — what can be ordered right now, with the real cost
+  per number. It is also the only source of capabilities and localities. It
+  answers **empty for ranges it serves numbers from minutes later**, so an empty
+  answer is confirmed before it is believed (`NumberPricingCatalogService`).
+- `/pricing` — Telnyx's published price list, as **CSV whatever `Accept` says**,
+  ignoring every filter, and served without authentication: it is list pricing,
+  not this account's. It is the only price for a type Telnyx sells without
+  holding stock (bought as an advance order) — but it reproduces the inventory
+  price in most countries and not in NANPA, where a $1 local number is listed at
+  international rates. `NumberPricingCatalogService` therefore publishes it only
+  for a country whose sampled types it matches exactly (BILL-021).
+
 The rotation repository's SQL regression test can run against an isolated local
 PostgreSQL instance by setting `RINGEE_ROTATION_TEST_PG_SOCKET` to its `/tmp/`
 socket directory (port 55439, database `postgres`) when running database tests.

@@ -4,6 +4,8 @@ import {
   AssignedNumber,
   AvailableNumber,
   CostInformation,
+  NumberCoverageCountry,
+  NumberListPrice,
   NumberOrderRequirements,
   PurchaseNumbers,
   RegulatoryRequirementsQuery,
@@ -15,9 +17,18 @@ import {
 } from "./available.number";
 
 export interface TelephonyNumbersService {
+  /** Every country the provider issues numbers in, with its number types. */
+  getNumberCoverage(): Promise<NumberCoverageCountry[]>;
   searchAvailableNumbers(
     params: SearchAvailableParams,
   ): Promise<AvailableNumber[]>;
+  /**
+   * The provider's published price list for every country and number type it
+   * sells, priced like a searched number. It answers the types a number search
+   * cannot: the ones the provider sources to order rather than keeping in
+   * stock. Only the types Ringee resells are returned.
+   */
+  getNumberListPrices(): Promise<NumberListPrice[]>;
   /**
    * Authoritative price (incl. profit margin) for a single available number,
    * resolved from the provider. The price is computed server-side so it can

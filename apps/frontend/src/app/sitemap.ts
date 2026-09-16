@@ -5,6 +5,10 @@ import { FEATURES } from '@/features/marketing/content/features';
 import { INTEGRATIONS } from '@/features/marketing/content/integrations';
 import { USE_CASES } from '@/features/marketing/content/use-cases';
 import { COMPARISONS } from '@/features/marketing/content/comparisons';
+import {
+  listCountryTypePairs,
+  PHONE_NUMBER_COUNTRIES
+} from '@/features/marketing/content/phone-numbers';
 
 /**
  * Sitemap for the public marketing site. Only valid, indexable public routes
@@ -18,6 +22,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: '/', priority: 1 },
     { path: '/ai-voice-agents', priority: 0.9 },
     { path: '/pricing', priority: 0.9 },
+    { path: '/phone-numbers', priority: 0.9 },
     { path: '/request-demo', priority: 0.9 },
     { path: '/features', priority: 0.8 },
     { path: '/integrations', priority: 0.8 },
@@ -53,13 +58,26 @@ export default function sitemap(): MetadataRoute.Sitemap {
     path: `/compare/${comparison.slug}`,
     priority: 0.7
   }));
+  // One page per country, then one per country/number-type pair. Both are
+  // generated from the committed pricing snapshot, so the sitemap can never
+  // list a country page that was not built.
+  const countryPaths = PHONE_NUMBER_COUNTRIES.map((country) => ({
+    path: `/phone-numbers/${country.slug}`,
+    priority: 0.7
+  }));
+  const numberTypePaths = listCountryTypePairs().map((pair) => ({
+    path: `/phone-numbers/${pair.country}/${pair.type}`,
+    priority: 0.6
+  }));
 
   return [
     ...staticPaths,
     ...featurePaths,
     ...integrationPaths,
     ...useCasePaths,
-    ...comparisonPaths
+    ...comparisonPaths,
+    ...countryPaths,
+    ...numberTypePaths
   ].map(({ path, priority }) => ({
     url: path === '/' ? SITE_URL : `${SITE_URL}${path}`,
     lastModified,
