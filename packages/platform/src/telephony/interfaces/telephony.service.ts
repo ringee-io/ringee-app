@@ -1,3 +1,4 @@
+import { CarrierConnectionService } from "./carrier-connection";
 import { TelephonyRateService } from "./telephony.rate.service";
 import { TelephonyNumbersService } from "./telephony.numbers.service";
 import { TelephonyCallerIdService } from "./telephony.caller.id.service";
@@ -93,6 +94,7 @@ export type TelephonyService = {
     emergency?: boolean;
     raw?: any;
   }>;
-} & TelephonyRateService &
+} & CarrierConnectionService &
+  TelephonyRateService &
   TelephonyNumbersService &
   TelephonyCallerIdService;

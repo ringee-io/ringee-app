@@ -14,6 +14,7 @@ export type SettingsItemId =
   | 'calendars'
   | 'recording'
   | 'desk-phones'
+  | 'external-carriers'
   | 'crm'
   | 'enrichment'
   | 'leads'
@@ -31,4 +32,5 @@ export interface SettingsNavItem {
    * Cosmetic only — the API enforces the same boundary.
    */
   adminOnly?: boolean;
+  organizationOnly?: boolean;
 }

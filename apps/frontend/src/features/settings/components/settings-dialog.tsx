@@ -57,6 +57,13 @@ const RecordingSettingsCard = dynamic(
     ),
   { loading }
 );
+const ExternalCarriersPanel = dynamic(
+  () =>
+    import(
+      '@/features/external-carriers/components/external-carriers-panel'
+    ).then((m) => m.ExternalCarriersPanel),
+  { loading }
+);
 const DeskPhonesView = dynamic(
   () =>
     import('@/features/desk-phones/components/desk-phones-view').then(
@@ -132,7 +139,7 @@ export function SettingsDialog() {
   const setTarget = useSettingsDialogStore((s) => s.setTarget);
 
   const t = useTranslations('settings.dialog');
-  const { canAccessAdminFeatures } = useOrgRole();
+  const { canAccessAdminFeatures, hasOrg } = useOrgRole();
 
   const [query, setQuery] = React.useState('');
   // Below `md` the rail and the pane share the same space; the rail slides over.
@@ -140,8 +147,8 @@ export function SettingsDialog() {
   const paneRef = React.useRef<HTMLDivElement>(null);
 
   const items = React.useMemo(
-    () => visibleSettingsItems(canAccessAdminFeatures),
-    [canAccessAdminFeatures]
+    () => visibleSettingsItems(canAccessAdminFeatures, hasOrg),
+    [canAccessAdminFeatures, hasOrg]
   );
 
   const activeId = resolveSettingsItem(requestedItem, items);
@@ -363,6 +370,8 @@ function SettingsPanel({
       return <ScriptEditor />;
     case 'recording':
       return <RecordingSettingsCard className='max-w-2xl' />;
+    case 'external-carriers':
+      return <ExternalCarriersPanel />;
     case 'desk-phones':
       return <DeskPhonesView />;
     case 'crm':

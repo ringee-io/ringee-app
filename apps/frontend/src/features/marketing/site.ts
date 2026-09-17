@@ -23,6 +23,8 @@ export const DEMO_VIDEO_URL = `https://www.youtube.com/watch?v=${DEMO_VIDEO_ID}`
 /** Public developer + content resources (live on their own subdomains). */
 export const DOCS_URL = 'https://docs.ringee.io';
 export const BLOG_URL = 'https://blog.ringee.io';
+/** Public product roadmap and feature requests (Canny). */
+export const ROADMAP_URL = 'https://ringee.canny.io/';
 
 /**
  * Deep links into the developer docs. Marketing pages link to the docs section
@@ -341,6 +343,7 @@ export const FOOTER_COLUMNS: FooterColumn[] = [
     links: [
       { label: 'Developer docs', href: DOCS_URL },
       { label: 'Blog', href: BLOG_URL },
+      { label: 'Roadmap', href: ROADMAP_URL },
       { label: 'CLI on npm', href: CLI_NPM_URL },
       { label: 'Dialer SDK on npm', href: SDK_NPM_URL },
       { label: 'Chrome extension', href: CHROME_EXTENSION_URL },

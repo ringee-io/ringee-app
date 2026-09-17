@@ -1,3 +1,10 @@
+import {
+  CarrierConnectionConfig,
+  CarrierConnection,
+  CarrierConnectionError,
+  CarrierRegistration,
+} from "../interfaces/carrier-connection";
+import { mapUacRegistration, uacPayload } from "./telnyx.uac";
 import { HttpException, Injectable, Logger } from "@nestjs/common";
 import { TelephonyCountryRate } from "../interfaces/telephony.rate";
 import { TelnyxClient } from "./telnyx.client";
@@ -96,6 +103,96 @@ export class TelnyxService implements TelephonyService {
   private readonly logger = new Logger(TelnyxService.name);
 
   constructor(private readonly telnyxClient: TelnyxClient) {}
+
+  private async uacRequest<T>(request: () => Promise<T>): Promise<T> {
+    try {
+      return await request();
+    } catch (error) {
+      const status = error instanceof HttpException ? error.getStatus() : 502;
+      throw new CarrierConnectionError(
+        status >= 500 || status === 408 || status === 429,
+        status === 404,
+      );
+    }
+  }
+
+  async createCarrierConnection(
+    config: CarrierConnectionConfig,
+  ): Promise<CarrierConnection> {
+    const response = await this.uacRequest(() =>
+      this.telnyxClient.post<{ data: { id?: string } }>(
+        "/uac_connections",
+        uacPayload(config),
+      ),
+    );
+    if (!response.data?.id) throw new CarrierConnectionError(true);
+    return { id: response.data.id, reference: config.reference };
+  }
+
+  async updateCarrierConnection(
+    id: string,
+    config: CarrierConnectionConfig,
+  ): Promise<void> {
+    await this.uacRequest(() =>
+      this.telnyxClient.patch(
+        `/uac_connections/${encodeURIComponent(id)}`,
+        uacPayload(config),
+      ),
+    );
+  }
+
+  async deleteCarrierConnection(id: string): Promise<void> {
+    try {
+      await this.uacRequest(() =>
+        this.telnyxClient.delete(`/uac_connections/${encodeURIComponent(id)}`),
+      );
+    } catch (error) {
+      if (!(error instanceof CarrierConnectionError && error.notFound))
+        throw error;
+    }
+  }
+
+  async getCarrierConnection(id: string): Promise<CarrierConnection> {
+    const response = await this.uacRequest(() =>
+      this.telnyxClient.get<{ data: { id: string; connection_name: string } }>(
+        `/uac_connections/${encodeURIComponent(id)}`,
+      ),
+    );
+    if (!response.data?.id) throw new CarrierConnectionError(true);
+    return { id: response.data.id, reference: response.data.connection_name };
+  }
+
+  async findCarrierConnection(
+    reference: string,
+  ): Promise<CarrierConnection | null> {
+    const query = new URLSearchParams({
+      "filter[connection_name][contains]": reference,
+      "page[size]": "250",
+    });
+    const response = await this.uacRequest(() =>
+      this.telnyxClient.get<{
+        data: { id: string; connection_name: string }[];
+        meta?: { total_pages?: number };
+      }>(`/uac_connections?${query}`),
+    );
+    // An ambiguous/incomplete lookup cannot authorize another POST or deletion.
+    if (!Array.isArray(response.data) || (response.meta?.total_pages ?? 1) > 1)
+      throw new CarrierConnectionError(true);
+    const matches = response.data.filter(
+      (row) => row.connection_name === reference,
+    );
+    if (matches.length > 1) throw new CarrierConnectionError(true);
+    return matches[0] ? { id: matches[0].id, reference } : null;
+  }
+
+  async checkCarrierRegistration(id: string): Promise<CarrierRegistration> {
+    const response = await this.uacRequest(() =>
+      this.telnyxClient.post<{ data?: unknown }>(
+        `/uac_connections/${encodeURIComponent(id)}/actions/check_registration_status`,
+      ),
+    );
+    return mapUacRegistration(response.data);
+  }
 
   private applyNumberProfitMargin(cost: number): number {
     const rawMargin = process.env.NUMBER_PROFIT_MARGIN;

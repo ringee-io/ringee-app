@@ -30,6 +30,23 @@ export class TelnyxClient {
    */
   private handleError(error: any, method: string, path: string): never {
     const status = error.response?.status;
+    // SIP Attach responses can echo external_uac_settings, including passwords.
+    // Keep only status + numeric provider codes, never a provider body/message.
+    if (path.startsWith("/uac_connections")) {
+      const codes = Array.isArray(error.response?.data?.errors)
+        ? error.response.data.errors
+            .map((item: { code?: unknown }) => String(item.code ?? ""))
+            .filter((code: string) => /^\d{1,10}$/.test(code))
+            .join(",")
+        : "";
+      this.logger.warn(
+        `${method} /uac_connections failed status=${status ?? "unavailable"} codes=${codes}`,
+      );
+      throw new HttpException(
+        "Carrier provider request failed",
+        status || HttpStatus.BAD_GATEWAY,
+      );
+    }
     this.logger.warn(
       `${method} ${path} failed${status ? ` with ${status}` : ""}: ${JSON.stringify(
         error.response?.data ?? error.message,
@@ -41,9 +58,19 @@ export class TelnyxClient {
     );
   }
 
+  private uacOptions(path: string) {
+    return path.startsWith("/uac_connections")
+      ? { timeout: 15_000, maxRedirects: 0 }
+      : {};
+  }
+
   async post<T = any>(path: string, body?: any): Promise<T> {
     try {
-      const { data } = await this.client.post<T>(path, body);
+      const { data } = await this.client.post<T>(
+        path,
+        body,
+        this.uacOptions(path),
+      );
       return data;
     } catch (error) {
       this.handleError(error, "POST", path);
@@ -52,7 +79,7 @@ export class TelnyxClient {
 
   async get<T = any>(path: string): Promise<T> {
     try {
-      const { data } = await this.client.get<T>(path);
+      const { data } = await this.client.get<T>(path, this.uacOptions(path));
       return data;
     } catch (error) {
       this.handleError(error, "GET", path);
@@ -88,7 +115,11 @@ export class TelnyxClient {
 
   async patch<T = any>(path: string, body?: any): Promise<T> {
     try {
-      const { data } = await this.client.patch<T>(path, body);
+      const { data } = await this.client.patch<T>(
+        path,
+        body,
+        this.uacOptions(path),
+      );
       return data;
     } catch (error) {
       this.handleError(error, "PATCH", path);
@@ -121,7 +152,7 @@ export class TelnyxClient {
 
   async delete<T = any>(path: string): Promise<T> {
     try {
-      const { data } = await this.client.delete<T>(path);
+      const { data } = await this.client.delete<T>(path, this.uacOptions(path));
       return data;
     } catch (error) {
       this.handleError(error, "DELETE", path);

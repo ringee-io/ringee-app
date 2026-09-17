@@ -1,3 +1,4 @@
+import { CarrierConnectionConfig } from "./interfaces/carrier-connection";
 import { Injectable } from "@nestjs/common";
 import { TelephonyCountryRate } from "./interfaces/telephony.rate";
 import { TelephonyService as TelephonyServiceInterface } from "./interfaces/telephony.service";
@@ -62,6 +63,25 @@ export class TelephonyService implements TelephonyServiceInterface {
 
   getRateByCountry(codeOrName: string): Promise<TelephonyCountryRate | null> {
     return this.getServiceProvider().getRateByCountry(codeOrName);
+  }
+
+  createCarrierConnection(config: CarrierConnectionConfig) {
+    return this.getServiceProvider().createCarrierConnection(config);
+  }
+  updateCarrierConnection(id: string, config: CarrierConnectionConfig) {
+    return this.getServiceProvider().updateCarrierConnection(id, config);
+  }
+  deleteCarrierConnection(id: string) {
+    return this.getServiceProvider().deleteCarrierConnection(id);
+  }
+  getCarrierConnection(id: string) {
+    return this.getServiceProvider().getCarrierConnection(id);
+  }
+  findCarrierConnection(reference: string) {
+    return this.getServiceProvider().findCarrierConnection(reference);
+  }
+  checkCarrierRegistration(id: string) {
+    return this.getServiceProvider().checkCarrierRegistration(id);
   }
 
   private getServiceProvider(provider = "telnyx"): TelephonyServiceInterface {
