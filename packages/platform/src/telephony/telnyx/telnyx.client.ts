@@ -2,22 +2,49 @@ import { Injectable, HttpException, HttpStatus, Logger } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import axios, { AxiosInstance } from "axios";
 
-const TELNYX_BASE_URL = "https://api.telnyx.com/v2";
+const TELNYX_ORIGIN = "https://api.telnyx.com";
+const TELNYX_BASE_PATH = "/v2";
+const TELNYX_BASE_URL = `${TELNYX_ORIGIN}${TELNYX_BASE_PATH}`;
+
+/** A `.` or `..` path segment, literal or percent-encoded (`%2e`). */
+const DOT_SEGMENT = /(^|\/)(\.|%2e){1,2}(\/|$)/i;
 
 /**
  * The request URL for a Telnyx API path. Paths carry ids from webhooks and
  * user records, so the URL is always built on the fixed Telnyx origin — never
  * handed to axios as a relative path it could resolve elsewhere — and a path
  * that is not a plain absolute path on that origin is refused outright.
+ *
+ * `encodeURIComponent` leaves `.` and `..` intact, so an id alone could walk
+ * the path out of the endpoint it was meant for (`/uac_connections/..`) and
+ * reach another Telnyx API with our key. Dot segments are refused, and the
+ * resolved URL must still sit on the Telnyx origin under the API base path.
  */
 function apiUrl(path: string): string {
-  if (!/^\/(?![/\\])[^\s\\]*$/.test(path) || path.includes("://")) {
-    throw new HttpException(
-      "Invalid telephony provider path",
-      HttpStatus.BAD_REQUEST,
-    );
+  const pathname = path.split(/[?#]/, 1)[0];
+  if (
+    !/^\/(?![/\\])[^\s\\]*$/.test(path) ||
+    path.includes("://") ||
+    DOT_SEGMENT.test(pathname)
+  ) {
+    throw invalidPath();
   }
-  return `${TELNYX_BASE_URL}${path}`;
+  const href = `${TELNYX_BASE_URL}${path}`;
+  const url = new URL(href);
+  if (
+    url.origin !== TELNYX_ORIGIN ||
+    !url.pathname.startsWith(`${TELNYX_BASE_PATH}/`)
+  ) {
+    throw invalidPath();
+  }
+  return href;
+}
+
+function invalidPath(): HttpException {
+  return new HttpException(
+    "Invalid telephony provider path",
+    HttpStatus.BAD_REQUEST,
+  );
 }
 
 @Injectable()
@@ -46,6 +73,8 @@ export class TelnyxClient {
    * unattributable without this line.
    */
   private handleError(error: any, method: string, path: string): never {
+    // A path `apiUrl` refused never reached Telnyx: keep its 400 as-is.
+    if (error instanceof HttpException) throw error;
     const status = error.response?.status;
     // SIP Attach responses can echo external_uac_settings, including passwords.
     // Keep only status + numeric provider codes, never a provider body/message.

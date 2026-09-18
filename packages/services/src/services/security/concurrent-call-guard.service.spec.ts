@@ -659,9 +659,9 @@ describe("ConcurrentCallGuardService.releasePendingReservation", () => {
   it("gives back the reservation made for this pre-dial", async () => {
     const h = harness({
       calls: [],
-      lease: { deviceId: "device-a", callControlId: null },
+      lease: { leaseId: "lease-1", deviceId: "device-a", callControlId: null },
     });
-    await h.guard.tagPending(USER, "device-a", "token-1");
+    await h.guard.tagPending(USER, "lease-1", "token-1");
 
     await h.guard.releasePendingReservation(USER, "device-a", "token-1");
 
@@ -671,36 +671,90 @@ describe("ConcurrentCallGuardService.releasePendingReservation", () => {
   it("leaves the reservation of a dial the same device placed since", async () => {
     const h = harness({
       calls: [],
-      lease: { deviceId: "device-a", callControlId: null },
+      lease: { leaseId: "lease-1", deviceId: "device-a", callControlId: null },
     });
-    await h.guard.tagPending(USER, "device-a", "token-1");
+    await h.guard.tagPending(USER, "lease-1", "token-1");
     // The device re-dials: its fresh pre-flight replaces the lease.
-    assert.equal(
-      (
-        await h.guard.requestDial(USER, {
-          deviceId: "device-a",
-          source: "web",
-          organizationId: null,
-        })
-      ).allowed,
-      true,
+    const redial = await h.guard.requestDial(USER, {
+      deviceId: "device-a",
+      source: "web",
+      organizationId: null,
+    });
+    assert.equal(redial.allowed, true);
+    await h.guard.tagPending(
+      USER,
+      (redial as { leaseId: string }).leaseId,
+      "token-2",
     );
-    await h.guard.tagPending(USER, "device-a", "token-2");
 
     await h.guard.releasePendingReservation(USER, "device-a", "token-1");
 
     assert.equal(JSON.parse(h.store.get(LEASE_KEY)!).reservationId, "token-2");
   });
 
+  it("never tags a lease an overlapping pre-flight of the same device replaced", async () => {
+    const h = harness({ calls: [] });
+    const first = await h.guard.requestDial(USER, {
+      deviceId: "device-a",
+      source: "web",
+      organizationId: null,
+    });
+    const second = await h.guard.requestDial(USER, {
+      deviceId: "device-a",
+      source: "web",
+      organizationId: null,
+    });
+    assert.equal(first.allowed && second.allowed, true);
+    const firstLease = (first as { leaseId: string }).leaseId;
+    assert.notEqual(firstLease, (second as { leaseId: string }).leaseId);
+
+    // The first resolve finishes late: its tag and its abandon must both miss.
+    await h.guard.tagPending(USER, firstLease, "token-1");
+    await h.guard.releasePendingReservation(USER, "device-a", "token-1");
+    await h.guard.releasePendingLease(USER, firstLease);
+
+    const lease = JSON.parse(h.store.get(LEASE_KEY)!);
+    assert.equal(lease.leaseId, (second as { leaseId: string }).leaseId);
+    assert.equal(lease.reservationId, undefined);
+  });
+
   it("leaves a reservation that is already bound to a real call", async () => {
     const h = harness({
       calls: [],
-      lease: { deviceId: "device-a", callControlId: null },
+      lease: { leaseId: "lease-1", deviceId: "device-a", callControlId: null },
     });
-    await h.guard.tagPending(USER, "device-a", "token-1");
+    await h.guard.tagPending(USER, "lease-1", "token-1");
     await h.guard.bindToCall(USER, "leg-1");
 
     await h.guard.releasePendingReservation(USER, "device-a", "token-1");
+
+    assert.notEqual(h.store.get(LEASE_KEY), undefined);
+  });
+});
+
+describe("ConcurrentCallGuardService.releasePendingLease", () => {
+  it("gives back the unbound lease this pre-flight took", async () => {
+    const h = harness({
+      calls: [],
+      lease: { leaseId: "lease-1", deviceId: "device-a", callControlId: null },
+    });
+
+    await h.guard.releasePendingLease(USER, "lease-1");
+
+    assert.equal(h.store.get(LEASE_KEY), undefined);
+  });
+
+  it("leaves a lease that is already bound to a real call", async () => {
+    const h = harness({
+      calls: [],
+      lease: {
+        leaseId: "lease-1",
+        deviceId: "device-a",
+        callControlId: "leg-1",
+      },
+    });
+
+    await h.guard.releasePendingLease(USER, "lease-1");
 
     assert.notEqual(h.store.get(LEASE_KEY), undefined);
   });

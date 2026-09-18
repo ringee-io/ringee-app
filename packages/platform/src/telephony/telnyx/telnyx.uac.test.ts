@@ -222,6 +222,11 @@ describe("TelnyxClient request paths", () => {
     "/\\attacker.example/calls",
     "calls/leg-1",
     "/calls/leg 1",
+    "/uac_connections/..",
+    "/uac_connections/../phone_numbers",
+    "/calls/%2e%2e/actions/hangup",
+    "/calls/./leg-1",
+    "/..",
   ])("never sends a request for %s", async (path) => {
     const client = new TelnyxClient();
     await expect(client.post(path, {})).rejects.toMatchObject({

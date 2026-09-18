@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { Injectable, Logger } from "@nestjs/common";
 import {
   Call,
@@ -128,6 +129,13 @@ function isVoiceAgentCall(call: Call): boolean {
 }
 
 export interface DialLease {
+  /**
+   * Unique per successful {@link ConcurrentCallGuardService.requestDial}. Unlike
+   * `deviceId` it tells two overlapping pre-flights of the SAME device apart, so
+   * the one that lost the lease can never tag or release the one that won it.
+   * Absent on leases written before it existed and on `bindToCall` fallbacks.
+   */
+  leaseId?: string;
   /** Stable identity of the device/surface that holds the lease. */
   deviceId: string;
   /** Human-readable label for the error message ("Chrome · macOS"). */
@@ -148,6 +156,13 @@ export interface DialLease {
 
 export interface DialPermit {
   allowed: true;
+  /**
+   * Identity of the lease this dial took, to pass to
+   * {@link ConcurrentCallGuardService.tagPending} and
+   * {@link ConcurrentCallGuardService.releasePendingLease}. Absent when no lease
+   * was taken (an organization dial).
+   */
+  leaseId?: string;
 }
 
 export interface DialRejection {
@@ -271,6 +286,7 @@ export class ConcurrentCallGuardService {
     }
 
     const lease: DialLease = {
+      leaseId: randomUUID(),
       deviceId: request.deviceId,
       deviceLabel: request.deviceLabel ?? null,
       source: request.source,
@@ -294,7 +310,7 @@ export class ConcurrentCallGuardService {
         return true;
       });
 
-    if (acquired) return { allowed: true };
+    if (acquired) return { allowed: true, leaseId: lease.leaseId };
 
     const holder = await this.readLease(userId);
     if (!holder) {
@@ -337,7 +353,7 @@ export class ConcurrentCallGuardService {
         `taken ${holder.at}; no live call in the database)`,
     );
     await this.writeLease(userId, lease);
-    return { allowed: true };
+    return { allowed: true, leaseId: lease.leaseId };
   }
 
   /**
@@ -429,18 +445,41 @@ export class ConcurrentCallGuardService {
   }
 
   /**
-   * Record which pre-dial the device's unbound lease was reserved for, so
+   * {@link releasePending} bound to the exact lease a pre-flight took: it is
+   * deleted only while it is still that unbound lease, checked and deleted
+   * atomically. A pre-flight that fails after an overlapping one from the same
+   * device replaced its lease therefore frees nothing.
+   */
+  async releasePendingLease(userId: string, leaseId: string): Promise<void> {
+    const raw = await this.readRawLease(userId);
+    const holder = raw ? this.parseLease(raw) : null;
+    if (!raw || !holder || holder.callControlId || holder.leaseId !== leaseId)
+      return;
+    await this.redis
+      .compareAndSwap(leaseKey(userId), raw, null)
+      .catch((error) =>
+        this.logger.warn(
+          `Could not release the pending dial lease for user ${userId}: ${this.message(error)}`,
+        ),
+      );
+  }
+
+  /**
+   * Record which pre-dial the unbound lease `leaseId` was reserved for, so
    * {@link releasePendingReservation} can later drop exactly that reservation.
-   * Best effort: an untagged lease still expires with its short pending TTL.
+   * Keyed on the lease identity rather than the device: an overlapping
+   * pre-flight from the same device replaces the lease, and this tag must not
+   * land on the replacement. Best effort: an untagged lease still expires with
+   * its short pending TTL.
    */
   async tagPending(
     userId: string,
-    deviceId: string,
+    leaseId: string,
     reservationId: string,
   ): Promise<void> {
     const raw = await this.readRawLease(userId);
     const holder = raw ? this.parseLease(raw) : null;
-    if (!raw || !holder || holder.callControlId || holder.deviceId !== deviceId)
+    if (!raw || !holder || holder.callControlId || holder.leaseId !== leaseId)
       return;
     await this.redis
       .compareAndSwap(
@@ -459,7 +498,9 @@ export class ConcurrentCallGuardService {
    * {@link releasePending} bound to one reservation: the lease is deleted only
    * while it is still this device's unbound lease for exactly `reservationId`,
    * checked and deleted atomically. An abandon that arrives after the same
-   * device re-dialed (which replaces the lease) therefore frees nothing.
+   * device re-dialed (which replaces the lease) therefore frees nothing: the
+   * reservation is only ever written onto the lease its own pre-flight took
+   * (see {@link tagPending}), so a replacement never carries it.
    */
   async releasePendingReservation(
     userId: string,
@@ -675,7 +716,7 @@ export class ConcurrentCallGuardService {
         PENDING_LEASE_TTL_SECONDS,
       )
       .catch(() => true);
-    if (acquired) return { allowed: true };
+    if (acquired) return { allowed: true, leaseId: lease.leaseId };
 
     const holder = (await this.readLease(userId)) ?? lease;
     return this.reject(holder);

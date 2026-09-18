@@ -163,11 +163,13 @@ export class CallerIdRotationController {
           body.fallbackNumberId!,
           body.destination,
         );
-        await this.concurrentCallGuard.tagPending(
-          user.id,
-          device.deviceId,
-          prepared.callToken,
-        );
+        if (decision.leaseId) {
+          await this.concurrentCallGuard.tagPending(
+            user.id,
+            decision.leaseId,
+            prepared.callToken,
+          );
+        }
         return prepared;
       }
       const selection = await this.rotationService.selectForDial(
@@ -181,14 +183,26 @@ export class CallerIdRotationController {
       );
 
       if (!selection?.phoneNumber) {
-        await this.concurrentCallGuard.releasePending(user.id, device.deviceId);
+        await this.releaseOwnLease(user.id, decision.leaseId);
       }
 
       return selection;
     } catch (error) {
-      await this.concurrentCallGuard.releasePending(user.id, device.deviceId);
+      await this.releaseOwnLease(user.id, decision.leaseId);
       throw error;
     }
+  }
+
+  /**
+   * Hand back only the lease THIS pre-flight took. An overlapping resolve from
+   * the same device may have replaced it, and that one is not ours to free.
+   */
+  private async releaseOwnLease(
+    userId: string,
+    leaseId: string | undefined,
+  ): Promise<void> {
+    if (!leaseId) return;
+    await this.concurrentCallGuard.releasePendingLease(userId, leaseId);
   }
 
   /**
