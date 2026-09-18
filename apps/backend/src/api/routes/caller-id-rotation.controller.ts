@@ -219,17 +219,20 @@ export class CallerIdRotationController {
     @Body() body: AbandonDialDto,
   ): Promise<void> {
     if (body?.callToken) {
-      await this.callService.abandonExternalOutbound(
-        createOwnershipContext(user),
-        body.callToken,
-      );
-      // Only this pre-dial's own reservation: a late abandon must not free the
-      // lease of a dial the same device has placed since.
-      await this.concurrentCallGuard.releasePendingReservation(
-        user.id,
-        device.deviceId,
-        body.callToken,
-      );
+      try {
+        await this.callService.abandonExternalOutbound(
+          createOwnershipContext(user),
+          body.callToken,
+        );
+      } finally {
+        // Only this pre-dial's own reservation: a late abandon must not free the
+        // lease of a dial the same device has placed since.
+        await this.concurrentCallGuard.releasePendingReservation(
+          user.id,
+          device.deviceId,
+          body.callToken,
+        );
+      }
       return;
     }
     await this.concurrentCallGuard.releasePending(user.id, device.deviceId);
