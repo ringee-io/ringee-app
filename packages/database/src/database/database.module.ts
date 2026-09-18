@@ -1,3 +1,4 @@
+import { ExternalCarrierRepository } from "./repositories/external-carrier.repository";
 import { Global, Module } from "@nestjs/common";
 import { PrismaService } from "./prisma.service";
 import { UserRepository } from "./repositories/user.repository";
@@ -178,6 +179,7 @@ const databaseProviders = [
   ObjectionCallAnalysisRepository,
   BackofficeRepository,
   BackofficeCampaignRepository,
+  ExternalCarrierRepository,
   SipDeviceRepository,
   BlockedCallLogRepository,
   InfrastructureRepository,

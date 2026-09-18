@@ -14,7 +14,31 @@ source of bugs · **Medium** = friction and drift · **Low** = tidy-up.
 
 ## Open
 
-These three are deferred by an explicit decision, not by oversight.
+These are deferred by an explicit decision, not by oversight.
+
+### DEBT-020 — Inbound calls ring every dashboard through one shared WebRTC credential · Critical · Open
+
+**Where:** `apps/frontend/src/features/calls/hooks/use.telnyx.tsx`,
+`use.incoming.listener.ts`; Ringee numbers assigned to `TELNYX_CONNECTION_ID`
+
+**What:** every dashboard registers with the same credential
+(`NEXT_PUBLIC_TELNYX_LOGIN` / `NEXT_PUBLIC_TELNYX_PASSWORD`, shipped in the
+browser bundle). An inbound call to any Ringee number is offered to every
+registered browser, and each browser decides client-side, against its own
+number list, whether to show it.
+
+**Why it matters:** the SIP offer — caller number included — reaches browsers of
+other workspaces, and nothing server-side stops a modified client from answering
+it. It is also why a call cannot be routed to one user's browser: Telnyx accepts
+call-control commands only for calls on a Voice API application, and the
+per-user on-demand credentials the extension and SDK use cannot receive a DID
+call. External carrier numbers therefore ring desk phones only (`NUM-007`).
+
+**Direction:** assign Ringee numbers to the Call Control application, sign the
+dashboard in with per-user credentials, and transfer each inbound call to its
+recipient's credential server-side — the path carrier calls already take. A
+migration of every number's routing, to be validated with live calls; not a side
+effect of another task.
 
 ### DEBT-002 — Migration state is ambiguous and partly untracked · Critical · Open
 

@@ -1,3 +1,4 @@
+import { ExternalCarrierService } from "./external-carrier/external-carrier.service";
 import { Global, Module, Provider } from "@nestjs/common";
 import { UserService } from "./user.service";
 import {
@@ -324,6 +325,7 @@ const servicesProviders = [
   BackofficeService,
   BackofficeCampaignService,
   // Desk Phones (SIP Devices)
+  ExternalCarrierService,
   SipDeviceService,
   DeskPhoneCallService,
   // Ringee Infra (visual architecture console)

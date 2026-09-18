@@ -1,8 +1,20 @@
+import {
+  CarrierConnectionService,
+  DeskPhoneInboundTransfer,
+} from "./carrier-connection";
 import { TelephonyRateService } from "./telephony.rate.service";
 import { TelephonyNumbersService } from "./telephony.numbers.service";
 import { TelephonyCallerIdService } from "./telephony.caller.id.service";
 
 export type TelephonyService = {
+  /**
+   * Ring a desk phone with an inbound call that is waiting on the Call Control
+   * application. Throws `CarrierConnectionError` when the provider refuses.
+   */
+  connectInboundToDeskPhone(
+    callControlId: string,
+    params: DeskPhoneInboundTransfer,
+  ): Promise<void>;
   createTelephonyCredential: (
     userId: string,
     tag: string,
@@ -93,6 +105,7 @@ export type TelephonyService = {
     emergency?: boolean;
     raw?: any;
   }>;
-} & TelephonyRateService &
+} & CarrierConnectionService &
+  TelephonyRateService &
   TelephonyNumbersService &
   TelephonyCallerIdService;

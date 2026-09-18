@@ -17,15 +17,19 @@ import {
 import { cn } from "../../lib/utils";
 import { Label } from "./label";
 
-const Form = ({
+const Form = <
+  TFieldValues extends FieldValues,
+  TContext,
+  TTransformedValues = TFieldValues,
+>({
   children,
   onSubmit,
   form,
   className,
 }: {
   children: React.ReactNode;
-  onSubmit: (data: any) => void;
-  form: UseFormReturn<any, any, undefined>;
+  onSubmit: React.FormEventHandler<HTMLFormElement>;
+  form: UseFormReturn<TFieldValues, TContext, TTransformedValues>;
   className?: string;
 }) => {
   return (

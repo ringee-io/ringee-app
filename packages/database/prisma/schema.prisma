@@ -416,6 +416,7 @@ model User {
   numbersOwned            NumberPurchased[]
   userNumbers             UserNumber[]
   sipDevices              SipDevice[]
+  externalCarriers        ExternalCarrier[]
   blockedCalls            BlockedCallLog[]
   Contact                 Contact[]
   ContactNote             ContactNote[]
@@ -517,6 +518,7 @@ model Organization {
   userNumbers            UserNumber[]
   numbersPurchased       NumberPurchased[]
   sipDevices             SipDevice[]
+  externalCarriers       ExternalCarrier[]
   blockedCalls           BlockedCallLog[]
   contacts               Contact[]
   credits                Credit[]
@@ -685,6 +687,13 @@ model Call {
   // Set when this call originated from a desk phone (source = "sip_device").
   sipDeviceId String?    @db.Uuid
   sipDevice   SipDevice? @relation(fields: [sipDeviceId], references: [id], onDelete: SetNull)
+
+  // Set when the call was routed through the workspace's own carrier (Bring
+  // Your Own Carrier) instead of Ringee's PSTN route. Snapshots rather than
+  // relations, so history still names the carrier and SIP endpoint after they
+  // are deleted. The external number is `fromNumber` outbound, `toNumber` inbound.
+  externalCarrierId     String? @db.Uuid
+  externalSipEndpointId String? @db.Uuid
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -864,6 +873,7 @@ model SipDevice {
   organization   Organization?     @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   assignedNumber NumberPurchased?  @relation("SipDeviceAssignedNumber", fields: [assignedPhoneNumberId], references: [id], onDelete: SetNull)
   inboundNumbers NumberPurchased[] @relation("NumberInboundSipDevice")
+  externalInboundNumbers ExternalPhoneNumber[]
   calls          Call[]
   blockedCalls   BlockedCallLog[]
 
@@ -4367,4 +4377,90 @@ model WorkspaceCompanyProfile {
 
   @@index([userId])
   @@index([organizationId])
+}
+
+
+/// Organization-owned PBX/carrier. Never used by purchased-number billing.
+model ExternalCarrier {
+  id             String @id @default(uuid()) @db.Uuid
+  userId         String @db.Uuid
+  organizationId String @db.Uuid
+  name           String
+  status         String @default("active") // active | deleting
+  // Serializes changes across API processes without holding a DB transaction
+  // open during provider requests. A crashed request's lease expires.
+  mutationToken  String? @db.Uuid
+  mutationExpiresAt DateTime?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  user         User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Restrict)
+  endpoints    ExternalSipEndpoint[]
+  @@unique([id, organizationId])
+  @@index([organizationId])
+  @@index([userId])
+}
+
+/// One registration identity; any number of external DIDs can share it.
+model ExternalSipEndpoint {
+  id                   String @id @default(uuid()) @db.Uuid
+  carrierId            String @db.Uuid
+  organizationId       String @db.Uuid
+  extension            String
+  proxy                String
+  sipUsername          String
+  sipPasswordEncrypted String @db.Text
+  authUsername         String?
+  fromUser             String?
+  outboundProxy        String?
+  transport            String @default("TLS")
+  expirationSec        Int @default(600)
+  provider             String @default("telnyx")
+  providerConnectionId String? @unique
+  // Host the provider generated for the connection. Ringee's WebRTC legs dial
+  // `sip:<E.164>@<providerFqdn>`; stored as the provider reported it.
+  providerFqdn         String?
+  // Desired configuration is saved before PATCH. Retry synchronizes this row.
+  // pending is durable before POST; an uncertain POST is never blindly retried.
+  syncStatus           String @default("pending") // pending | synced | error | unknown | deleting
+  registrationStatus   String @default("unknown")
+  providerStatus       String?
+  lastRegisteredAt     DateTime?
+  lastCheckedAt        DateTime?
+  lastIpAddress        String?
+  lastPort             Int?
+  lastTransport        String?
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+
+  carrier ExternalCarrier @relation(fields: [carrierId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  numbers ExternalPhoneNumber[]
+  @@unique([id, organizationId])
+  @@unique([carrierId, extension])
+  @@index([carrierId])
+  @@index([providerFqdn])
+}
+
+/// A DID the workspace owns at its own carrier. Ownership and extension are
+/// inherited from the endpoint. Any organization member may call from an active
+/// number on a synchronized endpoint (web dialer only).
+model ExternalPhoneNumber {
+  id          String @id @default(uuid()) @db.Uuid
+  endpointId  String @db.Uuid
+  organizationId String @db.Uuid
+  phoneNumber String
+  active      Boolean @default(true)
+  // Desk phone that rings when the PBX sends a call for this number through
+  // the endpoint's connection; its owner is the recipient. Null: not routed
+  // inbound (outbound only). The browser is not a target: its shared WebRTC
+  // registration cannot be addressed per user.
+  inboundSipDeviceId String? @db.Uuid
+  inboundSipDevice SipDevice? @relation(fields: [inboundSipDeviceId], references: [id], onDelete: SetNull)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  endpoint ExternalSipEndpoint @relation(fields: [endpointId, organizationId], references: [id, organizationId], onDelete: Restrict)
+  @@unique([organizationId, phoneNumber])
+  @@index([phoneNumber])
+  @@index([inboundSipDeviceId])
 }

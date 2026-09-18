@@ -199,6 +199,37 @@ export class RedisService {
     return result === "OK";
   }
 
+  /** The stored string exactly as written, for a later compare-and-swap. */
+  async getRaw(key: string): Promise<string | null> {
+    return this.client.get(key);
+  }
+
+  /**
+   * Replace a value only while it still holds exactly `expected`, keeping its
+   * TTL; `next === null` deletes it instead. `false` when anything rewrote the
+   * key in between, so a stale caller can never clobber a newer value.
+   */
+  async compareAndSwap(
+    key: string,
+    expected: string,
+    next: string | null,
+  ): Promise<boolean> {
+    const script = `
+      if redis.call("GET", KEYS[1]) ~= ARGV[1] then return 0 end
+      if ARGV[2] == "1" then
+        redis.call("DEL", KEYS[1])
+      else
+        redis.call("SET", KEYS[1], ARGV[3], "KEEPTTL")
+      end
+      return 1
+    `;
+    const result = await this.client.eval(script, {
+      keys: [key],
+      arguments: [expected, next === null ? "1" : "0", next ?? ""],
+    });
+    return Number(result) === 1;
+  }
+
   async ttlSeconds(key: string): Promise<number> {
     return this.client.ttl(key);
   }

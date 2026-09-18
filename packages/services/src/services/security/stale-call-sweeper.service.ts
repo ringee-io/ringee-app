@@ -1,5 +1,6 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { CallRepository } from "@ringee/database";
+import { EXTERNAL_PRE_DIAL_TTL_MS } from "../external-carrier/external-carrier.service";
 import {
   CONNECTED_SUSPECT_MS,
   ConcurrentCallGuardService,
@@ -35,13 +36,18 @@ export class StaleCallSweeperService {
   /** Returns how many ghost calls were closed. */
   async sweep(limit = SWEEP_BATCH_SIZE): Promise<number> {
     const now = Date.now();
+    // Atomic against call.initiated adoption: never closes a row whose provider
+    // leg won the race, and never touches SDK/campaign pre-dials.
+    const expired = await this.callRepository.expirePendingExternalCalls(
+      new Date(now - EXTERNAL_PRE_DIAL_TTL_MS),
+    );
     const stuck = await this.callRepository.findStuckActive({
       ringingBefore: new Date(now - RINGING_SUSPECT_MS),
       connectedBefore: new Date(now - CONNECTED_SUSPECT_MS),
       limit,
     });
 
-    if (stuck.length === 0) return 0;
+    if (stuck.length === 0) return expired;
 
     let closed = 0;
     for (const call of stuck) {
@@ -63,6 +69,6 @@ export class StaleCallSweeperService {
         `Stale call sweep: closed ${closed}/${stuck.length} calls that were still marked live`,
       );
     }
-    return closed;
+    return closed + expired;
   }
 }

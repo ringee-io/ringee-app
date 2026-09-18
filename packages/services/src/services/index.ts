@@ -52,3 +52,5 @@ export * from "./sdk";
 export * from "./security";
 export * from "./offers";
 export * from "./voice-agents";
+
+export * from "./external-carrier/external-carrier.service";

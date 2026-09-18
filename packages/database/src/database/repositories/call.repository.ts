@@ -142,6 +142,101 @@ export class CallRepository {
   }
 
   /**
+   * Binds a pre-created row to its provider leg. Atomic: of two deliveries or
+   * two legs racing for the same row, exactly one binds it.
+   */
+  async claimPendingCall(
+    id: string,
+    data: {
+      callControlId: string;
+      callSessionId: string | null;
+      callLegId: string | null;
+      connectionId: string | null;
+      startedAt: Date | null;
+    },
+  ): Promise<boolean> {
+    const result = await this.prisma.call.updateMany({
+      where: { id, status: CallStatus.pending, callControlId: null },
+      data: { ...data, status: CallStatus.ringing },
+    });
+    return result.count === 1;
+  }
+
+  /**
+   * Creates an inbound call once per provider leg: a redelivered
+   * `call.initiated` gets the row the first delivery created.
+   */
+  async createInboundOnce(
+    ctx: OwnershipContext,
+    data: Omit<Prisma.CallCreateInput, "user" | "organization">,
+  ) {
+    try {
+      return { call: await this.createCall(ctx, data), created: true };
+    } catch (error) {
+      if (
+        !(error instanceof Prisma.PrismaClientKnownRequestError) ||
+        error.code !== "P2002" ||
+        !Array.isArray(error.meta?.target) ||
+        !error.meta.target.includes("callControlId") ||
+        !data.callControlId
+      )
+        throw error;
+      const call = await this.findByControlId(data.callControlId);
+      if (!call) throw error;
+      return { call, created: false };
+    }
+  }
+
+  /**
+   * First answer wins: marks a live call answered only if nothing did yet, and
+   * returns it when this call did. Null when it was already answered or ended.
+   */
+  async markAnsweredOnce(callControlId: string): Promise<Call | null> {
+    const { count } = await this.prisma.call.updateMany({
+      where: { callControlId, answeredAt: null, endedAt: null },
+      data: { status: CallStatus.answered, answeredAt: new Date() },
+    });
+    return count === 1 ? this.findByControlId(callControlId) : null;
+  }
+
+  /** Closes the caller's own external carrier pre-dial that never got a leg. */
+  async failPendingExternalCall(
+    ctx: OwnershipContext,
+    id: string,
+    errorMessage: string,
+  ) {
+    return this.prisma.call.updateMany({
+      where: {
+        id,
+        ...buildOwnershipFilter(ctx),
+        userId: ctx.userId,
+        status: CallStatus.pending,
+        callControlId: null,
+        externalSipEndpointId: { not: null },
+      },
+      data: { status: CallStatus.failed, endedAt: new Date(), errorMessage },
+    });
+  }
+
+  /** A crashed/closed browser cannot abandon its expired carrier pre-dial. */
+  async expirePendingExternalCalls(before: Date): Promise<number> {
+    const { count } = await this.prisma.call.updateMany({
+      where: {
+        status: CallStatus.pending,
+        callControlId: null,
+        externalSipEndpointId: { not: null },
+        createdAt: { lt: before },
+      },
+      data: {
+        status: CallStatus.failed,
+        endedAt: new Date(),
+        errorMessage: "The call authorization expired before the call started.",
+      },
+    });
+    return count;
+  }
+
+  /**
    * Adopt a pre-created call (e.g. an SDK `source="sdk"` row created at
    * authorize time) by attaching the telephony identifiers the Telnyx webhook
    * discovered when the WebRTC leg actually connected. Used instead of a second

@@ -5,6 +5,7 @@ import {
   FileText,
   Mic,
   Phone,
+  Radio,
   Plug,
   PlugZap,
   SlidersHorizontal,
@@ -32,6 +33,13 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
   { id: 'script', section: 'settings', icon: FileText },
   { id: 'calendars', section: 'settings', icon: CalendarClock },
   { id: 'recording', section: 'settings', icon: Mic, adminOnly: true },
+  {
+    id: 'external-carriers',
+    section: 'settings',
+    icon: Radio,
+    adminOnly: true,
+    organizationOnly: true
+  },
   { id: 'desk-phones', section: 'settings', icon: Phone, adminOnly: true },
   { id: 'crm', section: 'integrations', icon: Plug, adminOnly: true },
   {
@@ -48,10 +56,13 @@ export const SETTINGS_NAV_ITEMS: SettingsNavItem[] = [
 
 /** The items a given role may open. */
 export function visibleSettingsItems(
-  canAccessAdminFeatures: boolean
+  canAccessAdminFeatures: boolean,
+  hasOrg = false
 ): SettingsNavItem[] {
   return SETTINGS_NAV_ITEMS.filter(
-    (item) => canAccessAdminFeatures || !item.adminOnly
+    (item) =>
+      (canAccessAdminFeatures || !item.adminOnly) &&
+      (hasOrg || !item.organizationOnly)
   );
 }
 

@@ -41,6 +41,13 @@ export function createOwnershipContext(
  * - Without one: filter by userId AND organizationId = null. Omitting the null
  *   check would pull in the same user's organization rows.
  */
+export function buildOwnershipFilter(
+  ctx: OwnershipContext & { organizationId: string },
+): { organizationId: string };
+export function buildOwnershipFilter(ctx: OwnershipContext): {
+  userId?: string;
+  organizationId?: string | null;
+};
 export function buildOwnershipFilter(ctx: OwnershipContext): {
   userId?: string;
   organizationId?: string | null;

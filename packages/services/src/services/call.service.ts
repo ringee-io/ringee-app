@@ -1,8 +1,12 @@
 import {
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
   OnModuleDestroy,
+  ServiceUnavailableException,
 } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import {
@@ -20,6 +24,8 @@ import {
   OwnershipContext,
   RedisService,
   TelephonyService,
+  carrierInboundLegCorrelation,
+  signCallCorrelation,
   verifyCallCorrelation,
 } from "@ringee/platform";
 import type {
@@ -51,6 +57,12 @@ import { PipelineFanoutService } from "./ai-pipeline";
 import { ConcurrentCallGuardService } from "./security";
 import { calculateCallCharge } from "./call-cost.util";
 import { LOW_BALANCE_MAX_CALL_SECONDS, LOW_BALANCE_USD } from "./credit-policy";
+import {
+  type CarrierInboundRoute,
+  ExternalCarrierService,
+  EXTERNAL_PRE_DIAL_TTL_MS,
+} from "./external-carrier/external-carrier.service";
+import { parseSipTarget } from "./external-carrier/sip-target";
 
 /**
  * How long a lifecycle event that arrived before its `Call` row is kept so the
@@ -63,6 +75,16 @@ const ORPHAN_EVENT_TTL_SECONDS = 15 * 60;
 function orphanEventsKey(callControlId: string): string {
   return `ringee:orphan-call-events:v1:${callControlId}`;
 }
+
+/** Signed pre-dial token a browser leg carries to use an external carrier. */
+const EXTERNAL_CALL_HEADER = "X-Ringee-Byoc-Call-Id";
+
+/**
+ * How long a desk phone rings with a carrier inbound call. Longer than a PBX
+ * usually rings an extension, so the PBX's own timer — and its voicemail or
+ * next step — decides when to stop, not Ringee.
+ */
+const CARRIER_INBOUND_RING_SECONDS = 120;
 
 @Injectable()
 export class CallService implements OnModuleDestroy {
@@ -95,7 +117,375 @@ export class CallService implements OnModuleDestroy {
     private readonly redis: RedisService,
     private readonly voicemailDropService: VoicemailDropService,
     private readonly voiceAgentResults: VoiceAgentResultService,
+    private readonly externalCarriers: ExternalCarrierService,
   ) {}
+
+  /**
+   * A call a customer's PBX delivered through its carrier connection. It is
+   * recorded like any inbound call — from the caller, to the external number
+   * that was called — and rings the desk phone that number is routed to, the
+   * way a Ringee number routed to a desk phone rings it.
+   */
+  private async routeCarrierInbound(
+    event: TelephonyEvent,
+    route: Exclude<CarrierInboundRoute, { kind: "none" }>,
+  ): Promise<void> {
+    const { callControlId } = event;
+    const existing = await this.callRepository.findByControlId(callControlId);
+    // A redelivery is not a new routing decision. Editing/deleting a number
+    // must not transfer or disconnect the call that already reached its phone.
+    // A refusal only stops a call that has no row yet — a leg already ringing
+    // its phone is left alone, the same as an answered one.
+    if (
+      existing?.answeredAt ||
+      existing?.endedAt ||
+      (existing && route.kind === "refused")
+    ) {
+      await this.replayParkedCallEvents(callControlId);
+      return;
+    }
+    if (route.kind === "refused") {
+      this.logger.warn(
+        `⛔ Hanging up carrier inbound call ${callControlId}: ${route.reason}`,
+      );
+      await this.telephonyService
+        .hangupCall(callControlId)
+        .catch((err) =>
+          this.logger.error(
+            `Failed to hang up carrier inbound call ${callControlId}: ${err.message}`,
+          ),
+        );
+      return;
+    }
+
+    const contact = await this.contactService
+      .findByPhone(route.ctx, route.fromNumber)
+      .catch(() => null);
+    // Redelivered webhooks find the row this leg already created.
+    const { call, created } = await this.callRepository.createInboundOnce(
+      route.ctx,
+      {
+        contact: contact ? { connect: { id: contact.id } } : undefined,
+        fromNumber: route.fromNumber,
+        toNumber: route.toNumber,
+        connectionId: event.connectionId ?? undefined,
+        callControlId,
+        direction: "inbound",
+        callSessionId: event.callSessionId ?? undefined,
+        callLegId: event.callLegId ?? undefined,
+        status: CallStatus.ringing,
+        startedAt: event.startedAt ?? undefined,
+        clientState: Buffer.from("initiate_call").toString("base64"),
+        source: "sip_device",
+        sipDevice: { connect: { id: route.sipDeviceId } },
+        externalCarrierId: route.externalCarrierId,
+        externalSipEndpointId: route.externalSipEndpointId,
+      },
+    );
+    if (created) {
+      void this.inboxTimelineService
+        .ensureThreadForCall(call)
+        .catch((err) =>
+          this.logger.error(
+            `Inbox ensureThreadForCall failed (carrier inbound, call=${call.id}): ${err.message}`,
+            err.stack,
+          ),
+        );
+    }
+
+    // A hangup that beat this webhook closes the row before any phone rings.
+    await this.replayParkedCallEvents(callControlId);
+    const current = await this.callRepository.findById(call.id);
+    if (!current || current.endedAt || current.answeredAt) return;
+    if (
+      call.userId !== route.ctx.userId ||
+      call.organizationId !== route.ctx.organizationId ||
+      call.sipDeviceId !== route.sipDeviceId
+    ) {
+      // A retry after reassignment must not ring a different recipient using
+      // the original recipient's history/correlation token.
+      await this.telephonyService.hangupCall(callControlId);
+      return;
+    }
+
+    try {
+      await this.telephonyService.connectInboundToDeskPhone(callControlId, {
+        sipUsername: route.sipUsername,
+        // A caller with no E.164 number is shown by name against the
+        // external number that was called.
+        from: route.callerId ?? route.toNumber,
+        fromDisplayName: route.callerId ? null : route.fromNumber || "Unknown",
+        correlation: signCallCorrelation(call.id),
+        // Same id on a redelivery: the phone is never rung twice.
+        commandId: `carrier-inbound-${call.id}`,
+        timeoutSecs: CARRIER_INBOUND_RING_SECONDS,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Could not ring the desk phone for carrier inbound call ${call.id}: ${(error as Error).message}`,
+      );
+      await this.callRepository
+        .updateControlState(callControlId, {
+          errorMessage: "The desk phone could not be reached.",
+        })
+        .catch(() => undefined);
+      await this.telephonyService
+        .hangupCall(callControlId)
+        .catch(() => undefined);
+    }
+  }
+
+  /**
+   * Webhooks of the desk phone leg `routeCarrierInbound` opened. That leg is
+   * part of the original call, never a call of its own: nothing here creates
+   * a row, and the caller's leg keeps reporting its own lifecycle. Returns
+   * true when the event belonged to such a leg.
+   */
+  private async handleCarrierInboundLeg(
+    event: TelephonyEvent,
+  ): Promise<boolean> {
+    const correlation = carrierInboundLegCorrelation(event.clientState);
+    // Only the Call Control application opens that leg. A browser can attach
+    // any client state to its own calls; those stay ordinary, billed legs.
+    if (
+      !correlation ||
+      !event.connectionId ||
+      event.connectionId !== apiConfiguration.TELNYX_CALL_CONTROL_APP_ID
+    )
+      return false;
+    const id = verifyCallCorrelation(correlation);
+    const call = id ? await this.callRepository.findById(id) : null;
+    if (
+      !call?.callControlId ||
+      !call.externalSipEndpointId ||
+      call.direction !== "inbound"
+    ) {
+      if (event.type === "call.initiated") {
+        this.logger.warn(
+          `⛔ Hanging up leg ${event.callControlId}: carrier inbound state does not match a call`,
+        );
+        await this.telephonyService
+          .hangupCall(event.callControlId)
+          .catch(() => undefined);
+      }
+      return true;
+    }
+
+    if (event.type === "call.answered") {
+      await this.answerCarrierInboundOnce(call.callControlId);
+    } else if (event.type === "call.hangup" && !call.endedAt) {
+      // The phone did not take the call — busy, declined, unreachable, no
+      // answer — or hung up after talking. The caller's leg ends with it; what
+      // happens next (voicemail, another extension) is the PBX's decision.
+      const cause = (event.payload as CallHangupPayload).hangup_cause;
+      if (!call.answeredAt && cause !== "originator_cancel") {
+        await this.callRepository
+          .updateControlState(call.callControlId, {
+            errorMessage: `The desk phone did not answer${cause ? ` (${cause})` : ""}.`,
+          })
+          .catch(() => undefined);
+      }
+      await this.telephonyService
+        .hangupCall(call.callControlId, `carrier-inbound-end-${call.id}`)
+        .catch((err) =>
+          this.logger.warn(
+            `Carrier inbound call ${call.id} was already ending: ${err.message}`,
+          ),
+        );
+    }
+    return true;
+  }
+
+  /**
+   * The desk phone answered a carrier inbound call. Either leg may report it,
+   * so the row turns answered — and answer automation runs — only once.
+   */
+  private async answerCarrierInboundOnce(callControlId: string) {
+    const answered = await this.callRepository.markAnsweredOnce(callControlId);
+    if (answered) await this.applyAnswerAutomation(answered);
+  }
+
+  /**
+   * Dial pre-flight for a call from an external (Bring Your Own Carrier)
+   * number on the ordinary web dialer. Same shape as the SDK's authorize: the
+   * `Call` row is created here and the browser gets a signed token to place
+   * the leg with. `call.initiated` adopts the row, so status, cost, recording,
+   * CRM and history all run through the normal lifecycle.
+   */
+  async prepareExternalOutbound(
+    ctx: OwnershipContext,
+    numberId: string,
+    destination: string,
+  ) {
+    const route = await this.externalCarriers.resolveOutbound(
+      ctx,
+      numberId,
+      destination,
+    );
+    const user = await this.userService.getCachedUserById(ctx.userId);
+    if (user?.canCall === false)
+      throw new ForbiddenException(
+        "Outbound calling is disabled for this account.",
+      );
+    if (!user?.freeCallTrial && (await this.creditService.getBalance(ctx)) <= 0)
+      throw new HttpException(
+        "Not enough credit to place this call.",
+        HttpStatus.PAYMENT_REQUIRED,
+      );
+    const contact = await this.contactService.findByPhone(ctx, route.toNumber);
+    const call = await this.callRepository.createCall(ctx, {
+      fromNumber: route.fromNumber,
+      toNumber: route.toNumber,
+      direction: "outbound",
+      source: "web",
+      status: CallStatus.pending,
+      clientState: Buffer.from("initiate_call").toString("base64"),
+      contact: contact ? { connect: { id: contact.id } } : undefined,
+      externalCarrierId: route.externalCarrierId,
+      externalSipEndpointId: route.externalSipEndpointId,
+    });
+    return {
+      phoneNumber: route.fromNumber,
+      numberId: null,
+      rotated: false,
+      reason: "external_carrier",
+      destinationUri: route.destinationUri,
+      callToken: signCallCorrelation(call.id),
+    };
+  }
+
+  /** A pre-dial whose leg never reached the provider must not stay pending. */
+  async abandonExternalOutbound(ctx: OwnershipContext, token: string) {
+    const id = verifyCallCorrelation(token);
+    if (!id) return;
+    await this.callRepository.failPendingExternalCall(
+      ctx,
+      id,
+      "The call could not be started.",
+    );
+  }
+
+  /**
+   * `call.initiated` for a leg addressed to an external carrier. Only a
+   * pre-dial issued by `prepareExternalOutbound` may use a carrier: the token
+   * names the row, and the leg must be addressed to exactly that row's
+   * destination on its own carrier's host, so a token cannot carry another
+   * call and a carrier host cannot be dialed without one.
+   */
+  private async adoptExternalOutbound(
+    token: string | null,
+    event: TelephonyEvent,
+  ): Promise<void> {
+    const { callControlId } = event;
+    const refuse = async (reason: string) => {
+      this.logger.warn(
+        `⛔ Hanging up external carrier leg ${callControlId}: ${reason}`,
+      );
+      await this.telephonyService
+        .hangupCall(callControlId)
+        .catch((err) =>
+          this.logger.error(
+            `Failed to hang up external carrier leg ${callControlId}: ${err.message}`,
+            err.stack,
+          ),
+        );
+    };
+
+    const id = token ? verifyCallCorrelation(token) : null;
+    const call = id ? await this.callRepository.findById(id) : null;
+    if (call && call.callControlId === callControlId) {
+      // Redelivered call.initiated for a leg this row already owns.
+      await this.replayParkedCallEvents(callControlId);
+      return;
+    }
+    if (
+      !call?.userId ||
+      !call.externalSipEndpointId ||
+      call.direction !== "outbound" ||
+      call.status !== CallStatus.pending ||
+      call.callControlId ||
+      Date.now() - call.createdAt.getTime() > EXTERNAL_PRE_DIAL_TTL_MS
+    ) {
+      if (call?.userId && call.externalSipEndpointId && !call.callControlId)
+        await this.callRepository.failPendingExternalCall(
+          { userId: call.userId, organizationId: call.organizationId },
+          call.id,
+          "The call authorization expired or is no longer available.",
+        );
+      return refuse("no usable external carrier pre-dial for this leg");
+    }
+
+    const ctx: OwnershipContext = {
+      userId: call.userId,
+      organizationId: call.organizationId,
+    };
+    const host = await this.externalCarriers.confirmOutboundRoute(ctx, {
+      fromNumber: call.fromNumber,
+      externalSipEndpointId: call.externalSipEndpointId,
+    });
+    const target = parseSipTarget(event.to);
+    if (
+      !host ||
+      target?.host !== host ||
+      // The number exactly, whether or not the provider echoes its `+`.
+      target.user.replace(/^\+/, "") !== call.toNumber.replace(/^\+/, "")
+    ) {
+      await this.callRepository.failPendingExternalCall(
+        ctx,
+        call.id,
+        "The external carrier route is no longer available.",
+      );
+      return refuse(
+        host
+          ? `leg is not addressed to its authorized destination (to=${event.to})`
+          : "the external carrier route no longer holds",
+      );
+    }
+
+    // Same gates, in the same order, as every other browser-placed leg.
+    if (
+      !(await this.ensureCallAffordable(ctx, callControlId)) ||
+      !(await this.ensureNoConcurrentCall(ctx, callControlId))
+    ) {
+      await this.callRepository.failPendingExternalCall(
+        ctx,
+        call.id,
+        "The call was refused.",
+      );
+      return;
+    }
+
+    const claimed = await this.callRepository.claimPendingCall(call.id, {
+      callControlId,
+      callSessionId: event.callSessionId,
+      callLegId: event.callLegId,
+      connectionId: apiConfiguration.TELNYX_CONNECTION_ID,
+      startedAt: event.startedAt,
+    });
+    if (!claimed) {
+      const current = await this.callRepository.findById(call.id);
+      if (current?.callControlId !== callControlId)
+        return refuse("its pre-dial was already used by another leg");
+      await this.replayParkedCallEvents(callControlId);
+      return;
+    }
+
+    const adopted = await this.callRepository.findById(call.id);
+    if (adopted) {
+      void this.inboxTimelineService
+        .ensureThreadForCall(adopted)
+        .catch((err) =>
+          this.logger.error(
+            `Inbox ensureThreadForCall failed (external carrier, call=${adopted.id}): ${err.message}`,
+            err.stack,
+          ),
+        );
+    }
+    this.logger.log(
+      `📞 External carrier call ${callControlId} adopted → ${call.id}`,
+    );
+    await this.replayParkedCallEvents(callControlId);
+  }
 
   onModuleDestroy(): void {
     for (const timer of this.lowBalanceHangupTimers.values()) {
@@ -854,6 +1244,7 @@ export class CallService implements OnModuleDestroy {
    */
   async handleTelephonyEvent(event: TelephonyEvent) {
     const { type: eventType, callControlId, payload } = event;
+    if (await this.handleCarrierInboundLeg(event)) return;
 
     if (eventType === "unknown") {
       // Carriers emit far more than Ringee acts on. Record it and move on.
@@ -887,7 +1278,38 @@ export class CallService implements OnModuleDestroy {
 
     switch (eventType) {
       case "call.initiated":
+        // A leg sent to an external carrier reaches a customer's PBX, which
+        // terminates it on their own carrier. It is either the pre-dial this
+        // server issued or it is hung up — never attributed from headers.
+        if (event.direction === "outbound") {
+          const externalToken = this.getCustomHeader(
+            event.customHeaders,
+            EXTERNAL_CALL_HEADER,
+          );
+          const target = parseSipTarget(event.to);
+          // An `@` that does not parse cleanly has no host this server can
+          // vouch for, so it takes the same checked path as a carrier host.
+          const malformedSipTarget = !target && !!event.to?.includes("@");
+          if (
+            externalToken ||
+            malformedSipTarget ||
+            (target && (await this.externalCarriers.isCarrierHost(target.host)))
+          ) {
+            await this.adoptExternalOutbound(externalToken, event);
+            return;
+          }
+        }
         if (event.direction === "inbound") {
+          // A call a customer's PBX delivered through its carrier connection
+          // arrives on the Call Control application addressed with a routing
+          // key; Ringee numbers never do and continue below unchanged.
+          const carrierRoute =
+            await this.externalCarriers.resolveInbound(event);
+          if (carrierRoute.kind !== "none") {
+            await this.routeCarrierInbound(event, carrierRoute);
+            return;
+          }
+
           const toNumber = event.to ?? "";
           const number =
             await this.numberPurchasedService.findOneByNumber(toNumber);
@@ -1193,10 +1615,19 @@ export class CallService implements OnModuleDestroy {
         break;
 
       case "call.answered": {
-        if (!(await this.callRepository.findByControlId(callControlId))) {
+        const ringingCall =
+          await this.callRepository.findByControlId(callControlId);
+        if (!ringingCall) {
           // Beat `call.initiated` here too — park instead of throwing on a
           // missing row (which used to 500 the webhook).
           await this.parkOrphanCallEvent(callControlId, event);
+          break;
+        }
+        if (
+          ringingCall.externalSipEndpointId &&
+          ringingCall.direction === "inbound"
+        ) {
+          await this.answerCarrierInboundOnce(callControlId);
           break;
         }
 
@@ -1426,8 +1857,12 @@ export class CallService implements OnModuleDestroy {
           const call = await this.callRepository.findByControlId(callControlId);
 
           if (!call) {
-            this.logger.warn(`⚠️ Llamada ${callControlId} no encontrada`);
-            return;
+            // A quick rejection may be priced before call.initiated finishes
+            // adopting its pre-dial. Ask the provider to retry; acknowledging
+            // this event would permanently lose the debit.
+            throw new ServiceUnavailableException(
+              "The call is not yet available for cost settlement.",
+            );
           }
 
           // Idempotency guard: duplicated call.cost deliveries must not charge

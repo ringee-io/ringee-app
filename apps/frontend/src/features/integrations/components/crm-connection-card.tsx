@@ -106,7 +106,7 @@ function statusBadge(
 
 function formatRelative(
   date: string | null,
-  t: (key: string, values?: Record<string, unknown>) => string
+  t: (key: string, values?: Record<string, string | number | Date>) => string
 ): string {
   if (!date) return t('lastSyncNever');
   const d = new Date(date);

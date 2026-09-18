@@ -95,6 +95,8 @@ export interface TelephonyEvent<TPayload = unknown> {
   providerEventType: string;
   /** Provider handle for the call leg. Events without one are not delivered. */
   callControlId: string;
+  /** Receiving application/connection, normalized at the provider boundary. */
+  connectionId?: string | null;
   callSessionId: string | null;
   callLegId: string | null;
   /** Opaque state the dial attached to the leg, base64 as the provider sent it. */

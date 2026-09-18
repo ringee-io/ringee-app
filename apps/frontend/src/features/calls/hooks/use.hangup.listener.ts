@@ -1,15 +1,31 @@
 'use client';
+import {
+  carrierCallFailure,
+  getCallDestination,
+  getCarrierCallToken
+} from '@ringee/dialer-core';
 
 import { useTelnyxStore } from '../store/telnyx.store';
 import { useCallStore } from '../store/call.store';
 import { useDialerSessionStore } from '@/features/dialer/store/dialer-session.store';
 import { useEffect, useRef } from 'react';
 import { TelnyxRTC } from '@telnyx/webrtc';
+import { useApi } from '@ringee/frontend-shared/hooks/use.api';
+import { useTranslations } from 'next-intl';
+import { toast } from 'sonner';
+
+/** How long a carrier leg's `call.initiated` gets before its pre-dial is closed. */
+const CARRIER_ABANDON_DELAY_MS = 15_000;
 
 export function useHangupListener() {
+  const api = useApi();
+  const t = useTranslations('calls.dialer');
   const { notification, activeCall, setActiveCall, dequeue } = useTelnyxStore();
-  const { postCallPhase, enterPostCallPhase } = useCallStore();
+  const { enterPostCallPhase } = useCallStore();
   const callStartTimeRef = useRef<number | null>(null);
+  // A leg reports `hangup` and then `destroy`: settle each leg once, including
+  // effect replays after API/locale/store changes.
+  const settledLegs = useRef(new Set<string>());
 
   // Track when call becomes active to calculate duration
   useEffect(() => {
@@ -38,6 +54,11 @@ export function useHangupListener() {
     const { state } = call;
 
     if (['hangup', 'destroy', 'done', 'failed'].includes(state)) {
+      if (settledLegs.current.has(call.id)) return;
+      settledLegs.current.add(call.id);
+      if (settledLegs.current.size > 100) {
+        settledLegs.current.delete(settledLegs.current.values().next().value!);
+      }
       // Surface the SIP teardown reason. For international destinations a call
       // that rings and then drops almost always carries a 4xx here (e.g. 403
       // when the destination region isn't allowed by the Outbound Voice
@@ -54,8 +75,34 @@ export function useHangupListener() {
         causeCode: anyCall.causeCode,
         sipCode: anyCall.sipCode,
         sipReason: anyCall.sipReason,
-        destination: call.options?.destinationNumber
+        destination: getCallDestination(call)
       });
+
+      const carrierToken = getCarrierCallToken(call);
+      if (carrierToken) {
+        // A leg the provider never acknowledged cannot bind its pre-dial, so
+        // close it — but only after `call.initiated` has had time to arrive:
+        // a leg rejected before ringing still reaches the server, and binding
+        // it is what records the carrier's hangup cause on the call.
+        if (!call.telnyxIDs?.telnyxCallControlId) {
+          window.setTimeout(() => {
+            void api
+              .post('/caller-id-rotation/abandon', { callToken: carrierToken })
+              .catch(() => undefined);
+          }, CARRIER_ABANDON_DELAY_MS);
+        }
+        const failure = carrierCallFailure(anyCall.sipCode);
+        if (failure) {
+          toast.error(
+            {
+              rejected: t('externalCarrier.rejected'),
+              destination: t('externalCarrier.destinationRejected'),
+              timeout: t('externalCarrier.timeout'),
+              unavailable: t('externalCarrier.failed')
+            }[failure]
+          );
+        }
+      }
 
       dequeue(call.id);
 
@@ -86,5 +133,13 @@ export function useHangupListener() {
         callSessionId: sessionId
       });
     }
-  }, [notification]);
+  }, [
+    notification,
+    activeCall?.telnyxIDs?.telnyxSessionId,
+    api,
+    dequeue,
+    enterPostCallPhase,
+    setActiveCall,
+    t
+  ]);
 }

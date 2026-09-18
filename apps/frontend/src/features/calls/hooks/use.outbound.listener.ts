@@ -1,4 +1,5 @@
 'use client';
+import { getCallDestination } from '@ringee/dialer-core';
 import { useTelnyxStore } from '../store/telnyx.store';
 import { useDialerSessionStore } from '@/features/dialer/store/dialer-session.store';
 import { useEffect, useRef } from 'react';
@@ -55,7 +56,7 @@ export function useOutboundListener() {
           if (stillRinging) {
             console.warn(
               '⏱️ Outbound call not answered within timeout — hanging up',
-              { destination: call.options?.destinationNumber }
+              { destination: getCallDestination(call) }
             );
             try {
               call.hangup?.();
@@ -71,7 +72,7 @@ export function useOutboundListener() {
     ) {
       clearRingTimer();
     }
-  }, [notification]);
+  }, [notification, setActiveCall]);
 
   // Clean up any pending timer on unmount.
   useEffect(() => () => clearRingTimer(), []);

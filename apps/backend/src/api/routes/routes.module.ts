@@ -1,3 +1,4 @@
+import { ExternalCarrierController } from "./external-carrier.controller";
 import { Module } from "@nestjs/common";
 import { ChatAuthController } from "./chat.auth.controller";
 import { WhatsappController } from "./whatsapp.controller";
@@ -143,6 +144,7 @@ import { CustomIntegrationApiKeyGuard } from "../guards/custom-integration-api-k
     OfferController,
     CallerIdRotationController,
     SipDeviceController,
+    ExternalCarrierController,
     DeskPhoneWebhookController,
     InfrastructureController,
     FreeTrialController,

@@ -14,6 +14,10 @@
 import { TelnyxRTC } from "@telnyx/webrtc";
 import type { Call, INotification } from "@telnyx/webrtc";
 import { buildCallHeaders, type CallAttribution } from "./attribution";
+import {
+  EXTERNAL_CARRIER_CALL_HEADER,
+  type CarrierRoute,
+} from "./carrier-route";
 
 export type { Call, INotification };
 export { buildCallHeaders, type CallAttribution };
@@ -52,6 +56,12 @@ export interface PlaceCallOptions extends CallAttribution {
   client: TelnyxRTC;
   /** E.164 destination. */
   destination: string;
+  /**
+   * Dial through the workspace's own carrier instead of Ringee's PSTN route.
+   * The leg goes to the server-issued SIP destination and presents no caller
+   * ID of its own: the carrier connection supplies the PBX identity.
+   */
+  carrierRoute?: CarrierRoute;
   /** Extra custom SIP headers to append (e.g. campaign / session ids). */
   extraHeaders?: { name: string; value: string }[];
   debug?: boolean;
@@ -78,12 +88,19 @@ export function setOutboundRingbackVolume(
 /** Place an outbound call. Returns the Telnyx `Call` handle. */
 export function placeCall(opts: PlaceCallOptions): Call {
   const { client, destination, callerId, userId, organizationId } = opts;
+  const route = opts.carrierRoute;
   const call = client.newCall({
-    callerNumber: callerId,
-    destinationNumber: destination,
+    ...(route
+      ? { userVariables: { ringeeDestination: destination } }
+      : { callerNumber: callerId }),
+    destinationNumber: route?.destinationUri ?? destination,
     audio: true,
     customHeaders: [
-      ...buildCallHeaders({ callerId, userId, organizationId }),
+      // A carrier leg is attributed by its signed token alone; identity
+      // headers would try to override the caller ID the PBX presents.
+      ...(route
+        ? [{ name: EXTERNAL_CARRIER_CALL_HEADER, value: route.callToken }]
+        : buildCallHeaders({ callerId, userId, organizationId })),
       ...(opts.extraHeaders ?? []),
     ],
     keepConnectionAliveOnSocketClose: true,
@@ -92,6 +109,28 @@ export function placeCall(opts: PlaceCallOptions): Call {
   });
   setOutboundRingbackVolume();
   return call;
+}
+
+/**
+ * The number a call is with, for display and contact matching. A carrier leg
+ * is addressed to a SIP destination, so the dialed number rides alongside it.
+ */
+export function getCallDestination(
+  call: Call | null | undefined,
+): string | undefined {
+  return (
+    call?.options?.userVariables?.ringeeDestination ??
+    call?.options?.destinationNumber
+  );
+}
+
+/** The pre-dial token of a leg placed through an external carrier, if any. */
+export function getCarrierCallToken(
+  call: Call | null | undefined,
+): string | undefined {
+  return call?.options?.customHeaders?.find(
+    (header) => header.name === EXTERNAL_CARRIER_CALL_HEADER,
+  )?.value;
 }
 
 // ── Per-call controls ─────────────────────────────────────────────────────────
