@@ -381,7 +381,7 @@
     "removeSection": "Delete section"
   },
   "byoc": {
-    "intro": "Connect your carrier or PBX and organize its extensions and numbers. Calling with these numbers is not available yet.",
+    "intro": "Connect your carrier or PBX to call from your own numbers in the dialer and ring a desk phone when they are called.",
     "organizationOnly": "External carriers are available to organization administrators.",
     "carriers": "Your carriers",
     "addCarrier": "Add carrier",
@@ -472,6 +472,12 @@
     "invalidExpiry": "Use a value between 60 and 86400 seconds.",
     "invalidPhone": "Enter an international phone number beginning with +.",
     "loadError": "Could not load external carriers.",
-    "saveError": "Could not save this change."
+    "saveError": "Could not save this change.",
+    "inboundDeskPhone": "Incoming calls ring",
+    "inboundNotRouted": "Not routed (outbound only)",
+    "inboundUnavailablePhone": "A desk phone that can no longer take calls",
+    "inboundHelp": "If several numbers share this extension, your PBX must send the called number in the X-Ringee-Called-Number SIP header.",
+    "inboundNoDeskPhones": "Add a desk phone that accepts incoming calls to route this number's calls to it.",
+    "inboundLoadError": "Could not load desk phones. Reopen this form to retry."
   }
 }

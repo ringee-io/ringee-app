@@ -12,6 +12,25 @@ const include = {
 export type ExternalCarrierWithEndpoints = Prisma.ExternalCarrierGetPayload<{
   include: typeof include;
 }>;
+/** What a dial needs to know about an external number; never credentials. */
+const callingRouteSelect = {
+  id: true,
+  phoneNumber: true,
+  active: true,
+  endpoint: {
+    select: {
+      id: true,
+      carrierId: true,
+      syncStatus: true,
+      providerConnectionId: true,
+      providerFqdn: true,
+      carrier: { select: { id: true, status: true } },
+    },
+  },
+} satisfies Prisma.ExternalPhoneNumberSelect;
+export type ExternalCallingRoute = Prisma.ExternalPhoneNumberGetPayload<{
+  select: typeof callingRouteSelect;
+}>;
 type OrganizationOwner = OwnershipContext & { organizationId: string };
 export type CarrierMutation = OrganizationOwner & {
   carrierId: string;
@@ -21,6 +40,106 @@ export type CarrierMutation = OrganizationOwner & {
 @Injectable()
 export class ExternalCarrierRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  listCallingNumbers(ctx: OrganizationOwner) {
+    return this.prisma.externalPhoneNumber.findMany({
+      where: {
+        organizationId: ctx.organizationId,
+        active: true,
+        endpoint: {
+          organizationId: ctx.organizationId,
+          syncStatus: "synced",
+          providerConnectionId: { not: null },
+          carrier: { ...buildOwnershipFilter(ctx), status: "active" },
+        },
+      },
+      select: { id: true, phoneNumber: true },
+      orderBy: { phoneNumber: "asc" },
+    });
+  }
+
+  /** Scoped to the workspace: another organization's number is "not found". */
+  findCallingRoute(
+    ctx: OrganizationOwner,
+    number: { id: string } | { phoneNumber: string; endpointId: string },
+  ): Promise<ExternalCallingRoute | null> {
+    return this.prisma.externalPhoneNumber.findFirst({
+      where: {
+        ...number,
+        organizationId: ctx.organizationId,
+        endpoint: {
+          organizationId: ctx.organizationId,
+          carrier: buildOwnershipFilter(ctx),
+        },
+      },
+      select: callingRouteSelect,
+    });
+  }
+
+  async recordProviderFqdn(
+    ctx: OrganizationOwner,
+    endpointId: string,
+    providerFqdn: string,
+    providerConnectionId: string,
+  ) {
+    await this.prisma.externalSipEndpoint.updateMany({
+      where: {
+        id: endpointId,
+        organizationId: ctx.organizationId,
+        providerConnectionId,
+      },
+      data: { providerFqdn },
+    });
+  }
+
+  /**
+   * Deliberately unscoped: a WebRTC leg addressed to ANY workspace's carrier
+   * host must present that workspace's authorization, whoever placed it.
+   */
+  async isProviderFqdn(host: string): Promise<boolean> {
+    return !!(await this.prisma.externalSipEndpoint.findFirst({
+      where: { providerFqdn: host },
+      select: { id: true },
+    }));
+  }
+
+  /**
+   * The endpoint a verified routing key names, with its numbers and the
+   * desk phone each rings. Unscoped by design — the signed key is the proof —
+   * so the caller checks every row against the endpoint's organization.
+   */
+  findInboundRoute(endpointId: string) {
+    return this.prisma.externalSipEndpoint.findUnique({
+      where: { id: endpointId },
+      select: {
+        id: true,
+        organizationId: true,
+        carrierId: true,
+        syncStatus: true,
+        providerConnectionId: true,
+        carrier: { select: { organizationId: true, status: true } },
+        numbers: {
+          select: {
+            id: true,
+            active: true,
+            organizationId: true,
+            phoneNumber: true,
+            inboundSipDevice: {
+              select: {
+                id: true,
+                userId: true,
+                organizationId: true,
+                sipUsername: true,
+                allowInbound: true,
+                status: true,
+                deletedAt: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
 
   list(ctx: OrganizationOwner) {
     return this.prisma.externalCarrier.findMany({
@@ -128,17 +247,44 @@ export class ExternalCarrierRepository {
   saveNumber(
     ctx: CarrierMutation,
     endpointId: string,
-    data: { phoneNumber: string; active: boolean },
+    data: {
+      phoneNumber: string;
+      active: boolean;
+      /** Undefined keeps the current desk phone; null clears it. */
+      inboundSipDeviceId?: string | null;
+    },
     id?: string,
   ) {
     const endpoint = { id: endpointId, carrier: this.mutationWhere(ctx) };
+    const { inboundSipDeviceId, ...number } = data;
+    // Validated by the service; connecting through the workspace also makes a
+    // foreign or deleted phone fail here rather than link.
+    const connect = inboundSipDeviceId
+      ? {
+          connect: {
+            id: inboundSipDeviceId,
+            organizationId: ctx.organizationId,
+            deletedAt: null,
+          },
+        }
+      : undefined;
     return id
       ? this.prisma.externalPhoneNumber.update({
           where: { id, endpoint: { carrier: this.mutationWhere(ctx) } },
-          data: { ...data, endpoint: { connect: endpoint } },
+          data: {
+            ...number,
+            endpoint: { connect: endpoint },
+            inboundSipDevice:
+              connect ??
+              (inboundSipDeviceId === null ? { disconnect: true } : undefined),
+          },
         })
       : this.prisma.externalPhoneNumber.create({
-          data: { ...data, endpoint: { connect: endpoint } },
+          data: {
+            ...number,
+            endpoint: { connect: endpoint },
+            inboundSipDevice: connect,
+          },
         });
   }
 

@@ -515,6 +515,32 @@ bound so the old bad sample cannot immediately cool the number again.
 
 - **Source of truth:** `packages/services/src/services/caller-id-rotation/`
 
+### NUM-007 — An external carrier number rings a desk phone, never the browser
+
+An `ExternalPhoneNumber`'s inbound calls ring the one desk phone it is routed to
+(`inboundSipDeviceId`), in the same organization, or nothing. Its caller is the
+call's `fromNumber` and the external number its `toNumber`. A call whose called
+number is ambiguous — several numbers on one extension and no
+`X-Ringee-Called-Number` from the PBX — is refused, never guessed. The browser
+cannot be a target while Ringee's own inbound calls ride a shared WebRTC
+credential (`DEBT-020`).
+
+- **Source of truth:** `ExternalCarrierService.resolveInbound`,
+  `CallService.routeCarrierInbound`
+
+### NUM-008 — Only Ringee's authorization sends a call through a customer's PBX
+
+Outbound, a leg addressed to a carrier connection's host must present the signed
+pre-dial issued for that exact destination on that exact connection, within two
+minutes, or it is hung up. Inbound, a call is a carrier call only when its
+address carries the signed route key of the endpoint it came through. The
+carrier connection accepts SIP URI calls from this account's connections only
+(`internal`), and a carrier leg never carries Ringee identity headers: the PBX
+presents its own caller ID.
+
+- **Source of truth:** `CallService.prepareExternalOutbound`,
+  `CallService.adoptExternalOutbound`, `carrier-route-key.ts`
+
 ---
 
 ## Campaigns & outbound (`CMP`)

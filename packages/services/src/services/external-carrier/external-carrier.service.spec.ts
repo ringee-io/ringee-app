@@ -44,6 +44,8 @@ function setup() {
     localDelete: false,
     lock: false,
     found: true,
+    inbound: false,
+    fqdn: "generated.example.net" as string | null,
   };
   let state: CarrierRegistration = {
     status: "registered",
@@ -110,6 +112,7 @@ function setup() {
         carrierId: owner.carrierId,
         provider: "telnyx",
         providerConnectionId: null,
+        providerFqdn: null,
         syncStatus: "pending",
         registrationStatus: "unknown",
         providerStatus: null,
@@ -142,10 +145,17 @@ function setup() {
     saveNumber: async (
       owner: typeof ctx & { carrierId: string },
       endpointId: string,
-      data: { phoneNumber: string; active: boolean },
+      data: {
+        phoneNumber: string;
+        active: boolean;
+        inboundSipDeviceId?: string | null;
+      },
       id?: string,
     ) => {
       const row = carrier(owner, owner.carrierId);
+      const previous = row.endpoints
+        .flatMap((ep) => ep.numbers)
+        .find((number) => number.id === id);
       if (id)
         for (const ep of row.endpoints)
           ep.numbers = ep.numbers.filter((number) => number.id !== id);
@@ -154,6 +164,10 @@ function setup() {
         endpointId,
         organizationId: owner.organizationId,
         ...data,
+        inboundSipDeviceId:
+          data.inboundSipDeviceId === undefined
+            ? (previous?.inboundSipDeviceId ?? null)
+            : data.inboundSipDeviceId,
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -178,6 +192,10 @@ function setup() {
     },
   };
   const provider = {
+    getCarrierConnection: async (id: string) => ({ id, fqdn: faults.fqdn }),
+    configureCarrierInbound: async () => {
+      if (faults.inbound) throw new CarrierConnectionError(false);
+    },
     createCarrierConnection: async (config: unknown) => {
       calls.push({ method: "create", config });
       if (faults.create) throw faults.create;
@@ -212,6 +230,7 @@ function setup() {
     } as never,
     provider as never,
     crypto,
+    {} as never,
   );
   const create = async () => {
     const created = await service.createCarrier(ctx, "Acme");
@@ -232,6 +251,42 @@ function setup() {
 }
 
 describe("ExternalCarrierService", () => {
+  it("backfills the provider host when an older extension is synchronized", async () => {
+    const s = setup();
+    const carrier = await s.create();
+    carrier.endpoints[0].providerFqdn = null;
+    await s.service.syncEndpoint(ctx, carrier.id, carrier.endpoints[0].id);
+    assert.equal(carrier.endpoints[0].providerFqdn, "generated.example.net");
+    assert.equal(carrier.endpoints[0].syncStatus, "synced");
+  });
+
+  it("keeps synchronization failed until the host and inbound destination are restored", async () => {
+    const s = setup();
+    const carrier = await s.create();
+    const endpoint = carrier.endpoints[0];
+    s.faults.fqdn = null;
+    await assert.rejects(
+      s.service.syncEndpoint(ctx, carrier.id, endpoint.id),
+      BadGatewayException,
+    );
+    assert.equal(endpoint.syncStatus, "error");
+    s.faults.fqdn = "generated.example.net";
+    await s.service.saveNumber(ctx, carrier.id, {
+      endpointId: endpoint.id,
+      phoneNumber: "+13055550101",
+    });
+    endpoint.numbers[0].inboundSipDeviceId = "device-1";
+    s.faults.inbound = true;
+    await assert.rejects(
+      s.service.syncEndpoint(ctx, carrier.id, endpoint.id),
+      BadGatewayException,
+    );
+    assert.equal(endpoint.syncStatus, "error");
+    s.faults.inbound = false;
+    await s.service.syncEndpoint(ctx, carrier.id, endpoint.id);
+    assert.equal(endpoint.syncStatus, "synced");
+  });
+
   it("rejects personal workspaces, non-admins and nonmembers before mutations", async () => {
     const { service, faults, rows, calls } = setup();
     await assert.rejects(

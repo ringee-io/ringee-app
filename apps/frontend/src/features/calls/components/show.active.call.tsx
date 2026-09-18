@@ -1,4 +1,5 @@
 'use client';
+import { getCallDestination } from '@ringee/dialer-core';
 
 import { useCall } from '../hooks/use.call';
 import { ActiveCallModal } from './active.call.modal';
@@ -59,8 +60,9 @@ export function ShowActiveCall() {
     if (storeCallId) setCallId(storeCallId);
   }, [storeCallId]);
 
+  const logicalDestination = getCallDestination(activeCall);
   useEffect(() => {
-    const destNumber = activeCall?.options?.destinationNumber;
+    const destNumber = logicalDestination;
     if (!destNumber || resolvedNumberRef.current === destNumber) return;
 
     resolvedNumberRef.current = destNumber;
@@ -82,7 +84,7 @@ export function ShowActiveCall() {
       .catch(() => {
         // Silently fail - contactId will remain null
       });
-  }, [activeCall?.options?.destinationNumber, api, setCallPhoneNumber]);
+  }, [logicalDestination, api, setCallPhoneNumber]);
 
   // Sync resolved contact into the call store for post-call phase
   useEffect(() => {
@@ -130,7 +132,7 @@ export function ShowActiveCall() {
         freeTrialRemainingSeconds={remainingSeconds}
         freeTrialTotalSeconds={totalSeconds}
         onClose={handleHangup}
-        number={activeCall?.options?.destinationNumber || '+CALL'}
+        number={getCallDestination(activeCall) || '+CALL'}
         contactName={contactName}
         statusText={statusText}
         isConnected={activeCall?.state === 'active'}

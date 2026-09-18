@@ -18,9 +18,21 @@ export const useDialerStore = create<DialerState>()(
     quickDial: false,
     quickDialState: 'idle',
     setQuickDial: (quick: boolean) => {
-      if (window && window.cookieStore) {
-        window.cookieStore.set('quick_dial_state', quick ? 'true' : 'false');
-      }
+      // The frontend's older DOM typings do not yet declare Cookie Store.
+      // It is optional at runtime as well (unsupported browsers or SSR).
+      const cookieStore =
+        typeof window === 'undefined'
+          ? undefined
+          : (
+              window as Window & {
+                cookieStore?: {
+                  set(name: string, value: string): Promise<void>;
+                };
+              }
+            ).cookieStore;
+      void cookieStore
+        ?.set('quick_dial_state', quick ? 'true' : 'false')
+        .catch(() => undefined);
 
       set({ quickDial: quick, quickDialState: quick ? 'open' : 'closed' });
     },

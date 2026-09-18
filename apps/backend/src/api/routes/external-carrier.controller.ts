@@ -25,6 +25,7 @@ import {
   CurrentUser,
   CurrentUserData,
   OrgAdminOnly,
+  AllowOrgMember,
   createOwnershipContext,
 } from "@ringee/platform";
 import { ExternalCarrierService } from "@ringee/services";
@@ -56,12 +57,27 @@ class ExternalNumberDto {
   @ValidateIf((_object, value) => value !== undefined)
   @IsBoolean()
   active?: boolean;
+  /** Desk phone its inbound calls ring; null stops routing them. */
+  @IsOptional() @IsUUID() inboundSipDeviceId?: string | null;
 }
 
 @OrgAdminOnly()
 @Controller("external-carriers")
 export class ExternalCarrierController {
   constructor(private readonly service: ExternalCarrierService) {}
+
+  /** Numbers a member may call from in the web dialer. */
+  @AllowOrgMember()
+  @Get("calling-numbers")
+  callingNumbers(@CurrentUser() user: CurrentUserData) {
+    return this.service.listCallingNumbers(createOwnershipContext(user));
+  }
+
+  /** Desk phones an external number's inbound calls can be routed to. */
+  @Get("inbound-desk-phones")
+  inboundDeskPhones(@CurrentUser() user: CurrentUserData) {
+    return this.service.listInboundDeskPhones(createOwnershipContext(user));
+  }
 
   @Get()
   list(@CurrentUser() user: CurrentUserData) {

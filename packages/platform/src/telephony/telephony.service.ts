@@ -1,4 +1,7 @@
-import { CarrierConnectionConfig } from "./interfaces/carrier-connection";
+import {
+  CarrierConnectionConfig,
+  DeskPhoneInboundTransfer,
+} from "./interfaces/carrier-connection";
 import { Injectable } from "@nestjs/common";
 import { TelephonyCountryRate } from "./interfaces/telephony.rate";
 import { TelephonyService as TelephonyServiceInterface } from "./interfaces/telephony.service";
@@ -82,6 +85,21 @@ export class TelephonyService implements TelephonyServiceInterface {
   }
   checkCarrierRegistration(id: string) {
     return this.getServiceProvider().checkCarrierRegistration(id);
+  }
+  getCarrierDialDestination(id: string, destination: string) {
+    return this.getServiceProvider().getCarrierDialDestination(id, destination);
+  }
+  configureCarrierInbound(id: string, routingKey: string) {
+    return this.getServiceProvider().configureCarrierInbound(id, routingKey);
+  }
+  connectInboundToDeskPhone(
+    callControlId: string,
+    params: DeskPhoneInboundTransfer,
+  ) {
+    return this.getServiceProvider().connectInboundToDeskPhone(
+      callControlId,
+      params,
+    );
   }
 
   private getServiceProvider(provider = "telnyx"): TelephonyServiceInterface {

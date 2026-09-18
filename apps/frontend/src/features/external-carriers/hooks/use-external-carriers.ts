@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useApi } from '@ringee/frontend-shared/hooks/use.api';
 import { useTranslations } from 'next-intl';
 import { describeApiError } from '@/features/ai-voice-agents/lib/api-error';
-import type { ExternalCarrier } from '../types';
+import type { ExternalCarrier, InboundDeskPhone } from '../types';
 
 /** Mounted with an organization key, so workspace changes discard all state. */
 export function useExternalCarriers() {
@@ -74,4 +74,26 @@ export function useExternalCarriers() {
     mutate,
     clearError: () => setError(null)
   };
+}
+
+/** Desk phones an external number's inbound calls can ring. `null` while loading. */
+export function useInboundDeskPhones() {
+  const api = useApi();
+  const [phones, setPhones] = useState<InboundDeskPhone[] | null>(null);
+  const [error, setError] = useState(false);
+  useEffect(() => {
+    let active = true;
+    api
+      .get<InboundDeskPhone[]>('/external-carriers/inbound-desk-phones')
+      .then((rows) => {
+        if (active) setPhones(rows);
+      })
+      .catch(() => {
+        if (active) setError(true);
+      });
+    return () => {
+      active = false;
+    };
+  }, [api]);
+  return { phones, error };
 }

@@ -8,12 +8,16 @@ import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { FormInput } from '@ringee/frontend-shared/components/forms/form-input';
 import { FormSelect } from '@ringee/frontend-shared/components/forms/form-select';
 import { SettingsSectionHeading } from '@/features/settings/components/panels/general-panel';
+import { useInboundDeskPhones } from '../hooks/use-external-carriers';
 import type {
   EndpointInput,
   ExternalNumber,
   NumberInput,
   SipEndpoint
 } from '../types';
+
+/** Select value for a number whose inbound calls are not routed anywhere. */
+const NOT_ROUTED = 'none';
 
 function FormActions({
   busy,
@@ -262,13 +266,15 @@ export function NumberForm({
   onCancel: () => void;
 }) {
   const t = useTranslations('settings.byoc');
+  const deskPhones = useInboundDeskPhones();
   const schema = z.object({
     endpointId: z.string().min(1, t('required')),
     phoneNumber: z
       .string()
       .trim()
       .regex(/^\+[\d ()-]{7,25}$/, t('invalidPhone')),
-    active: z.enum(['active', 'inactive'])
+    active: z.enum(['active', 'inactive']),
+    inboundSipDeviceId: z.string()
   });
   const form = useForm({
     resolver: zodResolver(schema),
@@ -277,15 +283,45 @@ export function NumberForm({
       endpointId: endpointId ?? endpoints[0]?.id ?? '',
       phoneNumber: number?.phoneNumber ?? '',
       active:
-        number?.active === false ? ('inactive' as const) : ('active' as const)
+        number?.active === false ? ('inactive' as const) : ('active' as const),
+      inboundSipDeviceId: number?.inboundSipDeviceId ?? NOT_ROUTED
     }
   });
+  const current = number?.inboundSipDeviceId;
+  const deskPhoneOptions = [
+    { value: NOT_ROUTED, label: t('inboundNotRouted') },
+    ...(deskPhones.phones ?? []).map((phone) => ({
+      value: phone.id,
+      label: phone.ownerName
+        ? `${phone.label} · ${phone.ownerName}`
+        : phone.label
+    })),
+    // Keep a phone that can no longer take calls visible while it is selected.
+    ...(current &&
+    deskPhones.phones &&
+    !deskPhones.phones.some((phone) => phone.id === current)
+      ? [{ value: current, label: t('inboundUnavailablePhone') }]
+      : [])
+  ];
   return (
     <FormProvider {...form}>
       <form
         className='space-y-5'
-        onSubmit={form.handleSubmit((values) =>
-          onSave({ ...values, active: values.active === 'active' })
+        onSubmit={form.handleSubmit(({ inboundSipDeviceId, ...values }) =>
+          onSave({
+            ...values,
+            active: values.active === 'active',
+            // Sent only when changed, so editing anything else never touches
+            // the phone's or the connection's routing.
+            ...(inboundSipDeviceId !== (current ?? NOT_ROUTED)
+              ? {
+                  inboundSipDeviceId:
+                    inboundSipDeviceId === NOT_ROUTED
+                      ? null
+                      : inboundSipDeviceId
+                }
+              : {})
+          })
         )}
       >
         <FormInput
@@ -322,6 +358,23 @@ export function NumberForm({
           }))}
           disabled={busy}
         />
+        <FormSelect
+          control={form.control}
+          name='inboundSipDeviceId'
+          label={t('inboundDeskPhone')}
+          options={deskPhoneOptions}
+          description={
+            deskPhones.phones?.length === 0
+              ? t('inboundNoDeskPhones')
+              : t('inboundHelp')
+          }
+          disabled={busy || !deskPhones.phones}
+        />
+        {deskPhones.error && (
+          <p role='alert' className='text-destructive text-sm'>
+            {t('inboundLoadError')}
+          </p>
+        )}
         <FormActions busy={busy} onCancel={onCancel} />
       </form>
     </FormProvider>

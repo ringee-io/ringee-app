@@ -1,10 +1,14 @@
 import {
+  CARRIER_INBOUND_HEADER,
+  CARRIER_INBOUND_LEG_ACTION,
   CarrierConnectionConfig,
   CarrierConnection,
   CarrierConnectionError,
+  CarrierDialDestination,
   CarrierRegistration,
+  DeskPhoneInboundTransfer,
 } from "../interfaces/carrier-connection";
-import { mapUacRegistration, uacPayload } from "./telnyx.uac";
+import { mapUacRegistration, uacFqdn, uacPayload } from "./telnyx.uac";
 import { HttpException, Injectable, Logger } from "@nestjs/common";
 import { TelephonyCountryRate } from "../interfaces/telephony.rate";
 import { TelnyxClient } from "./telnyx.client";
@@ -120,13 +124,17 @@ export class TelnyxService implements TelephonyService {
     config: CarrierConnectionConfig,
   ): Promise<CarrierConnection> {
     const response = await this.uacRequest(() =>
-      this.telnyxClient.post<{ data: { id?: string } }>(
+      this.telnyxClient.post<{ data: { id?: string; fqdn?: string } }>(
         "/uac_connections",
         uacPayload(config),
       ),
     );
     if (!response.data?.id) throw new CarrierConnectionError(true);
-    return { id: response.data.id, reference: config.reference };
+    return {
+      id: response.data.id,
+      reference: config.reference,
+      fqdn: uacFqdn(response.data.fqdn),
+    };
   }
 
   async updateCarrierConnection(
@@ -154,12 +162,161 @@ export class TelnyxService implements TelephonyService {
 
   async getCarrierConnection(id: string): Promise<CarrierConnection> {
     const response = await this.uacRequest(() =>
-      this.telnyxClient.get<{ data: { id: string; connection_name: string } }>(
-        `/uac_connections/${encodeURIComponent(id)}`,
-      ),
+      this.telnyxClient.get<{
+        data: { id: string; connection_name: string; fqdn?: string };
+      }>(`/uac_connections/${encodeURIComponent(id)}`),
     );
     if (!response.data?.id) throw new CarrierConnectionError(true);
-    return { id: response.data.id, reference: response.data.connection_name };
+    return {
+      id: response.data.id,
+      reference: response.data.connection_name,
+      fqdn: uacFqdn(response.data.fqdn),
+    };
+  }
+
+  /**
+   * Read-only: a dial never reconfigures the connection. The host is exactly
+   * the `fqdn` Telnyx generated for this UAC — never the customer's proxy, a
+   * constructed Telnyx suffix or anything supplied by a client.
+   */
+  async getCarrierDialDestination(
+    id: string,
+    destination: string,
+  ): Promise<CarrierDialDestination | null> {
+    if (!/^\+[1-9]\d{6,14}$/.test(destination))
+      throw new CarrierConnectionError(false);
+    const { data } = await this.uacRequest(() =>
+      this.telnyxClient.get<{
+        data: {
+          id: string;
+          active?: boolean;
+          fqdn?: string;
+          sip_uri_calling_preference?: string;
+        };
+      }>(`/uac_connections/${encodeURIComponent(id)}`),
+    );
+    const fqdn = uacFqdn(data?.fqdn);
+    if (data?.id !== id || !fqdn) throw new CarrierConnectionError(false);
+    // A connection saved before outbound calling existed still refuses SIP URI
+    // calls; synchronizing the extension applies the current payload.
+    if (data.active !== true || data.sip_uri_calling_preference !== "internal")
+      return null;
+    return { uri: `sip:${destination}@${fqdn}`, fqdn };
+  }
+
+  /**
+   * Points the connection's Internal SIP URI — where Telnyx sends calls the
+   * PBX delivers to the registered extension — at Ringee's Call Control
+   * application, using the SIP subdomain that application is configured with
+   * (`<routingKey>@<subdomain>.sip.telnyx.com`, the documented format). Fails
+   * closed unless the application exists, is active, only accepts calls from
+   * this account's connections and delivers its webhooks to the call webhook.
+   */
+  async configureCarrierInbound(id: string, routingKey: string): Promise<void> {
+    // The userinfo Telnyx accepts: letters, digits, hyphens and underscores.
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(routingKey))
+      throw new CarrierConnectionError(false);
+    const appId = apiConfiguration.TELNYX_CALL_CONTROL_APP_ID;
+    if (!appId) throw new CarrierConnectionError(false);
+    const { data } = await this.uacRequest(() =>
+      this.telnyxClient.get<{
+        data: {
+          id: string;
+          active?: boolean;
+          webhook_event_url?: string;
+          inbound?: {
+            sip_subdomain?: string;
+            sip_subdomain_receive_settings?: string;
+          };
+        };
+      }>(`/call_control_applications/${encodeURIComponent(appId)}`),
+    );
+    const subdomain = data?.inbound?.sip_subdomain;
+    let webhookMatches = false;
+    try {
+      const actual = new URL(data?.webhook_event_url ?? "");
+      const expected = new URL(
+        `${apiConfiguration.PUBLIC_BACKEND_URL?.replace(/\/+$/, "")}/api/call/webhook`,
+      );
+      webhookMatches =
+        actual.origin === expected.origin &&
+        actual.pathname.replace(/\/+$/, "") === expected.pathname &&
+        !actual.search &&
+        !actual.hash &&
+        !actual.username &&
+        !actual.password;
+    } catch {
+      /* not a URL: refused below */
+    }
+    if (
+      data?.id !== appId ||
+      data.active !== true ||
+      !subdomain ||
+      !/^[A-Za-z0-9-]{1,63}$/.test(subdomain) ||
+      data.inbound?.sip_subdomain_receive_settings !== "only_my_connections" ||
+      !webhookMatches
+    )
+      throw new CarrierConnectionError(false);
+    await this.uacRequest(() =>
+      this.telnyxClient.patch(`/uac_connections/${encodeURIComponent(id)}`, {
+        internal_uac_settings: {
+          destination_uri: `${routingKey}@${subdomain.toLowerCase()}.sip.telnyx.com`,
+        },
+      }),
+    );
+  }
+
+  /**
+   * Rings a desk phone with an inbound call parked on the Call Control
+   * application, through the phone's own SIP identity. The new leg carries
+   * `correlation` in its client state and SIP headers so its webhooks — and
+   * those of the phone's connection — are recognized as part of the original
+   * call rather than as calls of their own.
+   */
+  async connectInboundToDeskPhone(
+    callControlId: string,
+    params: DeskPhoneInboundTransfer,
+  ): Promise<void> {
+    if (!/^[A-Za-z0-9_.-]{1,128}$/.test(params.sipUsername))
+      throw new CarrierConnectionError(false);
+    const displayName = params.fromDisplayName
+      ?.replace(/[^A-Za-z0-9 \-_~!.+]/g, "")
+      .trim()
+      .slice(0, 128);
+    await this.uacRequest(() =>
+      this.telnyxClient.post(
+        `/calls/${encodeURIComponent(callControlId)}/actions/transfer`,
+        {
+          to: `sip:${params.sipUsername}@sip.telnyx.com`,
+          from: params.from,
+          ...(displayName ? { from_display_name: displayName } : {}),
+          command_id: params.commandId,
+          timeout_secs: params.timeoutSecs,
+          target_leg_client_state: Buffer.from(
+            JSON.stringify({
+              action: CARRIER_INBOUND_LEG_ACTION,
+              call: params.correlation,
+            }),
+          ).toString("base64"),
+          custom_headers: [
+            { name: CARRIER_INBOUND_HEADER, value: params.correlation },
+          ],
+        },
+      ),
+    );
+  }
+
+  /**
+   * Lets Telnyx connections on this account (the Call Control application)
+   * reach a desk phone at its SIP URI. Nothing outside the account can.
+   */
+  async allowDeskPhoneInternalCalls(connectionId: string): Promise<void> {
+    await this.uacRequest(() =>
+      this.telnyxClient.patch(
+        `/credential_connections/${encodeURIComponent(connectionId)}`,
+        { sip_uri_calling_preference: "internal" },
+      ),
+    );
   }
 
   async findCarrierConnection(

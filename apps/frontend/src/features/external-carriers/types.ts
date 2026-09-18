@@ -10,6 +10,8 @@ export interface ExternalNumber {
   phoneNumber: string;
   active: boolean;
   source: 'external_carrier';
+  /** Desk phone its inbound calls ring; null when they are not routed. */
+  inboundSipDeviceId: string | null;
 }
 export interface SipEndpoint {
   id: string;
@@ -49,4 +51,11 @@ export interface NumberInput {
   endpointId: string;
   phoneNumber: string;
   active: boolean;
+  inboundSipDeviceId?: string | null;
+}
+
+export interface InboundDeskPhone {
+  id: string;
+  label: string;
+  ownerName: string | null;
 }

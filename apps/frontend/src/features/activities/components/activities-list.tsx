@@ -22,7 +22,6 @@ import {
   Clock,
   DollarSign,
   Filter,
-  Loader2,
   Phone,
   PhoneCall,
   PhoneIncoming,
@@ -453,7 +452,7 @@ function ActivityCallCard({
   onCancelBooking: () => void;
   onMeetingBooked: () => void;
   outcomeLabel: (id: CallOutcome) => string;
-  t: (key: string, values?: Record<string, unknown>) => string;
+  t: (key: string, values?: Record<string, string | number | Date>) => string;
 }) {
   const DirectionIcon =
     call.direction === 'inbound' ? PhoneIncoming : PhoneOutgoing;

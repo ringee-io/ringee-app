@@ -381,7 +381,7 @@
     "removeSection": "Eliminar sección"
   },
   "byoc": {
-    "intro": "Conecta tu operador o centralita y organiza sus extensiones y números. Las llamadas con estos números aún no están disponibles.",
+    "intro": "Conecta tu operador o PBX para llamar desde tus propios números en el marcador y hacer sonar un teléfono de escritorio cuando los llamen.",
     "organizationOnly": "Los operadores externos están disponibles para los administradores de la organización.",
     "carriers": "Tus operadores",
     "addCarrier": "Añadir operador",
@@ -472,6 +472,12 @@
     "invalidExpiry": "Usa un valor entre 60 y 86400 segundos.",
     "invalidPhone": "Introduce un número internacional que empiece por +.",
     "loadError": "No se pudieron cargar los operadores externos.",
-    "saveError": "No se pudo guardar el cambio."
+    "saveError": "No se pudo guardar el cambio.",
+    "inboundDeskPhone": "Las llamadas entrantes suenan en",
+    "inboundNotRouted": "Sin enrutar (solo salida)",
+    "inboundUnavailablePhone": "Un teléfono de escritorio que ya no acepta llamadas",
+    "inboundHelp": "Si varios números comparten esta extensión, tu PBX debe enviar el número llamado en la cabecera SIP X-Ringee-Called-Number.",
+    "inboundNoDeskPhones": "Añade un teléfono de escritorio que acepte llamadas entrantes para enrutar a él las llamadas de este número.",
+    "inboundLoadError": "No se pudieron cargar los teléfonos de escritorio. Vuelve a abrir el formulario."
   }
 }
