@@ -2,14 +2,15 @@
  * `sip:user@host`, as a webhook reports a leg's `to` or `from`, reduced to the
  * parts a route is compared on: the user exactly (percent-decoded), the host
  * lower-cased, ignoring a scheme, port, URI parameters or angle brackets.
- * `null` for a value that is not `user@host`, such as a plain number.
+ * `null` for a value that is not `user@host`, such as a plain number — or a
+ * second `@`, which different SIP stacks would split differently.
  */
 export function parseSipTarget(
   raw: string | null | undefined,
 ): { user: string; host: string } | null {
   const match = raw
     ?.trim()
-    .match(/^<?(?:sips?:)?([^@\s<>;:]+)@([^\s<>;:]+)(?::\d+)?(?:[;>].*)?$/i);
+    .match(/^<?(?:sips?:)?([^@\s<>;:]+)@([^@\s<>;:]+)(?::\d+)?(?:[;>].*)?$/i);
   if (!match) return null;
   try {
     return { user: decodeURIComponent(match[1]), host: match[2].toLowerCase() };

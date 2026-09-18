@@ -158,11 +158,17 @@ export class CallerIdRotationController {
       // An external number is not rotated: the pre-flight authorizes that
       // number's carrier route and pre-creates the call the leg will adopt.
       if (body.source === "external_carrier") {
-        return await this.callService.prepareExternalOutbound(
+        const prepared = await this.callService.prepareExternalOutbound(
           ctx,
           body.fallbackNumberId!,
           body.destination,
         );
+        await this.concurrentCallGuard.tagPending(
+          user.id,
+          device.deviceId,
+          prepared.callToken,
+        );
+        return prepared;
       }
       const selection = await this.rotationService.selectForDial(
         ctx,
@@ -198,11 +204,20 @@ export class CallerIdRotationController {
     @DialDevice() device: DialDeviceInfo,
     @Body() body: AbandonDialDto,
   ): Promise<void> {
-    if (body?.callToken)
+    if (body?.callToken) {
       await this.callService.abandonExternalOutbound(
         createOwnershipContext(user),
         body.callToken,
       );
+      // Only this pre-dial's own reservation: a late abandon must not free the
+      // lease of a dial the same device has placed since.
+      await this.concurrentCallGuard.releasePendingReservation(
+        user.id,
+        device.deviceId,
+        body.callToken,
+      );
+      return;
+    }
     await this.concurrentCallGuard.releasePending(user.id, device.deviceId);
   }
 

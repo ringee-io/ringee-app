@@ -195,6 +195,7 @@ describe("parseSipTarget", () => {
     assert.equal(parseSipTarget("+12125550199"), null);
     assert.equal(parseSipTarget(""), null);
     assert.equal(parseSipTarget(null), null);
+    assert.equal(parseSipTarget(`sip:+12125550199@evil.example@${HOST}`), null);
   });
 });
 
@@ -382,6 +383,16 @@ describe("CallService external carrier outbound", () => {
     );
     assert.deepEqual(s.hangups, ["leg-1"]);
     assert.deepEqual(s.hostLookups, [HOST]);
+  });
+
+  it("hangs up a leg whose SIP destination does not parse to one host", async () => {
+    const s = setup();
+    s.state.carrierHosts = [];
+    await s.service.handleTelephonyEvent(
+      s.leg({ to: `sip:+12125550199@sip.example.com@${HOST}` }),
+    );
+    assert.deepEqual(s.hangups, ["leg-1"]);
+    assert.deepEqual(s.hostLookups, []);
   });
 
   it("does not look up or refuse ordinary PSTN legs", async () => {

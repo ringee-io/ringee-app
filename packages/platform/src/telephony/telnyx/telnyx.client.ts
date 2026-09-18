@@ -2,13 +2,31 @@ import { Injectable, HttpException, HttpStatus, Logger } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
 import axios, { AxiosInstance } from "axios";
 
+const TELNYX_BASE_URL = "https://api.telnyx.com/v2";
+
+/**
+ * A request path, checked to stay on the Telnyx API. Paths carry ids from
+ * webhooks and user records; an absolute or protocol-relative value would
+ * make axios drop `baseURL` and send the API key to another host.
+ */
+function apiPath(path: string): string {
+  if (!/^\/(?![/\\])[^\s\\]*$/.test(path) || path.includes("://")) {
+    throw new HttpException(
+      "Invalid telephony provider path",
+      HttpStatus.BAD_REQUEST,
+    );
+  }
+  return path;
+}
+
 @Injectable()
 export class TelnyxClient {
   private readonly client: AxiosInstance;
 
   constructor() {
     this.client = axios.create({
-      baseURL: "https://api.telnyx.com/v2",
+      baseURL: TELNYX_BASE_URL,
+      allowAbsoluteUrls: false,
       headers: {
         Accept: "application/json",
         "Content-Type": "application/json",
@@ -67,7 +85,7 @@ export class TelnyxClient {
   async post<T = any>(path: string, body?: any): Promise<T> {
     try {
       const { data } = await this.client.post<T>(
-        path,
+        apiPath(path),
         body,
         this.uacOptions(path),
       );
@@ -79,7 +97,10 @@ export class TelnyxClient {
 
   async get<T = any>(path: string): Promise<T> {
     try {
-      const { data } = await this.client.get<T>(path, this.uacOptions(path));
+      const { data } = await this.client.get<T>(
+        apiPath(path),
+        this.uacOptions(path),
+      );
       return data;
     } catch (error) {
       this.handleError(error, "GET", path);
@@ -93,7 +114,7 @@ export class TelnyxClient {
    */
   async getText(path: string): Promise<string> {
     try {
-      const { data } = await this.client.get<string>(path, {
+      const { data } = await this.client.get<string>(apiPath(path), {
         responseType: "text",
         transformResponse: [(body: unknown) => body],
         headers: { Accept: "text/csv, text/plain, */*" },
@@ -106,7 +127,7 @@ export class TelnyxClient {
 
   async put<T = any>(path: string, body?: any): Promise<T> {
     try {
-      const { data } = await this.client.put<T>(path, body);
+      const { data } = await this.client.put<T>(apiPath(path), body);
       return data;
     } catch (error) {
       this.handleError(error, "PUT", path);
@@ -116,7 +137,7 @@ export class TelnyxClient {
   async patch<T = any>(path: string, body?: any): Promise<T> {
     try {
       const { data } = await this.client.patch<T>(
-        path,
+        apiPath(path),
         body,
         this.uacOptions(path),
       );
@@ -135,7 +156,7 @@ export class TelnyxClient {
     body?: any,
   ): Promise<{ data: Buffer; contentType: string }> {
     try {
-      const response = await this.client.post(path, body, {
+      const response = await this.client.post(apiPath(path), body, {
         responseType: "arraybuffer",
         headers: { Accept: "*/*" },
       });
@@ -152,7 +173,10 @@ export class TelnyxClient {
 
   async delete<T = any>(path: string): Promise<T> {
     try {
-      const { data } = await this.client.delete<T>(path, this.uacOptions(path));
+      const { data } = await this.client.delete<T>(
+        apiPath(path),
+        this.uacOptions(path),
+      );
       return data;
     } catch (error) {
       this.handleError(error, "DELETE", path);
@@ -182,7 +206,7 @@ export class TelnyxClient {
 
     let res: Response;
     try {
-      res = await fetch(`https://api.telnyx.com/v2${path}`, {
+      res = await fetch(`${TELNYX_BASE_URL}${apiPath(path)}`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${apiConfiguration.TELNYX_API_KEY}`,

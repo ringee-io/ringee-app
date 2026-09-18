@@ -215,6 +215,15 @@ describe("CallService carrier inbound calls", () => {
     assert.deepEqual(s.log, []);
   });
 
+  it("leaves a ringing call alone when its number is disabled before a redelivery", async () => {
+    const s = setup();
+    await s.service.handleTelephonyEvent(s.event());
+    s.state.route = { kind: "refused", reason: "number disabled" };
+    await s.service.handleTelephonyEvent(s.event());
+    assert.equal(s.transfers.length, 1);
+    assert.deepEqual(s.log, []);
+  });
+
   it("never transfers a retried call to a newly assigned recipient", async () => {
     const s = setup();
     await s.service.handleTelephonyEvent(s.event());

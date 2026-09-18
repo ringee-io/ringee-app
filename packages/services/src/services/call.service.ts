@@ -134,7 +134,13 @@ export class CallService implements OnModuleDestroy {
     const existing = await this.callRepository.findByControlId(callControlId);
     // A redelivery is not a new routing decision. Editing/deleting a number
     // must not transfer or disconnect the call that already reached its phone.
-    if (existing?.answeredAt || existing?.endedAt) {
+    // A refusal only stops a call that has no row yet — a leg already ringing
+    // its phone is left alone, the same as an answered one.
+    if (
+      existing?.answeredAt ||
+      existing?.endedAt ||
+      (existing && route.kind === "refused")
+    ) {
       await this.replayParkedCallEvents(callControlId);
       return;
     }
@@ -1281,8 +1287,12 @@ export class CallService implements OnModuleDestroy {
             EXTERNAL_CALL_HEADER,
           );
           const target = parseSipTarget(event.to);
+          // An `@` that does not parse cleanly has no host this server can
+          // vouch for, so it takes the same checked path as a carrier host.
+          const malformedSipTarget = !target && !!event.to?.includes("@");
           if (
             externalToken ||
+            malformedSipTarget ||
             (target && (await this.externalCarriers.isCarrierHost(target.host)))
           ) {
             await this.adoptExternalOutbound(externalToken, event);

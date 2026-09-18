@@ -78,6 +78,8 @@ export function ShowActiveCall() {
         phoneNumber: destNumber
       })
       .then((contact) => {
+        // A slower lookup for a previous call must not label the current one.
+        if (resolvedNumberRef.current !== destNumber) return;
         setContactId(contact.id);
         setContactName(contact.name || undefined);
       })

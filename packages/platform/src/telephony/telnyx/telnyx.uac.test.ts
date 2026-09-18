@@ -215,6 +215,26 @@ describe("SIP Attach adapter", () => {
   });
 });
 
+describe("TelnyxClient request paths", () => {
+  it.each([
+    "https://attacker.example/v2/calls",
+    "//attacker.example/calls",
+    "/\\attacker.example/calls",
+    "calls/leg-1",
+    "/calls/leg 1",
+  ])("never sends a request for %s", async (path) => {
+    const client = new TelnyxClient();
+    await expect(client.post(path, {})).rejects.toMatchObject({
+      message: "Invalid telephony provider path",
+    });
+    await expect(client.get(path)).rejects.toMatchObject({
+      message: "Invalid telephony provider path",
+    });
+    expect(http.post).not.toHaveBeenCalled();
+    expect(http.get).not.toHaveBeenCalled();
+  });
+});
+
 describe("UAC outbound routing", () => {
   const uac = (overrides: Record<string, unknown> = {}) => ({
     data: {

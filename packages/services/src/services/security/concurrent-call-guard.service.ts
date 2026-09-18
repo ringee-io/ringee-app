@@ -138,6 +138,12 @@ export interface DialLease {
   callControlId: string | null;
   /** ISO timestamp of when the lease was first taken. */
   at: string;
+  /**
+   * The pre-dial this unbound lease was reserved for, when the surface issued
+   * one (the external carrier `callToken`). Lets a late abandon of that pre-dial
+   * release only its own reservation, never the device's next one.
+   */
+  reservationId?: string | null;
 }
 
 export interface DialPermit {
@@ -423,6 +429,63 @@ export class ConcurrentCallGuardService {
   }
 
   /**
+   * Record which pre-dial the device's unbound lease was reserved for, so
+   * {@link releasePendingReservation} can later drop exactly that reservation.
+   * Best effort: an untagged lease still expires with its short pending TTL.
+   */
+  async tagPending(
+    userId: string,
+    deviceId: string,
+    reservationId: string,
+  ): Promise<void> {
+    const raw = await this.readRawLease(userId);
+    const holder = raw ? this.parseLease(raw) : null;
+    if (!raw || !holder || holder.callControlId || holder.deviceId !== deviceId)
+      return;
+    await this.redis
+      .compareAndSwap(
+        leaseKey(userId),
+        raw,
+        JSON.stringify({ ...holder, reservationId }),
+      )
+      .catch((error) =>
+        this.logger.warn(
+          `Could not tag the pending dial lease for user ${userId}: ${this.message(error)}`,
+        ),
+      );
+  }
+
+  /**
+   * {@link releasePending} bound to one reservation: the lease is deleted only
+   * while it is still this device's unbound lease for exactly `reservationId`,
+   * checked and deleted atomically. An abandon that arrives after the same
+   * device re-dialed (which replaces the lease) therefore frees nothing.
+   */
+  async releasePendingReservation(
+    userId: string,
+    deviceId: string,
+    reservationId: string,
+  ): Promise<void> {
+    const raw = await this.readRawLease(userId);
+    const holder = raw ? this.parseLease(raw) : null;
+    if (
+      !raw ||
+      !holder ||
+      holder.callControlId ||
+      holder.deviceId !== deviceId ||
+      holder.reservationId !== reservationId
+    )
+      return;
+    await this.redis
+      .compareAndSwap(leaseKey(userId), raw, null)
+      .catch((error) =>
+        this.logger.warn(
+          `Could not release the pending dial lease for user ${userId}: ${this.message(error)}`,
+        ),
+      );
+  }
+
+  /**
    * Release ONLY when the lease is still bound to this exact call. Cleanup of
    * an abandoned call can run long after the fact — possibly while a fresh
    * dial is mid-flight — and deleting that dial's lease would hand the slot to
@@ -677,6 +740,18 @@ export class ConcurrentCallGuardService {
       }
     }
     return raw;
+  }
+
+  private async readRawLease(userId: string): Promise<string | null> {
+    return this.redis.getRaw(leaseKey(userId)).catch(() => null);
+  }
+
+  private parseLease(raw: string): DialLease | null {
+    try {
+      return JSON.parse(raw) as DialLease;
+    } catch {
+      return null;
+    }
   }
 
   private async writeLease(
