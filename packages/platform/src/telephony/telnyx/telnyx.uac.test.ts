@@ -208,7 +208,7 @@ describe("SIP Attach adapter", () => {
     expect(JSON.stringify(warn.mock.calls)).not.toContain(config.password);
     expect(JSON.stringify(warn.mock.calls)).toContain("10015");
     expect(http.post).toHaveBeenCalledWith(
-      "/uac_connections",
+      "https://api.telnyx.com/v2/uac_connections",
       uacPayload(config),
       { timeout: 15000, maxRedirects: 0 },
     );
