@@ -5,6 +5,12 @@
   "metaDescription": "Voer en ontvang glasheldere gesprekken naar 180+ landen rechtstreeks vanuit je browser. Met Telnyx en Ringee WebRTC voor sales-teams en wereldwijde communicatie.",
   "newCall": "Nieuw gesprek",
   "incomingCall": "Inkomend gesprek",
+  "incoming": {
+    "viaRingGroup": "via {name}",
+    "alreadyAnswered": "Iemand anders heeft dit gesprek aangenomen.",
+    "noLongerRinging": "Dit gesprek gaat niet meer over.",
+    "notOffered": "Dit gesprek is niet aan jou aangeboden."
+  },
   "outgoingCall": "Uitgaand gesprek",
   "missedCall": "Gemist gesprek",
   "answered": "Beantwoord",

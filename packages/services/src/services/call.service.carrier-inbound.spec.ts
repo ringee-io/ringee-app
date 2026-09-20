@@ -2,31 +2,52 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { Logger } from "@nestjs/common";
 import { apiConfiguration } from "@ringee/configuration";
-import { CallStatus } from "@ringee/database";
+import { CallStatus, InboundDestinationType } from "@ringee/database";
 import {
   CarrierConnectionError,
   signCallCorrelation,
   type TelephonyEvent,
 } from "@ringee/platform";
 import { CallService } from "./call.service";
-import type { CarrierInboundRoute } from "./external-carrier/external-carrier.service";
+import type { CarrierInboundCall } from "./external-carrier/external-carrier.service";
 import { DeskPhoneCallService } from "./sip-device/desk-phone-call.service";
+import { InboundCallRouterService } from "./inbound-routing/inbound-call-router.service";
+import { DeskPhoneDestinationHandler } from "./inbound-routing/destinations/desk-phone.destination";
+import {
+  AiReceptionistDestinationHandler,
+  IvrDestinationHandler,
+} from "./inbound-routing/destinations/unsupported.destination";
+import type { InboundRouteResolution } from "./inbound-routing/inbound-routing.types";
 
 process.env.SDK_SIGNING_SECRET ||= "carrier-inbound-spec-secret";
 (
   apiConfiguration as unknown as Record<string, unknown>
 ).TELNYX_CALL_CONTROL_APP_ID = "cc-app";
 
-const ROUTE: CarrierInboundRoute = {
-  kind: "desk_phone",
-  ctx: { userId: "user-a", organizationId: "org-1" },
+const IDENTIFIED: CarrierInboundCall = {
+  kind: "identified",
+  organizationId: "org-1",
   fromNumber: "+12125550199",
   callerId: "+12125550199",
   toNumber: "+13055550101",
+  externalNumberId: "number-1",
   externalCarrierId: "carrier-1",
   externalSipEndpointId: "endpoint-1",
-  sipDeviceId: "device-1",
-  sipUsername: "rgdesk201",
+};
+
+const DESK_PHONE_ROUTE: InboundRouteResolution = {
+  kind: "routed",
+  ctx: { userId: "user-a", organizationId: "org-1" },
+  number: { kind: "external", id: "number-1" },
+  phoneNumber: "+13055550101",
+  routeId: null,
+  source: "default",
+  destination: {
+    type: "desk_phone",
+    sipDeviceId: "device-1",
+    sipUsername: "rgdesk201",
+    ownerUserId: "user-a",
+  },
 };
 
 type Row = Record<string, any>;
@@ -36,7 +57,8 @@ function setup() {
   const log: string[] = [];
   const transfers: Array<Record<string, unknown>> = [];
   const state = {
-    route: ROUTE as CarrierInboundRoute,
+    carrier: IDENTIFIED as CarrierInboundCall,
+    resolution: DESK_PHONE_ROUTE as InboundRouteResolution,
     transferError: null as Error | null,
     parkedHangup: false,
   };
@@ -65,16 +87,53 @@ function setup() {
     },
     // The ordinary lifecycle: a leg with no row of its own is parked.
     completeCall: async (id: string) => byControl(id),
-    markAnsweredOnce: async (id: string) => {
+    markAnsweredOnce: async (id: string, answeredByUserId?: string | null) => {
       const row = byControl(id);
       if (!row || row.answeredAt || row.endedAt) return null;
       Object.assign(row, {
         status: CallStatus.answered,
         answeredAt: new Date(),
+        ...(answeredByUserId ? { answeredByUserId } : {}),
       });
       return row;
     },
   };
+  const telephonyService: Row = {
+    hangupCall: async (id: string, commandId?: string) => {
+      log.push(`hangup:${id}${commandId ? `:${commandId}` : ""}`);
+    },
+    connectInboundToDeskPhone: async (id: string, params: Row) => {
+      if (state.transferError) throw state.transferError;
+      transfers.push({ id, ...params });
+    },
+    startRecording: async (id: string) => {
+      log.push(`record:${id}`);
+    },
+  };
+  const attempts = {
+    startMany: async () => 1,
+    listByCall: async () => [],
+    markAnswered: async () => true,
+    endRinging: async () => [],
+  };
+  // The real router and the real desk-phone handler: the point of this spec is
+  // that the provider command a carrier call produces has not changed.
+  const inboundRouter = new InboundCallRouterService(
+    {
+      type: InboundDestinationType.user,
+      transports: ["ringee_webrtc"],
+    } as never,
+    {
+      type: InboundDestinationType.ring_group,
+      transports: ["ringee_webrtc"],
+    } as never,
+    new DeskPhoneDestinationHandler(
+      telephonyService as never,
+      attempts as never,
+    ),
+    new IvrDestinationHandler(),
+    new AiReceptionistDestinationHandler(),
+  );
   const deps = {
     logger: Object.assign(new Logger("spec"), {
       log: () => {},
@@ -94,15 +153,7 @@ function setup() {
         log.push(`parked:${key.split(":").at(-1)}`);
       },
     },
-    telephonyService: {
-      hangupCall: async (id: string, commandId?: string) => {
-        log.push(`hangup:${id}${commandId ? `:${commandId}` : ""}`);
-      },
-      connectInboundToDeskPhone: async (id: string, params: Row) => {
-        if (state.transferError) throw state.transferError;
-        transfers.push({ id, ...params });
-      },
-    },
+    telephonyService,
     recordingSettingsService: {
       resolve: async () => ({
         recordAllCalls: true,
@@ -114,12 +165,19 @@ function setup() {
       isPlaybackState: () => false,
     },
     voiceAgentResults: { handleTelephonyEvent: async () => false },
-    externalCarriers: { resolveInbound: async () => state.route },
-    numberPurchasedService: {
-      findOneByNumber: async (number: string) => {
-        log.push(`ringee-number:${number}`);
-        return null;
+    externalCarriers: { identifyInbound: async () => state.carrier },
+    inboundRoutes: {
+      resolve: async (origin: Row) => {
+        if (origin.transport === "ringee_webrtc")
+          log.push(`ringee-number:${origin.toNumber}`);
+        return state.resolution;
       },
+    },
+    inboundRouter,
+    inboundRing: {
+      recordAnswer: async () => {},
+      cancelRinging: async () => 0,
+      cancelForEndedCall: async () => {},
     },
   };
   const service = Object.assign(
@@ -141,9 +199,6 @@ function setup() {
       },
     },
   );
-  (deps.telephonyService as Row).startRecording = async (id: string) => {
-    log.push(`record:${id}`);
-  };
   const event = (overrides: Partial<TelephonyEvent> = {}): TelephonyEvent => ({
     type: "call.initiated",
     provider: "telnyx",
@@ -187,6 +242,9 @@ describe("CallService carrier inbound calls", () => {
     assert.equal(row.externalCarrierId, "carrier-1");
     assert.equal(row.externalSipEndpointId, "endpoint-1");
     assert.equal(row.connectionId, "cc-app");
+    // The routing decision is written down with the call.
+    assert.equal(row.inboundDestinationType, InboundDestinationType.desk_phone);
+    assert.equal(row.inboundDestinationId, "device-1");
     assert.equal(s.transfers.length, 1);
     assert.equal(s.transfers[0].sipUsername, "rgdesk201");
     assert.equal(s.transfers[0].from, "+12125550199");
@@ -209,7 +267,7 @@ describe("CallService carrier inbound calls", () => {
     await s.service.handleTelephonyEvent(s.event());
     const [row] = [...s.rows.values()];
     row.answeredAt = new Date();
-    s.state.route = { kind: "refused", reason: "number disabled" };
+    s.state.carrier = { kind: "refused", reason: "number disabled" };
     await s.service.handleTelephonyEvent(s.event());
     assert.equal(s.transfers.length, 1);
     assert.deepEqual(s.log, []);
@@ -218,7 +276,7 @@ describe("CallService carrier inbound calls", () => {
   it("leaves a ringing call alone when its number is disabled before a redelivery", async () => {
     const s = setup();
     await s.service.handleTelephonyEvent(s.event());
-    s.state.route = { kind: "refused", reason: "number disabled" };
+    s.state.carrier = { kind: "refused", reason: "number disabled" };
     await s.service.handleTelephonyEvent(s.event());
     assert.equal(s.transfers.length, 1);
     assert.deepEqual(s.log, []);
@@ -227,11 +285,15 @@ describe("CallService carrier inbound calls", () => {
   it("never transfers a retried call to a newly assigned recipient", async () => {
     const s = setup();
     await s.service.handleTelephonyEvent(s.event());
-    s.state.route = {
-      ...ROUTE,
-      sipDeviceId: "other-phone",
-      sipUsername: "other",
-    };
+    s.state.resolution = {
+      ...DESK_PHONE_ROUTE,
+      destination: {
+        type: "desk_phone",
+        sipDeviceId: "other-phone",
+        sipUsername: "other",
+        ownerUserId: "user-a",
+      },
+    } as InboundRouteResolution;
     await s.service.handleTelephonyEvent(s.event());
     assert.equal(s.transfers.length, 1);
     assert.deepEqual(s.log, ["hangup:leg-a"]);
@@ -239,7 +301,11 @@ describe("CallService carrier inbound calls", () => {
 
   it("presents the called number when the caller has no E.164 number", async () => {
     const s = setup();
-    s.state.route = { ...ROUTE, fromNumber: "anonymous", callerId: null };
+    s.state.carrier = {
+      ...IDENTIFIED,
+      fromNumber: "anonymous",
+      callerId: null,
+    } as CarrierInboundCall;
     await s.service.handleTelephonyEvent(s.event());
     assert.equal(s.transfers[0].from, "+13055550101");
     assert.equal(s.transfers[0].fromDisplayName, "anonymous");
@@ -247,7 +313,19 @@ describe("CallService carrier inbound calls", () => {
 
   it("hangs up a refused carrier call without creating history", async () => {
     const s = setup();
-    s.state.route = { kind: "refused", reason: "ambiguous" };
+    s.state.carrier = { kind: "refused", reason: "ambiguous" };
+    await s.service.handleTelephonyEvent(s.event());
+    assert.equal(s.rows.size, 0);
+    assert.deepEqual(s.log, ["hangup:leg-a"]);
+  });
+
+  it("hangs up a call whose destination cannot be routed, with no history", async () => {
+    const s = setup();
+    s.state.resolution = {
+      kind: "unroutable",
+      reason: "destination_deleted",
+      detail: "desk phone device-1 is gone",
+    };
     await s.service.handleTelephonyEvent(s.event());
     assert.equal(s.rows.size, 0);
     assert.deepEqual(s.log, ["hangup:leg-a"]);
@@ -270,14 +348,16 @@ describe("CallService carrier inbound calls", () => {
     assert.deepEqual(s.log, ["hangup:leg-a"]);
   });
 
-  it("sends Ringee numbers down the existing inbound path", async () => {
+  it("sends Ringee numbers to the routing layer as their own transport", async () => {
     const s = setup();
-    s.state.route = { kind: "none" };
+    s.state.carrier = { kind: "none" };
+    s.state.resolution = { kind: "unknown_number", detail: "not ours" };
     await s.service.handleTelephonyEvent(
       s.event({ connectionId: "credential", to: "+13055550199" }),
     );
     assert.deepEqual(s.log, ["ringee-number:+13055550199"]);
     assert.equal(s.transfers.length, 0);
+    assert.equal(s.rows.size, 0);
   });
 
   it("answers once, whichever leg reports it, and runs answer automation once", async () => {
@@ -296,6 +376,8 @@ describe("CallService carrier inbound calls", () => {
       s.event({ type: "call.answered", callControlId: "leg-a" }),
     );
     assert.equal(row.status, CallStatus.answered);
+    // The phone's owner is recorded as the member who took the call.
+    assert.equal(row.answeredByUserId, "user-a");
     assert.deepEqual(
       s.log.filter((entry) => entry.startsWith("record:")),
       ["record:leg-a"],
@@ -332,7 +414,7 @@ describe("CallService carrier inbound calls", () => {
     const s = setup();
     await s.service.handleTelephonyEvent(s.event());
     const [row] = [...s.rows.values()];
-    s.state.route = { kind: "none" };
+    s.state.carrier = { kind: "none" };
     await s.service.handleTelephonyEvent(
       s.event({
         type: "call.hangup",

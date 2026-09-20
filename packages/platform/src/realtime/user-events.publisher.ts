@@ -5,6 +5,8 @@ import {
   RealtimeAccountRestoredEvent,
   RealtimeBroadcastEvent,
   RealtimeCallsTerminatedEvent,
+  RealtimeInboundCallCancelledEvent,
+  RealtimeInboundCallRingingEvent,
   RealtimeUserEnvelope,
   USER_EVENTS_CHANNEL,
 } from "./realtime.contracts";
@@ -45,6 +47,22 @@ export class RealtimeUserEventsPublisher {
       type: "account.restored",
       at: event?.at ?? new Date().toISOString(),
     });
+  }
+
+  /** An inbound call is being offered to this user by its destination. */
+  inboundCallRinging(
+    userId: string,
+    event: Omit<RealtimeInboundCallRingingEvent, "type">,
+  ): Promise<void> {
+    return this.broadcast(userId, { type: "call.inbound.ringing", ...event });
+  }
+
+  /** Stop presenting it: taken elsewhere, given up on, or the caller left. */
+  inboundCallCancelled(
+    userId: string,
+    event: Omit<RealtimeInboundCallCancelledEvent, "type">,
+  ): Promise<void> {
+    return this.broadcast(userId, { type: "call.inbound.cancelled", ...event });
   }
 
   private broadcast(

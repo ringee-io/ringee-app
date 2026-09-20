@@ -220,6 +220,137 @@ reached the server, so the browser reports it with `POST /dialer/abandon`.
 
 Retries, callbacks and reminders are Temporal Schedules, not campaign-loop work.
 
+## Inbound routing
+
+Every inbound call, from every carrier, takes one path:
+
+```
+incoming call
+      │
+      ▼
+carrier layer          which number was called, and proof of it
+   ExternalCarrierService.identifyInbound   → none | refused | identified
+      │                                       (a Ringee DID identifies itself
+      │                                        by the number that was dialed)
+      ▼
+routing resolver       who owns this call
+   InboundRouteResolverService.resolve(origin)
+      ├─ the number row gives the workspace — never a header or a body
+      ├─ InboundRoute, or legacyInboundDestination when there is none
+      └─ the destination is loaded and re-verified against that workspace
+      │
+      ▼
+CallService            one Call row, with the decision written on it
+      │                inboundRouteId · inboundDestinationType ·
+      │                inboundDestinationId · ringGroupId · routedAt
+      ▼
+router                 ring it
+   InboundCallRouterService.routeInboundCall
+      ├─ USER            → offer to that user's sessions and devices
+      ├─ RING_GROUP      → offer to every available member at once
+      ├─ DESK_PHONE      → transfer to the handset (or let the number's own
+      │                     assignment ring it)
+      ├─ IVR             → not implemented
+      └─ AI_RECEPTIONIST → not implemented
+```
+
+**The split is the point.** The carrier layer knows carriers and no
+destinations; the resolver knows destinations and no carriers. A new carrier
+writes an identification step and nothing else; a new destination writes a
+handler and nothing else. Rules: `NUM-004`, `NUM-007`, `NUM-009`, `NUM-010`.
+
+`InboundTransport` is what keeps them apart without pretending the difference
+does not exist. It describes the **delivery path**, not the provider:
+
+| Transport       | What it is                                    | Can reach                                                     |
+| --------------- | --------------------------------------------- | ------------------------------------------------------------- |
+| `ringee_webrtc` | Ringee's shared WebRTC credential connection  | user, ring group, desk phone (by the number's own assignment) |
+| `call_control`  | a call parked on the Call Control application | desk phone only, until `DEBT-020` is closed                   |
+
+A destination the transport cannot reach is refused explicitly — when the route
+is written, and again before it rings. That is why a BYOC number can only be
+pointed at a desk phone today.
+
+### Ring groups
+
+A `RingGroup` is a named set of members; `simultaneous` is the only strategy.
+Ringing one is **not** several calls:
+
+```
+caller ──► Call (one row)
+             ├─ InboundRingAttempt  Edison   ringing
+             ├─ InboundRingAttempt  Pedro    ringing
+             └─ InboundRingAttempt  Juan     ringing
+
+Pedro claims  ──► Call.answeredByUserId = Pedro   (one conditional UPDATE)
+             ├─ Pedro's attempt  answered
+             ├─ Edison's attempt cancelled  +  call.inbound.cancelled
+             └─ Juan's attempt   cancelled  +  call.inbound.cancelled
+```
+
+- The election is `CallRepository.claimInboundAnswer`: one `updateMany` against
+  an unclaimed, live row. Two members answering in the same millisecond on two
+  API instances still produce one winner.
+- A member claims through `POST /api/inbound-calls/:callControlId/claim`
+  **before** answering the media leg. Only a member an attempt exists for may
+  claim; everyone else gets 403, and a loser gets 409.
+- Members learn they are being rung from `call.inbound.ringing` on the per-user
+  realtime channel, and to stop from `call.inbound.cancelled`. The push payload
+  a phone receives is unchanged, so a ring group looks to the mobile app exactly
+  like a direct call.
+- That offer is also what the dashboard presents on. Every browser is offered
+  every SIP leg (`DEBT-020`), so a browser's own number list cannot decide
+  whose call it is — a group's number belongs to the workspace, not to the
+  members being rung. The number check runs only while the realtime channel is
+  down, so a dropped courier degrades to the pre-routing behavior instead of
+  silencing inbound calls.
+- Attempts carry no cost, recording or history. Whatever rang, there is one
+  history row, one recording and one debit.
+- A member who leaves the workspace stops being a target on the next call,
+  without anyone editing the group.
+
+### Configuration
+
+`InboundRouteService` and `RingGroupService` are the write side, behind
+`@OrgAdminOnly()`:
+
+```
+GET    /api/inbound-routes
+GET    /api/inbound-routes/:numberKind/:numberId     ringee | external
+PUT    /api/inbound-routes/:numberKind/:numberId
+DELETE /api/inbound-routes/:numberKind/:numberId     back to the default
+GET    /api/ring-groups              POST /api/ring-groups
+GET    /api/ring-groups/:id          PATCH  /api/ring-groups/:id
+DELETE /api/ring-groups/:id
+POST   /api/ring-groups/:id/members  DELETE /api/ring-groups/:id/members/:userId
+```
+
+Deleting a ring group deletes the routes that pointed at it: a route naming a
+group that is gone would refuse every call to that number, which is an outage
+wearing configuration's clothes.
+
+### What IVR and AI Receptionist still need
+
+Both are in `InboundDestinationType` and in nothing else. Adding one is:
+
+1. A model for the thing itself (menu + key map, or agent + transfer targets),
+   workspace-scoped like `RingGroup`.
+2. Resolution in `InboundRouteResolverService.resolveDestination`, returning a
+   new `InboundDestination` variant.
+3. A handler replacing `IvrDestinationHandler` /
+   `AiReceptionistDestinationHandler` in the router's table, declaring which
+   transports it supports. An IVR needs media control (answer, play, gather
+   DTMF), which means the number must be on the Call Control application —
+   the same migration `DEBT-020` describes.
+4. Removing the type from the `NotImplementedException` guard in
+   `InboundRouteService`.
+
+Transferring **back** into routing — an AI receptionist resolving `"sales"` to a
+ring group — is already shaped: call `routeInboundCall` again with the new
+destination on the same `Call` row. Nothing in the carrier layer is involved,
+and the ring attempts of the finished leg are ended the same way a ring group's
+losers are.
+
 ## Desk phones (SIP)
 
 Behind `DESK_PHONES_ENABLED`. Outbound desk-phone calls are bridged by Telnyx
@@ -333,10 +464,13 @@ log the routing reason without exposing credentials.
 ### Deployment checks
 
 1. Apply the base BYOC migration and then
-   `20260917010000_external_carrier_outbound_calls` and
-   `20260917020000_external_number_desk_phone_routing` from
+   `20260917010000_external_carrier_outbound_calls`,
+   `20260917020000_external_number_desk_phone_routing` and
+   `20260920000000_inbound_routing` from
    `packages/database/prisma/migrations-pending`, using the deployment's existing
    migration process. Regenerate the Prisma client before building the backend.
+   The routing migration is additive: every existing number has no `InboundRoute`
+   and therefore keeps the behavior it has today (`NUM-009`).
 2. Verify `DESK_PHONES_ENABLED`, `TELNYX_CALL_CONTROL_APP_ID`, `BACKEND_URL`,
    webhook signature verification and the shared signing secret across backend
    replicas. The Call Control application must be active, have a SIP subdomain,

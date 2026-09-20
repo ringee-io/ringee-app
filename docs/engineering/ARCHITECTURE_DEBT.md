@@ -40,6 +40,21 @@ recipient's credential server-side — the path carrier calls already take. A
 migration of every number's routing, to be validated with live calls; not a side
 effect of another task.
 
+**Since inbound routing shipped:** the server now names the recipient of every
+inbound call and says so on the per-user realtime channel
+(`call.inbound.ringing` / `call.inbound.cancelled`), an answer is claimed
+server-side before the media leg is taken (`NUM-010`), and the dashboard
+presents a leg only once that offer names it — the number check it used before
+survives for one case, a realtime channel that is down, so an inbound call
+still rings when the courier drops. That fixes _attribution_, the answer race
+and ring groups; it does not fix this. The SIP offer still reaches every
+registered browser, caller number included, and only a browser's own restraint
+keeps another workspace's call off the screen: a modified client still receives
+the leg and can still answer it — it just cannot win the call. A carrier call
+still cannot be addressed to a browser at all
+(`transport_cannot_reach_destination`). The migration above is what closes it,
+and it is also what `IVR` needs.
+
 ### DEBT-002 — Migration state is ambiguous and partly untracked · Critical · Open
 
 **Where:** `packages/database/prisma/` — `migrations/`, `migrations-pending/`,

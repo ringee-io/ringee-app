@@ -19,26 +19,7 @@ const ENDPOINT = "3f2b9c1e-8d4a-4b6f-9e21-5c7d8a9b0c1d";
 const APP = "cc-app";
 const config = apiConfiguration as unknown as Record<string, unknown>;
 
-type Device = {
-  id: string;
-  userId: string;
-  organizationId: string;
-  sipUsername: string;
-  allowInbound: boolean;
-  status: string;
-  deletedAt: Date | null;
-};
-
 function setup() {
-  const desk: Device = {
-    id: "device-1",
-    userId: "user-a",
-    organizationId: "org-1",
-    sipUsername: "rgdesk201",
-    allowInbound: true,
-    status: "registered",
-    deletedAt: null,
-  };
   const state = {
     members: new Set(["user-a"]),
     endpoint: {
@@ -54,7 +35,6 @@ function setup() {
           active: true,
           organizationId: "org-1",
           phoneNumber: "+13055550101",
-          inboundSipDevice: desk as Device | null,
         },
       ],
     } as Record<string, any> | null,
@@ -94,7 +74,7 @@ function setup() {
     payload: {},
     ...overrides,
   });
-  return { service, state, desk, event, lookups };
+  return { service, state, event, lookups };
 }
 
 async function withConfig<T>(run: () => Promise<T>) {
@@ -112,20 +92,22 @@ async function withConfig<T>(run: () => Promise<T>) {
   }
 }
 
-describe("ExternalCarrierService inbound routing", () => {
-  it("routes a verified carrier call to its number's desk phone, preserving both numbers", () =>
+// The carrier layer answers "which number was called", and stops there. Where
+// that number's calls go is the routing layer's decision and is covered by
+// inbound-route-resolver.spec.ts.
+describe("ExternalCarrierService inbound identification", () => {
+  it("identifies a verified carrier call's number, preserving both numbers", () =>
     withConfig(async () => {
       const s = setup();
-      assert.deepEqual(await s.service.resolveInbound(s.event()), {
-        kind: "desk_phone",
-        ctx: { userId: "user-a", organizationId: "org-1" },
+      assert.deepEqual(await s.service.identifyInbound(s.event()), {
+        kind: "identified",
+        organizationId: "org-1",
         fromNumber: "+12125550199",
         callerId: "+12125550199",
         toNumber: "+13055550101",
+        externalNumberId: "number-1",
         externalCarrierId: "carrier-1",
         externalSipEndpointId: ENDPOINT,
-        sipDeviceId: "device-1",
-        sipUsername: "rgdesk201",
       });
     }));
 
@@ -137,7 +119,7 @@ describe("ExternalCarrierService inbound routing", () => {
         { to: "+13055550101" },
         { connectionId: "credential-connection" },
       ])
-        assert.deepEqual(await s.service.resolveInbound(s.event(overrides)), {
+        assert.deepEqual(await s.service.identifyInbound(s.event(overrides)), {
           kind: "none",
         });
       assert.deepEqual(s.lookups, []);
@@ -147,7 +129,7 @@ describe("ExternalCarrierService inbound routing", () => {
     withConfig(async () => {
       const s = setup();
       const forged = `rcr${"0".repeat(64)}`;
-      const route = await s.service.resolveInbound(
+      const route = await s.service.identifyInbound(
         s.event({ to: `sip:${forged}@ringee.sip.telnyx.com` }),
       );
       assert.equal(route.kind, "refused");
@@ -162,29 +144,34 @@ describe("ExternalCarrierService inbound routing", () => {
         ...second,
         id: "number-2",
         phoneNumber: "+13055550102",
-        inboundSipDevice: { ...s.desk, id: "device-2", sipUsername: "desk2" },
       });
       const header = (value: string) => ({
         customHeaders: [{ name: "X-Ringee-Called-Number", value }],
       });
-      const routed = await s.service.resolveInbound(
+      const routed = await s.service.identifyInbound(
         s.event(header("+1 (305) 555-0102")),
       );
-      assert.equal(routed.kind, "desk_phone");
+      assert.equal(routed.kind, "identified");
       assert.equal(
-        routed.kind === "desk_phone" && routed.toNumber,
+        routed.kind === "identified" && routed.toNumber,
         "+13055550102",
       );
-      assert.equal(routed.kind === "desk_phone" && routed.sipUsername, "desk2");
-      // Ambiguity is never resolved by guessing.
-      assert.equal((await s.service.resolveInbound(s.event())).kind, "refused");
       assert.equal(
-        (await s.service.resolveInbound(s.event(header("+19995550100")))).kind,
+        routed.kind === "identified" && routed.externalNumberId,
+        "number-2",
+      );
+      // Ambiguity is never resolved by guessing.
+      assert.equal(
+        (await s.service.identifyInbound(s.event())).kind,
+        "refused",
+      );
+      assert.equal(
+        (await s.service.identifyInbound(s.event(header("+19995550100")))).kind,
         "refused",
       );
       assert.equal(
         (
-          await s.service.resolveInbound(
+          await s.service.identifyInbound(
             s.event({
               customHeaders: [
                 { name: "x-ringee-called-number", value: "+13055550101" },
@@ -197,35 +184,22 @@ describe("ExternalCarrierService inbound routing", () => {
       );
     }));
 
-  it("refuses when the route or its desk phone cannot take the call", () =>
+  it("refuses when the endpoint or the called number cannot take the call", () =>
     withConfig(async () => {
       const cases: Array<(s: ReturnType<typeof setup>) => void> = [
         (s) => (s.state.endpoint = null),
         (s) => (s.state.endpoint!.carrier.status = "deleting"),
         (s) => (s.state.endpoint!.syncStatus = "error"),
+        (s) => (s.state.endpoint!.providerConnectionId = null),
         (s) => (s.state.endpoint!.carrier.organizationId = "org-2"),
         (s) => (s.state.endpoint!.numbers = []),
         (s) => (s.state.endpoint!.numbers[0].active = false),
-        (s) => (s.state.endpoint!.numbers[0].inboundSipDevice = null),
         (s) => (s.state.endpoint!.numbers[0].organizationId = "org-2"),
-        (s) =>
-          (s.state.endpoint!.numbers[0].inboundSipDevice.organizationId =
-            "org-2"),
-        (s) =>
-          (s.state.endpoint!.numbers[0].inboundSipDevice.status = "disabled"),
-        (s) =>
-          (s.state.endpoint!.numbers[0].inboundSipDevice.allowInbound = false),
-        (s) =>
-          (s.state.endpoint!.numbers[0].inboundSipDevice.deletedAt =
-            new Date()),
-        (s) => s.state.members.clear(),
-        () => (config.DESK_PHONES_ENABLED = false),
       ];
       for (const [index, mutate] of cases.entries()) {
         const s = setup();
-        config.DESK_PHONES_ENABLED = true;
         mutate(s);
-        const route = await s.service.resolveInbound(s.event());
+        const route = await s.service.identifyInbound(s.event());
         assert.equal(route.kind, "refused", `case ${index}`);
       }
     }));
@@ -239,32 +213,35 @@ describe("ExternalCarrierService inbound routing", () => {
         phoneNumber: "+13055550102",
         active: false,
       });
-      assert.equal((await s.service.resolveInbound(s.event())).kind, "refused");
+      assert.equal(
+        (await s.service.identifyInbound(s.event())).kind,
+        "refused",
+      );
       const identified = (value: string) =>
         s.event({
           customHeaders: [{ name: "X-Ringee-Called-Number", value }],
         });
       assert.equal(
-        (await s.service.resolveInbound(identified("+13055550102"))).kind,
+        (await s.service.identifyInbound(identified("+13055550102"))).kind,
         "refused",
       );
       assert.equal(
-        (await s.service.resolveInbound(identified("+13055550101"))).kind,
-        "desk_phone",
+        (await s.service.identifyInbound(identified("+13055550101"))).kind,
+        "identified",
       );
     }));
 
   it("keeps a caller without an E.164 number as reported, with no caller ID", () =>
     withConfig(async () => {
       const s = setup();
-      const route = await s.service.resolveInbound(
+      const route = await s.service.identifyInbound(
         s.event({ from: "sip:anonymous@pbx.example.com" }),
       );
       assert.equal(
-        route.kind === "desk_phone" && route.fromNumber,
+        route.kind === "identified" && route.fromNumber,
         "anonymous",
       );
-      assert.equal(route.kind === "desk_phone" && route.callerId, null);
+      assert.equal(route.kind === "identified" && route.callerId, null);
     }));
 });
 

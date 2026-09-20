@@ -190,13 +190,41 @@ export class CallRepository {
   /**
    * First answer wins: marks a live call answered only if nothing did yet, and
    * returns it when this call did. Null when it was already answered or ended.
+   * `answeredByUserId` names the member the answer belongs to when the call
+   * was offered to more than one (a ring group, a desk phone's owner).
    */
-  async markAnsweredOnce(callControlId: string): Promise<Call | null> {
+  async markAnsweredOnce(
+    callControlId: string,
+    answeredByUserId?: string | null,
+  ): Promise<Call | null> {
     const { count } = await this.prisma.call.updateMany({
       where: { callControlId, answeredAt: null, endedAt: null },
-      data: { status: CallStatus.answered, answeredAt: new Date() },
+      data: {
+        status: CallStatus.answered,
+        answeredAt: new Date(),
+        ...(answeredByUserId ? { answeredByUserId } : {}),
+      },
     });
     return count === 1 ? this.findByControlId(callControlId) : null;
+  }
+
+  /**
+   * Elects the one endpoint that owns an inbound call, before it is answered.
+   * Atomic: of several members clicking answer in the same instant, exactly
+   * one `updateMany` matches an unclaimed, live row — so exactly one wins and
+   * the rest are told the call was taken. Re-claiming by the winner is a win,
+   * so a retried request is not read as a loss.
+   */
+  async claimInboundAnswer(
+    callControlId: string,
+    userId: string,
+  ): Promise<{ won: boolean; call: Call | null }> {
+    const { count } = await this.prisma.call.updateMany({
+      where: { callControlId, answeredByUserId: null, endedAt: null },
+      data: { answeredByUserId: userId },
+    });
+    const call = await this.findByControlId(callControlId);
+    return { won: count === 1 || call?.answeredByUserId === userId, call };
   }
 
   /** Closes the caller's own external carrier pre-dial that never got a leg. */

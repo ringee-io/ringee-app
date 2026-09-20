@@ -5,6 +5,12 @@
   "metaDescription": "Tätigen und empfangen Sie kristallklare Anrufe in über 180 Länder direkt im Browser. Mit Telnyx und Ringee WebRTC für Vertriebsteams und globale Kommunikation.",
   "newCall": "Neuer Anruf",
   "incomingCall": "Eingehender Anruf",
+  "incoming": {
+    "viaRingGroup": "über {name}",
+    "alreadyAnswered": "Jemand anderes hat diesen Anruf angenommen.",
+    "noLongerRinging": "Dieser Anruf klingelt nicht mehr.",
+    "notOffered": "Dieser Anruf wurde Ihnen nicht angeboten."
+  },
   "outgoingCall": "Ausgehender Anruf",
   "missedCall": "Verpasster Anruf",
   "answered": "Angenommen",

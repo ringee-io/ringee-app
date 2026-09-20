@@ -118,25 +118,35 @@ export class ExternalCarrierRepository {
         syncStatus: true,
         providerConnectionId: true,
         carrier: { select: { organizationId: true, status: true } },
+        // Only what identifying the called number needs. Where the call then
+        // goes is the routing layer's read, not this one's.
         numbers: {
           select: {
             id: true,
             active: true,
             organizationId: true,
             phoneNumber: true,
-            inboundSipDevice: {
-              select: {
-                id: true,
-                userId: true,
-                organizationId: true,
-                sipUsername: true,
-                allowInbound: true,
-                status: true,
-                deletedAt: true,
-              },
-            },
           },
         },
+      },
+    });
+  }
+
+  /**
+   * One external number by id, for the routing layer. Ownership is not
+   * filtered here — an inbound call authenticates as nobody — so the caller
+   * compares the organization it returns against the one the carrier proved.
+   */
+  findNumberById(id: string) {
+    return this.prisma.externalPhoneNumber.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        organizationId: true,
+        phoneNumber: true,
+        active: true,
+        inboundSipDeviceId: true,
+        endpoint: { select: { carrierId: true } },
       },
     });
   }

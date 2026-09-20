@@ -49,23 +49,27 @@ export const CALLED_NUMBER_HEADER = "x-ringee-called-number";
 /** A browser must place its authorized carrier leg within two minutes. */
 export const EXTERNAL_PRE_DIAL_TTL_MS = 2 * 60 * 1000;
 
-export type CarrierInboundRoute =
+/**
+ * What the carrier layer can say about an inbound call: whose number was
+ * called, or why it will not say. **Where the call goes is not decided here** —
+ * that is `InboundRouteResolverService`, for every carrier alike.
+ */
+export type CarrierInboundCall =
   | { kind: "none" }
   | { kind: "refused"; reason: string }
   | {
-      kind: "desk_phone";
-      /** The desk phone owner's organization workspace. */
-      ctx: OwnershipContext & { organizationId: string };
+      kind: "identified";
+      /** The organization the verified endpoint belongs to. */
+      organizationId: string;
       /** The caller as reported, E.164 when it is one. */
       fromNumber: string;
       /** The caller's E.164 number, or null when it has none to present. */
       callerId: string | null;
       /** The external number that was called. */
       toNumber: string;
+      externalNumberId: string;
       externalCarrierId: string;
       externalSipEndpointId: string;
-      sipDeviceId: string;
-      sipUsername: string;
     };
 
 /** Strict E.164 or null: a caller ID is presented as given or not at all. */
@@ -125,18 +129,24 @@ export class ExternalCarrierService {
   }
 
   /**
-   * Who takes a call the Call Control application received. A call from a
-   * carrier's PBX is addressed with the signed routing key of the endpoint it
-   * came through; anything else is not a carrier call (`none`). A carrier call
-   * that cannot be delivered is `refused`, never guessed at: the called number
-   * must be unambiguous and its desk phone usable, in the same organization.
+   * **Which number** a call the Call Control application received was for. A
+   * call from a carrier's PBX is addressed with the signed routing key of the
+   * endpoint it came through; anything else is not a carrier call (`none`).
+   *
+   * This is the carrier half of inbound and stops here on purpose: it proves
+   * the PBX, the endpoint and the called number, and hands that over. Which
+   * desk phone, user or ring group answers is decided by the routing layer,
+   * identically for a carrier number and a Ringee number.
+   *
+   * Ambiguity is refused, never guessed: a call the PBX did not name a number
+   * for, on an extension that serves several, is hung up.
    */
-  async resolveInbound(event: TelephonyEvent): Promise<CarrierInboundRoute> {
+  async identifyInbound(event: TelephonyEvent): Promise<CarrierInboundCall> {
     const appId = apiConfiguration.TELNYX_CALL_CONTROL_APP_ID;
     const key = sipUser(event.to);
     if (!appId || event.connectionId !== appId || !isCarrierRouteKey(key))
       return { kind: "none" };
-    const refused = (reason: string): CarrierInboundRoute => ({
+    const refused = (reason: string): CarrierInboundCall => ({
       kind: "refused",
       reason,
     });
@@ -178,33 +188,17 @@ export class ExternalCarrierService {
     // Inactive numbers still count when deciding whether a DID is ambiguous.
     // Otherwise disabling one of two DIDs would deliver its calls to the other.
     if (!number.active) return refused("the called number is inactive");
-    const device = number.inboundSipDevice;
-    if (!device) return refused("the called number is not routed inbound");
-    if (
-      !apiConfiguration.DESK_PHONES_ENABLED ||
-      device.deletedAt ||
-      device.organizationId !== endpoint.organizationId ||
-      !device.allowInbound ||
-      device.status === "disabled" ||
-      device.status === "deleted" ||
-      !(await this.organizations.isMember(
-        device.userId,
-        endpoint.organizationId,
-      ))
-    )
-      return refused("its desk phone cannot take calls");
 
     const caller = sipUser(event.from);
     return {
-      kind: "desk_phone",
-      ctx: { userId: device.userId, organizationId: endpoint.organizationId },
+      kind: "identified",
+      organizationId: endpoint.organizationId,
       fromNumber: e164(caller) ?? caller,
       callerId: e164(caller),
       toNumber: number.phoneNumber,
+      externalNumberId: number.id,
       externalCarrierId: endpoint.carrierId,
       externalSipEndpointId: endpoint.id,
-      sipDeviceId: device.id,
-      sipUsername: device.sipUsername,
     };
   }
 

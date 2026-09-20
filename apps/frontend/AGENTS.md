@@ -57,6 +57,17 @@ WebRTC lives in `src/features/calls`, `src/features/dialer` and
 the shared engine and state map in `@ringee/dialer-core` over new ad-hoc handling
 of Telnyx notification objects.
 
+**An inbound call is presented because the server said it is ours.** Every
+dashboard registers with the same WebRTC credential, so the provider offers
+every inbound leg to every browser (`DEBT-020`). `call.inbound.ringing` on the
+per-user realtime channel is what names the recipient — a ring group included —
+and `inbound-offers.store` is where it lands. Do not reintroduce a client-side
+decision about whose call a leg is: the workspace's number list cannot express
+a ring group, and answering is claimed server-side
+(`POST /api/inbound-calls/:callControlId/claim`) before the media leg is
+touched. The socket is mounted **once**, in `AccountLockdownProvider`; a second
+`useUserEvents` is a second socket and a duplicate device in the backoffice.
+
 **A live call is ended by the hang-up button or by the person on the other end,
 and by nothing else.** No other control may call `hangup()` — not a disposition,
 not a shortcut, not a timer. In the campaign dialer the outcome buttons are live

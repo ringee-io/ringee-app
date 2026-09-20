@@ -1,6 +1,12 @@
 'use client';
 
-import { useCallback, useRef, useState, type ReactNode } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode
+} from 'react';
 import { useClerk } from '@clerk/nextjs';
 import { toast } from 'sonner';
 import { AlertTriangle, PhoneOff } from 'lucide-react';
@@ -11,6 +17,11 @@ import {
 } from '@ringee/frontend-shared/realtime';
 import { Button } from '@ringee/frontend-shared/components/ui/button';
 import { useTelnyxStore } from '@/features/calls/store/telnyx.store';
+import {
+  applyInboundRealtimeEvent,
+  clearInboundOffers,
+  setInboundRealtimeConnected
+} from '@/features/calls/store/inbound-offers.store';
 import { ConcurrentCallDialog } from './concurrent-call-dialog';
 
 /** How long the block notice stays up before the session is signed out. */
@@ -29,8 +40,15 @@ const SIGN_OUT_DELAY_MS = 6_000;
  * - `calls.terminated` — hang up, but leave the session alone.
  * - `account.restored` — tell the user they can carry on.
  *
+ * Because that socket is the only one, inbound ring offers land here too
+ * (`call.inbound.ringing` / `call.inbound.cancelled`). They are handed straight
+ * to the calls feature rather than handled here: a second `useUserEvents` mount
+ * would open a second socket and show up as a duplicate device in the
+ * backoffice.
+ *
  * The socket is a courier, not a gatekeeper: everything it announces has
- * already been enforced by the API. Nothing here is a security boundary.
+ * already been enforced by the API. Nothing here is a security boundary — an
+ * inbound call is still won by claiming it server-side.
  */
 export function AccountLockdownProvider({ children }: { children: ReactNode }) {
   const { signOut } = useClerk();
@@ -55,6 +73,7 @@ export function AccountLockdownProvider({ children }: { children: ReactNode }) {
     );
 
     clear();
+    clearInboundOffers();
     useCallStore.getState().reset();
 
     if (disconnectClient && client) {
@@ -93,6 +112,13 @@ export function AccountLockdownProvider({ children }: { children: ReactNode }) {
           toast.success('Your account access has been restored.');
           break;
         }
+        case 'call.inbound.ringing':
+        case 'call.inbound.cancelled': {
+          // Whose call this is, and when to stop offering it. The calls
+          // feature owns what that looks like on screen.
+          applyInboundRealtimeEvent(event);
+          break;
+        }
         default:
           break;
       }
@@ -100,7 +126,13 @@ export function AccountLockdownProvider({ children }: { children: ReactNode }) {
     [signOut, tearDownCalls]
   );
 
-  useUserEvents({ onEvent, client: 'web' });
+  const realtimeStatus = useUserEvents({ onEvent, client: 'web' });
+
+  // While this is down nothing tells a browser which inbound calls are its
+  // own, so the dialer falls back to the number check it used before routing.
+  useEffect(() => {
+    setInboundRealtimeConnected(realtimeStatus === 'connected');
+  }, [realtimeStatus]);
 
   return (
     <>

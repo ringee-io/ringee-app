@@ -5,6 +5,12 @@
   "metaDescription": "Passez et recevez des appels d'une qualité exceptionnelle vers plus de 180 pays directement depuis votre navigateur. Propulsé par Telnyx et la technologie WebRTC de Ringee, pour les équipes commerciales et la communication mondiale.",
   "newCall": "Nouvel appel",
   "incomingCall": "Appel entrant",
+  "incoming": {
+    "viaRingGroup": "via {name}",
+    "alreadyAnswered": "Quelqu'un d'autre a répondu à cet appel.",
+    "noLongerRinging": "Cet appel ne sonne plus.",
+    "notOffered": "Cet appel ne vous a pas été proposé."
+  },
   "outgoingCall": "Appel sortant",
   "missedCall": "Appel manqué",
   "answered": "Répondu",

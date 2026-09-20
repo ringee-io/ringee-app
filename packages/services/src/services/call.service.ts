@@ -15,11 +15,11 @@ import {
   CallStatus,
   CallOutcome,
   Call,
+  InboundDestinationType,
   RecordingRepository,
   type CallDetail,
 } from "@ringee/database";
 import {
-  NotificationService,
   OrchestratorService,
   OwnershipContext,
   RedisService,
@@ -45,7 +45,6 @@ import { CreditService } from "./credit.service";
 import { ContactService } from "./contact.service";
 import { NumberPurchasedService } from "./number.purchased.service";
 import { CallerIdRotationService } from "./caller-id-rotation/caller-id-rotation.service";
-import { UserDeviceService } from "./user.device.service";
 import { OrganizationService } from "./organization.service";
 import { CallAttemptService } from "./outbound/call-attempt.service";
 import { VoicemailDropService } from "./outbound/voicemail-drop.service";
@@ -58,11 +57,22 @@ import { ConcurrentCallGuardService } from "./security";
 import { calculateCallCharge } from "./call-cost.util";
 import { LOW_BALANCE_MAX_CALL_SECONDS, LOW_BALANCE_USD } from "./credit-policy";
 import {
-  type CarrierInboundRoute,
   ExternalCarrierService,
   EXTERNAL_PRE_DIAL_TTL_MS,
 } from "./external-carrier/external-carrier.service";
 import { parseSipTarget } from "./external-carrier/sip-target";
+import {
+  destinationIdOf,
+  destinationTypeOf,
+  InboundCallRouterService,
+} from "./inbound-routing/inbound-call-router.service";
+import { InboundRouteResolverService } from "./inbound-routing/inbound-route-resolver.service";
+import { InboundRingService } from "./inbound-routing/inbound-ring.service";
+import type {
+  InboundCallOrigin,
+  InboundRouteResolution,
+  RouteExecutionResult,
+} from "./inbound-routing/inbound-routing.types";
 
 /**
  * How long a lifecycle event that arrived before its `Call` row is kept so the
@@ -79,13 +89,6 @@ function orphanEventsKey(callControlId: string): string {
 /** Signed pre-dial token a browser leg carries to use an external carrier. */
 const EXTERNAL_CALL_HEADER = "X-Ringee-Byoc-Call-Id";
 
-/**
- * How long a desk phone rings with a carrier inbound call. Longer than a PBX
- * usually rings an extension, so the PBX's own timer — and its voicemail or
- * next step — decides when to stop, not Ringee.
- */
-const CARRIER_INBOUND_RING_SECONDS = 120;
-
 @Injectable()
 export class CallService implements OnModuleDestroy {
   private readonly logger = new Logger(CallService.name);
@@ -99,8 +102,6 @@ export class CallService implements OnModuleDestroy {
     private readonly contactService: ContactService,
     private readonly numberPurchasedService: NumberPurchasedService,
     private readonly callerIdRotationService: CallerIdRotationService,
-    private readonly notificationService: NotificationService,
-    private readonly userDeviceService: UserDeviceService,
     private readonly orchestratorService: OrchestratorService,
     private readonly organizationService: OrganizationService,
     private readonly callAttemptService: CallAttemptService,
@@ -118,130 +119,215 @@ export class CallService implements OnModuleDestroy {
     private readonly voicemailDropService: VoicemailDropService,
     private readonly voiceAgentResults: VoiceAgentResultService,
     private readonly externalCarriers: ExternalCarrierService,
+    private readonly inboundRoutes: InboundRouteResolverService,
+    private readonly inboundRouter: InboundCallRouterService,
+    private readonly inboundRing: InboundRingService,
   ) {}
 
   /**
-   * A call a customer's PBX delivered through its carrier connection. It is
-   * recorded like any inbound call — from the caller, to the external number
-   * that was called — and rings the desk phone that number is routed to, the
-   * way a Ringee number routed to a desk phone rings it.
+   * An inbound call, from any carrier.
+   *
+   * One path for every number Ringee serves. The carrier layer says **which
+   * number** was called and proves it; the routing layer says **who owns the
+   * call**; the router rings them. Nothing in here knows a provider's names,
+   * and nothing in here decides a destination.
    */
-  private async routeCarrierInbound(
+  private async handleInboundCall(event: TelephonyEvent): Promise<void> {
+    // A call a customer's PBX delivered arrives on the Call Control
+    // application addressed with a signed routing key; Ringee's own numbers
+    // never do, and identify themselves by the number that was dialed.
+    const carrier = await this.externalCarriers.identifyInbound(event);
+    if (carrier.kind === "refused")
+      return this.refuseInboundLeg(event, carrier.reason);
+
+    const origin: InboundCallOrigin =
+      carrier.kind === "identified"
+        ? {
+            transport: "call_control",
+            toNumber: carrier.toNumber,
+            fromNumber: carrier.fromNumber,
+            callerId: carrier.callerId,
+            number: { kind: "external", id: carrier.externalNumberId },
+            organizationId: carrier.organizationId,
+            externalCarrierId: carrier.externalCarrierId,
+            externalSipEndpointId: carrier.externalSipEndpointId,
+          }
+        : {
+            transport: "ringee_webrtc",
+            toNumber: event.to ?? "",
+            fromNumber: event.from ?? "",
+            callerId: event.from ?? null,
+          };
+
+    const resolution = await this.inboundRoutes.resolve(origin);
+    if (resolution.kind === "unknown_number") {
+      // Unchanged: a number no workspace owns is logged and left alone. The
+      // leg is not ours to hang up.
+      this.logger.warn(`⚠️ Number ${origin.toNumber} not found`);
+      return;
+    }
+    if (resolution.kind === "unroutable")
+      return this.refuseInboundLeg(
+        event,
+        `${resolution.reason} — ${resolution.detail}`,
+      );
+
+    await this.deliverInboundCall(event, origin, resolution);
+  }
+
+  /**
+   * An inbound leg that must not be delivered: hung up rather than left
+   * ringing into nothing, and leaving no history row. A redelivery that finds
+   * a call already ringing or answered is left alone — editing a route must
+   * not disconnect the call that already reached its destination.
+   */
+  private async refuseInboundLeg(
     event: TelephonyEvent,
-    route: Exclude<CarrierInboundRoute, { kind: "none" }>,
+    reason: string,
   ): Promise<void> {
     const { callControlId } = event;
     const existing = await this.callRepository.findByControlId(callControlId);
-    // A redelivery is not a new routing decision. Editing/deleting a number
-    // must not transfer or disconnect the call that already reached its phone.
-    // A refusal only stops a call that has no row yet — a leg already ringing
-    // its phone is left alone, the same as an answered one.
-    if (
-      existing?.answeredAt ||
-      existing?.endedAt ||
-      (existing && route.kind === "refused")
-    ) {
+    if (existing) {
       await this.replayParkedCallEvents(callControlId);
       return;
     }
-    if (route.kind === "refused") {
-      this.logger.warn(
-        `⛔ Hanging up carrier inbound call ${callControlId}: ${route.reason}`,
+    this.logger.warn(`⛔ Hanging up inbound call ${callControlId}: ${reason}`);
+    await this.telephonyService
+      .hangupCall(callControlId)
+      .catch((err) =>
+        this.logger.error(
+          `Failed to hang up inbound call ${callControlId}: ${err.message}`,
+        ),
       );
-      await this.telephonyService
-        .hangupCall(callControlId)
-        .catch((err) =>
-          this.logger.error(
-            `Failed to hang up carrier inbound call ${callControlId}: ${err.message}`,
-          ),
-        );
+  }
+
+  /**
+   * Record the one logical call and ring its destination.
+   *
+   * However many endpoints a destination rings, there is exactly one `Call`
+   * row: one history entry, one recording, one charge. `Call.status` is still
+   * written only here; the router opens legs and the ring service elects the
+   * winner, neither of them touches the lifecycle.
+   */
+  private async deliverInboundCall(
+    event: TelephonyEvent,
+    origin: InboundCallOrigin,
+    resolution: Extract<InboundRouteResolution, { kind: "routed" }>,
+  ): Promise<void> {
+    const { callControlId } = event;
+    const { ctx, destination } = resolution;
+    const destinationId = destinationIdOf(destination);
+
+    const existing = await this.callRepository.findByControlId(callControlId);
+    // A redelivery is not a new routing decision. A leg already ringing its
+    // destination — or answered — is left exactly as it is.
+    if (existing?.answeredAt || existing?.endedAt) {
+      await this.replayParkedCallEvents(callControlId);
       return;
     }
 
     const contact = await this.contactService
-      .findByPhone(route.ctx, route.fromNumber)
+      .findByPhone(ctx, origin.fromNumber)
       .catch(() => null);
-    // Redelivered webhooks find the row this leg already created.
-    const { call, created } = await this.callRepository.createInboundOnce(
-      route.ctx,
-      {
-        contact: contact ? { connect: { id: contact.id } } : undefined,
-        fromNumber: route.fromNumber,
-        toNumber: route.toNumber,
-        connectionId: event.connectionId ?? undefined,
-        callControlId,
-        direction: "inbound",
-        callSessionId: event.callSessionId ?? undefined,
-        callLegId: event.callLegId ?? undefined,
-        status: CallStatus.ringing,
-        startedAt: event.startedAt ?? undefined,
-        clientState: Buffer.from("initiate_call").toString("base64"),
-        source: "sip_device",
-        sipDevice: { connect: { id: route.sipDeviceId } },
-        externalCarrierId: route.externalCarrierId,
-        externalSipEndpointId: route.externalSipEndpointId,
-      },
-    );
+    const { call, created } = await this.callRepository.createInboundOnce(ctx, {
+      contact: contact ? { connect: { id: contact.id } } : undefined,
+      fromNumber: origin.fromNumber,
+      toNumber: origin.toNumber,
+      connectionId:
+        origin.transport === "call_control"
+          ? (event.connectionId ?? undefined)
+          : apiConfiguration.TELNYX_CONNECTION_ID,
+      callControlId,
+      direction: "inbound",
+      callSessionId: event.callSessionId ?? undefined,
+      callLegId: event.callLegId ?? undefined,
+      status: CallStatus.ringing,
+      startedAt: event.startedAt ?? undefined,
+      clientState: Buffer.from("initiate_call").toString("base64"),
+      ...(destination.type === "desk_phone"
+        ? {
+            source: "sip_device",
+            sipDevice: { connect: { id: destination.sipDeviceId } },
+          }
+        : {}),
+      externalCarrierId: origin.externalCarrierId,
+      externalSipEndpointId: origin.externalSipEndpointId,
+      // What routed this call, kept on the row so history reads correctly
+      // after the route or the group it named is edited away.
+      inboundRoute: resolution.routeId
+        ? { connect: { id: resolution.routeId } }
+        : undefined,
+      inboundDestinationType: destinationTypeOf(destination),
+      inboundDestinationId: destinationId,
+      ringGroup:
+        destination.type === "ring_group"
+          ? { connect: { id: destination.ringGroupId } }
+          : undefined,
+      routedAt: new Date(),
+    });
+
     if (created) {
       void this.inboxTimelineService
         .ensureThreadForCall(call)
         .catch((err) =>
           this.logger.error(
-            `Inbox ensureThreadForCall failed (carrier inbound, call=${call.id}): ${err.message}`,
+            `Inbox ensureThreadForCall failed (inbound, call=${call.id}): ${err.message}`,
             err.stack,
           ),
         );
     }
 
-    // A hangup that beat this webhook closes the row before any phone rings.
+    // A hangup that beat this webhook closes the row before anything rings.
     await this.replayParkedCallEvents(callControlId);
     const current = await this.callRepository.findById(call.id);
     if (!current || current.endedAt || current.answeredAt) return;
     if (
-      call.userId !== route.ctx.userId ||
-      call.organizationId !== route.ctx.organizationId ||
-      call.sipDeviceId !== route.sipDeviceId
+      call.userId !== ctx.userId ||
+      call.organizationId !== (ctx.organizationId ?? null) ||
+      call.inboundDestinationId !== destinationId
     ) {
-      // A retry after reassignment must not ring a different recipient using
-      // the original recipient's history/correlation token.
+      // A retry after the route was changed must not ring a different
+      // recipient using the original recipient's row and correlation token.
       await this.telephonyService.hangupCall(callControlId);
       return;
     }
 
-    try {
-      await this.telephonyService.connectInboundToDeskPhone(callControlId, {
-        sipUsername: route.sipUsername,
-        // A caller with no E.164 number is shown by name against the
-        // external number that was called.
-        from: route.callerId ?? route.toNumber,
-        fromDisplayName: route.callerId ? null : route.fromNumber || "Unknown",
-        correlation: signCallCorrelation(call.id),
-        // Same id on a redelivery: the phone is never rung twice.
-        commandId: `carrier-inbound-${call.id}`,
-        timeoutSecs: CARRIER_INBOUND_RING_SECONDS,
-      });
-    } catch (error) {
-      this.logger.error(
-        `Could not ring the desk phone for carrier inbound call ${call.id}: ${(error as Error).message}`,
-      );
-      await this.callRepository
-        .updateControlState(callControlId, {
-          errorMessage: "The desk phone could not be reached.",
-        })
-        .catch(() => undefined);
-      await this.telephonyService
-        .hangupCall(callControlId)
-        .catch(() => undefined);
-    }
+    const result = await this.inboundRouter.routeInboundCall({
+      call,
+      ctx,
+      origin,
+      destination,
+      callerName: contact?.name ?? null,
+    });
+    if (result.status === "failed") await this.failInboundCall(call, result);
+  }
+
+  /** Nothing could take the call: say so on the row, stop ringing, hang up. */
+  private async failInboundCall(
+    call: Call,
+    result: Extract<RouteExecutionResult, { status: "failed" }>,
+  ): Promise<void> {
+    this.logger.error(
+      `Inbound call ${call.id} was not delivered (${result.reason}): ${result.detail}`,
+    );
+    await this.callRepository
+      .updateControlState(call.callControlId!, {
+        errorMessage: result.callerMessage ?? "This call could not be routed.",
+      })
+      .catch(() => undefined);
+    await this.inboundRing.cancelForEndedCall(call, result.reason);
+    await this.telephonyService
+      .hangupCall(call.callControlId!)
+      .catch(() => undefined);
   }
 
   /**
-   * Webhooks of the desk phone leg `routeCarrierInbound` opened. That leg is
-   * part of the original call, never a call of its own: nothing here creates
-   * a row, and the caller's leg keeps reporting its own lifecycle. Returns
-   * true when the event belonged to such a leg.
+   * Webhooks of the desk phone leg the `DESK_PHONE` destination opened. That
+   * leg is part of the original call, never a call of its own: nothing here
+   * creates a row, and the caller's leg keeps reporting its own lifecycle.
+   * Returns true when the event belonged to such a leg.
    */
-  private async handleCarrierInboundLeg(
+  private async handleDeskPhoneInboundLeg(
     event: TelephonyEvent,
   ): Promise<boolean> {
     const correlation = carrierInboundLegCorrelation(event.clientState);
@@ -255,14 +341,16 @@ export class CallService implements OnModuleDestroy {
       return false;
     const id = verifyCallCorrelation(correlation);
     const call = id ? await this.callRepository.findById(id) : null;
+    // Whatever carrier delivered it, the leg belongs to a desk phone
+    // destination of an inbound call and to nothing else.
     if (
       !call?.callControlId ||
-      !call.externalSipEndpointId ||
+      !call.sipDeviceId ||
       call.direction !== "inbound"
     ) {
       if (event.type === "call.initiated") {
         this.logger.warn(
-          `⛔ Hanging up leg ${event.callControlId}: carrier inbound state does not match a call`,
+          `⛔ Hanging up leg ${event.callControlId}: desk phone state does not match an inbound call`,
         );
         await this.telephonyService
           .hangupCall(event.callControlId)
@@ -272,7 +360,7 @@ export class CallService implements OnModuleDestroy {
     }
 
     if (event.type === "call.answered") {
-      await this.answerCarrierInboundOnce(call.callControlId);
+      await this.answerDeskPhoneInboundOnce(call.callControlId, call.userId);
     } else if (event.type === "call.hangup" && !call.endedAt) {
       // The phone did not take the call — busy, declined, unreachable, no
       // answer — or hung up after talking. The caller's leg ends with it; what
@@ -289,7 +377,7 @@ export class CallService implements OnModuleDestroy {
         .hangupCall(call.callControlId, `carrier-inbound-end-${call.id}`)
         .catch((err) =>
           this.logger.warn(
-            `Carrier inbound call ${call.id} was already ending: ${err.message}`,
+            `Inbound call ${call.id} was already ending: ${err.message}`,
           ),
         );
     }
@@ -297,12 +385,22 @@ export class CallService implements OnModuleDestroy {
   }
 
   /**
-   * The desk phone answered a carrier inbound call. Either leg may report it,
-   * so the row turns answered — and answer automation runs — only once.
+   * The desk phone answered an inbound call. Either leg may report it, so the
+   * row turns answered — and answer automation runs — only once. The phone's
+   * owner is recorded as the member who took it, the same way a ring group
+   * records its winner.
    */
-  private async answerCarrierInboundOnce(callControlId: string) {
-    const answered = await this.callRepository.markAnsweredOnce(callControlId);
-    if (answered) await this.applyAnswerAutomation(answered);
+  private async answerDeskPhoneInboundOnce(
+    callControlId: string,
+    ownerUserId: string | null,
+  ) {
+    const answered = await this.callRepository.markAnsweredOnce(
+      callControlId,
+      ownerUserId,
+    );
+    if (!answered) return;
+    await this.inboundRing.recordAnswer(answered, ownerUserId);
+    await this.applyAnswerAutomation(answered);
   }
 
   /**
@@ -1244,7 +1342,7 @@ export class CallService implements OnModuleDestroy {
    */
   async handleTelephonyEvent(event: TelephonyEvent) {
     const { type: eventType, callControlId, payload } = event;
-    if (await this.handleCarrierInboundLeg(event)) return;
+    if (await this.handleDeskPhoneInboundLeg(event)) return;
 
     if (eventType === "unknown") {
       // Carriers emit far more than Ringee acts on. Record it and move on.
@@ -1300,103 +1398,10 @@ export class CallService implements OnModuleDestroy {
           }
         }
         if (event.direction === "inbound") {
-          // A call a customer's PBX delivered through its carrier connection
-          // arrives on the Call Control application addressed with a routing
-          // key; Ringee numbers never do and continue below unchanged.
-          const carrierRoute =
-            await this.externalCarriers.resolveInbound(event);
-          if (carrierRoute.kind !== "none") {
-            await this.routeCarrierInbound(event, carrierRoute);
-            return;
-          }
-
-          const toNumber = event.to ?? "";
-          const number =
-            await this.numberPurchasedService.findOneByNumber(toNumber);
-
-          if (!number) {
-            this.logger.warn(`⚠️ Number ${toNumber} not found`);
-            return;
-          }
-
-          const user = await this.userService.getCachedUserById(number.userId!);
-
-          if (!user) {
-            this.logger.warn(
-              `⚠️ User ${number.userId} not found - ${event.direction}`,
-            );
-            return;
-          }
-
-          // Build ownership context from the number's owner
-          const ctx: OwnershipContext = {
-            userId: user.id,
-            organizationId: number.organizationId,
-          };
-
-          const fromNumber = event.from ?? "";
-          const contact = await this.contactService.findByPhone(
-            ctx,
-            fromNumber,
-          );
-
-          const inboundCall = await this.callRepository.createCall(ctx, {
-            contact: contact ? { connect: { id: contact.id } } : undefined,
-            fromNumber,
-            toNumber,
-            connectionId: apiConfiguration.TELNYX_CONNECTION_ID,
-            callControlId,
-            direction: event.direction ?? "inbound",
-            callSessionId: event.callSessionId ?? undefined,
-            callLegId: event.callLegId ?? undefined,
-            status: CallStatus.ringing,
-            startedAt: event.startedAt ?? undefined,
-            clientState: Buffer.from("initiate_call").toString("base64"),
-          });
-
-          if (inboundCall) {
-            void this.inboxTimelineService
-              .ensureThreadForCall(inboundCall)
-              .catch((err) =>
-                this.logger.error(
-                  `Inbox ensureThreadForCall failed (inbound, call=${inboundCall.id}): ${err.message}`,
-                  err.stack,
-                ),
-              );
-          }
-
-          const devices = await this.userDeviceService.findActiveByUser(
-            user.id,
-          );
-
-          // A hangup that beat this webhook is waiting in Redis — apply it now
-          // so the row does not stay `ringing` forever.
-          await this.replayParkedCallEvents(callControlId);
-
-          devices.length > 0 &&
-            (await Promise.allSettled(
-              devices.map((device) => {
-                return this.notificationService.sendNotification(
-                  device.fcmToken,
-                  {
-                    title: "📞 Incoming Call",
-                    body: `Call from ${contact?.name || fromNumber}`,
-                    data: {
-                      type: "INCOMING_CALL",
-                      callerNumber: fromNumber,
-                      toNumber,
-                      clerkUserId: user.clerkId!,
-                      userId: user.id,
-                      callSessionId: event.callSessionId ?? "",
-                      callControlId,
-                      url: `/dashboard/call?control=${event.callSessionId ?? ""}`,
-                      title: "📞 Incoming Call",
-                    },
-                  },
-                );
-              }),
-            ));
-
+          // Every inbound call — Ringee number, customer carrier, future
+          // trunk — takes the same path: identify the number, resolve its
+          // destination, ring it. No routing decision is made in here.
+          await this.handleInboundCall(event);
           return;
         }
 
@@ -1624,10 +1629,16 @@ export class CallService implements OnModuleDestroy {
           break;
         }
         if (
-          ringingCall.externalSipEndpointId &&
-          ringingCall.direction === "inbound"
+          ringingCall.direction === "inbound" &&
+          ringingCall.sipDeviceId &&
+          (ringingCall.inboundDestinationType ===
+            InboundDestinationType.desk_phone ||
+            ringingCall.externalSipEndpointId)
         ) {
-          await this.answerCarrierInboundOnce(callControlId);
+          await this.answerDeskPhoneInboundOnce(
+            callControlId,
+            ringingCall.userId,
+          );
           break;
         }
 
@@ -1650,6 +1661,16 @@ export class CallService implements OnModuleDestroy {
           if (!canContinue) {
             break;
           }
+        }
+
+        // Whoever took it, no other endpoint may keep ringing for this call.
+        // The claim endpoint already does this for a member who answers in
+        // the dashboard; this covers an answer the provider reports first.
+        if (answeredCall?.direction === "inbound") {
+          await this.inboundRing.recordAnswer(
+            answeredCall,
+            answeredCall.answeredByUserId,
+          );
         }
 
         // Apply Record all / Transcribe realtime settings once the call is up.
@@ -1676,6 +1697,15 @@ export class CallService implements OnModuleDestroy {
           // Park it so that handler can close the call it is about to create.
           await this.parkOrphanCallEvent(callControlId, event);
           break;
+        }
+
+        // The caller is gone: nothing may still be ringing for this call,
+        // whether one endpoint was offered it or a whole ring group.
+        if (hangupCall.direction === "inbound") {
+          await this.inboundRing.cancelForEndedCall(
+            hangupCall,
+            `caller_hangup${hangupPayload.hangup_cause ? `:${hangupPayload.hangup_cause}` : ""}`,
+          );
         }
 
         // Free the user's single call slot as soon as the leg is down, so they

@@ -54,3 +54,4 @@ export * from "./offers";
 export * from "./voice-agents";
 
 export * from "./external-carrier/external-carrier.service";
+export * from "./inbound-routing";

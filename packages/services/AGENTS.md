@@ -44,6 +44,11 @@ Never assume the caller already checked.
   surface that skips it is a bug, not a shortcut.
 - `isCallAlive()` returning `null` means "could not tell" — it must never be read
   as "the call ended".
+- Inbound destinations are decided in one place: `inbound-routing/`. The carrier
+  layer says which number was called, `InboundRouteResolverService` says who owns
+  the call, and `InboundCallRouterService` rings them through one handler per
+  destination type. Do not add a routing decision to a webhook handler, and do
+  not add a second fallback beside `legacyInboundDestination`.
 
 ## Campaigns and outbound
 

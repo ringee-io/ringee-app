@@ -5,6 +5,12 @@
   "metaDescription": "Place and receive crystal-clear calls to 180+ countries directly from your browser. Powered by Telnyx and Ringee WebRTC technology for sales teams and global communication.",
   "newCall": "New call",
   "incomingCall": "Incoming call",
+  "incoming": {
+    "viaRingGroup": "via {name}",
+    "alreadyAnswered": "Someone else answered this call.",
+    "noLongerRinging": "This call is no longer ringing.",
+    "notOffered": "This call wasn't offered to you."
+  },
   "outgoingCall": "Outgoing call",
   "missedCall": "Missed call",
   "answered": "Answered",

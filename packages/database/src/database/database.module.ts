@@ -1,4 +1,7 @@
 import { ExternalCarrierRepository } from "./repositories/external-carrier.repository";
+import { InboundRouteRepository } from "./repositories/inbound-route.repository";
+import { RingGroupRepository } from "./repositories/ring-group.repository";
+import { InboundRingAttemptRepository } from "./repositories/inbound-ring-attempt.repository";
 import { Global, Module } from "@nestjs/common";
 import { PrismaService } from "./prisma.service";
 import { UserRepository } from "./repositories/user.repository";
@@ -194,6 +197,10 @@ const databaseProviders = [
   AiVoiceAgentRepository,
   AiVoiceAgentCallRepository,
   WorkspaceCompanyProfileRepository,
+  // Inbound call routing
+  InboundRouteRepository,
+  RingGroupRepository,
+  InboundRingAttemptRepository,
 ];
 
 @Global()

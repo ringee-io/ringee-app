@@ -1,4 +1,7 @@
 import { ExternalCarrierController } from "./external-carrier.controller";
+import { InboundRouteController } from "./inbound-route.controller";
+import { RingGroupController } from "./ring-group.controller";
+import { InboundCallController } from "./inbound-call.controller";
 import { Module } from "@nestjs/common";
 import { ChatAuthController } from "./chat.auth.controller";
 import { WhatsappController } from "./whatsapp.controller";
@@ -146,6 +149,9 @@ import { CustomIntegrationApiKeyGuard } from "../guards/custom-integration-api-k
     SipDeviceController,
     ExternalCarrierController,
     DeskPhoneWebhookController,
+    InboundRouteController,
+    RingGroupController,
+    InboundCallController,
     InfrastructureController,
     FreeTrialController,
     DemoRequestController,
