@@ -220,7 +220,15 @@ export class CallRepository {
     userId: string,
   ): Promise<{ won: boolean; call: Call | null }> {
     const { count } = await this.prisma.call.updateMany({
-      where: { callControlId, answeredByUserId: null, endedAt: null },
+      // `answeredAt` matters as much as the winner's id: a call the provider
+      // reported answered with no member behind it — a desk phone — still
+      // has `answeredByUserId` null, and must not be claimable afterwards.
+      where: {
+        callControlId,
+        answeredByUserId: null,
+        answeredAt: null,
+        endedAt: null,
+      },
       data: { answeredByUserId: userId },
     });
     const call = await this.findByControlId(callControlId);

@@ -25,15 +25,19 @@ export class InboundRingAttemptRepository {
   }
 
   /**
-   * Opens one attempt per target. `skipDuplicates` makes a redelivered webhook
-   * a no-op instead of ringing the same member twice.
+   * Opens one attempt per target and returns the rows this call actually
+   * inserted. `skipDuplicates` makes a redelivered webhook a no-op, and the
+   * insert is what says so: a target already on the list comes back missing,
+   * so the caller can ring the new endpoints without ringing the rest twice.
+   * Two concurrent redeliveries are safe for the same reason — the unique
+   * index on (callId, userId) decides which of them owns each row.
    */
   async startMany(
     callId: string,
     targets: RingAttemptTarget[],
-  ): Promise<number> {
-    if (targets.length === 0) return 0;
-    const { count } = await this.prisma.inboundRingAttempt.createMany({
+  ): Promise<InboundRingAttempt[]> {
+    if (targets.length === 0) return [];
+    return this.prisma.inboundRingAttempt.createManyAndReturn({
       data: targets.map((target) => ({
         callId,
         userId: target.userId ?? null,
@@ -41,7 +45,6 @@ export class InboundRingAttemptRepository {
       })),
       skipDuplicates: true,
     });
-    return count;
   }
 
   /** Records the winner. Only a still-ringing attempt can become the answer. */

@@ -58,12 +58,43 @@ const unexpired = (offers: InboundOffer[], now: number) =>
   offers.filter((offer) => offer.expiresAt > now);
 
 /**
- * The offer a SIP leg belongs to.
+ * How long a cancelled call is remembered. Longer than any ring window, so a
+ * `ringing` event that lost the race with its own cancellation — the two are
+ * published by whichever API instance got there first, and the fan-out is not
+ * instant — cannot queue an offer for a call that is already over. A stale
+ * offer is not harmless: it sits in `pending` for the whole ring window, where
+ * the next call to the same number can be refused as ambiguous against it.
+ */
+const CANCELLED_TOMBSTONE_MS = 60_000;
+
+/** Calls the server has cancelled, by call id, until the given epoch ms. */
+const cancelledCalls = new Map<string, number>();
+
+function tombstone(callId: string): void {
+  const now = Date.now();
+  for (const [id, until] of cancelledCalls)
+    if (until <= now) cancelledCalls.delete(id);
+  cancelledCalls.set(callId, now + CANCELLED_TOMBSTONE_MS);
+}
+
+function isCancelled(callId: string): boolean {
+  const until = cancelledCalls.get(callId);
+  if (until === undefined) return false;
+  if (until > Date.now()) return true;
+  cancelledCalls.delete(callId);
+  return false;
+}
+
+/**
+ * The offer a SIP leg belongs to, or `null` when it cannot be said which.
  *
- * The dialled number identifies the offer on its own in every real case; the
- * caller is used to disambiguate two calls ringing the same number at once,
- * and the oldest candidate wins when the caller is withheld or spelled
- * differently by the carrier.
+ * The dialled number identifies the offer on its own in every real case, and
+ * the caller disambiguates two calls ringing the same number at once. What is
+ * refused is a guess: binding a leg to the wrong offer hands the answer a
+ * different call's `callControlId`, so it would claim — and cancel the other
+ * endpoints of — a call the user is not on. An unmatched leg is retried on the
+ * next event instead, and the ambiguity usually resolves itself within the
+ * window as the other call is taken or cancelled.
  */
 function matchOffer(
   offers: InboundOffer[],
@@ -73,11 +104,14 @@ function matchOffer(
   const candidates = offers.filter(
     (offer) => digits(offer.toNumber) === digits(to)
   );
-  if (!candidates.length) return null;
-  return (
-    candidates.find((offer) => digits(offer.fromNumber) === digits(from)) ??
-    candidates[0]
+  const exact = candidates.filter(
+    (offer) => digits(offer.fromNumber) === digits(from)
   );
+  if (exact.length === 1) return exact[0];
+  // One offer for this number and no exact caller match is not ambiguous: the
+  // carrier spells a withheld or odd caller id differently on the two sides.
+  if (candidates.length === 1) return candidates[0];
+  return null;
 }
 
 /**
@@ -91,6 +125,8 @@ export function applyInboundRealtimeEvent(
   event: RealtimeInboundCallRingingEvent | RealtimeInboundCallCancelledEvent
 ): void {
   if (event.type === 'call.inbound.ringing') {
+    // Already cancelled: this offer is a straggler, not a new call.
+    if (isCancelled(event.callId)) return;
     const now = Date.now();
     const { presented } = useInboundOffersStore.getState();
     // A redelivered offer for a call already on screen changes nothing. Left
@@ -129,6 +165,7 @@ export function applyInboundRealtimeEvent(
  * all this does is take the call off this user's screen.
  */
 function stopPresenting(callId: string): void {
+  tombstone(callId);
   const { presented } = useInboundOffersStore.getState();
   const telnyxCallIds = Object.keys(presented).filter(
     (id) => presented[id].callId === callId
@@ -221,5 +258,6 @@ export function releaseInboundOffer(telnyxCallId: string): void {
 
 /** Forget every offer — used when the dialer is torn down. */
 export function clearInboundOffers(): void {
+  cancelledCalls.clear();
   useInboundOffersStore.setState({ pending: [], presented: {} });
 }

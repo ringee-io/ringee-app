@@ -56,16 +56,24 @@ function setup(options: { online?: string[] } = {}) {
 
   const attempts = {
     listByCall: async () => attemptRows.map((row) => ({ ...row })),
+    // `createManyAndReturn` with `skipDuplicates`: the rows this insert won
+    // come back, a target already on the list does not.
     startMany: async (callId: string, targets: Row[]) => {
+      const inserted: Row[] = [];
       for (const target of targets)
-        if (!attemptRows.some((row) => row.userId === (target.userId ?? null)))
-          attemptRows.push({
+        if (
+          !attemptRows.some((row) => row.userId === (target.userId ?? null))
+        ) {
+          const row = {
             callId,
             userId: target.userId ?? null,
             sipDeviceId: target.sipDeviceId ?? null,
             status: "ringing",
-          });
-      return targets.length;
+          };
+          attemptRows.push(row);
+          inserted.push({ ...row });
+        }
+      return inserted;
     },
     markAnswered: async (_callId: string, userId: string | null) => {
       const row = attemptRows.find(
@@ -181,6 +189,21 @@ describe("InboundCallRouterService — ring groups", () => {
     // Three legs, one call. Nothing here creates a second Call row.
     assert.equal(s.attemptRows.length, 3);
     assert.ok(s.attemptRows.every((row) => row.callId === "call-1"));
+  });
+
+  it("does not ring the group twice when the webhook is redelivered", async () => {
+    const s = setup();
+    await s.route(GROUP);
+    const again = await s.route(GROUP);
+
+    // Still one leg per member, and nobody was rung a second time.
+    assert.deepEqual(again, { status: "ringing", targets: 3 });
+    assert.equal(s.attemptRows.length, 3);
+    assert.deepEqual(s.sent.sort(), ["edison", "juan", "pedro"]);
+    // And the replay is not read as "nobody was available", which would have
+    // cancelled the members who are ringing right now.
+    assert.deepEqual(s.cancelled, []);
+    assert.ok(s.attemptRows.every((row) => row.status === "ringing"));
   });
 
   it("gives the call to the first member who answers and cancels the rest", async () => {

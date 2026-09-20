@@ -175,6 +175,22 @@ describe("InboundRouteService", () => {
     );
   });
 
+  it("lists the workspace's routes and skips one whose number is gone", async () => {
+    const s = setup();
+    await s.service.saveForNumber(ADMIN, ringee, {
+      destinationType: InboundDestinationType.ring_group,
+      destinationId: "group-1",
+    });
+    s.state.route!.numberId = "number-r";
+
+    assert.equal((await s.service.list(ADMIN)).length, 1);
+
+    // Releasing a number soft-deletes it and leaves its route behind. That
+    // stale row is skipped; it must not take the whole list down with it.
+    s.state.number.deletedAt = new Date();
+    assert.deepEqual(await s.service.list(ADMIN), []);
+  });
+
   it("refuses a destination in another workspace", async () => {
     const s = setup();
     s.state.group = null;

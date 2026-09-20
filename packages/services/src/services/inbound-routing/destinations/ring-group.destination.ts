@@ -56,7 +56,10 @@ export class RingGroupDestinationHandler implements InboundDestinationHandler {
       },
     );
 
-    if (fanout.offered.length === 0) {
+    // A redelivered webhook offers the call to nobody new, which is not the
+    // same as nobody being available: the members it rang the first time are
+    // still ringing, and failing the call here would cancel them.
+    if (fanout.offered.length === 0 && fanout.alreadyRinging.length === 0) {
       await this.ring.cancelRinging(call, {
         reason: "ring_group_no_available_members",
         status: "failed",
@@ -69,9 +72,10 @@ export class RingGroupDestinationHandler implements InboundDestinationHandler {
       };
     }
 
+    const targets = fanout.offered.length + fanout.alreadyRinging.length;
     this.logger.log(
-      `📞 Ringing ${fanout.offered.length} member(s) of ${destination.name} for call ${call.id}`,
+      `📞 Ringing ${targets} member(s) of ${destination.name} for call ${call.id}`,
     );
-    return { status: "ringing", targets: fanout.offered.length };
+    return { status: "ringing", targets };
   }
 }

@@ -111,7 +111,7 @@ function setup() {
     },
   };
   const attempts = {
-    startMany: async () => 1,
+    startMany: async () => [],
     listByCall: async () => [],
     markAnswered: async () => true,
     endRinging: async () => [],

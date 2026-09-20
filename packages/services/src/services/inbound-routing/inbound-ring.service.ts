@@ -23,10 +23,12 @@ export interface RingOffer {
 }
 
 export interface RingFanout {
-  /** Members the call was offered to. */
+  /** Members this invocation offered the call to. */
   offered: RingOffer[];
   /** Members with nothing online to offer it to. */
   unreachable: string[];
+  /** Members an earlier delivery of the same webhook is already ringing. */
+  alreadyRinging: string[];
 }
 
 /** Outcome of a member trying to take an inbound call. */
@@ -69,6 +71,11 @@ export class InboundRingService {
    * Members are offered the call in parallel, never in sequence: simultaneous
    * ringing is the whole point, and awaiting one member's push before sending
    * the next would stagger the group by the slowest device.
+   *
+   * Only the members whose attempt row this call inserted are notified. A
+   * redelivered webhook therefore rings nobody a second time, and says so
+   * through `alreadyRinging` rather than through an empty fanout, which a
+   * caller would read as "nobody was available" and fail a live call over.
    */
   async offerToMembers(
     call: Call,
@@ -81,16 +88,24 @@ export class InboundRingService {
       ringSeconds: number;
     },
   ): Promise<RingFanout> {
-    await this.attempts.startMany(
+    const started = await this.attempts.startMany(
       call.id,
       userIds.map((userId) => ({ userId })),
     );
+    const fresh = new Set(
+      started
+        .map((attempt) => attempt.userId)
+        .filter((userId): userId is string => !!userId),
+    );
+    const alreadyRinging = userIds.filter((userId) => !fresh.has(userId));
 
     const results = await Promise.all(
-      userIds.map(async (userId) => {
-        const offer = await this.offerToMember(call, userId, context);
-        return { userId, offer };
-      }),
+      userIds
+        .filter((userId) => fresh.has(userId))
+        .map(async (userId) => {
+          const offer = await this.offerToMember(call, userId, context);
+          return { userId, offer };
+        }),
     );
 
     const offered = results
@@ -102,9 +117,13 @@ export class InboundRingService {
 
     if (unreachable.length)
       this.logger.log(
-        `Inbound call ${call.id}: ${unreachable.length} of ${userIds.length} members had nothing online`,
+        `Inbound call ${call.id}: ${unreachable.length} of ${results.length} members offered had nothing online`,
       );
-    return { offered, unreachable };
+    if (alreadyRinging.length)
+      this.logger.log(
+        `Inbound call ${call.id}: ${alreadyRinging.length} member(s) were already ringing from an earlier delivery`,
+      );
+    return { offered, unreachable, alreadyRinging };
   }
 
   private async offerToMember(

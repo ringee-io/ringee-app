@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -89,11 +90,15 @@ export class InboundRouteController {
   }
 }
 
+/**
+ * The kind decides which number model the id is looked up in, so an unknown
+ * one is rejected rather than read as a Ringee DID: coercing it would answer
+ * for a number the caller never named.
+ */
 function ref(numberKind: string, id: string): InboundNumberRef {
-  return {
-    kind: NUMBER_KINDS.includes(numberKind as NumberKind)
-      ? (numberKind as NumberKind)
-      : "ringee",
-    id,
-  };
+  if (!NUMBER_KINDS.includes(numberKind as NumberKind))
+    throw new BadRequestException(
+      `Unknown number kind. Expected one of: ${NUMBER_KINDS.join(", ")}.`,
+    );
+  return { kind: numberKind as NumberKind, id };
 }

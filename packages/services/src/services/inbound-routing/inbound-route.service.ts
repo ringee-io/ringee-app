@@ -84,18 +84,32 @@ export class InboundRouteService {
     private readonly router: InboundCallRouterService,
   ) {}
 
-  /** Every number in the workspace that has an explicit route. */
+  /**
+   * Every number in the workspace that has an explicit route.
+   *
+   * A route whose number is gone — released, or soft-deleted, which leaves the
+   * row behind — is skipped rather than allowed to fail the whole list. Any
+   * other error still propagates: a number that cannot be read is not the same
+   * as one that is not there.
+   */
   async list(ctx: OwnershipContext): Promise<InboundRouteView[]> {
     const routes = await this.routes.listByOwner(ctx);
-    return Promise.all(
+    const views = await Promise.all(
       routes.map(async (route) => {
         const ref: InboundNumberRef = route.numberId
           ? { kind: "ringee", id: route.numberId }
           : { kind: "external", id: route.externalNumberId! };
-        const number = await this.requireNumber(ctx, ref);
+        let number: OwnedNumber;
+        try {
+          number = await this.requireNumber(ctx, ref);
+        } catch (error) {
+          if (error instanceof NotFoundException) return null;
+          throw error;
+        }
         return this.view(ctx, ref, number, route);
       }),
     );
+    return views.filter((view): view is InboundRouteView => view !== null);
   }
 
   /** The route for one number, or the default it falls back to. */

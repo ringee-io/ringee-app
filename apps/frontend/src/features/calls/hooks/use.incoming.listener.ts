@@ -42,8 +42,10 @@ const digits = (value: string | null | undefined) =>
 export function useIncomingListener() {
   const api = useApi();
   const notification = useTelnyxStore((s) => s.notification);
-  /** Legs already decided on, so repeated `callUpdate`s decide once. */
+  /** Legs already put on screen, so repeated `callUpdate`s present once. */
   const decided = useRef(new Set<string>());
+  /** Legs being decided right now, so one leg is never asked about twice. */
+  const deciding = useRef(new Set<string>());
 
   useEffect(() => {
     if (!notification) return;
@@ -59,21 +61,32 @@ export function useIncomingListener() {
           options?.destinationNumber &&
           options.remoteCallerNumber !== options.destinationNumber));
 
-    if (!isIncoming || !call.id || decided.current.has(call.id)) return;
-    if (decided.current.size >= MAX_REMEMBERED_LEGS) decided.current.clear();
-    decided.current.add(call.id);
+    if (!isIncoming || !call.id) return;
+    if (decided.current.has(call.id) || deciding.current.has(call.id)) return;
+    deciding.current.add(call.id);
 
     void (async () => {
-      const ours = await isOursToPresent(api, call.id, {
-        to: options?.destinationNumber ?? '',
-        from: options?.remoteCallerNumber ?? ''
-      });
-      // The caller may have given up, or somebody else taken it, while we
-      // waited for the server to say whose call this is.
-      if (!ours) return;
-      if (!RINGING_STATES.includes(call.state))
-        return releaseInboundOffer(call.id);
-      useTelnyxStore.getState().enqueue(call);
+      try {
+        const ours = await isOursToPresent(api, call.id, {
+          to: options?.destinationNumber ?? '',
+          from: options?.remoteCallerNumber ?? ''
+        });
+        // Not ours — for now. The answer is only final for a leg that has
+        // stopped ringing: an offer that arrived late, or one that could not
+        // be told apart from another call's until that one was taken, is
+        // matched on the next `callUpdate` while the leg is still up. A leg
+        // that is genuinely somebody else's is simply asked about again and
+        // told no, which costs nothing and stops nothing.
+        if (!ours) return;
+        if (!RINGING_STATES.includes(call.state))
+          return releaseInboundOffer(call.id);
+        if (decided.current.size >= MAX_REMEMBERED_LEGS)
+          decided.current.clear();
+        decided.current.add(call.id);
+        useTelnyxStore.getState().enqueue(call);
+      } finally {
+        deciding.current.delete(call.id);
+      }
     })();
   }, [notification, api]);
 }
