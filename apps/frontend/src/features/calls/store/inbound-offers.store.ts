@@ -207,11 +207,15 @@ export function setInboundRealtimeConnected(connected: boolean): void {
  * another call to the same number is taken, still binds while the leg rings.
  * `isRinging` is read live — the provider updates the leg in place — on every
  * change to either store, so a leg that ended is never bound to an offer.
+ * Aborting `signal` ends the wait with `null` and binds nothing.
  */
 export function awaitInboundOffer(
   telnyxCallId: string,
   leg: { to: string; from: string; isRinging: () => boolean },
-  graceMs = INBOUND_OFFER_GRACE_MS
+  {
+    signal,
+    graceMs = INBOUND_OFFER_GRACE_MS
+  }: { signal?: AbortSignal; graceMs?: number } = {}
 ): Promise<InboundOffer | null> {
   const bind = (offer: InboundOffer | null) => {
     if (!offer) return null;
@@ -229,7 +233,7 @@ export function awaitInboundOffer(
       leg.from
     );
 
-  if (!leg.isRinging()) return Promise.resolve(null);
+  if (signal?.aborted || !leg.isRinging()) return Promise.resolve(null);
   const immediate = look();
   if (immediate) return Promise.resolve(bind(immediate));
 
@@ -239,8 +243,10 @@ export function awaitInboundOffer(
       clearTimeout(timer);
       stopOffers();
       stopLeg();
+      signal?.removeEventListener('abort', abandon);
       resolve(bind(offer));
     };
+    const abandon = () => settle(null);
     const check = () => {
       if (!leg.isRinging()) return settle(null);
       const found = look();
@@ -257,6 +263,7 @@ export function awaitInboundOffer(
     // Every provider notification lands in this store — the leg's own hangup
     // included — which is what ends the wait for a leg nobody named.
     const stopLeg = useTelnyxStore.subscribe(check);
+    signal?.addEventListener('abort', abandon, { once: true });
   });
 }
 

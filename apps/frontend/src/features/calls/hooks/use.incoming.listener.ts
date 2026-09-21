@@ -44,8 +44,24 @@ export function useIncomingListener() {
   const notification = useTelnyxStore((s) => s.notification);
   /** Legs already put on screen, so repeated `callUpdate`s present once. */
   const decided = useRef(new Set<string>());
-  /** Legs being decided right now, so one leg is never asked about twice. */
-  const deciding = useRef(new Set<string>());
+  /**
+   * Legs being decided right now, so one leg is never asked about twice, and
+   * the handle that abandons each.
+   */
+  const deciding = useRef(new Map<string, AbortController>());
+
+  // A match can wait for as long as its leg rings. A listener that is torn
+  // down — or rebuilt around another api client — abandons every match it
+  // started, so none of them can put an old call in the shared queue after it.
+  // Not the effect below: that one re-runs on every notification, and a
+  // ringing leg sends no further `callUpdate` to be asked about again on.
+  useEffect(() => {
+    const inFlight = deciding.current;
+    return () => {
+      for (const match of inFlight.values()) match.abort();
+      inFlight.clear();
+    };
+  }, [api]);
 
   useEffect(() => {
     if (!notification) return;
@@ -63,16 +79,24 @@ export function useIncomingListener() {
 
     if (!isIncoming || !call.id) return;
     if (decided.current.has(call.id) || deciding.current.has(call.id)) return;
-    deciding.current.add(call.id);
+    const match = new AbortController();
+    deciding.current.set(call.id, match);
 
     void (async () => {
       try {
-        const ours = await isOursToPresent(api, call.id, {
-          to: options?.destinationNumber ?? '',
-          from: options?.remoteCallerNumber ?? '',
-          // The provider updates the leg in place, so this is its live state.
-          isRinging: () => RINGING_STATES.includes(call.state)
-        });
+        const ours = await isOursToPresent(
+          api,
+          call.id,
+          {
+            to: options?.destinationNumber ?? '',
+            from: options?.remoteCallerNumber ?? '',
+            // The provider updates the leg in place, so this is its live state.
+            isRinging: () => RINGING_STATES.includes(call.state)
+          },
+          match.signal
+        );
+        // Abandoned while it waited: this listener no longer owns the queue.
+        if (match.signal.aborted) return;
         // Not ours. The wait lasts as long as the leg rings — a ringing leg
         // sends no further `callUpdate` to be asked about again on — so an
         // offer that arrived late, or one that could not be told apart from
@@ -86,7 +110,9 @@ export function useIncomingListener() {
         decided.current.add(call.id);
         useTelnyxStore.getState().enqueue(call);
       } finally {
-        deciding.current.delete(call.id);
+        // Only its own entry: a rebuilt listener may be deciding the leg anew.
+        if (deciding.current.get(call.id) === match)
+          deciding.current.delete(call.id);
       }
     })();
   }, [notification, api]);
@@ -95,15 +121,16 @@ export function useIncomingListener() {
 async function isOursToPresent(
   api: ApiClient,
   telnyxCallId: string,
-  leg: { to: string; from: string; isRinging: () => boolean }
+  leg: { to: string; from: string; isRinging: () => boolean },
+  signal: AbortSignal
 ): Promise<boolean> {
   if (isInboundRealtimeConnected()) {
-    const offer = await awaitInboundOffer(telnyxCallId, leg);
+    const offer = await awaitInboundOffer(telnyxCallId, leg, { signal });
     if (offer) return true;
     // Nothing came while the leg rang. With the channel still up that is
     // itself the answer: the server routed this call to somebody else. Only a
     // channel that dropped while we waited falls through to the legacy check.
-    if (isInboundRealtimeConnected()) return false;
+    if (signal.aborted || isInboundRealtimeConnected()) return false;
   }
   return ownsDialledNumber(api, leg.to);
 }
