@@ -471,6 +471,10 @@ log the routing reason without exposing credentials.
    migration process. Regenerate the Prisma client before building the backend.
    The routing migration is additive: every existing number has no `InboundRoute`
    and therefore keeps the behavior it has today (`NUM-009`).
+   Then run `packages/database/prisma/pending-migrations/20260920000100_inbound_routing_call_indexes.sql`
+   by hand with `psql`, statement by statement — never through Prisma. It builds
+   the three `Call` indexes `CONCURRENTLY` and adds their foreign keys `NOT VALID`
+   before validating them, so `Call` stays writable during live calls.
 2. Verify `DESK_PHONES_ENABLED`, `TELNYX_CALL_CONTROL_APP_ID`, `BACKEND_URL`,
    webhook signature verification and the shared signing secret across backend
    replicas. The Call Control application must be active, have a SIP subdomain,

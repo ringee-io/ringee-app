@@ -105,14 +105,14 @@ CREATE INDEX "InboundRingAttempt_callId_idx" ON "InboundRingAttempt"("callId");
 -- CreateIndex
 CREATE INDEX "InboundRingAttempt_userId_idx" ON "InboundRingAttempt"("userId");
 
--- CreateIndex
-CREATE INDEX "Call_inboundRouteId_idx" ON "Call"("inboundRouteId");
-
--- CreateIndex
-CREATE INDEX "Call_ringGroupId_idx" ON "Call"("ringGroupId");
-
--- CreateIndex
-CREATE INDEX "Call_answeredByUserId_idx" ON "Call"("answeredByUserId");
+-- The `Call` indexes and foreign keys for `inboundRouteId`, `ringGroupId` and
+-- `answeredByUserId` are deliberately NOT in this migration. Built here they
+-- would lock `Call` against writes — live call handling — for a full-table
+-- index build and FK validation, inside Prisma's transaction. They are applied
+-- after this migration, by hand, from
+-- prisma/pending-migrations/20260920000100_inbound_routing_call_indexes.sql
+-- (CREATE INDEX CONCURRENTLY, then FOREIGN KEY ... NOT VALID, then VALIDATE).
+-- Until that file has run, the database lags schema.prisma by exactly those six.
 
 -- A route belongs to exactly one number. Prisma cannot express this, but the
 -- routing layer reads `numberId` and `externalNumberId` as mutually exclusive
@@ -152,12 +152,3 @@ ALTER TABLE "InboundRingAttempt" ADD CONSTRAINT "InboundRingAttempt_userId_fkey"
 
 -- AddForeignKey
 ALTER TABLE "InboundRingAttempt" ADD CONSTRAINT "InboundRingAttempt_sipDeviceId_fkey" FOREIGN KEY ("sipDeviceId") REFERENCES "SipDevice"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Call" ADD CONSTRAINT "Call_inboundRouteId_fkey" FOREIGN KEY ("inboundRouteId") REFERENCES "InboundRoute"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Call" ADD CONSTRAINT "Call_ringGroupId_fkey" FOREIGN KEY ("ringGroupId") REFERENCES "RingGroup"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "Call" ADD CONSTRAINT "Call_answeredByUserId_fkey" FOREIGN KEY ("answeredByUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;

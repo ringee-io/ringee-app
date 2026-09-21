@@ -12,12 +12,11 @@
 -- then VALIDATE does the same work while calls keep flowing.
 --
 -- Order:
---   1. Remove the three `Call` CREATE INDEX statements and the three
---      `ALTER TABLE "Call" ADD CONSTRAINT ... FOREIGN KEY` statements from
---      20260920000000_inbound_routing/migration.sql.
---   2. Apply that migration (ADD COLUMN on nullable columns is metadata-only,
---      the new tables are empty — it is fast).
---   3. Run this file, statement by statement.
+--   1. Apply 20260920000000_inbound_routing (ADD COLUMN on nullable columns is
+--      metadata-only, the new tables are empty — it is fast). It already leaves
+--      out the three `Call` indexes and foreign keys below.
+--   2. Run this file, statement by statement. Sections 1 and 2 can follow the
+--      migration immediately; section 3 can wait for an off-peak window.
 --
 -- A CONCURRENTLY build that fails leaves an INVALID index behind. Find it with
 --   SELECT indexrelid::regclass FROM pg_index WHERE NOT indisvalid;
