@@ -272,6 +272,19 @@ describe("InboundCallRouterService — ring groups", () => {
     assert.ok(s.attemptRows.every((row) => row.status === "failed"));
   });
 
+  it("fails a redelivery of a group that already failed, instead of reporting it ringing", async () => {
+    const s = setup({ online: [] });
+    await s.route(GROUP);
+    const again = await s.route(GROUP);
+
+    // The members' attempts ended as failed. They are neither rung again nor
+    // counted as ringing, so the call is failed — and hung up — once more.
+    assert.equal(again.status, "failed");
+    assert.equal(s.attemptRows.length, 3);
+    assert.deepEqual(s.sent, []);
+    assert.ok(s.attemptRows.every((row) => row.status === "failed"));
+  });
+
   it("stops ringing when the caller's leg disconnects", async () => {
     const s = setup();
     await s.route(GROUP);

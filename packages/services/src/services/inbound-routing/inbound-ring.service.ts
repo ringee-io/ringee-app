@@ -97,7 +97,21 @@ export class InboundRingService {
         .map((attempt) => attempt.userId)
         .filter((userId): userId is string => !!userId),
     );
-    const alreadyRinging = userIds.filter((userId) => !fresh.has(userId));
+    // A duplicate is only "already ringing" while its attempt still is. One
+    // that ended — failed, cancelled, answered — stays ended: counting it
+    // would report a group nobody is ringing as ringing, and a redelivery
+    // after the group failed would never fail the call again.
+    const duplicates = userIds.filter((userId) => !fresh.has(userId));
+    const ringing = duplicates.length
+      ? new Set(
+          (await this.attempts.listByCall(call.id))
+            .filter(
+              (attempt) => attempt.status === InboundRingAttemptStatus.ringing,
+            )
+            .map((attempt) => attempt.userId),
+        )
+      : new Set<string | null>();
+    const alreadyRinging = duplicates.filter((userId) => ringing.has(userId));
 
     const results = await Promise.all(
       userIds

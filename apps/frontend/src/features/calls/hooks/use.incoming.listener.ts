@@ -69,14 +69,15 @@ export function useIncomingListener() {
       try {
         const ours = await isOursToPresent(api, call.id, {
           to: options?.destinationNumber ?? '',
-          from: options?.remoteCallerNumber ?? ''
+          from: options?.remoteCallerNumber ?? '',
+          // The provider updates the leg in place, so this is its live state.
+          isRinging: () => RINGING_STATES.includes(call.state)
         });
-        // Not ours — for now. The answer is only final for a leg that has
-        // stopped ringing: an offer that arrived late, or one that could not
-        // be told apart from another call's until that one was taken, is
-        // matched on the next `callUpdate` while the leg is still up. A leg
-        // that is genuinely somebody else's is simply asked about again and
-        // told no, which costs nothing and stops nothing.
+        // Not ours. The wait lasts as long as the leg rings — a ringing leg
+        // sends no further `callUpdate` to be asked about again on — so an
+        // offer that arrived late, or one that could not be told apart from
+        // another call's until that one was taken, has already been matched.
+        // What gets here unmatched is over, or somebody else's.
         if (!ours) return;
         if (!RINGING_STATES.includes(call.state))
           return releaseInboundOffer(call.id);
@@ -94,14 +95,14 @@ export function useIncomingListener() {
 async function isOursToPresent(
   api: ApiClient,
   telnyxCallId: string,
-  leg: { to: string; from: string }
+  leg: { to: string; from: string; isRinging: () => boolean }
 ): Promise<boolean> {
   if (isInboundRealtimeConnected()) {
     const offer = await awaitInboundOffer(telnyxCallId, leg);
     if (offer) return true;
-    // Nothing came. With the channel still up that is itself the answer: the
-    // server routed this call to somebody else. Only a channel that dropped
-    // while we waited falls through to the legacy check.
+    // Nothing came while the leg rang. With the channel still up that is
+    // itself the answer: the server routed this call to somebody else. Only a
+    // channel that dropped while we waited falls through to the legacy check.
     if (isInboundRealtimeConnected()) return false;
   }
   return ownsDialledNumber(api, leg.to);

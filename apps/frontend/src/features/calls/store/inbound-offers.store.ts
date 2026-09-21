@@ -8,14 +8,14 @@ import type {
 import { useTelnyxStore } from './telnyx.store';
 
 /**
- * How long a freshly arrived SIP offer waits for the server to name its
- * recipient before it is given up on.
+ * How long a freshly arrived SIP leg waits on a realtime channel that is down
+ * before it falls back to the number check.
  *
  * The provider forks the INVITE the moment the call reaches the connection,
  * while `call.inbound.ringing` only goes out once the webhook has created the
  * call row and resolved its route — so the leg almost always arrives first.
- * The window is generous compared with that work and small compared with the
- * shortest ring (`USER_RING_SECONDS` is 45s), so a slow backend rings late
+ * With the channel up there is no deadline at all: the leg stays matchable for
+ * as long as it rings, so a slow backend — or a retried webhook — rings late
  * rather than not at all.
  */
 export const INBOUND_OFFER_GRACE_MS = 8_000;
@@ -198,13 +198,20 @@ export function setInboundRealtimeConnected(connected: boolean): void {
  * Wait for the server to say this SIP leg is ours, and bind the two together.
  *
  * Resolves with the offer — already bound to `telnyxCallId`, so two legs can
- * never be handed the same one — or with `null` when the window closes without
- * the call being named for this user.
+ * never be handed the same one — or with `null` once the leg stops ringing
+ * without the call being named for this user, or once the grace window has
+ * passed with the realtime channel down.
+ *
+ * The wait is not a fixed window because the answer is not final until the leg
+ * is: an offer that arrives late, or that only stops being ambiguous when
+ * another call to the same number is taken, still binds while the leg rings.
+ * `isRinging` is read live — the provider updates the leg in place — on every
+ * change to either store, so a leg that ended is never bound to an offer.
  */
 export function awaitInboundOffer(
   telnyxCallId: string,
-  leg: { to: string; from: string },
-  timeoutMs = INBOUND_OFFER_GRACE_MS
+  leg: { to: string; from: string; isRinging: () => boolean },
+  graceMs = INBOUND_OFFER_GRACE_MS
 ): Promise<InboundOffer | null> {
   const bind = (offer: InboundOffer | null) => {
     if (!offer) return null;
@@ -222,20 +229,34 @@ export function awaitInboundOffer(
       leg.from
     );
 
+  if (!leg.isRinging()) return Promise.resolve(null);
   const immediate = look();
   if (immediate) return Promise.resolve(bind(immediate));
 
   return new Promise((resolve) => {
+    let graceOver = false;
     const settle = (offer: InboundOffer | null) => {
       clearTimeout(timer);
-      unsubscribe();
+      stopOffers();
+      stopLeg();
       resolve(bind(offer));
     };
-    const timer = setTimeout(() => settle(null), timeoutMs);
-    const unsubscribe = useInboundOffersStore.subscribe(() => {
+    const check = () => {
+      if (!leg.isRinging()) return settle(null);
       const found = look();
-      if (found) settle(found);
-    });
+      if (found) return settle(found);
+      // Only a channel that is down can no longer deliver the offer; the
+      // caller falls back to the number check for it.
+      if (graceOver && !isInboundRealtimeConnected()) settle(null);
+    };
+    const timer = setTimeout(() => {
+      graceOver = true;
+      check();
+    }, graceMs);
+    const stopOffers = useInboundOffersStore.subscribe(check);
+    // Every provider notification lands in this store — the leg's own hangup
+    // included — which is what ends the wait for a leg nobody named.
+    const stopLeg = useTelnyxStore.subscribe(check);
   });
 }
 
